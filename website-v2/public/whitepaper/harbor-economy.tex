@@ -33,9 +33,6 @@
 % ─── Colors (the hh-* harbor palette, shared across the volume) ───────────────
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
-\definecolor{darkgreen}{RGB}{0,100,0}
-\definecolor{darkblue}{RGB}{0,50,100}
-\definecolor{accent}{RGB}{0,128,128}
 \definecolor{hhsand}{HTML}{E9DCC4}
 \definecolor{hhsanddeep}{HTML}{D4C5A9}
 \definecolor{hhebony}{HTML}{1E1B18}
@@ -44,57 +41,62 @@
 \definecolor{hhbrass}{HTML}{B08D57}
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhgray}{HTML}{6B6B6B}
 
 % ─── Maturity markers (honest self-grading of every claim) ────────────────────
-% One key, used in the header and everywhere a claim is graded. The labels are
-% deliberately neutral engineering-maturity terms, not project-internal jargon.
-\newcommand{\Built}{{\textcolor{hhpatina}{\textbf{\textsf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\Designed}{{\textcolor{darkblue}{\textbf{\textsf{specified}}}}}
-\newcommand{\Vision}{{\textcolor{hhcinnabar}{\textbf{\textsf{proposed}}}}}
+% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
+% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
 
 % Verification-status markers (for the open-problem / status tables).
-\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\Open}{{\textcolor{hhcinnabar}{\textbf{\textsf{open}}}}}
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
 
 % ─── Pull-quote sidebar: large quote, left-edge accent stripe. ────────────────
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!40,line width=0pt,
+    \node[draw=none,fill=hhsand!22,line width=0pt,
           inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
           align=left] (q) {%
-      \sffamily\itshape\large #1%
+      \itshape\large #1%
     };
     \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
 % ─── Teaching callouts: \keyidea{} and \pitfall{} (the pedagogic idiom) ────────
+% Quiet: thin left rule + subtle sand fill, small-caps muted-ink label.
 \newcommand{\keyidea}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhpatina,line width=1.2pt,fill=hhpatina!12,rounded corners=3pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (k) {%
-      \small\textbf{\sffamily\textcolor{hhpatina}{Key idea.}}\enspace #1%
+      \small{\scshape\bfseries\textcolor{hhgray}{Key idea.}}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
+% Pitfall accents its LABEL only.
 \newcommand{\pitfall}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhcinnabar,line width=1.2pt,fill=hhcinnabar!8,rounded corners=3pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (p) {%
-      \small\textbf{\sffamily\textcolor{hhcinnabar}{Pitfall.}}\enspace #1%
+      \small{\scshape\bfseries\textcolor{hhcinnabar}{Pitfall.}}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
 % ─── Companion-paper / cross-reference box ────────────────────────────────────
 \newcommand{\xrefbox}[1]{%
   \vspace{4pt}\noindent\begin{tikzpicture}
-  \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!18,rounded corners=2pt,
         inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{%
     \small #1};
   \end{tikzpicture}\vspace{4pt}%
@@ -103,7 +105,7 @@
 % ─── Exercises environment (the pedagogic block) ──────────────────────────────
 \newenvironment{exercises}{%
   \par\vspace{8pt}\noindent
-  {\sffamily\bfseries\textcolor{hhebony}{\rule[-1pt]{2.5pt}{11pt}\enspace Exercises}}
+  {\scshape\bfseries\textcolor{hhink}{\textcolor{hhgray!70}{\rule[-1pt]{2.5pt}{11pt}}\enspace Exercises}}
   \par\nobreak\vspace{2pt}
   \begin{enumerate}[label=\textbf{E\arabic*.},leftmargin=2.6em,itemsep=2pt,topsep=2pt]
 }{%
@@ -118,9 +120,9 @@
   frame=single,
   rulecolor=\color{codeframe},
   basicstyle=\ttfamily\small,
-  keywordstyle=\color{darkblue}\bfseries,
-  commentstyle=\color{darkgreen}\itshape,
-  stringstyle=\color{accent},
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
   numbers=left,
   numberstyle=\tiny\color{gray},
   numbersep=8pt,
@@ -153,9 +155,9 @@
 % ─── Header/Footer ────────────────────────────────────────────────────────────
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{The Harbor Economy}}
-\fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy --- Harbor Volume, Paper 4 (L3) --- pre-release}
+\fancyhead[L]{\small\itshape\color{hhgray} The Harbor Economy}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 4 of 4 \textperiodcentered\ pre-release}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -233,9 +235,9 @@ cryptographic hop-bound authorization chain it rides on is proven in Paper~2
 
 % ─── Maturity key (in the header region, per house style) ─────────────────────
 \noindent\begin{tikzpicture}
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
+\node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{%
-  \small\textbf{\sffamily Maturity key (honest self-grading).}\enspace
+  \small{\scshape\bfseries Maturity key (honest self-grading).}\enspace
   Every claim in this paper carries one of four maturity labels, so the reader
   always knows whether a sentence reports running code or a designed target.
   \Built{} --- shipped and exercised by tests in the reference implementation.
@@ -313,7 +315,7 @@ Harbor~$C$ and sells a licensed lint-and-type skill. \textbf{Judy} is a human
 grader who arbitrates disputes for a bond. The two harbors do \emph{not} trust each
 other and neither is a root of authority for the other; that distrust is the entire
 reason the rest of the paper exists. We price everything in an abstract unit, the
-\emph{credit} (\textsf{cr}); read it as a stablecoin cent if you like.}
+\emph{credit} (\textsc{cr}); read it as a stablecoin cent if you like.}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The thesis: a market, not a payment rail}\label{sec:thesis}
@@ -433,20 +435,20 @@ identity is durable.
 \paragraph{The same trade, run three ways (the running example).} Bob needs a
 $1{,}200$-line module refactored. He can buy it on any of the three sides, and the
 side determines who is privately informed and who is exposed.
-\emph{Side~1 (labor).} Bob posts a float plan with a $400$\,\textsf{cr} bounty;
+\emph{Side~1 (labor).} Bob posts a float plan with a $400$\,\textsc{cr} bounty;
 Alice takes it as a firm. She dispatches three of her own agents, posts a
-$60$\,\textsf{cr} sub-bond per agent ($180$\,\textsf{cr} total), and keeps
+$60$\,\textsc{cr} sub-bond per agent ($180$\,\textsc{cr} total), and keeps
 $400 - (\text{slashed sub-bonds}) - \text{fee}$. If one of her three agents botches
-its slice and is slashed $60$\,\textsf{cr}, Alice eats that loss --- she internalized
+its slice and is slashed $60$\,\textsc{cr}, Alice eats that loss --- she internalized
 her fleet's risk, which is exactly what makes her accountable as a firm.
 \emph{Side~2 (capital).} Instead Bob rents Alice's specialist $a_2$ directly for an
-afternoon at $90$\,\textsf{cr}. Now there are three parties: Bob (poster), Alice
+afternoon at $90$\,\textsc{cr}. Now there are three parties: Bob (poster), Alice
 (owner, privately knows $a_2$'s true quality), and $a_2$ (worker). Bob holds the
 runtime control of $a_2$ while it runs on his repository; Alice's exposure is purely
 reputational --- if $a_2$ underperforms, $a_2$'s public score falls, which is
 Alice's asset depreciating.
 \emph{Side~3 (IP).} Carol never touches Bob's repository at all; she licenses her
-lint-and-type skill into Bob's float plan at $0.5$\,\textsf{cr} per file, metered,
+lint-and-type skill into Bob's float plan at $0.5$\,\textsc{cr} per file, metered,
 released to Carol \emph{only on green settlement}. Carol is privately informed about
 her skill's quality; Bob cannot inspect it before he runs it. Three sides, one
 refactor, three different ``who knows what'' structures --- and, as the next section
@@ -609,13 +611,13 @@ grade}.}
 \end{table}
 
 \paragraph{A settlement, dramatized.} Bob posts the refactor float plan: bounty
-$400$\,\textsf{cr}, worker bond $100$\,\textsf{cr}, acceptance criteria = ``the
+$400$\,\textsc{cr}, worker bond $100$\,\textsc{cr}, acceptance criteria = ``the
 module's test suite passes and the diff merges.'' Alice's agent $a_2$ takes it.
 Before $a_2$ runs, the wallet shows $\text{escrow}=500$ (\,$400$ bounty $+\,100$
 bond, both pinned\,). $a_2$ finishes $40\%$ of the evidence chain --- it refactored
 two of the five files cleanly, then ran out of budget. The oracle reads the test
 ids and the merge state and returns \textbf{Partial}. Funds move: $a_2$ earns
-$40\% \times 100 = 40$\,\textsf{cr} of its bond pro-rata; the remaining $60$ of the
+$40\% \times 100 = 40$\,\textsc{cr} of its bond pro-rata; the remaining $60$ of the
 bond goes to the salvage fund; the $400$ bounty, never earned, returns to Bob's
 wallet. Conservation check: before, $\text{wallet}_{\text{Bob}}$ was down $500$ and
 $\text{escrow}=500$; after, Bob is refunded $400$, $a_2$'s wallet is up $40$, the
@@ -626,7 +628,7 @@ is unchanged. No value was created or destroyed; it only moved.
 \item Trace the flow of funds for a \textbf{Partial} settlement where the worker
   completed 40\% of the evidence chain. Confirm Property~\ref{prop:conservation}
   holds across the split (the dramatization above is one such trace; redo it for a
-  bond of $250$\,\textsf{cr} and $70\%$ completion).
+  bond of $250$\,\textsc{cr} and $70\%$ completion).
 \item Why does closure bind to an oracle rather than a self-reported note? Name the
   attack a free-text ``Result:'' note enables.
 \item \openstar The four states assume the acceptance criteria were \emph{right}.
@@ -1113,11 +1115,11 @@ family-exclude) follows \textbf{Zheng et al.}~2023~\cite{zheng2023}.
 \paragraph{A captured judge, dramatized.} Bob disputes a settlement: he claims
 Alice's $a_2$ delivered an ``untasteful'' refactor. Taste is not machine-checkable,
 so Fix~B applies: Judy, a human grader, is drawn to arbitrate. Judy posts a
-$50$\,\textsf{cr} judge-bond and rules \emph{for Bob}. But Judy and Bob are
+$50$\,\textsc{cr} judge-bond and rules \emph{for Bob}. But Judy and Bob are
 colluding --- Judy is a captured judge, the exact failure
 Theorem~\ref{thm:folk} warns of. The market's defense is the re-audit lane: a
 sampled second panel later reviews Judy's ruling against the preserved evidence,
-finds it indefensible, and \emph{contradicts} it. Judy's $50$\,\textsf{cr} bond is
+finds it indefensible, and \emph{contradicts} it. Judy's $50$\,\textsc{cr} bond is
 slashed and her judge-reputation takes a tombstone; Alice is made whole. The signal
 became exogenous again not because Judy was honest but because lying was bonded and
 the re-audit made it expensive --- and the recursion stops at the second panel,
@@ -1233,7 +1235,7 @@ equivocation/convergence race, and the cross-harbor unit-of-account --- are the
 \emph{same} problem in different clothes.
 
 \begin{conjecture}[The gluing obstruction]\label{conj:sheaf}
-Consider the assignment $\textsf{harbor}\mapsto\textsf{its ledger}$. Federation
+Consider the assignment $\mathrm{harbor}\mapsto\mathrm{its\ ledger}$. Federation
 succeeds iff this assignment forms a \emph{sheaf}: local sections (per-harbor
 ledgers) glue to a unique global section (federated state) exactly when they agree
 on overlaps (cross-harbor conservation). The double-spend / equivocation race is the

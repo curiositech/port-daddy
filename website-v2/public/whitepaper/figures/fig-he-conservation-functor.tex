@@ -11,57 +11,57 @@
 \centering
 \resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   cat/.style={draw=hhebony,thick,rounded corners=4pt,inner sep=6pt,
               minimum width=64mm,minimum height=44mm},
-  obj/.style={draw=hhebony,thick,fill=hhsand!60,circle,inner sep=1.5pt,
-              minimum size=8mm,font=\sffamily\scriptsize},
+  obj/.style={draw=hhebony,thick,fill=hhsand!30,circle,inner sep=1.5pt,
+              minimum size=8mm,font=\scriptsize},
   fmap/.style={->,>=Latex,line width=1.4pt,draw=hhcinnabar},
   mor/.style={->,>=Latex,thick,draw=hhebony},
 ]
 
 % ─── LEFT: single-unit-of-account federation = conservative functor ────
-\node[cat,fill=hhpatina!12,label={[font=\sffamily\bfseries\footnotesize]north:
+\node[cat,fill=hhsand!30,label={[font=\bfseries\footnotesize]north:
   Single unit of account}] (left) at (0,0) {};
 \node[obj] (h1) at (-12mm,8mm) {$H_1$};
 \node[obj] (h2) at (12mm,8mm)  {$H_2$};
 \node[obj] (fed) at (0,-10mm)  {$F$};
-\draw[mor] (h1) -- node[above,font=\sffamily\scriptsize]{$\mathit{xfer}$} (h2);
+\draw[mor] (h1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (h2);
 \draw[mor] (h1) -- (fed);
 \draw[mor] (h2) -- (fed);
-\node[font=\sffamily\scriptsize\itshape,below=1mm of fed,text=hhpatina,
+\node[font=\scriptsize\itshape,below=1mm of fed,text=hhink,
       text width=58mm,align=center]
   {$F(g\circ f)=F(g)\circ F(f)$\\ conservation \emph{preserved} (proven)};
 
 % ─── RIGHT: multi-currency = lax functor, bounded by phi ───────────────
-\node[cat,fill=hhcinnabar!8,right=34mm of left,
-  label={[font=\sffamily\bfseries\footnotesize]north:
+\node[cat,fill=hhsand!30,right=34mm of left,
+  label={[font=\bfseries\footnotesize]north:
   Multi-currency / non-fungible}] (right) {};
 \node[obj] (g1) at ($(right.center)+(-12mm,8mm)$) {$H_1$};
 \node[obj] (g2) at ($(right.center)+(12mm,8mm)$)  {$H_2$};
 \node[obj] (gfed) at ($(right.center)+(0,-10mm)$) {$F$};
-\draw[mor] (g1) -- node[above,font=\sffamily\scriptsize]{$\mathit{xfer}$} (g2);
+\draw[mor] (g1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (g2);
 \draw[mor] (g1) -- (gfed);
 \draw[mor] (g2) -- (gfed);
 % the coherence 2-cell, bounded by phi
 \node[draw=hhcinnabar,thick,fill=hhpaper,circle,inner sep=1pt,
-      font=\sffamily\scriptsize,minimum size=6mm] (cell)
+      font=\scriptsize,minimum size=6mm] (cell)
       at ($(right.center)+(0,1mm)$) {$\varphi$};
-\node[font=\sffamily\scriptsize\itshape,below=1mm of gfed,text=hhcinnabar,
+\node[font=\scriptsize\itshape,below=1mm of gfed,text=hhink,
       text width=58mm,align=center]
   {$F(g\circ f)\;\overset{\varphi}{\Rightarrow}\;F(g)\circ F(f)$\\
    \emph{lax}: preserved only up to escrow-slack $\varphi$; coherence \emph{unproven}};
 
 % ─── The functor arrow between the worlds ──────────────────────────────
-\draw[fmap] (left.east) -- node[above,font=\sffamily\bfseries\footnotesize]
+\draw[fmap] (left.east) -- node[above,font=\bfseries\footnotesize]
   {as units diverge} ($(right.west)$);
 
 % ─── The unified open problem banner ───────────────────────────────────
-\node[draw=hhebony,thick,fill=hhsanddeep!50,rounded corners=2pt,inner sep=5pt,
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
       text width=150mm,align=center,below=10mm of left,xshift=49mm,
-      font=\sffamily\footnotesize] (sheaf)
-  {\textbf{One question, three guises.} ``Does the assignment $\textsf{harbor}
-   \mapsto \textsf{its ledger}$ form a \emph{sheaf}?'' \;
+      font=\footnotesize] (sheaf)
+  {\textbf{One question, three guises.} ``Does the assignment $harbor
+   \mapsto its ledger$ form a \emph{sheaf}?'' \;
    The double-spend / equivocation race is the \textbf{non-vanishing of $H^1$ of
    the gluing}. Open Problems on cross-harbor settlement, equivocation, and
    unit-of-account are the \emph{same} obstruction (\S\ref{sec:sheaf}).};

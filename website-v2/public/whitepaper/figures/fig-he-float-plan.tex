@@ -11,14 +11,14 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
                inner sep=4pt,minimum width=30mm,
-               font=\sffamily\bfseries\small,align=center},
+               font=\bfseries\small,align=center},
   msg/.style={->,>=Latex,thick,draw=hhebony},
-  note/.style={font=\sffamily\scriptsize\itshape,text width=52mm,align=left},
-  inv/.style={draw=hhpatina,thick,fill=hhpatina!12,rounded corners=2pt,
-              inner sep=4pt,font=\sffamily\scriptsize,text width=58mm,align=left},
+  note/.style={font=\scriptsize\itshape,text width=52mm,align=left},
+  inv/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
+              inner sep=4pt,font=\scriptsize,text width=58mm,align=left},
 ]
 
 % three lanes
@@ -31,21 +31,21 @@
 }
 
 % (1) requester signs FloatPlan
-\draw[msg] ($(R.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]
+\draw[msg] ($(R.south)+(0,-6mm)$) -- node[above,font=\scriptsize]
   {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} ($(D.south)+(0,-6mm)$);
 \node[note,right=8mm of W,yshift=-7mm,text width=46mm]
   {\textbf{(1)} $R$ signs a FloatPlan: task $+$ machine-checkable acceptance
    criteria $+$ compute budget $+$ credit bounty.};
 
 % (2) daemon debits + escrows in EXCLUSIVE txn
-\node[draw=hhebony,thick,fill=hhsand!50,rounded corners=2pt,inner sep=3pt,
-      font=\sffamily\scriptsize,text width=40mm,align=center]
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=3pt,
+      font=\scriptsize,text width=40mm,align=center]
       at ($(D.south)+(0,-24mm)$) (txn)
   {\textbf{(2)} \texttt{BEGIN EXCLUSIVE}\\ debit wallet $\to$ escrow row\\
    \texttt{COMMIT}};
 
 % (3) daemon signs anchor + plan hash, proving funds locked
-\draw[msg] ($(D.south)+(0,-38mm)$) -- node[above,font=\sffamily\scriptsize]
+\draw[msg] ($(D.south)+(0,-38mm)$) -- node[above,font=\scriptsize]
   {$\mathsf{sign}_{D}\{\textit{anchor id},\,\textit{plan hash}\}$} ($(W.south)+(0,-38mm)$);
 \node[note,right=2mm of W,yshift=-39mm]
   {\textbf{(3)} The daemon proves to $W$ that funds are locked

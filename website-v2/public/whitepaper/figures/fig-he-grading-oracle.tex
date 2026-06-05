@@ -11,14 +11,14 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  box/.style={draw=hhebony,thick,fill=hhsand!55,rounded corners=3pt,
+  font=\small,
+  box/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
               inner sep=5pt,text width=36mm,align=center,minimum height=15mm},
-  oracle/.style={draw=hhcinnabar,line width=1.4pt,fill=hhcinnabar!10,
+  oracle/.style={draw=hhcinnabar,line width=1.4pt,fill=hhsand!30,
                  rounded corners=3pt,inner sep=5pt,text width=40mm,
                  align=center,minimum height=18mm},
-  fix/.style={draw=hhpatina,thick,fill=hhpatina!15,rounded corners=3pt,
-              inner sep=4pt,text width=40mm,align=center,font=\sffamily\scriptsize},
+  fix/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=3pt,
+              inner sep=4pt,text width=40mm,align=center,font=\scriptsize},
   flow/.style={->,>=Latex,thick,draw=hhebony},
 ]
 
@@ -30,16 +30,16 @@
   \footnotesize claim-signaling, slash-on-breach};
 
 \draw[flow] (agent) -- (grade);
-\draw[flow] (grade) -- node[above,font=\sffamily\scriptsize]{public signal} (folk);
+\draw[flow] (grade) -- node[above,font=\scriptsize]{public signal} (folk);
 
 % the capture attack
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      font=\sffamily\scriptsize\itshape,text=hhcinnabar,text width=44mm,
+      font=\scriptsize\itshape,text=hhink,text width=44mm,
       align=center,above=8mm of grade] (capture)
   {\textbf{but the grade is produced by a capturable evaluator}\\
    (an adversarial reviewer or a ``neutral judge'')};
 \draw[->,>=Latex,thick,hhcinnabar] (capture) -- (grade);
-\node[font=\sffamily\scriptsize\itshape,text=hhcinnabar,below=1mm of folk,
+\node[font=\scriptsize\itshape,text=hhink,below=1mm of folk,
       text width=42mm,align=center]
   {Green--Porter / APS: the folk theorem needs the signal distribution
    \emph{exogenous}. A strategic grader breaks it.};

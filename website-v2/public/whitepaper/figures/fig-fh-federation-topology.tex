@@ -14,23 +14,23 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   harbor/.style={draw=hhebony,thick,rounded corners=4pt,
-                 fill=hhsand!50,inner sep=8pt,minimum width=46mm,
+                 fill=hhsand!30,inner sep=8pt,minimum width=46mm,
                  minimum height=28mm,align=center},
   harborlbl/.style={draw=hhebony,thick,fill=hhpaper,
-                    rounded corners=2pt,font=\sffamily\bfseries\small,
+                    rounded corners=2pt,font=\bfseries\small,
                     inner sep=3pt},
-  witness/.style={draw=hhpatina,very thick,fill=hhpaper,
+  witness/.style={draw=hhink,very thick,fill=hhpaper,
                   rounded corners=3pt,inner sep=6pt,
                   minimum width=70mm,minimum height=16mm,align=center},
   escrow/.style={draw=hhcinnabar,thick,fill=hhpaper,
                  rounded corners=3pt,inner sep=6pt,
                  minimum width=46mm,minimum height=16mm,align=center,
-                 font=\sffamily\small},
-  agentdot/.style={circle,draw=hhebony,fill=hhsanddeep,inner sep=1.5pt},
+                 font=\small},
+  agentdot/.style={circle,draw=hhebony,fill=hhsand!30,inner sep=1.5pt},
   edge/.style={->,>=Latex,thick,draw=hhebony},
-  gossipedge/.style={->,>=Latex,thick,draw=hhpatina,dashed},
+  gossipedge/.style={->,>=Latex,thick,draw=hhink,dashed},
   settledge/.style={->,>=Latex,thick,draw=hhcinnabar},
 ]
 
@@ -44,7 +44,7 @@
 \node[agentdot] at ($(HA.south west)+(8mm,7mm)$) {};
 \node[agentdot] at ($(HA.south)+(0,7mm)$) {};
 \node[agentdot] at ($(HA.south east)+(-8mm,7mm)$) {};
-\node[font=\sffamily\scriptsize\itshape,below=1pt of HA.south,yshift=4mm] {agents under $A$};
+\node[font=\scriptsize\itshape,below=1pt of HA.south,yshift=4mm] {agents under $A$};
 
 \node[harbor,right=44mm of HA] (HB) {%
   \textbf{Harbor $B$}\\[2pt]
@@ -53,7 +53,7 @@
   };
 \node[agentdot] at ($(HB.south west)+(8mm,7mm)$) {};
 \node[agentdot] at ($(HB.south)+(0,7mm)$) {};
-\node[font=\sffamily\scriptsize\itshape,below=1pt of HB.south,yshift=4mm] {agents under $B$};
+\node[font=\scriptsize\itshape,below=1pt of HB.south,yshift=4mm] {agents under $B$};
 
 % ─── Witness log above ─────────────────────────────────────────────
 \node[witness,above=14mm of $(HA)!0.5!(HB)$] (W) {%
@@ -66,21 +66,21 @@
   \footnotesize bounded: can refuse, cannot redirect};
 
 % ─── Edges: harbors publish roots up; witness gossips; settlement closes ─
-\draw[edge] (HA.north) -- node[font=\sffamily\scriptsize\itshape,above,sloped,xshift=-3mm]{publish $R_A^{(e)}$} (W.south west);
-\draw[edge] (HB.north) -- node[font=\sffamily\scriptsize\itshape,above,sloped,xshift=3mm]{publish $R_B^{(e)}$} (W.south east);
+\draw[edge] (HA.north) -- node[font=\scriptsize\itshape,above,sloped,xshift=-3mm]{publish $R_A^{(e)}$} (W.south west);
+\draw[edge] (HB.north) -- node[font=\scriptsize\itshape,above,sloped,xshift=3mm]{publish $R_B^{(e)}$} (W.south east);
 \draw[gossipedge] (HA.east) to[bend left=12]
-  node[font=\sffamily\scriptsize\itshape,above,midway]{revocation gossip $\Delta$}
+  node[font=\scriptsize\itshape,above,midway]{revocation gossip $\Delta$}
   (HB.west);
 \draw[settledge] (HA.south) to[bend right=14]
-  node[font=\sffamily\scriptsize\itshape,below,sloped,midway]{bond posted at $A$}
+  node[font=\scriptsize\itshape,below,sloped,midway]{bond posted at $A$}
   (E.north west);
 \draw[settledge] (E.north east) to[bend right=14]
-  node[font=\sffamily\scriptsize\itshape,below,sloped,midway]{damage measured at $B$}
+  node[font=\scriptsize\itshape,below,sloped,midway]{damage measured at $B$}
   (HB.south);
 
 % ─── Margin annotation: capability transfer ──────────────────────────
-\draw[->,>=Latex,thick,draw=hhbrass] (HA.east) to[bend left=0]
-  node[font=\sffamily\scriptsize\itshape,above,midway,yshift=-1mm,fill=hhpaper,inner sep=1pt]{$\mathsf{xfer}_{A\to B}$ ceremony}
+\draw[->,>=Latex,thick,draw=hhink] (HA.east) to[bend left=0]
+  node[font=\scriptsize\itshape,above,midway,yshift=-1mm,fill=hhpaper,inner sep=1pt]{$\mathsf{xfer}_{A\to B}$ ceremony}
   (HB.west);
 
 \end{tikzpicture}%

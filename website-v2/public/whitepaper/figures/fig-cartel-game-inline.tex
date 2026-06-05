@@ -13,26 +13,26 @@
 \centering
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  state/.style={draw=hhebony,thick,fill=hhsand,circle,inner sep=2pt,
-                minimum size=8mm,font=\sffamily\footnotesize},
+  font=\small,
+  state/.style={draw=hhebony,thick,fill=hhsand!30,circle,inner sep=2pt,
+                minimum size=8mm,font=\footnotesize},
   decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=20mm},
-  payoff/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+  payoff/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
+                 inner sep=3pt,align=center,font=\footnotesize\bfseries},
   bad/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
-              inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
-              text=hhcinnabar},
+              inner sep=3pt,align=center,font=\footnotesize\bfseries,
+              text=hhink},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
+  prob/.style={font=\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
 ]
 \node[state] (rt) at (0,2.4) {round $t$};
 \node[decision,right=10mm of rt] (dec) {Action choice};
 \draw[arr] (rt) -- (dec);
-\node[decision,fill=hhpatina!30,right=12mm of dec,yshift=14mm] (collude)
+\node[decision,fill=hhsand!30,right=12mm of dec,yshift=14mm] (collude)
   {COLLUDE\\$q_{\mathrm{floor}}$};
 \draw[arr] (dec.north east) to[bend left=10] (collude.west);
-\node[decision,fill=hhbrass!40,right=12mm of dec,yshift=-14mm] (defect)
+\node[decision,fill=hhsand!30,right=12mm of dec,yshift=-14mm] (defect)
   {DEFECT\\$-\varepsilon$};
 \draw[arr] (dec.south east) to[bend right=10] (defect.west);
 \node[state,right=14mm of collude,yshift=10mm] (det) {detected};
@@ -45,9 +45,9 @@
 \node[payoff,right=4mm of safe] {$+\pi_C$};
 \node[state,right=14mm of defect] (collapse) {collapse};
 \draw[arr] (defect.east) -- (collapse.west);
-\node[payoff,right=4mm of collapse,fill=hhbrass!20]
+\node[payoff,right=4mm of collapse,fill=hhsand!30]
   {$+\pi_D$ once,\\then $\pi_N \approx 0$};
-\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
       align=left,inner sep=6pt,
       below=12mm of dec,minimum width=110mm]
   {{\bfseries Folk-theorem sustainability:}
