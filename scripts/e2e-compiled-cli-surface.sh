@@ -272,10 +272,16 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
-# `pd done` now enforces an honest result-note sentinel (ADR-0045): the note
-# must carry a PR URL, "no-pr-yet: <reason>", or "not-applicable: <reason>".
-# This surface round-trip produces no PR, so it declares not-applicable.
-run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change."
+# `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
+#   1. an honest result-note sentinel (PR URL / no-pr-yet: / not-applicable:)
+#   2. a git origin-push check on the cwd's repo.
+# This surface probe makes no PR, so the note declares not-applicable. The
+# origin check is bypassed with its documented escape hatch + reason: in CI the
+# checkout is in DETACHED HEAD (actions/checkout) and the scratch workdir sits
+# inside that repo, so the check would refuse with "Detached HEAD: cannot verify
+# origin push." That refusal is correct for real work but irrelevant to a
+# read-surface probe that never pushes anything.
+run_ok  "done"               done     -- done "Result: e2e cli-surface round-trip complete. not-applicable: CI surface probe, no code change." --skip-origin-check --reason "compiled-CLI surface E2E probe — no branch, no push (CI detached HEAD)"
 
 # pub -> channels reflects it (sub/subscribe/listen/wait are blocking → skipped)
 run_ok  "pub"                pub      -- pub e2e:surface:chan "hello from cli-surface e2e"
