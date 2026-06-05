@@ -319,6 +319,7 @@ Sitemap: https://portdaddy.dev/sitemap.xml
 ## White Papers
 
 - [The Harbor Library - Port Daddy](https://portdaddy.dev/library): The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.
+- [Manifesto - Port Daddy](https://portdaddy.dev/manifesto): Software learned to hire its own help. Why a fleet of agents needs a harbor-master before anything else, how legibility becomes the product, and the seven papers that work it out.
 - [Whitepaper - Port Daddy](https://portdaddy.dev/whitepaper): Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.
 - [The Anchor Protocol - Port Daddy](https://portdaddy.dev/whitepaper/anchor-protocol): A guided read of the Anchor Protocol paper — what an "identity for a process" should even mean, how to mint one out of off-the-shelf cryptography, and why a problem that felt unsolvable in 2010 is now a long weekend's work.
 - [The Bonded Commons - Port Daddy](https://portdaddy.dev/whitepaper/bonded-commons): A guided read of the Bonded Commons paper: why mutual visibility beats locks once you have more than a handful of agents, what kind of refundable "deposit" makes that visibility honest instead of theatrical, and how a tiny insurance market beats any single human picking the deposit size by hand.
