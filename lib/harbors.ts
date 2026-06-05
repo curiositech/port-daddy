@@ -16,6 +16,13 @@
 
 import type Database from 'better-sqlite3';
 import type { HarborTokens } from './harbor-tokens.js';
+import {
+  assessEnvelope,
+  parseEnvelope,
+  type EnvelopeAction,
+  type EnvelopeVerdict,
+  type HarborEnvelope,
+} from './harbor-envelope.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -114,6 +121,14 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
   if (!harborColumns.some((column) => column.name === 'scope')) {
     db.prepare('ALTER TABLE harbors ADD COLUMN scope TEXT').run();
   }
+  // Envelope: the vacuum-sealed resource boundary an agent operates inside while
+  // docked here (filesystem roots, tool/skill/mcp/backend/channel allowlists,
+  // spend ceiling). Stored as JSON. NULL means "no envelope set" — which
+  // assertWithinEnvelope() treats as deny-all, never allow-all. See
+  // lib/harbor-envelope.ts (ADR-0013 enforcement, filling the advisory-v1 gap).
+  if (!harborColumns.some((column) => column.name === 'envelope')) {
+    db.prepare('ALTER TABLE harbors ADD COLUMN envelope TEXT').run();
+  }
 
   const stmts = {
     // INSERT OR IGNORE: routes enforce uniqueness (409 if exists), so conflicts only
@@ -139,7 +154,23 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     listMembers: db.prepare('SELECT * FROM harbor_members WHERE harbor_name = ? ORDER BY joined_at ASC'),
     listMemberships: db.prepare('SELECT * FROM harbor_members WHERE agent_id = ? ORDER BY joined_at DESC'),
     isMember: db.prepare('SELECT 1 FROM harbor_members WHERE harbor_name = ? AND agent_id = ?'),
+
+    getEnvelope: db.prepare('SELECT envelope FROM harbors WHERE name = ?'),
+    setEnvelope: db.prepare('UPDATE harbors SET envelope = ? WHERE name = ?'),
   };
+
+  // Shared envelope read so both getEnvelope() and assertWithinEnvelope() use
+  // the same fail-closed parsing, and neither depends on `this` binding.
+  function readEnvelope(name: string): HarborEnvelope | null {
+    const row = stmts.getEnvelope.get(name) as { envelope: string | null } | undefined;
+    if (!row || row.envelope == null) return null;
+    try {
+      return parseEnvelope(JSON.parse(row.envelope));
+    } catch {
+      // Corrupt JSON is fail-closed: "set but deny-all", never "not set".
+      return parseEnvelope(null);
+    }
+  }
 
   function parseHarbor(row: HarborRow, members: HarborMemberRow[]): Harbor {
     return {
@@ -314,6 +345,58 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     isMember(harborName: string, agentId: string): boolean {
       if (!harborName || !agentId) return false;
       return stmts.isMember.get(harborName, agentId) !== undefined;
+    },
+
+    /**
+     * Read the harbor's enforcement envelope, or null if none is set.
+     *
+     * The stored JSON is normalized through parseEnvelope() on the way out, so
+     * callers always receive a complete, valid envelope (every dimension
+     * present) — never a half-populated object.
+     */
+    getEnvelope(name: string): HarborEnvelope | null {
+      return readEnvelope(name);
+    },
+
+    /**
+     * Set (or replace) the harbor's enforcement envelope. The value is
+     * normalized to a complete deny-all-by-default envelope before storage.
+     */
+    setEnvelope(name: string, envelope: unknown): { success: boolean; error?: string } {
+      const existing = stmts.getByName.get(name);
+      if (!existing) return { success: false, error: `harbor '${name}' not found` };
+      const normalized = parseEnvelope(envelope);
+      stmts.setEnvelope.run(JSON.stringify(normalized), name);
+      return { success: true };
+    },
+
+    /**
+     * The fail-closed capability check. Answer: may `agentId`, acting inside
+     * harbor `name`, perform `action`?
+     *
+     * Order of gates (each is a permission boundary that can be shown to the
+     * operator via the returned `boundary`):
+     *   1. Harbor must exist and not be expired      → else deny(membership)
+     *   2. Agent must be a docked member             → else deny(membership)
+     *   3. Action must satisfy the harbor's envelope → assessEnvelope()
+     *
+     * A harbor with no envelope set denies every action (deny-all default).
+     * This is the primitive that routes and the spawner call before letting an
+     * agent touch the filesystem, a tool, a backend, a channel, or spend.
+     */
+    assertWithinEnvelope(name: string, agentId: string, action: EnvelopeAction): EnvelopeVerdict {
+      const row = stmts.getByName.get(name) as HarborRow | undefined;
+      if (!row) {
+        return { allowed: false, boundary: 'membership', reason: `harbor '${name}' does not exist` };
+      }
+      if (row.expires_at && row.expires_at < Date.now()) {
+        return { allowed: false, boundary: 'membership', reason: `harbor '${name}' has expired` };
+      }
+      if (stmts.isMember.get(name, agentId) === undefined) {
+        return { allowed: false, boundary: 'membership', reason: `agent '${agentId}' is not docked in harbor '${name}'` };
+      }
+      const envelope = readEnvelope(name) ?? parseEnvelope(null); // unset → deny-all
+      return assessEnvelope(envelope, action);
     },
 
     /**
