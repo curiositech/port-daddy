@@ -75,6 +75,9 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   tutorial: 'silent',
   sitrep: 'silent',
   look: 'silent',
+  periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup
+  sight: 'silent',         // alias of periscope
+  scope: 'silent',         // alias of periscope
   advise: 'silent',
   preflight: 'silent',
   compass: 'silent',

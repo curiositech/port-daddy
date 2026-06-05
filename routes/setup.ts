@@ -38,25 +38,60 @@ function xmlUnescape(value: string): string {
     .replaceAll('&amp;', '&');
 }
 
-function readLaunchAgentProgramArguments(): { path: string; exists: boolean; programArguments: string[] | null } {
-  const path = join(homedir(), 'Library', 'LaunchAgents', 'com.portdaddy.daemon.plist');
-  if (platform() !== 'darwin' || !existsSync(path)) {
-    return { path, exists: false, programArguments: null };
+/**
+ * The daemon LaunchAgent labels we know about, in priority order. The canonical
+ * supervisor is Homebrew's `homebrew.mxcl.port-daddy` (`pd start --foreground`);
+ * `com.portdaddy.daemon` is the LEGACY duplicate that `pd install` used to write
+ * and that was removed 2026-06-01. See docs/operations/daemon-and-supervision.md.
+ * Scanning only the legacy label made a healthy brew-supervised daemon report as
+ * "install unknown" and pinned the First-Run wizard open forever.
+ */
+export const DAEMON_LAUNCH_AGENT_LABELS = ['homebrew.mxcl.port-daddy', 'com.portdaddy.daemon'] as const;
+
+function readLaunchAgentProgramArguments(): { path: string; exists: boolean; programArguments: string[] | null; label: string | null } {
+  if (platform() !== 'darwin') {
+    const path = join(homedir(), 'Library', 'LaunchAgents', `${DAEMON_LAUNCH_AGENT_LABELS[0]}.plist`);
+    return { path, exists: false, programArguments: null, label: null };
   }
 
-  const text = readFileSync(path, 'utf8');
-  const programArguments = text.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/);
-  if (!programArguments) return { path, exists: true, programArguments: null };
+  for (const label of DAEMON_LAUNCH_AGENT_LABELS) {
+    const path = join(homedir(), 'Library', 'LaunchAgents', `${label}.plist`);
+    if (!existsSync(path)) continue;
 
-  return {
-    path,
-    exists: true,
-    programArguments: Array.from(programArguments[1].matchAll(/<string>([\s\S]*?)<\/string>/g))
-      .map((match) => xmlUnescape(match[1].trim())),
-  };
+    const text = readFileSync(path, 'utf8');
+    const programArguments = text.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/);
+    if (!programArguments) return { path, exists: true, programArguments: null, label };
+
+    return {
+      path,
+      exists: true,
+      label,
+      programArguments: Array.from(programArguments[1].matchAll(/<string>([\s\S]*?)<\/string>/g))
+        .map((match) => xmlUnescape(match[1].trim())),
+    };
+  }
+
+  // None found — report against the canonical label so the message points the
+  // operator at the right thing.
+  const path = join(homedir(), 'Library', 'LaunchAgents', `${DAEMON_LAUNCH_AGENT_LABELS[0]}.plist`);
+  return { path, exists: false, programArguments: null, label: null };
 }
 
-function daemonMode(programArguments: string[] | null): 'binary' | 'source' | 'unknown' {
+/**
+ * The binary the LaunchAgent actually launches (first ProgramArgument that is an
+ * existing executable path), e.g. `/opt/homebrew/opt/port-daddy/bin/pd`. Falls
+ * back to the source-install candidate (`<repoRoot>/dist/daemon`) so dev trees
+ * still report something sensible.
+ */
+export function resolveBinaryCandidate(programArguments: string[] | null, repoRoot: string): string {
+  if (programArguments && programArguments.length > 0) {
+    const first = programArguments[0];
+    if (first.startsWith('/') && existsSync(first)) return first;
+  }
+  return join(repoRoot, 'dist', 'daemon');
+}
+
+export function daemonMode(programArguments: string[] | null): 'binary' | 'source' | 'unknown' {
   if (!programArguments || programArguments.length === 0) return 'unknown';
   const joined = programArguments.join(' ');
   if (joined.includes('tsx') || joined.includes('server.ts')) return 'source';
@@ -158,7 +193,7 @@ export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (
     const launchAgent = readLaunchAgentProgramArguments();
     const mode = daemonMode(launchAgent.programArguments);
     const stablePath = join(homedir(), 'port-daddy-stable');
-    const binaryCandidate = join(repoRoot, 'dist', 'daemon');
+    const binaryCandidate = resolveBinaryCandidate(launchAgent.programArguments, repoRoot);
     const invocation = setupInvocation(repoRoot);
 
     return {
@@ -174,6 +209,7 @@ export const setupPlugin: FastifyPluginAsync<{ deps: SetupRouteDeps }> = async (
       },
       daemon: {
         mode,
+        launchAgentLabel: launchAgent.label,
         launchAgentPath: launchAgent.path,
         launchAgentExists: launchAgent.exists,
         programArguments: launchAgent.programArguments,
