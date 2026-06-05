@@ -12,6 +12,11 @@ import {
   isSenderAllowed,
   buildSpawnSpec,
   routeInboundTubeMessage,
+  normalizeTaskShape,
+  assessDelegation,
+  parseDelegationChain,
+  createRouterState,
+  DELEGATION_CHAIN_ENV,
 } from '../../lib/tube-spawner-router.js';
 
 const msg = (over = {}) => ({
@@ -88,6 +93,7 @@ describe('routeInboundTubeMessage (fail-closed orchestration)', () => {
       spawnCalls,
       deps: {
         channel: 'ctrl',
+        state: createRouterState(),
         policy: { enabled: true, allowedBackends: ['ollama'], allowedSenders: ['codex'] },
         send: async (_c, body) => {
           sent.push(body);
@@ -171,5 +177,78 @@ describe('routeInboundTubeMessage (fail-closed orchestration)', () => {
     expect(out.action).toBe('error');
     expect(out.error).toMatch(/backend down/);
     expect(sent[0]).toMatch(/router.error/);
+  });
+
+  it('injects the delegation chain into the spawned agent env', async () => {
+    const { deps, spawnCalls } = mkDeps();
+    await routeInboundTubeMessage(
+      msg({ body: '{"command":"spawn","backend":"ollama","task":"do x"}' }),
+      deps,
+    );
+    const chain = parseDelegationChain(JSON.parse(spawnCalls[0].env[DELEGATION_CHAIN_ENV]));
+    expect(chain).toHaveLength(1);
+    expect(chain[0].depth).toBe(0);
+    expect(chain[0].taskShape).toBe(normalizeTaskShape('do x'));
+  });
+
+  it('refuses a recursive ping-pong (reworded) and never spawns', async () => {
+    const { deps, spawnCalls } = mkDeps();
+    const inbound = [{ agentId: 'a0', taskShape: normalizeTaskShape('build the api'), depth: 0 }];
+    const out = await routeInboundTubeMessage(
+      msg({ body: JSON.stringify({ command: 'spawn', backend: 'ollama', task: 'API the BUILD!', delegationChain: inbound }) }),
+      deps,
+    );
+    expect(out.action).toBe('refused');
+    expect(spawnCalls).toHaveLength(0);
+  });
+
+  it('enforces the process-global fan-out backstop', async () => {
+    const { deps, spawnCalls } = mkDeps({
+      policy: { enabled: true, allowedBackends: ['ollama'], allowedSenders: ['codex'], maxTotalSpawns: 2 },
+    });
+    const body = (t) => JSON.stringify({ command: 'spawn', backend: 'ollama', task: t });
+    expect((await routeInboundTubeMessage(msg({ id: 1, body: body('alpha') }), deps)).action).toBe('spawned');
+    expect((await routeInboundTubeMessage(msg({ id: 2, body: body('beta') }), deps)).action).toBe('spawned');
+    expect((await routeInboundTubeMessage(msg({ id: 3, body: body('gamma') }), deps)).action).toBe('refused');
+    expect(spawnCalls).toHaveLength(2);
+  });
+});
+
+describe('normalizeTaskShape (structural fingerprint)', () => {
+  it('collapses case/order/punctuation/ids to one shape but discriminates real differences', () => {
+    const a = normalizeTaskShape('Build the API, then test PR 262!');
+    expect(normalizeTaskShape('test pr 999 then build the api')).toBe(a);
+    expect(normalizeTaskShape('summarize the changelog')).not.toBe(a);
+  });
+});
+
+describe('assessDelegation (loop gates)', () => {
+  it('refuses depth, ping-pong, and upward; allows a clean child', () => {
+    const policy = { enabled: true, maxDelegationDepth: 3 };
+    const shapeA = normalizeTaskShape('first');
+    // clean child (depth 1, new shape, new identity)
+    const clean = assessDelegation(
+      { command: 'spawn', task: 'second', delegationChain: [{ agentId: 'a0', taskShape: shapeA, depth: 0 }] },
+      'codex', policy,
+    );
+    expect('ok' in clean).toBe(true);
+    // ping-pong
+    const pp = assessDelegation(
+      { command: 'spawn', task: 'first', delegationChain: [{ agentId: 'a0', taskShape: shapeA, depth: 0 }] },
+      'codex', policy,
+    );
+    expect('refusal' in pp).toBe(true);
+    // upward (sender is an ancestor)
+    const up = assessDelegation(
+      { command: 'spawn', task: 'second', delegationChain: [{ agentId: 'codex', taskShape: shapeA, depth: 0 }] },
+      'codex', policy,
+    );
+    expect('refusal' in up).toBe(true);
+  });
+});
+
+describe('createRouterState', () => {
+  it('starts a fresh fan-out counter at zero', () => {
+    expect(createRouterState().totalSpawns).toBe(0);
   });
 });
