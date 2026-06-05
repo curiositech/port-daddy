@@ -152,25 +152,16 @@ export async function assessBackendReadiness(
         telemetryPolicy
       );
 
-    case 'gemini':
-      if (!packageInstalled('@google/generative-ai')) {
-        return applyTelemetryPolicy({
-          backend,
-          status: 'needs_setup',
-          summary: '@google/generative-ai is not installed',
-          nextStep: 'Run `npm install @google/generative-ai` before using the Gemini backend.',
-          ...setupForKeys(['GEMINI_API_KEY']),
-          credentialAlternates: ['GOOGLE_API_KEY'],
-          setupCommand: 'npm install @google/generative-ai\nprintf \'\\nGEMINI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
-        }, telemetryPolicy);
-      }
+    case 'gemini': {
+      // REST-based adapter (lib/llm-call.ts geminiAdapter) — no SDK package
+      // required. Readiness is purely a key-present check.
       const geminiKeyPresent = getSecret('GEMINI_API_KEY') || getSecret('GOOGLE_API_KEY');
       return applyTelemetryPolicy(
         geminiKeyPresent
           ? {
             backend,
             status: 'ready',
-            summary: 'Gemini API key present and Gemini SDK installed',
+            summary: 'Gemini API key present',
             ...setupForKeys(['GEMINI_API_KEY']),
             credentialAlternates: ['GOOGLE_API_KEY'],
           }
@@ -178,12 +169,13 @@ export async function assessBackendReadiness(
             backend,
             status: 'needs_setup',
             summary: 'Gemini API key missing',
-            nextStep: 'Add GEMINI_API_KEY or GOOGLE_API_KEY to ~/.port-daddy-env or your project .env file, then restart the daemon.',
+            nextStep: 'Run `pd secret set GEMINI_API_KEY` (or add GEMINI_API_KEY / GOOGLE_API_KEY to ~/.port-daddy-env), then restart the daemon.',
             ...setupForKeys(['GEMINI_API_KEY']),
             credentialAlternates: ['GOOGLE_API_KEY'],
           },
         telemetryPolicy
       );
+    }
 
     case 'cloudflare': {
       const accountId = getSecret('CLOUDFLARE_ACCOUNT_ID')
@@ -231,6 +223,28 @@ export async function assessBackendReadiness(
         nextStep: 'Add OPENAI_API_KEY to ~/.port-daddy-env or your project .env file, then restart the daemon.',
         ...setupForKeys(['OPENAI_API_KEY']),
         setupCommand: 'printf \'\\nOPENAI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
+    case 'groq': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/groq.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('GROQ_API_KEY') || process.env.GROQ_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'GROQ_API_KEY present',
+          ...setupForKeys(['GROQ_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'GROQ_API_KEY missing',
+        nextStep: 'Run `pd secret set GROQ_API_KEY` (or add GROQ_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['GROQ_API_KEY']),
+        setupCommand: 'printf \'\\nGROQ_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
       }, telemetryPolicy);
     }
 

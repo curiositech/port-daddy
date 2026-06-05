@@ -12,6 +12,8 @@ export const DEFAULT_OPERATOR_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
 export const DEFAULT_OPERATOR_CODEX_MODEL = 'gpt-5.4-mini';
 export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/zai-org/glm-4.7-flash';
 export const DEFAULT_OPERATOR_OPENAI_MODEL = 'gpt-5-mini';
+export const DEFAULT_OPERATOR_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_OPERATOR_GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {
@@ -116,6 +118,48 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         backend,
         launchAllowed: true,
         summary: `Exact telemetry policy satisfied for OpenAI model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'gemini': {
+      // Gemini REST generateContent returns usageMetadata.promptTokenCount +
+      // candidatesTokenCount (+ thoughtsTokenCount for 2.5 thinking models),
+      // which lib/llm-call.ts geminiAdapter extracts exactly. The spawner
+      // enforces the full pipeline; this gate flips on the model having a
+      // known rate in cost-tracker MODEL_RATES.
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_GEMINI_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `Gemini model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for Gemini model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'groq': {
+      // Groq's OpenAI-compatible API returns usage.prompt_tokens +
+      // completion_tokens, extracted by the shared OpenAI adapter the Groq
+      // backend delegates to. Gate flips on a known rate in MODEL_RATES.
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_GROQ_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `Groq model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for Groq model "${effectiveModel}"`,
         effectiveModel,
       };
     }

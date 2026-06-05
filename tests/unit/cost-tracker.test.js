@@ -59,6 +59,47 @@ describe('CostTracker', () => {
     expect(costUsd).toBeCloseTo(0.18, 4);
   });
 
+  test('computes exact Gemini 2.5 Flash cost from token counts', () => {
+    // gemini-2.5-flash: $0.30 input / $2.50 output per 1M
+    //   1000 input × 0.30 / 1M = 0.0003
+    //   500 output × 2.50 / 1M = 0.00125
+    //   total = 0.00155 USD
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'gemini', 'gemini-2.5-flash', 1000, 500
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.00155, 6);
+  });
+
+  test('gemini-2.5-flash does NOT false-match the retired gemini-2.0 rate', () => {
+    // Regression: the dead gemini-2.0-flash row was removed; 2.5-flash must
+    // resolve to its own row, not a stale one.
+    const { isEstimate } = costTracker.computeCost('gemini', 'gemini-2.5-flash', 1, 1);
+    expect(isEstimate).toBe(false);
+  });
+
+  test('computes exact Groq Llama 3.3 70B cost from token counts', () => {
+    // llama-3.3-70b-versatile: $0.59 input / $0.79 output per 1M
+    //   42 input × 0.59 / 1M = 0.00002478
+    //   2 output × 0.79 / 1M = 0.00000158
+    //   total ≈ 0.00002636 → rounded to 6 decimals = 0.000026
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'groq', 'llama-3.3-70b-versatile', 42, 2
+    );
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.000026, 6);
+    expect(costUsd).toBeGreaterThan(0);
+  });
+
+  test('computes exact Groq GPT-OSS 120B cost from token counts', () => {
+    const { costUsd, isEstimate } = costTracker.computeCost(
+      'groq', 'openai/gpt-oss-120b', 1000, 500
+    );
+    // 1000 × 0.15/1M + 500 × 0.60/1M = 0.00015 + 0.0003 = 0.00045
+    expect(isEstimate).toBe(false);
+    expect(costUsd).toBeCloseTo(0.00045, 6);
+  });
+
   test('ollama without token counts falls back to zero estimate (opaque path)', () => {
     // No tokens → estimateOpaqueSessionCost returns SESSION_ESTIMATES_USD.ollama (0.00)
     const { costUsd, isEstimate } = costTracker.computeCost('ollama', 'llama3.1:8b');
