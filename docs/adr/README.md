@@ -38,6 +38,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0045](0045-loud-fail-invariants-and-honest-attestation.md) | Loud-Fail Invariants and Honest Attestation | Accepted | 2026-06 |
 | [0046](0046-operator-tui.md) | The Operator TUI — Conversation Multiplexer | Accepted | 2026-06 |
 | [0047](0047-conversation-protocol.md) | The Port Daddy Conversation Protocol | Accepted | 2026-06 |
+| [0048](0048-what-port-daddy-is.md) | What Port Daddy Is — the North Star | Accepted | 2026-06 |
 
 ## How to Read These
 
