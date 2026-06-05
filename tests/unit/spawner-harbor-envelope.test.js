@@ -75,6 +75,20 @@ function makeDeps(envelope) {
   };
 }
 
+// The worktree isolation guard (lib/spawner.ts assessSpawnIsolation) blocks a
+// spawn whose workdir resolves to a repository main checkout. These tests pass
+// no workdir, so the guard falls back to process.cwd() — a worktree locally but
+// the primary checkout in CI — making every spawn here return status 'failed'
+// before any harbor/envelope logic runs. This suite exercises envelope
+// enforcement, not the guard (covered by spawner-isolation-guard.test.js), so
+// opt out of layer-2 isolation for a checkout-independent run.
+const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
+beforeAll(() => { process.env.PD_SPAWN_ISOLATION_OFF = '1'; });
+afterAll(() => {
+  if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
+  else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
+});
+
 beforeEach(() => { cpSpawn.mockClear(); });
 
 describe('spawner P4 — harbor envelope enforcement', () => {

@@ -2,10 +2,12 @@
  * Startup Doctor — Shared diagnostics and auto-fix logic
  *
  * Used by `pd start` (auto-fix, no prompts) and `pd doctor` (interactive Y/n).
- * Diagnoses: stale sockets, zombie processes, port conflicts.
+ * Diagnoses: stale sockets, zombie processes, port conflicts, and shell-idiom
+ * `.env.local` files that crash bun's dotenv autoloader.
  */
 
-import { existsSync, unlinkSync, statSync } from 'node:fs';
+import { existsSync, unlinkSync, statSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 
@@ -160,6 +162,65 @@ function isPortDaddyProcess(command: string): boolean {
   return command.includes('server.ts') ||
     command.includes('port-daddy') ||
     command.includes('port_daddy');
+}
+
+/**
+ * A shell-idiom value inside `.env.local` that crashes bun's dotenv autoloader.
+ */
+export interface HostileEnvLocalFinding {
+  path: string;
+  lineNumber: number;
+  line: string;
+}
+
+/**
+ * Detect a shell-idiom `.env.local` in `dir` that will crash the bun-compiled
+ * `pd` at startup.
+ *
+ * Why this matters: the Homebrew `pd` is a `bun build --compile` binary. Bun
+ * auto-loads `.env.local` from the *current working directory* before any of
+ * our code runs. A value that nests a command substitution inside a
+ * default-expansion — `KEY="${KEY:-$(some command)}"` — segfaults bun 1.2.21
+ * (exit 133) during that autoload. The binary is then totally MUTE: zero bytes
+ * out, non-zero exit, before `main` ever executes. An operator with such an
+ * `.env.local` in their repo gets silence from every `pd` invocation in that
+ * directory — which is exactly how a "mute pd" looked in the field.
+ *
+ * We do NOT execute the file or shell out — we only read it and match the
+ * dangerous idiom textually: an assignment whose value contains `${...:-$(`
+ * (a command-substitution nested in a default-expansion). A plain `$(...)`
+ * alone does not crash bun, so we deliberately do not flag it.
+ *
+ * Returns the offending findings (empty if the file is absent or clean).
+ */
+export function detectHostileEnvLocal(dir: string = process.cwd()): HostileEnvLocalFinding[] {
+  const findings: HostileEnvLocalFinding[] = [];
+  const envPath = join(dir, '.env.local');
+  if (!existsSync(envPath)) return findings;
+
+  let contents: string;
+  try {
+    contents = readFileSync(envPath, 'utf8');
+  } catch {
+    return findings;
+  }
+
+  // Match the crash idiom: `<KEY>=...${<anything-but-}>:-$(...`
+  // i.e. a default-expansion `${VAR:-` immediately followed by a command
+  // substitution `$(`. This is the precise shape that segfaults bun's
+  // dotenv autoloader; a bare `$(...)` or a bare `${VAR:-literal}` does not.
+  const hostile = /=.*\$\{[^}]*:-\s*\$\(/;
+  const lines = contents.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const trimmed = raw.trimStart();
+    // Skip comments and blank lines.
+    if (trimmed === '' || trimmed.startsWith('#')) continue;
+    if (hostile.test(raw)) {
+      findings.push({ path: envPath, lineNumber: i + 1, line: raw.trim() });
+    }
+  }
+  return findings;
 }
 
 /**

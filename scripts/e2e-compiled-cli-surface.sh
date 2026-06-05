@@ -190,6 +190,7 @@ run_read "secret list"       secret      -- secret list
 run_read "briefing"          briefing    -- briefing
 run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
+run_read "periscope"         periscope   -- periscope
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
@@ -357,6 +358,7 @@ declare -A ALIASES=(
   [ph]=pheromone [publish]=pub [broadcast]=pub [resurrection]=salvage
   [secrets]=secret [webhooks]=webhook [snapshot]=snapshots [tutorial]=learn
   [diagnose]=doctor [preflight]=advise [compass]=advise [help]=__meta
+  [sight]=periscope [scope]=periscope
 )
 
 # Build the set of canonical verbs we covered.

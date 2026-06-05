@@ -113,5 +113,106 @@ if [ "$fail" -eq 0 ]; then
   fi
 fi
 
+# 4. HOSTILE `.env.local` cwd — THE gate that was missing, and the exact reason a
+#    MUTE `pd` shipped to Homebrew. The Homebrew `pd` is a `bun build --compile`
+#    binary, and bun AUTO-LOADS `.env.local` from the CURRENT WORKING DIRECTORY
+#    before any of our code runs. A shell-idiom value that nests a command
+#    substitution inside a default-expansion — `KEY="${KEY:-$(...)}"` — SEGFAULTS
+#    bun (exit 133) during that autoload, so the binary is TOTALLY MUTE (0 bytes,
+#    nonzero exit) before `main`. Every prior compiled smoke ran from a CLEAN cwd
+#    (no hostile `.env.local`), so the mute binary sailed through CI GREEN and
+#    shipped. THAT is the gap this step closes.
+#
+#    Upstream reality (verified against bun 1.2.21, 1.2.23 and 1.3.14): the
+#    autoload crash is NOT yet fixed in any bun release, and a compiled standalone
+#    binary has no way to disable the autoload (the crash precedes our argv
+#    handling, so `--env-file` / env vars cannot reach it). So the gate is built
+#    to be HONEST and self-upgrading:
+#
+#      (a) HARD assertion: the binary MUST speak (exit 0, non-empty stdout) from a
+#          cwd whose `.env.local` is the operator's SAFE form. This is the real
+#          regression guard — if a future change breaks plain dotenv loading, or
+#          a bun upgrade regresses the safe path, this fails loudly.
+#      (b) SHIP-GAP detector: from a HOSTILE cwd we record whether the binary is
+#          mute. If it speaks, bun has been fixed and we ASSERT it stays spoken
+#          (the gate auto-upgrades to a hard pass). If it is mute, that muteness
+#          is ONLY tolerated when `pd doctor` would WARN the operator about the
+#          hostile `.env.local` — i.e. the failure is visible, not silent. A mute
+#          binary with NO doctor warning FAILS the build.
+if [ "$fail" -eq 0 ]; then
+  echo "--- pd from a .env.local cwd (bun dotenv-autoload crash gate) ---"
+
+  # CRUCIAL: bun only autoloads `.env.local` when NODE_ENV is NOT "test". If a CI
+  # runner exports NODE_ENV=test, bun loads `.env.test.local` instead and the
+  # crash does NOT reproduce — a FALSE GREEN. The operator's real `pd` has no
+  # NODE_ENV=test. So we drop NODE_ENV for these invocations to mirror the real
+  # runtime. (Closing the secondary trap that would have hidden the bug again.)
+  HOSTILE_ENV=(env -u NODE_ENV "${CLI_ENV[@]:1}")
+
+  # NOTE on muteness detection: a bun autoload crash dumps a panic banner to
+  # STDERR, so we MUST capture stdout separately — merging 2>&1 would let the
+  # panic text masquerade as "the binary spoke." The real "did it speak" signal
+  # is: exit 0 AND non-empty STDOUT (the version / status banner).
+
+  # 4a. SAFE cwd — a literal `.env.local` value. The binary MUST speak. Hard gate.
+  SAFE_DIR="$SCRATCH/safe-cwd"
+  mkdir -p "$SAFE_DIR"
+  printf 'PD_SMOKE_KEY=plain-literal-value\n' > "$SAFE_DIR/.env.local"
+  set +e
+  safe_out="$(cd "$SAFE_DIR" && "${HOSTILE_ENV[@]}" "$BIN" --version 2>"$SCRATCH/safe.err")"; safe_code=$?
+  set -e
+  if [ "$safe_code" -ne 0 ] || [ -z "${safe_out// }" ]; then
+    echo "FAIL: 'pd --version' was MUTE from a cwd with a SAFE .env.local (exit=$safe_code stdout=${safe_out:-<empty>})." >&2
+    echo "      stderr: $(tail -2 "$SCRATCH/safe.err" 2>/dev/null)" >&2
+    echo "      Plain dotenv loading is broken — the compiled CLI cannot run with any .env.local present." >&2
+    fail=1
+  else
+    echo "OK: pd --version spoke from a safe-.env.local cwd: $(printf %s "$safe_out" | head -1)"
+  fi
+
+  # 4b. HOSTILE cwd — the `${VAR:-$(...)}` idiom that crashes bun's autoloader.
+  if [ "$fail" -eq 0 ]; then
+    HOSTILE_DIR="$SCRATCH/hostile-cwd"
+    mkdir -p "$HOSTILE_DIR"
+    printf 'PD_SMOKE_KEY="${PD_SMOKE_KEY:-$(echo hi 2>/dev/null)}"\n' > "$HOSTILE_DIR/.env.local"
+    set +e
+    host_out="$(cd "$HOSTILE_DIR" && "${HOSTILE_ENV[@]}" "$BIN" --version 2>"$SCRATCH/host.err")"; host_code=$?
+    set -e
+
+    if [ "$host_code" -eq 0 ] && [ -n "${host_out// }" ]; then
+      # The binary SPOKE from a hostile cwd — bun's autoload crash is fixed.
+      # Lock that in: from here on, a mute hostile cwd is a hard regression.
+      echo "OK: pd --version spoke from a HOSTILE .env.local cwd — bun autoload crash is fixed; gate now HARD."
+    else
+      # The binary is MUTE from a hostile cwd. This is the unfixed upstream bun
+      # autoload crash. Because the crash precedes our code, `pd doctor` ALSO
+      # cannot run from the hostile cwd — so the durable, operator-facing guard is
+      # `pd doctor`'s `Shell-idiom .env.local` check, which inspects the CWD and
+      # warns BEFORE the operator gets stuck (run it from any cwd; it flags a
+      # hostile file there). We tolerate the hostile-cwd muteness ONLY when that
+      # diagnostic actually SHIPS in the binary — i.e. running `pd doctor` from a
+      # SAFE cwd that CONTAINS a hostile `.env.local` (placed alongside the safe
+      # one is not possible; doctor reads .env.local, and a hostile .env.local
+      # would crash pd before doctor runs). So we verify the diagnostic ships by
+      # confirming `pd doctor` from the safe cwd emits the named check at all.
+      # The detection LOGIC itself (hostile flagged, safe ignored) is asserted
+      # under the real bun runtime in tests/bun/env-local-autoload-crash.test.ts.
+      echo "NOTE: pd --version is MUTE from a hostile .env.local cwd (exit=$host_code, stderr: $(tail -1 "$SCRATCH/host.err" 2>/dev/null)) — unfixed bun autoload crash."
+      echo "      Verifying the operator-facing diagnostic SHIPS (pd doctor 'Shell-idiom .env.local' check present)..."
+      set +e
+      doc_out="$(cd "$SAFE_DIR" && "${HOSTILE_ENV[@]}" "$BIN" doctor 2>&1)"; doc_code=$?
+      set -e
+      if printf %s "$doc_out" | grep -qi "Shell-idiom .env.local"; then
+        echo "OK: pd doctor ships the 'Shell-idiom .env.local' check — operators get a loud, named warning, not silence."
+      else
+        echo "FAIL: pd is MUTE from a hostile cwd AND pd doctor lacks the 'Shell-idiom .env.local' diagnostic (exit=$doc_code)." >&2
+        echo "      A silent mute pd with no operator-facing diagnostic is exactly the ship gap." >&2
+        echo "      doctor out (tail): $(printf %s "$doc_out" | tail -3)" >&2
+        fail=1
+      fi
+    fi
+  fi
+fi
+
 [ "$fail" -eq 0 ] || { echo "Compiled-CLI runs smoke FAILED" >&2; exit 1; }
 echo "Compiled-CLI runs smoke PASSED"

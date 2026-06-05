@@ -10,10 +10,19 @@ const TEST_TELEMETRY_BYPASS = {
 
 describe('spawner telemetry enforcement', () => {
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+  const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
 
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.ANTHROPIC_API_KEY = 'sk-test';
+    // The worktree isolation guard (assessSpawnIsolation) is evaluated BEFORE
+    // the telemetry policy inside spawn(). These tests assert the telemetry
+    // fail-closed error ("cost tracker unavailable..."), but they pass no
+    // workdir, so in a main checkout (CI) the isolation guard fires first and
+    // returns "Spawn blocked: ...main checkout" instead — masking the policy
+    // assertion. The guard has dedicated coverage in
+    // spawner-isolation-guard.test.js, so opt out of it here.
+    process.env.PD_SPAWN_ISOLATION_OFF = '1';
     global.fetch = jest.fn(async () => ({
       ok: true,
       json: async () => ({}),
@@ -24,6 +33,8 @@ describe('spawner telemetry enforcement', () => {
   afterAll(() => {
     if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
     else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+    if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
+    else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
   });
 
   test('defaults telemetry enforcement on when no override is provided', async () => {

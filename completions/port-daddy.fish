@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'dispatch' 'nightshift' 'review' 'morning' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -210,6 +210,9 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a morning -d 'Start-of-day summary of dispatch state machine'
     complete -c $prog -n "__pd_using_command morning" -l since -x -d 'Lookback start (ISO or epoch ms)'
     complete -c $prog -n "__pd_using_command morning" -l json -d 'JSON output'
+    complete -c $prog -n __pd_needs_command -a periscope -d 'Operator loop SIGHT stage — raise the periscope (state + next cut)'
+    complete -c $prog -n __pd_needs_command -a sight -d 'Alias for periscope — operator loop SIGHT stage'
+    complete -c $prog -n __pd_needs_command -a scope -d 'Alias for periscope — operator loop SIGHT stage'
     complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'
