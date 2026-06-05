@@ -177,7 +177,11 @@ fonts; one accent; status by meaning. (These become the GPUI theme constants in
 
 ---
 
-## 8. Cross-platform (open decision: is Windows day-one?)
+## 8. Cross-platform — DECIDED: macOS-first (GPUI), Windows later
+
+**Operator decision 2026-06-05: macOS-first.** GPUI stands; no substrate change. Build
+on macOS now, Linux follows GPUI, Windows lands as GPUI's Windows support matures.
+Windows is explicitly NOT a release blocker. (Original tension, kept for the record:)
 
 **The honest tension.** GPUI is **macOS-mature, Linux-landed, Windows-in-progress**
 (that is where Zed itself is). The "fast-AF-like-Warp" + Rust constraint points at
