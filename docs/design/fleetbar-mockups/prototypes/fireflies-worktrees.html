@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fireflies & Worktrees — Port Daddy motif study</title>
+<!--
+  FIREFLIES & WORKTREES — a motif study for the Port Daddy living-harbor console.
+  ───────────────────────────────────────────────────────────────────────────
+  Agents are delicate fireflies. They orbit spectral, nearly-conjoined
+  parallel-universe WORKTREES that branch off a single bright MAIN. Each
+  firefly drifts on layered value-noise + boid-seek toward the file/branch
+  where its work lives, leaving a bioluminescent trail. Pheromones glow where
+  actions land. Inbox DMs travel as lasers. Notes fall as leaves. Merges pop.
+  A breath-bed soundscape (opt-in, reduced-motion-muted) gives the fleet lungs.
+
+  Canon: extends operator-tui-v9 tokens — warm paper / dark theme, brand-primary
+  #003fb8, accent #006b5f-family, status + pheromone palettes, --swoosh/--snap/
+  --float motion curves. One <canvas> "biofield" over a DOM branch scaffold;
+  single rAF loop capped to dpr<=2, paused off-screen via IntersectionObserver.
+  Hard rules honored: 14px text floor, no emoji-as-icon (SVG only), reduced
+  motion collapses to static signal, sound is opt-in + mutable.
+-->
+<style>
+/* ── Fonts (Geist superfamily, matching v9) ─────────────────────────────── */
+@font-face{font-family:'Geist';font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-500-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-weight:600;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-600-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist';font-weight:700;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist@5.2.6/files/geist-latin-700-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-400-normal.woff2) format('woff2');}
+@font-face{font-family:'Geist Mono';font-weight:500;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/geist-mono@5.2.6/files/geist-mono-latin-500-normal.woff2) format('woff2');}
+
+:root{
+  /* dark "night harbor" surfaces (canvas of fireflies wants depth) */
+  --surface-base:#101216; --surface-raised:#181c22; --surface-strong:#222833;
+  --surface-overlay:rgba(16,18,22,.95); --surface-sunken:#0b0d11;
+  --text-primary:#f5f3ed; --text-secondary:#d3cec2; --text-muted:#b3ad9f;
+  --brand-primary:#7db4ff; --brand-primary-on-tint:#dbeaff;
+  --brand-accent:#8fd0a7;  /* teal/green firefly core in dark */
+  --border-subtle:rgba(245,243,237,.18); --border-default:rgba(245,243,237,.40);
+  --status-success:#66d28a; --status-warning:#f2be51; --status-error:#ff7d7d; --status-info:#7db4ff;
+  /* pheromone palette (dark) — failure is the ONLY red class */
+  --ph-hot:#f2be51;     /* hot:editing — ochre busy */
+  --ph-recent:#7db4ff;  /* recent:touched — info blue */
+  --ph-cold:#8a8378;    /* cold:abandoned */
+  --ph-blocked:#7db4ff; /* attention:human-blocked */
+  --ph-fail:#ff7d7d;    /* experience:failed — RED (failure only) */
+  --signal-kilo:var(--status-info);
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px; --sp6:32px;
+  --radius:6px; --radius-lg:12px;
+  --sans:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --t-body:0.9375rem; --t-cap:0.875rem; --t-eyebrow:0.8125rem;
+  --swoosh:cubic-bezier(.16,1,.3,1);
+  --snap:cubic-bezier(.34,1.56,.64,1);
+  --float:cubic-bezier(.45,.05,.55,.95);
+  --dur-quick:220ms; --dur-settle:340ms; --dur-flourish:480ms;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0; font-family:var(--sans); color:var(--text-primary);
+  font-size:var(--t-body); -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #1a2230 0%, transparent 55%),
+    radial-gradient(80% 60% at 88% 110%, #0d1420 0%, transparent 60%),
+    var(--surface-base);
+  overflow:hidden;
+}
+.mono{font-family:var(--mono); font-feature-settings:"tnum" 1,"zero" 1;}
+.eyebrow{font-family:var(--sans); font-size:var(--t-eyebrow); font-weight:700;
+  text-transform:uppercase; letter-spacing:.14em; color:var(--text-muted);}
+
+/* ── Masthead ──────────────────────────────────────────────────────────── */
+.mast{
+  position:fixed; top:0; left:0; right:0; height:56px; z-index:40;
+  display:flex; align-items:center; gap:var(--sp4); padding:0 var(--sp5);
+  border-bottom:1px solid var(--border-subtle);
+  background:linear-gradient(var(--surface-raised),color-mix(in srgb,var(--surface-raised) 70%,transparent));
+  backdrop-filter:blur(8px);
+}
+.mast .glyph{width:22px;height:22px;color:var(--brand-accent);flex:none;}
+.mast .title{font-weight:700; font-size:var(--t-cap); letter-spacing:-.01em;}
+.mast .sub{font-size:var(--t-cap); color:var(--text-muted);}
+.mast .spacer{flex:1;}
+.mast .stat{display:flex; align-items:center; gap:6px; font-size:var(--t-cap);
+  color:var(--text-secondary); font-family:var(--mono);}
+.mast .stat .pip{width:8px;height:8px;border-radius:50%;background:var(--status-success);
+  box-shadow:0 0 8px var(--status-success);}
+.mast .stat.warn .pip{background:var(--status-warning);box-shadow:0 0 8px var(--status-warning);}
+
+.ctl{display:flex; align-items:center; gap:var(--sp2);}
+.btn{
+  font-family:var(--sans); font-size:var(--t-cap); font-weight:600;
+  color:var(--text-secondary); background:var(--surface-strong);
+  border:1px solid var(--border-subtle); border-radius:var(--radius);
+  padding:7px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+  transition:transform var(--dur-quick) var(--snap), color var(--dur-quick), border-color var(--dur-quick), background var(--dur-quick);
+  min-height:34px;
+}
+.btn:hover{color:var(--text-primary); border-color:var(--border-default); transform:translateY(-1px);}
+.btn:active{transform:translateY(0) scale(.97);}
+.btn.on{color:var(--brand-accent); border-color:color-mix(in srgb,var(--brand-accent) 55%,transparent);
+  background:color-mix(in srgb,var(--brand-accent) 14%,var(--surface-strong));}
+.btn svg{width:15px;height:15px;flex:none;}
+
+/* ── Stage ─────────────────────────────────────────────────────────────── */
+#stage{position:fixed; inset:56px 0 0 0;}
+#scaffold{position:absolute; inset:0; pointer-events:none;}  /* SVG branch geometry */
+#biofield{position:absolute; inset:0; pointer-events:none;}  /* canvas fireflies/FX */
+#hit{position:absolute; inset:0;}                            /* DOM hit anchors */
+
+/* worktree plane label chips (DOM, hit-testable) */
+.plane-chip{
+  position:absolute; transform:translate(-50%,-50%);
+  font-family:var(--mono); font-size:var(--t-cap); font-weight:500;
+  padding:5px 10px; border-radius:var(--radius);
+  background:color-mix(in srgb,var(--surface-overlay) 88%, transparent);
+  border:1px solid var(--border-subtle); color:var(--text-secondary);
+  white-space:nowrap; backdrop-filter:blur(6px);
+  display:flex; align-items:center; gap:7px; cursor:pointer; pointer-events:auto;
+  transition:transform var(--dur-quick) var(--snap), border-color var(--dur-quick), box-shadow var(--dur-quick);
+}
+.plane-chip:hover{transform:translate(-50%,-50%) scale(1.04); border-color:var(--border-default);
+  box-shadow:0 6px 22px rgba(0,0,0,.45);}
+.plane-chip .swatch{width:10px;height:10px;border-radius:3px;flex:none;}
+.plane-chip.main{border-color:color-mix(in srgb,var(--brand-primary) 50%,transparent);
+  color:var(--brand-primary-on-tint); font-weight:700;}
+.plane-chip .ahead{color:var(--text-muted); font-size:var(--t-eyebrow);}
+.plane-chip .ready{color:var(--status-success); margin-left:2px;}
+
+/* firefly hover tooltip */
+#tip{
+  position:absolute; z-index:30; pointer-events:none; opacity:0;
+  transform:translateY(4px); transition:opacity 140ms var(--swoosh), transform 140ms var(--swoosh);
+  max-width:260px; background:var(--surface-overlay); backdrop-filter:blur(14px);
+  border:1px solid var(--border-default); border-radius:var(--radius);
+  padding:10px 12px; box-shadow:0 14px 40px rgba(0,0,0,.55);
+}
+#tip.show{opacity:1; transform:translateY(0);}
+#tip .name{font-weight:700; font-size:var(--t-body); display:flex; align-items:center; gap:7px;}
+#tip .name .dot{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 8px currentColor;}
+#tip .role{font-size:var(--t-cap); color:var(--brand-accent); font-family:var(--mono); margin:3px 0 7px;}
+#tip .meta{font-size:var(--t-cap); color:var(--text-secondary); font-family:var(--mono); line-height:1.5;}
+#tip .meta b{color:var(--text-primary); font-weight:600;}
+#tip .doing{margin-top:7px; font-size:var(--t-cap); color:var(--text-muted); font-style:italic; line-height:1.45;}
+
+/* notes "ground gutter" */
+#gutter{
+  position:absolute; left:0; right:0; bottom:0; height:46px; z-index:20;
+  pointer-events:none; display:flex; align-items:flex-end; gap:6px;
+  padding:0 var(--sp5) 8px; overflow:hidden;
+  background:linear-gradient(transparent, color-mix(in srgb,var(--surface-sunken) 65%,transparent));
+}
+.leaf-pile{
+  font-family:var(--mono); font-size:var(--t-eyebrow); color:var(--text-muted);
+  background:color-mix(in srgb,var(--surface-strong) 80%,transparent);
+  border:1px solid var(--border-subtle); border-radius:4px; padding:3px 7px;
+  pointer-events:auto; white-space:nowrap; max-width:240px; overflow:hidden;
+  text-overflow:ellipsis; opacity:0; transform:translateY(8px);
+  animation:settleLeaf 460ms var(--snap) forwards;
+}
+@keyframes settleLeaf{to{opacity:1;transform:translateY(0);}}
+
+/* legend / help */
+#legend{
+  position:absolute; left:var(--sp5); bottom:54px; z-index:25;
+  background:color-mix(in srgb,var(--surface-overlay) 85%,transparent);
+  border:1px solid var(--border-subtle); border-radius:var(--radius-lg);
+  padding:12px 14px; backdrop-filter:blur(10px); max-width:280px;
+  box-shadow:0 10px 34px rgba(0,0,0,.4);
+}
+#legend h3{margin:0 0 8px; font-size:var(--t-cap); font-weight:700; letter-spacing:.02em;}
+#legend .row{display:flex; align-items:center; gap:9px; font-size:var(--t-cap);
+  color:var(--text-secondary); padding:3px 0; font-family:var(--mono);}
+#legend .row .k{width:14px;height:14px;border-radius:50%;flex:none;}
+#legend .row .bar{width:18px;height:0;border-top:2px solid;flex:none;}
+#legend .hint{margin-top:8px; font-size:var(--t-eyebrow); color:var(--text-muted);
+  line-height:1.5; font-family:var(--sans);}
+
+/* trigger dock */
+#dock{
+  position:absolute; right:var(--sp5); bottom:54px; z-index:25;
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+}
+#dock .btn{justify-content:flex-start; min-width:148px;}
+
+/* reduced-motion legible banner */
+#rm-note{
+  position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:35;
+  font-size:var(--t-cap); color:var(--text-muted); font-family:var(--mono);
+  background:color-mix(in srgb,var(--surface-overlay) 90%,transparent);
+  border:1px solid var(--border-subtle); border-radius:var(--radius);
+  padding:5px 12px; display:none;
+}
+@media (prefers-reduced-motion:reduce){ #rm-note{display:block;} }
+
+a{color:var(--brand-primary);}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3v6"/><circle cx="12" cy="13" r="2.4"/>
+    <path d="M12 15.4c-2.2 1.1-4 2.8-4 5.1"/><path d="M12 15.4c2.2 1.1 4 2.8 4 5.1"/>
+    <path d="M9.4 11.2 6 8.4"/><path d="M14.6 11.2 18 8.4"/>
+  </svg>
+  <div>
+    <div class="title">Fleet Biofield</div>
+    <div class="sub mono">fireflies × worktrees — motif study</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="stat" id="stat-agents"><span class="pip"></span><span>— agents adrift</span></div>
+  <div class="stat warn" id="stat-merge"><span class="pip"></span><span>—</span></div>
+  <div class="ctl">
+    <button class="btn" id="btn-sound" aria-pressed="false" title="Toggle the fleet-breathing soundscape (opt-in)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="wave" d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      <span id="sound-label">Sound off</span>
+    </button>
+    <button class="btn" id="btn-merge" title="Trigger a demo merge of a ready worktree into main">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="12" r="2.4"/><path d="M6 8.4v7.2"/><path d="M8.4 6.6c5 .4 7 2.4 7.4 5"/></svg>
+      <span>Merge ↗</span>
+    </button>
+  </div>
+</header>
+
+<div id="stage" role="img" aria-label="Animated field of firefly agents orbiting parallel worktree branches off a bright main branch.">
+  <svg id="scaffold" preserveAspectRatio="none" aria-hidden="true"></svg>
+  <canvas id="biofield"></canvas>
+  <div id="hit"></div>
+  <div id="gutter" aria-hidden="true"></div>
+
+  <div id="rm-note">reduced-motion — fireflies shown as static signal dots</div>
+
+  <aside id="legend">
+    <h3>Reading the biofield</h3>
+    <div class="row"><span class="k" style="background:var(--brand-accent);box-shadow:0 0 8px var(--brand-accent)"></span> firefly = live agent</div>
+    <div class="row"><span class="k" style="background:var(--ph-hot)"></span> pheromone = recent action</div>
+    <div class="row"><span class="bar" style="border-color:var(--status-info)"></span> laser = inbox DM</div>
+    <div class="row"><span class="k" style="background:var(--status-success)"></span> burst = merge → main</div>
+    <div class="hint">Hover a firefly to see who it is and what it touches. Worktree planes drift in parallel; brighter = closer to main.</div>
+  </aside>
+
+  <div id="dock">
+    <button class="btn" id="btn-dm" title="Send a demo inbox laser between two agents">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h13"/><path d="m12 7 5 5-5 5"/><circle cx="20" cy="12" r="1.6"/></svg>
+      Send DM laser
+    </button>
+    <button class="btn" id="btn-note" title="Drop a demo note — it falls as a leaf to the gutter">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4c4 2 4 7 0 10 0 4 3 6 3 6"/><path d="M9 14c5 0 8-3 9-9"/></svg>
+      Drop a note
+    </button>
+    <button class="btn" id="btn-broadcast" title="Emit a comms soundwave ripple">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M8 8a5.6 5.6 0 0 0 0 8"/><path d="M16 8a5.6 5.6 0 0 1 0 8"/><path d="M5.5 5.5a9.2 9.2 0 0 0 0 13"/><path d="M18.5 5.5a9.2 9.2 0 0 1 0 13"/></svg>
+      Broadcast
+    </button>
+  </div>
+
+  <div id="tip" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════════════
+   DATA SPINE — grounded in real Port Daddy concepts.
+   In production these come from `pd sessions --all-worktrees`, `pd notes`,
+   claims, and the activity SSE bus, reduced to a {planes, agents} frame.
+   ════════════════════════════════════════════════════════════════════════ */
+const PALETTE = getComputedStyle(document.documentElement);
+const tok = n => PALETTE.getPropertyValue(n).trim();
+const C = {
+  accent: tok('--brand-accent'), primary: tok('--brand-primary'),
+  phHot: tok('--ph-hot'), phRecent: tok('--ph-recent'), phCold: tok('--ph-cold'),
+  phFail: tok('--ph-fail'), success: tok('--status-success'),
+  info: tok('--status-info'), warn: tok('--status-warning'), muted: tok('--text-muted'),
+};
+
+// Worktree planes: main is plane 0 (opaque, bright); each agent worktree is a
+// nearly-conjoined spectral plane offset off main. ahead/behind + merge-ready
+// are real session-frame fields.
+const PLANES = [
+  { id:'main',                  label:'main',                     color:C.primary, hue:0,    ahead:0,  ready:false, anchor:{x:.50,y:.30} },
+  { id:'feat/recovered',        label:'feat/recovered-stranded',  color:C.info,    hue:24,   ahead:7,  ready:false, anchor:{x:.26,y:.54} },
+  { id:'design/tui-fleetbar',   label:'design/tui-fleetbar',      color:C.accent,  hue:48,   ahead:12, ready:true,  anchor:{x:.74,y:.50} },
+  { id:'proto/fireflies',       label:'proto/fireflies-worktrees',color:C.success, hue:72,   ahead:3,  ready:false, anchor:{x:.42,y:.74} },
+  { id:'fix/tube-router',       label:'fix/tube-router',          color:C.warn,    hue:96,   ahead:2,  ready:true,  anchor:{x:.84,y:.78} },
+];
+
+// Fireflies = agents. identity = project:stack:context (PD semantic identity).
+const AGENTS = [
+  { id:'cartographer', who:'cartographer', role:'roadmap:matrix:now',     plane:'main',                file:'lib/cartographer.ts',     ph:'recent', idle:false, note:'reconciling ADR-0043 implementation matrix' },
+  { id:'gardener',     who:'gardener',     role:'repo:triage:sweep',      plane:'main',                file:'docs/recovery/',          ph:'hot',    idle:false, note:'tidying stranded worktrees into clusters' },
+  { id:'salvor',       who:'salvor',       role:'recovered:stranded:2026',plane:'feat/recovered',      file:'.scratch/_restore_list', ph:'hot',    idle:false, note:'restoring 637 stranded lines from main checkout' },
+  { id:'looker',       who:'lookout',      role:'feat:scan:diff',         plane:'feat/recovered',      file:'apps/FleetBar/',          ph:'cold',   idle:true,  note:'idle — waiting on salvor to land' },
+  { id:'tui-smith',    who:'tui-smith',    role:'design:tui:mockups',     plane:'design/tui-fleetbar', file:'operator-tui-v9.html',    ph:'hot',    idle:false, note:'wiring the conversation multiplexer (ADR-0046)' },
+  { id:'pixel',        who:'pixel-poet',   role:'design:figures:blueprint',plane:'design/tui-fleetbar',file:'public/img/generated/',   ph:'recent', idle:false, note:'rendering flat-blueprint robot art' },
+  { id:'firefly-dev',  who:'firefly-dev',  role:'proto:fireflies:motif',  plane:'proto/fireflies',     file:'fireflies-worktrees.html',ph:'hot',    idle:false, note:'building this very biofield (so meta)' },
+  { id:'router',       who:'tube-router',  role:'tube:spawner:fail-closed',plane:'fix/tube-router',    file:'lib/tube-spawner-router.ts',ph:'recent',idle:false, note:'routing Codex over pd tube to the fleet' },
+  { id:'attest',       who:'attestor',     role:'attest:invariants:loud', plane:'fix/tube-router',     file:'lib/attest.ts',           ph:'fail',   idle:false, note:'a loud-fail invariant tripped — see inbox' },
+];
+
+/* ════════════════════════════════════════════════════════════════════════
+   STAGE WIRING
+   ════════════════════════════════════════════════════════════════════════ */
+const stage    = document.getElementById('stage');
+const svg      = document.getElementById('scaffold');
+const canvas   = document.getElementById('biofield');
+const hit      = document.getElementById('hit');
+const tip      = document.getElementById('tip');
+const gutter   = document.getElementById('gutter');
+const ctx      = canvas.getContext('2d');
+const REDUCED  = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+let W=0, H=0, DPR=1;
+function layout(){
+  const r = stage.getBoundingClientRect();
+  W = r.width; H = r.height;
+  DPR = Math.min(window.devicePixelRatio||1, 2);     // cap dpr<=2 per spec
+  canvas.width = Math.round(W*DPR); canvas.height = Math.round(H*DPR);
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  placeAnchors();
+  drawScaffold();
+}
+function px(p){ return { x:p.anchor.x*W, y:p.anchor.y*H }; }
+
+/* ── DOM hit anchors + plane chips ───────────────────────────────────────── */
+function placeAnchors(){
+  hit.innerHTML = '';
+  for(const p of PLANES){
+    const c = px(p);
+    const chip = document.createElement('div');
+    chip.className = 'plane-chip' + (p.id==='main'?' main':'');
+    chip.style.left = c.x+'px'; chip.style.top = (c.y - (p.id==='main'?0:0))+'px';
+    chip.dataset.plane = p.id;
+    chip.innerHTML =
+      `<span class="swatch" style="background:${p.color};box-shadow:0 0 8px ${p.color}"></span>`+
+      `<span>${p.label}</span>`+
+      (p.id!=='main'? `<span class="ahead">+${p.ahead}</span>`:'')+
+      (p.ready? `<span class="ready" title="merge-ready">●</span>`:'');
+    chip.addEventListener('click', ()=> pulsePlane(p));
+    hit.appendChild(chip);
+    p._c = c;
+  }
+}
+
+/* ── Spectral parallax branch scaffold (SVG) ─────────────────────────────── */
+let parallax = 0;     // -1..1 from cursor-x, shifts ghost planes
+function drawScaffold(){
+  const main = PLANES[0]; const m = px(main);
+  let s = '';
+  // bright main "trunk": a glowing vertical-ish spine through the main anchor
+  s += `<defs>
+    <linearGradient id="trunk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${C.primary}" stop-opacity=".85"/>
+      <stop offset="1" stop-color="${C.primary}" stop-opacity=".25"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="2.2"/></filter>
+  </defs>`;
+  const topY = m.y - H*0.22, botY = H*0.96;
+  s += `<path d="M ${m.x} ${topY} L ${m.x} ${botY}" stroke="url(#trunk)" stroke-width="3.5" fill="none" filter="url(#soft)" stroke-linecap="round"/>`;
+  s += `<path d="M ${m.x} ${topY} L ${m.x} ${botY}" stroke="${C.primary}" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".9"/>`;
+
+  // each worktree branches off main with a ghostly dashed diff-stem, parallax-shifted
+  PLANES.slice(1).forEach((p,i)=>{
+    const c = px(p);
+    const dx = (18 * (i+1)) * parallax * 0.5;   // ±6px feel, scaled
+    const cx = c.x + dx;
+    const branchY = m.y + (c.y - m.y)*0.32;      // where it splits off the trunk
+    const ctrl1x = m.x, ctrl1y = branchY;
+    const ctrl2x = cx,  ctrl2y = c.y - (c.y-branchY)*0.4;
+    const path = `M ${m.x} ${branchY} C ${ctrl1x} ${ctrl1y}, ${ctrl2x} ${ctrl2y}, ${cx} ${c.y}`;
+    const alpha = Math.pow(0.92, i+1);
+    // faint solid conjoined stem + dashed diff overlay
+    s += `<path d="${path}" stroke="${p.color}" stroke-width="2" fill="none" opacity="${0.28*alpha}" stroke-linecap="round"/>`;
+    s += `<path d="${path}" stroke="${p.color}" stroke-width="1.2" fill="none" opacity="${0.55*alpha}" stroke-dasharray="2 4" stroke-linecap="round"/>`;
+    // hypothetical-folder breathing node ring at the tip
+    s += `<circle cx="${cx}" cy="${c.y}" r="9" fill="none" stroke="${p.color}" stroke-width="1.3" opacity="${0.5*alpha}"/>`;
+    p._cx = cx;   // parallax-corrected x for firefly seek + chip
+  });
+  PLANES[0]._cx = m.x;
+  svg.innerHTML = s;
+
+  // keep chips glued to parallax-shifted anchors
+  document.querySelectorAll('.plane-chip').forEach(chip=>{
+    const p = PLANES.find(pp=>pp.id===chip.dataset.plane);
+    if(p && p._cx!=null) chip.style.left = p._cx+'px';
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PRE-BAKED SPRITES — bake the firefly glow once, then only drawImage.
+   (No per-frame shadowBlur / filter:blur — both are per-pixel killers.)
+   ════════════════════════════════════════════════════════════════════════ */
+function bakeGlow(color, size){
+  const r = size*5;                 // glow radius = 5x body
+  const s = document.createElement('canvas');
+  s.width = s.height = Math.ceil(r*2);
+  const g = s.getContext('2d');
+  const grad = g.createRadialGradient(r,r,0, r,r,r);
+  grad.addColorStop(0,   color);
+  grad.addColorStop(0.18,color);
+  grad.addColorStop(0.5, hexA(color,0.35));
+  grad.addColorStop(1,   hexA(color,0));
+  g.fillStyle = grad; g.beginPath(); g.arc(r,r,r,0,Math.PI*2); g.fill();
+  return s;
+}
+function hexA(hex,a){
+  hex = hex.replace('#','');
+  if(hex.length===3) hex = hex.split('').map(x=>x+x).join('');
+  const n = parseInt(hex,16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+let GLOW = {};   // built after layout / color resolve
+function buildSprites(){
+  GLOW.accent = bakeGlow(C.accent, 4);
+  GLOW.fail   = bakeGlow(C.phFail, 4);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   FIREFLY SWARM — value-noise drift + boid seek toward owning plane node.
+   ════════════════════════════════════════════════════════════════════════ */
+const TWO_PI = Math.PI*2;
+const fireflies = AGENTS.map((a,i)=>{
+  const p = PLANES.find(pp=>pp.id===a.plane) || PLANES[0];
+  return {
+    a, plane:p, seed:Math.random()*1000+i*13.7,
+    x:0,y:0, vx:0,vy:0, hueShift:(Math.random()*30-15),
+    trail:[],                       // bioluminescent fading trail
+    blinkPhase:Math.random()*TWO_PI,
+  };
+});
+function seedPositions(){
+  fireflies.forEach(f=>{
+    const c = px(f.plane);
+    f.x = c.x + (Math.random()*120-60);
+    f.y = c.y + (Math.random()*120-60);
+  });
+}
+
+// layered value-noise (cheap, not true Perlin)
+function noiseDrift(t, seed){
+  return {
+    x: Math.sin(t*0.7+seed)*0.4 + Math.sin(t*0.23+seed*3)*0.9,
+    y: Math.cos(t*0.6+seed*1.3)*0.5 + Math.sin(t*0.19+seed*2.1)*0.8,
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   EVENT PARTICLE POOLS — pheromones, merges, lasers, ripples, leaves, sparks.
+   All short-lived, pooled, in the ONE rAF loop. Never new DOM per frame.
+   ════════════════════════════════════════════════════════════════════════ */
+const rings   = [];   // pheromone + soundwave expanding rings
+const lasers  = [];   // inbox DM beams
+const bursts  = [];   // merge flashes
+const sparks  = [];   // merge spark particles
+const ghosts  = [];   // merging ghost-branch sprites
+const heat    = {};    // persistent pheromone heat per plane (additive)
+
+function phColor(kind){
+  return ({hot:C.phHot, recent:C.phRecent, cold:C.phCold, fail:C.phFail})[kind] || C.phRecent;
+}
+
+// PHEROMONE GLOW: expanding ring at a node + additive heat deposit.
+function spawnPheromone(x,y,kind){
+  rings.push({ x,y, r0:2, r1:32, life:0, dur:700, color:phColor(kind), w0:2.4, w1:0.4, a0:0.6, kind:'pher' });
+  const pid = nearestPlaneId(x,y);
+  heat[pid] = Math.min((heat[pid]||0) + 0.5, 3);
+}
+// SOUNDWAVE RIPPLE: 3 staggered concentric arcs.
+function spawnRipple(x,y,color){
+  for(let k=0;k<3;k++){
+    rings.push({ x,y, r0:0, r1:48, life:-k*120, dur:800, color, w0:2, w1:0.3, a0:0.5, kind:'wave' });
+  }
+}
+// INBOX LASER: traveling bright dash source→target + faint afterglow.
+function spawnLaser(ax,ay,bx,by,color){
+  lasers.push({ ax,ay,bx,by, life:0, dur:380, color });
+  sound && sound.zip();
+}
+// MERGE: ghost stem eases to main, then a pop flash + sparks.
+function spawnMerge(plane){
+  const from = {x: plane._cx ?? px(plane).x, y: px(plane).y};
+  const m = PLANES[0]; const to = {x: m._cx ?? px(m).x, y: px(m).y + H*0.10};
+  ghosts.push({ from, to, life:0, dur:300, color:plane.color, done:false });
+}
+function mergePop(x,y,color){
+  bursts.push({ x,y, life:0, dur:240, color });
+  for(let i=0;i<10;i++){
+    const ang = Math.random()*TWO_PI, sp = 1.5+Math.random()*2.5;
+    sparks.push({ x,y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, life:0, dur:420, color });
+  }
+  sound && sound.merge();
+}
+// FALLING LEAF (note): real DOM leaf falls to gutter then settles as a pile chip.
+function dropNote(x,y,text){
+  if(REDUCED){ addLeafPile(text); return; }   // legible-frozen path
+  const leaf = document.createElement('div');
+  leaf.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:9px;height:12px;border-radius:60% 60% 55% 55%/70% 70% 40% 40%;background:${C.accent};opacity:.9;pointer-events:none;z-index:22;box-shadow:0 0 7px ${hexA(C.accent,.5)};`;
+  stage.appendChild(leaf);
+  let vy=0, sway=0, t=0, lastFlip=0, sx=1;
+  const groundY = H - 46;
+  (function fall(){
+    t += 16;
+    vy = Math.min(vy+0.12, 2.2);
+    sway = Math.sin(t*0.0022*2.2) * 1.4;
+    const rot = Math.sin(t*0.0018*1.8)*18;
+    if(t-lastFlip > 1300){ lastFlip=t; sx = -sx; }   // edge-on tumble
+    const cy = parseFloat(leaf.style.top) + vy;
+    const cx = parseFloat(leaf.style.left) + sway;
+    leaf.style.top = cy+'px'; leaf.style.left = cx+'px';
+    leaf.style.transform = `rotate(${rot}deg) scaleX(${sx})`;
+    if(cy < groundY){ requestAnimationFrame(fall); }
+    else { leaf.remove(); addLeafPile(text); sound && sound.tok(); }
+  })();
+}
+function addLeafPile(text){
+  const pile = document.createElement('div');
+  pile.className = 'leaf-pile';
+  pile.textContent = '✎ '.replace('✎','') + text;   // no emoji glyph; plain text
+  pile.textContent = text;
+  gutter.appendChild(pile);
+  while(gutter.children.length > 6) gutter.removeChild(gutter.firstChild);
+}
+
+function nearestPlaneId(x,y){
+  let best='main', d=Infinity;
+  for(const p of PLANES){ const c=px(p); const dd=(c.x-x)**2+(c.y-y)**2; if(dd<d){d=dd;best=p.id;} }
+  return best;
+}
+function pulsePlane(p){
+  const c = {x:p._cx ?? px(p).x, y:px(p).y};
+  spawnRipple(c.x, c.y, p.color);
+  sound && sound.bloop(440);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   THE ONE rAF LOOP
+   ════════════════════════════════════════════════════════════════════════ */
+let running = false, t0 = performance.now(), lastReal = t0;
+function frame(now){
+  if(!running){ return; }
+  const t = (now - t0)/1000;
+  const dt = Math.min((now-lastReal), 50); lastReal = now;
+  ctx.clearRect(0,0,W,H);
+
+  // ── persistent pheromone heat blit (under everything) ──
+  ctx.globalCompositeOperation = 'lighter';
+  for(const p of PLANES){
+    const h = heat[p.id]; if(!h) continue;
+    const c = px(p);
+    const g = ctx.createRadialGradient(c.x,c.y,0, c.x,c.y, 26+h*10);
+    g.addColorStop(0, hexA(p.color, Math.min(h*0.05, 0.16)));
+    g.addColorStop(1, hexA(p.color, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c.x,c.y, 26+h*10, 0, TWO_PI); ctx.fill();
+    heat[p.id] *= 0.985;   // decay per frame
+    if(heat[p.id] < 0.02) delete heat[p.id];
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // ── soundwave + pheromone rings ──
+  for(let i=rings.length-1;i>=0;i--){
+    const r = rings[i]; r.life += dt;
+    if(r.life < 0) continue;
+    const k = r.life/r.dur;
+    if(k>=1){ rings.splice(i,1); continue; }
+    const e = 1-Math.pow(1-k,3);               // cubic-bezier(.16,1,.3,1)-ish
+    const rad = r.r0 + (r.r1-r.r0)*e;
+    ctx.beginPath(); ctx.arc(r.x,r.y,rad,0,TWO_PI);
+    ctx.strokeStyle = hexA(r.color, r.a0*(1-k));
+    ctx.lineWidth = r.w0 + (r.w1-r.w0)*k;
+    ctx.stroke();
+  }
+
+  // ── fireflies ──
+  ctx.globalCompositeOperation = 'lighter';
+  for(const f of fireflies){
+    const node = { x: f.plane._cx ?? px(f.plane).x, y: px(f.plane).y };
+    // boid seek toward owning plane node (max force/speed per spec)
+    const dx = node.x - f.x, dy = node.y - f.y;
+    const dist = Math.hypot(dx,dy)||1;
+    const desired = 80;                          // perception/hover radius
+    const seekMag = dist>desired ? 0.02 : -0.006; // pull in / gentle push out → hover
+    f.vx += (dx/dist)*seekMag*dt; f.vy += (dy/dist)*seekMag*dt;
+    // layered value-noise drift
+    const n = noiseDrift(t, f.seed);
+    const slow = f.a.idle ? 0.45 : 1;
+    f.vx += n.x*0.04*slow; f.vy += n.y*0.04*slow;
+    // damp + clamp speed
+    f.vx *= 0.94; f.vy *= 0.94;
+    const sp = Math.hypot(f.vx,f.vy), maxS = (f.a.idle?0.6:1.1);
+    if(sp>maxS){ f.vx=f.vx/sp*maxS; f.vy=f.vy/sp*maxS; }
+    f.x += f.vx*dt*0.06*16; f.y += f.vy*dt*0.06*16;
+    // soft bounds
+    f.x = Math.max(20, Math.min(W-20, f.x)); f.y = Math.max(20, Math.min(H-50, f.y));
+
+    // trail
+    f.trail.push({x:f.x,y:f.y}); if(f.trail.length>12) f.trail.shift();
+
+    // bioluminescent out-of-phase breathe
+    const blink = 0.55 + 0.45*Math.sin(t*1.6 + f.blinkPhase);
+    const baseA = (f.a.idle?0.3:1) * blink;
+    const glow = f.a.ph==='fail' ? GLOW.fail : GLOW.accent;
+    const core = f.a.ph==='fail' ? C.phFail : C.accent;
+
+    // trail (dim)
+    for(let i=0;i<f.trail.length;i++){
+      const tp=f.trail[i]; const ta=(i/f.trail.length)*0.25*baseA;
+      ctx.fillStyle = hexA(core, ta);
+      ctx.beginPath(); ctx.arc(tp.x,tp.y, 1.6, 0, TWO_PI); ctx.fill();
+    }
+    // glow sprite
+    const gs = glow.width;
+    ctx.globalAlpha = baseA*0.9;
+    ctx.drawImage(glow, f.x-gs/2, f.y-gs/2);
+    ctx.globalAlpha = 1;
+    // crisp core
+    ctx.fillStyle = `rgba(255,255,255,${Math.min(baseA*0.95,1)})`;
+    ctx.beginPath(); ctx.arc(f.x,f.y, 2.2, 0, TWO_PI); ctx.fill();
+    f._sx=f.x; f._sy=f.y;     // cache for hit-test
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // ── lasers (inbox DMs) ──
+  for(let i=lasers.length-1;i>=0;i--){
+    const L = lasers[i]; L.life += dt;
+    const k = L.life/L.dur;
+    if(k>=1.5){ lasers.splice(i,1); continue; }
+    const e = 1-Math.pow(1-Math.min(k,1),3);
+    // afterglow full line
+    ctx.strokeStyle = hexA(L.color, 0.15*(1-Math.min(k,1)));
+    ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(L.ax,L.ay); ctx.lineTo(L.bx,L.by); ctx.stroke();
+    if(k<1){
+      // traveling bright segment
+      const segLen=0.18;
+      const t1=Math.max(0,e-segLen), t2=e;
+      const x1=L.ax+(L.bx-L.ax)*t1, y1=L.ay+(L.by-L.ay)*t1;
+      const x2=L.ax+(L.bx-L.ax)*t2, y2=L.ay+(L.by-L.ay)*t2;
+      ctx.strokeStyle = L.color; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      // endpoint micro-flash on arrival
+      if(e>0.94){ ctx.fillStyle=hexA(L.color,0.8); ctx.beginPath(); ctx.arc(L.bx,L.by,4,0,TWO_PI); ctx.fill(); }
+    }
+  }
+
+  // ── merging ghost branches ──
+  for(let i=ghosts.length-1;i>=0;i--){
+    const G = ghosts[i]; G.life += dt;
+    const k = G.life/G.dur;
+    if(k>=1){
+      if(!G.done){ mergePop(G.to.x, G.to.y, G.color); G.done=true; }
+      ghosts.splice(i,1); continue;
+    }
+    const e = 1-Math.pow(1-k,3);
+    // quadratic bezier arc toward main
+    const cxp=(G.from.x+G.to.x)/2, cyp=Math.min(G.from.y,G.to.y)-60;
+    const x=(1-e)*(1-e)*G.from.x+2*(1-e)*e*cxp+e*e*G.to.x;
+    const y=(1-e)*(1-e)*G.from.y+2*(1-e)*e*cyp+e*e*G.to.y;
+    ctx.globalCompositeOperation='lighter';
+    ctx.fillStyle=hexA(G.color,0.85);
+    ctx.beginPath(); ctx.arc(x,y,3.5,0,TWO_PI); ctx.fill();
+    ctx.strokeStyle=hexA(G.color,0.3); ctx.lineWidth=1.2; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(G.from.x,G.from.y); ctx.lineTo(x,y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  // ── merge bursts ──
+  ctx.globalCompositeOperation='lighter';
+  for(let i=bursts.length-1;i>=0;i--){
+    const B=bursts[i]; B.life+=dt; const k=B.life/B.dur;
+    if(k>=1){ bursts.splice(i,1); continue; }
+    const e=1-Math.pow(1-k,2);
+    const sc=0.2+(2.4-0.2)*e, a=1-k, rad=24*sc;
+    const g=ctx.createRadialGradient(B.x,B.y,0,B.x,B.y,rad);
+    g.addColorStop(0,`rgba(255,255,255,${a})`);
+    g.addColorStop(0.4,hexA(B.color,a*0.7));
+    g.addColorStop(1,hexA(B.color,0));
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(B.x,B.y,rad,0,TWO_PI); ctx.fill();
+  }
+  // ── sparks ──
+  for(let i=sparks.length-1;i>=0;i--){
+    const s=sparks[i]; s.life+=dt; const k=s.life/s.dur;
+    if(k>=1){ sparks.splice(i,1); continue; }
+    s.vy += 0.05; s.vx*=0.96; s.vy*=0.96;
+    s.x+=s.vx*dt*0.06*16; s.y+=s.vy*dt*0.06*16;
+    ctx.fillStyle=hexA(s.color,1-k);
+    ctx.beginPath(); ctx.arc(s.x,s.y,1.6,0,TWO_PI); ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+
+  updateBreath();
+  requestAnimationFrame(frame);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   REDUCED-MOTION STATIC RENDER — fireflies = static signal dots at anchors,
+   every event still flips a class/color so state is legible frozen.
+   ════════════════════════════════════════════════════════════════════════ */
+function renderStatic(){
+  ctx.clearRect(0,0,W,H);
+  for(const f of fireflies){
+    const c = px(f.plane);
+    const jx = (f.seed%40)-20, jy = ((f.seed*1.7)%40)-20;
+    f._sx=c.x+jx; f._sy=c.y+jy;
+    const core = f.a.ph==='fail'?C.phFail:C.accent;
+    ctx.fillStyle = hexA(core, f.a.idle?0.4:0.9);
+    ctx.beginPath(); ctx.arc(f._sx,f._sy,4,0,TWO_PI); ctx.fill();
+    ctx.strokeStyle = hexA(core,0.4); ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(f._sx,f._sy,7,0,TWO_PI); ctx.stroke();
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HOVER INSPECT — hit-test fireflies, show who/what.
+   ════════════════════════════════════════════════════════════════════════ */
+let hoverF = null;
+stage.addEventListener('pointermove', e=>{
+  const r = stage.getBoundingClientRect();
+  const mx = e.clientX-r.left, my = e.clientY-r.top;
+  parallax = (mx/W)*2-1;
+  let best=null, bd=24*24;
+  for(const f of fireflies){
+    if(f._sx==null) continue;
+    const d=(f._sx-mx)**2+(f._sy-my)**2;
+    if(d<bd){ bd=d; best=f; }
+  }
+  if(best){
+    hoverF=best;
+    const core = best.a.ph==='fail'?C.phFail:C.accent;
+    tip.innerHTML =
+      `<div class="name"><span class="dot" style="background:${core};color:${core}"></span>${best.a.who}</div>`+
+      `<div class="role">${best.a.role}</div>`+
+      `<div class="meta">worktree <b>${best.plane.label}</b><br>touching <b>${best.a.file}</b><br>pheromone <b>${best.a.ph}</b>${best.a.idle?' · <b>idle</b>':''}</div>`+
+      `<div class="doing">“${best.a.note}”</div>`;
+    let tx = best._sx+16, ty = best._sy-10;
+    if(tx > W-280) tx = best._sx-276;
+    if(ty < 4) ty = 4;
+    tip.style.left = tx+'px'; tip.style.top = ty+'px';
+    tip.classList.add('show');
+    stage.style.cursor='pointer';
+  } else if(hoverF){
+    hoverF=null; tip.classList.remove('show'); stage.style.cursor='default';
+  }
+});
+stage.addEventListener('pointerleave', ()=>{ tip.classList.remove('show'); hoverF=null; });
+
+/* ════════════════════════════════════════════════════════════════════════
+   AMBIENT CHOREOGRAPHY — agents act on their own (the field feels alive).
+   ════════════════════════════════════════════════════════════════════════ */
+function ambientTick(){
+  // a random working agent drops a pheromone where it works
+  const active = fireflies.filter(f=>!f.a.idle);
+  if(active.length){
+    const f = active[(Math.random()*active.length)|0];
+    spawnPheromone(f._sx ?? px(f.plane).x, f._sy ?? px(f.plane).y, f.a.ph);
+    sound && Math.random()<0.5 && sound.pheromoneBreath();
+  }
+}
+let ambientTimer=null;
+function startAmbient(){ ambientTimer = setInterval(ambientTick, REDUCED?4000:2200); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   SOUND LAYER — "fleet breathing". Default OFF. reduced-motion forces mute.
+   Single AudioContext, master gain 0.18, every envelope ramps (no clicks).
+   ════════════════════════════════════════════════════════════════════════ */
+let sound = null;
+function makeSound(){
+  const AC = window.AudioContext||window.webkitAudioContext;
+  if(!AC) return null;
+  const ctxA = new AC();
+  const master = ctxA.createGain(); master.gain.value=0.18; master.connect(ctxA.destination);
+  // breath bed: 2 sines (C2+G2) + brown noise → shared lowpass → LFO-modulated gain
+  const filt = ctxA.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=300;
+  filt.connect(master);
+  const bed = ctxA.createGain(); bed.gain.value=0.0; bed.connect(filt);
+  const o1=ctxA.createOscillator(); o1.type='sine'; o1.frequency.value=65.4;  o1.connect(bed); o1.start();
+  const o2=ctxA.createOscillator(); o2.type='sine'; o2.frequency.value=98.0;  o2.connect(bed); o2.start();
+  // brown noise
+  const bufSize=ctxA.sampleRate*2; const nb=ctxA.createBuffer(1,bufSize,ctxA.sampleRate);
+  const d=nb.getChannelData(0); let last=0;
+  for(let i=0;i<bufSize;i++){ const wn=Math.random()*2-1; d[i]=(last+0.02*wn)/1.02; last=d[i]; d[i]*=3.2; }
+  const noise=ctxA.createBufferSource(); noise.buffer=nb; noise.loop=true;
+  const ng=ctxA.createGain(); ng.gain.value=0.12; noise.connect(ng).connect(bed); noise.start();
+  // LFO on bed gain
+  const lfo=ctxA.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.1;
+  const lfoG=ctxA.createGain(); lfoG.gain.value=0.06;
+  lfo.connect(lfoG).connect(bed.gain); lfo.start();
+  bed.gain.value=0.06;
+
+  function env(o,g,freq,dur,peak,type='sine'){
+    const t=ctxA.currentTime; o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(peak,t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t+dur);
+  }
+  function tone(freq,dur,peak,type='sine'){ env(ctxA.createOscillator(),ctxA.createGain(),freq,dur,peak,type); }
+  let lastCue=0;
+  function debounced(fn){ const n=performance.now(); if(n-lastCue<80) return; lastCue=n; fn(); }
+
+  return {
+    ctx:ctxA, resume:()=>ctxA.resume(),
+    setActivity(frac){ // fleet breathes harder with activity
+      const t=ctxA.currentTime;
+      lfo.frequency.linearRampToValueAtTime(0.08+frac*0.07, t+4);
+      filt.frequency.linearRampToValueAtTime(200+frac*700, t+4);
+    },
+    bloop(f){ debounced(()=>tone(f||440,0.09,0.10)); },
+    zip(){ debounced(()=>{ const o=ctxA.createOscillator(),g=ctxA.createGain(); const t=ctxA.currentTime;
+      o.type='sine'; o.frequency.setValueAtTime(400,t); o.frequency.exponentialRampToValueAtTime(900,t+0.14);
+      g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(0.09,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.14);
+      o.connect(g).connect(master); o.start(t); o.stop(t+0.14); }); },
+    tok(){ debounced(()=>tone(180,0.07,0.08,'triangle')); },
+    pheromoneBreath(){ /* near-inaudible, handled by bed */ },
+    merge(){ [659.25,830.6].forEach((f,i)=>setTimeout(()=>tone(f,0.6,0.09-i*0.02),i*60)); },
+    ripple(){ debounced(()=>tone(523,0.3,0.06)); },
+  };
+}
+const soundBtn = document.getElementById('btn-sound');
+const soundLabel = document.getElementById('sound-label');
+function toggleSound(){
+  if(REDUCED){ return; }   // forced mute under reduced-motion
+  if(!sound){
+    sound = makeSound();
+    if(!sound) return;
+    sound.resume();
+    try{ localStorage.setItem('pd_sound','1'); }catch(e){}
+    soundBtn.classList.add('on'); soundBtn.setAttribute('aria-pressed','true'); soundLabel.textContent='Sound on';
+  } else {
+    sound.ctx.close(); sound=null;
+    try{ localStorage.setItem('pd_sound','0'); }catch(e){}
+    soundBtn.classList.remove('on'); soundBtn.setAttribute('aria-pressed','false'); soundLabel.textContent='Sound off';
+  }
+}
+soundBtn.addEventListener('click', toggleSound);
+if(REDUCED){ soundBtn.disabled=true; soundBtn.style.opacity=.5; soundLabel.textContent='Muted (reduced motion)'; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   DOCK + MERGE CONTROLS
+   ════════════════════════════════════════════════════════════════════════ */
+document.getElementById('btn-merge').addEventListener('click', ()=>{
+  const ready = PLANES.find(p=>p.ready);
+  if(ready) spawnMerge(ready);
+});
+document.getElementById('btn-dm').addEventListener('click', ()=>{
+  const a = fireflies[(Math.random()*fireflies.length)|0];
+  let b = fireflies[(Math.random()*fireflies.length)|0]; let n=0;
+  while(b===a && n++<5) b = fireflies[(Math.random()*fireflies.length)|0];
+  const ax=a._sx??px(a.plane).x, ay=a._sy??px(a.plane).y;
+  const bx=b._sx??px(b.plane).x, by=b._sy??px(b.plane).y;
+  if(REDUCED){ // legible 1-frame endpoint pulse
+    ctx.fillStyle=hexA(C.info,0.8); ctx.beginPath(); ctx.arc(bx,by,6,0,TWO_PI); ctx.fill(); return;
+  }
+  spawnLaser(ax,ay,bx,by,C.info);
+});
+document.getElementById('btn-note').addEventListener('click', ()=>{
+  const f = fireflies[(Math.random()*fireflies.length)|0];
+  const notes=['scope: lib/* — assumptions verified','rebased onto origin/main','blocked: needs HITL approval','validation: 3239 tests green','salvaged 637 stranded lines'];
+  const x=f._sx??px(f.plane).x, y=f._sy??px(f.plane).y;
+  dropNote(x,y, notes[(Math.random()*notes.length)|0]);
+});
+document.getElementById('btn-broadcast').addEventListener('click', ()=>{
+  const m = PLANES[0]; const c={x:m._cx??px(m).x, y:px(m).y};
+  if(REDUCED){ ctx.strokeStyle=hexA(C.info,0.6); ctx.lineWidth=2; ctx.beginPath(); ctx.arc(c.x,c.y,30,0,TWO_PI); ctx.stroke(); return; }
+  spawnRipple(c.x,c.y,C.info);
+  sound && sound.ripple();
+});
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATS + BREATH COUPLING
+   ════════════════════════════════════════════════════════════════════════ */
+function updateBreath(){
+  // (cheap; called each frame but only ramps sound every few sec via setActivity)
+}
+let breathTimer=null;
+function startStats(){
+  const active = AGENTS.filter(a=>!a.idle).length;
+  const ready  = PLANES.filter(p=>p.ready).length;
+  document.querySelector('#stat-agents span:last-child').textContent =
+    `${AGENTS.length} agents · ${active} working`;
+  const ms = document.querySelector('#stat-merge');
+  ms.querySelector('span:last-child').textContent = `${ready} worktree${ready!==1?'s':''} merge-ready`;
+  breathTimer = setInterval(()=>{
+    const frac = active/AGENTS.length;
+    sound && sound.setActivity(frac);
+  }, 5000);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOOT + IntersectionObserver pause + resize
+   ════════════════════════════════════════════════════════════════════════ */
+function start(){
+  if(REDUCED){ renderStatic(); return; }
+  if(!GLOW.accent) return;            // sprites not baked yet — don't draw
+  if(running) return; running=true; t0=performance.now(); lastReal=t0;
+  requestAnimationFrame(frame);
+}
+function stop(){ running=false; }
+
+function boot(){
+  layout(); buildSprites(); seedPositions();
+  startStats();
+  if(REDUCED){ renderStatic(); }
+  else { start(); startAmbient(); }
+}
+window.addEventListener('resize', ()=>{ layout(); if(REDUCED) renderStatic(); });
+// pause loop when stage scrolls off-screen (it's full-viewport here, but honor the contract)
+const io = new IntersectionObserver(es=>{
+  for(const e of es){ if(REDUCED) return; if(e.isIntersecting) start(); else stop(); }
+},{threshold:0.05});
+io.observe(stage);
+
+// fonts may shift metrics; boot after load for clean anchor math
+if(document.fonts && document.fonts.ready){ document.fonts.ready.then(()=>setTimeout(boot,30)); }
+window.addEventListener('load', boot, {once:true});
+// safety boot in case load already fired
+setTimeout(()=>{ if(!running && !REDUCED && W===0) boot(); }, 400);
+</script>
+</body>
+</html>
