@@ -12,26 +12,26 @@
 \centering
 \resizebox{0.82\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   role/.style={draw=hhebony,very thick,rounded corners=4pt,align=center,inner sep=7pt,
-               font=\sffamily\footnotesize,text width=44mm},
+               font=\footnotesize,text width=44mm},
   e/.style={-{Latex[length=2.4mm]},very thick},
 ]
-\node[role,fill=hhbrass!22] (author) at (0,3.4)
+\node[role,fill=hhsand!30] (author) at (0,3.4)
   {\textbf{Operator = AUTHOR}\\\emph{owns the authority;}\\\emph{issues consent grants;}\\\emph{holds the inalienable override}};
-\node[role,fill=hhsand!45] (actor) at (0,0.4)
+\node[role,fill=hhsand!30] (actor) at (0,0.4)
   {\textbf{Daemon = SOVEREIGN (actor)}\\\emph{exercises the authority;}\\\emph{blocks, lands, escalates ---}\\\emph{but is the \textbf{most} legible actor}};
-\node[role,fill=hhpatina!15] (mult) at (0,-2.6)
+\node[role,fill=hhsand!30] (mult) at (0,-2.6)
   {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1)}\\\emph{to be bound; enforced by the daemon}};
 
-\draw[e,hhbrass] (author) -- node[right,font=\sffamily\scriptsize,text=hhbrass,xshift=2mm]
+\draw[e,hhbrass] (author) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
   {authorizes (scoped grant) $\downarrow$ \quad revokes (override) $\uparrow$} (actor);
-\draw[e,hhink] (actor) -- node[right,font=\sffamily\scriptsize,text=hhink,xshift=2mm]
+\draw[e,hhink] (actor) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
   {rules over $\downarrow$ \quad legible to $\uparrow$} (mult);
 
 % the covenant loop on the multitude
 \draw[e,hhpatina] ([xshift=-3mm]mult.south west) to[bend right=55]
-  node[below,font=\sffamily\scriptsize,text=hhpatina]{covenant among subjects}
+  node[below,font=\scriptsize,text=hhink]{covenant among subjects}
   ([xshift=3mm]mult.south east);
 \end{tikzpicture}%
 }

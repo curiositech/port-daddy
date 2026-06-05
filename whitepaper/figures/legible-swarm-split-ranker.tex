@@ -12,24 +12,24 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
-              font=\sffamily\footnotesize,text width=42mm},
+              font=\footnotesize,text width=42mm},
   head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
-               font=\sffamily\footnotesize,text width=46mm},
+               font=\footnotesize,text width=46mm},
   e/.style={-{Latex[length=2mm]},thick,hhink},
 ]
 % shared substrate
-\node[box,fill=hhsand!35] (sub) at (0,0)
+\node[box,fill=hhsand!30] (sub) at (0,0)
   {\textbf{Shared substrate}\\candidate generation\\$+$ recency-decay
    (Prop.~\ref{prop:decay})\\\textit{signals: claims, skills,}\\\textit{notes, episodes, presence}};
 
 % split
-\node[head,fill=hhpatina!15] (fit) at (5.6,2.0)
+\node[head,fill=hhsand!30] (fit) at (5.6,2.0)
   {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit}\\
    $\mathrm{fit}=\sum_k w_k\,\mathrm{sig}_k$ (Eq.~\ref{eq:fit})\\
    \emph{``who is most capable?''}};
-\node[head,fill=hhcinnabar!12] (reg) at (5.6,-2.0)
+\node[head,fill=hhsand!30] (reg) at (5.6,-2.0)
   {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored}\\
    $\mathrm{regret}=\text{stakes}\times v^{-1}\times\text{anomaly}$ (Eq.~\ref{eq:regret})\\
    \emph{``what is most dangerous?''}};
@@ -38,7 +38,7 @@
 \draw[e] (sub.east) -- (reg.west);
 
 \node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
-      font=\sffamily\footnotesize,text width=40mm,align=left] at (11.6,0)
+      font=\footnotesize,text width=40mm,align=left] at (11.6,0)
   {\textbf{Not one ranker.} The heads optimize \emph{different} objectives, not the
    same objective with swapped weights (Thm.~\ref{thm:split-ranker}).};
 \end{tikzpicture}%

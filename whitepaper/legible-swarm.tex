@@ -24,9 +24,6 @@
 % ─── Colors (the hh-* harbor palette, verbatim from house style) ──────────────
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
-\definecolor{darkgreen}{RGB}{0,100,0}
-\definecolor{darkblue}{RGB}{0,50,100}
-\definecolor{accent}{RGB}{0,128,128}
 \definecolor{hhsand}{HTML}{E9DCC4}
 \definecolor{hhsanddeep}{HTML}{D4C5A9}
 \definecolor{hhebony}{HTML}{1E1B18}
@@ -35,57 +32,63 @@
 \definecolor{hhbrass}{HTML}{B08D57}
 \definecolor{hhpatina}{HTML}{5C7A6A}
 \definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhgray}{HTML}{6B6B6B}
 
 % Honest-label markers (ADR-0045 discipline; one key for the whole volume).
-\newcommand{\Built}{{\textcolor{hhpatina}{\textbf{\textsf{BUILT}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhbrass}{\textbf{\textsf{BUILT-WEAK}}}}}
-\newcommand{\Designed}{{\textcolor{darkblue}{\textbf{\textsf{DESIGNED}}}}}
-\newcommand{\Vision}{{\textcolor{hhcinnabar}{\textbf{\textsf{VISION}}}}}
+% Muted ink throughout; the four states differ by WEIGHT and SMALL-CAPS, never
+% by hue (house style: status by weight/small-caps, not a rainbow key).
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{built}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built\,\textit{(weak)}}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{designed}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{vision}}}}
 
-% Pull-quote sidebar: large quote, left-edge accent stripe (house style).
+% Pull-quote sidebar: large italic, single accent left-stripe (house style).
 \newcommand{\pullquote}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsand!40,line width=0pt,
+    \node[draw=none,fill=hhsand!22,line width=0pt,
           inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
           align=left] (q) {%
-      \sffamily\itshape\large #1%
+      \itshape\large #1%
     };
     \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
-% Teaching callouts (new in this volume's preamble; pedagogic spec §9).
+% Teaching callouts (pedagogic spec §9). Quiet: thin left rule + subtle sand
+% fill, label in small-caps muted ink. Pitfall accents its LABEL only.
 \newcommand{\keyidea}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhpatina,thick,fill=hhpatina!10,rounded corners=3pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,
           align=left] (k) {%
-      {\sffamily\bfseries\color{hhpatina}\small KEY IDEA.}\enspace #1%
+      {\scshape\bfseries\color{hhgray}\small Key idea.}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 \newcommand{\pitfall}[1]{%
   \par\vspace{6pt}%
   \noindent\begin{tikzpicture}
-    \node[draw=hhcinnabar,thick,fill=hhcinnabar!8,rounded corners=3pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,
           align=left] (p) {%
-      {\sffamily\bfseries\color{hhcinnabar}\small PITFALL.}\enspace #1%
+      {\scshape\bfseries\color{hhcinnabar}\small Pitfall.}\enspace #1%
     };
+    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
-% Exercises block: a light box closing each major section.
-\newcommand{\exhead}[1]{\par\vspace{4pt}\noindent{\sffamily\bfseries\color{hhink}#1}\par\vspace{-2pt}}
+% Exercises block: a quiet boxed list closing each major section.
+\newcommand{\exhead}[1]{\par\vspace{4pt}\noindent{\scshape\bfseries\color{hhink}#1}\par\vspace{-2pt}}
 \newenvironment{exercises}{%
   \par\vspace{8pt}\noindent
   \begin{tikzpicture}
-  \node[draw=hhbrass,thick,fill=hhsand!18,rounded corners=3pt,
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
         inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
   \begin{minipage}{\dimexpr\textwidth-30pt\relax}
-  {\sffamily\bfseries\color{hhbrass}EXERCISES}\par\vspace{3pt}
+  {\scshape\bfseries\color{hhink}Exercises}\par\vspace{3pt}
   \small
 }{%
   \end{minipage}\egroup;
@@ -99,9 +102,9 @@
   frame=single,
   rulecolor=\color{codeframe},
   basicstyle=\ttfamily\small,
-  keywordstyle=\color{darkblue}\bfseries,
-  commentstyle=\color{darkgreen}\itshape,
-  stringstyle=\color{accent},
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
   numbers=left,
   numberstyle=\tiny\color{gray},
   numbersep=8pt,
@@ -129,10 +132,10 @@
 \newenvironment{protocol}[1]{%
   \par\vspace{8pt}\refstepcounter{protocol}\noindent
   \begin{tikzpicture}
-  \node[draw=darkblue,thick,fill=darkblue!4,rounded corners=3pt,
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
         inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
   \begin{minipage}{\dimexpr\textwidth-30pt\relax}
-  {\sffamily\bfseries\color{darkblue}PROTOCOL~\theprotocol.}\enspace{\sffamily\bfseries #1}\par\vspace{4pt}
+  {\scshape\bfseries\color{hhink}Protocol~\theprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}
   \small
 }{%
   \end{minipage}\egroup;
@@ -142,20 +145,20 @@
 % Named-actor dramatization marker: a small left-stripe vignette box.
 \newcommand{\scene}[2]{%
   \par\vspace{6pt}\noindent\begin{tikzpicture}
-    \node[draw=none,fill=hhsanddeep!28,rounded corners=2pt,inner sep=9pt,
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
           text width=\dimexpr\textwidth-28pt\relax,align=left] (s) {%
-      {\sffamily\bfseries\color{hhink}\footnotesize SCENE.}\enspace
-      {\sffamily\bfseries #1}\enspace\itshape #2};
-    \draw[hhbrass,line width=2.5pt] (s.north west) -- (s.south west);
+      {\scshape\bfseries\color{hhgray}\footnotesize Scene.}\enspace
+      {\bfseries #1}\enspace\itshape #2};
+    \draw[hhgray!60,line width=1pt] (s.north west) -- (s.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
 % ─── Header/Footer (house style) ──────────────────────────────────────────────
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small\textit{The Legible Swarm}}
-\fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small The Harbor Volume, Paper 1 of 4 --- \textit{The Legible Swarm}}
+\fancyhead[L]{\small\itshape\color{hhgray} The Legible Swarm}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 1 of 4}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 

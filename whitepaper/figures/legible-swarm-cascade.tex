@@ -12,13 +12,13 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
-  rung/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhcinnabar!10,
+  font=\small,
+  rung/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
                minimum width=58mm,minimum height=12mm,align=left,inner sep=6pt,
-               font=\sffamily\footnotesize,text width=54mm},
-  cure/.style={draw=hhpatina,thick,rounded corners=2pt,fill=hhpatina!12,
+               font=\footnotesize,text width=54mm},
+  cure/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
                minimum width=52mm,minimum height=12mm,align=left,inner sep=5pt,
-               font=\sffamily\footnotesize,text width=48mm,text=hhink},
+               font=\footnotesize,text width=48mm,text=hhink},
   e/.style={-{Latex[length=2.8mm]},very thick,hhcinnabar},
   ce/.style={-{Latex[length=2mm]},thick,hhpatina},
 ]
@@ -37,9 +37,9 @@
 \draw[ce] (r1) -- (c1); \draw[ce] (r2) -- (c2);
 \draw[ce] (r3) -- (c3); \draw[ce] (r4) -- (c4);
 
-\node[font=\sffamily\itshape\footnotesize,text=hhcinnabar] at (0,-1.1)
+\node[font=\itshape\footnotesize,text=hhink] at (0,-1.1)
   {the failures compound --- hence ``cascade''};
-\node[font=\sffamily\itshape\footnotesize,text=hhpatina] at (7.8,-1.1)
+\node[font=\itshape\footnotesize,text=hhink] at (7.8,-1.1)
   {break \emph{any} rung and the cascade stops};
 \end{tikzpicture}%
 }

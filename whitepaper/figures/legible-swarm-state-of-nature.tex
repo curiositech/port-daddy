@@ -13,12 +13,12 @@
 \centering
 \resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   agent/.style={draw=hhebony,thick,circle,fill=hhpaper,minimum size=9mm,
-                font=\sffamily\footnotesize},
+                font=\footnotesize},
   daemon/.style={draw=hhebony,very thick,rectangle,rounded corners=3pt,
-                 fill=hhbrass!25,minimum width=22mm,minimum height=14mm,
-                 align=center,font=\sffamily\bfseries\footnotesize},
+                 fill=hhsand!30,minimum width=22mm,minimum height=14mm,
+                 align=center,font=\bfseries\footnotesize},
   collide/.style={hhcinnabar,thick,decorate,
                   decoration={zigzag,segment length=2mm,amplitude=0.6mm}},
   legible/.style={hhpatina,thick,-{Latex[length=2mm]}},
@@ -26,8 +26,8 @@
 
 % ─── LEFT: state of nature ───────────────────────────────────────────────
 \begin{scope}[shift={(0,0)}]
-  \node[font=\sffamily\bfseries] at (2.2,3.4) {State of nature};
-  \node[font=\sffamily\itshape\footnotesize,text=hhcinnabar] at (2.2,2.95)
+  \node[font=\bfseries] at (2.2,3.4) {State of nature};
+  \node[font=\itshape\footnotesize,text=hhink] at (2.2,2.95)
     {war of all against all};
   \node[agent] (a1) at (0.4,1.8) {A};
   \node[agent] (a2) at (3.9,2.0) {B};
@@ -38,19 +38,19 @@
   \draw[collide] (a1)--(a5); \draw[collide] (a2)--(a5);
   \draw[collide] (a3)--(a5); \draw[collide] (a4)--(a5);
   \draw[collide] (a1)--(a3); \draw[collide] (a2)--(a4);
-  \node[font=\sffamily\footnotesize,text=hhcinnabar,align=center] at (2.2,-1.4)
+  \node[font=\footnotesize,text=hhink,align=center] at (2.2,-1.4)
     {double-claims $\cdot$ illegible PRs\\confident lies $\cdot$ footguns};
 \end{scope}
 
 % ─── COVENANT arrow ──────────────────────────────────────────────────────
 \draw[-{Latex[length=3mm]},very thick,hhink] (4.9,0.8) -- (6.7,0.8)
-  node[midway,above,font=\sffamily\bfseries\footnotesize,text=hhink]{covenant}
-  node[midway,below,font=\sffamily\itshape\scriptsize,text=hhink]{among subjects};
+  node[midway,above,font=\bfseries\footnotesize,text=hhink]{covenant}
+  node[midway,below,font=\itshape\scriptsize,text=hhink]{among subjects};
 
 % ─── RIGHT: consented local Leviathan ────────────────────────────────────
 \begin{scope}[shift={(8.0,0)}]
-  \node[font=\sffamily\bfseries] at (2.2,3.4) {Consented \emph{local} Leviathan};
-  \node[font=\sffamily\itshape\footnotesize,text=hhpatina] at (2.2,2.95)
+  \node[font=\bfseries] at (2.2,3.4) {Consented \emph{local} Leviathan};
+  \node[font=\itshape\footnotesize,text=hhink] at (2.2,2.95)
     {legible, accountable, safe};
   \node[daemon] (d) at (2.2,0.8) {daemon\\(L0)};
   \node[agent] (b1) at (0.3,1.9) {A};
@@ -60,7 +60,7 @@
   \node[agent] (b5) at (2.2,2.4) {E};
   \draw[legible] (b1)--(d); \draw[legible] (b2)--(d);
   \draw[legible] (b3)--(d); \draw[legible] (b4)--(d); \draw[legible] (b5)--(d);
-  \node[font=\sffamily\footnotesize,text=hhpatina,align=center] at (2.2,-1.4)
+  \node[font=\footnotesize,text=hhink,align=center] at (2.2,-1.4)
     {claims $\cdot$ Arbiter $\cdot$ digest-with-zoom\\consent grant $\cdot$ override};
 \end{scope}
 

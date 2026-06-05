@@ -12,41 +12,41 @@
 \begin{figure}[H]
 \centering
 \resizebox{0.9\textwidth}{!}{%
-\begin{tikzpicture}[font=\sffamily\small,
+\begin{tikzpicture}[font=\small,
   declare function={
     safe(\x)   = 5*exp(-((\x-3)^2)/1.4);
     danger(\x) = 5*exp(-((\x-6)^2)/1.4);
   }]
 % axes
-\draw[->,thick] (0,0) -- (10.2,0) node[right,font=\sffamily\footnotesize]{evidence of danger (operator's read)};
-\draw[->,thick] (0,0) -- (0,5.8) node[above,font=\sffamily\footnotesize]{density};
+\draw[->,thick] (0,0) -- (10.2,0) node[right,font=\footnotesize]{evidence of danger (operator's read)};
+\draw[->,thick] (0,0) -- (0,5.8) node[above,font=\footnotesize]{density};
 
 % distributions
 \draw[hhpatina,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{safe(\x)});
 \draw[hhcinnabar,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
-\node[text=hhpatina,font=\sffamily\bfseries\footnotesize] at (2.3,5.4) {safe actions};
-\node[text=hhcinnabar,font=\sffamily\bfseries\footnotesize] at (7.4,5.4) {dangerous actions};
+\node[text=hhink,font=\bfseries\footnotesize] at (2.3,5.4) {safe actions};
+\node[text=hhink,font=\bfseries\footnotesize] at (7.4,5.4) {dangerous actions};
 
 % criterion line beta
 \draw[hhbrass,very thick,dashed] (5.0,0) -- (5.0,5.55)
-   node[above,text=hhbrass,font=\sffamily\bfseries\footnotesize]{criterion $\beta$};
-\draw[->,thick,hhbrass] (5.2,3.1) -- (6.0,3.1) node[right,font=\sffamily\scriptsize,text=hhbrass]{strict};
-\draw[->,thick,hhbrass] (4.8,3.1) -- (4.0,3.1) node[left,font=\sffamily\scriptsize,text=hhbrass]{lax};
+   node[above,text=hhink,font=\bfseries\footnotesize]{criterion $\beta$};
+\draw[->,thick,hhbrass] (5.2,3.1) -- (6.0,3.1) node[right,font=\scriptsize,text=hhink]{strict};
+\draw[->,thick,hhbrass] (4.8,3.1) -- (4.0,3.1) node[left,font=\scriptsize,text=hhink]{lax};
 
 % error regions
 \fill[hhcinnabar!25,domain=0:5,samples=80,smooth] plot (\x,{danger(\x)}) -- (5,0) -- (0,0) -- cycle;
 \fill[hhpatina!30,domain=5:9.5,samples=80,smooth] plot (\x,{safe(\x)}) -- (9.5,0) -- (5,0) -- cycle;
-\node[text=hhcinnabar,font=\sffamily\scriptsize,align=center] at (3.55,0.55) {MISS\\(waved through)};
-\node[text=hhpatina,font=\sffamily\scriptsize,align=center] at (7.25,0.55) {false alarm\\(zoomed safe diff)};
+\node[text=hhink,font=\scriptsize,align=center] at (3.55,0.55) {MISS\\(waved through)};
+\node[text=hhink,font=\scriptsize,align=center] at (7.25,0.55) {false alarm\\(zoomed safe diff)};
 \draw[hhcinnabar,thin,-{Latex[length=1.4mm]}] (4.0,0.7) -- (4.55,0.55);
 \draw[hhpatina,thin,-{Latex[length=1.4mm]}] (6.75,0.7) -- (5.6,0.4);
 
 % d-prime bracket
-\draw[<->,thick,hhink] (3,-0.6) -- (6,-0.6) node[midway,below,font=\sffamily\footnotesize]{$d'$ (operator sensitivity)};
+\draw[<->,thick,hhink] (3,-0.6) -- (6,-0.6) node[midway,below,font=\footnotesize]{$d'$ (operator sensitivity)};
 
 % cost matrix
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      font=\sffamily\footnotesize,align=left,text width=44mm] at (12.6,3.2)
+      font=\footnotesize,align=left,text width=44mm] at (12.6,3.2)
   {\textbf{asymmetric cost}\\[2pt]
    $C_{\text{miss}}\!\gg\!C_{\text{fa}}$\\[2pt]
    a miss = irreversible damage;\\a false alarm = wasted seconds.\\[3pt]

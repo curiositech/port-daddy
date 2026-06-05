@@ -13,39 +13,39 @@
 \centering
 \resizebox{0.97\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   tile/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=46mm,
                minimum height=11mm,align=center,inner sep=4pt},
-  art/.style={draw=hhpatina,thick,fill=hhpatina!10,rounded corners=2pt,
-              minimum width=40mm,align=center,inner sep=4pt,font=\sffamily\footnotesize},
+  art/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
+              minimum width=40mm,align=center,inner sep=4pt,font=\footnotesize},
   zoom/.style={-{Latex[length=2mm]},hhpatina,thick},
   dead/.style={-{Latex[length=2mm]},hhcinnabar,thick,dashed},
 ]
 
 % ─── LEFT: legibility-with-zoom (good) ───────────────────────────────────
 \begin{scope}
-  \node[font=\sffamily\bfseries,text=hhpatina] at (2.6,3.7) {Digest-with-zoom $(\sigma,\zeta)$};
-  \node[tile,fill=hhpatina!18] (sum) at (2.6,2.6)
+  \node[font=\bfseries,text=hhink] at (2.6,3.7) {Digest-with-zoom $(\sigma,\zeta)$};
+  \node[tile,fill=hhsand!30] (sum) at (2.6,2.6)
     {\textbf{state}: PR \#123 ``auth refactor''\\\emph{merged} $\cdot$ 1 critique round};
   \node[art] (a1) at (0.0,0.6) {the diff\\(on disk)};
   \node[art] (a2) at (2.6,0.6) {test log\\(green, verbatim)};
   \node[art] (a3) at (5.2,0.6) {commit\\+ claim row};
   \draw[zoom] (sum) -- (a1); \draw[zoom] (sum) -- (a2); \draw[zoom] (sum) -- (a3);
-  \node[font=\sffamily\itshape\footnotesize,text=hhpatina,align=center] at (2.6,-0.6)
+  \node[font=\itshape\footnotesize,text=hhink,align=center] at (2.6,-0.6)
     {$\zeta$ total: every claim reaches\\an operator-verifiable artifact};
 \end{scope}
 
 % ─── RIGHT: Potemkin digest (bad) ────────────────────────────────────────
 \begin{scope}[shift={(9.0,0)}]
-  \node[font=\sffamily\bfseries,text=hhcinnabar] at (2.6,3.7) {Potemkin digest (Normalbaum)};
-  \node[tile,fill=hhcinnabar!12] (psum) at (2.6,2.6)
+  \node[font=\bfseries,text=hhink] at (2.6,3.7) {Potemkin digest (Normalbaum)};
+  \node[tile,fill=hhsand!30] (psum) at (2.6,2.6)
     {\textbf{all green}\\``everything is fine''};
   \node[draw=hhcinnabar,thick,dashed,rounded corners=2pt,fill=none,
         minimum width=40mm,align=center,inner sep=4pt,
-        font=\sffamily\footnotesize,text=hhcinnabar] (void) at (2.6,0.6)
+        font=\footnotesize,text=hhink] (void) at (2.6,0.6)
     {(paraphrased away:\\diff, test, reasoning)};
   \draw[dead] (psum) -- (void);
-  \node[font=\sffamily\itshape\footnotesize,text=hhcinnabar,align=center] at (2.6,-0.6)
+  \node[font=\itshape\footnotesize,text=hhink,align=center] at (2.6,-0.6)
     {$\zeta$ partial: the summary became\\a \emph{replacement}, not a \emph{lens}};
 \end{scope}
 

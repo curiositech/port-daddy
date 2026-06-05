@@ -11,35 +11,35 @@
 \begin{figure}[H]
 \centering
 \resizebox{0.97\textwidth}{!}{%
-\begin{tikzpicture}[font=\sffamily\small]
+\begin{tikzpicture}[font=\small]
 
 % ─── LEFT: cost of search vs population ──────────────────────────────────
 \begin{scope}
-\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\sffamily\footnotesize]{population $n$};
-\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\sffamily\footnotesize]{cost to find};
+\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{population $n$};
+\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{cost to find};
 % O(n) eyeball
 \draw[hhcinnabar,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.8*\x});
-\node[text=hhcinnabar,font=\sffamily\bfseries\footnotesize] at (4.3,4.2) {$O(n)$ eyeball};
+\node[text=hhink,font=\bfseries\footnotesize] at (4.3,4.2) {$O(n)$ eyeball};
 % O(query) directory
 \draw[hhpatina,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.6 + 0.5*ln(1+\x)});
-\node[text=hhpatina,font=\sffamily\bfseries\footnotesize] at (4.2,1.9) {$O(\log n)$ index};
-\node[font=\sffamily\itshape\footnotesize,align=center] at (2.8,-1.0)
+\node[text=hhink,font=\bfseries\footnotesize] at (4.2,1.9) {$O(\log n)$ index};
+\node[font=\itshape\footnotesize,align=center] at (2.8,-1.0)
   {read-poverty: state piles up\\faster than it can be read};
 \end{scope}
 
 % ─── RIGHT: value of L2 across n (works at n=1, grows) ───────────────────
 \begin{scope}[shift={(8.4,0)}]
-\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\sffamily\footnotesize]{swarm size $n$};
-\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\sffamily\footnotesize]{value of L2};
+\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{swarm size $n$};
+\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{value of L2};
 % value: nonzero at n=1, grows
 \draw[hhbrass,very thick,domain=0.2:5,samples=80,smooth]
    plot (\x,{1.2 + 2.6*(1-exp(-0.7*\x))});
 \fill[hhpatina] (0.2,{1.2+2.6*(1-exp(-0.14))}) circle (2pt);
-\node[text=hhpatina,font=\sffamily\footnotesize,anchor=west,align=left] at (0.35,0.75)
+\node[text=hhink,font=\footnotesize,anchor=west,align=left] at (0.35,0.75)
    {$n{=}1$: briefing,\\attest, guard,\\honest completion};
 \draw[hhink,dashed] (3.4,0)--(3.4,3.4);
-\node[font=\sffamily\footnotesize,text=hhink,align=center] at (3.4,3.9) {bottleneck\\($n\!\approx\!50$)};
-\node[font=\sffamily\bfseries\footnotesize,text=hhbrass,anchor=west] at (4.0,2.6) {discovery pays};
+\node[font=\footnotesize,text=hhink,align=center] at (3.4,3.9) {bottleneck\\($n\!\approx\!50$)};
+\node[font=\bfseries\footnotesize,text=hhink,anchor=west] at (4.0,2.6) {discovery pays};
 \end{scope}
 
 \end{tikzpicture}%
