@@ -6,7 +6,7 @@
  * `transcripts` dep is provided.
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, jest } from '@jest/globals';
 
 // Mock child_process so spawner's custom/aider backends don't actually fork.
 const mockChildProcess = {
@@ -36,6 +36,19 @@ describe('spawner ↔ transcripts integration', () => {
   let db;
   let transcripts;
   let originalFetch;
+
+  // assessSpawnIsolation (lib/spawner.ts) blocks spawns into a repository main
+  // checkout. These tests pass no workdir, so the guard reads process.cwd() —
+  // a worktree locally but the primary checkout in CI — and would fail every
+  // spawn before transcripts are written. This suite exercises the
+  // spawn↔transcripts integration, not the guard (see
+  // spawner-isolation-guard.test.js), so opt out of layer-2 isolation.
+  const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
+  beforeAll(() => { process.env.PD_SPAWN_ISOLATION_OFF = '1'; });
+  afterAll(() => {
+    if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
+    else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
+  });
 
   beforeEach(() => {
     db = createTestDb();
