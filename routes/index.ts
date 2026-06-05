@@ -19,6 +19,7 @@ import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
+import { githubWebhookPlugin } from './github-webhook.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
 import { sessionsPlugin } from './sessions.js';
@@ -101,6 +102,7 @@ export async function registerAllRoutes(
   await fastify.register(agentsPlugin, { deps } as any);
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
+  await fastify.register(githubWebhookPlugin, { deps } as any);
   await fastify.register(configPlugin, { deps } as any);
   await fastify.register(projectsPlugin, { deps } as any);
   await fastify.register(sessionsPlugin, { deps } as any);

@@ -72,6 +72,7 @@ import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
 import { createIpcRouter } from './lib/ipc-router.js';
 import { createFleetDaemon } from './lib/fleet-daemon.js';
+import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
@@ -526,6 +527,16 @@ const fleetDaemon = createFleetDaemon({
   locks,
 });
 
+// GitHub repo → project registry. Resolves a webhook's owner/repo to the
+// project that claims it (pd-fleet.yml `github.repo` or inferred git origin)
+// so routes/github-webhook.ts can publish project-scoped channels and only
+// that project's fleet fires. Project dirs come from the fleet daemon's live
+// supervisor map; the registry caches and rebuilds on a TTL.
+const repoRegistry = createRepoRegistry({
+  getProjectDirs: () => fleetDaemon.listProjects(),
+  logger,
+});
+
 // Wire resurrection events (identical to server.ts)
 resurrection.on('agent:stale', (agent) => {
   messaging.publish('resurrection', JSON.stringify({
@@ -963,7 +974,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
-    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
+    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor,

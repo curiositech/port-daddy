@@ -423,6 +423,7 @@
         "POST /webhooks",
         "GET /webhooks",
         "GET /webhooks/events",
+        "POST /webhooks/github",
         "GET /webhooks/:param",
         "PUT /webhooks/:param",
         "DELETE /webhooks/:param",
