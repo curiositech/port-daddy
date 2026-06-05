@@ -23,6 +23,11 @@ import type { createSessions } from './sessions.js';
 import type { createLocks } from './locks.js';
 import type { createResurrection } from './resurrection.js';
 import type { Bonds } from './bonds.js';
+import {
+  checkChain as checkCapChain,
+  CAP_ATTENUATION_MONITOR_AVAILABLE,
+  type CapViolation,
+} from './cap-attenuation-monitor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -638,12 +643,21 @@ export function createArbiter(
     const definition = RULE_DEFINITIONS[ruleName];
     let coverage: RuleCoverage = 'enforced';
     let degradedReason: string | null = null;
+    let engine = definition.engine;
 
     if (ruleName === 'CAP_ESCALATION' && !enforcer) {
-      coverage = 'degraded';
-      degradedReason = enforcerLoadError
-        ? `Rust FFI enforcer unavailable: ${enforcerLoadError}`
-        : 'Rust FFI enforcer unavailable; capability subset checks are advisory only.';
+      if (CAP_ATTENUATION_MONITOR_AVAILABLE) {
+        // FFI enforcer absent, but the pure-TS capability-attenuation monitor
+        // (proven-equivalent to harbor_card_v5/v7, I4) provides real subset
+        // checking. The watchman stays awake without the native core.
+        coverage = 'enforced';
+        engine = 'runtime';
+      } else {
+        coverage = 'degraded';
+        degradedReason = enforcerLoadError
+          ? `Rust FFI enforcer unavailable: ${enforcerLoadError}`
+          : 'Rust FFI enforcer unavailable; capability subset checks are advisory only.';
+      }
     } else if (ruleName === 'ESCROW_POSITIVE' && !bonds) {
       coverage = 'degraded';
       degradedReason = 'Bond escrow module is not wired into Arbiter; escrow metadata cannot be verified against the ledger.';
@@ -652,6 +666,7 @@ export function createArbiter(
     return {
       name: ruleName,
       ...definition,
+      engine,
       coverage,
       strictModeAction: definition.defaultSeverity === 'critical' && config.strictMode
         ? 'man_overboard'
@@ -729,6 +744,28 @@ export function createArbiter(
         uptimeMs: Date.now() - startedAt,
         startedAt,
       };
+    },
+
+    /**
+     * Runtime-verify capability attenuation along a delegation chain (the I4
+     * invariant proven in harbor_card_v5/v7). Each hop must attenuate its
+     * IMMEDIATE parent, never the root — so a non-monotonic middle hop is
+     * caught (the harbor_card_v6 attack). Records a CAP_ESCALATION violation
+     * and returns it if the chain expands authority. This is the TS enforcement
+     * path used when the Rust FFI enforcer is absent.
+     */
+    checkCapAttenuation: (chain: string[][], agentId?: string | null): CapViolation | null => {
+      const v = checkCapChain(chain);
+      if (v) {
+        recordViolation(
+          'CAP_ESCALATION',
+          'critical',
+          `Capability escalation at hop ${v.hop}: ${v.expandedCaps.join(', ')} not conveyed by parent`,
+          agentId ?? null,
+          { ...v },
+        );
+      }
+      return v;
     },
 
     /** Inject a test violation (for demos) */
