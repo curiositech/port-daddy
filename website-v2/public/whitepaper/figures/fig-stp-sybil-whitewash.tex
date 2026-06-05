@@ -32,9 +32,9 @@
 
 % BOTTOM — the fix: daemon-minted non-forgeable id bound to credential + principal
 \node[font=\sffamily\bfseries,anchor=west] at (-0.3,-0.6)
-  {Daemon-minted non-forgeable \texttt{actor\_id} (ADR-0040), bound to a principal:};
+  {Daemon-minted, non-forgeable identity, bound to a principal:};
 \node[box,fill=hhpatina!14,draw=hhpatina,thick] (daemon) at (1.2,-2.3)
-  {daemon\\mints \texttt{actor\_id}};
+  {daemon mints\\a non-forgeable id};
 \node[box,fill=hhpaper,right=14mm of daemon] (cred) {non-re-pickable\\credential (key)};
 \node[box,fill=hhpaper,right=12mm of cred] (princ) {principal\\(owns the fleet,\\posts bonds)};
 \draw[good] (daemon) -- (cred);
@@ -47,9 +47,11 @@
    than a clean record is worth, and a sanction \emph{survives} a respawn.};
 \end{tikzpicture}}
 \caption{\textbf{The non-forgeable root forecloses the two classic attacks.} With
-self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted
-\texttt{actor\_id} bound to a non-re-pickable credential and a principal (bottom)
-makes both costly: churn costs more than a clean record, and sanctions survive
-respawns. This is the one genuinely architectural piece of the L3 program.}
+self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted,
+non-forgeable identity bound to a non-re-pickable credential and a principal
+(bottom) makes both costly: churn costs more than a clean record
+(Thm.~\ref{thm:whitewash-cost}), and sanctions survive respawns
+(Thm.~\ref{thm:necessity}). This is the one genuinely architectural piece of the
+program.}
 \label{fig:sybil}
 \end{figure}

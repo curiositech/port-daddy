@@ -24,28 +24,28 @@
 \node[organ,fill=hhpatina!12] (o1) at (h1.south) {%
   \footnotesize \emph{What happened.} Typed episodes (title, summary, source ref,
   scope), promoted out of transient history.\\[3pt]
-  \texttt{\scriptsize lib/episodic-memory.ts}\\[2pt]
+  {\scriptsize an episodic-memory component}\\[2pt]
   {\scriptsize cf.\ Generative Agents (Park 2023):\\recency$\times$importance$\times$relevance.}};
-\node[tag,text=hhpatina,below=1mm of o1] {\textsf{BUILT}};
+\node[tag,text=hhpatina,below=1mm of o1] {\textsf{implemented}};
 
 % Organ 2 — checkpoint — BUILT-WEAK (brass)
 \node[hdr,right=14mm of h1] (h2) {2. CHECKPOINT};
 \node[organ,fill=hhbrass!14] (o2) at (h2.south) {%
   \footnotesize \emph{Restorable state} --- enough to \emph{resume}.\\[3pt]
-  Today: resurrection passes \textbf{notes, not state}. Checkpoint-of-\emph{record},
-  not -of-\emph{execution}.\\[2pt]
-  \texttt{\scriptsize lib/resurrection.ts}\\[2pt]
+  Today: the restart organ forwards \textbf{a summary, not state}.
+  Checkpoint-of-\emph{record}, not -of-\emph{execution}.\\[2pt]
+  {\scriptsize a heartbeat-staleness restart organ}\\[2pt]
   {\scriptsize ``with teeth'' = \VISION.}};
-\node[tag,text=hhbrass,below=1mm of o2] {\textsf{BUILT-WEAK}};
+\node[tag,text=hhbrass,below=1mm of o2] {\textsf{partial}};
 
 % Organ 3 — outcome ledger — DESIGNED (blue)
 \node[hdr,right=14mm of h2] (h3) {3. OUTCOME LEDGER};
 \node[organ,fill=darkblue!8,draw=darkblue] (o3) at (h3.south) {%
   \footnotesize \emph{Witnessed delivery.} Append-only, daemon-witnessed.
   A commitment closes only against an \textbf{oracle} the agent cannot author.\\[3pt]
-  \texttt{\scriptsize ADR-0041; lib/commitments.ts}\\[2pt]
+  {\scriptsize a durable-commitment ledger}\\[2pt]
   {\scriptsize \textbf{reputation keys on THIS organ.}}};
-\node[tag,text=darkblue,below=1mm of o3] {\textsf{DESIGNED}};
+\node[tag,text=darkblue,below=1mm of o3] {\textsf{specified}};
 
 % Arrows of dependence
 \draw[->,>=Latex,thick,draw=hhink] (o1.east|-o1.center) -- (o2.west|-o2.center);
