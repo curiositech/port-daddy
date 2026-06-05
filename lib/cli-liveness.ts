@@ -60,7 +60,7 @@ export function classifySelfSpeech(capture: SelfSpeechCapture, expect?: string):
     return {
       speaks: false,
       reason: `CLI produced ZERO stdout (exit ${capture.code}) — it is mute when its output is captured`,
-      remediation: 'do NOT trust the CLI in this context; coordinate via the daemon HTTP routes (curl localhost:9876/...). This is an environment×runtime stdio failure, not "no results".',
+      remediation: 'do NOT trust the CLI in this context; coordinate via the daemon HTTP routes (curl the daemon loopback URL from PORT_DADDY_URL / shared daemon-discovery). This is an environment×runtime stdio failure, not "no results".',
     };
   }
   if (expect && !out.includes(expect)) {

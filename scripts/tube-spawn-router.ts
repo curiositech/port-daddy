@@ -24,8 +24,11 @@
 import { decodeMessage, send, type TubeClient } from '../lib/tube.js';
 import { routeInboundTubeMessage, type RouterPolicy } from '../lib/tube-spawner-router.js';
 import type { SpawnSpec, SpawnResult } from '../lib/spawner.js';
+import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 
-const URL = process.env.PORT_DADDY_URL || 'http://localhost:9876';
+// Resolve via the single source of truth (PORT_DADDY_URL → port file → default),
+// not a hardcoded literal. The default port lives only in shared/daemon-discovery.
+const URL = getDaemonTcpUrl();
 
 function flag(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
