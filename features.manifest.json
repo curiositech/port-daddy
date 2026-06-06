@@ -1967,6 +1967,24 @@
       },
       "_note": "Read-only: reuses GET /status (owned by the core status feature). No dedicated route, so routes:[] is intentional — same pattern as coordination_guard."
     },
+    "operator_coast_guard": {
+      "description": "Coast Guard read path — pd coast-guard status (alias cg) shows the operator whether spawned agents are confined on this machine (the OS sandbox mechanism in force), plus the secret broker, dotenv denial, hard egress cap, and the protected directories. Pure local read-only legibility over ADR-0050; introduces no new route.",
+      "cli": [
+        "coast-guard",
+        "cg"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "coast-guard",
+        "cg"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Read-only local capability read (computed from lib/coast-guard.ts, no daemon round-trip). Route + MCP follow on the same coastGuardStatus() accessor — same read-only pattern as operator_periscope."
+    },
     "transcripts": {
       "description": "Fleet ship-run transcript records — operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
       "cli": [
