@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { CLOUDFLARE_BACKEND_SETUP_LINKS, type BackendSetupLink } from './backend-setup-links.js';
@@ -19,10 +20,38 @@ export interface BackendReadiness {
 
 const require = createRequire(import.meta.url);
 
-function commandExists(command: string): boolean {
+// Agent CLIs (claude-code, codex, …) commonly install to per-user dirs that are
+// NOT on the daemon's launchd PATH (which is bare: /usr/bin:/bin:/usr/sbin:/sbin).
+// The spawner's executor already augments PATH with ~/.local/bin at exec time
+// (lib/spawner.ts runClaudeCli), so a launch would actually find the binary — but
+// this readiness check used the bare PATH and fail-closed BEFORE the executor ran,
+// reporting "Claude CLI binary not found" for an install that works in the user's
+// shell. Resolve the same locations the executor does so the gate matches reality.
+// Standard per-user CLI install dirs, plus an operator override
+// (PD_CLI_BIN_DIRS, colon-separated). Computed per-call so the override is
+// honored at runtime (and testable). Operators whose agent CLI lives somewhere
+// unusual can point the daemon at it without touching launchd's PATH.
+function cliBinDirs(): string[] {
+  const home = process.env.HOME || '';
+  const override = process.env.PD_CLI_BIN_DIRS
+    ? process.env.PD_CLI_BIN_DIRS.split(':').filter(Boolean)
+    : [];
+  return [
+    ...override,
+    join(home, '.local', 'bin'), // claude-code + many per-user installs
+    join(home, '.claude', 'local'), // claude-code alternate install path
+    join(home, '.codex', 'bin'), // codex
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+  ];
+}
+
+export function commandExists(command: string): boolean {
+  const augmentedPath = [process.env.PATH || '', ...cliBinDirs()].filter(Boolean).join(':');
   const result = spawnSync('which', [command], {
     stdio: ['ignore', 'pipe', 'ignore'],
     encoding: 'utf-8',
+    env: { ...process.env, PATH: augmentedPath },
   });
   return (result.status ?? 1) === 0;
 }
