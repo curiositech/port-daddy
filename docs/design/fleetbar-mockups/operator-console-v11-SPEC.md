@@ -177,6 +177,37 @@ fonts; one accent; status by meaning. (These become the GPUI theme constants in
 
 ---
 
+## 9. The Ledger — cost intelligence (the console's centerpiece, operator-requested 2026-06-05)
+
+Not meta. *Every* customer burning agent tokens wants this; nobody has nailed it.
+The Ledger juxtaposes **spend against the actual artifacts of development** and looks
+forward as well as back.
+
+**Backward (what happened):** one view where **budget × voyages × diffs/PRs × roadmap
+items × features** are juxtaposed. "This PR cost $4.20 over 38 min on gemini." "This
+*feature* (n voyages) cost $19." "Here's the burn-down of today's $8.50 cap and what
+each dollar bought." The data already exists — per-spawn `budgetUsd`, the Resources
+per-agent spend + daemon counters, git for diffs/PRs, the roadmap_items table. The
+Ledger *joins* them through the **voyage** (which already links spend ↔ outcome ↔
+roadmap destination). The missing piece is the join + the view, not new instrumentation.
+
+**Forward (what will it cost):**
+- **Predicted cost per roadmap item** — from history of similar voyages (size,
+  backend, archetype). A roadmap item shows an estimate before you dispatch it.
+- **Comparative cost of development options** — Port Daddy's standout move: "build X
+  the MVP way (~$3, 1 voyage, claude-cli) vs the thorough way (~$22, 5 voyages +
+  adversarial verify + tests)." The operator picks a *cost/confidence* point, not a
+  blind dispatch. This is mechanism-design made visible.
+
+**Where it lives:** a first-class **Ledger** pane in the console, and inline cost
+chips on every voyage and roadmap item. Recurring-voyage (fleet) cost trends over time.
+
+**Replaces** the old fleet-ui's "Signal value" and "Budget setting" boxes (both
+reported useless) — and the broken Editor/Finder/Open buttons (local-path bug) are
+obviated by the native console opening files/diffs correctly in-app.
+
+---
+
 ## 8. Cross-platform — DECIDED: macOS-first (GPUI), Windows later
 
 **Operator decision 2026-06-05: macOS-first.** GPUI stands; no substrate change. Build
