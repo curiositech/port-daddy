@@ -7,7 +7,7 @@
 
   $ pd status
   Port Daddy is running
-    Version: 3.17.1 (<HASH>)
+    Version: <VERSION> (<HASH>)
     PID <PID>
     Uptime: <UPTIME>
     Active ports: 3
@@ -22,5 +22,3 @@
     [<AGE>] Search indexer resumed from checkpoint page 412
     [<AGE>] DB migration 0042 applied — added refresh_tokens table
     [<AGE>] Switched auth library to jose for JWKS support
-    [<AGE>] Search indexer resumed from checkpoint page 412
-    [<AGE>] DB migration 0042 applied — added refresh_tokens table

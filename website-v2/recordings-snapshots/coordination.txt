@@ -35,7 +35,7 @@ Migration complete
 ~/coding/port-daddy $ # Check the full picture
 ~/coding/port-daddy $ pd status
 Port Daddy is running
-  Version: 3.7.0
+  Version: <VERSION>
   PID <PID>
   Uptime: <UPTIME>
   Active ports: 40

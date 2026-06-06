@@ -27,3 +27,6 @@ storybook-static
 # Recording daemon runtime state (DB, socket, env file, PID, log).
 # The seed script itself (scripts/seed-recording-world.mjs) IS committed.
 .recording-daemon/
+
+# Binary recording fixture — built locally; only the SQL dump (demo.sql) is committed.
+recordings-fixtures/*.sqlite

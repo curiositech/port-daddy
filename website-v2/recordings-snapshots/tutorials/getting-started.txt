@@ -1,6 +1,6 @@
   $ pd status
   Port Daddy is running
-    Version: 3.17.1 (<HASH>)
+    Version: <VERSION> (<HASH>)
     PID <PID>
     Uptime: <UPTIME>
     Active ports: 3

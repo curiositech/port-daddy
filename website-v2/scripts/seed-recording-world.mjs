@@ -27,8 +27,9 @@
  * real daemon.
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, execFileSync } from 'node:child_process'
 import { mkdirSync, existsSync, writeFileSync, readFileSync, rmSync, openSync, closeSync } from 'node:fs'
+import Database from 'better-sqlite3'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import http from 'node:http'
@@ -50,6 +51,15 @@ const PORT_FILE = join(DAEMON_DIR, 'daemon.port')
 const HEARTBEAT_FILE = join(DAEMON_DIR, 'heartbeat')
 const LOG_FILE = join(DAEMON_DIR, 'daemon.log')
 const ENV_FILE = join(DAEMON_DIR, 'recording.env')
+
+// The COMMITTED fixture DB. Recording runs COPY this (never re-seed live), so the
+// daemon state is byte-identical on every machine — no seed-time race can drift a
+// transcript (the bug that blocked the gate in CI). Regenerate with
+// `seed-recording-world.mjs build-fixture` (a HiTL act: commit + re-record goldens).
+const FIXTURE_DIR = join(WEBSITE_DIR, 'recordings-fixtures')
+// Committed as a reviewable SQL dump (the pre-commit guard blocks binary .sqlite,
+// and a text dump diffs cleanly). `start` restores it into a scratch DB.
+const FIXTURE_SQL = join(FIXTURE_DIR, 'demo.sql')
 
 // Fixed TCP port for the recording daemon.  Chosen to be far from the
 // canonical 9876 so the two never accidentally talk to each other.
@@ -254,7 +264,7 @@ async function seedWorld() {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-async function start() {
+async function start({ seed = false } = {}) {
   mkdirSync(DAEMON_DIR, { recursive: true, mode: 0o700 })
 
   // Kill any stale daemon from a previous run.
@@ -271,11 +281,24 @@ async function start() {
 
   // Always start from a clean DB so the seed is deterministic regardless of
   // any previous run. Socket/IPC files are also stale after a kill.
-  for (const p of [SOCK_PATH, IPC_PATH, DB_PATH]) {
+  for (const p of [SOCK_PATH, IPC_PATH, DB_PATH, `${DB_PATH}-wal`, `${DB_PATH}-shm`]) {
     try { rmSync(p, { force: true }) } catch {}
   }
 
-  console.error(`[seed] Starting recording daemon (port ${RECORDING_PORT})...`)
+  // Default path: boot from the COMMITTED fixture so the state is byte-identical
+  // everywhere (no live seed → no seed-time race). `build-fixture` (seed:true)
+  // skips this and seeds live, to regenerate the committed fixture.
+  if (!seed) {
+    if (!existsSync(FIXTURE_SQL)) {
+      console.error(`[seed] Missing fixture ${FIXTURE_SQL}. Build it once: node scripts/seed-recording-world.mjs build-fixture`)
+      process.exit(1)
+    }
+    const fx = new Database(DB_PATH)
+    fx.exec(readFileSync(FIXTURE_SQL, 'utf8'))
+    fx.close()
+  }
+
+  console.error(`[seed] Starting recording daemon (port ${RECORDING_PORT})${seed ? ' [seed mode]' : ' from committed fixture'}...`)
 
   // Open log file for daemon output.
   const logFd = openSync(LOG_FILE, 'a')
@@ -304,8 +327,9 @@ async function start() {
     .join('\n')
   writeFileSync(ENV_FILE, envLines + '\n', { mode: 0o600 })
 
-  // Seed the world.
-  await seedWorld()
+  // In fixture-build mode, seed the live daemon; otherwise the copied fixture IS
+  // the state, so there is nothing to seed (and no race to drift it).
+  if (seed) await seedWorld()
 }
 
 // ─── Stop ─────────────────────────────────────────────────────────────────────
@@ -335,14 +359,34 @@ function printEnv() {
 
 // ─── Entrypoint ───────────────────────────────────────────────────────────────
 
+// Regenerate the committed fixture from a fresh live seed (a HiTL act — commit the
+// result + re-record goldens). Seeds, then a graceful stop checkpoints the WAL, then
+// copies the clean single-file DB into recordings-fixtures/.
+async function buildFixture() {
+  mkdirSync(FIXTURE_DIR, { recursive: true })
+  await start({ seed: true })
+  await stop()
+  await sleep(300)
+  for (const p of [`${DB_PATH}-wal`, `${DB_PATH}-shm`]) {
+    try { rmSync(p, { force: true }) } catch {}
+  }
+  // Dump to a reviewable SQL fixture (committed). sqlite3 CLI is fine here — this
+  // is a dev/HiTL regeneration step; CI only ever RESTORES (better-sqlite3, above).
+  const dump = execFileSync('sqlite3', [DB_PATH, '.dump'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+  writeFileSync(FIXTURE_SQL, dump)
+  console.error(`[seed] Built committed SQL fixture → ${FIXTURE_SQL}`)
+}
+
 const cmd = process.argv[2] || 'start'
 if (cmd === 'start') {
   await start()
+} else if (cmd === 'build-fixture') {
+  await buildFixture()
 } else if (cmd === 'stop') {
   await stop()
 } else if (cmd === 'env') {
   printEnv()
 } else {
-  console.error('Usage: seed-recording-world.mjs <start|stop|env>')
+  console.error('Usage: seed-recording-world.mjs <start|build-fixture|stop|env>')
   process.exit(1)
 }

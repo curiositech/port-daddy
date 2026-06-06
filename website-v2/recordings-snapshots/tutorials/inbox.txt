@@ -1,8 +1,11 @@
-  $ node "~/coding/tmp/recordings-approval/bin/port-daddy-cli.js" inbox clear --agent QA-REVIEWER
+  $ node "~/coding/tmp/db-fixtures/bin/port-daddy-cli.js" inbox clear --agent QA-REVIEWER
   Cleared 0 message(s) from inbox
 
   $ AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER "Review migration 0142 on staging before release."
   Message sent to QA-REVIEWER
 
   $ pd inbox --agent QA-REVIEWER --unread --limit 1
-  No messages in inbox
+
+  ✉ [<TIME>] <RELEASE-LEAD> Review migration 0142 on staging before release.
+
+  1 message(s)

@@ -31,6 +31,9 @@ const EPHEMERAL_RULES = [
   // Home directories differ dev (/Users/<me>) vs CI (/home/runner). Must be first.
   [/\/Users\/[^/\s'"]+/g, '~'],
   [/\/home\/[^/\s'"]+/g, '~'],
+  // Daemon version number in `pd status` ("Version: 3.18.0") changes every release;
+  // scrub it so a version bump never re-breaks the gate. (The (hash) is scrubbed below.)
+  [/(Version:\s+)\d+\.\d+\.\d+/g, '$1<VERSION>'],
   // Physical channel IDs embed a repo-key (8-char SHA256 prefix of the repo's
   // .git common dir path) that differs between dev and CI checkout paths.
   // Patterns: repo:<key>:<rest>  wt:<key>:<id>:<rest>  br:<key>:<id>:<token>:<rest>
