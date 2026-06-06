@@ -12,6 +12,7 @@
 //! iterm2" — at the engine layer, runnable today.
 
 mod agent;
+mod pane;
 mod theme;
 
 use agent::{AgentManager, Backend};
