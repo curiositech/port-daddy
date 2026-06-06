@@ -146,7 +146,7 @@ record_one() {
   start_recording_daemon
   trap 'stop_recording_daemon' EXIT INT TERM
 
-  asciinema rec -q --overwrite -c "$0 --play $id" "$CAST_DIR/$id.cast"
+  TERM=xterm-256color asciinema rec -q --overwrite -c "$0 --play $id" "$CAST_DIR/$id.cast"
   # GIF rendering is optional — skip if agg is not installed.
   if command -v agg >/dev/null 2>&1; then
     agg --theme github-dark --cols 110 --rows 30 --font-size 16 --speed 1.15 --idle-time-limit 1.2 -q "$CAST_DIR/$id.cast" "$GIF_DIR/$id.gif"

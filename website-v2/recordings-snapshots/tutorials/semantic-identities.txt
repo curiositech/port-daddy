@@ -13,8 +13,8 @@
 
   ID                                 PORT    STATUS      URL
   ───────────────────────────────────────────────────────────────────────────
-  port-daddy:api:main                3100    assigned    http://localhost:<PORT>
-  port-daddy:website:dev             3101    assigned    http://localhost:<PORT>
+  port-daddy:website:dev             3100    assigned    http://localhost:<PORT>
+  port-daddy:api:main                3101    assigned    http://localhost:<PORT>
   port-daddy:worker:main             3102    assigned    http://localhost:<PORT>
 
   Total: 3 service(s)
@@ -23,8 +23,8 @@
 
   ID                                 PORT    STATUS      URL
   ───────────────────────────────────────────────────────────────────────────
-  port-daddy:api:main                3100    assigned    http://localhost:<PORT>
-  port-daddy:website:dev             3101    assigned    http://localhost:<PORT>
+  port-daddy:api:main                3101    assigned    http://localhost:<PORT>
+  port-daddy:website:dev             3100    assigned    http://localhost:<PORT>
   port-daddy:worker:main             3102    assigned    http://localhost:<PORT>
 
   Total: 3 service(s)

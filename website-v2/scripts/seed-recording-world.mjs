@@ -74,6 +74,10 @@ const daemonEnv = {
   PORT_DADDY_NO_FLEET: '1',
   PORT_DADDY_NO_FLEETBAR: '1',
   PORT_DADDY_SILENT: '1',
+  // Fixed TERM so asciinema / CLI tooling never emits "TERM environment variable
+  // not set." in CI (where TERM is unset by default). Must match the value used
+  // by the asciinema recording invocation so output is consistent dev-vs-CI.
+  TERM: 'xterm-256color',
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────

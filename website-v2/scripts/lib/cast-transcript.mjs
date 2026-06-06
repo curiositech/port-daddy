@@ -31,6 +31,19 @@ const EPHEMERAL_RULES = [
   // Home directories differ dev (/Users/<me>) vs CI (/home/runner). Must be first.
   [/\/Users\/[^/\s'"]+/g, '~'],
   [/\/home\/[^/\s'"]+/g, '~'],
+  // Physical channel IDs embed a repo-key (8-char SHA256 prefix of the repo's
+  // .git common dir path) that differs between dev and CI checkout paths.
+  // Patterns: repo:<key>:<rest>  wt:<key>:<id>:<rest>  br:<key>:<id>:<token>:<rest>
+  // Scrub the key segment so physical-channel strings are environment-independent.
+  [/\brepo:([0-9a-f]{8}):/g, 'repo:<REPO_KEY>:'],
+  [/\bwt:([0-9a-f]{8}):/g, 'wt:<REPO_KEY>:'],
+  [/\bbr:([0-9a-f]{8}):/g, 'br:<REPO_KEY>:'],
+  // Worktree ID that appears in `pd channels describe / ensure` output.
+  // Exactly 8 hex chars following "worktree:" label — surgical, not blanket.
+  [/(worktree:\s+)[0-9a-f]{8}\b/g, '$1<WORKTREE_ID>'],
+  // Branch name that appears in `pd channels describe / ensure` output.
+  // Matches the indented "branch: <name>" and "branch:   <name>" output forms.
+  [/(^\s*branch:\s+)\S+/gm, '$1<BRANCH>'],
   // Repo root path: after the home-dir rule fires the remainder of the path
   // still differs between dev (~/.../coding/port-daddy) and CI
   // (~/.../work/port-daddy/port-daddy).  Anchor on the last .git or .portdaddy

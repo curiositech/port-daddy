@@ -5,7 +5,4 @@
   Message sent to QA-REVIEWER
 
   $ pd inbox --agent QA-REVIEWER --unread --limit 1
-
-  ✉ [<TIME>] <RELEASE-LEAD> Review migration 0142 on staging before release.
-
-  1 message(s)
+  No messages in inbox

@@ -285,7 +285,7 @@ record_one() {
   export PD_RECORDING_SESSION_ID
   PD_RECORDING_SESSION_ID=""  # Not used with the isolated daemon
 
-  asciinema rec -q --overwrite -c "$0 --play $id" "$cast_dir/$slug.cast"
+  TERM=xterm-256color asciinema rec -q --overwrite -c "$0 --play $id" "$cast_dir/$slug.cast"
   # GIF rendering (agg) is optional — skip if agg is not installed.
   # The drift gate only needs the .cast, not the .gif.
   if command -v agg >/dev/null 2>&1; then

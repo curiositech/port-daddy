@@ -1,25 +1,25 @@
   $ pd channels discover git
 
   LOGICAL                   SCOPE       SOURCE      ACTIVE    PHYSICAL
-  git:committed             repo        declared    0         repo:4bc8ffb2:git:committed
-  git:pr-opened             repo        declared    0         repo:4bc8ffb2:git:pr-opened
+  git:committed             repo        declared    0         repo:<REPO_KEY>:git:committed
+  git:pr-opened             repo        declared    0         repo:<REPO_KEY>:git:pr-opened
 
   $ pd channels ensure git:committed --scope repo --description "commit trigger event"
   SUCCESS: Updated git:committed
     scope: repo
-    physical: repo:4bc8ffb2:git:committed
-    worktree: 99c34fbb
-    branch: feat/recordings-approval-tests
+    physical: repo:<REPO_KEY>:git:committed
+    worktree: <WORKTREE_ID>
+    branch: <BRANCH>
 
   $ pd channels describe git:committed
 
   logical:  git:committed
-  physical: repo:4bc8ffb2:git:committed
+  physical: repo:<REPO_KEY>:git:committed
   scope:    repo
   source:   declared
   active:   0
-  worktree: 99c34fbb
-  branch:   feat/recordings-approval-tests
+  worktree: <WORKTREE_ID>
+  branch:   <BRANCH>
   aliases:  -
   desc:     commit trigger event
 

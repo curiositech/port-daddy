@@ -36,7 +36,7 @@ function findCasts(dir) {
   return out
 }
 
-const snapPathFor = (castAbs) => join(snapDir, relative(castsDir, castAbs).replace(/\.cast$/, '.snap'))
+const snapPathFor = (castAbs) => join(snapDir, relative(castsDir, castAbs).replace(/\.cast$/, '.txt'))
 
 // Minimal dependency-free unified diff (LCS over lines; transcripts are small).
 function unifiedDiff(aText, bText, label) {

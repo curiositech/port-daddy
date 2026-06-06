@@ -17,7 +17,7 @@ deterministic signal extracted from the recording, used to gate behavior drift.
    UUIDs, PIDs, dates/clocks, durations, `[14h]`-style age markers, epoch
    seconds, `/Users|/home` paths). Everything left is *behavior*.
 2. **Gate** (`scripts/snapshot-recordings.mjs`): each cast's transcript is
-   compared to its golden here (`<cast-path>.snap`). Drift → the
+   compared to its golden here (`<cast-path>.txt`). Drift → the
    `website-terminal-recordings` CI check fails with a readable diff.
 3. **Approve (HiTL)**: drift is only greened by a human — review the diff, and if
    the change is intended:
