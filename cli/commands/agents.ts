@@ -10,6 +10,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { resolveFleetAgentRuntime } from '../../lib/fleet-engine.js';
 import { autoIdentityFromPackageJson } from './services.js';
+import { readCurrentContext } from '../utils/current-context.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
 const AGENT_ADMIN_SUBCOMMANDS = new Set(['register', 'heartbeat', 'unregister', 'inbox', 'help', 'run']);
@@ -297,7 +298,9 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     return;
   }
 
-  const agentId: string = (options.agent as string) || process.env.AGENT_ID || `cli-${process.pid}`;
+  // Active session's durable agentId before the ephemeral `cli-<pid>` (see inbox.ts).
+  const agentId: string =
+    (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
 
   switch (subcommand) {
     case 'register': {

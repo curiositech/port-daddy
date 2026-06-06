@@ -6,13 +6,19 @@ import { pdFetch, PORT_DADDY_URL } from '../utils/fetch.js';
 import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import { handleSub } from './messaging.js';
+import { readCurrentContext } from '../utils/current-context.js';
 import * as ui from '../utils/ui.js';
 
 /**
  * Handle `pd inbox <subcommand>` command — top-level standalone inbox access.
  */
 export async function handleInbox(subcommand: string | undefined, args: string[], options: CLIOptions): Promise<void> {
-  const agentId: string = (options.agent as string) || process.env.AGENT_ID || `cli-${process.pid}`;
+  // Resolve the ACTIVE session's durable agentId before the throwaway `cli-<pid>`.
+  // The pid is ephemeral (new per invocation), so the old default made `pd inbox`
+  // read a phantom mailbox and silently miss every DM to the real agent — two
+  // agents on cli-<pid> can never reach each other. (Matches sessions.ts.)
+  const agentId: string =
+    (options.agent as string) || process.env.AGENT_ID || readCurrentContext()?.agentId || `cli-${process.pid}`;
 
   if (subcommand === 'watch' || options.watch) {
     // Watch inbox in real-time using SSE sub system

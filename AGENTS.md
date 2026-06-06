@@ -374,3 +374,34 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - Oversized JSON requests over the Unix socket can surface client-side `EPIPE` / `ECONNRESET` before the daemon’s 413 body is readable. In integration tests, normalize that transport failure back into the daemon’s intended oversized-payload rejection instead of pretending the daemon accepted the body.
 - If fleet spawn counts are exploding, treat that as a budget-control bug. Check `singleton`, respawn policy, schedule/trigger churn, and project limits before allowing more agent launches.
 - `pd fleet run <agent>` now inherits `limits.budget_usd_per_day` as its launch ceiling. If it still fails, inspect the live active-agent cap and queue pressure before assuming the agent prompt or backend is broken.
+
+## Architecture truths — hard-won 2026-06-05 (read before any "console / Rust / coordination" work)
+
+- **There is already a Rust kernel: `~/coding/port-daddy-kernel-rs`** (sibling build,
+  WIP, ~2000 LOC). Crates map the product's spine: **pd-anchor** (signed cards +
+  capability envelopes + evidence roots = encryption / signed-access), **pd-mesh**
+  (anchor-authenticated mesh = *remote harbors*), **pd-eventlog** (WAL append-only =
+  the durable bus / suggestibility signal), **pd-runtime** (queue/scheduler = voyages),
+  **pd-core** (deterministic kernel transitions), **pd-tui/pd-rs** (the console).
+  **Do NOT scaffold yet-another Rust UI/daemon without reconciling here first** — the
+  TS repo's `core/pd-tui` (ratatui), `core/pd-console` (the on-bus, backend-agnostic,
+  OKLCH conversation-multiplexer engine), and kernel-rs's `pd-tui` are converging and
+  must not fork into 3–4 rival shells.
+- **Coordinate over DURABLE ids/channels, never `cli-<pid>`.** `cli-<pid>` is ephemeral
+  (new per CLI invocation) — two agents using it can never reach each other and there
+  is no delivery receipt. `pd inbox`/`pd agents` now resolve `readCurrentContext().agentId`
+  first (fixed). For agent↔agent back-and-forth, converge on a **persistent tube
+  channel** (`pd tube <channel>`) — it persists + delivers to all subscribers — not
+  point-to-point inboxes. The bus must *deliver*; that's the precondition for "agents
+  actually communicate."
+- **Coordination works as of v3.18.0** — the `pd` CLI speaks (the 3.17.0 mute is gone)
+  and `pd begin` is idempotent per (identity, worktree). Use `pd begin` / `pd note` /
+  `pd session files add` / `pd done` for real. Do not bypass the guard with `--no-verify`.
+- **The unified model** is `docs/design/2026-06-05-the-unified-model.md`: harbor → console
+  → voyages → Coast Guard (coordination = the price of sandbox access: the compulsion
+  keystone) → cartographer/suggestibility, all encrypted. Voyage is the one noun;
+  spawn/sortie/nightshift/fleet are launch verbs. The console (v11 spec, PR #274) is the
+  one surface; design system = General Sans + IBM Plex Mono, OKLCH (no hex), no emoji as icon.
+- **Delete rule (operator-updated):** never-delete is demote-by-default, BUT you may
+  **delete** a thing once its value is merged into its near twin — consolidation is the
+  licensed exception. Coordinate the delete on the bus first; never solo-delete live-fleet code.
