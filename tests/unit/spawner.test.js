@@ -34,6 +34,8 @@ jest.unstable_mockModule('node:child_process', () => ({
 // Import after mocking
 const { spawn: cpSpawn } = await import('node:child_process');
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+// Note: the worktree-isolation guard is disabled suite-wide in tests/jest.env.js
+// (this file tests spawner mechanics, not isolation). See that file for why.
 
 // ---------------------------------------------------------------------------
 // Global fetch mock
@@ -59,7 +61,28 @@ function createSpawner(deps = {}) {
   });
 }
 
+// Worktree isolation guard (lib/spawner.ts assessSpawnIsolation) refuses any
+// spawn whose workdir resolves to a repository MAIN checkout (.git is a
+// directory). These tests never pass an explicit workdir, so the guard falls
+// back to process.cwd() — which is a worktree on a dev box but the primary
+// checkout in CI (/home/runner/work/port-daddy/port-daddy). That made every
+// spawn here short-circuit to "Spawn blocked: workdir is a repository main
+// checkout" in CI while passing locally. This suite exercises telemetry /
+// backend / result-shape logic, NOT the guard — the guard has its own coverage
+// in spawner-isolation-guard.test.js — so opt out of layer-2 isolation here for
+// a checkout-independent run.
+const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
+beforeAll(() => {
+  process.env.PD_SPAWN_ISOLATION_OFF = '1';
+});
+
 beforeEach(() => {
+  // These suites assert RAW backend command/arg construction (cmd === 'aider',
+  // 'claude', '/bin/sh', 'codex'). The Coast Guard (ADR-0050) now wraps every
+  // subprocess backend under `sandbox-exec` BY DEFAULT, which would change the
+  // observed cmd/args. We disable it here so these tests stay focused on
+  // dispatch; the default-on confinement is covered by spawner-coast-guard.test.js.
+  process.env.PD_COAST_GUARD_OFF = '1';
   delete process.env.CLOUDFLARE_ACCOUNT_ID;
   delete process.env.CLOUDFLARE_API_TOKEN;
   mockFetch = jest.fn().mockResolvedValue({
@@ -80,6 +103,9 @@ beforeEach(() => {
 
 afterAll(() => {
   global.fetch = originalFetch;
+  delete process.env.PD_COAST_GUARD_OFF;
+  if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
+  else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
 });
 
 // ---------------------------------------------------------------------------

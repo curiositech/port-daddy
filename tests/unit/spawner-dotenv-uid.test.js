@@ -45,6 +45,8 @@ jest.unstable_mockModule('node:fs', () => ({
   chmodSync: jest.fn(),
   mkdtempSync: jest.fn(() => '/tmp/pd-spawner-dotenv-test'),
   rmSync: jest.fn(),
+  // lib/coast-guard.ts (imported transitively via spawner) needs realpathSync.
+  realpathSync: jest.fn((p) => p),
 }));
 
 // ---------------------------------------------------------------------------
@@ -108,6 +110,11 @@ function lastChildEnv() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // These tests assert the RAW custom-backend spawn (cmd === '/bin/sh') + its
+  // dotenv-derived env. The Coast Guard (ADR-0050) wraps subprocess backends
+  // under sandbox-exec by default; disable it here to keep the assertions on
+  // the inner command/env. Default-on confinement is covered elsewhere.
+  process.env.PD_COAST_GUARD_OFF = '1';
   mockExistsSync.mockReturnValue(false);
   mockStatSync.mockReturnValue({ uid: CURRENT_UID, mode: 0o100600 });
   mockReadFileSync.mockReturnValue('');
@@ -119,7 +126,7 @@ beforeEach(() => {
   });
 });
 
-afterAll(() => { delete global.fetch; });
+afterAll(() => { delete global.fetch; delete process.env.PD_COAST_GUARD_OFF; });
 
 // ---------------------------------------------------------------------------
 // 1. uid mismatch → file skipped, canary NOT in env

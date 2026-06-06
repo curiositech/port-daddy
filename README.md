@@ -344,6 +344,43 @@ pd spawn kill <agent-id>
 pd watch git:committed --exec './fleet/qa-adversary.sh'
 ```
 
+#### 🛡️ The Coast Guard (ADR-0050) — confinement is the default
+
+Every agent spawned through a subprocess backend (`codex`, `claude-cli`,
+`aider`, `custom`, `cli:*`) runs under the **Coast Guard by default** — no flag
+needed:
+
+1. **Confine** — an OS sandbox (macOS Seatbelt; Linux Landlock/bubblewrap)
+   **denies** reads to the crown jewels (`~/.ssh`, `~/.aws`, `~/.gnupg`,
+   cloud creds, and every `.env` / `.env.local` in `$HOME` and the workdir)
+   while allowing normal work. `cat ~/.ssh/id_ed25519` → *Operation not permitted*.
+2. **Broker** — the agent's environment carries **no raw API key**. Every
+   managed provider key *and* every key loaded from your `.env`/`.env.local`
+   (Stripe, database URLs, GitHub tokens — the whole file) is scrubbed from the
+   child env; the keys stay in the daemon's sealed cache. `cat .env.local` and
+   an env dump both yield nothing usable.
+3. **Cap** — outbound API traffic is forced through a local meter with a **hard
+   per-agent request/byte cap**; the over-cap call is refused (`402 Spend Cap
+   Exceeded`). A runaway agent cannot bankrupt you.
+
+Each run emits a signed-style **receipt** (`SpawnResult.coastGuard`) recording
+what was confined, which keys were scrubbed, and the metered egress.
+
+**Coordination keeps working.** Confinement only denies secret-file *reads* — not
+network or process exec. The agent still reaches the Port Daddy daemon
+(`127.0.0.1:9876`), runs the `pd` CLI (sessions, notes, claims, tube, inbox),
+and talks to MCP servers: stdio MCP runs as a child process untouched by the
+proxy, and loopback HTTP is exempted via `NO_PROXY` so local MCP/PD traffic
+never burns the external-spend cap. The cap meters **outbound provider spend**,
+not your coordination bus.
+
+**Honest scope (in code + receipt):** this defends the **cooperative case** —
+runaway spend, leaked-key blast radius, confused deputy, accidental
+exfiltration. It does **not** defend a truly-malicious same-UID agent (it can
+`unset HTTPS_PROXY` or read the daemon's memory); that needs a separate UID / VM
++ forced egress (ADR-0050 phase 4). See `tools/coast-guard/README.md` and run
+the live demo: `npx tsx tools/coast-guard/demo.ts`.
+
 Operator-facing launches are fail-closed on telemetry. Port Daddy rejects a launch unless it can attach exact token counts, an exact nonzero rate, and a persisted exact nonzero cost record to the completed run.
 
 Today that means the live launchable path is the Claude SDK backend with an exact-rate model entry. Other backend integrations still exist in source, but they should be treated as blocked until they reach the same telemetry standard.

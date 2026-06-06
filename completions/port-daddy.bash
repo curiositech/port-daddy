@@ -115,6 +115,8 @@ _port_daddy() {
     transcripts transcript
     # Dispatch (renamed from nightshift per ADR-0035) + review + morning
     dispatch nightshift review morning
+    # Operator loop · SIGHT stage — raise the periscope (state + next cut)
+    periscope sight scope
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller

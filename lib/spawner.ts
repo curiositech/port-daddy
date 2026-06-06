@@ -27,6 +27,8 @@ import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
+import { withCoastGuard } from './spawner/coast-guard-runner.js';
+import type { CoastGuardReceipt } from './coast-guard.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -113,6 +115,13 @@ export interface SpawnSpec {
   prNumber?: number;
   issueNumber?: number;
   systemPrompt?: string; // additional system message stored in transcript
+  // ── Coast Guard (ADR-0050) ────────────────────────────────────────────────
+  // Subprocess agents run under an OS sandbox + secret broker + hard egress cap
+  // BY DEFAULT. Power users can opt a single spawn out with `coastGuard:false`
+  // (documented; never advertised in agent-facing errors), or tune the caps.
+  coastGuard?: boolean;     // default true — set false to opt this spawn out
+  maxRequests?: number;     // hard egress request cap (default DEFAULT_MAX_REQUESTS)
+  maxBytes?: number | null; // optional hard egress byte cap
 }
 
 export interface SpawnResult {
@@ -126,6 +135,8 @@ export interface SpawnResult {
   telemetry: SpawnTelemetry | null;
   startedAt: number;
   completedAt: number | null;
+  /** Coast Guard receipt (ADR-0050) for subprocess backends; null otherwise. */
+  coastGuard?: CoastGuardReceipt | null;
 }
 
 export interface SpawnTelemetry {
@@ -340,6 +351,65 @@ function terminateChildProcess(child: ChildProcess): void {
 }
 
 // =============================================================================
+// Coast Guard runner (ADR-0050) — confine every SUBPROCESS backend by default
+// =============================================================================
+//
+// Subprocess backends (codex, claude-cli, aider, custom) get a real shell on
+// the operator's box. We wrap each one in the OS sandbox + secret broker +
+// hard egress cap BEFORE handing it to runChild. The in-process API backends
+// (claude SDK, gemini, cloudflare, openai, groq, ollama) never spawn a shell
+// and already source keys via getSecret(), so they don't route through here.
+
+interface ConfinedChildOpts {
+  spec: SpawnSpec;
+  cmd: string;
+  args: string[];
+  env: Record<string, string | undefined>;
+  /** Working dir for both the child and the sandbox binding (defaults to spec.workdir). */
+  cwd?: string;
+  timeout?: number;
+  stdio?: ('ignore' | 'pipe')[];
+  context?: BackendRunContext;
+}
+
+/**
+ * Apply the Coast Guard, run the child, attach the receipt, then dispose. The
+ * returned `runChild` result is augmented with `coastGuardReceipt` so the spawn
+ * loop can persist it. Confinement is ON unless the spec/operator opts out.
+ */
+async function runConfinedChild(
+  opts: ConfinedChildOpts,
+): Promise<{ output: string; error: string | null; child: ChildProcess; coastGuardReceipt: CoastGuardReceipt }> {
+  const cwd = opts.cwd ?? opts.spec.workdir;
+  const cg = await withCoastGuard({
+    agentId: opts.spec.identity || opts.spec.name || 'spawned',
+    backend: opts.spec.backend,
+    cmd: opts.cmd,
+    args: opts.args,
+    env: opts.env,
+    workdir: cwd,
+    spec: { coastGuard: opts.spec.coastGuard, maxRequests: opts.spec.maxRequests, maxBytes: opts.spec.maxBytes },
+    // The broker scrubs EVERY key loaded from the operator's dotenv files, not
+    // just the managed allow-list — those files ARE the operator's secret store.
+    dotenvKeys: Object.keys(loadDotenvOnce()),
+  });
+  try {
+    const res = await runChild({
+      cmd: cg.cmd,
+      args: cg.args,
+      env: cg.env,
+      cwd,
+      timeout: opts.timeout,
+      stdio: opts.stdio,
+      onChild: opts.context?.onChildProcess,
+    });
+    return { ...res, coastGuardReceipt: cg.receipt() };
+  } finally {
+    cg.dispose();
+  }
+}
+
+// =============================================================================
 // Backend implementations
 // =============================================================================
 
@@ -352,6 +422,8 @@ interface BackendRunResult {
   /** True when token counts are a best-guess estimate, not backend-reported. */
   estimatedTelemetry?: boolean;
   childProcess?: ChildProcess | null;
+  /** Coast Guard receipt for subprocess backends (sandbox + broker + cap). */
+  coastGuardReceipt?: CoastGuardReceipt | null;
 }
 
 interface BackendRunContext {
@@ -614,14 +686,15 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
     spec.task,
   ];
 
-  return runChild({
+  return runConfinedChild({
+    spec,
     cmd: 'codex',
     args,
-    cwd: workspace,
     env,
+    cwd: workspace,
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
-    onChild: context?.onChildProcess,
+    context,
   }).then((result) => {
     try {
       const usage = parseCodexUsage(result.output || '');
@@ -629,10 +702,10 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
       const error = structuredError ? `Codex CLI failed: ${structuredError}` : result.error;
       const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
       if (fileOutput) {
-        return { output: fileOutput, error, ...usage };
+        return { output: fileOutput, error, ...usage, coastGuardReceipt: result.coastGuardReceipt };
       }
       const sanitized = sanitizeCodexOutput(result.output || '');
-      return { output: sanitized, error, ...usage };
+      return { output: sanitized, error, ...usage, coastGuardReceipt: result.coastGuardReceipt };
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -641,14 +714,18 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
 
 function runAider(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const files = spec.files || [];
-  return runChild({
+  return runConfinedChild({
+    spec,
     cmd: 'aider',
     args: ['--yes', '--no-stream', '--model', model, '--message', spec.task, ...files],
-    cwd: spec.workdir,
     env: { ...process.env, ...loadDotenvOnce(), ...(spec.env || {}) },
     timeout: spec.timeout,
-    onChild: context?.onChildProcess,
-  });
+    context,
+  }).then((result) => ({
+    output: result.output,
+    error: result.error,
+    coastGuardReceipt: result.coastGuardReceipt,
+  }));
 }
 
 function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
@@ -662,10 +739,10 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
     });
   }
 
-  return runChild({
+  return runConfinedChild({
+    spec,
     cmd: '/bin/sh',
     args: ['-c', spec.task],
-    cwd: spec.workdir,
     env: {
       ...process.env,
       ...loadDotenvOnce(),
@@ -678,10 +755,11 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
       PORT_DADDY_MODEL_TIER: spec.modelTier,
     },
     timeout: spec.timeout,
-    onChild: context?.onChildProcess,
+    context,
   }).then((result) => ({
     ...result,
     childProcess: result.child,
+    coastGuardReceipt: result.coastGuardReceipt,
   }));
 }
 
@@ -770,17 +848,17 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
   const currentPath = process.env.PATH || '';
   const augmentedPath = currentPath.includes('.local/bin') ? currentPath : `${homeBin}:${currentPath}`;
 
-  const res = await runChild({
+  const res = await runConfinedChild({
+    spec,
     cmd: 'claude',
     args,
-    cwd: spec.workdir,
     env: { ...processEnvSafe, ...dotenvSafe, ...(spec.env || {}), PATH: augmentedPath },
     timeout: spec.timeout,
     stdio: ['ignore', 'pipe', 'pipe'],
-    onChild: context?.onChildProcess,
+    context,
   });
-  if (res.error) return { output: res.output, error: res.error };
-  return parseClaudeCliResult(res.output, spec.task);
+  if (res.error) return { output: res.output, error: res.error, coastGuardReceipt: res.coastGuardReceipt };
+  return { ...parseClaudeCliResult(res.output, spec.task), coastGuardReceipt: res.coastGuardReceipt };
 }
 
 // =============================================================================
@@ -1284,6 +1362,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let output: string | null = null;
     let error: string | null = null;
     let telemetry: SpawnTelemetry | null = null;
+    let coastGuardReceipt: CoastGuardReceipt | null = null;
 
     try {
       const override = runnerOverrides[spec.backend];
@@ -1332,6 +1411,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         record.childProcess = result.childProcess;
       }
 
+      coastGuardReceipt = result.coastGuardReceipt ?? null;
       output = result.output || null;
       error = result.error;
 
@@ -1499,6 +1579,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       telemetry,
       startedAt,
       completedAt,
+      coastGuard: coastGuardReceipt,
     };
   }
 

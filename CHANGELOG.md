@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.18.0] - 2026-06-05
+
+This release makes the operator's machine **safe to run a swarm on** and the swarm
+**drivable end-to-end**. The marquee is the **Coast Guard**: every agent `pd spawn`
+launches now runs inside an OS sandbox that cannot read your secrets, holds no raw
+API keys, and cannot outspend a hard egress cap — on by default. Alongside it: a
+**tube router** that drives the whole fleet over `pd tube` with delegation-chain
+loop detection and any backend; more **spawn backends** with backend-agnostic
+**resilience**; seven agent-facing **cop-out exemptions converted to real MCP
+tools**; honest **attestation** (`pd attest`); and a batch of **machine-checked
+proofs** hardening the harbor envelope, the Arbiter, the Anchor protocol, and the
+event relay.
+
 ### Added
+- **The Coast Guard — agentic safety, default-on for every spawned agent (ADR-0050).**
+  `pd spawn` now confines each agent in an OS sandbox (macOS Seatbelt / Linux
+  Landlock) that **cannot read your secrets** — not `.env.local`, not `~/.ssh`, not
+  any dotenv file outside the workspace — while normal project files keep working.
+  A **secret broker** scrubs raw API keys from the agent's environment, a **hard
+  egress meter** caps outbound provider spend, and the run ends with a signed
+  receipt. On by default; opt out per-spawn with `PD_COAST_GUARD_OFF=1`. Defends the
+  cooperative case (a same-UID malicious agent can still drop the proxy); a live
+  Darwin test proves the exact `.env.local`/`~/.ssh` exfil is blocked.
+- **Tube → spawner router with delegation-chain loop detection + multi-backend.**
+  Drive the whole fleet over `pd tube` (not just Codex): the router carries a
+  `delegationChain` and fails closed on five loop classes (depth, budget,
+  structural-fingerprint ping-pong, upward delegation, global fan-out), with the
+  daemon acting as notary to resolve common-knowledge/two-generals races.
+- **More `pd spawn` backends + backend-agnostic resilience.** Cloudflare Workers
+  AI, Gemini, and Groq backends with exact telemetry; the `cli:claude-code` /
+  `cli:codex` subscription backends unblocked; and a shared resilience layer —
+  full-jitter exponential backoff + a circuit breaker — wrapping every backend.
+- **Worktree-isolation guard for `pd spawn`.** The daemon refuses to launch a
+  file-writing agent into a repository's **main checkout** (where parallel agents
+  steamroll each other), pointing at a worktree instead. The spawner-side twin of
+  the harness pre-tool isolation hook.
+- **Seven cop-out MCP exemptions are now real MCP tools.** Harbors, signals,
+  roadmap, commitments, and knowledge surfaces that were CLI-only (or "deferred to
+  v4") are first-class MCP tools — agents are first-class consumers of routed
+  features, not second-class.
+- **`pd periscope` — the Sight stage of the operator loop.** A read surface that
+  surfaces what the fleet is doing at a glance; building it also fixed several live
+  bugs it exposed.
+- **`pd attest` — honest self-report + loud-fail invariants (ADR-0045).** Agents
+  report what they actually did against named invariants, and a **mute CLI is
+  detected as a liveness failure** (silence is not success).
+- **Cohort-attention status state machine.** Session state moves through an
+  explicit lifecycle/heat/health model (the "fridge" model) instead of ad-hoc flags.
+- **Typed wire envelope + per-publisher monotonic sequence.** A structured event
+  envelope with retryable `AgentError` and an ordering/completion contract closes
+  the relay replay gap (the I2 wire half).
 - **Inbound GitHub webhook route** (`POST /webhooks/github`, `routes/github-webhook.ts`)
   closes the GitHub App dispatch loop: the receiver Worker forwards a verified
   webhook, the daemon authenticates the forward (bearer `PD_GITHUB_FORWARD_TOKEN`
@@ -17,6 +67,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `trigger: global:github:webhook:<event>` in `pd-fleet.yml`. Per-project
   routing isolation remains a documented follow-up (needs a repo→project
   registry). 9 tests, including an end-to-end loop check over real messaging.
+
+### Changed
+- **One canonical daemon-connection resolver.** Three copy-pasted daemon-target
+  resolvers (fetch / request / client) collapsed into a single
+  `resolveDaemonTarget()` with a clear precedence (`PORT_DADDY_SOCK` →
+  `PORT_DADDY_URL` → socket → TCP). One place to reason about where `pd` connects.
+- **Sessions are durable work contexts — `begin` resumes, never forks.** Calling
+  `pd begin` for an identity that already has an active session resumes it instead
+  of silently creating a second, so coordination state stops fragmenting.
+
+### Fixed
+- **Release gate: a mute compiled `pd` can no longer ship.** The Homebrew `pd`
+  is a `bun build --compile` binary, and bun auto-loads `.env.local` from the
+  current working directory before any of our code runs. A shell-idiom value that
+  nests a command substitution inside a default-expansion —
+  `KEY="${KEY:-$(...)}"` — segfaults bun (exit 133) during that autoload, so `pd`
+  was **totally mute** (zero bytes, nonzero exit) from any directory containing
+  such a file. The CI compiled-CLI smoke ran from a clean cwd, so the mute binary
+  shipped green. `scripts/smoke-compiled-cli-runs.sh` now also drives the compiled
+  binary from a hostile-`.env.local` cwd (NODE_ENV dropped so bun actually
+  autoloads it) and fails the build unless the binary speaks **or** `pd doctor`
+  ships the named diagnostic — so the failure is loud, never silent.
+- **`pd doctor`: new `Shell-idiom .env.local` check.** Detects a
+  `${VAR:-$(...)}` value in the current directory's `.env.local` and warns that
+  bun's dotenv autoload will crash `pd` from there, with the fix (drop the
+  wrapper / move keychain resolution to the shell rc). It never edits secrets.
+- Regression test under the real failing runtime
+  (`tests/bun/env-local-autoload-crash.test.ts`, run by `bun test`/CI) proving
+  the crash, the detector, and the safe-vs-hostile idiom distinction.
+- **`/health` & `/status` verify their own routes are mounted.** The health check
+  now fails loudly if its own route wiring regresses, instead of reporting healthy.
+- **`cli:claude-code` backend captures CLI usage + a labelled estimate** so a
+  subscription-backed spawn reports honest cost instead of a silent zero.
+
+### Security
+- **Harbor envelope enforcement — a fail-closed boundary (ADR-0047).** Cross-harbor
+  messages are validated at the boundary and rejected by default; malformed or
+  unauthorized envelopes never reach the interior.
+- **Arbiter capability-attenuation monitor (runtime verification).** A pure-TS
+  monitor enforces `CAP_ESCALATION` — delegated authority can only ever *shrink* —
+  without needing the Rust FFI, so the invariant holds at runtime today.
+- **Sound Anchor attenuation proof (ProVerif 2.05).** The previously *vacuous*
+  attenuation proof is closed with a real `is_subset` and an escalation adversary —
+  the property is now genuinely verified, not trivially true.
+- **Event-relay secrecy + publisher authentication past a malicious relay
+  (ProVerif).** End-to-end secrecy and publisher auth are proven even when the relay
+  is adversarial; the replay gap is closed by a typed envelope + monotonic sequence.
 
 ## [3.17.0] - 2026-06-02
 
