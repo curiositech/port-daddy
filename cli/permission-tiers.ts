@@ -78,6 +78,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup
   sight: 'silent',         // alias of periscope
   scope: 'silent',         // alias of periscope
+  'coast-guard': 'silent', // Coast Guard read path: read-only local confinement status
+  cg: 'silent',            // alias of coast-guard
   advise: 'silent',
   preflight: 'silent',
   compass: 'silent',

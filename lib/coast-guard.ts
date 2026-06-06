@@ -87,6 +87,55 @@ export function defaultCrownJewels(home: string = process.env.HOME || ''): Crown
   };
 }
 
+/**
+ * A legible, read-only snapshot of the Coast Guard's posture on THIS machine —
+ * the read path the operator (and the console UI) needs to actually SEE the
+ * guard. Confinement is a property of where spawns run, so this is computed
+ * locally (no daemon round-trip). Receipts (per-spawn history) are a separate,
+ * daemon-side read path; this reports capability + config, never secret values.
+ */
+export interface CoastGuardStatusReport {
+  /** On unless PD_COAST_GUARD_OFF=1. */
+  onByDefault: boolean;
+  platform: NodeJS.Platform;
+  /** OS sandbox mechanism that would confine a spawn here. */
+  mechanism: 'seatbelt' | 'landlock-helper' | 'bwrap' | 'none';
+  /** True when an OS sandbox is actually present (mechanism !== 'none'). */
+  confinementAvailable: boolean;
+  protects: {
+    /** Every `.env`/`.env.local` under $HOME is denied (secrets, not code). */
+    dotenvUnderHome: boolean;
+    /** Crown-jewel directories denied outright. */
+    deniedDirs: string[];
+  };
+  /** Outbound provider spend is forced through a hard-capped meter (cap is per-spawn). */
+  egressMetering: boolean;
+  /** Raw provider keys are scrubbed from the spawned agent's environment. */
+  secretBroker: boolean;
+}
+
+export function coastGuardStatus(home: string = process.env.HOME || ''): CoastGuardStatusReport {
+  let mechanism: CoastGuardStatusReport['mechanism'] = 'none';
+  if (process.platform === 'darwin' && seatbeltAvailable()) {
+    mechanism = 'seatbelt';
+  } else if (process.platform === 'linux') {
+    const kind = detectLinuxSandbox();
+    if (kind !== 'none') mechanism = kind;
+  }
+  return {
+    onByDefault: process.env.PD_COAST_GUARD_OFF !== '1',
+    platform: process.platform,
+    mechanism,
+    confinementAvailable: mechanism !== 'none',
+    protects: {
+      dotenvUnderHome: true,
+      deniedDirs: defaultCrownJewels(home).deniedDirs,
+    },
+    egressMetering: true,
+    secretBroker: true,
+  };
+}
+
 // ════════════════════════════════════════════════════════════════════════
 //  macOS — Seatbelt (sandbox-exec) profile
 // ════════════════════════════════════════════════════════════════════════

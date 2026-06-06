@@ -117,6 +117,8 @@ _port_daddy() {
     dispatch nightshift review morning
     # Operator loop · SIGHT stage — raise the periscope (state + next cut)
     periscope sight scope
+    # Coast Guard read path — pd coast-guard status (see the guard)
+    coast-guard cg
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller

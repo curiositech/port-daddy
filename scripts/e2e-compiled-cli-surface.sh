@@ -191,6 +191,7 @@ run_read "briefing"          briefing    -- briefing
 run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
+run_read "coast-guard status" coast-guard -- coast-guard status
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
@@ -359,6 +360,7 @@ declare -A ALIASES=(
   [secrets]=secret [webhooks]=webhook [snapshot]=snapshots [tutorial]=learn
   [diagnose]=doctor [preflight]=advise [compass]=advise [help]=__meta
   [sight]=periscope [scope]=periscope
+  [cg]=coast-guard
 )
 
 # Build the set of canonical verbs we covered.

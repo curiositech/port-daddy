@@ -136,6 +136,8 @@ import {
   handleSecret,
   // Operator loop · SIGHT stage — raise the periscope (state + next cut)
   handlePeriscope,
+  // Coast Guard read path — `pd coast-guard status` (ADR-0050 legibility)
+  handleCoastGuard,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -1273,6 +1275,7 @@ const ALL_COMMANDS: string[] = [
   'dispatch', 'nightshift', 'review', 'morning',
   'backend',
   'periscope', 'sight', 'scope',
+  'coast-guard', 'cg',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2684,6 +2687,12 @@ export async function main(): Promise<void> {
       case 'sight':
       case 'scope':
         await handlePeriscope(options);
+        break;
+
+      // Coast Guard read path: SEE the guard — confinement, broker, egress cap.
+      case 'coast-guard':
+      case 'cg':
+        handleCoastGuard(positional[0], options);
         break;
 
       case 'history':
