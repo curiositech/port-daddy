@@ -1978,6 +1978,8 @@ _port_daddy() {
     'review:operator accept/reject contract for produced dispatches'
     'morning:start-of-day summary of dispatch state machine'
     'periscope:operator loop SIGHT stage — raise the periscope (state + next cut)'
+    'coast-guard:Coast Guard read path — whether spawns are confined + what they cannot read'
+    'cg:alias for coast-guard — the Coast Guard read path'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
