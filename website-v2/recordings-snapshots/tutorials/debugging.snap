@@ -1,0 +1,26 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd health
+
+  System Status: NOMINAL
+  Daemon:   Online (PID <PID>)
+  Uptime:   <UPTIME>
+
+  $ pd services | sed -n '1,12p'
+
+  ID                                 PORT    STATUS      URL
+  ───────────────────────────────────────────────────────────────────────────
+  port-daddy:api:main                3100    assigned    http://localhost:<PORT>
+  port-daddy:website:dev             3101    assigned    http://localhost:<PORT>
+  port-daddy:worker:main             3102    assigned    http://localhost:<PORT>
+
+  Total: 3 service(s)

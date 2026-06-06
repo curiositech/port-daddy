@@ -1,0 +1,27 @@
+  $ pd channels discover git
+
+  LOGICAL                   SCOPE       SOURCE      ACTIVE    PHYSICAL
+  git:committed             repo        declared    0         repo:4bc8ffb2:git:committed
+  git:pr-opened             repo        declared    0         repo:4bc8ffb2:git:pr-opened
+
+  $ pd channels ensure git:committed --scope repo --description "commit trigger event"
+  SUCCESS: Updated git:committed
+    scope: repo
+    physical: repo:4bc8ffb2:git:committed
+    worktree: 99c34fbb
+    branch: feat/recordings-approval-tests
+
+  $ pd channels describe git:committed
+
+  logical:  git:committed
+  physical: repo:4bc8ffb2:git:committed
+  scope:    repo
+  source:   declared
+  active:   0
+  worktree: 99c34fbb
+  branch:   feat/recordings-approval-tests
+  aliases:  -
+  desc:     commit trigger event
+
+  $ pd pub docs:agents-recording '{"surface":"agents","section":"communication-protocols"}' --raw-channel
+  SUCCESS: Published to docs:agents-recording (id: 1)

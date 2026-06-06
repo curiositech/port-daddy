@@ -1,0 +1,4 @@
+  $ printf 'explain selected code' | pd tube editor:explain --send
+  SUCCESS: tube: posted id=1 to editor:explain
+
+  $ pd tube editor:explain --once --no-history --limit=1

@@ -1,0 +1,15 @@
+  $ pd actors --project port-daddy --limit 2
+  Fleet actors
+  ------------
+  Gardener       DORMANT     actor:gardener         canonical
+  QA             DORMANT     actor:qa               canonical
+  Test Hunter    DORMANT     actor:test-hunter      canonical
+  Documentarian  DORMANT     actor:documentarian    canonical
+  Simplifier     DORMANT     actor:simplifier       canonical
+  Coxswain       DORMANT     actor:coxswain         canonical
+  Quartermaster  DORMANT     actor:quartermaster    canonical
+  Cartographer   DORMANT     actor:cartographer     canonical
+  Spark          DORMANT     actor:spark            canonical
+  Spider         DORMANT     actor:spider           canonical
+
+  $ pd actor navigator --project port-daddy --inbox-stats

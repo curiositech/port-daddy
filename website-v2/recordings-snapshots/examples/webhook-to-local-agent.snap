@@ -1,0 +1,4 @@
+  $ printf '{"event":"webhook"}' | pd tube webhook:local --send
+  SUCCESS: tube: posted id=1 to webhook:local
+
+  $ pd tube webhook:local --once --no-history --limit=1

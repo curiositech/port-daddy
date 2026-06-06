@@ -1,0 +1,87 @@
+~/coding/port-daddy $ # Check fleet status
+~/coding/port-daddy $ pd fleet status
+=== Port Daddy Fleet ===
+
+Dock Master: not running
+
+Registered fleet agents:
+  (none)
+
+Recent fleet events:
+~/coding/port-daddy $ # Spawn a Claude agent through PD (full coordination)
+~/coding/port-daddy $ pd spawn --backend claude-cli --maxTokens 100 -q -- "What is 2+2? Reply with just the number."
+4
+~/coding/port-daddy $ # List spawned agents
+~/coding/port-daddy $ pd spawned
+No spawned agents
+~/coding/port-daddy $ # Check recent activity
+~/coding/port-daddy $ pd notes --limit 5
+
+--- session-<UUID>: Building the photo upload API ---
+  [<AGE>] [handoff] Upload API complete with tests
+
+--- session-<UUID>: Gallery component with lazy loading ---
+  [<AGE>] [progress] Full plan executed: T1-T7 all complete. Stable promoted, parity closed, changelog updated, Phase 3A screenshots captured and wired into website.
+  [<AGE>] [blocker] API needs CORS headers for frontend integration
+  [<AGE>] [decision] Chose react-virtualized for gallery grid — handles 10K+ photos
+  [<AGE>] [progress] Photo upload endpoint passing all tests
+~/coding/port-daddy $ # Check what channels are active
+~/coding/port-daddy $ pd channels
+
+CHANNEL                                 MESSAGES    LAST ACTIVITY
+api:ready                               1           <DUR>
+agents                                  13          1h
+tests:passed                            1           1h
+build:api                               1           1h
+fleet:error                             282         2d
+test-channel-bug1-<EPOCH>         1           2d
+test-channel-bug1-<EPOCH>         1           2d
+test-channel-bug1-<EPOCH>         1           2d
+test-channel-bug1-<EPOCH>         1           2d
+test-channel-bug1-<EPOCH>         1           2d
+test-channel-bug1-<EPOCH>         1           2d
+qa:clean                                335         2d
+simplify:clean                          138         2d
+simplify:proposal                       68          2d
+docs:synced                             396         2d
+qa:findings                             149         2d
+resurrection                            6           2d
+bug11-test-<EPOCH>                1           2d
+test-channel-bug1-<EPOCH>         1           2d
+fleet:alert                             356         2d
+fleet:status                            73          2d
+test-channel-bug1-<EPOCH>         1           5d
+test-channel-bug1-<EPOCH>         1           5d
+demo-scripts-test:progress              5           5d
+bug11-test-<EPOCH>                1           5d
+test-channel-bug1-<EPOCH>         1           5d
+bug11-test-<EPOCH>                1           5d
+test-channel-bug1-<EPOCH>         1           5d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-<EPOCH>              1           6d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-<EPOCH>              1           6d
+test-channel-<EPOCH>              1           6d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-<EPOCH>              1           6d
+test-channel-<EPOCH>              1           6d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-<EPOCH>              1           6d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-bug1-<EPOCH>         1           6d
+bug11-test-<EPOCH>                1           6d
+test-channel-bug1-<EPOCH>         1           6d
+test-channel-<EPOCH>              1           6d
+bug11-test-<EPOCH>                1           6d

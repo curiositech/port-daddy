@@ -1,0 +1,39 @@
+  $ pd fleet validate
+
+  INFO: Validating ./pd-fleet.yml
+
+  SUCCESS: Fleet "port-daddy" parsed successfully
+    agents:   13
+    watchers: 2
+    channels: 12
+    budget:   8.5
+
+  WARN: Topology warnings (3):
+    - Channel "git:status" has no producer in the fleet
+    - Channel "qa:clean" has no producer in the fleet
+    - Channel "qa:findings" has no producer in the fleet
+
+  INFO: Dry-run checklist:
+    - YAML syntax parsed
+    - templates resolved
+    - trigger graph checked for cycles
+
+  $ python3 -c "from pathlib import Path; [print(line) for line in Path('pd-fleet.yml').read_text().splitlines()[:28]]"
+  # pd-fleet.yml — Port Daddy's own fleet configuration
+  #
+  # Retooled <DATE> (see docs/fleet/<DATE>-retool.md).
+  #
+  # The Old Way (pre-<DATE>):
+  #   Ships published findings to pub/sub channels. The operator never
+  #   read them. Findings died in SQLite rows no human opened.
+  #
+  # The New Way:
+  #   Ships write to GitHub — PR comments (one per ship per PR, edited
+  #   in place), issues (deduped by title), and draft PRs for proposed
+  #   work. Channels remain, but they are internal plumbing for
+  #   ship-to-ship chaining, not the operator surface.
+  #
+  # Implementation primitive: lib/fleet/github-output.ts. Ships call
+  # `postPRComment`, `openIssue`, `openDraftPR`, `closeIssue` instead
+  # of `pd pub`. Today the helper shells out to `gh` and inherits the
+  # operator's auth. When the Port Daddy GitHub App lands, the helper

@@ -1,0 +1,9 @@
+  $ pd salvage --project port-daddy
+  INFO: No agents awaiting salvage in port-daddy:*
+
+  $ pd notes --limit 5
+
+  --- session-<ID>: Backfill search index ---
+    [<AGE>] Search indexer resumed from checkpoint page 412
+    [<AGE>] DB migration 0042 applied — added refresh_tokens table
+    [<AGE>] Switched auth library to jose for JWKS support

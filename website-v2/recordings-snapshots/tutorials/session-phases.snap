@@ -1,0 +1,17 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd notes --limit 5
+
+  --- session-<ID>: Backfill search index ---
+    [<AGE>] Search indexer resumed from checkpoint page 412
+    [<AGE>] DB migration 0042 applied — added refresh_tokens table
+    [<AGE>] Switched auth library to jose for JWKS support

@@ -1,0 +1,100 @@
+~/coding/port-daddy $ # Check daemon health
+~/coding/port-daddy $ pd status
+Port Daddy is running
+  Version: 3.7.0
+  PID <PID>
+  Uptime: <UPTIME>
+  Active ports: 38
+~/coding/port-daddy $ # Run diagnostics
+~/coding/port-daddy $ pd doctor
+
+Port Daddy Doctor
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Node.js version: v22.17.1 (>= 18 required)
+✓ Dependencies: All 15 dependencies installed
+✓ Database: port-registry.db exists and is writable
+✓ Network: localhost:<PORT> is reachable
+✓ Daemon running: PID <PID>, v3.7.0
+✗ Code hash: Mismatch: daemon=ee8369e49612 local=8c88b43b
+  → Run: port-daddy restart
+✓ port <PORT>: Bound to Port Daddy daemon
+✓ System service: LaunchAgent installed and loaded
+✗ Stale services: 36 service(s) with dead PIDs
+  → Run: port-daddy release --expired
+✓ SQLite integrity: Database passes integrity check
+✓ Socket file: /tmp/port-daddy.sock exists and daemon is responding
+✓ PID file: PID <PID> is running
+✓ Stuck lsof processes: 0 lsof process(es) running
+✓ Shell completions: Zsh completions file found
+✗ Zombie Port Daddy process: Old daemon (PID <PID>) still holding port <PORT>
+  → Auto-fixable (will prompt below)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+12/15 checks passed
+
+Fixable issues found:
+
+  Fix "Zombie Port Daddy process"? (Old daemon (PID <PID>) still holding port <PORT>) [Y/n]
+~/coding/port-daddy $ # Check for dead agents to salvage
+~/coding/port-daddy $ pd salvage
+⚓ Salvage Report (all projects)
+────────────────────────────────────────────────────────────
+
+⚠ fleet-test-gap-hunter-52617 (pending, 5d)
+  Session: session-<UUID>
+  Salvage: pd salvage claim fleet-test-gap-hunter-52617
+
+⚠ fleet-qa-adversary-52368 (pending, 5d)
+  Session: session-<UUID>
+  Salvage: pd salvage claim fleet-qa-adversary-52368
+
+⚠ fleet-test-gap-hunter-96634 (pending, 2d)
+  Session: session-<UUID>
+  Notes:
+    - Spark starting cycle 4
+    - Spark observed: 0 test files, 10 recent commits
+    - Spark cycle 4 complete
+    ... and 47 more
+  Salvage: pd salvage claim fleet-test-gap-hunter-96634
+
+⚠ fleet-spark-95173 (pending, 2d)
+  Session: session-<UUID>
+  Notes:
+    - Spark starting cycle 1
+    - Spark observed: 0 test files, 10 recent commits
+    - Spark cycle 1 complete
+  Salvage: pd salvage claim fleet-spark-95173
+
+⚠ fleet-spark-66045 (pending, 2d)
+  Session: session-<UUID>
+  Notes:
+    - Spark starting cycle 1
+    - Spark observed: 0 test files, 10 recent commits
+    - Spark cycle 1 complete
+    ... and 55 more
+  Salvage: pd salvage claim fleet-spark-66045
+
+⚠ fleet-test-gap-hunter-67748 (pending, 2d)
+  Session: session-<UUID>
+  Notes:
+    - Spark starting cycle 12
+    - Spark starting cycle 10
+    - Spark starting cycle 11
+    ... and 7 more
+  Salvage: pd salvage claim fleet-test-gap-hunter-67748
+
+6 agent(s) in salvage queue
+~/coding/port-daddy $ # View active ports
+~/coding/port-daddy $ pd find | head -10
+
+ID                                 PORT    STATUS      URL
+───────────────────────────────────────────────────────────────────────────
+test:db                            3100    assigned    http://localhost:<PORT>
+test:api                           3101    assigned    http://localhost:<PORT>
+demo-scripts-test:fleet:db         3102    assigned    http://localhost:<PORT>
+demo-scripts-test:fleet:api        3109    assigned    http://localhost:<PORT>
+test-alias-<EPOCH>           3111    assigned    http://localhost:<PORT>
+bug14-test-<EPOCH>-b         3110    assigned    http://localhost:<PORT>
+test-alias-<EPOCH>           3103    assigned    http://localhost:<PORT>
+~/coding/port-daddy $ # Generate a briefing for new agents
+~/coding/port-daddy $ pd briefing --json 2>/dev/null | python3 -c "import json,sys; b=json.load(sys.stdin); print(f\"Sessions: {len(b.get('briefing',{}).get('activeSessions',[]))} active\")"
+Sessions: 1 active

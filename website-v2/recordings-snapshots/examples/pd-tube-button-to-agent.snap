@@ -1,0 +1,4 @@
+  $ printf 'button clicked' | pd tube docs:example-button --send
+  SUCCESS: tube: posted id=1 to docs:example-button
+
+  $ pd tube docs:example-button --once --no-history --limit=1

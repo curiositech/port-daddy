@@ -1,0 +1,26 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ npx tsx examples/leader-election/leader-election.ts --workers 4 --hold-ms 900 --ttl-ms 5000
+  [leader-election] daemon=http://127.0.0.1:<PORT>
+  [leader-election] workers=4 lock=swarm:leader ttl=<DUR>
+  [worker-01] attempting to acquire swarm:leader
+  [worker-01] leader elected; holding lock for <DUR>
+  [worker-02] attempting to acquire swarm:leader
+  [worker-02] follower mode; leader is worker-01
+  [worker-03] attempting to acquire swarm:leader
+  [worker-03] follower mode; leader is worker-01
+  [worker-04] attempting to acquire swarm:leader
+  [worker-04] follower mode; leader is worker-01
+  [worker-01] leader work complete
+  [worker-01] released swarm:leader
+
+  [leader-election] elected=worker-01 followers=3

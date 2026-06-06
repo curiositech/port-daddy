@@ -252,22 +252,44 @@ jobs:
       - name: Build daemon binary
         run: npm run build:daemon:dist
 
-      - name: Start daemon and recording session
-        run: |
-          node bin/port-daddy-cli.js start
-          # CI runs on the main worktree by design (no linked worktrees in
-          # actions/checkout). Pass --allow-main-worktree so the worktree
-          # policy added in 47840169 doesn't refuse the integration session.
-          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --allow-main-worktree
+      # The recording scripts manage their own isolated daemon per-recording.
+      # No separate "start daemon" step needed — seed-recording-world.mjs
+      # spawns a fresh daemon (port 9899, separate DB) for each cast, seeds
+      # a fixed deterministic world, tears it down after.  The operator's
+      # real daemon on port 9876 is never touched in CI.
 
-      - name: Regenerate website terminal GIFs
+      - name: Regenerate website terminal GIFs (seeded isolated daemon)
         working-directory: website-v2
         run: npm run record:gifs
 
-      - name: Cheap recording reviewer
+      - name: Drift gate — check all 42 recordings match their golden transcript
         working-directory: website-v2
         run: npm run test:gifs
 
-      - name: Stop daemon
-        if: always()
-        run: node bin/port-daddy-cli.js stop || true
+      - name: Determinism assertion — record a representative cast twice, diff transcripts
+        working-directory: website-v2
+        run: |
+          # Record tutorials/getting-started once (run A).
+          bash scripts/record-site-terminal-gifs.sh tutorials/getting-started
+          node --input-type=module <<'EOF' > .recording-daemon/transcript-run-a.txt
+            const m = await import('./scripts/lib/cast-transcript.mjs');
+            const {readFileSync} = await import('node:fs');
+            process.stdout.write(m.castToTranscript(readFileSync('public/casts/tutorials/getting-started.cast', 'utf8')));
+          EOF
+
+          # Record it again (run B) — different daemon PID, new DB, same seed.
+          bash scripts/record-site-terminal-gifs.sh tutorials/getting-started
+          node --input-type=module <<'EOF' > .recording-daemon/transcript-run-b.txt
+            const m = await import('./scripts/lib/cast-transcript.mjs');
+            const {readFileSync} = await import('node:fs');
+            process.stdout.write(m.castToTranscript(readFileSync('public/casts/tutorials/getting-started.cast', 'utf8')));
+          EOF
+
+          # Assert they are identical.
+          if ! diff .recording-daemon/transcript-run-a.txt .recording-daemon/transcript-run-b.txt; then
+            echo '::error::Determinism assertion FAILED: two seeded runs produced different transcripts.'
+            echo 'A non-scrubbed ephemeral leaked through. Add a rule to EPHEMERAL_RULES in'
+            echo 'website-v2/scripts/lib/cast-transcript.mjs.'
+            exit 1
+          fi
+          echo 'Determinism assertion passed: two seeded runs produced identical transcripts.'

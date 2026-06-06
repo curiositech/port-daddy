@@ -1,0 +1,15 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ printf 'test failed' | pd tube docs:test-failed --send
+  SUCCESS: tube: posted id=1 to docs:test-failed
+
+  $ pd tube docs:test-failed --once --no-history --limit=1

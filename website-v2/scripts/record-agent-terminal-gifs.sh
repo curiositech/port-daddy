@@ -2,25 +2,40 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+WEBSITE_DIR="$ROOT_DIR/website-v2"
+RECORDING_DAEMON_DIR="$WEBSITE_DIR/.recording-daemon"
+RECORDING_ENV_FILE="$RECORDING_DAEMON_DIR/recording.env"
 CAST_DIR="$ROOT_DIR/website-v2/public/casts/agents"
 GIF_DIR="$ROOT_DIR/website-v2/public/gifs/agents"
 
 install_pd_shim() {
   export ROOT_DIR
   pd() {
-    node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"
+    PD_SHIM_OFF=1 node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"
   }
   export -f pd
 }
 
-ensure_daemon() {
-  if pd status >/dev/null 2>&1; then
-    return 0
-  fi
+# Start the isolated recording daemon and seed a deterministic world.
+start_recording_daemon() {
+  unset PORT_DADDY_URL PORT_DADDY_SOCK PORT_DADDY_IPC PORT_DADDY_PREFIX \
+        PORT_DADDY_PROFILE PD_URL PORT_DADDY_PORT_FILE \
+        PORT_DADDY_HEARTBEAT_FILE PORT_DADDY_PID_FILE 2>/dev/null || true
 
-  node "$ROOT_DIR/bin/port-daddy-cli.js" start >/dev/null 2>&1 || true
-  sleep 1
-  pd status >/dev/null 2>&1
+  node "$WEBSITE_DIR/scripts/seed-recording-world.mjs" start >&2
+
+  # shellcheck disable=SC1090
+  source "$RECORDING_ENV_FILE"
+}
+
+# Stop the isolated recording daemon.
+stop_recording_daemon() {
+  node "$WEBSITE_DIR/scripts/seed-recording-world.mjs" stop >&2 || true
+}
+
+ensure_daemon() {
+  # Legacy compatibility: in isolated mode ensure_daemon is a no-op.
+  :
 }
 
 type_cmd() {
@@ -65,7 +80,13 @@ play_section() {
   install_pd_shim
   export NO_COLOR=1
   export FORCE_COLOR=0
-  ensure_daemon
+
+  # The recording daemon was started (and seeded) by record_one() before
+  # asciinema was invoked.  Source its env vars here to route all pd() calls.
+  if [[ -f "$RECORDING_ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$RECORDING_ENV_FILE"
+  fi
 
   case "$1" in
     yaml-and-shipwright)
@@ -120,8 +141,19 @@ play_section() {
 record_one() {
   local id="$1"
   mkdir -p "$CAST_DIR" "$GIF_DIR"
+
+  # Seed a fresh, deterministic world for this recording.
+  start_recording_daemon
+  trap 'stop_recording_daemon' EXIT INT TERM
+
   asciinema rec -q --overwrite -c "$0 --play $id" "$CAST_DIR/$id.cast"
-  agg --theme github-dark --cols 110 --rows 30 --font-size 16 --speed 1.15 --idle-time-limit 1.2 -q "$CAST_DIR/$id.cast" "$GIF_DIR/$id.gif"
+  # GIF rendering is optional — skip if agg is not installed.
+  if command -v agg >/dev/null 2>&1; then
+    agg --theme github-dark --cols 110 --rows 30 --font-size 16 --speed 1.15 --idle-time-limit 1.2 -q "$CAST_DIR/$id.cast" "$GIF_DIR/$id.gif"
+  fi
+
+  stop_recording_daemon
+  trap - EXIT INT TERM
 }
 
 if [[ "${1:-}" == "--play" ]]; then

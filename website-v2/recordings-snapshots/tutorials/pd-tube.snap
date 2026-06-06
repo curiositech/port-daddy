@@ -1,0 +1,4 @@
+  $ printf 'docs handoff ready' | pd tube docs:pd-tube-recording --send --sender docs
+  SUCCESS: tube: posted id=1 to docs:pd-tube-recording
+
+  $ printf 'reply with the checked-in cast and GIF' | pd tube docs:pd-tube-recording --reply=1 --sender codex

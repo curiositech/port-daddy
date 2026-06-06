@@ -1,0 +1,33 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd pheromone --help || true
+  You're in a session: session-<ID> — "Backfill search index"
+    pd note "progress"     Log what you're doing
+    pd done "summary"      Wrap it up
+
+  Get started:
+    pd setup                  [notify] Install daemon, MCP, FleetBar, init project
+    pd begin "purpose"       [notify] I'll set up your agent + session
+    pd done "summary"        [notify] Finish up — I'll clean everything
+    pd whoami                [silent] See your current context
+    pd attention             [notify] What other agents queued for you (run first thing!)
+
+  Ports:
+    pd claim <id>            [notify] I'll assign a port  (c)
+    pd release <id>          [notify] Free it up  (r)  (--expired is destructive)
+    pd find [pattern]        [silent] What's running  (f, l, ps)
+
+  Sessions & notes:
+    pd session start "why"   [notify] Manual session start
+
+  $ pd pheromone files --path website-v2/src --depth 1
+    (no hot files — harbor is calm)

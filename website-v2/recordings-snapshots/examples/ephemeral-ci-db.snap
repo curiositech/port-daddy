@@ -1,0 +1,23 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ GITHUB_RUN_ID=recording bash examples/ephemeral-ci-db/ephemeral-postgres.sh
+  [ephemeral-ci-db] claiming ci:postgres:recording
+  [ephemeral-ci-db] DB_PORT=3103
+  [ephemeral-ci-db] DATABASE_URL=postgres://postgres:secret@127.0.0.1:<PORT>/postgres
+  [ephemeral-ci-db] dry run; pass --run to start Docker.
+
+  docker run --name "pd-ci-postgres-recording" \
+    -e POSTGRES_PASSWORD="secret" \
+    -p "3103:5432" \
+    -d postgres:alpine
+
+  DATABASE_URL="postgres://postgres:secret@127.0.0.1:<PORT>/postgres" npm test

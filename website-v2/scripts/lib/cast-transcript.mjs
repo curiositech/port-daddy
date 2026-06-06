@@ -31,11 +31,22 @@ const EPHEMERAL_RULES = [
   // Home directories differ dev (/Users/<me>) vs CI (/home/runner). Must be first.
   [/\/Users\/[^/\s'"]+/g, '~'],
   [/\/home\/[^/\s'"]+/g, '~'],
+  // Repo root path: after the home-dir rule fires the remainder of the path
+  // still differs between dev (~/.../coding/port-daddy) and CI
+  // (~/.../work/port-daddy/port-daddy).  Anchor on the last .git or .portdaddy
+  // segment and everything before it.
+  [/~[^\s'"]*?\/\.git\b/g, '<REPO>/.git'],
+  [/~[^\s'"]*?\/\.portdaddy\b/g, '<REPO>/.portdaddy'],
   // Full UUIDs (session/agent/run identifiers carry these).
   [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<UUID>'],
-  // Prefixed short ids: agent-99cfdeb8, spawned-1c9e8118, sortie-… , task-… .
-  // (session-<UUID> already had its UUID replaced above, leaving session-<UUID>.)
-  [/\b(session|agent|spawned|sortie|task|run|msg|note|tube|sess)-[0-9a-f]{6,}\b/gi, '$1-<ID>'],
+  // PD session/agent ids — covers both plain hex and slugged-purpose formats:
+  //   session-bd935d2116d1                               (plain short id)
+  //   session-backfill-search-index-bd935d2116d1         (slug + hex suffix)
+  //   agent-implement-oauth-token-refresh-5eb5dd7e       (slug + hex suffix)
+  // The pattern greedily matches any alphanumeric-hyphen chain that ends with
+  // at least 8 hex characters.  It is anchored to the keyword prefixes so
+  // normal hyphenated words are not affected.
+  [/\b(session|agent|spawned|sortie|task|run|msg|note|tube|sess|worktree)-[a-z0-9-]*[0-9a-f]{8,}\b/gi, '$1-<ID>'],
   // Process ids.
   [/\bPID:?\s*\d+/g, 'PID <PID>'],
   // host:port for loopback hosts (the daemon + claimed ports).
@@ -45,12 +56,25 @@ const EPHEMERAL_RULES = [
   // Relative-age markers from notes/activity: [14h], [3d], [2m], [5s], [1w].
   [/\[\d+(?:s|m|h|d|w|mo|y)\]/g, '[<AGE>]'],
   [/\b\d+(?:s|m|h|d|w)\s+ago\b/g, '<AGE> ago'],
+  // Daemon uptime: "10h 4m", "2d 3h 1m", "0m", "5m 30s", "1h".
+  // Must run before the plain-second rule so "30s" in "5m 30s" is consumed here.
+  [/\b\d+d \d+h \d+m\b/g, '<UPTIME>'],
+  [/\b\d+h \d+m \d+s\b/g, '<UPTIME>'],
+  [/\b\d+h \d+m\b/g, '<UPTIME>'],
+  [/\b\d+m \d+s\b/g, '<UPTIME>'],
+  [/(?<=Uptime:\s{0,10})\d+m\b/g, '<UPTIME>'],
   // Durations: 7ms, 1.2s, 250µs, 13ns.
   [/\b\d+(?:\.\d+)?\s?(?:ms|µs|us|ns)\b/g, '<DUR>'],
   [/\b\d+(?:\.\d+)?s\b/g, '<DUR>'],
+  // Daemon version code-hash: "Version: 3.17.1 (a5b454508787)".
+  // The version number is committed; the parenthetical hash changes on rebuild.
+  [/\([0-9a-f]{8,}\)/g, '(<HASH>)'],
   // Epoch seconds (10-digit, this era) and ms (13-digit).
   [/\b1\d{12}\b/g, '<EPOCH>'],
   [/\b1\d{9}\b/g, '<EPOCH>'],
+  // Full ISO-8601 datetime (with optional fractional seconds and timezone).
+  // Must run before the plain date/time rules.
+  [/\b20\d\d-\d\d-\d\dT\d{1,2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?\b/g, '<DATETIME>'],
   // ISO date and wall-clock time.
   [/\b20\d\d-\d\d-\d\d\b/g, '<DATE>'],
   [/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, '<TIME>'],

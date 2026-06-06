@@ -2,23 +2,43 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+WEBSITE_DIR="$ROOT_DIR/website-v2"
+RECORDING_DAEMON_DIR="$WEBSITE_DIR/.recording-daemon"
+RECORDING_ENV_FILE="$RECORDING_DAEMON_DIR/recording.env"
 
 install_pd_shim() {
   export ROOT_DIR
   pd() {
-    node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"
+    PD_SHIM_OFF=1 node "$ROOT_DIR/bin/port-daddy-cli.js" "$@"
   }
   export -f pd
 }
 
-ensure_daemon() {
-  if pd status >/dev/null 2>&1; then
-    return 0
-  fi
+# Start the isolated recording daemon and seed a deterministic world.
+# Sources the recording.env file so all subsequent pd() calls go to the
+# recording daemon, NOT the operator's real daemon on port 9876.
+start_recording_daemon() {
+  # Unset any ambient daemon env so the seed script starts from a clean slate.
+  unset PORT_DADDY_URL PORT_DADDY_SOCK PORT_DADDY_IPC PORT_DADDY_PREFIX \
+        PORT_DADDY_PROFILE PD_URL PORT_DADDY_PORT_FILE \
+        PORT_DADDY_HEARTBEAT_FILE PORT_DADDY_PID_FILE 2>/dev/null || true
 
-  node "$ROOT_DIR/bin/port-daddy-cli.js" start >/dev/null 2>&1 || true
-  sleep 1
-  pd status >/dev/null 2>&1
+  node "$WEBSITE_DIR/scripts/seed-recording-world.mjs" start >&2
+
+  # Route all pd() calls to the recording daemon.
+  # shellcheck disable=SC1090
+  source "$RECORDING_ENV_FILE"
+}
+
+# Stop the isolated recording daemon.  Called via trap to guarantee cleanup.
+stop_recording_daemon() {
+  node "$WEBSITE_DIR/scripts/seed-recording-world.mjs" stop >&2 || true
+}
+
+ensure_daemon() {
+  # Legacy compatibility: in isolated mode we always have a seeded daemon after
+  # start_recording_daemon(); this function is a no-op.
+  :
 }
 
 type_cmd() {
@@ -75,7 +95,13 @@ play_recording() {
   local id="$1"
   local slug="${id#*/}"
 
-  ensure_daemon
+  # The recording daemon was started (and seeded) by record_one() before
+  # asciinema was invoked.  The env vars it wrote are sourced here so every
+  # pd() call in the recording body goes to the isolated daemon.
+  if [[ -f "$RECORDING_ENV_FILE" ]]; then
+    # shellcheck disable=SC1090
+    source "$RECORDING_ENV_FILE"
+  fi
 
   case "$id" in
     tutorials/pheromone)
@@ -249,10 +275,25 @@ record_one() {
   local cast_dir="$ROOT_DIR/website-v2/public/casts/$output_group"
   local gif_dir="$ROOT_DIR/website-v2/public/gifs/$output_group"
   mkdir -p "$cast_dir" "$gif_dir"
+
+  # Seed a fresh, deterministic world for this recording.
+  # Each recording gets its own clean daemon so state from one can't bleed
+  # into another.
+  start_recording_daemon
+  trap 'stop_recording_daemon' EXIT INT TERM
+
   export PD_RECORDING_SESSION_ID
-  PD_RECORDING_SESSION_ID="$(current_session_id)"
+  PD_RECORDING_SESSION_ID=""  # Not used with the isolated daemon
+
   asciinema rec -q --overwrite -c "$0 --play $id" "$cast_dir/$slug.cast"
-  agg --theme github-dark --cols 110 --rows 30 --font-size 16 --speed 1.15 --idle-time-limit 1.2 -q "$cast_dir/$slug.cast" "$gif_dir/$slug.gif"
+  # GIF rendering (agg) is optional — skip if agg is not installed.
+  # The drift gate only needs the .cast, not the .gif.
+  if command -v agg >/dev/null 2>&1; then
+    agg --theme github-dark --cols 110 --rows 30 --font-size 16 --speed 1.15 --idle-time-limit 1.2 -q "$cast_dir/$slug.cast" "$gif_dir/$slug.gif"
+  fi
+
+  stop_recording_daemon
+  trap - EXIT INT TERM
 }
 
 if [[ "${1:-}" == "--play" ]]; then

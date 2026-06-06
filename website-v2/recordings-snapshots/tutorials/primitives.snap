@@ -1,0 +1,22 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd briefing | sed -n '1,18p'
+  SUCCESS: Briefing generated: ./.portdaddy
+    ./.portdaddy/briefing.md
+    ./.portdaddy/briefing.json
+
+  $ pd guard status
+  Coordination Guard: enforce
+    config: <REPO>/.git/port-daddy/coordination-guard.json
+    requires: active session, file claims
+    install hook: pd guard install
+    check now:    pd guard check --staged

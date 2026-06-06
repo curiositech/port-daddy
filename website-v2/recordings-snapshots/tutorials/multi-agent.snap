@@ -1,0 +1,27 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd pub docs:multi-agent-recording '{"surface":"tutorial","event":"handoff"}' --raw-channel
+  SUCCESS: Published to docs:multi-agent-recording (id: 1)
+
+  $ pd tube docs:multi-agent-recording --once --no-history --limit=1
+  ──── event id=1 · channel docs:multi-agent-recording ────
+  From: CLI · <DATETIME>
+  Body:
+    {"surface":"tutorial","event":"handoff"}
+
+  Act on the event above, then post your response by running:
+
+      pd tube docs:multi-agent-recording --reply "your response here"
+
+  That command posts a reply correlated to id=1 AND continues
+  listening. Use --raw / --json for machine output. Ctrl+C to exit.
+  ──────────────────────────────────────

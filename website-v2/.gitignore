@@ -23,3 +23,7 @@ storybook-static
 *.njsproj
 *.sln
 *.sw?
+
+# Recording daemon runtime state (DB, socket, env file, PID, log).
+# The seed script itself (scripts/seed-recording-world.mjs) IS committed.
+.recording-daemon/

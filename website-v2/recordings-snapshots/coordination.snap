@@ -1,0 +1,41 @@
+~/coding/port-daddy $ # Agent 1: Backend API developer
+~/coding/port-daddy $ pd begin "REST API for user auth" --identity myapp:api --agent backend-dev
+  Session: session-<UUID>
+  Purpose: REST API for user auth
+  Identity: myapp:api
+│
+◆  Agent backend-dev ready
+~/coding/port-daddy $ pd claim myapp:api
+3136
+~/coding/port-daddy $ # Agent 2: Frontend developer (separate terminal)
+~/coding/port-daddy $ pd begin "React login page" --identity myapp:web --agent frontend-dev
+  Session: session-<UUID>
+  Purpose: React login page
+  Identity: myapp:web
+│
+◆  Agent frontend-dev ready
+~/coding/port-daddy $ pd claim myapp:web
+3137
+~/coding/port-daddy $ # Backend signals: auth endpoints are ready
+~/coding/port-daddy $ pd pub api:ready '{"endpoints":["/login","/register","/refresh"]}'
+│
+◆  Published to api:ready (id: 1866)
+~/coding/port-daddy $ # Check all active services
+~/coding/port-daddy $ pd find "myapp:*"
+
+ID                                 PORT    STATUS      URL
+───────────────────────────────────────────────────────────────────────────
+myapp:api                          3136    assigned    http://localhost:<PORT>
+myapp:web                          3137    assigned    http://localhost:<PORT>
+
+Total: 2 service(s)
+~/coding/port-daddy $ # Lock the database for migrations
+~/coding/port-daddy $ pd with-lock db-migrations echo "Migration complete"
+Migration complete
+~/coding/port-daddy $ # Check the full picture
+~/coding/port-daddy $ pd status
+Port Daddy is running
+  Version: 3.7.0
+  PID <PID>
+  Uptime: <UPTIME>
+  Active ports: 40

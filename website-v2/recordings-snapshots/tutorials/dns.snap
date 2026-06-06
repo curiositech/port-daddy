@@ -1,0 +1,27 @@
+  $ pd dns --help || true
+  DNS Records — Local service discovery via hostname
+
+  Commands:
+    dns register             Register a DNS record
+      --hostname <name>      Hostname to register
+      --port <n>             Port to resolve to
+      --service <id>         Associated service identity
+
+    dns lookup <hostname>    Resolve a hostname to port
+    dns list                 List all DNS records
+    dns cleanup              Clean stale DNS records
+    dns status               DNS system status
+
+  Examples:
+    pd dns register --hostname api.local --port <PORT> --service myapp:api
+    pd dns lookup api.local
+
+  $ pd services | sed -n '1,12p'
+
+  ID                                 PORT    STATUS      URL
+  ───────────────────────────────────────────────────────────────────────────
+  port-daddy:api:main                3100    assigned    http://localhost:<PORT>
+  port-daddy:website:dev             3101    assigned    http://localhost:<PORT>
+  port-daddy:worker:main             3102    assigned    http://localhost:<PORT>
+
+  Total: 3 service(s)

@@ -1,0 +1,39 @@
+  $ pd fleet validate
+
+  INFO: Validating ./pd-fleet.yml
+
+  SUCCESS: Fleet "port-daddy" parsed successfully
+    agents:   13
+    watchers: 2
+    channels: 12
+    budget:   8.5
+
+  WARN: Topology warnings (3):
+    - Channel "git:status" has no producer in the fleet
+    - Channel "qa:clean" has no producer in the fleet
+    - Channel "qa:findings" has no producer in the fleet
+
+  INFO: Dry-run checklist:
+    - YAML syntax parsed
+    - templates resolved
+    - trigger graph checked for cycles
+
+  $ pd fleet status
+
+  INFO: Port Daddy Fleet
+
+  WARN: Fleet "port-daddy" defined in pd-fleet.yml but not running
+  INFO:   Start with: pd fleet up
+
+  INFO: Configured agents:
+    gardener — cli:claude-code / backend default / trigger git:committed / fallbacks: cli:codex/backend default -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
+    qa — cli:claude-code / backend default / trigger pull_request:opened / fallbacks: cli:codex/backend default -> openai/gpt-5-mini -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
+    test-hunter — cli:claude-code / backend default / trigger git:committed / fallbacks: cli:codex/backend default -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
+    documentarian — cli:claude-code / backend default / trigger promotion:release-surfaces / fallbacks: cli:codex/backend default -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
+    simplifier — cli:claude-code / backend default / trigger git:committed / fallbacks: cli:codex/backend default -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
+    cartographer — cli:claude-code / backend default / schedule */30 * * * * / fallbacks: cli:codex/backend default -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
+    spark — cli:claude-code / backend default / trigger git:committed / fallbacks: cli:codex/backend default -> cloudflare/@cf/moonshotai/kimi-k2.6
+    spider — cli:claude-code / backend default / schedule 0 */2 * * * / fallbacks: cli:codex/backend default -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
+    code-reviewer — cli:claude-code / backend default / trigger pull_request:opened / fallbacks: cli:codex/backend default -> anthropic/claude-haiku-4-5-20251001 -> openai/gpt-5-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct
+    red-team — cli:claude-code / backend default / trigger pull_request:opened / fallbacks: cli:codex/backend default -> anthropic/claude-sonnet-4-5-20251001 -> openai/gpt-5 -> cloudflare/@cf/qwen/qwen3-30b-a3b-fp8
+    test-author — cli:claude-code / backend default / trigger pull_request:opened / fallbacks: cli:codex/backend default -> anthropic/claude-haiku-4-5-20251001 -> openai/gpt-5-mini -> cloudflare/@cf/qwen/qwen2.5-coder-32b-instruct

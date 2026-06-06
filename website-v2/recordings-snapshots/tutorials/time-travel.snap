@@ -1,0 +1,18 @@
+  $ pd notes --limit 5
+
+  --- session-<ID>: Backfill search index ---
+    [<AGE>] Search indexer resumed from checkpoint page 412
+    [<AGE>] DB migration 0042 applied — added refresh_tokens table
+    [<AGE>] Switched auth library to jose for JWKS support
+
+  $ pd activity --limit 5 || true
+
+  TIMESTAMP             TYPE                AGENT             DETAILS
+  ─────────────────────────────────────────────────────────────────────────────────────
+  <DATE> <TIME>   session_note        -                 Note added to session session-<ID>
+  <DATE> <TIME>   session.note        agent-backfill-se Note added to session session-<ID>
+  <DATE> <TIME>   session_note        -                 Note added to session session-<ID>
+  <DATE> <TIME>   session.note        agent-backfill-se Note added to session session-<ID>
+  <DATE> <TIME>   session_note        -                 Note added to session session-<ID>
+
+  Showing 5 entries

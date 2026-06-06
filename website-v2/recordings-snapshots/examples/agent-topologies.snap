@@ -1,0 +1,32 @@
+  $ pd status
+  Port Daddy is running
+    Version: 3.17.1 (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ npx tsx examples/agent-topologies/topology-pubsub.ts
+  [agent-topologies] daemon=http://127.0.0.1:<PORT>
+  [topology:star] #1 coordinator assign
+  [topology:star] #2 coordinator assign
+  [topology:star] #3 worker-a complete
+  [topology:star] #4 worker-b complete
+  [topology:star] #5 coordinator summarize
+  [topology:ring] #6 phase-1 handoff
+  [topology:ring] #7 phase-2 handoff
+  [topology:ring] #8 phase-3 handoff
+  [topology:arbiter] #9 worker submit
+  [topology:arbiter] #10 arbiter review
+  [topology:arbiter] #11 arbiter accept
+  [agent-topologies] inspect with: pd channels
+
+  $ pd channels | sed -n '1,12p'
+
+  CHANNEL                                 MESSAGES    LAST ACTIVITY
+  topology:arbiter                        3           <DUR>
+  topology:ring                           3           <DUR>
+  topology:star                           5           <DUR>
