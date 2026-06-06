@@ -23,7 +23,17 @@ compatibility_date = "2026-05-01"
 
 # Override per environment with `--env <name>` or `[env.production]` blocks.
 [vars]
-DAEMON_FORWARD_URL = "https://example.invalid/replace-me"
+# DAEMON_FORWARD_URL is the public HTTPS ingress to the (loopback-bound) daemon,
+# ending in /webhooks/github. The daemon binds 127.0.0.1:9876, so a tunnel is
+# required. A cloudflared QUICK tunnel (`cloudflared tunnel --url
+# http://127.0.0.1:9876`) gives an EPHEMERAL trycloudflare.com hostname that
+# rotates on every restart — fine for a live smoke, but for a stable prod
+# hostname create a NAMED tunnel + DNS route (see
+# docs/operations/github-app-deploy.md §4). The live deployed value is held as a
+# Worker var in Cloudflare; this committed default stays a placeholder so it
+# never goes stale. Set the real value at deploy time:
+#   wrangler deploy --var DAEMON_FORWARD_URL:https://<host>/webhooks/github
+DAEMON_FORWARD_URL = "https://example.invalid/replace-me/webhooks/github"
 FORWARD_TIMEOUT_MS = "8000"
 
 [observability]
