@@ -1,0 +1,98 @@
+% Figure 1 — the four-layer coordination stack. Where THIS paper sits: the two
+% lowest layers (substrate + the implemented half of coordination), what it
+% ASSUMES from the machine below, what it PROVIDES upward, and which companion
+% papers build on it.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  rung/.style={draw=hhebony,thick,rounded corners=4pt,
+               minimum width=120mm,minimum height=18mm,
+               align=left,inner sep=7pt,text width=112mm},
+  here/.style={draw=hhcinnabar,line width=1.6pt,fill=hhsand!30,
+               rounded corners=4pt,minimum width=120mm,minimum height=18mm,
+               align=left,inner sep=7pt,text width=112mm},
+  tag/.style={font=\bfseries\footnotesize,inner sep=2pt},
+  paper/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
+                inner sep=4pt,font=\footnotesize,text width=42mm,align=center},
+]
+
+% ─── The four layers, top (economy) to bottom (machine) ───────────────────
+\node[rung,fill=hhsand!30] (l3) at (0,0)
+  {{\bfseries Economy \& federation}\quad\textit{for the market between operators}\\[2pt]
+   \footnotesize a settlement ledger $\cdot$ escrow $\cdot$ reputation $\cdot$ cross-machine
+   federation $\cdot$ cross-machine capability transfer.\quad\textit{Companion: ``The Harbor Economy.''}};
+
+\node[rung,fill=hhsand!30,below=8mm of l3] (l2)
+  {{\bfseries Legibility \& authority}\quad\textit{for the operator}\\[2pt]
+   \footnotesize a digest with zoom $\cdot$ a roadmap as truth $\cdot$ adversarial review $\cdot$
+   the console.\quad\textit{Companion: ``The Legible Swarm.''}};
+
+\node[here,below=8mm of l2] (l1)
+  {{\bfseries Coordination protocol}\quad\textit{for the agents}\\[2pt]
+   \footnotesize typed speech acts + commitments + delegation + a policy monitor.
+   \textbf{This paper specifies the implemented carrier half} (bus, markers,
+   commitments, the cryptographic authorization chain, the monitor); the
+   \emph{semantics half} (protocol state machines, the agent sandbox) is a companion paper's.};
+\node[tag,text=hhink,anchor=north east,above=-2pt of l1.north east,xshift=-4pt]{\textsc{this paper}};
+
+\node[here,below=8mm of l1] (l0)
+  {{\bfseries Substrate --- the daemon (the kernel)}\quad\textit{for the machine}\\[2pt]
+   \footnotesize an always-on local SQLite/WAL source of truth: ports, claims,
+   sessions, a message bus, commitments, a policy monitor, memory.
+   \textbf{This paper's core.}\quad{\bfseries\textsf{implemented}}.};
+\node[tag,text=hhink,anchor=north east,above=-2pt of l0.north east,xshift=-4pt]{\textsc{this paper}};
+
+% ─── Machine / OS floor ───────────────────────────────────────────────────
+\node[rung,fill=hhebony,text=hhpaper,below=14mm of l0,minimum height=13mm] (os)
+  {{\bfseries The machine / operating system}\quad\textit{(what the substrate stands on, not a layer)}\\[2pt]
+   \footnotesize a POSIX filesystem with advisory file locking $\cdot$ a local wall clock $\cdot$
+   Unix domain sockets $\cdot$ an OS keychain $\cdot$ a service supervisor to keep the daemon alive.};
+
+% ─── ASSUMES (down) and PROVIDES (up) annotations, set well clear of boxes ──
+\draw[->,>=Latex,thick,hhcinnabar]
+  ([xshift=-30mm]l0.south) -- ([xshift=-30mm]os.north);
+\node[font=\footnotesize\itshape,text=hhink,align=right,text width=40mm,anchor=east]
+  at ($([xshift=-32mm]l0.south)!0.5!([xshift=-32mm]os.north)$)
+  {\textsc{assumes:} advisory file lock, one clock, a supervisor};
+\draw[->,>=Latex,thick,hhpatina]
+  ([xshift=30mm]os.north) -- ([xshift=30mm]l0.south);
+\node[font=\footnotesize\itshape,text=hhink,align=left,text width=40mm,anchor=west]
+  at ($([xshift=32mm]os.north)!0.5!([xshift=32mm]l0.south)$)
+  {\textsc{provides up:} atomic TTL'd claims, a durable bus, the deontic split, an audit log};
+
+% ─── Layer-API arrows up the stack ────────────────────────────────────────
+\draw[->,>=Latex,thick,hhpatina] ([xshift=48mm]l0.north) -- ([xshift=48mm]l1.south);
+\draw[->,>=Latex,thick,hhpatina] ([xshift=48mm]l1.north) -- ([xshift=48mm]l2.south)
+  node[midway,right=1pt,font=\footnotesize\itshape,text=hhink]{layer API $\Uparrow$};
+\draw[->,>=Latex,thick,hhpatina] ([xshift=48mm]l2.north) -- ([xshift=48mm]l3.south);
+
+% ─── Companion-paper pointer ──────────────────────────────────────────────
+\node[paper,anchor=west] (cites) at ([xshift=12mm]l2.east) {%
+  \textbf{Built on by:}\\ the legibility, personhood, and economy papers};
+\draw[->,>=Latex,thick,hhbrass,dashed] (cites.south west) to[bend left=10] ([xshift=44mm]l0.east);
+
+\end{tikzpicture}%
+}
+\caption{The four-layer coordination stack. Each layer serves a different
+\emph{whom} (machine, agents, operator, market). \textbf{This paper owns the two
+lowest layers}: all of the substrate (the kernel) and the implemented carrier half
+of coordination (the message bus, stigmergic markers, commitments, the cryptographic
+authorization chain, the policy monitor). The coordination \emph{semantics}
+(protocol state machines, the agent sandbox) and the whole legibility layer belong
+to a companion paper; cross-machine capability transfer belongs to the economy
+layer. Cinnabar shows what the substrate \emph{assumes} from the machine; patina
+shows what it \emph{provides} upward. Every companion paper builds on this one.}
+\label{fig:swk-stack-map}
+\end{figure}
