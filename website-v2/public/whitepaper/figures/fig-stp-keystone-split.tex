@@ -1,0 +1,59 @@
+% Fig 7 — the keystone split: local non-forgeable identity vs cross-operator attestation.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  harbor/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=4pt,
+                 minimum width=46mm,minimum height=30mm,align=center,inner sep=4pt},
+  stone/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
+                font=\bfseries\footnotesize},
+]
+% Two harbors
+\node[harbor] (A) at (0,0) {\textbf{Alice's harbor}\\{\scriptsize one trusted daemon}\\[6pt]};
+\node[harbor] (B) at (9,0) {\textbf{Bob's harbor}\\{\scriptsize one trusted daemon}\\[6pt]};
+
+% Local-identity stones INSIDE each harbor (patina = solid for papers 1-3)
+\node[stone,fill=hhsand!30,draw=hhink] at ($(A.south)+(0,7mm)$) (s40a)
+  {local non-forgeable\\identity\\\textsc{specified}};
+\node[stone,fill=hhsand!30,draw=hhink] at ($(B.south)+(0,7mm)$) (s40b)
+  {local non-forgeable\\identity\\\textsc{specified}};
+
+% The boundary between them
+\draw[hhcinnabar,very thick,dash pattern=on 3pt off 2pt]
+  ($(A.east)+(8mm,2.0)$) -- ($(A.east)+(8mm,-2.0)$);
+\node[font=\itshape\footnotesize,text=hhink,above]
+  at ($(A.east)+(22mm,2.1)$) {the boundary \emph{neither} controls};
+
+% The UNBUILT bridge across the boundary
+\node[stone,fill=hhsand!30,draw=hhcinnabar,very thick,text width=40mm]
+  at (4.5,-3.1) (s40b2)
+  {cross-operator attestation\\
+   {\normalfont\scriptsize key-binding across harbors you don't own}\\
+   \textcolor{hhcinnabar}{proposed (unbuilt --- owed to Paper 4)}}};
+\draw[->,>=Latex,thick,draw=hhcinnabar,dashed] (s40b2.north west) to[bend left=10] (A.south);
+\draw[->,>=Latex,thick,draw=hhcinnabar,dashed] (s40b2.north east) to[bend right=10] (B.south);
+
+% labels
+\node[font=\footnotesize,text=hhink,below=1mm of s40a,align=center]
+  {\textbf{Papers 1--3 stand here}};
+\node[font=\footnotesize,text=hhink,below=2mm of s40b2,align=center]
+  {a federated witness log gives log-\emph{integrity}, not identity-\emph{binding}};
+\end{tikzpicture}}
+\caption{\textbf{The keystone is two stones.} A \emph{local non-forgeable identity}
+secures identity \emph{within one trusted daemon} --- exactly what Papers~1--3 need
+and assume. The cross-operator boundary needs \emph{cross-operator attestation},
+which is unwritten. This paper depends on the solid stone and hands the market paper
+the unbuilt one \emph{by name}, rather than borrowing the single-operator threat
+model across the boundary.}
+\label{fig:keystone}
+\end{figure}

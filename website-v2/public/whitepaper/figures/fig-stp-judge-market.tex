@@ -1,0 +1,57 @@
+% Fig 11 — the neutral-judge market: hire a conflict-free judge via PD's own bonded protocol.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  ent/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
+              align=center,minimum width=26mm,minimum height=11mm},
+  ledger/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
+                 align=center,font=\footnotesize,minimum height=11mm},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+  slash/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+]
+% top row: work -> select -> judge -> bond
+\node[ent] (work) at (0,0) {graded\\\textbf{work}};
+\node[ent] (select) at (3.6,0) {select judge:\\\emph{conflict-free}\\\emph{influence-free}};
+\node[ent,fill=hhsand!30,draw=hhink] (judge) at (7.4,0) {\textbf{neutral judge}\\{\scriptsize ``university /}\\{\scriptsize rating agency''}};
+\node[ent] (bond) at (11.2,0) {judge posts\\\textbf{own bond}\\{\scriptsize + reputation}};
+\draw[arr] (work) -- (select);
+\draw[arr] (select) -- (judge);
+\draw[arr] (judge) -- (bond);
+
+% bottom row: grade -> outcome ledger ; re-audit slashes the bond
+\node[ledger] (out) at (7.4,-2.6) {grade enters the\\\textbf{outcome ledger}};
+\node[ent,fill=hhsand!30,draw=hhcinnabar] (reaudit) at (11.2,-2.6) {sampled\\\textbf{re-audit}};
+\draw[arr,draw=hhink] (judge) -- (out);
+\draw[arr,draw=hhink] (out) -- (reaudit);
+\draw[slash] (reaudit) -- (bond);
+\node[font=\scriptsize,text=hhink,anchor=west] at (11.5,-1.3) {overturn};
+\node[font=\scriptsize,text=hhink,anchor=west] at (11.5,-1.65) {$\Rightarrow$ \textbf{slash}};
+
+% note box
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
+      text width=132mm,align=left,inner sep=5pt,font=\footnotesize]
+      at (5.6,-4.7)
+  {The judge is \textbf{hired through the same bonded ceremony the market uses for
+   any task} (the judge-hiring ceremony, Protocol~\ref{proto:judge}). The harbor that
+   runs the market also runs the hiring of the judges that keep it honest --- and a
+   judge whose grade is later overturned is \emph{slashed}, so the judge's own
+   reputation is the asset it protects.};
+\end{tikzpicture}}
+\caption{\textbf{The neutral-judge market.} Graded work flows to a judge selected
+for conflict- and influence-freedom; the judge posts its own bond, the grade enters
+the outcome ledger, and a sampled re-audit can slash a judge whose grade is
+overturned. ``Neutral'' is a checklist (conflict-free, influence-free, de-biased),
+not a vibe, and the judges are hired through the harbor's own bonded protocols.}
+\label{fig:judge-market}
+\end{figure}

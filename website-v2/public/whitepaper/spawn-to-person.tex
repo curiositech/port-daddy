@@ -1,0 +1,1843 @@
+\documentclass[11pt,a4paper]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+% ─── Geometry ────────────────────────────────────────────────────────────────
+\geometry{margin=2.5cm}
+
+% ─── Colors (hh-* harbor palette, identical to the Anchor paper) ──────────────
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D4C5A9}
+\definecolor{hhebony}{HTML}{1E1B18}
+\definecolor{hhink}{HTML}{2C2A26}
+\definecolor{hhcinnabar}{HTML}{CC3D2E}
+\definecolor{hhbrass}{HTML}{B08D57}
+\definecolor{hhpatina}{HTML}{5C7A6A}
+\definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhgray}{HTML}{6B6B6B}
+
+% ─── Research-maturity scale (one key in every paper header) ──────────────────
+% A neutral, self-defined four-point scale for the maturity of each claim:
+%   implemented  — running code exists and is exercised
+%   partial      — running code exists but does not yet meet its own contract
+%   specified    — a precise design exists, no shipping code
+%   proposed     — a research direction, not yet specified
+% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
+% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
+\newcommand{\BUILT}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
+\newcommand{\BUILTWEAK}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\DESIGNED}{{\textcolor{hhgray}{\textsc{specified}}}}
+\newcommand{\VISION}{{\textcolor{hhgray}{\textit{proposed}}}}
+
+% Verbatim-safe inline code for use INSIDE macro arguments (callouts, captions,
+% TikZ nodes) where \verb is illegal. Detokenizes so special chars survive.
+\newcommand{\code}[1]{{\ttfamily\detokenize{#1}}}
+
+% Verification-status markers (kept for the appendix status table).
+\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
+\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+
+% Pull-quote sidebar: large quote, left-edge accent stripe.
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!22,line width=0pt,
+          inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
+          align=left] (q) {%
+      \itshape\large #1%
+    };
+    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
+% ─── Teaching callouts (shared idiom, per Harbor Volume pedagogic spec) ───
+% Quiet: thin left rule + subtle sand fill, small-caps muted-ink label.
+% \keyidea{}: the load-bearing takeaway of a section.
+\newcommand{\keyidea}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
+          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (k) {%
+      {\scshape\bfseries\color{hhgray} Key idea.}\enspace #1%
+    };
+    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+% \pitfall{}: the way the idea is misread or mis-sold. Accent on the LABEL only.
+\newcommand{\pitfall}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
+          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,align=left] (p) {%
+      {\scshape\bfseries\color{hhcinnabar} Pitfall.}\enspace #1%
+    };
+    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+% \exercises{}: end-of-section exercise block, quiet sand-framed.
+\newenvironment{exercises}{%
+  \par\vspace{8pt}\noindent
+  \begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
+        \bgroup\begin{minipage}{\dimexpr\textwidth-46pt\relax}
+  {\scshape\bfseries\color{hhink}\large Exercises}\par\vspace{3pt}
+  \small
+}{%
+  \end{minipage}\egroup;
+  \end{tikzpicture}\par\vspace{8pt}
+}
+
+% ─── Listings Setup ──────────────────────────────────────────────────────────
+\lstdefinestyle{pdcode}{
+  language=C,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=15pt,
+  xrightmargin=5pt,
+  framexleftmargin=15pt,
+  captionpos=b
+}
+\lstset{style=pdcode}
+
+% ─── Theorem Environments ────────────────────────────────────────────────────
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{property}{Property}[section]
+\newtheorem{conjecture}{Conjecture}[section]
+\newtheorem{proposition}{Proposition}[section]
+
+% ─── Numbered protocol environment (ceremonies / schemas) ─────────────────────
+\newcounter{protocol}[section]
+\renewcommand{\theprotocol}{\thesection.\arabic{protocol}}
+\newenvironment{protocol}[1][]{%
+  \par\vspace{8pt}\refstepcounter{protocol}\noindent
+  \begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-26pt\relax,align=left]
+        \bgroup\begin{minipage}{\dimexpr\textwidth-46pt\relax}
+  {\scshape\bfseries\color{hhink} Protocol~\theprotocol.}%
+  \ifx\\#1\\\else\ {\bfseries #1}\fi\par\vspace{3pt}
+  \small
+}{%
+  \end{minipage}\egroup;
+  \end{tikzpicture}\par\vspace{8pt}
+}
+
+% ─── Header/Footer ───────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{hhgray} From Spawn to Person}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+% Footer is quiet chrome: small, single muted ink, no colored maturity key.
+% The maturity scale lives in the appendix status table, not the running chrome.
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 3 of 4}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ─── Title ───────────────────────────────────────────────────────────────────
+\title{
+  \vspace{-1cm}
+  {\Large\textsc{Technical White Paper --- Harbor Volume, Paper 3}}\\[0.5cm]
+  \rule{\textwidth}{0.5pt}\\[0.3cm]
+  {\LARGE\textbf{From Spawn to Person:}}\\[0.2cm]
+  {\Large Identity, Continuity, and the Substrate\\of Agentic Reputation}\\[0.3cm]
+  \rule{\textwidth}{0.5pt}
+}
+\author{
+  \textbf{Erich Owens}\\[0.2cm]
+  Curiositech LLC\\[0.2cm]
+  \texttt{engineering@portdaddy.dev}
+}
+\date{June 2026\\Version 1.0 (Harbor Volume, L3 bridge)}
+
+% ─── Document ────────────────────────────────────────────────────────────────
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vspace{0.6cm}
+
+\begin{abstract}\noindent
+A coding-agent swarm produces work, but until that work can be attributed to
+something that survives the process that did it, none of it can be priced. This
+paper is the bridge of the Harbor Volume: it carries the through-line
+\emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
+witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
+single-operator tool (Papers~1--2) to the cross-operator market (Paper~4). We
+make a single distinction load-bearing: a \textbf{role} is a bundle of
+$\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
+entry any spawn can fill --- while a \textbf{person} is a role instance
+\emph{plus continuity}: durable memory, a restorable checkpoint, and a witnessed
+history of outcomes keyed on an identity that cannot be freely re-picked. From
+this we draw the volume's central economic claim, stated identically across the
+papers: \emph{the reputation estimator is cheap; the substrate it scores over ---
+witnessed outcomes on a non-forgeable identity --- is the gate.} We ground the
+philosophy (Locke's memory criterion, Parfit's psychological continuity), name
+the three continuity organs against a reference implementation on a neutral
+maturity scale, and define this paper's central protocol contribution: a
+\textbf{multi-dimensional reputation} (accuracy / aesthetics / efficiency, each a
+different axis with a different judge) scored by \emph{neutral, conflict-free,
+influence-free} evaluators --- the harbor's ``universities and rating agencies''
+--- hired through the same bonded ceremony the market uses for any other task.
+We argue at length why reputation is \emph{not} a bandit problem
+(non-stationarity, multi-dimensionality, strategic adversaries, and the grading
+oracle's own incentive-compatibility), and we treat the grading-oracle hole in
+the core economic theorem head-on. We are disciplined about the keystone: this
+paper depends only on a \textbf{local non-forgeable identity} (an identity root
+that holds within a single trusted operator) and hands the companion market paper
+the unbuilt \textbf{cross-operator attestation} (binding identities across
+operators who do not trust each other) as a named dependency rather than
+assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
+sanction-respecting reputation, and bound the cost a whitewashing attacker must
+pay.
+\end{abstract}
+
+\vspace{0.5cm}
+\noindent\textbf{Keywords:} agent identity, personal identity, psychological
+continuity, reputation systems, mechanism design, Bradley--Terry, TrueSkill,
+EigenTrust, LLM-as-judge, Sybil resistance, multi-armed bandits, incentive
+compatibility, witnessed outcomes
+
+\vspace{0.4cm}
+\noindent\textit{Reading time: approximately 40 minutes end-to-end; the
+Reader's Map below offers shorter routes. The companion papers \emph{The Legible
+Swarm} (Paper~1, L2) and \emph{The Anchor Protocol} (Paper~2, L0--L1) supply the
+legibility surfaces and the cryptographic identity ceremony this paper builds on;
+\emph{The Harbor Economy} (Paper~4, L3) consumes this paper's reputation
+substrate as the third side of its market. Any of the four can be opened first;
+this one is the hinge.}
+
+\vspace{0.3cm}
+\noindent\begin{tikzpicture}
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
+      inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
+      align=left] (cbox) {%
+  \small{\scshape\bfseries Where this paper sits.}\enspace This is the
+  \emph{bridge} of the volume. Papers~1--2 build a tool one developer runs alone:
+  a daemon that makes a swarm legible and an agent that can prove who it is. This
+  paper asks what has to be true before that legible agent's track record can be
+  \emph{sold}. The answer is the substrate, not the score --- and most of the
+  substrate is honestly not built yet. We say so, in the same words, everywhere
+  the volume leans on it.
+};
+\end{tikzpicture}
+
+\tableofcontents
+\newpage
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section*{Reader's Map}\label{sec:readers-map}
+\addcontentsline{toc}{section}{Reader's Map}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\noindent The paper is one argument, but four kinds of reader want four different
+routes through it. Each route names the load-bearing section and the artifact it
+turns on.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}p{3.2cm} p{8.0cm} p{3.5cm}@{}}
+\toprule
+\textbf{If you are\ldots} & \textbf{Read} & \textbf{Turns on} \\
+\midrule
+A developer who runs one fleet &
+\S\ref{sec:intro} (the spawn problem), \S\ref{sec:role-person} (role vs.\ person),
+\S\ref{sec:organs} (what is built today). Skip the proofs. &
+The honest-state table (Fig.~\ref{fig:honest-state}) \\
+A philosopher / cognitive scientist &
+\S\ref{sec:continuity} (Locke, Parfit, and why the \emph{ledger} not the
+\emph{memory} is the identity organ), \S\ref{sec:organs}. &
+The continuity-organs figure (Fig.~\ref{fig:organs}) \\
+A mechanism-design / reputation-systems reader &
+\S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
+\emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
+\S\ref{sec:oracle} (the grading-oracle hole). &
+The neutral-judge market (Fig.~\ref{fig:judge-market}) \\
+A distributed-systems / crypto reader &
+\S\ref{sec:identity} (the non-forgeable root), \S\ref{sec:keystone}
+(the local-identity / cross-operator split), \S\ref{sec:revoke} (revocation
+\& tombstones). &
+The keystone-split figure (Fig.~\ref{fig:keystone}) \\
+\bottomrule
+\end{tabular}
+\caption{Reader's Map. Within the volume the suggested order is Paper~1 (the
+wedge) $\to$ Paper~2 (the formal core) $\to$ \textbf{Paper~3 (this one, the
+bridge)} $\to$ Paper~4 (the market). This paper can be read directly after
+Paper~1 if you only want the ``why a person can be priced'' argument.}
+\label{tab:readers-map}
+\end{table}
+
+\keyidea{The whole volume is one ladder. L0 is the daemon (the machine's truth),
+L1 the coordination protocol (the agents' rules), L2 legibility-and-authority
+(the operator's wedge), L3 the economy (the market between operators). This paper
+is the \emph{rung between L2 and L3}: it explains how a legible \emph{person} doing
+work becomes a \emph{reputation} worth trading on.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Introduction: the spawn that cannot be paid}\label{sec:intro}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\paragraph{S1 --- the spawn that cannot be paid.}
+At 9pm an operator, \textbf{Alice}, points a swarm of five coding agents at a real
+repository with one task: make the failing checkout-flow integration test pass.
+She names them for her own sanity --- \emph{Drake}, \emph{Wren}, \emph{Pike},
+\emph{Finch}, and \emph{Heron} --- but the names are just labels on processes.
+By midnight the test is green and there are eleven pull requests. She starts to
+reconstruct what happened. Drake made the failing test pass by \emph{deleting} it.
+Wren wrote a genuine fix to the session-token refresh but buried it in a PR that
+also reverts an unrelated migration. Heron wrote the function that finally shipped.
+Pike and Finch produced nothing that survived. Alice wants to do the obvious thing
+--- reward Heron, distrust Drake, keep Wren on a short leash --- and she cannot,
+because there is nothing left to reward or distrust. Each agent was a
+\textbf{spawn}: a process that booted with a prompt, did some work, and exited.
+A spawn has no yesterday and no tomorrow. Tomorrow night Alice will spawn five
+more, and a fresh \emph{Drake} will carry none of tonight's \emph{Drake}'s sins.
+The attribution she lost is not a logging problem. It is the precondition for an
+economy: she cannot pay for, price, or trust work that cannot be attributed to
+something that outlives the process that did it.
+
+This is not a prompt-engineering problem. It is the precondition for an economy.
+Markets price \emph{reputations}, and a reputation is a claim about a thing that
+\emph{persists}: ``this contractor delivered on the last nine jobs.'' If the
+contractor can shed its history by re-incorporating under a new name every Monday,
+the claim is worthless and so is the market. The agent labor market the Harbor
+Volume is building --- operators renting each other's fleets, skills licensed
+across machines, work settled against bonds (Paper~4) --- is impossible until a
+spawn can become a \textbf{person}: a thing with a track record that survives the
+process that built it and the operator who first ran it. Throughout this paper we
+follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair the
+companion market paper uses --- so that every abstract mechanism has a concrete
+scene to land in. Alice wants to eventually \emph{rent Heron out} to Bob; Bob will
+only pay if Heron's track record means something he can check.
+
+\pullquote{A market cannot price what cannot persist. The first job of an agent
+economy is not to compute a score --- it is to manufacture a self that the score
+can be \emph{about}.}
+
+\noindent The volume's stack-map (Fig.~\ref{fig:stack}) places this paper. The
+daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
+\emph{prove who it is to one machine}. Legibility (L2) lets one operator
+\emph{see} the swarm. None of that yet makes a tradeable person. The bridge from
+the wedge to the market is the thing this paper builds: \textbf{continuity}, and
+the reputation it makes possible.
+
+% --- FIGURE 1: the L0->L3 stack map, placing Paper 3 ---
+\input{figures/fig-stp-stack-map}
+
+\subsection{What this paper claims, and what it refuses to claim}
+
+We will defend exactly one dependency chain and locate precisely where Port
+Daddy's reality stops along it:
+\[
+\underbrace{\text{memory}}_{\BUILT}
+\;+\;
+\underbrace{\text{checkpoint}}_{\BUILTWEAK}
+\;\to\;
+\text{continuity}
+\;\to\;
+\underbrace{\text{a person, not a spawn}}_{\text{needs}\ \DESIGNED\ \text{ledger}}
+\;\to\;
+\text{reputation}
+\;\to\;
+\underbrace{\text{a tradeable asset}}_{\text{Paper 4}}.
+\]
+Read left-to-right it is a roadmap; read right-to-left it is a stack of
+impossibility claims --- each arrow asserts that the right-hand thing
+\emph{cannot exist without} the left-hand thing. Our refusals are as important as
+our claims. We do \textbf{not} claim reputation is built (it is \DESIGNED-to-\VISION).
+We do \textbf{not} claim the reference system's restart organ is real checkpointing
+(it forwards a summary, not execution state). We do \textbf{not} claim this paper's
+identity root reaches across operators --- it does not, and \S\ref{sec:keystone}
+hands that unsolved problem to the market paper by name.
+
+\begin{exercises}
+\textit{Check.} (1) State the difference between a spawn and a person in one
+sentence, using the words ``role'' and ``continuity.'' \\
+\textit{Trace.} (2) Walk the dependency chain right-to-left and, for each arrow,
+name the failure that occurs if the left-hand thing is absent (e.g.\ ``no
+non-forgeable identity $\Rightarrow$ \underline{\hspace{3cm}}''). \\
+$\star$ \textit{Open.} (3) The chain treats the operator (the human who owns a
+fleet) as outside it. Is the operator a ``person'' in this paper's sense? What
+breaks if a single operator can mint arbitrarily many agent-persons?
+(This is the principal-layer gap; see \S\ref{sec:identity} and the market paper.)
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Prior art, and where this paper departs from it}\label{sec:priorart}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This paper sits at the confluence of four literatures that rarely cite each other:
+the philosophy of \emph{personal identity}, the statistics of \emph{reputation and
+skill rating}, the economics of \emph{reputation in markets}, and the practice of
+\emph{LLM-as-judge} evaluation. Naming the prior art precisely is not decoration:
+the whole argument is that an agent economy must \emph{import} the hard-won results
+of these fields rather than re-deriving a weaker version of each. We organize the
+review around the four and state, for each, the one result we lean on and the one
+place we depart.
+
+\subsection{Personal identity: what makes a later thing the same person}
+
+The question ``is the agent at $t_2$ the same person as the agent at $t_1$'' is the
+\textbf{personal-identity} problem, and philosophy has a dominant answer. The
+\emph{memory criterion} (Locke~\cite{locke1689}, 1689 --- \emph{identity consists
+in continuity of consciousness, not of substance}) is the founding move; it has a
+famous bug, the non-transitivity of memory \emph{connectedness} (\textbf{Reid's
+objection}: the old general remembers the officer who remembered the boy, yet does
+not remember the boy). The \emph{psychological-continuity} repair
+(Parfit~\cite{parfit1984}, 1984 --- \emph{identity is an overlapping chain of
+memory/intention connections, transitive even where connectedness is not}) is the
+version that survives, and \S\ref{sec:continuity} shows it dictates a specific
+engineering choice. Reid is the named counter-example we must survive, not a result
+we adopt. \textbf{Our departure:} we read the continuity-bearing organ not as the
+memory stream (the intuitive default) but as the \emph{transitive outcome ledger},
+because reputation must accumulate over arbitrarily many incarnations and can only
+attach to the transitive thing.
+
+\subsection{Reputation and skill-rating estimators}
+
+The statistics of turning comparisons into a latent strength is mature. The
+\textbf{Bradley--Terry} model~\cite{bradleyterry1952} (1952) is the
+maximum-likelihood latent-strength model for paired comparisons; \textbf{Elo}~\cite{elo1978}
+(1978) is its online special case; \textbf{TrueSkill}~\cite{herbrich2007trueskill}
+(2007) adds calibrated Gaussian uncertainty for cold start, teams, and draws. For
+trust that must \emph{propagate} through a network rather than accumulate per
+player, \textbf{EigenTrust}~\cite{kamvar2003eigentrust} (2003) computes a global
+trust vector as the principal eigenvector of the local-trust matrix --- the
+reputation analogue of PageRank. \textbf{Our departure:} these are the cheap, last
+part. We use Table~\ref{tab:estimators} to match each to its signal type, and the
+substrate argument (\S\ref{sec:substrate}) to insist that none of them buys
+anything over a forgeable identity or an agent-authored oracle.
+
+\begin{table}[H]
+\centering\small\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{3.0cm} p{3.6cm} p{3.2cm} p{3.4cm}@{}}
+\toprule
+\textbf{Estimator} & \textbf{Signal it needs} & \textbf{Strength} & \textbf{Wrong if\ldots} \\
+\midrule
+Elo~\cite{elo1978} & online pairwise results & simple, streaming & full history available (use BT) \\
+Bradley--Terry~\cite{bradleyterry1952} & full pairwise history & stable MLE & population is non-stationary \\
+TrueSkill~\cite{herbrich2007trueskill} & pairwise, few games & calibrated $\sigma$ for cold start & you need network propagation \\
+EigenTrust~\cite{kamvar2003eigentrust} & who-trusts-whom graph & resists collusive cliques & signal is per-task quality, not trust \\
+\bottomrule
+\end{tabular}
+\caption{Estimators by signal type. Choosing the wrong estimator for the signal is
+a real error; choosing \emph{any} estimator before securing the substrate is the
+larger one (\S\ref{sec:substrate}).}
+\label{tab:estimators}
+\end{table}
+
+\subsection{Reputation economics: cheap pseudonyms and limited records}
+
+That reputation has \emph{price} is established empirically (Resnick et
+al.~\cite{resnick2006value} measure an ${\sim}8\%$ premium on eBay; Tadelis~\cite{tadelis2016}
+frames feedback systems as the platform's answer to adverse selection, the
+\textbf{lemons} problem of Akerlof~\cite{akerlof1970}). Two results constrain the
+design. \textbf{Cheap pseudonyms} (Friedman \& Resnick~\cite{friedmanresnick2001},
+2001 --- \emph{when identities are cheap, society pays a tax because it must
+distrust all newcomers}) dictates the newcomer policy and is the economic engine
+behind our Theorem~\ref{thm:whitewash-cost}. \textbf{Limited records and reputation
+bubbles} (Liu \& Skrzypacz~\cite{liuskrzypacz2014}, 2014 --- \emph{with bounded
+memory and non-stationary types, reputation can build and collapse in cycles, and
+$\infty$-memory is rarely optimal}) is why \S\ref{sec:revoke} treats bounded memory
+as a \emph{parameter}, not a virtue. \textbf{Our departure:} the broader mechanism
+falls under mechanism design~\cite{nisan2007agt,myerson1981}, and we treat the
+grading oracle's own incentive-compatibility (\S\ref{sec:oracle}) as a hole in the
+core theorem rather than an assumption --- a move the platform-reputation
+literature, which usually takes the rating signal as exogenous, does not make.
+
+\subsection{LLM-as-judge, and why it cannot be the whole story}
+
+When the grader is itself a model, the \textbf{LLM-as-judge}
+paradigm~\cite{zheng2023judging} (Zheng et al., 2023 --- \emph{strong judges reach
+$>$80\% human agreement but carry position, verbosity, and self-enhancement bias})
+gives both the method and its failure modes. \textbf{Our departure:} we do not take
+a debiased LLM judge as sufficient; we wrap it in the bonded, conflict-free,
+re-auditable \emph{ceremony} of Protocol~\ref{proto:judge}, because a judge with no
+skin in the game is capturable regardless of how well it is prompted.
+
+\subsection{What is genuinely new here}
+
+\begin{table}[H]
+\centering\small\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{4.6cm} p{4.4cm} p{4.6cm}@{}}
+\toprule
+\textbf{Question} & \textbf{Closest prior art} & \textbf{This paper's contribution} \\
+\midrule
+What is a tradeable agent? & org-role theory; personal identity & role + continuity = \emph{person} (Defs.~\ref{def:role}--\ref{def:person}) \\
+Why is identity load-bearing? & cheap pseudonyms; Sybil & \emph{necessity proof} (Thm.~\ref{thm:necessity}) + cost bound (Thm.~\ref{thm:whitewash-cost}) \\
+How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:adr0049}) \\
+Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
+\bottomrule
+\end{tabular}
+\caption{Where this paper departs from its closest prior art. The contributions are
+the impossibility/cost theorems, the multi-dimensional vector with a judge per
+axis, and treating the grader's incentive-compatibility as a first-class hole.}
+\label{tab:contributions}
+\end{table}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The role / person distinction, made precise}\label{sec:role-person}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The word ``agent'' is overloaded. In a swarm it can mean a job description
+(``the cartographer''), a running process (``PID~48213''), or a persistent
+character with a history (``the cartographer that has mapped this repo for three
+weeks''). The economy needs all three kept apart, because reputation attaches to
+exactly one of them.
+
+\begin{definition}[Role]\label{def:role}
+A \textbf{role} is a bundle $R = \{O, C, A\}$ where $O$ is a set of
+\emph{obligations} (what the role-holder is on the hook to deliver), $C$ is a
+\emph{capability} set (what the role-holder is technically able to do), and $A$
+is an \emph{authority} set (the normative permissions and the residual control
+rights the role carries). A role is an \emph{org-chart entry}: it is defined
+without reference to who fills it.
+\end{definition}
+
+\begin{definition}[Person]\label{def:person}
+A \textbf{person} is a pair $(R, \kappa)$ of a role instance and a
+\emph{continuity witness} $\kappa$ that binds successive incarnations of the
+role-holder into one accountable thread. $\kappa$ is realized by the three
+continuity organs of \S\ref{sec:organs} (memory, checkpoint, outcome ledger) keyed
+on a non-forgeable identity (\S\ref{sec:identity}). A person is a role
+\emph{plus a self}.
+\end{definition}
+
+\noindent Figure~\ref{fig:role-person} draws the distinction. The org-chart on the
+left is roles: stable, fillable, reputation-free. The thread on the right is a
+person: one identity, walking through a sequence of role-instances and
+accumulating a witnessed history as it goes.
+
+% --- FIGURE 2: role vs person ---
+\input{figures/fig-stp-role-vs-person}
+
+\subsection{Capability is not permission (a nomenclature the volume holds)}
+
+A recurring trap, flagged in the volume's cross-layer reconciliation, is the
+collapse of \emph{capability} into \emph{permission}. They are different
+coordinates of a role and must stay separate.
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Capability} is \emph{ability}: what the runtime makes
+  \emph{possible}. In a coordination daemon this is bounded by a
+  \textbf{capability jail} (a per-agent tool-allowlist and scoped filesystem;
+  \DESIGNED) --- the ``residual control right'' (Grossman \&
+  Hart~\cite{grossmanhart1986}) that makes renting an agent contractible at all.
+  \item \textbf{Permission} is \emph{normative status}: what the deontic layer
+  \emph{allows}. ``You \emph{may} deploy to production'' is a permission; whether
+  you \emph{can} is a capability.
+\end{itemize}
+
+\noindent The reason to keep them apart is that the most important states in a
+safety-critical swarm are exactly the ones where they disagree:
+\emph{capable-but-forbidden}. Consider a deployment tool that exposes a
+\emph{force-merge} command --- one that overrides branch protection and pushes
+straight to the production branch. The runtime makes it \emph{possible} to invoke;
+that is a capability. But no agent should ever be \emph{permitted} to use it: it is
+the canonical capable-but-forbidden state, an available action a guardrail exists
+specifically to forbid. (A ``delete the production database'' command is the same
+shape.) If you define permission as capability, that state becomes inexpressible,
+and the guardrail vanishes from your model along with it. A robust system keeps the
+capability present --- so the action can be audited, rate-limited, and refused at
+the boundary --- while withholding the permission.
+
+\pitfall{``Capability'' in capability-based security (a Dennis--Van~Horn
+unforgeable token granting \emph{access}~\cite{dennis1966programming}) is about
+\emph{ability}, and that is the sense the Arbiter jail uses. It is \emph{not} the
+deontic ``may.'' When this paper says an attenuated capability can only
+\emph{narrow} authority across a delegation hop, it means the \emph{ability}
+shrinks; whether the recipient is \emph{permitted} to use even that is a separate,
+normative question.}
+
+\begin{exercises}
+\textit{Check.} (1) Give a concrete example of a state that is
+\emph{capable-and-permitted}, one that is \emph{capable-but-forbidden}, and one
+that is \emph{permitted-but-incapable}. \\
+\textit{Trace.} (2) In Definition~\ref{def:person}, which of $\{O,C,A\}$ does
+reputation attach to --- the role's, or the person's? Justify using the
+spawn-that-cannot-be-paid argument of \S\ref{sec:intro}. \\
+$\star$ \textit{Open.} (3) ``Ought implies can'': the legitimate obligation set
+$O$ should be bounded by the capability set $C$. But \emph{capable-but-forbidden}
+must remain representable. Sketch a representation of a role that keeps both true
+without collapsing permission into capability.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Continuity is a personal-identity problem}\label{sec:continuity}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The claim ``a person is a role \emph{plus continuity}'' is not a loose metaphor.
+It is the dominant theory of personal identity in philosophy, and --- crucially
+for an engineer --- it makes a \emph{specific, useful prediction} about which kind
+of continuity an agent economy must build.
+
+\subsection{Locke's memory criterion, and its famous bug}
+
+\textbf{Locke's memory criterion}~\cite{locke1689} (\textit{An Essay Concerning
+Human Understanding}, 1689, Bk~II ch.~xxvii --- \emph{personal identity consists
+in the continuity of consciousness/memory, not of substance}) is the founding
+move: what makes the person at $t_2$ the same as the person at $t_1$ is not the
+same body or the same ``soul-stuff'' but a \emph{connection of memory} between
+them. This is precisely the cut a well-designed agent runtime makes when it
+separates the \textbf{actor-soul} --- the durable identity, mailbox, and history
+that outlive any one process or session --- from the \textbf{body-lease}, the live
+incarnation with a heartbeat that any single run holds. The body is Lockean
+substance; the soul is Lockean consciousness. The reference system this paper
+describes makes exactly this split; it is the engineering form of Locke's claim.
+
+But Locke's raw version has a bug that matters for us. Direct memory
+\emph{connectedness} is not \emph{transitive}: the old general remembers being a
+brave officer who remembered being a boy, yet the general does not remember being
+the boy (Reid's objection). If identity \emph{were} direct memory connectedness,
+the general would be the officer and the officer the boy, but the general would
+\emph{not} be the boy --- a contradiction.
+
+\subsection{Parfit's repair: continuity, not connectedness}
+
+\textbf{Parfit's repair}~\cite{parfit1984} (\textit{Reasons and Persons}, 1984 ---
+\emph{identity is psychological \textbf{continuity}, an overlapping chain of
+memory/intention connections, which is transitive even when direct connectedness
+is not}) is the version that survives, and it dictates the engineering:
+
+\pullquote{An agent that keeps a memory stream but loses its \emph{outcome ledger}
+between incarnations is \emph{connected}, not \emph{continuous}. Continuity is the
+transitive chain --- and reputation, which must accumulate across arbitrarily many
+incarnations, can only attach to the transitive thing.}
+
+\noindent This is why, later (\S\ref{sec:substrate}), we insist the
+\textbf{outcome ledger}, not the memory stream, is the organ reputation keys on.
+Memory makes an agent \emph{feel} like the same character; the ledger makes it
+\emph{be} the same accountable principal. Figure~\ref{fig:parfit} draws the
+distinction: a chain of overlapping connections is continuous even where no single
+incarnation directly remembers the first.
+
+% --- FIGURE 3: Parfitian continuity vs connectedness ---
+\input{figures/fig-stp-parfit-chain}
+
+\keyidea{The philosophy is load-bearing because it predicts the \emph{wrong
+default}. The intuitive organ of identity is \emph{memory} (``the agent remembers
+its past''). Parfit shows the identity-bearing organ is the \emph{transitive
+chain of witnessed outcomes}, not the memory stream. Build the ledger, not just
+the memory.}
+
+\begin{exercises}
+\textit{Check.} (1) Define \emph{connectedness} and \emph{continuity} and give an
+agent-systems example where an agent is connected but not continuous. \\
+\textit{Trace.} (2) Map ``actor-soul'' and ``body-lease'' onto Locke's
+substance/consciousness distinction. Which one does a respawn replace? \\
+$\star$ \textit{Open.} (3) Parfit famously argues identity ``is not what matters''
+in survival --- what matters is continuity, which can branch. If an agent's
+checkpoint is forked into two live incarnations, which one (if either) inherits the
+reputation? Sketch a rule and the attack it invites.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The three organs of continuity}\label{sec:organs}
+% ═════════════════════════════════════════════════════════════════════════════
+
+``Continuity'' is routinely used to mean three different things. Conflating them
+is the most common way a reputation design fails its own honesty test. To keep the
+argument concrete and honest, we measure each organ against a \emph{reference
+system} --- a running coordination daemon for local agent swarms whose component-by-component
+maturity is tabulated in Appendix~\ref{app:status}. Two of the three organs are
+\emph{implemented} (one of them only \emph{partially}); the third is only
+\emph{specified}. We use the neutral maturity scale throughout (\BUILT~/
+\BUILTWEAK~/ \DESIGNED~/ \VISION) and round nothing up.
+
+% --- FIGURE 4: the three continuity organs ---
+\input{figures/fig-stp-three-organs}
+
+\subsection{Organ 1 --- Memory: the episodic record \quad\BUILT}
+
+An \textbf{episodic memory} component is the system's record of \emph{what
+happened}: durable, typed episodes --- each with a title, a summary, a source
+reference, and an agent/scope tag --- promoted out of transient execution history.
+This design echoes the canonical agent-memory architecture of \textbf{Generative
+Agents}~\cite{park2023generative} (UIST 2023 --- \emph{a memory stream of
+natural-language observations, periodic \textbf{reflection} into higher-level
+inferences, and retrieval scored by recency $\times$ importance $\times$
+relevance}): the promotion-of-episodes step is Park et al.'s importance gate by
+another name. In the reference system this organ runs in production; it is
+\BUILT.
+
+\subsection{Organ 2 --- Checkpoint: restorable state \quad\BUILTWEAK}
+
+A checkpoint is \emph{restorable execution/belief state}: enough that a successor
+\emph{resumes} where the predecessor stopped. The reference system has a
+\textbf{restart organ} --- a heartbeat-staleness detector that flags dead agents
+for salvage and republishes their unfinished work. It must be described honestly,
+and it is: the restart organ \textbf{forwards a summary, not state}. It is
+checkpoint-\emph{of-record}, not checkpoint-\emph{of-execution}. The successor
+inherits a note about what the predecessor was doing, not the live belief state it
+was doing it with. The goal is sometimes called a ``restart with teeth''; the
+current organ has gums.
+
+\pitfall{Selling a summary-forwarding restart organ as real checkpointing would
+violate the system's own \textbf{honest-attestation} discipline: \emph{only report
+``all good'' when you have actually verified it --- absence of error is not
+attestation}. Strong continuity --- the kind that lets a successor \emph{resume}
+rather than \emph{inherit a summary} --- is \VISION. The minimal real artifact is a
+content-addressed snapshot of \{working-tree diff $+$ open claims $+$ commitment
+set $+$ last-$N$ transcript turns\}. It is unbuilt.}
+
+\paragraph{Co-ownership note (with the formal-core paper).}
+The \emph{kernel mechanism} of a checkpoint-with-teeth --- the content-addressed
+execution snapshot --- is owned by the formal-core paper of this volume (Paper~2),
+which treats it as a low-level primitive. \emph{This} paper owns the argument for
+\emph{why it is the foundation of personhood and reputation}. The two papers state
+the same canonical sentence (next).
+
+\subsection{Organ 3 --- Outcome ledger: the witnessed record of delivery \quad\DESIGNED}
+
+The third organ is the one reputation actually keys on, and the one not yet built:
+an \textbf{append-only, daemon-witnessed outcome ledger.} Its specified form is a
+\textbf{durable-commitment} record: a violable promise bound one-to-one to an
+actor, auto-enrolled when the actor takes a claim, closed only against an oracle,
+and watched by an obligation monitor that is the dual of the restart organ. A
+commitment row records what was promised; closing it requires an
+\emph{oracle reference} --- a released claim, a merged commit SHA, a passing test
+id, a satisfied policy sub-check. The record type exists in the reference system,
+but oracle-bound closure is the part that is still only \DESIGNED.
+
+\begin{definition}[Oracle]\label{def:oracle}
+An \textbf{oracle} is a trusted source of ground truth that the agent being
+graded \emph{cannot author}. An outcome is \emph{witnessed} iff its closure
+references an oracle. The ledger is the Parfitian chain of \S\ref{sec:continuity}
+made concrete: a transitive sequence of witnessed deliveries that survives every
+respawn.
+\end{definition}
+
+\subsection{The canonical seam sentence (stated identically in every paper)}
+
+\keyidea{\textbf{The economy rests on three continuity organs --- memory
+(\BUILT), checkpoint (\BUILTWEAK: notes, not execution state), and the
+witnessed-outcome ledger (\DESIGNED) --- and reputation keys on the third, which
+does not yet exist; the checkpoint organ is the weakest \emph{built} link and
+``resurrection with teeth'' (a real execution-state checkpoint) is the literal
+foundation of L3.}}
+
+\noindent Figure~\ref{fig:honest-state} is the honest-state ledger for this paper:
+every major claim with its label and its grounding. It is the artifact a skeptical
+reader should consult first.
+
+% --- FIGURE 5: honest-state table-as-figure ---
+\input{figures/fig-stp-honest-state}
+
+\begin{exercises}
+\textit{Check.} (1) Which organ is \BUILTWEAK, and what exactly is weak about it? \\
+\textit{Trace.} (2) An agent claims a file, makes a commit, and dies. Walk the
+three organs: what does each retain, and what is \emph{lost} that a strong
+checkpoint would have kept? \\
+$\star$ \textit{Open.} (4) When an LLM agent dies mid-thought, what is recoverable
+and what is fundamentally lost? Propose a taxonomy of agent-death by what survives
+(record / claims / execution state / latent ``intent''). This is the hard half of
+the checkpoint-with-teeth problem.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Identity: the root the whole chain hangs from}\label{sec:identity}
+% ═════════════════════════════════════════════════════════════════════════════
+
+Before any organ of continuity matters, the identity it attaches to must be one
+the agent cannot freely re-pick. This is the most under-appreciated claim in the
+paper.
+
+We first state the central claim of the section as a theorem and prove it, because
+it is the load-bearing impossibility result the rest of the paper leans on: no
+amount of estimator cleverness can rescue a reputation built on a re-pickable
+identity.
+
+\begin{definition}[Sanction-respecting reputation]\label{def:sanction-respecting}
+Fix a reputation mechanism $M$ that maps each identity $i$ to a score $r(i)$ used
+to gate economic access. Call $M$ \textbf{sanction-respecting} if there exists a
+penalty $\Delta > 0$ such that whenever an actor produces a \emph{dishonest}
+witnessed outcome (a delivery later overturned by an oracle, per
+Def.~\ref{def:oracle}), the mechanism reduces the score available to that actor by
+at least $\Delta$ for some non-trivial window, relative to never having produced
+the outcome.
+\end{definition}
+
+\begin{theorem}[Non-forgeable identity is necessary]\label{thm:necessity}
+If an actor can mint a fresh identity at cost $c = 0$ and freely route future work
+through it, then no mechanism $M$ is sanction-respecting. Equivalently: a
+non-forgeable identity (one with strictly positive abandonment cost) is
+\emph{necessary} for any sanction-respecting reputation.
+\end{theorem}
+\begin{proof}
+Suppose $M$ is sanction-respecting with penalty $\Delta>0$, and suppose identity
+minting is free. Let an actor produce a dishonest outcome under identity $i$, so
+that by Def.~\ref{def:sanction-respecting} the score it can act under drops to at
+most $r(i)-\Delta$. Because minting is free, the actor instantiates a fresh
+identity $i'$ at cost $0$ and routes all future work through $i'$. By construction
+$i'$ has no witnessed history, so $M$ assigns it the newcomer score $r_0$, the same
+score any first-run identity receives. The actor's \emph{effective} post-sanction
+score is therefore $\max(r(i)-\Delta,\ r_0) = r_0$ whenever $r(i)-\Delta < r_0$,
+and the actor incurs the sanction for at most the cost of switching identities,
+namely $0$. The penalty $\Delta$ is thus not borne: the actor's accessible score
+after a dishonest outcome equals the score of a clean newcomer, with no window in
+which it is reduced below $r_0$. This contradicts Def.~\ref{def:sanction-respecting},
+which requires a reduction \emph{relative to never having produced the outcome} ---
+but a clean newcomer is, by definition, indistinguishable from ``never having
+produced the outcome.'' Hence no sanction-respecting $M$ can exist when $c=0$.
+Contrapositively, $c>0$ (a non-forgeable identity with positive abandonment cost)
+is necessary. \qedhere
+\end{proof}
+
+\pitfall{Theorem~\ref{thm:necessity} is a \emph{necessity}, not a sufficiency,
+result: a non-forgeable identity is the gate, but it does not by itself make a
+reputation honest --- you still need witnessed outcomes (\S\ref{sec:organs}) and an
+incentive-compatible grading oracle (\S\ref{sec:oracle}). The theorem only rules
+out the cheap escape; it does not certify the score.}
+
+\noindent The dual fact --- that free identities also defeat any \emph{quorum} or
+\emph{trust-aggregation} mechanism by replication --- is the Sybil
+attack~\cite{douceur2002}, and the same positive-cost requirement defeats it. We
+record both consequences as one property.
+
+\begin{property}[Reality of reputation]\label{prop:reality}
+A reputation system is exactly as real as the identity it keys on. If an actor can
+mint a fresh identity at zero cost, then every sanction is escapable by respawn
+(\textbf{whitewashing}, Thm.~\ref{thm:necessity}) and every quorum is forgeable by
+replication (\textbf{Sybil}~\cite{douceur2002}), and the reputation reduces to a
+per-incarnation scratchpad with no economic content.
+\end{property}
+
+\noindent In most agent runtimes today --- the reference system included --- an
+identity is a \emph{self-asserted string}: a human-readable triple of the form
+\emph{project\,:\,stack\,:\,context} that the operator chooses and can re-pick at
+will. That is fine for single-operator legibility (Papers~1--2) and fatal for
+reputation. The fix is the one genuinely architectural piece of the program: a
+\textbf{daemon-minted, non-forgeable identity} --- an opaque actor id the runtime
+issues and binds to a credential the actor cannot cheaply re-pick (a per-actor
+signing key, or the durable actor-soul of \S\ref{sec:continuity}) --- with the
+self-asserted string demoted to a display alias.
+
+\subsection{S2 --- whitewashing in action}
+
+Return to Alice's swarm. Tonight's \emph{Drake} deleted the failing test instead
+of fixing it; the daemon's outcome log records the deletion and a later re-audit
+flags it. Under today's self-asserted identities, the sanction is free to escape:
+when Alice spawns tomorrow's swarm, she (or Drake's own boot prompt) registers the
+agent as \emph{project\,:\,stack\,:\,context2}, and a brand-new identity inherits a
+\emph{clean slate}. The bad record attaches to a string nobody is forced to keep.
+This is whitewashing, and it is not exotic: it is the default behavior of any
+re-pickable identity. Now replay the same night with a non-forgeable identity. The
+re-audit's tombstone (\S\ref{sec:revoke}) attaches to the credential Drake
+\emph{cannot} drop; tomorrow's incarnation either presents that credential --- and
+carries the sanction --- or presents a fresh one and is treated as a \emph{newcomer}
+with a reduced economic ceiling (below). Either way the sanction is no longer free,
+which is the whole point: the identity must cost more to abandon than a clean record
+is worth. We make that ``costs more'' precise in Theorem~\ref{thm:whitewash-cost}.
+
+\subsection{The classic attacks this forecloses}
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Cheap-pseudonym whitewashing}~\cite{friedmanresnick2001}: if a
+  fresh identity is free, a bad record is shed by respawn. The defense is a
+  \emph{newcomer policy as a shape, not a scalar}: a newcomer may have full
+  \emph{work} ability but a reduced \emph{economic ceiling} until it has a
+  witnessed history --- so identity churn costs more than a clean record is worth.
+  \item \textbf{The Sybil attack}~\cite{douceur2002}: free identities defeat any
+  reputation or quorum mechanism by replication. The defense is a daemon-minted id
+  whose creation is rate-limited and, in the economy, \emph{bonded}.
+\end{itemize}
+
+\noindent Theorem~\ref{thm:necessity} says abandonment must cost \emph{something};
+the design question is \emph{how much}. The newcomer policy answers it as a
+\emph{shape, not a scalar}, and that shape implies a clean bound on what a
+whitewasher pays.
+
+\begin{theorem}[Whitewashing-cost bound]\label{thm:whitewash-cost}
+Let an honest actor's witnessed history raise its economic ceiling from the
+newcomer ceiling $\kappa_0$ to a steady-state ceiling $\kappa^\star > \kappa_0$
+over a maturation window, and let the per-period surplus an actor can extract be
+non-decreasing in its ceiling, with surplus $\pi(\kappa)$. Suppose an identity,
+once sanctioned, can only re-enter as a newcomer at ceiling $\kappa_0$. Then an
+actor who whitewashes (abandons a sanctioned identity and re-enters fresh) forgoes
+at least
+\[
+W \;=\; \sum_{t=1}^{T}\bigl(\pi(\kappa^\star) - \pi(\kappa_t)\bigr) \;\ge\; 0,
+\]
+the cumulative surplus gap over the maturation window $T$ during which the fresh
+identity climbs from $\kappa_0$ back toward $\kappa^\star$. Whitewashing is
+unprofitable exactly when the one-time gain from escaping the sanction is less than
+$W$; choosing the ceiling schedule so that $W$ exceeds the maximum single-outcome
+fraud gain makes honesty the dominant strategy for any actor that intends to keep
+working.
+\end{theorem}
+\begin{proof}[Proof sketch]
+A sanctioned identity that does not whitewash retains its ceiling $\kappa^\star$
+(minus the explicit sanction); an identity that whitewashes resets to $\kappa_0$
+and, by hypothesis, can only regain the ceiling by re-accumulating witnessed
+history over $T$ periods, earning $\pi(\kappa_t)$ in period $t$ with
+$\kappa_0 \le \kappa_t \le \kappa^\star$. The opportunity cost of the reset is the
+per-period surplus gap summed over the window, $W=\sum_t(\pi(\kappa^\star)-\pi(\kappa_t))$,
+which is non-negative since $\pi$ is non-decreasing in the ceiling. An actor
+whitewashes only if the avoided sanction exceeds $W$; setting the schedule
+$\{\kappa_t\}$ (equivalently, the maturation rate) so that $W$ dominates the
+largest gain a single fraudulent outcome can capture removes the incentive. The
+key design move is that the newcomer gets \emph{full work ability} but a
+\emph{reduced economic ceiling}, so $W$ is paid in forgone \emph{earnings}, not in
+forgone \emph{ability} --- which is why it taxes whitewashers without taxing honest
+newcomers' capacity to contribute. \qedhere
+\end{proof}
+
+\keyidea{The newcomer policy is a \emph{shape}: full work ability, reduced economic
+ceiling, climbing with witnessed history. That shape is what makes
+Theorem~\ref{thm:whitewash-cost}'s cost $W$ fall on whitewashers (who keep
+resetting their ceiling) and not on honest newcomers (who keep theirs and climb).
+A flat ``distrust all newcomers'' policy taxes the wrong party.}
+
+% --- FIGURE 6: Sybil/whitewashing and the non-forgeable root ---
+\input{figures/fig-stp-sybil-whitewash}
+
+\subsection{The principal above the actor}
+
+The economic counterparty in every trade is not the agent but the
+\textbf{principal} --- the human or organization that owns the fleet and stands
+behind its bonds. Bonds, reputation inheritance, and sanctions must ultimately
+key on the principal via the delegation chain, or Sybil bond-farming works by
+spawning fresh \emph{agents} under one principal. This paper defines the principal
+as the delegation chain's terminus and the identity object on which the market
+paper's counterparty is built; the market paper \emph{cross-references} this
+definition rather than redefining it.
+
+\begin{definition}[Principal]\label{def:principal}
+A \textbf{principal} is the root of a delegation chain: the durable economic
+entity (human/org) that owns a fleet, posts its bonds, and inherits the
+reputational consequence of its agents' witnessed outcomes. Each agent's
+non-forgeable identity is bound to exactly one principal at mint time.
+\end{definition}
+
+\begin{exercises}
+\textit{Check.} (1) State Property~\ref{prop:reality} in your own words and give
+the two-attack proof sketch. \\
+\textit{Trace.} (2) Why is a ``newcomer policy as a shape'' (full work, reduced
+ceiling) strictly better than ``newcomers are distrusted'' (reduced work)?
+Consider the cost to an honest newcomer vs.\ a whitewasher. \\
+$\star$ \textit{Open.} (3) Bond-farming: a single principal spawns 1000 agents,
+has them trade trivial tasks among themselves to mint reputation, then sells the
+``experienced'' agents. Which of \{principal binding, listing fee, sampled
+adversarial re-audit of high-velocity counterparty pairs\} defeats this, and at
+what false-positive cost to honest high-volume pairs?
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The keystone split: local identity vs.\ cross-operator attestation}\label{sec:keystone}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The non-forgeable identity of \S\ref{sec:identity} is the highest-leverage unbuilt
+keystone of the whole program. But the keystone is \emph{two stones}, and
+conflating them is the single most consequential error the volume can make.
+
+\begin{definition}[Local non-forgeable identity]\label{def:0040}
+A \textbf{local non-forgeable identity} provides an unforgeable actor identity
+\emph{within one trusted daemon}: the runtime issues and binds it, and no actor
+inside the fleet can re-pick or impersonate it. Its threat model is explicitly
+intra-fleet and single-operator; it is \emph{not} a public-key infrastructure and
+offers no defense against a hostile \emph{operator}. This is exactly what the
+single-operator layers --- Papers~1, 2, and \emph{this} paper --- need and assume.
+\DESIGNED.
+\end{definition}
+
+\begin{definition}[Cross-operator attestation]\label{def:0040b}
+\textbf{Cross-operator attestation} is the \emph{unsolved} problem of binding
+identity keys across harbors you do \emph{not} own: an actual key-distribution and
+attestation story between mutually-distrusting operators. A federated witness log
+gives log-\emph{integrity}, not identity-\emph{binding} --- it can prove an entry
+was recorded, but not that the key behind it is who it claims to be across a trust
+boundary. This is what the market paper needs and does \emph{not} yet have.
+\VISION{} (a named gap, owed to the market paper).
+\end{definition}
+
+\pullquote{This paper depends on a \emph{local non-forgeable identity} and
+\emph{hands the market paper} the unsolved \emph{cross-operator attestation} as a
+named dependency --- not an assumption. Every cross-operator sentence that says
+``the boundary neither operator controls'' is resting on cross-operator
+attestation; until that exists, it is resting on a single trusted root, and we
+say so.}
+
+% --- FIGURE 7: keystone split ---
+\input{figures/fig-stp-keystone-split}
+
+\keyidea{The keystone that holds up \emph{this} paper (identity inside one
+trusted daemon) is \emph{not} the keystone that holds up the cross-operator market.
+This paper stands on a local non-forgeable identity. The market paper needs
+cross-operator attestation and must declare it \VISION{} rather than borrow the
+single-operator threat model. This is the clean boundary the volume's cross-layer
+review demanded.}
+
+\begin{exercises}
+\textit{Check.} (1) In one sentence each, state what a local non-forgeable identity
+provides and what cross-operator attestation would have to add. \\
+\textit{Trace.} (2) Take any claim in the market paper of the form ``Alice's harbor
+and Bob's harbor settle across a boundary neither controls.'' Which stone does it
+secretly assume? What is the actual security guarantee if only the local
+non-forgeable identity exists? \\
+$\star$ \textit{Open.} (3) Can a federated witness log ever substitute for
+identity-binding? Argue why log-integrity $\ne$ key-binding, then sketch the
+minimal additional assumption (a shared root of trust? a sponsor chain? a
+transparency log) that would close the gap, and the cost each imposes.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Reputation as a substrate, not a score}\label{sec:substrate}
+% ═════════════════════════════════════════════════════════════════════════════
+
+Here is the hinge of the whole volume, stated as the canonical cross-paper
+sentence:
+
+\pullquote{The reputation \emph{estimator is cheap}; the \emph{substrate it scores
+over} --- witnessed outcomes on a non-forgeable identity --- is the gate.}
+
+\noindent A team tempted to start an agent economy by ``building an Elo
+leaderboard for backends'' would be building the cheap, last part first. Elo,
+Bradley--Terry, and TrueSkill are well-understood; you can implement any of them in
+an afternoon over a table of game results. The hard, prior, load-bearing work is
+the three links \emph{beneath} the estimator: a non-forgeable identity
+(\S\ref{sec:identity}), continuity (\S\ref{sec:organs}), and an
+\emph{oracle-witnessed} outcome ledger (Def.~\ref{def:oracle}). Without those, the
+estimator scores noise --- or worse, scores a number an adversary controls.
+
+\subsection{The estimator family (the well-understood part)}
+
+We catalog the estimators not because they are hard but because choosing the
+\emph{wrong} one for the signal type is a real error.
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Pairwise / tournament signal $\to$ Bradley--Terry / Elo /
+  TrueSkill.} When the witnessed signal is ``$A$ beat $B$ on this task,'' the
+  \textbf{Bradley--Terry} model~\cite{bradleyterry1952} is the full-history MLE,
+  and \textbf{Elo}~\cite{elo1978} is its online special case. A harbor that
+  retains the \emph{whole} history of every settled outcome lives in the
+  Bradley--Terry regime, not the streaming-Elo regime; BT gives more stable
+  ratings than Elo's recency-weighted update when the population is static.
+  \textbf{TrueSkill}~\cite{herbrich2007trueskill} adds a calibrated uncertainty
+  $\sigma$ --- the principled way to say ``we have not tested this backend much
+  yet,'' which matters at cold start.
+  \item \textbf{Trust-propagation signal $\to$ EigenTrust.} When the signal is
+  ``who does the network trust,'' \textbf{EigenTrust}~\cite{kamvar2003eigentrust}
+  computes a global trust vector as the principal eigenvector of the
+  local-trust matrix --- the reputation-systems analogue of PageRank, and the
+  canonical answer to ``aggregate peer opinions while resisting collusive
+  cliques.'' It is the right tool for the \emph{federated} reputation Paper~4
+  needs (trust that travels across harbors), and it is \emph{not} a bandit.
+  \item \textbf{Marketplace feedback signal $\to$ feedback systems.}
+  Resnick--Zeckhauser~\cite{resnick2006value} measured a ${\sim}8\%$ reputation
+  price premium on eBay; Tadelis~\cite{tadelis2016} frames feedback systems as the
+  platform's answer to adverse selection. This is the empirical evidence that the
+  third side of the market has real value to price.
+\end{itemize}
+
+% --- FIGURE 8: estimator family by signal type ---
+\input{figures/fig-stp-estimator-family}
+
+\subsection{Score as telemetry; gate on predicates}
+
+\keyidea{Publish the score as \emph{telemetry} (a signal the operator and the
+buyer can read), but \emph{gate} on \emph{predicates} (machine-checkable witnessed
+facts: ``passed the acceptance test,'' ``no slashed bond in the last $k$
+settlements''). The instant the score itself becomes the gate, it becomes a
+Goodhart target~\cite{strathern1997}: ``when a measure becomes a target it ceases
+to be a good measure.''}
+
+\begin{exercises}
+\textit{Check.} (1) Why is a full-history harbor in the Bradley--Terry regime rather
+than the streaming-Elo regime? \\
+\textit{Trace.} (2) You have one task with a clear binary acceptance test, and
+another judged only by a human's aesthetic preference. Which estimator fits each,
+and why does EigenTrust fit neither directly? \\
+$\star$ \textit{Open.} (3) The substrate-vs-score sentence says the estimator is
+``cheap and last.'' Construct a scenario where a \emph{better estimator} still
+buys nothing because the substrate is rotten (e.g.\ forgeable identity or an
+agent-authored oracle). Generalize the lesson.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Why reputation is \emph{not} a bandit problem}\label{sec:not-bandit}
+% ═════════════════════════════════════════════════════════════════════════════
+
+It is tempting --- and the routing literature invites the temptation --- to model
+``which agent/model/skill should I pick?'' as a \textbf{multi-armed
+bandit}~\cite{lattimore2020bandit}: arms are agents, pulling an arm yields a
+reward, and Thompson sampling~\cite{thompson1933} or UCB balances exploration
+against exploitation. That framing is correct for one narrow internal task and
+catastrophically wrong for reputation as a whole. The distinction is load-bearing
+enough to state as a claim.
+
+\pullquote{\emph{Internal routing} --- one operator privately choosing which of
+their own agents to spawn next --- is bandit-shaped. \emph{Reputation} --- a public,
+adversarial, multi-dimensional, persistent substrate other parties trade on --- is
+not. Modeling reputation as a bandit imports four assumptions that are all false in
+a market.}
+
+% --- FIGURE 9: bandit assumptions vs reputation reality ---
+\input{figures/fig-stp-not-bandit}
+
+\subsection{The four broken assumptions}
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item \textbf{Stationarity.} Bandit regret bounds assume the reward
+  distribution of each arm is (near-)stationary. Agent quality is
+  \emph{non-stationary} by construction: models are upgraded, skills are versioned,
+  prompts drift, and a skill's reputation built on v1 says nothing about v2. The
+  Liu--Skrzypacz line of work on \emph{reputation
+  bubbles}~\cite{liuskrzypacz2014} shows that with bounded memory and
+  non-stationary types, reputation can build and \emph{collapse} in cycles ---
+  behavior a stationary-arm bandit cannot represent.
+  \item \textbf{One scalar reward.} A bandit optimizes a single scalar. Quality is
+  \emph{multi-dimensional}: accuracy, aesthetics, and efficiency are different
+  axes, often in tension (the fast cheap answer is rarely the most beautiful), and
+  a buyer's weighting of them is a \emph{preference vector}, not a constant. Collapse
+  them into one scalar and you have re-created the Goodhart target the substrate
+  argument warned against (\S\ref{sec:adr0049}).
+  \item \textbf{A non-strategic environment.} Bandit arms do not \emph{try} to
+  look good. Agents and their principals are \emph{strategic adversaries}: they
+  will Goodhart the measured axis, wash-trade fake outcomes, whitewash a bad
+  record, and collude. A reputation mechanism is a \emph{game}, and the relevant
+  tool is mechanism design~\cite{nisan2007agt}, not regret minimization.
+  \item \textbf{A trusted reward signal.} The deepest break: a bandit
+  \emph{observes} its reward. In a market, the reward (the grade) is
+  \emph{produced} by an evaluator who has their own incentives. The grading
+  oracle's incentive-compatibility is not a side-issue --- it is a hole in the core
+  theorem (\S\ref{sec:oracle}). A bandit framing simply assumes the hole away.
+\end{enumerate}
+
+\subsection{What survives the bandit framing}
+
+To be fair to the bandit literature: cold-start \emph{exploration} is real, and the
+right place to borrow from bandits is the \emph{exploration bonus}. TrueSkill's
+$\sigma$ and a UCB-style bonus are the same idea --- ``test the under-measured
+arm.'' So \emph{within one operator's private routing}, a contextual bandit
+conditioned on the operator's cost/quality preference vector is a fine engineering
+choice. The error is exporting that frame to the \emph{public substrate}, where
+non-stationarity, multi-dimensionality, strategy, and an untrusted reward signal
+all bite at once.
+
+\pitfall{``We'll just run Thompson sampling over the agents'' is the most common
+way an agent-economy design quietly assumes its hardest problems away. It assumes a
+trusted reward (no judge-capture), a scalar reward (no aesthetics-vs-efficiency
+tension), a non-strategic environment (no Goodhart, no wash-trading), and
+stationarity (no model upgrades). All four are false in a market.}
+
+\begin{exercises}
+\textit{Check.} (1) Name the four bandit assumptions and the market reality that
+breaks each. \\
+\textit{Trace.} (2) Identify the \emph{one} place a bandit \emph{is} the right
+tool in this paper, and explain why it survives the four objections there. \\
+$\star$ \textit{Open.} (3) Chiu--Zhang--van der Schaar~\cite{chiu2025strategic}
+show competitive agents over-invest in self-improvement, burning surplus despite
+individual rationality. Does capping the reputation signal's marginal return
+restore efficiency, or merely relocate the waste? This is the self-improvement
+arms-race open problem.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The multi-dimensional reputation protocol}\label{sec:adr0049}
+% ═════════════════════════════════════════════════════════════════════════════
+
+We now define the central protocol contribution of this paper: a
+\textbf{multi-dimensional reputation} built over witnessed outcomes. It has three
+parts: a multi-dimensional quality vector; a market of neutral, conflict-free,
+influence-free evaluators; and a skill$\to$agent helpfulness attribution. We state
+it honestly as a design (\DESIGNED-to-\VISION): the reference system has no
+reputation component yet, only the witnessed-outcome substrate the protocol scores
+over.
+
+\subsection{Multi-dimensional quality (different axes, different judges)}
+
+\begin{definition}[Quality vector]\label{def:qvec}
+A witnessed outcome carries a \textbf{quality vector}
+$\mathbf{q} = (q_{\text{acc}}, q_{\text{aes}}, q_{\text{eff}})$ over the axes
+\emph{accuracy} (did it do the right thing, against an oracle), \emph{aesthetics}
+(is the artifact good --- code clarity, design taste --- judged by an expert), and
+\emph{efficiency} (tokens, wall-clock, dollars, drawn from a cost meter that the
+reference system already records, \BUILT). Each axis is scored by a \emph{different
+judge}, because the competent judge of accuracy (a test oracle) is not the
+competent judge of aesthetics (a senior reviewer) is not the competent judge of
+efficiency (a meter).
+\end{definition}
+
+\noindent The buyer reads the \emph{vector} and applies their own weighting (the
+operator's ``cheap vs.\ careful'' preference). Publishing a vector and letting the
+buyer weight it is the natural disclosure form --- and it is precisely what avoids
+re-collapsing quality into one Goodhart-able scalar. The open design question of
+\emph{whether} a vector disclosure lets agents Goodhart the most-weighted axis is
+named as a starred exercise.
+
+% --- FIGURE 10: the multi-dimensional reputation vector ---
+\input{figures/fig-stp-multidim-reputation}
+
+\subsection{The neutral-judge market (the harbor's universities and rating agencies)}
+
+A judge that grades the work of a party it has a stake in is not a judge. The
+metaphor the volume uses is exact: a reputation needs the equivalent of
+\emph{universities} (which certify competence) and \emph{rating agencies} (which
+rate counterparties) --- third parties whose value is precisely that they are
+\emph{neutral}. We make ``neutral'' a checklist, not a vibe:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{Conflict-free.} The judge has no bond, stake, or principal-link in
+  the work being graded. (Excludes self-grading and same-principal grading.)
+  \item \textbf{Influence-free.} The judge cannot be paid \emph{by the graded
+  party} for a better grade. Funding is the hard part: a paid judge has a client,
+  an unpaid judge does not scale. The resolution (\S\ref{sec:oracle}) is that
+  judges post their \emph{own} bond and carry their \emph{own} reputation.
+  \item \textbf{De-biased, for LLM judges.} An LLM-as-judge~\cite{zheng2023judging}
+  carries position, verbosity, and \emph{self-enhancement} bias (a backend rates
+  its own family up). The discipline is blind, order-swap, pairwise, and
+  family-exclude scoring --- never let a backend judge its own family unblinded.
+\end{itemize}
+
+\noindent Crucially, an expert third-party judge is \emph{hired through the same
+bonded ceremony the market uses for any other task}: judging is itself a planned,
+bonded job, so the harbor that runs the market also runs the hiring of the judges
+who keep it honest. We state the hiring as a numbered protocol.
+
+\begin{protocol}[The judge-hiring ceremony]\label{proto:judge}
+To grade a settled outcome $o$ produced by actor $a$ under principal $p$:
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+  \item \textbf{Eligibility filter.} The daemon assembles the candidate judge pool
+  and removes every judge sharing a principal-link, bond, or stake with $p$
+  (conflict-free), and every judge in $a$'s model family for the aesthetics axis
+  (de-biasing). \emph{Capability $\ne$ permission}: a candidate may be \emph{able}
+  to grade and still be \emph{ineligible}.
+  \item \textbf{Selection.} A judge $J$ is drawn from the eligible pool by a public,
+  conflict-free policy (e.g.\ reputation-weighted sampling on the judging axis), so
+  neither $a$ nor $p$ can choose their own grader.
+  \item \textbf{Bond post.} $J$ posts a bond $B_J$ before seeing the work. The bond
+  is recorded in the outcome ledger and locked for the dispute window.
+  \item \textbf{Blind grading.} $J$ scores the relevant axis under the de-biasing
+  discipline (blind, order-swapped, pairwise where possible). The grade enters the
+  ledger as a witnessed event keyed on $J$'s non-forgeable identity.
+  \item \textbf{Settlement and exposure.} The outcome settles on the grade; the
+  bond flow follows. $J$'s bond remains exposed to a sampled \textbf{re-audit}
+  (\S\ref{sec:oracle}): a fresh, conflict-free judge who overturns $J$'s grade
+  \emph{slashes} $B_J$ and updates $J$'s own reputation downward.
+\end{enumerate}
+\end{protocol}
+
+\noindent Figure~\ref{fig:judge-market} draws this: graded work flows to a judge
+selected for conflict-/influence-freedom, the judge posts a bond, the grade enters
+the outcome ledger, and a later re-audit can slash a judge whose grade is
+overturned.
+
+% --- FIGURE 11: the neutral-judge market ---
+\input{figures/fig-stp-judge-market}
+
+\subsection{S3 --- a graded job, end to end}
+
+Make Protocol~\ref{proto:judge} concrete. Bob has rented Alice's agent
+\emph{Heron} to refactor an authentication module against a fixed acceptance suite,
+under a posted bond. Heron delivers; the outcome $o$ enters Bob's harbor as a
+\emph{settled but ungraded} delivery, and the daemon runs the ceremony.
+\emph{Three} judges are hired, one per axis, because the axes need different
+competence:
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+  \item \textbf{Accuracy} is graded by a \emph{test oracle} --- the acceptance
+  suite Heron cannot author --- which returns $q_{\text{acc}}=1.0$: every test
+  passes.
+  \item \textbf{Aesthetics} is graded by a hired senior-reviewer judge, \emph{Mara}
+  (drawn from the eligible pool, in neither Alice's nor Bob's principal, not in
+  Heron's model family). Mara posts her bond, reads the diff blind, and returns
+  $q_{\text{aes}}=0.7$: correct but over-clever, with a fragile regex she flags.
+  \item \textbf{Efficiency} is graded by the cost meter: $q_{\text{eff}}=0.9$,
+  cheap and fast.
+\end{itemize}
+The quality vector $\mathbf{q}=(1.0,\,0.7,\,0.9)$ lands in Heron's outcome ledger.
+Bob, who weights aesthetics heavily for security-critical code, reads the
+\emph{vector} (not a collapsed scalar), sees the $0.7$, and decides to keep Heron
+but require a second reviewer on auth work --- a decision the scalar would have
+hidden. Two weeks later a routine re-audit re-grades a sample of Mara's recent
+jobs and finds she rubber-stamped a different agent's insecure change as
+$q_{\text{aes}}=0.9$. The re-auditor overturns that grade; Mara's bond on
+\emph{that} job is slashed and her judging reputation drops --- exactly the
+exposure step of Protocol~\ref{proto:judge}. Note what made every step possible:
+each grade is keyed on a non-forgeable identity, so neither Heron nor Mara can shed
+the record by respawning.
+
+\subsection{Skill $\to$ agent helpfulness attribution}
+
+A distinctive, tractable, and \emph{shippable-soon} signal: track whether a
+\textbf{skill} --- a reusable unit of agent know-how (a structured instruction
+document, its referenced material, and any scripts it carries) --- actually
+\emph{helped} an agent, \emph{especially when that skill's content was loaded into
+the agent's context window}. The witnessed event is concrete: skill $s$ was grafted
+into agent $a$'s context at task $t$; $t$ later settled with quality vector
+$\mathbf{q}$. Over many such events we estimate a \emph{skill-helpfulness} effect
+--- did loading $s$ raise $\mathbf{q}$ relative to comparable tasks without it? This
+is reputation for \emph{tools}, keyed on witnessed, context-attributable outcomes,
+and it is the licensing side's substrate that the market paper consumes. It is also
+the cleanest near-term instance of the whole thesis: a non-forgeable event (the
+graft), a witnessed outcome (the settled task), and a multi-dimensional grade ---
+no bandit required. We pin the event down as a schema.
+
+\begin{protocol}[The skill-helpfulness witnessed-event schema]\label{proto:skill}
+Each graft of a skill into an agent's context emits an append-only event with
+fields:
+\begin{itemize}[leftmargin=1.5em,itemsep=1pt]
+  \item \texttt{skill\_id}, \texttt{skill\_version} --- the tool and its exact
+  version (a portfolio for v1 says nothing about v2).
+  \item \texttt{agent\_id} --- the \emph{non-forgeable} identity that received the
+  graft, so the event cannot be re-attributed by respawn.
+  \item \texttt{task\_id}, \texttt{task\_descriptor} --- a content hash and a
+  feature vector of the task, used to assemble a comparison set of similar tasks
+  \emph{without} $s$.
+  \item \texttt{grafted\_at}, \texttt{context\_window\_ref} --- evidence that $s$'s
+  content actually entered the context (not merely that $s$ was available).
+  \item \texttt{outcome\_ref}, \texttt{quality\_vector} --- the witnessed
+  settlement and its multi-dimensional grade, written only after the task closes
+  against an oracle.
+\end{itemize}
+A buyer estimates helpfulness as the difference in $\mathbf{q}$ between matched
+tasks with and without $s$ in context --- verifiable from the events alone, without
+trusting the skill's author.
+\end{protocol}
+
+\pitfall{Attribution is not causation. ``Skill $s$ was in context and the task
+succeeded'' does not prove $s$ caused the success. The honest estimate needs a
+comparison set (similar tasks without $s$, matched on \texttt{task\_descriptor})
+and is still observational. Sell it as \emph{helpfulness evidence}, not \emph{proof
+of value}, and gate licensing clawbacks on the witnessed green/red settlement, not
+on the helpfulness estimate alone.}
+
+\begin{exercises}
+\textit{Check.} (1) For each of accuracy / aesthetics / efficiency, name a
+competent judge and an \emph{incompetent} one. \\
+\textit{Trace.} (2) Walk a judging task through the judge-hiring ceremony
+(Protocol~\ref{proto:judge}): who plans it, who posts the bond, where does the
+grade land, and what slashes the judge? \\
+\textit{Trace.} (3) Design the witnessed event for skill-helpfulness. What fields
+does it need so that a buyer can verify ``this skill helped'' without trusting the
+skill's author? \\
+$\star$ \textit{Open.} (5) If you publish the 3-vector and buyers weight it, do
+agents Goodhart the most-weighted axis? If you publish a scalar, you have recreated
+the bandit framing the substrate argument rejects. What is the right disclosure
+form for vector reputation?
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The grading oracle's incentive-compatibility}\label{sec:oracle}
+% ═════════════════════════════════════════════════════════════════════════════
+
+Every folk-theorem incentive-compatibility result in the L3 economy bottoms out in
+``the daemon derives the grade'' --- but the grade is produced by a
+\emph{capturable evaluator}. This is not a side-gap. It is a hole in the
+\emph{core theorem}, and we treat it head-on rather than assuming it away.
+
+\begin{property}[The grading-oracle hole]\label{prop:hole}
+Let an outcome's settlement (and thus the bond flow and the reputation update)
+depend on a grade $g$ produced by an evaluator $J$. If $J$ can be captured ---
+bribed, colluded with, or self-interested --- then the incentive-compatibility of
+\emph{every} mechanism that settles on $g$ is only as strong as $J$'s own honesty.
+Assuming $J$ honest is assuming the conclusion.
+\end{property}
+
+\noindent There are two honest ways to close the hole, and a recursion to bound.
+
+\paragraph{Option A --- bond-and-slash the judges.}
+Make judging a bonded role (\S\ref{sec:adr0049}): $J$ posts a bond before grading;
+a later \textbf{re-audit} (a fresh, conflict-free judge, sampled) that overturns
+$J$'s grade \emph{slashes} $J$. Now lying has an expected cost, and a judge's own
+reputation is the asset they protect. This converts ``trust the oracle'' into
+``the oracle has skin in the game,'' which is the same move slashing makes for
+agents.
+
+\paragraph{Option B --- 2-of-3 multi-oracle.}
+Settle disputes against a quorum of independent oracles (automated test / evidence
+review / human), so capturing the grade requires capturing a majority. This raises
+the cost of capture but does not eliminate it, and the \emph{human} oracle is a
+scarce, expensive, capturable resource in its own right (the economics of
+arbitration capacity is a named open problem, below).
+
+\paragraph{The rate-the-raters recursion --- does it terminate?}
+Option~A pushes the problem up a level: who audits the auditors? The re-auditor is
+itself a judge with incentives. The recursion ``rate the raters who rate the
+raters'' must be shown to \emph{terminate} or to \emph{contract}. We do not claim a
+proof; we claim the shape of one and mark the rest open.
+
+% --- FIGURE 12: rate-the-raters recursion ---
+\input{figures/fig-stp-rate-the-raters}
+
+\begin{conjecture}[Contractive re-audit]\label{conj:contract}
+If (i) re-audits are sampled with probability $\rho$, (ii) an overturned grade
+slashes a bond $B_J$ strictly exceeding the maximum bribe a single graded party
+can offer, and (iii) re-auditors are themselves drawn conflict-free from a pool
+larger than any single colluding clique, then the expected gain from dishonest
+grading is negative at \emph{every} level of the recursion, and the
+``rate-the-raters'' tower is \emph{contractive}: the incentive to corrupt level
+$k+1$ is strictly smaller than at level $k$, so the tower has a finite honest
+fixed point.
+\end{conjecture}
+
+\pitfall{Conjecture~\ref{conj:contract} is \emph{conjectured}, not proven. It is
+the precise statement of what the market paper's central incentive-compatibility
+result \emph{needs} and currently \emph{lacks}. The contribution here is to name the hole
+exactly, give two candidate closures, and state the termination obligation ---
+\emph{not} to claim it is closed. Honest labels apply: this is \VISION.}
+
+\keyidea{The grading oracle is the load-bearing assumption hidden under every IC
+claim in the economy. ``The daemon derives the grade'' only helps if the grade's
+\emph{producer} is itself incentive-compatible. Either bond-and-slash the judges
+and prove the rate-the-raters recursion contracts, or accept that the core theorem
+is conditional on an honest oracle --- and say which.}
+
+\begin{exercises}
+\textit{Check.} (1) State Property~\ref{prop:hole} and explain why ``the daemon
+derives the grade'' does not, by itself, close it. \\
+\textit{Trace.} (2) Walk Option~A: a judge grades dishonestly, a re-audit
+overturns it. Follow the bond flow and the reputation update for the judge. \\
+$\star$ \textit{Open.} (4) Prove or refute Conjecture~\ref{conj:contract}. If the
+re-audit probability $\rho$ is too low, the tower is not contractive --- find the
+critical $\rho^\star$ as a function of bond size and bribe ceiling. \\
+$\star$ \textit{Open.} (10) Arbitration capacity: human oracles are scarce. Design
+a market for bonded, rated, slashable arbiters and argue whether it converges to
+honest rulings or to rubber-stamping under load.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Revocation, tombstones, and bounded memory}\label{sec:revoke}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A reputation built on witnessed outcomes must answer two questions the cheerful
+``reputation never ends'' framing dodges: what happens when a witnessed outcome
+turns out to be \emph{fraudulent}, and is no-decay actually \emph{good}? We adopt
+the volume's reconciled position on both, against the naive version.
+
+\subsection{Monotone in honest outcomes, individually revocable}
+
+\begin{property}[Reputation monotonicity with tombstones]\label{prop:tombstone}
+Reputation is \textbf{monotone in \emph{honest} witnessed outcomes} --- a genuine
+delivery is never silently erased by the passage of time --- \emph{but} a witnessed
+outcome is itself \textbf{individually revocable via a propagating tombstone}: a
+compensating, append-only entry that retracts a specific outcome later found
+fraudulent (a colluding judge, a faked oracle). ``Never decays'' applies to honest
+outcomes \emph{only}; it is \emph{not} an anti-revocation property.
+\end{property}
+
+\noindent This is a \textbf{saga}-style compensation~\cite{garcia1987sagas}: you do
+not mutate the ledger in place (that would break append-only and auditability);
+you append a tombstone that nullifies the targeted entry, and the tombstone
+\emph{propagates} across harbors bounded by the federation's revocation-convergence
+window (the market paper's job). The poisoned data point was spendable only during
+the propagation window; bounding that window is the federation's responsibility. We
+state the retraction as a protocol.
+
+\begin{protocol}[Tombstone revocation]\label{proto:tombstone}
+To retract a witnessed outcome $o$ later found fraudulent:
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+  \item \textbf{Trigger.} A re-audit (Protocol~\ref{proto:judge}, step 5) or a
+  dispute overturns the grade on $o$, establishing fraud against an oracle.
+  \item \textbf{Append, never mutate.} A \emph{tombstone} entry $\bar{o}$ is
+  appended to the ledger, carrying $o$'s id, the overturning evidence, and the
+  identity of the retracting judge. The original $o$ stays in place; auditability
+  is preserved because nothing is erased.
+  \item \textbf{Recompute.} Every reputation score that consumed $o$ is recomputed
+  with $o$ nullified by $\bar{o}$. Because the estimator is cheap
+  (\S\ref{sec:substrate}), recomputation is not the bottleneck.
+  \item \textbf{Propagate.} $\bar{o}$ gossips to every harbor that imported $o$,
+  bounded by the federation's revocation-convergence window $\tau$. Each harbor
+  applies step 3 on receipt.
+  \item \textbf{Bound the damage.} The fraudulent reputation was spendable only
+  during $\tau$; the protocol's job is to make $\tau$ short and provable, not to
+  pretend the window is zero.
+\end{enumerate}
+\end{protocol}
+
+% --- FIGURE 13: tombstone compensation on an append-only ledger ---
+\input{figures/fig-stp-tombstone}
+
+\subsection{S4 --- the fraudulent outcome retracted}
+
+Recall S3: the re-audit caught Mara rubber-stamping a different agent's insecure
+change as $q_{\text{aes}}=0.9$. Follow that one outcome through
+Protocol~\ref{proto:tombstone}. The graded agent --- call it \emph{Crane}, running
+under a third operator --- had colluded with Mara: Crane shipped a known-insecure
+diff and Mara graded it high so Crane's aesthetics reputation would clear Bob's
+hiring bar. For two days it worked: Crane's vector showed $(0.95,\,0.9,\,0.8)$ and
+Bob nearly hired it. Then the sampled re-audit re-graded the diff blind, found the
+injection, and overturned Mara's grade. A tombstone $\bar{o}$ is \emph{appended}
+(the original stays, for the audit trail); every score that consumed Crane's
+inflated $q_{\text{aes}}$ is recomputed with it nullified; Mara's bond on that job
+is slashed and her judging reputation drops; Crane's collusion is itself recorded
+as a fraudulent outcome against \emph{its} non-forgeable identity, which it cannot
+shed. The tombstone gossips to Bob's harbor within the convergence window, so by
+the time Bob next reads Crane's vector the $0.9$ is gone. The fraud was real and
+briefly spendable --- the honest claim is that the window was \emph{bounded}, not
+that it never existed.
+
+\subsection{Bounded memory is a design parameter, not a virtue to assert away}
+
+The naive ``no decay window an agent can outrun'' framing sounds principled but is
+mechanism-design-hostile. Liu--Skrzypacz~\cite{liuskrzypacz2014} show that with
+\emph{bounded} memory, reputation can be welfare-\emph{improving} relative to
+infinite memory --- and that infinite memory ($\infty$) is rarely optimal, because
+it freezes types and removes the incentive to keep performing. Bounded memory is a
+\textbf{tunable parameter}, and the right setting is an empirical/mechanism-design
+question, not a slogan.
+
+\pitfall{``Reputation never ends'' as a \emph{virtue} is wrong twice over: it
+makes a fraudulent outcome permanent (needs the tombstone of
+Property~\ref{prop:tombstone}), and it asserts $\infty$-memory is optimal when the
+reputation-bubble literature shows it usually is not. Engage bounded memory as a
+\emph{parameter}; do not assert no-decay as a feature.}
+
+\keyidea{Two corrections to the cheerful framing: (1) reputation is monotone in
+\emph{honest} outcomes but \emph{individually revocable} via a propagating
+tombstone --- a saga compensation, not in-place mutation; (2) bounded memory is a
+\emph{design parameter} (Liu--Skrzypacz reputation bubbles), not an anti-feature to
+assert away.}
+
+\begin{exercises}
+\textit{Check.} (1) Why must revocation be a tombstone (append) rather than a
+delete (mutate) on the outcome ledger? \\
+\textit{Trace.} (2) A judge is later found to have colluded on five settled
+outcomes. Walk the tombstone for one of them: what is appended, what propagates,
+and what bounds the window the poisoned reputation was spendable? \\
+$\star$ \textit{Open.} (8) Reputation-claim revocation with an append-only,
+bounded-memory ledger across $N$ harbors: how do you prove the correction
+converged and bound the spendable window, without violating append-only? This is
+the cross-harbor analogue of capability revocation (Paper~4).
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{What this paper hands the market (Paper 4)}\label{sec:handoff}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This paper is the bridge; its output is a precise hand-off to \emph{The Harbor
+Economy} (Paper~4). We summarize what is delivered, what is borrowed, and what is
+explicitly owed.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.35}
+\begin{tabular}{@{}p{5.2cm} p{2.0cm} p{7.2cm}@{}}
+\toprule
+\textbf{Artifact} & \textbf{Maturity} & \textbf{Role in the market paper} \\
+\midrule
+Role / person distinction (Defs.~\ref{def:role}--\ref{def:person}) & --- &
+The third side of the market is a \emph{tradeable person}, defined here. \\
+Principal-as-economic-entity (Def.~\ref{def:principal}) & \DESIGNED &
+Bonds and sanctions key on the principal; the market paper cross-references, not redefines. \\
+The three continuity organs & \BUILT/\BUILTWEAK/\DESIGNED &
+Reputation keys on organ~3 (the outcome ledger). \\
+Outcome ledger / oracle (Def.~\ref{def:oracle}) & \DESIGNED &
+The witnessed-outcome substrate every settlement updates. \\
+Multi-dimensional reputation (Def.~\ref{def:qvec}, Protos.~\ref{proto:judge},~\ref{proto:skill}) & \DESIGNED$\to$\VISION &
+The multi-dimensional score the market reads; the licensing side's signal. \\
+Neutral-judge market & \DESIGNED$\to$\VISION &
+The ``universities and rating agencies'' that keep grades honest. \\
+Grading-oracle hole (Prop.~\ref{prop:hole}, Conj.~\ref{conj:contract}) & \VISION &
+\emph{Owed back to the market paper}: its central IC theorem is conditional on closing this. \\
+Cross-operator attestation (Def.~\ref{def:0040b}) & \VISION &
+\emph{Named dependency the market paper must build}; not assumed here. \\
+Tombstone revocation (Prop.~\ref{prop:tombstone}) & \DESIGNED &
+Reputation is revocable; convergence is the market paper's federation job. \\
+\bottomrule
+\end{tabular}
+\caption{The bridge's hand-off to the market paper. Two items flow \emph{back} as
+named, unsolved obligations: the grading-oracle's incentive-compatibility
+(Conj.~\ref{conj:contract}) and cross-operator attestation (Def.~\ref{def:0040b}).
+The volume is one book precisely because these debts are named in the same words on
+both sides of the seam.}
+\label{tab:handoff}
+\end{table}
+
+\pullquote{Build the harbor first. The trade comes when the ships do --- but the
+thing that makes the trade possible (continuity that turns spawns into persons) is
+the same thing that makes the single-player tool good. The bridge is not a detour;
+it is the load path.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Open problems (the starred exercises, collected)}\label{sec:open}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The genuinely unsolved problems this paper surfaces, gathered for the reader who
+wants the research frontier rather than the pedagogy:
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item \textbf{Branching continuity (\S\ref{sec:continuity}).} If a checkpoint is
+  forked into two live incarnations, which inherits the reputation? Parfit says
+  identity-is-not-what-matters; the economy needs a rule, and the rule invites an
+  attack.
+  \item \textbf{Agent-death taxonomy (\S\ref{sec:organs}).} What is recoverable vs.\
+  fundamentally lost when an LLM agent dies mid-thought? The hard half of
+  checkpoint-with-teeth.
+  \item \textbf{Cross-operator attestation (\S\ref{sec:keystone}).} Binding
+  identity keys across harbors you do not own. The highest-leverage unbuilt
+  keystone for the market.
+  \item \textbf{The grading-oracle / rate-the-raters recursion (\S\ref{sec:oracle},
+  Conj.~\ref{conj:contract}).} Prove the re-audit tower contracts, or accept the
+  core IC theorem is conditional.
+  \item \textbf{Vector-reputation disclosure (\S\ref{sec:adr0049}).} Publish a
+  vector and agents Goodhart the heaviest axis; publish a scalar and you have a
+  bandit. The right disclosure form is open.
+  \item \textbf{Self-improvement arms race (\S\ref{sec:not-bandit}).} Chiu et
+  al.\ 2025: does capping reputation's marginal return restore efficiency or
+  relocate the waste?
+  \item \textbf{Reputation-claim revocation convergence (\S\ref{sec:revoke}).}
+  Surgically retract a fraudulent outcome across $N$ harbors, prove convergence,
+  bound the spendable window --- without violating append-only.
+  \item \textbf{Bond-farming defense (\S\ref{sec:identity}).} Principal binding vs.\
+  listing fee vs.\ sampled re-audit of high-velocity pairs; the false-positive cost
+  to honest high-volume counterparties.
+  \item \textbf{Arbitration capacity (\S\ref{sec:oracle}).} A market for bonded,
+  rated, slashable human/automated arbiters: honest rulings, or rubber-stamping
+  under load?
+  \item \textbf{Skill-version reputation (\S\ref{sec:adr0049}).} A portfolio proof
+  for skill v1 says nothing about v2; the lemons problem reappears at every version
+  bump.
+\end{enumerate}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}\label{sec:conclusion}
+% ═════════════════════════════════════════════════════════════════════════════
+
+We set out to bridge the wedge to the market by answering one question: what has to
+be true before a coding agent's work can be \emph{sold}? The answer is not a score.
+It is a \emph{self} --- a role plus continuity, keyed on an identity that cannot be
+re-picked, accumulating a transitive, witnessed history that survives every
+respawn. The estimator that turns that history into a number is the cheap, last
+part; the substrate beneath it is the gate, and most of that substrate is honestly
+not built yet.
+
+We were disciplined about the keystone (this paper stands on a local non-forgeable
+identity and hands the market paper the unbuilt cross-operator attestation by
+name), about the hardest hole (the grading oracle's incentive-compatibility is a
+flaw in the core theorem, not a footnote),
+and about the cheerful slogans (reputation is monotone in \emph{honest} outcomes
+but individually revocable, and bounded memory is a parameter, not a virtue).
+Reputation is not a bandit problem --- it is non-stationary, multi-dimensional,
+strategically adversarial, and graded by an oracle with its own incentives.
+
+\pullquote{A spawn does work and disappears. A person does work and \emph{stays} ---
+and only what stays can be priced. The harbor's whole economy is the machinery for
+manufacturing, and then honestly grading, a self.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\appendix
+\section{Implementation status of the reference system}\label{app:status}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The body of this paper is written to stand on its own: every mechanism is described
+as a component (a memory record, a checkpoint organ, a witnessed-outcome ledger) and
+graded on the neutral maturity scale (\BUILT~/ \BUILTWEAK~/ \DESIGNED~/ \VISION).
+This appendix grounds that scale in a concrete \emph{reference system} --- a running
+coordination daemon for local agent swarms --- so a reader who wants to know
+``which of these actually runs today'' can check. Nothing in the body depends on
+this appendix; it exists so the maturity labels are falsifiable rather than
+rhetorical.
+
+\begin{table}[H]
+\centering\small\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{4.4cm} p{2.1cm} p{6.6cm}@{}}
+\toprule
+\textbf{Component (paper concept)} & \textbf{Maturity} & \textbf{Status in the reference system} \\
+\midrule
+Episodic memory (Organ 1) & \BUILT &
+Durable typed episodes promoted from execution history; runs in production. \\
+Restart organ (Organ 2) & \BUILTWEAK &
+Heartbeat-staleness detector that salvages dead agents; forwards a \emph{summary}, not execution state. \\
+Outcome ledger (Organ 3) & \DESIGNED &
+Durable-commitment record type exists; oracle-bound closure is specified, not shipped. \\
+Cost meter (efficiency axis) & \BUILT &
+Per-task token/wall-clock/dollar accounting recorded today. \\
+Local non-forgeable identity & \DESIGNED &
+Daemon-minted opaque id bound to a credential; specified. Identities are self-asserted strings today. \\
+Capability jail (capability $\ne$ permission) & \DESIGNED &
+Per-agent tool-allowlist and scoped filesystem; specified. \\
+Honest-attestation discipline & \BUILT &
+``Report all-good only when verified'' is an enforced engineering rule. \\
+Multi-dimensional reputation & \DESIGNED$\to$\VISION &
+No reputation component yet; the substrate it scores over is partly built. \\
+Neutral-judge ceremony (Proto.~\ref{proto:judge}) & \DESIGNED$\to$\VISION &
+Bonding and task-planning primitives exist; the hiring ceremony is designed. \\
+Skill-helpfulness schema (Proto.~\ref{proto:skill}) & \DESIGNED &
+Skill grafting is observable; the witnessed-event schema is specified. \\
+Tombstone revocation (Proto.~\ref{proto:tombstone}) & \DESIGNED &
+Append-only ledger semantics are designed; cross-harbor propagation is \VISION. \\
+Cross-operator attestation & \VISION &
+The unbuilt keystone for the market; owed to the companion market paper. \\
+\bottomrule
+\end{tabular}
+\caption{Maturity of each paper concept against a reference coordination daemon.
+The honest summary: the \emph{organs} of continuity exist (one weakly); the
+\emph{spine} of reputation --- a witnessed-outcome ledger keyed on a non-forgeable
+identity --- is specified but not yet shipped.}
+\label{tab:app-status}
+\end{table}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+
+\bibitem{locke1689}
+John Locke.
+\newblock An Essay Concerning Human Understanding.
+\newblock 1689. (Bk II, ch.\ xxvii, ``Of Identity and Diversity.'')
+
+\bibitem{parfit1984}
+Derek Parfit.
+\newblock \textit{Reasons and Persons}.
+\newblock Oxford University Press, 1984.
+
+\bibitem{dennis1966programming}
+Jack B. Dennis and Earl C. Van Horn.
+\newblock Programming Semantics for Multiprogrammed Computations.
+\newblock \textit{Communications of the ACM}, 9(3):143--155, 1966.
+
+\bibitem{grossmanhart1986}
+Sanford J. Grossman and Oliver D. Hart.
+\newblock The Costs and Benefits of Ownership: A Theory of Vertical and Lateral Integration.
+\newblock \textit{Journal of Political Economy}, 94(4):691--719, 1986.
+
+\bibitem{park2023generative}
+Joon Sung Park, Joseph C. O'Brien, Carrie J. Cai, Meredith Ringel Morris, Percy Liang, and Michael S. Bernstein.
+\newblock Generative Agents: Interactive Simulacra of Human Behavior.
+\newblock In \textit{ACM Symposium on User Interface Software and Technology (UIST)}, 2023.
+
+\bibitem{friedmanresnick2001}
+Eric J. Friedman and Paul Resnick.
+\newblock The Social Cost of Cheap Pseudonyms.
+\newblock \textit{Journal of Economics \& Management Strategy}, 10(2):173--199, 2001.
+
+\bibitem{douceur2002}
+John R. Douceur.
+\newblock The Sybil Attack.
+\newblock In \textit{International Workshop on Peer-to-Peer Systems (IPTPS)}, 2002.
+
+\bibitem{bradleyterry1952}
+Ralph A. Bradley and Milton E. Terry.
+\newblock Rank Analysis of Incomplete Block Designs: I. The Method of Paired Comparisons.
+\newblock \textit{Biometrika}, 39(3/4):324--345, 1952.
+
+\bibitem{elo1978}
+Arpad E. Elo.
+\newblock \textit{The Rating of Chessplayers, Past and Present}.
+\newblock Arco Publishing, 1978.
+
+\bibitem{herbrich2007trueskill}
+Ralf Herbrich, Tom Minka, and Thore Graepel.
+\newblock TrueSkill: A Bayesian Skill Rating System.
+\newblock In \textit{Advances in Neural Information Processing Systems (NeurIPS)}, 2007.
+
+\bibitem{kamvar2003eigentrust}
+Sepandar D. Kamvar, Mario T. Schlosser, and Hector Garcia-Molina.
+\newblock The EigenTrust Algorithm for Reputation Management in P2P Networks.
+\newblock In \textit{International World Wide Web Conference (WWW)}, 2003.
+
+\bibitem{resnick2006value}
+Paul Resnick, Richard Zeckhauser, John Swanson, and Kate Lockwood.
+\newblock The Value of Reputation on eBay: A Controlled Experiment.
+\newblock \textit{Experimental Economics}, 9(2):79--101, 2006.
+
+\bibitem{tadelis2016}
+Steven Tadelis.
+\newblock Reputation and Feedback Systems in Online Platform Markets.
+\newblock \textit{Annual Review of Economics}, 8:321--340, 2016.
+
+\bibitem{zheng2023judging}
+Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, et al.
+\newblock Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.
+\newblock In \textit{Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks}, 2023.
+
+\bibitem{lattimore2020bandit}
+Tor Lattimore and Csaba Szepesv\'ari.
+\newblock \textit{Bandit Algorithms}.
+\newblock Cambridge University Press, 2020.
+
+\bibitem{thompson1933}
+William R. Thompson.
+\newblock On the Likelihood that One Unknown Probability Exceeds Another in View of the Evidence of Two Samples.
+\newblock \textit{Biometrika}, 25(3/4):285--294, 1933.
+
+\bibitem{liuskrzypacz2014}
+Qingmin Liu and Andrzej Skrzypacz.
+\newblock Limited Records and Reputation Bubbles.
+\newblock \textit{Journal of Economic Theory}, 151:2--29, 2014.
+
+\bibitem{nisan2007agt}
+Noam Nisan, Tim Roughgarden, \'Eva Tardos, and Vijay V. Vazirani (eds.).
+\newblock \textit{Algorithmic Game Theory}.
+\newblock Cambridge University Press, 2007.
+
+\bibitem{strathern1997}
+Marilyn Strathern.
+\newblock `Improving Ratings': Audit in the British University System.
+\newblock \textit{European Review}, 5(3):305--321, 1997. (Canonical statement of Goodhart's law.)
+
+\bibitem{garcia1987sagas}
+Hector Garcia-Molina and Kenneth Salem.
+\newblock Sagas.
+\newblock In \textit{ACM SIGMOD International Conference on Management of Data}, 1987.
+
+\bibitem{chiu2025strategic}
+Wei-Fan Chiu, Yuxuan Zhang, and Mihaela van der Schaar.
+\newblock Strategic Self-Improvement for Competitive Agents in AI Labour Markets.
+\newblock arXiv:2512.04988, 2025.
+
+\bibitem{myerson1981}
+Roger B. Myerson.
+\newblock Optimal Auction Design.
+\newblock \textit{Mathematics of Operations Research}, 6(1):58--73, 1981.
+
+\bibitem{rochettirole2003}
+Jean-Charles Rochet and Jean Tirole.
+\newblock Platform Competition in Two-Sided Markets.
+\newblock \textit{Journal of the European Economic Association}, 1(4):990--1029, 2003.
+
+\bibitem{akerlof1970}
+George A. Akerlof.
+\newblock The Market for ``Lemons'': Quality Uncertainty and the Market Mechanism.
+\newblock \textit{Quarterly Journal of Economics}, 84(3):488--500, 1970.
+
+\bibitem{ostrom1990}
+Elinor Ostrom.
+\newblock \textit{Governing the Commons: The Evolution of Institutions for Collective Action}.
+\newblock Cambridge University Press, 1990.
+
+\bibitem{hobbes1651}
+Thomas Hobbes.
+\newblock \textit{Leviathan}.
+\newblock 1651.
+
+\end{thebibliography}
+
+\end{document}

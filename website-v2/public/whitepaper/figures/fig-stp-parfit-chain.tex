@@ -1,0 +1,56 @@
+% Fig 3 — Parfitian continuity (transitive chain) vs Lockean connectedness (direct, non-transitive).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  inc/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
+              minimum width=22mm,minimum height=11mm,align=center,inner sep=2pt},
+  conn/.style={->,>=Latex,thick,draw=hhink},
+  bad/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+]
+\node[inc] (b)  at (0,0)  {incarnation 1\\{\scriptsize the ``boy''}};
+\node[inc] (o)  at (4,0)  {incarnation 2\\{\scriptsize the ``officer''}};
+\node[inc] (g)  at (8,0)  {incarnation 3\\{\scriptsize the ``general''}};
+
+% Direct memory connectedness (overlapping but NOT transitive)
+\draw[conn] (b.north east) to[bend left=20]
+  node[midway,above,font=\scriptsize,text=hhink] {remembers} (o.north west);
+\draw[conn] (o.north east) to[bend left=20]
+  node[midway,above,font=\scriptsize,text=hhink] {remembers} (g.north west);
+% The non-transitive gap (shallow arc just under the boxes; label centered in the
+% clear band so it never collides with the descending continuity arrows below).
+\draw[bad] (b.south) to[bend right=14] (g.south);
+\node[font=\scriptsize\itshape,text=hhink] at (4,-1.95)
+  {does \emph{not} directly remember (Reid's objection)};
+
+% The Parfitian repair: an overlapping chain is transitive => continuous.
+% Placed lower so a clear horizontal band separates the dashed arc from the box;
+% the two continuity arrows drop straight from the outer boxes' bottom corners.
+\node[draw=hhink,very thick,fill=hhsand!30,rounded corners=3pt,
+      below=26mm of o,align=left,text width=110mm,inner sep=7pt,
+      font=\footnotesize] (fix)
+  {\textbf{Parfit's repair.} \emph{Connectedness} (direct memory link) is
+   \textbf{not} transitive. \emph{Continuity} --- the overlapping \emph{chain} of
+   links --- \textbf{is} transitive, and it is what survives. Reputation must
+   accumulate across arbitrarily many incarnations, so it can only attach to the
+   transitive thing: the \textbf{witnessed-outcome ledger}, not the memory stream.};
+\draw[conn,very thick] (b.south west) to[bend right=12] (fix.north west);
+\draw[conn,very thick] (g.south east) to[bend left=12] (fix.north east);
+\end{tikzpicture}}
+\caption{\textbf{Continuity vs.\ connectedness.} Direct memory connectedness
+(green, top) overlaps but is not transitive --- the general need not remember being
+the boy. Parfitian \emph{continuity}, the overlapping chain, is transitive and is
+the identity-bearing relation. The engineering corollary: build the transitive
+\emph{outcome ledger}, because that is the organ reputation can key on.}
+\label{fig:parfit}
+\end{figure}
