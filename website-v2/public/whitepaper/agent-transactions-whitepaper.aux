@@ -32,9 +32,9 @@
 \@writefile{toc}{\contentsline {paragraph}{Commons governance.}{8}{section*.8}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Cryptoeconomic mechanism design.}{8}{section*.9}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{What is novel.}{8}{section*.10}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph  {prevented} (Layer~1 refuses; red dashed) and \emph  {priced} (Layer~1 admits, Layer~3 charges; brass dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured.}}{8}{figure.caption.11}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph  {prevented} (Layer~1 refuses; red dashed) and \emph  {priced} (Layer~1 admits, Layer~3 charges; amber dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured.}}{8}{figure.caption.11}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:bonded-three-layer}{{1}{8}{The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph {prevented} (Layer~1 refuses; red dashed) and \emph {priced} (Layer~1 admits, Layer~3 charges; brass dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured}{figure.caption.11}{}}
+\newlabel{fig:bonded-three-layer}{{1}{8}{The Bonded Commons three-layer architecture. Capability scope (Layer~1) refuses unauthorized actions at the boundary; the evidence chain (Layer~2) records every authorized action in a tamper-evident Merkle structure; the collateral pool (Layer~3) prices authorized-but-harmful actions via posted bonds that pay for damage. The two paths --- \emph {prevented} (Layer~1 refuses; red dashed) and \emph {priced} (Layer~1 admits, Layer~3 charges; amber dashed exit) --- together compose defense-in-depth without requiring OS-level isolation. The settlement arrow returns to the principal as refund or slash, depending on whether the evidence chain shows the bonded contract was honoured}{figure.caption.11}{}}
 \citation{aumann1974subjectivity}
 \@writefile{toc}{\contentsline {section}{\numberline {2}The Commons Authority}{9}{section.2}\protected@file@percent }
 \newlabel{sec:commons}{{2}{9}{The Commons Authority}{section.2}{}}
@@ -131,62 +131,65 @@
 \newlabel{prop:claim-signaling-ic}{{7.1}{20}{Claim Signaling Incentive Compatibility}{proposition.7.1}{}}
 \citation{owens2026anchor}
 \@writefile{toc}{\contentsline {paragraph}{What each condition buys, and what breaks when it is removed.}{21}{section*.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Mechanized claim-signaling.}{21}{section*.30}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {7.5}Pricing the Bond}{21}{subsection.7.5}\protected@file@percent }
 \newlabel{sec:pricing}{{7.5}{21}{Pricing the Bond}{subsection.7.5}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.1}Cleanup Lower Bound}{21}{subsubsection.7.5.1}\protected@file@percent }
-\newlabel{sec:cleanup-bound}{{7.5.1}{21}{Cleanup Lower Bound}{subsubsection.7.5.1}{}}
-\newlabel{thm:cleanup-bound}{{7.1}{21}{Cleanup Lower Bound}{theorem.7.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.1}Cleanup Lower Bound}{22}{subsubsection.7.5.1}\protected@file@percent }
+\newlabel{sec:cleanup-bound}{{7.5.1}{22}{Cleanup Lower Bound}{subsubsection.7.5.1}{}}
+\newlabel{thm:cleanup-bound}{{7.1}{22}{Cleanup Lower Bound}{theorem.7.1}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.2}Consequential-Scope Multiplier}{22}{subsubsection.7.5.2}\protected@file@percent }
 \newlabel{sec:scope-multiplier}{{7.5.2}{22}{Consequential-Scope Multiplier}{subsubsection.7.5.2}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.3}Reputation Discount}{22}{subsubsection.7.5.3}\protected@file@percent }
 \newlabel{sec:rep-discount}{{7.5.3}{22}{Reputation Discount}{subsubsection.7.5.3}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.4}Threat-Class Bond Sizing}{22}{subsubsection.7.5.4}\protected@file@percent }
 \newlabel{sec:pricing:threats}{{7.5.4}{22}{Threat-Class Bond Sizing}{subsubsection.7.5.4}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}}{23}{table.caption.30}\protected@file@percent }
-\newlabel{tab:threat-bonds}{{4}{23}{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants}{table.caption.30}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants.}}{23}{table.caption.31}\protected@file@percent }
+\newlabel{tab:threat-bonds}{{4}{23}{Threat-class bond sizing. Percentages are bond as a fraction of expected task value. Bands are starting points for calibration, not protocol constants}{table.caption.31}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.5}Bootstrap Path}{23}{subsubsection.7.5.5}\protected@file@percent }
 \newlabel{sec:pricing:bootstrap}{{7.5.5}{23}{Bootstrap Path}{subsubsection.7.5.5}{}}
-\@writefile{toc}{\contentsline {paragraph}{Phase 1 --- Subsidized seeding (weeks 1--4).}{23}{section*.31}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Phase 2 --- Complexity-proportional pricing with graduated access (months 2--6).}{24}{section*.32}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Phase 3 --- Competitive insurance (month 6+).}{24}{section*.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Phase 1 --- Subsidized seeding (weeks 1--4).}{23}{section*.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Phase 2 --- Complexity-proportional pricing with graduated access (months 2--6).}{24}{section*.33}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Phase 3 --- Competitive insurance (month 6+).}{24}{section*.34}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.6}Settlement and Dispute}{24}{subsubsection.7.5.6}\protected@file@percent }
 \newlabel{sec:pricing:settlement}{{7.5.6}{24}{Settlement and Dispute}{subsubsection.7.5.6}{}}
-\@writefile{toc}{\contentsline {paragraph}{Oracle 1 --- Automated.}{24}{section*.34}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Oracle 2 --- Evidence-based.}{25}{section*.35}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Oracle 3 --- Human audit.}{25}{section*.36}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Settlement rule.}{25}{section*.37}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Composition with cartel resistance.}{25}{section*.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Oracle 1 --- Automated.}{24}{section*.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Oracle 2 --- Evidence-based.}{25}{section*.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Oracle 3 --- Human audit.}{25}{section*.37}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Settlement rule.}{25}{section*.38}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Composition with cartel resistance.}{25}{section*.39}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.7}The Bonded Advisor}{25}{subsubsection.7.5.7}\protected@file@percent }
 \newlabel{sec:bonded-advisor}{{7.5.7}{25}{The Bonded Advisor}{subsubsection.7.5.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{$c$ as a project health metric.}{25}{section*.39}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{$c$ as a project health metric.}{25}{section*.40}\protected@file@percent }
 \citation{rothschildstiglitz1976}
 \citation{wilson1977insurance}
+\newlabel{sec:pricing:threats}{{7.5.7}{26}{Threat-class bond bands and their defensibility}{section*.41}{}}
+\@writefile{toc}{\contentsline {paragraph}{Threat-class bond bands and their defensibility.}{26}{section*.41}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.8}Competitive-Insurance Pricing Mechanism\footnote {This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite  {rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S  \ref {sec:youle:mechanism}--\S  \ref {sec:youle:welfare}.}}{26}{subsubsection.7.5.8}\protected@file@percent }
 \newlabel{sec:youle}{{7.5.8}{26}{Competitive-Insurance Pricing Mechanism\protect \footnote {This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite {rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S \ref {sec:youle:mechanism}--\S \ref {sec:youle:welfare}.}}{subsubsection.7.5.8}{}}
-\newlabel{sec:youle:mechanism}{{7.5.8}{26}{The mechanism}{section*.40}{}}
-\@writefile{toc}{\contentsline {paragraph}{The mechanism.}{26}{section*.40}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Market-discovered pricing.}{26}{section*.41}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Adverse-selection controls.}{26}{section*.42}\protected@file@percent }
-\newlabel{sec:youle:welfare}{{7.5.8}{26}{Welfare properties (claim)}{section*.43}{}}
-\@writefile{toc}{\contentsline {paragraph}{Welfare properties (claim).}{26}{section*.43}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S  \ref {sec:youle:welfare} below.}}{27}{figure.caption.44}\protected@file@percent }
-\newlabel{fig:auction-inline}{{3}{27}{Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S \ref {sec:youle:welfare} below}{figure.caption.44}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Pareto dominance of competitive auction over static escrow. Left: dominance rate as a function of reputation noise $\sigma _r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma _r = 0.5$; with 3 colluders it collapses past $\sigma _r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma _r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect.}}{27}{figure.caption.45}\protected@file@percent }
-\newlabel{fig:pareto-mc-inline}{{4}{27}{Pareto dominance of competitive auction over static escrow. Left: dominance rate as a function of reputation noise $\sigma _r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma _r = 0.5$; with 3 colluders it collapses past $\sigma _r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma _r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect}{figure.caption.45}{}}
-\@writefile{toc}{\contentsline {paragraph}{Relationship to the Bonded Advisor.}{28}{section*.46}\protected@file@percent }
+\newlabel{sec:youle:mechanism}{{7.5.8}{26}{The mechanism}{section*.42}{}}
+\@writefile{toc}{\contentsline {paragraph}{The mechanism.}{26}{section*.42}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Market-discovered pricing.}{26}{section*.43}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Adverse-selection controls.}{26}{section*.44}\protected@file@percent }
+\newlabel{sec:youle:welfare}{{7.5.8}{26}{Welfare properties (claim)}{section*.45}{}}
+\@writefile{toc}{\contentsline {paragraph}{Welfare properties (claim).}{26}{section*.45}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S  \ref {sec:youle:welfare} below.}}{27}{figure.caption.46}\protected@file@percent }
+\newlabel{fig:auction-inline}{{3}{27}{Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S \ref {sec:youle:welfare} below}{figure.caption.46}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Pareto dominance of competitive auction over static escrow. Left: dominance rate as a function of reputation noise $\sigma _r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma _r = 0.5$; with 3 colluders it collapses past $\sigma _r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma _r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect.}}{27}{figure.caption.47}\protected@file@percent }
+\newlabel{fig:pareto-mc-inline}{{4}{27}{Pareto dominance of competitive auction over static escrow. Left: dominance rate as a function of reputation noise $\sigma _r$ at $n=5$ insurers, split by cartel size. Dominance holds robustly with no cartel even at $\sigma _r = 0.5$; with 3 colluders it collapses past $\sigma _r \approx 0.1$. Right: dominance rate vs.\ $n$ at $\sigma _r = 0$ and no cartel; $n=3$ is the empirical optimum due to the winner's-curse order-statistic effect}{figure.caption.47}{}}
+\@writefile{toc}{\contentsline {paragraph}{Relationship to the Bonded Advisor.}{28}{section*.48}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.9}A5 --- Sybil deterrence is coverage-bounded}{28}{subsubsection.7.5.9}\protected@file@percent }
 \newlabel{sec:youle:a5}{{7.5.9}{28}{A5 --- Sybil deterrence is coverage-bounded}{subsubsection.7.5.9}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm  {dep}}$, then undercuts honest bids by $\varepsilon $ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm  {dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref {fig:sybil-mc-inline}.}}{28}{figure.caption.47}\protected@file@percent }
-\newlabel{fig:sybil-inline}{{5}{28}{Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm {dep}}$, then undercuts honest bids by $\varepsilon $ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm {dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref {fig:sybil-mc-inline}}{figure.caption.47}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm  {dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm  {dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu (1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm  {kyc}}$ + reputation gating + per-class $B_{\mathrm  {dep}}$); pure deposit-based deterrence is provably insufficient.}}{29}{figure.caption.48}\protected@file@percent }
-\newlabel{fig:sybil-mc-inline}{{6}{29}{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm {dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm {dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu (1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm {kyc}}$ + reputation gating + per-class $B_{\mathrm {dep}}$); pure deposit-based deterrence is provably insufficient}{figure.caption.48}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm  {dep}}$, then undercuts honest bids by $\varepsilon $ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm  {dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref {fig:sybil-mc-inline}.}}{28}{figure.caption.49}\protected@file@percent }
+\newlabel{fig:sybil-inline}{{5}{28}{Sybil attack flow. The attacker spawns $K$ Sybil identities, each posting deposit $B_{\mathrm {dep}}$, then undercuts honest bids by $\varepsilon $ and defaults on loss. The protocol confiscates the Sybil's deposit on default, but the slash amount is capped at the coverage $B_T$ --- so beyond $B_{\mathrm {dep}} \geq B_T$ additional deposit provides no extra deterrence. Empirically demonstrated in Figure~\ref {fig:sybil-mc-inline}}{figure.caption.49}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm  {dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm  {dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu (1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm  {kyc}}$ + reputation gating + per-class $B_{\mathrm  {dep}}$); pure deposit-based deterrence is provably insufficient.}}{29}{figure.caption.50}\protected@file@percent }
+\newlabel{fig:sybil-mc-inline}{{6}{29}{A5 --- Sybil attack: deposit-only deterrence has a coverage-bounded ceiling. Left: attacker net profit per 50-transaction trial stays positive across the entire deposit sweep ($B_{\mathrm {dep}} \in [0.5, 1000]$ USD). Right: commons deficit converges to zero around $B_{\mathrm {dep}} \approx 200$ USD --- the protocol is fully reimbursed, but the attacker still profits because deposit slash is capped at coverage $B_T = \mu (1+s)$. Closing A5 requires a composite mechanism ($C_{\mathrm {kyc}}$ + reputation gating + per-class $B_{\mathrm {dep}}$); pure deposit-based deterrence is provably insufficient}{figure.caption.50}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {7.5.10}A6 --- Cartel sustainability under the folk theorem}{29}{subsubsection.7.5.10}\protected@file@percent }
 \newlabel{sec:youle:a6}{{7.5.10}{29}{A6 --- Cartel sustainability under the folk theorem}{subsubsection.7.5.10}{}}
 \citation{owens2026anchor}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm  {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star $ used in Figure~\ref {fig:cartel-folk}.}}{30}{figure.caption.49}\protected@file@percent }
-\newlabel{fig:cartel-game-inline}{{7}{30}{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star $ used in Figure~\ref {fig:cartel-folk}}{figure.caption.49}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta )$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star $. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta $. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels.}}{30}{figure.caption.50}\protected@file@percent }
-\newlabel{fig:cartel-folk}{{8}{30}{A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta )$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star $. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta $. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels}{figure.caption.50}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm  {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star $ used in Figure~\ref {fig:cartel-folk}.}}{30}{figure.caption.51}\protected@file@percent }
+\newlabel{fig:cartel-game-inline}{{7}{30}{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star $ used in Figure~\ref {fig:cartel-folk}}{figure.caption.51}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta )$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star $. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta $. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels.}}{30}{figure.caption.52}\protected@file@percent }
+\newlabel{fig:cartel-folk}{{8}{30}{A6 --- Repeated-game cartel folk-theorem. Left: sustainability map over the $(p_d, \delta )$ grid; red cells are configurations where the grim-trigger cartel beats one-shot defection in expected PV (sustainable), white cells are where it does not (collapses). The thick black vertical bars mark the per-row threshold $p_d^\star $. Right: mean cartel lifespan (rounds until first detection) vs.\ $p_d$, one line per discount factor $\delta $. At the realistic $\delta = 0.95$, $p_d^\star \approx 0.10$: protocols must achieve $\ge 10\%$ per-round detection to break repeated-game cartels}{figure.caption.52}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {8}Coordination as Substrate: An Expressive-Act Taxonomy}{31}{section.8}\protected@file@percent }
 \newlabel{sec:taxonomy}{{8}{31}{Coordination as Substrate: An Expressive-Act Taxonomy}{section.8}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Five Expressive Classes}{31}{subsection.8.1}\protected@file@percent }
@@ -194,9 +197,9 @@
 \@writefile{toc}{\contentsline {section}{\numberline {9}Vibe Time and Observability}{31}{section.9}\protected@file@percent }
 \newlabel{sec:vibe}{{9}{31}{Vibe Time and Observability}{section.9}{}}
 \citation{lamport2002specifying}
-\@writefile{toc}{\contentsline {paragraph}{Token-rate telemetry as first-class signal.}{32}{section*.51}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Replay JSONL as artifact.}{32}{section*.52}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Privacy contract.}{32}{section*.53}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Token-rate telemetry as first-class signal.}{32}{section*.53}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Replay JSONL as artifact.}{32}{section*.54}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Privacy contract.}{32}{section*.55}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {10}Formal Model}{32}{section.10}\protected@file@percent }
 \newlabel{sec:tlaplus}{{10}{32}{Formal Model}{section.10}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {10.1}State and Actions}{32}{subsection.10.1}\protected@file@percent }
@@ -214,14 +217,14 @@
 \citation{sen1970impossibility}
 \citation{garciamolina1987sagas}
 \citation{rao1991modeling}
-\@writefile{toc}{\contentsline {paragraph}{Property verification.}{35}{section*.54}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Property verification.}{35}{section*.56}\protected@file@percent }
 \newlabel{lem:no-overdraft}{{10.1}{35}{No Overdraft Under Concurrent Escrow}{lemma.10.1}{}}
-\@writefile{toc}{\contentsline {paragraph}{Graduated sanctions.}{35}{section*.55}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Graduated sanctions.}{35}{section*.57}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {11}Related Work}{35}{section.11}\protected@file@percent }
 \newlabel{sec:related}{{11}{35}{Related Work}{section.11}{}}
-\@writefile{toc}{\contentsline {paragraph}{Social contract theory.}{35}{section*.56}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Impossibility results.}{35}{section*.57}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Long-lived transactions.}{35}{section*.58}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Social contract theory.}{35}{section*.58}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Impossibility results.}{35}{section*.59}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Long-lived transactions.}{35}{section*.60}\protected@file@percent }
 \citation{park2023generative}
 \citation{dennis1966programming}
 \citation{birgisson2014macaroons}
@@ -229,59 +232,57 @@
 \citation{vickrey1961counterspeculation}
 \citation{myerson1981optimal}
 \citation{laurie2013ct}
-\@writefile{toc}{\contentsline {paragraph}{BDI agents.}{36}{section*.59}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Generative agents.}{36}{section*.60}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Capability-based security.}{36}{section*.61}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Mechanism design.}{36}{section*.62}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{BDI agents.}{36}{section*.61}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Generative agents.}{36}{section*.62}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Capability-based security.}{36}{section*.63}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Mechanism design.}{36}{section*.64}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {12}Discussion and Limitations}{36}{section.12}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{The commons authority is a single point of failure.}{36}{section*.63}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Collateral does not prevent harm---it prices it.}{36}{section*.64}\protected@file@percent }
-\newlabel{sec:federated-sovereign}{{12}{36}{The Federated Sovereign}{section*.65}{}}
-\@writefile{toc}{\contentsline {paragraph}{The Federated Sovereign.}{36}{section*.65}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The commons authority is a single point of failure.}{36}{section*.65}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Collateral does not prevent harm---it prices it.}{36}{section*.66}\protected@file@percent }
+\newlabel{sec:federated-sovereign}{{12}{36}{The Federated Sovereign}{section*.67}{}}
+\@writefile{toc}{\contentsline {paragraph}{The Federated Sovereign.}{36}{section*.67}\protected@file@percent }
 \newlabel{def:kms}{{12.1}{36}{Admissible KMS}{definition.12.1}{}}
-\@writefile{toc}{\contentsline {paragraph}{Trust boundary.}{37}{section*.66}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Magic-link single-use atomicity.}{37}{section*.67}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Magic-link single-use atomicity. The SQL \texttt  {UPDATE \dots  WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm  {inj\text  {-}event}(\texttt  {consumed\_for}) \Rightarrow \mathrm  {inj\text  {-}event}(\texttt  {issued\_for})$) and binding.}}{37}{figure.caption.68}\protected@file@percent }
-\newlabel{fig:magic-link-inline}{{9}{37}{Magic-link single-use atomicity. The SQL \texttt {UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm {inj\text {-}event}(\texttt {consumed\_for}) \Rightarrow \mathrm {inj\text {-}event}(\texttt {issued\_for})$) and binding}{figure.caption.68}{}}
+\@writefile{toc}{\contentsline {paragraph}{Trust boundary.}{37}{section*.68}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Magic-link single-use atomicity.}{37}{section*.69}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Magic-link single-use atomicity. The SQL \texttt  {UPDATE \dots  WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm  {inj\text  {-}event}(\texttt  {consumed\_for}) \Rightarrow \mathrm  {inj\text  {-}event}(\texttt  {issued\_for})$) and binding.}}{37}{figure.caption.70}\protected@file@percent }
+\newlabel{fig:magic-link-inline}{{9}{37}{Magic-link single-use atomicity. The SQL \texttt {UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm {inj\text {-}event}(\texttt {consumed\_for}) \Rightarrow \mathrm {inj\text {-}event}(\texttt {issued\_for})$) and binding}{figure.caption.70}{}}
 \newlabel{thm:federated-security}{{12.1}{37}{Federated Security, informal}{theorem.12.1}{}}
 \citation{shamir1979share}
 \citation{ongaro2014search}
 \citation{lamport1998part}
-\@writefile{toc}{\contentsline {paragraph}{Recovery and its honest limits.}{38}{section*.69}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Passkeys, not passwords.}{38}{section*.70}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Multi-node consensus.}{38}{section*.71}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{38}{section*.72}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Bond pricing is unsolved.}{38}{section*.73}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Recovery and its honest limits.}{38}{section*.71}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Passkeys, not passwords.}{38}{section*.72}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Multi-node consensus.}{38}{section*.73}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Recovery fidelity depends on LLM capability.}{38}{section*.74}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Bond pricing is unsolved.}{38}{section*.75}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {13}Conclusion}{38}{section.13}\protected@file@percent }
 \citation{owens2026anchor}
 \@writefile{toc}{\contentsline {section}{\numberline {A}Formal Verification Status}{39}{appendix.A}\protected@file@percent }
 \newlabel{app:mech}{{A}{39}{Formal Verification Status}{appendix.A}{}}
-\@writefile{toc}{\contentsline {paragraph}{Artifact availability.}{39}{section*.74}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph  {and} a runtime conformance test is fully closed ({\textcolor {hhpatina}{\textbf  {\textsf  {closed}}}}); a claim with formal model but no deployed runtime is spec-only ({\textcolor {hhcinnabar}{\textbf  {\textsf  {spec-only}}}}); a claim with empirical evidence but no formal mechanization is partial ({\textcolor {hhbrass}{\textbf  {\textsf  {partial}}}}).}}{40}{table.caption.75}\protected@file@percent }
-\newlabel{tab:verification-status}{{5}{40}{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph {and} a runtime conformance test is fully closed (\Closed ); a claim with formal model but no deployed runtime is spec-only (\SpecOnly ); a claim with empirical evidence but no formal mechanization is partial (\Partial )}{table.caption.75}{}}
-\@writefile{toc}{\contentsline {paragraph}{Limitations.}{40}{section*.76}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Artifact availability.}{39}{section*.76}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph  {and} a runtime conformance test is fully closed ({\textcolor {hhteal}{\textbf  {\textsf  {closed}}}}); a claim with formal model but no deployed runtime is spec-only ({\textcolor {hhcobalt}{\textbf  {\textsf  {spec-only}}}}); a claim with empirical evidence but no formal mechanization is partial ({\textcolor {hhamber}{\textbf  {\textsf  {partial}}}}).}}{40}{table.caption.77}\protected@file@percent }
+\newlabel{tab:verification-status}{{5}{40}{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph {and} a runtime conformance test is fully closed (\Closed ); a claim with formal model but no deployed runtime is spec-only (\SpecOnly ); a claim with empirical evidence but no formal mechanization is partial (\Partial )}{table.caption.77}{}}
 \citation{owens2026anchor}
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{41}{section*.78}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {B}Worked Example: One Agent, All Layers}{41}{appendix.B}\protected@file@percent }
 \newlabel{app:worked}{{B}{41}{Worked Example: One Agent, All Layers}{appendix.B}{}}
-\@writefile{toc}{\contentsline {paragraph}{The task.}{41}{section*.77}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Worked-example timeline (App~D). Three swimlanes for the three architectural layers; events placed by wall-clock minute on the $x$-axis. Layer~1 (structural) issues the capability at $t_0$, releases on TTL after crash, and re-issues for the successor. Layer~3 (economic) posts \$6 in escrow at $t_0+1$ and settles at $t_0+24$. Layer~2 (attribution) accumulates evidence-chain entries $h_1$--$h_5$ on $\alpha $'s timeline and $h_6$--$h_8$ on $\beta $'s, linked by an explicit \emph  {salvage parent} edge so attribution survives the identity disposal at minute~12.}}{41}{figure.caption.78}\protected@file@percent }
-\newlabel{fig:worked-example}{{10}{41}{Worked-example timeline (App~D). Three swimlanes for the three architectural layers; events placed by wall-clock minute on the $x$-axis. Layer~1 (structural) issues the capability at $t_0$, releases on TTL after crash, and re-issues for the successor. Layer~3 (economic) posts \$6 in escrow at $t_0+1$ and settles at $t_0+24$. Layer~2 (attribution) accumulates evidence-chain entries $h_1$--$h_5$ on $\alpha $'s timeline and $h_6$--$h_8$ on $\beta $'s, linked by an explicit \emph {salvage parent} edge so attribution survives the identity disposal at minute~12}{figure.caption.78}{}}
-\@writefile{toc}{\contentsline {paragraph}{Step 1: Capability issuance (Layer 1).}{41}{section*.80}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Step 2: Bond posting (Layer 3).}{42}{section*.81}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Step 3: Advisory claim (\S  \ref {sec:sen}).}{42}{section*.83}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Step 4: Evidence chain begins (Layer 2).}{42}{section*.84}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Step 5: Mid-task crash (\S  \ref {sec:crash-recovery}).}{42}{section*.86}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Step 6: Successor agent.}{42}{section*.87}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The task.}{41}{section*.79}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Worked-example timeline (App~D). Three swimlanes for the three architectural layers; events placed by wall-clock minute on the $x$-axis. Layer~1 (structural) issues the capability at $t_0$, releases on TTL after crash, and re-issues for the successor. Layer~3 (economic) posts \$6 in escrow at $t_0+1$ and settles at $t_0+24$. Layer~2 (attribution) accumulates evidence-chain entries $h_1$--$h_5$ on $\alpha $'s timeline and $h_6$--$h_8$ on $\beta $'s, linked by an explicit \emph  {salvage parent} edge so attribution survives the identity disposal at minute~12.}}{41}{figure.caption.80}\protected@file@percent }
+\newlabel{fig:worked-example}{{10}{41}{Worked-example timeline (App~D). Three swimlanes for the three architectural layers; events placed by wall-clock minute on the $x$-axis. Layer~1 (structural) issues the capability at $t_0$, releases on TTL after crash, and re-issues for the successor. Layer~3 (economic) posts \$6 in escrow at $t_0+1$ and settles at $t_0+24$. Layer~2 (attribution) accumulates evidence-chain entries $h_1$--$h_5$ on $\alpha $'s timeline and $h_6$--$h_8$ on $\beta $'s, linked by an explicit \emph {salvage parent} edge so attribution survives the identity disposal at minute~12}{figure.caption.80}{}}
+\@writefile{toc}{\contentsline {paragraph}{Step 1: Capability issuance (Layer 1).}{42}{section*.82}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 2: Bond posting (Layer 3).}{42}{section*.83}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 3: Advisory claim (\S  \ref {sec:sen}).}{42}{section*.85}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 4: Evidence chain begins (Layer 2).}{42}{section*.86}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 5: Mid-task crash (\S  \ref {sec:crash-recovery}).}{42}{section*.88}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 6: Successor agent.}{42}{section*.89}\protected@file@percent }
 \citation{owens2026anchor}
-\@writefile{toc}{\contentsline {paragraph}{Step 7: Settlement.}{43}{section*.89}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{What did each layer do?}{43}{section*.90}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{What did \emph  {not} happen.}{43}{section*.91}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Step 7: Settlement.}{43}{section*.91}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What did each layer do?}{43}{section*.92}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What did \emph  {not} happen.}{43}{section*.93}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {C}Exercises}{43}{appendix.C}\protected@file@percent }
 \newlabel{app:exercises}{{C}{43}{Exercises}{appendix.C}{}}
-\@writefile{toc}{\contentsline {paragraph}{E1 (Definitions).}{43}{section*.92}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E2 (Mechanism design).}{43}{section*.93}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E3 (Formal verification).}{43}{section*.94}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E4 (Coverage-bound A5).}{43}{section*.95}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E1 (Definitions).}{43}{section*.94}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E2 (Mechanism design).}{43}{section*.95}\protected@file@percent }
 \citation{fan2014cuckoo}
 \citation{demers1987epidemic}
 \bibstyle{plain}
@@ -291,14 +292,16 @@
 \bibcite{aumann1974subjectivity}{4}
 \bibcite{garciamolina1987sagas}{5}
 \bibcite{gray1993transaction}{6}
+\@writefile{toc}{\contentsline {paragraph}{E3 (Formal verification).}{44}{section*.96}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E4 (Coverage-bound A5).}{44}{section*.97}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E5 (Cartel folk-theorem).}{44}{section*.98}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E6 (Capability attenuation).}{44}{section*.99}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E7 (Cuckoo-filter pollution).}{44}{section*.100}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E8 (Mechanism extension).}{44}{section*.101}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{E9 (Open problem).}{44}{section*.102}\protected@file@percent }
 \bibcite{mohan1992aries}{7}
 \bibcite{rao1991modeling}{8}
 \bibcite{park2023generative}{9}
-\@writefile{toc}{\contentsline {paragraph}{E5 (Cartel folk-theorem).}{44}{section*.96}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E6 (Capability attenuation).}{44}{section*.97}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E7 (Cuckoo-filter pollution).}{44}{section*.98}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E8 (Mechanism extension).}{44}{section*.99}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{E9 (Open problem).}{44}{section*.100}\protected@file@percent }
 \bibcite{owens2026anchor}{10}
 \bibcite{lamport2002specifying}{11}
 \bibcite{lamport1998part}{12}

@@ -1,32 +1,32 @@
 % Sybil attack flow — placed inline near the A5 subsection in body.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
   font=\sffamily\small,
-  adv/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,
+  adv/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=hhcinnabar},
-  sybil/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+              font=\sffamily\bfseries,text=hhcobalt},
+  sybil/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,minimum width=16mm,align=center,
                 font=\sffamily\footnotesize},
   honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                  inner sep=3pt,minimum width=16mm,align=center},
   auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
                   inner sep=5pt,align=center,minimum width=28mm},
-  payout/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
+  payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
 \node[adv] (attacker) at (0,3.4) {ATTACKER};
 \node[sybil,right=12mm of attacker.east,yshift=14mm] (s1)
@@ -46,21 +46,21 @@
 \draw[badarr] (s1.east) to[bend left=14] (auction.north west);
 \draw[badarr] (s2.east) to (auction.west);
 \draw[badarr] (s3.east) to[bend right=10] (auction.south west);
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       align=center,above=1mm of auction.north]
   {sybils bid $(1-\varepsilon) q_{\min}^{\mathrm{honest}}$};
 \draw[arr] (h1.west) to[bend left=10] (auction.east);
 \draw[arr] (h2.west) to[bend left=14] (auction.east);
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       align=center,below=12mm of auction,font=\sffamily\bfseries,
-      text=hhcinnabar] (winner) {WINNER: $S_i$};
-\draw[arr,line width=1.4pt,draw=hhcinnabar] (auction.south) -- (winner.north);
-\node[payout,left=8mm of winner,fill=hhbrass!20,minimum width=44mm,align=left]
+      text=hhcobalt] (winner) {WINNER: $S_i$};
+\draw[arr,line width=1.4pt,draw=hhcobalt] (auction.south) -- (winner.north);
+\node[payout,left=8mm of winner,fill=hhamber!20,minimum width=44mm,align=left]
   (lossbox)
   {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
    protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=hhcinnabar,dashed] (winner.west) -- (lossbox.east);
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
+\draw[arr,draw=hhcobalt,dashed] (winner.west) -- (lossbox.east);
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
       align=left,text width=148mm,below=14mm of winner.south,xshift=30mm,
       anchor=north]
   {{\bfseries A5 finding:} the deposit slash is capped at the coverage

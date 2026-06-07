@@ -3,13 +3,13 @@
 % of a single revocation across a 5-daemon mesh via anti-entropy gossip.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -23,15 +23,15 @@
   daemonClean/.style={draw=hhebony,thick,fill=hhsand,
                       circle,minimum size=7mm,inner sep=0pt,
                       font=\sffamily\footnotesize\bfseries},
-  daemonRevoked/.style={draw=hhcinnabar,line width=1.2pt,fill=hhcinnabar!30,
+  daemonRevoked/.style={draw=hhcobalt,line width=1.2pt,fill=hhcobalt!30,
                         circle,minimum size=7mm,inner sep=0pt,
                         font=\sffamily\footnotesize\bfseries,text=hhebony},
   meshedge/.style={draw=hhink,thin,dotted},
-  gossipedge/.style={->,>=Latex,thick,draw=hhcinnabar},
+  gossipedge/.style={->,>=Latex,thick,draw=hhcobalt},
   timelabel/.style={font=\sffamily\bfseries\small,text=hhink,anchor=south},
-  vvlbl/.style={font=\sffamily\scriptsize\ttfamily,text=hhpatina},
-  filterbadge/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=1pt,
-                      inner sep=2pt,font=\sffamily\scriptsize,text=hhpatina,
+  vvlbl/.style={font=\sffamily\scriptsize\ttfamily,text=hhteal},
+  filterbadge/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
+                      inner sep=2pt,font=\sffamily\scriptsize,text=hhteal,
                       align=center},
 ]
 
@@ -122,7 +122,7 @@
 \node[panelframe,right=5mm of p4] (p5) {};
 \node[paneltitle] at (p5.north) {$t = 120\text{s}$};
 \meshfive{18.8}{-0.6}{1}{1}{1}{1}{1}{}
-\node[font=\sffamily\scriptsize,text=hhcinnabar,
+\node[font=\sffamily\scriptsize,text=hhcobalt,
       below=-1mm of p5.south,anchor=north,align=center]
   {revoked card \\ rejected everywhere};
 
@@ -142,8 +142,8 @@
    (epidemic spread; security-critical revocations may trigger immediate push).\\[2pt]
    {\bfseries Legend.}\quad
    sand-filled node $=$ filter clean \quad$\cdot$\quad
-   cinnabar-ringed node $=$ filter contains revoked card \quad$\cdot$\quad
-   {\color{hhcinnabar}$\longrightarrow$} $=$ gossip delta this round};
+   cobalt-ringed node $=$ filter contains revoked card \quad$\cdot$\quad
+   {\color{hhcobalt}$\longrightarrow$} $=$ gossip delta this round};
 
 \end{tikzpicture}%
 }

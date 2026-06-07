@@ -1,13 +1,13 @@
 % Algorithm-confusion attack defense — inline in §3.1 (Phase 1).
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -16,17 +16,17 @@
   font=\sffamily\small,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                 inner sep=4pt,minimum width=22mm,align=center,font=\sffamily\bfseries\footnotesize},
-  bad/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries\footnotesize,text=hhcinnabar},
+              font=\sffamily\bfseries\footnotesize,text=hhcobalt},
   token/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
                 font=\sffamily\footnotesize\ttfamily,align=left},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
-  ok/.style={draw=hhpatina,fill=hhpaper,thick,rounded corners=2pt,
-             font=\sffamily\footnotesize,text=hhpatina,inner sep=3pt},
-  rejected/.style={draw=hhcinnabar,fill=hhpaper,thick,rounded corners=2pt,
-                   font=\sffamily\bfseries\footnotesize,text=hhcinnabar,inner sep=3pt},
+  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  ok/.style={draw=hhteal,fill=hhpaper,thick,rounded corners=2pt,
+             font=\sffamily\footnotesize,text=hhteal,inner sep=3pt},
+  rejected/.style={draw=hhcobalt,fill=hhpaper,thick,rounded corners=2pt,
+                   font=\sffamily\bfseries\footnotesize,text=hhcobalt,inner sep=3pt},
 ]
 % Top row: naive verifier path (attack succeeds)
 \node[actor] (daemon1) at (0,3.4) {Daemon};
@@ -36,15 +36,15 @@
 \node[token,right=8mm of attacker1] (tok1b)
   {\{alg: \textbf{none}, ...\}\\.``''};
 \node[actor,right=8mm of tok1b] (naive) {Naive verifier};
-\node[rejected,right=4mm of naive,fill=hhcinnabar!20] (accept-bad) {ACCEPT (bad!)};
+\node[rejected,right=4mm of naive,fill=hhcobalt!20] (accept-bad) {ACCEPT (bad!)};
 \draw[arr] (daemon1.east) -- node[above,font=\sffamily\footnotesize]
   {issue} (tok1.west);
 \draw[badarr] (tok1.east) -- node[above,font=\sffamily\footnotesize\itshape,
-                                  text=hhcinnabar] {rewrite alg} (attacker1.west);
+                                  text=hhcobalt] {rewrite alg} (attacker1.west);
 \draw[badarr] (attacker1.east) -- (tok1b.west);
 \draw[badarr] (tok1b.east) -- (naive.west);
 \draw[badarr] (naive.east) -- (accept-bad.west);
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       above=2mm of naive.north,align=center]
   {trusts alg header\\ from token};
 % Bottom row: pinned verifier path (attack rejected)
@@ -54,22 +54,22 @@
 \node[bad,right=8mm of tok2] (attacker2) {ATTACKER};
 \node[token,right=8mm of attacker2] (tok2b)
   {\{alg: \textbf{none}, ...\}\\.``''};
-\node[actor,right=8mm of tok2b,fill=hhpatina!20] (pinned)
+\node[actor,right=8mm of tok2b,fill=hhteal!20] (pinned)
   {Pinned verifier};
 \node[ok,right=4mm of pinned] (reject) {REJECT (good)};
 \draw[arr] (daemon2.east) -- (tok2.west);
 \draw[badarr] (tok2.east) -- node[above,font=\sffamily\footnotesize\itshape,
-                                  text=hhcinnabar] {rewrite alg} (attacker2.west);
+                                  text=hhcobalt] {rewrite alg} (attacker2.west);
 \draw[badarr] (attacker2.east) -- (tok2b.west);
 \draw[badarr] (tok2b.east) -- (pinned.west);
-\draw[arr,draw=hhpatina,line width=1.4pt] (pinned.east) -- (reject.west);
-\node[font=\sffamily\footnotesize\itshape,text=hhpatina,
+\draw[arr,draw=hhteal,line width=1.4pt] (pinned.east) -- (reject.west);
+\node[font=\sffamily\footnotesize\itshape,text=hhteal,
       above=2mm of pinned.north,align=center]
   {pins alg at issuance,\\ ignores token's alg field};
 % Header labels
-\node[font=\sffamily\bfseries,left=2mm of daemon1.west,text=hhcinnabar]
+\node[font=\sffamily\bfseries,left=2mm of daemon1.west,text=hhcobalt]
   {(a)};
-\node[font=\sffamily\bfseries,left=2mm of daemon2.west,text=hhpatina]
+\node[font=\sffamily\bfseries,left=2mm of daemon2.west,text=hhteal]
   {(b)};
 \end{tikzpicture}%
 }

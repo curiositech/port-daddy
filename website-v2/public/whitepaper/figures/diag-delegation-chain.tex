@@ -4,13 +4,13 @@
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.symbols,decorations.pathreplacing}
 
 \definecolor{sand}{HTML}{E9DCC4}
-\definecolor{sanddeep}{HTML}{D4C5A9}
-\definecolor{ebony}{HTML}{1E1B18}
-\definecolor{ink}{HTML}{2C2A26}
-\definecolor{cinnabar}{HTML}{CC3D2E}
-\definecolor{brass}{HTML}{B08D57}
-\definecolor{patina}{HTML}{5C7A6A}
-\definecolor{paper}{HTML}{FBF7EE}
+\definecolor{sanddeep}{HTML}{D8C7A6}
+\definecolor{ebony}{HTML}{121212}
+\definecolor{ink}{HTML}{1B1712}
+\definecolor{cobalt}{HTML}{003FB8}
+\definecolor{amber}{HTML}{6B4500}
+\definecolor{teal}{HTML}{00564C}
+\definecolor{paper}{HTML}{FBF7EF}
 
 \begin{document}
 \begin{tikzpicture}[
@@ -18,12 +18,12 @@
   hop/.style={draw=ebony,thick,fill=sand,rounded corners=2pt,
               minimum width=24mm,minimum height=11mm,inner sep=3pt,
               align=center},
-  sig/.style={draw=brass,thick,fill=paper,rounded corners=1pt,
+  sig/.style={draw=amber,thick,fill=paper,rounded corners=1pt,
               inner sep=2pt,font=\sffamily\footnotesize},
-  fresh/.style={draw=patina,thick,fill=paper,rounded corners=1pt,
+  fresh/.style={draw=teal,thick,fill=paper,rounded corners=1pt,
                 inner sep=2pt,font=\sffamily\footnotesize},
   arr/.style={->,>=Latex,thick,draw=ink},
-  badarr/.style={->,>=Latex,thick,draw=cinnabar,dashed},
+  badarr/.style={->,>=Latex,thick,draw=cobalt,dashed},
 ]
 
 \node[font=\sffamily\bfseries,anchor=west] at (-0.4,4.8)
@@ -52,9 +52,9 @@
 \draw[arr] (h2.east) -- (h3.west);
 
 % Terminal arrows
-\node[draw=patina,thick,fill=paper,rounded corners=2pt,inner sep=3pt,
+\node[draw=teal,thick,fill=paper,rounded corners=2pt,inner sep=3pt,
       left=8mm of h1] (origin) {origin};
-\node[draw=patina,thick,fill=paper,rounded corners=2pt,inner sep=3pt,
+\node[draw=teal,thick,fill=paper,rounded corners=2pt,inner sep=3pt,
       right=8mm of h3] (target) {$\mathrm{id}_4$\\target};
 \draw[arr] (origin.east) -- (h1.west);
 \draw[arr] (h3.east) -- (target.west);
@@ -75,7 +75,7 @@
 
 % Attack arrow
 \node[font=\sffamily\footnotesize\itshape,right=4mm of walker.east,
-      align=left,text=cinnabar]
+      align=left,text=cobalt]
   {17 / 17 conformance\\tests pass};
 
 \end{tikzpicture}

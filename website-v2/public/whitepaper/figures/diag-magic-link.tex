@@ -5,13 +5,13 @@
 
 % Harbor Heritage palette
 \definecolor{sand}{HTML}{E9DCC4}
-\definecolor{sanddeep}{HTML}{D4C5A9}
-\definecolor{ebony}{HTML}{1E1B18}
-\definecolor{ink}{HTML}{2C2A26}
-\definecolor{cinnabar}{HTML}{CC3D2E}
-\definecolor{brass}{HTML}{B08D57}
-\definecolor{patina}{HTML}{5C7A6A}
-\definecolor{paper}{HTML}{FBF7EE}
+\definecolor{sanddeep}{HTML}{D8C7A6}
+\definecolor{ebony}{HTML}{121212}
+\definecolor{ink}{HTML}{1B1712}
+\definecolor{cobalt}{HTML}{003FB8}
+\definecolor{amber}{HTML}{6B4500}
+\definecolor{teal}{HTML}{00564C}
+\definecolor{paper}{HTML}{FBF7EF}
 
 \begin{document}
 \begin{tikzpicture}[
@@ -21,12 +21,12 @@
                 inner sep=4pt,minimum height=8mm,thick},
   ch/.style={draw=ebony,fill=paper,inner sep=4pt,minimum width=22mm,thick,
              font=\sffamily\footnotesize},
-  cap/.style={draw=cinnabar,fill=paper,thick,minimum width=10mm,
+  cap/.style={draw=cobalt,fill=paper,thick,minimum width=10mm,
               minimum height=6mm,inner sep=2pt},
-  ev/.style={ellipse,draw=patina,fill=paper,thick,inner sep=3pt,
+  ev/.style={ellipse,draw=teal,fill=paper,thick,inner sep=3pt,
              font=\sffamily\footnotesize},
   msg/.style={->,>=Latex,thick,draw=ink},
-  bad/.style={->,>=Latex,thick,draw=cinnabar,dashed},
+  bad/.style={->,>=Latex,thick,draw=cobalt,dashed},
 ]
 
 % Title
@@ -73,16 +73,16 @@
   {\texttt{in(ch\_tk, cap)}};
 
 % Bad path (second consumer)
-\node[actor,below=20mm of consumer,fill=paper,draw=cinnabar]
+\node[actor,below=20mm of consumer,fill=paper,draw=cobalt]
   (consumer2) {\textbf{Second Consumer}};
 \draw[bad] (sql.east) to[bend right=18]
-  node[right,font=\sffamily\footnotesize,text=cinnabar]
+  node[right,font=\sffamily\footnotesize,text=cobalt]
   {cap drained $\rightarrow$ rejected} (consumer2.west);
 
 % Event arrows
-\draw[->,>=Latex,thick,draw=patina,dotted]
+\draw[->,>=Latex,thick,draw=teal,dotted]
   (issuer.south) -- (eIssue.north);
-\draw[->,>=Latex,thick,draw=patina,dotted]
+\draw[->,>=Latex,thick,draw=teal,dotted]
   (consumer.south) -- (eConsume.north);
 
 % Property

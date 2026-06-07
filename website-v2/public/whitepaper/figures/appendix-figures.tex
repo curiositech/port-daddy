@@ -6,13 +6,13 @@
 
 % Harbor Heritage palette (defined locally for safety).
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
@@ -24,17 +24,17 @@
                 thick,align=center},
   ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
              align=center,font=\sffamily\footnotesize},
-  capbox/.style={draw=hhcinnabar,fill=hhpaper,thick,minimum width=14mm,
+  capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
                  minimum height=8mm,inner sep=2pt,
-                 font=\sffamily\bfseries\footnotesize,text=hhcinnabar},
+                 font=\sffamily\bfseries\footnotesize,text=hhcobalt},
   sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
               inner sep=6pt,align=center,font=\sffamily\footnotesize},
-  ev/.style={ellipse,draw=hhpatina,fill=hhpaper,thick,inner sep=3pt,
+  ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt,
              font=\sffamily\footnotesize},
   msg/.style={->,>=Latex,thick,draw=hhink},
-  bad/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
   mlbl/.style={font=\sffamily\footnotesize,inner sep=1pt,fill=hhpaper},
-  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
                  inner sep=1pt,fill=hhpaper},
 ]
 % Top row: public channel (Dolev-Yao adversary).
@@ -53,7 +53,7 @@
 % Right actors: Consumer (wins), 2nd Consumer (rejected).
 \node[actor] (consumer) at (11.0,2.6) {\textbf{Consumer}};
 \node[ev,below=10mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
-\node[actor,fill=hhpaper,draw=hhcinnabar,
+\node[actor,fill=hhpaper,draw=hhcobalt,
       below=26mm of consumer.south] (consumer2)
   {\textbf{2nd Consumer}};
 % Issuer → ch_tk (sends cap).
@@ -75,8 +75,8 @@
 \draw[bad] (sql.south) |- (consumer2.west);
 \node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
 % Event dotted lines (provenance).
-\draw[->,>=Latex,thick,draw=hhpatina,dotted] (issuer.south) -- (eIssue.north);
-\draw[->,>=Latex,thick,draw=hhpatina,dotted] (consumer.south) -- (eConsume.north);
+\draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);
+\draw[->,>=Latex,thick,draw=hhteal,dotted] (consumer.south) -- (eConsume.north);
 \end{tikzpicture}
 \caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
 \label{fig:magic-link-diag}
@@ -89,9 +89,9 @@
   font=\sffamily\small,
   hop/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
               minimum width=22mm,minimum height=10mm,inner sep=3pt,align=center},
-  sig/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=1pt,
+  sig/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=1pt,
               inner sep=2pt,font=\sffamily\footnotesize,align=center},
-  fresh/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=1pt,
+  fresh/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
                 inner sep=2pt,font=\sffamily\footnotesize},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
@@ -106,9 +106,9 @@
 \node[fresh,below=3mm of h3] {$n_3$: fresh};
 \draw[arr] (h1.east) -- (h2.west);
 \draw[arr] (h2.east) -- (h3.west);
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       left=6mm of h1] (origin) {origin};
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       right=6mm of h3] (target) {$\mathrm{id}_4$};
 \draw[arr] (origin.east) -- (h1.west);
 \draw[arr] (h3.east) -- (target.west);
@@ -134,8 +134,8 @@
   empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
                 fill=hhsand,inner sep=0pt},
   bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
-  flow/.style={->,>=Latex,thick,draw=hhcinnabar},
-  hashflow/.style={->,>=Latex,thick,draw=hhpatina},
+  flow/.style={->,>=Latex,thick,draw=hhcobalt},
+  hashflow/.style={->,>=Latex,thick,draw=hhteal},
 ]
 \foreach \i/\y in {0/3.6, 1/2.7, 2/1.8, 3/0.9, 4/0.0, 5/-0.9} {
   \node[bucketlbl] at (-0.2,\y+0.2) {bucket~$i_\i$};
@@ -143,35 +143,35 @@
     \node[empty] (b\i s\s) at (\xoff+0.7, \y) {};
   }
 }
-\node[slot,fill=hhbrass!50] at (b0s0) {a3};
-\node[slot,fill=hhbrass!50] at (b0s1) {7e};
-\node[slot,fill=hhbrass!50] at (b0s2) {2f};
-\node[slot,fill=hhbrass!50] at (b0s3) {91};
-\node[slot,fill=hhbrass!50] at (b3s0) {ca};
-\node[slot,fill=hhbrass!50] at (b3s1) {1b};
-\node[slot,fill=hhbrass!50] at (b3s2) {ff};
-\node[slot,fill=hhbrass!50] at (b3s3) {44};
-\node[slot,fill=hhbrass!30] at (b1s0) {6c};
-\node[slot,fill=hhbrass!30] at (b2s2) {8a};
-\node[slot,fill=hhbrass!30] at (b4s1) {19};
-\node[slot,fill=hhbrass!30] at (b5s3) {b2};
+\node[slot,fill=hhamber!50] at (b0s0) {a3};
+\node[slot,fill=hhamber!50] at (b0s1) {7e};
+\node[slot,fill=hhamber!50] at (b0s2) {2f};
+\node[slot,fill=hhamber!50] at (b0s3) {91};
+\node[slot,fill=hhamber!50] at (b3s0) {ca};
+\node[slot,fill=hhamber!50] at (b3s1) {1b};
+\node[slot,fill=hhamber!50] at (b3s2) {ff};
+\node[slot,fill=hhamber!50] at (b3s3) {44};
+\node[slot,fill=hhamber!30] at (b1s0) {6c};
+\node[slot,fill=hhamber!30] at (b2s2) {8a};
+\node[slot,fill=hhamber!30] at (b4s1) {19};
+\node[slot,fill=hhamber!30] at (b5s3) {b2};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=2pt,
       minimum width=22mm,inner sep=3pt,anchor=west,align=left] (key) at (5.5,3.6)
   {insert $k$:\\\quad $\mathrm{fp}(k)=\mathtt{c1}$};
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       anchor=west,below=2mm of key] (h1)
   {$i_1 = h(k) \bmod M = \mathbf{i_0}$};
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       anchor=west,below=2mm of h1] (h2)
   {$i_2 = i_1 \oplus h(\mathrm{fp}) = \mathbf{i_3}$};
 \draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
 \draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
-\node[slot,fill=hhcinnabar!75,text=white] at (b0s2) {c1};
+\node[slot,fill=hhcobalt!75,text=white] at (b0s2) {c1};
 % Kick arrow: route straight DOWN through the empty b1s2 cell to b2s2.
 % Label "evict 2f" pinned right at the arrow midpoint, inside the bucket
 % column gutter so it doesn't collide with the formula boxes on the right.
 \draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
   {evict \texttt{2f}};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
@@ -179,7 +179,7 @@
   {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
    {\bfseries No false negatives.}\\
    FP rate $\leq 2B / 2^f = 0.03125$};
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
       align=left,anchor=north west] at (5.5,-2.6)
   {{\bfseries Insert rejection at load $0.95$}\\
    (cap holds FP bound under adversarial fill).};
@@ -197,9 +197,9 @@
   font=\sffamily\small,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                 inner sep=4pt,minimum width=20mm,align=center},
-  commons/.style={draw=hhebony,thick,fill=hhpatina!40,rounded corners=2pt,
+  commons/.style={draw=hhebony,thick,fill=hhteal!40,rounded corners=2pt,
                   inner sep=4pt,minimum width=20mm,align=center},
-  escrow/.style={draw=hhebony,thick,fill=hhbrass!30,rounded corners=2pt,
+  escrow/.style={draw=hhebony,thick,fill=hhamber!30,rounded corners=2pt,
                  inner sep=4pt,minimum width=20mm,align=center},
   ins/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
               align=center,minimum width=18mm},
@@ -228,13 +228,13 @@
 \node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
 \node[commons,below=11mm of i2] (c2) {Commons};
 % Vickrey 2nd-price callout placed to the RIGHT of the cohort, not below it.
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
       font=\sffamily\footnotesize,right=4mm of i3,align=center]
   (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
-\draw[arr,line width=1.4pt,draw=hhcinnabar] (i2.south) --
+\draw[arr,line width=1.4pt,draw=hhcobalt] (i2.south) --
   node[left,font=\sffamily\footnotesize]
   {underwrites $B_T$} (c2.north);
 \node[align=center,font=\sffamily\footnotesize,
@@ -257,21 +257,21 @@
                 minimum size=8mm,font=\sffamily\footnotesize},
   decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=20mm},
-  payoff/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
+  payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
-  bad/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
               inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
-              text=hhcinnabar},
+              text=hhcobalt},
   arr/.style={->,>=Latex,thick,draw=hhink},
   prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
 ]
 \node[state] (rt) at (0,2.4) {round $t$};
 \node[decision,right=10mm of rt] (dec) {Action choice};
 \draw[arr] (rt) -- (dec);
-\node[decision,fill=hhpatina!30,right=12mm of dec,yshift=14mm] (collude)
+\node[decision,fill=hhteal!30,right=12mm of dec,yshift=14mm] (collude)
   {COLLUDE\\$q_{\mathrm{floor}}$};
 \draw[arr] (dec.north east) to[bend left=10] (collude.west);
-\node[decision,fill=hhbrass!40,right=12mm of dec,yshift=-14mm] (defect)
+\node[decision,fill=hhamber!40,right=12mm of dec,yshift=-14mm] (defect)
   {DEFECT\\$-\varepsilon$};
 \draw[arr] (dec.south east) to[bend right=10] (defect.west);
 \node[state,right=14mm of collude,yshift=10mm] (det) {detected};
@@ -284,7 +284,7 @@
 \node[payoff,right=4mm of safe] {$+\pi_C$};
 \node[state,right=14mm of defect] (collapse) {collapse};
 \draw[arr] (defect.east) -- (collapse.west);
-\node[payoff,right=4mm of collapse,fill=hhbrass!20]
+\node[payoff,right=4mm of collapse,fill=hhamber!20]
   {$+\pi_D$ once,\\then $\pi_N \approx 0$};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
       align=left,inner sep=6pt,
@@ -304,20 +304,20 @@
 \centering
 \begin{tikzpicture}[
   font=\sffamily\small,
-  adv/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,
+  adv/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=hhcinnabar},
-  sybil/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+              font=\sffamily\bfseries,text=hhcobalt},
+  sybil/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,minimum width=16mm,align=center,
                 font=\sffamily\footnotesize},
   honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                  inner sep=3pt,minimum width=16mm,align=center},
   auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
                   inner sep=5pt,align=center,minimum width=28mm},
-  payout/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
+  payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
 \node[adv] (attacker) at (0,4.2) {ATTACKER};
 \node[sybil,right=10mm of attacker.east,yshift=12mm] (s1)
@@ -344,22 +344,22 @@
 \draw[arr] (h1.north) to[bend left=14] (auction.south);
 \draw[arr] (h2.north) to[bend left=8] (auction.south);
 % Floating callout for the undercut, placed ABOVE the auction
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       align=center,above=2mm of auction.north]
   {sybils undercut by $(1-\varepsilon)$};
 % Winner — RIGHT of auction (no overlap risk)
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       align=center,right=10mm of auction,font=\sffamily\bfseries,
-      text=hhcinnabar] (winner) {WINNER:\\$S_i$};
-\draw[arr,line width=1.4pt,draw=hhcinnabar] (auction.east) -- (winner.west);
+      text=hhcobalt] (winner) {WINNER:\\$S_i$};
+\draw[arr,line width=1.4pt,draw=hhcobalt] (auction.east) -- (winner.west);
 % On-loss payout — BELOW the winner
-\node[payout,below=10mm of winner,fill=hhbrass!20,minimum width=42mm,align=left]
+\node[payout,below=10mm of winner,fill=hhamber!20,minimum width=42mm,align=left]
   (lossbox)
   {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
    protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=hhcinnabar,dashed] (winner.south) -- (lossbox.north);
+\draw[arr,draw=hhcobalt,dashed] (winner.south) -- (lossbox.north);
 % A5 finding — FULL WIDTH below entire diagram, anchored to the page-relative center
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
       align=left,text width=140mm,
       below=14mm of h1.south,xshift=44mm,anchor=north]
   {{\bfseries A5 finding:} the deposit slash is capped at the coverage

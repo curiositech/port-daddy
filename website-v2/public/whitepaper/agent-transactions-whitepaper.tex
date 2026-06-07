@@ -26,21 +26,21 @@
 % ─── Colors ──────────────────────────────────────────────────────────────────
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
-\definecolor{darkgreen}{RGB}{0,100,0}
-\definecolor{darkblue}{RGB}{0,50,100}
-\definecolor{accent}{RGB}{0,128,128}
+\definecolor{darkgreen}{HTML}{00564C}
+\definecolor{darkblue}{HTML}{003FB8}
+\definecolor{accent}{HTML}{00564C}
 \definecolor{hhsand}{HTML}{E9DCC4}
-\definecolor{hhsanddeep}{HTML}{D4C5A9}
-\definecolor{hhebony}{HTML}{1E1B18}
-\definecolor{hhcinnabar}{HTML}{CC3D2E}
-\definecolor{hhbrass}{HTML}{B08D57}
-\definecolor{hhpatina}{HTML}{5C7A6A}
-\definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhsanddeep}{HTML}{D8C7A6}
+\definecolor{hhebony}{HTML}{121212}
+\definecolor{hhcobalt}{HTML}{003FB8}
+\definecolor{hhamber}{HTML}{6B4500}
+\definecolor{hhteal}{HTML}{00564C}
+\definecolor{hhpaper}{HTML}{FBF7EF}
 
 % Verification-status markers for the Appendix A status table.
-\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\SpecOnly}{{\textcolor{hhcinnabar}{\textbf{\textsf{spec-only}}}}}
+\newcommand{\Closed}{{\textcolor{hhteal}{\textbf{\textsf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhamber}{\textbf{\textsf{partial}}}}}
+\newcommand{\SpecOnly}{{\textcolor{hhcobalt}{\textbf{\textsf{spec-only}}}}}
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
@@ -51,7 +51,7 @@
           align=left] (q) {%
       \sffamily\itshape\large #1%
     };
-    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+    \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 

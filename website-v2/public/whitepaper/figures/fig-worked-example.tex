@@ -1,13 +1,13 @@
 % Worked example timeline — inline in Appendix D (App D Worked Example).
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -19,16 +19,16 @@
              font=\sffamily\footnotesize},
   evL1/.style={ev,fill=hhsand!80},          % structural
   evL2/.style={ev,fill=hhsanddeep!70},      % attribution
-  evL3/.style={ev,fill=hhbrass!40},         % economic
-  crash/.style={ev,fill=hhcinnabar!50,text=hhpaper,font=\sffamily\bfseries\footnotesize},
-  succ/.style={ev,fill=hhpatina!40},
-  done/.style={ev,fill=hhpatina!70,font=\sffamily\bfseries\footnotesize},
+  evL3/.style={ev,fill=hhamber!40},         % economic
+  crash/.style={ev,fill=hhcobalt!50,text=hhpaper,font=\sffamily\bfseries\footnotesize},
+  succ/.style={ev,fill=hhteal!40},
+  done/.style={ev,fill=hhteal!70,font=\sffamily\bfseries\footnotesize},
   axis/.style={->,>=Latex,thick,draw=hhebony},
   tick/.style={font=\sffamily\footnotesize,text=hhink},
   layer/.style={font=\sffamily\bfseries\footnotesize,text=hhebony},
 ]
 % Three swimlanes
-\foreach \y/\name/\col in {0/Layer 3 (economic)/hhbrass,
+\foreach \y/\name/\col in {0/Layer 3 (economic)/hhamber,
                             1.2/Layer 2 (attribution)/hhsanddeep,
                             2.4/Layer 1 (structural)/hhsand} {
   \draw[draw=\col,fill=\col!30,line width=0pt]
@@ -55,7 +55,7 @@
 \node[evL2] (s4a) at (3.5,1.2) {\textbf{4}\\$h_1$};
 % Step 4b: more evidence (L2)
 \node[evL2] (s4b) at (5.5,1.2) {$h_2{\ldots}h_5$};
-% Step 5: crash (L1 + cinnabar)
+% Step 5: crash (L1 + cobalt)
 \node[crash] (s5) at (7,2.4) {\textbf{5} CRASH};
 % TTL release (downstream of crash)
 \node[evL1] (ttl) at (8.4,2.4) {TTL release};
@@ -73,9 +73,9 @@
   (s4a.east) -- (s4b.west);
 \draw[->,>=Latex,thick,draw=hhebony]
   (s4b.east) -- (s5.south);
-\draw[->,>=Latex,thick,dashed,draw=hhcinnabar]
+\draw[->,>=Latex,thick,dashed,draw=hhcobalt]
   (s5.south) -- (ttl.south);
-\draw[->,>=Latex,thick,draw=hhpatina]
+\draw[->,>=Latex,thick,draw=hhteal]
   (ttl.south) -- (s6a.north);
 \draw[->,>=Latex,thick,draw=hhebony]
   (s6a.east) -- (s6b.west);
