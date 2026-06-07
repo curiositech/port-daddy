@@ -4,13 +4,13 @@
 % sidestepped, not solved (CP with a central coordinator).
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -19,7 +19,7 @@
   font=\small,
   cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
               minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
-  daemon/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
+  daemon/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
                  minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
   db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
              aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
@@ -42,7 +42,7 @@
 
 % ─── The single file, with a WIDE gap so the label clears the cylinder ──────
 \node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
-\draw[<->,>=Latex,line width=1.2pt,hhcinnabar] (d.east) -- (file.west);
+\draw[<->,>=Latex,line width=1.2pt,hhcobalt] (d.east) -- (file.west);
 \node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
   at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
 

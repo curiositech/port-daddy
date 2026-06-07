@@ -4,13 +4,13 @@
 % checkpoint. Gray-Reuter's atomicity-vs-durability distinction made visible.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -40,15 +40,15 @@
 % ─── I1a survives process crash ───────────────────────────────────────────
 \node[fault,fill=hhsand!30,below=16mm of oscache] (i1a)
   {\textbf{I1a --- process crash}\\ a forced kill of the daemon\\
-   {\color{hhpatina}\textbf{SURVIVES}}\\ {\scriptsize OS buffer persists}\\ {\scriptsize\textsf{implemented}}};
-\draw[->,>=Latex,thick,hhpatina] (oscache.south) -- (i1a.north);
+   {\color{hhteal}\textbf{SURVIVES}}\\ {\scriptsize OS buffer persists}\\ {\scriptsize\textsf{implemented}}};
+\draw[->,>=Latex,thick,hhteal] (oscache.south) -- (i1a.north);
 
 % ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
 \node[fault,fill=hhsand!30,below=16mm of waldisk] (i1b)
   {\textbf{I1b --- OS crash / power loss}\\ before checkpoint\\
-   {\color{hhcinnabar}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}\\
+   {\color{hhcobalt}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}\\
    {\scriptsize\textsf{not guaranteed under normal sync}}};
-\draw[->,>=Latex,thick,hhcinnabar] (waldisk.south) -- (i1b.north);
+\draw[->,>=Latex,thick,hhcobalt] (waldisk.south) -- (i1b.north);
 
 % ─── The remedy ───────────────────────────────────────────────────────────
 \node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,

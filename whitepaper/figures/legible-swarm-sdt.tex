@@ -2,12 +2,12 @@
 % Two overlapping distributions (safe vs dangerous actions); the criterion beta
 % slides; the asymmetric cost matrix pins where it should sit.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -22,24 +22,24 @@
 \draw[->,thick] (0,0) -- (0,5.8) node[above,font=\footnotesize]{density};
 
 % distributions
-\draw[hhpatina,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{safe(\x)});
-\draw[hhcinnabar,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
+\draw[hhteal,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{safe(\x)});
+\draw[hhcobalt,very thick,domain=0:9.5,samples=120,smooth] plot (\x,{danger(\x)});
 \node[text=hhink,font=\bfseries\footnotesize] at (2.3,5.4) {safe actions};
 \node[text=hhink,font=\bfseries\footnotesize] at (7.4,5.4) {dangerous actions};
 
 % criterion line beta
-\draw[hhbrass,very thick,dashed] (5.0,0) -- (5.0,5.55)
+\draw[hhamber,very thick,dashed] (5.0,0) -- (5.0,5.55)
    node[above,text=hhink,font=\bfseries\footnotesize]{criterion $\beta$};
-\draw[->,thick,hhbrass] (5.2,3.1) -- (6.0,3.1) node[right,font=\scriptsize,text=hhink]{strict};
-\draw[->,thick,hhbrass] (4.8,3.1) -- (4.0,3.1) node[left,font=\scriptsize,text=hhink]{lax};
+\draw[->,thick,hhamber] (5.2,3.1) -- (6.0,3.1) node[right,font=\scriptsize,text=hhink]{strict};
+\draw[->,thick,hhamber] (4.8,3.1) -- (4.0,3.1) node[left,font=\scriptsize,text=hhink]{lax};
 
 % error regions
-\fill[hhcinnabar!25,domain=0:5,samples=80,smooth] plot (\x,{danger(\x)}) -- (5,0) -- (0,0) -- cycle;
-\fill[hhpatina!30,domain=5:9.5,samples=80,smooth] plot (\x,{safe(\x)}) -- (9.5,0) -- (5,0) -- cycle;
+\fill[hhcobalt!25,domain=0:5,samples=80,smooth] plot (\x,{danger(\x)}) -- (5,0) -- (0,0) -- cycle;
+\fill[hhteal!30,domain=5:9.5,samples=80,smooth] plot (\x,{safe(\x)}) -- (9.5,0) -- (5,0) -- cycle;
 \node[text=hhink,font=\scriptsize,align=center] at (3.55,0.55) {MISS\\(waved through)};
 \node[text=hhink,font=\scriptsize,align=center] at (7.25,0.55) {false alarm\\(zoomed safe diff)};
-\draw[hhcinnabar,thin,-{Latex[length=1.4mm]}] (4.0,0.7) -- (4.55,0.55);
-\draw[hhpatina,thin,-{Latex[length=1.4mm]}] (6.75,0.7) -- (5.6,0.4);
+\draw[hhcobalt,thin,-{Latex[length=1.4mm]}] (4.0,0.7) -- (4.55,0.55);
+\draw[hhteal,thin,-{Latex[length=1.4mm]}] (6.75,0.7) -- (5.6,0.4);
 
 % d-prime bracket
 \draw[<->,thick,hhink] (3,-0.6) -- (6,-0.6) node[midway,below,font=\footnotesize]{$d'$ (operator sensitivity)};

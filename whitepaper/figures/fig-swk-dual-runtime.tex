@@ -4,13 +4,13 @@
 % differential-test gap is the recurring "green-in-jest, 500-in-bun" failure.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -26,12 +26,12 @@
 \node[api] (iface) at (0,0) {one database interface\\ {\footnotesize\normalfont (a single abstraction over the bindings)}};
 
 \node[rt,fill=hhsand!30,below left=14mm and -4mm of iface] (test)
-  {{\bfseries test runtime}\\ test-suite SQLite bindings\\ {\footnotesize unit tests, development}\\ {\color{hhpatina}truth is \emph{verified} here}};
+  {{\bfseries test runtime}\\ test-suite SQLite bindings\\ {\footnotesize unit tests, development}\\ {\color{hhteal}truth is \emph{verified} here}};
 \node[rt,fill=hhsand!30,below right=14mm and -4mm of iface] (prod)
-  {{\bfseries deployment runtime}\\ deployment SQLite bindings\\ {\footnotesize the compiled single-binary daemon}\\ {\color{hhcinnabar}truth is \emph{computed} here}};
+  {{\bfseries deployment runtime}\\ deployment SQLite bindings\\ {\footnotesize the compiled single-binary daemon}\\ {\color{hhcobalt}truth is \emph{computed} here}};
 
-\draw[->,>=Latex,thick,hhpatina] (iface.south) -- (test.north);
-\draw[->,>=Latex,thick,hhcinnabar] (iface.south) -- (prod.north);
+\draw[->,>=Latex,thick,hhteal] (iface.south) -- (test.north);
+\draw[->,>=Latex,thick,hhcobalt] (iface.south) -- (prod.north);
 
 % The shim
 \node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
@@ -39,7 +39,7 @@
   (shim) {a runtime-shim layer\\ normalizes pragma/option differences};
 
 % The hazard
-\node[draw=hhcinnabar,line width=1.2pt,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+\node[draw=hhcobalt,line width=1.2pt,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
       text width=70mm,align=left,font=\scriptsize,below=10mm of test]
   {{\bfseries The soundness hazard (I11):}\quad an invariant proved under the
    test bindings can \emph{fail} under the deployment bindings if the two differ in
