@@ -1,0 +1,55 @@
+% Fig 12 — the rate-the-raters recursion and the contractive-tower conjecture.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.9\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  lvl/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
+              minimum width=42mm},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+]
+% the recursion levels, incentive-to-corrupt shrinking upward
+\node[lvl,fill=hhsand!30,minimum width=64mm] (l0) at (0,0)
+  {\textbf{agent} does work \quad incentive to cheat: \textbf{high}};
+\node[lvl,fill=hhsand!30,minimum width=54mm,above=8mm of l0] (l1)
+  {\textbf{judge} grades it (bonded) \quad smaller};
+\node[lvl,fill=hhsand!30,minimum width=44mm,above=8mm of l1] (l2)
+  {\textbf{re-auditor} (bonded) \quad smaller still};
+\node[lvl,fill=hhsand!30,minimum width=34mm,above=8mm of l2] (l3)
+  {\textbf{re-re-auditor} \quad $\to 0$};
+\node[font=\itshape\footnotesize,above=4mm of l3] {\vdots\quad finite honest fixed point};
+
+\draw[arr,draw=hhink,thick] (l0) -- node[midway,right,font=\scriptsize]
+  {rate} (l1);
+\draw[arr,draw=hhink,thick] (l1) -- node[midway,right,font=\scriptsize]
+  {rate the rater} (l2);
+\draw[arr,draw=hhink,thick] (l2) -- node[midway,right,font=\scriptsize]
+  {rate the raters' rater} (l3);
+
+% the conditions box
+\node[draw=hhcinnabar,thick,fill=hhsand!30,rounded corners=3pt,inner sep=6pt,
+      right=14mm of l1,anchor=west,text width=64mm,align=left,font=\footnotesize] (cond)
+  {\textbf{Contractive iff} (Conj.~\ref{conj:contract}):\\[2pt]
+   (i) re-audit sampled w.p.\ $\rho$;\\
+   (ii) overturn slashes $B_J >$ max single bribe;\\
+   (iii) re-auditors drawn from a pool $>$ any clique.\\[3pt]
+   Then incentive to corrupt level $k{+}1 <$ level $k$ ---
+   the tower \textbf{contracts}. \emph{Conjectured, not proven} (\VISION).};
+\end{tikzpicture}}
+\caption{\textbf{The rate-the-raters recursion.} Bond-and-slash pushes the grading
+problem up a level: who audits the auditors? Under sampling, a slash exceeding the
+maximum bribe, and a conflict-free re-auditor pool larger than any clique, the
+incentive to corrupt each level is strictly smaller than the level below ---
+making the tower contractive with a finite honest fixed point. This is the precise
+statement of what Paper~4's central IC theorem needs and currently lacks.}
+\label{fig:rate-raters}
+\end{figure}
