@@ -1,0 +1,51 @@
+% Figure 9 — the five built read-surfaces, each a token-compaction producing a
+% reader-specific digest. The swarm's coordination layer IS a distributed
+% compaction engine.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.97\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  raw/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,align=center,
+              inner sep=5pt,font=\footnotesize,text width=30mm},
+  prim/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,align=center,
+               inner sep=4pt,font=\scriptsize,text width=33mm,minimum height=15mm},
+  rdr/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,align=center,
+              inner sep=4pt,font=\scriptsize,text width=26mm},
+  e/.style={-{Latex[length=1.8mm]},thick,hhink},
+]
+\node[raw] (raw) at (0,0) {raw token\\trajectory\\(transcripts,\\diffs, events)};
+
+\node[prim] (br)  at (5.0,3.4) {\textbf{Briefing}\\external note-taking\\(state on arrival)};
+\node[prim] (at)  at (5.0,1.7) {\textbf{Attention}\\precision compaction\\(what to look at now)};
+\node[prim] (ep)  at (5.0,0.0) {\textbf{Episodic memory}\\recall, then precision\\(what happened before)};
+\node[prim] (ph)  at (5.0,-1.7){\textbf{Pheromone}\\time-decay (forgetting)\\(the shared trace map)};
+\node[prim] (re)  at (5.0,-3.4){\textbf{Resurrection}\\handoff summary\\(notes, not checkpoints)};
+
+\node[rdr] (r1) at (10.0,3.4) {arriving agent};
+\node[rdr] (r2) at (10.0,1.7) {agent / operator queue};
+\node[rdr] (r3) at (10.0,0.0) {future self / successor};
+\node[rdr] (r4) at (10.0,-1.7){the swarm (stigmergic)};
+\node[rdr] (r5) at (10.0,-3.4){successor agent};
+
+\foreach \p in {br,at,ep,ph,re}{ \draw[e] (raw) -- (\p); }
+\draw[e] (br)--(r1); \draw[e] (at)--(r2); \draw[e] (ep)--(r3);
+\draw[e] (ph)--(r4); \draw[e] (re)--(r5);
+\end{tikzpicture}%
+}
+\caption{Five read-surfaces, each a token-compaction of the raw trajectory produced
+for a specific reader (\S\ref{sec:tokens-digest}). Viewed correctly, the swarm's
+coordination layer is a \emph{distributed compaction engine} --- and because each
+surface is a compaction, each is governed by the same cost-and-legibility economics,
+the same recency-decay (Prop.~\ref{prop:decay}), and the same one law
+(Def.~\ref{def:zoom}).}
+\label{fig:read-surfaces}
+\end{figure}
