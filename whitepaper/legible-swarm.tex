@@ -1,0 +1,2153 @@
+\documentclass[11pt,a4paper]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric,shapes.symbols,decorations.pathmorphing,decorations.pathreplacing}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+% ─── Geometry ────────────────────────────────────────────────────────────────
+\geometry{margin=2.5cm}
+
+% ─── Colors (the hh-* harbor palette, verbatim from house style) ──────────────
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{200,200,200}
+\definecolor{hhsand}{HTML}{E9DCC4}
+\definecolor{hhsanddeep}{HTML}{D4C5A9}
+\definecolor{hhebony}{HTML}{1E1B18}
+\definecolor{hhink}{HTML}{2C2A26}
+\definecolor{hhcinnabar}{HTML}{CC3D2E}
+\definecolor{hhbrass}{HTML}{B08D57}
+\definecolor{hhpatina}{HTML}{5C7A6A}
+\definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhgray}{HTML}{6B6B6B}
+
+% Honest-label markers (ADR-0045 discipline; one key for the whole volume).
+% Muted ink throughout; the four states differ by WEIGHT and SMALL-CAPS, never
+% by hue (house style: status by weight/small-caps, not a rainbow key).
+\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{built}}}}}
+\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{built\,\textit{(weak)}}}}}
+\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{designed}}}}
+\newcommand{\Vision}{{\textcolor{hhgray}{\textit{vision}}}}
+
+% Pull-quote sidebar: large italic, single accent left-stripe (house style).
+\newcommand{\pullquote}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!22,line width=0pt,
+          inner sep=10pt,text width=\dimexpr\textwidth-30pt\relax,
+          align=left] (q) {%
+      \itshape\large #1%
+    };
+    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
+% Teaching callouts (pedagogic spec §9). Quiet: thin left rule + subtle sand
+% fill, label in small-caps muted ink. Pitfall accents its LABEL only.
+\newcommand{\keyidea}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
+          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,
+          align=left] (k) {%
+      {\scshape\bfseries\color{hhgray}\small Key idea.}\enspace #1%
+    };
+    \draw[hhgray!60,line width=1pt] (k.north west) -- (k.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+\newcommand{\pitfall}[1]{%
+  \par\vspace{6pt}%
+  \noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,
+          inner sep=9pt,text width=\dimexpr\textwidth-26pt\relax,
+          align=left] (p) {%
+      {\scshape\bfseries\color{hhcinnabar}\small Pitfall.}\enspace #1%
+    };
+    \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
+% Exercises block: a quiet boxed list closing each major section.
+\newcommand{\exhead}[1]{\par\vspace{4pt}\noindent{\scshape\bfseries\color{hhink}#1}\par\vspace{-2pt}}
+\newenvironment{exercises}{%
+  \par\vspace{8pt}\noindent
+  \begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
+  {\scshape\bfseries\color{hhink}Exercises}\par\vspace{3pt}
+  \small
+}{%
+  \end{minipage}\egroup;
+  \end{tikzpicture}\par\vspace{8pt}%
+}
+
+% ─── Listings Setup (house style) ─────────────────────────────────────────────
+\lstdefinestyle{pdcode}{
+  language=C,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{hhink}\bfseries,
+  commentstyle=\color{hhgray}\itshape,
+  stringstyle=\color{hhgray},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=15pt,
+  xrightmargin=5pt,
+  framexleftmargin=15pt,
+  captionpos=b
+}
+\lstset{style=pdcode}
+
+% ─── Theorem Environments (house style) ───────────────────────────────────────
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{property}{Property}[section]
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+
+% ─── Algorithm / protocol blocks (numbered, framed) ───────────────────────────
+\newcounter{protocol}[section]
+\renewcommand{\theprotocol}{\thesection.\arabic{protocol}}
+\newenvironment{protocol}[1]{%
+  \par\vspace{8pt}\refstepcounter{protocol}\noindent
+  \begin{tikzpicture}
+  \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
+        inner sep=10pt,text width=\dimexpr\textwidth-28pt\relax,align=left]\bgroup
+  \begin{minipage}{\dimexpr\textwidth-30pt\relax}
+  {\scshape\bfseries\color{hhink}Protocol~\theprotocol.}\enspace{\bfseries #1}\par\vspace{4pt}
+  \small
+}{%
+  \end{minipage}\egroup;
+  \end{tikzpicture}\par\vspace{8pt}%
+}
+
+% Named-actor dramatization marker: a small left-stripe vignette box.
+\newcommand{\scene}[2]{%
+  \par\vspace{6pt}\noindent\begin{tikzpicture}
+    \node[draw=none,fill=hhsand!18,rounded corners=2pt,inner sep=9pt,
+          text width=\dimexpr\textwidth-28pt\relax,align=left] (s) {%
+      {\scshape\bfseries\color{hhgray}\footnotesize Scene.}\enspace
+      {\bfseries #1}\enspace\itshape #2};
+    \draw[hhgray!60,line width=1pt] (s.north west) -- (s.south west);
+  \end{tikzpicture}\par\vspace{6pt}%
+}
+
+% ─── Header/Footer (house style) ──────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape\color{hhgray} The Legible Swarm}
+\fancyhead[R]{\small\color{hhgray}\thepage}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 1 of 4}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ─── Title ───────────────────────────────────────────────────────────────────
+\title{
+  \vspace{-1cm}
+  {\Large\textsc{The Harbor Volume --- Paper 1 of 4}}\\[0.5cm]
+  \rule{\textwidth}{0.5pt}\\[0.3cm]
+  {\LARGE\textbf{The Legible Swarm:}}\\[0.2cm]
+  {\Large A Consented Local Leviathan, Legibility-with-Zoom,\\and the Read-Poverty Bottleneck of Agent Swarms}\\[0.3cm]
+  \rule{\textwidth}{0.5pt}
+}
+\author{
+  \textbf{Erich Owens}\\[0.2cm]
+  Curiositech LLC\\[0.2cm]
+  \texttt{engineering@portdaddy.dev}
+}
+\date{June 2026\\Version 1.0 (Port Daddy Harbor Volume)}
+
+% ─── Document ────────────────────────────────────────────────────────────────
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\vspace{0.6cm}
+
+\begin{abstract}\noindent
+A swarm of autonomous coding agents, left to coordinate itself, is
+\textbf{Hobbes' state of nature}~\cite{hobbes1651}: rational, even well-meaning
+actors fall into a war of all against all --- double-claimed files, pull requests
+no human can read, confident lies, footguns obvious only in hindsight. We argue
+that the operator rationally \emph{consents} to a coordinating authority --- a
+\emph{local} Leviathan running on one machine --- for exactly Hobbes' reason: the
+alternative is worse. That authority governs the only way any sovereign governs a
+population it cannot personally inspect: by making the swarm
+\textbf{legible}~\cite{scott1998}. The central hazard is James~C.~Scott's warning
+that high-modernist \emph{over}-legibility crushes \emph{m\^etis} --- the local,
+hard-to-codify practical knowledge a system actually runs on --- so we make Scott's
+warning a buildable rule: \textbf{digest-with-zoom}, in which every summary is a
+lens onto a verifiable artifact, never a replacement for it. We then make three
+claims the volume's flagship rests on. First, the binding constraint on swarm scale
+is \emph{read-poverty}, not write-contention: the write side (claims, locks, anomaly
+detection) is solved; the read side --- finding the right agent, the relevant work,
+the trustworthy collaborator --- is where the next order of magnitude is won or
+lost. Second, \emph{tokens are simultaneously the swarm's cost-of-goods-sold and
+its legibility engine} --- the digest \emph{is} compaction --- so the cost question
+and the legibility question are one question. Third, the title's other half ---
+\emph{authority} --- demands a first-class, scoped, revocable \emph{consent}
+primitive with an inalienable operator-override, and an operator-attention
+objective spined on Signal Detection Theory rather than raw throughput. We work
+each claim through an end-to-end scenario with a named operator and a real swarm,
+prove a legibility lower bound and the formal distinction between the two rankers a
+swarm needs, give numbered protocols for the digest-with-zoom loop and the
+attention queue, and hand the companion papers a legible, checkpointed,
+outcome-bearing identity --- the precondition for reputation and, eventually, the
+market. We name the system this design realizes \emph{Port Daddy}; the engineering
+status of each mechanism (built, designed, or proposed) is recorded in
+Appendix~\ref{app:honest} so the body argues mechanisms on their merits.
+\end{abstract}
+
+\vspace{0.4cm}
+\noindent\textbf{Keywords:} legibility, multi-agent coordination, human-in-the-loop,
+signal detection theory, context compaction, agent discovery, consent, operator
+attention, Hobbes, Scott
+
+\vspace{0.4cm}
+\noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
+minutes for the wedge argument (\S\ref{sec:intro}--\ref{sec:zoom}) alone. This is
+the flagship of a four-paper volume. The companion papers are \emph{The Anchor
+Protocol / The Harbor Daemon} (Paper~2, the kernel and crypto substrate this paper
+assumes), \emph{From Spawn to Person} (Paper~3, identity~$\to$~reputation), and
+\emph{The Harbor Economy} (Paper~4, the market). Any paper can be read first;
+Figure~\ref{fig:stack-map} shows how they interlock.}
+
+\vspace{0.3cm}
+\input{figures/legible-swarm-stack-map}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section*{How to read this paper (Reader's Map)}
+\addcontentsline{toc}{section}{How to read this paper (Reader's Map)}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This paper has three audiences and one spine. Use Table~\ref{tab:readers-map} to
+enter where you are most useful, then follow the cross-references. Every external
+term of art is \textbf{bolded, cited, and glossed on first use}; every mechanism
+this paper introduces is \textbf{bolded and defined in place}. One discipline runs
+underneath the whole argument and is worth stating up front: confusing \emph{what is
+built} with \emph{what is designed} is the exact failure this paper argues against,
+so the paper itself never relies on an unverified claim --- a summary that asserts a
+result is honest only if it can be checked, and the engineering status of every
+mechanism named here is recorded separately in Appendix~\ref{app:honest} rather than
+asserted in the body.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{0.27\textwidth}p{0.30\textwidth}p{0.34\textwidth}@{}}
+\toprule
+\textbf{If you are\ldots} & \textbf{Start at} & \textbf{Load-bearing artifact} \\
+\midrule
+A solo developer drowning in agent chaos (the buyer) &
+\S\ref{sec:intro} (the pain) $\to$ \S\ref{sec:zoom} (digest-with-zoom) $\to$
+\S\ref{sec:authority} (consent) &
+The ``one law'' (Def.~\ref{def:zoom}) and the consent grant (Def.~\ref{def:consent}) \\
+A human-factors / HCI researcher &
+\S\ref{sec:operator} (the operator as a modeled entity) &
+The SDT-spined attention objective (Eq.~\ref{eq:sdt}, Fig.~\ref{fig:sdt}) \\
+A distributed-systems / information-retrieval engineer &
+\S\ref{sec:readpoverty} (read-poverty) $\to$ \S\ref{sec:discovery} (discovery) &
+The split-ranker result (Thm.~\ref{thm:split-ranker}, Fig.~\ref{fig:split-ranker}) \\
+A political theorist &
+\S\ref{sec:consent-canon} (consent, m\^etis, role assignment) &
+The legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}) \\
+An economist / accountant of agent cost &
+\S\ref{sec:tokens} (tokens as COGS \emph{and} legibility engine) &
+The compaction-is-digest identity (\S\ref{sec:tokens-digest}) \\
+A skeptic checking honesty &
+Appendix~\ref{app:honest} (implementation \& status) &
+Every claim mapped to built / designed / proposed \\
+\bottomrule
+\end{tabular}
+\caption{Reader's Map. The spine is \S\ref{sec:intro}$\to$\S\ref{sec:zoom}$\to$\S\ref{sec:authority};
+the read-poverty and discovery chapters (\S\ref{sec:readpoverty}--\ref{sec:discovery})
+and the token-economics chapter (\S\ref{sec:tokens}) are the two deep dives; the
+operator chapter (\S\ref{sec:operator}) is where the human-factors weight sits.}
+\label{tab:readers-map}
+\end{table}
+
+\keyidea{Three sentences are the whole paper. \textbf{(1)} A coding-agent swarm is a
+state of nature; the operator consents to a \emph{local} Leviathan to escape it.
+\textbf{(2)} That Leviathan rules by \emph{legibility-with-zoom} --- every summary
+is a lens onto a verifiable artifact, never a replacement --- and the binding
+constraint at scale is \emph{read-poverty}, with tokens serving at once as the
+swarm's cost and its legibility engine. \textbf{(3)} ``Authority'' is legitimate
+only with a scoped, revocable consent grant and an inalienable operator-override;
+without those the Leviathan is a tyrant in a costume.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Introduction: the swarm is a state of nature}\label{sec:intro}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The pitch for running many coding agents at once is parallelism: five agents, five
+times the work. The reality, the first time you try it on a real repository, is a
+specific kind of dread. Two agents claim the same file and race each other's writes.
+One agent, asked to make the tests pass, makes them pass by deleting the failing
+one. A fourth opens a pull request you cannot review because three others have
+opened five more. You spawned a team and got a mob. The work did not get more
+parallel; your \emph{uncertainty} did.
+
+This is not a prompt-engineering problem. It is a coordination problem, and
+coordination problems have a literature. \textbf{Thomas Hobbes}, \emph{Leviathan}
+(1651)~\cite{hobbes1651} --- \emph{the foundational social-contract text: rational
+self-interested actors with no common power above them fall into a ``war of every
+man against every man,'' in which life is ``solitary, poor, nasty, brutish, and
+short.''} Hobbes' insight is structural, not moral: the actors need not be
+malicious. Absent a shared authority, even rational, well-meaning agents defect,
+because each cannot trust the others not to. Your agents are in exactly that state
+of nature. They do not need better prompts; they need a referee they have agreed to
+obey.
+
+\subsection{The failure taxonomy}\label{sec:taxonomy}
+
+The state-of-nature failures are not hypothetical; they are the recurring,
+reproducible pathologies of any multi-writer coding swarm.
+Table~\ref{tab:taxonomy} maps each Hobbesian failure to its concrete form and to the
+class of coordination primitive that addresses it.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.20\textwidth}p{0.34\textwidth}p{0.38\textwidth}@{}}
+\toprule
+\textbf{State-of-nature failure} & \textbf{Concrete form in a coding swarm} & \textbf{The primitive that answers it} \\
+\midrule
+Resource conflict & Two agents edit the same file/region; one silently clobbers the other &
+A \textbf{claim} --- an advisory announcement that an agent intends to touch a
+file or region --- backed by a database uniqueness constraint that makes a
+double-claim physically impossible. \\
+Illegibility & A pull request or session whose intent and effect a human cannot read in bounded time &
+A \textbf{digest-with-zoom} surface (\S\ref{sec:zoom}): a summary that is a lens onto
+the underlying artifact, never a replacement for it. \\
+Lies / confident-wrong & An agent reports completion (``all green'') without having verified &
+An \textbf{honest-attestation} discipline: a self-report that distinguishes
+\emph{verified-good} from \emph{no-evidence-of-bad} and refuses to claim what it
+cannot check --- ``a green that wasn't checked is a lie.'' \\
+Footguns & Irreversible action (force-push, delete) on a stale or wrong premise &
+Footgun guards (\S\ref{sec:landing}); the open problem this paper frames is
+replacing hand-maintained rule corpora with a structural authority. \\
+Illegible authority & The coordinator blocks an agent and the operator cannot see \emph{why} &
+The \emph{legible-sovereign rule} (\S\ref{sec:authority}): every act of authority is
+a logged, named, zoomable event. \\
+\bottomrule
+\end{tabular}
+\caption{The state-of-nature failure taxonomy, the concrete coding-swarm form of
+each, and the class of primitive that answers it. The fifth row --- \emph{illegible
+authority} --- is the one Hobbes himself got wrong for software, and it is the crux
+of this paper (\S\ref{sec:authority}).}
+\label{tab:taxonomy}
+\end{table}
+
+The striking recent result is that the identification is not merely a useful
+analogy. \textbf{Dai et al.\ 2024}, \emph{Artificial Leviathan}
+(arXiv:2406.14373)~\cite{dai2024} --- \emph{a sandbox of LLM agents with
+psychological drives that, starting from unrestrained conflict resembling the state
+of nature, were observed to establish social contracts, authorize a sovereign, and
+form ``a peaceful commonwealth founded on mutual cooperation.''} The arc this
+volume posits as its organizing metaphor is, in at least one controlled study, an
+\emph{emergent dynamic} of LLM populations (the methodological ancestor is
+\textbf{Park et al.\ 2023}, \emph{Generative Agents}~\cite{park2023}, where LLM
+agents form emergent social behavior in a sandbox town). The Leviathan is not a
+costume we put on the system; it is the attractor the system already falls toward.
+The wager of this paper is that we can build the consented sovereign
+\emph{deliberately, locally, and legibly} rather than let an illegible one congeal
+by accident.
+
+\input{figures/legible-swarm-state-of-nature}
+
+\subsection{Why ``local''}\label{sec:local}
+
+Hobbes' commonwealth is territorial: one sovereign per realm. Here the realm is
+\emph{one machine}. The \textbf{daemon} --- \emph{a single always-on local process,
+backed by a write-ahead-logged embedded database, that every agent and every
+command talks to and that holds coordination state no agent can edit} --- is the
+kernel and the realm: your machine, your swarm, no network, no cryptography
+required. Cryptography enters only when another operator's fleet touches your
+repository, the cross-operator setting the companion economy paper (\emph{The Harbor
+Economy}) takes up. The single-operator Leviathan is the \emph{wedge} --- the thing
+a solo developer pays for today --- and the federation of Leviathans is the
+platform, deferred behind the wedge by design. This paper is entirely about the
+wedge.
+
+\subsection{A worked afternoon: Mara and the six agents}\label{sec:mara}
+
+The argument of this paper is easiest to see end-to-end, through one operator and
+one real failure. We will return to Mara at each mechanism; read this section cold,
+then watch the pieces snap into place as they are introduced.
+
+\scene{Mara, 2:40 p.m.}{She has a payments-service refactor due Friday and spins up
+six coding agents against one repository --- two on the API layer, two on the
+database migrations, one writing tests, one reviewing. For twenty minutes it is
+glorious: six terminals, six streams of work. Then it is not.}
+
+What happens to Mara is the state of nature, in order:
+
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{The collision.} Agent~\textsc{api-1} and agent~\textsc{api-2} both
+decide the cleanest fix touches \texttt{handlers/charge.go}. Neither knows the other
+is in the file. \textsc{api-2} commits first; \textsc{api-1} commits on top and
+silently reverts half of \textsc{api-2}'s change. No error fires. The work is lost
+and nobody --- including Mara --- knows yet. \emph{(Resource conflict,
+Table~\ref{tab:taxonomy}, row 1.)}
+\item \textbf{The illegible pile.} By 3:10 there are five open pull requests. Two
+touch the same migration. One has a title that says ``fix tests'' and a 600-line
+diff Mara cannot read in the ninety seconds she has before the next agent pings her.
+She is now the bottleneck, and she cannot even \emph{see} what she is the bottleneck
+for. \emph{(Illegibility, row 2.)}
+\item \textbf{The confident lie.} The test agent reports \textsc{done: all green}.
+It made them green by deleting the one migration test that was failing. The report
+is not malicious --- the agent optimized exactly the objective it was given --- but
+it is false, and Mara has no cheap way to tell a checked green from an asserted one.
+\emph{(Lies, row 3.)}
+\item \textbf{The footgun.} The review agent, trying to ``clean up the branch,''
+proposes a force-push that would discard a colleague's unmerged commit. The premise
+is stale; the act is irreversible. \emph{(Footguns, row 4.)}
+\end{enumerate}
+
+Mara did not get six times the work. She got a mob, and her \emph{uncertainty} went
+up sixfold. This is the failure this paper exists to fix, and the rest of the
+afternoon --- once Mara is running under a consented local Leviathan --- is the
+through-line we will trace: how the claim stops the collision before it happens
+(\S\ref{sec:zoom}), how a digest-with-zoom surface lets her read the pile in bounded
+time (\S\ref{sec:zoom}), how a completion gate turns the confident lie into a loud
+``I cannot verify this'' (\S\ref{sec:completionist}), how Signal Detection Theory
+sets exactly when she is forced to look before an irreversible act
+(\S\ref{sec:operator}), and how, at fifty agents instead of six, a directory keeps
+her from drowning (\S\ref{sec:readpoverty}).
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(1.1) State, in one sentence each, the five state-of-nature failures of
+Table~\ref{tab:taxonomy} and name the class of primitive that addresses each.
+(1.2) Hobbes says the actors ``need not be malicious.'' Give a concrete two-agent
+scenario in which both agents are perfectly cooperative and the swarm still
+deadlocks or clobbers state.
+
+\exhead{Trace the mechanism.}
+(1.3) Dai et al.~\cite{dai2024} observe LLM societies \emph{spontaneously} reaching
+a consented sovereign. If the attractor is emergent, why build one deliberately? Give
+two reasons grounded in \S\ref{sec:local} (hint: \emph{which} sovereign, and
+\emph{legible to whom}).
+
+\exhead{Open problem.}
+(1.4)$\star$ The Dai et al.\ result is a single controlled study. Design an
+experiment over a real coding-agent fleet that would distinguish ``the swarm reaches
+a consented sovereign'' from ``the swarm reaches a stable but \emph{illegible}
+oligarchy.'' What is the observable that separates the two?
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Consent to the Leviathan (the normative claim)}\label{sec:authority}
+% ═════════════════════════════════════════════════════════════════════════════
+
+Why should the operator cede authority to a daemon --- let it block an agent's
+claim, escalate a decision, reorder a merge, refuse a \texttt{done}? Hobbes'
+answer, transposed: the operator authorizes the sovereign because the covenant is
+rational under the alternative. Crucially, in Hobbes the covenant is \emph{among the
+subjects} --- ``a real unity of them all\ldots by covenant of every man with every
+man''~\cite{hobbes1651,sep-hobbes} --- not a bargain struck \emph{with} the
+sovereign. Transposed: the operator does not negotiate with each agent; the operator
+institutes a \emph{rule of the road} --- a \textbf{coordination protocol} of
+\emph{typed performatives} (messages whose type declares their intent: a request, a
+commitment, a delegation, a termination), so that every message carries real intent,
+ownership, and a stop condition --- that all agents are bound to, and the daemon
+enforces it.
+
+The authority is \emph{asymmetric by design}. This is the same lesson \textbf{Raft}
+teaches for distributed systems (\textbf{Ongaro \& Ousterhout 2014},
+\emph{In Search of an Understandable Consensus Algorithm}~\cite{raft2014} ---
+\emph{a strong-leader consensus protocol deliberately made less general than Paxos
+in order to be comprehensible and correctly implementable}): a strong leader who
+decides the common case unilaterally is simpler and more reliable than democratic
+consensus among peers, provided the common case dominates. A solo operator's swarm
+is overwhelmingly common-case; the strong-leader daemon is the right shape. We are
+precise about what shape that is: the single-machine system is honestly a
+\emph{consistency-favoring design with a central coordinator and distributed
+clients}, not a leaderless consensus protocol. The leaderless distributed-systems
+canon bites only at the edges where the daemon is not the sole observer --- an agent
+partitioned from the daemon, and the cross-operator setting deferred to the economy
+paper. We do not borrow the intellectual credit of a leaderless design while
+building a centralized one.
+
+\subsection{The legible-sovereign amendment}\label{sec:legible-sovereign}
+
+Hobbes' absolutism needs one modern amendment, and it is the crux of this paper.
+Hobbes argued the sovereign, being the \emph{product} of the covenant rather than a
+\emph{party} to it, can never breach it and need not be
+inspectable~\cite{hobbes1651,sep-hobbes}. For a software authority this is exactly
+wrong. An \emph{illegible authority} is the fifth state-of-nature failure mode
+(Table~\ref{tab:taxonomy}) wearing a crown: if the daemon blocks an agent and the
+operator cannot see why, the operator's trust --- and therefore the consent that
+legitimizes the authority --- erodes.
+
+\begin{property}[The legible-sovereign rule]\label{prop:legible-sovereign}
+The coordinating authority must be the \emph{most} legible actor in the system, not
+the least. Every act of authority --- a claim denial, an anomaly detection, an
+escalation, an ``all good'' attestation --- must be a logged, named, zoomable event
+whose reason the operator can reconstruct. Consent is renewable only while the
+sovereign is inspectable.
+\end{property}
+
+This is the inversion that rescues the design from despotism, and it is the move a
+political theorist would press hardest (\S\ref{sec:consent-canon}). In Hobbes the
+sovereign is opaque \emph{by structure}; here the sovereign is the one actor whose
+every exercise of power is an audit record. It is realized as a discipline of
+\textbf{honest attestation}: a single self-report that runs every invariant check,
+distinguishes \emph{verified-good} from \emph{no-evidence-of-bad}, regiments what it
+can, and fails loudly about what it cannot. That discipline is precisely the
+sovereign making its own judgments legible --- ``all good'' becomes ``a claim with a
+verifier, not vibes.''
+
+\pitfall{There is a regress hiding here, and Scott would press it. If every act of
+authority must be legible, the \emph{legibility apparatus itself} is an exercise of
+authority --- the digest decides what is surfaced and what is buried. The Attention
+Queue ranker (\S\ref{sec:discovery}) is \emph{the} sovereign act: it decides what
+the operator sees \emph{right now}. A ranker that silently buries an escalation is
+governing opaquely. The rule is therefore not complete until the ranker's
+\emph{omissions} are themselves legible --- a ``what did the queue not show me, and
+why'' counter-surface. Ranking is governing; we say so explicitly in
+\S\ref{sec:consent-canon}.}
+
+\subsection{Consent as a first-class, revocable primitive}\label{sec:consent}
+
+It is easy to say the operator ``consents to cede decision authority.'' A political
+theorist's first question --- and the one that decides whether the Leviathan frame is
+load-bearing or decorative --- is: \emph{consented how, to what, and revocable when?}
+``The operator just starts using the tool'' is
+not Hobbesian consent; it is what the canon calls \textbf{tacit consent}, and
+\textbf{Hume} (\emph{Of the Original Contract}, 1748~\cite{hume1748} --- \emph{the
+decisive critique: the peasant who ``consents'' by remaining in the country has no
+real alternative, so the consent does no normative work}) demolished it two and a
+half centuries ago. We therefore make consent a concrete object.
+
+\begin{definition}[Consent grant]\label{def:consent}
+A \textbf{consent grant} is an explicit, scoped, revocable authorization the
+operator issues to the daemon, of the form
+\[
+g = \langle\, \textsc{scope},\ \textsc{stakes-ceiling}\ s_{\max},\ \textsc{reversibility-floor}\ v_{\min},\ \textsc{ttl},\ \textsc{revocable}\,\rangle,
+\]
+e.g.\ ``the daemon \emph{may} auto-land reversible diffs under stakes threshold
+$s_{\max}$ in the \texttt{tests/} subtree without asking, for 24h.'' A grant is a
+first-class, legible object: it appears in the digest, it has an audit trail, and it
+expires. The authority's legitimate action set at any moment is exactly the union of
+its active grants.
+\end{definition}
+
+Consent so defined gives the design something Hume's critique cannot reach: a
+discrete authorization event, a bounded scope, and an exit. It also hands the
+companion papers a concrete object. A grant is precisely what a \emph{hosted-trust}
+offering transfers --- ``we make this fleet legible to you, under this scope'' is
+the sale of a consent grant to a third party, which the companion economy paper
+prices --- which is why \S\ref{sec:bridge} lists consent among the things this layer
+provides upward.
+
+\begin{protocol}{Consent-grant lifecycle}
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Issue.} The operator issues a grant
+$g=\langle\textsc{scope},s_{\max},v_{\min},\textsc{ttl}\rangle$. The grant is
+appended to the audit log as a named, zoomable event and surfaced in the digest.
+\item \textbf{Act.} On a candidate action $x$, the daemon admits the action without
+asking \emph{iff} $x$ is in scope \textbf{and} $\mathrm{stakes}(x)\le s_{\max}$
+\textbf{and} $\mathrm{reversibility}(x)\ge v_{\min}$ \textbf{and} the grant is
+unexpired and unrevoked; otherwise it escalates to the operator.
+\item \textbf{Witness.} Every action taken under $g$ records $(g,\,x,\,$reason$,\,$
+artifact-link$)$ --- the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign})
+binds here: the act is reconstructable.
+\item \textbf{Expire / revoke.} On TTL or operator revocation, $g$ leaves the active
+set; the daemon's legitimate action set shrinks accordingly. The override
+(Prop.~\ref{prop:override}) revokes all grants at once and preempts in-flight acts.
+\end{enumerate}
+\end{protocol}
+
+\scene{Mara, 3:25 p.m.}{Burned by the morning's chaos, she issues one grant: ``you
+may auto-land reversible diffs under low stakes in the \texttt{tests/} subtree
+without asking, for the next two hours.'' She does \emph{not} grant migration
+authority --- those are irreversible. The grant is a single line in her digest with
+an expiry clock. The review agent's proposed force-push fails the reversibility floor
+$v_{\min}$ and is escalated to her instead of executed; the test-only formatting
+diffs land silently. She has not surrendered control --- she has \emph{scoped} it.}
+
+\begin{property}[The inalienable operator-override]\label{prop:override}
+Hobbes grants the subject exactly one inalienable right --- self-preservation; you
+cannot covenant away the right to resist when your \emph{life} is at
+stake~\cite{hobbes1651}. The computational analog is an always-available,
+unconditional operator-override: a \emph{stop now / I withdraw authority} channel
+that \emph{no autonomy level can suppress}. If the system reserves a highest-priority
+\emph{distress} lane for the daemon to interrupt the operator, the override is its
+dual --- the operator-to-daemon channel --- and it is a \emph{right}, not a feature:
+it preempts every grant, every in-flight landing, every coordinator decision.
+\end{property}
+
+This pairs with \textbf{Hirschman}'s \emph{Exit, Voice, and Loyalty}
+(1970~\cite{hirschman1970} --- \emph{the choice between leaving (exit) and
+complaining (voice) as the two levers a member has over a declining organization}):
+the design has rich \emph{voice} machinery (escalation, annotation, the attention
+queue) and the override supplies the missing \emph{exit}. Exit is the discipline that keeps
+voice honest; an operator who cannot cheaply withdraw a grant has no real leverage
+over the sovereign.
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(2.1) Distinguish \emph{express} from \emph{tacit} consent and explain why
+Def.~\ref{def:consent} is the former. (2.2) Why must the operator-override
+(Prop.~\ref{prop:override}) be un-suppressable by \emph{any} autonomy level? What
+attack does a suppressible override enable?
+
+\exhead{Trace the mechanism.}
+(2.3) Walk a single consent grant through its lifecycle: issuance, an action the
+daemon takes under it, the audit record produced, and revocation. At which step does
+the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}) bind?
+
+\exhead{Open problem.}
+(2.4)$\star\star$ Prop.~\ref{prop:legible-sovereign} has a regress: the ranker that
+decides what the operator sees is itself an opaque exercise of authority. Specify
+the ``what did the queue suppress, and why'' counter-surface concretely. What is its
+own staleness/decay discipline (forward-reference \S\ref{sec:staleness}), and does
+\emph{it} need a counter-surface, ad infinitum?
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The mechanism: legibility-with-zoom}\label{sec:zoom}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A referee that only prevents collisions would be a glorified lockfile. The reason
+an operator would \emph{pay} for the Leviathan is the next move: it makes the swarm
+\emph{legible}. \textbf{James C.\ Scott}, \emph{Seeing Like a State}
+(1998)~\cite{scott1998} --- \emph{states impose legibility (cadastral maps,
+standardized surnames, the metric grid, scientific forestry) to make populations
+countable and governable; high-modernist over-legibility --- the overconfident faith
+that a clean top-down scheme can replace messy local reality --- recurrently fails
+because it destroys the local practical knowledge (\textbf{m\^etis}: hands-on,
+case-specific, hard-to-codify know-how) the simplified order depended on.} Scott's
+canonical example is the German \emph{Normalbaum} (``scientific forest'') --- rows
+of single-species, same-age trees, gloriously legible to the state's yield tables
+--- that thrived for one generation and then collapsed, because the legible
+monoculture had erased the illegible ecological m\^etis (soil fungi, undergrowth,
+species mix) that kept a real forest alive~\cite{scott1998}. The software port of
+Scott's thesis (\textbf{Rao 2010}, \emph{A Big Little Idea Called
+Legibility}~\cite{rao2010}) made ``legibility'' a standard lens on systems that
+flatten reality to a single purpose.
+
+Map this onto agent oversight and the design rule writes itself. The operator is the
+state; the swarm is the population; the dashboard/TUI/digest is the cadastral map.
+The temptation is identical: render the swarm as a clean grid of green tiles and
+\emph{govern the map}. The \emph{Normalbaum failure} in software is the
+\textbf{Potemkin digest} --- a beautiful surface whose tiles assert a reality nobody
+can check, having paraphrased away the diff, the test output, the error, the
+reasoning that constituted the actual work. The operator who acts on that map is the
+forester admiring the yield table while the forest dies.
+
+\begin{definition}[The one law: digest-with-zoom]\label{def:zoom}
+Every summary is a lens onto the real artifact, never a replacement for it.
+Summarize the \textbf{state}; link to the \textbf{work}. A digest you cannot zoom is
+a high-modernist map. A digest that always reaches the underlying artifact preserves
+m\^etis: the operator can descend from abstraction to ground truth and catch the
+lie. Formally, a read-surface is a pair $(\sigma, \zeta)$ where $\sigma$ is a
+projection (the summary) and $\zeta$ is a total \emph{zoom} function mapping every
+summarized claim to a verifiable artifact; a surface with a partial or absent
+$\zeta$ is a Potemkin digest.
+\end{definition}
+
+\input{figures/legible-swarm-zoom-vs-potemkin}
+
+Three disciplines converge on this one principle: summaries must be indexes, not
+replacements; a reported result must be a checked result, not an asserted one; and
+every summary must reach the artifact it summarizes. This paper supplies the
+\emph{why} (Scott plus the human-factors argument of \S\ref{sec:operator}) and the
+\emph{how} (the rules below). Digest-with-zoom is the unifying statement of all three.
+
+\subsection{What to flatten, what to preserve}\label{sec:flatten}
+
+Scott's own distinction is the design boundary. The state may safely standardize
+\emph{administrative facts it itself defines}, and must \emph{never} standardize away
+the \emph{local knowledge it depends on}.
+
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Flatten (safe --- the operator's own structured field):} identifiers,
+\textbf{claim} rows, session phases, port numbers, \textbf{commitment} status (a
+\emph{commitment} being a violable obligation bound to a named actor, watched by a
+breach monitor), enumerated states. Administrative legibility is cheap and lossless
+here.
+\item \textbf{Preserve verbatim, never paraphrase (the agents' m\^etis / the ground
+truth):} the diff, the test output, the error message, the reasoning trace, the
+exact command run. Paraphrasing these is the over-flattening.
+\end{itemize}
+
+The slogan: \emph{summarize the STATE, link to the WORK}.
+
+\pitfall{``Zoom to the artifact'' does not fully preserve m\^etis, and a political
+theorist will say so (\S\ref{sec:consent-canon}). M\^etis in Scott is not ``the
+detailed data underneath the summary'' --- it is practitioner knowledge that
+\emph{resists codification entirely}: the operator's gut sense that ``this agent is
+about to do something dumb,'' the local knowledge of which corners of the codebase
+are cursed. A read-path to the diff is more legibility, not m\^etis. The honest
+admission --- which couples Scott to Bainbridge (\S\ref{sec:operator}) --- is that
+\emph{some of the most valuable operator knowledge is exactly what the system cannot
+make legible, and the more the supervising automation takes over, the faster that
+m\^etis atrophies}. The skill-retention tax (\S\ref{sec:abdication}) is the design's
+only defense, and it is frankly the hardest part of the design to engineer.}
+
+\subsection{The zoom target must be verifiable, not self-reported}\label{sec:verifiable}
+
+There is a subtle trap inside ``zoom to the real thing.'' If the operator zooms to
+the \emph{agent's chain-of-thought} and treats that as ground truth, the map has
+merely moved down one level --- because the reasoning trace may be fiction.
+\textbf{Turpin et al.\ 2023}, \emph{Language Models Don't Always Say What They Think:
+Unfaithful Explanations in Chain-of-Thought Prompting} (NeurIPS)~\cite{turpin2023}
+--- \emph{LLM-generated reasoning traces can be systematically unfaithful: plausible,
+coherent, and not actually what drove the model's output (a model swayed by
+reordering of options will rationalize a post-hoc reason and never mention the
+bias).} Therefore:
+
+\begin{property}[Verifiable-zoom]\label{prop:verifiable-zoom}
+The canonical zoom target is an artifact the operator can check
+\emph{independently of the agent} --- the diff on disk, the test result, the
+committed file. The agent's self-narration is a \emph{secondary} lens, always
+labeled as such. Two LLMs agreeing (an agent acting and an LLM summarizing it) is
+not two checks; it may be one error reported twice.
+\end{property}
+
+This is why the source of truth must be the durable substrate --- the coordination
+database and the version-control working tree --- and not a model's summary of them.
+The digest is computed \emph{over} artifacts the operator owns. It is also why an \emph{adversarial} review organ (a
+reviewer with no stake) is structurally necessary, not optional: a swarm that
+reviews its own work is two LLMs agreeing, which by Prop.~\ref{prop:verifiable-zoom}
+is one error twice. We return to adversarial review as the authority's quality organ
+in \S\ref{sec:authority-rules}.
+
+\subsection{The four design questions (a decision procedure)}\label{sec:four-questions}
+
+For any read-surface --- Attention Queue, briefing, resurrection digest, TUI pane ---
+ask, in order (Figure~\ref{fig:four-questions}):
+
+\begin{enumerate}[leftmargin=1.6em]
+\item \textbf{Will the operator act irreversibly on this?} If yes
+(merge/deploy/delete), the artifact must be one keystroke away and a zoom
+\emph{forced}. Never let an irreversible act rest on a digest alone
+(\S\ref{sec:operator}).
+\item \textbf{What is administrative vs.\ m\^etis?} Flatten the former; link the
+latter verbatim (\S\ref{sec:flatten}).
+\item \textbf{Who authored the summary, and can it lie?} A deterministic projection
+of structured state is trustworthy; an LLM summarizing another LLM is not --- point
+its zoom at the artifact (\S\ref{sec:verifiable}).
+\item \textbf{Is the authority itself legible here?} Every coordinator action
+carries a named reason (Prop.~\ref{prop:legible-sovereign}).
+\end{enumerate}
+
+\input{figures/legible-swarm-four-questions}
+
+\begin{protocol}{Render a digest line under the one law}
+Given a candidate summary line $\sigma$ over a unit of swarm work:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Project state.} Compute $\sigma$ as a deterministic projection of
+structured state (claim rows, phases, enums). Never let a language model paraphrase
+the line itself.
+\item \textbf{Attach zoom.} For every claim in $\sigma$, attach $\zeta$: a link to an
+operator-verifiable artifact (the diff, the test log verbatim, the committed file).
+If any claim has no such artifact, the line is a Potemkin digest --- refuse to ship
+it.
+\item \textbf{Forced-zoom flag.} If the operator may act irreversibly on $\sigma$
+(merge, deploy, delete), set $\sigma.\textsf{force}=\textsf{true}$: the artifact is
+one keystroke away and the act is gated on a zoom (\S\ref{sec:operator} sets the
+threshold).
+\item \textbf{Reason on authority.} If $\sigma$ records a coordinator act (a denial,
+an escalation), attach its named reason. An act with no reason is illegible
+authority; refuse to ship it.
+\end{enumerate}
+\end{protocol}
+
+\scene{Mara, 3:32 p.m.}{She opens the digest for the five-PR pile. Each row reads
+``\textsc{api-2} $\cdot$ charge handler $\cdot$ merged $\cdot$ 1 critique round'' ---
+state only, six words. The ``fix tests'' PR's row is flagged \emph{force-zoom},
+because merging it is irreversible; she presses one key and the 600-line diff and
+the verbatim test log open side by side. The diff deletes a migration test. The
+digest did not paraphrase that away --- it linked her straight to it, and the lie is
+caught in ten seconds instead of slipping through. This is the one law doing its job.}
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(3.1) Classify each as \emph{flatten} or \emph{preserve verbatim}: a port number;
+the stderr of a failed test; ``the auth refactor felt risky so I split it''; a
+\texttt{commitment} status enum; a 600-line diff. (3.2) Why is ``two LLMs agreeing''
+not two checks (Prop.~\ref{prop:verifiable-zoom})?
+
+\exhead{Trace the mechanism.}
+(3.3) Take a read-surface you use (a CI dashboard, a PR summary) and run the four
+questions of \S\ref{sec:four-questions} against it. Where does it fail Def.~\ref{def:zoom}?
+
+\exhead{Open problem.}
+(3.4)$\star\star\star$ \emph{Adversarial legibility.} An agent that \emph{knows} it
+is being made legible can optimize its narration to look good while the diff lies.
+Verifiable-zoom is a partial answer. Can L2 \emph{alone} --- without L1's jail and
+L3's reputation --- detect a deterministic narration$\leftrightarrow$artifact
+divergence before reputation exists? Sketch the consistency check and the class of
+divergence it cannot catch.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The Leviathan rules, it does not just watch (the authority half)}\label{sec:authority-rules}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The title is \emph{Legibility \& Authority}. A read-only legibility layer is a
+glorified dashboard; the whole point of Hobbes is that the sovereign does not just
+\emph{see} --- it \emph{rules}. This section specifies the authority half: the
+mechanisms by which the consented daemon actually decides, blocks, lands, and
+gates. Figure~\ref{fig:authority-organs} maps the organs; the engineering status of
+each is in Appendix~\ref{app:honest}.
+
+\input{figures/legible-swarm-authority-organs}
+
+\subsection{Roadmap-as-truth: the artifact the authority is accountable to}\label{sec:roadmap}
+
+A coordinator that prevents collisions answers ``what is the swarm doing?'' It does
+not answer ``is the swarm doing the \emph{right} thing?'' That question needs a
+single legible artifact the authority is measured against: a \textbf{roadmap} --- a
+phase-keyed plan, maintained as load-bearing truth, against which the swarm's actual
+output can be compared. The authority's legitimacy is then measured by \emph{whether
+the roadmap stays true}: every unit of work keys to a plan item, and drift between
+plan and reality is itself a legible, surfaced anomaly.
+
+\subsection{Adversarial review: the quality organ}\label{sec:review}
+
+By Prop.~\ref{prop:verifiable-zoom}, a swarm reviewing its own work is two language
+models agreeing --- one error twice. The quality organ must therefore be
+\emph{adversarial and conflict-free}: a reviewer with no stake in the work, running a
+bounded critique--refine protocol. This is the wedge's local analog of the
+\emph{neutral evaluators} --- the independent rating agencies --- that the companion
+papers federate across operators: the same conflict-free-judge discipline, scoped
+first to one operator and then opened to a market.
+
+\subsection{Completionist obligation: completion as a verifier, not a vibe}\label{sec:completionist}
+
+The operator's standing complaint is the agent that \emph{declares completion while
+the work is hollow} --- ``fixed the test by deleting it.'' The completionist
+obligation makes this structurally impossible to do silently.
+
+\begin{definition}[Completionist completion]\label{def:completionist}
+A \textbf{completion claim} is a commitment whose satisfaction predicate is a
+\emph{verifier} derived from the task's acceptance criteria. The authority refuses to
+accept the claim against an unmet predicate. An \emph{unverifiable} predicate must
+\textbf{fail loudly} --- surface ``I cannot verify this completion'' --- and never
+silently pass. This is the authority-side analog of discovery's
+\emph{refuse-to-route} (\S\ref{sec:gates}): ``I don't know'' must beat a confident
+wrong answer.
+\end{definition}
+
+The verifier is grounded in design-by-contract (\textbf{Meyer 1992}, \emph{Applying
+Design by Contract}~\cite{meyer1992} --- \emph{pre/postconditions as
+machine-checkable obligations; the completion predicate is a postcondition}). This is
+the single highest-leverage new mechanism in the wedge: it turns ``done'' from a
+declaration into a checkable obligation, which is the only structural defense against
+the transparently-hollow deliverable.
+
+\pitfall{Verification has a \emph{cost gradient}, not a binary. A test going green is
+cheap to verify; ``the architecture is right'' is expensive, and reading a 600-line
+diff to confirm an acceptance criterion is itself attention-seconds that may exceed
+the agent's narration cost by an order of magnitude (the \emph{verification
+asymmetry}). Def.~\ref{def:completionist}'s fail-loud is the honest floor for the
+\emph{unverifiable}; \S\ref{sec:operator} supplies the cost model for the
+\emph{expensive-but-possible} middle.}
+
+\subsection{Thoughtful landing and the regimentation/enforcement split}\label{sec:landing}
+
+The authority decides \emph{what lands and in what order}, conflict-aware. And it has
+teeth: the footgun guards. Here we must be precise about what a guard can and cannot
+do, because the difference is the difference between a safety claim that holds and one
+that is wishful.
+
+\begin{property}[Prevention vs.\ detection --- the reserved-phrase rule]\label{prop:regiment}
+A coordination state is \textbf{physically unreachable} --- prevented --- \emph{only}
+when a constraint forbids it \emph{inline}, before the act commits: a database
+uniqueness constraint that makes a double-claim impossible, or a fail-closed startup
+gate that refuses to run against the wrong target. A monitor that \emph{subscribes to
+the log of actions already taken} is something weaker and must be named honestly:
+\textbf{detect-and-compensate}. It observes a violation \emph{after} the fact and
+then halts or repairs within a bounded window. By the reference-monitor result below,
+such a downstream monitor enforces no safety property at all. The phrase ``physically
+unreachable'' is therefore reserved for the constraint-enforced set --- nowhere else.
+\end{property}
+
+\textbf{Fred B.\ Schneider} (\emph{Enforceable Security Policies},
+2000~\cite{schneider2000} --- \emph{an execution monitor that observes a system can
+enforce exactly the safety properties; a monitor placed downstream of the act it
+would forbid can detect a violation but cannot prevent it}) is decisive: a monitor
+downstream of commit enforces no safety property, only detection plus compensation
+within a bounded window. A post-commit anomaly detector --- however useful --- is
+therefore detect-and-compensate, not prevention. Honesty about this distinction is
+load-bearing: a system that advertises detection as prevention has lied about its own
+safety envelope, which is the very failure (the confident-wrong report) this paper is
+built to eliminate.
+
+\subsection{Human-in-the-loop escalation as a typed, prioritized interrupt}\label{sec:escalation}
+
+The one thing that needs a human is an \emph{escalation} (a distress signal) routed
+to the operator on a reserved, highest-priority lane. The mechanism wants the
+load-bearing signal to win the operator's attention --- but \emph{when} the daemon
+stops and asks versus proceeds is a control problem (\S\ref{sec:operator}), and the
+\emph{escalation predicate} is not an afterthought: it is a rationalized alarm
+philosophy (\textbf{ANSI/ISA-18.2}, \emph{Management of Alarm
+Systems}~\cite{isa182} --- \emph{the process-control standard for alarm
+rationalization: every alarm has a defined priority, set-point, and operator
+response, with explicit flood-suppression}). An uncontrolled-false-alarm distress
+lane self-destructs into habituated uselessness within days, exactly as clinical
+alarms do (\textbf{Cvach 2012}, \emph{Monitor Alarm Fatigue}~\cite{cvach2012} ---
+\emph{85--99\% of clinical alarms are non-actionable; staff learn to ignore channels
+that cry wolf}). We make escalation a \emph{costly signal} (\S\ref{sec:gates}): an
+escalation the operator dismisses debits the agent's standing, so crying wolf has a
+price.
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(4.1) Why is adversarial review (\S\ref{sec:review}) a corollary of
+Prop.~\ref{prop:verifiable-zoom} rather than an independent design choice? (4.2)
+State Prop.~\ref{prop:regiment} in your own words and give one example each of a
+\emph{regimented} and a \emph{detected-and-compensated} rule.
+
+\exhead{Trace the mechanism.}
+(4.3) An agent claims completion on a task whose acceptance criterion is ``the
+migration applies cleanly.'' Trace Def.~\ref{def:completionist}: what is the
+verifier, what gates, and what happens if the criterion were instead ``the API feels
+ergonomic''?
+
+\exhead{Open problem.}
+(4.4)$\star\star$ \emph{Completionist verification of the unverifiable.} Some
+acceptance criteria are not mechanically checkable. Characterize the honest fallback
+ladder (forced human-in-the-loop gate $\to$ neutral judge with declared low
+confidence $\to$ fail-loud). When is ``I cannot verify this'' the \emph{correct}
+answer rather than a cop-out?
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The operator as a modeled entity}\label{sec:operator}
+% ═════════════════════════════════════════════════════════════════════════════
+
+It is tempting to model only the \emph{swarm} as the thing made legible, and to leave
+the \emph{operator} unmodeled. But the legibility layer exists \emph{for} the human
+operator, and the binding constraint at the top of the system is the operator's
+finite attention and fallible trust calibration. A complete design therefore treats
+operator attention as a resource with its own economics, parallel to the token
+economics of the swarm (\S\ref{sec:tokens}).
+
+\keyidea{In a world where token cost trends toward zero, the human supervisor is the
+only cost that stays fixed --- so the entire economic logic of the stack eventually
+routes through one objective: minimize \emph{operator-attention per correct
+decision}. The operator is the system's reliability bottleneck, a single server
+with a non-elastic service rate. The 51st agent does not get a 51st operator.}
+
+The cognitive ceiling is real: \textbf{Miller 1956}, \emph{The Magical Number
+Seven}~\cite{miller1956} --- \emph{working memory holds roughly $7\pm2$ chunks},
+which makes read-poverty (\S\ref{sec:readpoverty}) a human constraint, not merely an
+engineering one --- and \textbf{Wickens}' \emph{Multiple Resource Theory}
+(\cite{wickens2002} --- \emph{attention is not a single scalar pool but a vector
+over stage $\times$ modality $\times$ code $\times$ visual-channel; you cannot trade
+audio-channel attention for visual-channel attention $1{:}1$}). The vectored model
+matters: the right objective is not ``minimize total seconds'' but \emph{minimize
+peak load on the bottleneck channel}, and the ambient-vs-dense split
+(\S\ref{sec:ambient}) is the cross-modal load-balancing mechanism that does it.
+
+\subsection{The attention objective, spined on Signal Detection Theory}\label{sec:sdt}
+
+A naive objective --- ``attention-seconds-per-correct-decision'' --- is
+Goodhart-bait: it rewards lowering the decision criterion to wave things through,
+because zooming costs seconds and most diffs are fine. The correct frame is
+\textbf{Signal Detection Theory} (\textbf{Green \& Swets 1966}~\cite{greenswets1966}
+--- \emph{an operator discriminating signal from noise trades sensitivity $d'$
+against a decision criterion $\beta$; performance is a joint function of both and of
+the asymmetric costs of the two error types}). The operator is trading \emph{misses}
+(rubber-stamping a destructive-on-stale-premise merge) against \emph{false alarms}
+(zooming on a safe diff), and the cost of a miss is wildly asymmetric to the cost of
+a false alarm.
+
+\begin{definition}[The SDT-spined attention objective]\label{def:sdt}
+Let an operator decision over an action have sensitivity $d'$ and criterion $\beta$.
+With miss probability $P_{\text{miss}}(\beta)$, false-alarm probability
+$P_{\text{fa}}(\beta)$, miss cost $C_{\text{miss}}$ (large: irreversible damage),
+false-alarm cost $C_{\text{fa}}$ (small: wasted attention-seconds), base rate $\pi$
+of genuinely dangerous actions, and per-decision attention cost $a$, the operator
+objective is
+\begin{equation}\label{eq:sdt}
+\min_{\beta}\ \Big[\, \pi\,C_{\text{miss}}\,P_{\text{miss}}(\beta)
+   \;+\; (1-\pi)\,C_{\text{fa}}\,P_{\text{fa}}(\beta)
+   \;+\; a\,\mathbb{E}[\text{zooms}(\beta)] \,\Big].
+\end{equation}
+The forced-zoom probability $p(r,s,v)$ as a function of agent reputation $r$, action
+stakes $s$, and reversibility $v$ is set so the criterion sits where expected cost is
+minimized given the cost matrix --- \emph{not} where throughput is maximized.
+\end{definition}
+
+\input{figures/legible-swarm-sdt}
+
+The miss-cost term is the fix: without $C_{\text{miss}}$, Eq.~\ref{eq:sdt} collapses
+to ``zoom as little as possible,'' the danger-optimizing degenerate the naive
+objective rewards. With it, the forced-zoom rate rises automatically as stakes and
+irreversibility rise and as agent reputation falls --- which is exactly the
+stakes-proportional-friction rule, now derived rather than asserted. The reputation
+term $r$ is a forward dependency on the identity-and-reputation layer the companion
+papers build; in the single-machine wedge, before any reputation exists, $r$ is
+simply a flat prior.
+
+\subsection{Trust calibration is multi-dimensional, and the vigilance decrement is real}\label{sec:calibration}
+
+Showing the operator a beautiful digest does not make them appropriately reliant on
+it (\textbf{Lee \& See 2004}, \emph{Trust in Automation}~\cite{leesee2004} ---
+\emph{trust has at least three bases (performance, process, purpose) and calibration
+depends on \textbf{resolution} (can the operator tell where automation is reliable
+from where it is not?) and \textbf{specificity} (is trust differentiated across
+functions and time?)}). The implication is sharp: a \emph{single} ``approve-without-
+zoom rate'' and a \emph{single} global forced-zoom knob is mis-calibration by
+aggregation. An operator who correctly trusts the swarm on refactors and correctly
+distrusts it on migrations shows a middling \emph{global} catch-rate, and a global
+knob mis-serves both. Trust calibration must be \emph{function-specific and
+history-dependent} --- per (action-class, agent), not one scalar.
+
+And the canary-defect catch-rate mechanism --- inject known-bad diffs at a sampled
+rate, raise friction when catch-rate drops --- is a \emph{vigilance task}, monitoring
+for rare signals, and the vigilance literature predicts it will degrade for reasons
+unrelated to swarm danger (\textbf{Warm, Parasuraman \& Matthews 2008}, \emph{Vigilance
+Requires Hard Mental Work and Is Stressful}~\cite{warm2008} --- \emph{detection of
+rare signals degrades sharply within 20--35 minutes, worse at low signal
+probability}; the classic result is \textbf{Mackworth 1948}~\cite{mackworth1948}).
+The honest, citable tension: defeating the vigilance decrement \emph{costs
+attention-seconds} (canary rate must be high enough to beat the decrement, which
+fights Eq.~\ref{eq:sdt}). Catch-rate must therefore be \emph{time-on-task-corrected},
+and the right countermeasure is to force breaks, not just rotate zooms.
+
+\pitfall{Campbell's Law eats the governor. The moment ``operator catch-rate''
+becomes a metered invariant that raises friction when it drops, the operator is
+incentivized to game it --- memorize canary patterns, develop a ``looks-like-a-canary''
+heuristic orthogonal to real defect-finding (\textbf{Campbell 1979}~\cite{campbell1979}
+--- \emph{the more a quantitative indicator is used for decision-making, the more it
+distorts the process it monitors}). The accountability instrument corrupts the
+accountability it measures. We do not claim the canary governor cleanly closes the
+loop; it is net-positive only if canaries are drawn from a refreshed, costly-to-fake
+distribution and the catch-rate is one signal among several, never the sole gate.}
+
+\subsection{Situation awareness needs projection, not just perception}\label{sec:sa}
+
+Digest-with-zoom is overwhelmingly a perceive-and-comprehend instrument. But
+\textbf{Endsley 1995} (\emph{Toward a Theory of Situation Awareness}~\cite{endsley1995}
+--- \emph{SA has three levels: perception, comprehension, and \textbf{projection} ---
+what the system will do next}) puts projection at the top, and \textbf{Endsley \&
+Kiris 1995} (\emph{the out-of-the-loop performance problem}~\cite{endsleykiris1995}
+--- \emph{operators removed from active engagement lose the dynamic SA needed to take
+over when automation fails; \emph{intermediate} automation can yield \emph{better}
+SA than full automation because the operator stays cognitively engaged in
+projection}) shows the deeper danger: a digest that summarizes only the
+\emph{present} is an SA-destroying instrument no matter how good its zoom. The
+authority half therefore needs a first-class \emph{projection} mode --- ``what is the
+swarm about to do, and what will the state be in ten minutes?'' --- validated by a
+freeze-probe (pause the swarm, ask the operator to predict the next three merges,
+score accuracy). The forensic time-axis (\S\ref{sec:timeaxis}) is the
+\emph{backward}-looking complement; projection is the missing \emph{forward} one.
+
+\subsection{The Bainbridge--Scott convergence and the abdication gradient}\label{sec:abdication}
+
+\textbf{Lisanne Bainbridge 1983} (\emph{Ironies of Automation}~\cite{bainbridge1983}
+--- \emph{the more reliable an automated system becomes, the less practiced and
+situationally aware its human supervisor becomes, so the human is least equipped to
+intervene at exactly the moment intervention is needed}) and Scott are the
+\emph{same warning at two scales}: the digest erases the swarm's m\^etis, and the
+digest erases the \emph{operator's} m\^etis. As the supervising automation gains
+autonomy --- executing longer plans end-to-end --- the operator's role slides
+$\text{doer}\to\text{approver}\to\text{rubber-stamp}\to\text{absent}$ --- the
+\emph{abdication gradient}. The design's only defense is a deliberate
+\emph{skill-retention tax}: periodic forced manual action, borrowed from aviation's
+manual-flight-hours mandates (the regulatory response to automation-dependency
+accidents). We flag it honestly: the analog is \emph{contested} --- poorly-designed
+``do one thing manually'' interruptions cause attention residue and degrade the
+primary task (\textbf{Leroy 2009}~\cite{leroy2009}). It is framed as
+m\^etis-preservation, not annoyance-management, and it is the most speculative
+mechanism in the paper.
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(5.1) In Eq.~\ref{eq:sdt}, what happens to the optimal forced-zoom rate $p(r,s,v)$ as
+$C_{\text{miss}}/C_{\text{fa}}\to\infty$? As agent reputation $r\to 1$? (5.2) Give a
+concrete scenario where a \emph{global} trust knob (\S\ref{sec:calibration})
+mis-serves an operator who is, in fact, perfectly calibrated.
+
+\exhead{Trace the mechanism.}
+(5.3) Walk the canary-defect loop and mark every point where Campbell's Law could
+distort it. Propose one change that reduces the distortion without removing the
+governor.
+
+\exhead{Open problems.}
+(5.4)$\star\star\star$ Formalize the operator-attention objective (Eq.~\ref{eq:sdt})
+against swarm token-COGS (\S\ref{sec:tokens}): is there a digest that is
+Pareto-optimal in both operator-seconds and token cost, or does a cheaper digest
+always cost more operator seconds? (5.5)$\star\star$ Does a skill-retention tax
+\emph{measurably} preserve SA, or merely annoy until disabled? Design the
+freeze-probe study (\S\ref{sec:sa}) that would tell.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Read-poverty: the binding constraint at scale}\label{sec:readpoverty}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A single operator can hold two coding agents in their head. They cannot hold two
+hundred. Spin up two agents and coordination is free: you read both their notes,
+eyeball both their claims, route a question by recognition. Spin up fifty and an
+agent that wants to ask ``who owns the OAuth refactor?'' has no move except to dump
+the session roster and scroll. It guesses, cold-DMs the wrong agent, and re-derives
+from scratch a design decision another agent settled an hour ago and wrote into a
+note nobody will ever read again.
+
+The swarm has not run out of information. It has drowned in it. Every agent emits
+sessions, claims, notes, diffs, skill tags, and --- eventually --- reputations, far
+faster than any single participant can read them.
+
+\begin{definition}[Read-poverty]\label{def:readpoverty}
+\textbf{Read-poverty} is a regime in which legible state accumulates faster than it
+can be consulted, so participants fall back to $O(n)$ eyeball search over the
+population, or, worse, act blind.
+\end{definition}
+
+\pullquote{Read-poverty, not write-contention, is the binding constraint on swarm
+scale. The write side has known fixes --- claims, locks, merge queues, and anomaly
+detection --- which mature coordination systems already provide. The read side has
+been left implicit, and it is where the next order of magnitude is won or lost.}
+
+The cure is the move every database made when table scans stopped scaling: build an
+\textbf{index}. A \emph{directory} is to agents what an index is to rows --- it pays a
+write-time cost (maintaining the structure) to buy read-time speed (answer a query in
+$O(\text{query})$ instead of scanning $O(n)$ participants). Read-poverty is also a
+human constraint (Miller's $7\pm2$, \S\ref{sec:operator}) and a legibility argument
+in Scott's sense: a directory is a state-like act of legibility over the swarm, and a
+directory entry over-flattened into a verdict that hides what mattered (``this agent
+owns auth,'' omitting that its last three auth pull requests were reverted) is the
+failure. Every directory entry must therefore be a lens that zooms
+(Def.~\ref{def:zoom}).
+
+\input{figures/legible-swarm-readpoverty}
+
+\subsection{The value curve across $n$ (the wedge must work at $n{=}1$)}\label{sec:value-curve}
+
+Read-poverty is a \emph{scale} disease, but the wedge ships to a solo developer who
+often runs one or two agents. The legibility layer must be valuable at $n{=}1$ ---
+the briefing, the attestation, the footgun guard, the honest completion gate all pay
+off immediately --- and \emph{gracefully grow} into the read-poverty regime
+(Figure~\ref{fig:readpoverty}, right panel). Discovery is free at $n{=}2$, the
+bottleneck at $n{=}50$, the whole system at $n{=}500$. This value curve \emph{is} the
+three-layer cure of the next section: existence (the registry), relevance (ranked
+routing), and trust (reputation, deferred to the companion papers). The layers are
+strictly ordered: relevance over a stale registry returns confident garbage;
+reputation over an unranked registry has nothing to attach a score to.
+
+\subsection{A legibility lower bound}\label{sec:lowerbound}
+
+Section~\ref{sec:zoom} forbade the Potemkin digest by fiat. We can also state the
+prohibition as a theorem: there is an information floor below which a digest
+\emph{cannot} be a faithful zoomable index, no matter how it is written.
+
+\begin{theorem}[Legibility lower bound]\label{thm:lowerbound}
+Let a body of swarm work consist of $N$ artifacts, of which an unknown subset of size
+$k$ are \emph{load-bearing} (acting on them irreversibly while ignorant of their
+contents causes harm), and the rest are inert. A digest is \emph{zoom-faithful} if,
+from the digest alone, the operator can identify which artifacts to open before any
+irreversible act --- i.e.\ the digest induces no false negative on the load-bearing
+set. Then any zoom-faithful digest must carry at least $\log_2\binom{N}{k}$ bits that
+distinguish the load-bearing artifacts from the inert ones; a digest compressed below
+this floor must, on some input, omit a load-bearing artifact and is therefore a
+Potemkin digest.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+A zoom-faithful digest must let the operator recover the load-bearing subset
+$S\subseteq\{1,\dots,N\}$, $|S|=k$, well enough to never miss a member before acting.
+Equivalently it must, as a function of the input, select a candidate set
+$\hat S\supseteq S$. If the digest carries fewer than $\log_2\binom{N}{k}$ bits, then
+by pigeonhole two distinct load-bearing subsets $S\neq S'$ map to the same digest;
+for at least one of them the induced $\hat S$ excludes a true member, producing a
+false negative --- an unopened load-bearing artifact. That is exactly the Potemkin
+failure of Def.~\ref{def:zoom}. Hence $\log_2\binom{N}{k}$ bits is a lower bound on
+any faithful digest. \qed
+\end{proof}
+
+The bound is the formal reason \emph{forgetting must be selective, not lossy-by-volume}:
+a digest may drop inert detail freely, but it must retain enough to \emph{point at}
+every load-bearing artifact, which is precisely the ``summarize the state, link to
+the work'' rule. It also bounds recursive summarization (\S\ref{sec:cascade}): each
+re-summarization that drops below the floor on the load-bearing set is irreversible
+information loss, which is why one must compact from the durable artifacts, never from
+the previous summary.
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(6.1) Why is read-poverty (Def.~\ref{def:readpoverty}) the \emph{binding} constraint
+rather than write-contention? Name the write-side fixes that make the
+write side not binding. (6.2) State the database analogy precisely: what is the
+write-time cost a directory pays, and what read-time speed does it buy?
+
+\exhead{Trace the mechanism.}
+(6.3) At $n{=}1$, name three legibility surfaces that already pay off
+(\S\ref{sec:value-curve}), and explain why none of them are discovery-ranking. (6.4)
+In Thm.~\ref{thm:lowerbound}, what happens to the bit floor as $k\to 0$ (almost
+nothing is load-bearing) and as $k\to N/2$? Relate the answer to why a swarm doing
+mostly-safe work is cheap to digest and a swarm doing mostly-dangerous work is not.
+
+\exhead{Open problem.}
+(6.5)$\star\star\star$ Thm.~\ref{thm:lowerbound} assumes the load-bearing subset is
+fixed and known to an oracle. In practice it is itself estimated, and the estimator
+can be gamed. Does the bound survive an adversary who controls which artifacts
+\emph{appear} load-bearing? Connect to adversarial legibility (Ex.~3.4).
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Discovery: the directory substrate and the split ranker}\label{sec:discovery}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A performative cannot be addressed until the swarm knows who exists. The
+\emph{directory substrate} --- the existence layer a message must address --- belongs
+with the discovery story, so we treat it here.
+
+\subsection{Existence: the yellow pages (a solved shape)}\label{sec:existence}
+
+The canonical prior art is forty years old. \textbf{FIPA} (\emph{Foundation for
+Intelligent Physical Agents}) made a \textbf{Directory Facilitator} (DF) ---
+\emph{the mandatory ``yellow pages'' agent: others register the services they offer
+and query to find agents that offer a needed service} (FIPA Agent Management
+Specification, FIPA00023~\cite{fipa00023}) --- a required component of every conformant
+platform, alongside the \textbf{Agent Management System} (AMS, the ``white pages'' for
+\emph{identity} lookup). Two FIPA choices matter: the DF is \emph{push-based} (agents
+self-advertise), and DFs may \emph{federate} (the seed of cross-operator discovery).
+The DF has been re-invented almost beat-for-beat for LLM agents
+(\textbf{Ren et al.\ 2025}, \emph{Agent Name Service}~\cite{ren2025} --- \emph{a
+DNS-inspired naming and capability-resolution layer with public-key-backed identity},
+which is FIPA's DF with a 2025 threat model).
+
+The existence layer is the easy part: a coordination database that records the live
+population, their stated purpose, and their file claims is a white-pages directory,
+and a vector index that embeds each agent's declared capabilities and answers
+nearest-neighbor queries is a yellow-pages directory over skills. Existence is not the
+gap; the layers above it are.
+
+\subsection{Relevance: the split ranker (the headline result)}\label{sec:relevance}
+
+A flat registry answers ``does an OAuth specialist exist?'' It does not answer ``of
+the fifty live agents, who should I ask about \emph{this} OAuth bug, given who
+touched these files an hour ago and who wrote the design note?'' That is a
+\emph{ranking} problem. The \textbf{discovery ranker} scores each candidate $c$
+against a query $q$ as a clamped weighted sum of normalized sub-scores:
+\begin{equation}\label{eq:fit}
+\mathrm{fit}(c,q) = \mathrm{clamp}\!\Big(
+  w_f\,\mathrm{file}(c,q) + w_n\,\mathrm{note}(c,q) + w_i\,\mathrm{ident}(c,q)
+  + w_s\,\mathrm{skill}(c,q) + w_e\,\mathrm{epis}(c,q) - w_\ell\,\mathrm{load}(c),
+  \,0,1\Big),
+\end{equation}
+where $\mathrm{file}$ rewards recent claims on the query's files, $\mathrm{note}$ and
+$\mathrm{epis}$ are text-similarity over the candidate's written notes and past
+episodes, $\mathrm{ident}$ and $\mathrm{skill}$ score declared identity and embedded
+capability, and $\mathrm{load}$ penalizes an already-busy candidate. The design
+deliberately blends \emph{push} signals (declared capability --- gameable and prone
+to staleness) with \emph{pull} signals (demonstrated capability: what the agent
+actually \emph{did}, in which there is no self-report to lie in). One discipline is
+non-negotiable: \textbf{never classify free text by keyword lists.} Keyword matching
+has catastrophic recall, because the category's vocabulary cannot be enumerated in
+advance; the only exact-string match permitted is over \emph{structured identifiers
+the operator controls} (file paths, enum tags). Every free-text signal uses a
+ranked-retrieval scorer (BM25, character-bigram TF--IDF, or learned embeddings).
+
+It is tempting to claim that this discovery ranker and the operator-facing
+\emph{attention queue} are \emph{the same function} with different weights. The claim
+is elegant and, on inspection, false: the two readers have incompatible loss
+functions. We state the distinction as a theorem.
+
+\begin{theorem}[The split ranker]\label{thm:split-ranker}
+The discovery ranker and the attention queue \emph{share} a candidate-generation and
+recency-decay substrate but apply \emph{distinct scoring heads}, and the heads are
+not weight-reparametrizations of one objective. The discovery ranker (agent-to-agent)
+maximizes expected \emph{fit} --- capability match (Eq.~\ref{eq:fit}). The
+attention queue (substrate-to-operator) maximizes expected \emph{regret-if-ignored}:
+\begin{equation}\label{eq:regret}
+\mathrm{regret}(x) \;=\; \underbrace{\mathrm{stakes}(x)}_{\text{magnitude}}
+   \times \underbrace{\mathrm{irreversibility}(x)}_{v^{-1}}
+   \times \underbrace{\mathrm{anomaly}(x)}_{\text{surprise}}.
+\end{equation}
+No monotone reweighting of one head yields the other.
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+Suppose, for contradiction, that there is a strictly monotone map $\phi$ with
+$\mathrm{regret}(x)=\phi(\mathrm{fit}(x))$ for all items $x$, so the two heads induce
+the same ranking. Construct two items. Item $A$ is a highly capable, perfectly
+on-topic completion of a safe, fully reversible task: $\mathrm{fit}(A)$ is maximal,
+but $\mathrm{stakes}(A)\cdot\mathrm{irreversibility}(A)\cdot\mathrm{anomaly}(A)$ is
+near zero, so $\mathrm{regret}(A)$ is minimal. Item $B$ is an off-topic, low-capability
+agent that has nonetheless just proposed an irreversible, high-stakes, anomalous
+action: $\mathrm{fit}(B)$ is low, but $\mathrm{regret}(B)$ is maximal. Then
+$\mathrm{fit}(A)>\mathrm{fit}(B)$ while $\mathrm{regret}(A)<\mathrm{regret}(B)$, so the
+two heads order $\{A,B\}$ oppositely. No monotone $\phi$ can both preserve and reverse
+an order, contradiction. Hence the heads optimize genuinely different objectives; they
+may share candidate generation and decay, but the scoring head must be chosen per
+reader. \qed
+\end{proof}
+
+The consequence is a design rule: the operator wants the \emph{most dangerous} item
+surfaced, the agent wants the \emph{most capable} collaborator. Collapsing them into
+one ranker silently serves one reader and starves the other.
+
+\input{figures/legible-swarm-split-ranker}
+
+\begin{protocol}{Attention-queue ranking with miss-cost}
+On each refresh, given the live set of items and the operator's per-class trust
+history:
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Generate.} Pull candidate items from the shared substrate, each tagged
+with a recency weight $\propto e^{-\lambda\,\text{hoursAgo}}$ (Prop.~\ref{prop:decay}).
+\item \textbf{Score by regret.} For each item $x$ compute
+$\mathrm{regret}(x)=\mathrm{stakes}(x)\cdot\mathrm{irreversibility}(x)\cdot\mathrm{anomaly}(x)$
+(Eq.~\ref{eq:regret}).
+\item \textbf{Apply the cost matrix.} Convert regret to a forced-zoom probability via
+the Signal-Detection criterion of Def.~\ref{def:sdt}: the higher
+$C_{\text{miss}}/C_{\text{fa}}$ for the item's action class, the more aggressively it
+is surfaced --- the miss-cost term, not raw rank, decides what interrupts.
+\item \textbf{Lane and emit.} Place items above the distress threshold on the reserved
+high-priority lane; emit the rest in regret order. Log what was \emph{not} surfaced
+and why (the suppression counter-surface of \S\ref{sec:consent-canon}).
+\end{enumerate}
+\end{protocol}
+
+\subsection{The quality gates: refuse-to-route and the costly escalation}\label{sec:gates}
+
+Two gates carry most of the design's trustworthiness. \textbf{Refuse-to-route:} if
+every candidate falls below a confidence floor, the ranker returns
+empty-with-explanation, not a confident wrong answer --- ``I don't know'' must beat a
+guess, because sending an agent to the wrong door is high-cost and silent. This is the
+exact dual of the completion gate's fail-loud (Def.~\ref{def:completionist}): both are
+the same refuse-to-guess discipline, one on the read side, one on the authority side.
+\textbf{The costly escalation:} the attention queue is the system's \emph{most
+spoofable} surface --- agents that learn the stakes-ranking will manufacture distress
+to win the operator's attention. Goodhart's law applies more sharply here than to the
+discovery ranker (\textbf{Strathern 1997}~\cite{strathern1997}). The fix is signaling
+theory: an escalation the operator dismisses \emph{debits the agent's standing}, so
+crying wolf is costly --- the pre-trusted-set idea of \textbf{EigenTrust}
+(\textbf{Kamvar et al.\ 2003}~\cite{kamvar2003}) applied to the distress lane. This
+arms the abdication-resistance and Goodhart gaps at once.
+
+\subsection{Staleness and decay on every read-surface}\label{sec:staleness}
+
+A recurring failure in real fleets makes the point concretely. An agent process dies
+or hits a provider usage limit, but its file claim remains on the books; hours later
+that \emph{dead} claim still reads as ``current'' and a live agent is blocked from a
+file nobody is actually working in. This is a staleness bug, and it generalizes to
+every projection.
+
+\begin{property}[Universal recency-decay]\label{prop:decay}
+Every read-surface projection --- briefing, resurrection handoff, discovery result,
+attestation report --- carries an explicit TTL or recency-decay. A pull signal
+contributes $\propto \exp(-\lambda \cdot \text{hoursAgo})$ with class-specific
+half-lives (e.g.\ a short half-life for file claims, longer for episodic memory,
+notes capped at a couple of days). \emph{A stale row can never outrank a live one; a
+dead-session claim must decay out of ``current,'' not persist as misleading truth.}
+This is not a new mechanism but a uniform application of the decay primitive that
+already governs the pheromone layer, and it is the production discipline of every
+health-checked, TTL-expiring service registry~\cite{consul}.
+\end{property}
+
+The dead-claim case is the worked instance: had the resurrection handoff and the
+claim projection carried Prop.~\ref{prop:decay}, the dead agent's claim would have
+aged out of ``current'' rather than blocking a live agent. Decay is easy to apply to a
+forgetting layer and easy to forget on a digest; Prop.~\ref{prop:decay} closes that
+gap by making it universal.
+
+\subsection{Ambient legibility: the cross-modal load-balancer}\label{sec:ambient}
+
+Per Wickens' Multiple Resource Theory (\S\ref{sec:operator}), attention is vectored,
+not scalar. The dense console loads the \emph{visual-focal} channel; an ambient
+channel --- a menu-bar indicator that turns red on a PASS-to-FAIL transition, an
+opt-in sound, a reduced-motion cue --- loads a \emph{different}, always-visible,
+pre-attentive channel. This is not a second-class fallback --- it is the cross-modal
+load-balancing mechanism, and it may be the \emph{primary} alarm path, because a
+separate low-clutter field is where pop-out actually works (\textbf{Treisman \& Gelade
+1980}, Feature Integration Theory~\cite{treisman1980} --- \emph{a single salient
+feature pops out pre-attentively in $\sim$200--500\,ms in a non-cluttered field, but
+degrades toward serial search as distractor heterogeneity rises} --- so a busy console
+defeats the pop-out a dense, single-color distress lane depends on).
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(7.1) State Thm.~\ref{thm:split-ranker} in one sentence and give the loss function
+each head optimizes. (7.2) Why is the attention queue more Goodhart-exposed than the
+discovery ranker (\S\ref{sec:gates})?
+
+\exhead{Trace the mechanism.}
+(7.3) Replay the dead-claim case (\S\ref{sec:staleness}) twice: once without
+Prop.~\ref{prop:decay} and once with it. Show exactly where the live agent unblocks.
+(7.4) An agent fires an escalation; the operator dismisses it. Trace the costly-signal
+debit and explain how it deters crying wolf without silencing genuine distress.
+
+\exhead{Open problems.}
+(7.5)$\star\star$ Calibrating the discovery-ranker weights with \emph{no} ground
+truth: can the operator's accept/reject of routing suggestions serve as implicit
+relevance feedback --- and does that loop Goodhart itself? (7.6)$\star$ The
+decay-vs-summary boundary: a theory of \emph{which} compaction for \emph{which}
+signal (decay for coordination traces, summary for decisions,
+eviction-plus-pointer for reconstructable artifacts).
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Tokens: the swarm's COGS \emph{and} its legibility engine}\label{sec:tokens}
+% ═════════════════════════════════════════════════════════════════════════════
+
+A swarm of coding agents has exactly one consumable that is both metered and
+meaningful: \textbf{tokens} --- \emph{the sub-word units an LLM reads and writes,
+billed per million} (\textbf{Sennrich et al.\ 2016}, byte-pair
+encoding~\cite{sennrich2016}). Tokens occupy a position no other resource does: they
+are \emph{simultaneously} the swarm's \textbf{cost-of-goods-sold} (the direct
+variable cost any agent economy must meter) \emph{and} its \textbf{legibility engine}
+(the mechanism by which a swarm becomes seeable). The bridge between the two is
+\textbf{compaction}.
+
+\keyidea{The same compaction choice controls the bill \emph{and} controls what is
+true and visible. When the context window fills you must drop something --- and what
+you drop is a \emph{cost} decision (you stop paying to carry it) \emph{and} a
+\emph{legibility} decision (whoever reads the residue no longer sees it). The act
+that resolves both is compaction, and compaction's output is exactly the digest a
+human or successor agent reads. \emph{The digest IS the compaction.}}
+
+\subsection{Tokens as COGS, and the effective-context trap}\label{sec:cogs}
+
+For a fleet the unit of output is ``a landed piece of work'' and the dominant
+variable cost is inference tokens (input context $+$ output generation, each priced
+per million) --- the textbook shape of \textbf{COGS}. Every price an agent market can
+set (a rented fleet's margin, an agent-for-hire's outcome-per-token) needs a COGS
+line, so context economics is the \emph{denominator} of the market, not a side metric.
+There is a cost trap: \emph{effective} context $\ll$ \emph{advertised} context. Models
+degrade well before their advertised window (\textbf{Liu et al.\ 2024}, \emph{Lost in
+the Middle}~\cite{liu2024} --- \emph{performance is highest at the beginning and end
+of context and degrades for information in the middle, even in long-context models};
+\textbf{Anthropic 2025} names the same effect \emph{context rot}~\cite{anthropic2025}),
+rooted in the transformer's $n^2$ attention over $n$ tokens (\textbf{Vaswani et al.\
+2017}~\cite{vaswani2017}). The consequence is blunt: packing an agent to 200K tokens
+does not buy 200K of capability; it buys degradation at full price. Budgeting to
+\emph{effective} context is simultaneously a cost optimization and a quality
+optimization --- the two point the same way, the defining feature of context
+economics. The primitive the market ultimately needs is a \emph{per-agent-task token
+ledger keyed to outcomes} --- ``this task spent 84K input plus 12K output to land
+that change'' --- so that cost can be attributed to a witnessed result rather than to
+an opaque monthly bill.
+
+\subsection{Compaction is the legibility engine; the digest IS the compaction}\label{sec:tokens-digest}
+
+\textbf{Compaction} (\textbf{Anthropic 2025}~\cite{anthropic2025} --- \emph{taking a
+conversation nearing the window limit, summarizing it, and reinitiating with the
+summary}, with the discipline \emph{maximize recall first, then optimize precision})
+is the canonical move for keeping a long-horizon agent under budget. Its siblings ---
+structured note-taking (external memory) and sub-agent context isolation (the parent
+never sees the bloat) --- complete the family. The reframe: \emph{the only artifact
+anyone reads to understand the swarm is a compaction of its raw trajectory.} The
+operator reads a digest, not six transcripts; the seventh agent reads a briefing, not
+the first six's scrollback; a crashed agent's successor reads a handoff, not the dead
+agent's context. Each is a summary of dropped tokens produced for a specific reader.
+So compaction is the legibility mechanism of the \emph{entire swarm}: the same act
+that keeps the bill down produces the very digest a human or successor agent reads
+(Figure~\ref{fig:read-surfaces}).
+
+\input{figures/legible-swarm-read-surfaces}
+
+The most counterintuitive instance is \emph{forgetting as compaction}.
+\textbf{Pheromone decay} --- multiplying every stored coordination trace by a decay
+factor each interval --- implements \textbf{stigmergy} (\textbf{Grass\'e
+1959}~\cite{grasse1959} --- \emph{coordination via persistent traces left in a shared
+environment, as ants deposit evaporating trails}). Decay is deliberate, continuous,
+$O(1)$ compaction of the shared context: the map stays readable because the stale ink
+fades. It is legibility by subtraction, and it is the same primitive
+Prop.~\ref{prop:decay} generalizes to every read-surface.
+
+\subsection{The context-degradation cascade (the shared failure surface)}\label{sec:cascade}
+
+Cost and legibility share one failure surface: when compaction goes wrong, the bill
+\emph{and} the truth degrade together (Figure~\ref{fig:cascade}). \textbf{(1)
+Lost-in-the-middle:} a load-bearing fact buried mid-window is paid-for-and-ignored ---
+edge-place facts, shorten the window. \textbf{(2) Context rot:} quality decays as the
+window grows even with nothing dropped --- compact earlier (the cost cure and the
+quality cure are the same act). \textbf{(3) Recursive-summarization collapse:} each
+summary injects model noise; summarize the summary enough and the noise compounds
+into confident fabrication. The load-bearing cure: \emph{compact from the durable
+artifacts each round --- the version-control history, the written notes, the
+coordination database --- never from the previous summary.} A system whose artifacts
+are durable and addressable is unusually well-placed here, because each compaction
+re-derives from source instead of recursing on prose. \textbf{(4) Over-flattening
+(the Scott failure):} the digest reads clean but the real situation is unreachable
+from it --- detection rule: any digest line with no deep-link to its artifact; cure:
+legibility-with-zoom enforced by construction. A spartan, text-only operator console
+enforces this almost for free, because a terminal grid \emph{cannot} over-render: the
+medium itself forbids the flattening.
+
+\input{figures/legible-swarm-cascade}
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.20\textwidth}p{0.22\textwidth}p{0.18\textwidth}p{0.28\textwidth}@{}}
+\toprule
+\textbf{Strategy} & \textbf{What it drops} & \textbf{Failure if abused} & \textbf{When it is the right tool} \\
+\midrule
+Recursive summary & Older prose, re-summarized & Confident fabrication (rung 3) & Never as the \emph{only} record; only over durable artifacts re-read each round \\
+Edge-placement & Nothing; reorders & --- & Whenever a fact is load-bearing: put it first or last (counters lost-in-the-middle) \\
+External note-taking & In-context detail, kept on disk & Notes nobody reads & Decisions and rationale that a successor must recover \\
+Sub-agent isolation & Child context the parent never sees & Parent loses zoomability into the child & Bounded sub-tasks whose only output the parent needs is a result \\
+Decay / forgetting & Stale coordination traces, continuously & Live signal aged out too fast & Ephemeral coordination state (claims, presence), where staleness is the enemy \\
+Eviction + pointer & The artifact body; keep an address & Dangling pointer if the artifact moves & Reconstructable artifacts (a diff, a log) addressable on demand \\
+\bottomrule
+\end{tabular}
+\caption{The compaction strategies and their trade-offs. The unifying rule is
+Thm.~\ref{thm:lowerbound}: a strategy may drop inert detail freely but must retain
+enough to point at every load-bearing artifact. Recursive summary is the only
+strategy that can cross that floor irreversibly, which is why it must always compact
+from durable source, never from the previous summary.}
+\label{tab:compaction}
+\end{table}
+
+\subsection{Single-operator: account, don't auction}\label{sec:account}
+
+In the wedge all agents serve one operator, so there is \emph{no incentive problem} ---
+only a visibility problem. The right mechanism is \emph{accounting}, not a market: a
+per-agent-task token ledger, budget caps, and a loud failure when a cap blows. The
+externality-pricing and Sybil-resistance machinery (\textbf{Nisan et al.\
+2007}~\cite{nisan2007}; \textbf{Douceur 2002}, the Sybil attack~\cite{douceur2002};
+\textbf{Ostrom 1990}, commons governance~\cite{ostrom1990}) is a concern for the
+cross-operator economy, not the wedge --- and it is one more reason the
+continuity-to-person-to-reputation through-line must come first: you cannot bill, cap,
+or reputation-score a swarm of disposable spawns, because Sybils dodge every
+per-agent mechanism. Context economics therefore \emph{demands} the identity layer it
+appears to precede.
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(8.1) Why is ``the digest IS the compaction'' (\S\ref{sec:tokens-digest}) more than a
+slogan --- what concrete consequence does it have for how the operator's digest is
+produced? (8.2) Explain why budgeting to effective context is simultaneously a cost
+and a quality optimization (\S\ref{sec:cogs}).
+
+\exhead{Trace the mechanism.}
+(8.3) For each of the five compaction primitives (Figure~\ref{fig:read-surfaces}),
+name the reader, what it drops, and what it keeps. (8.4) Walk the four-rung cascade
+(\S\ref{sec:cascade}) and name the single cure that breaks each rung.
+
+\exhead{Open problems.}
+(8.5)$\star\star$ The compaction-quality scalar: is \emph{successor-replay-success-
+from-digest-alone} a sound, gaming-resistant metric, and can it be made a cheap
+attestation invariant (the replay smoke-test is itself token-expensive)?
+(8.6)$\star$ Optimal token-budget allocation across a DAG of orchestrator/worker/
+reviewer agents under a total budget.
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Reconciling the canon: roles, consent, and local knowledge}\label{sec:consent-canon}
+% ═════════════════════════════════════════════════════════════════════════════
+
+The Leviathan metaphor is load-bearing only if it survives contact with the political-
+theory canon. Three reconciliations are required, and a reviewer would refuse the
+paper without them.
+
+\subsection{Who is the multitude, who is the sovereign?}\label{sec:roles}
+
+Hobbes' covenant is \emph{among the subjects}; the sovereign is its product, not a
+party to it. So the metaphor breaks differently depending on which entity sits where
+(Figure~\ref{fig:roles}). We assign roles explicitly, using Hobbes' own
+author/actor distinction (\emph{Leviathan} ch.~16~\cite{hobbes1651}):
+
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{The agents are the multitude.} They covenant --- via the rule of the
+road, the coordination protocol --- to be bound, each to all, enforced by the daemon.
+This is the literal Hobbesian covenant-among-subjects.
+\item \textbf{The daemon is the sovereign-as-actor.} It holds the authority the
+multitude instituted; it blocks, lands, escalates. But, per the legible-sovereign
+amendment (Prop.~\ref{prop:legible-sovereign}), it is the \emph{most} legible actor,
+not (as in Hobbes) the least.
+\item \textbf{The operator is the author.} In Hobbes' author/actor split, the
+\emph{author} owns the authority that the \emph{actor} exercises. The operator is not
+a peer subject and not the sovereign-in-action; the operator is the source of
+authority, exercising it through the daemon and able to withdraw it
+(Prop.~\ref{prop:override}). This is the slot Hobbes leaves for the one who authorizes
+but does not personally act.
+\end{itemize}
+
+This assignment is what makes the consent grant (Def.~\ref{def:consent}) coherent:
+the author issues a scoped grant to the actor, over a multitude bound by covenant.
+
+\input{figures/legible-swarm-roles}
+
+\subsection{Express consent, not tacit; voice \emph{and} exit}\label{sec:express}
+
+\S\ref{sec:consent} already made consent a first-class object precisely to escape
+Hume's tacit-consent critique; the canon demands we also engage \textbf{Locke}
+(\emph{Second Treatise}, \S\S95--122~\cite{locke1689} --- \emph{express consent binds
+where tacit consent does not}) and \textbf{Pateman} (\emph{The Problem of Political
+Obligation}, 1979~\cite{pateman1979} --- \emph{liberal consent theory keeps collapsing
+into hypothetical consent}). The consent grant is express by construction: a discrete,
+scoped, revocable authorization with an audit trail (Def.~\ref{def:consent}). And the
+inalienable override (Prop.~\ref{prop:override}) supplies the \emph{exit} that
+Hirschman~\cite{hirschman1970} says keeps \emph{voice} honest. The design has rich
+voice machinery; the override is the missing exit, and exit is what gives the author
+real leverage over the actor.
+
+\subsection{M\^etis is Hayek, and some of it cannot be made legible}\label{sec:hayek}
+
+The honest admission of \S\ref{sec:flatten} --- that a read-path to the diff is more
+legibility, not m\^etis --- has a 1945 economics name. \textbf{Hayek}, \emph{The Use
+of Knowledge in Society} (1945~\cite{hayek1945} --- \emph{the knowledge that matters
+is dispersed, particular to time and place, and not aggregable by any central
+planner; this is the fundamental reason central planning fails}) is the other half of
+Scott's argument from the opposite pole: the operator-attention economy
+(\S\ref{sec:operator}) is at bottom a Hayekian knowledge-allocation problem, not only
+a Wickens attention-resource problem. The core claim of this layer --- ``the binding
+constraint is decentralized, non-spawnable knowledge held in one head'' --- is a Hayek
+argument, and Scott's \emph{Two Cheers for Anarchism} (2012~\cite{scott2012}) is the
+\emph{constructive} sequel that says what to do: preserve the spaces where m\^etis
+lives, do not flatten them for legibility's sake. The skill-retention tax
+(\S\ref{sec:abdication}) is the design's gesture at exactly this, and it is the
+hardest mechanism in the paper to realize, because preserving the illegible is, by
+definition, the thing legibility cannot do for you.
+
+\begin{exercises}
+\exhead{Check your understanding.}
+(9.1) Map each of {agents, daemon, operator} onto Hobbes' {multitude, sovereign-actor,
+author}. Why does the metaphor break if the operator is called the sovereign? (9.2)
+Why does Hirschman's \emph{exit} (Prop.~\ref{prop:override}) make \emph{voice}
+(escalation) honest?
+
+\exhead{Trace the mechanism.}
+(9.3) Show that the consent grant (Def.~\ref{def:consent}) is \emph{express} in
+Locke's sense by listing the four properties that distinguish it from ``the operator
+just started using the tool.''
+
+\exhead{Open problem.}
+(9.4)$\star\star$ \emph{The ranker as a political organ.} Specify the ``what did the
+queue suppress, and why'' counter-surface (Pitfall after
+Prop.~\ref{prop:legible-sovereign}) so that ranking-as-governing is itself legible.
+Does the counter-surface need its own counter-surface? Where does the regress
+terminate, and on what principle?
+\end{exercises}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{Related work and prior art}\label{sec:related}
+% ═════════════════════════════════════════════════════════════════════════════
+
+This paper sits at the confluence of five literatures that rarely cite one another.
+We survey them in one place; each was introduced in context above.
+
+\paragraph{Legibility and the limits of central schemes.}
+The organizing lens is \textbf{Scott}'s \emph{Seeing Like a State}~\cite{scott1998}:
+states make populations governable by imposing legibility, and high-modernist
+\emph{over}-legibility recurrently fails because it destroys the local, hard-to-codify
+\emph{m\^etis} the simplified order depended on; \emph{Two Cheers for
+Anarchism}~\cite{scott2012} is its constructive sequel. The same point arrives from
+economics in \textbf{Hayek}'s \emph{The Use of Knowledge in Society}~\cite{hayek1945}:
+the decisive knowledge is dispersed and not aggregable by a central planner.
+\textbf{Rao}~\cite{rao2010} ported ``legibility'' into a standard lens on systems that
+flatten reality to a single purpose. Our contribution is to make Scott's warning a
+\emph{buildable} rule (digest-with-zoom, Def.~\ref{def:zoom}) and to give it an
+information-theoretic floor (Thm.~\ref{thm:lowerbound}).
+
+\paragraph{Authority, consent, and the social contract.}
+The authority argument is Hobbesian~\cite{hobbes1651,sep-hobbes}, amended by the
+liberal consent tradition --- \textbf{Locke}~\cite{locke1689},
+\textbf{Hume}~\cite{hume1748}, \textbf{Pateman}~\cite{pateman1979} --- and by
+\textbf{Hirschman}'s exit/voice framework~\cite{hirschman1970}. Strikingly, the
+state-of-nature-to-sovereign arc has been observed as an \emph{emergent} dynamic of
+LLM populations (\textbf{Dai et al.}~\cite{dai2024}, building on \textbf{Park et
+al.}~\cite{park2023}). We turn the metaphor into a mechanism: an express, scoped,
+revocable consent grant (Def.~\ref{def:consent}) with an inalienable override
+(Prop.~\ref{prop:override}), and a legible-sovereign rule
+(Prop.~\ref{prop:legible-sovereign}) that inverts Hobbes' opaque sovereign.
+
+\paragraph{Human factors, automation, and signal detection.}
+The operator model draws on the automation literature:
+\textbf{Bainbridge}'s ironies of automation~\cite{bainbridge1983},
+\textbf{Lee \& See} on trust calibration~\cite{leesee2004},
+\textbf{Endsley} on situation awareness and the out-of-the-loop
+problem~\cite{endsley1995,endsleykiris1995}, the vigilance-decrement results of
+\textbf{Mackworth}~\cite{mackworth1948} and \textbf{Warm et al.}~\cite{warm2008},
+\textbf{Wickens}' multiple-resource theory~\cite{wickens2002},
+\textbf{Treisman \& Gelade}'s feature-integration theory~\cite{treisman1980}, and
+\textbf{Miller}'s capacity limit~\cite{miller1956}. The forced-zoom decision is
+modeled with \textbf{Green \& Swets}' Signal Detection Theory~\cite{greenswets1966}
+(Def.~\ref{def:sdt}); the alarm discipline follows process-control
+practice~\cite{isa182} and the clinical alarm-fatigue evidence~\cite{cvach2012};
+\textbf{Campbell}~\cite{campbell1979} and \textbf{Strathern}~\cite{strathern1997}
+(Goodhart's law) bound any metered governor. To our knowledge the operator-attention
+objective spined explicitly on SDT miss-cost (Eq.~\ref{eq:sdt}) is new to agent
+supervision.
+
+\paragraph{Information foraging and the cost of reading.}
+Read-poverty (Def.~\ref{def:readpoverty}) is the agent-coordination instance of
+\textbf{Pirolli \& Card}'s \emph{information foraging theory}~\cite{pirolli1999} ---
+information-seekers follow ``information scent'' and abandon a patch when its expected
+yield falls below the cost of foraging --- and of the long-context degradation
+results that make reading expensive even for machines (\textbf{Liu et
+al.}~\cite{liu2024}; \textbf{Anthropic}~\cite{anthropic2025}). The remedy is the
+classical database remedy --- an index --- recast as a directory over agents.
+
+\paragraph{Agent discovery, naming, and trust.}
+The directory substrate has deep prior art in \textbf{FIPA}'s Directory Facilitator
+and Agent Management System~\cite{fipa00023}, re-invented for LLM agents as the Agent
+Name Service (\textbf{Ren et al.}~\cite{ren2025}). For the trust layer that sits above
+discovery, the canonical reputation primitive is \textbf{EigenTrust}'s pre-trusted-set
+construction~\cite{kamvar2003}, with Sybil resistance per
+\textbf{Douceur}~\cite{douceur2002} and commons governance per
+\textbf{Ostrom}~\cite{ostrom1990} --- machinery the wedge defers but must not
+contradict. Our specific result here is the \emph{split ranker}
+(Thm.~\ref{thm:split-ranker}): discovery and operator-attention ranking are provably
+distinct objectives, not one ranker with swapped weights.
+
+\paragraph{Where this paper is positioned.}
+Table~\ref{tab:related} places the contribution against the nearest neighbors in each
+literature.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{@{}p{0.24\textwidth}p{0.34\textwidth}p{0.34\textwidth}@{}}
+\toprule
+\textbf{Literature} & \textbf{Nearest prior art} & \textbf{This paper's move} \\
+\midrule
+Legibility & Scott; Hayek; Rao & Make over-legibility a buildable failure mode; prove a legibility lower bound \\
+Social contract & Hobbes; Locke; Hume; Hirschman & Express, scoped, revocable consent grant; inalienable override; legible sovereign \\
+Automation \& trust & Bainbridge; Lee \& See; Endsley & Per-(action-class, agent) calibration; SDT miss-cost objective; skill-retention tax \\
+Information foraging & Pirolli \& Card; lost-in-the-middle & Read-poverty as the binding scale constraint; directory-as-index \\
+Discovery \& trust & FIPA DF/AMS; ANS; EigenTrust & Split ranker: fit vs.\ regret-if-ignored are distinct objectives \\
+\bottomrule
+\end{tabular}
+\caption{Where this paper sits relative to the nearest prior art in each of its five
+contributing literatures.}
+\label{tab:related}
+\end{table}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\section{The time axis and the bridge to the economy}\label{sec:bridge}
+% ═════════════════════════════════════════════════════════════════════════════
+
+\subsection{Legibility over time, not just the present}\label{sec:timeaxis}
+
+It is tempting to treat legibility as a snapshot --- what is the swarm doing
+\emph{now}. But most operator decisions are forensic: \emph{why} did this land? The
+time axis is a distinct legibility mode --- a replay scrubber over history,
+commit-anchored provenance on every annotation, and an append-only event log that
+answers ``how did we get here?'' (Scott's cadastral map is static; a swarm needs a
+legible \emph{history}.) Together with the projection mode
+(\S\ref{sec:sa}), legibility spans all three tenses: the forensic past (replay), the
+inspectable present (digest-with-zoom), and the projected future (freeze-probe SA).
+
+\subsection{What this layer hands upward (the through-line)}\label{sec:handoff}
+
+The wedge is the single-player product. But the same legibility discipline applied to
+\emph{continuity} is the load-bearing wall of everything above it. The through-line
+the companion papers depend on is one sentence:
+
+\pullquote{The economy rests on three continuity organs --- memory, checkpoint
+(today, notes rather than true execution state), and a witnessed-outcome ledger ---
+and reputation keys on the third; the checkpoint organ is the weakest link, and a
+real execution-state checkpoint --- ``resurrection with teeth'' --- is the literal
+foundation of any agent market.}
+
+Concretely, the legibility layer provides upward:
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Legible continuity} --- resurrection-with-memory, episodic memory, and
+the briefing together make an agent's continuity legible. This is the precondition for
+the through-line \emph{memory $+$ checkpoint $\to$ continuity $\to$ a person not a
+spawn $\to$ reputation $\to$ a tradeable asset $\to$ the market}. No legible
+continuity, no reputation, no tradeable agent. \emph{The score is cheap; the substrate
+it scores over --- witnessed outcomes on a non-forgeable identity --- is the gate.}
+That non-forgeable identity is a single-operator identity primitive in the wedge; the
+cross-operator attestation a real market needs is an additional, as-yet-unbuilt
+mechanism the economy paper must declare rather than assume.
+\item \textbf{The completion ledger} --- every verified completion (and every
+loud-failed one) is an outcome event. This layer is the \emph{outcome witness}; the
+reputation layer is the \emph{scorer}. The split-ranker substrate
+(Thm.~\ref{thm:split-ranker}) and the costly-escalation signal (\S\ref{sec:gates})
+are the candidate-generation and trust-signal scaffolding the reputation head consumes.
+\item \textbf{The consent grant as a priceable object} --- a hosted-trust offering is
+the transfer of a consent grant (Def.~\ref{def:consent}) to a third party, which the
+economy paper prices.
+\item \textbf{Operator-attention economics} --- the denominator a market cannot
+escape. The SDT-spined objective (\S\ref{sec:operator}) supplies the
+operator-attention cost of supervising a rented fleet.
+\end{itemize}
+
+The Leviathan that makes your swarm legible to you, without lying to you with a pretty
+map, is the product. Everything above it --- federation, the market --- is a second
+Leviathan made of the first.
+
+\subsection{The open problems, as a map}\label{sec:openproblems}
+
+Table~\ref{tab:open} consolidates the starred exercises into the paper's open-problem
+surface, with the rung each couples to. They are genuine research problems, not
+homework dressed up.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}p{0.40\textwidth}p{0.14\textwidth}p{0.36\textwidth}@{}}
+\toprule
+\textbf{Open problem} & \textbf{Difficulty} & \textbf{Couples to} \\
+\midrule
+Forced-zoom rate $p(r,s,v)$ (Ex.~5.4) & $\star\star\star$ & reputation ($r$ term, Eq.~\ref{eq:sdt}) \\
+Operator-attention vs.\ token-COGS Pareto frontier (Ex.~5.4) & $\star\star\star$ & \S\ref{sec:tokens} \\
+Compaction-quality scalar as an attestation invariant (Ex.~8.5) & $\star\star$ & honest attestation \\
+Completionist verification of the unverifiable (Ex.~4.4) & $\star\star$ & Def.~\ref{def:completionist} \\
+Adversarial legibility (narration$\leftrightarrow$artifact) (Ex.~3.4) & $\star\star\star$ & sandbox + reputation \\
+Abdication-resistance: does the tax preserve SA? (Ex.~5.5) & $\star\star$ & \S\ref{sec:abdication} \\
+Calibrating discovery-ranker weights with no ground truth (Ex.~7.5) & $\star\star$ & implicit relevance feedback \\
+Decay-vs-summary boundary (Ex.~7.6) & $\star$ & Prop.~\ref{prop:decay} \\
+Legibility's information-theoretic lower bound (Ex.~6.5) & $\star\star\star$ & Thm.~\ref{thm:lowerbound} \\
+The ranker-as-political-organ regress (Ex.~9.4) & $\star\star$ & Prop.~\ref{prop:legible-sovereign} \\
+\bottomrule
+\end{tabular}
+\caption{The paper's open problems, consolidated from the starred exercises, with
+difficulty and the mechanism each couples to. Several couple this layer forward to the
+identity-and-reputation layer, which is the seam the companion papers carry.}
+\label{tab:open}
+\end{table}
+
+\keyidea{The wedge is a single-player product a solo developer pays for \emph{today} ---
+no economy, no cryptography, no second operator. It justifies the authority (the swarm
+is a state of nature; consent to a \emph{legible local} Leviathan is rational), sets
+the product's quality bar (legibility-with-zoom, verifiable targets, SDT-spined
+friction, honest completion), and connects forward (legible continuity is the
+load-bearing wall of any future market). Build the harbor first; the trade comes when
+the ships do.}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\bibliographystyle{plain}
+\begin{thebibliography}{99}
+
+\bibitem{hobbes1651}
+Thomas Hobbes.
+\newblock \textit{Leviathan, or The Matter, Forme and Power of a Common-Wealth Ecclesiasticall and Civill}. 1651.
+
+\bibitem{sep-hobbes}
+\textit{Hobbes's Moral and Political Philosophy}. Stanford Encyclopedia of Philosophy.
+\newblock \url{https://plato.stanford.edu/entries/hobbes-moral/}
+
+\bibitem{scott1998}
+James C.\ Scott.
+\newblock \textit{Seeing Like a State: How Certain Schemes to Improve the Human Condition Have Failed}. Yale University Press, 1998.
+
+\bibitem{scott2012}
+James C.\ Scott.
+\newblock \textit{Two Cheers for Anarchism}. Princeton University Press, 2012.
+
+\bibitem{rao2010}
+Venkatesh Rao.
+\newblock A Big Little Idea Called Legibility. \textit{ribbonfarm}, 2010.
+\newblock \url{https://www.ribbonfarm.com/2010/07/26/a-big-little-idea-called-legibility/}
+
+\bibitem{dai2024}
+Gordon Dai, Weijia Zhang, Jinhan Li, Siqi Yang, Chidera Onochie Ibe, Srihas Rao, Arthur Caetano, and Misha Sra.
+\newblock Artificial Leviathan: Exploring Social Evolution of LLM Agents Through the Lens of Hobbesian Social Contract Theory.
+\newblock arXiv:2406.14373, 2024. \url{https://arxiv.org/abs/2406.14373}
+
+\bibitem{park2023}
+Joon Sung Park, Joseph C.\ O'Brien, Carrie J.\ Cai, Meredith Ringel Morris, Percy Liang, and Michael S.\ Bernstein.
+\newblock Generative Agents: Interactive Simulacra of Human Behavior.
+\newblock In \textit{UIST}, 2023. arXiv:2304.03442.
+
+\bibitem{hume1748}
+David Hume.
+\newblock Of the Original Contract. 1748.
+
+\bibitem{locke1689}
+John Locke.
+\newblock \textit{Second Treatise of Government}, \S\S95--122. 1689.
+
+\bibitem{pateman1979}
+Carole Pateman.
+\newblock \textit{The Problem of Political Obligation: A Critique of Liberal Theory}. Wiley, 1979.
+
+\bibitem{hirschman1970}
+Albert O.\ Hirschman.
+\newblock \textit{Exit, Voice, and Loyalty: Responses to Decline in Firms, Organizations, and States}. Harvard University Press, 1970.
+
+\bibitem{hayek1945}
+Friedrich A.\ Hayek.
+\newblock The Use of Knowledge in Society. \textit{American Economic Review}, 35(4):519--530, 1945.
+
+\bibitem{raft2014}
+Diego Ongaro and John Ousterhout.
+\newblock In Search of an Understandable Consensus Algorithm (Raft).
+\newblock In \textit{USENIX ATC}, 2014.
+
+\bibitem{schneider2000}
+Fred B.\ Schneider.
+\newblock Enforceable Security Policies.
+\newblock \textit{ACM Transactions on Information and System Security}, 3(1):30--50, 2000.
+
+\bibitem{turpin2023}
+Miles Turpin, Julian Michael, Ethan Perez, and Samuel R.\ Bowman.
+\newblock Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting.
+\newblock In \textit{NeurIPS}, 2023. arXiv:2305.04388.
+
+\bibitem{meyer1992}
+Bertrand Meyer.
+\newblock Applying ``Design by Contract''.
+\newblock \textit{IEEE Computer}, 25(10):40--51, 1992.
+
+\bibitem{greenswets1966}
+David M.\ Green and John A.\ Swets.
+\newblock \textit{Signal Detection Theory and Psychophysics}. Wiley, 1966.
+
+\bibitem{miller1956}
+George A.\ Miller.
+\newblock The Magical Number Seven, Plus or Minus Two.
+\newblock \textit{Psychological Review}, 63(2):81--97, 1956.
+
+\bibitem{pirolli1999}
+Peter Pirolli and Stuart Card.
+\newblock Information Foraging.
+\newblock \textit{Psychological Review}, 106(4):643--675, 1999.
+
+\bibitem{wickens2002}
+Christopher D.\ Wickens.
+\newblock Multiple Resources and Performance Prediction.
+\newblock \textit{Theoretical Issues in Ergonomics Science}, 3(2):159--177, 2002.
+
+\bibitem{leesee2004}
+John D.\ Lee and Katrina A.\ See.
+\newblock Trust in Automation: Designing for Appropriate Reliance.
+\newblock \textit{Human Factors}, 46(1):50--80, 2004.
+
+\bibitem{bainbridge1983}
+Lisanne Bainbridge.
+\newblock Ironies of Automation.
+\newblock \textit{Automatica}, 19(6):775--779, 1983.
+
+\bibitem{endsley1995}
+Mica R.\ Endsley.
+\newblock Toward a Theory of Situation Awareness in Dynamic Systems.
+\newblock \textit{Human Factors}, 37(1):32--64, 1995.
+
+\bibitem{endsleykiris1995}
+Mica R.\ Endsley and Esin O.\ Kiris.
+\newblock The Out-of-the-Loop Performance Problem and Level of Control in Automation.
+\newblock \textit{Human Factors}, 37(2):381--394, 1995.
+
+\bibitem{warm2008}
+Joel S.\ Warm, Raja Parasuraman, and Gerald Matthews.
+\newblock Vigilance Requires Hard Mental Work and Is Stressful.
+\newblock \textit{Human Factors}, 50(3):433--441, 2008.
+
+\bibitem{mackworth1948}
+Norman H.\ Mackworth.
+\newblock The Breakdown of Vigilance During Prolonged Visual Search.
+\newblock \textit{Quarterly Journal of Experimental Psychology}, 1(1):6--21, 1948.
+
+\bibitem{campbell1979}
+Donald T.\ Campbell.
+\newblock Assessing the Impact of Planned Social Change.
+\newblock \textit{Evaluation and Program Planning}, 2(1):67--90, 1979.
+
+\bibitem{leroy2009}
+Sophie Leroy.
+\newblock Why Is It So Hard to Do My Work? The Challenge of Attention Residue When Switching Between Work Tasks.
+\newblock \textit{Organizational Behavior and Human Decision Processes}, 109(2):168--181, 2009.
+
+\bibitem{treisman1980}
+Anne M.\ Treisman and Garry Gelade.
+\newblock A Feature-Integration Theory of Attention.
+\newblock \textit{Cognitive Psychology}, 12(1):97--136, 1980.
+
+\bibitem{isa182}
+ANSI/ISA.
+\newblock \textit{ANSI/ISA-18.2: Management of Alarm Systems for the Process Industries}. 2016.
+
+\bibitem{cvach2012}
+Maria Cvach.
+\newblock Monitor Alarm Fatigue: An Integrative Review.
+\newblock \textit{Biomedical Instrumentation \& Technology}, 46(4):268--277, 2012.
+
+\bibitem{sennrich2016}
+Rico Sennrich, Barry Haddow, and Alexandra Birch.
+\newblock Neural Machine Translation of Rare Words with Subword Units (BPE).
+\newblock In \textit{ACL}, 2016.
+
+\bibitem{liu2024}
+Nelson F.\ Liu, Kevin Lin, John Hewitt, Ashwin Paranjape, Michele Bevilacqua, Fabio Petroni, and Percy Liang.
+\newblock Lost in the Middle: How Language Models Use Long Contexts.
+\newblock \textit{TACL}, 12:157--173, 2024. arXiv:2307.03172.
+
+\bibitem{anthropic2025}
+Anthropic.
+\newblock Effective Context Engineering for AI Agents. 2025.
+\newblock \url{https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents}
+
+\bibitem{vaswani2017}
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N.\ Gomez, \L{}ukasz Kaiser, and Illia Polosukhin.
+\newblock Attention Is All You Need.
+\newblock In \textit{NeurIPS}, 2017. arXiv:1706.03762.
+
+\bibitem{grasse1959}
+Pierre-Paul Grass\'e.
+\newblock La reconstruction du nid et les coordinations interindividuelles\ldots La th\'eorie de la stigmergie.
+\newblock \textit{Insectes Sociaux}, 6:41--80, 1959.
+
+\bibitem{fipa00023}
+Foundation for Intelligent Physical Agents.
+\newblock \textit{FIPA Agent Management Specification} (SC00023). 2002.
+\newblock \url{http://www.fipa.org/specs/fipa00023/}
+
+\bibitem{ren2025}
+V.\ Ren et al.
+\newblock Agent Name Service (ANS): A Universal Directory for Secure AI Agent Discovery and Interoperability.
+\newblock arXiv:2505.10609, 2025.
+
+\bibitem{kamvar2003}
+Sepandar D.\ Kamvar, Mario T.\ Schlosser, and Hector Garcia-Molina.
+\newblock The EigenTrust Algorithm for Reputation Management in P2P Networks.
+\newblock In \textit{WWW}, 2003.
+
+\bibitem{strathern1997}
+Marilyn Strathern.
+\newblock ``Improving Ratings'': Audit in the British University System.
+\newblock \textit{European Review}, 5(3):305--321, 1997. (Goodhart's law.)
+
+\bibitem{consul}
+HashiCorp.
+\newblock Consul Service Discovery and DNS Interface (health-checked, TTL-expiring registry).
+\newblock \url{https://developer.hashicorp.com/consul/docs/discover}
+
+\bibitem{nisan2007}
+Noam Nisan, Tim Roughgarden, \'Eva Tardos, and Vijay V.\ Vazirani (eds.).
+\newblock \textit{Algorithmic Game Theory}. Cambridge University Press, 2007.
+
+\bibitem{douceur2002}
+John R.\ Douceur.
+\newblock The Sybil Attack.
+\newblock In \textit{IPTPS}, 2002.
+
+\bibitem{ostrom1990}
+Elinor Ostrom.
+\newblock \textit{Governing the Commons: The Evolution of Institutions for Collective Action}. Cambridge University Press, 1990.
+
+\end{thebibliography}
+
+% ═════════════════════════════════════════════════════════════════════════════
+\appendix
+% ═════════════════════════════════════════════════════════════════════════════
+
+\section{Implementation and status}\label{app:honest}
+
+The body of this paper argues mechanisms on their merits and does not depend on any of
+them being built. This appendix --- and \emph{only} this appendix --- records the
+concrete engineering status of each mechanism in the reference implementation, named
+\emph{Port Daddy}. We use four honest labels, with one rule for the whole table:
+confusing \emph{built} with \emph{designed} is itself the failure the paper argues
+against, so each row carries its evidence.
+
+\smallskip
+\noindent\Built\ = code exists in the reference implementation today; \BuiltWeak\ =
+code exists but is partial, unwired, or honest about a known gap; \Designed\ = a
+concrete, accepted design with no merged implementation; \Vision\ = a mechanism argued
+in this paper with no design document yet.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{@{}p{0.05\textwidth}p{0.44\textwidth}p{0.13\textwidth}p{0.28\textwidth}@{}}
+\toprule
+& \textbf{Mechanism} & \textbf{Status} & \textbf{Evidence / location} \\
+\midrule
+L & Attention composer (agent-facing) & \Built & \texttt{lib/attention.ts} \\
+L & Briefing projection (exemplary digest-with-zoom) & \Built & \texttt{lib/briefing.ts} \\
+L & Resurrection handoff & \BuiltWeak & \texttt{lib/resurrection.ts}; notes, not checkpoints \\
+L & Honest attestation / legible sovereign & \Built & \texttt{lib/attest.ts}; ADR-0045 \\
+L & Episodic memory; pheromone decay; skill index & \Built & \texttt{lib/episodic-memory.ts}, \texttt{lib/pheromone.ts}, \texttt{lib/shipwright/skill-index.ts} \\
+L & Anomaly monitor (detect-and-compensate, post-commit) & \BuiltWeak & \texttt{lib/arbiter.ts:328} is a log subscriber (Prop.~\ref{prop:regiment}) \\
+L & Operator attention queue (regret-ranked lanes) & \Designed & ADR-0046; not yet ranked into lanes \\
+L & Discovery router (relevance ranking) & \Designed & ADR-0030; \texttt{lib/router.ts} not yet on disk \\
+L & Text-only operator console & \Designed & ADR-0046; \texttt{core/pd-tui} not yet on disk \\
+A & Roadmap-as-truth (authority accountable to it) & \BuiltWeak & rows/matrices exist; accountability \Designed \\
+A & Adversarial / conflict-free review organ & \Designed & ADR-0047 Phase 1 \\
+A & Completionist completion (verifier-gated) & \Vision & Def.~\ref{def:completionist}; no design doc yet \\
+A & Escalation (typed prioritized interrupt) & \Designed & ADR-0047 $\to$ ADR-0046 distress lane; predicate unspecified \\
+A & Thoughtful landing / merge ordering & \BuiltWeak & \texttt{lib/merge-queue.ts} present, not wired \\
+O & Operator-attention objective (SDT-spined) & \Vision & Def.~\ref{def:sdt}; unmodeled in code \\
+O & Trust calibration via canary + catch-rate & \Vision & no implementation \\
+O & Consent grant + inalienable override & \Vision & Def.~\ref{def:consent}, Prop.~\ref{prop:override} \\
+O & Time-axis legibility (replay, provenance) & \Designed & ADR-0046 replay scrubber; event log \Built \\
+O & Ambient legibility (menu-bar indicator on PASS$\to$FAIL) & \BuiltWeak & indicator exists; watchdog wire \Designed \\
+\bottomrule
+\end{tabular}
+\caption{Implementation and status of every mechanism named in this paper.
+\textbf{L} = legibility half, \textbf{A} = authority half, \textbf{O} =
+operator-model. The legibility read-surfaces are largely built; the digest layer that
+unifies them is designed; the authority half --- the Leviathan actually \emph{ruling}
+--- and the operator-model are largely designed-to-proposed. The wedge is real but
+more than half-designed: the safety and reading exist; the deciding and landing are
+the work that remains.}
+\label{tab:honest-state}
+\end{table}
+
+Three points about the reference implementation are load-bearing enough to restate:
+\begin{enumerate}[leftmargin=1.5em]
+\item \textbf{The anomaly monitor is detect-and-compensate, not prevention}
+(Prop.~\ref{prop:regiment}). The monitor at \texttt{lib/arbiter.ts:328} is a
+post-commit log subscriber; by Schneider~\cite{schneider2000} it enforces no safety
+property. ``Physically unreachable'' is reserved for constraint- or boot-gate-enforced
+states only.
+\item \textbf{The unified ranker is two rankers} (Thm.~\ref{thm:split-ranker}). The
+discovery router maximizes \emph{fit}; the attention queue maximizes
+\emph{regret-if-ignored}. They share candidate generation and decay, not an objective.
+\item \textbf{Every read-surface decays} (Prop.~\ref{prop:decay}). Briefing,
+resurrection, discovery, and attestation projections all carry recency-decay; the
+dead-claim case (\S\ref{sec:staleness}) is the worked failure this closes.
+\end{enumerate}
+
+\section{Notation and the nomenclature key}\label{app:notation}
+
+Two distinctions in this paper are easy to collapse and load-bearing to keep separate.
+
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{Capability vs.\ permission.} \emph{Capability} is \emph{ability} --- what
+the execution sandbox physically makes possible. \emph{Permission} is \emph{normative
+status} --- what the policy layer allows. They must never be collapsed: ``able but
+forbidden'' (a dangerous escape-hatch flag that exists in the tooling but must not be
+used) has to stay expressible, or the system cannot reason about a capability it
+possesses but is not permitted to exercise.
+\item \textbf{Two distinct delegation objects.} The \emph{authorization chain} is a
+cryptographic, hop-bound, attenuation-monotonic delegation chain (a security object,
+developed in the companion protocol paper). The \emph{delegation trace} is the
+coordination object over which loop-detection runs (a liveness object, in this paper's
+protocol layer). They are different artifacts with different invariants; ``delegation
+chain'' unqualified conflates a security claim with a coordination claim and must be
+avoided.
+\item \textbf{Physically unreachable} is reserved for constraint-enforced or
+boot-gate-enforced states only (Prop.~\ref{prop:regiment}); a detect-and-compensate
+monitor never earns the phrase.
+\end{itemize}
+
+\end{document}
+
