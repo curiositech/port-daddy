@@ -1,0 +1,87 @@
+% Figure 12 — the consistency-model theorem, the formal payoff of the single-
+% writer choice. Single-writer SQLite/WAL gives SERIALIZABLE transactions; one
+% decider gives LINEARIZABLE external behavior for claims/locks. A real-time
+% history shows why: every operation has a single linearization point at commit.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D4C5A9}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  lane/.style={font=\footnotesize\bfseries},
+  op/.style={draw=hhebony,thick,rounded corners=2pt,minimum height=7mm,align=center,font=\scriptsize},
+  lp/.style={circle,fill=hhcinnabar,inner sep=1.6pt},
+]
+
+% time axis
+\draw[->,>=Latex,thick,hhebony] (0,-0.0) -- (118mm,0) node[right,font=\footnotesize]{real time};
+
+% Agent A: claim(port) ----- success
+\node[lane,anchor=east] at (-2mm,18mm) {Agent A};
+\node[op,fill=hhsand!30,minimum width=34mm,anchor=west] (a) at (8mm,18mm) {claim(port 7421)};
+\node[lp] (lpa) at ($(a.east)+(2mm,0)$) {};
+\node[font=\scriptsize,above=0.5mm of lpa,text=hhink] {commit (LP)};
+
+% Agent B: claim(port) -- overlaps -- loses
+\node[lane,anchor=east] at (-2mm,9mm) {Agent B};
+\node[op,fill=hhsand!30,minimum width=44mm,anchor=west] (b) at (24mm,9mm) {claim(port 7421) $\to$ holder=A};
+\node[lp] (lpb) at ($(b.east)+(2mm,0)$) {};
+
+% Agent C: claim after release
+\node[lane,anchor=east] at (-2mm,0mm) {Agent C};
+% nothing -- axis sits here
+
+% Agent A: release
+\node[op,fill=hhsand!30,minimum width=22mm,anchor=west] (rel) at (70mm,18mm) {release};
+\node[lp] (lprel) at ($(rel.east)+(2mm,0)$) {};
+
+% Agent C re-claim succeeds after release LP
+\node[op,fill=hhsand!30,minimum width=30mm,anchor=west] (c) at (84mm,0mm) {claim(7421) $\to$ OK};
+\node[lp] (lpc) at ($(c.east)+(2mm,0)$) {};
+
+% vertical guides at LPs
+\foreach \p in {lpa,lpb,lprel,lpc} {
+  \draw[hhcinnabar,dotted] (\p) -- (\p|-0,-6mm);
+}
+
+% the linearization order strip
+\node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      font=\scriptsize,align=center,anchor=north,text width=120mm] at (58mm,-10mm)
+  {\textbf{single linearization:}\quad
+   $A.\text{claim} \prec B.\text{claim(loses)} \prec A.\text{release} \prec C.\text{claim(wins)}$\quad
+   --- one decider, so the commit order \emph{is} the real-time order};
+
+% theorem box
+\node[draw=hhink,line width=1.2pt,fill=hhpaper,rounded corners=2pt,inner sep=6pt,
+      text width=170mm,align=left,font=\footnotesize,anchor=north] at (58mm,-22mm)
+  {{\bfseries Theorem (consistency model).}\quad Under one writer over a single
+   SQLite database in WAL mode, every transaction is \textbf{serializable}; and
+   because the daemon is the sole decider, the externally observable history of
+   claim/lock operations is \textbf{linearizable} --- each operation appears to take
+   effect atomically at its commit (its \emph{linearization point}), consistent with
+   real-time order. This is the formal payoff of the single-writer choice, and it is
+   what makes the coordination layer's typed ownership trustworthy without any
+   agreement protocol.};
+
+\end{tikzpicture}%
+}
+\caption{The consistency-model theorem --- the formal property the single-writer
+choice buys, made explicit here. Because all mutations serialize through one writer
+over one WAL file, transactions are \textbf{serializable}; because that writer is
+the sole decider, the observable history of claims and locks is
+\textbf{linearizable}: every operation has a single linearization point at its
+commit, and the commit order coincides with real time. The trace shows A winning a
+port, B losing cleanly to the holder, A releasing, and C then winning --- one
+unambiguous order with no agreement protocol in sight. This linearizability is
+exactly what lets the coordination layer treat ``who holds this'' as ground truth.}
+\label{fig:swk-consistency-model}
+\end{figure}
