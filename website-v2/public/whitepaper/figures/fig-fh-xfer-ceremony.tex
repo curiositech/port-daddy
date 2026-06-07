@@ -12,17 +12,17 @@
 \centering
 \resizebox{0.95\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\sffamily\small,
+  font=\small,
   lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
                inner sep=4pt,minimum width=28mm,
-               font=\sffamily\bfseries\small,align=center},
+               font=\bfseries\small,align=center},
   msg/.style={->,>=Latex,thick,draw=hhebony},
   threat/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=3pt,font=\sffamily\scriptsize\itshape,
-                 text=hhcinnabar,align=left,text width=42mm},
-  defended/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,font=\sffamily\scriptsize,
-                   text=hhpatina,align=left,text width=42mm},
+                 inner sep=3pt,font=\scriptsize\itshape,
+                 text=hhink,align=left,text width=42mm},
+  defended/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
+                   inner sep=3pt,font=\scriptsize,
+                   text=hhink,align=left,text width=42mm},
 ]
 
 % ─── Four lanes: Alice, Harbor A, Harbor B, Bob ───────────────────
@@ -37,20 +37,20 @@
 }
 
 % ─── Message 1: Alice asks her harbor for an xfer card ─────────────
-\draw[msg] ($(LA.south)+(0,-6mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_req}(C_A, B)$} ($(HA.south)+(0,-6mm)$);
-\node[font=\sffamily\scriptsize\itshape,right=2mm of HA,yshift=-7mm,text width=46mm,align=left]{\textbf{(1)} Alice presents her card $C_A$, names target harbor $B$, requests transferable form.};
+\draw[msg] ($(LA.south)+(0,-6mm)$) -- node[above,font=\scriptsize]{$\mathsf{xfer\_req}(C_A, B)$} ($(HA.south)+(0,-6mm)$);
+\node[font=\scriptsize\itshape,right=2mm of HA,yshift=-12.5mm,text width=44mm,align=left]{\textbf{(1)} Alice presents her card $C_A$, names target harbor $B$, requests transferable form.};
 
 % ─── Message 2: Harbor A mints xfer envelope with attenuation ──────
-\draw[msg] ($(HA.south)+(0,-22mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} ($(HB.south)+(0,-22mm)$);
-\node[font=\sffamily\scriptsize\itshape,right=2mm of HB,yshift=-23mm,text width=46mm,align=left]{\textbf{(2)} Harbor $A$ signs an envelope binding $C_A$, an attenuation predicate $\mathrm{att}$, and its current epoch root $R_A^{(e)}$.};
+\draw[msg] ($(HA.south)+(0,-22mm)$) -- node[above,font=\scriptsize]{$\mathsf{xfer\_offer}\langle C_A, \mathrm{att}, R_A^{(e)}\rangle$} ($(HB.south)+(0,-22mm)$);
+\node[font=\scriptsize\itshape,right=2mm of HB,yshift=-23mm,text width=46mm,align=left]{\textbf{(2)} Harbor $A$ signs an envelope binding $C_A$, an attenuation predicate $\mathrm{att}$, and its current epoch root $R_A^{(e)}$.};
 
 % ─── Message 3: Harbor B counter-signs after attenuating ────────────
-\draw[msg] ($(HB.south)+(0,-40mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} ($(HA.south)+(0,-40mm)$);
-\node[font=\sffamily\scriptsize\itshape,left=2mm of HA,yshift=-41mm,text width=46mm,align=right]{\textbf{(3)} Harbor $B$ verifies $\mathit{sk}_A$ via witness log, applies its local attenuation, mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$ valid only at $B$.};
+\draw[msg] ($(HB.south)+(0,-40mm)$) -- node[above,font=\scriptsize]{$\mathsf{xfer\_ack}\langle C_B', R_B^{(e)}\rangle$} ($(HA.south)+(0,-40mm)$);
+\node[font=\scriptsize\itshape,left=2mm of HA,yshift=-41mm,text width=46mm,align=right]{\textbf{(3)} Harbor $B$ verifies $\mathit{sk}_A$ via witness log, applies its local attenuation, mints $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$ valid only at $B$.};
 
 % ─── Message 4: Card delivered to Bob's agent ───────────────────────
-\draw[msg] ($(HB.south)+(0,-58mm)$) -- node[above,font=\sffamily\scriptsize]{$\mathsf{xfer\_deliver}\langle C_B'\rangle$} ($(LB.south)+(0,-58mm)$);
-\node[font=\sffamily\scriptsize\itshape,right=2mm of LB,yshift=-59mm,text width=46mm,align=left]{\textbf{(4)} Bob's agent receives $C_B'$. Subsequent presentations at $B$ verify under $\mathit{sk}_B$ alone — no $A$-side lookup is needed at the hot path.};
+\draw[msg] ($(HB.south)+(0,-58mm)$) -- node[above,font=\scriptsize]{$\mathsf{xfer\_deliver}\langle C_B'\rangle$} ($(LB.south)+(0,-58mm)$);
+\node[font=\scriptsize\itshape,right=2mm of LB,yshift=-59mm,text width=46mm,align=left]{\textbf{(4)} Bob's agent receives $C_B'$. Subsequent presentations at $B$ verify under $\mathit{sk}_B$ alone — no $A$-side lookup is needed at the hot path.};
 
 % ─── Forecloses / what could still go wrong (bottom annotation band) ─
 \node[threat,below=68mm of LA] (T) {%
