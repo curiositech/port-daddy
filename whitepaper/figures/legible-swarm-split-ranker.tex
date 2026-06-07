@@ -1,0 +1,55 @@
+% Figure 8 — the split ranker (Thm. split-ranker): shared candidate-generation +
+% decay substrate, two distinct scoring heads (fit vs regret).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{1E1B18}
+\providecolor{hhink}{HTML}{2C2A26}
+\providecolor{hhcinnabar}{HTML}{CC3D2E}
+\providecolor{hhbrass}{HTML}{B08D57}
+\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhpaper}{HTML}{FBF7EE}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw=hhebony,thick,rounded corners=3pt,align=center,inner sep=5pt,
+              font=\footnotesize,text width=42mm},
+  head/.style={draw=hhebony,very thick,rounded corners=3pt,align=center,inner sep=6pt,
+               font=\footnotesize,text width=46mm},
+  e/.style={-{Latex[length=2mm]},thick,hhink},
+]
+% shared substrate
+\node[box,fill=hhsand!30] (sub) at (0,0)
+  {\textbf{Shared substrate}\\candidate generation\\$+$ recency-decay
+   (Prop.~\ref{prop:decay})\\\textit{signals: claims, skills,}\\\textit{notes, episodes, presence}};
+
+% split
+\node[head,fill=hhsand!30] (fit) at (5.6,2.0)
+  {\textbf{Discovery head} --- agent$\to$agent\\maximize \emph{fit}\\
+   $\mathrm{fit}=\sum_k w_k\,\mathrm{sig}_k$ (Eq.~\ref{eq:fit})\\
+   \emph{``who is most capable?''}};
+\node[head,fill=hhsand!30] (reg) at (5.6,-2.0)
+  {\textbf{Attention-queue head} --- substrate$\to$operator\\maximize \emph{regret-if-ignored}\\
+   $\mathrm{regret}=\text{stakes}\times v^{-1}\times\text{anomaly}$ (Eq.~\ref{eq:regret})\\
+   \emph{``what is most dangerous?''}};
+
+\draw[e] (sub.east) -- (fit.west);
+\draw[e] (sub.east) -- (reg.west);
+
+\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      font=\footnotesize,text width=40mm,align=left] at (11.6,0)
+  {\textbf{Not one ranker.} The heads optimize \emph{different} objectives, not the
+   same objective with swapped weights (Thm.~\ref{thm:split-ranker}).};
+\end{tikzpicture}%
+}
+\caption{The split ranker (Thm.~\ref{thm:split-ranker}). The discovery ranker and the
+operator's attention queue \emph{share} candidate generation and recency-decay
+(Prop.~\ref{prop:decay}) but apply distinct scoring heads: discovery maximizes
+\emph{fit} (capability match, Eq.~\ref{eq:fit}); the attention queue maximizes
+\emph{regret-if-ignored} (Eq.~\ref{eq:regret}). The operator wants the most dangerous
+item surfaced, the agent wants the most capable collaborator --- incompatible loss
+functions, so the elegant ``one ranker'' claim is false-as-stated and demoted to
+``shared substrate, distinct heads.''}
+\label{fig:split-ranker}
+\end{figure}
