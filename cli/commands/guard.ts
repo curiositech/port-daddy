@@ -7,6 +7,8 @@ import { readCurrentContext } from '../utils/current-context.js';
 import { installGitShim, uninstallGitShim, SHIM_BIN_DIR } from '../utils/git-shim.js';
 import type { CLIOptions } from '../types.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
+import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
 
 /**
  * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
@@ -43,6 +45,10 @@ export interface CoordinationGuardConfig {
   mode: Exclude<CoordinationGuardMode, 'off'>;
   requireSession: boolean;
   requireClaims: boolean;
+  /** The compulsion (ADR-0050): every commit must publish a coordination note.
+   *  When true, a commit left un-noted blocks the next commit. Default true —
+   *  coordination is the price of the sandbox. */
+  requireNotePerCommit: boolean;
   updatedAt?: string;
 }
 
@@ -79,6 +85,7 @@ export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
   mode: 'warn',
   requireSession: true,
   requireClaims: true,
+  requireNotePerCommit: true,
 };
 
 function boolValue(value: unknown, fallback: boolean): boolean {
@@ -97,6 +104,7 @@ export function normalizeGuardConfig(raw: unknown): CoordinationGuardConfig {
     mode: normalizeMode(input.mode, DEFAULT_GUARD_CONFIG.mode),
     requireSession: boolValue(input.requireSession, DEFAULT_GUARD_CONFIG.requireSession),
     requireClaims: boolValue(input.requireClaims, DEFAULT_GUARD_CONFIG.requireClaims),
+    requireNotePerCommit: boolValue(input.requireNotePerCommit, DEFAULT_GUARD_CONFIG.requireNotePerCommit),
     updatedAt: typeof input.updatedAt === 'string' ? input.updatedAt : undefined,
   };
 }
@@ -344,6 +352,10 @@ export function evaluateGuardFacts(input: {
   agentId?: string | null;
   sessionId?: string | null;
   ownersByFile?: Record<string, GuardOwner[]>;
+  /** Commits on this lease that have no coordination note published after them.
+   *  Supplied only at commit-time (staged/hook/post-commit). Drives the
+   *  compulsion: no note, no commit (ADR-0050). */
+  commitsSinceLastNote?: number;
 }): GuardCheckResult {
   const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
   const files = normalizeFiles(input.files ?? []);
@@ -405,6 +417,31 @@ export function evaluateGuardFacts(input: {
           message: `${file} is not claimed by the active Port Daddy session.`,
         });
       }
+    }
+  }
+
+  // The compulsion — coordination is the price of the sandbox (ADR-0050).
+  // Every commit must publish a note; a commit left un-noted blocks the next
+  // commit. Delegates to the single rent authority so the message and policy
+  // live in one place; we feed it neutral values for the drift/idle facts so
+  // ONLY the note-per-commit rule can fire here.
+  if (
+    input.config.requireNotePerCommit &&
+    input.active &&
+    typeof input.commitsSinceLastNote === 'number' &&
+    input.commitsSinceLastNote > 0
+  ) {
+    const rent = evaluateLeaseRent({
+      commitsSinceLastNote: input.commitsSinceLastNote,
+      commitsTotal: input.commitsSinceLastNote,
+      notesTotal: 1,
+      claimsTotal: 1,
+      commitsBehindBase: 0,
+      ageMs: 0,
+      lastSignalAgeMs: 0,
+    });
+    if (rent.action === 'block-commit') {
+      violations.push({ code: 'rent-due', severity: 'critical', message: rent.reason });
     }
   }
 
@@ -631,6 +668,18 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
   );
   const context = await loadActiveContext(cwd);
   const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
+
+  // Rent is only assessed at commit-time (staged / hook / post-commit), never on
+  // a plain dirty-tree advisory check — you owe a note for a *commit*, not for
+  // unsaved edits. Compute it only when the guard is live and a session is
+  // attached; daemon/git failures degrade to "no rent owed" (fail-open here, so
+  // a flaky daemon never wedges every commit — the claim discipline still bites).
+  const atCommitTime = Boolean(options.staged || options.hook || postCommit);
+  const commitsSinceLastNote =
+    mode !== 'off' && atCommitTime && config.requireNotePerCommit && context.active && context.sessionId
+      ? await gatherCommitsSinceLastNote(context.sessionId, root)
+      : undefined;
+
   return evaluateGuardFacts({
     config,
     mode,
@@ -640,6 +689,7 @@ async function runCheck(positional: string[], options: CLIOptions): Promise<Guar
     agentId: context.agentId,
     sessionId: context.sessionId,
     ownersByFile,
+    commitsSinceLastNote,
   });
 }
 
@@ -705,7 +755,7 @@ function handleStatus(options: CLIOptions): void {
 
   console.log(`${COORDINATION_GUARD_NAME}: ${mode}`);
   console.log(`  config: ${data.configPath}`);
-  console.log(`  requires: ${config.requireSession ? 'active session' : 'session optional'}, ${config.requireClaims ? 'file claims' : 'claims optional'}`);
+  console.log(`  requires: ${config.requireSession ? 'active session' : 'session optional'}, ${config.requireClaims ? 'file claims' : 'claims optional'}${config.requireNotePerCommit ? ', a note per commit' : ''}`);
   console.log('  install hook: pd guard install');
   console.log('  check now:    pd guard check --staged');
 }
