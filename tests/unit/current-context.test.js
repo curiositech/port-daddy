@@ -18,14 +18,21 @@ describe('current-context helper', () => {
   let originalContextDir;
   let originalCodexThreadId;
 
+  let originalAgentId;
+  let originalSessionId;
+
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), 'pd-current-context-'));
     originalSlot = process.env.PORT_DADDY_CONTEXT_SLOT;
     originalContextDir = process.env.PORT_DADDY_CONTEXT_DIR;
     originalCodexThreadId = process.env.CODEX_THREAD_ID;
+    originalAgentId = process.env.PD_AGENT_ID;
+    originalSessionId = process.env.PD_SESSION_ID;
     delete process.env.PORT_DADDY_CONTEXT_SLOT;
     delete process.env.PORT_DADDY_CONTEXT_DIR;
     delete process.env.CODEX_THREAD_ID;
+    delete process.env.PD_AGENT_ID;
+    delete process.env.PD_SESSION_ID;
   });
 
   afterEach(() => {
@@ -35,6 +42,10 @@ describe('current-context helper', () => {
     else process.env.PORT_DADDY_CONTEXT_DIR = originalContextDir;
     if (originalCodexThreadId === undefined) delete process.env.CODEX_THREAD_ID;
     else process.env.CODEX_THREAD_ID = originalCodexThreadId;
+    if (originalAgentId === undefined) delete process.env.PD_AGENT_ID;
+    else process.env.PD_AGENT_ID = originalAgentId;
+    if (originalSessionId === undefined) delete process.env.PD_SESSION_ID;
+    else process.env.PD_SESSION_ID = originalSessionId;
   });
 
   it('isolates context by slot while keeping a legacy pointer', () => {
@@ -118,6 +129,29 @@ describe('current-context helper', () => {
     }, projectDir);
 
     expect(readCurrentContext(projectDir)).toBeNull();
+  });
+
+  it('returns env-var context when PD_AGENT_ID is set, ignoring filesystem', () => {
+    process.env.PD_AGENT_ID = 'agent-from-env';
+    process.env.PD_SESSION_ID = 'session-from-env';
+    // Write a conflicting file-based context — env vars must win.
+    writeCurrentContext({ agentId: 'agent-from-file', sessionId: 'session-from-file' }, projectDir);
+    const ctx = readCurrentContext(projectDir);
+    expect(ctx?.agentId).toBe('agent-from-env');
+    expect(ctx?.sessionId).toBe('session-from-env');
+  });
+
+  it('returns env-var context when only PD_AGENT_ID is set', () => {
+    process.env.PD_AGENT_ID = 'agent-only';
+    const ctx = readCurrentContext(projectDir);
+    expect(ctx?.agentId).toBe('agent-only');
+    expect(ctx?.sessionId).toBe('');
+  });
+
+  it('falls through to file context when PD_AGENT_ID is unset', () => {
+    writeCurrentContext({ agentId: 'agent-file', sessionId: 'session-file' }, projectDir);
+    const ctx = readCurrentContext(projectDir);
+    expect(ctx?.agentId).toBe('agent-file');
   });
 
   it('honors an injected context directory over repo-local .portdaddy', () => {

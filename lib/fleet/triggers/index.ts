@@ -21,7 +21,7 @@ import {
   parseTriggerSpec,
   type TriggerSpec,
 } from '../types.js';
-import { GitHubTriggerSource } from './github.js';
+import { GitHubTriggerSource, type GitHubTriggerSourceDeps } from './github.js';
 import { GitTriggerSource, type GitTriggerSourceDeps } from './git.js';
 import { CronTriggerSource, type CronTriggerSourceDeps } from './cron.js';
 import { EmailTriggerSource } from './email.js';
@@ -58,8 +58,9 @@ export function buildTriggerRegistry(deps: BuildRegistryDeps): TriggerRegistry {
   const webhookDeps: WebhookTriggerDeps = { registerHandler: deps.registerWebhookHandler };
   const pdDeps: PdTriggerSourceDeps = { subscribe: deps.channelSubscribe };
 
+  const githubDeps: GitHubTriggerSourceDeps = { subscribe: deps.channelSubscribe };
   const sources: TriggerSource[] = [
-    new GitHubTriggerSource(),
+    new GitHubTriggerSource(githubDeps),
     new GitTriggerSource(gitDeps),
     new CronTriggerSource(cronDeps),
     new EmailTriggerSource(),
