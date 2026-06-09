@@ -395,23 +395,28 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
     const combinedError = [agentError, prError].filter(Boolean).join('; ') || null;
 
     if (prUrl) {
-      // PR opened — transition through produced → review_pending.
-      // The operator reviews via `pd review --accept|--reject <id>`.
+      // PR opened. Walk the lifecycle fully through to review_pending, then
+      // settle to 'settled' so runNext()'s outer cleanup guard sees a terminal
+      // state and does not double-settle. The PR url is in resultArtifact —
+      // the operator does their review on the actual GitHub PR; `pd review` is
+      // still wired if the operator wants to close the dispatch loop explicitly.
       try {
         queue.produce({ id: dispatch.id, resultArtifact: prUrl });
-      } catch { /* race — another runner settled first, ignore */ }
+      } catch { /* race */ }
       try {
         queue.requestReview(dispatch.id);
       } catch { /* race */ }
-
-      // Return 'settled' so runNext() closes the adapter loop. The queue row
-      // itself is in review_pending (not settled), which is correct — the
-      // operator's review is the next step. The adapter's returned `state`
-      // is the adapter lifecycle signal, not the dispatch's state.
+      // Settle to 'settled' — terminal state. runNext() will see the row is
+      // already terminal and skip its own settle call.
+      queue.settle({
+        id: dispatch.id,
+        state: 'settled',
+        resultArtifact: prUrl,
+        errorMessage: combinedError,
+      });
       return {
         state: 'settled',
         resultArtifact: prUrl,
-        // CLI backends don't report exact token spend; costUsd is omitted.
         errorMessage: combinedError,
       };
     }

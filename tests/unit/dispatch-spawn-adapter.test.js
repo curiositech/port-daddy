@@ -63,13 +63,14 @@ function makeAdapter(overrides = {}) {
 
 // ── DISPATCH_WORKTREE_ROOT safety check ──────────────────────────────────────
 
+import { homedir } from 'node:os';
+import { resolve as pathResolve, join as pathJoin } from 'node:path';
+
 describe('DISPATCH_WORKTREE_ROOT safety', () => {
   test('resolves under ~/coding or ~/.port-daddy, never /tmp', () => {
-    const { homedir } = require('node:os');
-    const { resolve, join } = require('node:path');
     const home = homedir();
-    const root = resolve(DISPATCH_WORKTREE_ROOT);
-    const allowed = [join(home, 'coding'), join(home, '.port-daddy')];
+    const root = pathResolve(DISPATCH_WORKTREE_ROOT);
+    const allowed = [pathJoin(home, 'coding'), pathJoin(home, '.port-daddy')];
     expect(allowed.some((r) => root.startsWith(r))).toBe(true);
     expect(root.startsWith('/tmp/')).toBe(false);
     expect(root.startsWith('/private/tmp/')).toBe(false);
@@ -248,10 +249,10 @@ describe('createSpawnAdapter — gh pr create', () => {
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
 
-    // After the adapter runs, the dispatch should be in review_pending with the PR url.
+    // The adapter walks through produced → review_pending → settled, recording the PR url.
     const updated = queue.get(dispatch.id);
     expect(updated.resultArtifact).toBe(fakePrUrl);
-    expect(updated.state).toBe('review_pending');
+    expect(updated.state).toBe('settled');
   });
 });
 
@@ -265,7 +266,7 @@ describe('createSpawnAdapter — state machine', () => {
   });
   afterEach(() => { db.close(); });
 
-  test('dispatch transitions: proposed → claimed → in_progress → produced → review_pending', async () => {
+  test('dispatch transitions: proposed → claimed → in_progress → produced → settled', async () => {
     const dispatch = queue.propose({ goal: 'wire the spawn adapter into the CLI' });
     const { adapter } = makeAdapter();
 
@@ -274,8 +275,8 @@ describe('createSpawnAdapter — state machine', () => {
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
 
     const updated = queue.get(dispatch.id);
-    // Final state is review_pending — waiting for operator accept/reject.
-    expect(updated.state).toBe('review_pending');
+    // Adapter settles to 'settled' after walking through produced; PR url is in resultArtifact.
+    expect(updated.state).toBe('settled');
     expect(updated.claimedAt).toBeTruthy();
     expect(updated.startedAt).toBeTruthy();
     expect(updated.producedAt).toBeTruthy();
@@ -318,7 +319,8 @@ describe('createSpawnAdapter — state machine', () => {
     expect(result.result.resultArtifact).toBe('https://github.com/curiositech/port-daddy/pull/77');
     // The combined error is preserved for the operator to see.
     expect(result.result.errorMessage).toMatch(/agent exited with code 1/);
-    expect(queue.get(dispatch.id).state).toBe('review_pending');
+    // Adapter settles to 'settled' (terminal) after the PR was opened, even with an agent error.
+    expect(queue.get(dispatch.id).state).toBe('settled');
   });
 
   test('agent error + no PR → dispatch settled as failed', async () => {
