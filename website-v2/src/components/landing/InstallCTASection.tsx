@@ -83,7 +83,7 @@ const InstallCTASection: React.FC = () => {
           --text-primary: #D4C5A9;
           --text-secondary: #9A8F7A;
           --border-subtle: #3A3530;
-          --accent-red: #CC3D2E;
+          --accent-red: #BF2F2F;
         }
       `}</style>
 
