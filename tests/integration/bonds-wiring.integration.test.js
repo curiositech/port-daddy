@@ -88,6 +88,41 @@ describe('Bonds + Budget-Guard HTTP wiring', () => {
     expect(balance).toBeGreaterThanOrEqual(10);
   });
 
+  // Regression for #172: `pd wallet show` (GET /wallets/:project) and the
+  // dashboard/MCP list (GET /wallets) must agree. They diverged once when the
+  // list shape silently dropped budgetUsdPerDay (fixed in 8e3a6e3f). Lock the
+  // parity so neither surface can drift again: same field set, same values.
+  test('GET /wallets list entry matches GET /wallets/:project (shape + value parity)', async () => {
+    if (!hasWalletRoutes) return;
+    // Give the wallet both a balance AND a budget — budgetUsdPerDay is the field
+    // that regressed, so it must be present and equal on BOTH surfaces.
+    await request(`/wallets/${encodeURIComponent(PROJECT)}/top-up`, {
+      method: 'POST',
+      body: { usd: 10 },
+    });
+    await request(`/wallets/${encodeURIComponent(PROJECT)}/budget`, {
+      method: 'POST',
+      body: { usdPerDay: 7 },
+    });
+
+    const single = await request(`/wallets/${encodeURIComponent(PROJECT)}`);
+    expect(single.ok).toBe(true);
+    const sw = single.data?.wallet || single.data;
+
+    const list = await request('/wallets');
+    expect(list.ok).toBe(true);
+    const lw = (list.data?.wallets || []).find((w) => w.project === PROJECT);
+    expect(lw).toBeDefined();
+
+    // Identical field set + identical values across both surfaces.
+    for (const field of ['project', 'balanceUsd', 'commonsPoolUsd', 'budgetUsdPerDay']) {
+      expect(lw[field]).toBe(sw[field]);
+    }
+    // The budget we set must survive on BOTH surfaces (not null / not dropped).
+    expect(sw.budgetUsdPerDay).toBe(7);
+    expect(lw.budgetUsdPerDay).toBe(7);
+  });
+
   test('manual slash moves bond to slashed state', async () => {
     if (!hasBondsRoutes || !hasWalletRoutes) return;
 
