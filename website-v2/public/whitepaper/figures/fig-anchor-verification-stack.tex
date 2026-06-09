@@ -7,13 +7,13 @@
 % Up   arrows = "implementation verified to satisfy the design property."
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -23,13 +23,13 @@
   layer/.style={draw=hhebony,thick,rounded corners=4pt,
                 minimum width=130mm,minimum height=24mm,
                 align=left,inner sep=8pt,text width=120mm},
-  tool/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=3pt,font=\sffamily\bfseries\footnotesize,text=hhbrass},
-  obligation/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
-                     inner sep=3pt,font=\sffamily\footnotesize,text=hhcinnabar,
+  tool/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=2pt,
+               inner sep=3pt,font=\sffamily\bfseries\footnotesize,text=hhamber},
+  obligation/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+                     inner sep=3pt,font=\sffamily\footnotesize,text=hhcobalt,
                      align=center,text width=46mm},
-  evidence/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
-                   inner sep=3pt,font=\sffamily\footnotesize,text=hhpatina,
+  evidence/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
+                   inner sep=3pt,font=\sffamily\footnotesize,text=hhteal,
                    align=center,text width=46mm},
   bridgelbl/.style={font=\sffamily\footnotesize\itshape,text=hhink,
                     align=center,text width=42mm},
@@ -57,7 +57,7 @@
   {Kani / CBMC};
 
 % ─── Bottom layer: Runtime conformance tests ─────────────────────────────
-\node[layer,fill=hhbrass!28,below=22mm of mid] (bot)
+\node[layer,fill=hhamber!28,below=22mm of mid] (bot)
   {{\sffamily\bfseries\large Runtime conformance --- deployed binary} \\[4pt]
    \textit{Executes the formally verified attack vectors against the running daemon
    (FFI-bridged Rust core + Node.js daemon).}\\[3pt]
@@ -78,16 +78,16 @@
 \coordinate (botUR) at ([xshift=30mm]bot.north);
 
 % ─── Down arrows: design obligations flow downward ──────────────────────
-\draw[->,>=Latex,thick,draw=hhcinnabar] (topDL) -- (midUL);
-\draw[->,>=Latex,thick,draw=hhcinnabar] (midDL) -- (botUL);
+\draw[->,>=Latex,thick,draw=hhcobalt] (topDL) -- (midUL);
+\draw[->,>=Latex,thick,draw=hhcobalt] (midDL) -- (botUL);
 \node[obligation,anchor=east] at ([xshift=-3mm]$(topDL)!0.5!(midUL)$)
   {symbolic claim $\Downarrow$ \\ specification gap};
 \node[obligation,anchor=east] at ([xshift=-3mm]$(midDL)!0.5!(botUL)$)
   {source-level claim $\Downarrow$ \\ deployment gap};
 
 % ─── Up arrows: implementation evidence flows upward ────────────────────
-\draw[->,>=Latex,thick,draw=hhpatina] (botUR) -- (midDR);
-\draw[->,>=Latex,thick,draw=hhpatina] (midUR) -- (topDR);
+\draw[->,>=Latex,thick,draw=hhteal] (botUR) -- (midDR);
+\draw[->,>=Latex,thick,draw=hhteal] (midUR) -- (topDR);
 \node[evidence,anchor=west] at ([xshift=3mm]$(midDR)!0.5!(botUR)$)
   {$\Uparrow$ FFI conformance \\ binary realizes Rust core};
 \node[evidence,anchor=west] at ([xshift=3mm]$(midUR)!0.5!(topDR)$)
@@ -107,7 +107,7 @@ obligations against a Dolev--Yao adversary. Kani (middle) closes the
 on the \texttt{harbor-card-rs} crate, are discharged by bounded model checking.
 Runtime conformance tests (bottom) close the \emph{deployment gap}: the FFI-bridged
 binary is exercised with the formally verified attack vectors. Cinnabar arrows show
-obligations flowing down (what each lower layer must preserve); patina arrows show
+obligations flowing down (what each lower layer must preserve); teal arrows show
 evidence flowing back up (what each lower layer actually delivers). The stack is
 sound only if every bridge holds.}
 \label{fig:anchor-verification-stack}

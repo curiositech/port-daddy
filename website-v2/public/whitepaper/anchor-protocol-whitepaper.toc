@@ -24,17 +24,19 @@
 \contentsline {subsection}{\numberline {5.3}Phase 3: Multi-hop Delegation}{13}{subsection.5.3}%
 \contentsline {section}{\numberline {6}Implementation: Deployed Rust Core}{14}{section.6}%
 \contentsline {subsection}{\numberline {6.1}Core Verification Logic}{14}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{14}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.2}FFI Bridge to the Node.js Daemon}{15}{subsection.6.2}%
 \contentsline {subsection}{\numberline {6.3}Kani Verification Harnesses}{15}{subsection.6.3}%
 \contentsline {section}{\numberline {7}Security Analysis}{16}{section.7}%
 \contentsline {subsection}{\numberline {7.1}Threat Model}{16}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Security Properties}{16}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.2}Security Properties}{17}{subsection.7.2}%
 \contentsline {subsection}{\numberline {7.3}Limitations}{17}{subsection.7.3}%
 \contentsline {section}{\numberline {8}Conclusion}{17}{section.8}%
 \contentsline {section}{\numberline {A}Formal Verification Status}{19}{appendix.A}%
 \contentsline {paragraph}{Artifact availability.}{19}{section*.18}%
-\contentsline {paragraph}{Limitations.}{19}{section*.20}%
+\contentsline {paragraph}{Limitations.}{20}{section*.20}%
 \contentsline {section}{\numberline {B}Full ProVerif Models}{20}{appendix.B}%
 \contentsline {subsection}{\numberline {B.1}Phase 1: Symmetric HS256}{20}{subsection.B.1}%
-\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{20}{appendix.C}%
+\contentsline {section}{\numberline {C}Phase 2: Asymmetric Ed25519}{21}{appendix.C}%
 \contentsline {section}{\numberline {D}Phase 3: Multi-hop Delegation}{22}{appendix.D}%
+\contentsline {subsection}{\numberline {D.1}Soundness of the Attenuation Proof (v5)}{24}{subsection.D.1}%
+\contentsline {paragraph}{Multi-hop scope (honest boundary).}{25}{section*.21}%

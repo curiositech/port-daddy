@@ -1,13 +1,13 @@
 % Capability attenuation — Russian doll. Inline in §2 Architecture or §3.3 Delegation.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -16,10 +16,10 @@
   font=\sffamily\small,
   capring/.style={draw=hhebony,thick,rounded corners=4pt,align=center,inner sep=6pt},
   caplbl/.style={font=\sffamily\footnotesize,align=center},
-  prin/.style={draw=hhebony,thick,fill=hhcinnabar!30,rounded corners=2pt,
+  prin/.style={draw=hhebony,thick,fill=hhcobalt!30,rounded corners=2pt,
                inner sep=4pt,font=\sffamily\bfseries\footnotesize,align=center},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  na/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  na/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
 % Outermost capability: root cap from daemon (80mm wide, 56mm tall, centered).
 \node[capring,fill=hhsand,minimum width=80mm,minimum height=56mm] (root) at (0,0)
@@ -34,7 +34,7 @@
   {\textbf{AgentA cap}: \texttt{db:write}, \texttt{fs:read}, TTL = 15m};
 % Innermost capability: AgentB cap — STRICT SUBSET of mid.
 % mid spans x in (-3.5, 2.3) and y in (-2.4, 1.2). Place inner offset further down-left.
-\node[capring,fill=hhbrass!40,minimum width=32mm,minimum height=18mm]
+\node[capring,fill=hhamber!40,minimum width=32mm,minimum height=18mm]
   (inner) at (-1.4,-1.2)
   {{\bfseries AgentB cap}\\\texttt{db:write}, TTL = 5m};
 % Daemon principal: outside root, issues into root.
@@ -46,7 +46,7 @@
 \draw[arr] (agentA.west) -- node[above,font=\sffamily\footnotesize] {delegate}
   (mid.east);
 % AgentB principal: outside the rings below; receives the AgentB cap.
-\node[prin,below=12mm of inner.south,fill=hhbrass!20] (agentB) {AgentB};
+\node[prin,below=12mm of inner.south,fill=hhamber!20] (agentB) {AgentB};
 \draw[arr] (inner.south) -- (agentB.north);
 % Invariants side panel.
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,align=left,
@@ -56,7 +56,7 @@
    $\bullet$ child TTL $<$ parent TTL\\
    $\bullet$ child cannot re-grant beyond child cap};
 % Forbidden grant attempt
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       below=6mm of agentB,align=center]
   (forbid) {AgentB cannot grant \texttt{net:*} downstream};
 \draw[na] (agentB.south) -- (forbid.north);

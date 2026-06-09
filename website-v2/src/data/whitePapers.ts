@@ -204,8 +204,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/anchor-protocol',
     overviewHref: '/whitepaper?paper=anchor-protocol',
     date: 'May 2026',
-    pages: 23,
-    sizeKb: 805,
+    pages: 25,
+    sizeKb: 814,
     status: 'Version 1.2',
     order: '01',
     primer:

@@ -1,29 +1,29 @@
 % Cross-harbor settlement — bonded escrow, conditional atomic clear.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
 \resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
-  font=\small,
-  party/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
+  font=\sffamily\small,
+  party/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!50,
                 inner sep=5pt,minimum width=34mm,minimum height=18mm,
-                align=center,font=\bfseries\small},
-  escrow/.style={draw=hhcinnabar,very thick,rounded corners=3pt,fill=hhpaper,
+                align=center,font=\sffamily\bfseries\small},
+  escrow/.style={draw=hhcobalt,very thick,rounded corners=3pt,fill=hhpaper,
                  inner sep=5pt,minimum width=38mm,minimum height=20mm,
-                 align=center,font=\small},
+                 align=center,font=\sffamily\small},
   stepbox/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-               inner sep=3pt,font=\footnotesize,align=left,
+               inner sep=3pt,font=\sffamily\footnotesize,align=left,
                text width=44mm},
   edge/.style={->,>=Latex,thick,draw=hhebony},
-  refuseedge/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  refuseedge/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
 
 % ─── Parties at top: Alice's principal (poster), Bob's principal (claimant) ─
@@ -43,11 +43,11 @@
   \textbf{3.} Escrow verifies inclusion of $\alpha$'s actions in $R_B^{(e)}$ and matches against acceptance preconditions signed at stepbox 1. \emph{Two outcomes only.}};
 
 % ─── Two outcome arrows ───────────────────────────────────────────
-\node[party,fill=hhsand!30,below=24mm of s2.south] (Op) {%
+\node[party,fill=hhteal!30,below=24mm of s2.south] (Op) {%
   \textbf{Clear:}\\\footnotesize $B$ paid out of bond,\\\footnotesize remainder refunded};
-\node[party,fill=hhsand!30,below=24mm of s2.south,xshift=50mm] (Or) {%
+\node[party,fill=hhcobalt!22,below=24mm of s2.south,xshift=50mm] (Or) {%
   \textbf{Refuse:}\\\footnotesize bond returned to $A$,\\\footnotesize escrow logs reason};
-\node[party,fill=hhsand!30,below=24mm of s2.south,xshift=-50mm] (Of) {%
+\node[party,fill=hhcobalt!22,below=24mm of s2.south,xshift=-50mm] (Of) {%
   \textbf{Forbidden:}\\\footnotesize redirect, equivocate,\\\footnotesize delay past TTL};
 
 % ─── Flow edges ────────────────────────────────────────────────────
@@ -59,7 +59,7 @@
 \draw[edge] (s2.south) -- (Op.north);
 \draw[edge] (s2.south) -- (Or.north);
 \draw[refuseedge] (s2.south) -- (Of.north);
-\node[font=\scriptsize\itshape,text=hhink,below=2pt of Of.south,text width=34mm,align=center]{ruled out structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
+\node[font=\sffamily\scriptsize\itshape,text=hhcobalt,below=2pt of Of.south,text width=34mm,align=center]{ruled out structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
 
 \end{tikzpicture}%
 }

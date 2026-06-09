@@ -4,13 +4,13 @@
 \usetikzlibrary{arrows.meta,positioning,fit,calc,decorations.pathmorphing}
 
 \definecolor{sand}{HTML}{E9DCC4}
-\definecolor{sanddeep}{HTML}{D4C5A9}
-\definecolor{ebony}{HTML}{1E1B18}
-\definecolor{ink}{HTML}{2C2A26}
-\definecolor{cinnabar}{HTML}{CC3D2E}
-\definecolor{brass}{HTML}{B08D57}
-\definecolor{patina}{HTML}{5C7A6A}
-\definecolor{paper}{HTML}{FBF7EE}
+\definecolor{sanddeep}{HTML}{D8C7A6}
+\definecolor{ebony}{HTML}{121212}
+\definecolor{ink}{HTML}{1B1712}
+\definecolor{cobalt}{HTML}{003FB8}
+\definecolor{amber}{HTML}{6B4500}
+\definecolor{teal}{HTML}{00564C}
+\definecolor{paper}{HTML}{FBF7EF}
 
 \begin{document}
 \begin{tikzpicture}[
@@ -19,12 +19,12 @@
                 minimum size=9mm,font=\sffamily\footnotesize},
   decision/.style={draw=ebony,thick,fill=paper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=22mm},
-  payoff/.style={draw=patina,thick,fill=paper,rounded corners=2pt,
+  payoff/.style={draw=teal,thick,fill=paper,rounded corners=2pt,
                  inner sep=3pt,align=center,
                  font=\sffamily\footnotesize\bfseries},
-  bad/.style={draw=cinnabar,thick,fill=paper,rounded corners=2pt,
+  bad/.style={draw=cobalt,thick,fill=paper,rounded corners=2pt,
               inner sep=3pt,align=center,
-              font=\sffamily\footnotesize\bfseries,text=cinnabar},
+              font=\sffamily\footnotesize\bfseries,text=cobalt},
   arr/.style={->,>=Latex,thick,draw=ink},
   prob/.style={font=\sffamily\footnotesize\itshape,fill=paper,inner sep=1pt},
 ]
@@ -40,12 +40,12 @@
 \draw[arr] (rt) -- (dec);
 
 % Collude branch
-\node[decision,fill=patina!30,right=14mm of dec,yshift=18mm] (collude)
+\node[decision,fill=teal!30,right=14mm of dec,yshift=18mm] (collude)
   {COLLUDE\\charge $q_{\mathrm{floor}}$};
 \draw[arr] (dec.north east) to[bend left=10] (collude.west);
 
 % Defect branch
-\node[decision,fill=brass!40,right=14mm of dec,yshift=-18mm] (defect)
+\node[decision,fill=amber!40,right=14mm of dec,yshift=-18mm] (defect)
   {DEFECT\\undercut by $\varepsilon$};
 \draw[arr] (dec.south east) to[bend right=10] (defect.west);
 
@@ -68,7 +68,7 @@
 % From DEFECT: one-shot then collapse
 \node[state,right=18mm of defect] (collapse) {collapse};
 \draw[arr] (defect.east) -- (collapse.west);
-\node[payoff,right=4mm of collapse,fill=brass!20]
+\node[payoff,right=4mm of collapse,fill=amber!20]
   {$+\pi_D$ once,\\then $\pi_N \approx 0$};
 
 % Sustainability condition
@@ -83,7 +83,7 @@
    $p_d^\star \;=\; 1 - \dfrac{\pi_C - (1 - \delta)\pi_D}{\delta \cdot \pi_D}$};
 
 % Empirical threshold callout
-\node[draw=cinnabar,thick,fill=paper,rounded corners=2pt,inner sep=4pt,
+\node[draw=cobalt,thick,fill=paper,rounded corners=2pt,inner sep=4pt,
       below=4mm of cond,align=left,minimum width=80mm]
   {{\bfseries Empirical (sim):} at $\delta=0.95$, $p_d^\star \approx 0.10$.\\
    Protocol must achieve $\geq 10\%$ per-round detection to break cartels.};
