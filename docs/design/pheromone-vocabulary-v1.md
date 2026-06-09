@@ -155,7 +155,7 @@ These are the same three kinds that take the **`always_visible`** composition ro
 | `budget:nearing-cap` | `≈$` | level metric, distinct from rate metric |
 | `urgency:overdue` | `⌛` | hourglass; orthogonal to dollar signs |
 | `experience:succeeded` | `✓` | minimal, doesn't shout |
-| `experience:failed` | `✗` | inverse of success; cinnabar tint |
+| `experience:failed` | `✗` | inverse of success; danger-red tint |
 | `experience:reverted` | `↩` | unlike failure, indicates *judgment was overturned* |
 | `quality:test-failing` | `⚠` | matches viz research mock at `.scratch/pheromone-visualization-research.md:67` |
 | `quality:test-flaky` | `~⚠` | adjacent to failing but lesser |
@@ -172,8 +172,8 @@ These are the same three kinds that take the **`always_visible`** composition ro
 Pheromone colors extend `tokens.semantic.css` under a new `--pheromone-*` block — single source of truth for web + FleetBar (`PDTokens.swift`) + CLI ANSI:
 
 - **Topological:** warm amber (`hot:editing`, `flow:hot-path`, `recent:touched`); slate-gray for `cold:abandoned`.
-- **Economic:** cinnabar red for `cost:burning`; deeper cinnabar for `budget:nearing-cap`; cobalt for `attention:human-blocked` (Datadog-trained: blue for "human attention", not "danger"); ochre for `urgency:overdue`.
-- **Reputational positive:** sage green for `experience:succeeded`. Reputational negative: cinnabar for `experience:failed`; deep cinnabar for `experience:reverted`; ochre for `quality:test-failing`; muted ochre for `quality:test-flaky`. Documentarian: sandstone for `freshness:stale-doc`. Dependency: pale teal for `dependency:upstream-changed`.
+- **Economic:** danger-red for `cost:burning`; deeper danger-red for `budget:nearing-cap`; cobalt for `attention:human-blocked` (Datadog-trained: blue for "human attention", not "danger"); ochre for `urgency:overdue`.
+- **Reputational positive:** sage green for `experience:succeeded`. Reputational negative: danger-red for `experience:failed`; deep danger-red for `experience:reverted`; ochre for `quality:test-failing`; muted ochre for `quality:test-flaky`. Documentarian: sandstone for `freshness:stale-doc`. Dependency: pale teal for `dependency:upstream-changed`.
 - **Coordination:** red-orange for `claim:contested`; ebony for `salvage:pending`; pale teal for `group:overlap-detected`.
 
 Lightness ramps from `--surface-0` at `strength = 0.01` to the saturated token at `strength = 1.0`.
@@ -336,7 +336,7 @@ Cartographer detects that commit `abc123` reverts commit `xyz789`, which had `ex
 State:
 - `experience:succeeded` already decayed to ~0 (48 h half-life with `decay_during_idle=false` but the fleet has been active most of those 12 days).
 - `experience:reverted = 0.7` sprayed on `lib/pheromone.ts`. Half-life: 7 d, `decay_during_idle=false`.
-- Glyph: `↩`. Color shifts to deep cinnabar at moderate intensity (reverted is glyph_only by role, so it doesn't drive primacy color — but the tile's *dominant* fallback when no urgency-axis kind is active does favor the highest-strength glyph_only kind for legibility).
+- Glyph: `↩`. Color shifts to deep danger-red at moderate intensity (reverted is glyph_only by role, so it doesn't drive primacy color — but the tile's *dominant* fallback when no urgency-axis kind is active does favor the highest-strength glyph_only kind for legibility).
 - Approver opening `pd sniff files lib/pheromone.ts` two days later sees value ≈ `0.7 * 2^(-2/7) ≈ 0.57` with advice "previous work on this target was reverted; read the revert commit before re-attempting."
 
 This is the longest-lived non-event kind. It outlives most sessions and most operator memory; that's the point.

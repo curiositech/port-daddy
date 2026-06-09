@@ -40,7 +40,7 @@ GATE 0  platform decision (ADR-0048)
 FOUNDATION ──┬─ ADR-0047 P0  typed performative envelope on tube  ← the semantic spine
              ├─ daemon endpoints: /attention (live), pd ask/escalations (NEW),
              │   /sorties live (live), typed-comms SSE stream (NEW)
-             ├─ ADR-0046 P4  canonical token mirror (kill the cinnabar fork)
+             ├─ ADR-0046 P4  canonical token mirror (duplicate token fork purged 2026-06)
              └─ platform shell (Tauri scaffold + ratatui scaffold)
    │
 WAVE 1  the spine ─┬─ ADR-0047 P1 protocol registry  (+ P2 delegation-chain, P3 commitment-GPGP)

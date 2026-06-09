@@ -7,6 +7,17 @@ on:
     branches: [main]
 
 jobs:
+  brand-color-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Brand-color guard (retired Harbor Heritage hexes must not return)
+        run: node scripts/check-brand-colors.mjs
+
   unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:
