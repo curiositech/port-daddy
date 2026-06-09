@@ -5,13 +5,13 @@
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,decorations.pathmorphing,shapes.symbols,shapes.geometric,decorations.pathreplacing}
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 % ──────────────────────────────────────────────────────────────────────
 \begin{figure}[H]
@@ -20,9 +20,9 @@
   font=\sffamily\small,
   hop/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
               minimum width=22mm,minimum height=10mm,inner sep=3pt,align=center},
-  sig/.style={draw=hhbrass,thick,fill=hhpaper,rounded corners=1pt,
+  sig/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=1pt,
               inner sep=2pt,font=\sffamily\footnotesize,align=center},
-  fresh/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=1pt,
+  fresh/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
                 inner sep=2pt,font=\sffamily\footnotesize},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
@@ -37,9 +37,9 @@
 \node[fresh,below=3mm of h3] {$n_3$: fresh};
 \draw[arr] (h1.east) -- (h2.west);
 \draw[arr] (h2.east) -- (h3.west);
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       left=6mm of h1] (origin) {origin};
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       right=6mm of h3] (target) {$\mathrm{id}_4$};
 \draw[arr] (origin.east) -- (h1.west);
 \draw[arr] (h3.east) -- (target.west);
@@ -65,8 +65,8 @@
   empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
                 fill=hhsand,inner sep=0pt},
   bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
-  flow/.style={->,>=Latex,thick,draw=hhcinnabar},
-  hashflow/.style={->,>=Latex,thick,draw=hhpatina},
+  flow/.style={->,>=Latex,thick,draw=hhcobalt},
+  hashflow/.style={->,>=Latex,thick,draw=hhteal},
 ]
 \foreach \i/\y in {0/3.6, 1/2.7, 2/1.8, 3/0.9, 4/0.0, 5/-0.9} {
   \node[bucketlbl] at (-0.2,\y+0.2) {bucket~$i_\i$};
@@ -74,32 +74,32 @@
     \node[empty] (b\i s\s) at (\xoff+0.7, \y) {};
   }
 }
-\node[slot,fill=hhbrass!50] at (b0s0) {a3};
-\node[slot,fill=hhbrass!50] at (b0s1) {7e};
-\node[slot,fill=hhbrass!50] at (b0s2) {2f};
-\node[slot,fill=hhbrass!50] at (b0s3) {91};
-\node[slot,fill=hhbrass!50] at (b3s0) {ca};
-\node[slot,fill=hhbrass!50] at (b3s1) {1b};
-\node[slot,fill=hhbrass!50] at (b3s2) {ff};
-\node[slot,fill=hhbrass!50] at (b3s3) {44};
-\node[slot,fill=hhbrass!30] at (b1s0) {6c};
-\node[slot,fill=hhbrass!30] at (b2s2) {8a};
-\node[slot,fill=hhbrass!30] at (b4s1) {19};
-\node[slot,fill=hhbrass!30] at (b5s3) {b2};
+\node[slot,fill=hhamber!50] at (b0s0) {a3};
+\node[slot,fill=hhamber!50] at (b0s1) {7e};
+\node[slot,fill=hhamber!50] at (b0s2) {2f};
+\node[slot,fill=hhamber!50] at (b0s3) {91};
+\node[slot,fill=hhamber!50] at (b3s0) {ca};
+\node[slot,fill=hhamber!50] at (b3s1) {1b};
+\node[slot,fill=hhamber!50] at (b3s2) {ff};
+\node[slot,fill=hhamber!50] at (b3s3) {44};
+\node[slot,fill=hhamber!30] at (b1s0) {6c};
+\node[slot,fill=hhamber!30] at (b2s2) {8a};
+\node[slot,fill=hhamber!30] at (b4s1) {19};
+\node[slot,fill=hhamber!30] at (b5s3) {b2};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=2pt,
       minimum width=22mm,inner sep=3pt,anchor=west,align=left] (key) at (5.5,3.6)
   {insert $k$:\\\quad $\mathrm{fp}(k)=\mathtt{c1}$};
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       anchor=west,below=2mm of key] (h1)
   {$i_1 = h(k) \bmod M = \mathbf{i_0}$};
-\node[draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       anchor=west,below=2mm of h1] (h2)
   {$i_2 = i_1 \oplus h(\mathrm{fp}) = \mathbf{i_3}$};
 \draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
 \draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
-\node[slot,fill=hhcinnabar!75,text=white] at (b0s2) {c1};
+\node[slot,fill=hhcobalt!75,text=white] at (b0s2) {c1};
 \draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
-\node[font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
   {evict \texttt{2f}};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
@@ -107,7 +107,7 @@
   {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
    {\bfseries No false negatives.}\\
    FP rate $\leq 2B / 2^f = 0.03125$};
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
       align=left,anchor=north west] at (5.5,-2.6)
   {{\bfseries Insert rejection at load $0.95$}\\
    (cap holds FP bound under adversarial fill).};

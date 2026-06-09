@@ -4,27 +4,27 @@
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric}
 
 \definecolor{sand}{HTML}{E9DCC4}
-\definecolor{sanddeep}{HTML}{D4C5A9}
-\definecolor{ebony}{HTML}{1E1B18}
-\definecolor{ink}{HTML}{2C2A26}
-\definecolor{cinnabar}{HTML}{CC3D2E}
-\definecolor{brass}{HTML}{B08D57}
-\definecolor{patina}{HTML}{5C7A6A}
-\definecolor{paper}{HTML}{FBF7EE}
+\definecolor{sanddeep}{HTML}{D8C7A6}
+\definecolor{ebony}{HTML}{121212}
+\definecolor{ink}{HTML}{1B1712}
+\definecolor{cobalt}{HTML}{003FB8}
+\definecolor{amber}{HTML}{6B4500}
+\definecolor{teal}{HTML}{00564C}
+\definecolor{paper}{HTML}{FBF7EF}
 
 \begin{document}
 \begin{tikzpicture}[
   font=\sffamily\small,
   actor/.style={draw=ebony,thick,fill=sand,rounded corners=2pt,
                 inner sep=4pt,minimum width=22mm,align=center},
-  commons/.style={draw=ebony,thick,fill=patina!40,rounded corners=2pt,
+  commons/.style={draw=ebony,thick,fill=teal!40,rounded corners=2pt,
                   inner sep=4pt,minimum width=22mm,align=center},
-  escrow/.style={draw=ebony,thick,fill=brass!30,rounded corners=2pt,
+  escrow/.style={draw=ebony,thick,fill=amber!30,rounded corners=2pt,
                  inner sep=4pt,minimum width=22mm,align=center},
   ins/.style={draw=ebony,thick,fill=paper,rounded corners=2pt,inner sep=4pt,
               align=center,minimum width=20mm},
   arr/.style={->,>=Latex,thick,draw=ink},
-  flow/.style={->,>=Latex,thick,draw=cinnabar},
+  flow/.style={->,>=Latex,thick,draw=cobalt},
   panel/.style={draw=ebony,thick,fill=paper,rounded corners=4pt,
                 inner sep=8pt},
 ]
@@ -48,7 +48,7 @@
   {{\bfseries Principal cost} \\
    $= \mathbb{E}[\mathrm{loss}] + r \cdot B_T$};
 
-\node[draw=cinnabar,thick,fill=paper,rounded corners=2pt,
+\node[draw=cobalt,thick,fill=paper,rounded corners=2pt,
       inner sep=4pt,below=12mm of c1,align=left,minimum width=42mm]
    {{\bfseries capital tied up} the full\\coverage period (opportunity $r$)};
 \end{scope}
@@ -65,14 +65,14 @@
 \node[commons,below=14mm of i2] (c2) {Commons};
 
 % Lowest bid wins; principal pays 2nd-lowest (Vickrey)
-\node[draw=cinnabar,thick,fill=paper,rounded corners=2pt,inner sep=2pt,
+\node[draw=cobalt,thick,fill=paper,rounded corners=2pt,inner sep=2pt,
       font=\sffamily\footnotesize,right=2mm of i3]
   (vic) {2nd-price\\$q^* = q_{(2)}$};
 
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
-\draw[arr,line width=1.6pt,draw=cinnabar] (i2.south) --
+\draw[arr,line width=1.6pt,draw=cobalt] (i2.south) --
   node[right,font=\sffamily\footnotesize]
   {underwrites $B_T$} (c2.north);
 
@@ -81,7 +81,7 @@
   {{\bfseries Principal cost} \\ $= q^*$ \\
    {\itshape (no idle capital)}};
 
-\node[draw=patina,thick,fill=paper,rounded corners=2pt,
+\node[draw=teal,thick,fill=paper,rounded corners=2pt,
       inner sep=4pt,below=12mm of c2,align=left,minimum width=58mm]
    {{\bfseries Insurer competition} drives $q^* \to \mathbb{E}[\mathrm{loss}]$\\
     leaving principal opportunity-cost saving as surplus};

@@ -4,32 +4,32 @@
 \usetikzlibrary{arrows.meta,positioning,fit,calc,shapes.geometric}
 
 \definecolor{sand}{HTML}{E9DCC4}
-\definecolor{sanddeep}{HTML}{D4C5A9}
-\definecolor{ebony}{HTML}{1E1B18}
-\definecolor{ink}{HTML}{2C2A26}
-\definecolor{cinnabar}{HTML}{CC3D2E}
-\definecolor{brass}{HTML}{B08D57}
-\definecolor{patina}{HTML}{5C7A6A}
-\definecolor{paper}{HTML}{FBF7EE}
+\definecolor{sanddeep}{HTML}{D8C7A6}
+\definecolor{ebony}{HTML}{121212}
+\definecolor{ink}{HTML}{1B1712}
+\definecolor{cobalt}{HTML}{003FB8}
+\definecolor{amber}{HTML}{6B4500}
+\definecolor{teal}{HTML}{00564C}
+\definecolor{paper}{HTML}{FBF7EF}
 
 \begin{document}
 \begin{tikzpicture}[
   font=\sffamily\small,
-  adv/.style={draw=cinnabar,thick,fill=paper,rounded corners=3pt,
+  adv/.style={draw=cobalt,thick,fill=paper,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=cinnabar},
-  sybil/.style={draw=cinnabar,thick,fill=paper,rounded corners=2pt,
+              font=\sffamily\bfseries,text=cobalt},
+  sybil/.style={draw=cobalt,thick,fill=paper,rounded corners=2pt,
                 inner sep=3pt,minimum width=16mm,align=center,
                 font=\sffamily\footnotesize},
   honest/.style={draw=ebony,thick,fill=sand,rounded corners=2pt,
                  inner sep=3pt,minimum width=16mm,align=center},
   auction/.style={draw=ebony,thick,fill=sanddeep,rounded corners=3pt,
                   inner sep=5pt,align=center,minimum width=30mm},
-  payout/.style={draw=patina,thick,fill=paper,rounded corners=2pt,
+  payout/.style={draw=teal,thick,fill=paper,rounded corners=2pt,
                  inner sep=3pt,align=center,
                  font=\sffamily\footnotesize\bfseries},
   arr/.style={->,>=Latex,thick,draw=ink},
-  badarr/.style={->,>=Latex,thick,draw=cinnabar,dashed},
+  badarr/.style={->,>=Latex,thick,draw=cobalt,dashed},
 ]
 
 \node[font=\sffamily\bfseries,anchor=west] at (-0.4,4.8)
@@ -58,7 +58,7 @@
 % Auction
 \node[auction,right=18mm of s2] (auction) {Vickrey auction\\$q^* = q_{(2)}$};
 \draw[badarr] (s1.east) to[bend left=8]
-  node[above,font=\sffamily\footnotesize\itshape,text=cinnabar]
+  node[above,font=\sffamily\footnotesize\itshape,text=cobalt]
   {bid $(1-\varepsilon) q_{\min}^{\mathrm{honest}}$} (auction.west);
 \draw[badarr] (s2.east) to (auction.west);
 \draw[badarr] (s3.east) to[bend right=8] (auction.west);
@@ -66,18 +66,18 @@
 \draw[arr] (h2.north) to[bend left=6] (auction.south);
 
 % Winner = Sybil (with high probability)
-\node[draw=cinnabar,thick,fill=paper,rounded corners=2pt,inner sep=3pt,
+\node[draw=cobalt,thick,fill=paper,rounded corners=2pt,inner sep=3pt,
       align=center,right=12mm of auction,font=\sffamily\bfseries,
-      text=cinnabar] (winner) {WINNER:\\$S_i$};
-\draw[arr,line width=1.4pt,draw=cinnabar] (auction.east) -- (winner.west);
+      text=cobalt] (winner) {WINNER:\\$S_i$};
+\draw[arr,line width=1.4pt,draw=cobalt] (auction.east) -- (winner.west);
 
 % On loss: Sybil defaults; protocol confiscates deposit
-\node[payout,below=14mm of winner,fill=brass!20]
+\node[payout,below=14mm of winner,fill=amber!20]
   (lossbox) {on loss $d > 0$:\\Sybil pays $0$\\protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=cinnabar] (winner.south) -- (lossbox.north);
+\draw[arr,draw=cobalt] (winner.south) -- (lossbox.north);
 
 % Coverage ceiling callout
-\node[draw=cinnabar,thick,fill=paper,rounded corners=3pt,inner sep=5pt,
+\node[draw=cobalt,thick,fill=paper,rounded corners=3pt,inner sep=5pt,
       align=left,minimum width=100mm,below=10mm of attacker.south,xshift=24mm]
   {{\bfseries A5 finding (key):} deposit slash is capped at $B_T = \mu(1 + s)$.\\
    Past $B_{\mathrm{dep}} \geq B_T$, additional deposit provides no extra

@@ -2,12 +2,12 @@
 % defers, and what remains open. Defense-in-depth in the Anchor tradition.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -21,15 +21,15 @@
                    inner sep=6pt,minimum width=56mm,minimum height=42mm,
                    align=left,text width=52mm,
                    font=\sffamily\footnotesize,anchor=north},
-  bandred/.style={fill=hhcinnabar!12},
-  bandbrass/.style={fill=hhbrass!18},
-  bandsage/.style={fill=hhpatina!18},
+  bandopen/.style={fill=hhcobalt!12},
+  bandbounded/.style={fill=hhamber!18},
+  bandstopped/.style={fill=hhteal!18},
   arrow/.style={->,>=Latex,thick,draw=hhebony},
 ]
 
 % ─── Band 1: stopped (mechanized) ──────────────────────────────────
-\node[bandhead,fill=hhpatina!30] (h1) at (0,0) {\textbf{Stopped} — mechanized};
-\node[bandbody,bandsage,below=0pt of h1.south] (b1) {%
+\node[bandhead,fill=hhteal!30] (h1) at (0,0) {\textbf{Stopped} — mechanized};
+\node[bandbody,bandstopped,below=0pt of h1.south] (b1) {%
   \textbf{ProVerif:}\\
   $\bullet$ cross-harbor card authenticity (\S\ref{sec:fh-xfer})\\
   $\bullet$ attenuation across boundary (\S\ref{sec:fh-xfer})\\
@@ -40,8 +40,8 @@
   $\bullet$ escrow no-redirect (\S\ref{sec:fh-settlement})};
 
 % ─── Band 2: bounded (named threat, named bound) ───────────────────
-\node[bandhead,fill=hhbrass!50,right=10mm of h1] (h2) {\textbf{Bounded} — threat $\subseteq$ window};
-\node[bandbody,bandbrass,below=0pt of h2.south] (b2) {%
+\node[bandhead,fill=hhamber!50,right=10mm of h1] (h2) {\textbf{Bounded} — threat $\subseteq$ window};
+\node[bandbody,bandbounded,below=0pt of h2.south] (b2) {%
   \textbf{Gossip latency:}\\
   $\bullet$ revocation lag $\le \Delta(1+\ln m)$ (\S\ref{sec:fh-revocation})\\
   $\bullet$ bonded against by Conservation\\[3pt]
@@ -52,8 +52,8 @@
   $\bullet$ atomic-clear or rollback (\S\ref{sec:fh-settlement})};
 
 % ─── Band 3: open (acknowledged) ──────────────────────────────────
-\node[bandhead,fill=hhcinnabar!40,right=10mm of h2] (h3) {\textbf{Open} — acknowledged};
-\node[bandbody,bandred,below=0pt of h3.south] (b3) {%
+\node[bandhead,fill=hhcobalt!40,right=10mm of h2] (h3) {\textbf{Open} — acknowledged};
+\node[bandbody,bandopen,below=0pt of h3.south] (b3) {%
   \textbf{Cold-start admission:}\\
   $\bullet$ new harbor with no reputation cannot price its own bond fairly (\S\ref{sec:fh-admission})\\[3pt]
   \textbf{Cross-federation cartel:}\\
@@ -69,8 +69,8 @@
 }
 \caption{Threat-band layout for the Federated Harbor. The Anchor paper's
 defense-in-depth structure carries over: every claim either has a mechanization
-artifact (sage), a named bound that the bond can price against (brass), or an
-explicit acknowledgement of the open frontier (cinnabar). The paper is
+artifact (teal), a named bound that the bond can price against (amber), or an
+explicit acknowledgement of the open frontier (cobalt). The paper is
 disciplined about which band each claim lives in --- see Appendix~\ref{app:fh-mech}
 for the artifact registry. Bands shift left over time as future work mechanizes
 what is presently bounded.}

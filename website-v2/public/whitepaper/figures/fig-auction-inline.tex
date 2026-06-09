@@ -4,13 +4,13 @@
 % redefines if loaded standalone).
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -18,9 +18,9 @@
   font=\sffamily\small,
   actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                 inner sep=4pt,minimum width=20mm,align=center},
-  commons/.style={draw=hhebony,thick,fill=hhpatina!40,rounded corners=2pt,
+  commons/.style={draw=hhebony,thick,fill=hhteal!40,rounded corners=2pt,
                   inner sep=4pt,minimum width=20mm,align=center},
-  escrow/.style={draw=hhebony,thick,fill=hhbrass!30,rounded corners=2pt,
+  escrow/.style={draw=hhebony,thick,fill=hhamber!30,rounded corners=2pt,
                  inner sep=4pt,minimum width=20mm,align=center},
   ins/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
               align=center,minimum width=18mm},
@@ -48,13 +48,13 @@
 \node[ins,fill=hhsand,below=11mm of p2] (i2) {$B$\\$q_B$};
 \node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
 \node[commons,below=11mm of i2] (c2) {Commons};
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
       font=\sffamily\footnotesize,right=4mm of i3,align=center]
   (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
-\draw[arr,line width=1.4pt,draw=hhcinnabar] (i2.south) --
+\draw[arr,line width=1.4pt,draw=hhcobalt] (i2.south) --
   node[left,font=\sffamily\footnotesize]
   {underwrites $B_T$} (c2.north);
 \node[align=center,font=\sffamily\footnotesize,

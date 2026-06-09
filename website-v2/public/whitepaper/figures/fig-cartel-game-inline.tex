@@ -1,13 +1,13 @@
 % Cartel repeated-game node — inline at §sec:youle:a6.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -18,21 +18,21 @@
                 minimum size=8mm,font=\sffamily\footnotesize},
   decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                    inner sep=4pt,align=center,minimum width=20mm},
-  payoff/.style={draw=hhpatina,thick,fill=hhpaper,rounded corners=2pt,
+  payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
-  bad/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
               inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
-              text=hhcinnabar},
+              text=hhcobalt},
   arr/.style={->,>=Latex,thick,draw=hhink},
   prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
 ]
 \node[state] (rt) at (0,2.4) {round $t$};
 \node[decision,right=10mm of rt] (dec) {Action choice};
 \draw[arr] (rt) -- (dec);
-\node[decision,fill=hhpatina!30,right=12mm of dec,yshift=14mm] (collude)
+\node[decision,fill=hhteal!30,right=12mm of dec,yshift=14mm] (collude)
   {COLLUDE\\$q_{\mathrm{floor}}$};
 \draw[arr] (dec.north east) to[bend left=10] (collude.west);
-\node[decision,fill=hhbrass!40,right=12mm of dec,yshift=-14mm] (defect)
+\node[decision,fill=hhamber!40,right=12mm of dec,yshift=-14mm] (defect)
   {DEFECT\\$-\varepsilon$};
 \draw[arr] (dec.south east) to[bend right=10] (defect.west);
 \node[state,right=14mm of collude,yshift=10mm] (det) {detected};
@@ -45,7 +45,7 @@
 \node[payoff,right=4mm of safe] {$+\pi_C$};
 \node[state,right=14mm of defect] (collapse) {collapse};
 \draw[arr] (defect.east) -- (collapse.west);
-\node[payoff,right=4mm of collapse,fill=hhbrass!20]
+\node[payoff,right=4mm of collapse,fill=hhamber!20]
   {$+\pi_D$ once,\\then $\pi_N \approx 0$};
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
       align=left,inner sep=6pt,

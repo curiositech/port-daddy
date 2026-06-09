@@ -1,13 +1,13 @@
 % Magic-link single-use atomicity — inline in §sec:federated-sovereign.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -19,17 +19,17 @@
                 thick,align=center},
   ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
              align=center,font=\sffamily\footnotesize},
-  capbox/.style={draw=hhcinnabar,fill=hhpaper,thick,minimum width=14mm,
+  capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
                  minimum height=8mm,inner sep=2pt,
-                 font=\sffamily\bfseries\footnotesize,text=hhcinnabar},
+                 font=\sffamily\bfseries\footnotesize,text=hhcobalt},
   sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
               inner sep=6pt,align=center,font=\sffamily\footnotesize},
-  ev/.style={ellipse,draw=hhpatina,fill=hhpaper,thick,inner sep=3pt,
+  ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt,
              font=\sffamily\footnotesize},
   msg/.style={->,>=Latex,thick,draw=hhink},
-  bad/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
   mlbl/.style={font=\sffamily\footnotesize,inner sep=1pt,fill=hhpaper},
-  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
                  inner sep=1pt,fill=hhpaper},
 ]
 \node[ch,fill=hhpaper] (pub) at (5.0,5.2) {public channel \texttt{pub} (Dolev-Yao)};
@@ -44,7 +44,7 @@
    \texttt{AND consumed\_at IS NULL RETURNING *}};
 \node[actor] (consumer) at (11.0,2.6) {\textbf{Consumer}};
 \node[ev,below=10mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
-\node[actor,fill=hhpaper,draw=hhcinnabar,
+\node[actor,fill=hhpaper,draw=hhcobalt,
       below=26mm of consumer.south] (consumer2)
   {\textbf{2nd Consumer}};
 \draw[msg] (issuer.east) -- (chTk.west)
@@ -58,8 +58,8 @@
   node[mlbl,pos=0.20] {\texttt{in(ch\_tk, cap)}};
 \draw[bad] (sql.south) |- (consumer2.west);
 \node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
-\draw[->,>=Latex,thick,draw=hhpatina,dotted] (issuer.south) -- (eIssue.north);
-\draw[->,>=Latex,thick,draw=hhpatina,dotted] (consumer.south) -- (eConsume.north);
+\draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);
+\draw[->,>=Latex,thick,draw=hhteal,dotted] (consumer.south) -- (eConsume.north);
 \end{tikzpicture}%
 }
 \caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}

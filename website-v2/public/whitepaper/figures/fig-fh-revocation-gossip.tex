@@ -2,12 +2,12 @@
 % propagation timeline with the cross-witness audit hook.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -21,17 +21,17 @@
   filter/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=2pt,minimum width=20mm,minimum height=8mm,
                  align=center,font=\sffamily\scriptsize},
-  filterrev/.style={draw=hhcinnabar,thick,fill=hhcinnabar!12,
+  filterrev/.style={draw=hhcobalt,thick,fill=hhcobalt!12,
                     rounded corners=2pt,inner sep=2pt,
                     minimum width=20mm,minimum height=8mm,
                     align=center,font=\sffamily\scriptsize},
-  witnesslog/.style={draw=hhpatina,very thick,fill=hhpaper,
+  witnesslog/.style={draw=hhteal,very thick,fill=hhpaper,
                      rounded corners=3pt,inner sep=3pt,
                      minimum width=90mm,minimum height=10mm,
                      align=center,font=\sffamily\bfseries\small},
   edge/.style={->,>=Latex,thick,draw=hhebony},
-  gossip/.style={->,>=Latex,thick,draw=hhpatina,dashed},
-  publish/.style={->,>=Latex,thick,draw=hhbrass},
+  gossip/.style={->,>=Latex,thick,draw=hhteal,dashed},
+  publish/.style={->,>=Latex,thick,draw=hhamber},
   tlabel/.style={font=\sffamily\bfseries\small,text=hhebony},
 ]
 
@@ -45,7 +45,7 @@
 \node[witnesslog] (W) at (7.5,-1.4) {Federated Witness Log (publish on epoch boundary)};
 
 % ─── t=0: A revokes card c ───────────────────────────────────────
-\node[harbor,fill=hhcinnabar!22] (A0) at (0,-3) {Harbor $A$};
+\node[harbor,fill=hhcobalt!22] (A0) at (0,-3) {Harbor $A$};
 \node[filterrev,below=2pt of A0] (FA0) {$c \in F_A$};
 \node[font=\sffamily\scriptsize\itshape,below=2pt of FA0,text width=22mm,align=center]{operator revokes $c$};
 
@@ -58,10 +58,10 @@
 \node[font=\sffamily\scriptsize,below=2pt of FC0,text width=22mm,align=center]{stale (\emph{vulnerable})};
 
 % ─── t=Δ: A publishes new root; B hears via gossip ───────────────
-\node[harbor,fill=hhcinnabar!22] (A1) at (5,-3) {Harbor $A$};
+\node[harbor,fill=hhcobalt!22] (A1) at (5,-3) {Harbor $A$};
 \node[filterrev,below=2pt of A1] {$c \in F_A$};
 
-\node[harbor,fill=hhcinnabar!22] (B1) at (5,-5.8) {Harbor $B$};
+\node[harbor,fill=hhcobalt!22] (B1) at (5,-5.8) {Harbor $B$};
 \node[filterrev,below=2pt of B1] {$c \in F_B$};
 
 \node[harbor] (C1) at (5,-8.0) {Harbor $C$};
@@ -69,21 +69,21 @@
 \node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center] at (5,-9){still stale};
 
 % ─── t=2Δ: C also has it; root inclusion proven ──────────────────
-\node[harbor,fill=hhcinnabar!22] (A2) at (10,-3) {Harbor $A$};
+\node[harbor,fill=hhcobalt!22] (A2) at (10,-3) {Harbor $A$};
 \node[filterrev,below=2pt of A2] {$c \in F_A$};
-\node[harbor,fill=hhcinnabar!22] (B2) at (10,-5.8) {Harbor $B$};
+\node[harbor,fill=hhcobalt!22] (B2) at (10,-5.8) {Harbor $B$};
 \node[filterrev,below=2pt of B2] {$c \in F_B$};
-\node[harbor,fill=hhcinnabar!22] (C2) at (10,-8.0) {Harbor $C$};
+\node[harbor,fill=hhcobalt!22] (C2) at (10,-8.0) {Harbor $C$};
 \node[filterrev,below=2pt of C2] {$c \in F_C$};
 
 % ─── t=3Δ: equivocation detector verified ────────────────────────
-\node[harbor,fill=hhcinnabar!22] (A3) at (15,-3) {Harbor $A$};
+\node[harbor,fill=hhcobalt!22] (A3) at (15,-3) {Harbor $A$};
 \node[filterrev,below=2pt of A3] {$c \in F_A$};
-\node[harbor,fill=hhcinnabar!22] (B3) at (15,-5.8) {Harbor $B$};
+\node[harbor,fill=hhcobalt!22] (B3) at (15,-5.8) {Harbor $B$};
 \node[filterrev,below=2pt of B3] {$c \in F_B$};
-\node[harbor,fill=hhcinnabar!22] (C3) at (15,-8.0) {Harbor $C$};
+\node[harbor,fill=hhcobalt!22] (C3) at (15,-8.0) {Harbor $C$};
 \node[filterrev,below=2pt of C3] {$c \in F_C$};
-\node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center,text=hhpatina] at (15,-9){auditor confirms\\no equivocation};
+\node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center,text=hhteal] at (15,-9){auditor confirms\\no equivocation};
 
 % ─── Gossip arrows (pairwise) ────────────────────────────────────
 \draw[gossip] (A0.east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{anti-entropy} (B1.west);

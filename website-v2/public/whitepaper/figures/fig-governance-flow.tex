@@ -1,13 +1,13 @@
 % Governance / appeals four-step escalation — inline in §sec:governance.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -17,10 +17,10 @@
   stagebox/.style={draw=hhebony,thick,rounded corners=3pt,
                 inner sep=6pt,minimum width=34mm,minimum height=22mm,
                 align=center},
-  esc/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
-  trig/.style={font=\sffamily\footnotesize\itshape,text=hhcinnabar,
+  esc/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  trig/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
                align=center},
-  term/.style={draw=hhebony,thick,fill=hhpatina!25,rounded corners=3pt,
+  term/.style={draw=hhebony,thick,fill=hhteal!25,rounded corners=3pt,
                inner sep=8pt,align=left,minimum width=130mm,
                font=\sffamily\footnotesize},
   flow/.style={->,>=Latex,line width=1.2pt,draw=hhebony},
@@ -39,13 +39,13 @@
   \sffamily\itshape\footnotesize TTL expires,\\
   \sffamily\itshape\footnotesize auto-release%
 };
-\node[stagebox,fill=hhbrass!40,right=22mm of s2] (s3) {%
+\node[stagebox,fill=hhamber!40,right=22mm of s2] (s3) {%
   \sffamily\bfseries\footnotesize Stage 3\\[2pt]
   \sffamily\bfseries\small Bonded preemption\\[3pt]
   \sffamily\itshape\footnotesize blocked agent posts\\
   \sffamily\itshape\footnotesize $B_{\mathrm{preempt}}$%
 };
-\node[stagebox,fill=hhpatina!35,right=22mm of s3] (s4) {%
+\node[stagebox,fill=hhteal!35,right=22mm of s3] (s4) {%
   \sffamily\bfseries\footnotesize Stage 4\\[2pt]
   \sffamily\bfseries\small Human escalation\\[3pt]
   \sffamily\itshape\footnotesize via \texttt{request}\\

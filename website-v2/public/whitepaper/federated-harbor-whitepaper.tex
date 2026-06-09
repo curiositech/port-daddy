@@ -24,22 +24,22 @@
 % ─── Colors ──────────────────────────────────────────────────────────────────
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
-\definecolor{darkgreen}{RGB}{0,100,0}
-\definecolor{darkblue}{RGB}{0,50,100}
-\definecolor{accent}{RGB}{0,128,128}
+\definecolor{darkgreen}{HTML}{00564C}
+\definecolor{darkblue}{HTML}{003FB8}
+\definecolor{accent}{HTML}{00564C}
 \definecolor{hhsand}{HTML}{E9DCC4}
-\definecolor{hhsanddeep}{HTML}{D4C5A9}
-\definecolor{hhebony}{HTML}{1E1B18}
-\definecolor{hhink}{HTML}{2C2A26}
-\definecolor{hhcinnabar}{HTML}{CC3D2E}
-\definecolor{hhbrass}{HTML}{B08D57}
-\definecolor{hhpatina}{HTML}{5C7A6A}
-\definecolor{hhpaper}{HTML}{FBF7EE}
+\definecolor{hhsanddeep}{HTML}{D8C7A6}
+\definecolor{hhebony}{HTML}{121212}
+\definecolor{hhink}{HTML}{1B1712}
+\definecolor{hhcobalt}{HTML}{003FB8}
+\definecolor{hhamber}{HTML}{6B4500}
+\definecolor{hhteal}{HTML}{00564C}
+\definecolor{hhpaper}{HTML}{FBF7EF}
 
 % Verification-status markers, matching the Anchor / Bonded conventions.
-\newcommand{\Closed}{{\textcolor{hhpatina}{\textbf{\textsf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhbrass}{\textbf{\textsf{partial}}}}}
-\newcommand{\Open}{{\textcolor{hhcinnabar}{\textbf{\textsf{open}}}}}
+\newcommand{\Closed}{{\textcolor{hhteal}{\textbf{\textsf{closed}}}}}
+\newcommand{\Partial}{{\textcolor{hhamber}{\textbf{\textsf{partial}}}}}
+\newcommand{\Open}{{\textcolor{hhcobalt}{\textbf{\textsf{open}}}}}
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
@@ -50,7 +50,7 @@
           align=left] (q) {%
       \sffamily\itshape\large #1%
     };
-    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+    \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
@@ -347,7 +347,7 @@ We are explicit about what is not closed.
 
 \subsection{Threat-band visualization}\label{sec:fh-threat-band-viz}
 
-Figure~\ref{fig:fh-threat-bands} lays out the threat surface as three bands: mechanized claims (sage), bounded threats (brass), and acknowledged open frontier (cinnabar). The boundary between brass and cinnabar shifts over time as future work mechanizes what is presently bounded. We will refer back to this figure when discussing limitations.
+Figure~\ref{fig:fh-threat-bands} lays out the threat surface as three bands: mechanized claims (teal), bounded threats (amber), and acknowledged open frontier (cobalt). The boundary between amber and cobalt shifts over time as future work mechanizes what is presently bounded. We will refer back to this figure when discussing limitations.
 
 \input{figures/fig-fh-threat-bands}
 
@@ -678,9 +678,9 @@ We are explicit about which claims live in which band (Figure~\ref{fig:fh-threat
 
 \paragraph{Mechanized (sage).} Single-harbor capability authenticity (inherited from Anchor); cross-realm authenticity under the witness-log freshness assumption (draft, \Partial); attenuation monotonicity across the boundary (Lemma~\ref{lem:fh-att}, \Partial under same caveat); cross-harbor Conservation invariant (TLA+, model-checked at $|F| \le 4$).
 
-\paragraph{Bounded (brass).} Federated revocation convergence in expected $\Delta(1 + \ln m)$ time (Theorem~\ref{thm:fh-conv}); cross-witness equivocation detection in $O(\log m)$ rounds; bounded-escrow extractable value at most $\phi$ (Theorem~\ref{thm:fh-escrow-bound}, structural argument).
+\paragraph{Bounded (amber).} Federated revocation convergence in expected $\Delta(1 + \ln m)$ time (Theorem~\ref{thm:fh-conv}); cross-witness equivocation detection in $O(\log m)$ rounds; bounded-escrow extractable value at most $\phi$ (Theorem~\ref{thm:fh-escrow-bound}, structural argument).
 
-\paragraph{Open (cinnabar).} Multi-principal correlated-equilibrium extension of Bonded; trustless settlement for non-fungible reputation-priced bonds (conjectured impossible); folk-theorem cartel-resistance bound at the federation layer.
+\paragraph{Open (cobalt).} Multi-principal correlated-equilibrium extension of Bonded; trustless settlement for non-fungible reputation-priced bonds (conjectured impossible); folk-theorem cartel-resistance bound at the federation layer.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Failure Modes}\label{sec:fh-failure-modes}
@@ -692,7 +692,7 @@ A federation paper that does not engage honestly with the historical failure mod
 
 Federated identity systems have a well-documented tendency to centralize on a small number of trust anchors within five to ten years of deployment~\cite{maler2008venn}. The Federated Harbor's structural pushback is the replicable witness log: any harbor can run its own witness instance, any harbor can audit any other instance's roots, and equivocation between witnesses is detectable. This makes it more expensive to be a centralizing hub than to be a peer.
 
-The pushback is not theorem; it is design discipline. We are honest about this in Figure~\ref{fig:fh-threat-bands} (cinnabar band). The historical evidence is mixed. Tailscale~\cite{tailscale2020} has remained operationally centralized on its own coordination server despite Headscale~\cite{headscale} being a viable alternative; in-toto~\cite{torres2019intoto} has stayed decentralized but is consumed mostly by SLSA~\cite{slsa2023} which has Google as its de facto center. Time will tell which pattern the Federated Harbor exhibits.
+The pushback is not theorem; it is design discipline. We are honest about this in Figure~\ref{fig:fh-threat-bands} (cobalt band). The historical evidence is mixed. Tailscale~\cite{tailscale2020} has remained operationally centralized on its own coordination server despite Headscale~\cite{headscale} being a viable alternative; in-toto~\cite{torres2019intoto} has stayed decentralized but is consumed mostly by SLSA~\cite{slsa2023} which has Google as its de facto center. Time will tell which pattern the Federated Harbor exhibits.
 
 \subsection{Equivocation by a malicious witness}\label{sec:fh-equiv}
 
@@ -921,7 +921,7 @@ Bruno Blanchet.
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Federated Harbor verification status. \Closed: model verified and runtime conformance test passes. \Partial: design specified, mechanization in draft. \Open: known unmechanized; threat band visible in Figure~\ref{fig:fh-threat-bands} (cinnabar).}
+\caption{Federated Harbor verification status. \Closed: model verified and runtime conformance test passes. \Partial: design specified, mechanization in draft. \Open: known unmechanized; threat band visible in Figure~\ref{fig:fh-threat-bands} (cobalt).}
 \label{tab:fh-status}
 \small
 \begin{tabular}{@{}p{60mm}p{32mm}p{26mm}p{30mm}@{}}
