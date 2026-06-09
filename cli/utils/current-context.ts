@@ -113,6 +113,17 @@ export function writeCurrentContext(context: CurrentContext, cwd: string = proce
 }
 
 export function readCurrentContext(cwd: string = process.cwd()): CurrentContext | null {
+  // Env vars take priority — no filesystem needed. Useful in worktrees, CI,
+  // and any shell where `pd begin` exported PD_AGENT_ID.
+  const envAgentId = process.env.PD_AGENT_ID?.trim();
+  const envSessionId = process.env.PD_SESSION_ID?.trim();
+  if (envAgentId || envSessionId) {
+    return {
+      agentId: envAgentId ?? '',
+      sessionId: envSessionId ?? '',
+    };
+  }
+
   const slot = resolveContextSlot();
   const slotRecord = readContextFile(getContextPathForSlot(slot, cwd));
   if (slotRecord) return slotRecord;

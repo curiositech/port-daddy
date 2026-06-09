@@ -104,7 +104,7 @@ export async function handleBegin(
     process.exit(1);
   }
 
-  // Write local context file
+  // Write local context file (slot-keyed, not relied on when env vars are set)
   writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
@@ -114,6 +114,13 @@ export async function handleBegin(
     identity: (data.identity as string) || null,
     startedAt: Date.now(),
   });
+
+  // Emit eval-able export lines so the caller's shell can `eval $(pd begin ...)`
+  // or the caller can set these in their environment to avoid filesystem context files.
+  if (process.env.PD_EMIT_EXPORTS === '1') {
+    console.log(`export PD_AGENT_ID=${data.agentId as string}`);
+    console.log(`export PD_SESSION_ID=${data.sessionId as string}`);
+  }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
