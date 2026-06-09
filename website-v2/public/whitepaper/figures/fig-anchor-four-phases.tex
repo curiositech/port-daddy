@@ -41,7 +41,7 @@
   {\textbf{Forecloses:} \\ \textit{algorithm confusion} (CVE-2015-9235, CVE-2023-48238).};
 
 % ─── Phase 2: Ed25519 ─────────────────────────────────────────────────────
-\node[phasebody,fill=hhsanddeep!55,right=26mm of p1] (p2)
+\node[phasebody,fill=hhsanddeep!55,right=36mm of p1] (p2)
   {{\footnotesize Ed25519. Daemon acts as Root CA; each Harbor holds only the public key. Signing key never leaves the issuer; no shared secret to steal.}};
 \node[phasehdr,fill=hhsanddeep,above=0pt of p2.north]
   {Phase 2 \,$\cdot$\, Ed25519 \\ Asymmetric Identity};
@@ -49,7 +49,7 @@
   {\textbf{Forecloses:} \\ \textit{shared-secret theft}; \textit{cross-harbor key reuse}.};
 
 % ─── Phase 3: Stigmergic Delegation ───────────────────────────────────────
-\node[phasebody,fill=hhamber!30,right=26mm of p2] (p3)
+\node[phasebody,fill=hhamber!30,right=36mm of p2] (p3)
   {{\footnotesize Biscuit / Macaroon pattern. Multi-hop attenuation: child cap $\subsetneq$ parent cap; fresh nonce and prev/next identity binding at every hop.}};
 \node[phasehdr,fill=hhamber!55,above=0pt of p3.north]
   {Phase 3 \,$\cdot$\, Macaroon \\ Stigmergic Delegation};
@@ -57,7 +57,7 @@
   {\textbf{Forecloses:} \\ \textit{capability escalation}; \textit{hop splicing}; \textit{chain substitution}.};
 
 % ─── Phase 4: Revocation ──────────────────────────────────────────────────
-\node[phasebody,fill=hhcobalt!18,right=26mm of p3] (p4)
+\node[phasebody,fill=hhcobalt!18,right=36mm of p3] (p4)
   {{\footnotesize Cuckoo filter: 8-bit fingerprints, 4 entries/bucket, gossip-synced via version vectors. Global revoke in $\approx 2$\,min for $m{=}10$ daemons.}};
 \node[phasehdr,fill=hhcobalt!35,above=0pt of p4.north]
   {Phase 4 \,$\cdot$\, Cuckoo \\ Revocation};
@@ -70,8 +70,8 @@
 \draw[arrowstyle] (p3.east) -- (p4.west);
 
 % ─── Rationale labels: small teal pills centered ON the arrows ────────
-%     The arrow span between phases is 26mm; rationale is text width 22mm,
-%     so it fits with margin on each side.
+%     The arrow span between phases is 36mm; rationale is text width 22mm,
+%     giving 7mm of clear margin on each side.
 \node[rationale] at ($(p1.east)!0.5!(p2.west)$) {needs: \\ remove shared secret};
 \node[rationale] at ($(p2.east)!0.5!(p3.west)$) {needs: \\ offline attenuation};
 \node[rationale] at ($(p3.east)!0.5!(p4.west)$) {needs: \\ early withdrawal};
@@ -79,8 +79,8 @@
 % ─── Bottom band: ProVerif status (sits well below threat boxes) ────────
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
       inner sep=5pt,align=center,font=\sffamily\footnotesize,
-      below=8mm of p2t.south east,xshift=18mm,
-      text width=210mm]
+      below=8mm of p3t.south,xshift=0mm,
+      text width=290mm]
   {\textbf{Mechanized status} (ProVerif 2.05, unbounded sessions, Dolev--Yao adversary):\quad
    Phase 1 \textbf{auth + injective \checkmark}\quad$\cdot$\quad
    Phase 2 \textbf{alg-pinning safe \checkmark}\quad$\cdot$\quad

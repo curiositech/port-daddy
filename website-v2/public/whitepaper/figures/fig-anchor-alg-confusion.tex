@@ -39,8 +39,8 @@
 \node[rejected,right=4mm of naive,fill=hhcobalt!20] (accept-bad) {ACCEPT (bad!)};
 \draw[arr] (daemon1.east) -- node[above,font=\sffamily\footnotesize]
   {issue} (tok1.west);
-\draw[badarr] (tok1.east) -- node[above,font=\sffamily\footnotesize\itshape,
-                                  text=hhcobalt] {rewrite alg} (attacker1.west);
+\draw[badarr] (tok1.east) -- node[above,pos=0.5,font=\sffamily\tiny\itshape,
+                                  text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker1.west);
 \draw[badarr] (attacker1.east) -- (tok1b.west);
 \draw[badarr] (tok1b.east) -- (naive.west);
 \draw[badarr] (naive.east) -- (accept-bad.west);
@@ -58,8 +58,8 @@
   {Pinned verifier};
 \node[ok,right=4mm of pinned] (reject) {REJECT (good)};
 \draw[arr] (daemon2.east) -- (tok2.west);
-\draw[badarr] (tok2.east) -- node[above,font=\sffamily\footnotesize\itshape,
-                                  text=hhcobalt] {rewrite alg} (attacker2.west);
+\draw[badarr] (tok2.east) -- node[above,pos=0.5,font=\sffamily\tiny\itshape,
+                                  text=hhcobalt,align=center] {rewrite\\[-1pt]alg} (attacker2.west);
 \draw[badarr] (attacker2.east) -- (tok2b.west);
 \draw[badarr] (tok2b.east) -- (pinned.west);
 \draw[arr,draw=hhteal,line width=1.4pt] (pinned.east) -- (reject.west);

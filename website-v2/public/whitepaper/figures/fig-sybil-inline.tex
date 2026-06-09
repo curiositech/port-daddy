@@ -28,41 +28,48 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
   badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
-\node[adv] (attacker) at (0,3.4) {ATTACKER};
-\node[sybil,right=12mm of attacker.east,yshift=14mm] (s1)
-  {Sybil $S_1$\\dep $B_{\mathrm{dep}}$};
-\node[sybil,right=12mm of attacker.east] (s2)
-  {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
-\node[sybil,right=12mm of attacker.east,yshift=-14mm] (s3)
-  {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
-\draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]
-  {spawn} (s1.west);
-\draw[arr] (attacker.east) -- (s2.west);
+% Layout: ATTACKER(0,0) → Sybils(3,y) → Auction(7,0) ← Honest(10.5,y)
+%         Winner(7,-2.4) ← Lossbox(3.5,-2.4)
+%         A5 box centred below, full width
+\node[adv] (attacker) at (0,0) {ATTACKER};
+\node[sybil] (s1) at (3, 0.9) {Sybil $S_1$\\dep $B_{\mathrm{dep}}$};
+\node[sybil] (s2) at (3, 0)   {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
+\node[sybil] (s3) at (3,-0.9) {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
+\draw[arr] (attacker.east) -- (s1.west);
+\draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]{spawn} (s2.west);
 \draw[arr] (attacker.east) -- (s3.west);
-\node[honest,right=42mm of s3.east,yshift=0mm] (h1) {Honest $H_1$};
-\node[honest,left=3mm of h1] (h2) {Honest $H_2$};
-\node[auction,right=24mm of s2,yshift=-4mm] (auction)
-  {Vickrey auction\\$q^* = q_{(2)}$};
-\draw[badarr] (s1.east) to[bend left=14] (auction.north west);
-\draw[badarr] (s2.east) to (auction.west);
-\draw[badarr] (s3.east) to[bend right=10] (auction.south west);
+% Auction in the centre
+\node[auction] (auction) at (7,0) {Vickrey auction\\$q^* = q_{(2)}$};
+% Honest bidders to the RIGHT of the auction
+\node[honest] (h1) at (10.5, 0.5) {Honest $H_1$};
+\node[honest] (h2) at (10.5,-0.5) {Honest $H_2$};
+% Sybil → Auction (bad, dashed)
+\draw[badarr] (s1.east) to[bend left=12]  (auction.north west);
+\draw[badarr] (s2.east) to                (auction.west);
+\draw[badarr] (s3.east) to[bend right=12] (auction.south west);
+% Annotation above auction
 \node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
-      align=center,above=1mm of auction.north]
-  {sybils bid $(1-\varepsilon) q_{\min}^{\mathrm{honest}}$};
-\draw[arr] (h1.west) to[bend left=10] (auction.east);
-\draw[arr] (h2.west) to[bend left=14] (auction.east);
+      align=center,above=2mm of auction.north]
+  {sybils bid $(1{-}\varepsilon)\,q_{\min}^{\mathrm{honest}}$};
+% Honest → Auction (good, solid)
+\draw[arr] (h1.west) to[bend right=12] (auction.north east);
+\draw[arr] (h2.west) to[bend left=12]  (auction.south east);
+% Winner box below auction
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      align=center,below=12mm of auction,font=\sffamily\bfseries,
-      text=hhcobalt] (winner) {WINNER: $S_i$};
+      align=center,font=\sffamily\bfseries,text=hhcobalt]
+  (winner) at (7,-2.2) {WINNER: $S_i$};
 \draw[arr,line width=1.4pt,draw=hhcobalt] (auction.south) -- (winner.north);
-\node[payout,left=8mm of winner,fill=hhamber!20,minimum width=44mm,align=left]
-  (lossbox)
+% Loss box — placed below the sybil column, clear of sybil nodes
+\node[payout,fill=hhamber!20,minimum width=44mm,align=left,
+      text width=42mm]
+  (lossbox) at (2.8,-3.5)
   {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
    protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
-\draw[arr,draw=hhcobalt,dashed] (winner.west) -- (lossbox.east);
+\draw[arr,draw=hhcobalt,dashed] (winner.south west) to[bend right=20] (lossbox.east);
+% A5 finding box — centred below the entire diagram, wrapped width
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
-      align=left,text width=148mm,below=14mm of winner.south,xshift=30mm,
-      anchor=north]
+      align=left,text width=120mm,anchor=north]
+  at ($(lossbox.south)+(2.2,-6mm)$)
   {{\bfseries A5 finding:} the deposit slash is capped at the coverage
    $B_T = \mu(1+s)$. Past $B_{\mathrm{dep}} \geq B_T$, additional deposit
    provides no extra deterrence. Closing A5 requires a composite

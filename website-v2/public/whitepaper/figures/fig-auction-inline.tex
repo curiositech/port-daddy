@@ -47,15 +47,15 @@
 \node[ins,fill=hhsand,below=11mm of p2,xshift=-15mm] (i1) {$A$\\$q_A$};
 \node[ins,fill=hhsand,below=11mm of p2] (i2) {$B$\\$q_B$};
 \node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
-\node[commons,below=11mm of i2] (c2) {Commons};
+\node[commons,below=18mm of i2] (c2) {Commons};
 \node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
-      font=\sffamily\footnotesize,right=4mm of i3,align=center]
+      font=\sffamily\footnotesize,right=5mm of i3,align=center,text width=22mm]
   (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
 \draw[arr] (p2.south) -- (i1.north);
 \draw[arr] (p2.south) -- (i2.north);
 \draw[arr] (p2.south) -- (i3.north);
 \draw[arr,line width=1.4pt,draw=hhcobalt] (i2.south) --
-  node[left,font=\sffamily\footnotesize]
+  node[right,font=\sffamily\footnotesize,xshift=2mm]
   {underwrites $B_T$} (c2.north);
 \node[align=center,font=\sffamily\footnotesize,
       draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,

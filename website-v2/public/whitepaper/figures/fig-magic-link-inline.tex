@@ -43,19 +43,19 @@
    \texttt{SET consumed\_at=? WHERE token=?}\\
    \texttt{AND consumed\_at IS NULL RETURNING *}};
 \node[actor] (consumer) at (11.0,2.6) {\textbf{Consumer}};
-\node[ev,below=10mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
+\node[ev,below=22mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
 \node[actor,fill=hhpaper,draw=hhcobalt,
-      below=26mm of consumer.south] (consumer2)
+      below=42mm of consumer.south] (consumer2)
   {\textbf{2nd Consumer}};
 \draw[msg] (issuer.east) -- (chTk.west)
   node[mlbl,pos=0.5] {\texttt{out(ch\_tk, ())}};
 \draw[msg] (issuer.north) |- (pub.west)
-  node[mlbl,pos=0.30,right] {\texttt{out(pub, mkLink)}};
+  node[mlbl,pos=0.55,above] {\texttt{out(pub, mkLink)}};
 \draw[msg] (pub.east) -| (consumer.north);
 \draw[msg] (chTk.south) -- (capBox.north);
 \draw[msg] (capBox.south) -- (sql.north);
 \draw[msg] (sql.east) -| (consumer.south)
-  node[mlbl,pos=0.20] {\texttt{in(ch\_tk, cap)}};
+  node[mlbl,pos=0.55,below] {\texttt{in(ch\_tk, cap)}};
 \draw[bad] (sql.south) |- (consumer2.west);
 \node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
 \draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);

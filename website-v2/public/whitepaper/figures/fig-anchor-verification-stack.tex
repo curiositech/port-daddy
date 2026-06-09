@@ -27,10 +27,10 @@
                inner sep=3pt,font=\sffamily\bfseries\footnotesize,text=hhamber},
   obligation/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
                      inner sep=3pt,font=\sffamily\footnotesize,text=hhcobalt,
-                     align=center,text width=46mm},
+                     align=center,text width=28mm},
   evidence/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                    inner sep=3pt,font=\sffamily\footnotesize,text=hhteal,
-                   align=center,text width=46mm},
+                   align=center,text width=28mm},
   bridgelbl/.style={font=\sffamily\footnotesize\itshape,text=hhink,
                     align=center,text width=42mm},
 ]
@@ -69,13 +69,13 @@
 % Anchor points on the layer borders for arrows (left side for down arrows,
 % right side for up arrows).
 \coordinate (topDL) at ([xshift=-30mm]top.south);
-\coordinate (topDR) at ([xshift=30mm]top.south);
+\coordinate (topDR) at ([xshift=20mm]top.south);
 \coordinate (midUL) at ([xshift=-30mm]mid.north);
-\coordinate (midUR) at ([xshift=30mm]mid.north);
+\coordinate (midUR) at ([xshift=20mm]mid.north);
 \coordinate (midDL) at ([xshift=-30mm]mid.south);
-\coordinate (midDR) at ([xshift=30mm]mid.south);
+\coordinate (midDR) at ([xshift=20mm]mid.south);
 \coordinate (botUL) at ([xshift=-30mm]bot.north);
-\coordinate (botUR) at ([xshift=30mm]bot.north);
+\coordinate (botUR) at ([xshift=20mm]bot.north);
 
 % ─── Down arrows: design obligations flow downward ──────────────────────
 \draw[->,>=Latex,thick,draw=hhcobalt] (topDL) -- (midUL);
