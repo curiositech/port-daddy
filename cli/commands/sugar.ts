@@ -118,8 +118,14 @@ export async function handleBegin(
   // Emit eval-able export lines so the caller's shell can `eval $(pd begin ...)`
   // or the caller can set these in their environment to avoid filesystem context files.
   if (process.env.PD_EMIT_EXPORTS === '1') {
-    console.log(`export PD_AGENT_ID=${data.agentId as string}`);
-    console.log(`export PD_SESSION_ID=${data.sessionId as string}`);
+    const safeId = /^[A-Za-z0-9_-]+$/.test(String(data.agentId)) ? String(data.agentId) : '';
+    const safeSid = /^[A-Za-z0-9_-]+$/.test(String(data.sessionId)) ? String(data.sessionId) : '';
+    if (!safeId || !safeSid) {
+      process.stderr.write('pd begin: agentId/sessionId contain unsafe characters; skipping PD_EMIT_EXPORTS\n');
+    } else {
+      console.log(`export PD_AGENT_ID=${safeId}`);
+      console.log(`export PD_SESSION_ID=${safeSid}`);
+    }
   }
 
   if (isJson(options)) {
