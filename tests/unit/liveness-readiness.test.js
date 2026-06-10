@@ -322,9 +322,10 @@ describe('Agent Liveness & Readiness', () => {
     it('should show stale liveness for old heartbeat', () => {
       agents.register('agent-1', { status: 'ready' });
 
-      // Manually backdate heartbeat
+      // Stale threshold = dead threshold * 0.6. ready dead = 4h → stale at 2.4h = 144 min.
+      // Backdate past the stale threshold (150 min > 144 min).
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 13 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 150 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('stale');
@@ -333,9 +334,9 @@ describe('Agent Liveness & Readiness', () => {
     it('should show dead liveness for very old heartbeat', () => {
       agents.register('agent-1', { status: 'ready' });
 
-      // Backdate heartbeat past dead threshold
+      // ready dead threshold = 4h. Backdate past 4h (250 min > 240 min).
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 25 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 250 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('dead');
@@ -345,9 +346,9 @@ describe('Agent Liveness & Readiness', () => {
       agents.register('agent-1', { status: 'busy' });
       const result = agents.get('agent-1');
 
-      // Just registered, so graceRemaining should be near the full dead threshold for busy (30 min)
-      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(29 * 60 * 1000);
-      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(30 * 60 * 1000);
+      // busy dead threshold = 4h (14 400 000 ms). Just registered → graceRemaining ≈ 4h.
+      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(239 * 60 * 1000);
+      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(240 * 60 * 1000);
     });
   });
 
