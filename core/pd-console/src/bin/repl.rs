@@ -1,3 +1,4 @@
+#![recursion_limit = "1024"]
 //! pd-console — the operator console. Engine milestone: a headless conversation
 //! multiplexer, on the PD bus, backend-agnostic. The GPUI shell renders this next.
 //!
@@ -12,10 +13,24 @@
 //! This is the answer to "I want to talk to you from inside pd-console, not
 //! iterm2" — at the engine layer, runnable today.
 
-#[path = "../agent.rs"]     mod agent;
-#[path = "../dispatch_pane.rs"] mod dispatch_pane;
-#[path = "../pane.rs"]      mod pane;
-#[path = "../theme.rs"]     mod theme;
+#[path = "../activity_pane.rs"]  mod activity_pane;
+#[path = "../adrs_pane.rs"]      mod adrs_pane;
+#[path = "../agent.rs"]          mod agent;
+#[path = "../claims_pane.rs"]    mod claims_pane;
+#[path = "../cockpit_pane.rs"]   mod cockpit_pane;
+#[path = "../dispatch_pane.rs"]  mod dispatch_pane;
+// fleet_pane and maritime are excluded — they pull in GPUI derive macros
+// (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
+#[path = "../health_pane.rs"]    mod health_pane;
+#[path = "../inbox_pane.rs"]     mod inbox_pane;
+#[path = "../notes_pane.rs"]     mod notes_pane;
+#[path = "../pane.rs"]           mod pane;
+#[path = "../peek_pane.rs"]      mod peek_pane;
+#[path = "../prs_pane.rs"]       mod prs_pane;
+#[path = "../roadmap_pane.rs"]   mod roadmap_pane;
+#[path = "../sessions_pane.rs"]  mod sessions_pane;
+#[path = "../suggest_pane.rs"]   mod suggest_pane;
+#[path = "../theme.rs"]          mod theme;
 
 use agent::{AgentManager, Backend};
 use anyhow::Result;

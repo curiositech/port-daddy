@@ -208,41 +208,38 @@ impl RenderOnce for SidebarItem {
 
 pub struct ConsoleView {
     pub active_nav: usize,
-    fleet_blocks: Vec<Block>,
+    pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
 }
 
 impl ConsoleView {
     pub fn new(daemon_url: String) -> Self {
-        Self {
-            active_nav: 0,
-            fleet_blocks: vec![
-                Block::Header("Fleet Roster".into()),
-                Block::KeyVal(
-                    "status".into(),
-                    format!("connecting to daemon at {}…", daemon_url),
-                ),
-            ],
-            daemon_url,
-        }
+        // Initialize all 15 slots with a "connecting…" placeholder
+        let pane_blocks = NAV.iter().map(|nav| {
+            vec![
+                Block::Header(nav.label.into()),
+                Block::KeyVal("status".into(), "connecting…".into()),
+            ]
+        }).collect();
+
+        Self { active_nav: 0, pane_blocks, daemon_url }
     }
 
-    /// Push fresh fleet data from the background refresh loop.
-    pub fn update_fleet(&mut self, blocks: Vec<Block>) {
-        self.fleet_blocks = blocks;
+    /// Push fresh data for all panes from the background refresh loop.
+    /// Each entry is (nav_index, blocks_for_that_pane).
+    pub fn update_panes(&mut self, updates: Vec<(usize, Vec<Block>)>) {
+        for (idx, blocks) in updates {
+            if let Some(slot) = self.pane_blocks.get_mut(idx) {
+                *slot = blocks;
+            }
+        }
     }
 
     fn blocks_for_active(&self) -> Vec<Block> {
-        match self.active_nav {
-            0 => self.fleet_blocks.clone(),
-            i => {
-                let label = NAV.get(i).map(|n| n.label).unwrap_or("—");
-                vec![
-                    Block::Header(label.into()),
-                    Block::KeyVal("status".into(), "panel not yet implemented".into()),
-                ]
-            }
-        }
+        self.pane_blocks
+            .get(self.active_nav)
+            .cloned()
+            .unwrap_or_default()
     }
 }
 

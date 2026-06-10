@@ -1,26 +1,52 @@
 #![recursion_limit = "512"]
 //! pd-console — GPU-native standalone operator console (ADR-0046).
 //!
-//! Architecture: a std thread with a mini tokio runtime polls `/agents` every 2s
-//! and sends `Vec<Block>` via mpsc. A GPUI foreground task wakes every 500ms,
-//! drains the channel, and notifies the view. No tokio/smol collision.
+//! Architecture: a std thread with a mini tokio runtime polls all 15 panes every
+//! 2s and sends `Vec<(usize, Vec<Block>)>` via mpsc. A GPUI foreground task wakes
+//! every 500ms, drains the channel, and notifies the view. No tokio/smol collision.
 //!
 //! Run:  cargo run --bin pd-console
 //! REPL: cargo run --bin pd-console-repl
 
+mod activity_pane;
+mod adrs_pane;
 mod agent;
 mod app;
+mod claims_pane;
+mod cockpit_pane;
 mod dispatch_pane;
 mod fleet_pane;
+mod health_pane;
+mod inbox_pane;
 mod maritime;
+mod notes_pane;
 mod pane;
+mod peek_pane;
+mod prs_pane;
+mod roadmap_pane;
+mod sessions_pane;
+mod suggest_pane;
 mod theme;
 
+use activity_pane::ActivityPane;
+use adrs_pane::AdrsPane;
 use agent::DaemonClient;
 use app::ConsoleView;
+use claims_pane::ClaimsPane;
+use cockpit_pane::CockpitPane;
+use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
+use health_pane::HealthPane;
+use inbox_pane::InboxPane;
+use notes_pane::NotesPane;
+use pane::{CoastGuardPane, Pane};
+use peek_pane::PeekPane;
+use prs_pane::PrsPane;
+use roadmap_pane::RoadmapPane;
+use sessions_pane::SessionsPane;
+use suggest_pane::SuggestPane;
+
 use gpui::*;
-use pane::Pane;
 use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -34,7 +60,6 @@ struct FsAssets {
 
 impl FsAssets {
     fn locate() -> Self {
-        // Dev: use the compile-time manifest dir so `cargo run` just works.
         let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
         Self { base }
     }
@@ -96,9 +121,15 @@ fn main() {
             )
             .expect("failed to open pd-console window");
 
-        // ── Fleet refresh pipeline ────────────────────────────────────────────
-        // Producer: std thread with mini tokio runtime — polls /agents every 2s.
-        let (tx, rx) = mpsc::channel::<Vec<pane::Block>>();
+        // ── Multi-pane refresh pipeline ───────────────────────────────────────
+        // Producer: std thread with mini tokio runtime — refreshes all panes every 2s.
+        // Sends Vec<(nav_index, Vec<Block>)> so the view can update each slot.
+        //
+        // NAV order mirrors app::NAV:
+        //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
+        //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
+        //  13=Health  14=CoastGuard
+        let (tx, rx) = mpsc::channel::<Vec<(usize, Vec<pane::Block>)>>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -107,11 +138,63 @@ fn main() {
                 .expect("tokio rt");
             rt.block_on(async move {
                 let client = DaemonClient::new(url);
-                let mut fleet = FleetPane::new();
+
+                // All 15 panes — one per NAV slot
+                let mut fleet      = FleetPane::new();         // 0
+                let mut cockpit    = CockpitPane::new();       // 1
+                let mut sorties    = DispatchQueuePane::new(); // 2
+                let mut claims     = ClaimsPane::new();        // 3
+                let mut peek       = PeekPane::new();          // 4
+                let mut roadmap    = RoadmapPane::new();       // 5
+                let mut adrs       = AdrsPane::new();          // 6
+                let mut activity   = ActivityPane::new();      // 7
+                let mut sessions   = SessionsPane::new();      // 8
+                let mut inbox      = InboxPane::new();         // 9
+                let mut suggest    = SuggestPane::new();       // 10
+                let mut memory     = NotesPane::new();         // 11
+                let mut prs        = PrsPane::new();           // 12
+                let mut health     = HealthPane::new();        // 13
+                let mut coast      = CoastGuardPane::default();// 14
+
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
+
+                    // Refresh all in parallel-ish — sequential is fine at 2s cadence
                     let _ = fleet.refresh(&client).await;
-                    if tx.send(fleet.view()).is_err() {
+                    let _ = cockpit.refresh(&client).await;
+                    let _ = sorties.refresh(&client).await;
+                    let _ = claims.refresh(&client).await;
+                    let _ = peek.refresh(&client).await;
+                    let _ = roadmap.refresh(&client).await;
+                    let _ = adrs.refresh(&client).await;
+                    let _ = activity.refresh(&client).await;
+                    let _ = sessions.refresh(&client).await;
+                    let _ = inbox.refresh(&client).await;
+                    let _ = suggest.refresh(&client).await;
+                    let _ = memory.refresh(&client).await;
+                    let _ = prs.refresh(&client).await;
+                    let _ = health.refresh(&client).await;
+                    let _ = coast.refresh(&client).await;
+
+                    let all = vec![
+                        (0,  fleet.view()),
+                        (1,  cockpit.view()),
+                        (2,  sorties.view()),
+                        (3,  claims.view()),
+                        (4,  peek.view()),
+                        (5,  roadmap.view()),
+                        (6,  adrs.view()),
+                        (7,  activity.view()),
+                        (8,  sessions.view()),
+                        (9,  inbox.view()),
+                        (10, suggest.view()),
+                        (11, memory.view()),
+                        (12, prs.view()),
+                        (13, health.view()),
+                        (14, coast.view()),
+                    ];
+
+                    if tx.send(all).is_err() {
                         break; // window closed
                     }
                 }
@@ -125,10 +208,10 @@ fn main() {
             .spawn(async move {
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok(blocks) = rx.try_recv() {
+                    while let Ok(pane_updates) = rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.update_fleet(blocks.clone());
+                                view.update_panes(pane_updates.clone());
                                 cx.notify();
                             });
                         });
