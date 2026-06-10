@@ -57,13 +57,15 @@
   \textbf{Cold-start admission:}\\
   $\bullet$ new harbor with no reputation cannot price its own bond fairly (\S\ref{sec:fh-admission})\\[3pt]
   \textbf{Cross-federation cartel:}\\
-  $\bullet$ folk-theorem weakening across harbors (\S\ref{sec:fh-equilibria}); precise bound owed\\[3pt]
+  $\bullet$ folk-theorem weakening across harbors (\S\ref{sec:fh-lim-cartel}); precise bound owed\\[3pt]
   \textbf{Centralization gravity:}\\
   $\bullet$ historical pull toward hub-and-spoke (\S\ref{sec:fh-failure-modes}); structural pushback rather than proof};
 
-% ─── Spine: load-bearing reading direction ─────────────────────────
-\draw[arrow] (b1.east) -- node[font=\sffamily\scriptsize\itshape,above,midway]{deeper into threat space}(b2.west);
-\draw[arrow] (b2.east) -- node[font=\sffamily\scriptsize\itshape,above,midway]{out of formal reach}(b3.west);
+% ─── Spine: load-bearing reading direction. Connectors run between the
+%      fixed-height HEADERS (not the variable-height bodies), and the prose
+%      labels move to the caption so nothing collides with the band text. ──
+\draw[arrow] (h1.east) -- (h2.west);
+\draw[arrow] (h2.east) -- (h3.west);
 
 \end{tikzpicture}%
 }
@@ -72,7 +74,8 @@ defense-in-depth structure carries over: every claim either has a mechanization
 artifact (teal), a named bound that the bond can price against (amber), or an
 explicit acknowledgement of the open frontier (cobalt). The paper is
 disciplined about which band each claim lives in --- see Appendix~\ref{app:fh-mech}
-for the artifact registry. Bands shift left over time as future work mechanizes
+for the artifact registry. Reading left to right runs deeper into threat space
+and out of formal reach; bands shift left over time as future work mechanizes
 what is presently bounded.}
 \label{fig:fh-threat-bands}
 \end{figure}

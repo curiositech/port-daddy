@@ -304,8 +304,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/bonded-commons',
     overviewHref: '/whitepaper?paper=bonded-commons',
     date: 'May 2026',
-    pages: 46,
-    sizeKb: 902,
+    pages: 48,
+    sizeKb: 906,
     status: 'Version 2.5 (pre-print)',
     order: '02',
     primer:
@@ -414,8 +414,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     readerHref: '/whitepaper/federated-harbor',
     overviewHref: '/whitepaper?paper=federated-harbor',
     date: 'May 2026',
-    pages: 27,
-    sizeKb: 710,
+    pages: 28,
+    sizeKb: 689,
     status: 'Version 0.9 (pre-print)',
     order: '03',
     primer:

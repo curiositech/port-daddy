@@ -143,14 +143,14 @@
 \begin{abstract}\noindent
 As AI agents transition from isolated copilots to collaborative, autonomous swarms, local development environments face a crisis of coordination and trust. Existing tools designed for human-driven, static infrastructures lack the primitives required to prevent dynamic agents from corrupting shared state or squatting on ephemeral ports.
 
-This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to asymmetric Ed25519 signatures and multi-hop delegation chains (inspired by Macaroons~\cite{birgisson2014macaroons}). Furthermore, we present the formal verification of the protocol's design using the \textbf{ProVerif} symbolic analyzer~\cite{blanchet2016modeling} and the mathematical proof of its implementation, demonstrating immunity to algorithm confusion~\cite{mclean2015critical}, impersonation, and timing side-channels.
+This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic identity framework built into the Port Daddy daemon. We detail the protocol's evolution from symmetric MACs to asymmetric Ed25519 signatures and multi-hop delegation chains (inspired by Macaroons~\cite{birgisson2014macaroons}). Furthermore, we present the formal verification of the protocol's design using the \textbf{ProVerif} symbolic analyzer~\cite{blanchet2016modeling} and the mathematical proof of its implementation, demonstrating immunity to algorithm confusion~\cite{mclean2015critical}, impersonation, and timing side-channels. We are precise about scope: the multi-hop delegation soundness is machine-checked at the chain depth realized in deployment (depth~3), and we state explicitly (\S\ref{sec:limitations}) that extending the symbolic proof to unbounded chain depth---as distinct from the unbounded \emph{sessions} ProVerif already quantifies over---remains future work.
 \end{abstract}
 
 \vspace{0.5cm}
 \noindent\textbf{Keywords:} distributed systems security, formal verification, capability-based security, multi-agent coordination, symbolic protocol analysis, ProVerif, JWT security, Ed25519
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 30 minutes end-to-end. The companion paper, \emph{The Bonded Commons: Agent Transactions and the Federated Sovereign} (Owens 2026), carries the economic and governance argument; either paper can be read first.}
+\noindent\textit{Reading time: approximately 30 minutes end-to-end. The companion paper, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026), carries the economic and governance argument; either paper can be read first.}
 
 \tableofcontents
 \newpage
@@ -176,7 +176,7 @@ To solve this, Port Daddy introduces the concept of a \textbf{Harbor}—a zero-t
 \node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
       align=left] (cbox) {%
-  \small\textbf{\sffamily Companion paper.}\enspace This paper is the cryptographic substrate. Its companion, \emph{The Bonded Commons: Why Free-Market Agent Economies Decay and How To Fix Them}, builds the economic and game-theoretic layer on top: bonded participation, conditional-Pareto-dominant auctions, A5/A6 mechanism analysis, and the Sen-grounded justification for why coercive coordination is required at all. The Anchor Protocol is a self-contained subset; \emph{The Bonded Commons} consumes it as the trust kernel for the wider mechanism design. Read this paper for ``how does the daemon authenticate an agent?''; read the companion for ``why should there be a daemon at all?''
+  \small\textbf{\sffamily Companion paper.}\enspace This paper is the cryptographic substrate. Its companion, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems}, builds the economic and game-theoretic layer on top: bonded participation, conditional-Pareto-dominant auctions, A5/A6 mechanism analysis, and the Sen-grounded justification for why coercive coordination is required at all. The Anchor Protocol is a self-contained subset; \emph{The Bonded Commons} consumes it as the trust kernel for the wider mechanism design. Read this paper for ``how does the daemon authenticate an agent?''; read the companion for ``why should there be a daemon at all?''
 };
 \end{tikzpicture}
 \vspace{4pt}
@@ -635,9 +635,10 @@ Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} 
 \label{tab:properties}
 \end{table}
 
-\subsection{Limitations}
+\subsection{Limitations}\label{sec:limitations}
 
 \begin{enumerate}
+  \item \textbf{Delegation-chain depth.} The symbolic proof of delegation soundness (Table~\ref{tab:anchor-status}, ``\texttt{chain-replay.pv}'') is machine-checked at the chain depth realized in deployment (depth~3); it is \emph{not} a proof for unbounded chain length. ProVerif's unbounded-session guarantee quantifies over the number of protocol \emph{sessions}, not over the number of hops in a single delegation chain, which is a fixed structural bound in the modeled process. Extending the proof to unbounded depth (via recursive replication of the delegation process) is future work; until then, deployments should cap spawn-hierarchy depth at the verified bound, which the daemon enforces at attenuation time.
   \item \textbf{PID Binding:} The ``Ghost in the Harbor'' scenario requires binding tokens to the requesting PID, which is handled at the OS level.
   \item \textbf{Local Transport Security:} On multi-user systems, local unix sockets or loopback TLS should be used to prevent local bearer token sniffing.
 \end{enumerate}

@@ -14,28 +14,29 @@
 \begin{tikzpicture}[
   font=\sffamily\small,
   hop/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
-              minimum width=22mm,minimum height=10mm,inner sep=3pt,align=center},
+              minimum width=28mm,minimum height=10mm,inner sep=3pt,align=center},
   sig/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=1pt,
-              inner sep=2pt,font=\sffamily\footnotesize,align=center},
+              inner sep=2pt,font=\sffamily\footnotesize,align=center,
+              text width=32mm},
   fresh/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
                 inner sep=2pt,font=\sffamily\footnotesize},
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 \node[hop] (h1) at (0,2.6) {Hop 1\\$\mathrm{id}_1 \to \mathrm{id}_2$};
-\node[hop,right=6mm of h1] (h2) {Hop 2\\$\mathrm{id}_2 \to \mathrm{id}_3$};
-\node[hop,right=6mm of h2] (h3) {Hop 3\\$\mathrm{id}_3 \to \mathrm{id}_4$};
-\node[sig,above=3mm of h1] {sign$_{\mathrm{id}_1}$(\texttt{hopBind}$(n_1, \bot, \mathrm{id}_2, h)$)};
-\node[sig,above=3mm of h2] {sign$_{\mathrm{id}_2}$(\texttt{hopBind}$(n_2, \mathrm{id}_1, \mathrm{id}_3, h)$)};
-\node[sig,above=3mm of h3] {sign$_{\mathrm{id}_3}$(\texttt{hopBind}$(n_3, \mathrm{id}_2, \mathrm{id}_4, h)$)};
+\node[hop,right=10mm of h1] (h2) {Hop 2\\$\mathrm{id}_2 \to \mathrm{id}_3$};
+\node[hop,right=10mm of h2] (h3) {Hop 3\\$\mathrm{id}_3 \to \mathrm{id}_4$};
+\node[sig,above=3mm of h1] {sign$_{\mathrm{id}_1}$\\\texttt{hopBind}$(n_1, \bot, \mathrm{id}_2, h)$};
+\node[sig,above=3mm of h2] {sign$_{\mathrm{id}_2}$\\\texttt{hopBind}$(n_2, \mathrm{id}_1, \mathrm{id}_3, h)$};
+\node[sig,above=3mm of h3] {sign$_{\mathrm{id}_3}$\\\texttt{hopBind}$(n_3, \mathrm{id}_2, \mathrm{id}_4, h)$};
 \node[fresh,below=3mm of h1] {$n_1$: fresh};
 \node[fresh,below=3mm of h2] {$n_2$: fresh};
 \node[fresh,below=3mm of h3] {$n_3$: fresh};
 \draw[arr] (h1.east) -- (h2.west);
 \draw[arr] (h2.east) -- (h3.west);
 \node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      left=6mm of h1] (origin) {origin};
+      left=10mm of h1] (origin) {origin};
 \node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
-      right=6mm of h3] (target) {$\mathrm{id}_4$};
+      right=10mm of h3] (target) {$\mathrm{id}_4$};
 \draw[arr] (origin.east) -- (h1.west);
 \draw[arr] (h3.east) -- (target.west);
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
