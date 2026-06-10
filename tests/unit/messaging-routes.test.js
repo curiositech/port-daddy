@@ -114,3 +114,89 @@ describe('messaging routes', () => {
     expect(body.channel.physicalName).toBe(featureA.channel.physicalName);
   });
 });
+
+describe('POST /msg/:channel — webhook forward token auth', () => {
+  let app;
+  let db;
+  let messaging;
+  let originalEnv;
+
+  beforeEach(async () => {
+    originalEnv = process.env.PD_WEBHOOK_FORWARD_TOKEN;
+    db = createTestDb();
+    messaging = createMessaging(db, { resolveChannelContext: () => null });
+    app = Fastify();
+    await app.register(messagingPlugin, {
+      deps: {
+        logger: { info: () => {}, error: () => {} },
+        metrics: { errors: 0, messages_published: 0 },
+        messaging,
+      },
+    });
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    if (originalEnv === undefined) {
+      delete process.env.PD_WEBHOOK_FORWARD_TOKEN;
+    } else {
+      process.env.PD_WEBHOOK_FORWARD_TOKEN = originalEnv;
+    }
+    if (app) await app.close();
+    if (messaging) messaging.destroy();
+    if (db) db.close();
+  });
+
+  test('allows publish when PD_WEBHOOK_FORWARD_TOKEN is unset (opt-in)', async () => {
+    delete process.env.PD_WEBHOOK_FORWARD_TOKEN;
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).not.toBe(401);
+  });
+
+  test('401s when token is configured but no Authorization header is sent', async () => {
+    process.env.PD_WEBHOOK_FORWARD_TOKEN = 'secret-token';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  test('401s when Authorization header has wrong token', async () => {
+    process.env.PD_WEBHOOK_FORWARD_TOKEN = 'secret-token';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      headers: { authorization: 'Bearer wrong-token' },
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  test('401s when Authorization scheme is not Bearer', async () => {
+    process.env.PD_WEBHOOK_FORWARD_TOKEN = 'secret-token';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      headers: { authorization: 'Basic secret-token' },
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  test('allows publish when correct Bearer token is provided', async () => {
+    process.env.PD_WEBHOOK_FORWARD_TOKEN = 'secret-token';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      headers: { authorization: 'Bearer secret-token' },
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).not.toBe(401);
+  });
+});
