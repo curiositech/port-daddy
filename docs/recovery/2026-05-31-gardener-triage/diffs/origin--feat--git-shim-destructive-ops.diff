@@ -8,7 +8,7 @@ STATS:
 ---
 LAST COMMIT:
 ae734681d5786ca4f7002b23579dfd25189cb405
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-22 10:30:39 -0700
 fix(shim): relax --force-with-lease on feature branches; refuse only on protected
 

@@ -12,7 +12,7 @@ STATS:
 ---
 LAST COMMIT:
 9fff3d21c2607df3ab39dbe6e96d9eb687c85fbe
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-19 23:46:11 -0700
 docs(memory): document --json schema + add snapshot tests (closes #114 finding 5)
 

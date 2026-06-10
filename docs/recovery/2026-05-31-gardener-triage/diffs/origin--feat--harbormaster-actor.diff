@@ -15,7 +15,7 @@ STATS:
 ---
 LAST COMMIT:
 bcc338e5f7787f6b98f604b3ac2925066a19a8a3
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-22 07:09:36 -0700
 feat(harbormaster): implement canonical merge-owning actor body (ADR-0037)
 

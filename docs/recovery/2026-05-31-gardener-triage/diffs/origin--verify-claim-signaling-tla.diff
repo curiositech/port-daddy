@@ -14,7 +14,7 @@ STATS:
 ---
 LAST COMMIT:
 7045fb15ff7522aba24e33ac90552cf95763545d
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 11:10:53 -0700
 fix(proofs): make claim_signaling.tla actually run in TLC and Apalache
 

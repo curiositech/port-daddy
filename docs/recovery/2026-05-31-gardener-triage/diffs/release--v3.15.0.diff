@@ -6,12 +6,12 @@ STATS:
 ---
 LAST COMMIT:
 ee2c148711c0f7e9342936607e25426511261e11
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-31 02:54:42 -0700
 wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage
 
 Preserved by automated steward sweep. 2 modified file(s) on branch release/v3.15.0.
-Steward: erich.owens@gmail.com
+Steward: [redacted]
 
 Files:
   - CHANGELOG.md

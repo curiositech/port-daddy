@@ -14,7 +14,7 @@ STATS:
 ---
 LAST COMMIT:
 0bebedeb58c3935c9cc970ed29145ebcfe4c0069
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 23:19:19 -0700
 feat(coordination): pd done refuses unpushed branches + requires PR url in result
 

@@ -3,7 +3,7 @@ STATS:
 ---
 LAST COMMIT:
 7ebc50fbf187b02ce7bf4d89f19fd3327ad3f48b
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-19 23:34:41 -0700
 Fix Cloudflare Workers AI model route encoding (#120)
 

@@ -21,7 +21,7 @@ STATS:
 ---
 LAST COMMIT:
 f5e880f0831e1a43287d6af6d092c6839d90f5a8
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 23:01:36 -0700
 fix(claim-tree-viz): empty-page crash + tooltip clipping + sunburst contrast
 

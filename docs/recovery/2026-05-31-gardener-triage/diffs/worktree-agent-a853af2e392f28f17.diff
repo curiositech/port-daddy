@@ -3,7 +3,7 @@ STATS:
 ---
 LAST COMMIT:
 b8077f7ae9438074be606a247a00d582590dacd8
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 10:53:27 -0700
 feat(website): snap rendered HTML into dist via Playwright postbuild (#110)
 

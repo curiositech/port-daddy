@@ -5,7 +5,7 @@ STATS:
 ---
 LAST COMMIT:
 d5e1cb6335a662626b9dcd04b5ea8b618ab7f8b5
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-22 01:08:22 -0700
 docs(adr): rate-limit claim:approach to block prune-storm DoS (ADR-0038)
 

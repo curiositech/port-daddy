@@ -7,7 +7,7 @@ STATS:
 ---
 LAST COMMIT:
 e723024fb57aefe32de9b36f9fd4b8c4b948ee8c
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 10:56:16 -0700
 feat(shipwright): register 5 retool ships + ADR-0032 unSpider, cartographer, spider — archetype catalog 12 → 20
 

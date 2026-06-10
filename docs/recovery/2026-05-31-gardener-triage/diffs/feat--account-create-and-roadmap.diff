@@ -8,12 +8,12 @@ STATS:
 ---
 LAST COMMIT:
 db411082c03506eb93f261cfc3471d837df261bf
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-31 02:54:48 -0700
 wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage
 
 Preserved by automated steward sweep. 1 modified file(s) on branch feat/account-create-and-roadmap.
-Steward: erich.owens@gmail.com
+Steward: [redacted]
 
 Files:
   - ore/harbor-card-rs/target/.rustc_info.json

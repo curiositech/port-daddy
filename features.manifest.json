@@ -1034,7 +1034,12 @@
       "routes": [
         "GET /cockpit/missions",
         "GET /cockpit/missions/:param",
-        "POST /cockpit/missions/:param/plan"
+        "POST /cockpit/missions/:param/plan",
+        "GET /cockpit/triage/runs",
+        "GET /cockpit/triage/items",
+        "GET /cockpit/triage/diff/:param/:param",
+        "GET /cockpit/triage/decisions",
+        "POST /cockpit/triage/decisions"
       ],
       "completions": [
         "cockpit"

@@ -3,7 +3,7 @@ STATS:
 ---
 LAST COMMIT:
 7a39be446f493792be54c77785ef34de5173658c
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-21 08:59:20 -0700
 fix(ci): install bun in publish-npm (release.yml) (#159)
 

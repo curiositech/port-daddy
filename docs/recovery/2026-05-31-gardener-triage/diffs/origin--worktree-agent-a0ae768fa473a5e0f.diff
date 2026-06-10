@@ -24,7 +24,7 @@ STATS:
 ---
 LAST COMMIT:
 ec6df3fb6efc32fea6e784b7a71f017aeb8cc53a
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 10:38:51 -0700
 feat(spawner): add OpenAI, cli:claude-code, cli:codex backends
 

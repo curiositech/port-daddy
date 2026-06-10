@@ -11,7 +11,7 @@ STATS:
 ---
 LAST COMMIT:
 0079fb61f28b12a62042eaf0cc1312be104e2874
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 10:04:39 -0700
 ci(whitepaper): close PR #117 review findings — schema-level phrase ban, CI wiring, AST rewrite
 

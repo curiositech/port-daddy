@@ -17,7 +17,7 @@ STATS:
 ---
 LAST COMMIT:
 09026ab310071cbcf753731311be3b7960ab7028
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-21 18:30:12 -0700
 fix(backup): wire pd backup / pd restore into manifest + completions
 

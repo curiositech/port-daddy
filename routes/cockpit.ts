@@ -395,10 +395,10 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
   const DECISIONS_DIR = join(homedir(), '.port-daddy');
   const DECISIONS_FILE = join(DECISIONS_DIR, 'cockpit-triage-decisions.jsonl');
 
-  function listTriageRuns(projectDir: string): Array<{ id: string; date: string; path: string; itemCount?: number; hitlCount?: number; counts?: Record<string, number> }> {
+  function listTriageRuns(projectDir: string): Array<{ id: string; date: string; itemCount?: number; hitlCount?: number; counts?: Record<string, number> }> {
     const root = join(projectDir, 'docs', 'recovery');
     if (!existsSync(root)) return [];
-    const runs: Array<{ id: string; date: string; path: string; itemCount?: number; hitlCount?: number; counts?: Record<string, number> }> = [];
+    const runs: Array<{ id: string; date: string; itemCount?: number; hitlCount?: number; counts?: Record<string, number> }> = [];
     for (const name of readdirSync(root)) {
       if (!name.endsWith('-gardener-triage')) continue;
       const runPath = join(root, name);
@@ -420,7 +420,8 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
           counts = data.counts;
         }
       } catch { /* skip metadata */ }
-      runs.push({ id: name, date, path: runPath, itemCount, hitlCount, counts });
+      // Do NOT include the absolute filesystem path in the client-facing payload
+      runs.push({ id: name, date, itemCount, hitlCount, counts });
     }
     runs.sort((a, b) => b.id.localeCompare(a.id)); // newest first
     return runs;
@@ -442,7 +443,10 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
 
   function readTriageDiff(projectDir: string, runId: string, safeName: string): string | null {
     if (!/^[a-zA-Z0-9\-_]+$/.test(runId) || runId.includes('..')) return null;
-    if (!/^[a-zA-Z0-9\-_]+$/.test(safeName) || safeName.includes('..')) return null;
+    // safeName may contain dots (e.g. "release--v3.15.0") and parens (e.g. "(HEAD_detached_at_d5ca884c)").
+    // Path containment is enforced by the resolve+startsWith check below, so
+    // we only need to reject path separators and `..` segments.
+    if (/[/\\]/.test(safeName) || safeName.includes('..')) return null;
     const trustedRoot = resolve(join(projectDir, 'docs', 'recovery'));
     const diffPath = resolve(join(trustedRoot, runId, 'diffs', safeName + '.diff'));
     if (!diffPath.startsWith(trustedRoot + sep)) return null;
@@ -452,10 +456,17 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
 
   function readDecisions(): Array<Record<string, unknown>> {
     if (!existsSync(DECISIONS_FILE)) return [];
-    try {
-      const lines = readFileSync(DECISIONS_FILE, 'utf8').split('\n').filter(l => l.trim());
-      return lines.map(l => JSON.parse(l) as Record<string, unknown>);
-    } catch { return []; }
+    let raw: string;
+    try { raw = readFileSync(DECISIONS_FILE, 'utf8'); } catch { return []; }
+    // Parse line-by-line so a single malformed or truncated line doesn't wipe
+    // the entire history; skip bad lines and continue.
+    const results: Array<Record<string, unknown>> = [];
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      try { results.push(JSON.parse(line) as Record<string, unknown>); }
+      catch { /* skip malformed line */ }
+    }
+    return results;
   }
 
   function appendDecision(entry: Record<string, unknown>) {
@@ -522,9 +533,13 @@ export const cockpitPlugin: FastifyPluginAsync<{ deps: CockpitDeps }> = async (f
     const runId = typeof q.run === 'string' ? q.run : undefined;
     const all = readDecisions();
     const filtered = runId ? all.filter(d => d.runId === runId) : all;
-    // Return latest decision per (runId, itemId)
+    // Return latest decision per (runId, itemId).
+    // Guard both fields: entries with non-string runId or itemId are skipped
+    // so a malformed line can't produce an `undefined::undefined` key that
+    // would shadow valid entries.
     const latest = new Map<string, Record<string, unknown>>();
     for (const d of filtered) {
+      if (typeof d.runId !== 'string' || typeof d.itemId !== 'string') continue;
       const key = `${d.runId}::${d.itemId}`;
       latest.set(key, d);
     }

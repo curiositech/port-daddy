@@ -30,7 +30,7 @@ STATS:
 ---
 LAST COMMIT:
 b20090ef41f0b5fd38d24724005b693d86672029
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-20 11:01:24 -0700
 feat(fleet): generalize trigger sources + output sinks beyond GitHub
 

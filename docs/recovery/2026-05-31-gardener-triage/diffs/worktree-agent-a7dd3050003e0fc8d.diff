@@ -3,7 +3,7 @@ STATS:
 ---
 LAST COMMIT:
 03f452aee53c04a91b26f00a0d8f2b38d62cf359
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-19 06:34:37 -0700
 chore(website): SSR-safety prep — defer browser APIs out of module scope (#107)
 

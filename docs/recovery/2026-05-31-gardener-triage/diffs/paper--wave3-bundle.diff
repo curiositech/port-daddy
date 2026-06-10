@@ -26,12 +26,12 @@ STATS:
 ---
 LAST COMMIT:
 157797abd5bd8267053fb3df53d66f0420884dfc
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-31 02:54:45 -0700
 wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage
 
 Preserved by automated steward sweep. 9 modified file(s) on branch paper/wave3-bundle.
-Steward: erich.owens@gmail.com
+Steward: [redacted]
 
 Files:
   - ebsite-v2/public/whitepaper/agent-transactions-whitepaper.aux

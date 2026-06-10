@@ -1218,7 +1218,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 no PR yet",
-      "paragraph": "Preserved by automated steward sweep. 16 modified file(s) on branch cockpit/phase-2-dismiss-snooze-tuples. Steward: erich.owens@gmail.com\n\nFiles:\n  - features.manifest.json\n  - fleet-config-ui/src/api.ts\n  - fleet-config-ui/src/components/CockpitMissionsPanel.tsx\n  - fleet-config-ui/src/types.ts\n  - lib/client.ts\n  - lib/cockpit-mission-state.ts\n  - lib/cockpit-missions.ts\n  - public/fleet-ui/asse",
+      "paragraph": "Preserved by automated steward sweep. 16 modified file(s) on branch cockpit/phase-2-dismiss-snooze-tuples. Steward: [redacted]\n\nFiles:\n  - features.manifest.json\n  - fleet-config-ui/src/api.ts\n  - fleet-config-ui/src/components/CockpitMissionsPanel.tsx\n  - fleet-config-ui/src/types.ts\n  - lib/client.ts\n  - lib/cockpit-mission-state.ts\n  - lib/cockpit-missions.ts\n  - public/fleet-ui/asse",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -1386,7 +1386,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 no PR yet",
-      "paragraph": "Preserved by automated steward sweep. 10 modified file(s) on branch codex/agent-conformance-windags-docs. Steward: erich.owens@gmail.com\n\nFiles:\n  - .agents/skills/port-daddy-agent-skill/SKILL.md\n  - .cartographer/status.md\n  - .claude/skills/port-daddy-agent-skill/SKILL.md\n  - .codex/skills/port-daddy-agent-skill/SKILL.md\n  - .gemini/extensions/port-daddy/skills/port-daddy-agent-skill/SKILL.md\n  ",
+      "paragraph": "Preserved by automated steward sweep. 10 modified file(s) on branch codex/agent-conformance-windags-docs. Steward: [redacted]\n\nFiles:\n  - .agents/skills/port-daddy-agent-skill/SKILL.md\n  - .cartographer/status.md\n  - .claude/skills/port-daddy-agent-skill/SKILL.md\n  - .codex/skills/port-daddy-agent-skill/SKILL.md\n  - .gemini/extensions/port-daddy/skills/port-daddy-agent-skill/SKILL.md\n  ",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -8035,7 +8035,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 no PR yet",
-      "paragraph": "Preserved by automated steward sweep. 2 modified file(s) on branch fix/unblock-claude-cli-telemetry. Steward: erich.owens@gmail.com\n\nFiles:\n  - lib/backend-telemetry-policy.ts\n  - tests/unit/backend-telemetry-policy.test.js",
+      "paragraph": "Preserved by automated steward sweep. 2 modified file(s) on branch fix/unblock-claude-cli-telemetry. Steward: [redacted]\n\nFiles:\n  - lib/backend-telemetry-policy.ts\n  - tests/unit/backend-telemetry-policy.test.js",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -8430,7 +8430,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 overlaps with another live branch \u226580%",
-      "paragraph": "Preserved by automated steward sweep. 5 modified file(s) on branch paper/pricing-bootstrap-threats-settlement. Steward: erich.owens@gmail.com\n\nFiles:\n  - ebsite-v2/public/whitepaper/agent-transactions-whitepaper.aux\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.out\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.pdf\n  - website-v2/public/whitepaper/agent-transaction",
+      "paragraph": "Preserved by automated steward sweep. 5 modified file(s) on branch paper/pricing-bootstrap-threats-settlement. Steward: [redacted]\n\nFiles:\n  - ebsite-v2/public/whitepaper/agent-transactions-whitepaper.aux\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.out\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.pdf\n  - website-v2/public/whitepaper/agent-transaction",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -8912,7 +8912,7 @@
       "age_days": 0,
       "what_it_is": "whitepaper: present-tense cold-open; strip version/history language",
       "what_it_does": "Touches WIP \u00b7 2 files \u00b7 +14/-14 lines \u00b7 merged; branch is cleanup candidate",
-      "paragraph": "Preserved by automated steward sweep. 6 modified file(s) on branch refactor/whitepaper-present-tense. Steward: erich.owens@gmail.com\n\nFiles:\n  - ebsite-v2/public/whitepaper/agent-transactions-whitepaper.aux\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.out\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.toc\n  - website-v2/public/whitepaper/anchor-protocol-whitepaper",
+      "paragraph": "Preserved by automated steward sweep. 6 modified file(s) on branch refactor/whitepaper-present-tense. Steward: [redacted]\n\nFiles:\n  - ebsite-v2/public/whitepaper/agent-transactions-whitepaper.aux\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.out\n  - website-v2/public/whitepaper/agent-transactions-whitepaper.toc\n  - website-v2/public/whitepaper/anchor-protocol-whitepaper",
       "risk_level": "low",
       "risk_reasons": [
         "no high-risk path touched"
@@ -9002,7 +9002,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 no PR yet",
-      "paragraph": "Preserved by automated steward sweep. 2 modified file(s) on branch release/v3.15.0. Steward: erich.owens@gmail.com\n\nFiles:\n  - CHANGELOG.md\n  - package.json",
+      "paragraph": "Preserved by automated steward sweep. 2 modified file(s) on branch release/v3.15.0. Steward: [redacted]\n\nFiles:\n  - CHANGELOG.md\n  - package.json",
       "risk_level": "low",
       "risk_reasons": [
         "deps"
@@ -12442,7 +12442,7 @@
       "age_days": 0,
       "what_it_is": "wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage",
       "what_it_does": "Touches WIP \u00b7 no PR yet",
-      "paragraph": "Preserved by automated steward sweep. 9 modified file(s) on branch worktree-agent-af684db84f432e3e0. Steward: erich.owens@gmail.com\n\nFiles:\n  - li/commands/sessions.ts\n  - cli/commands/sugar.ts\n  - features.manifest.json\n  - lib/briefing.ts\n  - lib/sessions.ts\n  - lib/sugar.ts\n  - routes/sessions.ts\n  - routes/sugar.ts\n  - tests/unit/mcp-parity.test.js",
+      "paragraph": "Preserved by automated steward sweep. 9 modified file(s) on branch worktree-agent-af684db84f432e3e0. Steward: [redacted]\n\nFiles:\n  - li/commands/sessions.ts\n  - cli/commands/sugar.ts\n  - features.manifest.json\n  - lib/briefing.ts\n  - lib/sessions.ts\n  - lib/sugar.ts\n  - routes/sessions.ts\n  - routes/sugar.ts\n  - tests/unit/mcp-parity.test.js",
       "risk_level": "high",
       "risk_reasons": [
         "HTTP API surface",

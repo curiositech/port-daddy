@@ -16,7 +16,7 @@ STATS:
 ---
 LAST COMMIT:
 2f1b51d40fafece5a83792228314b489e088e972
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-31 12:02:39 -0700
 fix(fleet): brew-upgrade drift detector + Start fleet affordance + CLI lie
 

@@ -22,7 +22,7 @@ STATS:
 ---
 LAST COMMIT:
 45e82859c44422bc9ffc67a64cf21855cb87b60e
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-19 07:59:13 -0700
 feat(spawn): wire pd config set spawn.max_depth N (daemon-wide override)
 

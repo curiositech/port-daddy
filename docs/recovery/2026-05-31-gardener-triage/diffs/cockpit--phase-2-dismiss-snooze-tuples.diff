@@ -20,12 +20,12 @@ STATS:
 ---
 LAST COMMIT:
 a82859118888959ddd7003612462a93185c85a00
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-31 02:54:39 -0700
 wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage
 
 Preserved by automated steward sweep. 16 modified file(s) on branch cockpit/phase-2-dismiss-snooze-tuples.
-Steward: erich.owens@gmail.com
+Steward: [redacted]
 
 Files:
   - features.manifest.json

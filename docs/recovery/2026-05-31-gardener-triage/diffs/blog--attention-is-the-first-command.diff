@@ -9,14 +9,14 @@ STATS:
 ---
 LAST COMMIT:
 c089f1c183bef27c77eddba60bd16a8bbe74ce4d
-Erich Owens <erich.owens@gmail.com>
+Erich Owens <[redacted]>
 2026-05-31 02:36:07 -0700
 wip(blog): preserve 8-day-old uncommitted sidenote edits
 
 37+/22- to attention-is-the-first-command.md sitting uncommitted
 since 2026-05-23. Original commit already added Tufte sidenotes
 + 2 inline illustrations; this is additional in-progress work
-on the same file. Steward: erich.owens@gmail.com.
+on the same file. Steward: [redacted].
 
 Pre-commit hook bypassed: PD session detection uses terminal
 context slots that don't propagate through agent subshells; the
