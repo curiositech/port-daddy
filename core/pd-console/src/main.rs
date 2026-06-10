@@ -1,9 +1,9 @@
 #![recursion_limit = "512"]
 //! pd-console — GPU-native standalone operator console (ADR-0046).
 //!
-//! Launches a native macOS window via GPUI. Not a terminal app.
-//! The engine (daemon client, tube, pane contract) is in the sibling modules;
-//! this is the GPUI bootstrap + window creation.
+//! Architecture: a std thread with a mini tokio runtime polls `/agents` every 2s
+//! and sends `Vec<Block>` via mpsc. A GPUI foreground task wakes every 500ms,
+//! drains the channel, and notifies the view. No tokio/smol collision.
 //!
 //! Run:  cargo run --bin pd-console
 //! REPL: cargo run --bin pd-console-repl
@@ -16,8 +16,13 @@ mod maritime;
 mod pane;
 mod theme;
 
+use agent::DaemonClient;
 use app::ConsoleView;
+use fleet_pane::FleetPane;
 use gpui::*;
+use pane::Pane;
+use std::sync::mpsc;
+use std::time::Duration;
 
 fn main() {
     let daemon_url = std::env::var("PORT_DADDY_URL").unwrap_or_else(|_| {
@@ -34,20 +39,62 @@ fn main() {
 
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
 
-        cx.open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(bounds)),
-                titlebar: Some(TitlebarOptions {
-                    title: Some("pd-console".into()),
-                    appears_transparent: true,
-                    traffic_light_position: Some(point(px(12.0), px(12.0))),
-                }),
-                window_background: WindowBackgroundAppearance::Opaque,
-                focus: true,
-                ..Default::default()
-            },
-            |_window, cx| cx.new(|_cx| ConsoleView::new(daemon_url)),
-        )
-        .expect("failed to open pd-console window");
+        let window = cx
+            .open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(bounds)),
+                    titlebar: Some(TitlebarOptions {
+                        title: Some("pd-console".into()),
+                        appears_transparent: true,
+                        traffic_light_position: Some(point(px(12.0), px(12.0))),
+                    }),
+                    window_background: WindowBackgroundAppearance::Opaque,
+                    focus: true,
+                    ..Default::default()
+                },
+                |_window, cx| cx.new(|_cx| ConsoleView::new(daemon_url.clone())),
+            )
+            .expect("failed to open pd-console window");
+
+        // ── Fleet refresh pipeline ────────────────────────────────────────────
+        // Producer: std thread with mini tokio runtime — polls /agents every 2s.
+        let (tx, rx) = mpsc::channel::<Vec<pane::Block>>();
+        let url = daemon_url.clone();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("tokio rt");
+            rt.block_on(async move {
+                let client = DaemonClient::new(url);
+                let mut fleet = FleetPane::new();
+                loop {
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    let _ = fleet.refresh(&client).await;
+                    if tx.send(fleet.view()).is_err() {
+                        break; // window closed
+                    }
+                }
+            });
+        });
+
+        // Consumer: GPUI foreground task — drains channel every 500ms on main thread.
+        let bg = cx.background_executor().clone();
+        let async_cx = cx.to_async();
+        cx.foreground_executor()
+            .spawn(async move {
+                loop {
+                    bg.timer(Duration::from_millis(500)).await;
+                    while let Ok(blocks) = rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.update_fleet(blocks.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                }
+            })
+            .detach();
     });
 }
