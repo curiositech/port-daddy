@@ -72,10 +72,11 @@ const MAP_EDGES: MapEdge[] = [
   { from: 'II', to: 'I', kind: 'spine' },
   { from: 'I', to: 'III', kind: 'spine' },
   { from: 'III', to: 'IV', kind: 'spine' },
-  // V — the Anchor Protocol — proves the kernel, the market ceremony, and is
-  // III's identity keystone.
+  // V — the Anchor Protocol — proves the kernel (II) and the cross-harbor
+  // capability-transfer ceremony (IV). III *assumes* V's non-forgeable identity
+  // (a dependency, per whitePapers.ts crossRefs), which is not a proof discharge,
+  // so it is intentionally NOT drawn as a proof edge here.
   { from: 'V', to: 'II', kind: 'proof' },
-  { from: 'V', to: 'III', kind: 'proof' },
   { from: 'V', to: 'IV', kind: 'proof' },
   // VI proves the bond ledger's conservation law (IV).
   { from: 'VI', to: 'IV', kind: 'proof' },

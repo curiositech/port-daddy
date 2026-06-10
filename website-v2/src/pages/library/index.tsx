@@ -134,7 +134,7 @@ function ReaderRail({
               </span>
               <span
                 className={[
-                  'block truncate font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)]',
+                  'block truncate font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]',
                   isActive ? 'text-[color:var(--brand-primary-foreground-muted)]' : 'text-[var(--text-muted)]',
                 ].join(' ')}
               >
