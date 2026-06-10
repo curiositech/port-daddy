@@ -87,7 +87,7 @@ export function ThreeSidedMarket() {
               FLOAT-PLAN ESCROW
             </text>
             <text x="88" y="36" textAnchor="middle" fill="var(--brand-accent-foreground)" style={{ font: '500 13px var(--font-sans)' }}>
-              pays out · or refuses · never redirects
+              pays out or refuses — cannot redirect
             </text>
           </g>
 

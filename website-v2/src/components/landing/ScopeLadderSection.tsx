@@ -5,9 +5,9 @@ import { ScopeLadder } from '@/components/library/ScopeLadder'
 
 /**
  * The homepage's "small idea and big idea at once" beat. Port Daddy is a
- * harbor-master for your agents: it governs a widening scope — your repo, your
- * computer, the network, and soon an agentic economy. This is ADR-0048's stack
- * told as scope, up top, before the feature tour.
+ * harbor-master for your agents across the four layers of ADR-0048 — the
+ * machine, the swarm, the operator's cockpit, the market — each carrying its
+ * own build state and ETA. Placed up top, before the feature tour.
  */
 export function ScopeLadderSection() {
   return (
