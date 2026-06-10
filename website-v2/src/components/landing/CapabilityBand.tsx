@@ -27,7 +27,7 @@ const CAPABILITIES = [
     icon: Compass,
     eyebrow: 'Agentic safety',
     headline: 'Coast Guard',
-    body: 'Your autonomous agents, leashed — sandboxed, secret-blind, and budget-capped by default. Spend caps are hard limits, not polite suggestions.',
+    body: "Sandboxed, secret-blind, and spend-capped — the three walls your agents can't climb by default. Caps are hard limits, not gentle reminders that get ignored at 2 a.m.",
     tone: 'primary' as const,
     href: '/docs/coast-guard',
   },
@@ -36,7 +36,7 @@ const CAPABILITIES = [
     icon: GitPullRequest,
     eyebrow: 'Async execution',
     headline: 'pd dispatch',
-    body: 'Drop a vague hope in the queue; wake up to a draft PR. Dispatch turns a sentence into a full agent run — scope, branch, output — while you sleep.',
+    body: 'You write one sentence. Port Daddy writes the brief, picks the branch, runs the agent, and hands you a draft PR by morning — scope, output, evidence, the works. This is the thing sleep was invented for.',
     tone: 'default' as const,
     href: '/docs/dispatch',
   },
@@ -45,7 +45,7 @@ const CAPABILITIES = [
     icon: Radio,
     eyebrow: 'Fleet bus',
     headline: 'pd tube',
-    body: 'Every agent on one wire — route, multiplex, fail-closed. The bus that lets one command steer a dozen concurrent agents without polling or fragile IPC.',
+    body: 'One durable wire for the whole fleet — route a command to twelve agents at once, steer the ones you want, and watch it fail closed when the connection drops. No polling. No fragile IPC. No mystery.',
     tone: 'accent' as const,
     href: '/pd-tube',
   },
@@ -54,7 +54,7 @@ const CAPABILITIES = [
     icon: MonitorPlay,
     eyebrow: 'Operator surface',
     headline: 'Cockpit',
-    body: "The operator's live view of every agent, claim, and note. Not a dashboard that summarizes the past — a control plane you can act on right now.",
+    body: "Every agent, every claim, every note — live, in one place you can act on. Not a dashboard that tells you what happened while you were looking elsewhere. A control plane you can steer from.",
     tone: 'default' as const,
     href: '/docs/cockpit',
   },
@@ -191,14 +191,14 @@ export function CapabilityBand() {
               size="display"
               className="max-w-[18ch]"
             >
-              Four capabilities. Zero excuses for lost agents.
+              Four primitives. No more lost agents.
             </PanelTitle>
           </div>
           <PanelBody className="max-w-[34rem]">
-            Safety, dispatch, bus, and live view — the four surfaces that turn
-            autonomous agents from a liability into a{' '}
+            Safety rails, async dispatch, a fleet bus, and a live operator view — the
+            four things you were missing before agents got weird.{' '}
             <strong className="text-[var(--text-primary)]">
-              manageable, auditable fleet.
+              Every one ships in the base install.
             </strong>
           </PanelBody>
         </div>
