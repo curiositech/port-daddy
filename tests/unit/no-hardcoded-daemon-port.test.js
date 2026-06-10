@@ -44,6 +44,9 @@ const ALLOWED_FILES = new Set([
   'routes/sitrep.ts',
   // This guard test itself.
   'tests/unit/no-hardcoded-daemon-port.test.js',
+  // Canonical Rust resolver — DaemonClient::discover() is the Rust equivalent
+  // of shared/daemon-discovery.ts; 9876 is the same fallback constant.
+  'core/pd-console/src/agent.rs',
 ]);
 
 // Enforce only on production runtime source paths + the single server.ts file.
