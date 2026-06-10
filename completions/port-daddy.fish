@@ -98,7 +98,7 @@ set -l __pd_commands \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
     'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
-    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
+    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' 'relay' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'demo' 'fleet' 'backend' \
@@ -215,6 +215,7 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a scope -d 'Alias for periscope — operator loop SIGHT stage'
     complete -c $prog -n __pd_needs_command -a coast-guard -d 'Coast Guard read path — whether spawns are confined + what they cannot read'
     complete -c $prog -n __pd_needs_command -a cg -d 'Alias for coast-guard — the Coast Guard read path'
+    complete -c $prog -n __pd_needs_command -a relay -d 'Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
     complete -c $prog -n __pd_needs_command -a cockpit -d 'App-Native Development Cockpit — read roadmap into mission cards'
     complete -c $prog -n "__pd_using_command cockpit" -x -a 'missions' -d 'List mission cards parsed from the project roadmap'
     complete -c $prog -n "__pd_using_command cockpit; and __fish_seen_subcommand_from missions" -l project -x -d 'Project directory to read'

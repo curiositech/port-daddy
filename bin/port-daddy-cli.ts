@@ -143,6 +143,7 @@ import {
 // Imported directly (not via index.js) so the tier subcommands take precedence
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
+import { handleRelay } from '../cli/commands/relay.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
@@ -1276,6 +1277,7 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
+  'relay',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2317,6 +2319,11 @@ export async function main(): Promise<void> {
       // Track B1: relay-independent conversational pipe.
       case 'tube':
         await handleTube(positional[0], options);
+        break;
+
+      // Relay v0 — zero-trust event fabric (ADR-0049): pd relay url|status|exchange
+      case 'relay':
+        await handleRelay(positional, options);
         break;
 
       case 'wait':
