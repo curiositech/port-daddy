@@ -816,6 +816,9 @@ struct FleetPopover: View {
             .foregroundStyle(Fleet.Color.active)
             .help("Open the Fleet Control Center")
 
+            LaunchOperatorTUIButton()
+                .font(.caption2)
+
             Button {
                 openSettings()
             } label: {
