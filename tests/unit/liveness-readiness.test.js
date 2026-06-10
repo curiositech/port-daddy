@@ -320,39 +320,38 @@ describe('Agent Liveness & Readiness', () => {
     });
 
     it('should show stale liveness for old heartbeat', () => {
-      // Use 'starting' status: dead threshold = 15min, stale threshold = 9min (60% of dead).
-      // Backdate by 10 minutes → past stale (9min) but before dead (15min).
+      // Use 'starting' status (dead=15min, stale=9min) so a 13-min-old heartbeat is stale.
+      // 'ready'/'busy' were bumped to 4h (background agent support) so old thresholds no longer apply.
       agents.register('agent-1', { status: 'starting' });
 
-      // Manually backdate heartbeat
+      // Manually backdate heartbeat to 13 min ago — past the 9-min stale threshold for 'starting'
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 10 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 13 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('stale');
     });
 
     it('should show dead liveness for very old heartbeat', () => {
-      // Use 'starting' status: dead threshold = 15 min. Backdate by 16 min → dead.
+      // Use 'starting' status (dead=15min) so a 25-min-old heartbeat is dead.
       agents.register('agent-1', { status: 'starting' });
 
-      // Backdate heartbeat past dead threshold
+      // Backdate heartbeat past dead threshold (>15 min for 'starting')
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 16 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 25 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('dead');
     });
 
     it('should compute graceRemaining', () => {
-      // busy dead threshold = 4h (240 min), stale at 60% = 144 min.
-      // Just registered → graceRemaining ≈ 240 min.
-      agents.register('agent-1', { status: 'busy' });
+      // Use 'starting' status (dead=15min). Just registered → graceRemaining ≈ 15 min.
+      agents.register('agent-1', { status: 'starting' });
       const result = agents.get('agent-1');
 
-      // Just registered, so graceRemaining should be near the full dead threshold for busy (4h = 240 min)
-      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(239 * 60 * 1000);
-      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(240 * 60 * 1000);
+      // Just registered, so graceRemaining should be near the full dead threshold for 'starting' (15 min)
+      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(14 * 60 * 1000);
+      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(15 * 60 * 1000);
     });
   });
 

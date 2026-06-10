@@ -356,7 +356,11 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // githubwebhook: inbound GitHub webhook receiver (POST /webhooks/github),
   // driven by the receiver Worker / GitHub, not by a `pd` command — API-only by
   // design. See routes/github-webhook.ts.
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'context', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook']);
+  // context: agent context-window health + task ledger (ADR-0048 P1/P3) — MCP+HTTP only, no pd CLI command.
+  // harvest: session note→episode promotion (ADR-0048 P2/P3) — MCP+HTTP only.
+  // custodian: knowledge custodian status + approval resolution (ADR-0048 P3) — MCP+HTTP only.
+  // relay: cloud relay config/status (ADR-0049) — has CLI `pd relay`, but routes are daemon-only for internal use.
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
