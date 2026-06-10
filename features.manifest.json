@@ -2027,6 +2027,9 @@
       "completions": [
         "relay"
       ],
+      "mcp": [
+        "relay_status"
+      ],
       "docs": {
         "readme": false,
         "sdk": false
