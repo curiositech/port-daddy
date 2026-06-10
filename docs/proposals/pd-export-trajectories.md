@@ -1,12 +1,12 @@
 # Spec: `pd export trajectories`
 
-Status: Proposed (companion to ADR-0051; this document is the normative spec
+Status: Proposed (companion to ADR-0052; this document is the normative spec
 for phase 0–2 of its Implementation Matrix).
 
 One command that turns the daemon's canonical SQLite into **Episode JSONL** —
 session-rooted, time-ordered coordination trajectories with honest outcome
 labels and versioned reward annotations. Read-only over the DB. Every consumer
-in ADR-0051 (bench, prompt optimization, SFT/DPO, RLVR) treats this format as
+in ADR-0052 (bench, prompt optimization, SFT/DPO, RLVR) treats this format as
 its contract.
 
 ## 1. Command surface
@@ -253,7 +253,7 @@ tooling can refuse unredacted corpora.
 `lib/coordination-reward.ts` exports `scoreEpisode(episode) →
 {rubric, terminal, components, notes}` — a pure function over the Episode
 object (not the DB), so the bench, the exporter, and offline re-scoring all
-share one implementation. Rubric terms and weights per ADR-0051 §"reward
+share one implementation. Rubric terms and weights per ADR-0052 §"reward
 rubric"; weights live in a versioned constant, never config, so a score is
 always reproducible from `(episode, rubric_version)`. Terms whose evidence is
 `UNKNOWN` are skipped and listed in `notes`, never imputed as zero-bad.
@@ -295,8 +295,8 @@ mcp/server.ts                export_trajectories tool (paged)
 
 ## 11. Out of scope (this spec)
 
-- The synthetic harbor / bench runner (ADR-0051 phase 3) — consumes this
+- The synthetic harbor / bench runner (ADR-0052 phase 3) — consumes this
   format, lives in its own spec.
 - Training pipelines (phases 4–6) — external to the daemon by design.
 - Cross-harbor or shared/public corpora — separate operator decision
-  (ADR-0051 §Data governance).
+  (ADR-0052 §Data governance).

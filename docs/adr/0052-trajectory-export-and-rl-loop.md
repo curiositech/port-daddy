@@ -1,4 +1,4 @@
-# 0051. Trajectory Export and the Coordination RL Loop
+# 0052. Trajectory Export and the Coordination RL Loop
 
 ## Status
 
@@ -236,13 +236,13 @@ note and feeds `episodic_memory`, ADR-0035).
 
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
-| 0 | adr-0051-phase-0-episode-schema-and-exporter | now | — | Episode JSONL schema v1 + `pd export trajectories` CLI + `GET /export/trajectories` route + `export_trajectories` MCP tool; session-rooted join (sessions, session_notes, session_files, activity_log, sortie_events, agent_inbox, commitments, cost_events); streaming, cursor-paginated, redact-by-default; unit tests on `createTestDb` + bun-runtime route smoke (per regression-test rule) |
-| 1 | adr-0051-phase-1-outcome-labelers | now | adr-0051-phase-0-episode-schema-and-exporter | Honest outcome labels: session→commit→PR→merge/CI chain (VERIFIED/UNKNOWN, never inferred); **persist Coast Guard verdicts** (commit-path allow/block events are currently computed and discarded — store them keyed to session); collision attribution from `claim_violation`; salvage-adoption linkage via `resurrection_queue` |
-| 2 | adr-0051-phase-2-reward-rubric | now | adr-0051-phase-1-outcome-labelers | `coordination-reward/v1` as code: versioned, every term cites its evidence row; breadth penalty; note-redundancy via embeddings; rubric annotations attached to exported episodes; Goodhart audit checklist documented |
-| 3 | adr-0051-phase-3-coordination-bench | now | adr-0051-phase-2-reward-rubric | Synthetic harbor on the ephemeral daemon: seeded scenario generator (overlap/salvage/inbox/merge-queue hazards), scripted counterpart agents, sub-minute episodes, `pd bench coordination` runner emitting the same Episode JSONL; wire as advisory CI gate for skill/choreography changes |
-| 4 | adr-0051-phase-4-scaffold-optimization | next | adr-0051-phase-3-coordination-bench | GEPA/DSPy loop over `port-daddy-agent-skill` + AGENTS.md choreography with bench score as metric; high-scoring real episodes as exemplars; report per-round score deltas |
-| 5 | adr-0051-phase-5-sft-dpo-datasets | later | adr-0051-phase-2-reward-rubric | Dataset curation: VERIFIED-positive SFT rows; auto-mined DPO pairs (guard blocks / collisions / abandonment vs matched positives); train LoRA on open-weights coder; integrate as `pd spawn` backend; cost-vs-quality comparison from `cost_events` |
-| 6 | adr-0051-phase-6-rlvr-loop | later | adr-0051-phase-3-coordination-bench, adr-0051-phase-5-sft-dpo-datasets | GRPO/RLVR training against the bench; single-agent first, then 2-agent with shared team bonus; conditional on phase-4 plateau (see decision boundary) |
+| 0 | adr-0052-phase-0-episode-schema-and-exporter | now | — | Episode JSONL schema v1 + `pd export trajectories` CLI + `GET /export/trajectories` route + `export_trajectories` MCP tool; session-rooted join (sessions, session_notes, session_files, activity_log, sortie_events, agent_inbox, commitments, cost_events); streaming, cursor-paginated, redact-by-default; unit tests on `createTestDb` + bun-runtime route smoke (per regression-test rule) |
+| 1 | adr-0052-phase-1-outcome-labelers | now | adr-0052-phase-0-episode-schema-and-exporter | Honest outcome labels: session→commit→PR→merge/CI chain (VERIFIED/UNKNOWN, never inferred); **persist Coast Guard verdicts** (commit-path allow/block events are currently computed and discarded — store them keyed to session); collision attribution from `claim_violation`; salvage-adoption linkage via `resurrection_queue` |
+| 2 | adr-0052-phase-2-reward-rubric | now | adr-0052-phase-1-outcome-labelers | `coordination-reward/v1` as code: versioned, every term cites its evidence row; breadth penalty; note-redundancy via embeddings; rubric annotations attached to exported episodes; Goodhart audit checklist documented |
+| 3 | adr-0052-phase-3-coordination-bench | now | adr-0052-phase-2-reward-rubric | Synthetic harbor on the ephemeral daemon: seeded scenario generator (overlap/salvage/inbox/merge-queue hazards), scripted counterpart agents, sub-minute episodes, `pd bench coordination` runner emitting the same Episode JSONL; wire as advisory CI gate for skill/choreography changes |
+| 4 | adr-0052-phase-4-scaffold-optimization | next | adr-0052-phase-3-coordination-bench | GEPA/DSPy loop over `port-daddy-agent-skill` + AGENTS.md choreography with bench score as metric; high-scoring real episodes as exemplars; report per-round score deltas |
+| 5 | adr-0052-phase-5-sft-dpo-datasets | later | adr-0052-phase-2-reward-rubric | Dataset curation: VERIFIED-positive SFT rows; auto-mined DPO pairs (guard blocks / collisions / abandonment vs matched positives); train LoRA on open-weights coder; integrate as `pd spawn` backend; cost-vs-quality comparison from `cost_events` |
+| 6 | adr-0052-phase-6-rlvr-loop | later | adr-0052-phase-3-coordination-bench, adr-0052-phase-5-sft-dpo-datasets | GRPO/RLVR training against the bench; single-agent first, then 2-agent with shared team bonus; conditional on phase-4 plateau (see decision boundary) |
 
 ## Consequences
 
