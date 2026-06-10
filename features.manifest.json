@@ -2011,6 +2011,19 @@
         "sdk": false
       },
       "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
+    },
+    "relay": {
+      "description": "Cloud relay — zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
+      "cli": ["relay url", "relay status", "relay exchange"],
+      "daemon": [
+        "GET /relay/config",
+        "POST /relay/config",
+        "GET /relay/status",
+        "POST /relay/exchange"
+      ],
+      "completions": ["relay"],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE."
     }
   }
 }
