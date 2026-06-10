@@ -4,13 +4,13 @@
 % papers build on it.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -20,7 +20,7 @@
   rung/.style={draw=hhebony,thick,rounded corners=4pt,
                minimum width=120mm,minimum height=18mm,
                align=left,inner sep=7pt,text width=112mm},
-  here/.style={draw=hhcinnabar,line width=1.6pt,fill=hhsand!30,
+  here/.style={draw=hhcobalt,line width=1.6pt,fill=hhsand!30,
                rounded corners=4pt,minimum width=120mm,minimum height=18mm,
                align=left,inner sep=7pt,text width=112mm},
   tag/.style={font=\bfseries\footnotesize,inner sep=2pt},
@@ -61,27 +61,27 @@
    Unix domain sockets $\cdot$ an OS keychain $\cdot$ a service supervisor to keep the daemon alive.};
 
 % ─── ASSUMES (down) and PROVIDES (up) annotations, set well clear of boxes ──
-\draw[->,>=Latex,thick,hhcinnabar]
+\draw[->,>=Latex,thick,hhcobalt]
   ([xshift=-30mm]l0.south) -- ([xshift=-30mm]os.north);
 \node[font=\footnotesize\itshape,text=hhink,align=right,text width=40mm,anchor=east]
   at ($([xshift=-32mm]l0.south)!0.5!([xshift=-32mm]os.north)$)
   {\textsc{assumes:} advisory file lock, one clock, a supervisor};
-\draw[->,>=Latex,thick,hhpatina]
+\draw[->,>=Latex,thick,hhteal]
   ([xshift=30mm]os.north) -- ([xshift=30mm]l0.south);
 \node[font=\footnotesize\itshape,text=hhink,align=left,text width=40mm,anchor=west]
   at ($([xshift=32mm]os.north)!0.5!([xshift=32mm]l0.south)$)
   {\textsc{provides up:} atomic TTL'd claims, a durable bus, the deontic split, an audit log};
 
 % ─── Layer-API arrows up the stack ────────────────────────────────────────
-\draw[->,>=Latex,thick,hhpatina] ([xshift=48mm]l0.north) -- ([xshift=48mm]l1.south);
-\draw[->,>=Latex,thick,hhpatina] ([xshift=48mm]l1.north) -- ([xshift=48mm]l2.south)
+\draw[->,>=Latex,thick,hhteal] ([xshift=48mm]l0.north) -- ([xshift=48mm]l1.south);
+\draw[->,>=Latex,thick,hhteal] ([xshift=48mm]l1.north) -- ([xshift=48mm]l2.south)
   node[midway,right=1pt,font=\footnotesize\itshape,text=hhink]{layer API $\Uparrow$};
-\draw[->,>=Latex,thick,hhpatina] ([xshift=48mm]l2.north) -- ([xshift=48mm]l3.south);
+\draw[->,>=Latex,thick,hhteal] ([xshift=48mm]l2.north) -- ([xshift=48mm]l3.south);
 
 % ─── Companion-paper pointer ──────────────────────────────────────────────
 \node[paper,anchor=west] (cites) at ([xshift=12mm]l2.east) {%
   \textbf{Built on by:}\\ the legibility, personhood, and economy papers};
-\draw[->,>=Latex,thick,hhbrass,dashed] (cites.south west) to[bend left=10] ([xshift=44mm]l0.east);
+\draw[->,>=Latex,thick,hhamber,dashed] (cites.south west) to[bend left=10] ([xshift=44mm]l0.east);
 
 \end{tikzpicture}%
 }
@@ -92,7 +92,7 @@ of coordination (the message bus, stigmergic markers, commitments, the cryptogra
 authorization chain, the policy monitor). The coordination \emph{semantics}
 (protocol state machines, the agent sandbox) and the whole legibility layer belong
 to a companion paper; cross-machine capability transfer belongs to the economy
-layer. Cinnabar shows what the substrate \emph{assumes} from the machine; patina
+layer. Cobalt shows what the substrate \emph{assumes} from the machine; teal
 shows what it \emph{provides} upward. Every companion paper builds on this one.}
 \label{fig:swk-stack-map}
 \end{figure}

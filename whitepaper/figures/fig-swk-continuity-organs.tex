@@ -4,13 +4,13 @@
 % not yet exist; the checkpoint organ is the weakest BUILT link. (STITCH C7.)
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -24,22 +24,22 @@
 \newcommand{\lbl}{\bfseries\footnotesize}
 
 \node[organ,fill=hhsand!30] (mem) at (0,0)
-  {{\lbl 1.\ Memory}\hfill{\footnotesize\color{hhpatina}\textsf{implemented}}\\[3pt]
+  {{\lbl 1.\ Memory}\hfill{\footnotesize\color{hhteal}\textsf{implemented}}\\[3pt]
    append-only session notes; episodic story-beats; the operation log.\\[3pt]
    {\itshape A monitor rule forbids amnesia --- an active session's note count never regresses.}};
 
 \node[organ,fill=hhsand!30,right=8mm of mem] (chk)
-  {{\lbl 2.\ Checkpoint}\hfill{\footnotesize\color{hhcinnabar}\textsf{partial}}\\[3pt]
+  {{\lbl 2.\ Checkpoint}\hfill{\footnotesize\color{hhcobalt}\textsf{partial}}\\[3pt]
    recovery: heartbeat $\to$ stale/dead $\to$ queue $\to$ salvage handoff.\\[3pt]
-   {\color{hhcinnabar}\itshape It \textbf{passes notes}; it does not checkpoint execution state. ``Teeth'' = OP-4, unbuilt.}};
+   {\color{hhcobalt}\itshape It \textbf{passes notes}; it does not checkpoint execution state. ``Teeth'' = OP-4, unbuilt.}};
 
 \node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\lbl 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhbrass}\textsf{specified}}\\[3pt]
+  {{\lbl 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{specified}}\\[3pt]
    the durable record of \emph{what an agent actually delivered}, oracle-bound.\\[3pt]
    {\itshape Reputation keys on \textbf{this} organ --- and it does not yet exist.}};
 
-\draw[link,hhpatina] (mem.east) -- (chk.west);
-\draw[link,hhcinnabar] (chk.east) -- (ledger.west);
+\draw[link,hhteal] (mem.east) -- (chk.west);
+\draw[link,hhcobalt] (chk.east) -- (ledger.west);
 
 % The weakest-link marker over checkpoint
 \node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
