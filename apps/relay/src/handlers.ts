@@ -329,13 +329,15 @@ export async function handleSubscribe(
       // Pipe the DO live stream into the remainder
       const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
       const doResp = await stub.fetch(doUrl);
-      if (doResp.body) {
-        const reader = doResp.body.getReader();
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          await writer.write(value);
-        }
+      if (!doResp.ok || !doResp.body) {
+        throw new Error(`DO subscribe failed with status ${doResp.status}`);
+      }
+
+      const reader = doResp.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        await writer.write(value);
       }
       await writer.close();
     })();
