@@ -116,6 +116,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
   tube: 'silent',
   tunnel: 'silent',
+  relay: 'silent',           // refined: `relay url <url>` is notify
   init: 'notify',
   setup: 'notify',
   transcripts: 'silent',    // refined: `transcripts delete/rm` is destructive
@@ -259,6 +260,11 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'harbor show': 'silent',
   'harbor destroy': 'destructive',
   'harbor delete': 'destructive',
+
+  // relay subcommands
+  'relay url': 'notify',     // sets relay_url — daemon config write
+  'relay status': 'silent',
+  'relay exchange': 'silent',
 
   // spawn subcommands
   'spawn kill': 'destructive',
