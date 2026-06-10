@@ -10,7 +10,7 @@
 
 ## TL;DR
 
-1. **Cartographer today is a *librarian*, not an *approver*.** It reads four curated markdown files plus a tuple stream and renders a single payload (`/cartographer/roadmap-progress`), claims slugs (`/cartographer/roadmap-pop`), and runs a cron prompt every 30 minutes that updates `.cartographer/status.md` and `docs/V4-UNIFIED-ROADMAP.md`. It is a structured **read of state**, not a generator of operator-facing **questions**.
+1. **Cartographer today is a *librarian*, not an *approver*.** It reads curated markdown files plus a tuple stream and renders five HTTP endpoints (roadmap-progress, roadmap-pop, roadmap-release, roadmap-claims, roadmap-claim-link), claims slugs (`/cartographer/roadmap-pop`), and runs a cron prompt every 30 minutes (primary backend `cli:claude-code`) that writes a digest to a `cartographer/INDEX.md` on the `cartographer-state` branch. It is a structured **read of state**, not a generator of operator-facing **questions**.
 2. **The operator wants five things cartographer does not yet do** — surface unresolved ambiguities, detect design-gap drift (e.g. two agents drafting contradictory APIs), notice roadmap drift (proposed work with no concrete files), track dropped-but-not-killed drafts, and ping the operator at the right cadence.
 3. **Architecture pick: event-driven, not daemon, not cron.** Cartographer earns "durable" by subscribing to the activity stream (commits, sessions, notes, sortie rows, feedback drops, ADR changes), evaluating a small set of detectors after each event, and publishing **Cartographer Questions** — typed tuples in a new `cartographer_questions` table. The existing 30-minute cron stays as a sweeping fallback. No long-lived background JS process; reuse the fleet engine's existing supervised body.
 4. **Surfacing UX: one inbox channel + one cockpit panel + one FleetBar badge, all reading the same tuple stream.** Same data, three surfaces; operator gets to choose. PR comments are a stretch goal because they require GitHub webhooks; not for v1.
@@ -23,9 +23,9 @@
 
 ### What cartographer *does* (the librarian)
 
-**HTTP surface (`routes/cartographer.ts`, 231 lines):** four endpoints, all wrapping `lib/roadmap-progress.ts` and `lib/roadmap-pop.ts`. Read-only, except `roadmap-pop` and `roadmap-claim-link` which mutate `roadmap_claims`. The file's header comment is explicit: *"Cartographer (the fleet agent) is the only writer. We never mutate `docs/ROADMAP.md`, `IDEAS-TROVE.md`, `DOGFOOD-FEEDBACK.md`, `CURRENT-WORK.md`, or `.cartographer/status.md` from this route."* So the route is a structured *read* over four curated markdown files plus a tuple-backed live feedback queue.
+**HTTP surface (`routes/cartographer.ts`, ~231 lines):** five endpoints — `GET /cartographer/roadmap-progress`, `POST /cartographer/roadmap-pop`, `POST /cartographer/roadmap-release`, `GET /cartographer/roadmap-claims`, and `POST /cartographer/roadmap-claim-link` — all wrapping `lib/roadmap-progress.ts` and `lib/roadmap-pop.ts`. Read-only, except `roadmap-pop`, `roadmap-release`, and `roadmap-claim-link` which mutate `roadmap_claims`. The file's header comment is explicit: *"Cartographer (the fleet agent) is the only writer. We never mutate `docs/ROADMAP.md`, `IDEAS-TROVE.md`, `DOGFOOD-FEEDBACK.md`, `CURRENT-WORK.md`, or `.cartographer/status.md` from this route."* So the route is a structured *read* over curated markdown files plus a tuple-backed live feedback queue.
 
-**Cron body (`pd-fleet.yml` cartographer block, lines 246–365):** scheduled every 30 minutes against `@cf/qwen/qwen3-30b-a3b-fp8`, singleton, 15-minute timeout. The prompt enumerates 13 sources to read — roadmap docs, recovery hub, `.spark/feedback` drops, the tuple-backed `pd roadmap` / `pd feedback` projection — and then **promotes high/critical feedback to roadmap items** (`pd roadmap promote ... --status now`), **re-renders ROADMAP.md's "Next Cuts" block** from the tuple stream (`pd roadmap render --write`), and maintains `.cartographer/status.md` with phase status, velocity, top-3 close/blocked/dogfood lists.
+**Cron body (`pd-fleet.yml` cartographer block):** scheduled every 30 minutes, primary backend `cli:claude-code` (fallbacks: `cli:codex`, then `cloudflare @cf/qwen/qwen3-30b-a3b-fp8`), singleton, 15-minute timeout. The prompt enumerates 13 sources to read — roadmap docs, recovery hub, `.spark/feedback` drops, the tuple-backed `pd roadmap` / `pd feedback` projection — and then **updates `docs/V4-UNIFIED-ROADMAP.md` in-place** (moving `NEXT→COMPLETE`, flagging stale items, harvesting feedback) and **writes a digest to `cartographer/INDEX.md`** auto-committed to the `cartographer-state` branch. As of the current prompt, cartographer does *not* promote feedback via `pd roadmap promote` or maintain a `.cartographer/status.md` — those are aspirational steps in this design document, not live behavior. (Note: exact line numbers in `pd-fleet.yml` drift as the file evolves; read the file directly rather than relying on line-number references.)
 
 **Soul registration (`lib/actor-roster.ts`):** `id: 'cartographer'`, mailbox `actor:cartographer`, mission *"Maintains roadmap state, recovery ledgers, work-slice evidence, supersession edges, and harvests dogfood feedback."* Owns `roadmap`, `recovery-ledger`, `work-slices`, `cartographer-status`, `feedback-harvest`. So the soul is real — the bodies just don't act on its full mission.
 
@@ -35,7 +35,7 @@ Three negative observations from reading the code and the 2026-05-09 findings do
 
 **(a) No questions, only assertions.** Every output is a *statement of current state*: "Phase 2 economist 47 days idle." "Phase 4A binary slice active off-main." "34 now-status items curated." There is no place — no table, no channel, no markdown file — where cartographer writes "I don't know whether X." The 2026-05-09 findings doc's "Recommendations for Next Session" section is the closest thing, but it is a flat list inside a recovery markdown file, not a routable durable surface. The Phase 2 economist (Thomas Youle, 47 days idle as of 2026-05-16) is the canonical example: cartographer correctly noticed it stalled, but had no primitive for "block on this until the operator decides" beyond mentioning it in `.cartographer/status.md`, which the operator has to remember to open.
 
-**(b) No drift detectors over agent work.** Cartographer reads the *curated* feedback queue and the *roadmap markdown*. It does not read `sortie_runs`, `session_notes`, or `session_files` claims across worktrees. Two agents could draft contradictory APIs on two branches and cartographer would only notice via downstream signal (a `coordination:inconsistency` event published by some other agent). The watcher block in `pd-fleet.yml` (lines 503–509) appends every `coordination:inconsistency` event to `docs/recovery/COORDINATION-LOG.md` — but that file, as it exists today in the `wt-main-wip` worktree, is **10,405 lines of repeated `"connection timeout"` / `coordination:inconsistency` pairs**, an unredeemed firehose. No human will read it. Cartographer does not summarize it either.
+**(b) No drift detectors over agent work.** Cartographer reads the *curated* feedback queue and the *roadmap markdown*. It does not read `sortie_runs`, `session_notes`, or `session_files` claims across worktrees. Two agents could draft contradictory APIs on two branches and cartographer would only notice via downstream signal (a `coordination:inconsistency` event published by some other agent). Watcher entries in `pd-fleet.yml` are wired to publish `coordination:inconsistency` events, but there is no summarizer that consumes them. Any log file that may have accumulated from these events is not on `main` and is not summarized by cartographer. The shape of the problem stands regardless: conflict events are published into a channel and then silently dropped without analysis.
 
 **(c) No memory of dropped drafts.** When an ADR proposal lands in `docs/proposals/` and then gets superseded or forgotten without explicit `Rejected` status, cartographer has no way to surface "this draft has been touched zero times in 30 days and references no shipped code." The operator's complaint about quietly-dropped ADRs is real and exactly this shape. The `.spark/ideas` and `.spark/feedback` raw streams have a harvest discipline ("never edit another agent's raw drop"); proposals and architecture docs do not.
 
@@ -49,9 +49,14 @@ These are framed against the existing surfaces so each is a buildable contract, 
 
 **What's missing:** a place where cartographer writes *"I noticed X and the answer is not in any markdown, ADR, session note, or feedback entry — operator, you must choose."*
 
-**Buildable contract:** a `cartographer_questions` table with columns `(id, posed_at, surface, summary, severity, evidence_json, suggested_options, blocking_slug?, blocking_pr?, resolution_id?, resolved_at?, resolved_by?, resolution_text?)`. Each row is one open question. `surface` lets us partition by domain (`roadmap`, `design`, `priority`, `release-policy`, `data-shape`). The `evidence_json` field carries pointers to the git refs / file paths / session ids that triggered the question, so the operator can audit the basis.
+**Buildable contract:** a `cartographer_questions` table with columns `(id, posed_at, surface, summary, kind, priority, evidence_json, suggested_options, blocking_slug?, blocking_pr?, resolution_id?, resolved_at?, resolved_by?, resolution_text?)`. Each row is one open question. Two orthogonal fields carry the two concepts:
 
-**Concrete first example:** "Should Phase 2's pricing function π be operator-defined as a tuple in the daemon, delegated to an economist (Thomas Youle, 47 days idle), or archived as a non-goal?" — three suggested options, evidence = the 2026-03-30 conversation memory + the cartographer status row + the absence of any commit on `lib/pricing/*`. Severity = `blocking` because three downstream cuts (`cost-gated-spawning`, `cost-forecast-alert`, `empirical-model-efficiency-routing`) all depend on π existing.
+- **`kind`** — the detector label describing *what type of problem this is*: `design-conflict`, `stale-slug`, `unfulfilled-claim`, `abandoned-claim`, `draft-rot`, `unresolved-ambiguity`. Set by the detector; operator cannot override.
+- **`priority`** — the *cadence/surfacing lane*: `blocking`, `needs-decision`, or `fyi`. Set by the detector based on the context, but operator *can* override (see Δ5).
+
+`surface` lets us partition by domain (`roadmap`, `design`, `priority`, `release-policy`, `data-shape`). The `evidence_json` field carries pointers to the git refs / file paths / session ids that triggered the question, so the operator can audit the basis.
+
+**Concrete first example:** "Should Phase 2's pricing function π be operator-defined as a tuple in the daemon, delegated to an economist (Thomas Youle, 47 days idle), or archived as a non-goal?" — three suggested options, evidence = the 2026-03-30 conversation memory + the cartographer status row + the absence of any commit on `lib/pricing/*`. `kind = unresolved-ambiguity`, `priority = blocking` because three downstream cuts (`cost-gated-spawning`, `cost-forecast-alert`, `empirical-model-efficiency-routing`) all depend on π existing.
 
 ### Δ2 — Detect design-need gaps (e.g. "two agents drafted contradictory APIs")
 
@@ -62,7 +67,7 @@ These are framed against the existing surfaces so each is a buildable contract, 
 - The signatures of the touched symbols diverge (added/removed parameters, return type change).
 - Neither branch has merged the other.
 
-For each pair, post a Cartographer Question of severity `design-conflict`. The question summary names both branches/PRs/sortie ids, the divergent signature, and suggests "consolidate on (a) signature A, (b) signature B, or (c) introduce an adapter."
+For each pair, post a Cartographer Question with `kind = design-conflict`, `priority = blocking`. The question summary names both branches/PRs/sortie ids, the divergent signature, and suggests "consolidate on (a) signature A, (b) signature B, or (c) introduce an adapter."
 
 This is the operationalization of memory `project_single_approver_agent` lines 17–19 ("Does this conflict with another in-flight agent's work? Does it collide with a planned future goal?").
 
@@ -71,9 +76,9 @@ This is the operationalization of memory `project_single_approver_agent` lines 1
 **What's missing:** detection of `roadmap_items` (or "Next Cuts" markdown bullets) whose slug has been on the pile for ≥ N days without any commit naming the slug or any file matching the slug's heuristic surface.
 
 **Buildable contract:** every 30 min (the existing cartographer cadence), join `roadmap_items` × `roadmap_claims` × `git log --grep=<slug>`. For each slug:
-- If `claimed_at` is `NULL` and `posted_at` is older than 14 days → Cartographer Question severity `stale-slug`, suggested options `(a) keep on pile, (b) move to backlog, (c) kill with rationale`.
-- If `claimed_at` is set, `released_at` is set, and `git log --grep=<slug>` returns zero commits → severity `unfulfilled-claim`, suggested options `(a) re-open, (b) close with note 'work did not land', (c) close as superseded by <other slug>`.
-- If `claimed_at` is set, `released_at` is `NULL`, claimant session is closed/expired → severity `abandoned-claim` (this composes with the salvage primitive, not duplicates it; the question is whether to *let salvage run* or *retire the slug*).
+- If `claimed_at` is `NULL` and `posted_at` is older than 14 days → Cartographer Question `kind = stale-slug`, `priority = needs-decision`, suggested options `(a) keep on pile, (b) move to backlog, (c) kill with rationale`.
+- If `claimed_at` is set, `released_at` is set, and `git log --grep=<slug>` returns zero commits → `kind = unfulfilled-claim`, `priority = needs-decision`, suggested options `(a) re-open, (b) close with note 'work did not land', (c) close as superseded by <other slug>`.
+- If `claimed_at` is set, `released_at` is `NULL`, claimant session is closed/expired → `kind = abandoned-claim`, `priority = needs-decision` (this composes with the salvage primitive, not duplicates it; the question is whether to *let salvage run* or *retire the slug*).
 
 ### Δ4 — Track dropped-but-not-killed drafts (the ADR problem)
 
@@ -85,7 +90,7 @@ This is the operationalization of memory `project_single_approver_agent` lines 1
 - No git commit in the past 14 days touches the file or references it by basename in the body.
 - File is not referenced by any shipped ADR or `roadmap_item`.
 
-For each match, post a Cartographer Question severity `draft-rot`, evidence = git blame summary, suggested options `(a) accept, (b) reject, (c) mark superseded-by, (d) park`. The question contains the file path so a PR with `git mv` or a frontmatter status change can resolve it in one keystroke.
+For each match, post a Cartographer Question with `kind = draft-rot`, `priority = fyi` (default; escalates to `needs-decision` if the file has a `blocking_slug` set), evidence = git blame summary, suggested options `(a) accept, (b) reject, (c) mark superseded-by, (d) park`. The question contains the file path so a PR with `git mv` or a frontmatter status change can resolve it in one keystroke.
 
 ### Δ5 — Ping the operator at the right cadence
 
@@ -96,7 +101,7 @@ For each match, post a Cartographer Question severity `draft-rot`, evidence = gi
 - **`needs-decision`** — batched into a *daily digest* at 09:00 local, sent to inbox + cockpit, no FleetBar interrupt.
 - **`fyi`** — weekly digest (Mondays 09:00 local), inbox only.
 
-Severity is set by the detector that posted the question. Operator can override via `pd cartographer answer <id> --priority needs-decision`. Each question carries a `dedupe_key` (slug + surface) so re-detection updates `evidence_json` instead of spamming a new row.
+The `priority` lane is set by the detector when it posts the question. Operator can override via `pd cartographer answer <id> --priority needs-decision` (or any of the three lanes). Each question carries a `dedupe_key` (slug + surface) so re-detection updates `evidence_json` instead of spamming a new row.
 
 This realizes memory `feedback_pd_coordination_continuous` ("PD coordination is CONTINUOUS, not just at session start") on the *upward* axis — the operator hears about state changes at the cadence they want, not the rate at which detectors fire.
 
@@ -147,7 +152,7 @@ One backing table. Three surfaces, all reading the same rows.
 For each new question, `actor:cartographer` posts to `actor:operator` (or a future `actor:approver`) via the existing `agent_inbox` table. Body shape:
 
 ```
-[cartographer-question #qid]  severity=blocking  surface=roadmap
+[cartographer-question #qid]  kind=unresolved-ambiguity  priority=blocking  surface=roadmap
 Phase 2 pricing function π is unresolved 47 days after Thomas Youle's
 proposal. Three downstream cuts depend on it.
 
@@ -168,7 +173,7 @@ A new `/cartographer/questions` route (read-only at first) feeds a Cockpit panel
 
 ### Surface C — FleetBar badge
 
-Already-supported pattern: badge count = `blocking` questions only. Operator clicks → opens the cockpit panel. **No badge** for `needs-decision` or `fyi` — those wait for the daily/weekly digest. This matches memory `feedback_operator_uses_fleetbar_and_cli_not_dashboard` (the operator lives in FleetBar + CLI, so the badge is the primary surface and the CLI verb `pd cartographer questions` is the secondary surface).
+Already-supported pattern: badge count = questions with `priority = blocking` only. Operator clicks → opens the cockpit panel. **No badge** for `needs-decision` or `fyi` — those wait for the daily/weekly digest. This matches memory `feedback_operator_uses_fleetbar_and_cli_not_dashboard` (the operator lives in FleetBar + CLI, so the badge is the primary surface and the CLI verb `pd cartographer questions` is the secondary surface).
 
 ### Surface D (stretch, not v1) — PR comments
 
@@ -180,9 +185,9 @@ Memory `feedback_pd_coordination_continuous` makes the case explicit: "PD coordi
 
 ### Cadence enforcement
 
-The detectors all run. Severity gates the surfaces:
+The detectors all run. The question's `priority` lane gates which surfaces it reaches:
 
-| Severity | FleetBar badge | Cockpit panel | Inbox message | Digest |
+| Priority | FleetBar badge | Cockpit panel | Inbox message | Digest |
 |---|---|---|---|---|
 | `blocking` | yes (red dot) | yes | immediate | next digest |
 | `needs-decision` | no | yes | next 09:00 digest | next digest |
@@ -192,7 +197,7 @@ The detectors all run. Severity gates the surfaces:
 
 ## 5. Cartographer vs release-engineer — drawing the line
 
-The architect doc (`docs/architecture/2026-05-31-agent-abstraction-strategy.md`, currently living in the `wt-main-wip` worktree) proposes `release-engineer` as the first canonical persona for the soul/body/sessions model. There is a real risk of role confusion. Drawn cleanly:
+A parallel architect doc (`docs/architecture/2026-05-31-agent-abstraction-strategy.md`, not yet merged to `main` as of this writing) proposes `release-engineer` as the first canonical persona for the soul/body/sessions model. The split described here is consistent with that framing whether or not the companion doc lands first. There is a real risk of role confusion. Drawn cleanly:
 
 | Role | Verb | Surface it owns | Reads | Writes |
 |---|---|---|---|---|
@@ -307,7 +312,7 @@ This is the operationalization of memory `project_single_approver_agent` lines 1
 - `lib/feedback.ts` + `routes/feedback.ts` — closest existing "surface upward" primitive; cartographer-questions is its strategic-layer cousin.
 - `lib/symbol-index.ts` — tree-sitter symbol map; Δ2 conflict detector reads from here.
 - `docs/adr/0023-cartographer-roadmap-actor.md`, `docs/adr/0033-roadmap-pop-atomic-claim.md`, `docs/adr/0034-roadmap-claim-session-link.md` — current ADRs for cartographer.
-- `docs/architecture/2026-05-31-agent-abstraction-strategy.md` (in `wt-main-wip` worktree) — soul/body/sessions framing.
+- `docs/architecture/2026-05-31-agent-abstraction-strategy.md` (pending merge to `main`) — soul/body/sessions framing.
 - Memory: `project_single_approver_agent.md`, `project_pd_talent_phonebook.md`, `feedback_pd_coordination_continuous.md`, `feedback_dogfood_via_pd_sortie.md`, `feedback_never_tsx_daemon.md`, `feedback_operator_uses_fleetbar_and_cli_not_dashboard.md`.
 
 ---
