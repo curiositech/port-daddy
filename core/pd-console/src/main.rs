@@ -5,6 +5,7 @@
 //!                             gemini|cloudflare|codex|aider|custom)
 //!   :agents                   list hosted agents
 //!   :switch <n>               make agent n active
+//!   :dispatch                 show the dispatch queue (sorties awaiting review)
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -12,13 +13,30 @@
 //! iterm2" — at the engine layer, runnable today.
 
 mod agent;
+mod dispatch_pane;
 mod pane;
 mod theme;
 
 use agent::{AgentManager, Backend};
 use anyhow::Result;
+use dispatch_pane::DispatchQueuePane;
+use pane::{Block, PaneRegistry};
 use std::io::{self, Write};
 use std::time::Duration;
+
+/// Print render-agnostic `Block`s to the terminal (plain-text renderer).
+fn print_blocks(blocks: &[Block]) {
+    for b in blocks {
+        match b {
+            Block::Header(h) => println!("  \x1b[1m{h}\x1b[0m"),
+            Block::KeyVal(k, v) => println!("  {k:<20} {v}"),
+            Block::Row(cells) => println!("  {}", cells.join("  │  ")),
+            Block::Chip { label, .. } => println!("  [{label}]"),
+            Block::Spark(_) => {}
+            Block::Gap => println!(),
+        }
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -40,7 +58,12 @@ async fn main() -> Result<()> {
             return Ok(());
         }
     };
-    println!("   :new <backend> <prompt> · :agents · :switch <n> · <text> · :quit\n");
+
+    // Build the pane registry — register all panes once at startup.
+    let mut reg = PaneRegistry::default();
+    reg.register(Box::new(DispatchQueuePane::new()));
+
+    println!("   :new <backend> <prompt> · :agents · :switch <n> · :dispatch · <text> · :quit\n");
 
     let stdin = io::stdin();
     loop {
@@ -57,6 +80,15 @@ async fn main() -> Result<()> {
 
         if line == ":quit" || line == ":q" {
             break;
+        } else if line == ":dispatch" {
+            // Refresh the dispatch pane then render it.
+            reg.active = reg.panes.iter().position(|p| p.id() == "dispatch").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                println!("  refresh failed: {e}");
+            }
+            if let Some(p) = reg.active() {
+                print_blocks(&p.view());
+            }
         } else if line == ":agents" {
             if mgr.agents.is_empty() {
                 println!("  (no agents — :new <backend> <prompt>)");
