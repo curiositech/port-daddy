@@ -1,0 +1,76 @@
+% The grading-oracle IC problem: the folk theorem rests on a capturable signal.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
+              inner sep=5pt,text width=36mm,align=center,minimum height=15mm},
+  oracle/.style={draw=hhcobalt,line width=1.4pt,fill=hhsand!30,
+                 rounded corners=3pt,inner sep=5pt,text width=40mm,
+                 align=center,minimum height=18mm},
+  fix/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=3pt,
+              inner sep=4pt,text width=40mm,align=center,font=\scriptsize},
+  flow/.style={->,>=Latex,thick,draw=hhebony},
+]
+
+% the folk-theorem chain
+\node[box] (agent) at (0,0) {\textbf{agent} picks the work};
+\node[oracle,right=14mm of agent] (grade) {\textbf{grading oracle}\\
+  \footnotesize the daemon ``derives the grade''};
+\node[box,right=14mm of grade] (folk) {\textbf{folk-theorem IC}\\
+  \footnotesize claim-signaling, slash-on-breach};
+
+\draw[flow] (agent) -- (grade);
+\draw[flow] (grade) -- node[above,font=\scriptsize]{public signal} (folk);
+
+% the capture attack
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      font=\scriptsize\itshape,text=hhink,text width=44mm,
+      align=center,above=8mm of grade] (capture)
+  {\textbf{but the grade is produced by a capturable evaluator}\\
+   (an adversarial reviewer or a ``neutral judge'')};
+\draw[->,>=Latex,thick,hhcobalt] (capture) -- (grade);
+\node[font=\scriptsize\itshape,text=hhink,below=1mm of folk,
+      text width=42mm,align=center]
+  {Green--Porter / APS: the folk theorem needs the signal distribution
+   \emph{exogenous}. A strategic grader breaks it.};
+
+% the two fixes
+\node[fix,below=12mm of agent] (sp)
+  {\textbf{Fix A:} prove the oracle \emph{strategy-proof} (machine-checkable
+   oracle: passing test id, merged commit hash --- the agent cannot author it).};
+\node[fix,below=12mm of grade] (bond)
+  {\textbf{Fix B:} \emph{bond-and-slash the judges}. A judge whose rating is
+   later contradicted by re-audit is slashed.};
+\node[fix,below=12mm of folk] (rec)
+  {\textbf{Then prove:} the ``rate-the-raters'' recursion \emph{terminates}
+   (grounded in machine-checkable oracles at the base).};
+
+\draw[flow] (grade.south) -- (bond.north);
+\draw[flow] (bond.east) -- (rec.west);
+\draw[flow] (grade.south) to[out=-150,in=60] (sp.north east);
+
+\end{tikzpicture}%
+}
+\caption{The grading-oracle incentive-compatibility problem --- the hole under the
+core theorem. Every folk-theorem claim in the layer bottoms out in ``the agent
+picks the work, the daemon derives the grade.'' But a folk theorem is only as good
+as the \emph{public signal} it conditions on (Green--Porter 1984;
+Abreu--Pearce--Stacchetti 1990 require the signal distribution to be common
+knowledge and \emph{exogenous}). The grade is produced by a capturable evaluator,
+so the signal is endogenous and the folk theorem does not apply as stated. We
+resolve it two ways: ground settlement in \emph{machine-checkable} oracles the
+agent cannot author (Fix A, strategy-proof by construction), and \emph{bond-and-
+slash} the human/LLM judges where machine-checking is impossible (Fix B), then
+require the rate-the-raters recursion to terminate at a machine-checkable base.}
+\label{fig:he-grading-oracle}
+\end{figure}

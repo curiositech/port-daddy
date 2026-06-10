@@ -19,6 +19,41 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
+import { assertSafeId, fishShellQuote, posixShellQuote } from '../../lib/shell-quote.js';
+
+// =============================================================================
+// formatExportLines — pure, exported, testable helper for eval-emitted exports
+// =============================================================================
+
+/**
+ * Return the shell export lines for PD_AGENT_ID and PD_SESSION_ID, properly
+ * quoted so that eval consumers are not vulnerable to command injection even
+ * when agentId/sessionId contain shell metacharacters.
+ *
+ * @param shell   Value of process.env.SHELL (or '').  Drives fish vs POSIX quoting.
+ * @param ids     The daemon-supplied agentId and sessionId.
+ * @returns       Array of printable export lines (one per variable).
+ * @throws        If either id contains a control character (see assertSafeId).
+ */
+export function formatExportLines(
+  shell: string,
+  ids: { agentId: string; sessionId: string },
+): string[] {
+  assertSafeId(ids.agentId, 'agentId');
+  assertSafeId(ids.sessionId, 'sessionId');
+
+  if (shell.endsWith('/fish')) {
+    return [
+      `set -x PD_AGENT_ID ${fishShellQuote(ids.agentId)}`,
+      `set -x PD_SESSION_ID ${fishShellQuote(ids.sessionId)}`,
+    ];
+  }
+
+  return [
+    `export PD_AGENT_ID=${posixShellQuote(ids.agentId)}`,
+    `export PD_SESSION_ID=${posixShellQuote(ids.sessionId)}`,
+  ];
+}
 
 // =============================================================================
 // handleBegin — pd begin "purpose" [--identity X] [--files f1 f2...]
@@ -118,13 +153,12 @@ export async function handleBegin(
   // Emit eval-able export lines so the caller's shell can `eval $(pd begin ...)`
   // or the caller can set these in their environment to avoid filesystem context files.
   if (process.env.PD_EMIT_EXPORTS === '1') {
-    const safeId = /^[A-Za-z0-9_-]+$/.test(String(data.agentId)) ? String(data.agentId) : '';
-    const safeSid = /^[A-Za-z0-9_-]+$/.test(String(data.sessionId)) ? String(data.sessionId) : '';
-    if (!safeId || !safeSid) {
-      process.stderr.write('pd begin: agentId/sessionId contain unsafe characters; skipping PD_EMIT_EXPORTS\n');
-    } else {
-      console.log(`export PD_AGENT_ID=${safeId}`);
-      console.log(`export PD_SESSION_ID=${safeSid}`);
+    try {
+      for (const line of formatExportLines(process.env.SHELL || '', { agentId: data.agentId as string, sessionId: data.sessionId as string })) {
+        console.log(line);
+      }
+    } catch (err) {
+      process.stderr.write(`pd begin: refusing to emit PD_EMIT_EXPORTS — ${(err as Error).message}\n`);
     }
   }
 

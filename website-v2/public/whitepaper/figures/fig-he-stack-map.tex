@@ -1,0 +1,83 @@
+% The L0->L3 stack map, viewed from Paper 4 (the L3 market rung).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  rung/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=6pt,
+               minimum width=118mm,minimum height=15mm,align=left},
+  here/.style={draw=hhcobalt,line width=1.6pt,fill=hhsand!30,
+               rounded corners=3pt,inner sep=6pt,
+               minimum width=118mm,minimum height=17mm,align=left},
+  whom/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
+               inner sep=4pt,minimum width=30mm,align=center,
+               font=\footnotesize},
+  state/.style={font=\bfseries\footnotesize},
+]
+
+% ─── The four rungs, L0 at the bottom ──────────────────────────────────
+\node[rung,fill=hhsand!30] (l0) at (0,0)
+  {\textbf{L0 — The Daemon (kernel).} Always-on local source of truth:
+   ports, claims, sessions, the conserving \textbf{bond ledger}, a safety
+   monitor, and memory.};
+\node[rung,fill=hhsand!30,above=4mm of l0] (l1)
+  {\textbf{L1 — Coordination protocol.} Typed conversation, commitments,
+   delegation, the cryptographic \textbf{hop-bound authorization chain},
+   oracle-bound closure. The rules of the road.};
+\node[rung,fill=hhsand!30,above=4mm of l1] (l2)
+  {\textbf{L2 — Legibility \& authority.} Digest-with-zoom, roadmap-as-truth,
+   adversarial review, the operator console. The single-player \emph{wedge}.};
+\node[here,above=4mm of l2] (l3)
+  {\textbf{L3 — Economy \& federation.} \emph{This paper.} Cross-harbor capability
+   transfer, float-plan escrow, reputation, harbor federation: the
+   \textbf{market between operators who do not trust each other}.};
+
+% ─── Whom each rung is for (left gutter) ───────────────────────────────
+\node[whom,left=5mm of l0] {the\\\textbf{machine}};
+\node[whom,left=5mm of l1] {the\\\textbf{agents}};
+\node[whom,left=5mm of l2] {the\\\textbf{operator}};
+\node[whom,left=5mm of l3,draw=hhcobalt,fill=hhsand!30]
+  {operators\\(\textbf{plural,}\\\textbf{distrusting})};
+
+% ─── State stamps (right gutter) ───────────────────────────────────────
+\node[state,right=5mm of l0,text=hhink] {implemented};
+\node[state,right=5mm of l1,text=hhink] {specified};
+\node[state,right=5mm of l2,text=hhink] {the wedge};
+\node[state,right=5mm of l3,text=hhink] {this paper};
+
+% ─── The through-line annotation, riding up the right edge ─────────────
+\node[draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=40mm,align=left,font=\scriptsize,
+      right=18mm of l2,yshift=8mm] (tl)
+  {\textbf{The through-line.}\\ memory $\to$ checkpoint $\to$ continuity $\to$
+   a \emph{person} not a \emph{spawn} $\to$ registered outcomes $\to$
+   \textbf{reputation} $\to$ a tradeable asset $\to$ \textbf{the market}.};
+\draw[->,>=Latex,thick,hhcobalt] ($(l0.east)+(2mm,0)$)
+  to[out=0,in=-90] (tl.south);
+\draw[->,>=Latex,thick,hhcobalt] (tl.north) to[out=90,in=0] (l3.east);
+
+% ─── Citation arrows ───────────────────────────────────────────────────
+\node[font=\scriptsize\itshape,below=2mm of l0,text=hhebony]
+  {Paper 4 \emph{depends on every rung below it}; it is the platform, deferred behind the wedge by design.};
+
+\end{tikzpicture}%
+}
+\caption{Where this paper sits. The L0$\to$L3 stack: each rung serves
+a different \emph{whom}, and each announces what it assumes from below. Papers
+1--3 climb L2, L0/L1, and the L3 identity bridge respectively; \emph{The Harbor
+Economy} is the top rung --- the only layer whose participants are plural and
+mutually distrusting. It consumes the \emph{implemented} bond ledger from L0, the
+cryptographic hop-bound authorization chain from L1, and the legible \emph{person}
+from Paper~3, and turns them into a market. The vertical arrow is the volume's
+spine: the same memory that makes the single-player wedge good is what turns a spawn
+into a tradeable asset.}
+\label{fig:he-stack-map}
+\end{figure}

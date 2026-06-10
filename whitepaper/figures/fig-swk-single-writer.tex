@@ -1,0 +1,78 @@
+% Figure 5 — the single-writer serialization. Many client processes + the daemon
+% funnel through one writer; SQLite's file lock + a busy-wait serialize all
+% mutations. There is one decider, so there is no agreement to reach -- FLP is
+% sidestepped, not solved (CP with a central coordinator).
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  cli/.style={draw=hhebony,thick,rounded corners=2pt,fill=hhsand!30,
+              minimum width=28mm,minimum height=9mm,align=center,font=\footnotesize},
+  daemon/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,rounded corners=3pt,
+                 minimum width=40mm,minimum height=20mm,align=center,font=\bfseries},
+  db/.style={draw=hhebony,thick,fill=hhsand!30,cylinder,shape border rotate=90,
+             aspect=0.3,minimum width=30mm,minimum height=18mm,align=center},
+]
+
+% ─── Many clients on the left ─────────────────────────────────────────────
+\node[cli] (c1) at (0,2.4) {command line};
+\node[cli] (c2) at (0,1.2) {command line};
+\node[cli] (c3) at (0,0)   {agent (tool bridge)};
+\node[cli] (c4) at (0,-1.2){agent (binary IPC)};
+\node[cli] (c5) at (0,-2.4){background worker};
+
+% ─── The single daemon (sole write connection) ────────────────────────────
+\node[daemon] (d) at (58mm,0) {Daemon\\ (the SOLE\\ write connection)\\[2pt]
+  {\footnotesize\normalfont two transports over Unix sockets}};
+
+\foreach \c in {c1,c2,c3,c4,c5} {
+  \draw[->,>=Latex,hhebony] (\c.east) -- (d.west);
+}
+
+% ─── The single file, with a WIDE gap so the label clears the cylinder ──────
+\node[db] (file) at (120mm,0) {one SQLite\\ file (WAL)};
+\draw[<->,>=Latex,line width=1.2pt,hhcobalt] (d.east) -- (file.west);
+\node[below=2.5mm,font=\footnotesize,text=hhink,align=center]
+  at ($(d.east)!0.5!(file.west)$){serialized by the\\ file lock + a busy-wait};
+
+% ─── The annotation: one decider, no consensus ────────────────────────────
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
+      text width=152mm,align=left,font=\footnotesize,below=14mm of d,xshift=30mm]
+  {{\bfseries One decider $\Rightarrow$ no agreement to reach.}\quad
+   The swarm \emph{looks} like it wants consensus (many agents, contention, failover).
+   The kernel refuses to manufacture that problem: it collapses every mutation onto a
+   single writer over a single file. There is nothing to agree on, so the consensus
+   impossibility of Fischer--Lynch--Paterson (1985) does not bite --- it is
+   \emph{sidestepped}, not solved. On one machine the system is \textbf{CP with a
+   central coordinator}; the distributed-systems canon (Dijkstra--Scholten,
+   Chandy--Lamport, FLP) applies only at the two edges where the daemon is \emph{not}
+   the sole observer: an agent partitioned from the daemon, and across machines.};
+
+% ─── The boundary marker ──────────────────────────────────────────────────
+\node[font=\footnotesize\itshape,text=hhink,align=center,above=3mm of d]
+  {The instant a \emph{second} daemon shares this file, the assumption breaks --- and you are in the cross-machine regime.};
+
+\end{tikzpicture}%
+}
+\caption{The single-writer serialization, the cleanest thing about the layer.
+Dozens of command-line invocations and agents funnel through \emph{one} writer ---
+the daemon, the sole holder of a read--write connection --- and SQLite's OS-level
+file lock plus a bounded busy-wait serialize all mutations. Because there is exactly
+one decider, there is no agreement to reach: the consensus impossibility results
+that dominate distributed-systems design are \emph{deliberately not} substrate-layer
+problems. This is not a gap; it is the layer's defining discipline. The boundary is
+exact: the moment a second daemon touches the same truth, you have a distributed
+problem --- and that belongs to the cross-machine economy layer, not here.}
+\label{fig:swk-single-writer}
+\end{figure}
