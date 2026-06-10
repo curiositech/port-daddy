@@ -4,7 +4,7 @@
 
 **Author:** architect (sortie `port-daddy:research:suggestibility-spec`, session `session-design-per-turn-suggestibility-briefing-format-f-a65e222ec5cd`).
 
-**Composes with:** ADR-0039 (suggestibility layer, see `.scratch/sugg-spec/0039-suggestibility-layer.md` — original draft from PR #184 commit `2e52d5b1` later overwritten by the accounts-surface ADR-0039), ADR-0040 (pd-encompassing shell, same source).
+**Composes with:** ADR-0039 (suggestibility layer, see `.scratch/sugg-spec/0039-suggestibility-layer.md` — original draft from PR #184 commit `2e52d5b1` later overwritten by the accounts-surface ADR-0039), ADR-0040 (pd-encompassing shell, same source). `.scratch/` is gitignored and not committed; readers can recover the original drafts with `git show 2e52d5b1:docs/adr/0039-suggestibility-layer.md` and `git show 2e52d5b1:docs/adr/0040-pd-encompassing-shell.md`.
 
 **Note on ADR numbering:** PR #184 introduced `0039-suggestibility-layer.md` and `0040-pd-encompassing-shell.md`. Both files were later overwritten by `0039-portdaddy-dev-account-surface.md` and `0040-non-forgeable-actor-identity.md`. The substrate this spec depends on (`pd attention`, suggestion broker, shim observation) still ships on `main` regardless of which markdown filename ultimately holds the numbers; this doc cites the originals by their git-show paths until the registry is sorted out.
 
@@ -14,13 +14,15 @@
 
 ## TL;DR
 
-A 28-line ASCII block (≤800 tokens) injected at the top of every agent's tool turn, surfacing five things in fixed slots: (1) inbox + channel deltas since last turn via `pd attention --peek` (`lib/attention.ts:170` — `compose()`), (2) a 5-line stigmergic file-heat strip derived from `routes/pheromone.ts:72` (`/pheromone/files`), (3) the live actor roster with attached/recoverable/detached/dormant lease states from `lib/actor-roster.ts:326` (`leaseState()`), (4) the salvage queue (dead-agent claims) from `routes/sitrep.ts:100` (`resurrection.pending()`), (5) daemon health + degradation signals from `/health`. Per-runtime embedding: **Claude Code** via `UserPromptSubmit` hook (every turn, not just `SessionStart` as the current `.claude/settings.json:47` config does); **Codex** via a `developer_instructions` block refreshed per turn; **Gemini** via a per-call system-prompt prefix; **one-off curl/SDK** by embedding the block in the assistant's system message. Subscriptions are file globs plus actor mailboxes plus pheromone topics plus mission IDs. The briefing is cached at the daemon for ~10s per agent; stale and degraded modes are first-class. Hard cap: 800 tokens, skip-when-stale, never block the turn.
+A 28-line ASCII block (≤800 tokens) injected at the top of every agent's tool turn, surfacing five things in fixed slots: (1) inbox + channel deltas since last turn via `pd attention --peek` (`lib/attention.ts:170` — `compose()`), (2) a 5-line stigmergic file-heat strip derived from `routes/pheromone.ts:72` (`/pheromone/files`), (3) the live actor roster with attached/recoverable/detached/dormant lease states from `lib/actor-roster.ts:326` (`leaseState()`), (4) the salvage queue (dead-agent claims) from `routes/sitrep.ts:100` (`resurrection.pending()`), (5) daemon health + degradation signals from `/health`. The aggregator lives at `GET /agent-briefing` (not `/briefing`, which is already the project-briefing API). Per-runtime embedding: **Claude Code** via `UserPromptSubmit` hook (every turn, not just `SessionStart` as the current `.claude/settings.json:47` config does); **Codex** via a `developer_instructions` block refreshed per turn; **Gemini** via a per-call system-prompt prefix; **one-off curl/SDK** by embedding the block in the assistant's system message. Subscriptions are file globs plus actor mailboxes plus pheromone topics plus mission IDs. The briefing is cached at the daemon for ~10s per agent; stale and degraded modes are first-class. Hard cap: 800 tokens, skip-when-stale, never block the turn.
 
 ---
 
 ## 1. The briefing block (ASCII, ≤800 tokens)
 
-The block is 28 lines including borders. It is rendered server-side by a new aggregator route (`GET /briefing?agentId=…&format=ascii`) that wraps the existing `compose()` (`lib/attention.ts:170`) + `/sitrep` (`routes/sitrep.ts:76`) + `/pheromone/files` (`routes/pheromone.ts:72`) + `/actors` projections behind one call. Two columns inside an 80-column box.
+The block is 28 lines including borders. It is rendered server-side by a new aggregator route (`GET /agent-briefing?agentId=…&format=ascii`) that wraps the existing `compose()` (`lib/attention.ts:170`) + `/sitrep` (`routes/sitrep.ts:76`) + `/pheromone/files` (`routes/pheromone.ts:72`) + `/actors` projections behind one call. Two columns inside an 80-column box.
+
+> **Route name note.** The spec originally proposed `GET /briefing` but that path is already occupied by the project-briefing API (`POST /briefing` + `GET /briefing/:project` in `routes/briefing.ts`). The agent-facing aggregator uses `GET /agent-briefing` to avoid the conflict. The new `pd brief` CLI verb calls `/agent-briefing` internally.
 
 ```
 ┌─ pd briefing ─────────────────────────────  port-daddy:research:suggestibility-spec ─┐
@@ -32,8 +34,8 @@ The block is 28 lines including borders. It is rendered server-side by a new agg
 │  • 9m  ch:pd:dispatch  group-proposal cockpit-triage-readers (3 agents converging)   │
 │                                                                                      │
 │ FLEET                  10 actors  │  PHEROMONES  (last 30m, kind:strength)           │
-│  attached:   documentarian        │   routes/cockpit.ts        hot:editing 0.84 ⚠⚠   │
-│  recovrable: gardener qa cartog.  │   lib/usage-telemetry.ts   experience:failed 0.71│
+│  attached:   documentarian        │   routes/cockpit.ts        hot:editing 0.84 ⚠    │
+│  recoverable: gardener qa cartog. │   lib/usage-telemetry.ts   experience:failed 0.71│
 │              spider               │   docs/adr/                recent:touched 0.32   │
 │  detached:   —                    │   public/cockpit.html      hot:editing 0.55      │
 │  dormant:    coxswain qm spark    │                                                  │
@@ -49,7 +51,7 @@ The block is 28 lines including borders. It is rendered server-side by a new agg
 └──────────────────────────────────────────────────────── pd brief --json for raw ────┘
 ```
 
-**Token budget.** 28 × ~26 char/line ≈ 730 chars ≈ 195–245 BPE tokens with current Claude/GPT tokenizers. With 800 as the hard cap, we have ~500 tokens of slack for inbox bodies, suggestion payloads, and rendered names. The aggregator route truncates from the bottom up — drops dormant-actor list first, then `Pinned by you`, then collapses fleet column to one line — until it fits.
+**Token budget.** The box is 80 columns wide; 28 lines × ~80 chars/line ≈ 2240 chars. At roughly 3–4 chars/BPE token, that's ~560–750 BPE tokens — within the 800-token hard cap, but with limited slack. In practice the two-column layout means roughly half the lines carry useful content and half carry borders or whitespace, so effective density is closer to 350–450 tokens for a well-filled block. The aggregator route truncates from the bottom up — drops dormant-actor list first, then `Pinned by you`, then collapses fleet column to one line — until it fits.
 
 **Anatomy of the slots, in priority order (top-to-bottom = most-important-to-least):**
 
@@ -72,7 +74,7 @@ The footer's `pd brief --json` hint is the escape hatch into structured form. Th
 
 ## 2. Mermaid alternative for rich runtimes
 
-Claude Code renders fenced ```mermaid blocks. The same briefing data composed as a Mermaid diagram is emitted when the agent's runtime declares Mermaid capability (`PD_BRIEF_MERMAID=1` env, or detected via harness fingerprint).
+Claude Code renders fenced `mermaid` code blocks. The same briefing data composed as a Mermaid diagram is emitted when the agent's runtime declares Mermaid capability (`PD_BRIEF_MERMAID=1` env, or detected via harness fingerprint).
 
 ```mermaid
 flowchart LR
@@ -186,7 +188,7 @@ For Gemini's Live API (bidirectional streaming), the briefing is sent once on se
 For ad-hoc scripted agents that aren't in any of the above harnesses:
 
 ```python
-import subprocess, anthropic
+import os, subprocess, anthropic
 brief = subprocess.run(
     ["pd", "brief", "--ascii", "--agent", os.environ["PD_AGENT_ID"]],
     capture_output=True, text=True, timeout=2
@@ -227,7 +229,7 @@ What the agent *subscribes to* determines what appears in the briefing's INBOX, 
 | **glob** | `routes/cockpit.ts`, `lib/dispatch/**`, `docs/architecture/2026-06-03-*` | Pulls pheromone heat + active-claim signals for matching paths into HEAT and SALVAGE. | new `briefing_subscriptions` table; column `kind='glob'`, `pattern` is the glob |
 | **mailbox** | `actor:coxswain`, `actor:cartographer` | Lifts an actor's recent activity into FLEET column. Same actor-roster projection that `/actors` returns today. | same table; `kind='mailbox'`, `pattern` is the actor id |
 | **channel** | `pd:dispatch-coord-2026-05-20` | Already supported via `routes/attention.ts:66`. Briefing wraps it; no new schema. | existing `attention_subscriptions` |
-| **mission** | `mission:cockpit-ui`, `mission:bdi-bakein` | Cross-cuts: pulls every session whose `purpose` field cosine-matches the mission's pinned topic vector (via the embedding service, lib/embedding-service.ts if it exists, else BM25 baseline). | same table; `kind='mission'`, `pattern` is mission id; mission registry is a new tuple stream `mission:*` |
+| **mission** | `mission:cockpit-ui`, `mission:bdi-bakein` | Cross-cuts: pulls every session whose `purpose` field cosine-matches the mission's pinned topic vector (via `lib/semantic-resolver.ts`, else BM25 baseline from `lib/semantic-index.ts`). | same table; `kind='mission'`, `pattern` is mission id; mission registry is a new tuple stream `mission:*` |
 
 ### 4.2 Default subscriptions
 
@@ -236,7 +238,7 @@ When `pd begin --identity X:Y:Z` runs, the daemon auto-subscribes the new agent 
 - The agent's own mailbox (`actor:<id>` if the identity resolves through `lib/actor-roster.ts:337` `resolveActorId()`).
 - Globs derived from the working set: any file the session adds via `pd session files add` automatically becomes a glob subscription.
 - The mission `pd-fleet.yml` declares as the agent's `mission` field (zero-config for fleet agents).
-- The `pd:default` broadcast channel (already the case via `lib/attention.ts:147` `subscribe()`).
+- A `pd:default` broadcast channel — a new channel auto-subscribed on `pd begin` to enable fleet-wide announcements without requiring explicit subscription per agent (new behaviour in Phase B1; `lib/attention.ts:147` `subscribe()` is the call site, but the auto-wire itself does not exist yet).
 
 Explicit subscriptions via `pd attention --subscribe` and a new `pd brief --subscribe glob:routes/cockpit.ts` verb. Symmetric `pd brief --unsubscribe`.
 
@@ -351,7 +353,7 @@ If the cache is older than 60 seconds AND the daemon is degraded (`/health` `run
 
 ```
 ┌─ pd briefing — stale ────────────────────────────  cache 73s old, daemon DEGRADED ─┐
-│ Subscriptions, inbox, and heat snapshots may be stale.  Run `pd brief --refresh`.  │
+│ Subscriptions, inbox, and heat snapshots may be stale.  Run `pd brief --force`.    │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -375,7 +377,7 @@ The last row deserves its own paragraph.
 
 ### 7.5 What happens when an agent ignores the briefing
 
-Nothing immediate. The briefing is *suggestibility*, not enforcement. An agent that edits `routes/cockpit.ts` despite a `claim-overlap` warning in INBOX simply produces the conflict the briefing was trying to avoid — the conflict gets surfaced post-hoc by the cartographer (`lib/cartographer/*` if it exists, else manual review). The post-hoc surfacing is what teaches the operator to tune the briefing: confidence thresholds, subscription patterns, mute lists.
+Nothing immediate. The briefing is *suggestibility*, not enforcement. An agent that edits `routes/cockpit.ts` despite a `claim-overlap` warning in INBOX simply produces the conflict the briefing was trying to avoid — the conflict gets surfaced post-hoc by the cartographer (`routes/cartographer.ts` + roadmap modules; the roadmap-progress endpoint is the current post-hoc review surface). The post-hoc surfacing is what teaches the operator to tune the briefing: confidence thresholds, subscription patterns, mute lists.
 
 The flip-side gate is ADR-0040's shim: even if the agent ignores the briefing's warning, the shim observes the actual destructive verb and can soft-broadcast (or hard-refuse) the operation. The briefing is the *coaching* layer; the shim is the *enforcement* layer. Both are needed because each is incomplete alone.
 
@@ -392,7 +394,7 @@ Partially. `pd attention` (`routes/attention.ts:32`, `lib/attention.ts:170`) ret
 - `/actors` projection (`lib/actor-roster.ts:346`) for FLEET
 - `/health` for ERRORS
 
-The new `GET /briefing` is a *composer over existing routes*, not a parallel primitive. Implementation-wise: a thin aggregator that fans out to the four routes above, applies subscription filters, and renders ASCII (or JSON). No new tables except `briefing_subscriptions` (glob/mailbox/mission kinds — channel already lives in `attention_subscriptions`).
+The new `GET /agent-briefing` is a *composer over existing routes*, not a parallel primitive. Implementation-wise: a thin aggregator that fans out to the four routes above, applies subscription filters, and renders ASCII (or JSON). No new tables except `briefing_subscriptions` (glob/mailbox/mission kinds — channel already lives in `attention_subscriptions`).
 
 The current `SessionStart` hook (`.claude/settings.json:47-57`) calling `pd attention --json` continues to work; the briefing supersedes it for `UserPromptSubmit` per-turn coverage. The operator picks: SessionStart-only (cheap, one-shot), or both (richer, per-turn). The `pd brief` command also implies `pd attention` data (it composes it in INBOX), so an operator running `pd brief` on `UserPromptSubmit` does not need a parallel `pd attention` call.
 
@@ -418,8 +420,9 @@ This spec defines the format and the embedding. Implementation can land in three
 
 ### Phase B0 — `pd brief` and `GET /briefing`
 
-- New route `GET /briefing?agentId=…&format=ascii|json|mermaid`
-- New CLI `pd brief [--ascii|--json|--mermaid] [--max-tokens N] [--cache-ttl Ns] [--skip-if-stale]`
+- New route `GET /agent-briefing?agentId=…&format=ascii|json|mermaid` (avoids collision with existing `POST /briefing` + `GET /briefing/:project` in `routes/briefing.ts`)
+- New CLI `pd brief [--ascii|--json|--mermaid] [--max-tokens N] [--cache-ttl Ns] [--skip-if-stale] [--force]`  
+  (`--force` bypasses the 10s cache; shown in the stale banner so agents know how to get fresh data)
 - New table `briefing_subscriptions (agent_id, kind, pattern, created_at)`
 - The aggregator composes existing routes; no new business logic
 - `.claude/settings.json` `UserPromptSubmit` hook proposed but opt-in
