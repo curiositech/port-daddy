@@ -295,4 +295,8 @@ jobs:
         run: cargo check
 
       - name: cargo test
-        run: cargo test
+        # GPUI's derive macros exhaust rustc's stack on Linux in test mode.
+        # Unit tests live in pd-console-repl (agent, pane, maritime, theme).
+        env:
+          RUST_MIN_STACK: "16777216"
+        run: cargo test --bin pd-console-repl

@@ -65,14 +65,12 @@ impl AssetSource for FsAssets {
 }
 
 fn main() {
-    let daemon_url = std::env::var("PORT_DADDY_URL").unwrap_or_else(|_| {
-        let port = dirs::home_dir()
-            .map(|h| h.join(".port-daddy/daemon.port"))
-            .and_then(|p| std::fs::read_to_string(p).ok())
-            .and_then(|s| s.trim().parse::<u16>().ok())
-            .unwrap_or(9876);
-        format!("http://127.0.0.1:{port}")
-    });
+    // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
+    // All fallback logic lives in DaemonClient::discover(); no literals here.
+    let daemon_url = DaemonClient::discover()
+        .expect("daemon discovery failed")
+        .base()
+        .to_string();
 
     Application::new()
         .with_assets(FsAssets::locate())

@@ -45,6 +45,9 @@ const ALLOWED_FILES = new Set([
   // routes/sitrep.ts: literal appears only in a JSDoc curl example; runtime
   // code in the same file uses normal Fastify reply paths.
   'routes/sitrep.ts',
+  // Canonical Rust resolver — DaemonClient::discover() is the Rust equivalent
+  // of shared/daemon-discovery.ts. All other Rust callers delegate here.
+  'core/pd-console/src/agent.rs',
 ]);
 
 // We enforce the rule ONLY on production source paths. Test fixtures, copy-paste
