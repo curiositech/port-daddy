@@ -1,43 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="pd-logo-title pd-logo-desc">
-  <title id="pd-logo-title">Port Daddy FleetBar logo</title>
-  <desc id="pd-logo-desc">A Swiss-modern app icon with a dark field, cream grid, teal fleet route, and red port marker.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="48" height="48" role="img" aria-label="Port Daddy">
   <defs>
-    <clipPath id="app-mask">
-      <rect x="64" y="64" width="896" height="896" rx="206" />
-    </clipPath>
-    <linearGradient id="accent-fill" x1="236" y1="220" x2="808" y2="784" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5BB9B7" />
-      <stop offset="1" stop-color="#377D80" />
-    </linearGradient>
+    <style>
+      :root {
+        --bg-light: #F4F7F9;
+        --cobalt: #2076FE;
+        --seafoam: #20DEB0;
+        --amber: #FFB505;
+      }
+      /* Multiply keeps light-mode overlaps deep instead of washing out */
+      .pd-center {
+        transform-origin: 50px 50px;
+        animation: pd-flip 6s cubic-bezier(0.77, 0, 0.17, 1) infinite;
+        mix-blend-mode: multiply;
+      }
+      .ring-outer { transform-origin: 50px 50px; animation: spin-accel-decel 5s ease-in-out infinite; }
+      .ring-inner { transform-origin: 50px 50px; animation: spin-rev-accel-decel 7s ease-in-out infinite; }
+      @keyframes pd-flip { 0%,15%{transform:rotate(0)} 45%,65%{transform:rotate(180deg)} 85%,100%{transform:rotate(360deg)} }
+      @keyframes spin-accel-decel { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+      @keyframes spin-rev-accel-decel { 0%{transform:rotate(0)} 100%{transform:rotate(-360deg)} }
+      .color-cobalt  { stroke: var(--cobalt); fill: none; }
+      .color-seafoam { stroke: var(--seafoam); fill: none; }
+      .color-amber   { stroke: var(--amber); fill: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .pd-center, .ring-outer, .ring-inner { animation: none; }
+      }
+    </style>
   </defs>
-  <rect width="1024" height="1024" fill="none" />
-  <g clip-path="url(#app-mask)">
-    <rect x="64" y="64" width="896" height="896" fill="#0D0C0B" />
-    <rect x="112" y="112" width="800" height="800" rx="152" fill="#161412" />
-    <g stroke="#3A3530" stroke-width="10">
-      <path d="M276 140v744" />
-      <path d="M456 140v744" />
-      <path d="M636 140v744" />
-      <path d="M816 140v744" />
-      <path d="M140 276h744" />
-      <path d="M140 456h744" />
-      <path d="M140 636h744" />
-      <path d="M140 816h744" />
-    </g>
-    <path d="M186 196h116v632H186z" fill="#D8C9AE" />
-    <path d="M302 196h394v116H302z" fill="#D8C9AE" />
-    <path d="M302 454h292v116H302z" fill="#D8C9AE" />
-    <path d="M296 626h176c148 0 248-78 248-196 0-114-96-186-242-186H302" fill="none" stroke="#0D0C0B" stroke-width="178" stroke-linecap="square" stroke-linejoin="miter" />
-    <path d="M334 626h142c126 0 210-76 210-190 0-112-82-182-208-182H334" fill="none" stroke="url(#accent-fill)" stroke-width="62" stroke-linecap="square" stroke-linejoin="miter" />
-    <g fill="#D8C9AE" stroke="#0D0C0B" stroke-width="26">
-      <circle cx="334" cy="626" r="52" />
-      <circle cx="478" cy="254" r="52" />
-      <circle cx="686" cy="436" r="52" />
-    </g>
-    <circle cx="742" cy="720" r="70" fill="#A66F00" stroke="#0D0C0B" stroke-width="28" />
-    <circle cx="742" cy="720" r="23" fill="#D8C9AE" />
-    <path d="M868 112v800" stroke="#D8C9AE" stroke-width="18" />
-    <path d="M112 868h800" stroke="#D8C9AE" stroke-width="18" />
+  <circle cx="50" cy="50" r="50" fill="var(--bg-light)" />
+  <g class="ring-outer">
+    <circle cx="50" cy="50" r="38" class="color-amber" stroke-width="1.5" stroke-dasharray="40 10 20 10" />
+    <line x1="50" y1="8" x2="50" y2="12" class="color-amber" stroke-width="2" stroke-linecap="round"/>
+    <line x1="50" y1="88" x2="50" y2="92" class="color-amber" stroke-width="2" stroke-linecap="round"/>
+    <line x1="8" y1="50" x2="12" y2="50" class="color-amber" stroke-width="2" stroke-linecap="round"/>
+    <line x1="88" y1="50" x2="92" y2="50" class="color-amber" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <rect x="74" y="74" width="876" height="876" rx="196" fill="none" stroke="#D8C9AE" stroke-width="20" />
+  <g class="ring-inner">
+    <circle cx="50" cy="50" r="30" class="color-cobalt" stroke-width="1" stroke-dasharray="30 15 10 15" opacity="0.4"/>
+  </g>
+  <g class="pd-center">
+    <g class="color-cobalt" stroke-width="6" stroke-linecap="round">
+      <line x1="35" y1="33" x2="35" y2="67" />
+      <circle cx="45" cy="50" r="10" />
+    </g>
+    <g class="color-seafoam" stroke-width="6" stroke-linecap="round">
+      <line x1="65" y1="67" x2="65" y2="33" />
+      <circle cx="55" cy="50" r="10" />
+    </g>
+  </g>
+  <circle cx="50" cy="50" r="2.5" fill="var(--bg-light)" stroke="var(--cobalt)" stroke-width="1" />
+  <circle cx="50" cy="50" r="1" fill="var(--amber)" />
 </svg>
