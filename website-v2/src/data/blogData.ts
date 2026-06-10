@@ -67,8 +67,9 @@ if (missingContentSlugs.length > 0) {
   );
 }
 
-/** Slugs whose meta exists but whose content was never wired in. Exported for build-time guards/tests. */
-export const blogPostsMissingContent: readonly string[] = missingContentSlugs;
+/** Slugs whose meta exists but whose content was never wired in. Exported for build-time guards/tests.
+ *  Frozen defensive copy — callers cannot mutate the internal accumulator even via type-casting. */
+export const blogPostsMissingContent: readonly string[] = Object.freeze([...missingContentSlugs]);
 
 export { deprecatedBlogPosts };
 export type { BlogPostMeta, DeprecatedBlogPost } from './blogMetaData';
