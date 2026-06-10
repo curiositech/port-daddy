@@ -12,6 +12,7 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import { IS_TTY, relativeTime } from '../utils/output.js';
 import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
 import { autoIdentityFromPackageJson } from './services.js';
+import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
@@ -19,41 +20,6 @@ import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
 } from '../utils/session-worktree-policy.js';
-import { assertSafeId, fishShellQuote, posixShellQuote } from '../../lib/shell-quote.js';
-
-// =============================================================================
-// formatExportLines — pure, exported, testable helper for eval-emitted exports
-// =============================================================================
-
-/**
- * Return the shell export lines for PD_AGENT_ID and PD_SESSION_ID, properly
- * quoted so that eval consumers are not vulnerable to command injection even
- * when agentId/sessionId contain shell metacharacters.
- *
- * @param shell   Value of process.env.SHELL (or '').  Drives fish vs POSIX quoting.
- * @param ids     The daemon-supplied agentId and sessionId.
- * @returns       Array of printable export lines (one per variable).
- * @throws        If either id contains a control character (see assertSafeId).
- */
-export function formatExportLines(
-  shell: string,
-  ids: { agentId: string; sessionId: string },
-): string[] {
-  assertSafeId(ids.agentId, 'agentId');
-  assertSafeId(ids.sessionId, 'sessionId');
-
-  if (shell.endsWith('/fish')) {
-    return [
-      `set -x PD_AGENT_ID ${fishShellQuote(ids.agentId)}`,
-      `set -x PD_SESSION_ID ${fishShellQuote(ids.sessionId)}`,
-    ];
-  }
-
-  return [
-    `export PD_AGENT_ID=${posixShellQuote(ids.agentId)}`,
-    `export PD_SESSION_ID=${posixShellQuote(ids.sessionId)}`,
-  ];
-}
 
 // =============================================================================
 // handleBegin — pd begin "purpose" [--identity X] [--files f1 f2...]
@@ -139,7 +105,7 @@ export async function handleBegin(
     process.exit(1);
   }
 
-  // Write local context file (slot-keyed, not relied on when env vars are set)
+  // Write local context file
   writeCurrentContext({
     agentId: data.agentId as string,
     sessionId: data.sessionId as string,
@@ -150,21 +116,28 @@ export async function handleBegin(
     startedAt: Date.now(),
   });
 
-  // Emit eval-able export lines so the caller's shell can `eval $(pd begin ...)`
-  // or the caller can set these in their environment to avoid filesystem context files.
-  if (process.env.PD_EMIT_EXPORTS === '1') {
-    try {
-      for (const line of formatExportLines(process.env.SHELL || '', { agentId: data.agentId as string, sessionId: data.sessionId as string })) {
-        console.log(line);
-      }
-    } catch (err) {
-      process.stderr.write(`pd begin: refusing to emit PD_EMIT_EXPORTS — ${(err as Error).message}\n`);
-    }
-  }
-
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
     return;
+  }
+
+  // PD_EMIT_EXPORTS=1 — emit shell export lines to stdout BEFORE human output.
+  // Human-readable lines always go to stderr so eval captures only these.
+  // The fish variant uses `set -x` syntax; POSIX sh/bash/zsh get `export`.
+  if (process.env.PD_EMIT_EXPORTS === '1') {
+    const agentId = data.agentId as string;
+    const sessionId = data.sessionId as string;
+    assertSafeId(agentId, 'agentId');
+    assertSafeId(sessionId, 'sessionId');
+    const shell = process.env.SHELL || '';
+    if (shell.endsWith('/fish')) {
+      console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
+      console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
+    } else {
+      console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
+      console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
+    }
+    // Fall through: human-readable output still goes to stderr below.
   }
 
   if (isQuiet(options)) {
