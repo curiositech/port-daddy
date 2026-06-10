@@ -76,12 +76,15 @@ export async function harvestSession(
 
   if (notes.length === 0) return { episodeIds: [], skipped: 0, promoted: 0 };
 
-  // Step 2: load existing episodes promoted from these notes (idempotency check)
+  // Step 2: load existing episodes promoted from this session's notes only (idempotency check).
+  // Scoping by source_id prefix 'note-<noteId>' keeps this O(session notes) instead of O(all episodes).
+  const noteSourceIds = notes.map(n => `note-${n.id}`);
+  const placeholders = noteSourceIds.map(() => '?').join(', ');
   const existingSourceIds = new Set<string>(
     (db.prepare(`
       SELECT source_id FROM episodic_memory
-      WHERE source_type = 'note'
-    `).all() as Array<{ source_id: string }>).map(r => r.source_id),
+      WHERE source_type = 'note' AND source_id IN (${placeholders})
+    `).all(...noteSourceIds) as Array<{ source_id: string }>).map(r => r.source_id),
   );
 
   const episodeIds: number[] = [];
