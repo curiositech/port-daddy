@@ -288,6 +288,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
+  'relay',          // ADR-0049 cloud relay. Operator-configures the relay URL (`pd relay url`); the daemon then speaks directly to the relay Worker over SSE. No agent-facing MCP surface needed — agents are relay consumers via pub/sub channels, not relay managers.
 ]);
 
 // ============================================================================
