@@ -126,6 +126,14 @@ export function sharedGuardConfigPath(cwd = process.cwd()): string | null {
 }
 
 function configCandidatePaths(cwd = process.cwd()): string[] {
+  // PORT_DADDY_GUARD_CONFIG_DIR overrides the git-based lookup — used by
+  // isolated recording environments (seed-recording-world.mjs) to point at
+  // a fixture guard config so `pd guard status` always shows a consistent
+  // and deterministic state across dev and CI.
+  const overrideDir = process.env.PORT_DADDY_GUARD_CONFIG_DIR;
+  if (overrideDir) {
+    return [join(overrideDir, 'coordination-guard.json')];
+  }
   const paths = [sharedGuardConfigPath(cwd), localGuardConfigPath(cwd)].filter((path): path is string => Boolean(path));
   return Array.from(new Set(paths));
 }
@@ -148,6 +156,12 @@ export function readGuardConfig(cwd = process.cwd()): CoordinationGuardConfig {
 }
 
 function configPath(cwd = process.cwd()): string {
+  // When an override dir is set, always return the override path (even if the
+  // file doesn't exist yet) so status output shows the fixture path.
+  const overrideDir = process.env.PORT_DADDY_GUARD_CONFIG_DIR;
+  if (overrideDir) {
+    return join(overrideDir, 'coordination-guard.json');
+  }
   for (const path of configCandidatePaths(cwd)) {
     if (existsSync(path)) return path;
   }

@@ -53,6 +53,20 @@ const EPHEMERAL_RULES = [
   // segment and everything before it.
   [/~[^\s'"]*?\/\.git\b/g, '<REPO>/.git'],
   [/~[^\s'"]*?\/\.portdaddy\b/g, '<REPO>/.portdaddy'],
+  // Recording daemon guard fixture path: `pd guard status` outputs the full
+  // path to the fixture guard config, which differs between dev and CI.
+  // Anchor on the stable .recording-daemon/guard suffix.
+  // Absolute form (after home-dir rule): ~/.../.recording-daemon/guard
+  [/~[^\s'"]*?\/\.recording-daemon\/guard\b/g, '<RECORDING_GUARD>'],
+  // Relative form: ./.../.recording-daemon/guard (run_cmd uses sed to replace $ROOT_DIR with '.')
+  [/\.[^\s'"]*?\/\.recording-daemon\/guard\b/g, '<RECORDING_GUARD>'],
+  // Relative .git path from CI (when git rev-parse --git-common-dir returns
+  // a relative path like ".git" in the CI checkout environment).
+  [/\.\/.git\b/g, '<REPO>/.git'],
+  // CLI binary path: record-site-terminal-gifs.sh emits the full expanded path
+  // to node "…/bin/port-daddy-cli.js" which differs between dev and CI checkout.
+  // Scrub everything before the stable "bin/port-daddy-cli.js" suffix.
+  [/~[^\s'"]*?\/bin\/port-daddy-cli\.js\b/g, '<REPO>/bin/port-daddy-cli.js'],
   // Full UUIDs (session/agent/run identifiers carry these).
   [/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<UUID>'],
   // PD session/agent ids — covers both plain hex and slugged-purpose formats:

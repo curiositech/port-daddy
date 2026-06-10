@@ -383,7 +383,13 @@ const commitments = createCommitments(db);
 const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
-const noteEncryption = createNoteEncryption({ requireMasterKey: true });
+const noteEncryption = createNoteEncryption({
+  requireMasterKey: true,
+  // PORT_DADDY_NO_ENCRYPT=1 disables note encryption entirely — used by the
+  // isolated recording daemon so recorded `pd notes` output is human-readable
+  // plaintext rather than per-session AES-256-GCM ciphertext.
+  disabled: process.env.PORT_DADDY_NO_ENCRYPT === '1',
+});
 const sessions = createSessions(db, noteEncryption, {
   semanticIndex,
   episodicMemory,

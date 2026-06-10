@@ -1,6 +1,6 @@
   $ pd guard status
   Coordination Guard: enforce
-    config: <REPO>/.git/port-daddy/coordination-guard.json
+    config: <RECORDING_GUARD>/coordination-guard.json
     requires: active session, file claims
     install hook: pd guard install
     check now:    pd guard check --staged

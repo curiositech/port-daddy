@@ -102,6 +102,13 @@ export interface NoteEncryptionOptions {
    * back to plaintext note storage.
    */
   requireMasterKey?: boolean;
+  /**
+   * When true, note encryption is completely disabled — notes are stored
+   * plaintext. Intended for isolated recording / testing environments where
+   * reproducible, readable note output is required.
+   * Honoured by PORT_DADDY_NO_ENCRYPT=1 in server.ts.
+   */
+  disabled?: boolean;
 }
 
 // ─── Permission Verification ────────────────────────────────────────────────
@@ -134,6 +141,19 @@ function verifyPermissions(path: string, expectedMode: number, label: string): v
 // ─── Implementation ─────────────────────────────────────────────────────────
 
 export function createNoteEncryption(options: NoteEncryptionOptions = {}): NoteEncryption {
+  // Fast path: disabled mode — no key material, all operations are no-ops.
+  if (options.disabled === true) {
+    return {
+      isEnabled() { return false; },
+      generateSessionKey() { return Buffer.alloc(32); },
+      wrapSessionKey() { return ''; },
+      unwrapSessionKey() { return Buffer.alloc(32); },
+      encryptNote(_content: string) { return _content; },
+      decryptNote(_content: string) { return _content; },
+      isEncrypted() { return false; },
+    };
+  }
+
   const requireMasterKey = options.requireMasterKey === true;
   let masterKey: Buffer | null = null;
 

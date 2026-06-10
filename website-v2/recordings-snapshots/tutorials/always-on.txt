@@ -1,4 +1,8 @@
   $ pd watch --help || true
+  You're in a session: session-<ID> — "Commit recordings determinism fixes for PR #283 — snap→txt, normalizer rules, TERM env, re-baselined goldens"
+    pd note "progress"     Log what you're doing
+    pd done "summary"      Wrap it up
+
   Get started:
     pd setup                  [notify] Install daemon, MCP, FleetBar, init project
     pd begin "purpose"       [notify] I'll set up your agent + session
@@ -13,10 +17,6 @@
 
   Sessions & notes:
     pd session start "why"   [notify] Manual session start
-    pd session abandon        [destructive] End session as abandoned, release claims
-    pd note "message"        [notify] Leave a note
-    pd notes                 [silent] Review recent notes
-    pd feedback "message"    [notify] Drop structured feedback (auto-slug, agent from context)
 
   $ pd pub docs:pipeline-recording '{"status":"ready"}' --raw-channel
   SUCCESS: Published to docs:pipeline-recording (id: 1)

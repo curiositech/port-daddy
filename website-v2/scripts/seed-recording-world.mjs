@@ -51,6 +51,10 @@ const PORT_FILE = join(DAEMON_DIR, 'daemon.port')
 const HEARTBEAT_FILE = join(DAEMON_DIR, 'heartbeat')
 const LOG_FILE = join(DAEMON_DIR, 'daemon.log')
 const ENV_FILE = join(DAEMON_DIR, 'recording.env')
+// Fixture guard config dir — contains a committed guard config so
+// `pd guard status` always shows "enforce" in recordings regardless of
+// whether the real git repo has the guard installed (CI doesn't; dev does).
+const GUARD_CONFIG_DIR = join(DAEMON_DIR, 'guard')
 
 // The COMMITTED fixture DB. Recording runs COPY this (never re-seed live), so the
 // daemon state is byte-identical on every machine — no seed-time race can drift a
@@ -84,6 +88,14 @@ const daemonEnv = {
   PORT_DADDY_NO_FLEET: '1',
   PORT_DADDY_NO_FLEETBAR: '1',
   PORT_DADDY_SILENT: '1',
+  // Disable note encryption so `pd notes` output is human-readable plaintext in
+  // recordings. AES-256-GCM ciphertext blobs are meaningless to a viewer and
+  // break the drift-gate golden transcripts across environments (key differs each run).
+  PORT_DADDY_NO_ENCRYPT: '1',
+  // Point guard config lookup at the fixture dir so `pd guard status` always
+  // shows "enforce" in recordings — deterministic across dev and CI. Without
+  // this, dev shows enforce (guard installed) but CI shows off (fresh checkout).
+  PORT_DADDY_GUARD_CONFIG_DIR: GUARD_CONFIG_DIR,
   // Fixed TERM so asciinema / CLI tooling never emits "TERM environment variable
   // not set." in CI (where TERM is unset by default). Must match the value used
   // by the asciinema recording invocation so output is consistent dev-vs-CI.
@@ -246,9 +258,22 @@ async function seedWorld() {
   await pdQ('dns', 'register', '--hostname', 'api.demo.local', '--port', '3100', '--service', 'port-daddy:api:main')
   await pdQ('dns', 'register', '--hostname', 'web.demo.local', '--port', '3101', '--service', 'port-daddy:website:dev')
 
-  // ── 5. Channels (for pd channels / pd channels describe recordings) ────────
-  await pdQ('channels', 'ensure', 'git:committed', '--scope', 'repo', '--description', 'commit trigger event')
-  await pdQ('channels', 'ensure', 'git:pr-opened', '--scope', 'repo', '--description', 'PR opened trigger')
+  // ── 5. Channels ───────────────────────────────────────────────────────────
+  // NOT seeded here — channels embed the seed machine's git-context (repo_key,
+  // project_dir, git_dir, branch) which differs between dev and CI checkouts.
+  // If the fixture includes channels with dev repo_key, CI's pd channels
+  // discover/ensure won't find them by context → always shows "Declared" in CI
+  // but "Updated" on dev — a determinism failure in the drift gate.
+  //
+  // The recording scripts that demo channels (communication-protocols,
+  // event-triggers) call pd channels ensure directly, which creates the channel
+  // in the current context. On a fresh restore the channel is always "Declared"
+  // and the subsequent describe/discover always reflects the just-created record.
+  //
+  // NOTE: if you also call pd channels discover before ensure in a recording,
+  // the discover will show "No declared channels found" on a fresh restore.
+  // That is correct and intended — users see the full declare-then-discover
+  // lifecycle.
 
   // ── 6. Inbox — clear then seed one fixed unread message ───────────────────
   // Recordings send+read the inbox; clear ensures no accidental leftover.
@@ -259,13 +284,32 @@ async function seedWorld() {
   console.error('[seed]   Sessions: 2 active (OAuth, Search indexer)')
   console.error('[seed]   Notes: 3')
   console.error('[seed]   DNS: api.demo.local, web.demo.local')
-  console.error('[seed]   Channels: git:committed, git:pr-opened')
+  console.error('[seed]   Channels: (seeded in-recording, not in fixture — see comment above)')
 }
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 async function start({ seed = false } = {}) {
   mkdirSync(DAEMON_DIR, { recursive: true, mode: 0o700 })
+
+  // Write the fixture guard config so `pd guard status` always shows "enforce"
+  // in recordings, regardless of whether the real git repo has the guard
+  // installed (CI doesn't; dev does). The config path is stable per session.
+  mkdirSync(GUARD_CONFIG_DIR, { recursive: true, mode: 0o700 })
+  writeFileSync(
+    join(GUARD_CONFIG_DIR, 'coordination-guard.json'),
+    JSON.stringify({
+      name: 'Coordination Guard',
+      enabled: true,
+      mode: 'enforce',
+      requireSession: true,
+      requireClaims: true,
+      // Frozen timestamp so the config never drifts; guard-status output
+      // doesn't print the timestamp so this has no golden impact.
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }, null, 2) + '\n',
+    { mode: 0o600 },
+  )
 
   // Kill any stale daemon from a previous run.
   const stalePid = readPid()

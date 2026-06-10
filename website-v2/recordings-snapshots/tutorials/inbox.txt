@@ -1,4 +1,4 @@
-  $ node "~/coding/tmp/db-fixtures/bin/port-daddy-cli.js" inbox clear --agent QA-REVIEWER
+  $ node "<REPO>/bin/port-daddy-cli.js" inbox clear --agent QA-REVIEWER
   Cleared 0 message(s) from inbox
 
   $ AGENT_ID=RELEASE-LEAD pd inbox send QA-REVIEWER "Review migration 0142 on staging before release."
