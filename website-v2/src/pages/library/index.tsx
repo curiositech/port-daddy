@@ -10,9 +10,12 @@ import {
   PanelEyebrow,
   PanelTitle,
 } from '@/components/site/primitives'
+import { NestingDiagram } from '@/components/library/NestingDiagram'
+import { ReadingDag } from '@/components/library/ReadingDag'
+import { SpineChain } from '@/components/library/SpineChain'
+import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import {
   EXPLAIN_PAPERS,
-  LIBRARY_SPINE,
   PROVE_PAPERS,
   READING_PATHS,
   WHITE_PAPERS,
@@ -172,21 +175,19 @@ export default function LibraryPage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-7)] lg:grid-cols-[minmax(0,0.92fr)_minmax(20rem,0.5fr)] lg:items-start">
               <div className="space-y-[var(--space-5)]">
-                <PanelEyebrow>The Harbor Library — read it as one book</PanelEyebrow>
-                <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                  Seven papers. Four explain the system. Three prove it.
+                <PanelEyebrow>The Harbor Library — one argument, seven chapters</PanelEyebrow>
+                <PanelTitle as="h1" size="hero" className="max-w-[17ch]">
+                  A harbor-master for your swarm of agents.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[62ch] text-[length:var(--text-lg)]">
-                  You can now hand a goal to a program and walk away. One coding
-                  agent is useful; ten, on a real codebase, make you less sure,
-                  not more — two edit the same file and the second erases the
-                  first; one &ldquo;fixes&rdquo; the tests by deleting them. That
-                  is not a bug in any one agent. It is a{' '}
-                  <em className="not-italic font-black text-[var(--text-primary)]">coordination</em>{' '}
-                  failure, and it lives in the space between agents, where no one
-                  keeps the record. These seven chapters build the institution
-                  that does — and then follow it all the way to its surprising
-                  conclusion: an economy.
+                  Ten agents on one repo make you less sure, not more. Two edit
+                  the same file and the second erases the first. One &ldquo;fixes&rdquo;
+                  the tests by deleting them. The fix is not a better agent — it
+                  is a local authority that makes the whole swarm{' '}
+                  <em className="not-italic font-black text-[var(--text-primary)]">legible, accountable, and safe</em>{' '}
+                  to one operator. That is the product you can run today. The same
+                  authority becomes a market only once you sail out to trade — and
+                  this library builds the whole climb, in order.
                 </PanelBody>
 
                 <div className="grid gap-[var(--space-3)] border-y-2 border-[var(--border-strong)] py-[var(--space-4)] sm:grid-cols-3">
@@ -208,11 +209,11 @@ export default function LibraryPage() {
 
                 <div className="flex flex-wrap gap-[var(--space-3)]">
                   <a
-                    href="#the-climb"
+                    href="#read-it"
                     className="inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-[var(--space-5)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
                   >
                     <Compass aria-hidden="true" size={15} />
-                    Climb the stack
+                    Where to start
                   </a>
                   <Link
                     to="/whitepaper"
@@ -224,68 +225,77 @@ export default function LibraryPage() {
                 </div>
               </div>
 
-              <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
-                  src="/img/manifesto/seven-papers.png"
-                  alt="A drafting wall pinned with seven blueprint plates: a back row of three stamped with wax seals labelled “three prove,” and a front row of four tugboat schematics labelled “four explain,” with a small robot studying them."
-                  className="block aspect-[16/9] w-full object-cover"
-                  loading="eager"
-                />
-                <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  Four plates explain the harbor; three, wax-sealed, prove it. The
-                  same wall, drawn once — and the argument this page walks you
-                  through.
-                </figcaption>
-              </figure>
+              {/* The L0 → L3 nesting, drawn — the structure of the whole library,
+                  up front. Switches light/dark with the page via tokens. */}
+              <NestingDiagram />
             </div>
           </PageContainer>
         </section>
 
-        {/* ── The spine sentence ── */}
+        {/* ── The spine, drawn as a chain ── */}
         <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--space-7)]">
           <PageContainer width="wide">
-            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)] lg:items-start">
-              <div className="space-y-[var(--space-2)]">
-                <PanelEyebrow>The spine</PanelEyebrow>
-                <PanelBody className="max-w-[34ch] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
-                  One sentence holds the whole library together. Pull out any link
-                  and the chain above it falls — which is why the harbor comes
-                  before the economy, and why memory, not cryptography, is the
-                  foundation of the whole thing.
+            <div className="space-y-[var(--space-5)]">
+              <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] lg:items-end">
+                <div className="space-y-[var(--space-3)]">
+                  <PanelEyebrow>The spine</PanelEyebrow>
+                  <PanelTitle as="h2" size="section" className="max-w-[16ch]">
+                    Seven links. One chain.
+                  </PanelTitle>
+                </div>
+                <PanelBody className="max-w-[58ch] text-[length:var(--text-lg)]">
+                  The whole library is one sentence, and the sentence is a chain.
+                  Memory makes continuity; continuity makes a person; a person
+                  accrues a record; a record is reputation; reputation is an
+                  asset; assets make a market. Each link is built in the chapter
+                  tagged on it.
                 </PanelBody>
               </div>
-              <blockquote className="border-l-4 border-[var(--brand-primary)] pl-[var(--space-5)]">
-                <p className="font-display text-[length:var(--text-2xl)] font-black leading-[var(--leading-display-tight)] text-[var(--text-primary)]">
-                  {LIBRARY_SPINE}
-                </p>
-              </blockquote>
+              <SpineChain />
             </div>
           </PageContainer>
         </section>
 
-        {/* ── The climb: explain (I–IV) then prove (V–VII) ── */}
-        <section id="the-climb" className="scroll-mt-[var(--space-8)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        {/* ── Read it in order: the dependency DAG ── */}
+        <section id="read-it" className="scroll-mt-[var(--space-8)] border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="space-y-[var(--space-5)]">
+              <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] lg:items-end">
+                <div className="space-y-[var(--space-3)]">
+                  <PanelEyebrow>Where to start</PanelEyebrow>
+                  <PanelTitle as="h2" size="display" className="max-w-[14ch]">
+                    Read down the left.
+                  </PanelTitle>
+                </div>
+                <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">
+                  The four explaining chapters are a spine: read them top to
+                  bottom and the argument lands in order. The three proving
+                  chapters sit beside the claims they discharge — dip into one
+                  when a skeptic wants the math, then climb back. Every node is a
+                  link straight to the chapter.
+                </PanelBody>
+              </div>
+              <ReadingDag />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── The chapters: explain (I–IV) then prove (V–VII) ── */}
+        <section id="the-chapters" className="scroll-mt-[var(--space-8)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
             <div className="space-y-[var(--space-7)]">
               <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] lg:items-end">
                 <div className="space-y-[var(--space-3)]">
-                  <PanelEyebrow>The L0 → L3 climb</PanelEyebrow>
+                  <PanelEyebrow>The seven chapters</PanelEyebrow>
                   <PanelTitle as="h2" size="display" className="max-w-[14ch]">
-                    From the machine, up to the market.
+                    Each one, in a sentence.
                   </PanelTitle>
                 </div>
                 <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  The library climbs a four-layer stack — from the kernel that
-                  decides what is true, through the legibility an operator pays
-                  for and the bridge that turns a spawn into a person, up to the
-                  market between operators — and then proves the load-bearing
-                  parts with machine-checked mathematics. Each card names what it{' '}
-                  <strong className="font-black text-[var(--text-primary)]">assumes</strong>{' '}
-                  from below, what it{' '}
-                  <strong className="font-black text-[var(--text-primary)]">underwrites</strong>{' '}
-                  above, and which chapter{' '}
-                  <strong className="font-black text-[var(--text-primary)]">proves</strong>{' '}
-                  it.
+                  Here is the whole library at a glance. Every card states the
+                  chapter&rsquo;s one claim, what it stands on, and how mature it
+                  is — built, partial, specified, or proven. Read the claim. If it
+                  earns a click, the chapter is one away.
                 </PanelBody>
               </div>
 
@@ -320,8 +330,34 @@ export default function LibraryPage() {
           </PageContainer>
         </section>
 
-        {/* ── Reading paths ── */}
+        {/* ── The payoff: what the economy looks like ── */}
         <section className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+          <PageContainer width="wide">
+            <div className="space-y-[var(--space-5)]">
+              <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] lg:items-end">
+                <div className="space-y-[var(--space-3)]">
+                  <PanelEyebrow>The horizon — only once you trade</PanelEyebrow>
+                  <PanelTitle as="h2" size="display" className="max-w-[16ch]">
+                    A market for trustworthy agents.
+                  </PanelTitle>
+                </div>
+                <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">
+                  None of this is the product yet — the wedge is. But it is where
+                  the climb leads. Once an agent has a reputation that cannot be
+                  faked, three kinds of seller can trade on it: people sell their
+                  labor, owners rent their agents, authors license their skills.
+                  All three settle on one ledger, through an escrow that can pay
+                  or refuse but never redirect. You would not buy the crypto; you
+                  would buy <em className="not-italic font-black text-[var(--text-primary)]">hosted trust</em>.
+                </PanelBody>
+              </div>
+              <ThreeSidedMarket />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Reading paths ── */}
+        <section className="border-t-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)]">
               <div className="space-y-[var(--space-3)]">
