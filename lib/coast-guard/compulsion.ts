@@ -157,15 +157,18 @@ export function evaluateLeaseRent(
  * The reclaim safety gate. Reclaim may NEVER touch the operator's live main
  * checkout — that tree carries uncommitted, untracked, shared work and is sacred
  * (never-destructive-git-on-the-main-checkout). A lease is reclaimable ONLY when
- * it is a Coast-Guard-issued disposable sandbox: a worktree path under the
- * scratch root, not the main worktree, on a Coast-Guard lease branch.
+ * it is a Coast-Guard-issued disposable sandbox: a worktree path strictly under
+ * the scratch root that is not the main worktree. The gate is path-based by
+ * design (a sandbox can be on any branch); `branch` is carried for the caller's
+ * logging/auditing, not consulted by the gate.
  */
 export interface SandboxIdentity {
   /** Absolute worktree path. */
   worktreePath: string;
   /** True iff this is the repository's primary (main) worktree. */
   isMainWorktree: boolean;
-  /** The branch the sandbox is on. */
+  /** The branch the sandbox is on. Informational (logging/audit) — the reclaim
+   *  gate is path-based and does not consult this. */
   branch: string;
 }
 

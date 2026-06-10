@@ -89,7 +89,9 @@ export function deriveChangelogFromNote(input: {
   const bang = Boolean(m && m[2]); // "!" marks a breaking change in Conventional Commits
 
   const explicitType = coerceType(input.type);
-  const record = input.changelog === true || tokenType !== null;
+  // Opt-in via: the explicit flag, an author-written conventional token, OR an
+  // explicit valid changelog type (passing --changelog-type is itself intent).
+  const record = input.changelog === true || tokenType !== null || explicitType !== null;
 
   // Type precedence: explicit override > breaking-bang > token mapping > default.
   const type: ChangelogType = explicitType ?? (bang ? 'breaking' : tokenType ?? 'feature');

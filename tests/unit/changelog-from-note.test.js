@@ -71,6 +71,18 @@ describe('deriveChangelogFromNote — explicit type + body', () => {
     expect(r.type).toBe('fix');
   });
 
+  test('an explicit valid --changelog-type alone opts a plain note in', () => {
+    const r = deriveChangelogFromNote({ content: 'Reworked the resolver', type: 'refactor' });
+    expect(r.record).toBe(true);
+    expect(r.type).toBe('refactor');
+    expect(r.summary).toBe('Reworked the resolver');
+  });
+
+  test('an invalid --changelog-type on a plain note does NOT opt in', () => {
+    const r = deriveChangelogFromNote({ content: 'just a status update', type: 'nonsense' });
+    expect(r.record).toBe(false);
+  });
+
   test('an invalid --type falls back to the token/default, never throws', () => {
     const r = deriveChangelogFromNote({ content: 'feat: x', type: 'nonsense' });
     expect(r.type).toBe('feature');

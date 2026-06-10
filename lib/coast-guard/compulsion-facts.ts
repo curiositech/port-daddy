@@ -23,9 +23,10 @@ function git(args: string[], cwd: string): string | null {
 }
 
 /** Resolve the live base ref to diff against. origin/main is canonical; fall
- *  back through origin/HEAD and a local main before giving up. */
+ *  back through origin/master, origin/HEAD (the remote's default branch,
+ *  whatever it's named), then a local main/master before giving up. */
 function resolveBaseRef(cwd: string): string | null {
-  for (const ref of ['origin/main', 'origin/master', 'main', 'master']) {
+  for (const ref of ['origin/main', 'origin/master', 'origin/HEAD', 'main', 'master']) {
     if (git(['rev-parse', '--verify', '--quiet', ref], cwd) !== null) return ref;
   }
   return null;
@@ -64,30 +65,36 @@ interface SessionSignal {
 }
 
 async function fetchSessionSignal(sessionId: string): Promise<SessionSignal> {
-  const empty: SessionSignal = { noteTimesMs: [], claimsTotal: 0 };
-  try {
-    const notesRes = await pdFetch(
-      `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes?limit=500`,
-    );
-    const notesData = (await notesRes.json()) as { notes?: Array<{ createdAt?: number }> };
-    const noteTimesMs = (notesData.notes ?? [])
-      .map((n) => (typeof n.createdAt === 'number' ? n.createdAt : NaN))
-      .filter((n) => Number.isFinite(n))
-      .sort((a, b) => a - b);
+  // A non-2xx notes response is a FAILURE, not "zero notes". Parsing a 500's
+  // JSON error body as an empty notes list would make every ahead-commit look
+  // un-noted — fail-CLOSED, the opposite of the contract — and wrongly block
+  // commits whenever the daemon hiccups. Throw so the gatherers below fail open.
+  const notesRes = await pdFetch(
+    `${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}/notes?limit=500`,
+  );
+  if (!notesRes.ok) {
+    throw new Error(`session notes fetch failed: ${notesRes.status}`);
+  }
+  const notesData = (await notesRes.json()) as { notes?: Array<{ createdAt?: number }> };
+  const noteTimesMs = (notesData.notes ?? [])
+    .map((n) => (typeof n.createdAt === 'number' ? n.createdAt : NaN))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
 
-    let claimsTotal = 0;
-    try {
-      const sessRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`);
+  // Claims are a softer signal — a failed claims read degrades to 0 without
+  // failing the whole gather (notes already succeeded; rent can be judged).
+  let claimsTotal = 0;
+  try {
+    const sessRes = await pdFetch(`${PORT_DADDY_URL}/sessions/${encodeURIComponent(sessionId)}`);
+    if (sessRes.ok) {
       const sessData = (await sessRes.json()) as { files?: unknown[]; session?: { files?: unknown[] } };
       const files = sessData.files ?? sessData.session?.files ?? [];
       claimsTotal = Array.isArray(files) ? files.length : 0;
-    } catch {
-      /* claims unknown — treated as 0 (fail-open) */
     }
-    return { noteTimesMs, claimsTotal };
   } catch {
-    return empty;
+    /* claims unknown — treated as 0 */
   }
+  return { noteTimesMs, claimsTotal };
 }
 
 /**
@@ -96,12 +103,19 @@ async function fetchSessionSignal(sessionId: string): Promise<SessionSignal> {
  * Fails open (returns 0) on any daemon/git failure.
  */
 export async function gatherCommitsSinceLastNote(sessionId: string, cwd: string): Promise<number> {
-  const { noteTimesMs } = await fetchSessionSignal(sessionId);
-  const latestNote = noteTimesMs.length ? noteTimesMs[noteTimesMs.length - 1] : 0;
-  const commitTimes = aheadCommitTimesMs(cwd);
-  // A commit pays its rent when a note is published AFTER it. Count commits with
-  // no later note — i.e. commits whose time is at/after the latest note.
-  return commitTimes.filter((t) => t > latestNote).length;
+  try {
+    const { noteTimesMs } = await fetchSessionSignal(sessionId);
+    const latestNote = noteTimesMs.length ? noteTimesMs[noteTimesMs.length - 1] : 0;
+    const commitTimes = aheadCommitTimesMs(cwd);
+    // A commit pays its rent when a note is published AFTER it. Count commits
+    // with no later note — i.e. commits strictly after the latest note (a commit
+    // at the exact note timestamp is treated as noted, the lenient choice).
+    return commitTimes.filter((t) => t > latestNote).length;
+  } catch {
+    // Fail open: if coordination truth can't be read, charge no rent rather than
+    // wedge the commit (the claim discipline still bites).
+    return 0;
+  }
 }
 
 /**
@@ -114,7 +128,24 @@ export async function gatherLeaseFacts(
   sessionStartedAtMs: number,
   now: number,
 ): Promise<LeaseFacts> {
-  const { noteTimesMs, claimsTotal } = await fetchSessionSignal(sessionId);
+  // Fail open for the reaper too: if the daemon signal can't be read, give the
+  // lease the benefit of the doubt (looks paid + recently active) so a daemon
+  // hiccup never reclaims a live sandbox. Git facts are still gathered honestly.
+  let signal: SessionSignal;
+  try {
+    signal = await fetchSessionSignal(sessionId);
+  } catch {
+    return {
+      commitsSinceLastNote: 0,
+      commitsTotal: aheadCommitTimesMs(cwd).length,
+      notesTotal: 1,
+      claimsTotal: 1,
+      commitsBehindBase: commitsBehindBase(cwd),
+      ageMs: Math.max(0, now - sessionStartedAtMs),
+      lastSignalAgeMs: 0,
+    };
+  }
+  const { noteTimesMs, claimsTotal } = signal;
   const commitTimes = aheadCommitTimesMs(cwd);
   const latestNote = noteTimesMs.length ? noteTimesMs[noteTimesMs.length - 1] : 0;
   const latestCommit = commitTimes.length ? Math.max(...commitTimes) : 0;

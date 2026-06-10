@@ -874,10 +874,13 @@ export async function handleNote(content: string | undefined, options: CLIOption
   // Conventional-Commit token), that same note also files a changelog entry —
   // one note, two purposes. Best-effort: a changelog failure never fails the
   // note (coordination rent is already paid by this point).
+  // NOTE: `--type` is the NOTE's own kind (general/progress/decision/…) and must
+  // NOT be reused as the changelog type. The changelog type comes from the
+  // leading Conventional-Commit token or an explicit `--changelog-type`.
   const intent = deriveChangelogFromNote({
     content,
     changelog: Boolean(options.changelog),
-    type: typeof options.type === 'string' ? options.type : undefined,
+    type: typeof options['changelog-type'] === 'string' ? (options['changelog-type'] as string) : undefined,
   });
   let changelogId: number | undefined;
   if (intent.record) {
