@@ -266,7 +266,7 @@ export function createContextWindowTracker(db: Database) {
       id, input.agentId, input.sessionId ?? null, input.sortieId ?? null, input.model,
       input.inputTokens, cachedInputTokens, input.outputTokens, totalTokens,
       effectiveMax, input.contextWindowUsedPct ?? null,
-      input.costUsd, (input.costIsEstimate !== false) ? 1 : 0,
+      input.costUsd, input.costIsEstimate === false ? 0 : 1,
       input.landedWork ?? null, recordedAt,
     );
 

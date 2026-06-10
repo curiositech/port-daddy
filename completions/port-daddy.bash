@@ -110,9 +110,11 @@ _port_daddy() {
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
-    spawn spawned sortie watch relay
+    spawn spawned sortie watch
     # Fleet ship-run transcripts
     transcripts transcript
+    # Cloud relay — zero-trust event fabric (ADR-0049)
+    relay
     # Dispatch (renamed from nightshift per ADR-0035) + review + morning
     dispatch nightshift review morning
     # Operator loop · SIGHT stage — raise the periscope (state + next cut)

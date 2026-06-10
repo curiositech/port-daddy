@@ -138,8 +138,6 @@ import {
   handlePeriscope,
   // Coast Guard read path — `pd coast-guard status` (ADR-0050 legibility)
   handleCoastGuard,
-  // Relay — cloud event fabric (ADR-0049)
-  handleRelay,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -1265,7 +1263,7 @@ const ALL_COMMANDS: string[] = [
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts', 'transcript',
+  'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum',
   'feedback',
@@ -1278,7 +1276,6 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
-  'relay',
 ];
 
 /** Simple Levenshtein distance for short strings */
@@ -2845,16 +2842,58 @@ export async function main(): Promise<void> {
         await handleWatch(positional[0], options);
         break;
 
-      // Relay — cloud event fabric configuration (ADR-0049)
-      case 'relay':
-        await handleRelay(positional[0], positional.slice(1), options as any);
-        break;
-
       // Fleet transcripts — chat-record viewer for every ship run
       case 'transcripts':
       case 'transcript':
         await handleTranscripts(positional, options);
         break;
+
+      // Relay — cloud relay configuration and status (ADR-0049)
+      case 'relay': {
+        const sub = positional[0];
+        if (sub === 'url') {
+          const url = positional[1];
+          if (options.clear || options.c) {
+            const res = await pdFetch('/relay/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay_url: null }) });
+            if (!res.ok) { console.error('Error clearing relay URL'); process.exit(1); }
+            console.log('✓ Relay disabled (relay_url cleared)');
+          } else if (url) {
+            try { const p = new URL(url); if (!['https:', 'http:'].includes(p.protocol)) throw new Error('URL must use https: or http:'); }
+            catch (e) { console.error(`Error: ${e instanceof Error ? e.message : String(e)}`); process.exit(1); }
+            const res = await pdFetch('/relay/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay_url: url }) });
+            if (!res.ok) { console.error('Error setting relay URL'); process.exit(1); }
+            console.log(`✓ Relay URL set: ${url}`);
+          } else {
+            const res = await pdFetch('/relay/config');
+            const data = await res.json() as { relay_url?: string | null };
+            if (!data.relay_url) console.log('relay_url: (not set — relay federation disabled)');
+            else console.log(`relay_url: ${data.relay_url}`);
+          }
+        } else if (sub === 'status') {
+          const res = await pdFetch('/relay/status');
+          const data = await res.json() as { relay_url?: string | null; connected?: boolean; session_id?: string | null; last_handshake?: number | null; accepted_channels?: string[]; relay_version?: string | null };
+          if (!data.relay_url) { console.log('Relay: disabled (no relay_url configured)\n  Set with: pd relay url <https://relay.portdaddy.dev>'); break; }
+          console.log(`Relay: ${data.relay_url}\nStatus: ${data.connected ? '✓ connected' : '✗ disconnected'}`);
+          if (data.session_id) console.log(`Session: ${data.session_id}`);
+          if (data.last_handshake) console.log(`Last handshake: ${Math.floor(Date.now() / 1000 - data.last_handshake)}s ago`);
+          if ((data.accepted_channels ?? []).length > 0) { console.log(`Subscribed channels (${data.accepted_channels!.length}):`); for (const ch of data.accepted_channels!) console.log(`  - ${ch}`); }
+          if (data.relay_version) console.log(`Relay version: ${data.relay_version}`);
+        } else if (sub === 'exchange') {
+          const token = (options['oidc-token'] as string | undefined) ?? process.env['ACTIONS_ID_TOKEN'];
+          if (!token) { console.error('Error: --oidc-token or $ACTIONS_ID_TOKEN required'); process.exit(1); }
+          let cap: unknown[];
+          try { cap = options.cap ? JSON.parse(options.cap as string) : [{ op: 'pub', channel: '*' }]; }
+          catch { console.error('Error: --cap must be valid JSON array'); process.exit(1); cap = []; }
+          const res = await pdFetch('/relay/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oidc_token: token, cap }) });
+          const data = await res.json() as { card: string; exp: number };
+          if (options.out) { fsWriteFileSync(options.out as string, data.card, 'utf8'); console.log(`✓ Card written to ${options.out} (exp: ${new Date(data.exp * 1000).toISOString()})`); }
+          else console.log(data.card);
+        } else {
+          console.error('Usage: pd relay <url|status|exchange> [args]');
+          process.exit(1);
+        }
+        break;
+      }
 
       // Harbors — named permission namespaces
       case 'harbor': {

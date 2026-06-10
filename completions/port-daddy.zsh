@@ -1987,10 +1987,11 @@ _port_daddy() {
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
-    'relay:cloud relay configuration and status (ADR-0049)'
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
+    # Cloud relay — zero-trust event fabric (ADR-0049)
+    'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
     'hm:alias for harbormaster'

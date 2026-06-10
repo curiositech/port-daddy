@@ -78,6 +78,8 @@ import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
+import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
+import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
@@ -490,6 +492,26 @@ const arbiter = createArbiter(
 console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode})`);
 const pheromones = createPheromoneManager(db);
 pheromones.start();
+
+// Phase 3 — Knowledge Custodian (daemon-resident compaction engine caretaker)
+const operatorPermissions = createOperatorPermissions(db);
+const CUSTODIAN_ENABLED = process.env.PD_CUSTODIAN_ENABLED !== 'false';
+const _parsedPollMs = parseInt(process.env.PD_CUSTODIAN_POLL_MS ?? '60000', 10);
+const CUSTODIAN_POLL_MS = Number.isFinite(_parsedPollMs) && _parsedPollMs >= 5000 ? _parsedPollMs : 60_000;
+const custodian = CUSTODIAN_ENABLED
+  ? createKnowledgeCustodian({
+      db,
+      logger,
+      episodicMemory: episodicMemory as any,
+      messaging: messaging as any,
+      resurrection: resurrection as any,
+      contextTracker: contextTracker as any,
+      operatorPermissions,
+      blobs: blobs as any,
+      pollIntervalMs: CUSTODIAN_POLL_MS,
+    })
+  : null;
+if (custodian) custodian.start();
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
@@ -979,6 +1001,7 @@ await registerAllRoutes(
     harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
+    custodian, operatorPermissions,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor,
     bonds, budgetGuard, budgetPause,
