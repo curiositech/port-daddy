@@ -124,7 +124,8 @@ function parseJson(raw: string): ParsedPayload | null {
  */
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   // Only forward to /msg/* — reject everything else so the daemon's other
-  // routes are not reachable through this public-facing Worker.
+  // routes are not reachable through this public-facing Worker. Configure
+  // your GitHub App webhook URL under a /msg/* path (e.g. /msg/fleet:github:webhook).
   const url = new URL(request.url);
   if (!url.pathname.startsWith('/msg/')) {
     return new Response('not found', { status: 404 });

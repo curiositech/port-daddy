@@ -63,11 +63,14 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
   // any POST to /msg that is missing or has a wrong token is rejected 401.
   // Read from env per-request so the daemon can be reconfigured without restart.
   function isValidForwardToken(authHeader: string | undefined): boolean {
-    const configured = process.env.PD_WEBHOOK_FORWARD_TOKEN;
+    const configured = (process.env.PD_WEBHOOK_FORWARD_TOKEN || '').trim();
     if (!configured) return true; // token not configured → open (opt-in hardening)
     if (!authHeader) return false;
-    const [scheme, token] = authHeader.split(' ');
-    if (scheme !== 'Bearer' || !token) return false;
+    // Case-insensitive scheme, collapse multiple spaces, handle leading/trailing whitespace
+    const parts = authHeader.trim().split(/\s+/);
+    const scheme = parts[0];
+    const token = parts[1];
+    if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return false;
     // constant-time compare: walk both strings regardless of mismatch position
     const a = configured;
     const b = token;

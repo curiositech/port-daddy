@@ -154,7 +154,8 @@ describe('POST /msg/:channel — webhook forward token auth', () => {
       url: '/msg/test:channel',
       payload: { payload: 'hello' },
     });
-    expect(res.statusCode).not.toBe(401);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).success).toBe(true);
   });
 
   test('401s when token is configured but no Authorization header is sent', async () => {
@@ -197,6 +198,30 @@ describe('POST /msg/:channel — webhook forward token auth', () => {
       headers: { authorization: 'Bearer secret-token' },
       payload: { payload: 'hello' },
     });
-    expect(res.statusCode).not.toBe(401);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).success).toBe(true);
+  });
+
+  test('allows publish when Bearer scheme is case-insensitive (bearer)', async () => {
+    process.env.PD_WEBHOOK_FORWARD_TOKEN = 'secret-token';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      headers: { authorization: 'bearer secret-token' },
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).success).toBe(true);
+  });
+
+  test('empty-string PD_WEBHOOK_FORWARD_TOKEN is treated as unset (not silent bypass)', async () => {
+    process.env.PD_WEBHOOK_FORWARD_TOKEN = '';
+    const res = await app.inject({
+      method: 'POST',
+      url: '/msg/test:channel',
+      payload: { payload: 'hello' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).success).toBe(true);
   });
 });
