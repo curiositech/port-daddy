@@ -164,10 +164,75 @@ export interface WriteConfinement {
 const UNRESTRICTED_WRITE: WriteConfinement = { writePolicy: 'unrestricted', readOnlyRoots: [] };
 
 /**
+ * Thrown when a path that is about to be interpolated into an SBPL `(subpath
+ * "...")` literal carries a character that would break OUT of the quoted string
+ * — i.e. an SBPL-injection attempt. Fail-closed: we never emit a profile from an
+ * unsafe root, because a syntactically-valid injected `(allow file-write*
+ * (subpath "/"))` AFTER our deny would re-open writes (SBPL is last-match-wins).
+ */
+export class SbplInjectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SbplInjectionError';
+  }
+}
+
+/**
+ * Guard a path before it is interpolated RAW into an SBPL `(subpath "<path>")`
+ * string literal. This is the fix for the #339 write-containment injection: the
+ * write-deny and crown-jewel deny lines build a *double-quoted* SBPL literal, so
+ * any `"` in the path ends the literal early and the remainder is parsed as
+ * further S-expressions. A payload like
+ *
+ *     /work")) (allow file-write* (subpath "/
+ *
+ * yields the SYNTACTICALLY-VALID profile line
+ *
+ *     (deny file-write* (subpath "/work")) (allow file-write* (subpath "/"))
+ *
+ * whose injected `allow` comes AFTER the deny — and SBPL is last-match-wins, so
+ * the read-only confinement is silently re-opened.
+ *
+ * A legitimate absolute filesystem path cannot contain a double-quote, a
+ * backslash, a newline/CR, or a NUL (`"` and `\` are SBPL string metacharacters;
+ * newline/NUL cannot occur in a path we would ever sandbox). So we FAIL CLOSED:
+ * reject any such root with {@link SbplInjectionError} rather than escape it.
+ * Rejecting (vs escaping) keeps the guarantee total — a confined spawn either
+ * runs under a trustworthy profile or does not run at all.
+ *
+ * Returns the path unchanged when safe (callers interpolate the return value).
+ */
+export function sbplSafePath(path: string, context = 'subpath'): string {
+  // Reject the SBPL string-literal breakers and control chars. We test for the
+  // exact dangerous set rather than an allow-list of "valid path chars" so that
+  // unusual-but-legitimate paths (spaces, unicode, parens in a dir name) still
+  // pass — those are harmless INSIDE the quoted literal; only `"`/`\`/newline/
+  // NUL can escape it.
+  if (/["\\\n\r\0]/.test(path)) {
+    throw new SbplInjectionError(
+      `Refusing to build a Seatbelt ${context} from a path containing a quote, ` +
+        `backslash, newline, or NUL (SBPL-injection guard, fail-closed): ${JSON.stringify(path)}`,
+    );
+  }
+  return path;
+}
+
+/** Build a guarded SBPL `(<op> (subpath "<root>"))` form; throws on an unsafe root. */
+function sbplSubpathRule(op: string, root: string): string {
+  return `(${op} (subpath "${sbplSafePath(root, op)}"))`;
+}
+
+/**
  * Build a Seatbelt profile (SBPL) that denies reads to the crown jewels while
  * allowing everything else. When `write` is a `read-only` policy, ALSO deny
  * writes to each read-only root (the project workdir) — scope-tier containment.
  * Pure + deterministic for unit testing.
+ *
+ * SECURITY: every path interpolated into a `(subpath "...")` literal is routed
+ * through {@link sbplSafePath} first (fail-closed on quote/backslash/newline/NUL
+ * — the SBPL-injection guard). This mirrors the regex-escaping (`esc`) the
+ * dotenv read-deny lines already apply; the write-deny + crown-jewel lines build
+ * STRING literals, so they reject the breaker characters outright.
  */
 export function buildSeatbeltProfile(
   jewels: CrownJewelPaths,
@@ -200,12 +265,12 @@ export function buildSeatbeltProfile(
       ? write.readOnlyRoots
           .map((r) => r.trim())
           .filter(Boolean)
-          .map((root) => `(deny file-write* (subpath "${root}"))`)
+          .map((root) => sbplSubpathRule('deny file-write*', root))
       : [];
   const lines = [
     '(version 1)',
     '(allow default)',
-    ...jewels.deniedDirs.map((d) => `(deny file-read* (subpath "${d}"))`),
+    ...jewels.deniedDirs.map((d) => sbplSubpathRule('deny file-read*', d)),
     ...dotenvDenies,
     ...dotenvDirectDenies,
     ...writeDenies,
@@ -351,7 +416,16 @@ export function wrapWithSandbox(
   if (process.platform === 'darwin' && seatbeltAvailable()) {
     const dir = mkdtempSync(join(tmpdir(), 'pd-coast-'));
     const profile = join(dir, 'profile.sb');
-    writeFileSync(profile, buildSeatbeltProfile(jewelsForRun, write));
+    try {
+      // FAIL-CLOSED: buildSeatbeltProfile throws SbplInjectionError on a root
+      // that would break out of a `(subpath "...")` literal. We propagate (the
+      // spawn aborts) rather than fall through to an unconfined run — but first
+      // clean up the temp dir we just created so a rejected spawn leaks nothing.
+      writeFileSync(profile, buildSeatbeltProfile(jewelsForRun, write));
+    } catch (err) {
+      rmSync(dir, { recursive: true, force: true });
+      throw err;
+    }
     return {
       cmd: 'sandbox-exec',
       args: ['-f', profile, cmd, ...args],
