@@ -2012,20 +2012,6 @@
       },
       "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
     },
-    "relay": {
-      "description": "Cloud relay — zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
-      "cli": ["relay"],
-      "sdk": [],
-      "routes": [
-        "GET /relay/config",
-        "POST /relay/config",
-        "GET /relay/status",
-        "POST /relay/exchange"
-      ],
-      "completions": ["relay"],
-      "docs": { "readme": false, "sdk": false },
-      "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE."
-    },
     "context_health": {
       "description": "Agent context-window health and per-task token ledger — swarm-wide budget visibility (ADR-0048 P1/P3)",
       "cli": [],
@@ -2050,7 +2036,6 @@
       "routes": [
         "GET /harvest/related"
       ],
-      "_note": "POST /harvest/session/:id uses a TypeScript generic Fastify handler (route extractor cannot detect it) — intentionally omitted from manifest per dispatches convention.",
       "mcp": [
         "harvest_session",
         "find_related_work"
@@ -2068,7 +2053,6 @@
         "GET /custodian/approvals",
         "GET /custodian/permissions"
       ],
-      "_note": "POST /custodian/approvals/:id uses a TypeScript generic Fastify handler — intentionally omitted per dispatches convention.",
       "mcp": [
         "custodian_status",
         "list_pending_approvals",
@@ -2077,6 +2061,30 @@
       "completions": [],
       "docs": { "readme": false, "sdk": false },
       "_note": "Phase 3 knowledge custodian. routes/custodian.ts, lib/knowledge-custodian.ts, lib/operator-permissions.ts."
+    },
+    "relay": {
+      "description": "Cloud relay — zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
+      "cli": [
+        "relay"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /relay/config",
+        "POST /relay/config",
+        "GET /relay/status",
+        "POST /relay/exchange"
+      ],
+      "completions": [
+        "relay"
+      ],
+      "mcp": [
+        "relay_status"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE."
     }
   }
 }
