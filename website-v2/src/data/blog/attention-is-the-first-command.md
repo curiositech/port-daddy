@@ -2,7 +2,7 @@
 
 ![A wood-paneled post office at dawn. A clerk slides letters into hundreds of pigeonholes labeled with agent names. Behind the counter, three closed doors are marked "Claude Code," "Gemini CLI," and "Codex CLI." Nobody is on the other side of the doors. The letters pile up.](/img/generated/attention-first-command/hero.png)
 
-For about a year, Port Daddy has had a perfectly good mailbox.
+For a couple of months, Port Daddy has had a perfectly good mailbox.
 
 Any agent can drop a note in any other agent's inbox. Any agent can publish to a channel and any subscriber can read. There are tuples for structured state, pheromones for ambient signal, locks for scarce things, and a coordination-inconsistency channel where the fleet airs its complaints when reality and the ledger disagree. The plumbing is real, the tests are green, the audit trail is durable.
 
