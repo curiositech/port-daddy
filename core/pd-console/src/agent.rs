@@ -93,6 +93,12 @@ impl DaemonClient {
         &self.base
     }
 
+    /// Expose the underlying reqwest client so panes can issue arbitrary requests
+    /// to the daemon without re-implementing discovery.
+    pub fn http_client(&self) -> &reqwest::Client {
+        &self.http
+    }
+
     /// Create a top-level agent on `backend`, bound to `channel` for the conversation.
     /// Returns the agent id. (The spawned agent listens+replies on the tube channel —
     /// the steering-channel pattern; one-shot backends reply once.)
