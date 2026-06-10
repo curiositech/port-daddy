@@ -1,43 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="pd-logo-title pd-logo-desc">
-  <title id="pd-logo-title">Port Daddy FleetBar logo</title>
-  <desc id="pd-logo-desc">A Swiss-modern app icon with a dark field, cream grid, teal fleet route, and red port marker.</desc>
-  <defs>
-    <clipPath id="app-mask">
-      <rect x="64" y="64" width="896" height="896" rx="206" />
-    </clipPath>
-    <linearGradient id="accent-fill" x1="236" y1="220" x2="808" y2="784" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5BB9B7" />
-      <stop offset="1" stop-color="#377D80" />
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" fill="none" />
-  <g clip-path="url(#app-mask)">
-    <rect x="64" y="64" width="896" height="896" fill="#0D0C0B" />
-    <rect x="112" y="112" width="800" height="800" rx="152" fill="#161412" />
-    <g stroke="#3A3530" stroke-width="10">
-      <path d="M276 140v744" />
-      <path d="M456 140v744" />
-      <path d="M636 140v744" />
-      <path d="M816 140v744" />
-      <path d="M140 276h744" />
-      <path d="M140 456h744" />
-      <path d="M140 636h744" />
-      <path d="M140 816h744" />
-    </g>
-    <path d="M186 196h116v632H186z" fill="#D8C9AE" />
-    <path d="M302 196h394v116H302z" fill="#D8C9AE" />
-    <path d="M302 454h292v116H302z" fill="#D8C9AE" />
-    <path d="M296 626h176c148 0 248-78 248-196 0-114-96-186-242-186H302" fill="none" stroke="#0D0C0B" stroke-width="178" stroke-linecap="square" stroke-linejoin="miter" />
-    <path d="M334 626h142c126 0 210-76 210-190 0-112-82-182-208-182H334" fill="none" stroke="url(#accent-fill)" stroke-width="62" stroke-linecap="square" stroke-linejoin="miter" />
-    <g fill="#D8C9AE" stroke="#0D0C0B" stroke-width="26">
-      <circle cx="334" cy="626" r="52" />
-      <circle cx="478" cy="254" r="52" />
-      <circle cx="686" cy="436" r="52" />
-    </g>
-    <circle cx="742" cy="720" r="70" fill="#A66F00" stroke="#0D0C0B" stroke-width="28" />
-    <circle cx="742" cy="720" r="23" fill="#D8C9AE" />
-    <path d="M868 112v800" stroke="#D8C9AE" stroke-width="18" />
-    <path d="M112 868h800" stroke="#D8C9AE" stroke-width="18" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 150 200 200" width="512" height="512" role="img" aria-labelledby="pd-t pd-d">
+  <title id="pd-t">Port Daddy</title>
+  <desc id="pd-d">The pd helm monogram (dark): a cobalt p and seafoam d as mirror twins around a hub pivot.</desc>
+  <g fill="none" stroke-width="26" stroke-linecap="round">
+    <g stroke="#2076FE"><line x1="184" y1="195" x2="184" y2="330"/><circle cx="226" cy="250" r="42"/></g>
+    <g stroke="#20DEB0"><line x1="316" y1="305" x2="316" y2="170"/><circle cx="274" cy="250" r="42"/></g>
   </g>
-  <rect x="74" y="74" width="876" height="876" rx="196" fill="none" stroke="#D8C9AE" stroke-width="20" />
+  <circle cx="250" cy="250" r="11" fill="#070B12" stroke="#FFB505" stroke-width="5"/>
+  <circle cx="250" cy="250" r="3" fill="#FFB505"/>
 </svg>
