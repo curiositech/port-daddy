@@ -42,6 +42,13 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync, realpathSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { managedSecretKeys, getSecret } from './secret-env.js';
+// Type-only import (erased at compile time → no runtime import cycle). The
+// scope-tier vocabulary lives in bond-pricing.ts; enforcedContainmentTier()
+// reports the Coast Guard's honest posture in that same vocabulary so the pricer
+// can compare priced-vs-enforced. Pricing depends on coast-guard (crown jewels,
+// scopeTierWritePolicy→writePolicy), not the reverse, so this stays type-only to
+// avoid inverting that dependency.
+import type { ScopeTier } from './bond-pricing.js';
 
 // ── The crown jewels: paths a confined agent must never read ────────────────
 // Structured, explicit allow/deny — NOT keyword matching over free text. These
@@ -134,6 +141,129 @@ export function coastGuardStatus(home: string = process.env.HOME || ''): CoastGu
     egressMetering: true,
     secretBroker: true,
   };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  ENFORCED CONTAINMENT TIER — what the Coast Guard ACTUALLY bounds today,
+//  expressed in lib/bond-pricing.ts's scope-tier vocabulary so the pricer can
+//  compare the tier it PRICED against the tier the platform CONTAINS.
+// ════════════════════════════════════════════════════════════════════════
+//
+// WHY THIS EXISTS (the ×2-review-confirmed structural gap)
+// --------------------------------------------------------
+// lib/bond-pricing.ts prices a Float Plan into a ScopeTier (read/write/critical/
+// full) and escrows a bond proportional to that tier's blast radius. But pricing
+// is NOT containment (see that module's "PRICING IS NOT CONTAINMENT" header): the
+// bond can price `full`/`critical` while the runtime structurally bounds far
+// less. When the PRICED tier exceeds the ENFORCED tier, the economics carry
+// weight the structure should — the bond underwrites damage the platform cannot
+// actually prevent. `enforcedContainmentTier` is the read side of closing that
+// gap: it answers "what tier does the Coast Guard, as it exists on THIS machine
+// TODAY, actually contain?" so a caller can flag the over-pricing (bond-pricing.ts
+// `uncontainedScope`). It is ADVISORY — it changes no escrow and refuses nothing.
+//
+// THE HONEST MAPPING (grounded in this module's REAL capabilities, above)
+// ----------------------------------------------------------------------
+// What the Coast Guard genuinely bounds today — always, for every spawn under a
+// live OS sandbox:
+//   • crown-jewel READ-DENY (~/.ssh, ~/.aws, … + every dotenv) → secret-exfil
+//     blast radius bounded.
+//   • secret BROKER (raw provider keys scrubbed from the agent env) → key-leak
+//     blast radius bounded.
+//   • egress METER with a hard request/byte CAP → runaway spend bounded.
+// PLUS, since PR #339's scope-tier write containment landed: a `read`-priced
+// spawn can be PHYSICALLY confined to deny writes to the project workdir
+// (WriteConfinement / `buildSeatbeltProfile(write)` here; driven by bond-pricing.ts
+// `scopeTierWritePolicy`, which maps `read`→`read-only`). So the `read` tier is
+// now structurally backed, not merely priced.
+//
+// What the Coast Guard STILL does NOT bound today (the HONEST limitation — the
+// gap the priced `write`/`critical`/`full` tiers assume coverage for and DON'T
+// get). Note `scopeTierWritePolicy` maps EVERY tier above `read` to
+// `unrestricted` — by design ("the bond covers the write blast radius") — so:
+//   • NO write-deny for write/critical/full tiers. A `full`-priced spawn (the
+//     DEFAULT spawn path: `spawn:agent` + `backend:<id>` → full) writes the
+//     project freely; the runtime denies it nothing structural beyond the
+//     secret/egress floor. The bond, not the sandbox, is its only check.
+//   • NO force-push / branch-protection / destructive-git gate at ANY tier. A
+//     confined agent with a shell can `git push --force`, `rm -rf`, rewrite
+//     history. (A read-tier workdir write-deny does not stop git over the wire
+//     or writes outside the workdir — see scopeTierWritePolicy's own caveats.)
+//   • NO DB-write / deploy / production gate beyond the egress cap.
+// The hard per-tier write/destructive-git refusal that WOULD close THIS half is
+// unbuilt Layer-1 enforcement — a refusal on a core primitive needing operator
+// sign-off — out of scope for this advisory read.
+//
+// Therefore the HONEST enforced CEILING, even with a live sandbox AND the new
+// read-tier write confinement, is `read`: the platform reliably contains a
+// read-tier blast radius (read-only workdir + crown-jewel deny + egress cap) and
+// NOTHING STRONGER. We deliberately do NOT map today's posture to `'write'`+:
+// claiming `'write'` containment would assert a write boundary the runtime does
+// not enforce for write+ tiers, which is exactly the overclaim the HONESTY RULE
+// (module header) forbids. When NO sandbox is present (mechanism === 'none'),
+// even crown-jewel reads and the read-tier write-deny are unconfined, so the
+// enforced tier DEGRADES below `read` — modelled as `null` (no filesystem
+// containment tier at all; only the env-level broker + egress meter remain).
+//
+// ⚠ This mapping is INTENTIONALLY conservative. It reports the floor of what is
+// structurally guaranteed, not the ceiling of what usually happens. As real
+// per-tier write enforcement grows past `read` (the unbuilt Layer-1 gate), this
+// function is the one place to RAISE the enforced tier — never raise it ahead of
+// the mechanism, or `uncontainedScope` goes quiet on a gap that is still open.
+
+/**
+ * The consequential-scope tier (lib/bond-pricing.ts `ScopeTier`) that the Coast
+ * Guard ACTUALLY contains on this machine today, derived honestly from a
+ * `CoastGuardStatusReport`.
+ *
+ * Returns:
+ *   • `'read'` — an OS sandbox is present (`mechanism !== 'none'`) AND the
+ *     crown-jewel read-deny + egress meter + secret broker are in force. The
+ *     read/exfil/spend axis is contained, and (post-#339) a `read`-priced spawn
+ *     is physically write-confined to the workdir. This is the honest MODEST
+ *     CEILING — NOT `'write'`/`'critical'`/`'full'`, because `scopeTierWritePolicy`
+ *     leaves every tier above `read` `unrestricted` (no write-deny), and there is
+ *     no force-push gate, no DB/deploy gate, at any tier.
+ *   • `null` — DEGRADED: no OS sandbox (`mechanism === 'none'`), OR the guard is
+ *     disabled (`onByDefault === false`). Even crown-jewel reads are unconfined;
+ *     the Coast Guard contains no filesystem scope tier. (`null`, not `'read'`,
+ *     so a caller never treats a degraded posture as `'read'`-level containment.)
+ *
+ * HONEST LIMITATION (do not paper over it): a `'read'` return is the enforced
+ * CEILING — it means "the platform contains a read-tier blast radius," NOT "the
+ * agent can only read." A `full`-priced agent (the default spawn) can still write
+ * the project, force-push, and run destructive git: it is priced for that, not
+ * contained from it, until per-tier write enforcement grows past `read` (Layer-1).
+ * See the block comment above and lib/bond-pricing.ts's "PRICING IS NOT
+ * CONTAINMENT" header.
+ *
+ * Pure: a deterministic function of the report. No I/O.
+ */
+export function enforcedContainmentTier(
+  report: CoastGuardStatusReport,
+): ScopeTier | null {
+  // Guard off, or no OS sandbox → no filesystem containment tier at all.
+  // (The broker + egress meter still run, but those bound key-leak/spend, not a
+  // filesystem scope tier — so this is DEGRADED, below even `read`.)
+  if (!report.onByDefault) return null;
+  if (report.mechanism === 'none' || !report.confinementAvailable) return null;
+
+  // OS sandbox present. The enforced CEILING is the read/exfil/spend axis plus
+  // the read-tier workdir write-deny: crown-jewel read-deny (+ dotenv) bounds
+  // secret exfil, the broker bounds key leak, the egress cap bounds spend, and a
+  // read-priced spawn is physically write-confined (scopeTierWritePolicy). There
+  // is NO write-deny for write+/-tiers and no force-push gate, so the enforced
+  // tier is `read` (MODEST), never higher. We require the three always-on bounds
+  // to be present to claim even `read`; if any is somehow off, DEGRADE rather
+  // than overclaim.
+  const secretExfilBounded =
+    report.protects.dotenvUnderHome && report.protects.deniedDirs.length > 0;
+  const spendBounded = report.egressMetering;
+  const keyLeakBounded = report.secretBroker;
+  if (secretExfilBounded && spendBounded && keyLeakBounded) return 'read';
+
+  // Sandbox present but a core bound is missing — don't claim `read` containment.
+  return null;
 }
 
 // ════════════════════════════════════════════════════════════════════════

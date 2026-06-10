@@ -162,6 +162,15 @@
  * resistance, the ceiling clamp — fully unit-testable without a daemon.
  */
 
+// The bond↔Coast-Guard scope-containment linker. `enforcedContainmentTier` is a
+// PURE function (deterministic over a CoastGuardStatusReport — no I/O), so
+// importing it preserves this module's purity invariant. CYCLE-SAFETY: this is
+// the ONLY runtime import edge between the two modules — coast-guard.ts imports
+// from bond-pricing.ts with `import type` ONLY (the ScopeTier vocabulary), fully
+// erased at compile time → NO runtime edge. So the runtime graph is a single
+// edge bond-pricing → coast-guard, not a cycle.
+import { enforcedContainmentTier, type CoastGuardStatusReport } from './coast-guard.js';
+
 // ─── Scope: the capability grammar (lib/harbor-tokens.ts `cap[]`) ───────────────
 //
 // A harbor card carries `cap: string[]` (lib/harbor-tokens.ts). The capability
@@ -187,6 +196,20 @@
 
 /** The consequential-scope tier of a Float Plan, coarsest signal first. */
 export type ScopeTier = 'read' | 'write' | 'critical' | 'full';
+
+/**
+ * Total order on scope tiers (read ≺ write ≺ critical ≺ full). The single
+ * exported source of truth for "tier A exceeds tier B" — used by the
+ * priced-vs-enforced comparison that drives `uncontainedScope`. Higher number =
+ * wider blast radius. (classifyScope keeps its own local copy for the
+ * max-over-signals; this is the public ordering for cross-module comparisons.)
+ */
+export const TIER_RANK: Readonly<Record<ScopeTier, number>> = {
+  read: 0,
+  write: 1,
+  critical: 2,
+  full: 3,
+};
 
 /**
  * Scope multiplier (1 + α·s) per tier, from the mechanism-design decision
@@ -550,6 +573,21 @@ export interface PriceBondInput {
    * and by callers that compute scope upstream). Optional.
    */
   scopeTier?: ScopeTier;
+  /**
+   * Optional Coast Guard status report (lib/coast-guard.ts `CoastGuardStatusReport`,
+   * via `coastGuardStatus()`) describing what the platform STRUCTURALLY contains
+   * on this machine today. When supplied, the pricer compares the tier it PRICED
+   * against the tier the Coast Guard actually ENFORCES (`enforcedContainmentTier`)
+   * and sets `breakdown.uncontainedScope = true` when the priced tier exceeds it —
+   * surfacing the structural gap where the bond underwrites damage the platform
+   * cannot prevent (see `breakdown.uncontainedScope`).
+   *
+   * ADVISORY ONLY. This changes NO escrow, NO floor, NO ceiling, NO bondUsd, and
+   * refuses nothing — it only sets a flag. ABSENT → the flag stays `false` (no
+   * Coast Guard posture to read; the pricer never fabricates a containment claim
+   * it cannot ground). Optional.
+   */
+  coastGuardReport?: CoastGuardStatusReport;
 }
 
 export interface PricedBondBreakdown {
@@ -591,6 +629,30 @@ export interface PricedBondBreakdown {
    * UNDERCOLLATERALIZED bond and MUST be gated on this flag.
    */
   belowFloor: boolean;
+  /**
+   * True iff the PRICED scope tier EXCEEDS the tier the Coast Guard actually
+   * CONTAINS on this machine today — i.e. the bond prices risk the platform
+   * cannot structurally contain. This is the bond↔Coast-Guard scope-containment
+   * gap, surfaced economically: the pricer charges proportional to a `critical`/
+   * `full` blast radius while the runtime (lib/coast-guard.ts) contains only the
+   * read/exfil/spend axis + the read-tier workdir write-deny
+   * (`enforcedContainmentTier` returns the honest MODEST ceiling `'read'`, or
+   * `null` when no sandbox). `scopeTierWritePolicy` leaves write/critical/full
+   * `unrestricted` by design, so for those tiers the bond's IC deterrence covers
+   * damage the platform CANNOT actually prevent — economics carrying weight the
+   * STRUCTURE should.
+   *
+   * Computed ONLY when `coastGuardReport` is supplied; ABSENT input → stays
+   * `false` (no posture to read — the pricer never fabricates a containment
+   * claim). Like `belowFloor`, this is ADVISORY: the pricer does NOT throw,
+   * re-clamp, or refuse (a hard write-gate on a core primitive is unbuilt
+   * Layer-1 enforcement needing separate operator sign-off, tracked separately).
+   * It flags; the CALLER decides whether to escrow anyway, narrow the priced
+   * scope, or wait for real containment. Consuming `bondUsd` while
+   * `uncontainedScope === true` escrows a bond whose deterrence the runtime
+   * cannot back with enforcement — the bond is sound, the CONTAINMENT is not.
+   */
+  uncontainedScope: boolean;
 }
 
 export interface PricedBond {
@@ -627,6 +689,19 @@ export interface PricedBond {
  * UNDERCOLLATERALIZED bond. Inspect `breakdown.belowFloor` and refuse, narrow
  * scope, or raise the ceiling before escrowing.
  *
+ * ⚠ UNCONTAINED-SCOPE. When the optional `coastGuardReport` is supplied and the
+ * PRICED tier exceeds the tier the Coast Guard actually CONTAINS today
+ * (lib/coast-guard.ts `enforcedContainmentTier` — honestly only `'read'` with a
+ * sandbox, `null` without), `priceBond` sets `breakdown.uncontainedScope = true`.
+ * The bond then prices a blast radius the runtime cannot structurally prevent
+ * (write/critical/full tiers are `unrestricted` under `scopeTierWritePolicy`; no
+ * force-push gate) — its IC deterrence is sound but UNBACKED by enforcement. Like
+ * `belowFloor`, this is ADVISORY: `priceBond` does NOT throw, re-clamp, or refuse
+ * (a hard write-gate is unbuilt Layer-1 enforcement needing separate operator
+ * sign-off). Inspect `breakdown.uncontainedScope` and decide to escrow anyway,
+ * narrow the priced scope, or wait for real containment. ABSENT report → the
+ * flag stays `false`.
+ *
  * @example
  *   const { bondUsd, breakdown } = priceBond({
  *     baseUsd: 5,                              // c: one operator-hour
@@ -649,6 +724,7 @@ export function priceBond(input: PriceBondInput): PricedBond {
     crownJewelRoots = [],
     ceilingUsd,
     scopeTier: scopeTierOverride,
+    coastGuardReport,
   } = input;
 
   if (!Number.isFinite(baseUsd) || baseUsd <= 0) {
@@ -718,6 +794,25 @@ export function priceBond(input: PriceBondInput): PricedBond {
   // ceiling, finalUsd == flooredUsd ≥ floorUsd.)
   const belowFloor = ceilingApplied && finalUsd < floorUsd - 1e-9;
 
+  // ── UNCONTAINED SCOPE: the bond↔Coast-Guard scope-containment gap ────────────
+  // When a Coast Guard report is supplied, compare the tier we PRICED against the
+  // tier the platform actually CONTAINS today (lib/coast-guard.ts
+  // `enforcedContainmentTier`). If priced > enforced, the bond underwrites a
+  // blast radius the runtime cannot structurally prevent — flag it. ADVISORY: no
+  // throw, no re-clamp, no refusal (a hard write-gate is unbuilt Layer-1
+  // enforcement, separate operator sign-off). ABSENT report → stays false (no
+  // posture to read; never fabricate a containment claim). A `null` enforced tier
+  // (DEGRADED — no sandbox) means NOTHING is contained, so ANY priced tier
+  // (including `read`) is uncontained.
+  let uncontainedScope = false;
+  if (coastGuardReport !== undefined) {
+    const enforcedTier = enforcedContainmentTier(coastGuardReport);
+    uncontainedScope =
+      enforcedTier === null
+        ? true // degraded posture contains no tier at all → any priced scope is uncontained
+        : TIER_RANK[scopeTier] > TIER_RANK[enforcedTier];
+  }
+
   return {
     bondUsd: finalUsd,
     breakdown: {
@@ -731,6 +826,7 @@ export function priceBond(input: PriceBondInput): PricedBond {
       floorApplied,
       ceilingApplied,
       belowFloor,
+      uncontainedScope,
     },
   };
 }
