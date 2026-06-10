@@ -18,6 +18,11 @@ import { pdFetch } from '../utils/fetch.js';
 
 async function relayGet<T>(path: string): Promise<T> {
   const res = await pdFetch(path);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`Error: daemon returned ${res.status}${body ? `: ${body}` : ''}`);
+    process.exit(1);
+  }
   return (await res.json()) as T;
 }
 
@@ -27,6 +32,11 @@ async function relayPost<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    console.error(`Error: daemon returned ${res.status}${errBody ? `: ${errBody}` : ''}`);
+    process.exit(1);
+  }
   return (await res.json()) as T;
 }
 
