@@ -4,13 +4,13 @@
 % boundary: it can verify "the test you named passed", not "the refactor is good".
 
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -21,7 +21,7 @@
              minimum width=24mm,minimum height=11mm,align=center,font=\bfseries\footnotesize},
   term/.style={draw=hhink,line width=1.2pt,fill=hhsand!30,rounded corners=10pt,
                minimum width=26mm,minimum height=11mm,align=center,font=\bfseries\footnotesize},
-  gate/.style={draw=hhcinnabar,line width=1.4pt,fill=hhpaper,diamond,aspect=1.7,
+  gate/.style={draw=hhcobalt,line width=1.4pt,fill=hhpaper,diamond,aspect=1.7,
                inner sep=2pt,align=center,font=\footnotesize},
   oracle/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
                  minimum width=40mm,align=center,font=\scriptsize,inner sep=3pt},
@@ -35,13 +35,13 @@
 \node[term,below=10mm of done] (super) {superseded};
 
 \draw[edge] (open) -- node[above]{close as `done'} (g);
-\draw[edge,hhpatina] (g) -- node[above,align=center]{oracle reference\\ present \& holds now}node[below,text=hhink]{\checkmark} (done);
-\draw[edge,hhcinnabar] (g.south) -- node[right,text=hhink,align=left]{free text only $\Rightarrow$\\ \textbf{REFUSED}} ([yshift=2mm]g.south|-aband.north) ;
+\draw[edge,hhteal] (g) -- node[above,align=center]{oracle reference\\ present \& holds now}node[below,text=hhink]{\checkmark} (done);
+\draw[edge,hhcobalt] (g.south) -- node[right,text=hhink,align=left]{free text only $\Rightarrow$\\ \textbf{REFUSED}} ([yshift=2mm]g.south|-aband.north) ;
 \draw[edge] (open.south) to[bend right=20] node[below,align=center]{drop\\(single/open-minded)} (aband.west);
 \draw[edge] (open.south) to[bend right=8] (super.west);
 
 % Law 1 callout on the deadline
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
       text width=52mm,align=left,font=\scriptsize,above=8mm of open]
   {{\bfseries Law 1 (I5):} the deadline is derived by the daemon from a
    scope policy --- the agent picks the \emph{work}, never the \emph{deadline}. Goodhart-resistance.};
@@ -51,7 +51,7 @@
   {{\bfseries The oracle vocabulary (finite):}\\
    $\bullet$ a released claim\quad $\bullet$ a merged commit\\
    $\bullet$ a passing test id\quad $\bullet$ a satisfied policy sub-check};
-\draw[->,>=Latex,thick,hhbrass,dashed] (orcl.north) -- (g.south);
+\draw[->,>=Latex,thick,hhamber,dashed] (orcl.north) -- (g.south);
 
 \node[font=\scriptsize\itshape,text=hhink,align=left,text width=70mm,below=2mm of orcl]
   {This finite set is the kernel's \textbf{honesty boundary} (OP-5): it can mechanically

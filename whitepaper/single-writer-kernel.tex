@@ -26,14 +26,14 @@
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{200,200,200}
 \definecolor{hhsand}{HTML}{E9DCC4}
-\definecolor{hhsanddeep}{HTML}{D4C5A9}
-\definecolor{hhebony}{HTML}{1E1B18}
-\definecolor{hhink}{HTML}{2C2A26}
-\definecolor{hhcinnabar}{HTML}{CC3D2E}
-\definecolor{hhbrass}{HTML}{B08D57}
-\definecolor{hhpatina}{HTML}{5C7A6A}
-\definecolor{hhpaper}{HTML}{FBF7EE}
-\definecolor{hhgray}{HTML}{6B6B6B}
+\definecolor{hhsanddeep}{HTML}{D8C7A6}
+\definecolor{hhebony}{HTML}{121212}
+\definecolor{hhink}{HTML}{1B1712}
+\definecolor{hhcobalt}{HTML}{003FB8}
+\definecolor{hhamber}{HTML}{6B4500}
+\definecolor{hhteal}{HTML}{00564C}
+\definecolor{hhpaper}{HTML}{FBF7EF}
+\definecolor{hhgray}{HTML}{5C5650}
 
 % Research-maturity scale: a neutral four-point grade for how far each claim sits
 % from a verified, running artifact. Used inline in prose and tables.
@@ -64,7 +64,7 @@
           align=left] (q) {%
       \itshape\large #1%
     };
-    \draw[hhcinnabar,line width=2.5pt] (q.north west) -- (q.south west);
+    \draw[hhcobalt,line width=2.5pt] (q.north west) -- (q.south west);
   \end{tikzpicture}\par\vspace{6pt}%
 }
 
@@ -85,7 +85,7 @@
   \noindent\begin{tikzpicture}
     \node[draw=none,fill=hhsand!18,rounded corners=2pt,
           inner sep=8pt,text width=\dimexpr\textwidth-24pt\relax,align=left] (p) {%
-      \small{\scshape\bfseries\textcolor{hhcinnabar}{Pitfall.}}\enspace #1%
+      \small{\scshape\bfseries\textcolor{hhcobalt}{Pitfall.}}\enspace #1%
     };
     \draw[hhgray!60,line width=1pt] (p.north west) -- (p.south west);
   \end{tikzpicture}\par\vspace{5pt}%

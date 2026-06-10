@@ -1,12 +1,12 @@
 % Fig 9 — bandit assumptions vs reputation reality (the four breaks).
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -16,20 +16,20 @@
 \toprule
 \textbf{Bandit assumes\ldots} & \textbf{\ldots but reputation is\ldots} & \textbf{The right tool instead} \\
 \midrule
-\textcolor{hhpatina}{\textbf{Stationary}} arm rewards &
-  \textcolor{hhcinnabar}{\textbf{non-stationary}}: models upgrade, skills version,
+\textcolor{hhteal}{\textbf{Stationary}} arm rewards &
+  \textcolor{hhcobalt}{\textbf{non-stationary}}: models upgrade, skills version,
   reputation bubbles build \& collapse (Liu--Skrzypacz) &
   bounded-memory reputation dynamics; version-binding \\
-\textcolor{hhpatina}{\textbf{One scalar}} reward &
-  \textcolor{hhcinnabar}{\textbf{multi-dimensional}}: accuracy / aesthetics /
+\textcolor{hhteal}{\textbf{One scalar}} reward &
+  \textcolor{hhcobalt}{\textbf{multi-dimensional}}: accuracy / aesthetics /
   efficiency, in tension, buyer-weighted &
   a quality \emph{vector} + buyer preference (\S\ref{sec:adr0049}) \\
-\textcolor{hhpatina}{\textbf{Non-strategic}} environment &
-  \textcolor{hhcinnabar}{\textbf{strategically adversarial}}: Goodhart,
+\textcolor{hhteal}{\textbf{Non-strategic}} environment &
+  \textcolor{hhcobalt}{\textbf{strategically adversarial}}: Goodhart,
   wash-trading, whitewashing, collusion &
   mechanism design (Nisan et al.), bonds \& slashing \\
-\textcolor{hhpatina}{\textbf{Observed}} reward signal &
-  \textcolor{hhcinnabar}{\textbf{produced by a capturable oracle}} with its own
+\textcolor{hhteal}{\textbf{Observed}} reward signal &
+  \textcolor{hhcobalt}{\textbf{produced by a capturable oracle}} with its own
   incentives &
   bond-and-slash judges; rate-the-raters ($\S$\ref{sec:oracle}) \\
 \bottomrule

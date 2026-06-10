@@ -1,12 +1,12 @@
 % Figure 10 — the context-degradation cascade as a ladder; break any rung and the
 % cascade stops. Each rung tagged with its cure.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -19,8 +19,8 @@
   cure/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
                minimum width=52mm,minimum height=12mm,align=left,inner sep=5pt,
                font=\footnotesize,text width=48mm,text=hhink},
-  e/.style={-{Latex[length=2.8mm]},very thick,hhcinnabar},
-  ce/.style={-{Latex[length=2mm]},thick,hhpatina},
+  e/.style={-{Latex[length=2.8mm]},very thick,hhcobalt},
+  ce/.style={-{Latex[length=2mm]},thick,hhteal},
 ]
 \node[rung] (r1) at (0,6.6) {\textbf{1. Context rot}\\quality decays as window grows, nothing dropped};
 \node[rung] (r2) at (0,4.4) {\textbf{2. Lost-in-the-middle}\\mid-window facts paid-for but ignored};
@@ -45,8 +45,8 @@
 }
 \caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
 compact, naive compaction loses the middle, recursion fabricates, and the
-operator-facing digest over-flattens what's left. Each rung (cinnabar) has a cure
-(patina); the load-bearing one is \emph{compact-from-artifacts} (rung~3), which a
+operator-facing digest over-flattens what's left. Each rung (cobalt) has a cure
+(teal); the load-bearing one is \emph{compact-from-artifacts} (rung~3), which a
 system with durable, addressable state (claims, notes, episodes) makes cheap. Cost and
 legibility share this surface: when compaction fails, the bill \emph{and} the truth
 degrade together.}

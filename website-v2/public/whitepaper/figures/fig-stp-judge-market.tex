@@ -1,12 +1,12 @@
 % Fig 11 — the neutral-judge market: hire a conflict-free judge via PD's own bonded protocol.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -18,7 +18,7 @@
   ledger/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
                  align=center,font=\footnotesize,minimum height=11mm},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  slash/.style={->,>=Latex,thick,draw=hhcinnabar,dashed},
+  slash/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
 ]
 % top row: work -> select -> judge -> bond
 \node[ent] (work) at (0,0) {graded\\\textbf{work}};
@@ -31,7 +31,7 @@
 
 % bottom row: grade -> outcome ledger ; re-audit slashes the bond
 \node[ledger] (out) at (7.4,-2.6) {grade enters the\\\textbf{outcome ledger}};
-\node[ent,fill=hhsand!30,draw=hhcinnabar] (reaudit) at (11.2,-2.6) {sampled\\\textbf{re-audit}};
+\node[ent,fill=hhsand!30,draw=hhcobalt] (reaudit) at (11.2,-2.6) {sampled\\\textbf{re-audit}};
 \draw[arr,draw=hhink] (judge) -- (out);
 \draw[arr,draw=hhink] (out) -- (reaudit);
 \draw[slash] (reaudit) -- (bond);
