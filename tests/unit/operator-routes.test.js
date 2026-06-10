@@ -20,7 +20,7 @@ jest.unstable_mockModule('node:child_process', () => ({
   execFileSync: jest.fn(),
 }));
 
-const { operatorPlugin } = await import('../../routes/operator.js');
+const { operatorPlugin, __resetGuardCachesForTest } = await import('../../routes/operator.js');
 
 function buildApp(deps = {}) {
   const app = Fastify();
@@ -57,6 +57,10 @@ function expectedCommandFor(mode, filePath) {
 describe('operator routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // The /operator/state guard status/check caches are module-level and keyed
+    // by project dir (defaults to process.cwd()); reset them so each test's
+    // stubbed guard CLI result isn't masked by a prior test's cached value.
+    __resetGuardCachesForTest();
     mockSpawnSync.mockReturnValue({
       status: 1,
       stdout: '',
@@ -215,8 +219,9 @@ describe('operator routes', () => {
         projectDir,
       }),
     }));
-    // Command may be the absolute path or 'pd'/'port-daddy' depending on environment
-    expect(mockSpawnSync).toHaveBeenCalledWith(expect.stringContaining('pd'), [
+    // Command may be a bare 'pd'/'port-daddy' or an absolute path ending in
+    // either binary name, depending on environment — accept all of them.
+    expect(mockSpawnSync).toHaveBeenCalledWith(expect.stringMatching(/(^|\/)(pd|port-daddy)$/), [
       'guard',
       'status',
       '--json',
@@ -286,7 +291,7 @@ describe('operator routes', () => {
       shouldBlock: true,
       violations: [expect.objectContaining({ code: 'unclaimed-file' })],
     }));
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, expect.stringContaining('pd'), [
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, expect.stringMatching(/(^|\/)(pd|port-daddy)$/), [
       'guard',
       'check',
       '--staged',
@@ -341,7 +346,7 @@ describe('operator routes', () => {
       action: 'install',
       status: expect.objectContaining({ mode: 'enforce' }),
     }));
-    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, expect.stringContaining('pd'), [
+    expect(mockSpawnSync).toHaveBeenNthCalledWith(1, expect.stringMatching(/(^|\/)(pd|port-daddy)$/), [
       'guard',
       'install',
       '--mode',
