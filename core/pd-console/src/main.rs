@@ -26,6 +26,7 @@ mod prs_pane;
 mod roadmap_pane;
 mod sessions_pane;
 mod suggest_pane;
+mod term;
 mod theme;
 mod util;
 

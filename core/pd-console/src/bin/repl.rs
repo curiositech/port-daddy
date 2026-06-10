@@ -30,60 +30,67 @@
 #[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
 #[path = "../suggest_pane.rs"]   mod suggest_pane;
+#[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
 #[path = "../util.rs"]           mod util;
 
 use agent::{AgentManager, Backend};
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
-use pane::{Block, PaneRegistry};
+use pane::PaneRegistry;
 use std::io::{self, Write};
 use std::time::Duration;
+use term::{ColorMode, Sem, TermStyle};
 
-/// Print render-agnostic `Block`s to the terminal (plain-text renderer).
-fn print_blocks(blocks: &[Block]) {
-    for b in blocks {
-        match b {
-            Block::Header(h) => println!("  \x1b[1m{h}\x1b[0m"),
-            Block::KeyVal(k, v) => println!("  {k:<20} {v}"),
-            Block::Row(cells) => println!("  {}", cells.join("  │  ")),
-            Block::Chip { label, .. } => println!("  [{label}]"),
-            Block::Spark(_) => {}
-            Block::Gap => println!(),
-        }
-    }
+/// Left-rail banner (Clack idiom) in the locked theme. Plain mode degrades
+/// to the same layout without escapes — no width math, no broken boxes.
+fn banner(style: &TermStyle, daemon_url: &str) {
+    let rail = |s: &str| style.paint(s, Sem::Resting);
+    println!(
+        "{}  {}  {}",
+        rail("┌"),
+        style.bold(&style.paint("pd-console", Sem::Accent)),
+        style.paint("conversation multiplexer · on the PD bus", Sem::Muted),
+    );
+    println!(
+        "{}  {} {}",
+        rail("│"),
+        style.paint("daemon", Sem::Muted),
+        style.paint(daemon_url, Sem::Ink),
+    );
+    println!(
+        "{}  {}",
+        rail("└"),
+        style.paint(
+            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · <text> · :quit",
+            Sem::Muted
+        )
+    );
+    println!();
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let t = &theme::DARK;
-    // No emoji as icon (operator rule): plain typographic banner.
-    println!(
-        "\x1b[1mpd-console\x1b[0m  ·  conversation multiplexer (engine)  ·  accent #{:06x}  ·  {} / {}",
-        t.accent.to_srgb8(),
-        t.sans,
-        t.mono
-    );
+    let style = TermStyle::detect(&theme::DARK);
     let mut mgr = match AgentManager::new() {
-        Ok(m) => {
-            println!("   daemon: {}", m.daemon().base());
-            m
-        }
+        Ok(m) => m,
         Err(e) => {
-            eprintln!("   daemon discovery failed: {e}");
+            eprintln!("  {} daemon discovery failed: {e}", "✗");
             return Ok(());
         }
     };
+    banner(&style, mgr.daemon().base());
 
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
 
-    println!("   :new <backend> <prompt> · :agents · :switch <n> · :dispatch · <text> · :quit\n");
+    let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
+    let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
 
     let stdin = io::stdin();
     loop {
-        print!("» ");
+        print!("{} ", style.paint("»", Sem::Accent));
         io::stdout().flush().ok();
         let mut line = String::new();
         if stdin.read_line(&mut line)? == 0 {
@@ -100,68 +107,106 @@ async fn main() -> Result<()> {
             // Refresh the dispatch pane then render it.
             reg.active = reg.panes.iter().position(|p| p.id() == "dispatch").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
-                println!("  refresh failed: {e}");
+                err(&style, &format!("refresh failed: {e}"));
             }
             if let Some(p) = reg.active() {
-                print_blocks(&p.view());
+                print!("{}", term::render_blocks(&p.view(), &style));
             }
         } else if line == ":agents" {
             if mgr.agents.is_empty() {
-                println!("  (no agents — :new <backend> <prompt>)");
+                println!("  {}", style.paint("(no agents — :new <backend> <prompt>)", Sem::Muted));
             }
             for (n, a) in &mgr.agents {
-                let mark = if mgr.active == Some(*n) { "●" } else { " " };
-                println!("  {mark} {n}  {:<11} {}  [{}]", a.backend.as_str(), a.id, a.channel);
+                let mark = if mgr.active == Some(*n) {
+                    style.paint("●", Sem::Engaged)
+                } else {
+                    " ".into()
+                };
+                println!(
+                    "  {mark} {} {:<11} {}  {}",
+                    style.paint(&n.to_string(), Sem::Accent),
+                    a.backend.as_str(),
+                    a.id,
+                    style.paint(&format!("[{}]", a.channel), Sem::Muted),
+                );
             }
         } else if let Some(rest) = line.strip_prefix(":switch ") {
             match rest.trim().parse::<u64>() {
                 Ok(n) if mgr.agents.contains_key(&n) => {
                     mgr.active = Some(n);
-                    println!("  → active: agent {n}");
+                    ok(&style, &format!("active: agent {n}"));
                 }
-                _ => println!("  no such agent"),
+                _ => err(&style, "no such agent"),
             }
         } else if let Some(rest) = line.strip_prefix(":new ") {
             let mut it = rest.splitn(2, ' ');
             let bk = it.next().unwrap_or("");
             let prompt = it.next().unwrap_or("").trim();
             match Backend::parse(bk) {
-                None => println!(
-                    "  unknown backend '{bk}'. one of: {}",
-                    Backend::ALL.iter().map(|b| b.as_str()).collect::<Vec<_>>().join(" ")
+                None => err(
+                    &style,
+                    &format!(
+                        "unknown backend '{bk}'. one of: {}",
+                        Backend::ALL.iter().map(|b| b.as_str()).collect::<Vec<_>>().join(" ")
+                    ),
                 ),
                 Some(backend) => match mgr.create_agent(backend, prompt).await {
-                    Ok(n) => println!("  ✓ created top-level agent {n} on {} (voyage on the bus)", backend.as_str()),
-                    Err(e) => println!("  ✗ spawn failed: {e}"),
+                    Ok(n) => ok(&style, &format!("created top-level agent {n} on {} (voyage on the bus)", backend.as_str())),
+                    Err(e) => err(&style, &format!("spawn failed: {e}")),
                 },
             }
         } else {
             // a turn to the active agent
             if let Err(e) = mgr.send(&line).await {
-                println!("  ✗ {e}");
+                err(&style, &e.to_string());
                 continue;
             }
-            // drain replies for a short window
-            for _ in 0..20 {
+            // Drain replies for a short window — braille spinner while waiting.
+            // No cursor-hide escapes, so an interrupt can never ghost the cursor.
+            const FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+            let spin = style.mode != ColorMode::Plain;
+            for tick in 0..20 {
+                if spin {
+                    print!(
+                        "\r  {} {}",
+                        style.paint(FRAMES[tick % FRAMES.len()], Sem::Accent),
+                        style.paint("waiting for reply…", Sem::Muted),
+                    );
+                    io::stdout().flush().ok();
+                }
                 tokio::time::sleep(Duration::from_millis(250)).await;
                 match mgr.poll_active().await {
                     Ok(msgs) => {
                         let msgs: Vec<agent::TubeMsg> = msgs;
+                        if !msgs.is_empty() && spin {
+                            print!("\r{}\r", " ".repeat(30)); // clear spinner line
+                        }
                         for m in &msgs {
-                            println!("  {}: {}", m.sender, m.text);
+                            println!(
+                                "  {} {}",
+                                style.paint(&format!("{}:", m.sender), Sem::Engaged),
+                                m.text
+                            );
                         }
                         if !msgs.is_empty() {
                             break;
                         }
                     }
                     Err(e) => {
-                        println!("  ✗ poll: {e}");
+                        if spin {
+                            print!("\r{}\r", " ".repeat(30));
+                        }
+                        err(&style, &format!("poll: {e}"));
                         break;
                     }
                 }
             }
+            if spin {
+                print!("\r{}\r", " ".repeat(30));
+                io::stdout().flush().ok();
+            }
         }
     }
-    println!("out.");
+    println!("{}", style.paint("out.", Sem::Muted));
     Ok(())
 }
