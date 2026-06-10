@@ -31,6 +31,7 @@ import {
   runNext,
   type DispatchBackend,
 } from '../../lib/dispatch/runner.js';
+import { defaultSpawnAdapter } from '../../lib/dispatch/spawn-adapter.js';
 import { describeState, stateGlyph } from '../../lib/dispatch/state-machine.js';
 
 import type { CLIOptions } from '../types.js';
@@ -294,6 +295,7 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
       const result = await runNext(queue, {
         dryRun,
         backend: parseBackend(options.backend),
+        spawnAdapter: dryRun ? undefined : defaultSpawnAdapter,
       });
       if (!result) {
         if (isJson(options)) {
@@ -336,10 +338,41 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     }
     printPlan(plan, dryRun);
     if (!dryRun) {
-      ui.warn(
-        '`--really-run` is wired but the first-cut runner only prints the plan. ' +
-          'See docs/proposals/pd-nightshift.md "stubbed" section.',
-      );
+      // Really-run path for a specific dispatch ID: use runNext-equivalent
+      // semantics but for the targeted dispatch.
+      if (d.state !== 'proposed') {
+        ui.error(`Dispatch ${id} is in state '${d.state}'; only 'proposed' dispatches can be run.`);
+        process.exit(1);
+      }
+      console.log('');
+      console.log('Running dispatch (this may take a while)...');
+      let runResult;
+      try {
+        runResult = await runNext(queue, {
+          dryRun: false,
+          backend: parseBackend(options.backend),
+          spawnAdapter: defaultSpawnAdapter,
+        });
+      } catch (err) {
+        ui.error(`Dispatch run failed: ${err instanceof Error ? err.message : String(err)}`);
+        process.exit(1);
+      }
+      if (!runResult) {
+        ui.error('Queue was empty when run was attempted (dispatch may have been cancelled).');
+        process.exit(1);
+      }
+      console.log('');
+      if (runResult.result) {
+        const r = runResult.result;
+        if (r.state === 'settled') {
+          ui.success(`Dispatch complete.`);
+        } else {
+          ui.warn(`Dispatch ended with state: ${r.state}`);
+        }
+        if (r.errorMessage) console.log(`  error:    ${r.errorMessage}`);
+        if (r.costUsd != null) console.log(`  cost:     $${r.costUsd.toFixed(2)}`);
+        if (r.resultArtifact) console.log(`  PR:       ${r.resultArtifact}`);
+      }
     }
     return;
   }
