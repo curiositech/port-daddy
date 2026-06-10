@@ -77,9 +77,9 @@
 \citation{flp1985}
 \citation{laurie2014}
 \citation{dls1988}
-\pgfsyspdfmark {pgfid22}{9721678}{42193714}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above is the shared correlation device — each harbor publishes its epoch root, and any third party can audit for equivocation. The escrow below is structurally bounded (it can refuse to clear, but it cannot redirect funds or equivocate about its decisions). The brass arrow between the harbors is the cross-harbor capability transfer ceremony of \S  \ref {sec:fh-xfer}; the dashed sage line is the federated revocation gossip of \S  \ref {sec:fh-revocation}. The diagram is deliberately small: every primitive in the paper attaches to one of these four elements.}}{18}{figure.caption.17}\protected@file@percent }
-\newlabel{fig:fh-topology}{{7}{18}{The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above is the shared correlation device — each harbor publishes its epoch root, and any third party can audit for equivocation. The escrow below is structurally bounded (it can refuse to clear, but it cannot redirect funds or equivocate about its decisions). The brass arrow between the harbors is the cross-harbor capability transfer ceremony of \S \ref {sec:fh-xfer}; the dashed sage line is the federated revocation gossip of \S \ref {sec:fh-revocation}. The diagram is deliberately small: every primitive in the paper attaches to one of these four elements}{figure.caption.17}{}}
+\pgfsyspdfmark {pgfid22}{9721678}{40949860}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above is the shared correlation device — each harbor publishes its epoch root, and any third party can audit for equivocation. The escrow below is structurally bounded (it can refuse to clear, but it cannot redirect funds or equivocate about its decisions). The amber arrow between the harbors is the cross-harbor capability transfer ceremony of \S  \ref {sec:fh-xfer}; the dashed sage line is the federated revocation gossip of \S  \ref {sec:fh-revocation}. The diagram is deliberately small: every primitive in the paper attaches to one of these four elements.}}{18}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:fh-topology}{{7}{18}{The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above is the shared correlation device — each harbor publishes its epoch root, and any third party can audit for equivocation. The escrow below is structurally bounded (it can refuse to clear, but it cannot redirect funds or equivocate about its decisions). The amber arrow between the harbors is the cross-harbor capability transfer ceremony of \S \ref {sec:fh-xfer}; the dashed sage line is the federated revocation gossip of \S \ref {sec:fh-revocation}. The diagram is deliberately small: every primitive in the paper attaches to one of these four elements}{figure.caption.17}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.1}No consensus, by design}{18}{subsection.9.1}\protected@file@percent }
 \citation{herlihy2018}
 \citation{hls2022}
@@ -92,59 +92,57 @@
 \newlabel{conj:trustless}{{9.1}{19}{Trustless cross-harbor settlement}{conjecture.9.1}{}}
 \newlabel{thm:fh-escrow-bound}{{9.1}{19}{Trustless cross-harbor settlement}{conjecture.9.1}{}}
 \citation{demers1987}
-\citation{heilman2015}
 \@writefile{toc}{\contentsline {subsection}{\numberline {9.3}Revocation gossip and the equivocation race}{20}{subsection.9.3}\protected@file@percent }
 \newlabel{sec:fh-revocation}{{9.3}{20}{Revocation gossip and the equivocation race}{subsection.9.3}{}}
 \newlabel{sec:revocation}{{9.3}{20}{Revocation gossip and the equivocation race}{subsection.9.3}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Federated revocation propagation across three harbors. The membership-filter mechanism is the same one the companion paper proves for the single-harbor mesh, but two new pieces are bolted on: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite  {laurie2013ct}. The window between $t=0$ and $t=\Delta $ is the structural attacker window: bounded, named, and priced into the bond in \S  \ref {sec:fh-settlement}.}}{20}{figure.caption.19}\protected@file@percent }
-\newlabel{fig:fh-revocation}{{9}{20}{Federated revocation propagation across three harbors. The membership-filter mechanism is the same one the companion paper proves for the single-harbor mesh, but two new pieces are bolted on: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite {laurie2013ct}. The window between $t=0$ and $t=\Delta $ is the structural attacker window: bounded, named, and priced into the bond in \S \ref {sec:fh-settlement}}{figure.caption.19}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Federated revocation propagation across three harbors. The cuckoo filter mechanism is unchanged from Anchor~\S  \ref {sec:revocation} of the companion paper, but two new pieces are bolted on: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite  {laurie2013ct}. The window between $t=0$ and $t=\Delta $ is the structural attacker window: bounded, named, and priced into the bond in \S  \ref {sec:fh-settlement}.}}{20}{figure.caption.19}\protected@file@percent }
+\newlabel{fig:fh-revocation}{{9}{20}{Federated revocation propagation across three harbors. The cuckoo filter mechanism is unchanged from Anchor~\S \ref {sec:revocation} of the companion paper, but two new pieces are bolted on: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite {laurie2013ct}. The window between $t=0$ and $t=\Delta $ is the structural attacker window: bounded, named, and priced into the bond in \S \ref {sec:fh-settlement}}{figure.caption.19}{}}
 \newlabel{prot:gossip}{{9.1}{20}{Federated revocation gossip}{protocol.9.1}{}}
-\@writefile{toc}{\contentsline {paragraph}{The revocation race, dramatized.}{20}{section*.20}\protected@file@percent }
-\citation{liu2014}
+\citation{heilman2015}
+\@writefile{toc}{\contentsline {paragraph}{The revocation race, dramatized.}{21}{section*.20}\protected@file@percent }
 \newlabel{conj:eq-bound}{{9.2}{21}{Equivocation Lower Bound}{conjecture.9.2}{}}
 \newlabel{thm:fh-conv}{{9.2}{21}{Equivocation Lower Bound}{conjecture.9.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Threat-band layout for the Federated Harbor. The Anchor paper's defense-in-depth structure carries over: every claim either has a mechanization artifact (sage), a named bound that the bond can price against (brass), or an explicit acknowledgement of the open frontier (cinnabar). The paper is disciplined about which band each claim lives in --- see Appendix~\ref {app:fh-mech} for the artifact registry. Bands shift left over time as future work mechanizes what is presently bounded.}}{21}{figure.caption.21}\protected@file@percent }
-\newlabel{fig:fh-threat-bands}{{10}{21}{Threat-band layout for the Federated Harbor. The Anchor paper's defense-in-depth structure carries over: every claim either has a mechanization artifact (sage), a named bound that the bond can price against (brass), or an explicit acknowledgement of the open frontier (cinnabar). The paper is disciplined about which band each claim lives in --- see Appendix~\ref {app:fh-mech} for the artifact registry. Bands shift left over time as future work mechanizes what is presently bounded}{figure.caption.21}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {10}Reputation: monotone, but revocable}{21}{section.10}\protected@file@percent }
-\newlabel{sec:reputation}{{10}{21}{Reputation: monotone, but revocable}{section.10}{}}
-\newlabel{sec:ic}{{10}{21}{Reputation: monotone, but revocable}{section.10}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}``Never ends'' is not an anti-revocation property}{21}{subsection.10.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces Threat-band layout for the Federated Harbor. The Anchor paper's defense-in-depth structure carries over: every claim either has a mechanization artifact (teal), a named bound that the bond can price against (amber), or an explicit acknowledgement of the open frontier (cobalt). The paper is disciplined about which band each claim lives in --- see Appendix~\ref {app:fh-mech} for the artifact registry. Reading left to right runs deeper into threat space and out of formal reach; bands shift left over time as future work mechanizes what is presently bounded.}}{21}{figure.caption.21}\protected@file@percent }
+\newlabel{fig:fh-threat-bands}{{10}{21}{Threat-band layout for the Federated Harbor. The Anchor paper's defense-in-depth structure carries over: every claim either has a mechanization artifact (teal), a named bound that the bond can price against (amber), or an explicit acknowledgement of the open frontier (cobalt). The paper is disciplined about which band each claim lives in --- see Appendix~\ref {app:fh-mech} for the artifact registry. Reading left to right runs deeper into threat space and out of formal reach; bands shift left over time as future work mechanizes what is presently bounded}{figure.caption.21}{}}
+\citation{liu2014}
 \citation{sagas1987}
-\citation{aps1990}
+\@writefile{toc}{\contentsline {section}{\numberline {10}Reputation: monotone, but revocable}{22}{section.10}\protected@file@percent }
+\newlabel{sec:reputation}{{10}{22}{Reputation: monotone, but revocable}{section.10}{}}
+\newlabel{sec:ic}{{10}{22}{Reputation: monotone, but revocable}{section.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}``Never ends'' is not an anti-revocation property}{22}{subsection.10.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Why the Sagas functor does not transport}{22}{subsection.10.2}\protected@file@percent }
 \newlabel{prop:no-saga}{{10.1}{22}{Sagas does not transport to reputation}{proposition.10.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {10.3}The grading-oracle keystone}{22}{subsection.10.3}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces The grading-oracle incentive-compatibility problem --- the hole under the core theorem. Every folk-theorem claim in the layer bottoms out in ``the agent picks the work, the daemon derives the grade.'' But a folk theorem is only as good as the \emph  {public signal} it conditions on (Green--Porter 1984; Abreu--Pearce--Stacchetti 1990 require the signal distribution to be common knowledge and \emph  {exogenous}). The grade is produced by a capturable evaluator, so the signal is endogenous and the folk theorem does not apply as stated. We resolve it two ways: ground settlement in \emph  {machine-checkable} oracles the agent cannot author (Fix A, strategy-proof by construction), and \emph  {bond-and- slash} the human/LLM judges where machine-checking is impossible (Fix B), then require the rate-the-raters recursion to terminate at a machine-checkable base.}}{22}{figure.caption.22}\protected@file@percent }
-\newlabel{fig:he-grading-oracle}{{11}{22}{The grading-oracle incentive-compatibility problem --- the hole under the core theorem. Every folk-theorem claim in the layer bottoms out in ``the agent picks the work, the daemon derives the grade.'' But a folk theorem is only as good as the \emph {public signal} it conditions on (Green--Porter 1984; Abreu--Pearce--Stacchetti 1990 require the signal distribution to be common knowledge and \emph {exogenous}). The grade is produced by a capturable evaluator, so the signal is endogenous and the folk theorem does not apply as stated. We resolve it two ways: ground settlement in \emph {machine-checkable} oracles the agent cannot author (Fix A, strategy-proof by construction), and \emph {bond-and- slash} the human/LLM judges where machine-checking is impossible (Fix B), then require the rate-the-raters recursion to terminate at a machine-checkable base}{figure.caption.22}{}}
-\newlabel{thm:folk}{{10.1}{22}{The folk theorem needs an exogenous signal}{theorem.10.1}{}}
+\citation{aps1990}
 \citation{zheng2023}
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces The grading-oracle incentive-compatibility problem --- the hole under the core theorem. Every folk-theorem claim in the layer bottoms out in ``the agent picks the work, the daemon derives the grade.'' But a folk theorem is only as good as the \emph  {public signal} it conditions on (Green--Porter 1984; Abreu--Pearce--Stacchetti 1990 require the signal distribution to be common knowledge and \emph  {exogenous}). The grade is produced by a capturable evaluator, so the signal is endogenous and the folk theorem does not apply as stated. We resolve it two ways: ground settlement in \emph  {machine-checkable} oracles the agent cannot author (Fix A, strategy-proof by construction), and \emph  {bond-and- slash} the human/LLM judges where machine-checking is impossible (Fix B), then require the rate-the-raters recursion to terminate at a machine-checkable base.}}{23}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:he-grading-oracle}{{11}{23}{The grading-oracle incentive-compatibility problem --- the hole under the core theorem. Every folk-theorem claim in the layer bottoms out in ``the agent picks the work, the daemon derives the grade.'' But a folk theorem is only as good as the \emph {public signal} it conditions on (Green--Porter 1984; Abreu--Pearce--Stacchetti 1990 require the signal distribution to be common knowledge and \emph {exogenous}). The grade is produced by a capturable evaluator, so the signal is endogenous and the folk theorem does not apply as stated. We resolve it two ways: ground settlement in \emph {machine-checkable} oracles the agent cannot author (Fix A, strategy-proof by construction), and \emph {bond-and- slash} the human/LLM judges where machine-checking is impossible (Fix B), then require the rate-the-raters recursion to terminate at a machine-checkable base}{figure.caption.22}{}}
+\newlabel{thm:folk}{{10.1}{23}{The folk theorem needs an exogenous signal}{theorem.10.1}{}}
 \@writefile{toc}{\contentsline {paragraph}{A captured judge, dramatized.}{23}{section*.23}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {11}Hosted trust is the product}{23}{section.11}\protected@file@percent }
-\newlabel{sec:hosted-trust}{{11}{23}{Hosted trust is the product}{section.11}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {11}Hosted trust is the product}{24}{section.11}\protected@file@percent }
+\newlabel{sec:hosted-trust}{{11}{24}{Hosted trust is the product}{section.11}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {12}Cold start, and the auction question}{24}{section.12}\protected@file@percent }
 \newlabel{sec:cold-start}{{12}{24}{Cold start, and the auction question}{section.12}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}Static escrow vs.\ competitive underwriting}{24}{subsection.12.1}\protected@file@percent }
-\newlabel{sec:fh-equilibria}{{12.1}{24}{Static escrow vs.\ competitive underwriting}{subsection.12.1}{}}
-\newlabel{sec:youle:welfare}{{12.1}{24}{Static escrow vs.\ competitive underwriting}{subsection.12.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S  \ref {sec:youle:welfare} below.}}{24}{figure.caption.24}\protected@file@percent }
-\newlabel{fig:auction-inline}{{12}{24}{Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S \ref {sec:youle:welfare} below}{figure.caption.24}{}}
-\newlabel{prop:reserve}{{12.1}{24}{Underwriting reframes the bond as reserve adequacy}{proposition.12.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}Cartels and wash-trading}{25}{subsection.12.2}\protected@file@percent }
-\newlabel{sec:fh-failure-modes}{{12.2}{25}{Cartels and wash-trading}{subsection.12.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm  {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality at the bottom defines the closed-form detection threshold $p_d^\star $: a protocol must detect cartel pricing with at least this per-round probability to break the repeated-game equilibrium.}}{25}{figure.caption.25}\protected@file@percent }
-\newlabel{fig:cartel-game-inline}{{13}{25}{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality at the bottom defines the closed-form detection threshold $p_d^\star $: a protocol must detect cartel pricing with at least this per-round probability to break the repeated-game equilibrium}{figure.caption.25}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {13}The sheaf-gluing problem (one question, three guises)}{25}{section.13}\protected@file@percent }
-\newlabel{sec:sheaf}{{13}{25}{The sheaf-gluing problem (one question, three guises)}{section.13}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}Static escrow vs.\ competitive underwriting}{25}{subsection.12.1}\protected@file@percent }
+\newlabel{sec:fh-equilibria}{{12.1}{25}{Static escrow vs.\ competitive underwriting}{subsection.12.1}{}}
+\newlabel{sec:youle:welfare}{{12.1}{25}{Static escrow vs.\ competitive underwriting}{subsection.12.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {12}{\ignorespaces Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S  \ref {sec:youle:welfare} below.}}{25}{figure.caption.24}\protected@file@percent }
+\newlabel{fig:auction-inline}{{12}{25}{Static escrow vs.\ competitive Vickrey auction. Both regimes underwrite the same coverage $B_T = \mu (1+s)$; only the financing mechanism differs. In (a) the principal ties up $B_T$ for the coverage period, paying an opportunity cost $r \cdot B_T$. In (b) insurers compete; the principal pays only the second-lowest bid $q^*$. The competitive regime Pareto-dominates the static one under the welfare assumptions of \S \ref {sec:youle:welfare} below}{figure.caption.24}{}}
+\newlabel{prop:reserve}{{12.1}{25}{Underwriting reframes the bond as reserve adequacy}{proposition.12.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}Cartels and wash-trading}{26}{subsection.12.2}\protected@file@percent }
+\newlabel{sec:fh-failure-modes}{{12.2}{26}{Cartels and wash-trading}{subsection.12.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {13}{\ignorespaces Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm  {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star $ used in Figure~\ref {fig:cartel-folk}.}}{26}{figure.caption.25}\protected@file@percent }
+\newlabel{fig:cartel-game-inline}{{13}{26}{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm {floor}}$ or undercutting it by $\varepsilon $. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi _D$ gain once and forfeits future $\pi _C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star $ used in Figure~\ref {fig:cartel-folk}}{figure.caption.25}{}}
 \citation{fong2019}
+\@writefile{toc}{\contentsline {section}{\numberline {13}The sheaf-gluing problem (one question, three guises)}{27}{section.13}\protected@file@percent }
+\newlabel{sec:sheaf}{{13}{27}{The sheaf-gluing problem (one question, three guises)}{section.13}{}}
+\newlabel{conj:sheaf}{{13.1}{27}{The gluing obstruction}{conjecture.13.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {14}Gaps the design must still close}{27}{section.14}\protected@file@percent }
+\newlabel{sec:gaps}{{14}{27}{Gaps the design must still close}{section.14}{}}
 \citation{rochet2003}
 \citation{rochet2006}
 \citation{armstrong2006}
 \citation{chiu2025}
-\newlabel{conj:sheaf}{{13.1}{26}{The gluing obstruction}{conjecture.13.1}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {14}Gaps the design must still close}{26}{section.14}\protected@file@percent }
-\newlabel{sec:gaps}{{14}{26}{Gaps the design must still close}{section.14}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {15}Related work}{26}{section.15}\protected@file@percent }
-\newlabel{sec:related}{{15}{26}{Related work}{section.15}{}}
 \citation{myerson1981}
 \citation{myerson1983}
 \citation{aps1990}
@@ -174,22 +172,24 @@
 \citation{laurie2014}
 \citation{sagas1987}
 \citation{aps1990}
-\@writefile{toc}{\contentsline {paragraph}{Multi-sided platform markets.}{27}{section*.26}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Mechanism design and its impossibilities.}{27}{section*.27}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Reputation systems.}{27}{section*.28}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Distributed systems and cross-chain commerce.}{27}{section*.29}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Applied category theory.}{27}{section*.30}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces How the harbor economy sits relative to the nearest prior art on each axis.}}{27}{table.caption.31}\protected@file@percent }
-\newlabel{tab:related}{{3}{27}{How the harbor economy sits relative to the nearest prior art on each axis}{table.caption.31}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {16}Conclusion}{27}{section.16}\protected@file@percent }
-\newlabel{sec:conclusion}{{16}{27}{Conclusion}{section.16}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Implementation \& status}{28}{appendix.A}\protected@file@percent }
-\newlabel{app:impl}{{A}{28}{Implementation \& status}{appendix.A}{}}
-\newlabel{app:fh-mech}{{A}{28}{Implementation \& status}{appendix.A}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Per-claim maturity, with concrete grounding in the reference implementation. ``Module'' names refer to source files in the implementation; ``model'' means a mechanized proof artifact; ``property test'' means a randomized test exercising the invariant.}}{29}{table.caption.32}\protected@file@percent }
-\newlabel{tab:honest-state}{{4}{29}{Per-claim maturity, with concrete grounding in the reference implementation. ``Module'' names refer to source files in the implementation; ``model'' means a mechanized proof artifact; ``property test'' means a randomized test exercising the invariant}{table.caption.32}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {B}Proof sketches}{29}{appendix.B}\protected@file@percent }
-\newlabel{app:proofs}{{B}{29}{Proof sketches}{appendix.B}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {15}Related work}{28}{section.15}\protected@file@percent }
+\newlabel{sec:related}{{15}{28}{Related work}{section.15}{}}
+\@writefile{toc}{\contentsline {paragraph}{Multi-sided platform markets.}{28}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Mechanism design and its impossibilities.}{28}{section*.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Reputation systems.}{28}{section*.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Distributed systems and cross-chain commerce.}{28}{section*.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Applied category theory.}{28}{section*.30}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces How the harbor economy sits relative to the nearest prior art on each axis.}}{28}{table.caption.31}\protected@file@percent }
+\newlabel{tab:related}{{3}{28}{How the harbor economy sits relative to the nearest prior art on each axis}{table.caption.31}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {16}Conclusion}{29}{section.16}\protected@file@percent }
+\newlabel{sec:conclusion}{{16}{29}{Conclusion}{section.16}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Implementation \& status}{29}{appendix.A}\protected@file@percent }
+\newlabel{app:impl}{{A}{29}{Implementation \& status}{appendix.A}{}}
+\newlabel{app:fh-mech}{{A}{29}{Implementation \& status}{appendix.A}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Per-claim maturity, with concrete grounding in the reference implementation. ``Module'' names refer to source files in the implementation; ``model'' means a mechanized proof artifact; ``property test'' means a randomized test exercising the invariant.}}{30}{table.caption.32}\protected@file@percent }
+\newlabel{tab:honest-state}{{4}{30}{Per-claim maturity, with concrete grounding in the reference implementation. ``Module'' names refer to source files in the implementation; ``model'' means a mechanized proof artifact; ``property test'' means a randomized test exercising the invariant}{table.caption.32}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {B}Proof sketches}{30}{appendix.B}\protected@file@percent }
+\newlabel{app:proofs}{{B}{30}{Proof sketches}{appendix.B}{}}
 \citation{myerson1983}
 \citation{myerson1981}
 \bibcite{rochet2003}{1}
@@ -219,4 +219,4 @@
 \bibcite{fong2019}{25}
 \bibcite{ostrom1990}{26}
 \bibcite{nrtv2007}{27}
-\gdef \@abspage@last{31}
+\gdef \@abspage@last{32}
