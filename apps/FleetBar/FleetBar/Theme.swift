@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - FleetBar Design Tokens
 //
 // Harbor Heritage adapted for macOS vibrancy.
-// The website uses sandstone/cinnabar/warm-ebony on opaque surfaces.
+// The website uses cobalt/teal/amber on cream (see website-v2/docs/design/BRAND.md).
 // FleetBar uses translucent materials, so colors must work over any desktop.
 //
 // Personality: Professional with natural warmth.
@@ -52,7 +52,7 @@ enum Fleet {
         /// Active/running agents — warm blue, conveys motion without alarm
         static let active  = SwiftUI.Color(red: 0.35, green: 0.58, blue: 0.85)
 
-        /// Warning state — warm amber (harbor heritage cinnabar, softened)
+        /// Warning state — warm amber (brand status-warning)
         static let warning = SwiftUI.Color(red: 0.88, green: 0.55, blue: 0.25)
 
         /// Failure state — muted red, not screaming

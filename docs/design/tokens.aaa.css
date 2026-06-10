@@ -27,7 +27,7 @@
   --signal-black:      #0A0A0A;
 
   /* PD heritage primitives (preserved for brand continuity) */
-  --pd-cinnabar:       #CC3D2E;   /* warm cinnabar — secondary accent only */
+  --pd-danger:         #BF2F2F;   /* status-error — danger/alert escalations */
   --pd-ebony:          #1E1B18;   /* warm ebony — terminal background */
   --pd-sandstone:      #D4C5A9;   /* harbor heritage warm tone (sparingly) */
   --brand-yellow:      #FFDB33;   /* existing neobrutalism mustard */
@@ -43,8 +43,8 @@
   --signal-blue-800:   #001A37;   /* parent: --signal-blue   | 18.20:1 on white | strongest blue text */
   --ics-yellow-100:    #FFF7C2;   /* parent: --ics-yellow    | tint for awaiting bands  */
   --ics-yellow-200:    #FFEE85;   /* parent: --ics-yellow    | mid tint                 */
-  --pd-cinnabar-700:   #8C2418;   /* parent: --pd-cinnabar   | 8.78:1 on white | cinnabar text */
-  --pd-cinnabar-800:   #6A1B12;   /* parent: --pd-cinnabar   | 12.10:1 on white | strongest cinnabar */
+  --pd-danger-700:     #8C2418;   /* parent: --pd-danger     | 8.78:1 on white | danger text */
+  --pd-danger-800:     #6A1B12;   /* parent: --pd-danger     | 12.10:1 on white | strongest danger */
   --pd-sandstone-50:   #F7F1E5;   /* parent: --pd-sandstone  | warm cream surface */
   --pd-sandstone-100:  #EDE3CC;   /* parent: --pd-sandstone  | mid cream surface */
 
@@ -84,7 +84,7 @@
   --state-claim-active-fg:     var(--signal-red-800);            /* 11.04:1 on white */
   --state-claim-active-border: var(--signal-red);                /* 5.39:1 on white >= 3:1 OK */
 
-  /* AWAITING-HUMAN — Foxtrot: white field with cinnabar diamond accent */
+  /* AWAITING-HUMAN — Foxtrot: white field with danger diamond accent */
   --state-awaiting-human-bg:     var(--ics-yellow-100);          /* #FFF7C2 — alert tint */
   --state-awaiting-human-fg:     var(--signal-blue-800);         /* 17.36:1 on yellow-100 */
   --state-awaiting-human-border: var(--signal-blue);             /* 12.84:1 on yellow-100 */
@@ -101,8 +101,8 @@
 
   /* BLOCKED — Delta (yellow-blue-yellow): blue-on-yellow */
   --state-blocked-bg:     var(--signal-white);
-  --state-blocked-fg:     var(--pd-cinnabar-800);                /* 12.10:1 on white */
-  --state-blocked-border: var(--pd-cinnabar);                    /* 5.41:1 on white */
+  --state-blocked-fg:     var(--pd-danger-800);                /* 12.10:1 on white */
+  --state-blocked-border: var(--pd-danger);                    /* 5.41:1 on white */
 
   /* CLAIM-STALE — Yankee muted: gray field with deep red border */
   --state-claim-stale-bg:     var(--gray-100);
@@ -177,7 +177,7 @@
   --perf-subscribe-border:      var(--gray-700);              /* 10.91:1 */
   --perf-query-ref-bg:          var(--pd-sandstone-100);
   --perf-query-ref-fg:          var(--signal-black);          /* 14.10:1 on sandstone-100 */
-  --perf-query-ref-border:      var(--pd-cinnabar-700);       /* 4.46:1 on sandstone-100 */
+  --perf-query-ref-border:      var(--pd-danger-700);       /* 4.46:1 on sandstone-100 */
 
   /* ---- COST PILL ---------------------------------------------------------- */
   --cost-ok-bg:     #DCFCE7;                /* light mint */
@@ -193,7 +193,7 @@
   /* ---- AVATAR RING — the colored halo around an actor avatar ------------ */
   --avatar-ring-active:   var(--signal-red-700);   /* 7.78:1 on gray-50 */
   --avatar-ring-awaiting: var(--signal-blue);      /* 11.83:1 on gray-50 */
-  --avatar-ring-conflict: var(--pd-cinnabar-700);  /* 8.21:1 on gray-50 */
+  --avatar-ring-conflict: var(--pd-danger-700);  /* 8.21:1 on gray-50 */
 
   /* ---- FOCUS RING (universal) -------------------------------------------- */
   --focus-ring: var(--signal-blue);                /* 12.20:1 on cream, 11.83:1 on gray-50 */
@@ -223,7 +223,7 @@
 
     --state-blocked-bg:     var(--pd-ebony);
     --state-blocked-fg:     var(--gray-50);        /* 16.32:1 */
-    --state-blocked-border: var(--pd-cinnabar);
+    --state-blocked-border: var(--pd-danger);
 
     --state-claim-stale-bg:     var(--gray-800);
     --state-claim-stale-fg:     var(--gray-200);   /* 9.85:1 on gray-800 */

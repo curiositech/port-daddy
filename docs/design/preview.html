@@ -47,7 +47,7 @@
   --neutral-quaternary: #E0E0E0;
   --gray: #AEAEAE;
 
-  /* Brand — neobrutalist mustard, paired with PD maritime cinnabar as secondary */
+  /* Brand — neobrutalist mustard, paired with PD maritime status-error as secondary */
   --brand-softer: #FFF9E0;
   --brand-soft: #FFF3C4;
   --brand: #FFDB33;          /* primary canary — neobrutalism signature */
@@ -55,7 +55,7 @@
   --brand-strong: #FFCC00;
 
   /* PD maritime — preserved as a deliberate second-brand accent */
-  --pd-cinnabar: #CC3D2E;    /* signal red — danger/alert escalations */
+  --pd-danger: #BF2F2F;    /* status-error — danger/alert escalations */
   --pd-sandstone: #D4C5A9;   /* harbor heritage warm tone (used sparingly) */
   --pd-ebony: #1E1B18;       /* warm ebony — preferred over pure #000 in PD voice */
 
@@ -133,8 +133,8 @@
   --state-awaiting-human-border: var(--warning);
 
   --state-burning-cash-bg: #FFE4E4;
-  --state-burning-cash-fg: var(--pd-cinnabar);
-  --state-burning-cash-border: var(--pd-cinnabar);
+  --state-burning-cash-fg: var(--pd-danger);
+  --state-burning-cash-border: var(--pd-danger);
 
   --state-conflict-bg: var(--danger-medium);
   --state-conflict-fg: var(--danger-strong);
@@ -306,7 +306,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .btn:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
 .btn:active { transform: translate(2px, 2px); box-shadow: var(--shadow-2xs); }
 .btn--primary { background: var(--pd-ebony); color: var(--brand); }
-.btn--accent { background: var(--pd-cinnabar); color: var(--neutral-primary-soft); }
+.btn--accent { background: var(--pd-danger); color: var(--neutral-primary-soft); }
 
 /* =============================================================================
    TYPE SHOWCASE — going nuts on variable axes
@@ -423,7 +423,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .t-ok       { color: #4ADE80; }
 .t-err      { color: #FCA5A5; }
 .t-warn     { color: #FBBF24; }
-.t-cinnabar { color: #FF8B7C; }
+.t-error    { color: #FF8B7C; }
 .t-dim      { color: #9CA3AF; }
 .t-info     { color: #93C5FD; }
 
@@ -450,7 +450,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   color: var(--neutral-primary-soft);
 }
 .distress[data-level="securité"] .distress__band { background: #92400E; }
-.distress[data-level="pan-pan"]  .distress__band { background: var(--pd-cinnabar); color: #FFFFFF; }
+.distress[data-level="pan-pan"]  .distress__band { background: var(--pd-danger); color: #FFFFFF; }
 .distress[data-level="mayday"]   .distress__band { background: var(--danger-strong); color: #FFFFFF; }
 .distress h4 {
   font-family: var(--font-display);
@@ -565,11 +565,11 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
   content: "";
   position: absolute;
   inset: 0 30% 0 0;
-  background: var(--pd-cinnabar);
+  background: var(--pd-danger);
 }
 .cost-pill[data-status="ok"] .cost-pill__bar::after { background: var(--success); inset: 0 75% 0 0; }
 .cost-pill[data-status="warn"] .cost-pill__bar::after { background: var(--warning); inset: 0 50% 0 0; }
-.cost-pill[data-status="crit"] .cost-pill__bar::after { background: var(--pd-cinnabar); inset: 0 5% 0 0; }
+.cost-pill[data-status="crit"] .cost-pill__bar::after { background: var(--pd-danger); inset: 0 5% 0 0; }
 
 .fleetbar {
   display: flex;
@@ -598,8 +598,8 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .fleetbar__avatar[data-state="awaiting"] { box-shadow: 0 0 0 3px var(--warning); }
 .fleetbar__avatar[data-state="conflict"] { box-shadow: 0 0 0 3px var(--danger); color: #FFFFFF; }
 .fleetbar__avatar[data-state="active"]   { box-shadow: 0 0 0 3px var(--success); }
-/* Override avatar text color when accent is dark (cinnabar/danger/ebony) */
-.fleetbar__avatar[style*="--pd-cinnabar"], .fleetbar__avatar[style*="--danger"] { color: #FFFFFF; }
+/* Override avatar text color when accent is dark (danger/ebony) */
+.fleetbar__avatar[style*="--pd-danger"], .fleetbar__avatar[style*="--danger"] { color: #FFFFFF; }
 .fleetbar__sep { width: 1px; height: 18px; background: rgba(255,255,255,0.25); margin: 0 0.25rem; }
 /* Lighter pill caps inside the dark fleetbar (parent fg overrides aren't enough — cap has its own rule) */
 .fleetbar .cost-pill__cap { color: #D1D5DB; }
@@ -671,7 +671,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 .trove__card[data-weight="medium"] { font-size: 1.05rem; font-variation-settings: "wght" 600; }
 .trove__card[data-weight="small"]  { font-size: 0.875rem; font-variation-settings: "wght" 500; opacity: 0.85; }
 .trove__card[data-tone="brand"]    { background: var(--brand); }
-.trove__card[data-tone="cinnabar"] { background: var(--pd-cinnabar); color: var(--neutral-primary-soft); border-color: var(--border-default); }
+.trove__card[data-tone="danger"]   { background: var(--pd-danger); color: var(--neutral-primary-soft); border-color: var(--border-default); }
 .trove__card[data-tone="purple"]   { background: #6D28D9; color: #FFFFFF; }    /* purple-700 for AA */
 
 /* =============================================================================
@@ -857,7 +857,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 
       <div class="type-spec">
         <div class="type-spec__label">Mono · CLI</div>
-        <div class="type-spec__sample" style="font-family:var(--font-mono);font-size:1.25rem;line-height:1.55;color:var(--text-heading);"><span style="color:var(--success-strong)">✓</span> claim acquired<br><span style="color:var(--warning-strong)">⚠</span> awaiting human<br><span style="color:var(--pd-cinnabar)">$</span> 23.40<span style="color:var(--text-body-subtle)"> / 50.00 cap</span></div>
+        <div class="type-spec__sample" style="font-family:var(--font-mono);font-size:1.25rem;line-height:1.55;color:var(--text-heading);"><span style="color:var(--success-strong)">✓</span> claim acquired<br><span style="color:var(--warning-strong)">⚠</span> awaiting human<br><span style="color:var(--pd-danger)">$</span> 23.40<span style="color:var(--text-body-subtle)"> / 50.00 cap</span></div>
         <div class="type-spec__caption">IBM Plex Mono · tabular nums · 1rem</div>
       </div>
 
@@ -897,7 +897,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
     <div class="swatch-grid">
       <div class="swatch"><div class="swatch__chip" style="background:var(--brand)"></div><div class="swatch__meta"><b>brand</b><code>#FFDB33</code></div></div>
       <div class="swatch"><div class="swatch__chip" style="background:var(--brand-strong)"></div><div class="swatch__meta"><b>brand-strong</b><code>#FFCC00</code></div></div>
-      <div class="swatch"><div class="swatch__chip" style="background:var(--pd-cinnabar)"></div><div class="swatch__meta"><b>pd-cinnabar</b><code>#CC3D2E</code></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--pd-danger)"></div><div class="swatch__meta"><b>pd-danger</b><code>#BF2F2F</code></div></div>
       <div class="swatch"><div class="swatch__chip" style="background:var(--pd-ebony)"></div><div class="swatch__meta" style="color:#FFF;background:var(--pd-ebony);border-top-color:var(--border-default)"><b style="color:#F5F5F0">pd-ebony</b><code>#1E1B18</code></div></div>
       <div class="swatch"><div class="swatch__chip" style="background:var(--purple)"></div><div class="swatch__meta"><b>purple</b><code>#8B5CF6</code></div></div>
       <div class="swatch"><div class="swatch__chip" style="background:var(--cyan)"></div><div class="swatch__meta"><b>cyan</b><code>#06B6D4</code></div></div>
@@ -964,7 +964,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
           <span class="state-card__symbol">$</span>
         </div>
         <div class="state-card__line"><span>Web</span><span><code>--state-burning-cash-bg</code></span></div>
-        <div class="state-card__line"><span>CLI</span><span>ANSI 38;2;204;61;46 (cinnabar)</span></div>
+        <div class="state-card__line"><span>CLI</span><span>ANSI 38;2;191;47;47 (danger)</span></div>
         <div class="state-card__line"><span>Swift</span><span>Color.semanticDanger + flash</span></div>
         <div class="state-card__line"><span>Use</span><span>cost cap proximity ≥ 80%</span></div>
       </div>
@@ -1053,7 +1053,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 <span class="t-prompt">you</span> has anyone touched cryptography?
 
 <span class="t-prompt">comms</span> last edits to crypto/* across all worktrees:
-  <span class="t-cinnabar">scout</span>     <span class="t-dim">crypto/envelope.ts · 2h ago · session-redteam-v2.5</span>
+  <span class="t-error">scout</span>     <span class="t-dim">crypto/envelope.ts · 2h ago · session-redteam-v2.5</span>
   <span class="t-info">cartog</span>    <span class="t-dim">docs/redteam/v2.4.md · 3h ago</span>
 
 <span class="t-prompt">you</span> is the fleet healthy?
@@ -1061,7 +1061,7 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
 <span class="t-prompt">comms</span> <span class="t-ok">✓</span> 8 of 10 actors active in last 12h
         <span class="t-warn">⚠</span> spider not seen in 48h
           <span class="t-dim">↳ Cloudflare creds rotated — pd setup cloudflare</span>
-        <span class="t-cinnabar">$</span> 23.40 / 50.00 daily cap <span class="t-dim">(47%)</span>
+        <span class="t-error">$</span> 23.40 / 50.00 daily cap <span class="t-dim">(47%)</span>
 </pre>
         </div>
       </div>
@@ -1227,10 +1227,10 @@ section { padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 5vw, 5rem); border-bott
     <h3 class="mt-6">harvester · ideas-trove board</h3>
     <div class="trove">
       <!-- nano banana: a corkboard of overlapping index cards in mustard,
-           cinnabar, purple. Force-directed scatter. -->
+           danger, purple. Force-directed scatter. -->
       <div class="trove__card" data-weight="big" data-tone="brand"      style="left:5%;top:8%;transform:rotate(-3deg)">pd swarm should support<br>contract-net out of the box</div>
       <div class="trove__card" data-weight="medium"                     style="left:38%;top:14%;transform:rotate(2deg)">harvester runs daily 18:00,<br>tags transcripts <em>harvested</em></div>
-      <div class="trove__card" data-weight="big" data-tone="cinnabar"   style="left:62%;top:6%;transform:rotate(-1deg)">FleetBar avatar ring<br>pulses on AWAITING</div>
+      <div class="trove__card" data-weight="big" data-tone="danger"     style="left:62%;top:6%;transform:rotate(-1deg)">FleetBar avatar ring<br>pulses on AWAITING</div>
       <div class="trove__card" data-weight="small"                      style="left:18%;top:42%;transform:rotate(1deg)">CJK width fix in tables</div>
       <div class="trove__card" data-weight="medium" data-tone="purple"  style="left:42%;top:46%;transform:rotate(-2deg)">JADE FSM behaviors<br>for multi-step actors</div>
       <div class="trove__card" data-weight="small"                      style="left:70%;top:42%;transform:rotate(3deg)">pd archeology &lt;file&gt;</div>

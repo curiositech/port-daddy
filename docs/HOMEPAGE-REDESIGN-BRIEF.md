@@ -91,7 +91,7 @@ When requesting components from 21st.dev, specify:
 Design System: Harbor Heritage (Neumorphic)
 Framework: React + Tailwind CSS + CVA (class-variance-authority)
 Colors:
-  --brand-primary: #E58072 (coral/cinnabar)
+  --brand-primary: #E58072 (coral — STALE; see website-v2/docs/design/BRAND.md)
   --brand-secondary: #7CC4C5 (teal)
   --brand-accent: #E4C899 (rope gold)
   --surface-base: #1E1B18 (warm ebony)

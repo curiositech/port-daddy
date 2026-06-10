@@ -89,7 +89,7 @@ flowchart LR
   end
 
   style Today fill:#fef3c7,stroke:#4a9d9e,color:#1E1B18
-  style Tomorrow fill:#fef3c7,stroke:#CC3D2E,color:#1E1B18
+  style Tomorrow fill:#fef3c7,stroke:#BF2F2F,color:#1E1B18
 ```
 
 The shift on the right side of that diagram is the entire argument. Instead of a flat cap, the bond is *priced* — by what it would cost to clean up the worst case, multiplied by how much the plan could touch, discounted by how trustworthy the principal has shown itself to be.
