@@ -19,7 +19,7 @@ story, not a terminal dump.
 records `bun demos/<name>/scenario.ts`. See:
 
 - `demos/pub-sub-watch/scenario.ts` + `.tape` (this PR) — converted exemplar.
-- `demos/tube-router-multiplex/scenario.ts` (PR #276) — the origin of the style.
+- `demos/tube-router-multiplex/scenario.ts` (landed in #276) — the origin of the style.
 
 ```ts
 import { makeConsole, green, dim } from '../lib/console-conversation.ts';
@@ -42,9 +42,10 @@ first; leave pure single-command quickstarts as-is (a conversation frame would
 be noise there).
 
 **Batch 1 — coordination/messaging (highest payoff, most conversational):**
-`demos/blog/`: `pub-sub-watch` ✅, `file-claims`, `distributed-lock`,
-`salvage-rescue`, `begin-done-speedrun`, `tuples-tutorial`, `spark-spider-loop`,
-`spider-syllogisms`.
+- `demos/pub-sub-watch/` ✅ (this PR — new top-level dir, converted with scenario.ts)
+- `demos/blog/`: `file-claims`, `distributed-lock`, `salvage-rescue`,
+  `begin-done-speedrun`, `tuples-tutorial`, `spark-spider-loop`, `spider-syllogisms`
+  (these still use the old tape-only style; each gets a `scenario.ts` in its own follow-up PR).
 
 **Batch 2 — fleet:** `fleet-up`, `fleet-live`, `fleet-showcase`,
 `website-v2/public/demo-fleet.gif`, `demo-agents.gif`.

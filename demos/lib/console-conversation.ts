@@ -14,6 +14,9 @@
 
 // ── palette (ANSI; renders under Catppuccin Mocha in VHS) ───────────────────
 const sgr = (code: number, s: string) => `\x1b[${code}m${s}\x1b[0m`;
+// Multi-attribute helper: emits one SGR open + content + reset, so nesting
+// bold(green(x)) doesn't leave bold half-painted after green's inner reset.
+const sgr2 = (a: number, b: number, s: string) => `\x1b[${a};${b}m${s}\x1b[0m`;
 export const dim = (s: string) => sgr(2, s);
 export const bold = (s: string) => sgr(1, s);
 export const cyan = (s: string) => sgr(36, s); // actor / outbound
@@ -44,7 +47,7 @@ export function makeConsole(opts: ConsoleOptions = {}) {
       if (subtitle) await line(dim('  ' + subtitle));
       await line('');
     },
-    /** A numbered/badged act header (e.g. "① fan-out — ...") . */
+    /** A numbered/badged act header (e.g. "① fan-out — ..."). */
     async act(badge: string, label: string, note?: string) {
       await line(bold(badge + ' ' + label) + (note ? dim('  — ' + note) : ''));
     },
@@ -70,7 +73,9 @@ export function makeConsole(opts: ConsoleOptions = {}) {
     },
     /** Closing banner. */
     async done(s: string, tail?: string) {
-      await line(bold(green('  ✓ ' + s)) + (tail ? dim('  ' + tail) : ''));
+      // Use a single combined SGR (1;32 = bold+green) so the reset at the end
+      // doesn't wipe bold before green's own reset fires (Copilot #3364881865).
+      await line(sgr2(1, 32, '  ✓ ' + s) + (tail ? dim('  ' + tail) : ''));
     },
   };
 }
