@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — 2026-04-27.
+Accepted — 2026-06-10. Four-voice deliberation (proponent / pragmatic / antagonist / acme-specialist) completed; all three deliberators returned `accept` or `accept-with-conditions`; no ship blockers. ADR-0049 depends on this.
 
 ## Context
 

@@ -1,0 +1,24 @@
+{
+  "name": "@port-daddy/relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Port Daddy Relay — Cloudflare Worker (ADR-0049)",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "build": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "@noble/hashes": "^1.7.1"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.0",
+    "@cloudflare/workers-types": "^4.20260507.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0",
+    "wrangler": "^4.14.0"
+  }
+}
