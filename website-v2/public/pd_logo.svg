@@ -1,10 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="150 150 200 200" width="512" height="512" role="img" aria-labelledby="pd-t pd-d">
-  <title id="pd-t">Port Daddy</title>
-  <desc id="pd-d">The pd helm monogram: a cobalt p and pine d as mirror twins around a hub pivot.</desc>
-  <g fill="none" stroke-width="26" stroke-linecap="round">
-    <g stroke="#2076FE"><line x1="184" y1="195" x2="184" y2="330"/><circle cx="226" cy="250" r="42"/></g>
-    <g stroke="#0B7A66"><line x1="316" y1="305" x2="316" y2="170"/><circle cx="274" cy="250" r="42"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="48" height="48" role="img" aria-label="Port Daddy">
+  <defs>
+    <style>
+      :root {
+        --bg-light: #F4F7F9;
+        --cobalt: #2076FE;
+        --seafoam: #20DEB0;
+        --amber: #FFB505;
+      }
+      /* Multiply keeps light-mode overlaps deep instead of washing out */
+      .pd-center {
+        transform-origin: 50px 50px;
+        animation: pd-flip 6s cubic-bezier(0.77, 0, 0.17, 1) infinite;
+        mix-blend-mode: multiply;
+      }
+      .ring-outer { transform-origin: 50px 50px; animation: spin-accel-decel 5s ease-in-out infinite; }
+      .ring-inner { transform-origin: 50px 50px; animation: spin-rev-accel-decel 7s ease-in-out infinite; }
+      @keyframes pd-flip { 0%,15%{transform:rotate(0)} 45%,65%{transform:rotate(180deg)} 85%,100%{transform:rotate(360deg)} }
+      @keyframes spin-accel-decel { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+      @keyframes spin-rev-accel-decel { 0%{transform:rotate(0)} 100%{transform:rotate(-360deg)} }
+      .color-cobalt  { stroke: var(--cobalt); fill: none; }
+      .color-seafoam { stroke: var(--seafoam); fill: none; }
+      .color-amber   { stroke: var(--amber); fill: none; }
+      @media (prefers-reduced-motion: reduce) {
+        .pd-center, .ring-outer, .ring-inner { animation: none; }
+      }
+    </style>
+  </defs>
+  <circle cx="50" cy="50" r="50" fill="var(--bg-light)" />
+  <g class="ring-outer">
+    <circle cx="50" cy="50" r="38" class="color-amber" stroke-width="1.5" stroke-dasharray="40 10 20 10" />
+    <line x1="50" y1="8" x2="50" y2="12" class="color-amber" stroke-width="2" stroke-linecap="round"/>
+    <line x1="50" y1="88" x2="50" y2="92" class="color-amber" stroke-width="2" stroke-linecap="round"/>
+    <line x1="8" y1="50" x2="12" y2="50" class="color-amber" stroke-width="2" stroke-linecap="round"/>
+    <line x1="88" y1="50" x2="92" y2="50" class="color-amber" stroke-width="2" stroke-linecap="round"/>
   </g>
-  <circle cx="250" cy="250" r="11" fill="#f2eee6" stroke="#C77A00" stroke-width="5"/>
-  <circle cx="250" cy="250" r="3" fill="#C77A00"/>
+  <g class="ring-inner">
+    <circle cx="50" cy="50" r="30" class="color-cobalt" stroke-width="1" stroke-dasharray="30 15 10 15" opacity="0.4"/>
+  </g>
+  <g class="pd-center">
+    <g class="color-cobalt" stroke-width="6" stroke-linecap="round">
+      <line x1="35" y1="33" x2="35" y2="67" />
+      <circle cx="45" cy="50" r="10" />
+    </g>
+    <g class="color-seafoam" stroke-width="6" stroke-linecap="round">
+      <line x1="65" y1="67" x2="65" y2="33" />
+      <circle cx="55" cy="50" r="10" />
+    </g>
+  </g>
+  <circle cx="50" cy="50" r="2.5" fill="var(--bg-light)" stroke="var(--cobalt)" stroke-width="1" />
+  <circle cx="50" cy="50" r="1" fill="var(--amber)" />
 </svg>
