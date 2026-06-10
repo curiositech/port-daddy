@@ -229,8 +229,10 @@ async function seedWorld() {
   // ── 1. Claim deterministic ports ──────────────────────────────────────────
   // PD hashes identity→port so the same identity always claims the same port.
   // Seeding these identities makes `pd services` output deterministic.
-  await pdQ('claim', 'port-daddy:api:main')
-  await pdQ('claim', 'port-daddy:website:dev')
+  // Capture the assigned ports for DNS registration below so we don't
+  // hardcode them twice (claiming is the authoritative source of truth).
+  const apiPort = (await pdQ('claim', 'port-daddy:api:main')).trim()
+  const websitePort = (await pdQ('claim', 'port-daddy:website:dev')).trim()
   await pdQ('claim', 'port-daddy:worker:main')
 
   // ── 2. Begin sessions (fixed purpose text = fixed recording content) ───────
@@ -255,8 +257,10 @@ async function seedWorld() {
   await pdQ('note', 'Search indexer resumed from checkpoint page 412')
 
   // ── 4. DNS records ────────────────────────────────────────────────────────
-  await pdQ('dns', 'register', '--hostname', 'api.demo.local', '--port', '3100', '--service', 'port-daddy:api:main')
-  await pdQ('dns', 'register', '--hostname', 'web.demo.local', '--port', '3101', '--service', 'port-daddy:website:dev')
+  // Use the ports resolved by claim above — no hardcoding; identity→port is
+  // already deterministic via PD's hash so these values are stable across runs.
+  await pdQ('dns', 'register', '--hostname', 'api.demo.local', '--port', apiPort, '--service', 'port-daddy:api:main')
+  await pdQ('dns', 'register', '--hostname', 'web.demo.local', '--port', websitePort, '--service', 'port-daddy:website:dev')
 
   // ── 5. Channels ───────────────────────────────────────────────────────────
   // NOT seeded here — channels embed the seed machine's git-context (repo_key,

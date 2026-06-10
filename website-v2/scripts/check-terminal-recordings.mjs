@@ -1,8 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { join, resolve } from 'node:path'
 
-const root = new URL('..', import.meta.url).pathname
-const sourceRoot = new URL('../src', import.meta.url).pathname
+const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
+const sourceRoot = resolve(fileURLToPath(new URL('../src', import.meta.url)))
 
 const suspiciousPatterns = [
   /ERROR:/,

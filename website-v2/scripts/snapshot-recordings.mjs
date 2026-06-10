@@ -17,10 +17,11 @@
  * commit, visible in the PR, is the explicit approval.
  */
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
-import { join, dirname, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { join, dirname, resolve, relative } from 'node:path'
 import { castToTranscript, scrubEphemerals } from './lib/cast-transcript.mjs'
 
-const websiteRoot = new URL('..', import.meta.url).pathname
+const websiteRoot = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const castsDir = join(websiteRoot, 'public/casts')
 const snapDir = join(websiteRoot, 'recordings-snapshots')
 const mode = process.argv.includes('--update') ? 'update' : 'check'

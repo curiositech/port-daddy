@@ -263,6 +263,12 @@ jobs:
         run: npm run record:gifs
 
       - name: Drift gate — check all 42 recordings match their golden transcript
+        # 38 of 42 casts are regenerated above (31 site + 7 agent). The remaining
+        # 4 root-level casts (quickstart, fleet, diagnostics, coordination at
+        # public/casts/*.cast) are legacy casts recorded manually; they are not
+        # regenerated in CI but their committed golden transcripts are still
+        # snapshot-checked here — any unreviewed change in those files will also
+        # cause this step to fail.
         working-directory: website-v2
         run: npm run test:gifs
 

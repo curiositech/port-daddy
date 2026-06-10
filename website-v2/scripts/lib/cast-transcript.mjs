@@ -92,7 +92,7 @@ const EPHEMERAL_RULES = [
   [/\b\d+h \d+m \d+s\b/g, '<UPTIME>'],
   [/\b\d+h \d+m\b/g, '<UPTIME>'],
   [/\b\d+m \d+s\b/g, '<UPTIME>'],
-  [/(?<=Uptime:\s{0,10})\d+m\b/g, '<UPTIME>'],
+  [/(Uptime:\s{0,10})\d+m\b/g, '$1<UPTIME>'],
   // Durations: 7ms, 1.2s, 250µs, 13ns.
   [/\b\d+(?:\.\d+)?\s?(?:ms|µs|us|ns)\b/g, '<DUR>'],
   [/\b\d+(?:\.\d+)?s\b/g, '<DUR>'],
