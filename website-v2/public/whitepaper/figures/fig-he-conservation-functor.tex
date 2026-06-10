@@ -29,7 +29,7 @@
 \draw[mor] (h1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (h2);
 \draw[mor] (h1) -- (fed);
 \draw[mor] (h2) -- (fed);
-\node[font=\scriptsize\itshape,below=1mm of fed,text=hhink,
+\node[font=\scriptsize\itshape,below=2mm of left.south,text=hhink,
       text width=58mm,align=center]
   {$F(g\circ f)=F(g)\circ F(f)$\\ conservation \emph{preserved} (proven)};
 
@@ -47,7 +47,7 @@
 \node[draw=hhcobalt,thick,fill=hhpaper,circle,inner sep=1pt,
       font=\scriptsize,minimum size=6mm] (cell)
       at ($(right.center)+(0,1mm)$) {$\varphi$};
-\node[font=\scriptsize\itshape,below=1mm of gfed,text=hhink,
+\node[font=\scriptsize\itshape,below=2mm of right.south,text=hhink,
       text width=58mm,align=center]
   {$F(g\circ f)\;\overset{\varphi}{\Rightarrow}\;F(g)\circ F(f)$\\
    \emph{lax}: preserved only up to escrow-slack $\varphi$; coherence \emph{unproven}};
@@ -56,15 +56,6 @@
 \draw[fmap] (left.east) -- node[above,font=\bfseries\footnotesize]
   {as units diverge} ($(right.west)$);
 
-% ─── The unified open problem banner ───────────────────────────────────
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
-      text width=150mm,align=center,below=10mm of left,xshift=49mm,
-      font=\footnotesize] (sheaf)
-  {\textbf{One question, three guises.} ``Does the assignment $harbor
-   \mapsto its ledger$ form a \emph{sheaf}?'' \;
-   The double-spend / equivocation race is the \textbf{non-vanishing of $H^1$ of
-   the gluing}. Open Problems on cross-harbor settlement, equivocation, and
-   unit-of-account are the \emph{same} obstruction (\S\ref{sec:sheaf}).};
 
 \end{tikzpicture}%
 }

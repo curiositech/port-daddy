@@ -1,7 +1,8 @@
 % Figure 1 — the four-layer coordination stack. Where THIS paper sits: the two
 % lowest layers (substrate + the implemented half of coordination), what it
-% ASSUMES from the machine below, what it PROVIDES upward, and which companion
-% papers build on it.
+% ASSUMES from the machine below, what it PROVIDES upward.
+% Design: one bold title + small-caps whom per layer, one italic content line;
+% companion attributions and the assumes/provides inventories live in the caption.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -14,74 +15,53 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{\textwidth}{!}{%
+\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   rung/.style={draw=hhebony,thick,rounded corners=4pt,
-               minimum width=120mm,minimum height=18mm,
-               align=left,inner sep=7pt,text width=112mm},
+               minimum width=130mm,minimum height=15mm,
+               align=left,inner sep=7pt,text width=122mm},
   here/.style={draw=hhcobalt,line width=1.6pt,fill=hhsand!30,
-               rounded corners=4pt,minimum width=120mm,minimum height=18mm,
-               align=left,inner sep=7pt,text width=112mm},
-  tag/.style={font=\bfseries\footnotesize,inner sep=2pt},
-  paper/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,
-                inner sep=4pt,font=\footnotesize,text width=42mm,align=center},
+               rounded corners=4pt,minimum width=130mm,minimum height=15mm,
+               align=left,inner sep=7pt,text width=122mm},
 ]
 
 % ─── The four layers, top (economy) to bottom (machine) ───────────────────
 \node[rung,fill=hhsand!30] (l3) at (0,0)
-  {{\bfseries Economy \& federation}\quad\textit{for the market between operators}\\[2pt]
-   \footnotesize a settlement ledger $\cdot$ escrow $\cdot$ reputation $\cdot$ cross-machine
-   federation $\cdot$ cross-machine capability transfer.\quad\textit{Companion: ``The Harbor Economy.''}};
+  {{\bfseries Economy \& federation}\hfill{\footnotesize\textsc{for the market}}\\[2pt]
+   \textit{settlement ledger, escrow, reputation, cross-machine federation}};
+\node[rung,fill=hhsand!30,below=7mm of l3] (l2)
+  {{\bfseries Legibility \& authority}\hfill{\footnotesize\textsc{for the operator}}\\[2pt]
+   \textit{digest-with-zoom, roadmap-as-truth, adversarial review, the console}};
+\node[here,below=7mm of l2] (l1)
+  {{\bfseries Coordination protocol}\hfill{\footnotesize\textsc{for the agents}}\\[2pt]
+   \textit{typed speech acts, commitments, delegation, a policy monitor}};
+\node[here,below=7mm of l1] (l0)
+  {{\bfseries Substrate --- the daemon (the kernel)}\hfill{\footnotesize\textsc{for the machine}}\\[2pt]
+   \textit{always-on SQLite/WAL source of truth: ports, claims, sessions, bus, memory}};
+\node[rung,fill=hhebony,text=hhpaper,below=11mm of l0] (os)
+  {{\bfseries The machine / operating system}\hfill{\footnotesize\textsc{the floor}}\\[2pt]
+   \textit{POSIX file lock $\cdot$ wall clock $\cdot$ Unix sockets $\cdot$ keychain $\cdot$ supervisor}};
 
-\node[rung,fill=hhsand!30,below=8mm of l3] (l2)
-  {{\bfseries Legibility \& authority}\quad\textit{for the operator}\\[2pt]
-   \footnotesize a digest with zoom $\cdot$ a roadmap as truth $\cdot$ adversarial review $\cdot$
-   the console.\quad\textit{Companion: ``The Legible Swarm.''}};
+% "this paper" flags
+\node[anchor=west,font=\bfseries\footnotesize,text=hhcobalt]
+  at ([xshift=3mm]l1.east) {$\blacktriangleleft$ this paper (carrier half)};
+\node[anchor=west,font=\bfseries\footnotesize,text=hhcobalt]
+  at ([xshift=3mm]l0.east) {$\blacktriangleleft$ this paper (core)};
 
-\node[here,below=8mm of l2] (l1)
-  {{\bfseries Coordination protocol}\quad\textit{for the agents}\\[2pt]
-   \footnotesize typed speech acts + commitments + delegation + a policy monitor.
-   \textbf{This paper specifies the implemented carrier half} (bus, markers,
-   commitments, the cryptographic authorization chain, the monitor); the
-   \emph{semantics half} (protocol state machines, the agent sandbox) is a companion paper's.};
-\node[tag,text=hhink,anchor=north east,above=-2pt of l1.north east,xshift=-4pt]{\textsc{this paper}};
+% ─── assumes (down) / provides (up) across the floor ──────────────────────
+\draw[->,>=Latex,very thick,hhcobalt]
+  ([xshift=18mm]l0.south) -- ([xshift=18mm]os.north)
+  node[midway,right=1mm,font=\scriptsize\itshape,text=hhink]{assumes};
+\draw[->,>=Latex,very thick,hhteal]
+  ([xshift=-18mm]os.north) -- ([xshift=-18mm]l0.south)
+  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{provides};
 
-\node[here,below=8mm of l1] (l0)
-  {{\bfseries Substrate --- the daemon (the kernel)}\quad\textit{for the machine}\\[2pt]
-   \footnotesize an always-on local SQLite/WAL source of truth: ports, claims,
-   sessions, a message bus, commitments, a policy monitor, memory.
-   \textbf{This paper's core.}\quad{\bfseries\textsf{implemented}}.};
-\node[tag,text=hhink,anchor=north east,above=-2pt of l0.north east,xshift=-4pt]{\textsc{this paper}};
-
-% ─── Machine / OS floor ───────────────────────────────────────────────────
-\node[rung,fill=hhebony,text=hhpaper,below=14mm of l0,minimum height=13mm] (os)
-  {{\bfseries The machine / operating system}\quad\textit{(what the substrate stands on, not a layer)}\\[2pt]
-   \footnotesize a POSIX filesystem with advisory file locking $\cdot$ a local wall clock $\cdot$
-   Unix domain sockets $\cdot$ an OS keychain $\cdot$ a service supervisor to keep the daemon alive.};
-
-% ─── ASSUMES (down) and PROVIDES (up) annotations, set well clear of boxes ──
-\draw[->,>=Latex,thick,hhcobalt]
-  ([xshift=-30mm]l0.south) -- ([xshift=-30mm]os.north);
-\node[font=\footnotesize\itshape,text=hhink,align=right,text width=40mm,anchor=east]
-  at ($([xshift=-32mm]l0.south)!0.5!([xshift=-32mm]os.north)$)
-  {\textsc{assumes:} advisory file lock, one clock, a supervisor};
-\draw[->,>=Latex,thick,hhteal]
-  ([xshift=30mm]os.north) -- ([xshift=30mm]l0.south);
-\node[font=\footnotesize\itshape,text=hhink,align=left,text width=40mm,anchor=west]
-  at ($([xshift=32mm]os.north)!0.5!([xshift=32mm]l0.south)$)
-  {\textsc{provides up:} atomic TTL'd claims, a durable bus, the deontic split, an audit log};
-
-% ─── Layer-API arrows up the stack ────────────────────────────────────────
-\draw[->,>=Latex,thick,hhteal] ([xshift=48mm]l0.north) -- ([xshift=48mm]l1.south);
-\draw[->,>=Latex,thick,hhteal] ([xshift=48mm]l1.north) -- ([xshift=48mm]l2.south)
-  node[midway,right=1pt,font=\footnotesize\itshape,text=hhink]{layer API $\Uparrow$};
-\draw[->,>=Latex,thick,hhteal] ([xshift=48mm]l2.north) -- ([xshift=48mm]l3.south);
-
-% ─── Companion-paper pointer ──────────────────────────────────────────────
-\node[paper,anchor=west] (cites) at ([xshift=12mm]l2.east) {%
-  \textbf{Built on by:}\\ the legibility, personhood, and economy papers};
-\draw[->,>=Latex,thick,hhamber,dashed] (cites.south west) to[bend left=10] ([xshift=44mm]l0.east);
+% ─── layer-API chain up the stack ─────────────────────────────────────────
+\draw[->,>=Latex,thick,hhteal] ([xshift=-18mm]l0.north) -- ([xshift=-18mm]l1.south);
+\draw[->,>=Latex,thick,hhteal] ([xshift=-18mm]l1.north) -- ([xshift=-18mm]l2.south)
+  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{layer API};
+\draw[->,>=Latex,thick,hhteal] ([xshift=-18mm]l2.north) -- ([xshift=-18mm]l3.south);
 
 \end{tikzpicture}%
 }
@@ -89,10 +69,12 @@
 \emph{whom} (machine, agents, operator, market). \textbf{This paper owns the two
 lowest layers}: all of the substrate (the kernel) and the implemented carrier half
 of coordination (the message bus, stigmergic markers, commitments, the cryptographic
-authorization chain, the policy monitor). The coordination \emph{semantics}
+authorization chain, the policy monitor); the coordination \emph{semantics}
 (protocol state machines, the agent sandbox) and the whole legibility layer belong
-to a companion paper; cross-machine capability transfer belongs to the economy
-layer. Cobalt shows what the substrate \emph{assumes} from the machine; teal
-shows what it \emph{provides} upward. Every companion paper builds on this one.}
+to companion papers (\emph{The Legible Swarm}; \emph{The Harbor Economy} owns the
+market rung). From the machine the substrate \emph{assumes} only an advisory file
+lock, one clock, and a supervisor; upward it \emph{provides} atomic TTL'd claims, a
+durable bus, the deontic split, and an audit log. Every companion paper builds on
+this one.}
 \label{fig:swk-stack-map}
 \end{figure}
