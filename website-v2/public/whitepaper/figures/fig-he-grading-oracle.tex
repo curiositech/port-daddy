@@ -2,9 +2,9 @@
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D4C5A9}
 \providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EE}
 
 \begin{figure}[H]
@@ -14,7 +14,7 @@
   font=\small,
   box/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=3pt,
               inner sep=5pt,text width=36mm,align=center,minimum height=15mm},
-  oracle/.style={draw=hhcinnabar,line width=1.4pt,fill=hhsand!30,
+  oracle/.style={draw=hhcobalt,line width=1.4pt,fill=hhsand!30,
                  rounded corners=3pt,inner sep=5pt,text width=40mm,
                  align=center,minimum height=18mm},
   fix/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=3pt,
@@ -33,12 +33,12 @@
 \draw[flow] (grade) -- node[above,font=\scriptsize]{public signal} (folk);
 
 % the capture attack
-\node[draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
       font=\scriptsize\itshape,text=hhink,text width=44mm,
       align=center,above=8mm of grade] (capture)
   {\textbf{but the grade is produced by a capturable evaluator}\\
    (an adversarial reviewer or a ``neutral judge'')};
-\draw[->,>=Latex,thick,hhcinnabar] (capture) -- (grade);
+\draw[->,>=Latex,thick,hhcobalt] (capture) -- (grade);
 \node[font=\scriptsize\itshape,text=hhink,below=1mm of folk,
       text width=42mm,align=center]
   {Green--Porter / APS: the folk theorem needs the signal distribution
