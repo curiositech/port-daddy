@@ -1,5 +1,6 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
+import { CapabilityBand } from '@/components/landing/CapabilityBand'
 import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
 import { TubeShowcase } from '@/components/landing/TubeShowcase'
 import { TubeMultiplexSection } from '@/components/landing/TubeMultiplexSection'
@@ -34,6 +35,9 @@ export default function App() {
             7. Features        — catalog after the reader has context
         */}
         <Hero />
+        {/* CapabilityBand: above-the-fold feature band — Coast Guard / dispatch / tube / cockpit.
+            Placed immediately after the Hero so it lands in the first viewport-scroll. */}
+        <CapabilityBand />
         <CliBackendValueProp />
         <TerminalDemos />
         <CoordinationEnforcementSection />
