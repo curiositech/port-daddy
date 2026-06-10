@@ -303,6 +303,57 @@ export async function handleSubscribe(
     10
   );
 
+  // If fromSeq > 0, fetch missed events from D1 and prepend them to the live SSE stream.
+  // This closes the replay gap: a reconnecting subscriber with last_seq=N gets events N+1..tip
+  // before the live stream opens, preventing silent event loss.
+  if (fromSeq > 0) {
+    const missedEvents = await env.DB.prepare(
+      `SELECT * FROM events WHERE channel = ? AND seq > ? ORDER BY seq ASC LIMIT 500`
+    ).bind(firstChannel, fromSeq).all<{
+      sender: string; channel: string; seq: number; prev_hash: string; this_hash: string;
+      iat: number; ciphertext: string; sig: string;
+    }>();
+
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = writable.getWriter();
+    const enc = new TextEncoder();
+
+    // Write backfill events synchronously before handing off to DO
+    const backfillPromise = (async () => {
+      for (const ev of missedEvents.results) {
+        const msg = { type: 'event', payload: JSON.stringify(ev) };
+        await writer.write(enc.encode(`data: ${JSON.stringify(msg)}
+
+`));
+      }
+      // Pipe the DO live stream into the remainder
+      const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
+      const doResp = await stub.fetch(doUrl);
+      if (doResp.body) {
+        const reader = doResp.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          await writer.write(value);
+        }
+      }
+      await writer.close();
+    })();
+
+    // Don't await backfillPromise — it writes into the stream asynchronously while the
+    // Response streams to the client. Unhandled rejection on backfill closes the stream.
+    backfillPromise.catch(() => writer.abort());
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  }
+
   const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
   return stub.fetch(doUrl);
 }
