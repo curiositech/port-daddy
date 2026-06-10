@@ -1436,17 +1436,22 @@ export default function App() {
   }, [fleet, selectedProjectId]);
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
-  // Online = the daemon is reachable (we have a fleet status and the last
-  // refresh didn't error), NOT whether the fleet engine happens to be running.
-  // useFleet nulls status + sets error on a failed fetch (see useFleet.refresh).
-  const daemonRunning = !!fleet.status && !fleet.error;
-
   // Operator state — single /operator/state fetch driving the Operator tab
   const operatorStateHook = useOperatorState({
     project: selectedProjectName ?? undefined,
     projectDir: selectedProjectDir ?? undefined,
     enabled: activeTab === 'Operator' || !selectedProjectId,
   });
+
+  // Online = the daemon is REACHABLE, not whether the fleet engine is "running".
+  // Either successful read proves reachability: the fleet-status fetch (useFleet,
+  // which may resolve a different daemon URL than the Operator surface) OR the
+  // /operator/state fetch the control center actually renders from. Tolerating
+  // either avoids a false "offline" when one resolver path is unavailable but the
+  // daemon is plainly up (the bug: badge read "offline" while serving live data).
+  const daemonRunning =
+    (!!fleet.status && !fleet.error) ||
+    (!!operatorStateHook.state && !operatorStateHook.error);
 
   const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Shipwright', 'YAML'];
   // Metrics are daemon-wide (request volume, latency, seasonality), so they're useful even
