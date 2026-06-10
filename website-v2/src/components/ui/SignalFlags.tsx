@@ -187,20 +187,20 @@ export function SignalFlagLegend({ size = 'md', className, verbose = false }: Si
             <SignalFlag flag={name} size={size} />
             <div className="flex flex-col">
               <span
-                className="text-xs font-semibold leading-tight"
+                className="text-[length:var(--type-meta-size)] font-semibold leading-tight"
                 style={{ color: 'var(--text-primary)' }}
               >
                 {meta.name}
               </span>
               <span
-                className="text-xs leading-tight"
+                className="text-[length:var(--type-meta-size)] leading-tight"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {meta.meaning}
               </span>
               {verbose && (
                 <span
-                  className="text-[10px] leading-tight"
+                  className="text-[12px] leading-tight"
                   style={{ color: 'var(--text-muted)' }}
                 >
                   {meta.usedFor}

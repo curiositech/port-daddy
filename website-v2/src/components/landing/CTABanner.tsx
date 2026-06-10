@@ -103,7 +103,7 @@ export function CTABanner() {
                 <MonitorCheck size={17} className="text-[var(--brand-primary)]" />
                 <PanelEyebrow>FleetBar first</PanelEyebrow>
               </div>
-              <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[10px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
+              <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[12px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
                 Human surface
               </span>
             </div>
@@ -134,7 +134,7 @@ export function CTABanner() {
                   <span className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
                     {label}
                   </span>
-                  <span className="text-right font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                  <span className="text-right font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
                     {value}
                   </span>
                 </div>

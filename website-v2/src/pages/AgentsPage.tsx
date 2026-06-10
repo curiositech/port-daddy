@@ -1371,7 +1371,7 @@ function YamlCodeBlock({ code, label }: { code: string; label: string }) {
       <pre
         tabIndex={0}
         aria-label={`${label} YAML`}
-        className="m-0 max-h-[32rem] min-w-0 overflow-auto border-2 border-[var(--border-strong)] bg-[var(--code-bg)] px-[var(--space-4)] py-[var(--space-4)] font-mono text-[13px] leading-[1.6] text-[var(--code-text)]"
+        className="m-0 max-h-[32rem] min-w-0 overflow-auto border-2 border-[var(--border-strong)] bg-[var(--code-bg)] px-[var(--space-4)] py-[var(--space-4)] font-mono text-[14px] leading-[1.6] text-[var(--code-text)]"
       >
         {code.split('\n').map((line, index) => (
           <div key={`${index}-${line.slice(0, 16)}`}>{highlightYamlLine(line)}</div>
@@ -1407,7 +1407,7 @@ function AgentSectionNav() {
             end={item.end}
             className={({ isActive }) =>
               [
-                'flex shrink-0 items-center justify-between gap-[var(--space-2)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[0.78rem] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
+                'flex shrink-0 items-center justify-between gap-[var(--space-2)] border-2 px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
                 isActive
                   ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
                   : 'border-transparent text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-base)]',
