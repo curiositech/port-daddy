@@ -18,7 +18,7 @@ I am steel-manning the vision before I push back. Then I push back. Then I name 
 2. **The "exponentially gifted" framing has no published support.** No 2024–2026 paper I can find shows superlinear scaling of multi-agent quality with agent count on a real benchmark. The strongest documented gain — Sakana's AB-MCTS on ARC-AGI-2 — is **27.5% vs 23%** for the best single model, a real but **+4.5pp absolute** lift, not an exponential one [#sakana-abmcts]. The pattern is "diminishing returns past a small N," not "exponential emergence."
 3. **"N agents" and "N OS processes" are different questions, and the operator's instinct that they might be is correct and undervalued.** Isolation buys *context-window decoupling* (each sub-agent's tool-output noise stays out of the orchestrator's window) and *RNG-seed/role decorrelation*. Multi-process buys *true wall-clock parallelism and fault containment*. Most of the published gains come from context isolation, not from multi-process. PD's current model (worktrees + sessions + claims) already gives you the first; the second is a separable choice driven by latency, not quality.
 4. **"PD-trained-on-Cloudflare rivals Opus" is a 24-month, capital-intensive moonshot under the most optimistic reading**, and the cheaper path — *PD as a coordination + context-engineering substrate that uses frontier models as building blocks* — captures most of the realistic upside without competing on training capital. Cloudflare Workers AI does not currently support fine-tuning; that alone moves "PD ships its own SOTA model" out of the next-12-month feasible set.
-5. **Three refactors are worth doing regardless of whether the hive-mind vision pans out, because they win on plain coordination grounds:** (a) symbol-region claims as a first-class primitive (not just file claims), (b) typed message envelopes with a small ontology of intents (proposal / critique / decision / escalation / commitment), and (c) cost-and-budget accounting per session so swarm experiments fail loudly when they over-spend instead of silently. The first one is the one to do this month.
+5. **Three refactors are worth doing regardless of whether the hive-mind vision pans out, because they win on plain coordination grounds:** (a) symbol-region claim *conflict resolution* as a first-class semantic (the schema already stores regions; the arbiter doesn't yet use them to disambiguate), (b) typed message envelopes with a small ontology of intents (proposal / critique / decision / escalation / commitment), and (c) cost-and-budget accounting per session so swarm experiments fail loudly when they over-spend instead of silently. The first one is the one to do this month.
 
 ---
 
@@ -62,7 +62,7 @@ Walden Yan at Cognition (the company behind the Devin coding agent) shipped the 
 1. **Always share as much context as possible across decisions.**
 2. **Avoid splitting decision-making in ways that could conflict.**
 
-The failure mode Cognition names is **action-level divergence**: two sub-agents take *individually plausible* actions whose combined effect is a broken codebase — Agent A renames `validateUser` to `verifyUser`, Agent B writes new code calling `validateUser`. The git merge succeeds. The tests fail. The orchestrator, lacking shared context, doesn't catch it. This is exactly the **semantic conflict** failure named in `~/.claude/skills/multi-agent-coordination/SKILL.md` (lines 405–408).
+The failure mode Cognition names is **action-level divergence**: two sub-agents take *individually plausible* actions whose combined effect is a broken codebase — Agent A renames `validateUser` to `verifyUser`, Agent B writes new code calling `validateUser`. The git merge succeeds. The tests fail. The orchestrator, lacking shared context, doesn't catch it. This is exactly the **semantic conflict** failure named in `skills/multi-agent-coordination/SKILL.md` (lines 405–408).
 
 Cognition's prescription is a **single-threaded linear agent** with **hierarchical context compression** — when the window fills, a summarizer model shrinks the history, but the *thread of thought* stays unbroken. This is the opposite topology of Anthropic's.
 
@@ -228,9 +228,9 @@ Cloudflare Workers AI today (June 2026) does not offer fine-tuning [#cloudflare-
 
 These are decoupled from the hive-mind question. They are good ideas because they fix coordination failures PD already has. They become *load-bearing* if the operator chooses to pursue (ii).
 
-### 7.1 Symbol-region claims as a first-class primitive (the one to do)
+### 7.1 Symbol-region claim conflict resolution (the one to do)
 
-Today PD claims at file granularity. `lib/symbol-index.ts` exists (2026-03-30) but is not wired into claim resolution. When two agents want to touch the same file but different functions, today they conflict; tomorrow they should be able to claim `src/auth/middleware.ts::validateUser` (lines 23–45) and `src/auth/middleware.ts::refreshToken` (lines 100–145) independently.
+PD's `session_files` table already carries `start_line`, `end_line`, and `symbol_path` columns (added in "feat: Region-level file claims, session phases"). The schema and the route-level validation in `routes/sessions.ts` accept region objects today. What is not yet present is *conflict-resolution semantics*: the arbiter does not yet detect that two region claims overlap and block or sequence them. When two agents want to touch the same file but different functions, today they may conflict at the file level even when their symbol regions are disjoint; the goal is to claim `src/auth/middleware.ts::validateUser` (lines 23–45) and `src/auth/middleware.ts::refreshToken` (lines 100–145) independently without a false conflict.
 
 This is the single refactor that unlocks the most coordination patterns:
 
@@ -238,7 +238,7 @@ This is the single refactor that unlocks the most coordination patterns:
 - It addresses the Cognition "action-level divergence" failure mode — symbol claims surface the conflict at the resolver level before the merge, not at the test failure after.
 - The infrastructure (tree-sitter WASM symbol extraction) already exists. The work is wiring + tests.
 
-**Scope.** ~5 days of focused work. Existing `session_files` table already has `start_line`/`end_line`/`symbol` columns. The hard part is the conflict resolution semantics: what does "claim function `foo` in file `bar`" mean when another agent has claimed the whole file? Two reasonable choices: (a) whole-file claim is a superset and blocks symbol claims; (b) symbol claims compose, whole-file claim only blocks if no symbol claim exists. Pick one in an ADR before writing code.
+**Scope.** ~3 days of focused work. The schema and route-level region storage are already there (`session_files.start_line`, `end_line`, `symbol_path`). The remaining work is conflict-resolution semantics in the arbiter: what does "claim function `foo` in file `bar`" mean when another agent has claimed the whole file? Two reasonable choices: (a) whole-file claim is a superset and blocks symbol claims; (b) symbol claims compose, whole-file claim only blocks if no symbol claim exists. Pick one in an ADR before writing code.
 
 ### 7.2 Typed message envelopes with a small intent ontology
 
@@ -258,7 +258,7 @@ PD's current `pd note` is untyped prose. A minimal refactor: add a `--intent` fl
 
 ### 7.3 Per-session cost-and-budget accounting that fails loudly
 
-The operator-stated hard cap on this very task was "~60 min wall, $5 token budget." PD does not enforce that today. A swarm experiment that silently burns $50 because nothing was watching is a Bad Outcome™ in the operator's own words ("It is important you know the cost of construction" — repo CLAUDE.md). The refactor:
+The operator-stated hard cap on this very task was "~60 min wall, $5 token budget." PD does not enforce that today. A swarm experiment that silently burns $50 because nothing was watching is a Bad Outcome™ in the operator's own words ("It is important you know the cost of construction" — operator standing policy, `AGENTS.md §Cost`). The refactor:
 
 - A `session.budget_usd` field with a fail-closed default.
 - Per-tool-call cost accrual against the session.
@@ -283,7 +283,7 @@ The operator's framing implicitly conflates **"many agents"** with **"better out
 
 For tasks whose surface is wider than one context window and whose subtasks are decorrelated, many-agents with context isolation wins. For tasks whose surface is narrower or whose decisions chain, **a single well-prompted specialist agent often dominates a swarm**, and a single frontier model often dominates the specialist. The right architectural reflex is not "spawn more agents" but "match the topology to the task."
 
-The operator already knows half of this: the repo CLAUDE.md says "test-driven development is sublime — it gives you a measurable target for when a thing is done" and "no potemkin react apps." Both are the same instinct that the literature corroborates: *measure the gain, do not assume it.* Apply that instinct here. Build a tiny three-way comparison harness: single Opus 4.8 vs single Opus 4.8 with `--max_thinking_tokens` matched to the swarm's total budget vs a 3-sub-agent PD swarm. Run it on three workflows the operator actually cares about (expungement triage, repo refactor, blog research). The results will tell you which topology to bet on without anyone having to argue.
+The operator already knows half of this: the `AGENTS.md` standing policy says "test-driven development is sublime — it gives you a measurable target for when a thing is done" and "no potemkin apps." Both are the same instinct that the literature corroborates: *measure the gain, do not assume it.* Apply that instinct here. Build a tiny three-way comparison harness: single Opus 4.8 vs single Opus 4.8 with `--max_thinking_tokens` matched to the swarm's total budget vs a 3-sub-agent PD swarm. Run it on three workflows the operator actually cares about (expungement triage, repo refactor, blog research). The results will tell you which topology to bet on without anyone having to argue.
 
 This is the same move as Cognition's "Multi-Agents: What's Actually Working" — they didn't *believe* a topology, they *measured* it. The operator should too.
 
@@ -301,7 +301,7 @@ The difference between these futures is almost entirely about **which refactor i
 
 ## 10. The one refactor worth doing regardless
 
-**Symbol-region claims** (§7.1). It is the right answer if the hive-mind vision pans out. It is the right answer if it doesn't and PD stays a coordination substrate for single-threaded agents. It is the right answer if the operator decides PD is the substrate for vertical specialists. It removes a real, currently-experienced coordination failure (file-level conflicts on independent functions) and it unlocks the most other patterns downstream. The infrastructure exists. The scope is small. Ship it.
+**Symbol-region claim conflict resolution** (§7.1). It is the right answer if the hive-mind vision pans out. It is the right answer if it doesn't and PD stays a coordination substrate for single-threaded agents. It is the right answer if the operator decides PD is the substrate for vertical specialists. It removes a real, currently-experienced coordination failure (file-level conflicts on independent functions) and it unlocks the most other patterns downstream. The schema is already there; the resolver semantics are the remaining work. The scope is small. Ship it.
 
 ---
 
@@ -322,12 +322,12 @@ The difference between these futures is almost entirely about **which refactor i
 
 ## Sibling artifacts in this repo
 
-- `~/.claude/skills/multi-agent-coordination/SKILL.md` — coordination layering, worktree isolation, coupling matrix, anti-patterns (e.g., Coordinator Bottleneck, Optimistic Concurrency).
-- `~/.claude/skills/agent-conversation-protocols/SKILL.md` — request-response, supervisor-worker, fan-out/fan-in, critique-refine, debate, blackboard; the protocol layer this document depends on.
-- `~/.claude/skills/agentic-infrastructure-2026/SKILL.md` — framework selection and the "if every role could be replaced by a deterministic state machine, multi-agent is masking weak problem definition" shibboleth.
-- `~/.claude/skills/cooperative-vibe-coding/SKILL.md` — agent-as-collaborator patterns and the Spectator Sport / Latency Death Spiral failure modes.
-- `~/.claude/skills/hong-et-al-2024-metagpt/SKILL.md` — structured artifacts, pub-sub above >3 agents, executable feedback.
-- `~/.claude/skills/wu-2023-autogen/SKILL.md` — conversable agents, the Central Orchestrator Trap, the Human-as-Special-Case anti-pattern.
+- `skills/multi-agent-coordination/SKILL.md` — coordination layering, worktree isolation, coupling matrix, anti-patterns (e.g., Coordinator Bottleneck, Optimistic Concurrency).
+- `skills/agent-conversation-protocols/SKILL.md` — request-response, supervisor-worker, fan-out/fan-in, critique-refine, debate, blackboard; the protocol layer this document depends on.
+- `skills/agentic-infrastructure-2026/SKILL.md` — framework selection and the "if every role could be replaced by a deterministic state machine, multi-agent is masking weak problem definition" shibboleth.
+- `skills/cooperative-vibe-coding/SKILL.md` — agent-as-collaborator patterns and the Spectator Sport / Latency Death Spiral failure modes.
+- `skills/hong-et-al-2024-metagpt/SKILL.md` — structured artifacts, pub-sub above >3 agents, executable feedback.
+- `skills/wu-2023-autogen/SKILL.md` — conversable agents, the Central Orchestrator Trap, the Human-as-Special-Case anti-pattern.
 
 ## Document hygiene
 
