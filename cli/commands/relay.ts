@@ -96,7 +96,10 @@ export async function handleRelay(
   }
 
   if (sub === 'exchange') {
-    const token = (options.oidcToken as string | undefined) ?? process.env['ACTIONS_ID_TOKEN'];
+    const token =
+      (options['oidc-token'] as string | undefined) ??
+      (options['oidcToken'] as string | undefined) ??
+      process.env['ACTIONS_ID_TOKEN'];
     if (!token) {
       console.error('Error: --oidc-token or $ACTIONS_ID_TOKEN required');
       process.exit(1);
