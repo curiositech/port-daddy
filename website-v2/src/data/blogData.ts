@@ -1,3 +1,4 @@
+import attentionFirstCommandContent from './blog/attention-is-the-first-command.md?raw';
 import backendReadinessContent from './blog/backend-readiness-is-dependency-truth.md?raw';
 import bondPricingContent from './blog/bond-pricing-is-a-market.md?raw';
 import controlPlaneContent from './blog/control-plane-is-the-product.md?raw';
@@ -21,6 +22,7 @@ export interface BlogPost extends BlogPostMeta {
 }
 
 const contentBySlug: Record<string, string> = {
+  'attention-is-the-first-command': attentionFirstCommandContent,
   'backend-readiness-is-dependency-truth': backendReadinessContent,
   'bond-pricing-is-a-market': bondPricingContent,
   'control-plane-is-the-product': controlPlaneContent,
@@ -39,16 +41,34 @@ const contentBySlug: Record<string, string> = {
   'the-pr-that-reviews-itself': prReviewsItselfContent,
 };
 
-function contentForSlug(slug: string) {
-  const content = contentBySlug[slug];
-  if (!content) throw new Error(`Missing blog content for ${slug}`);
-  return content;
+// A post meta with no bundled content is a wiring bug (the .md exists but was
+// never imported + added to contentBySlug above). Historically this threw at
+// module-load time, which took down the ENTIRE blog — one unwired post blanked
+// every page. Instead, drop the offending post and log loudly. The blog stays
+// up; the gap is obvious in the console and to anyone auditing the build.
+const missingContentSlugs: string[] = [];
+
+export const blogPosts: BlogPost[] = blogPostMetas
+  .filter((post) => {
+    if (contentBySlug[post.slug]) return true;
+    missingContentSlugs.push(post.slug);
+    return false;
+  })
+  .map((post) => ({
+    ...post,
+    content: contentBySlug[post.slug],
+  }));
+
+if (missingContentSlugs.length > 0) {
+  // eslint-disable-next-line no-console
+  console.error(
+    `[blogData] ${missingContentSlugs.length} blog post(s) are missing bundled content and were hidden: ` +
+      `${missingContentSlugs.join(', ')}. Import the .md (?raw) and add it to contentBySlug in src/data/blogData.ts.`,
+  );
 }
 
-export const blogPosts: BlogPost[] = blogPostMetas.map((post) => ({
-  ...post,
-  content: contentForSlug(post.slug),
-}));
+/** Slugs whose meta exists but whose content was never wired in. Exported for build-time guards/tests. */
+export const blogPostsMissingContent: readonly string[] = missingContentSlugs;
 
 export { deprecatedBlogPosts };
 export type { BlogPostMeta, DeprecatedBlogPost } from './blogMetaData';
