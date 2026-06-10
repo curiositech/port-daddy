@@ -2,26 +2,28 @@
 
 ## Status
 
-Draft (Q6.2 sister ADR to 0035-dispatches). Documents shipped Rust binary
-at `core/pd-bosun/`; the Path B plan note ("launchd plist + zsh script
-for v1; Rust is a v2 conversation") was based on incomplete inspection of
-the repo. The Rust crate already exists.
+Accepted. Reconciled to shipped reality (2026-06): the Rust binary at
+`core/pd-bosun/` was already on `main` before this ADR was written. The
+"Path B plan note" (launchd plist + zsh script for v1; Rust is a v2
+conversation) was based on an incomplete inspection of the repo; the Rust
+crate already existed. Phase C (launchctl restart integration + exponential
+backoff) remains the next planned slice.
 
 ## Context
 
 The Port Daddy daemon is a long-running TypeScript Express server that
 holds the SQLite database, the message broker, the actor mailboxes, the
-spawner, and increasingly the dispatch state machine (ADR-0035). When
-the daemon dies — sleep wake-ups losing the SQLite file lock, port
-takeover from a stale process, OS sandbox kill, or just an unhandled
-promise rejection — every coordination surface goes dark.
+spawner, and increasingly the dispatch state machine. When the daemon
+dies — sleep wake-ups losing the SQLite file lock, port takeover from a
+stale process, OS sandbox kill, or just an unhandled promise rejection —
+every coordination surface goes dark.
 
 The fragility was tolerable when "coordination" meant "one human writing
-notes for one agent." The dispatch model (ADR-0035) makes daemon death
-**the** failure mode that breaks the operator's "walk away and come
-back to a PR" promise. A worker actor mid-dispatch with a dead daemon
-has nowhere to mark `review_ready`; a stuck `human_review_ready` row
-never fires the notification.
+notes for one agent." The dispatch model makes daemon death **the** failure
+mode that breaks the operator's "walk away and come back to a PR" promise.
+A worker actor mid-dispatch with a dead daemon has nowhere to mark
+`review_ready`; a stuck `human_review_ready` row never fires the
+notification.
 
 A small in-daemon heartbeat writer already exists (`lib/bosun-heartbeat.ts`,
 ADR-prior). It periodically renders an atomic JSON document at
@@ -183,8 +185,8 @@ on Homebrew (similar to `core/pd-fleet`'s pattern, when that exists).
 
 ## Related ADRs
 
-- **0035** (draft): dispatches — the product surface whose "walk away"
-  promise depends on bosun.
+- **0021**: bosun-consolidation — adopts "Bosun" as the single user-facing
+  name for the watchdog; 0036 is the implementation specification.
 - **0027**: relay-harbor-mesh — multi-daemon federation; explicitly
   out of scope for bosun.
 - **PR #32** (merged): bosun heartbeat displacement detection on the
