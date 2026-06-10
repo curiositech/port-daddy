@@ -37,10 +37,6 @@
 \node[capring,fill=hhamber!40,minimum width=32mm,minimum height=18mm]
   (inner) at (-1.4,-1.2)
   {{\bfseries AgentB cap}\\\texttt{db:write}, TTL = 5m};
-% Daemon principal: outside root, issues into root.
-\node[prin,above right=2mm and 10mm of root.east] (daemon) {Daemon};
-\draw[arr] (daemon.west) -- node[above,font=\sffamily\footnotesize] {issue}
-  (root.north east);
 % AgentA principal: outside the rings on the right; delegates the AgentA cap.
 \node[prin,right=12mm of mid.east,fill=hhsand!50] (agentA) {AgentA};
 \draw[arr] (agentA.west) -- node[above,font=\sffamily\footnotesize] {delegate}
@@ -51,10 +47,15 @@
 % Invariants side panel.
 \node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,align=left,
       inner sep=5pt,minimum width=58mm,right=12mm of agentA]
+  (invbox)
   {{\bfseries Attenuation invariants:}\\[2pt]
    $\bullet$ child cap $\subsetneq$ parent cap\\
    $\bullet$ child TTL $<$ parent TTL\\
    $\bullet$ child cannot re-grant beyond child cap};
+% Daemon principal: above the invariants panel so it does not overlap it.
+\node[prin,above=8mm of invbox.north,fill=hhcobalt!30] (daemon) {Daemon};
+\draw[arr] (daemon.south west) -- node[left,font=\sffamily\footnotesize] {issue}
+  (root.north east);
 % Forbidden grant attempt
 \node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
       below=6mm of agentB,align=center]

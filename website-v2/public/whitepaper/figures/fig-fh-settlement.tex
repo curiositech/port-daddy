@@ -42,12 +42,12 @@
 \node[stepbox,below=14mm of PB.south,xshift=2mm] (s3) {%
   \textbf{3.} Escrow verifies inclusion of $\alpha$'s actions in $R_B^{(e)}$ and matches against acceptance preconditions signed at stepbox 1. \emph{Two outcomes only.}};
 
-% ─── Two outcome arrows ───────────────────────────────────────────
-\node[party,fill=hhteal!30,below=24mm of s2.south] (Op) {%
+% ─── Outcome nodes — placed directly below each stepbox ──────────────────────
+\node[party,fill=hhteal!30,below=28mm of s2.south] (Op) {%
   \textbf{Clear:}\\\footnotesize $B$ paid out of bond,\\\footnotesize remainder refunded};
-\node[party,fill=hhcobalt!22,below=24mm of s2.south,xshift=50mm] (Or) {%
+\node[party,fill=hhcobalt!22,below=28mm of s3.south] (Or) {%
   \textbf{Refuse:}\\\footnotesize bond returned to $A$,\\\footnotesize escrow logs reason};
-\node[party,fill=hhcobalt!22,below=24mm of s2.south,xshift=-50mm] (Of) {%
+\node[party,fill=hhcobalt!22,below=28mm of s1.south] (Of) {%
   \textbf{Forbidden:}\\\footnotesize redirect, equivocate,\\\footnotesize delay past TTL};
 
 % ─── Flow edges ────────────────────────────────────────────────────
@@ -56,9 +56,11 @@
 \draw[edge] (PB.south) -- (s3.north);
 \draw[edge] (s1.east) -- (s2.west);
 \draw[edge] (s2.east) -- (s3.west);
-\draw[edge] (s2.south) -- (Op.north);
-\draw[edge] (s2.south) -- (Or.north);
-\draw[refuseedge] (s2.south) -- (Of.north);
+% Outcomes from the escrow verification step (s3)
+\draw[edge] (s3.south) -- (Op.north);
+\draw[edge] (s3.south) -- (Or.north);
+% Forbidden: structurally excluded — shown as dashed from escrow node
+\draw[refuseedge] (E.south) -- (Of.north);
 \node[font=\sffamily\scriptsize\itshape,text=hhcobalt,below=2pt of Of.south,text width=34mm,align=center]{ruled out structurally\\(Theorem~\ref{thm:fh-escrow-bound})};
 
 \end{tikzpicture}%

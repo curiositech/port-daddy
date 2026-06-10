@@ -19,7 +19,7 @@
                 align=center},
   esc/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
   trig/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
-               align=center},
+               align=center,text width=19mm},
   term/.style={draw=hhebony,thick,fill=hhteal!25,rounded corners=3pt,
                inner sep=8pt,align=left,minimum width=130mm,
                font=\sffamily\footnotesize},
@@ -33,19 +33,19 @@
   \sffamily\itshape\footnotesize claimant releases\\
   \sffamily\itshape\footnotesize the claim%
 };
-\node[stagebox,fill=hhsanddeep!70,right=22mm of s1] (s2) {%
+\node[stagebox,fill=hhsanddeep!70,right=28mm of s1] (s2) {%
   \sffamily\bfseries\footnotesize Stage 2\\[2pt]
   \sffamily\bfseries\small Time-out\\[3pt]
   \sffamily\itshape\footnotesize TTL expires,\\
   \sffamily\itshape\footnotesize auto-release%
 };
-\node[stagebox,fill=hhamber!40,right=22mm of s2] (s3) {%
+\node[stagebox,fill=hhamber!40,right=28mm of s2] (s3) {%
   \sffamily\bfseries\footnotesize Stage 3\\[2pt]
   \sffamily\bfseries\small Bonded preemption\\[3pt]
   \sffamily\itshape\footnotesize blocked agent posts\\
   \sffamily\itshape\footnotesize $B_{\mathrm{preempt}}$%
 };
-\node[stagebox,fill=hhteal!35,right=22mm of s3] (s4) {%
+\node[stagebox,fill=hhteal!35,right=28mm of s3] (s4) {%
   \sffamily\bfseries\footnotesize Stage 4\\[2pt]
   \sffamily\bfseries\small Human escalation\\[3pt]
   \sffamily\itshape\footnotesize via \texttt{request}\\

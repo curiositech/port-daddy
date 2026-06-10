@@ -52,10 +52,10 @@
 \draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
 \node[slot,fill=hhcobalt!75,text=white] at (b0s2) {c1};
 \draw[flow,line width=1.4pt]
-  (b0s2.west) to[out=180,in=180,looseness=1.8]
-  node[left=1mm,font=\sffamily\footnotesize,text=hhcobalt,align=right]
+  (b0s2.west) -- ++(-0.6,0)
+  node[midway,above=5mm,font=\sffamily\footnotesize,text=hhcobalt,align=center]
   {evict\\\texttt{2f}}
-  (b2s2.west);
+  -- ($(b2s2.west)+(-0.6,0)$) -- (b2s2.west);
 \node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
       align=left,anchor=north west,minimum width=58mm] at (5.5,0.4)
   {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
