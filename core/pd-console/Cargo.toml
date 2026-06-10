@@ -1,0 +1,21 @@
+[package]
+name = "pd-console"
+version = "0.1.0"
+edition = "2021"
+description = "Port Daddy operator console — a conversation multiplexer over the live control plane (ADR-0046). Engine first; GPUI shell renders it."
+
+[[bin]]
+name = "pd-console"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+dirs = "5"
+anyhow = "1"
+
+# NOTE: gpui (the Warp/Zed-class GPU shell) is added in the NEXT step — it is a heavy
+# git dependency (zed repo) whose first compile is many minutes. The engine below
+# compiles in seconds and is what proves "create + talk to top-level agents."
