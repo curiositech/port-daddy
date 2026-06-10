@@ -146,10 +146,33 @@ export function coastGuardStatus(home: string = process.env.HOME || ''): CoastGu
 // $HOME (the project's own .env included) — reads of secrets, not of code.
 
 /**
- * Build a Seatbelt profile (SBPL) that denies reads to the crown jewels while
- * allowing everything else. Pure + deterministic for unit testing.
+ * Options governing scope-tier WRITE confinement in a Seatbelt profile. When
+ * `writePolicy` is `read-only`, the profile adds `(deny file-write* (subpath
+ * <root>))` for each `readOnlyRoots` entry — turning a `read`-priced scope tier
+ * (lib/bond-pricing.ts `scopeTierWritePolicy`) into a PHYSICAL boundary: the
+ * agent cannot write the project workdir (the shared state the bond protects).
+ * `unrestricted` (the default and every non-read tier) adds nothing.
  */
-export function buildSeatbeltProfile(jewels: CrownJewelPaths): string {
+export interface WriteConfinement {
+  /** 'read-only' denies writes to readOnlyRoots; 'unrestricted' allows all. */
+  writePolicy: 'read-only' | 'unrestricted';
+  /** Absolute roots a read-only agent may NOT write (subpath deny). */
+  readOnlyRoots: readonly string[];
+}
+
+/** The default (no write confinement) — every non-read tier uses this. */
+const UNRESTRICTED_WRITE: WriteConfinement = { writePolicy: 'unrestricted', readOnlyRoots: [] };
+
+/**
+ * Build a Seatbelt profile (SBPL) that denies reads to the crown jewels while
+ * allowing everything else. When `write` is a `read-only` policy, ALSO deny
+ * writes to each read-only root (the project workdir) — scope-tier containment.
+ * Pure + deterministic for unit testing.
+ */
+export function buildSeatbeltProfile(
+  jewels: CrownJewelPaths,
+  write: WriteConfinement = UNRESTRICTED_WRITE,
+): string {
   const home = jewels.home;
   // Anchor the dotenv regex under $HOME. Seatbelt uses a TRE-ish regex dialect
   // that mishandles some POSIX character classes, so we keep it minimal and
@@ -168,12 +191,24 @@ export function buildSeatbeltProfile(jewels: CrownJewelPaths): string {
   const dotenvDirectDenies = dotenvRoots.map(
     (root) => `(deny file-read* (regex #"^${esc(root)}/\\.env($|\\.)"))`,
   );
+  // SCOPE-TIER WRITE CONFINEMENT — deny writes to the project workdir for a
+  // read-only tier. `(deny file-write* (subpath <root>))` blocks create/write/
+  // unlink/rename under the root; reads still pass (the agent can READ the repo
+  // it is auditing, it just cannot mutate it). Empty/blank roots are skipped.
+  const writeDenies =
+    write.writePolicy === 'read-only'
+      ? write.readOnlyRoots
+          .map((r) => r.trim())
+          .filter(Boolean)
+          .map((root) => `(deny file-write* (subpath "${root}"))`)
+      : [];
   const lines = [
     '(version 1)',
     '(allow default)',
     ...jewels.deniedDirs.map((d) => `(deny file-read* (subpath "${d}"))`),
     ...dotenvDenies,
     ...dotenvDirectDenies,
+    ...writeDenies,
   ];
   return lines.join('\n') + '\n';
 }
@@ -271,32 +306,52 @@ export interface SandboxWrap {
  * (fail-closed) or proceed with reduced protection; the spawner's policy is to
  * proceed but record `confined:false` in the receipt, never silently imply
  * confinement that isn't there.
+ *
+ * `writePolicy` is the scope-tier containment hook (lib/bond-pricing.ts
+ * `scopeTierWritePolicy`). When `'read-only'`, the agent is physically denied
+ * WRITES to the project workdir (the shared state its bond protects) while
+ * still able to READ it — Seatbelt `(deny file-write*)` on macOS, bwrap
+ * `--ro-bind` on Linux. The default `'unrestricted'` leaves writes alone.
  */
 export function wrapWithSandbox(
   cmd: string,
   args: string[],
   jewels: CrownJewelPaths,
   workdir?: string,
+  writePolicy: WriteConfinement['writePolicy'] = 'unrestricted',
 ): SandboxWrap {
   // Always deny the project workdir's own dotenv files, even when the workdir
   // lives outside $HOME (a /var/folders worktree, a sortie dir). Seatbelt
   // matches against the CANONICAL path (macOS /var → /private/var symlink), so
   // we add both the resolved and the requested path as roots.
+  const workdirRoots = workdir
+    ? [resolve(workdir), safeRealpath(resolve(workdir))].filter(
+        (v, i, a) => a.indexOf(v) === i,
+      )
+    : [];
   const jewelsForRun: CrownJewelPaths = workdir
     ? {
         ...jewels,
         extraDotenvRoots: [
           ...(jewels.extraDotenvRoots ?? []),
-          resolve(workdir),
-          safeRealpath(resolve(workdir)),
+          ...workdirRoots,
         ].filter((v, i, a) => a.indexOf(v) === i),
       }
     : jewels;
 
+  // For a read-only tier, the project workdir (both requested + canonical form)
+  // is the write-denied root set. With no workdir there is nothing project-
+  // scoped to deny, so read-only degrades to a no-op write policy (honest: we
+  // only confine writes to a workdir we were actually given).
+  const write: WriteConfinement = {
+    writePolicy: workdirRoots.length > 0 ? writePolicy : 'unrestricted',
+    readOnlyRoots: workdirRoots,
+  };
+
   if (process.platform === 'darwin' && seatbeltAvailable()) {
     const dir = mkdtempSync(join(tmpdir(), 'pd-coast-'));
     const profile = join(dir, 'profile.sb');
-    writeFileSync(profile, buildSeatbeltProfile(jewelsForRun));
+    writeFileSync(profile, buildSeatbeltProfile(jewelsForRun, write));
     return {
       cmd: 'sandbox-exec',
       args: ['-f', profile, cmd, ...args],
@@ -309,9 +364,12 @@ export function wrapWithSandbox(
   if (process.platform === 'linux') {
     const kind = detectLinuxSandbox();
     const project = workdir ? resolve(workdir) : process.cwd();
+    const readOnly = write.writePolicy === 'read-only';
     if (kind === 'bwrap') {
       // bubblewrap: a fresh namespace; bind only what's needed and leave the
       // crown-jewel dirs unmounted, so they simply don't exist for the child.
+      // For a read-only tier, bind the project READ-ONLY so the agent can read
+      // but not mutate the shared state its bond covers.
       const bwArgs = [
         '--ro-bind', '/usr', '/usr',
         '--ro-bind', '/bin', '/bin',
@@ -320,7 +378,7 @@ export function wrapWithSandbox(
         '--ro-bind', '/etc', '/etc',
         '--proc', '/proc',
         '--dev', '/dev',
-        '--bind', project, project,
+        ...(readOnly ? ['--ro-bind', project, project] : ['--bind', project, project]),
         '--chdir', project,
         '--unshare-all',
         '--share-net', // outbound API needs the network (capped by the proxy)
@@ -331,9 +389,15 @@ export function wrapWithSandbox(
     if (kind === 'landlock-helper') {
       const helper = binOnPath('pd-landlock') ? 'pd-landlock' : 'landrun';
       // Helper contract: `<helper> --allow <dir> -- <cmd...>`; deny-by-default.
+      // Read-only tier: request read-only access to the project. The helper
+      // flag is `--ro` (landrun) / `--allow-ro` (pd-landlock); both accept the
+      // `--ro <dir>` long form, so we use the portable `--ro` here. A helper
+      // that does not understand it will reject the flag loudly (fail-closed),
+      // never silently grant write.
+      const allowFlags = readOnly ? ['--ro', project] : ['--allow', project];
       return {
         cmd: helper,
-        args: ['--allow', project, '--', cmd, ...args],
+        args: [...allowFlags, '--', cmd, ...args],
         confined: true,
         mechanism: 'landlock-helper',
         cleanup: [],
@@ -430,6 +494,17 @@ export interface CoastGuardReceipt {
   scrubbedSecrets: string[];
   egressCap: { maxRequests: number; maxBytes: number | null };
   egress: { requests: number; bytes: number; blocked: number; injected: number } | null;
+  /**
+   * Scope-tier WRITE confinement actually applied (lib/bond-pricing.ts
+   * `scopeTierWritePolicy`). `'read-only'` means the agent was denied writes to
+   * `writeDeniedPaths` (the project workdir). `'unrestricted'` means writes were
+   * allowed (every non-read tier, or no workdir to scope to). Honest: this
+   * reflects the policy the profile encoded; if `confined` is false (no OS
+   * sandbox) a `'read-only'` policy was advisory, NOT enforced.
+   */
+  writePolicy: WriteConfinement['writePolicy'];
+  /** Roots a read-only agent was write-denied (empty when unrestricted). */
+  writeDeniedPaths: string[];
   startedAt: number;
   endedAt: number | null;
   /** The honesty disclosure, copied verbatim into every receipt. */
@@ -530,12 +605,38 @@ export function confineCommand(params: {
   jewels?: CrownJewelPaths;
   /** Keys sourced from loaded .env/.env.local — scrubbed in full (see broker). */
   dotenvKeys?: readonly string[];
+  /**
+   * Scope-tier write confinement (lib/bond-pricing.ts `scopeTierWritePolicy`).
+   * `'read-only'` denies writes to the project workdir; default `'unrestricted'`.
+   * Only takes effect when a `workdir` is given (nothing project-scoped to deny
+   * otherwise) AND an OS sandbox is available (else it is advisory, reported in
+   * the receipt as writePolicy with confined:false).
+   */
+  writePolicy?: WriteConfinement['writePolicy'];
 }): ConfinementHandle {
   const jewels = params.jewels ?? defaultCrownJewels();
   const startedAt = Date.now();
+  const requestedWritePolicy: WriteConfinement['writePolicy'] = params.writePolicy ?? 'unrestricted';
 
-  // 1. CONFINE — wrap under the OS sandbox.
-  const wrap = wrapWithSandbox(params.cmd, params.args, jewels, params.workdir);
+  // 1. CONFINE — wrap under the OS sandbox (with scope-tier write policy).
+  const wrap = wrapWithSandbox(
+    params.cmd,
+    params.args,
+    jewels,
+    params.workdir,
+    requestedWritePolicy,
+  );
+
+  // The write policy is only IN FORCE when read-only was requested AND there is
+  // a workdir to scope it to. Report exactly what was applied (honest).
+  const writeDeniedPaths =
+    requestedWritePolicy === 'read-only' && params.workdir
+      ? [resolve(params.workdir), safeRealpath(resolve(params.workdir))].filter(
+          (v, i, a) => a.indexOf(v) === i,
+        )
+      : [];
+  const effectiveWritePolicy: WriteConfinement['writePolicy'] =
+    writeDeniedPaths.length > 0 ? 'read-only' : 'unrestricted';
 
   // 2. BROKER — scrub raw secret keys (managed + every dotenv-sourced key).
   const broker = scrubRawSecretsFromEnv(params.env, params.dotenvKeys);
@@ -581,6 +682,8 @@ export function confineCommand(params: {
       scrubbedSecrets: broker.scrubbed,
       egressCap: { maxRequests: params.policy.maxRequests, maxBytes: params.policy.maxBytes },
       egress: params.deps.readEgress(),
+      writePolicy: effectiveWritePolicy,
+      writeDeniedPaths,
       startedAt,
       endedAt,
       honestLimits: HONEST_LIMITS,

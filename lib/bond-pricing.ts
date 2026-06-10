@@ -15,22 +15,29 @@
  *                                    // creates adverse selection.
  *
  * This module computes the `bondUsd` that callers pass in, moving Port
- * Daddy from Fixed Bonds to a **complexity-proportional** pricer. It
- * implements §6.5's closed form from the Bonded Commons paper, Chapter VI
+ * Daddy from Fixed Bonds to a **complexity-proportional** pricer. Its core is
+ * the closed-form floor from the Bonded Commons paper, Chapter VI
  * (`website-v2/public/whitepaper/agent-transactions-whitepaper.tex`,
- * §6.5 "Pricing the Bond"):
+ * §6.5 "Pricing the Bond", line 763/771):
  *
- *     π(F, p) = c · (1 + α · s(F)) · (1 − ρ(p))           [§6.5, line 778]
+ *     π(F, p) = c · (1 + α · s(F)) · (1 − ρ(p))           [§6.5 closed form]
  *
- * EXTENDED beyond the paper's bare closed form with two PD-specific pieces:
- *   (a) a DURATION multiplier from the mechanism-design skill (the bond/card
- *       TTL tree — longer access ⇒ more time to do damage), which the paper's
- *       §6.5 formula does not carry; and
- *   (b) a reputation SURCHARGE side (a factor > 1 for unknown/failing
- *       principals) that extends past the paper's discount-only domain
- *       ρ(p) ∈ [0, r_max]. The paper models ρ as a pure discount; we keep that
- *       (1 − ρ) discount AND add an explicit > 1 multiplier to screen adverse
- *       selection. So this is the §6.5 closed form, not a verbatim transcription.
+ * IMPLEMENTED ≠ TRANSCRIBED — read this before trusting the "matches §6.5"
+ * claim. The shipped quote is the §6.5 closed form with TWO deliberate
+ * EXTENSIONS that are NOT in the paper's three-term product, plus the IC floor
+ * and ceiling the paper enumerates as properties:
+ *   (E1) a DURATION multiplier (the bond/card TTL tree, 1.0–3.0×). The paper's
+ *        closed form has NO time term; duration comes from the mechanism-design
+ *        skill (longer access ⇒ more time to drift/accrue/damage). It is folded
+ *        in as an extra factor: c·(1+α·s)·duration·repFactor.
+ *   (E2) a reputation SURCHARGE side (factors > 1.0 for unknown/failing
+ *        principals). The paper's ρ ∈ [0, r_max] is a DISCOUNT only; the
+ *        surcharge is an accessibility-safe screening extension (see
+ *        reputationFactor() below for the full justification).
+ * So the faithful statement is: "core formula from §6.5, extended with a
+ * duration factor and a reputation surcharge, clamped by the §6.5 IC floor
+ * (π ≥ c, refined per tier) and a ceiling." Do not cite this as a verbatim
+ * implementation of the three-term product.
  *
  * where
  *   • c     — cleanup cost lower bound (Theorem "Cleanup Lower Bound",
@@ -85,11 +92,41 @@
  * a brand-new principal gets the unknown-agent surcharge.
  *
  * ════════════════════════════════════════════════════════════════════════
+ *  PRICING IS NOT CONTAINMENT (read this before trusting the IC floor)
+ * ════════════════════════════════════════════════════════════════════════
+ * This module PRICES scope; it does not ENFORCE it. The per-tier floor proves
+ * `bond ≥ reconstruction_cost` for the priced tier, but that IC argument only
+ * deters real damage if the agent is actually BOUNDED to the scope it was
+ * priced for. Two things must hold for the floor to mean what it says:
+ *   1. The `capabilities` handed in must be the ATTENUATED card the agent
+ *      truly carries — not a caller's wish. If a caller under-declares caps
+ *      (prices `read`, acts `full`) the bond is too cheap for the damage done.
+ *      In the spawn path this holds because the spawner prices the SAME cap set
+ *      it enters the harbor with (lib/spawner.ts); a future caller that lets
+ *      untrusted input pick `capabilities` reopens the gap. The HTTP/MCP spawn
+ *      route does NOT accept a caller `bondUsd` or `capabilities`, so the
+ *      bypass is in-process (SDK) only.
+ *   2. The OS must hold the agent to the priced tier. Historically the Coast
+ *      Guard (lib/coast-guard.ts, ADR-0050) only denied crown-jewel READS +
+ *      capped egress — it did NOT deny WRITES by tier, so a `read`-priced agent
+ *      could still write the project. PR #339 closes the highest-value half of
+ *      that gap: a `read`-tier spawn can now be confined to DENY writes to the
+ *      project workdir (the shared state the bond protects) via the Coast
+ *      Guard's `writePolicy` (macOS Seatbelt enforced; Linux bwrap ro-bind;
+ *      `none` reported honestly). It is OPT-IN and does not change the default
+ *      `full`-tier spawn. It is NOT a claim of full read-only-everywhere
+ *      isolation, nor of malicious-same-UID resistance — those remain ADR-0050
+ *      phase 4 (separate UID/VM). See `scopeTierWritePolicy()` below.
+ *
+ * ════════════════════════════════════════════════════════════════════════
  *  WHAT IS REAL vs STUBBED
  * ════════════════════════════════════════════════════════════════════════
  *   • REAL: the closed-form floor, the scope/criticality classification
  *     from real signals (harbor-card `cap[]` grammar + Coast Guard crown
- *     jewels), the duration multiplier, the per-tier IC floors, the ceiling.
+ *     jewels), the duration multiplier, the per-tier IC floors, the ceiling,
+ *     the `belowFloor` undercollateralization signal, and the read-tier
+ *     write-confinement mapping (`scopeTierWritePolicy`, enforced by the Coast
+ *     Guard on macOS; honest degraded report elsewhere).
  *   • STUBBED: the reputation lookup. No reputation/quality-eval ledger
  *     exists yet (it is Proposed — the roadmap "reputation/quality-eval
  *     ledger spine"). Until it lands, `reputation` is an OPTIONAL hook; when
@@ -128,14 +165,25 @@
 // ─── Scope: the capability grammar (lib/harbor-tokens.ts `cap[]`) ───────────────
 //
 // A harbor card carries `cap: string[]` (lib/harbor-tokens.ts). The capability
-// grammar is defined in lib/cap-attenuation-monitor.ts (ADR-0027):
-//   • exact caps: `spawn:agent`, `presence:write`, `backend:<id>`, …
-//   • prefix caps: `chan:pub:<prefix>` / `chan:sub:<prefix>`, where `*`
-//     dominates the verb.
-// We classify a capability SET into one consequential-scope tier. The tiers
-// mirror the mechanism-design decision tree (read 1× / write 3× / critical
-// 10× / full|spawn 25×; see ScopeTier below) and the paper's s(F) signals
-// ("files claimed, presence of db:write, production-deployment capability").
+// grammar ENFORCED TODAY is defined in lib/cap-attenuation-monitor.ts (ADR-0027)
+// and is deliberately small:
+//   • exact caps: `spawn:agent`, `presence:write`, `backend:<id>` (covered
+//     only by an identical parent cap);
+//   • prefix caps: `chan:pub:<prefix>` / `chan:sub:<prefix>`, where `*` at the
+//     value position dominates the verb.
+//
+// classifyScope() ALSO recognizes a WIDER vocabulary — `fs:read` / `fs:write`,
+// `db:write` / `db:migrate`, `deploy*` / `prod:*`, `secret:*` / `kms:*`,
+// `*` / `full` / `admin`. Those forms are the paper's s(F) signals ("files
+// claimed, presence of db:write, production-deployment capability", §6.5.2) and
+// the worked example's card (`fs:read:repo`, `fs:write:auth.ts`, `cmd:test`,
+// §VI appendix) — i.e. they are FORWARD-LOOKING. Most are NOT yet minted by
+// lib/harbor-tokens.ts, so today the only caps a real spawn carries are
+// `spawn:agent` + `backend:<id>` (→ the `full` tier). The wider table is here so
+// the pricer is correct the day those caps ship; it never invents scope from an
+// UNRECOGNIZED cap (unknown → the conservative `read` floor — see classifyScope).
+// We classify a capability SET into one consequential-scope tier (read 1× /
+// write 3× / critical 10× / full|spawn 25×; see ScopeTier below).
 
 /** The consequential-scope tier of a Float Plan, coarsest signal first. */
 export type ScopeTier = 'read' | 'write' | 'critical' | 'full';
@@ -184,6 +232,38 @@ export const FLOOR_MULTIPLE: Readonly<Record<ScopeTier, number>> = {
   critical: 10,
   full: 25,
 };
+
+// ─── Scope tier → OS write policy (pricing ⇄ containment bridge) ─────────────────
+//
+// The pricing tier is only an HONEST deterrent if the OS holds the agent to the
+// scope it was priced for (see "PRICING IS NOT CONTAINMENT" in the header). This
+// is the one place that maps a priced tier to a CONTAINMENT posture the Coast
+// Guard (lib/coast-guard.ts) can enforce. Today it is binary: a `read`-tier card
+// gets a read-only confinement (it physically cannot WRITE the project workdir —
+// the shared state the bond protects); every higher tier is `unrestricted`
+// (writes are allowed because the bond is sized to cover the write blast radius).
+//
+// This is deliberately CONSERVATIVE on two axes, and we say so:
+//   • It governs WRITES to the project workdir only — not all writes everywhere
+//     (a read-tier agent can still write /tmp, its own scratch). The bond
+//     protects shared PROJECT state; that is what we deny writing.
+//   • `read-only` is enforced by the macOS Seatbelt profile and the Linux bwrap
+//     ro-bind; where no OS sandbox exists the Coast Guard reports `confined:
+//     false` and the policy is advisory only. It is NOT malicious-same-UID
+//     proof (ADR-0050 phase 4 — separate UID/VM — is the answer to that).
+
+/** What writes a confined agent of a given scope tier may perform. */
+export type WritePolicy = 'read-only' | 'unrestricted';
+
+/**
+ * Map a priced scope tier to the Coast Guard write policy that ENFORCES it.
+ * `read` → `read-only` (deny writes to the project workdir); every higher tier
+ * (`write`/`critical`/`full`) → `unrestricted` (the bond covers the write blast
+ * radius, so writing the project is the point of the work).
+ */
+export function scopeTierWritePolicy(tier: ScopeTier): WritePolicy {
+  return tier === 'read' ? 'read-only' : 'unrestricted';
+}
 
 // ─── Duration multiplier (the bond/card TTL tree) ───────────────────────────────
 //
@@ -276,7 +356,6 @@ export function classifyScope(
 ): ScopeTier {
   // Rank tiers so we can take a max.
   const RANK: Record<ScopeTier, number> = { read: 0, write: 1, critical: 2, full: 3 };
-  const TIERS: ScopeTier[] = ['read', 'write', 'critical', 'full'];
   let tier: ScopeTier = 'read';
   const raise = (t: ScopeTier): void => {
     if (RANK[t] > RANK[tier]) tier = t;
@@ -292,9 +371,12 @@ export function classifyScope(
     // FULL / amplifier: full-system access, admin, or the power to spawn.
     // A spawn or wildcard-backend cap is an amplifier — the bond must cover
     // the blast radius of the children it can create — so it tops the tier.
+    // NOTE: an EXACT `backend:<id>` (e.g. `backend:ollama`) is NOT an amplifier
+    // (it grants ONE provider, not the power to spawn), so only the wildcard
+    // `backend:*` escalates here — `backend:ollama` falls through to `read`.
     if (
       cap === '*' || cap === 'full' || cap === 'admin' ||
-      cap === 'spawn:agent' || cap.startsWith('spawn:') ||
+      cap.startsWith('spawn:') ||
       cap === 'backend:*'
     ) {
       raise('full');
@@ -356,30 +438,41 @@ export const R_MAX = 0.5;
 /**
  * The reputation FACTOR (1 − ρ) and a human-readable discount fraction ρ,
  * from a principal's history. This is the discrete tier table from the
- * mechanism-design skill (Reputation-Adjusted Bonds), expressed as the
- * paper's multiplicative (1 − ρ) form and clamped to r_max. The predicates
- * are evaluated TOP-DOWN and the boundaries are STRICT exactly as the code
- * below uses them (failureRate compared with `>` / `<`, never `≥` / `≤`):
+ * mechanism-design skill (Reputation-Adjusted Bonds).
  *
- *   no record (unknown principal)            → 2.0× surcharge   (factor 2.0)
- *   failureRate > 0.2 (any completions)      → 3.0× penalty     (factor 3.0)
- *   completions ≥ 50 AND failureRate < 0.03  → 0.5× (ρ = 0.50)  (factor 0.5, = r_max)
- *   completions ≥ 20 AND failureRate < 0.05  → 0.7× (ρ = 0.30)  (factor 0.7)
- *   completions ≥ 5  AND failureRate < 0.1   → par              (factor 1.0)
- *   completions ≥ 1  AND failureRate == 0    → 1.5× surcharge   (factor 1.5)
- *   anything else (thin/mixed history)       → 1.5× surcharge   (factor 1.5)
+ * IMPORTANT — this is an EXTENSION of paper §6.5.3, not a literal transcription
+ * of it. The paper's history adjustment is `(1 − ρ), ρ ∈ [0, r_max], r_max ≤ 0.5`
+ * — i.e. strictly a DISCOUNT: the factor lives in [0.5, 1.0] and can only ever
+ * LOWER the bond. This table keeps that discount side faithfully (clamped to
+ * 1 − r_max = 0.5×) but ALSO adds a SURCHARGE side (factors > 1.0) for unknown,
+ * thin, or failing principals. A surcharge has `ρ < 0`, which is OUTSIDE the
+ * paper's stated domain; we add it deliberately because pricing a bad/unknown
+ * risk UP is accessibility-safe (it only raises THEIR cost, never a legitimate
+ * agent's) and is the screening signal against adverse selection (the paper's
+ * own Property 2). The breakdown reports `reputationDiscount = ρ ∈ [0, r_max]`
+ * for the discount/par cases and `0` for a surcharge; the full multiplicative
+ * `reputationFactor` (which may exceed 1) is reported separately so the math
+ * reconciles.
  *
- * Boundary cases follow from the strict comparisons: failureRate of EXACTLY
- * 0.05 fails `< 0.05` and falls to par (1.0×); failureRate of EXACTLY 0.2
- * fails `> 0.2` and (with no qualifying discount band) lands at the 1.5×
- * surcharge, not the 3.0× penalty. completions thresholds are inclusive (`≥`).
+ * Predicates are evaluated TOP-DOWN; boundaries are exactly as coded —
+ * failure-rate cutoffs are STRICT `<` / `>` (never `≥` / `≤`), completion
+ * cutoffs are inclusive `≥`, so a value sitting exactly on a cutoff falls to
+ * the NEXT-lower band:
+ *
+ *   unknown principal (no record)                 → 2.0× surcharge  (factor 2.0)
+ *   failureRate > 0.20 (any volume)               → 3.0× penalty    (factor 3.0)
+ *   completions ≥ 50  AND failureRate < 0.03      → 0.5× discount   (factor 0.5 = 1 − r_max)
+ *   completions ≥ 20  AND failureRate < 0.05      → 0.7× discount   (factor 0.7, ρ = 0.30)
+ *   completions ≥ 5   AND failureRate < 0.10      → par             (factor 1.0)
+ *   completions ≥ 1   AND failureRate == 0        → 1.5× surcharge  (factor 1.5)
+ *   otherwise (thin/mixed history, no band fits)  → 1.5× surcharge  (factor 1.5)
+ *
+ * Boundary examples: failureRate of EXACTLY 0.05 fails `< 0.05` → falls to par
+ * (1.0×); failureRate of EXACTLY 0.20 fails `> 0.20` and (with no qualifying
+ * discount band) lands at the 1.5× surcharge, NOT the 3.0× penalty.
  *
  * NOTE the asymmetry: the discount side is clamped to (1 − r_max) = 0.5× so a
- * deep history can never trivialize the bond. The SURCHARGE side (>1.0×) is
- * deliberately uncapped here — pricing an unknown or failing principal UP is
- * accessibility-safe (it only raises their cost) and is the screening signal
- * against adverse selection. `ρ` in the breakdown reports the discount
- * fraction in [0, r_max]; for a surcharge it reports 0 (no discount applied).
+ * deep history can never trivialize the bond; the surcharge side is uncapped.
  */
 export function reputationFactor(
   rec: ReputationRecord | null,
@@ -480,7 +573,7 @@ export interface PricedBondBreakdown {
    * floor and ceiling clamps.
    */
   reputationFactor: number;
-  /** Per-tier deterrence floor (USD) that was enforced (floorMultiple × base). */
+  /** Per-tier deterrence floor (USD) — the IC minimum (floorMultiple × base). */
   floorUsd: number;
   /** True iff the floor raised the bond above the reputation-adjusted curve. */
   floorApplied: boolean;
@@ -495,7 +588,7 @@ export interface PricedBondBreakdown {
    * does NOT throw or re-clamp (the operator may have deliberately set a low
    * ceiling); it flags, and the CALLER decides whether to escrow, refuse, or
    * narrow scope. Consuming `bondUsd` while `belowFloor === true` escrows an
-   * UNDERCOLLATERALIZED bond.
+   * UNDERCOLLATERALIZED bond and MUST be gated on this flag.
    */
   belowFloor: boolean;
 }
@@ -503,7 +596,7 @@ export interface PricedBondBreakdown {
 export interface PricedBond {
   /** The bond amount to pass to `bonds.escrow({ bondUsd })`. */
   bondUsd: number;
-  /** The full math, so callers / the Uite can show their work. */
+  /** The full math, so callers / the UI can show their work. */
   breakdown: PricedBondBreakdown;
 }
 
@@ -605,6 +698,11 @@ export function priceBond(input: PriceBondInput): PricedBond {
   const floorApplied = flooredUsd > pricedUsd + 1e-12;
 
   // ── CEILING (accessibility): clamp down to the operator's affordability cap ──
+  // The ceiling dominates EVERYTHING, including the IC floor: a ceiling set below
+  // a tier's reconstruction-cost floor is the operator explicitly declining to
+  // collateralize that work at that price. We honor it — but we do NOT pretend
+  // the floor held. `belowFloor` (below) makes the breach explicit so no caller
+  // can silently escrow an undercollateralized bond.
   let finalUsd = flooredUsd;
   let ceilingApplied = false;
   if (ceilingUsd !== undefined && finalUsd > ceilingUsd) {
@@ -616,7 +714,9 @@ export function priceBond(input: PriceBondInput): PricedBond {
   // lands the bond UNDER its deterrence floor — the IC invariant no longer holds.
   // We do not re-clamp or throw (the operator may have set the low ceiling on
   // purpose); we surface the breach so the caller can refuse / narrow scope.
-  const belowFloor = ceilingApplied && finalUsd < floorUsd;
+  // (1e-9 float tolerance; only the ceiling clamp can produce this — without a
+  // ceiling, finalUsd == flooredUsd ≥ floorUsd.)
+  const belowFloor = ceilingApplied && finalUsd < floorUsd - 1e-9;
 
   return {
     bondUsd: finalUsd,

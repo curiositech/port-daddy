@@ -21,6 +21,7 @@ import {
   durationMultiplier,
   reputationFactor,
   touchesCrownJewel,
+  scopeTierWritePolicy,
   SCOPE_MULTIPLIER,
   FLOOR_MULTIPLE,
   R_MAX,
@@ -447,5 +448,103 @@ describe('closed-form reconciliation π(F,p) = c·(1 + α·s)·(1 − ρ)', () =
   test('exported multiplier tables are the documented bands', () => {
     expect(SCOPE_MULTIPLIER).toEqual({ read: 1, write: 3, critical: 10, full: 25 });
     expect(FLOOR_MULTIPLE).toEqual({ read: 1, write: 3, critical: 10, full: 25 });
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  GATE 7 — UNDERCOLLATERALIZATION SIGNAL (belowFloor)
+//  A ceiling set below a tier's IC floor pulls the bond under the floor. The
+//  pricer honors the ceiling (operator affordability) but MUST flag the breach
+//  so a caller can't silently escrow an undercollateralized bond.
+// ════════════════════════════════════════════════════════════════════════════
+describe('GATE: belowFloor — ceiling under the IC floor is flagged, never hidden', () => {
+  test('ceiling below a critical floor sets belowFloor=true and reports the floor', () => {
+    const priced = priceBond({
+      baseUsd: BASE,
+      capabilities: ['db:write'], // critical floor = 10 × 5 = 50
+      ttlMs: 5 * MIN,
+      ceilingUsd: 10,             // operator can only afford $10 < 50
+    });
+    expect(priced.bondUsd).toBe(10);
+    expect(priced.breakdown.ceilingApplied).toBe(true);
+    expect(priced.breakdown.floorUsd).toBe(50);
+    // THE signal: the quote is undercollateralized. bond (10) < floor (50).
+    expect(priced.breakdown.belowFloor).toBe(true);
+  });
+
+  test('belowFloor is false when the ceiling sits at or above the floor', () => {
+    const atFloor = priceBond({
+      baseUsd: BASE,
+      capabilities: ['db:write'], // floor 50
+      ttlMs: 5 * MIN,
+      ceilingUsd: 50,             // exactly the floor
+    });
+    expect(atFloor.bondUsd).toBe(50);
+    expect(atFloor.breakdown.belowFloor).toBe(false);
+
+    const aboveFloor = priceBond({
+      baseUsd: BASE,
+      capabilities: ['db:write'],
+      ttlMs: 5 * MIN,
+      ceilingUsd: 1000,
+    });
+    expect(aboveFloor.breakdown.belowFloor).toBe(false);
+  });
+
+  test('belowFloor is false when there is no ceiling at all (floor holds)', () => {
+    const priced = priceBond({ baseUsd: BASE, capabilities: ['db:write'], ttlMs: 5 * MIN });
+    expect(priced.bondUsd).toBe(50);          // the floor
+    expect(priced.breakdown.belowFloor).toBe(false);
+  });
+
+  test('property: belowFloor ⇔ (bondUsd < floorUsd) across random inputs', () => {
+    const tiers = ['read', 'write', 'critical', 'full'];
+    for (let i = 0; i < 200; i++) {
+      const base = 1 + Math.random() * 50;
+      const ceiling = Math.random() * 200;
+      const tier = tiers[Math.floor(Math.random() * tiers.length)];
+      const ttlMs = Math.floor(Math.random() * 180) * MIN;
+      const { bondUsd, breakdown } = priceBond({
+        baseUsd: base, capabilities: [], scopeTier: tier, ttlMs, ceilingUsd: ceiling,
+      });
+      // The flag is exactly the undercollateralization predicate.
+      expect(breakdown.belowFloor).toBe(bondUsd < breakdown.floorUsd - 1e-9);
+      // And it can only ever be true when the ceiling actually clamped.
+      if (breakdown.belowFloor) expect(breakdown.ceilingApplied).toBe(true);
+    }
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  GATE 8 — PRICING ⇄ CONTAINMENT BRIDGE (scopeTierWritePolicy)
+//  The priced scope tier maps to an OS write policy the Coast Guard enforces:
+//  read → read-only (deny workdir writes), every higher tier → unrestricted.
+// ════════════════════════════════════════════════════════════════════════════
+describe('scopeTierWritePolicy — priced tier → OS write policy', () => {
+  test('read tier is the ONLY read-only tier', () => {
+    expect(scopeTierWritePolicy('read')).toBe('read-only');
+    expect(scopeTierWritePolicy('write')).toBe('unrestricted');
+    expect(scopeTierWritePolicy('critical')).toBe('unrestricted');
+    expect(scopeTierWritePolicy('full')).toBe('unrestricted');
+  });
+
+  test('a read-only capability set ⇒ read-only write policy (end-to-end via classifyScope)', () => {
+    expect(scopeTierWritePolicy(classifyScope(['fs:read']))).toBe('read-only');
+    expect(scopeTierWritePolicy(classifyScope(['chan:sub:project/*']))).toBe('read-only');
+    expect(scopeTierWritePolicy(classifyScope([]))).toBe('read-only'); // no caps → read floor
+  });
+
+  test('the default spawn caps (spawn:agent + backend) ⇒ full tier ⇒ unrestricted (no-op)', () => {
+    // This is the load-bearing back-compat assertion: ordinary spawns are NOT
+    // write-confined, because spawn:agent classifies as the full/amplifier tier.
+    const caps = ['spawn:agent', 'backend:ollama'];
+    expect(classifyScope(caps)).toBe('full');
+    expect(scopeTierWritePolicy(classifyScope(caps))).toBe('unrestricted');
+  });
+
+  test('any write/critical/full capability ⇒ unrestricted (the bond covers the writes)', () => {
+    expect(scopeTierWritePolicy(classifyScope(['fs:write']))).toBe('unrestricted');
+    expect(scopeTierWritePolicy(classifyScope(['db:write']))).toBe('unrestricted');
+    expect(scopeTierWritePolicy(classifyScope(['*']))).toBe('unrestricted');
   });
 });
