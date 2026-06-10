@@ -45,7 +45,7 @@ The cleverness is not in the verb. The cleverness is in *who calls it and when*.
 
 ## The convention is the product
 
-![Blueprint section view of a closed door. A small peephole set at eye level casts thin cobalt sight-lines through the door onto a wall of pigeonhole mailboxes on the far side, while a single envelope slides through a mail slot beneath it. The door never opens; both the looking and the delivery happen through fixtures built into the door itself.](/img/generated/attention-first-command/peephole.png)
+![Blueprint section view of a closed door with a person leaning in, eye pressed to a small peephole. Thin cobalt sight-lines fan out from their eye through the door onto a wall of pigeonhole mailboxes on the far side, while a single envelope slides through a mail slot beneath the peephole. The door never opens; both the looking and the delivery happen through fixtures built into the door itself.](/img/generated/attention-first-command/peephole.png)
 
 The verb is necessary. The verb is not sufficient. A verb you forget to run is a verb the senders are still writing to a wall.
 
