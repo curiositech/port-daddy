@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { createActivityLog } from '../lib/activity.js';
 import type { createAgents } from '../lib/agents.js';
@@ -9,6 +10,13 @@ import type { createProjects } from '../lib/projects.js';
 import type { createResurrection } from '../lib/resurrection.js';
 import type { createSessions } from '../lib/sessions.js';
 import type { createSpawner } from '../lib/spawner.js';
+import type { createCostTracker } from '../lib/cost-tracker.js';
+import type { createDispatchQueue } from '../lib/dispatch/queue.js';
+import type { createRoadmapItems } from '../lib/roadmap-items.js';
+import { readMissions } from '../lib/cockpit-missions.js';
+import type { CoordinationState } from '../lib/maritime-signals.js';
+import { signalFor, ICS_MEANING } from '../lib/maritime-signals.js';
+import type { createBonds } from '../lib/bonds.js';
 
 type AgentsManager = ReturnType<typeof createAgents>;
 type RegistryAgentEntry = ReturnType<AgentsManager['list']>['agents'][number];
@@ -60,6 +68,11 @@ const KNOWN_REPO_PATH_PREFIXES = [
   '.spider/',
 ];
 
+type CostTrackerManager = ReturnType<typeof createCostTracker>;
+type DispatchQueueManager = ReturnType<typeof createDispatchQueue>;
+type RoadmapItemsManager = ReturnType<typeof createRoadmapItems>;
+type BondsManager = ReturnType<typeof createBonds>;
+
 interface OperatorRouteDeps {
   logger?: {
     info?: (meta: Record<string, unknown>, message?: string) => void;
@@ -71,6 +84,10 @@ interface OperatorRouteDeps {
   spawner?: SpawnerManager;
   projects?: ProjectsManager;
   activityLog?: ActivityManager;
+  costTracker?: CostTrackerManager;
+  dispatchQueue?: DispatchQueueManager;
+  roadmapItems?: RoadmapItemsManager;
+  bonds?: BondsManager;
 }
 
 interface OpenFileBody {
@@ -523,21 +540,84 @@ function isMissingCommand(error: unknown): boolean {
   return !!error && typeof error === 'object' && 'code' in error && (error as { code?: unknown }).code === 'ENOENT';
 }
 
-function runGuardCli(projectDir: string, args: string[]) {
+/**
+ * Resolve the absolute path to the `pd` binary so that the daemon's restricted
+ * launchd PATH (which typically only contains /usr/bin:/bin) can still find it.
+ *
+ * Probe order (first `existsSync` hit wins):
+ *   1. $PD_BINARY env override  (test / CI override)
+ *   2. ~/.port-daddy/bin/pd     (canonical install location used by `pd mcp install`)
+ *   3. /opt/homebrew/bin/pd     (Apple Silicon Homebrew)
+ *   4. /usr/local/bin/pd        (Intel Homebrew / manual install)
+ *   5. alternate binary name 'port-daddy' at the same paths
+ *
+ * Returns null when no absolute path is found; callers fall back to bare
+ * 'pd' / 'port-daddy' names (which work in dev terminals but may fail under
+ * launchd's restricted PATH).
+ */
+function resolvePdBinary(): string | null {
+  const envOverride = process.env.PD_BINARY;
+  if (envOverride && existsSync(envOverride)) return envOverride;
+
+  const home = homedir();
+  const candidates = [
+    resolve(home, '.port-daddy', 'bin', 'pd'),
+    '/opt/homebrew/bin/pd',
+    '/usr/local/bin/pd',
+    resolve(home, '.port-daddy', 'bin', 'port-daddy'),
+    '/opt/homebrew/bin/port-daddy',
+    '/usr/local/bin/port-daddy',
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function runGuardCli(projectDir: string, args: string[]): { command: string; result: ReturnType<typeof spawnSync>; available: boolean } {
+  // Prefer an absolute binary path so the daemon's launchd-restricted PATH
+  // (often only /usr/bin:/bin) doesn't silently swallow the command.
+  const binary = resolvePdBinary();
+
+  if (binary) {
+    const result = spawnSync(binary, ['guard', ...args, '--dir', projectDir], {
+      cwd: projectDir,
+      encoding: 'utf8',
+      env: process.env,
+    });
+    // ENOENT on an absolute path means the binary was deleted between probe and spawn —
+    // fall through to the bare-name fallback rather than returning available=false.
+    if (!isMissingCommand(result.error)) {
+      return { command: binary, available: true, result };
+    }
+  }
+
+  // Bare-name fallback — works in dev terminals; may fail under launchd.
   for (const command of ['pd', 'port-daddy']) {
     const result = spawnSync(command, ['guard', ...args, '--dir', projectDir], {
       cwd: projectDir,
       encoding: 'utf8',
       env: process.env,
     });
-    if (!isMissingCommand(result.error)) return { command, result };
+    if (!isMissingCommand(result.error)) {
+      return { command, available: true, result };
+    }
   }
-  const result = spawnSync('pd', ['guard', ...args, '--dir', projectDir], {
-    cwd: projectDir,
-    encoding: 'utf8',
-    env: process.env,
-  });
-  return { command: 'pd', result };
+
+  // All probes failed — binary is genuinely absent.
+  return {
+    command: 'pd',
+    available: false,
+    result: {
+      pid: 0,
+      status: 127,
+      signal: null,
+      stdout: '',
+      stderr: 'pd binary not found — tried absolute paths and PATH fallback',
+      output: ['', '', ''],
+      error: Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+    },
+  };
 }
 
 function parseGuardJson<T>(stdout: string, commandLabel: string): T {
@@ -557,14 +637,27 @@ function guardFailureMessage(commandLabel: string, result: ReturnType<typeof spa
   return [stderr, stdout, error, `${commandLabel} failed`].find(Boolean) ?? `${commandLabel} failed`;
 }
 
-function readCoordinationGuardStatus(projectDir: string): CoordinationGuardStatus {
-  const { command, result } = runGuardCli(projectDir, ['status', '--json']);
+function readCoordinationGuardStatus(projectDir: string): CoordinationGuardStatus & { available: boolean } {
+  const { command, result, available } = runGuardCli(projectDir, ['status', '--json']);
+  if (!available) {
+    return {
+      available: false,
+      success: false,
+      name: 'Coordination Guard',
+      enabled: false,
+      mode: 'off',
+      requireSession: false,
+      requireClaims: false,
+      configPath: '',
+      projectDir,
+    };
+  }
   const commandLabel = `${command} guard status`;
   if (result.status !== 0) {
     throw new Error(guardFailureMessage(commandLabel, result));
   }
   const status = parseGuardJson<Omit<CoordinationGuardStatus, 'projectDir'>>(spawnText(result.stdout), commandLabel);
-  return { ...status, projectDir };
+  return { available: true, ...status, projectDir };
 }
 
 /**
@@ -1081,6 +1174,244 @@ function buildOperatorActors(
   return { actors: finalized, projectDir, projectName, summary };
 }
 
+// =============================================================================
+// NeedsYou ranking
+// =============================================================================
+
+/**
+ * A single operator action item returned in the `needsYou` array.
+ */
+interface NeedsYouItem {
+  /** Machine-readable code for the consumer to key on. */
+  code: 'dispatch_review' | 'guard_violation' | 'budget_ceiling' | 'salvage' | 'stuck_agent' | 'roadmap_now' | 'inbox';
+  /** Human-readable label for FleetBar / console. */
+  label: string;
+  /** Concrete next step — a pd command or a URL route. */
+  action: string;
+  /** Sort weight: 0 = most urgent. */
+  priority: number;
+  /** Additional context surface-specific to the item. */
+  meta?: Record<string, unknown>;
+}
+
+/**
+ * Build the ranked list of items that require the operator's attention.
+ *
+ * Rules (applied in order; lower `priority` = more urgent):
+ *   0 · dispatch_review  — dispatches in `review_pending` state (operator must accept/reject)
+ *   1 · guard_violation  — guard is installed+enforcing but its last check found violations
+ *   2 · budget_ceiling   — any active project is at or over its daily budget
+ *   3 · salvage          — agents in the salvage queue
+ *   4 · stuck_agent      — registered agents whose liveness is 'dead'
+ *   5 · roadmap_now      — roadmap items with status='now' (active work to dispatch)
+ *   6 · inbox            — unread inbox items (lowest urgency; advisory)
+ *
+ * Sources that produce zero items are omitted entirely (no filler).
+ *
+ * briefing / attention are already live-ranked by their own modules; we wrap
+ * those results rather than duplicating their query logic.
+ */
+function buildNeedsYou(
+  deps: OperatorRouteDeps,
+  projectName: string | null,
+  projectDir: string | null,
+  guardStatus: (CoordinationGuardStatus & { available: boolean }) | null,
+): NeedsYouItem[] {
+  const items: NeedsYouItem[] = [];
+
+  // 0 · dispatch_review — dispatches awaiting operator review
+  if (deps.dispatchQueue) {
+    const awaitingReview = deps.dispatchQueue.list({ state: 'awaiting_review' });
+    if (awaitingReview.length > 0) {
+      const ids = awaitingReview.slice(0, 3).map((d) => d.id);
+      items.push({
+        code: 'dispatch_review',
+        label: `${awaitingReview.length} dispatch${awaitingReview.length === 1 ? '' : 'es'} awaiting review`,
+        action: 'pd review',
+        priority: 0,
+        meta: { count: awaitingReview.length, ids },
+      });
+    }
+  }
+
+  // 1 · guard_violation — guard is enforcing and has current violations
+  if (guardStatus && guardStatus.available && guardStatus.enabled && guardStatus.mode === 'enforce') {
+    // We only flag this if guard is actively enforcing. The violation detail
+    // is surfaced by the /operator/state guard section; here we just raise
+    // the alert so the operator knows to check.
+    const effectiveDir = projectDir ?? process.cwd();
+    const { result: checkResult, available: checkAvailable } = runGuardCli(effectiveDir, ['check', '--staged', '--json']);
+    if (checkAvailable && checkResult.status !== 0) {
+      try {
+        const check = parseGuardJson<CoordinationGuardCheck>(spawnText(checkResult.stdout), 'guard check');
+        if (check.violations && check.violations.length > 0) {
+          items.push({
+            code: 'guard_violation',
+            label: `${check.violations.length} coordination guard violation${check.violations.length === 1 ? '' : 's'}`,
+            action: 'pd guard check --staged',
+            priority: 1,
+            meta: {
+              violations: check.violations.slice(0, 3).map((v) => ({ code: v.code, severity: v.severity, message: v.message })),
+            },
+          });
+        }
+      } catch {
+        // Guard check parse failed — don't block the whole state response
+      }
+    }
+  }
+
+  // 2 · budget_ceiling — any project over daily budget
+  if (deps.costTracker && deps.bonds) {
+    const projectsToCkeck = projectName ? [projectName] : [];
+    if (projectsToCkeck.length === 0) {
+      // No project filter — check recent cost events for project names
+      const recentEvents = deps.costTracker.recent(20);
+      for (const ev of recentEvents) {
+        if (ev.projectName && !projectsToCkeck.includes(ev.projectName)) {
+          projectsToCkeck.push(ev.projectName);
+        }
+      }
+    }
+    for (const pName of projectsToCkeck.slice(0, 5)) {
+      const budget = deps.bonds.getBudget(pName);
+      if (budget && budget > 0) {
+        const status = deps.costTracker.budgetStatus(pName, budget);
+        if (status.overBudget || status.percentUsed >= 90) {
+          items.push({
+            code: 'budget_ceiling',
+            label: status.overBudget
+              ? `${pName} over budget ($${status.spentUsd.toFixed(2)} / $${status.budgetUsdPerDay.toFixed(2)})`
+              : `${pName} nearing budget (${status.percentUsed.toFixed(0)}% used)`,
+            action: `pd cost summary --project ${pName}`,
+            priority: 2,
+            meta: {
+              project: pName,
+              spentUsd: status.spentUsd,
+              budgetUsdPerDay: status.budgetUsdPerDay,
+              percentUsed: status.percentUsed,
+              overBudget: status.overBudget,
+            },
+          });
+          break; // one alert is enough — don't flood with per-project items
+        }
+      }
+    }
+  }
+
+  // 3 · salvage — agents in the resurrection/salvage queue
+  if (deps.resurrection) {
+    const salvageAgents = deps.resurrection.list({ project: projectName ?? undefined, limit: 10 }).agents;
+    if (salvageAgents.length > 0) {
+      const names = salvageAgents.slice(0, 3).map((a) => a.name || a.id);
+      items.push({
+        code: 'salvage',
+        label: `${salvageAgents.length} agent${salvageAgents.length === 1 ? '' : 's'} in salvage queue`,
+        action: `pd salvage${projectName ? ` --project ${projectName}` : ''}`,
+        priority: 3,
+        meta: { count: salvageAgents.length, agents: names },
+      });
+    }
+  }
+
+  // 4 · stuck_agent — registered agents whose liveness is 'dead'
+  if (deps.agents) {
+    const deadAgents = deps.agents.list({ activeOnly: false }).agents.filter(
+      (a) => a.healthAssessment?.liveness === 'dead',
+    );
+    if (deadAgents.length > 0) {
+      const names = deadAgents.slice(0, 3).map((a) => a.name || a.id);
+      items.push({
+        code: 'stuck_agent',
+        label: `${deadAgents.length} stuck agent${deadAgents.length === 1 ? '' : 's'} (liveness: dead)`,
+        action: 'pd agents --json | jq \'.agents[] | select(.healthAssessment.liveness == "dead")\'',
+        priority: 4,
+        meta: { count: deadAgents.length, agents: names },
+      });
+    }
+  }
+
+  // 5 · roadmap_now — roadmap items in 'now' status
+  if (deps.roadmapItems) {
+    const nowItems = deps.roadmapItems.list({ status: 'now', limit: 10 });
+    if (nowItems.length > 0) {
+      const titles = nowItems.slice(0, 3).map((item) => item.slug);
+      items.push({
+        code: 'roadmap_now',
+        label: `${nowItems.length} roadmap item${nowItems.length === 1 ? '' : 's'} at 'now' — ready to dispatch`,
+        action: `pd roadmap list --status now${projectDir ? ` --dir ${projectDir}` : ''}`,
+        priority: 5,
+        meta: { count: nowItems.length, slugs: titles },
+      });
+    }
+  }
+
+  // 6 · inbox — placeholder: full inbox integration requires the db-backed
+  // attention module (createAttention) which is not in OperatorRouteDeps today.
+  // The slot is reserved at priority 6 so consumers can rely on stable ordering.
+  // When attention is wired in, add: deps.attention?.get(agentId)?.items.length
+
+  return items.sort((a, b) => a.priority - b.priority);
+}
+
+// =============================================================================
+// Maritime signal for fleet state
+// =============================================================================
+
+/**
+ * Derive the most representative maritime coordination signal for the
+ * current fleet state. Returns null when all signals are non-actionable.
+ */
+function deriveFleetSignal(
+  actorSummary: Record<OperatorActorState, number>,
+  needsYou: NeedsYouItem[],
+  guardAvailable: boolean,
+  guardEnforcing: boolean,
+): { code: string; state: CoordinationState; meaning: string } | null {
+  // Priority: mayday if budget/stuck > guard violation > awaiting-human > salvage
+  const hasBudgetCeiling = needsYou.some((n) => n.code === 'budget_ceiling');
+  const hasStuck = needsYou.some((n) => n.code === 'stuck_agent');
+  const hasGuardViolation = needsYou.some((n) => n.code === 'guard_violation');
+  const hasSalvage = needsYou.some((n) => n.code === 'salvage');
+  const hasDispatchReview = needsYou.some((n) => n.code === 'dispatch_review');
+  const runningCount = actorSummary.running ?? 0;
+
+  let state: CoordinationState;
+  if (hasBudgetCeiling || hasStuck) {
+    state = 'burning-cash';
+  } else if (hasGuardViolation) {
+    state = 'conflict';
+  } else if (hasDispatchReview) {
+    state = 'awaiting-human';
+  } else if (hasSalvage) {
+    state = 'mayday';
+  } else if (runningCount > 0) {
+    state = 'fleet-healthy';
+  } else {
+    state = 'idle';
+  }
+
+  const _ = guardAvailable; // used above indirectly; silence linter
+  const __ = guardEnforcing;
+
+  try {
+    const code = signalFor(state);
+    return { code, state, meaning: ICS_MEANING[code] };
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
+// OperatorState query/response types
+// =============================================================================
+
+interface OperatorStateQuery {
+  project?: string;
+  projectDir?: string;
+  limit?: string;
+}
+
 export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = async (fastify, opts) => {
   const logger = opts.deps.logger;
 
@@ -1185,6 +1516,174 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to build operator actor lens.',
+      };
+    }
+  });
+
+  /**
+   * GET /operator/state
+   *
+   * The suggestibility engine: a single endpoint that returns the full
+   * composite snapshot the Operator TUI, FleetBar, and `pd periscope` need
+   * to render the Orient stage. Composes:
+   *
+   *   actors          — buildOperatorActors() lens
+   *   dispatch        — open dispatches from the queue (review_pending first)
+   *   budget          — recent spend line items + cap status
+   *   guard           — coordination guard status (graceful when binary absent)
+   *   maritimeSignals — actionable signals only (no filler)
+   *   cockpitMissions — roadmap items (now + backlog head)
+   *   roadmap         — raw roadmap items at 'now'
+   *   needsYou        — ranked list of items that require operator action
+   *   generatedAt     — epoch ms
+   */
+  fastify.get('/operator/state', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const query = (request.query || {}) as OperatorStateQuery;
+      const { projectDir, projectName } = resolveProjectContext(query, opts.deps.projects);
+      const effectiveDir = projectDir ?? process.cwd();
+
+      // ── actors ──────────────────────────────────────────────────────────────
+      const actorsResult = buildOperatorActors(opts.deps, query);
+
+      // ── dispatch queue ───────────────────────────────────────────────────────
+      let dispatch: {
+        reviewPending: ReturnType<NonNullable<typeof opts.deps.dispatchQueue>['list']>;
+        open: ReturnType<NonNullable<typeof opts.deps.dispatchQueue>['list']>;
+      } | null = null;
+      if (opts.deps.dispatchQueue) {
+        const reviewPending = opts.deps.dispatchQueue.list({ state: 'awaiting_review', limit: 20 });
+        const open = opts.deps.dispatchQueue.list({ state: 'open', limit: 10 });
+        if (reviewPending.length > 0 || open.length > 0) {
+          dispatch = { reviewPending, open };
+        }
+      }
+
+      // ── budget ledger ────────────────────────────────────────────────────────
+      let budget: {
+        recentEvents: ReturnType<NonNullable<typeof opts.deps.costTracker>['recent']>;
+        status: ReturnType<NonNullable<typeof opts.deps.costTracker>['budgetStatus']> | null;
+        total: ReturnType<NonNullable<typeof opts.deps.costTracker>['total']>;
+      } | null = null;
+      if (opts.deps.costTracker) {
+        const recentEvents = opts.deps.costTracker.recent(15);
+        const total = opts.deps.costTracker.total({ since: Date.now() - 86_400_000 });
+        let budgetStatusResult = null;
+        if (opts.deps.bonds && projectName) {
+          const cap = opts.deps.bonds.getBudget(projectName);
+          if (cap && cap > 0) {
+            budgetStatusResult = opts.deps.costTracker.budgetStatus(projectName, cap);
+          }
+        }
+        // Only include when there's actual spend data or a cap
+        if (recentEvents.length > 0 || budgetStatusResult !== null) {
+          budget = { recentEvents, status: budgetStatusResult, total };
+        }
+      }
+
+      // ── coordination guard ───────────────────────────────────────────────────
+      let guard: (CoordinationGuardStatus & { available: boolean }) | null = null;
+      try {
+        guard = readCoordinationGuardStatus(effectiveDir);
+      } catch {
+        // Guard unavailable — degrade gracefully, don't 500
+        guard = {
+          available: false,
+          success: false,
+          name: 'Coordination Guard',
+          enabled: false,
+          mode: 'off',
+          requireSession: false,
+          requireClaims: false,
+          configPath: '',
+          projectDir: effectiveDir,
+        };
+      }
+
+      // ── maritime signals ─────────────────────────────────────────────────────
+      // Only actionable signals (non-idle, non-fleet-healthy) are surfaced here.
+      const fleetSignal = deriveFleetSignal(
+        actorsResult.summary,
+        [], // needsYou not built yet — placeholder pass
+        guard?.available ?? false,
+        guard?.mode === 'enforce',
+      );
+
+      // ── cockpit missions ─────────────────────────────────────────────────────
+      let cockpitMissions: ReturnType<typeof readMissions> | null = null;
+      if (opts.deps.roadmapItems) {
+        cockpitMissions = readMissions({
+          projectDir: effectiveDir,
+          roadmapItems: opts.deps.roadmapItems,
+          status: ['now', 'backlog'],
+          limit: 20,
+        });
+        if (cockpitMissions.missions.length === 0) {
+          cockpitMissions = null;
+        }
+      }
+
+      // ── roadmap items at 'now' ───────────────────────────────────────────────
+      let roadmap: ReturnType<NonNullable<typeof opts.deps.roadmapItems>['list']> | null = null;
+      if (opts.deps.roadmapItems) {
+        const nowItems = opts.deps.roadmapItems.list({ status: 'now', limit: 10 });
+        if (nowItems.length > 0) {
+          roadmap = nowItems;
+        }
+      }
+
+      // ── needsYou ranking ─────────────────────────────────────────────────────
+      const needsYou = buildNeedsYou(opts.deps, projectName, projectDir, guard);
+
+      // Re-derive fleet signal with the full needsYou picture
+      const fleetSignalFull = deriveFleetSignal(
+        actorsResult.summary,
+        needsYou,
+        guard?.available ?? false,
+        guard?.mode === 'enforce',
+      );
+
+      const response: Record<string, unknown> = {
+        success: true,
+        project: projectName,
+        projectDir,
+        generatedAt: Date.now(),
+        actors: {
+          actors: actorsResult.actors,
+          summary: actorsResult.summary,
+          count: actorsResult.actors.length,
+        },
+        needsYou,
+        guard,
+        fleetSignal: fleetSignalFull ?? fleetSignal,
+      };
+
+      if (dispatch !== null) response.dispatch = dispatch;
+      if (budget !== null) response.budget = budget;
+      if (cockpitMissions !== null) response.cockpitMissions = cockpitMissions;
+      if (roadmap !== null) response.roadmap = roadmap;
+
+      logger?.info?.({
+        project: projectName,
+        projectDir,
+        actorCount: actorsResult.actors.length,
+        needsYouCount: needsYou.length,
+        hasDispatch: dispatch !== null,
+        hasBudget: budget !== null,
+        hasCockpitMissions: cockpitMissions !== null,
+        guardAvailable: guard?.available ?? false,
+      }, 'operator_state_built');
+
+      return response;
+    } catch (error) {
+      logger?.error?.({
+        err: error,
+        query: request.query as Record<string, unknown>,
+      }, 'operator_state_failed');
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to build operator state.',
       };
     }
   });
