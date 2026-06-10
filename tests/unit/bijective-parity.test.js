@@ -356,7 +356,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // githubwebhook: inbound GitHub webhook receiver (POST /webhooks/github),
   // driven by the receiver Worker / GitHub, not by a `pd` command — API-only by
   // design. See routes/github-webhook.ts.
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'context', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

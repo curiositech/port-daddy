@@ -2030,7 +2030,8 @@
         "POST /relay/config",
         "GET /relay/status",
         "POST /relay/exchange"
-      ]
+      ],
+      "sdk": []
     },
     "context": {
       "description": "Context economics \u2014 per-agent context health + task token/cost ledger (ADR-0048)",
@@ -2040,6 +2041,7 @@
         "GET /context/task-ledger"
       ],
       "completions": [],
+      "sdk": [],
       "docs": {
         "readme": false,
         "sdk": false

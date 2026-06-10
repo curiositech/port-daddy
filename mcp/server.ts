@@ -4267,7 +4267,8 @@ async function handleTool(
 
     case 'get_context_overview': {
       const projectFilter = args.project_filter as string | undefined;
-      res = await GET(`/context/overview${projectFilter ? `?project=${encodeURIComponent(projectFilter)}` : ''}`);
+      const overviewQs = projectFilter ? `?project=${encodeURIComponent(projectFilter)}` : '';
+      res = await GET(`/context/overview${overviewQs}`);
       break;
     }
 

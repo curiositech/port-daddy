@@ -1278,6 +1278,7 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
+  'relay',
 ];
 
 /** Simple Levenshtein distance for short strings */
