@@ -62,16 +62,16 @@ Three things the picture is **not**:
    `quality:test-failing` is always-visible — but the operator still has to read the
    test output. The picture says *go here next*, not *here is what to type*.
 
-The clearest way to say it: **the picture is a `pd sniff`, made spatial.** The CLI's
-ASCII heatbar (`cli/commands/pheromone.ts:154`) renders one target at a time and is
-limited by the terminal grid; the picture renders the whole tree and the whole file
-and the whole graph, with time on the X axis.
+The clearest way to say it: **the picture is `pd pheromone files`, made spatial.** The CLI's
+`pd pheromone files` table (`cli/commands/pheromone.ts:154` — `path / heat / agents / conflict`
+columns) renders one aggregate row per file and is limited to the terminal grid; the picture
+renders the whole tree and the whole file and the whole graph, with time on the X axis.
 
 ## Architecture in one paragraph
 
 The daemon already writes pheromones into row metadata (`lib/pheromone.ts:80-95`).
 The daemon already exposes the aggregator (`lib/attention.ts`) and the read surface
-(`pd sniff` → `routes/pheromone.ts:46`). The viz is therefore a **read-only renderer**
+(`pd pheromone show <table> <id>` → `GET /pheromone/:table/:id` in `routes/pheromone.ts`, where `pheromones.sniff(...)` is called). The viz is therefore a **read-only renderer**
 fed by two SSE streams plus one polled query:
 
 ```mermaid
@@ -142,10 +142,13 @@ filter's preview. A sidebar tree would force a re-render-on-pick discontinuity.
 
 ### PR A — `pheromone-events` ring buffer + SSE
 
-A 1k-event circular buffer in `lib/pheromone.ts` plus a `routes/events/pheromone.ts`
-SSE endpoint. Every `spray()` call appends `{ts, target, kind, strength, sprayed_by}`.
-SSE replays the last N events on subscribe (catch-up), then streams new ones.
-Replay-the-last-hour is "GET /pheromones/events?since=ts" without SSE.
+A 1k-event circular buffer in `lib/pheromone.ts` plus a new SSE handler in
+`routes/events.ts` (not a subdirectory — a new handler registered on the existing
+events plugin alongside other event subscriptions). Every `spray()` call appends
+`{ts, target, kind, strength, sprayed_by}`. SSE replays the last N events on
+subscribe (catch-up), then streams new ones.
+Replay-the-last-hour is "GET /events/pheromone?since=ts" without SSE (same path
+prefix as the SSE endpoint).
 
 Files touched: `lib/pheromone.ts` (add ring + writer), `routes/events.ts` (new SSE
 handler). No schema change.
@@ -159,7 +162,8 @@ Vocab v1 § 6 spec'd it; nobody's built it. Returns `{ dominant, urgency_score,
 always_visible: [...], pheromones: [{kind, value, rank, trend, age_s, half_life_s,
 sprayed_by, advice}] }` for a single file. Powers the inspector column in the mock.
 
-Files touched: `routes/sniff.ts` (extend existing), `lib/pheromone.ts` (expose
+Files touched: `routes/sniff.ts` (**new file** — no `/sniff/*` routes exist today;
+`GET /sniff/file` is spec'd here for the first time), `lib/pheromone.ts` (expose
 enriched read), `mcp/server.ts` (new MCP tool `sniff_file_enriched`).
 
 Acceptance: hitting `/sniff/file?path=lib/pheromone.ts` returns the JSON shape the

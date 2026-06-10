@@ -563,6 +563,7 @@ code, .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, mono
   transition: r 200ms ease, fill 200ms ease;
 }
 .crosslinks .node[data-active='1'] circle { fill: var(--node-color, var(--brand-primary)); }
+.crosslinks .node[data-active='1'] text { fill: var(--text-inverse); } /* active nodes fill circle, so label must use inverse to keep contrast */
 .crosslinks .node text {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.75rem;                              /* 12px chart label — exemption: uppercase + weight 700 + letter-spacing 0.1em */
@@ -1020,7 +1021,7 @@ code, .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, mono
 
           <g class="node" data-active="1" style="--node-color: var(--pheromone-human-blocked);">
             <circle cx="150" cy="90" r="14"></circle>
-            <text x="150" y="93" fill="oklch(15% 0.012 250)">pheromone.ts</text>
+            <text x="150" y="93">pheromone.ts</text>
           </g>
           <g class="node" style="--node-color: var(--pheromone-hot-editing);">
             <circle cx="250" cy="80" r="10"></circle>
@@ -1062,13 +1063,13 @@ code, .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, mono
   <!-- ====== TIME SCRUBBER ====== -->
   <footer class="scrub">
     <div class="transport" role="group" aria-label="Replay transport">
-      <button title="back 1 min">
+      <button type="button" title="back 1 min" aria-label="Back 1 minute">
         <svg viewBox="0 0 24 24"><path d="M11 5l-7 7 7 7zM21 5l-7 7 7 7z"/></svg>
       </button>
-      <button title="play/pause" aria-pressed="true">
+      <button type="button" title="play/pause" aria-pressed="true" aria-label="Play or pause replay">
         <svg viewBox="0 0 24 24"><path d="M8 5v14h3V5H8zm5 0v14h3V5h-3z"/></svg>
       </button>
-      <button title="forward 1 min">
+      <button type="button" title="forward 1 min" aria-label="Forward 1 minute">
         <svg viewBox="0 0 24 24"><path d="M4 5l7 7-7 7zM14 5l7 7-7 7z"/></svg>
       </button>
     </div>
