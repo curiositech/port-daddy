@@ -1,0 +1,83 @@
+% Conservation as a functor: conservative (single-unit) vs lax (multi-currency).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.96\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  cat/.style={draw=hhebony,thick,rounded corners=4pt,inner sep=6pt,
+              minimum width=64mm,minimum height=44mm},
+  obj/.style={draw=hhebony,thick,fill=hhsand!30,circle,inner sep=1.5pt,
+              minimum size=8mm,font=\scriptsize},
+  fmap/.style={->,>=Latex,line width=1.4pt,draw=hhcobalt},
+  mor/.style={->,>=Latex,thick,draw=hhebony},
+]
+
+% ─── LEFT: single-unit-of-account federation = conservative functor ────
+\node[cat,fill=hhsand!30,label={[font=\bfseries\footnotesize]north:
+  Single unit of account}] (left) at (0,0) {};
+\node[obj] (h1) at (-12mm,8mm) {$H_1$};
+\node[obj] (h2) at (12mm,8mm)  {$H_2$};
+\node[obj] (fed) at (0,-10mm)  {$F$};
+\draw[mor] (h1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (h2);
+\draw[mor] (h1) -- (fed);
+\draw[mor] (h2) -- (fed);
+\node[font=\scriptsize\itshape,below=1mm of fed,text=hhink,
+      text width=58mm,align=center]
+  {$F(g\circ f)=F(g)\circ F(f)$\\ conservation \emph{preserved} (proven)};
+
+% ─── RIGHT: multi-currency = lax functor, bounded by phi ───────────────
+\node[cat,fill=hhsand!30,right=34mm of left,
+  label={[font=\bfseries\footnotesize]north:
+  Multi-currency / non-fungible}] (right) {};
+\node[obj] (g1) at ($(right.center)+(-12mm,8mm)$) {$H_1$};
+\node[obj] (g2) at ($(right.center)+(12mm,8mm)$)  {$H_2$};
+\node[obj] (gfed) at ($(right.center)+(0,-10mm)$) {$F$};
+\draw[mor] (g1) -- node[above,font=\scriptsize]{$\mathit{xfer}$} (g2);
+\draw[mor] (g1) -- (gfed);
+\draw[mor] (g2) -- (gfed);
+% the coherence 2-cell, bounded by phi
+\node[draw=hhcobalt,thick,fill=hhpaper,circle,inner sep=1pt,
+      font=\scriptsize,minimum size=6mm] (cell)
+      at ($(right.center)+(0,1mm)$) {$\varphi$};
+\node[font=\scriptsize\itshape,below=1mm of gfed,text=hhink,
+      text width=58mm,align=center]
+  {$F(g\circ f)\;\overset{\varphi}{\Rightarrow}\;F(g)\circ F(f)$\\
+   \emph{lax}: preserved only up to escrow-slack $\varphi$; coherence \emph{unproven}};
+
+% ─── The functor arrow between the worlds ──────────────────────────────
+\draw[fmap] (left.east) -- node[above,font=\bfseries\footnotesize]
+  {as units diverge} ($(right.west)$);
+
+% ─── The unified open problem banner ───────────────────────────────────
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=5pt,
+      text width=150mm,align=center,below=10mm of left,xshift=49mm,
+      font=\footnotesize] (sheaf)
+  {\textbf{One question, three guises.} ``Does the assignment $harbor
+   \mapsto its ledger$ form a \emph{sheaf}?'' \;
+   The double-spend / equivocation race is the \textbf{non-vanishing of $H^1$ of
+   the gluing}. Open Problems on cross-harbor settlement, equivocation, and
+   unit-of-account are the \emph{same} obstruction (\S\ref{sec:sheaf}).};
+
+\end{tikzpicture}%
+}
+\caption{Conservation as a (lax) functor. Within a single unit of account the map
+$F:\mathbf{Harbor}\to\mathbf{Federation}$ is a \emph{conservative functor}: it
+preserves the composition of settlement morphisms, so the per-harbor invariant
+$\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ lifts exactly to the
+federation (proven). The moment harbors price bonds in heterogeneous units, $F$ is
+at most a \emph{lax} functor --- conservation is preserved only up to the
+bounded-escrow slack $\varphi$, and the coherence conditions are unproven. The
+headline ``conservation composes upward'' is licensed \emph{only} with this scope
+rider. The three cross-harbor open problems (settlement, equivocation, unit-of-
+account) are one sheaf-gluing obstruction in disguise; the double-spend race is
+literally the non-vanishing of the first cohomology $H^1$ of the gluing.}
+\label{fig:he-conservation-functor}
+\end{figure}

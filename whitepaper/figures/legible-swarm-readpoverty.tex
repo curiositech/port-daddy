@@ -1,0 +1,55 @@
+% Figure 7 — read-poverty: O(n^2) eyeball search vs O(query) indexed directory,
+% and the value curve of L2 across swarm size n.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.97\textwidth}{!}{%
+\begin{tikzpicture}[font=\small]
+
+% ─── LEFT: cost of search vs population ──────────────────────────────────
+\begin{scope}
+\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{population $n$};
+\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{cost to find};
+% O(n) eyeball
+\draw[hhcobalt,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.8*\x});
+\node[text=hhink,font=\bfseries\footnotesize] at (4.3,4.2) {$O(n)$ eyeball};
+% O(query) directory
+\draw[hhteal,very thick,domain=0:5,samples=60,smooth] plot (\x,{0.6 + 0.5*ln(1+\x)});
+\node[text=hhink,font=\bfseries\footnotesize] at (4.2,1.9) {$O(\log n)$ index};
+\node[font=\itshape\footnotesize,align=center] at (2.8,-1.0)
+  {read-poverty: state piles up\\faster than it can be read};
+\end{scope}
+
+% ─── RIGHT: value of L2 across n (works at n=1, grows) ───────────────────
+\begin{scope}[shift={(8.4,0)}]
+\draw[->,thick] (0,0) -- (5.6,0) node[right,font=\footnotesize]{swarm size $n$};
+\draw[->,thick] (0,0) -- (0,4.6) node[above,font=\footnotesize]{value of L2};
+% value: nonzero at n=1, grows
+\draw[hhamber,very thick,domain=0.2:5,samples=80,smooth]
+   plot (\x,{1.2 + 2.6*(1-exp(-0.7*\x))});
+\fill[hhteal] (0.2,{1.2+2.6*(1-exp(-0.14))}) circle (2pt);
+\node[text=hhink,font=\footnotesize,anchor=west,align=left] at (0.35,0.75)
+   {$n{=}1$: briefing,\\attest, guard,\\honest completion};
+\draw[hhink,dashed] (3.4,0)--(3.4,3.4);
+\node[font=\footnotesize,text=hhink,align=center] at (3.4,3.9) {bottleneck\\($n\!\approx\!50$)};
+\node[font=\bfseries\footnotesize,text=hhink,anchor=west] at (4.0,2.6) {discovery pays};
+\end{scope}
+
+\end{tikzpicture}%
+}
+\caption{Read-poverty (\S\ref{sec:readpoverty}). \emph{Left}: the cost of finding the
+right agent/work grows linearly under eyeball search but stays near-flat under an
+indexed directory --- the same trade every database made at the table-scan wall.
+\emph{Right}: the value curve of the legibility wedge across swarm size. It is
+valuable at $n{=}1$ (briefing, attestation, footgun guard, honest completion) and
+grows into the read-poverty regime; discovery ranking earns its keep around the
+$n{\approx}50$ bottleneck. The wedge must work at $n{=}1$ and grow gracefully.}
+\label{fig:readpoverty}
+\end{figure}

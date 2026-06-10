@@ -1,0 +1,81 @@
+% Figure 7 — the kernel's deontic split (Jones & Sergot). Prohibition is handled
+% two ways depending on the rule (regimented pre-commit vs detected post-commit);
+% obligation is enforced by oracle-bound commitments; permission is a recorded
+% capability -- and capability (ability) must stay distinct from permission
+% (normative status) so that "able but forbidden" remains expressible (C9).
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  col/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhpaper,
+              minimum width=54mm,minimum height=58mm,align=left,
+              inner sep=6pt,text width=50mm,anchor=north},
+]
+\newcommand{\hdr}{\bfseries}
+
+% ─── Prohibition ──────────────────────────────────────────────────────────
+\node[col,fill=hhsand!30] (prohib) at (0,0)
+  {{\hdr Prohibition}\\ \textit{``you must not''}\\[4pt]
+   \textbf{Two mechanisms, by rule:}\\[3pt]
+   {\color{hhcobalt}\textbf{Regimented}} (pre-commit, truly unreachable):\\
+   double-claim, duplicate-identity squat, serve-from-test-database, refuse-to-serve on a failed self-check.\\
+   \emph{Credit: uniqueness constraint / boot gate.}\\[5pt]
+   {\color{hhteal}\textbf{Enforced}} (post-commit, detected \& compensated):\\
+   heartbeat freshness, note monotonicity, capability escalation, lock-owner validity.\\
+   \emph{The policy monitor, a log subscriber.}};
+
+% ─── Obligation ───────────────────────────────────────────────────────────
+\node[col,fill=hhsand!30,right=5mm of prohib] (oblig)
+  {{\hdr Obligation}\\ \textit{``you ought''}\\[4pt]
+   \textbf{Enforced} by durable, \emph{violable} commitments
+   (Cohen \& Levesque persistent goals):\\[4pt]
+   \textbf{Law 1} --- the deadline is daemon-derived, \emph{never} agent-supplied (Goodhart-resistance, I5).\\[3pt]
+   \textbf{Law 2} --- closing as `done' is refused without a reference from a finite
+   oracle vocabulary (a released claim, a merged commit, a passing test, a satisfied
+   policy sub-check). Free text cannot close (I6).\\[3pt]
+   State machine: open $\to$ done $\mid$ abandoned $\mid$ superseded.};
+
+% ─── Permission ───────────────────────────────────────────────────────────
+\node[col,fill=hhsand!30,right=5mm of oblig] (perm)
+  {{\hdr Permission}\\ \textit{``you may''}\\[4pt]
+   A recorded \textbf{capability} attached to an actor.\\[5pt]
+   {\color{hhcobalt}\textbf{The split that must not collapse:}}\\[3pt]
+   \textbf{capability} = \emph{ability} (what the sandbox makes possible).\\[3pt]
+   \textbf{permission} = \emph{normative status} (what the deontic layer allows).\\[5pt]
+   ``Able but forbidden'' must stay representable --- e.g.\ a dangerous override flag
+   that \emph{exists} (capable) but \emph{must not be used} (forbidden).};
+
+% ─── The unifying caption strip ───────────────────────────────────────────
+\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
+      text width=168mm,align=center,font=\footnotesize,below=5mm of oblig.south,xshift=0mm]
+  {\textbf{ The deontic split of the kernel (Jones \& Sergot 1993):}\quad
+   \emph{prohibition} is regimented \emph{or} detected; \emph{obligation} is enforced
+   by oracle-bound commitments; \emph{permission} is a recorded capability ---
+   and the coordination layer's deontic binding is a direct lift of this split.};
+
+\end{tikzpicture}%
+}
+\caption{The kernel's deontic split, the formal core of its
+obligation/enforcement organ. Following Jones \& Sergot, the daemon realizes three
+deontic modalities with three distinct mechanisms. \emph{Prohibition} is handled two
+ways depending on the rule: a small regimented set is rejected pre-commit by a
+uniqueness constraint or a fail-closed boot gate (truly unreachable); everything the
+policy monitor \emph{subscribes} to is detected post-commit and compensated.
+\emph{Obligation} is enforced by durable, violable commitments whose deadline the
+agent cannot set (Law~1) and whose closure demands external evidence (Law~2).
+\emph{Permission} is a recorded capability --- and, crucially, capability (ability)
+is kept distinct from permission (normative status) so that ``able but forbidden''
+remains expressible, the very state a guardrail-bypass discipline depends on.}
+\label{fig:swk-deontic-split}
+\end{figure}

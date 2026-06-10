@@ -1,0 +1,73 @@
+% The float-plan / escrow ceremony: three-step signed handshake.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  lane/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
+               inner sep=4pt,minimum width=30mm,
+               font=\bfseries\small,align=center},
+  msg/.style={->,>=Latex,thick,draw=hhebony},
+  note/.style={font=\scriptsize\itshape,text width=52mm,align=left},
+  inv/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
+              inner sep=4pt,font=\scriptsize,text width=58mm,align=left},
+]
+
+% three lanes
+\node[lane] (R) at (0,0) {Requester $R$\\\footnotesize (bounty holder)};
+\node[lane,right=34mm of R] (D) {Daemon\\\footnotesize (escrow agent)};
+\node[lane,right=34mm of D] (W) {Worker $W$\\\footnotesize (claim holder)};
+
+\foreach \n in {R,D,W} {
+  \draw[dashed,gray] (\n.south) -- ($(\n.south)+(0,-58mm)$);
+}
+
+% (1) requester signs FloatPlan
+\draw[msg] ($(R.south)+(0,-6mm)$) -- node[above,font=\scriptsize]
+  {$\mathsf{sign}_{R}(\mathit{FloatPlan})$} ($(D.south)+(0,-6mm)$);
+\node[note,right=8mm of W,yshift=-7mm,text width=46mm]
+  {\textbf{(1)} $R$ signs a FloatPlan: task $+$ machine-checkable acceptance
+   criteria $+$ compute budget $+$ credit bounty.};
+
+% (2) daemon debits + escrows in EXCLUSIVE txn
+\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=3pt,
+      font=\scriptsize,text width=40mm,align=center]
+      at ($(D.south)+(0,-24mm)$) (txn)
+  {\textbf{(2)} \texttt{BEGIN EXCLUSIVE}\\ debit wallet $\to$ escrow row\\
+   \texttt{COMMIT}};
+
+% (3) daemon signs anchor + plan hash, proving funds locked
+\draw[msg] ($(D.south)+(0,-38mm)$) -- node[above,font=\scriptsize]
+  {$\mathsf{sign}_{D}\{\textit{anchor id},\,\textit{plan hash}\}$} ($(W.south)+(0,-38mm)$);
+\node[note,right=2mm of W,yshift=-39mm]
+  {\textbf{(3)} The daemon proves to $W$ that funds are locked
+   \emph{before any work runs}. This is ``no-spawn-without-bond.''};
+
+% the conservation invariant box
+\node[inv,below=46mm of R,xshift=2mm]
+  {\textbf{Invariant held at every step (implemented):}\\
+   $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$.\\
+   Verified over 10k random operation traces\\
+   by a property test.};
+
+\end{tikzpicture}%
+}
+\caption{The float-plan escrow ceremony --- the atom every side of the market
+settles on. A three-step signed handshake over a standard digital-signature scheme:
+the requester signs a FloatPlan (task, machine-checkable acceptance criteria,
+budget, bounty); the daemon debits and escrows the value inside one serialized
+database transaction; the daemon then signs $\{\textit{anchor id},\,\textit{plan
+hash}\}$, proving to the worker that funds are pinned before any work begins. The
+conservation invariant holds at every step and is the \emph{implemented} floor the
+whole economy stands on --- the one claim this paper can make at the highest
+maturity.}
+\label{fig:he-float-plan}
+\end{figure}

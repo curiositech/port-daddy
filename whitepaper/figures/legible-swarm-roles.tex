@@ -1,0 +1,49 @@
+% Figure 11 — role assignment in Hobbes' author/actor frame.
+% operator = author, daemon = sovereign-actor, agents = multitude.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.82\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  role/.style={draw=hhebony,very thick,rounded corners=4pt,align=center,inner sep=7pt,
+               font=\footnotesize,text width=44mm},
+  e/.style={-{Latex[length=2.4mm]},very thick},
+]
+\node[role,fill=hhsand!30] (author) at (0,3.4)
+  {\textbf{Operator = AUTHOR}\\\emph{owns the authority;}\\\emph{issues consent grants;}\\\emph{holds the inalienable override}};
+\node[role,fill=hhsand!30] (actor) at (0,0.4)
+  {\textbf{Daemon = SOVEREIGN (actor)}\\\emph{exercises the authority;}\\\emph{blocks, lands, escalates ---}\\\emph{but is the \textbf{most} legible actor}};
+\node[role,fill=hhsand!30] (mult) at (0,-2.6)
+  {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1)}\\\emph{to be bound; enforced by the daemon}};
+
+\draw[e,hhamber] (author) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
+  {authorizes (scoped grant) $\downarrow$ \quad revokes (override) $\uparrow$} (actor);
+\draw[e,hhink] (actor) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
+  {rules over $\downarrow$ \quad legible to $\uparrow$} (mult);
+
+% the covenant loop on the multitude
+\draw[e,hhteal] ([xshift=-3mm]mult.south west) to[bend right=55]
+  node[below,font=\scriptsize,text=hhink]{covenant among subjects}
+  ([xshift=3mm]mult.south east);
+\end{tikzpicture}%
+}
+\caption{Role assignment (\S\ref{sec:roles}) in Hobbes' author/actor distinction
+(\emph{Leviathan} ch.~16). The \emph{agents} are the multitude who covenant
+each-with-all; the \emph{daemon} is the sovereign-as-actor that exercises the
+instituted authority --- but, by the legible-sovereign amendment
+(Prop.~\ref{prop:legible-sovereign}), is the most legible actor, not the least; the
+\emph{operator} is the \emph{author} who owns the authority, issues scoped consent
+grants (Def.~\ref{def:consent}), and holds the inalienable override
+(Prop.~\ref{prop:override}). Naming the operator ``the sovereign'' would break the
+covenant; the author slot is the one Hobbes leaves for the one who authorizes without
+personally acting.}
+\label{fig:roles}
+\end{figure}
