@@ -121,6 +121,8 @@ _port_daddy() {
     periscope sight scope
     # Coast Guard read path — pd coast-guard status (see the guard)
     coast-guard cg
+    # Relay v0 — zero-trust event fabric (ADR-0049)
+    relay
     # App-Native Development Cockpit
     cockpit
     # Roadmap popper — autonomous roadmap-to-dispatch task puller
