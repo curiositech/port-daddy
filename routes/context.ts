@@ -24,9 +24,11 @@ export const contextRoutes: FastifyPluginAsync<{ deps: ContextRouteDeps }> = asy
 ) => {
   const { contextTracker } = deps;
 
-  fastify.get('/context/overview', async (_req, reply) => {
+  fastify.get('/context/overview', async (req, reply) => {
     try {
-      const agents = contextTracker.getSwarmContextSummary();
+      const query = (req.query as Record<string, string>);
+      const projectFilter = query.project || undefined;
+      const agents = contextTracker.getSwarmContextSummary(projectFilter);
       const today = new Date().toISOString().slice(0, 10);
       const dailyCosts = contextTracker.getDailyCostByAgent(today);
       const swarmDailyCostUsd = contextTracker.getSwarmDailyCostUsd(today);
@@ -74,7 +76,7 @@ export const contextRoutes: FastifyPluginAsync<{ deps: ContextRouteDeps }> = asy
       const rows = contextTracker.getTaskLedger(
         query.agentId || undefined,
         query.since || undefined,
-        query.limit ? parseInt(query.limit, 10) : 50,
+        query.limit ? Math.max(1, Math.min(500, parseInt(query.limit, 10) || 50)) : 50,
       );
       return reply.send({ rows, count: rows.length });
     } catch (err) {

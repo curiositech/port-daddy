@@ -191,7 +191,8 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
 
       // Optional context health update — agents that know their token usage report it here.
       const model = typeof body.model === 'string' ? body.model : null;
-      const usedPct = typeof body.context_window_used_pct === 'number' ? body.context_window_used_pct : null;
+      const rawPct = typeof body.context_window_used_pct === 'number' ? body.context_window_used_pct : null;
+      const usedPct = (rawPct !== null && Number.isFinite(rawPct)) ? Math.max(0, Math.min(1, rawPct)) : null;
       if (contextTracker && model && usedPct !== null) {
         const tokensUsed = Math.round(usedPct * getEffectiveContextWindow(model));
         contextTracker.upsertContextHealth(id, model, tokensUsed);

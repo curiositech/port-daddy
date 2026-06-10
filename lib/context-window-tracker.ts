@@ -266,7 +266,7 @@ export function createContextWindowTracker(db: Database) {
       id, input.agentId, input.sessionId ?? null, input.sortieId ?? null, input.model,
       input.inputTokens, cachedInputTokens, input.outputTokens, totalTokens,
       effectiveMax, input.contextWindowUsedPct ?? null,
-      input.costUsd, input.costIsEstimate ? 1 : 0,
+      input.costUsd, (input.costIsEstimate !== false) ? 1 : 0,
       input.landedWork ?? null, recordedAt,
     );
 
@@ -276,7 +276,7 @@ export function createContextWindowTracker(db: Database) {
       inputTokens: input.inputTokens, cachedInputTokens, outputTokens: input.outputTokens,
       totalTokens, effectiveContextMax: effectiveMax,
       contextWindowUsedPct: input.contextWindowUsedPct ?? null,
-      costUsd: input.costUsd, costIsEstimate: !!input.costIsEstimate,
+      costUsd: input.costUsd, costIsEstimate: input.costIsEstimate !== false,
       landedWork: input.landedWork ?? null, recordedAt,
     };
   }

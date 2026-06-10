@@ -4252,7 +4252,7 @@ async function handleTool(
     }
 
     case 'get_context_budget': {
-      const agentId = args.agent_id as string | undefined;
+      const agentId = (args.agent_id ?? args.agent) as string | undefined;
       if (!agentId) {
         res = { status: 400, data: { error: 'agent_id is required' } };
         break;

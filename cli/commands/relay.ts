@@ -8,40 +8,44 @@
  *   pd relay exchange        Exchange OIDC token for a PD card via the relay
  */
 
-import type { CAC } from 'cac';
-import { resolveDaemonTarget } from '../lib/daemon-resolver.js';
-import { callDaemon } from '../lib/daemon-client.js';
+import { pdFetch } from '../utils/fetch.js';
 
-export function registerRelayCommands(cli: CAC): void {
-  const relay = cli.command('relay', 'Relay configuration and status (ADR-0049)');
+/** Parsed CLI options forwarded from bin/port-daddy-cli.ts */
+export interface RelayOptions {
+  clear?: boolean;
+  oidcToken?: string;
+  cap?: string;
+  out?: string;
+  [key: string]: unknown;
+}
 
-  // ── pd relay url <url> ──────────────────────────────────────────────────
-  relay
-    .command('url [url]', 'Get or set the relay URL')
-    .option('--clear', 'Remove relay URL (disables relay federation)')
-    .action(async (url: string | undefined, opts: { clear?: boolean }) => {
-      const daemon = await resolveDaemonTarget();
-
-      if (opts.clear) {
-        await callDaemon(daemon, 'POST', '/relay/config', { relay_url: null });
-        console.log('✓ Relay disabled (relay_url cleared)');
+/**
+ * Main handler — dispatches to the appropriate relay subcommand.
+ * Called by bin/port-daddy-cli.ts as: handleRelay(subcommand, positional, options)
+ */
+export async function handleRelay(
+  subcmd: string | undefined,
+  positional: string[],
+  options: RelayOptions,
+): Promise<void> {
+  switch (subcmd) {
+    case 'url': {
+      const url = positional[0];
+      if (options.clear) {
+        await pdFetch('/relay/config', { method: 'POST', body: JSON.stringify({ relay_url: null }) });
+        console.log('\u2713 Relay disabled (relay_url cleared)');
         return;
       }
-
       if (!url) {
-        // Get current
-        const current = await callDaemon<{ relay_url: string | null }>(
-          daemon, 'GET', '/relay/config'
-        );
+        const res = await pdFetch('/relay/config');
+        const current = (await res.json()) as { relay_url: string | null };
         if (!current.relay_url) {
-          console.log('relay_url: (not set — relay federation disabled)');
+          console.log('relay_url: (not set \u2014 relay federation disabled)');
         } else {
           console.log(`relay_url: ${current.relay_url}`);
         }
         return;
       }
-
-      // Validate URL format
       try {
         const parsed = new URL(url);
         if (!['https:', 'http:'].includes(parsed.protocol)) {
@@ -51,25 +55,22 @@ export function registerRelayCommands(cli: CAC): void {
         console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
         process.exit(1);
       }
+      await pdFetch('/relay/config', { method: 'POST', body: JSON.stringify({ relay_url: url }) });
+      console.log(`\u2713 Relay URL set: ${url}`);
+      console.log('  Run: pd relay status   \u2014 to verify connection');
+      return;
+    }
 
-      await callDaemon(daemon, 'POST', '/relay/config', { relay_url: url });
-      console.log(`✓ Relay URL set: ${url}`);
-      console.log('  Run: pd relay status   — to verify connection');
-    });
-
-  // ── pd relay status ──────────────────────────────────────────────────────
-  relay
-    .command('status', 'Show relay connection status')
-    .action(async () => {
-      const daemon = await resolveDaemonTarget();
-      const status = await callDaemon<{
+    case 'status': {
+      const res = await pdFetch('/relay/status');
+      const status = (await res.json()) as {
         relay_url: string | null;
         connected: boolean;
         session_id: string | null;
         last_handshake: number | null;
         accepted_channels: string[];
         relay_version: string | null;
-      }>(daemon, 'GET', '/relay/status');
+      };
 
       if (!status.relay_url) {
         console.log('Relay: disabled (no relay_url configured)');
@@ -77,7 +78,7 @@ export function registerRelayCommands(cli: CAC): void {
         return;
       }
 
-      const connStr = status.connected ? '✓ connected' : '✗ disconnected';
+      const connStr = status.connected ? '\u2713 connected' : '\u2717 disconnected';
       console.log(`Relay: ${status.relay_url}`);
       console.log(`Status: ${connStr}`);
       if (status.session_id) console.log(`Session: ${status.session_id}`);
@@ -90,41 +91,40 @@ export function registerRelayCommands(cli: CAC): void {
         for (const ch of status.accepted_channels) console.log(`  - ${ch}`);
       }
       if (status.relay_version) console.log(`Relay version: ${status.relay_version}`);
-    });
+      return;
+    }
 
-  // ── pd relay exchange ────────────────────────────────────────────────────
-  relay
-    .command('exchange', 'Exchange OIDC token for a PD card (for CI runners)')
-    .option('--oidc-token <token>', 'OIDC token from GitHub Actions (or $ACTIONS_ID_TOKEN_REQUEST_URL)')
-    .option('--cap <cap>', 'JSON capability array, e.g. \'[{"op":"pub","channel":"ci:*"}]\'')
-    .option('--out <path>', 'Write card JWT to file instead of stdout')
-    .action(async (opts: { oidcToken?: string; cap?: string; out?: string }) => {
-      const daemon = await resolveDaemonTarget();
-      const token = opts.oidcToken ?? process.env['ACTIONS_ID_TOKEN'];
-
+    case 'exchange': {
+      const token = options.oidcToken ?? process.env['ACTIONS_ID_TOKEN'];
       if (!token) {
         console.error('Error: --oidc-token or $ACTIONS_ID_TOKEN required');
         process.exit(1);
       }
-
       let cap: unknown[];
       try {
-        cap = opts.cap ? JSON.parse(opts.cap) : [{ op: 'pub', channel: '*' }];
+        cap = options.cap ? JSON.parse(options.cap) : [{ op: 'pub', channel: '*' }];
       } catch {
         console.error('Error: --cap must be valid JSON array');
         process.exit(1);
       }
-
-      const result = await callDaemon<{ card: string; exp: number }>(
-        daemon, 'POST', '/relay/exchange', { oidc_token: token, cap }
-      );
-
-      if (opts.out) {
+      const res = await pdFetch('/relay/exchange', {
+        method: 'POST',
+        body: JSON.stringify({ oidc_token: token, cap }),
+      });
+      const result = (await res.json()) as { card: string; exp: number };
+      if (options.out) {
         const { writeFileSync } = await import('node:fs');
-        writeFileSync(opts.out, result.card, 'utf8');
-        console.log(`✓ Card written to ${opts.out} (exp: ${new Date(result.exp * 1000).toISOString()})`);
+        writeFileSync(options.out, result.card, 'utf8');
+        console.log(`\u2713 Card written to ${options.out} (exp: ${new Date(result.exp * 1000).toISOString()})`);
       } else {
         console.log(result.card);
       }
-    });
+      return;
+    }
+
+    default:
+      console.error(`Unknown relay subcommand: ${subcmd ?? '(none)'}`);
+      console.error('Usage: pd relay url|status|exchange');
+      process.exit(1);
+  }
 }

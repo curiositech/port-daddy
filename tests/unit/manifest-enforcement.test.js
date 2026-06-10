@@ -707,6 +707,11 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'drop_feedback': 'feedback',
       'list_feedback': 'feedback',
       'feedback_summary': 'feedback',
+
+      // Context Economics
+      'get_context_budget': 'context',
+      'get_context_overview': 'context',
+      'get_task_ledger': 'context',
     };
 
     const unmapped = [];

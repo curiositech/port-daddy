@@ -138,6 +138,8 @@ import {
   handlePeriscope,
   // Coast Guard read path — `pd coast-guard status` (ADR-0050 legibility)
   handleCoastGuard,
+  // Relay — cloud event fabric (ADR-0049)
+  handleRelay,
 } from '../cli/commands/index.js';
 // pd memory — Core/Recall/Archival vocabulary + episodic memory dispatcher.
 // Imported directly (not via index.js) so the tier subcommands take precedence
@@ -2840,6 +2842,11 @@ export async function main(): Promise<void> {
       // Watch — ambient agent kernel (SSE subscriber)
       case 'watch':
         await handleWatch(positional[0], options);
+        break;
+
+      // Relay — cloud event fabric configuration (ADR-0049)
+      case 'relay':
+        await handleRelay(positional[0], positional.slice(1), options as any);
         break;
 
       // Fleet transcripts — chat-record viewer for every ship run
