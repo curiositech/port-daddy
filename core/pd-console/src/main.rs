@@ -21,8 +21,48 @@ use app::ConsoleView;
 use fleet_pane::FleetPane;
 use gpui::*;
 use pane::Pane;
+use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
+
+/// Filesystem asset source — resolves paths relative to the `assets/` dir
+/// that lives next to the crate root (located via CARGO_MANIFEST_DIR at
+/// compile time; falls back to the executable's parent at runtime).
+struct FsAssets {
+    base: std::path::PathBuf,
+}
+
+impl FsAssets {
+    fn locate() -> Self {
+        // Dev: use the compile-time manifest dir so `cargo run` just works.
+        let base = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets");
+        Self { base }
+    }
+}
+
+impl AssetSource for FsAssets {
+    fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
+        let full = self.base.join(path);
+        match std::fs::read(&full) {
+            Ok(bytes) => Ok(Some(Cow::Owned(bytes))),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    fn list(&self, path: &str) -> Result<Vec<SharedString>> {
+        let dir = self.base.join(path);
+        let entries = std::fs::read_dir(&dir)
+            .map(|rd| {
+                rd.filter_map(|e| {
+                    e.ok().and_then(|e| e.file_name().into_string().ok()).map(SharedString::from)
+                })
+                .collect()
+            })
+            .unwrap_or_default();
+        Ok(entries)
+    }
+}
 
 fn main() {
     let daemon_url = std::env::var("PORT_DADDY_URL").unwrap_or_else(|_| {
@@ -34,7 +74,9 @@ fn main() {
         format!("http://127.0.0.1:{port}")
     });
 
-    Application::new().run(move |cx: &mut App| {
+    Application::new()
+        .with_assets(FsAssets::locate())
+        .run(move |cx: &mut App| {
         let daemon_url = daemon_url.clone();
 
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
