@@ -110,7 +110,7 @@ _port_daddy() {
     # Agent Inbox
     inbox
     # AI Agent Spawner + Watch
-    spawn spawned sortie watch
+    spawn spawned sortie watch relay
     # Fleet ship-run transcripts
     transcripts transcript
     # Dispatch (renamed from nightshift per ADR-0035) + review + morning

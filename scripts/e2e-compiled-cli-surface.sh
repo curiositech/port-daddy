@@ -342,6 +342,7 @@ covered guard;     skip "guard"     "guard install/check mutate hooks; only 'gua
 covered harbor;    skip "harbor"    "harbor create/enter/leave/destroy mutate permission namespaces; usage read-tested above"
 covered add;       skip "add"       "git staging wrapper; mutates the index — not run in the surface gate"
 covered nightshift; skip "nightshift" "deprecated alias of 'dispatch' (ADR-0035); emits a deprecation banner then runs the dispatch queue — 'dispatch' usage is read-tested above"
+covered relay;     skip "relay"     "cloud relay management (ADR-0049); connects to external relay services — not safe in CI"
 
 echo
 echo "=== Verb-surface reconciliation against bin/port-daddy-cli.ts ====="

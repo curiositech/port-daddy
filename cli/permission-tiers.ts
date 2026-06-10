@@ -140,6 +140,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   add: 'notify',
   semantic: 'notify',
   watch: 'notify',
+  relay: 'notify',          // reads or configures cloud relay (ADR-0049); no shared state written
   attention: 'notify',      // default fetch marks inbox/channel items read for this agent
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only

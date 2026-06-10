@@ -320,34 +320,39 @@ describe('Agent Liveness & Readiness', () => {
     });
 
     it('should show stale liveness for old heartbeat', () => {
-      agents.register('agent-1', { status: 'ready' });
+      // Use 'starting' status: dead threshold = 15min, stale threshold = 9min (60% of dead).
+      // Backdate by 10 minutes → past stale (9min) but before dead (15min).
+      agents.register('agent-1', { status: 'starting' });
 
       // Manually backdate heartbeat
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 13 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 10 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('stale');
     });
 
     it('should show dead liveness for very old heartbeat', () => {
-      agents.register('agent-1', { status: 'ready' });
+      // Use 'starting' status: dead threshold = 15 min. Backdate by 16 min → dead.
+      agents.register('agent-1', { status: 'starting' });
 
       // Backdate heartbeat past dead threshold
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 25 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 16 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('dead');
     });
 
     it('should compute graceRemaining', () => {
+      // busy dead threshold = 4h (240 min), stale at 60% = 144 min.
+      // Just registered → graceRemaining ≈ 240 min.
       agents.register('agent-1', { status: 'busy' });
       const result = agents.get('agent-1');
 
-      // Just registered, so graceRemaining should be near the full dead threshold for busy (30 min)
-      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(29 * 60 * 1000);
-      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(30 * 60 * 1000);
+      // Just registered, so graceRemaining should be near the full dead threshold for busy (4h = 240 min)
+      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(239 * 60 * 1000);
+      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(240 * 60 * 1000);
     });
   });
 
