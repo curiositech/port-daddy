@@ -28,10 +28,8 @@ export const harvestPlugin: FastifyPluginAsync<{ deps: HarvestRouteDeps }> = asy
 ) => {
   const { db, episodicMemory } = deps;
 
-  fastify.post<{ Params: { id: string } }>(
-    '/harvest/session/:id',
-    async (req, reply) => {
-      const sessionId = req.params.id;
+  fastify.post('/harvest/session/:id', async (req, reply) => {
+      const sessionId = (req.params as { id: string }).id;
       try {
         const result = await harvestSession(sessionId, db, {
           episodicMemory,
