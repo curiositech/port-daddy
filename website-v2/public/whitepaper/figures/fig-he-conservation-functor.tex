@@ -1,11 +1,11 @@
 % Conservation as a functor: conservative (single-unit) vs lax (multi-currency).
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -16,7 +16,7 @@
               minimum width=64mm,minimum height=44mm},
   obj/.style={draw=hhebony,thick,fill=hhsand!30,circle,inner sep=1.5pt,
               minimum size=8mm,font=\scriptsize},
-  fmap/.style={->,>=Latex,line width=1.4pt,draw=hhcinnabar},
+  fmap/.style={->,>=Latex,line width=1.4pt,draw=hhcobalt},
   mor/.style={->,>=Latex,thick,draw=hhebony},
 ]
 
@@ -44,7 +44,7 @@
 \draw[mor] (g1) -- (gfed);
 \draw[mor] (g2) -- (gfed);
 % the coherence 2-cell, bounded by phi
-\node[draw=hhcinnabar,thick,fill=hhpaper,circle,inner sep=1pt,
+\node[draw=hhcobalt,thick,fill=hhpaper,circle,inner sep=1pt,
       font=\scriptsize,minimum size=6mm] (cell)
       at ($(right.center)+(0,1mm)$) {$\varphi$};
 \node[font=\scriptsize\itshape,below=1mm of gfed,text=hhink,
