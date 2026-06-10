@@ -322,9 +322,9 @@ describe('Agent Liveness & Readiness', () => {
     it('should show stale liveness for old heartbeat', () => {
       agents.register('agent-1', { status: 'ready' });
 
-      // Manually backdate heartbeat
+      // Backdate past stale threshold (60% of 4h = 2.4h). Use 2.5h.
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 13 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 2.5 * 60 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('stale');
@@ -333,9 +333,9 @@ describe('Agent Liveness & Readiness', () => {
     it('should show dead liveness for very old heartbeat', () => {
       agents.register('agent-1', { status: 'ready' });
 
-      // Backdate heartbeat past dead threshold
+      // Backdate past dead threshold (4h for ready). Use 5h.
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 25 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 5 * 60 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('dead');
@@ -345,9 +345,9 @@ describe('Agent Liveness & Readiness', () => {
       agents.register('agent-1', { status: 'busy' });
       const result = agents.get('agent-1');
 
-      // Just registered, so graceRemaining should be near the full dead threshold for busy (30 min)
-      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(29 * 60 * 1000);
-      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(30 * 60 * 1000);
+      // Just registered, so graceRemaining ≈ full dead threshold for busy (4h)
+      expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(239 * 60 * 1000);
+      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(4 * 60 * 60 * 1000);
     });
   });
 

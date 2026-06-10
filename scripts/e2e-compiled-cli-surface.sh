@@ -253,6 +253,14 @@ run_read "harbormaster status" harbormaster -- harbormaster status
 run_read "hm status"         hm           -- hm status
 run_read "review (usage)"    review       -- review
 run_read "dispatch (usage)"  dispatch     -- dispatch
+# Relay status (ADR-0049). `relay status` is a pure GET /relay/status read; the
+# mutating subforms (relay url <value>, relay exchange) are NOT run. Against the
+# scratch daemon relay is unconfigured, so it prints the "disabled" banner. If
+# the relay route is not mounted it exits non-zero WITH an error line — same
+# shape as attest/doctor above, which run_read treats as a PASS because it still
+# proves the compiled relay module loaded and ran (the dead-binary failure mode
+# is exit-non-zero with EMPTY output).
+run_read "relay status"      relay        -- relay status
 
 echo
 echo "=== MUTATING round-trips (safe against the scratch daemon) ======"
