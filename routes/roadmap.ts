@@ -23,6 +23,7 @@ import type {
 } from '../lib/roadmap-items.js';
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
+import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
 
 interface RoadmapDeps {
   roadmapItems: RoadmapItems;
@@ -264,6 +265,35 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
       }
     }
     return { success: true, markdown, count: items.length };
+  });
+
+  fastify.post('/roadmap/import-markdown', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body ?? {}) as Record<string, unknown>;
+    const rootDir = asString(body.rootDir) ?? asString(body.root);
+    if (!rootDir) {
+      reply.code(400);
+      return { success: false, error: 'rootDir is required (repo root to read markdown piles from)' };
+    }
+    const harbor = asString(body.harbor);
+    const project = asString(body.project);
+    const by = asString(body.by) ?? asString(body.promotedBy);
+    const dryRun = body.dryRun === true || body.dryRun === 'true';
+    try {
+      const result = importMarkdownRoadmap(roadmapItems, {
+        rootDir,
+        harbor,
+        project,
+        by,
+        dryRun,
+      });
+      return { success: true, ...result };
+    } catch (error) {
+      reply.code(500);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'import-markdown failed',
+      };
+    }
   });
 
   fastify.post('/roadmap/promote', async (request: FastifyRequest, reply: FastifyReply) => {

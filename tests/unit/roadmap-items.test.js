@@ -11,7 +11,7 @@ beforeEach(() => {
   db = createTestDb();
   tuples = createTupleSpace(db);
   clock = 1_700_000_000_000;
-  roadmap = createRoadmapItems({ tuples, db, now: () => clock });
+  roadmap = createRoadmapItems({ db, tuples, now: () => clock });
 });
 
 afterEach(() => {
@@ -240,6 +240,43 @@ describe('touch', () => {
 });
 
 // =============================================================================
+// Durability — SQL table as the source of truth (ADR-0033)
+// =============================================================================
+
+describe('durability', () => {
+  test('roadmap state survives a wiped tuple space', () => {
+    roadmap.upsert({ slug: 'a', summaryMd: 'A', status: 'now', harbor: 'fleet' });
+    roadmap.upsert({ slug: 'b', summaryMd: 'B', status: 'backlog', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'b', status: 'merge', by: 'agent-x', harbor: 'fleet' });
+
+    // Wipe tuples — simulating a tuple GC, schema reset, or attacker
+    // truncating the subscription log. The roadmap_items SQL table is the
+    // database-of-record, so reads MUST still work.
+    db.prepare('DELETE FROM tuples').run();
+
+    const items = roadmap.list({ harbor: 'fleet' });
+    expect(items.map((i) => i.slug).sort()).toEqual(['a', 'b']);
+    expect(roadmap.get('b', 'fleet')?.status).toBe('merge');
+    expect(roadmap.get('a', 'fleet')?.summaryMd).toBe('A');
+  });
+
+  test('audit trail rows land in roadmap_item_status_events', () => {
+    roadmap.upsert({ slug: 'audit', summaryMd: 'x', status: 'backlog', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'audit', status: 'now', by: 'agent-1', harbor: 'fleet' });
+    roadmap.updateStatus({ slug: 'audit', status: 'done', by: 'agent-2', harbor: 'fleet' });
+
+    const events = db
+      .prepare(`SELECT status, by_agent_id FROM roadmap_item_status_events
+                WHERE slug = ? ORDER BY id ASC`)
+      .all('audit');
+    expect(events).toEqual([
+      { status: 'now', by_agent_id: 'agent-1' },
+      { status: 'done', by_agent_id: 'agent-2' },
+    ]);
+  });
+});
+
+// =============================================================================
 // ADR-0036 relational APIs — edges, owners, artifacts, tags, events
 // =============================================================================
 
@@ -417,20 +454,15 @@ describe('events', () => {
   });
 });
 
-describe('relational APIs without db dep', () => {
-  test('addEdge throws when db absent', () => {
-    const tuplesOnly = createTupleSpace(createTestDb());
-    const r = createRoadmapItems({ tuples: tuplesOnly });
-    expect(() => r.addEdge({ fromId: 'a', toId: 'b', kind: 'blocks' })).toThrow(/db/);
+describe('relational APIs require db (always present in daemon and tests)', () => {
+  test('addEdge throws on self-loop (db present, validation path)', () => {
+    const a = roadmap.upsert({ slug: 'self-loop-a', summaryMd: 'x' });
+    expect(() => roadmap.addEdge({ fromId: a.id, toId: a.id, kind: 'blocks' })).toThrow(/loop/);
   });
 
-  test('core APIs (upsert/get/list/updateStatus/touch) work without db', () => {
-    const tdb = createTestDb();
-    const tuplesOnly = createTupleSpace(tdb);
-    const r = createRoadmapItems({ tuples: tuplesOnly });
-    const item = r.upsert({ slug: 'no-db', summaryMd: 'works' });
-    expect(item.slug).toBe('no-db');
-    expect(r.get('no-db')?.summaryMd).toBe('works');
-    tdb.close();
+  test('core APIs work with db present (the only supported mode)', () => {
+    const item = roadmap.upsert({ slug: 'with-db', summaryMd: 'works' });
+    expect(item.slug).toBe('with-db');
+    expect(roadmap.get('with-db')?.summaryMd).toBe('works');
   });
 });

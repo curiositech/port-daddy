@@ -47,6 +47,7 @@ import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
 import { createAgentInbox } from './lib/agent-inbox.js';
+import { createAttention } from './lib/attention.js';
 import { createClaimWatcher } from './lib/claim-watcher.js';
 import { createResurrection } from './lib/resurrection.js';
 import { createChangelog } from './lib/changelog.js';
@@ -71,6 +72,7 @@ import { initDatabase, closeDatabase, resolveDbPath } from './lib/db.js';
 import { createIpcServer } from './lib/ipc-server.js';
 import { createIpcRouter } from './lib/ipc-router.js';
 import { createFleetDaemon } from './lib/fleet-daemon.js';
+import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
 import { createMergeQueue } from './lib/merge-queue.js';
@@ -83,6 +85,8 @@ import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
+import { createCommitments } from './lib/commitments.js';
+import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
@@ -98,8 +102,9 @@ import { registerAllRoutes } from './routes/index.js';
 
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
-import { LOOPBACK_TCP_HOST } from './shared/daemon-discovery.js';
+import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
+import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
@@ -139,8 +144,8 @@ const configPath: string = join(__dirname, 'config.json');
 const config: PortDaddyServerConfig = existsSync(configPath)
   ? JSON.parse(readFileSync(configPath, 'utf8')) as PortDaddyServerConfig
   : {
-      service: { port: 9876, host: LOOPBACK_TCP_HOST },
-      ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, 9876] },
+      service: { port: DEFAULT_DAEMON_PORT, host: LOOPBACK_TCP_HOST },
+      ports: { range_start: 3100, range_end: 9999, reserved: [8080, 8000, DEFAULT_DAEMON_PORT] },
       cleanup: { interval_ms: 300000 },
       logging: { level: 'info', file: 'port-daddy.log', error_file: 'port-daddy-error.log' },
       security: { rate_limit: { window_ms: 60000, max_requests: 1000 } }
@@ -152,7 +157,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.14.1';
+const EMBEDDED_PACKAGE_VERSION: string = '3.18.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -167,6 +172,12 @@ function calculateCodeHash(): string {
 
 const CODE_HASH: string = calculateCodeHash();
 const STARTED_AT: number = Date.now();
+
+// Snapshot the running binary once at boot. We hash process.execPath BEFORE
+// any `brew upgrade` (or other in-place swap) can land a newer binary at the
+// canonical pd path. Later drift checks compare this baseline to whatever
+// `command -v pd` currently resolves to. See lib/binary-drift-detector.ts.
+const RUNNING_BINARY_SNAPSHOT = snapshotRunningBinary();
 
 // =============================================================================
 // LOGGING (identical to server.ts)
@@ -351,7 +362,7 @@ const semanticResolver = createSemanticResolver(db, {
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
 const feedback = createFeedback({ tuples });
-const roadmapItems = createRoadmapItems({ tuples, db });
+const roadmapItems = createRoadmapItems({ db, tuples });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
 const roadmapPop = createRoadmapPop({ db, feedback });
 
@@ -361,6 +372,12 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+// Durable commitments + obligation monitor (ADR-0041 first slice). The
+// obligation half of accountability: resurrection watches heartbeats, this
+// watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
+// no Arbiter/Rust FFI dependency, so it cannot silently degrade to a stub).
+const commitments = createCommitments(db);
+const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
 const noteEncryption = createNoteEncryption({ requireMasterKey: true });
@@ -407,6 +424,7 @@ const resolver = createResolver(db);
 dns.setResolver(resolver);
 const briefing = createBriefing(db, { sessions, agents, resurrection, activityLog, services, messaging });
 const sugar = createSugar({ agents, sessions, activityLog });
+const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
@@ -507,6 +525,16 @@ const fleetDaemon = createFleetDaemon({
   allowStableInstallFleet: ALLOW_STABLE_FLEET,
   costTracker,
   locks,
+});
+
+// GitHub repo → project registry. Resolves a webhook's owner/repo to the
+// project that claims it (pd-fleet.yml `github.repo` or inferred git origin)
+// so routes/github-webhook.ts can publish project-scoped channels and only
+// that project's fleet fires. Project dirs come from the fleet daemon's live
+// supervisor map; the registry caches and rebuilds on a TTL.
+const repoRegistry = createRepoRegistry({
+  getProjectDirs: () => fleetDaemon.listProjects(),
+  logger,
 });
 
 // Wire resurrection events (identical to server.ts)
@@ -662,6 +690,18 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
     });
     if (orphanedSessions.count > 0) {
       logger.warn('orphaned_active_sessions_abandoned', orphanedSessions);
+    }
+
+    // Obligation monitor — the dual of resurrection's heartbeat sweep, run in the
+    // SAME sleep-grace-gated block (Law 1: skip during post-sleep grace so a
+    // laptop wake does not mark every open promise overdue). The daemon supplies
+    // `now`; the commitment row never does. Emits OBLIGATION_OVERDUE per breach.
+    const overdueResult = obligationMonitor.checkOverdue(Date.now());
+    if (overdueResult.count > 0) {
+      logger.warn('obligations_overdue', {
+        count: overdueResult.count,
+        ids: overdueResult.overdue.map((c) => c.id),
+      });
     }
   }
 
@@ -914,18 +954,34 @@ app.get('/ping', async () => {
 // ROUTES (native Fastify plugins — Phase 3)
 // =============================================================================
 
+// #160: collect every registered route into a registry so /health and /status
+// can verify the daemon's critical routes are actually mounted (not 404). An
+// onRoute hook on the root instance fires for all descendant plugin routes.
+const routeRegistry = new Set<string>();
+app.addHook('onRoute', (routeOptions) => {
+  const methods = Array.isArray(routeOptions.method)
+    ? routeOptions.method
+    : [routeOptions.method];
+  for (const m of methods) {
+    routeRegistry.add(`${String(m).toUpperCase()} ${routeOptions.url}`);
+  }
+});
+
 await registerAllRoutes(
   app,
   {
     db, logger, metrics, config,
+    routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar,
-    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
+    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    commitments, obligationMonitor,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
+    runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     cleanupStale, getSystemPorts,
   },
   arbiter,
@@ -1242,6 +1298,26 @@ sockServer.listen(SOCK_PATH, async () => {
       tcpServer.on('listening', () => {
         try { writeFileSync(PORT_FILE, String(tryPort), { mode: 0o644 }); } catch {}
         logger.info('tcp_started', { port: tryPort, host: tcpHost, version: VERSION });
+        // Surface binary drift on the boot path so an operator running
+        // `tail -f port-daddy.log` after `brew upgrade` sees it immediately.
+        // The check is cheap (one hash) and the snapshot is already taken.
+        try {
+          const drift = detectDrift({ runningSnapshot: RUNNING_BINARY_SNAPSHOT });
+          if (drift.drifted) {
+            logger.warn('binary_drift_detected', {
+              runningHash: drift.runningHash,
+              onDiskHash: drift.onDiskHash,
+              runningPath: drift.runningPath,
+              onDiskPath: drift.onDiskPath,
+              reason: drift.reason,
+            });
+            if (!isSilent) {
+              console.warn(`\n  ⚠️  Binary drift detected. Restart: pd stop && pd start\n     ${drift.reason}\n`);
+            }
+          }
+        } catch (err) {
+          logger.warn('binary_drift_check_failed', { error: (err as Error).message });
+        }
         onReady();
         if (!isSilent) {
           const portNote: string = tryPort !== PORT ? ` (fallback from ${PORT})` : '';

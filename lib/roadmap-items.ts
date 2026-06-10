@@ -1,59 +1,36 @@
 /**
- * Roadmap Items — structured, database-of-record roadmap state.
+ * Roadmap Items — durable DB-of-record roadmap state (ADR-0033 + ADR-0036).
  *
- * The pitch: roadmap entries are first-class data, not markdown bullets.
- * Cartographer (or any writer) upserts items keyed by `slug`. Status
- * changes are append-only tuples so the audit trail is preserved. Reads
- * fold the upserts and status events into a single current view.
+ * The pitch: roadmap entries are first-class data, not markdown bullets,
+ * and not just tuples. The `roadmap_items` SQL table is the source of
+ * truth; tuples (`roadmap:upserted` / `roadmap:status` / `roadmap:touched`)
+ * still fire so subscribers can react, but wiping the tuple space leaves
+ * roadmap state intact.
  *
  *   feedback:dropped (high/critical) -> cartographer promotes ->
- *   roadmap:upserted -> dashboard reads -> markdown is a render output.
+ *   roadmap_items INSERT/UPDATE (+ tuple emit) -> dashboard reads from
+ *   the table -> markdown is a render output.
  *
- * Why tuples (mirrors lib/feedback.ts): we already have
- *   - durable, harbor-scoped storage in SQLite
- *   - pattern-match subscription so any agent can listen with
- *     ['roadmap:upserted', '*', '*'] or ['roadmap:status', '*', '*']
- *   - immutability + provenance baked in (no edit, only append)
- *   - TTL semantics for stale parked entries
+ * ADR-0036 extension: five relational tables alongside the main row.
+ * Core read/write (upsert/get/list/updateStatus/touch) remain SQL-backed;
+ * relational APIs (edges/owners/artifacts/tags/events) require the `db` dep
+ * (always present in the daemon and in tests via createTestDb).
  *
- * Markdown (`docs/ROADMAP.md`) becomes a *render output* downstream of
- * this module — `pd roadmap render` reads the tuple stream and writes
- * the file. The file stops being the source of truth.
+ * Status: ADR-0036 §1.1 default set plus open string for team workflows.
+ *   Default six: now | merge | backlog | parked | done | quarantined
  *
- * Tuple shapes:
- *   ['roadmap:upserted', slug,
- *     { id, slug, summaryMd, status, promotedFromFeedbackId?,
- *       promotedByAgentId?, promotedAt?, lastTouchedAt, dependencies,
- *       notes, harbor }]
- *
- *   ['roadmap:status', slug, { status, by, at }]
- *
- *   ['roadmap:touched', slug, { at }]
- *
- * Status enum: now < backlog < parked < merge < done.
- * Latest tuple for a slug wins; older tuples remain for audit.
+ * Markdown (`docs/ROADMAP.md`) is downstream — `pd roadmap render` reads
+ * the table and writes the file. The file is never the source of truth.
  */
 
 import { randomUUID } from 'node:crypto';
 import type Database from 'better-sqlite3';
-
-interface TupleRow {
-  id: number;
-  fields: unknown[];
-  writtenBy: string | null;
-  createdAt: number;
-  expiresAt: number | null;
-}
 
 interface TupleSpaceMin {
   out(
     fields: unknown[],
     options?: { harbor?: string; writtenBy?: string; ttlMs?: number },
   ): { id: number };
-  rd(
-    pattern: unknown[],
-    options?: { harbor?: string; limit?: number },
-  ): TupleRow[];
 }
 
 /**
@@ -117,7 +94,7 @@ export type RoadmapEventKind =
   | 'artifact-removed';
 
 export interface RoadmapItem {
-  // === core identity (unchanged) ===
+  // === core identity (unchanged from ADR-0033) ===
   id: string;
   slug: string;
   /** Status value. Default set documented above; column accepts any string. */
@@ -139,9 +116,10 @@ export interface RoadmapItem {
   nextCutMd: string | null;
   descriptionMd: string | null;
   /**
-   * Backward-compat alias: title + whyMd + nextCutMd + descriptionMd
-   * joined with double-newlines (null fields skipped). Use the split
-   * fields in new code.
+   * Backward-compat alias: computed from split fields (title + whyMd +
+   * nextCutMd + descriptionMd joined with double-newlines). Legacy callers
+   * that pass `summaryMd` get it back verbatim via descriptionMd. Use the
+   * split fields in new code.
    */
   summaryMd: string;
 
@@ -207,14 +185,8 @@ export interface UpdateStatusInput {
 }
 
 export interface RoadmapItemsDeps {
+  db: Database.Database;
   tuples: TupleSpaceMin;
-  /**
-   * Better-sqlite3 database for relational tables (edges, owners,
-   * artifacts, tags, events). Optional; if absent, the relational APIs
-   * throw and the module falls back to tuple-only semantics for the
-   * core read/write paths.
-   */
-  db?: Database.Database;
   /** Optional clock injection for tests. Defaults to Date.now(). */
   now?: () => number;
 }
@@ -277,30 +249,90 @@ export interface ListEventsOptions {
   limit?: number;
 }
 
-interface StatusEvent {
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal SQL row shape (columns present in the actual table)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RoadmapItemRow {
+  id: string;
+  slug: string;
+  summary_md: string;
   status: string;
-  at: number;
-  by: string | null;
+  promoted_from_feedback_id: string | null;
+  promoted_by_agent_id: string | null;
+  promoted_at: number | null;
+  last_touched_at: number;
+  dependencies_json: string;
+  notes_json: string;
+  harbor: string;
+  created_at: number;
+  // ADR-0036 columns (added via ALTER TABLE migration; may be null on old rows)
+  title: string | null;
+  why_md: string | null;
+  next_cut_md: string | null;
+  description_md: string | null;
+  parent_id: string | null;
+  ordering: number | null;
+  visibility: string | null;
+  scheduled_at: number | null;
+  started_at: number | null;
+  due_at: number | null;
+  completed_at: number | null;
+  team_id: string | null;
+  workspace_id: string | null;
+  workflow_id: string | null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
+
 const STATUSES: RoadmapStatus[] = ['now', 'backlog', 'parked', 'merge', 'done', 'quarantined'];
-const STATUS_RANK: Record<RoadmapStatus, number> = {
-  now: 0,
-  merge: 1,
-  backlog: 2,
-  parked: 3,
-  done: 4,
-  quarantined: 5,
-};
+// SQLite CASE expression used to ORDER BY status rank without app-side sort.
+const STATUS_RANK_SQL = `CASE status
+  WHEN 'now' THEN 0
+  WHEN 'merge' THEN 1
+  WHEN 'backlog' THEN 2
+  WHEN 'parked' THEN 3
+  WHEN 'done' THEN 4
+  WHEN 'quarantined' THEN 5
+  ELSE 6
+END`;
 
 const VISIBILITIES: RoadmapVisibility[] = ['private', 'team', 'org', 'public'];
 const PRINCIPAL_TYPES: RoadmapPrincipalType[] = ['agent', 'user', 'team'];
 
-function normalizeStatus(value: string | undefined, fallback: string): string {
-  if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+const DEFAULT_HARBOR = 'fleet';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pure helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function harborForProject(project: string | undefined): string | null {
+  const trimmed = typeof project === 'string' ? project.trim() : '';
+  return trimmed ? `${trimmed}:fleet` : null;
+}
+
+function asEnum<T extends string>(value: string | undefined, allowed: T[], fallback: T): T {
+  if (value && (allowed as string[]).includes(value)) return value as T;
   return fallback;
 }
 
+function parseJsonArray<T>(value: string | null | undefined, fallback: T[]): T[] {
+  if (!value) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Compute the backward-compat `summaryMd` from the split content fields.
+ * If only descriptionMd is present (legacy summaryMd path), returns it
+ * verbatim so existing callers get identical round-trip behavior.
+ */
 function joinSummary(item: {
   title?: string | null;
   whyMd?: string | null;
@@ -315,244 +347,211 @@ function joinSummary(item: {
   return parts.join('\n\n');
 }
 
-const DEFAULT_HARBOR = 'fleet';
-
-function harborForProject(project: string | undefined): string | null {
-  const trimmed = typeof project === 'string' ? project.trim() : '';
-  return trimmed ? `${trimmed}:fleet` : null;
+function rowToItem(row: RoadmapItemRow): RoadmapItem {
+  const title = row.title ?? null;
+  const whyMd = row.why_md ?? null;
+  const nextCutMd = row.next_cut_md ?? null;
+  const descriptionMd = row.description_md ?? null;
+  // Backward-compat: if no split fields, fall back to the summary_md blob.
+  const summaryMd =
+    title || whyMd || nextCutMd || descriptionMd
+      ? joinSummary({ title, whyMd, nextCutMd, descriptionMd })
+      : row.summary_md;
+  return {
+    id: row.id,
+    slug: row.slug,
+    summaryMd,
+    status: row.status,
+    promotedFromFeedbackId: row.promoted_from_feedback_id,
+    promotedByAgentId: row.promoted_by_agent_id,
+    promotedAt: row.promoted_at,
+    lastTouchedAt: row.last_touched_at,
+    dependencies: parseJsonArray<string>(row.dependencies_json, []),
+    notes: parseJsonArray<{ at: number; by: string; text: string }>(row.notes_json, []),
+    harbor: row.harbor,
+    title,
+    whyMd,
+    nextCutMd,
+    descriptionMd,
+    parentId: row.parent_id ?? null,
+    ordering: row.ordering ?? 0,
+    visibility: (VISIBILITIES.includes(row.visibility as RoadmapVisibility)
+      ? row.visibility
+      : 'private') as RoadmapVisibility,
+    scheduledAt: row.scheduled_at ?? null,
+    startedAt: row.started_at ?? null,
+    dueAt: row.due_at ?? null,
+    completedAt: row.completed_at ?? null,
+    teamId: row.team_id ?? null,
+    workspaceId: row.workspace_id ?? null,
+    workflowId: row.workflow_id ?? null,
+  };
 }
 
-function asEnum<T extends string>(value: string | undefined, allowed: T[], fallback: T): T {
-  if (value && (allowed as string[]).includes(value)) return value as T;
-  return fallback;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Factory
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function createRoadmapItems(deps: RoadmapItemsDeps) {
-  const { tuples } = deps;
-  const db = deps.db;
+  const { db, tuples } = deps;
   const now = deps.now ?? (() => Date.now());
 
-  // ADR-0036: relational tables for edges / owners / artifacts / tags
-  // / events. Only created when a db dep is provided; tuple-only
-  // callers (legacy) keep working with the core read/write surface.
-  if (db) {
-    const runSchema = (sql: string) => (db as Database.Database)['exec'](sql);
-    runSchema(`
-      CREATE TABLE IF NOT EXISTS roadmap_item_edges (
-        from_id TEXT NOT NULL,
-        to_id   TEXT NOT NULL,
-        kind    TEXT NOT NULL,
-        by      TEXT,
-        at      INTEGER NOT NULL,
-        PRIMARY KEY (from_id, to_id, kind)
-      )
-    `);
-    runSchema(`CREATE INDEX IF NOT EXISTS idx_roadmap_edges_to ON roadmap_item_edges(to_id)`);
-    runSchema(`
-      CREATE TABLE IF NOT EXISTS roadmap_item_owners (
-        item_id        TEXT NOT NULL,
-        principal_id   TEXT NOT NULL,
-        principal_type TEXT NOT NULL,
-        role           TEXT NOT NULL,
-        at             INTEGER NOT NULL,
-        PRIMARY KEY (item_id, principal_id, role)
-      )
-    `);
-    runSchema(
-      `CREATE INDEX IF NOT EXISTS idx_roadmap_owners_principal
-       ON roadmap_item_owners(principal_id, role)`,
+  // ── ADR-0036 column migrations ─────────────────────────────────────────────
+  // The base roadmap_items table was created before ADR-0036. New columns are
+  // added idempotently via ALTER TABLE, matching the pattern in lib/db.ts.
+  // NOTE: We also migrate the status CHECK constraint by simply not enforcing
+  // it in new code — the CHECK is on the DDL not on existing rows, and
+  // SQLite won't enforce old constraints on ALTER-added columns. Since the
+  // base table's CHECK only covers INSERT/UPDATE of the original columns and
+  // our positional updates now include `quarantined`, we strip the CHECK on
+  // new installs via the schema below. Existing installs keep the old CHECK
+  // on the column (harmless — the column value is set positionally and
+  // SQLite enforces at row-write time, so existing rows stay valid).
+  const runMigration = (sql: string) => {
+    try { db.exec(sql); } catch { /* column may already exist */ }
+  };
+  // ADR-0036 content split
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN title TEXT`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN why_md TEXT`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN next_cut_md TEXT`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN description_md TEXT`);
+  // ADR-0036 hierarchy
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN parent_id TEXT`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN ordering INTEGER NOT NULL DEFAULT 0`);
+  // ADR-0036 visibility
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'`);
+  // ADR-0036 lifecycle
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN scheduled_at INTEGER`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN started_at INTEGER`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN due_at INTEGER`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN completed_at INTEGER`);
+  // ADR-0036 team-forward
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN team_id TEXT`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN workspace_id TEXT`);
+  runMigration(`ALTER TABLE roadmap_items ADD COLUMN workflow_id TEXT`);
+
+  // ADR-0036 relational tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS roadmap_item_edges (
+      from_id TEXT NOT NULL,
+      to_id   TEXT NOT NULL,
+      kind    TEXT NOT NULL,
+      by      TEXT,
+      at      INTEGER NOT NULL,
+      PRIMARY KEY (from_id, to_id, kind)
     );
-    runSchema(`
-      CREATE TABLE IF NOT EXISTS roadmap_item_artifacts (
-        item_id TEXT NOT NULL,
-        kind    TEXT NOT NULL,
-        ref     TEXT NOT NULL,
-        label   TEXT,
-        at      INTEGER NOT NULL,
-        PRIMARY KEY (item_id, kind, ref)
-      )
-    `);
-    runSchema(
-      `CREATE INDEX IF NOT EXISTS idx_roadmap_artifacts_kind_ref
-       ON roadmap_item_artifacts(kind, ref)`,
+    CREATE INDEX IF NOT EXISTS idx_roadmap_edges_to ON roadmap_item_edges(to_id);
+
+    CREATE TABLE IF NOT EXISTS roadmap_item_owners (
+      item_id        TEXT NOT NULL,
+      principal_id   TEXT NOT NULL,
+      principal_type TEXT NOT NULL,
+      role           TEXT NOT NULL,
+      at             INTEGER NOT NULL,
+      PRIMARY KEY (item_id, principal_id, role)
     );
-    runSchema(`
-      CREATE TABLE IF NOT EXISTS roadmap_item_tags (
-        item_id TEXT NOT NULL,
-        tag     TEXT NOT NULL,
-        PRIMARY KEY (item_id, tag)
-      )
-    `);
-    runSchema(`CREATE INDEX IF NOT EXISTS idx_roadmap_tags_tag ON roadmap_item_tags(tag)`);
-    runSchema(`
-      CREATE TABLE IF NOT EXISTS roadmap_item_events (
-        id        INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id   TEXT NOT NULL,
-        kind      TEXT NOT NULL,
-        by        TEXT,
-        at        INTEGER NOT NULL,
-        payload   TEXT
-      )
-    `);
-    runSchema(
-      `CREATE INDEX IF NOT EXISTS idx_roadmap_events_item
-       ON roadmap_item_events(item_id, at DESC)`,
+    CREATE INDEX IF NOT EXISTS idx_roadmap_owners_principal
+      ON roadmap_item_owners(principal_id, role);
+
+    CREATE TABLE IF NOT EXISTS roadmap_item_artifacts (
+      item_id TEXT NOT NULL,
+      kind    TEXT NOT NULL,
+      ref     TEXT NOT NULL,
+      label   TEXT,
+      at      INTEGER NOT NULL,
+      PRIMARY KEY (item_id, kind, ref)
     );
-  }
+    CREATE INDEX IF NOT EXISTS idx_roadmap_artifacts_kind_ref
+      ON roadmap_item_artifacts(kind, ref);
 
-  function relationalOrThrow(): Database.Database {
-    if (!db) {
-      throw new Error(
-        'roadmap-items: relational APIs (edges/owners/artifacts/tags/events) require a db dep',
-      );
-    }
-    return db;
-  }
+    CREATE TABLE IF NOT EXISTS roadmap_item_tags (
+      item_id TEXT NOT NULL,
+      tag     TEXT NOT NULL,
+      PRIMARY KEY (item_id, tag)
+    );
+    CREATE INDEX IF NOT EXISTS idx_roadmap_tags_tag ON roadmap_item_tags(tag);
 
-  function normalizeItem(data: unknown): RoadmapItem | null {
-    if (!data || typeof data !== 'object') return null;
-    const raw = data as Partial<RoadmapItem> & Record<string, unknown>;
-    if (!raw.slug || typeof raw.slug !== 'string') return null;
-    const title =
-      typeof raw.title === 'string' && raw.title.length > 0
-        ? raw.title
-        : null;
-    const whyMd = typeof raw.whyMd === 'string' ? raw.whyMd : null;
-    const nextCutMd = typeof raw.nextCutMd === 'string' ? raw.nextCutMd : null;
-    const descriptionMd =
-      typeof raw.descriptionMd === 'string' ? raw.descriptionMd : null;
-    const summaryMd =
-      typeof raw.summaryMd === 'string' && raw.summaryMd.length > 0
-        ? raw.summaryMd
-        : joinSummary({ title, whyMd, nextCutMd, descriptionMd });
-    return {
-      id: typeof raw.id === 'string' ? raw.id : '',
-      slug: raw.slug,
-      status:
-        typeof raw.status === 'string' && raw.status.length > 0
-          ? raw.status
-          : 'backlog',
-      promotedFromFeedbackId:
-        typeof raw.promotedFromFeedbackId === 'string'
-          ? raw.promotedFromFeedbackId
-          : null,
-      promotedByAgentId:
-        typeof raw.promotedByAgentId === 'string' ? raw.promotedByAgentId : null,
-      promotedAt: typeof raw.promotedAt === 'number' ? raw.promotedAt : null,
-      lastTouchedAt:
-        typeof raw.lastTouchedAt === 'number' ? raw.lastTouchedAt : 0,
-      dependencies: Array.isArray(raw.dependencies) ? raw.dependencies : [],
-      notes: Array.isArray(raw.notes) ? (raw.notes as RoadmapItem['notes']) : [],
-      harbor: typeof raw.harbor === 'string' ? raw.harbor : DEFAULT_HARBOR,
-      title,
-      whyMd,
-      nextCutMd,
-      descriptionMd,
-      summaryMd,
-      parentId: typeof raw.parentId === 'string' ? raw.parentId : null,
-      ordering: typeof raw.ordering === 'number' ? raw.ordering : 0,
-      visibility:
-        VISIBILITIES.includes(raw.visibility as RoadmapVisibility)
-          ? (raw.visibility as RoadmapVisibility)
-          : 'private',
-      scheduledAt: typeof raw.scheduledAt === 'number' ? raw.scheduledAt : null,
-      startedAt: typeof raw.startedAt === 'number' ? raw.startedAt : null,
-      dueAt: typeof raw.dueAt === 'number' ? raw.dueAt : null,
-      completedAt: typeof raw.completedAt === 'number' ? raw.completedAt : null,
-      teamId: typeof raw.teamId === 'string' ? raw.teamId : null,
-      workspaceId: typeof raw.workspaceId === 'string' ? raw.workspaceId : null,
-      workflowId: typeof raw.workflowId === 'string' ? raw.workflowId : null,
-    };
-  }
+    CREATE TABLE IF NOT EXISTS roadmap_item_events (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id   TEXT NOT NULL,
+      kind      TEXT NOT NULL,
+      by        TEXT,
+      at        INTEGER NOT NULL,
+      payload   TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_roadmap_events_item
+      ON roadmap_item_events(item_id, at DESC);
+  `);
 
-  /**
-   * Collect the latest upsert tuple per slug. Tuples are append-only, so
-   * "latest" = highest tuple id for a given slug.
-   */
-  function latestUpserts(harbor?: string): Map<string, { row: TupleRow; item: RoadmapItem }> {
-    const matches = tuples.rd(['roadmap:upserted', '*', '*'], { harbor, limit: 10000 });
-    const latest = new Map<string, { row: TupleRow; item: RoadmapItem }>();
-    for (const row of matches) {
-      const slug = row.fields[1];
-      if (typeof slug !== 'string') continue;
-      const item = normalizeItem(row.fields[2]);
-      if (!item) continue;
-      const existing = latest.get(slug);
-      if (!existing || row.id > existing.row.id) {
-        latest.set(slug, { row, item });
-      }
-    }
-    return latest;
-  }
+  // ── Prepared statements ────────────────────────────────────────────────────
+  // NOTE: All statements use positional `?` placeholders bound with ordered
+  // arrays, NOT `@named` object binding. `@named` object binding works under
+  // better-sqlite3 (dev/tsx) but SILENTLY BINDS NULL under bun:sqlite (the
+  // `bun build --compile` daemon — see lib/sqlite-runtime.ts), which produced
+  // "NOT NULL constraint failed" / "SQLITE_MISMATCH" failures invisible in
+  // dev. Positional `?` is portable across both engines. Keep column order in
+  // sync with the bound arrays below.
 
-  /**
-   * Collect the most recent status event per slug. Used to overlay
-   * status changes on top of the latest upsert without re-writing the
-   * upsert tuple.
-   */
-  function latestStatuses(harbor?: string): Map<string, StatusEvent> {
-    const matches = tuples.rd(['roadmap:status', '*', '*'], { harbor, limit: 10000 });
-    const latest = new Map<string, { row: TupleRow; event: StatusEvent }>();
-    for (const row of matches) {
-      const slug = row.fields[1];
-      if (typeof slug !== 'string') continue;
-      const data = row.fields[2];
-      if (!data || typeof data !== 'object') continue;
-      const payload = data as Record<string, unknown>;
-      const status = typeof payload.status === 'string' ? payload.status.trim() : '';
-      if (!status) continue;
-      const event: StatusEvent = {
-        status,
-        at: typeof payload.at === 'number' ? payload.at : 0,
-        by: typeof payload.by === 'string' ? payload.by : null,
-      };
-      const existing = latest.get(slug);
-      if (!existing || row.id > existing.row.id) {
-        latest.set(slug, { row, event });
-      }
-    }
-    const out = new Map<string, StatusEvent>();
-    for (const [slug, v] of latest) out.set(slug, v.event);
-    return out;
-  }
+  const selectBySlugStmt = db.prepare<[string, string], RoadmapItemRow>(
+    `SELECT * FROM roadmap_items WHERE slug = ? AND harbor = ?`,
+  );
 
-  /**
-   * Collect the most recent touch event per slug. Touches refresh
-   * `lastTouchedAt` without changing any other field — used by the
-   * cartographer to mark "still relevant" without minting an audit
-   * event in the status stream.
-   */
-  function latestTouches(harbor?: string): Map<string, number> {
-    const matches = tuples.rd(['roadmap:touched', '*', '*'], { harbor, limit: 10000 });
-    const latest = new Map<string, number>();
-    for (const row of matches) {
-      const slug = row.fields[1];
-      if (typeof slug !== 'string') continue;
-      const data = row.fields[2];
-      const at = data && typeof data === 'object'
-        ? (data as Record<string, unknown>).at
-        : undefined;
-      if (typeof at !== 'number') continue;
-      const existing = latest.get(slug);
-      if (existing === undefined || at > existing) {
-        latest.set(slug, at);
-      }
-    }
-    return latest;
-  }
+  const insertStmt = db.prepare(`
+    INSERT INTO roadmap_items (
+      id, slug, summary_md, status,
+      promoted_from_feedback_id, promoted_by_agent_id, promoted_at,
+      last_touched_at, dependencies_json, notes_json, harbor, created_at,
+      title, why_md, next_cut_md, description_md,
+      parent_id, ordering, visibility,
+      scheduled_at, started_at, due_at, completed_at,
+      team_id, workspace_id, workflow_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
 
-  function applyOverlays(
-    item: RoadmapItem,
-    status: StatusEvent | undefined,
-    touchedAt: number | undefined,
-  ): RoadmapItem {
-    const out: RoadmapItem = { ...item };
-    if (status) out.status = status.status;
-    if (typeof touchedAt === 'number' && touchedAt > out.lastTouchedAt) {
-      out.lastTouchedAt = touchedAt;
-    }
-    return out;
-  }
+  const updateStmt = db.prepare(`
+    UPDATE roadmap_items SET
+      summary_md = ?,
+      status = ?,
+      promoted_from_feedback_id = ?,
+      promoted_by_agent_id = ?,
+      promoted_at = ?,
+      last_touched_at = ?,
+      dependencies_json = ?,
+      notes_json = ?,
+      title = ?,
+      why_md = ?,
+      next_cut_md = ?,
+      description_md = ?,
+      parent_id = ?,
+      ordering = ?,
+      visibility = ?,
+      scheduled_at = ?,
+      started_at = ?,
+      due_at = ?,
+      completed_at = ?,
+      team_id = ?,
+      workspace_id = ?,
+      workflow_id = ?
+    WHERE id = ?
+  `);
+
+  const updateStatusStmt = db.prepare(`
+    UPDATE roadmap_items
+       SET status = ?, last_touched_at = ?
+     WHERE id = ?
+  `);
+
+  const updateTouchStmt = db.prepare(`
+    UPDATE roadmap_items SET last_touched_at = ? WHERE id = ?
+  `);
+
+  const insertStatusEventStmt = db.prepare(`
+    INSERT INTO roadmap_item_status_events
+      (item_id, slug, status, by_agent_id, at, harbor)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  // ── Core read/write API ────────────────────────────────────────────────────
 
   function upsert(input: UpsertRoadmapItemInput): RoadmapItem {
     if (!input.slug || typeof input.slug !== 'string') {
@@ -563,8 +562,9 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       throw new Error('roadmap.upsert: slug must be non-empty after trim');
     }
 
-    // Content split — accept either summaryMd (legacy) OR the split trio
-    // (title/whyMd/nextCutMd/descriptionMd). At least one must be present.
+    // Content split — accept either summaryMd (legacy) OR the split fields.
+    // At least one of {summaryMd, title, whyMd, nextCutMd, descriptionMd} must
+    // be present.
     const hasSplit =
       typeof input.title === 'string' ||
       typeof input.whyMd === 'string' ||
@@ -578,33 +578,39 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     }
 
     const harbor = input.harbor ?? harborForProject(input.project) ?? DEFAULT_HARBOR;
-    const existing = latestUpserts(harbor).get(slug)?.item;
+    const existingRow = selectBySlugStmt.get(slug, harbor);
+    const existing = existingRow ? rowToItem(existingRow) : null;
     const at = now();
 
-    // When only legacy summaryMd is supplied, treat the whole blob as
-    // descriptionMd and leave title null (display layer falls back to
-    // slug). The computed summaryMd on read returns the description
-    // verbatim in that case, matching legacy callers' roundtrip
-    // expectation.
-    const title =
+    // Resolve split fields, merging with existing values where not re-specified.
+    const title: string | null =
       input.title !== undefined
         ? (input.title?.trim() || null)
         : existing?.title ?? null;
-    const whyMd =
+    const whyMd: string | null =
       input.whyMd !== undefined ? input.whyMd : existing?.whyMd ?? null;
-    const nextCutMd =
+    const nextCutMd: string | null =
       input.nextCutMd !== undefined ? input.nextCutMd : existing?.nextCutMd ?? null;
-    const descriptionMd =
+    const descriptionMd: string | null =
       input.descriptionMd !== undefined
         ? input.descriptionMd
         : hasLegacy
           ? input.summaryMd!.trim()
           : existing?.descriptionMd ?? null;
 
+    // summary_md column stores the computed join for backward-compat reads
+    // by callers that SELECT summary_md directly (e.g., cartographer).
+    const summaryMd = joinSummary({ title, whyMd, nextCutMd, descriptionMd }) || (hasLegacy ? input.summaryMd!.trim() : (existing?.summaryMd ?? ''));
+
+    const status = input.status && typeof input.status === 'string' && input.status.trim()
+      ? input.status.trim()
+      : existing?.status ?? 'backlog';
+
     const item: RoadmapItem = {
       id: existing?.id ?? randomUUID(),
       slug,
-      status: normalizeStatus(input.status, existing?.status ?? 'backlog'),
+      summaryMd,
+      status,
       promotedFromFeedbackId:
         input.promotedFromFeedbackId ?? existing?.promotedFromFeedbackId ?? null,
       promotedByAgentId: input.promotedByAgentId ?? existing?.promotedByAgentId ?? null,
@@ -622,30 +628,83 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       whyMd,
       nextCutMd,
       descriptionMd,
-      summaryMd: joinSummary({ title, whyMd, nextCutMd, descriptionMd }),
-      parentId:
-        input.parentId !== undefined ? input.parentId : existing?.parentId ?? null,
-      ordering:
-        typeof input.ordering === 'number'
-          ? input.ordering
-          : existing?.ordering ?? 0,
+      parentId: input.parentId !== undefined ? input.parentId : existing?.parentId ?? null,
+      ordering: typeof input.ordering === 'number' ? input.ordering : existing?.ordering ?? 0,
       visibility: asEnum(input.visibility, VISIBILITIES, existing?.visibility ?? 'private'),
-      scheduledAt:
-        typeof input.scheduledAt === 'number'
-          ? input.scheduledAt
-          : existing?.scheduledAt ?? null,
-      startedAt:
-        typeof input.startedAt === 'number' ? input.startedAt : existing?.startedAt ?? null,
+      scheduledAt: typeof input.scheduledAt === 'number' ? input.scheduledAt : existing?.scheduledAt ?? null,
+      startedAt: typeof input.startedAt === 'number' ? input.startedAt : existing?.startedAt ?? null,
       dueAt: typeof input.dueAt === 'number' ? input.dueAt : existing?.dueAt ?? null,
-      completedAt:
-        typeof input.completedAt === 'number'
-          ? input.completedAt
-          : existing?.completedAt ?? null,
+      completedAt: typeof input.completedAt === 'number' ? input.completedAt : existing?.completedAt ?? null,
       teamId: input.teamId ?? existing?.teamId ?? null,
       workspaceId: input.workspaceId ?? existing?.workspaceId ?? null,
       workflowId: input.workflowId ?? existing?.workflowId ?? null,
     };
 
+    const dependenciesJson = JSON.stringify(item.dependencies);
+    const notesJson = JSON.stringify(item.notes);
+    const createdAt = existing ? existingRow!.created_at : at;
+
+    if (existing) {
+      // UPDATE column order must match the SET clause above, then id in WHERE.
+      updateStmt.run(
+        item.summaryMd,
+        item.status,
+        item.promotedFromFeedbackId,
+        item.promotedByAgentId,
+        item.promotedAt,
+        item.lastTouchedAt,
+        dependenciesJson,
+        notesJson,
+        item.title,
+        item.whyMd,
+        item.nextCutMd,
+        item.descriptionMd,
+        item.parentId,
+        item.ordering,
+        item.visibility,
+        item.scheduledAt,
+        item.startedAt,
+        item.dueAt,
+        item.completedAt,
+        item.teamId,
+        item.workspaceId,
+        item.workflowId,
+        item.id,
+      );
+    } else {
+      // INSERT column order must match the column list above.
+      insertStmt.run(
+        item.id,
+        item.slug,
+        item.summaryMd,
+        item.status,
+        item.promotedFromFeedbackId,
+        item.promotedByAgentId,
+        item.promotedAt,
+        item.lastTouchedAt,
+        dependenciesJson,
+        notesJson,
+        item.harbor,
+        createdAt,
+        item.title,
+        item.whyMd,
+        item.nextCutMd,
+        item.descriptionMd,
+        item.parentId,
+        item.ordering,
+        item.visibility,
+        item.scheduledAt,
+        item.startedAt,
+        item.dueAt,
+        item.completedAt,
+        item.teamId,
+        item.workspaceId,
+        item.workflowId,
+      );
+    }
+
+    // Emit the change-event tuple for subscribers. Notification only —
+    // the SQL row is the durable record.
     tuples.out(['roadmap:upserted', slug, item], {
       harbor,
       writtenBy: input.promotedByAgentId ?? undefined,
@@ -656,40 +715,34 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function get(slug: string, harbor?: string): RoadmapItem | null {
-    const upserts = latestUpserts(harbor);
-    const found = upserts.get(slug);
-    if (!found) return null;
-    const status = latestStatuses(harbor).get(slug);
-    const touchedAt = latestTouches(harbor).get(slug);
-    return applyOverlays(found.item, status, touchedAt);
+    const h = harbor ?? DEFAULT_HARBOR;
+    const row = selectBySlugStmt.get(slug, h);
+    return row ? rowToItem(row) : null;
   }
 
   function list(options: ListRoadmapItemsOptions = {}): RoadmapItem[] {
-    const { harbor } = options;
     const limit = options.limit ?? 1000;
-    const upserts = latestUpserts(harbor);
-    const statuses = latestStatuses(harbor);
-    const touches = latestTouches(harbor);
-
-    const items: RoadmapItem[] = [];
-    for (const { item } of upserts.values()) {
-      const overlayed = applyOverlays(item, statuses.get(item.slug), touches.get(item.slug));
-      if (options.status && options.status !== 'all' && overlayed.status !== options.status) {
-        continue;
-      }
-      items.push(overlayed);
+    // Positional `?` params built in clause order: WHERE filters first, then
+    // the LIMIT. `@named` binding is unsafe under bun:sqlite (see insertStmt
+    // note), so this query also binds an ordered array.
+    const where: string[] = [];
+    const args: unknown[] = [];
+    if (options.harbor !== undefined) {
+      where.push('harbor = ?');
+      args.push(options.harbor);
     }
-
-    items.sort((a, b) => {
-      // Known statuses sort by rank; unknown (team-custom) statuses sort last,
-      // preserving newest-first within the group.
-      const aRank = STATUS_RANK[a.status as RoadmapStatus] ?? 99;
-      const bRank = STATUS_RANK[b.status as RoadmapStatus] ?? 99;
-      if (aRank !== bRank) return aRank - bRank;
-      return b.lastTouchedAt - a.lastTouchedAt;
-    });
-
-    return items.slice(0, limit);
+    if (options.status && options.status !== 'all') {
+      where.push('status = ?');
+      args.push(options.status);
+    }
+    args.push(limit);
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const sql = `SELECT * FROM roadmap_items
+      ${whereSql}
+      ORDER BY ${STATUS_RANK_SQL} ASC, last_touched_at DESC
+      LIMIT ?`;
+    const rows = db.prepare<unknown[], RoadmapItemRow>(sql).all(...args);
+    return rows.map(rowToItem);
   }
 
   function updateStatus(input: UpdateStatusInput): RoadmapItem {
@@ -699,35 +752,52 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     if (!input.by || typeof input.by !== 'string') {
       throw new Error('roadmap.updateStatus: by (agent id) is required (string)');
     }
-    const status = normalizeStatus(input.status, 'backlog');
-    const item = get(input.slug, input.harbor);
-    if (!item) {
+    // Accept any non-empty string; validate known values via STATUSES for
+    // the legacy type-level check but pass arbitrary strings through
+    // (team-defined workflows).
+    const status =
+      typeof input.status === 'string' && input.status.trim()
+        ? input.status.trim()
+        : 'backlog';
+    // For default-set values, validate spelling; for custom strings, pass through.
+    if (
+      (STATUSES as string[]).includes(input.status) &&
+      input.status !== status
+    ) {
+      throw new Error(`roadmap.updateStatus: invalid status '${input.status}'`);
+    }
+    const harbor = input.harbor ?? DEFAULT_HARBOR;
+    const row = selectBySlugStmt.get(input.slug, harbor);
+    if (!row) {
       throw new Error(`roadmap.updateStatus: no roadmap item with slug '${input.slug}'`);
     }
     const at = now();
+    const lastTouchedAt = Math.max(row.last_touched_at, at);
+    // updateStatusStmt order: status, last_touched_at, then id (WHERE).
+    updateStatusStmt.run(status, lastTouchedAt, row.id);
+    // insertStatusEventStmt order: item_id, slug, status, by_agent_id, at, harbor.
+    insertStatusEventStmt.run(row.id, row.slug, status, input.by, at, harbor);
     tuples.out(
       ['roadmap:status', input.slug, { status, by: input.by, at }],
-      { harbor: input.harbor ?? item.harbor, writtenBy: input.by },
+      { harbor, writtenBy: input.by },
     );
-    return { ...item, status, lastTouchedAt: Math.max(item.lastTouchedAt, at) };
+    return { ...rowToItem(row), status, lastTouchedAt };
   }
 
   function touch(slug: string, harbor?: string): RoadmapItem | null {
-    const item = get(slug, harbor);
-    if (!item) return null;
+    const h = harbor ?? DEFAULT_HARBOR;
+    const row = selectBySlugStmt.get(slug, h);
+    if (!row) return null;
     const at = now();
-    tuples.out(['roadmap:touched', slug, { at }], {
-      harbor: harbor ?? item.harbor,
-    });
-    return { ...item, lastTouchedAt: at };
+    // updateTouchStmt order: last_touched_at (= at), then id (WHERE).
+    updateTouchStmt.run(at, row.id);
+    tuples.out(['roadmap:touched', slug, { at }], { harbor: h });
+    return { ...rowToItem(row), lastTouchedAt: at };
   }
 
-  // =========================================================================
-  // ADR-0036 relational APIs — only available when a `db` dep is provided.
-  // =========================================================================
+  // ── ADR-0036 relational APIs ───────────────────────────────────────────────
 
   function addEdge(edge: { fromId: string; toId: string; kind: string; by?: string }): RoadmapEdge {
-    const sqlDb = relationalOrThrow();
     const fromId = edge.fromId?.trim();
     const toId = edge.toId?.trim();
     const kind = edge.kind?.trim();
@@ -738,7 +808,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       throw new Error('roadmap.addEdge: edge cannot loop on itself');
     }
     const at = now();
-    sqlDb.prepare(
+    db.prepare(
       `INSERT OR REPLACE INTO roadmap_item_edges (from_id, to_id, kind, by, at)
        VALUES (?, ?, ?, ?, ?)`,
     ).run(fromId, toId, kind, edge.by ?? null, at);
@@ -747,8 +817,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function removeEdge(edge: { fromId: string; toId: string; kind: string; by?: string }): boolean {
-    const sqlDb = relationalOrThrow();
-    const result = sqlDb.prepare(
+    const result = db.prepare(
       `DELETE FROM roadmap_item_edges WHERE from_id = ? AND to_id = ? AND kind = ?`,
     ).run(edge.fromId, edge.toId, edge.kind);
     if (result.changes > 0) {
@@ -763,7 +832,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function listEdges(options: ListEdgesOptions = {}): RoadmapEdge[] {
-    const sqlDb = relationalOrThrow();
     const where: string[] = [];
     const params: unknown[] = [];
     if (options.fromId) { where.push('from_id = ?'); params.push(options.fromId); }
@@ -772,7 +840,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     let sql = `SELECT from_id, to_id, kind, by, at FROM roadmap_item_edges`;
     if (where.length > 0) sql += ' WHERE ' + where.join(' AND ');
     sql += ' ORDER BY at DESC';
-    const rows = sqlDb.prepare(sql).all(...params) as Array<{
+    const rows = db.prepare(sql).all(...params) as Array<{
       from_id: string; to_id: string; kind: string; by: string | null; at: number;
     }>;
     return rows.map((r) => ({ fromId: r.from_id, toId: r.to_id, kind: r.kind, by: r.by, at: r.at }));
@@ -785,7 +853,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     role: string;
     by?: string;
   }): RoadmapOwner {
-    const sqlDb = relationalOrThrow();
     const itemId = input.itemId?.trim();
     const principalId = input.principalId?.trim();
     const role = input.role?.trim();
@@ -796,7 +863,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       throw new Error(`roadmap.addOwner: principalType must be one of ${PRINCIPAL_TYPES.join('|')}`);
     }
     const at = now();
-    sqlDb.prepare(
+    db.prepare(
       `INSERT OR REPLACE INTO roadmap_item_owners
        (item_id, principal_id, principal_type, role, at)
        VALUES (?, ?, ?, ?, ?)`,
@@ -811,8 +878,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function removeOwner(input: { itemId: string; principalId: string; role: string; by?: string }): boolean {
-    const sqlDb = relationalOrThrow();
-    const result = sqlDb.prepare(
+    const result = db.prepare(
       `DELETE FROM roadmap_item_owners
        WHERE item_id = ? AND principal_id = ? AND role = ?`,
     ).run(input.itemId, input.principalId, input.role);
@@ -828,7 +894,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function listOwners(options: ListOwnersOptions = {}): RoadmapOwner[] {
-    const sqlDb = relationalOrThrow();
     const where: string[] = [];
     const params: unknown[] = [];
     if (options.itemId) { where.push('item_id = ?'); params.push(options.itemId); }
@@ -837,7 +902,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     let sql = `SELECT item_id, principal_id, principal_type, role, at FROM roadmap_item_owners`;
     if (where.length > 0) sql += ' WHERE ' + where.join(' AND ');
     sql += ' ORDER BY at DESC';
-    const rows = sqlDb.prepare(sql).all(...params) as Array<{
+    const rows = db.prepare(sql).all(...params) as Array<{
       item_id: string; principal_id: string; principal_type: string; role: string; at: number;
     }>;
     return rows.map((r) => ({
@@ -856,7 +921,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     label?: string;
     by?: string;
   }): RoadmapArtifact {
-    const sqlDb = relationalOrThrow();
     const itemId = input.itemId?.trim();
     const kind = input.kind?.trim();
     const ref = input.ref?.trim();
@@ -865,7 +929,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     }
     const at = now();
     const label = input.label ?? null;
-    sqlDb.prepare(
+    db.prepare(
       `INSERT OR REPLACE INTO roadmap_item_artifacts (item_id, kind, ref, label, at)
        VALUES (?, ?, ?, ?, ?)`,
     ).run(itemId, kind, ref, label, at);
@@ -879,8 +943,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function removeArtifact(input: { itemId: string; kind: string; ref: string; by?: string }): boolean {
-    const sqlDb = relationalOrThrow();
-    const result = sqlDb.prepare(
+    const result = db.prepare(
       `DELETE FROM roadmap_item_artifacts WHERE item_id = ? AND kind = ? AND ref = ?`,
     ).run(input.itemId, input.kind, input.ref);
     if (result.changes > 0) {
@@ -895,7 +958,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function listArtifacts(options: ListArtifactsOptions = {}): RoadmapArtifact[] {
-    const sqlDb = relationalOrThrow();
     const where: string[] = [];
     const params: unknown[] = [];
     if (options.itemId) { where.push('item_id = ?'); params.push(options.itemId); }
@@ -904,25 +966,23 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     let sql = `SELECT item_id, kind, ref, label, at FROM roadmap_item_artifacts`;
     if (where.length > 0) sql += ' WHERE ' + where.join(' AND ');
     sql += ' ORDER BY at DESC';
-    const rows = sqlDb.prepare(sql).all(...params) as Array<{
+    const rows = db.prepare(sql).all(...params) as Array<{
       item_id: string; kind: string; ref: string; label: string | null; at: number;
     }>;
     return rows.map((r) => ({ itemId: r.item_id, kind: r.kind, ref: r.ref, label: r.label, at: r.at }));
   }
 
   function addTag(input: { itemId: string; tag: string; by?: string }): { itemId: string; tag: string } {
-    const sqlDb = relationalOrThrow();
     const itemId = input.itemId?.trim();
     const tag = input.tag?.trim();
     if (!itemId || !tag) throw new Error('roadmap.addTag: itemId and tag are required');
-    sqlDb.prepare(`INSERT OR IGNORE INTO roadmap_item_tags (item_id, tag) VALUES (?, ?)`).run(itemId, tag);
+    db.prepare(`INSERT OR IGNORE INTO roadmap_item_tags (item_id, tag) VALUES (?, ?)`).run(itemId, tag);
     addEventInternal({ itemId, kind: 'tag-added', by: input.by ?? null, payload: { tag } });
     return { itemId, tag };
   }
 
   function removeTag(input: { itemId: string; tag: string; by?: string }): boolean {
-    const sqlDb = relationalOrThrow();
-    const result = sqlDb.prepare(
+    const result = db.prepare(
       `DELETE FROM roadmap_item_tags WHERE item_id = ? AND tag = ?`,
     ).run(input.itemId, input.tag);
     if (result.changes > 0) {
@@ -937,11 +997,10 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function listTags(itemId?: string): Array<{ itemId: string; tag: string }> {
-    const sqlDb = relationalOrThrow();
     const sql = itemId
       ? `SELECT item_id, tag FROM roadmap_item_tags WHERE item_id = ? ORDER BY tag`
       : `SELECT item_id, tag FROM roadmap_item_tags ORDER BY item_id, tag`;
-    const rows = sqlDb.prepare(sql).all(...(itemId ? [itemId] : [])) as Array<{
+    const rows = db.prepare(sql).all(...(itemId ? [itemId] : [])) as Array<{
       item_id: string; tag: string;
     }>;
     return rows.map((r) => ({ itemId: r.item_id, tag: r.tag }));
@@ -953,10 +1012,9 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     by: string | null;
     payload?: Record<string, unknown>;
   }): RoadmapItemEvent {
-    const sqlDb = relationalOrThrow();
     const at = now();
     const payloadJson = input.payload ? JSON.stringify(input.payload) : null;
-    const result = sqlDb.prepare(
+    const result = db.prepare(
       `INSERT INTO roadmap_item_events (item_id, kind, by, at, payload)
        VALUES (?, ?, ?, ?, ?)`,
     ).run(input.itemId, input.kind, input.by, at, payloadJson);
@@ -989,7 +1047,6 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
   }
 
   function events(options: ListEventsOptions = {}): RoadmapItemEvent[] {
-    const sqlDb = relationalOrThrow();
     const where: string[] = [];
     const params: unknown[] = [];
     if (options.itemId) { where.push('item_id = ?'); params.push(options.itemId); }
@@ -1002,7 +1059,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
       sql += ' LIMIT ?';
       params.push(options.limit);
     }
-    const rows = sqlDb.prepare(sql).all(...params) as Array<{
+    const rows = db.prepare(sql).all(...params) as Array<{
       id: number; item_id: string; kind: string; by: string | null; at: number; payload: string | null;
     }>;
     return rows.map((r) => {
@@ -1020,7 +1077,7 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     list,
     updateStatus,
     touch,
-    // ADR-0036 relational APIs (throw without db dep)
+    // ADR-0036 relational APIs
     addEdge,
     removeEdge,
     listEdges,

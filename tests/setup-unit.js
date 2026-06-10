@@ -254,6 +254,52 @@ export function createTestDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_session_notes_session ON session_notes(session_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_session_notes_type ON session_notes(type);
+
+    CREATE TABLE IF NOT EXISTS roadmap_items (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL,
+      summary_md TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'backlog',
+      promoted_from_feedback_id TEXT,
+      promoted_by_agent_id TEXT,
+      promoted_at INTEGER,
+      last_touched_at INTEGER NOT NULL,
+      dependencies_json TEXT NOT NULL DEFAULT '[]',
+      notes_json TEXT NOT NULL DEFAULT '[]',
+      harbor TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      title TEXT,
+      why_md TEXT,
+      next_cut_md TEXT,
+      description_md TEXT,
+      parent_id TEXT,
+      ordering INTEGER NOT NULL DEFAULT 0,
+      visibility TEXT NOT NULL DEFAULT 'private',
+      scheduled_at INTEGER,
+      started_at INTEGER,
+      due_at INTEGER,
+      completed_at INTEGER,
+      team_id TEXT,
+      workspace_id TEXT,
+      workflow_id TEXT,
+      UNIQUE(slug, harbor)
+    );
+    CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
+      ON roadmap_items(harbor, status);
+    CREATE INDEX IF NOT EXISTS idx_roadmap_items_last_touched
+      ON roadmap_items(last_touched_at);
+
+    CREATE TABLE IF NOT EXISTS roadmap_item_status_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id TEXT NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
+      slug TEXT NOT NULL,
+      status TEXT NOT NULL,
+      by_agent_id TEXT,
+      at INTEGER NOT NULL,
+      harbor TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_roadmap_status_events_item
+      ON roadmap_item_status_events(item_id, at);
   `);
 
   return db;
