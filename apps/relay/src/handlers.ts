@@ -170,6 +170,10 @@ export async function handleHandshake(
   const sigValid = await verifyEd25519(identity.pub_key, helloMsg, body.sig);
   if (!sigValid) return err('BAD_SIG', 'ClientHello signature invalid', 401);
 
+  // Compute relay fingerprint once for harbor-binding checks below
+  const { sha256: sha256hs } = await import('@noble/hashes/sha256');
+  const relayFp = toHex(sha256hs(fromHex(pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX))));
+
   // Resolve subscriptions
   const accepted: SubscriptionStatus[] = [];
   const rejected: SubscriptionStatus[] = [];
@@ -183,11 +187,24 @@ export async function handleHandshake(
       continue;
     }
 
-    // S6: harbor-binding check — channel must start with card.iss
+    // S6 (strengthened): harbor-binding via D1 membership for daemon-issued cards,
+    // card.iss comparison for relay-issued cards.
     const channelHarborFp = channel.split(':')[0] ?? '';
-    if (channelHarborFp !== verifiedCard.iss && channelHarborFp !== verifiedCard.aud) {
-      rejected.push({ channel, tip_seq: null, tip_hash: null, reason: 'HARBOR_MISMATCH' });
-      continue;
+    if (cardKid === relayFp) {
+      // Relay-issued card: iss is relay-authoritative
+      if (channelHarborFp !== verifiedCard.iss && channelHarborFp !== verifiedCard.aud) {
+        rejected.push({ channel, tip_seq: null, tip_hash: null, reason: 'HARBOR_MISMATCH' });
+        continue;
+      }
+    } else {
+      // Daemon-issued card: verify membership in D1
+      const member = await env.DB.prepare(
+        'SELECT 1 FROM harbor_members WHERE daemon_fingerprint = ? AND harbor_fingerprint = ?'
+      ).bind(sub, channelHarborFp).first();
+      if (!member) {
+        rejected.push({ channel, tip_seq: null, tip_hash: null, reason: 'HARBOR_NOT_MEMBER' });
+        continue;
+      }
     }
 
     const head = await getChainHead(env.DB, sub, channel);
@@ -330,11 +347,28 @@ export async function handlePublish(
   if (identity.revoked) return err('REVOKED', 'Daemon identity revoked', 401);
 
   const channelName = event.channel;
-
-  // S6: harbor-binding check — card.iss must match channel's harbor_fingerprint prefix
   const channelHarborFp = channelName.split(':')[0] ?? '';
-  if (channelHarborFp !== iss) {
-    return err('HARBOR_MISMATCH', `Card iss ${iss} does not match channel harbor ${channelHarborFp}`, 403);
+
+  // S6 (strengthened): harbor-binding check using D1 membership, not card.iss.
+  // card.iss is attacker-controlled for daemon-issued Phase 2 cards.
+  // The authoritative source is harbor_members.
+  const { sha256: sha256sync } = await import('@noble/hashes/sha256');
+  const relayPubKeyForCheck = pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX);
+  const relayFpForCheck = toHex(sha256sync(fromHex(relayPubKeyForCheck)));
+
+  if (cardKid === relayFpForCheck) {
+    // Relay-issued card: trust card.iss (relay set it deterministically from OIDC claims)
+    if (channelHarborFp !== iss) {
+      return err('HARBOR_MISMATCH', `Card iss ${iss} does not match channel harbor ${channelHarborFp}`, 403);
+    }
+  } else {
+    // Daemon-issued Phase 2 card: verify membership in D1, not via card.iss
+    const member = await env.DB.prepare(
+      'SELECT 1 FROM harbor_members WHERE daemon_fingerprint = ? AND harbor_fingerprint = ?'
+    ).bind(sub, channelHarborFp).first();
+    if (!member) {
+      return err('HARBOR_MISMATCH', `Daemon ${sub} is not a member of harbor ${channelHarborFp}`, 403);
+    }
   }
 
   // S3: resolve correct issuer key
@@ -520,16 +554,7 @@ export async function handleExchange(
   const fingerprint = toHex(sha256(fromHex(body.pub_key)));
   const harborFp = toHex(sha256(new TextEncoder().encode(oidcClaims.repository_owner)));
 
-  // S5: OIDC JTI deduplication — each token redeemable exactly once
-  const alreadyUsed = await env.DB.prepare(
-    'SELECT oidc_jti FROM oidc_exchanges WHERE oidc_jti = ?'
-  ).bind(oidcClaims.jti).first<{ oidc_jti: string }>();
-
-  if (alreadyUsed) {
-    return err('JTI_REUSED', 'OIDC token has already been exchanged', 409);
-  }
-
-  // S8: attenuate requested capabilities server-side
+  // S8: attenuate requested capabilities server-side (do this before JTI claim)
   let attenuatedCap: CapabilityEntry[];
   try {
     attenuatedCap = attenuateOidcCaps(body.cap as CapabilityEntry[], harborFp);
@@ -538,7 +563,23 @@ export async function handleExchange(
     throw e;
   }
 
-  // Register/update identity
+  // S5 (TOCTOU fix): INSERT first — the UNIQUE PK constraint is the atomic gate.
+  // Drop the SELECT; a concurrent race will hit SQLITE_CONSTRAINT on the second INSERT.
+  // Only proceed to upsertIdentity and card minting after this INSERT succeeds.
+  try {
+    await env.DB.prepare(
+      'INSERT INTO oidc_exchanges (oidc_jti, exchanged_at, daemon_fingerprint) VALUES (?, ?, ?)'
+    ).bind(oidcClaims.jti, Math.floor(Date.now() / 1000), fingerprint).run();
+  } catch (e: unknown) {
+    // D1 raises a generic Error whose message contains "UNIQUE constraint failed"
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('UNIQUE constraint failed') || msg.includes('SQLITE_CONSTRAINT')) {
+      return err('JTI_REUSED', 'OIDC token has already been exchanged', 409);
+    }
+    throw e;
+  }
+
+  // Register/update identity (only reached if JTI was fresh)
   await upsertIdentity(env.DB, {
     daemon_fingerprint: fingerprint,
     pub_key: body.pub_key,
@@ -552,11 +593,6 @@ export async function handleExchange(
     }),
     expires_at: oidcClaims.exp,
   });
-
-  // S5: record JTI as used (after successful identity upsert)
-  await env.DB.prepare(
-    'INSERT INTO oidc_exchanges (oidc_jti, exchanged_at, daemon_fingerprint) VALUES (?, ?, ?)'
-  ).bind(oidcClaims.jti, Math.floor(Date.now() / 1000), fingerprint).run();
 
   // Build harbor card JWT signed by relay's key
   const now = Math.floor(Date.now() / 1000);

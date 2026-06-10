@@ -69,20 +69,46 @@ export interface ServerHello {
   relay_pub_key: string;
 }
 
-// S7: verify relay's ServerHello signature.
-// Message: SHA256(session_id + "|" + nonce_c + "|" + nonce_s)
-// Signed by relay's RELAY_ED25519_PRIVATE_KEY — we verify against relay_pub_key.
-async function verifyServerHelloSig(serverHello: ServerHello, nonceC: string): Promise<boolean> {
-  const { createVerify } = await import('node:crypto');
-  // Use @noble/ed25519 since Node's built-in Ed25519 verify is straightforward
+// S7 (fixed): verify relay's ServerHello signature using the PINNED key.
+// Verifying against serverHello.relay_pub_key (the self-reported value) is circular —
+// a MITM can return their own key + valid signature. We must verify against a key
+// we obtained out-of-band (pinnedRelayPubKey) or persisted from a prior TOFU session.
+//
+// TOFU behaviour (first-run only):
+//   - If no pin is stored, trust the first key seen and persist it.
+//   - On all subsequent handshakes, reject any deviation from the stored key.
+//   - Operators can rotate by explicitly calling clearRelayKeyPin(db).
+async function verifyServerHelloSig(
+  serverHello: ServerHello,
+  nonceC: string,
+  keyToVerifyWith: string   // MUST be the pinned key, never serverHello.relay_pub_key
+): Promise<boolean> {
   const { verifyAsync } = await import('@noble/ed25519');
   const msg = createHash('sha256')
     .update([serverHello.session_id, nonceC, serverHello.nonce_s].join('|'))
     .digest();
-  const pubKeyHex = serverHello.relay_pub_key;
-  const pubKeyBytes = Buffer.from(pubKeyHex, 'hex');
+  const pubKeyBytes = Buffer.from(keyToVerifyWith, 'hex');
   const sigBytes = Buffer.from(serverHello.sig, 'hex');
   return verifyAsync(sigBytes, msg, pubKeyBytes);
+}
+
+const RELAY_PINNED_KEY_CONFIG_KEY = 'relay_pinned_pub_key';
+
+export function getRelayPinnedKey(db: Database): string | null {
+  const row = db
+    .prepare('SELECT value FROM config WHERE key = ?')
+    .get(RELAY_PINNED_KEY_CONFIG_KEY) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setRelayPinnedKey(db: Database, pubKeyHex: string): void {
+  db.prepare(
+    'INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'
+  ).run(RELAY_PINNED_KEY_CONFIG_KEY, pubKeyHex);
+}
+
+export function clearRelayKeyPin(db: Database): void {
+  db.prepare('DELETE FROM config WHERE key = ?').run(RELAY_PINNED_KEY_CONFIG_KEY);
 }
 
 export async function performHandshake(
@@ -90,11 +116,10 @@ export async function performHandshake(
   card: string,
   subscriptions: string[],
   signerFn: (msgHex: string) => Promise<string>,
-  pinnedRelayPubKey?: string
+  db: Database  // required: used for TOFU key pinning
 ): Promise<ServerHello> {
   const nonceC = randomBytes(32).toString('hex');
 
-  // Sign: SHA256(card + nonce_c)
   const msg = createHash('sha256').update(card + nonceC).digest('hex');
   const sig = await signerFn(msg);
 
@@ -113,20 +138,29 @@ export async function performHandshake(
 
   const serverHello = await resp.json() as ServerHello;
 
-  // Verify nonce echo
   if (serverHello.nonce_c !== nonceC) {
     throw new RelayError('NONCE_MISMATCH', 'Relay did not echo our nonce_c');
   }
 
-  // S7: verify relay's signature on ServerHello (prevents MITM / relay impersonation)
-  const sigValid = await verifyServerHelloSig(serverHello, nonceC);
-  if (!sigValid) {
-    throw new RelayError('BAD_RELAY_SIG', 'ServerHello signature verification failed');
+  // S7 (TOFU): resolve the key to verify against — never trust the self-reported value
+  let pinnedKey = getRelayPinnedKey(db);
+
+  if (!pinnedKey) {
+    // First-ever handshake: TOFU — trust and pin the key we see
+    pinnedKey = serverHello.relay_pub_key;
+    setRelayPinnedKey(db, pinnedKey);
+  } else if (pinnedKey !== serverHello.relay_pub_key) {
+    // Key changed — reject immediately (even before sig check)
+    throw new RelayError(
+      'RELAY_KEY_CHANGED',
+      `Relay public key changed from pinned value. If intentional, run: pd relay unpin`
+    );
   }
 
-  // If caller pinned a relay public key, enforce it
-  if (pinnedRelayPubKey && serverHello.relay_pub_key !== pinnedRelayPubKey) {
-    throw new RelayError('RELAY_KEY_MISMATCH', `Relay public key changed — expected ${pinnedRelayPubKey}`);
+  // Verify signature against the pinned key (not self-reported)
+  const sigValid = await verifyServerHelloSig(serverHello, nonceC, pinnedKey);
+  if (!sigValid) {
+    throw new RelayError('BAD_RELAY_SIG', 'ServerHello signature verification failed');
   }
 
   return serverHello;
