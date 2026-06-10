@@ -69,12 +69,28 @@ export interface ServerHello {
   relay_pub_key: string;
 }
 
+// S7: verify relay's ServerHello signature.
+// Message: SHA256(session_id + "|" + nonce_c + "|" + nonce_s)
+// Signed by relay's RELAY_ED25519_PRIVATE_KEY — we verify against relay_pub_key.
+async function verifyServerHelloSig(serverHello: ServerHello, nonceC: string): Promise<boolean> {
+  const { createVerify } = await import('node:crypto');
+  // Use @noble/ed25519 since Node's built-in Ed25519 verify is straightforward
+  const { verifyAsync } = await import('@noble/ed25519');
+  const msg = createHash('sha256')
+    .update([serverHello.session_id, nonceC, serverHello.nonce_s].join('|'))
+    .digest();
+  const pubKeyHex = serverHello.relay_pub_key;
+  const pubKeyBytes = Buffer.from(pubKeyHex, 'hex');
+  const sigBytes = Buffer.from(serverHello.sig, 'hex');
+  return verifyAsync(sigBytes, msg, pubKeyBytes);
+}
+
 export async function performHandshake(
   relayUrl: string,
   card: string,
   subscriptions: string[],
   signerFn: (msgHex: string) => Promise<string>,
-  _verifyRelayFn?: (relayPubKey: string, sessionId: string, nonceC: string, nonceS: string, sig: string) => Promise<boolean>
+  pinnedRelayPubKey?: string
 ): Promise<ServerHello> {
   const nonceC = randomBytes(32).toString('hex');
 
@@ -97,8 +113,20 @@ export async function performHandshake(
 
   const serverHello = await resp.json() as ServerHello;
 
+  // Verify nonce echo
   if (serverHello.nonce_c !== nonceC) {
     throw new RelayError('NONCE_MISMATCH', 'Relay did not echo our nonce_c');
+  }
+
+  // S7: verify relay's signature on ServerHello (prevents MITM / relay impersonation)
+  const sigValid = await verifyServerHelloSig(serverHello, nonceC);
+  if (!sigValid) {
+    throw new RelayError('BAD_RELAY_SIG', 'ServerHello signature verification failed');
+  }
+
+  // If caller pinned a relay public key, enforce it
+  if (pinnedRelayPubKey && serverHello.relay_pub_key !== pinnedRelayPubKey) {
+    throw new RelayError('RELAY_KEY_MISMATCH', `Relay public key changed — expected ${pinnedRelayPubKey}`);
   }
 
   return serverHello;

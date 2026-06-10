@@ -75,6 +75,13 @@ CREATE TABLE IF NOT EXISTS issuers (
   last_fetch  INTEGER
 );
 
+-- S5: OIDC JTI deduplication — each OIDC token redeemable exactly once.
+CREATE TABLE IF NOT EXISTS oidc_exchanges (
+  oidc_jti           TEXT    PRIMARY KEY,
+  exchanged_at       INTEGER NOT NULL DEFAULT (unixepoch()),
+  daemon_fingerprint TEXT    NOT NULL
+);
+
 -- Seed GitHub Actions OIDC issuer.
 INSERT OR IGNORE INTO issuers (issuer_id, jwks_uri, audience)
 VALUES (

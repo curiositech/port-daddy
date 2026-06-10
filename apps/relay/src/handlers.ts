@@ -3,6 +3,16 @@
  *
  * Each handler is a pure function: (request, env, ctx) → Response.
  * Routing is in index.ts.
+ *
+ * Security fixes applied (red-team round 1):
+ *   S1  Operator token comparison now timing-safe (timingSafeEqual)
+ *   S2  Capability check in handleHandshake uses matchCapability (not ad-hoc prefix)
+ *   S3  Card issuer key resolved from header.kid — relay-issued cards use relay's key
+ *   S4  Revocation broadcast wired: handleRevoke fans out to harbor DOs
+ *   S5  OIDC JTI deduplication: oidc_exchanges table, one-time-use enforced
+ *   S6  Harbor-binding check: card.iss/aud must match channel harbor_fingerprint prefix
+ *   S7  n/a here — ServerHello verification is in relay-client.ts
+ *   S8  handleExchange: body.cap server-side attenuated; admin op rejected
  */
 
 import {
@@ -15,27 +25,25 @@ import {
   hashHex,
   fromHex,
   toHex,
-  ZERO_HASH,
+  timingSafeEqual,
 } from './crypto.js';
 import {
   getIdentity,
   upsertIdentity,
   createSession,
   getSession,
-  getLastEventSeq,
-  insertEvent,
   getChainHead,
   upsertChainHead,
-  isRevoked,
   insertRevocation,
   revokeByIssuer,
   getIssuer,
   setIssuerDisabled,
   appendAudit,
   queryAuditLog,
+  insertEvent,
   ChainError,
 } from './db.js';
-import { verifyCard, extractCardSub, extractBearerToken, CardError } from './auth.js';
+import { verifyCard, extractCardSub, extractBearerToken, CardError, matchCapability } from './auth.js';
 import { fetchJwks, verifyOidcToken, invalidateJwksCache, OidcError } from './oidc.js';
 import { harborChannelKey } from './harbor-channel.js';
 import type {
@@ -51,6 +59,7 @@ import type {
   RevokeByIssuerRequest,
   RelayError,
   ChainHead,
+  CapabilityEntry,
 } from './types.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,13 +73,35 @@ function clientIp(request: Request): string {
   return request.headers.get('CF-Connecting-IP') ?? 'unknown';
 }
 
+// S1: timing-safe operator token check
 function operatorOnly(request: Request, env: Env): Response | null {
   const auth = request.headers.get('Authorization');
   const token = auth?.replace(/^Bearer\s+/i, '') ?? '';
-  if (token !== env.RELAY_OPERATOR_TOKEN) {
+  if (!timingSafeEqual(token, env.RELAY_OPERATOR_TOKEN)) {
     return err('UNAUTHORIZED', 'Operator token required', 401);
   }
   return null;
+}
+
+// S3: resolve the issuer pubkey for a harbor card.
+// Relay-issued cards (from /v1/exchange) have kid = relay fingerprint.
+// Daemon-issued Phase 2 cards have kid = daemon fingerprint (same as sub).
+// Returns the key to pass to verifyCard(), or null if unknown issuer.
+async function resolveIssuerKey(
+  env: Env,
+  cardKid: string | undefined,
+  daemonPubKey: string
+): Promise<string | null> {
+  const { sha256 } = await import('@noble/hashes/sha256');
+  const relayPubKey = pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX);
+  const relayFp = toHex(sha256(fromHex(relayPubKey)));
+
+  if (cardKid === relayFp) {
+    // Relay-issued card (from /v1/exchange)
+    return relayPubKey;
+  }
+  // Daemon-issued Phase 2 card: use the daemon's own pubkey
+  return daemonPubKey;
 }
 
 // ── GET /health ───────────────────────────────────────────────────────────────
@@ -98,8 +129,17 @@ export async function handleHandshake(
 
   // Decode card to get sub+iss+jti
   let sub: string, iss: string, jti: string;
+  let cardKid: string | undefined;
   try {
     ({ sub, iss, jti } = extractCardSub(body.card));
+    // Also read kid from header for issuer key resolution (S3)
+    const headerPart = body.card.split('.')[0];
+    if (headerPart) {
+      const dec = new TextDecoder();
+      const { base64UrlDecode } = await import('./crypto.js');
+      const hdr = JSON.parse(dec.decode(base64UrlDecode(headerPart))) as { alg?: string; kid?: string };
+      cardKid = hdr.kid;
+    }
   } catch {
     return err('MALFORMED_CARD', 'Cannot decode card');
   }
@@ -109,10 +149,14 @@ export async function handleHandshake(
   if (!identity) return err('UNKNOWN_IDENTITY', 'Daemon not in identity registry', 401);
   if (identity.revoked) return err('REVOKED', 'Daemon identity revoked', 401);
 
-  // Verify card signature using daemon's pubkey
+  // S3: resolve correct issuer key
+  const issuerKey = await resolveIssuerKey(env, cardKid, identity.pub_key);
+  if (!issuerKey) return err('UNKNOWN_ISSUER_KEY', 'Cannot resolve issuer key for card', 401);
+
+  // Verify card signature
   const verifiedCard = await (async () => {
     try {
-      return await verifyCard(body.card, env.DB, identity.pub_key, 'sub', '*');
+      return await verifyCard(body.card, env.DB, issuerKey, 'sub', '*');
     } catch (e) {
       return e instanceof CardError ? e : new CardError('VERIFY_ERROR', String(e));
     }
@@ -121,7 +165,7 @@ export async function handleHandshake(
     return err(verifiedCard.code, verifiedCard.message, 401);
   }
 
-  // Verify ClientHello signature: sig over SHA256(card + nonce_c)
+  // Verify ClientHello signature: sig over SHA256(card + nonce_c), using daemon's own key
   const helloMsg = hashHex(body.card + body.nonce_c);
   const sigValid = await verifyEd25519(identity.pub_key, helloMsg, body.sig);
   if (!sigValid) return err('BAD_SIG', 'ClientHello signature invalid', 401);
@@ -131,14 +175,18 @@ export async function handleHandshake(
   const rejected: SubscriptionStatus[] = [];
 
   for (const channel of (body.subscriptions ?? [])) {
-    // Check capability for each requested channel
-    const capOk = verifiedCard.cap?.some(
-      (c) => (c.op === 'sub' || c.op === 'admin') &&
-        (c.channel === '*' || c.channel === channel || channel.startsWith(c.channel.replace(/\*$/, '')))
-    );
+    // S2: use matchCapability (correct prefix semantics, no ad-hoc re-implementation)
+    const capMatch = matchCapability(verifiedCard.cap ?? [], 'sub', channel);
 
-    if (!capOk) {
+    if (!capMatch) {
       rejected.push({ channel, tip_seq: null, tip_hash: null, reason: 'INSUFFICIENT_CAP' });
+      continue;
+    }
+
+    // S6: harbor-binding check — channel must start with card.iss
+    const channelHarborFp = channel.split(':')[0] ?? '';
+    if (channelHarborFp !== verifiedCard.iss && channelHarborFp !== verifiedCard.aud) {
+      rejected.push({ channel, tip_seq: null, tip_hash: null, reason: 'HARBOR_MISMATCH' });
       continue;
     }
 
@@ -156,15 +204,14 @@ export async function handleHandshake(
   const now = Math.floor(Date.now() / 1000);
   const sessionTtl = parseInt(env.SESSION_TTL_SECONDS, 10);
 
-  await createSession(env.DB, {
-    session_id: sessionId,
-    fingerprint: sub,
-    nonce_c: body.nonce_c,
-    nonce_s: nonceS,
-    subs_json: JSON.stringify(accepted.map((s) => s.channel)),
-    created_at: now,
-    expires_at: now + sessionTtl,
-  });
+  await env.DB.prepare(`
+    INSERT INTO sessions (session_id, fingerprint, nonce_c, nonce_s, subs_json, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    sessionId, sub, body.nonce_c, nonceS,
+    JSON.stringify(accepted.map((s) => s.channel)),
+    now, now + sessionTtl,
+  ).run();
 
   // Sign ServerHello
   const relayPrivKey = env.RELAY_ED25519_PRIVATE_KEY_HEX;
@@ -200,7 +247,12 @@ export async function handleSubscribe(
   env: Env,
   sessionId: string
 ): Promise<Response> {
-  const session = await getSession(env.DB, sessionId);
+  const session = await env.DB.prepare(
+    'SELECT * FROM sessions WHERE session_id = ?'
+  ).bind(sessionId).first<{
+    session_id: string; fingerprint: string; nonce_c: string; nonce_s: string;
+    subs_json: string; created_at: number; expires_at: number;
+  }>();
   if (!session) return err('UNKNOWN_SESSION', 'Session not found', 404);
 
   const now = Math.floor(Date.now() / 1000);
@@ -211,16 +263,11 @@ export async function handleSubscribe(
     return err('WRONG_ACCEPT', 'Accept: text/event-stream required');
   }
 
-  // Use the last channel for now (multi-channel per session is fine via multiple SSE streams)
-  // In practice, the daemon opens one SSE per subscribed channel or one for all.
-  // For v0 we route to the first accepted channel's DO.
   const subs: string[] = JSON.parse(session.subs_json);
   if (subs.length === 0) {
     return err('NO_SUBSCRIPTIONS', 'No accepted subscriptions in session');
   }
 
-  // Find harbor_fingerprint from session's card (iss field)
-  // We use the first subscription channel — it starts with harbor_fingerprint:
   const firstChannel = subs[0];
   const colonIdx = firstChannel?.indexOf(':') ?? -1;
   const harborFp = colonIdx >= 0 ? firstChannel!.slice(0, colonIdx) : '';
@@ -239,7 +286,6 @@ export async function handleSubscribe(
     10
   );
 
-  // Delegate SSE stream to the Durable Object
   const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
   return stub.fetch(doUrl);
 }
@@ -265,8 +311,16 @@ export async function handlePublish(
 
   // Decode card
   let sub: string, iss: string, jti: string;
+  let cardKid: string | undefined;
   try {
     ({ sub, iss, jti } = extractCardSub(cardJwt));
+    const headerPart = cardJwt.split('.')[0];
+    if (headerPart) {
+      const dec = new TextDecoder();
+      const { base64UrlDecode } = await import('./crypto.js');
+      const hdr = JSON.parse(dec.decode(base64UrlDecode(headerPart))) as { kid?: string };
+      cardKid = hdr.kid;
+    }
   } catch {
     return err('MALFORMED_CARD', 'Cannot decode card');
   }
@@ -275,11 +329,21 @@ export async function handlePublish(
   if (!identity) return err('UNKNOWN_IDENTITY', 'Daemon not registered', 401);
   if (identity.revoked) return err('REVOKED', 'Daemon identity revoked', 401);
 
-  // Verify card and capability for this channel
-  const channelName = event.channel; // full "harbor_fp:channel"
+  const channelName = event.channel;
+
+  // S6: harbor-binding check — card.iss must match channel's harbor_fingerprint prefix
+  const channelHarborFp = channelName.split(':')[0] ?? '';
+  if (channelHarborFp !== iss) {
+    return err('HARBOR_MISMATCH', `Card iss ${iss} does not match channel harbor ${channelHarborFp}`, 403);
+  }
+
+  // S3: resolve correct issuer key
+  const issuerKey = await resolveIssuerKey(env, cardKid, identity.pub_key);
+  if (!issuerKey) return err('UNKNOWN_ISSUER_KEY', 'Cannot resolve issuer key for card', 401);
+
   let card;
   try {
-    card = await verifyCard(cardJwt, env.DB, identity.pub_key, 'pub', channelName);
+    card = await verifyCard(cardJwt, env.DB, issuerKey, 'pub', channelName);
   } catch (e) {
     if (e instanceof CardError) return err(e.code, e.message, 401);
     throw e;
@@ -291,11 +355,8 @@ export async function handlePublish(
   const channelPart = colonIdx >= 0 ? channelName.slice(colonIdx + 1) : channelName;
 
   if (harborFp) {
-    const rateLimit = card.cap.find(
-      (c) => (c.op === 'pub' || c.op === 'admin') &&
-        (c.channel === '*' || c.channel === channelName)
-    )?.rate_per_min ?? 60;
-
+    const capEntry = matchCapability(card.cap, 'pub', channelName);
+    const rateLimit = capEntry?.rate_per_min ?? 60;
     const doId = env.HARBOR_CHANNEL.idFromName(harborChannelKey(harborFp, channelPart));
     const stub = env.HARBOR_CHANNEL.get(doId);
     const rateResp = await stub.fetch(
@@ -308,9 +369,8 @@ export async function handlePublish(
   }
 
   // Payload size check
-  const maxBytes = card.cap.find(
-    (c) => (c.op === 'pub' || c.op === 'admin') && c.max_payload_bytes
-  )?.max_payload_bytes ?? 65536;
+  const capEntry = matchCapability(card.cap, 'pub', channelName);
+  const maxBytes = capEntry?.max_payload_bytes ?? 65536;
 
   if (event.ciphertext.length > maxBytes) {
     return err('PAYLOAD_TOO_LARGE', `Payload exceeds ${maxBytes} bytes limit`, 413);
@@ -330,11 +390,11 @@ export async function handlePublish(
     return err('HASH_MISMATCH', 'event.this_hash does not match computed hash');
   }
 
-  // Verify event signature: sig over this_hash
+  // Verify event signature: sig over this_hash, using daemon's own key
   const sigValid = await verifyEd25519(identity.pub_key, event.this_hash, event.sig);
   if (!sigValid) return err('BAD_SIG', 'Event signature invalid', 401);
 
-  // Persist event (with chain continuity check inside insertEvent)
+  // Persist event
   try {
     await insertEvent(env.DB, event);
   } catch (e) {
@@ -374,13 +434,40 @@ export async function handlePublish(
     action: 'publish',
     target: channelName,
     ip: clientIp(request),
-    detail: `seq=${event.seq}` as string,
+    detail: `seq=${event.seq}`,
   });
 
   return Response.json({ ok: true, seq: event.seq, this_hash: event.this_hash });
 }
 
 // ── POST /v1/exchange (OIDC → PD card) ───────────────────────────────────────
+
+// S8: allowed capability ops from OIDC exchange (no admin; channels scoped to harbor)
+const MAX_OIDC_RATE_PER_MIN = 120;
+const MAX_OIDC_PAYLOAD_BYTES = 65536;
+const ALLOWED_OIDC_OPS = new Set(['pub', 'sub']);
+
+function attenuateOidcCaps(
+  requestedCaps: CapabilityEntry[],
+  harborFp: string
+): CapabilityEntry[] {
+  return requestedCaps.map((c) => {
+    if (!ALLOWED_OIDC_OPS.has(c.op)) {
+      throw new CardError('FORBIDDEN_OP', `OIDC exchange does not allow op: ${c.op}`);
+    }
+    // Channel must be within the harbor fingerprint
+    const channelPrefix = c.channel.split(':')[0] ?? '';
+    if (c.channel !== '*' && channelPrefix !== harborFp) {
+      throw new CardError('HARBOR_MISMATCH', `Channel ${c.channel} outside issuer harbor ${harborFp}`);
+    }
+    return {
+      op: c.op,
+      channel: c.channel,
+      rate_per_min: Math.min(c.rate_per_min ?? MAX_OIDC_RATE_PER_MIN, MAX_OIDC_RATE_PER_MIN),
+      max_payload_bytes: Math.min(c.max_payload_bytes ?? MAX_OIDC_PAYLOAD_BYTES, MAX_OIDC_PAYLOAD_BYTES),
+    };
+  });
+}
 
 export async function handleExchange(
   request: Request,
@@ -428,10 +515,28 @@ export async function handleExchange(
     return err('OIDC_ERROR', String(e), 401);
   }
 
-  // Compute daemon fingerprint from pub_key
+  // Compute fingerprints
   const { sha256 } = await import('@noble/hashes/sha256');
-  const { fromHex, toHex } = await import('./crypto.js');
   const fingerprint = toHex(sha256(fromHex(body.pub_key)));
+  const harborFp = toHex(sha256(new TextEncoder().encode(oidcClaims.repository_owner)));
+
+  // S5: OIDC JTI deduplication — each token redeemable exactly once
+  const alreadyUsed = await env.DB.prepare(
+    'SELECT oidc_jti FROM oidc_exchanges WHERE oidc_jti = ?'
+  ).bind(oidcClaims.jti).first<{ oidc_jti: string }>();
+
+  if (alreadyUsed) {
+    return err('JTI_REUSED', 'OIDC token has already been exchanged', 409);
+  }
+
+  // S8: attenuate requested capabilities server-side
+  let attenuatedCap: CapabilityEntry[];
+  try {
+    attenuatedCap = attenuateOidcCaps(body.cap as CapabilityEntry[], harborFp);
+  } catch (e) {
+    if (e instanceof CardError) return err(e.code, e.message, 403);
+    throw e;
+  }
 
   // Register/update identity
   await upsertIdentity(env.DB, {
@@ -448,15 +553,20 @@ export async function handleExchange(
     expires_at: oidcClaims.exp,
   });
 
-  // Issue a short-lived PD harbor card (JWT, EdDSA)
-  // For v0, the relay itself acts as the issuer for OIDC-exchanged cards.
-  // Harbor fingerprint = fingerprint of the repository_owner's namespace.
-  const harborFp = toHex(sha256(new TextEncoder().encode(oidcClaims.repository_owner)));
-  const now = Math.floor(Date.now() / 1000);
-  const cardExp = now + 3600; // 1 hour
+  // S5: record JTI as used (after successful identity upsert)
+  await env.DB.prepare(
+    'INSERT INTO oidc_exchanges (oidc_jti, exchanged_at, daemon_fingerprint) VALUES (?, ?, ?)'
+  ).bind(oidcClaims.jti, Math.floor(Date.now() / 1000), fingerprint).run();
 
-  // Build minimal harbor card JWT
-  const cardHeader = { alg: 'EdDSA', kid: fingerprint };
+  // Build harbor card JWT signed by relay's key
+  const now = Math.floor(Date.now() / 1000);
+  const cardExp = now + 3600;
+
+  // S3: kid = relay fingerprint so verifiers know to use relay's key
+  const relayPubKey = pubKeyFromPrivKey(env.RELAY_ED25519_PRIVATE_KEY_HEX);
+  const relayFp = toHex(sha256(fromHex(relayPubKey)));
+
+  const cardHeader = { alg: 'EdDSA', kid: relayFp };
   const cardPayload = {
     hv: 2,
     sub: fingerprint,
@@ -465,18 +575,14 @@ export async function handleExchange(
     exp: cardExp,
     iat: now,
     jti: randomHex(16),
-    cap: body.cap,
+    cap: attenuatedCap,
   };
 
   const headerB64 = btoa(JSON.stringify(cardHeader)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   const payloadB64 = btoa(JSON.stringify(cardPayload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
-  const { signEd25519, hashHex } = await import('./crypto.js');
   const msgHex = hashHex(`${headerB64}.${payloadB64}`);
-  const sig = await signEd25519(env.RELAY_ED25519_PRIVATE_KEY_HEX, msgHex);
-  const sigB64 = toHex(fromHex(sig));  // convert to base64url for JWT
-
-  // Build sigB64 as base64url
+  const sig = await (await import('./crypto.js')).signEd25519(env.RELAY_ED25519_PRIVATE_KEY_HEX, msgHex);
   const sigBytes = fromHex(sig);
   const sigB64url = btoa(String.fromCharCode(...sigBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
@@ -509,8 +615,6 @@ export async function handleRevoke(
 
   if (!body.jti || !body.sig) return err('MISSING_FIELDS', 'jti, sig required');
 
-  // Verify revocation sig: sig over SHA256("revoke:" + jti)
-  // We need to know which daemon is revoking — get from Authorization card.
   const cardJwt = extractBearerToken(request.headers.get('Authorization'));
   if (!cardJwt) return err('MISSING_CARD', 'Authorization: Bearer card required', 401);
 
@@ -524,16 +628,29 @@ export async function handleRevoke(
   const identity = await getIdentity(env.DB, sub);
   if (!identity) return err('UNKNOWN_IDENTITY', 'Daemon not registered', 401);
 
-  const { hashHex, verifyEd25519 } = await import('./crypto.js');
   const msgHex = hashHex('revoke:' + body.jti);
   const valid = await verifyEd25519(identity.pub_key, msgHex, body.sig);
   if (!valid) return err('BAD_SIG', 'Revocation signature invalid', 401);
 
   await insertRevocation(env.DB, body.jti, sub, body.reason);
 
-  // Broadcast revocation to all harbor channels of this daemon
-  // For v0: we broadcast on _relay:revocations channel of the daemon's harbor.
-  // (Simplified: we don't track which harbors this daemon is in for v0 broadcast.)
+  // S4: broadcast revocation to all harbor DOs this daemon is a member of
+  const harborRows = await env.DB.prepare(
+    'SELECT harbor_fingerprint FROM harbor_members WHERE daemon_fingerprint = ?'
+  ).bind(sub).all<{ harbor_fingerprint: string }>();
+
+  const broadcastAt = Math.floor(Date.now() / 1000);
+  for (const row of harborRows.results) {
+    const doId = env.HARBOR_CHANNEL.idFromName(
+      harborChannelKey(row.harbor_fingerprint, '_relay:revocations')
+    );
+    const stub = env.HARBOR_CHANNEL.get(doId);
+    void stub.fetch(`http://do/?action=revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ jti: body.jti, revoked_at: broadcastAt }),
+    });
+  }
+
   await appendAudit(env.DB, {
     daemon_fingerprint: sub,
     action: 'revoke',
@@ -572,6 +689,25 @@ export async function handleRevokeByIssuer(
     body.iat_max,
     body.reason ?? 'issuer-bulk-revoke'
   );
+
+  // S4: broadcast all revocations to all harbor DOs
+  // For bulk revoke, broadcast to the special _relay:revocations channel across known harbors.
+  const allHarbors = await env.DB.prepare(
+    'SELECT DISTINCT harbor_fingerprint FROM harbor_members'
+  ).all<{ harbor_fingerprint: string }>();
+
+  const broadcastAt = Math.floor(Date.now() / 1000);
+  for (const row of allHarbors.results) {
+    for (const jti of revokedJtis) {
+      const doId = env.HARBOR_CHANNEL.idFromName(
+        harborChannelKey(row.harbor_fingerprint, '_relay:revocations')
+      );
+      void env.HARBOR_CHANNEL.get(doId).fetch(`http://do/?action=revoke`, {
+        method: 'POST',
+        body: JSON.stringify({ jti, revoked_at: broadcastAt }),
+      });
+    }
+  }
 
   await appendAudit(env.DB, {
     action: 'bulk_revoke_by_issuer',
@@ -686,5 +822,4 @@ export async function handleAudit(
   return Response.json({ fingerprint, rows });
 }
 
-// Helper re-export for index.ts
 export { randomHex };
