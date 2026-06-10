@@ -39,21 +39,18 @@
   {\textbf{but the grade is produced by a capturable evaluator}\\
    (an adversarial reviewer or a ``neutral judge'')};
 \draw[->,>=Latex,thick,hhcobalt] (capture) -- (grade);
-\node[font=\scriptsize\itshape,text=hhink,below=1mm of folk,
-      text width=42mm,align=center]
-  {Green--Porter / APS: the folk theorem needs the signal distribution
-   \emph{exogenous}. A strategic grader breaks it.};
+
 
 % the two fixes
 \node[fix,below=12mm of agent] (sp)
-  {\textbf{Fix A:} prove the oracle \emph{strategy-proof} (machine-checkable
-   oracle: passing test id, merged commit hash --- the agent cannot author it).};
+  {\textbf{Fix A:} a machine-checkable oracle the agent cannot author ---
+   strategy-proof by construction};
 \node[fix,below=12mm of grade] (bond)
-  {\textbf{Fix B:} \emph{bond-and-slash the judges}. A judge whose rating is
-   later contradicted by re-audit is slashed.};
+  {\textbf{Fix B:} bond-and-slash the judges; a grade overturned on re-audit
+   $\Rightarrow$ slash};
 \node[fix,below=12mm of folk] (rec)
-  {\textbf{Then prove:} the ``rate-the-raters'' recursion \emph{terminates}
-   (grounded in machine-checkable oracles at the base).};
+  {\textbf{Then prove:} the rate-the-raters recursion \emph{terminates} at a
+   machine-checkable base};
 
 \draw[flow] (grade.south) -- (bond.north);
 \draw[flow] (bond.east) -- (rec.west);
