@@ -149,12 +149,27 @@ function DispatchRow({ item }: { item: DispatchItem }) {
   );
 }
 
+function EmptySection({ icon, label, message }: { icon: React.ReactNode; label: string; message: string }) {
+  return (
+    <section>
+      <SectionHeader icon={icon} label={label} />
+      <div
+        className="rounded-lg px-4 py-3 text-[13px]"
+        style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)', color: 'var(--pd-dim)' }}
+      >
+        {message}
+      </div>
+    </section>
+  );
+}
+
 function DispatchQueuePanel({ dispatch }: { dispatch: OperatorState['dispatch'] }) {
-  if (!dispatch) return null;
-  const reviewItems = dispatch.reviewPending ?? [];
-  const openItems = dispatch.open ?? [];
+  const reviewItems = dispatch?.reviewPending ?? [];
+  const openItems = dispatch?.open ?? [];
   const total = reviewItems.length + openItems.length;
-  if (total === 0) return null;
+  if (total === 0) {
+    return <EmptySection icon={<AlertCircle size={14} />} label="Dispatch queue" message="No dispatches in the queue." />;
+  }
 
   return (
     <section>
@@ -192,7 +207,10 @@ function CostEventRow({ event }: { event: CostEvent }) {
   );
 }
 
-function BudgetLedgerPanel({ budget }: { budget: BudgetSection }) {
+function BudgetLedgerPanel({ budget }: { budget: BudgetSection | null | undefined }) {
+  if (!budget) {
+    return <EmptySection icon={<DollarSign size={14} />} label="Budget ledger" message="No spend recorded yet." />;
+  }
   const { recentEvents, status, total } = budget;
   const nearCeiling = status && status.percentUsed >= 90;
 
@@ -384,7 +402,9 @@ function ActorsPanel({ actors, summary }: { actors: OperatorActorRecord[]; summa
 // ─── Cockpit missions ─────────────────────────────────────────────────────────
 
 function CockpitMissionsSection({ missions }: { missions: OperatorState['cockpitMissions'] }) {
-  if (!missions || missions.missions.length === 0) return null;
+  if (!missions || missions.missions.length === 0) {
+    return <EmptySection icon={<Map size={14} />} label="Cockpit missions" message="No active missions." />;
+  }
 
   return (
     <section>
@@ -414,7 +434,9 @@ function CockpitMissionsSection({ missions }: { missions: OperatorState['cockpit
 // ─── Roadmap ──────────────────────────────────────────────────────────────────
 
 function RoadmapSection({ items }: { items: RoadmapItem[] }) {
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    return <EmptySection icon={<Map size={14} />} label="Roadmap — now" message="Nothing at 'now' status." />;
+  }
 
   return (
     <section>
@@ -566,34 +588,22 @@ export default function OperatorStatePanel({
       {/* Needs You — hero, always first */}
       <NeedsYouHero items={needsYou} signal={fleetSignal} />
 
-      {/* Dispatch queue */}
-      {dispatch && <DispatchQueuePanel dispatch={dispatch} />}
+      {/* Dispatch queue — always visible (labeled empty-state when idle) */}
+      <DispatchQueuePanel dispatch={dispatch} />
 
-      {/* Budget ledger */}
-      {budget && <BudgetLedgerPanel budget={budget} />}
+      {/* Budget ledger — always visible (labeled empty-state when idle) */}
+      <BudgetLedgerPanel budget={budget} />
 
       {/* Actors */}
       {actors.actors.length > 0 && (
         <ActorsPanel actors={actors.actors} summary={actors.summary} />
       )}
 
-      {/* Cockpit missions */}
-      {cockpitMissions && <CockpitMissionsSection missions={cockpitMissions} />}
+      {/* Cockpit missions — always visible (labeled empty-state when idle) */}
+      <CockpitMissionsSection missions={cockpitMissions} />
 
-      {/* Roadmap now items (scrollable) */}
-      {roadmap && roadmap.length > 0 && <RoadmapSection items={roadmap} />}
-
-      {/* Empty state — everything quiet */}
-      {needsYou.length === 0 && !dispatch && !budget && actors.actors.length === 0 && !roadmap && (
-        <div
-          className="rounded-xl px-5 py-6 text-center"
-          style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}
-        >
-          <div className="text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>
-            No active fleet data. Start a session with <code style={{ fontFamily: 'var(--pd-font-mono)' }}>pd begin</code>.
-          </div>
-        </div>
-      )}
+      {/* Roadmap now items (scrollable) — always visible (labeled empty-state when idle) */}
+      <RoadmapSection items={roadmap ?? []} />
 
       {/* Inbox placeholder — shown when needsYou contains inbox item */}
       {needsYou.some((item) => item.code === 'inbox') && (

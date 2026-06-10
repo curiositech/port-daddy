@@ -1436,7 +1436,10 @@ export default function App() {
   }, [fleet, selectedProjectId]);
 
   const configAgentData = fleetConfig?.agents.find(a => a.name === configAgent);
-  const daemonRunning = fleet.status?.running ?? false;
+  // Online = the daemon is reachable (we have a fleet status and the last
+  // refresh didn't error), NOT whether the fleet engine happens to be running.
+  // useFleet nulls status + sets error on a failed fetch (see useFleet.refresh).
+  const daemonRunning = !!fleet.status && !fleet.error;
 
   // Operator state — single /operator/state fetch driving the Operator tab
   const operatorStateHook = useOperatorState({
