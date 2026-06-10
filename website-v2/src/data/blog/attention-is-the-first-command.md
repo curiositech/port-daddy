@@ -1,6 +1,6 @@
 # Attention Is The First Command
 
-![A wood-paneled post office at dawn. A clerk slides letters into hundreds of pigeonholes labeled with agent names. Behind the counter, three closed doors are marked "Claude Code," "Gemini CLI," and "Codex CLI." Nobody is on the other side of the doors. The letters pile up.](/img/generated/attention-first-command/hero.png)
+![Flat blueprint elevation of a post office. On the left, a wall grid of pigeonhole mailboxes stuffed with letters as a clerk slides one more in. On the right, three identical closed doors stand silent while undelivered letters drift into a pile on the floor in front of them. The mail system works perfectly; nobody is checking their mail.](/img/generated/attention-first-command/hero.png)
 
 For a couple of months, Port Daddy has had a perfectly good mailbox.
 
@@ -45,7 +45,7 @@ The cleverness is not in the verb. The cleverness is in *who calls it and when*.
 
 ## The convention is the product
 
-![A simple cutaway diagram of a wooden door at the end of a hallway. A small brass peephole is set at eye level. On the operator side of the door sits a freshly-installed brass plaque labeled "SessionStart"; through the peephole you can see the post office on the other side, with the clerk and the pigeonholes faintly visible. A single envelope is being slid through a slot beneath the plaque. Warm-painterly editorial style, oak and brass palette, matching the hero.](/img/generated/attention-first-command/peephole.png)
+![Blueprint section view of a closed door. A small peephole set at eye level casts thin cobalt sight-lines through the door onto a wall of pigeonhole mailboxes on the far side, while a single envelope slides through a mail slot beneath it. The door never opens; both the looking and the delivery happen through fixtures built into the door itself.](/img/generated/attention-first-command/peephole.png)
 
 The verb is necessary. The verb is not sufficient. A verb you forget to run is a verb the senders are still writing to a wall.
 
@@ -66,7 +66,7 @@ This is the part I want adoption on. The verb is mine to maintain; the conventio
 
 ## Why this is not an MCP tool
 
-![A split-pane editorial illustration. On the LEFT: a model-shaped silhouette sitting at a desk, surrounded by tool icons labeled "pd_status", "pd_claim", "pd_session_start", "pd_attention" — the model is reaching for the attention tool with visible hesitation, a thought bubble showing a question mark. On the RIGHT: the same desk, but the attention tool has been removed; in its place a window above the desk is open, and through it a paper note is being passed in by an unseen hand labeled "SessionStart". The note lands on the desk before the model even sits down. Warm-painterly editorial style. The visual argument is clear: on the left, the model decides whether to check the mailbox; on the right, the mailbox check is delivered upstream of the decision.](/img/generated/attention-first-command/mcp-vs-hook.png)
+![Two-panel blueprint diptych. LEFT: a figure at a drafting desk with four tool cards laid out, hand hovering hesitantly over the last one, a dotted question path curling toward a small wall-mounted mailbox — checking the inbox is a choice the model may never make. RIGHT: the same desk with the tool cards gone; an envelope drops through an open transom window along a dashed trajectory and lands on the desk before the figure has picked up a pen. On the left attention is optional; on the right it arrives first.](/img/generated/attention-first-command/mcp-vs-hook.png)
 
 It would be the most natural thing in the world to expose `pd attention` as an MCP tool. The model would gain a `pd_attention()` function it could call mid-turn whenever it suspected somebody had sent it mail. Beautiful. Symmetric. Wrong.
 
