@@ -6,7 +6,6 @@
     scope: repo
     physical: repo:<REPO_KEY>:git:committed
     worktree: <WORKTREE_ID>
-    branch: <BRANCH>
 
   $ pd channels describe git:committed
 
@@ -16,7 +15,6 @@
   source:   declared
   active:   0
   worktree: <WORKTREE_ID>
-  branch:   <BRANCH>
   aliases:  -
   desc:     commit trigger event
 

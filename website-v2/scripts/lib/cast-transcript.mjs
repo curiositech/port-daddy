@@ -45,8 +45,10 @@ const EPHEMERAL_RULES = [
   // Exactly 8 hex chars following "worktree:" label — surgical, not blanket.
   [/(worktree:\s+)[0-9a-f]{8}\b/g, '$1<WORKTREE_ID>'],
   // Branch name that appears in `pd channels describe / ensure` output.
-  // Matches the indented "branch: <name>" and "branch:   <name>" output forms.
-  [/(^\s*branch:\s+)\S+/gm, '$1<BRANCH>'],
+  // Strip the whole line: CI uses a detached-HEAD checkout (no named branch),
+  // so the daemon omits this field entirely. Removing it from transcripts on
+  // both sides keeps the diff clean regardless of branch presence.
+  [/^[ \t]*branch:[ \t]+\S[^\n]*\n?/gm, ''],
   // Repo root path: after the home-dir rule fires the remainder of the path
   // still differs between dev (~/.../coding/port-daddy) and CI
   // (~/.../work/port-daddy/port-daddy).  Anchor on the last .git or .portdaddy
