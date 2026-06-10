@@ -963,6 +963,29 @@
     </div>
 
     <div class="sidebar-section">
+      <div class="sidebar-section-label">Operations</div>
+      <div class="nav-item" data-panel="tube" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-message"/></svg></span>
+        <span class="nav-label">Tube</span>
+        <span class="nav-badge" id="badge-tube">0</span>
+      </div>
+      <div class="nav-item" data-panel="dispatch" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-activity"/></svg></span>
+        <span class="nav-label">Dispatch</span>
+        <span class="nav-badge" id="badge-dispatch">0</span>
+      </div>
+      <div class="nav-item" data-panel="cockpit" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-grid"/></svg></span>
+        <span class="nav-label">Cockpit</span>
+        <span class="nav-badge" id="badge-cockpit">0</span>
+      </div>
+      <div class="nav-item" data-panel="coast-guard" tabindex="0" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-lock"/></svg></span>
+        <span class="nav-label">Coast Guard</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
       <div class="sidebar-section-label">System</div>
       <div class="nav-item" data-panel="webhooks" tabindex="0" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24"><use href="#icon-link"/></svg></span>
@@ -1218,6 +1241,109 @@
         <div id="changelog-content"></div>
       </div>
 
+      <!-- Tube Panel — channels + recent messages + send box -->
+      <div class="panel" id="panel-tube">
+        <div class="panel-header">
+          <div class="panel-title">Tube</div>
+          <div class="panel-actions">
+            <input type="text" id="tube-channel-filter" placeholder="Filter channels…" style="width:160px;" oninput="filterTubeChannels(this.value)" />
+            <button class="cmd-btn" onclick="refreshTube()">Refresh</button>
+          </div>
+        </div>
+        <!-- Send box -->
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Send Message</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:1;min-width:160px">
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Channel</label>
+              <input type="text" id="tube-send-channel" placeholder="pd:operator" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-size:14px;" />
+            </div>
+            <div style="flex:3;min-width:240px">
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Message body</label>
+              <input type="text" id="tube-send-body" placeholder="message text" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-size:14px;" />
+            </div>
+            <div style="min-width:140px">
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Sender (optional)</label>
+              <input type="text" id="tube-send-sender" placeholder="dashboard" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-size:14px;" />
+            </div>
+            <button class="cmd-btn" onclick="tubeSend()" style="min-width:80px;height:34px">Send</button>
+          </div>
+        </div>
+        <!-- Channel list + message viewer -->
+        <div id="tube-channels-content">Loading channels…</div>
+      </div>
+
+      <!-- Dispatch Panel — queue table; propose + cancel wired to real routes when available -->
+      <div class="panel" id="panel-dispatch">
+        <div class="panel-header">
+          <div class="panel-title">Dispatch</div>
+          <div class="panel-actions">
+            <select id="dispatch-state-filter" onchange="refreshDispatch()">
+              <option value="">All states</option>
+              <option value="proposed">Proposed</option>
+              <option value="in_progress">In progress</option>
+              <option value="produced">Produced</option>
+              <option value="review_pending">Review pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+              <option value="settled">Settled</option>
+              <option value="salvage">Salvage</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshDispatch()">Refresh</button>
+          </div>
+        </div>
+        <!-- Propose form -->
+        <div class="card" style="margin-bottom:16px" id="dispatch-propose-card">
+          <div class="card-title">Propose a Dispatch</div>
+          <div id="dispatch-propose-notice" style="font-size:13px;color:var(--text-muted);margin-bottom:10px;display:none"></div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:3;min-width:240px">
+              <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Goal</label>
+              <input type="text" id="dispatch-goal" placeholder="describe the work…" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text);font-size:14px;" />
+            </div>
+            <button class="cmd-btn" onclick="dispatchPropose()" style="min-width:80px;height:34px">Propose</button>
+          </div>
+        </div>
+        <div id="dispatch-content">Loading dispatch queue…</div>
+      </div>
+
+      <!-- Cockpit Panel — roadmap-based mission queue -->
+      <div class="panel" id="panel-cockpit">
+        <div class="panel-header">
+          <div class="panel-title">Cockpit</div>
+          <div class="panel-actions">
+            <select id="cockpit-status-filter" onchange="refreshCockpit()">
+              <option value="">All statuses</option>
+              <option value="now">Now</option>
+              <option value="next">Next</option>
+              <option value="backlog">Backlog</option>
+              <option value="done">Done</option>
+            </select>
+            <button class="cmd-btn" onclick="refreshCockpit()">Refresh</button>
+          </div>
+        </div>
+        <div id="cockpit-content">Loading missions…</div>
+      </div>
+
+      <!-- Coast Guard Panel — system attestation + spawn guard posture -->
+      <div class="panel" id="panel-coast-guard">
+        <div class="panel-header">
+          <div class="panel-title">Coast Guard</div>
+          <div class="panel-actions">
+            <span style="font-size:12px;color:var(--text-muted);padding:0 8px">via GET /attest</span>
+            <button class="cmd-btn" onclick="refreshCoastGuard()">Refresh</button>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">Guard Overview</div>
+          <div id="coast-guard-overview" style="font-size:14px;line-height:1.8">Loading…</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Attestation Checks</div>
+          <div id="coast-guard-attest">Loading attest report…</div>
+        </div>
+      </div>
+
       <!-- Config Panel -->
       <div class="panel" id="panel-config">
         <div class="panel-header">
@@ -1305,7 +1431,9 @@
         activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage, briefing: refreshBriefing,
         budget: refreshBudget, transcripts: refreshTranscripts, backend: refreshBackend,
         webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
-        config: refreshConfig
+        config: refreshConfig,
+        tube: refreshTube, dispatch: refreshDispatch, cockpit: refreshCockpit,
+        'coast-guard': refreshCoastGuard
       };
       if (fn[name]) fn[name]();
     }
@@ -2463,6 +2591,392 @@
     }
 
     /* ── Refresh All ── */
+    /* ═══════════════════════════════════════════════════════════════════
+       TUBE — GET /msg (channels), GET /msg/:channel (messages),
+               POST /msg/:channel (send)
+       ════════════════════════════════════════════════════════════════ */
+    var tubeChannelData = [];
+    var tubeExpandedChannel = null;
+
+    async function refreshTube() {
+      var data = await apiFetch('/msg');
+      tubeChannelData = data ? (data.channels || []) : [];
+      updateBadge('tube', tubeChannelData.length);
+      renderTubeChannels(tubeChannelData);
+    }
+
+    function filterTubeChannels(q) {
+      var filtered = q ? tubeChannelData.filter(function(c) {
+        return c.channel.toLowerCase().indexOf(q.toLowerCase()) !== -1;
+      }) : tubeChannelData;
+      renderTubeChannels(filtered);
+    }
+
+    function renderTubeChannels(channels) {
+      if (!channels.length) {
+        setHtml('tube-channels-content', '<div class="empty-state"><p>No channels found</p></div>');
+        return;
+      }
+      var html = '<table><thead><tr><th>Channel</th><th>Messages</th><th>Last Message</th><th>Actions</th></tr></thead><tbody>';
+      channels.forEach(function(c) {
+        var isExp = tubeExpandedChannel === c.channel;
+        html += '<tr>';
+        html += '<td><span class="mono" style="font-size:12px;color:var(--accent)">' + escHtml(c.channel) + '</span></td>';
+        html += '<td>' + (c.count || 0) + '</td>';
+        html += '<td>' + (c.lastMessage ? timeAgo(c.lastMessage) : '--') + '</td>';
+        html += '<td><button class="btn-sm" onclick="tubeViewMessages(\'' + escAttr(c.channel) + '\')">'
+          + (isExp ? 'Hide' : 'View') + '</button></td>';
+        html += '</tr>';
+        if (isExp) {
+          html += '<tr><td colspan="4" id="tube-msg-row-' + escAttr(c.channel).replace(/[^a-zA-Z0-9]/g,'_') + '">'
+            + '<div style="padding:4px 0;color:var(--text-muted);font-size:13px">Loading…</div></td></tr>';
+        }
+      });
+      html += '</tbody></table>';
+      setHtml('tube-channels-content', html);
+      if (tubeExpandedChannel) {
+        loadTubeMessages(tubeExpandedChannel);
+      }
+    }
+
+    async function tubeViewMessages(channel) {
+      if (tubeExpandedChannel === channel) {
+        tubeExpandedChannel = null;
+      } else {
+        tubeExpandedChannel = channel;
+      }
+      renderTubeChannels(tubeChannelData);
+    }
+
+    async function loadTubeMessages(channel) {
+      var safeId = channel.replace(/[^a-zA-Z0-9]/g,'_');
+      var el = document.getElementById('tube-msg-row-' + safeId);
+      if (!el) return;
+      var data = await apiFetch('/msg/' + encodeURIComponent(channel) + '?limit=20');
+      var messages = data ? (data.messages || []) : [];
+      if (!messages.length) {
+        el.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:13px">No messages yet</div>';
+        return;
+      }
+      var html = '<div style="padding:8px 0">'
+        + messages.slice(-10).reverse().map(function(m) {
+          var body = '';
+          try {
+            var p = typeof m.payload === 'string' ? JSON.parse(m.payload) : m.payload;
+            body = (p && p.body) ? escHtml(p.body) : escHtml(JSON.stringify(m.payload || ''));
+          } catch (e) { body = escHtml(String(m.payload || '')); }
+          return '<div style="padding:4px 0;border-bottom:1px solid var(--border)">'
+            + '<span style="font-size:11px;color:var(--text-muted);margin-right:8px">#' + m.id + ' ' + fmtTime(m.createdAt) + '</span>'
+            + (m.sender ? '<span style="font-size:11px;color:var(--accent);margin-right:6px">' + escHtml(m.sender) + '</span>' : '')
+            + '<span style="font-size:13px">' + body + '</span>'
+            + '</div>';
+        }).join('') + '</div>';
+      el.innerHTML = html;
+    }
+
+    function escAttr(s) {
+      return escHtml(s).replace(/'/g, '&#39;');
+    }
+
+    async function tubeSend() {
+      var channel = document.getElementById('tube-send-channel').value.trim();
+      var body = document.getElementById('tube-send-body').value.trim();
+      var sender = document.getElementById('tube-send-sender').value.trim() || 'dashboard';
+      if (!channel || !body) { toast('Channel and message body are required', 'error'); return; }
+      try {
+        var envelope = { v: 1, kind: 'tube.msg', body: body };
+        var res = await fetch(API + '/msg/' + encodeURIComponent(channel), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload: envelope, sender: sender })
+        });
+        var result = await res.json();
+        if (result.success || result.id) {
+          toast('Sent to ' + channel + ' (id ' + result.id + ')');
+          document.getElementById('tube-send-body').value = '';
+          if (tubeExpandedChannel === channel) loadTubeMessages(channel);
+          refreshTube();
+        } else {
+          toast('Send failed: ' + (result.error || 'unknown'), 'error');
+        }
+      } catch (e) { toast('Send error: ' + e.message, 'error'); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       DISPATCH — POST /dispatches (propose), GET /dispatches (list),
+                  POST /dispatches/:id/cancel, POST /dispatches/:id/accept,
+                  POST /dispatches/:id/reject
+       NOTE: /dispatches is gated on deps.dispatchQueue in the daemon.
+       When not wired (404), list shows empty with honest CLI note.
+       ════════════════════════════════════════════════════════════════ */
+    var dispatchRouteAvailable = null; // null=unknown, true/false
+
+    async function refreshDispatch() {
+      var stateFilter = document.getElementById('dispatch-state-filter').value;
+      var url = '/dispatches' + (stateFilter ? '?state=' + encodeURIComponent(stateFilter) : '?limit=50');
+      var res;
+      try {
+        var raw = await fetch(API + url);
+        res = await raw.json();
+        if (raw.status === 404) {
+          dispatchRouteAvailable = false;
+        } else {
+          dispatchRouteAvailable = raw.ok;
+        }
+      } catch (e) {
+        dispatchRouteAvailable = false;
+        res = null;
+      }
+
+      var noticeEl = document.getElementById('dispatch-propose-notice');
+      if (dispatchRouteAvailable === false) {
+        noticeEl.style.display = '';
+        noticeEl.innerHTML = '<span style="color:var(--warning)">&#9888; <strong>/dispatches</strong> is not active on this daemon instance. '
+          + 'To use dispatch, run: <code style="background:var(--bg-elevated);padding:2px 6px;border-radius:3px;font-size:12px">pd dispatch propose "your goal"</code> in your terminal (CLI-only).</span>';
+        updateBadge('dispatch', 0);
+        setHtml('dispatch-content', '<div class="empty-state"><p>Dispatch queue not wired on this daemon.<br>Use <code>pd dispatch list</code> in your terminal.</p></div>');
+        return;
+      }
+      noticeEl.style.display = 'none';
+
+      var dispatches = res ? (res.dispatches || []) : [];
+      updateBadge('dispatch', dispatches.filter(function(d) {
+        return ['proposed','in_progress','produced','review_pending'].indexOf(d.state) !== -1;
+      }).length);
+
+      if (!dispatches.length) {
+        setHtml('dispatch-content', '<div class="empty-state"><p>No dispatches in queue</p></div>');
+        return;
+      }
+
+      var stateColors = {
+        proposed: 'var(--info)', claimed: 'var(--info)', in_progress: 'var(--warning)',
+        produced: 'var(--purple)', review_pending: 'var(--warning)',
+        accepted: 'var(--success)', rejected: 'var(--danger)',
+        settled: 'var(--success)', failed: 'var(--danger)', salvage: 'var(--text-muted)'
+      };
+
+      var html = '<table><thead><tr><th>ID</th><th>State</th><th>Goal</th><th>By</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+      dispatches.forEach(function(d) {
+        var color = stateColors[d.state] || 'var(--text-dim)';
+        var acts = '';
+        if (d.state === 'proposed') {
+          acts = '<button class="btn-sm danger" onclick="dispatchCancel(\'' + escAttr(d.id) + '\')">Cancel</button>';
+        } else if (d.state === 'review_pending') {
+          acts = '<button class="btn-sm" style="background:var(--success);color:#000" onclick="dispatchAccept(\'' + escAttr(d.id) + '\')">Accept</button>'
+               + ' <button class="btn-sm danger" onclick="dispatchRejectPrompt(\'' + escAttr(d.id) + '\')">Reject</button>';
+        }
+        html += '<tr>';
+        html += '<td class="mono" style="font-size:11px;color:var(--text-muted)">' + escHtml((d.id||'').slice(0,8)) + '</td>';
+        html += '<td><span class="badge" style="background:' + color + ';color:#000;font-size:11px">' + escHtml(d.state) + '</span></td>';
+        html += '<td style="max-width:320px">' + truncateWithExpand(d.goal || d.intent || '', 120) + '</td>';
+        html += '<td style="font-size:12px">' + escHtml(d.requestedBy || '--') + '</td>';
+        html += '<td style="font-size:12px">' + timeAgo(d.createdAt) + '</td>';
+        html += '<td>' + acts + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      setHtml('dispatch-content', html);
+    }
+
+    async function dispatchPropose() {
+      var goal = document.getElementById('dispatch-goal').value.trim();
+      if (!goal) { toast('Enter a goal first', 'error'); return; }
+      try {
+        var raw = await fetch(API + '/dispatches', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ goal: goal, requestedBy: 'dashboard' })
+        });
+        var res = await raw.json();
+        if (raw.status === 404) {
+          toast('Dispatch queue not active — use pd dispatch propose "' + goal + '"', 'error');
+          document.getElementById('dispatch-propose-notice').style.display = '';
+          document.getElementById('dispatch-propose-notice').innerHTML = '<span style="color:var(--warning)">&#9888; <strong>/dispatches</strong> is not active. CLI: <code>pd dispatch propose "' + escHtml(goal) + '"</code></span>';
+          return;
+        }
+        if (res.ok) {
+          toast('Dispatch proposed: ' + (res.dispatch && res.dispatch.id ? res.dispatch.id.slice(0,8) : ''));
+          document.getElementById('dispatch-goal').value = '';
+          refreshDispatch();
+        } else {
+          toast('Propose failed: ' + (res.error || 'unknown'), 'error');
+        }
+      } catch (e) { toast('Error: ' + e.message, 'error'); }
+    }
+
+    async function dispatchCancel(id) {
+      if (!confirm('Cancel dispatch ' + id.slice(0,8) + '?')) return;
+      try {
+        var raw = await fetch(API + '/dispatches/' + encodeURIComponent(id) + '/cancel', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        var res = await raw.json();
+        if (res.ok) { toast('Cancelled'); refreshDispatch(); }
+        else toast('Cancel failed: ' + (res.error || ''), 'error');
+      } catch (e) { toast('Error: ' + e.message, 'error'); }
+    }
+
+    async function dispatchAccept(id) {
+      try {
+        var raw = await fetch(API + '/dispatches/' + encodeURIComponent(id) + '/accept', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}'
+        });
+        var res = await raw.json();
+        if (res.ok) { toast('Accepted'); refreshDispatch(); }
+        else toast('Accept failed: ' + (res.error || ''), 'error');
+      } catch (e) { toast('Error: ' + e.message, 'error'); }
+    }
+
+    async function dispatchRejectPrompt(id) {
+      var reason = prompt('Rejection reason (required):');
+      if (!reason || !reason.trim()) return;
+      try {
+        var raw = await fetch(API + '/dispatches/' + encodeURIComponent(id) + '/reject', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason.trim() })
+        });
+        var res = await raw.json();
+        if (res.ok) { toast('Rejected'); refreshDispatch(); }
+        else toast('Reject failed: ' + (res.error || ''), 'error');
+      } catch (e) { toast('Error: ' + e.message, 'error'); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       COCKPIT — GET /cockpit/missions (mission queue from roadmap)
+       ════════════════════════════════════════════════════════════════ */
+    async function refreshCockpit() {
+      var statusFilter = document.getElementById('cockpit-status-filter').value;
+      var url = '/cockpit/missions?limit=50' + (statusFilter ? '&status=' + encodeURIComponent(statusFilter) : '');
+      var data = await apiFetch(url);
+      var missions = data ? (data.intake && data.intake.missions ? data.intake.missions : []) : [];
+      updateBadge('cockpit', missions.filter(function(m) { return m.status === 'now'; }).length);
+
+      if (!missions.length) {
+        setHtml('cockpit-content', '<div class="empty-state"><p>No missions found</p></div>');
+        return;
+      }
+
+      var statusColors = {
+        now: 'var(--success)', next: 'var(--info)', backlog: 'var(--text-muted)', done: 'var(--success)'
+      };
+      var statusBg = {
+        now: 'rgba(52,211,153,0.15)', next: 'rgba(88,181,255,0.15)',
+        backlog: 'rgba(144,144,160,0.12)', done: 'rgba(52,211,153,0.10)'
+      };
+
+      var byStatus = {};
+      missions.forEach(function(m) {
+        if (!byStatus[m.status]) byStatus[m.status] = [];
+        byStatus[m.status].push(m);
+      });
+
+      var order = ['now', 'next', 'backlog', 'done'];
+      var html = '';
+      order.forEach(function(st) {
+        var group = byStatus[st];
+        if (!group || !group.length) return;
+        html += '<div style="margin-bottom:20px">';
+        html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:' + (statusColors[st] || 'var(--text-muted)') + ';margin-bottom:10px">'
+          + escHtml(st) + ' (' + group.length + ')</div>';
+        group.forEach(function(m) {
+          var files = m.files && m.files.length ? m.files : [];
+          html += '<div style="background:var(--bg-card);border:1px solid var(--border);border-left:3px solid '
+            + (statusColors[m.status] || 'var(--border)') + ';border-radius:var(--radius-md);padding:12px 14px;margin-bottom:8px">';
+          html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">';
+          html += '<div style="flex:1">';
+          html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px">'
+            + escHtml(m.id || '') + '</div>';
+          html += '<div style="font-size:14px;font-weight:500;color:var(--text)">' + truncateWithExpand(m.title, 180) + '</div>';
+          if (m.summary) html += '<div style="font-size:13px;color:var(--text-dim);margin-top:4px">' + escHtml(m.summary) + '</div>';
+          if (files.length) {
+            html += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">'
+              + files.slice(0,4).map(function(f) {
+                return '<span style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--text-muted)">'
+                  + escHtml(f) + '</span>';
+              }).join('') + '</div>';
+          }
+          html += '</div>';
+          html += '<span style="background:' + (statusBg[m.status] || 'transparent') + ';color:' + (statusColors[m.status] || 'var(--text-muted)') + ';border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;white-space:nowrap">'
+            + escHtml(m.status) + '</span>';
+          html += '</div>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+
+      setHtml('cockpit-content', html);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       COAST GUARD — GET /attest (system attestation report)
+       No direct HTTP route for the OS-level guard posture (it is computed
+       locally by the daemon process). This panel surfaces the full
+       attestation report from /attest, which includes coordination guard
+       and liveness checks most relevant to Coast Guard posture.
+       ════════════════════════════════════════════════════════════════ */
+    async function refreshCoastGuard() {
+      var data = await apiFetch('/attest');
+      var results = data ? (data.report && data.report.results ? data.report.results : []) : [];
+
+      if (!results.length && !data) {
+        setHtml('coast-guard-overview', '<div style="color:var(--danger)">Failed to reach /attest</div>');
+        setHtml('coast-guard-attest', '<div class="empty-state"><p>No data</p></div>');
+        return;
+      }
+
+      // Overview cards
+      var coordChecks = results.filter(function(r) { return r.class === 'coordination'; });
+      var secChecks = results.filter(function(r) { return r.class === 'security'; });
+      var provChecks = results.filter(function(r) { return r.class === 'provenance'; });
+
+      var passCount = results.filter(function(r) { return r.status === 'pass'; }).length;
+      var failCount = results.filter(function(r) { return r.status === 'fail'; }).length;
+      var skipCount = results.filter(function(r) { return r.status === 'skipped' || r.status === 'unknown'; }).length;
+
+      var overallColor = failCount > 0 ? 'var(--danger)' : (skipCount === results.length ? 'var(--text-muted)' : 'var(--success)');
+
+      var ovHtml = '<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px">';
+      ovHtml += cgStatCard(String(passCount), 'PASS', 'var(--success)');
+      ovHtml += cgStatCard(String(failCount), 'FAIL', failCount > 0 ? 'var(--danger)' : 'var(--text-muted)');
+      ovHtml += cgStatCard(String(skipCount), 'SKIPPED', 'var(--text-muted)');
+      ovHtml += '</div>';
+      ovHtml += '<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">';
+      ovHtml += '<strong style="color:' + overallColor + '">' + (failCount > 0 ? 'Failures detected' : skipCount === results.length ? 'All checks skipped (no probes wired)' : 'All checks passed') + '</strong>';
+      ovHtml += '</div>';
+      ovHtml += '<div style="font-size:13px;color:var(--text-muted)">The OS-level spawn sandbox (macOS Seatbelt / Linux Landlock), secret broker, and egress cap are computed locally by the daemon process — they do not expose an HTTP route. ';
+      ovHtml += 'Use <code style="background:var(--bg-elevated);padding:1px 6px;border-radius:3px;font-size:12px">pd attest</code> in your terminal for the full report.</div>';
+      setHtml('coast-guard-overview', ovHtml);
+
+      // Attestation checks table
+      var severityColors = { critical: 'var(--danger)', warn: 'var(--warning)', info: 'var(--info)' };
+      var statusIcons = { pass: '✓', fail: '✗', skipped: '–', unknown: '?' };
+      var statusCol = { pass: 'var(--success)', fail: 'var(--danger)', skipped: 'var(--text-muted)', unknown: 'var(--text-muted)' };
+
+      var tHtml = '<table><thead><tr><th>Status</th><th>Sev</th><th>Class</th><th>Check</th><th>Detail</th></tr></thead><tbody>';
+      results.forEach(function(r) {
+        var sIcon = statusIcons[r.status] || '?';
+        var sCol = statusCol[r.status] || 'var(--text-muted)';
+        var sevCol = severityColors[r.severity] || 'var(--text-dim)';
+        tHtml += '<tr>';
+        tHtml += '<td style="font-weight:700;color:' + sCol + ';font-size:14px;text-align:center">' + sIcon + '</td>';
+        tHtml += '<td style="font-size:11px;color:' + sevCol + ';font-weight:600;text-transform:uppercase">' + escHtml(r.severity || '') + '</td>';
+        tHtml += '<td style="font-size:11px;color:var(--text-muted)">' + escHtml(r.class || '') + '</td>';
+        tHtml += '<td style="font-size:13px">' + escHtml(r.title || r.id || '') + '</td>';
+        tHtml += '<td style="font-size:12px;color:var(--text-muted)">' + escHtml(r.detail || '') + '</td>';
+        tHtml += '</tr>';
+      });
+      tHtml += '</tbody></table>';
+      setHtml('coast-guard-attest', tHtml);
+    }
+
+    function cgStatCard(value, label, color) {
+      return '<div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 20px;min-width:80px;text-align:center">'
+        + '<div style="font-size:24px;font-weight:700;color:' + color + '">' + escHtml(value) + '</div>'
+        + '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-top:2px">' + escHtml(label) + '</div>'
+        + '</div>';
+    }
+
     async function refreshAll() {
       refreshPanel(currentPanel);
       var results = await Promise.all([
@@ -2486,7 +3000,7 @@
     }
     function closeTerminal() { document.getElementById('terminal-drawer').style.display = 'none'; }
 
-    var CLI_ONLY = ['begin', 'done', 'whoami', 'with-lock', 'cleanup', 'doctor', 'version', 'install-completions', 'up', 'down', 'start', 'stop', 'restart', 'install', 'uninstall', 'dev', 'ci-gate'];
+    var CLI_ONLY = ['begin', 'done', 'whoami', 'with-lock', 'cleanup', 'doctor', 'version', 'install-completions', 'up', 'down', 'start', 'stop', 'restart', 'install', 'uninstall', 'dev', 'ci-gate', 'dispatch', 'tube'];
     var COMMANDS = [
       { cmd: 'claim', hint: 'claim <id>' }, { cmd: 'release', hint: 'release <id>' },
       { cmd: 'find', hint: 'find [pattern]' }, { cmd: 'ps', hint: 'ps [pattern]' },
@@ -2498,6 +3012,9 @@
       { cmd: 'projects', hint: 'projects' }, { cmd: 'webhooks', hint: 'webhooks' },
       { cmd: 'config', hint: 'config' }, { cmd: 'ports', hint: 'ports' },
       { cmd: 'inbox', hint: 'inbox <agent-id>' },
+      { cmd: 'msgs', hint: 'msgs <channel> — GET /msg/:channel' },
+      { cmd: 'missions', hint: 'missions — GET /cockpit/missions' },
+      { cmd: 'attest', hint: 'attest — GET /attest (coast guard status)' },
       { cmd: 'help', hint: 'help' }
     ];
 
@@ -2536,6 +3053,9 @@
           case 'health': result = await (await fetch(API + (target ? '/services/health/' + encodeURIComponent(target) : '/services/health'))).json(); break;
           case 'scan': result = await (await fetch(API + '/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).json(); break;
           case 'inbox': result = target ? await (await fetch(API + '/agents/' + encodeURIComponent(target) + '/inbox')).json() : { error: 'Usage: inbox <agent-id>' }; break;
+          case 'msgs': result = target ? await (await fetch(API + '/msg/' + encodeURIComponent(target) + '?limit=20')).json() : await (await fetch(API + '/msg')).json(); break;
+          case 'missions': result = await (await fetch(API + '/cockpit/missions?limit=20' + (target ? '&status=' + encodeURIComponent(target) : ''))).json(); break;
+          case 'attest': result = await (await fetch(API + '/attest')).json(); break;
           case 'help':
             out.innerHTML += '<div>' + COMMANDS.map(function(c) { return '<span class="mono">' + c.cmd + '</span> — ' + c.hint; }).join('<br>') + '</div>';
             out.scrollTop = out.scrollHeight; return;
@@ -2560,7 +3080,7 @@
     document.getElementById('command-input').addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         var val = this.value.trim().toLowerCase();
-        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','transcripts','salvage','briefing','webhooks','projects','changelog','config'];
+        var panels = ['dashboard','services','agents','sessions','locks','channels','activity','transcripts','salvage','briefing','webhooks','projects','changelog','config','tube','dispatch','cockpit','coast-guard'];
         var match = panels.find(function(p) { return p.indexOf(val) === 0; });
         if (match) { switchPanel(match); this.value = ''; this.blur(); }
       }
@@ -2584,7 +3104,7 @@
       // Fire-and-forget background loads for panels that refreshAll doesn't cover
       var bgPanels = ['services', 'agents', 'sessions', 'locks', 'channels',
                       'activity', 'transcripts', 'salvage', 'webhooks', 'projects', 'changelog',
-                      'backend'];
+                      'backend', 'tube', 'dispatch', 'cockpit', 'coast-guard'];
       var currentHash = hash || 'overview';
       bgPanels.forEach(function(p) {
         if (p !== currentHash) {
@@ -2594,7 +3114,9 @@
             activity: refreshActivity, roadmap: refreshRoadmap, salvage: refreshSalvage,
             transcripts: refreshTranscripts,
             webhooks: refreshWebhooks, projects: refreshProjects, changelog: refreshChangelog,
-            backend: refreshBackend
+            backend: refreshBackend,
+            tube: refreshTube, dispatch: refreshDispatch, cockpit: refreshCockpit,
+            'coast-guard': refreshCoastGuard
           };
           if (fn[p]) fn[p]();
         }
