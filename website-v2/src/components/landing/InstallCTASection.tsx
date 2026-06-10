@@ -232,7 +232,7 @@ const InstallCTASection: React.FC = () => {
                   <div
                     className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full text-sm font-medium"
                     style={{
-                      backgroundColor: 'rgba(204, 61, 46, 0.15)',
+                      backgroundColor: 'rgba(191, 47, 47, 0.15)',
                       color: 'var(--accent-red)',
                     }}
                   >
