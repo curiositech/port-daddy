@@ -30,6 +30,7 @@ import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
+import { priceBond } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -1211,7 +1212,31 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // Escrow bond BEFORE any spawn work. If the wallet is insufficient OR
     // bonds aren't wired, we refuse here rather than run an unbonded agent —
     // the Ostrom "rule-monitoring" invariant: every running agent has a bond.
-    const bondUsd = spec.bondUsd ?? DEFAULT_BOND_USD;
+    //
+    // BOND PRICING (ADR-VI / agent-transactions-whitepaper §6.5). A
+    // caller-supplied `spec.bondUsd` ALWAYS wins (back-compat — the Fixed
+    // Bonds path is preserved). When it is omitted, we compute a
+    // scope-proportional bond with the closed-form floor
+    // π = c·(1 + α·s)·(1 − ρ) instead of a flat constant:
+    //   • c (base)   — DEFAULT_BOND_USD, the historical per-spawn cleanup unit,
+    //                  so quoted bonds stay on the same dollar scale as before.
+    //   • s (scope)  — the capability set the spawn enters its harbor with:
+    //                  `spawn:agent` + `backend:<id>`. A spawn cap is an
+    //                  amplifier (it can create children), so this classifies
+    //                  as the `full` tier — correct: the bond must cover the
+    //                  blast radius of the child it launches.
+    //   • duration   — the spawn timeout (longer access ⇒ more time to drift).
+    //   • ρ          — par for now (1.0×): no reputation/quality-eval ledger
+    //                  exists yet (Proposed). When it lands, pass a `reputation`
+    //                  hook keyed on the PRINCIPAL / Anchor identity (NOT the
+    //                  re-rollable agent id — the Sybil defense, ADR-0014/0022).
+    const bondUsd = spec.bondUsd ?? priceBond({
+      baseUsd: DEFAULT_BOND_USD,
+      capabilities: ['spawn:agent', `backend:${spec.backend}`],
+      ttlMs: spec.timeout ?? 300_000,
+      // principal/reputation intentionally omitted → par; wire the Anchor-keyed
+      // reputation hook here once the reputation ledger ships.
+    }).bondUsd;
     let bondId: number | null = null;
     let enteredHarborName: string | null = null;
     if (harbors && projectName && bondUsd > 0) {
