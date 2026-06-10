@@ -75,6 +75,10 @@ pub struct DaemonClient {
 }
 
 impl DaemonClient {
+    pub fn new(base: String) -> Self {
+        Self { base: base.trim_end_matches('/').to_string(), http: reqwest::Client::new() }
+    }
+
     pub fn discover() -> Result<Self> {
         let base = if let Ok(url) = std::env::var("PORT_DADDY_URL") {
             url.trim_end_matches('/').to_string()

@@ -207,9 +207,8 @@ impl RenderOnce for SidebarItem {
 // ── Main console view ─────────────────────────────────────────────────────────
 
 pub struct ConsoleView {
-    active_nav: usize,
-    /// Current pane blocks (refreshed on nav switch or daemon poll).
-    blocks: Vec<Block>,
+    pub active_nav: usize,
+    fleet_blocks: Vec<Block>,
     daemon_url: String,
 }
 
@@ -217,7 +216,7 @@ impl ConsoleView {
     pub fn new(daemon_url: String) -> Self {
         Self {
             active_nav: 0,
-            blocks: vec![
+            fleet_blocks: vec![
                 Block::Header("Fleet Roster".into()),
                 Block::KeyVal(
                     "status".into(),
@@ -228,15 +227,29 @@ impl ConsoleView {
         }
     }
 
-    pub fn set_blocks(&mut self, blocks: Vec<Block>) {
-        self.blocks = blocks;
+    /// Push fresh fleet data from the background refresh loop.
+    pub fn update_fleet(&mut self, blocks: Vec<Block>) {
+        self.fleet_blocks = blocks;
+    }
+
+    fn blocks_for_active(&self) -> Vec<Block> {
+        match self.active_nav {
+            0 => self.fleet_blocks.clone(),
+            i => {
+                let label = NAV.get(i).map(|n| n.label).unwrap_or("—");
+                vec![
+                    Block::Header(label.into()),
+                    Block::KeyVal("status".into(), "panel not yet implemented".into()),
+                ]
+            }
+        }
     }
 }
 
 impl Render for ConsoleView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let active = self.active_nav;
-        let blocks = self.blocks.clone();
+        let blocks = self.blocks_for_active();
         let daemon_url = self.daemon_url.clone();
         let active_nav_name = NAV.get(active)
             .map(|n| format!("{} {}", n.glyph, n.label))
