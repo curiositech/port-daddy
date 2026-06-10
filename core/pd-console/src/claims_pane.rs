@@ -1,42 +1,42 @@
-//! Claims pane — live view of file/symbol/region claims across all sessions.
+//! Claims pane — live view of file/symbol claims across all sessions.
 //!
-//! Calls `GET /claims?limit=60` on the daemon.
-//! Shows who owns what: session, path, claim type, age.
+//! Calls `GET /files` (the global claims endpoint). Real shape (v3.18):
+//! `{ claims: [{ filePath, sessionId, purpose, agentId, phase, claimedAt(ms),
+//!    startLine, endLine, symbol, symbolPath }] }`
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
+use crate::util::{age_short, arr, n, s, trunc};
 use anyhow::Result;
-use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 struct ClaimEntry {
-    #[serde(rename = "claimId", default)]
-    claim_id: String,
-    #[serde(rename = "sessionId", default)]
-    session_id: Option<String>,
-    #[serde(default)]
-    path: String,
-    #[serde(rename = "claimType", default)]
-    claim_type: String,
-    #[serde(default)]
-    scope: Option<String>,
-    #[serde(rename = "createdAt", default)]
-    created_at: Option<String>,
+    file_path: String,
+    purpose: String,
+    symbol: String,
+    claimed_at_ms: i64,
 }
 
-#[derive(Debug, Deserialize)]
-struct ClaimsResponse {
-    #[serde(default)]
-    claims: Vec<ClaimEntry>,
-}
-
-fn ts_short(ts: Option<&str>) -> String {
-    match ts {
-        Some(s) if s.len() >= 19 => s[11..19].to_string(),
-        Some(s) => s.to_string(),
-        None => "—".into(),
+impl ClaimEntry {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            file_path: s(v, "filePath"),
+            purpose: s(v, "purpose"),
+            symbol: s(v, "symbol"),
+            claimed_at_ms: n(v, "claimedAt"),
+        }
     }
+}
+
+/// Right-truncate a path, keeping the tail (the informative part).
+fn tail_path(p: &str, max_chars: usize) -> String {
+    let count = p.chars().count();
+    if count <= max_chars {
+        return p.to_string();
+    }
+    let tail: String = p.chars().skip(count - max_chars + 1).collect();
+    format!("…{tail}")
 }
 
 pub struct ClaimsPane {
@@ -71,27 +71,13 @@ impl Pane for ClaimsPane {
             blocks.push(Block::Gap);
 
             for claim in &self.claims {
-                let ts = ts_short(claim.created_at.as_deref());
-                let sess = claim.session_id.as_deref()
-                    .map(|s| &s[..s.len().min(12)])
-                    .unwrap_or("—");
-                let path_short = if claim.path.len() > 40 {
-                    format!("…{}", &claim.path[claim.path.len() - 39..])
-                } else {
-                    claim.path.clone()
-                };
-                let ctype = if claim.claim_type.is_empty() { "file" } else { &claim.claim_type };
-                let tone = match ctype {
-                    "symbol" | "region" => Tone::Accent,
-                    _ => Tone::Engaged,
-                };
+                let kind = if claim.symbol.is_empty() { "file" } else { "symbol" };
                 blocks.push(Block::Row(vec![
-                    ts,
-                    ctype.to_string(),
-                    sess.to_string(),
-                    path_short,
+                    age_short(claim.claimed_at_ms),
+                    kind.to_string(),
+                    trunc(&claim.purpose, 22),
+                    tail_path(&claim.file_path, 42),
                 ]));
-                let _ = tone;
             }
         }
 
@@ -108,21 +94,19 @@ impl Pane for ClaimsPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            let url = format!("{}/claims?limit=60", daemon.base());
+            let url = format!("{}/files", daemon.base());
             match daemon.http_client().get(&url).send().await {
                 Err(e) => {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.claims.clear();
                 }
-                Ok(resp) => {
-                    match resp.json::<ClaimsResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.claims = data.claims;
-                        }
+                Ok(resp) => match resp.json::<Value>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.claims = arr(&data, "claims").iter().map(ClaimEntry::from_value).collect();
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -132,16 +116,21 @@ impl Pane for ClaimsPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
-    fn make_claim(path: &str, ctype: &str) -> ClaimEntry {
-        ClaimEntry {
-            claim_id: "claim-123".into(),
-            session_id: Some("sess-abc".into()),
-            path: path.into(),
-            claim_type: ctype.into(),
-            scope: None,
-            created_at: Some("2026-06-10T15:00:00Z".into()),
-        }
+    #[test]
+    fn from_value_real_shape() {
+        let v = json!({
+            "filePath": "bin/port-daddy-cli.ts",
+            "sessionId": "session-x", "purpose": "port-daddy:context-p3:review-fix",
+            "agentId": "agent-x", "phase": "in_progress",
+            "claimedAt": 1781123399804i64,
+            "startLine": null, "endLine": null, "symbol": null, "symbolPath": null
+        });
+        let e = ClaimEntry::from_value(&v);
+        assert_eq!(e.file_path, "bin/port-daddy-cli.ts");
+        assert_eq!(e.symbol, ""); // null tolerated
+        assert_eq!(e.claimed_at_ms, 1781123399804);
     }
 
     #[test]
@@ -152,19 +141,25 @@ mod tests {
     }
 
     #[test]
-    fn view_claims() {
-        let mut p = ClaimsPane::default();
-        p.claims = vec![
-            make_claim("core/pd-console/src/app.rs", "file"),
-            make_claim("lib/agent.ts", "symbol"),
-        ];
-        let b = p.view();
-        let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();
-        assert_eq!(rows, 2);
+    fn tail_path_keeps_tail() {
+        assert_eq!(tail_path("a/b.rs", 20), "a/b.rs");
+        let long = "core/pd-console/src/very/deep/path/file.rs";
+        let t = tail_path(long, 20);
+        assert!(t.starts_with('…') && t.ends_with("file.rs"));
+        assert!(t.chars().count() <= 20);
     }
 
     #[test]
-    fn ts_short_extracts_time() {
-        assert_eq!(ts_short(Some("2026-06-10T15:00:00Z")), "15:00:00");
+    fn view_claims() {
+        let mut p = ClaimsPane::default();
+        p.claims = vec![ClaimEntry {
+            file_path: "core/pd-console/src/app.rs".into(),
+            purpose: "console-panels".into(),
+            symbol: String::new(),
+            claimed_at_ms: 0,
+        }];
+        let b = p.view();
+        let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();
+        assert_eq!(rows, 1);
     }
 }

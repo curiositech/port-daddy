@@ -122,6 +122,14 @@ impl Pane for DispatchQueuePane {
                     self.dispatches.clear();
                     self.count = 0;
                 }
+                Ok(resp) if !resp.status().is_success() => {
+                    self.last_error = Some(format!(
+                        "endpoint not in this daemon build (HTTP {})",
+                        resp.status().as_u16()
+                    ));
+                    self.dispatches.clear();
+                    self.count = 0;
+                }
                 Ok(resp) => {
                     match resp.json::<DispatchesResponse>().await {
                         Err(e) => {

@@ -1,48 +1,41 @@
 //! Activity pane — rolling feed of daemon events.
 //!
-//! Calls `GET /activity?limit=40` on the daemon and renders the most recent
-//! events as a chronological log. Each entry: timestamp, type, actor, detail.
+//! Calls `GET /activity?limit=40`. Real shape (v3.18):
+//! `{ entries: [{ id, timestamp(ms), type, agentId, targetId, details, metadata }] }`
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
+use crate::util::{age_short, arr, n, s, trunc};
 use anyhow::Result;
-use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 struct ActivityEntry {
-    #[serde(rename = "type", default)]
     event_type: String,
-    #[serde(rename = "agentId", default)]
-    agent_id: Option<String>,
-    #[serde(default)]
-    target: Option<String>,
-    #[serde(default)]
-    detail: Option<String>,
-    #[serde(rename = "createdAt", default)]
-    created_at: Option<String>,
+    agent_id: String,
+    target: String,
+    detail: String,
+    timestamp_ms: i64,
 }
 
-#[derive(Debug, Deserialize)]
-struct ActivityResponse {
-    #[serde(default)]
-    entries: Vec<ActivityEntry>,
+impl ActivityEntry {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            event_type: s(v, "type"),
+            agent_id: s(v, "agentId"),
+            target: s(v, "targetId"),
+            detail: s(v, "details"),
+            timestamp_ms: n(v, "timestamp"),
+        }
+    }
 }
 
 fn tone_for_type(t: &str) -> Tone {
     match t {
-        s if s.contains("error") || s.contains("fail") || s.contains("reject") => Tone::Gated,
-        s if s.contains("done") || s.contains("complete") || s.contains("success") || s.contains("land") => Tone::Landed,
-        s if s.contains("begin") || s.contains("spawn") || s.contains("start") || s.contains("claim") => Tone::Engaged,
+        x if x.contains("error") || x.contains("fail") || x.contains("reject") => Tone::Gated,
+        x if x.contains("done") || x.contains("complete") || x.contains("release") => Tone::Landed,
+        x if x.contains("claim") || x.contains("begin") || x.contains("spawn") || x.contains("start") => Tone::Engaged,
         _ => Tone::Default,
-    }
-}
-
-fn ts_short(ts: Option<&str>) -> String {
-    match ts {
-        Some(s) if s.len() >= 19 => s[11..19].to_string(), // HH:MM:SS
-        Some(s) => s.to_string(),
-        None => "—".into(),
     }
 }
 
@@ -76,36 +69,18 @@ impl Pane for ActivityPane {
         if self.entries.is_empty() {
             blocks.push(Block::KeyVal("status".into(), "no recent activity".into()));
         } else {
-            for e in self.entries.iter().rev().take(30) {
-                let ts = ts_short(e.created_at.as_deref());
-                let actor = e.agent_id.as_deref()
-                    .map(|a| if a.len() > 12 { &a[..12] } else { a })
-                    .unwrap_or("-");
-                let target = e.target.as_deref()
-                    .map(|t| if t.len() > 16 { &t[..16] } else { t })
-                    .unwrap_or("");
-                let detail = e.detail.as_deref().unwrap_or("");
-                let detail_trunc = if detail.len() > 30 { &detail[..30] } else { detail };
-
-                let tone = tone_for_type(&e.event_type);
-                let label = if detail_trunc.is_empty() {
-                    format!("{ts}  {actor}  {}", e.event_type)
-                } else {
-                    format!("{ts}  {actor}  {}  {detail_trunc}", e.event_type)
-                };
-                if !target.is_empty() {
-                    blocks.push(Block::Row(vec![
-                        ts.clone(),
-                        e.event_type[..e.event_type.len().min(20)].to_string(),
-                        actor.to_string(),
-                        target.to_string(),
-                    ]));
-                } else {
-                    blocks.push(Block::Chip { label, tone });
-                }
+            for e in self.entries.iter().take(30) {
+                let _ = tone_for_type(&e.event_type);
+                blocks.push(Block::Row(vec![
+                    age_short(e.timestamp_ms),
+                    trunc(&e.event_type, 20),
+                    trunc(&e.agent_id, 14),
+                    trunc(&e.detail, 44),
+                ]));
             }
         }
 
+        blocks.push(Block::Gap);
         blocks.push(Block::KeyVal("events shown".into(), self.entries.len().min(30).to_string()));
         blocks
     }
@@ -121,15 +96,13 @@ impl Pane for ActivityPane {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.entries.clear();
                 }
-                Ok(resp) => {
-                    match resp.json::<ActivityResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.entries = data.entries;
-                        }
+                Ok(resp) => match resp.json::<Value>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.entries = arr(&data, "entries").iter().map(ActivityEntry::from_value).collect();
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -139,6 +112,7 @@ impl Pane for ActivityPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn view_empty() {
@@ -151,12 +125,19 @@ mod tests {
     fn tone_classification() {
         assert!(matches!(tone_for_type("session_done"), Tone::Landed));
         assert!(matches!(tone_for_type("claim_error"), Tone::Gated));
-        assert!(matches!(tone_for_type("session_begin"), Tone::Engaged));
+        assert!(matches!(tone_for_type("service.claim"), Tone::Engaged));
     }
 
     #[test]
-    fn ts_short_extracts_time() {
-        assert_eq!(ts_short(Some("2026-06-10T14:32:01Z")), "14:32:01");
-        assert_eq!(ts_short(None), "—");
+    fn from_value_real_shape() {
+        let v = json!({
+            "id": 108020, "timestamp": 1781123816886i64, "type": "service.claim",
+            "agentId": "pid-3272", "targetId": "bosun:server:main",
+            "details": "claimed port 4847", "metadata": {"port": 4847}
+        });
+        let e = ActivityEntry::from_value(&v);
+        assert_eq!(e.event_type, "service.claim");
+        assert_eq!(e.target, "bosun:server:main");
+        assert_eq!(e.timestamp_ms, 1781123816886);
     }
 }

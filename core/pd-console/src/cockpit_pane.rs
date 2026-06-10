@@ -1,53 +1,35 @@
 //! Cockpit pane — on-bus agent conversation multiplexer (ADR-0046).
 //!
-//! Shows active spawned agents and their latest tube messages.
-//! Calls `GET /agents?status=active&limit=20` then polls tube for each.
+//! Shows live agents (filtered to isActive) from `GET /agents`. Spawning new
+//! top-level agents and tube turns come via the repl today; GPUI input next.
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
+use crate::util::{age_short, arr, b, n, s, trunc};
 use anyhow::Result;
-use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AgentEntry {
-    #[serde(rename = "agentId", default)]
-    agent_id: String,
-    #[serde(default)]
-    backend: String,
-    #[serde(default)]
-    status: String,
-    #[serde(default)]
-    purpose: Option<String>,
-    #[serde(default)]
-    tube_channel: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct AgentsResponse {
-    #[serde(default)]
-    agents: Vec<AgentEntry>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct TubeMsgRaw {
-    #[serde(default)]
-    id: u64,
-    #[serde(default)]
-    sender: String,
-    #[serde(default)]
-    text: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct TubeResponse {
-    #[serde(default)]
-    messages: Vec<TubeMsgRaw>,
-}
-
+#[derive(Debug, Clone)]
 struct ConvEntry {
-    agent: AgentEntry,
-    last_msg: Option<String>,
+    id: String,
+    name: String,
+    backend: String,
+    purpose: String,
+    active: bool,
+    last_heartbeat_ms: i64,
+}
+
+impl ConvEntry {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            id: s(v, "id"),
+            name: s(v, "name"),
+            backend: s(v, "type"),
+            purpose: s(v, "purpose"),
+            active: b(v, "isActive"),
+            last_heartbeat_ms: n(v, "lastHeartbeat"),
+        }
+    }
 }
 
 pub struct CockpitPane {
@@ -68,7 +50,7 @@ impl Pane for CockpitPane {
     fn title(&self) -> String { "Cockpit".into() }
 
     fn view(&self) -> Vec<Block> {
-        let mut blocks = vec![Block::Header("Cockpit — Agent Channels".into())];
+        let mut blocks = vec![Block::Header("Cockpit — Live Agents".into())];
 
         if let Some(err) = &self.last_error {
             blocks.push(Block::KeyVal("error".into(), err.clone()));
@@ -76,32 +58,19 @@ impl Pane for CockpitPane {
         }
 
         if self.convs.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no active agents — pd spawn to start one".into()));
+            blocks.push(Block::KeyVal("status".into(), "no live agents — pd spawn or pd-console-repl :new".into()));
         } else {
-            let active = self.convs.iter().filter(|c| c.agent.status == "active").count();
-            blocks.push(Block::KeyVal("agents".into(), self.convs.len().to_string()));
-            blocks.push(Block::KeyVal("active".into(), active.to_string()));
+            blocks.push(Block::KeyVal("live".into(), self.convs.len().to_string()));
             blocks.push(Block::Gap);
 
             for c in &self.convs {
-                let id_short = &c.agent.agent_id[..c.agent.agent_id.len().min(12)];
-                let purpose = c.agent.purpose.as_deref().unwrap_or("—");
-                let purpose_trunc = if purpose.len() > 40 {
-                    format!("{}…", &purpose[..40])
-                } else {
-                    purpose.to_string()
-                };
-
-                let tone = if c.agent.status == "active" { Tone::Engaged } else { Tone::Resting };
+                let label = if c.name.is_empty() { trunc(&c.id, 20) } else { trunc(&c.name, 32) };
                 blocks.push(Block::Chip {
-                    label: format!("{} [{}]  {}", id_short, c.agent.backend, c.agent.status),
-                    tone,
+                    label: format!("{label}  [{}]  {}", c.backend, age_short(c.last_heartbeat_ms)),
+                    tone: if c.active { Tone::Engaged } else { Tone::Resting },
                 });
-                blocks.push(Block::KeyVal("purpose".into(), purpose_trunc));
-
-                if let Some(msg) = &c.last_msg {
-                    let trunc = if msg.len() > 60 { format!("{}…", &msg[..60]) } else { msg.clone() };
-                    blocks.push(Block::KeyVal("last".into(), trunc));
+                if !c.purpose.is_empty() {
+                    blocks.push(Block::KeyVal("purpose".into(), trunc(&c.purpose, 60)));
                 }
                 blocks.push(Block::Gap);
             }
@@ -115,40 +84,23 @@ impl Pane for CockpitPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            let url = format!("{}/agents?status=active&limit=20", daemon.base());
+            let url = format!("{}/agents", daemon.base());
             match daemon.http_client().get(&url).send().await {
                 Err(e) => {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.convs.clear();
                 }
-                Ok(resp) => {
-                    match resp.json::<AgentsResponse>().await {
-                        Err(e) => {
-                            self.last_error = Some(format!("bad response: {e}"));
-                        }
-                        Ok(data) => {
-                            self.last_error = None;
-                            let mut convs = Vec::new();
-                            for agent in data.agents {
-                                let last_msg = if let Some(ch) = &agent.tube_channel {
-                                    let tube_url = format!("{}/msg/{}?limit=1", daemon.base(), ch);
-                                    daemon.http_client().get(&tube_url).send().await
-                                        .ok()
-                                        .and_then(|r| {
-                                            // We can't await inside and_then; parse sync would require bytes
-                                            // For now: just note channel exists
-                                            let _ = r;
-                                            None
-                                        })
-                                } else {
-                                    None
-                                };
-                                convs.push(ConvEntry { agent, last_msg });
-                            }
-                            self.convs = convs;
-                        }
+                Ok(resp) => match resp.json::<Value>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.convs = arr(&data, "agents")
+                            .iter()
+                            .map(ConvEntry::from_value)
+                            .filter(|c| c.active)
+                            .collect();
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -158,16 +110,7 @@ impl Pane for CockpitPane {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn make_agent(id: &str, backend: &str, status: &str) -> AgentEntry {
-        AgentEntry {
-            agent_id: id.into(),
-            backend: backend.into(),
-            status: status.into(),
-            purpose: Some("test purpose".into()),
-            tube_channel: None,
-        }
-    }
+    use serde_json::json;
 
     #[test]
     fn view_empty() {
@@ -177,14 +120,28 @@ mod tests {
     }
 
     #[test]
+    fn from_value_tolerates_nulls() {
+        let v = json!({
+            "id": "agent-1", "name": null, "type": "cli",
+            "isActive": true, "purpose": null, "lastHeartbeat": 1781123382383i64
+        });
+        let c = ConvEntry::from_value(&v);
+        assert!(c.active);
+        assert_eq!(c.name, "");
+    }
+
+    #[test]
     fn view_agents() {
         let mut p = CockpitPane::default();
-        p.convs = vec![
-            ConvEntry { agent: make_agent("agent-abc", "claude", "active"), last_msg: Some("Working on it…".into()) },
-            ConvEntry { agent: make_agent("agent-def", "ollama", "done"), last_msg: None },
-        ];
+        p.convs = vec![ConvEntry {
+            id: "agent-abc".into(),
+            name: "port-daddy:panels".into(),
+            backend: "cli".into(),
+            purpose: "build the panels".into(),
+            active: true,
+            last_heartbeat_ms: 0,
+        }];
         let b = p.view();
-        let chips = b.iter().filter(|blk| matches!(blk, Block::Chip { .. })).count();
-        assert!(chips >= 2);
+        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { .. })));
     }
 }

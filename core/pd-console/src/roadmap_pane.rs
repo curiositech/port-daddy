@@ -1,41 +1,43 @@
 //! Roadmap pane — the Port Daddy roadmap as live blocks.
 //!
-//! Calls `GET /roadmap/items?limit=60` on the daemon.
-//! Shows items grouped by phase, with status chips.
+//! Calls `GET /roadmap/items?limit=60`. Real shape (v3.18):
+//! `{ items: [{ id, slug, summaryMd, status, harbor, lastTouchedAt, ... }] }`
+//! status values seen: "now", "next", "later", "done", "rejected".
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
+use crate::util::{arr, s, trunc};
 use anyhow::Result;
-use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 struct RoadmapItem {
-    id: String,
-    title: String,
-    #[serde(default)]
+    slug: String,
+    summary: String,
     status: String,
-    #[serde(default)]
-    phase: Option<String>,
-    #[serde(default)]
-    priority: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct RoadmapResponse {
-    #[serde(default)]
-    items: Vec<RoadmapItem>,
+impl RoadmapItem {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            slug: s(v, "slug"),
+            summary: s(v, "summaryMd"),
+            status: s(v, "status"),
+        }
+    }
 }
 
-fn status_tone(s: &str) -> Tone {
-    match s {
+fn status_tone(st: &str) -> Tone {
+    match st {
         "done" | "complete" | "shipped" | "landed" => Tone::Landed,
-        "in-progress" | "active" | "now" => Tone::Engaged,
-        "blocked" | "deferred" | "rejected" => Tone::Gated,
+        "now" | "in-progress" | "active" => Tone::Engaged,
+        "blocked" | "rejected" | "deferred" => Tone::Gated,
         _ => Tone::Resting,
     }
 }
+
+/// Display order for status groups.
+const STATUS_ORDER: &[&str] = &["now", "next", "later", "done", "rejected"];
 
 pub struct RoadmapPane {
     items: Vec<RoadmapItem>,
@@ -67,53 +69,50 @@ impl Pane for RoadmapPane {
             return blocks;
         }
 
-        // Count by status
-        let done = self.items.iter().filter(|i| matches!(i.status.as_str(), "done" | "complete" | "shipped" | "landed")).count();
-        let active = self.items.iter().filter(|i| matches!(i.status.as_str(), "in-progress" | "active" | "now")).count();
-        let total = self.items.len();
-        blocks.push(Block::KeyVal("total".into(), total.to_string()));
-        blocks.push(Block::KeyVal("active".into(), active.to_string()));
-        blocks.push(Block::KeyVal("done".into(), done.to_string()));
+        let count_for = |st: &str| self.items.iter().filter(|i| i.status == st).count();
+        blocks.push(Block::KeyVal("total".into(), self.items.len().to_string()));
+        blocks.push(Block::KeyVal("now".into(), count_for("now").to_string()));
+        blocks.push(Block::KeyVal("done".into(), count_for("done").to_string()));
         blocks.push(Block::Gap);
 
-        // Group by phase
-        let mut phases: Vec<String> = self.items.iter()
-            .filter_map(|i| i.phase.clone())
-            .collect::<std::collections::BTreeSet<_>>()
-            .into_iter()
-            .collect();
-        if phases.is_empty() {
-            phases.push(String::new());
-        }
-
-        for phase in &phases {
-            let phase_items: Vec<_> = self.items.iter()
-                .filter(|i| i.phase.as_deref().unwrap_or("") == phase.as_str())
-                .collect();
-            if !phase.is_empty() {
-                blocks.push(Block::Header(phase.clone()));
+        // Known statuses in priority order, then anything else.
+        let mut shown = 0usize;
+        for st in STATUS_ORDER {
+            let group: Vec<_> = self.items.iter().filter(|i| i.status == *st).collect();
+            if group.is_empty() {
+                continue;
             }
-            for item in phase_items {
-                let title = if item.title.len() > 50 {
-                    format!("{}…", &item.title[..50])
-                } else {
-                    item.title.clone()
-                };
-                let status = if item.status.is_empty() { "pending" } else { &item.status };
-                let id_short = &item.id[..item.id.len().min(8)];
+            blocks.push(Block::Header(st.to_string()));
+            for item in group {
+                let first_line = item.summary.lines().next().unwrap_or("");
                 blocks.push(Block::Row(vec![
-                    id_short.to_string(),
-                    title,
-                    status.to_string(),
+                    trunc(&item.slug, 32),
+                    trunc(first_line, 52),
                 ]));
+                shown += 1;
             }
             blocks.push(Block::Gap);
         }
+        let other: Vec<_> = self.items.iter()
+            .filter(|i| !STATUS_ORDER.contains(&i.status.as_str()))
+            .collect();
+        if !other.is_empty() {
+            blocks.push(Block::Header("other".into()));
+            for item in other {
+                blocks.push(Block::Row(vec![
+                    trunc(&item.slug, 32),
+                    item.status.clone(),
+                ]));
+                shown += 1;
+            }
+            blocks.push(Block::Gap);
+        }
+        let _ = shown;
 
-        let active_tone = if active > 0 { Tone::Engaged } else { Tone::Resting };
+        let now_n = count_for("now");
         blocks.push(Block::Chip {
-            label: format!("{active} active · {done}/{total} done"),
-            tone: active_tone,
+            label: format!("{} now · {}/{} done", now_n, count_for("done"), self.items.len()),
+            tone: if now_n > 0 { Tone::Engaged } else { Tone::Resting },
         });
         blocks
     }
@@ -129,15 +128,13 @@ impl Pane for RoadmapPane {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.items.clear();
                 }
-                Ok(resp) => {
-                    match resp.json::<RoadmapResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.items = data.items;
-                        }
+                Ok(resp) => match resp.json::<Value>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.items = arr(&data, "items").iter().map(RoadmapItem::from_value).collect();
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -147,9 +144,18 @@ impl Pane for RoadmapPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
-    fn make_item(id: &str, title: &str, status: &str, phase: Option<&str>) -> RoadmapItem {
-        RoadmapItem { id: id.into(), title: title.into(), status: status.into(), phase: phase.map(String::from), priority: None }
+    #[test]
+    fn from_value_real_shape() {
+        let v = json!({
+            "id": "d0553267", "slug": "mcp-parity-no-copouts",
+            "summaryMd": "Agents are first-class MCP consumers.\nMore detail.",
+            "status": "now", "harbor": null
+        });
+        let item = RoadmapItem::from_value(&v);
+        assert_eq!(item.slug, "mcp-parity-no-copouts");
+        assert_eq!(item.status, "now");
     }
 
     #[test]
@@ -162,20 +168,20 @@ mod tests {
     #[test]
     fn status_tones() {
         assert!(matches!(status_tone("done"), Tone::Landed));
-        assert!(matches!(status_tone("in-progress"), Tone::Engaged));
-        assert!(matches!(status_tone("blocked"), Tone::Gated));
-        assert!(matches!(status_tone("pending"), Tone::Resting));
+        assert!(matches!(status_tone("now"), Tone::Engaged));
+        assert!(matches!(status_tone("rejected"), Tone::Gated));
+        assert!(matches!(status_tone("later"), Tone::Resting));
     }
 
     #[test]
-    fn view_items() {
+    fn view_groups_by_status() {
         let mut p = RoadmapPane::default();
         p.items = vec![
-            make_item("abc", "Build the thing", "in-progress", Some("Phase 1")),
-            make_item("def", "Ship the thing", "pending", Some("Phase 2")),
+            RoadmapItem { slug: "thing-a".into(), summary: "Build A".into(), status: "now".into() },
+            RoadmapItem { slug: "thing-b".into(), summary: "Build B".into(), status: "later".into() },
         ];
         let b = p.view();
-        let has_row = b.iter().any(|blk| matches!(blk, Block::Row(_)));
-        assert!(has_row);
+        let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();
+        assert_eq!(rows, 2);
     }
 }

@@ -25,26 +25,27 @@ use crate::pane::{Block, Tone};
 struct NavItem {
     id: &'static str,
     label: &'static str,
-    glyph: &'static str,
+    /// SVG asset path (custom stroke icons — never emoji; operator rule).
+    icon: &'static str,
     key: &'static str,
 }
 
 const NAV: &[NavItem] = &[
-    NavItem { id: "fleet",    label: "Fleet",    glyph: "⚓", key: "1" },
-    NavItem { id: "cockpit",  label: "Cockpit",  glyph: "🧭", key: "2" },
-    NavItem { id: "sorties",  label: "Sorties",  glyph: "🚀", key: "3" },
-    NavItem { id: "claims",   label: "Claims",   glyph: "📌", key: "4" },
-    NavItem { id: "peek",     label: "Peek",     glyph: "👁", key: "5" },
-    NavItem { id: "roadmap",  label: "Roadmap",  glyph: "🗺", key: "6" },
-    NavItem { id: "adrs",     label: "ADRs",     glyph: "📐", key: "7" },
-    NavItem { id: "activity", label: "Activity", glyph: "📡", key: "8" },
-    NavItem { id: "sessions", label: "Sessions", glyph: "🪝", key: "9" },
-    NavItem { id: "inbox",    label: "Inbox",    glyph: "📬", key: "0" },
-    NavItem { id: "suggest",  label: "Suggest",  glyph: "🧲", key: "s" },
-    NavItem { id: "memory",   label: "Memory",   glyph: "🧠", key: "m" },
-    NavItem { id: "prs",      label: "PRs",      glyph: "🔀", key: "p" },
-    NavItem { id: "health",   label: "Health",   glyph: "🩺", key: "h" },
-    NavItem { id: "coast",    label: "C.Guard",  glyph: "🛡", key: "c" },
+    NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
+    NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
+    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
+    NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
+    NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
+    NavItem { id: "roadmap",  label: "Roadmap",  icon: "icons/nav/roadmap.svg",  key: "6" },
+    NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
+    NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
+    NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
+    NavItem { id: "inbox",    label: "Inbox",    icon: "icons/nav/inbox.svg",    key: "0" },
+    NavItem { id: "suggest",  label: "Suggest",  icon: "icons/nav/suggest.svg",  key: "s" },
+    NavItem { id: "memory",   label: "Memory",   icon: "icons/nav/memory.svg",   key: "m" },
+    NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
+    NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
+    NavItem { id: "coast",    label: "C.Guard",  icon: "icons/nav/coast.svg",    key: "c" },
 ];
 
 // ── Palette — pre-computed from DARK OKLCH theme ──────────────────────────────
@@ -166,7 +167,7 @@ fn render_block(block: Block) -> impl IntoElement {
 
 #[derive(IntoElement)]
 struct SidebarItem {
-    glyph: &'static str,
+    icon: &'static str,
     label: &'static str,
     index: usize,
     active: bool,
@@ -174,6 +175,7 @@ struct SidebarItem {
 
 impl RenderOnce for SidebarItem {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        let ink = if self.active { C_INK } else { C_MUTED };
         div()
             .px(px(10.0))
             .py(px(6.0))
@@ -189,16 +191,20 @@ impl RenderOnce for SidebarItem {
             .hover(|s| s.bg(rgb(C_RAISED)))
             .flex()
             .flex_col()
-            .gap(px(1.0))
+            .items_center()
+            .gap(px(3.0))
             .child(
-                div()
-                    .text_size(px(16.0))
-                    .child(self.glyph)
+                svg()
+                    .path(self.icon)
+                    .w(px(18.0))
+                    .h(px(18.0))
+                    .text_color(rgb(if self.active { C_ACCENT } else { C_MUTED }))
             )
             .child(
                 div()
-                    .text_color(rgb(if self.active { C_INK } else { C_MUTED }))
-                    .text_size(px(11.0))
+                    .text_color(rgb(ink))
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::MEDIUM)
                     .child(self.label)
             )
     }
@@ -248,9 +254,8 @@ impl Render for ConsoleView {
         let active = self.active_nav;
         let blocks = self.blocks_for_active();
         let daemon_url = self.daemon_url.clone();
-        let active_nav_name = NAV.get(active)
-            .map(|n| format!("{} {}", n.glyph, n.label))
-            .unwrap_or_default();
+        let active_nav_name = NAV.get(active).map(|n| n.label).unwrap_or("—");
+        let active_nav_icon = NAV.get(active).map(|n| n.icon).unwrap_or("icons/nav/fleet.svg");
 
         div()
             .key_context("console")
@@ -305,7 +310,7 @@ impl Render for ConsoleView {
                             .children(
                                 NAV.iter().enumerate().map(|(i, item)| {
                                     SidebarItem {
-                                        glyph: item.glyph,
+                                        icon: item.icon,
                                         label: item.label,
                                         index: i,
                                         active: i == active,
@@ -332,6 +337,13 @@ impl Render for ConsoleView {
                                     .flex()
                                     .items_center()
                                     .gap(px(10.0))
+                                    .child(
+                                        svg()
+                                            .path(active_nav_icon)
+                                            .w(px(16.0))
+                                            .h(px(16.0))
+                                            .text_color(rgb(C_ACCENT))
+                                    )
                                     .child(
                                         div()
                                             .text_color(rgb(C_INK))

@@ -31,6 +31,7 @@
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
 #[path = "../suggest_pane.rs"]   mod suggest_pane;
 #[path = "../theme.rs"]          mod theme;
+#[path = "../util.rs"]           mod util;
 
 use agent::{AgentManager, Backend};
 use anyhow::Result;

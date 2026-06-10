@@ -27,6 +27,7 @@ mod roadmap_pane;
 mod sessions_pane;
 mod suggest_pane;
 mod theme;
+mod util;
 
 use activity_pane::ActivityPane;
 use adrs_pane::AdrsPane;

@@ -1,48 +1,26 @@
 //! Health pane — daemon vitals: status, version, uptime, ports, fleet summary.
 //!
-//! Calls `GET /health` on the daemon.
+//! Calls `GET /health`. Real shape (v3.18):
+//! `{ status, version, uptime_seconds, active_ports, pid,
+//!    fleet: { running, projects, agents, watchers, ... },
+//!    routes: { ok, missing: [..], checked },
+//!    runtime: { state, degraded, ... } }`
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
+use crate::util::{b, n, s};
 use anyhow::Result;
-use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-struct HealthResponse {
-    status: String,
-    version: String,
-    uptime_seconds: u64,
-    active_ports: u32,
-    pid: u32,
-    #[serde(default)]
-    fleet: Option<FleetSummary>,
-    #[serde(default)]
-    routes: Option<RouteHealth>,
-}
-
-#[derive(Debug, Deserialize)]
-struct FleetSummary {
-    running: bool,
-    agents: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct RouteHealth {
-    ok: bool,
-    mounted: u32,
-    missing: u32,
-}
-
-fn fmt_uptime(secs: u64) -> String {
+fn fmt_uptime(secs: i64) -> String {
     let h = secs / 3600;
     let m = (secs % 3600) / 60;
-    let s = secs % 60;
-    if h > 0 { format!("{h}h {m}m") } else if m > 0 { format!("{m}m {s}s") } else { format!("{s}s") }
+    let sec = secs % 60;
+    if h > 0 { format!("{h}h {m}m") } else if m > 0 { format!("{m}m {sec}s") } else { format!("{sec}s") }
 }
 
 pub struct HealthPane {
-    data: Option<HealthResponse>,
+    data: Option<Value>,
     last_error: Option<String>,
 }
 
@@ -72,32 +50,45 @@ impl Pane for HealthPane {
             return blocks;
         };
 
-        let status_tone = if h.status == "ok" { Tone::Landed } else { Tone::Gated };
-        blocks.push(Block::Chip { label: format!("● {}", h.status), tone: status_tone });
+        let status = s(h, "status");
+        let status_tone = if status == "ok" { Tone::Landed } else { Tone::Gated };
+        blocks.push(Block::Chip { label: format!("status: {status}"), tone: status_tone });
         blocks.push(Block::Gap);
-        blocks.push(Block::KeyVal("version".into(), h.version.clone()));
-        blocks.push(Block::KeyVal("uptime".into(), fmt_uptime(h.uptime_seconds)));
-        blocks.push(Block::KeyVal("pid".into(), h.pid.to_string()));
-        blocks.push(Block::KeyVal("active ports".into(), h.active_ports.to_string()));
+        blocks.push(Block::KeyVal("version".into(), s(h, "version")));
+        blocks.push(Block::KeyVal("uptime".into(), fmt_uptime(n(h, "uptime_seconds"))));
+        blocks.push(Block::KeyVal("pid".into(), n(h, "pid").to_string()));
+        blocks.push(Block::KeyVal("active ports".into(), n(h, "active_ports").to_string()));
 
-        if let Some(fleet) = &h.fleet {
+        if let Some(fleet) = h.get("fleet") {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("Fleet".into()));
-            let fleet_tone = if fleet.running { Tone::Engaged } else { Tone::Resting };
+            let running = b(fleet, "running");
             blocks.push(Block::Chip {
-                label: if fleet.running { "fleet daemon running".into() } else { "fleet daemon stopped".into() },
-                tone: fleet_tone,
+                label: if running { "fleet daemon running".into() } else { "fleet daemon stopped".into() },
+                tone: if running { Tone::Engaged } else { Tone::Resting },
             });
-            blocks.push(Block::KeyVal("agents".into(), fleet.agents.to_string()));
+            blocks.push(Block::KeyVal("projects".into(), n(fleet, "projects").to_string()));
+            blocks.push(Block::KeyVal("agents".into(), n(fleet, "agents").to_string()));
         }
 
-        if let Some(routes) = &h.routes {
+        if let Some(routes) = h.get("routes") {
             blocks.push(Block::Gap);
             blocks.push(Block::Header("Routes".into()));
-            let route_tone = if routes.ok { Tone::Landed } else { Tone::Gated };
+            let ok = b(routes, "ok");
+            let missing = routes.get("missing").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
             blocks.push(Block::Chip {
-                label: format!("{} mounted / {} missing", routes.mounted, routes.missing),
-                tone: route_tone,
+                label: format!("{} checked / {} missing", n(routes, "checked"), missing),
+                tone: if ok { Tone::Landed } else { Tone::Gated },
+            });
+        }
+
+        if let Some(rt) = h.get("runtime") {
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header("Runtime".into()));
+            let degraded = b(rt, "degraded");
+            blocks.push(Block::Chip {
+                label: format!("runtime: {}", s(rt, "state")),
+                tone: if degraded { Tone::Gated } else { Tone::Landed },
             });
         }
 
@@ -115,15 +106,13 @@ impl Pane for HealthPane {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.data = None;
                 }
-                Ok(resp) => {
-                    match resp.json::<HealthResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.data = Some(data);
-                        }
+                Ok(resp) => match resp.json::<Value>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.data = Some(data);
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -133,6 +122,7 @@ impl Pane for HealthPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn fmt_uptime_values() {
@@ -149,11 +139,25 @@ mod tests {
     }
 
     #[test]
+    fn view_real_shape() {
+        let mut p = HealthPane::default();
+        p.data = Some(json!({
+            "status": "ok", "version": "3.18.0", "uptime_seconds": 1412,
+            "active_ports": 52, "pid": 3467,
+            "fleet": {"running": true, "projects": 0, "agents": 0},
+            "routes": {"ok": true, "missing": [], "checked": 11},
+            "runtime": {"state": "nominal", "degraded": false}
+        }));
+        let blocks = p.view();
+        let chips = blocks.iter().filter(|b| matches!(b, Block::Chip { .. })).count();
+        assert!(chips >= 3, "expected status, fleet, routes, runtime chips");
+    }
+
+    #[test]
     fn view_error() {
         let mut p = HealthPane::default();
         p.last_error = Some("timeout".into());
         let b = p.view();
-        let has_gated = b.iter().any(|blk| matches!(blk, Block::Chip { tone: Tone::Gated, .. }));
-        assert!(has_gated);
+        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { tone: Tone::Gated, .. })));
     }
 }

@@ -1,41 +1,31 @@
 //! Notes / Memory pane — recent session notes from the daemon.
 //!
-//! Calls `GET /notes?limit=30` on the daemon. Shows the latest notes
-//! sorted by recency — short-form log of what agents have been doing.
+//! Calls `GET /notes?limit=30`. Real shape (v3.18):
+//! `{ notes: [{ id, sessionId, content, type, createdAt(ms), agentId,
+//!    sessionPurpose, identityProject }] }`
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
+use crate::util::{age_short, arr, n, s, trunc};
 use anyhow::Result;
-use serde::Deserialize;
+use serde_json::Value;
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 struct NoteEntry {
-    #[serde(rename = "noteId", default)]
-    note_id: String,
-    #[serde(default)]
-    text: String,
-    #[serde(rename = "agentId", default)]
-    agent_id: Option<String>,
-    #[serde(rename = "sessionId", default)]
-    session_id: Option<String>,
-    #[serde(rename = "createdAt", default)]
-    created_at: Option<String>,
-    #[serde(rename = "type", default)]
-    note_type: Option<String>,
+    content: String,
+    agent_id: String,
+    note_type: String,
+    created_at_ms: i64,
 }
 
-#[derive(Debug, Deserialize)]
-struct NotesResponse {
-    #[serde(default)]
-    notes: Vec<NoteEntry>,
-}
-
-fn ts_short(ts: Option<&str>) -> String {
-    match ts {
-        Some(s) if s.len() >= 19 => s[11..19].to_string(),
-        Some(s) => s.to_string(),
-        None => "—".into(),
+impl NoteEntry {
+    fn from_value(v: &Value) -> Self {
+        Self {
+            content: s(v, "content"),
+            agent_id: s(v, "agentId"),
+            note_type: s(v, "type"),
+            created_at_ms: n(v, "createdAt"),
+        }
     }
 }
 
@@ -71,33 +61,21 @@ impl Pane for NotesPane {
             blocks.push(Block::Gap);
 
             for note in &self.notes {
-                let ts = ts_short(note.created_at.as_deref());
-                let actor = note.agent_id.as_deref()
-                    .map(|a| &a[..a.len().min(14)])
-                    .unwrap_or("—");
-                let ntype = note.note_type.as_deref().unwrap_or("note");
-                let tone = match ntype {
-                    "feat" | "fix" | "result" => Tone::Landed,
+                let ntype = if note.note_type.is_empty() { "note".to_string() } else { note.note_type.clone() };
+                let tone = match ntype.as_str() {
+                    "feat" | "fix" | "result" | "handoff" => Tone::Landed,
                     "scope" | "begin" => Tone::Engaged,
                     "error" | "block" => Tone::Gated,
                     _ => Tone::Default,
                 };
-
-                // Note text — first line only, truncated to 60 chars
-                let first_line = note.text.lines().next().unwrap_or(&note.text);
-                let text_trunc = if first_line.len() > 60 {
-                    format!("{}…", &first_line[..60])
-                } else {
-                    first_line.to_string()
-                };
-
+                let first_line = note.content.lines().next().unwrap_or("");
                 blocks.push(Block::Row(vec![
-                    ts,
-                    ntype.to_string(),
-                    actor.to_string(),
-                    text_trunc,
+                    age_short(note.created_at_ms),
+                    ntype,
+                    trunc(&note.agent_id, 14),
+                    trunc(first_line, 56),
                 ]));
-                let _ = tone; // tone metadata available for richer rendering
+                let _ = tone;
             }
         }
 
@@ -115,15 +93,13 @@ impl Pane for NotesPane {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
                     self.notes.clear();
                 }
-                Ok(resp) => {
-                    match resp.json::<NotesResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.notes = data.notes;
-                        }
+                Ok(resp) => match resp.json::<Value>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.notes = arr(&data, "notes").iter().map(NoteEntry::from_value).collect();
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -133,17 +109,7 @@ impl Pane for NotesPane {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn make_note(text: &str, ntype: Option<&str>) -> NoteEntry {
-        NoteEntry {
-            note_id: "note-123".into(),
-            text: text.into(),
-            agent_id: Some("agent-abc".into()),
-            session_id: None,
-            created_at: Some("2026-06-10T15:30:00Z".into()),
-            note_type: ntype.map(String::from),
-        }
-    }
+    use serde_json::json;
 
     #[test]
     fn view_empty() {
@@ -153,19 +119,27 @@ mod tests {
     }
 
     #[test]
+    fn from_value_real_shape() {
+        let v = json!({
+            "id": 9661, "sessionId": "session-x", "content": "Result: done.\nMore detail.",
+            "type": "handoff", "createdAt": 1781123458171i64,
+            "agentId": "spawned-f67d", "sessionPurpose": "echo allowed"
+        });
+        let e = NoteEntry::from_value(&v);
+        assert_eq!(e.content.lines().next().unwrap(), "Result: done.");
+        assert_eq!(e.note_type, "handoff");
+        assert_eq!(e.created_at_ms, 1781123458171);
+    }
+
+    #[test]
     fn view_notes() {
         let mut p = NotesPane::default();
         p.notes = vec![
-            make_note("Scope: app.rs. Started panel refactor.", Some("scope")),
-            make_note("Result: panels built and CI green.", Some("result")),
+            NoteEntry { content: "Scope: app.rs".into(), agent_id: "a1".into(), note_type: "scope".into(), created_at_ms: 0 },
+            NoteEntry { content: "Result: green".into(), agent_id: "a1".into(), note_type: "result".into(), created_at_ms: 0 },
         ];
         let b = p.view();
         let rows = b.iter().filter(|blk| matches!(blk, Block::Row(_))).count();
         assert_eq!(rows, 2);
-    }
-
-    #[test]
-    fn ts_short_extracts_time() {
-        assert_eq!(ts_short(Some("2026-06-10T15:30:00Z")), "15:30:00");
     }
 }
