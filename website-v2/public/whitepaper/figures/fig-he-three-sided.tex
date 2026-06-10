@@ -1,11 +1,11 @@
 % The three-sided market: three sides, one escrow, divergent identity objects.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhsanddeep}{HTML}{D4C5A9}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -17,7 +17,7 @@
   escrow/.style={draw=hhebony,line width=1.4pt,fill=hhsand!30,
                  rounded corners=3pt,inner sep=6pt,text width=58mm,
                  align=center,minimum height=26mm},
-  idobj/.style={draw=hhcinnabar,thick,fill=hhpaper,rounded corners=2pt,
+  idobj/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,font=\scriptsize,text width=42mm,
                 align=center,text=hhink},
   flow/.style={->,>=Latex,thick,draw=hhebony},
@@ -58,11 +58,11 @@
 \node[idobj,above=2mm of capital] {keys on the \textbf{asset owner}};
 \node[idobj,above=2mm of ip]      {keys on the \textbf{content hash} (skill version)};
 
-\node[draw=hhcinnabar,thick,dashed,rounded corners=3pt,inner sep=3pt,
+\node[draw=hhcobalt,thick,dashed,rounded corners=3pt,inner sep=3pt,
       fit=(labor)(capital)(ip)] {};
 
 % ─── The honesty rider ─────────────────────────────────────────────────
-\node[draw=hhcinnabar,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
+\node[draw=hhcobalt,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
       inner sep=5pt,text width=120mm,align=center,below=4mm of settle,
       font=\bfseries\footnotesize]
   {Three-sided \emph{by design}; two-sided until reputation ships.
