@@ -243,19 +243,6 @@ async function importJwkForVerify(key: Jwk, alg: string): Promise<CryptoKey> {
 
 // ── Fingerprint (SHA-256 of raw public key bytes, hex) ───────────────────────
 
-export function daemonFingerprint(pubKeyHex: string): string {
-  const bytes = fromHex(pubKeyHex);
-  // sha256 is imported at the top of the file via @noble/hashes/sha256
-  // Import the synchronous version directly
-  const hashBytes = new Uint8Array(
-    Array.from(crypto.getRandomValues(new Uint8Array(32))) // placeholder — see below
-  );
-  // NOTE: Workers crypto.subtle.digest is async; use @noble/hashes (sync) instead.
-  // This function is only called from async contexts; callers should use
-  // daemonFingerprintAsync() instead.
-  throw new Error('Use daemonFingerprintAsync() instead');
-}
-
 export async function daemonFingerprintAsync(pubKeyHex: string): Promise<string> {
   const bytes = fromHex(pubKeyHex);
   const { sha256 } = await import('@noble/hashes/sha256');

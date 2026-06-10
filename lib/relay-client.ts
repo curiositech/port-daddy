@@ -219,7 +219,11 @@ export function subscribeRelay(
 
       while (!closed) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          // Stream ended normally — treat as a disconnect so the reconnect loop fires
+          if (!closed) onError(new RelayError('SSE_CLOSED', 'SSE stream closed by relay'));
+          break;
+        }
 
         buffer += dec.decode(value, { stream: true });
         const lines = buffer.split('\n');

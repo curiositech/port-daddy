@@ -402,11 +402,17 @@ export async function handlePublish(
     }
   }
 
-  // Payload size check
+  // Sender must match the authenticated daemon (card.sub)
+  if (event.sender !== sub) {
+    return err('SENDER_MISMATCH', `event.sender ${event.sender} does not match authenticated daemon ${sub}`, 403);
+  }
+
+  // Payload size check — measure decoded bytes, not base64url string length
   const capEntry = matchCapability(card.cap, 'pub', channelName);
   const maxBytes = capEntry?.max_payload_bytes ?? 65536;
-
-  if (event.ciphertext.length > maxBytes) {
+  const { base64UrlDecode: b64dec } = await import('./crypto.js');
+  const ciphertextBytes = b64dec(event.ciphertext).length;
+  if (ciphertextBytes > maxBytes) {
     return err('PAYLOAD_TOO_LARGE', `Payload exceeds ${maxBytes} bytes limit`, 413);
   }
 

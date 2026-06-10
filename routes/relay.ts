@@ -6,15 +6,11 @@
  *   POST /relay/config    — set relay_url (or clear with null)
  *   GET  /relay/status    — relay connection status
  *   POST /relay/exchange  — proxy OIDC exchange to relay
- *
- * The relay client connection itself is managed by RelayConnectionManager
- * (lib/relay-client.ts), which is started/stopped by the daemon lifecycle.
- * These routes expose config and status to the CLI (pd relay ...).
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { Database } from 'better-sqlite3';
-import { getRelayUrl, setRelayUrl, RelayError } from '../lib/relay-client.js';
+import { getRelayUrl, setRelayUrl } from '../lib/relay-client.js';
 
 interface RelayRouteDeps {
   db: Database;
@@ -28,6 +24,10 @@ interface RelayStatus {
   accepted_channels: string[];
   relay_version: string | null;
 }
+
+// Daemon stores its Phase 2 Ed25519 keypair in the keypairs table under this kid.
+// See lib/harbor-tokens.ts HARBOR_TOKEN_PHASE2_KEY_ID.
+const DAEMON_PHASE2_KID = 'harbor-daemon-ed25519-v1';
 
 export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
@@ -45,10 +45,15 @@ export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (
     const url = body.relay_url ?? null;
 
     if (url !== null) {
+      let parsed: URL;
       try {
-        new URL(url);
+        parsed = new URL(url);
       } catch {
         return reply.code(400).send({ error: 'Invalid URL', code: 'INVALID_URL' });
+      }
+      // Restrict to http/https — same as relay-client.ts fetch usage
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        return reply.code(400).send({ error: 'relay_url must use https: or http:', code: 'INVALID_SCHEME' });
       }
     }
 
@@ -75,14 +80,25 @@ export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (
       return reply.code(400).send({ error: 'oidc_token required', code: 'MISSING_FIELDS' });
     }
 
-    // Get daemon's own pubkey for the exchange request
-    const pubKeyRow = db
-      .prepare("SELECT value FROM config WHERE key = 'daemon_ed25519_pub_key'")
-      .get() as { value: string } | undefined;
+    // Look up daemon's Ed25519 public key from the keypairs table (PEM → hex).
+    // See lib/harbor-tokens.ts HARBOR_TOKEN_PHASE2_KEY_ID for where this is written.
+    const kpRow = db
+      .prepare('SELECT public_key FROM keypairs WHERE kid = ?')
+      .get(DAEMON_PHASE2_KID) as { public_key: string } | undefined;
 
-    if (!pubKeyRow?.value) {
-      return reply.code(500).send({ error: 'Daemon Ed25519 key not initialized', code: 'NO_KEY' });
+    if (!kpRow?.public_key) {
+      return reply.code(500).send({
+        error: 'Daemon Phase 2 Ed25519 keypair not initialized (run pd daemon once to initialize)',
+        code: 'NO_KEY',
+      });
     }
+
+    // Convert PEM to raw hex (strip DER header from SubjectPublicKeyInfo)
+    const { createPublicKey } = await import('node:crypto');
+    const pubKeyDer = createPublicKey({ key: kpRow.public_key, format: 'pem' })
+      .export({ type: 'spki', format: 'der' }) as Buffer;
+    // Last 32 bytes of the DER SPKI for Ed25519 are the raw key
+    const pubKeyHex = pubKeyDer.subarray(-32).toString('hex');
 
     try {
       const resp = await fetch(`${relayUrl}/v1/exchange`, {
@@ -90,18 +106,22 @@ export const relayPlugin: FastifyPluginAsync<{ deps: RelayRouteDeps }> = async (
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           oidc_token: body.oidc_token,
-          pub_key: pubKeyRow.value,
+          pub_key: pubKeyHex,
           cap: body.cap ?? [{ op: 'pub', channel: '*' }],
         }),
       });
 
-      const result = await resp.json();
-
-      if (!resp.ok) {
-        return reply.code(resp.status).send(result);
+      // Safe JSON parse — relay may return plain text on some errors
+      const contentType = resp.headers.get('content-type') ?? '';
+      let result: unknown;
+      if (contentType.includes('application/json')) {
+        result = await resp.json();
+      } else {
+        const text = await resp.text();
+        result = { error: text, code: 'RELAY_ERROR' };
       }
 
-      return reply.send(result);
+      return reply.code(resp.status).send(result);
     } catch (e) {
       return reply.code(502).send({
         error: `Relay exchange failed: ${e instanceof Error ? e.message : String(e)}`,

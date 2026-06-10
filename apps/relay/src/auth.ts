@@ -78,9 +78,12 @@ export async function verifyCard(
   const { sha256 } = await import('@noble/hashes/sha256');
   const { toHex, fromHex } = await import('./crypto.js');
 
-  // Import hashHex pattern: hash the UTF-8 signing input, get hex
+  // Hash signing input, decode signature from base64url → hex
   const msgHex = toHex(sha256(inputBytes));
-  const valid = await verifyEd25519(issuerPubKeyHex, msgHex, sigB64.replace(/-/g, '+').replace(/_/g, '/'));
+  // sigB64 is base64url; verifyEd25519 expects hex — decode first
+  const { base64UrlDecode } = await import('./crypto.js');
+  const sigHex = toHex(base64UrlDecode(sigB64));
+  const valid = await verifyEd25519(issuerPubKeyHex, msgHex, sigHex);
   if (!valid) {
     throw new CardError('BAD_SIG', 'Card signature invalid');
   }
