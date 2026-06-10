@@ -32,7 +32,7 @@ The fix is two moves:
 
 ---
 
-## 1. The spine (from ADR-0048, verbatim anchor)
+## 1. The spine (excerpt from ADR-0048 — condensed for navigation; canonical text in `docs/adr/0048-what-port-daddy-is.md`)
 
 **One sentence:** *Port Daddy is the harbor-master for agent swarms — the
 local-first authority that makes many coding agents legible, accountable, and
@@ -88,7 +88,7 @@ swarm's COGS *and* its legibility mechanism — the digest *is* compaction.
 *today*. It needs no economy, no crypto, no second operator.
 
 ### Paper 2 — **The Anchor Protocol** *(L0/L1 — the formal core)*
-**Absorbs:** the existing `anchor-protocol-whitepaper.tex` (keep; it is the
+**Absorbs:** the existing `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` (keep; it is the
 strongest formal artifact — ProVerif + Kani verified), reframed with a stack map.
 **Thesis:** how a single agent proves identity and capability to the daemon
 without a trusted third party. The cryptographic spine everything else stands on.
@@ -109,7 +109,7 @@ problem.
 the market (a *reputation* worth trading on).
 
 ### Paper 4 — **The Harbor Economy** *(L3 — the market)*
-**Absorbs:** `agent-transactions-whitepaper.tex` (Bonded Commons) + the Federated
+**Absorbs:** `website-v2/public/whitepaper/agent-transactions-whitepaper.tex` (Bonded Commons) + the Federated
 Harbor material + `agent-economy-anchor`.
 **Thesis:** the harbor economy is a **three-sided market** (operators sell
 labor + fleet-for-hire; fleets/agents are rentable assets; skills/tools are
@@ -128,7 +128,7 @@ The North-Star index flagged real seams. Resolutions, to be applied uniformly:
 
 | # | Drift | Resolution (canonical form for the whole volume) |
 |---|---|---|
-| 1 | `[DESIGNED]` / `[PROPOSED]` / `[BUILT-WEAK]` / `[BUILT, weak]` used inconsistently | **One key, in every paper header:** `BUILT` · `BUILT-WEAK` · `DESIGNED` · `VISION`. `PROPOSED` → `DESIGNED`. Matches ADR-0045 honest-label discipline. |
+| 1 | `[DESIGNED]` / `[PROPOSED]` / `[BUILT-WEAK]` / `[BUILT, weak]` used inconsistently | **One key, in every paper header:** `BUILT` · `BUILT-WEAK` · `DESIGNED` · `VISION`. `PROPOSED` → `DESIGNED`. Matches the honest-label discipline applied via `pd attest` (ADR-0045 governs invariant attestation; these status labels are a parallel convention applied to paper headers for the same reason). |
 | 2 | reputation = "cheap and last" (P3) vs. "the moat" (P4) | State it once, cross-linked: **the score is cheap; the substrate it scores over (witnessed outcomes on a non-forgeable id) is the gate.** Both papers point at this sentence. |
 | 3 | "three-sided market" (headline) vs. "two-sided today" (honesty note) | Canonical: **"a three-sided market by design; two-sided until reputation ships (ADR-0049/0040)."** The third side *is* the tradeable-person terminus of Paper 3. |
 | 4 | ADR-0040 (non-forgeable identity) load-bearing but unbuilt | Name it once as **the highest-leverage unbuilt keystone**; every L3 claim that depends on it says so in one clause. |
@@ -270,16 +270,16 @@ pd begin --identity myapp:api --purpose "refactor auth"
 
 ## 6. Production plan (Tier 2 — the four LaTeX papers)
 
-1. **House style:** match `whitepaper/anchor-protocol-whitepaper.tex` exactly —
+1. **House style:** match `website-v2/public/whitepaper/anchor-protocol-whitepaper.tex` exactly —
    `article` 11pt, `lmodern`, the hh-* color palette, `fancyhdr`, TikZ figures in
-   `whitepaper/figures/`, theorem/definition/lemma envs, the Reader's-Map table,
+   `website-v2/public/whitepaper/figures/`, theorem/definition/lemma envs, the Reader's-Map table,
    the honesty-label key (§3 above), bold-cite-gloss for external terms,
    bold-path-gloss for PD abstractions.
 2. **Each paper opens** with the same stack-map figure (which rung, what it
    assumes, which papers it cites) so the volume reads as one thing.
 3. **Adversarial review by field, not just CS** — see §7.
-4. **Manifesto** (`docs/manifesto-why-agent-economies.md`) updated to front-matter
-   for the four-paper volume; retire the "trilogy" framing.
+4. **Manifesto** (`docs/manifesto-why-agent-economies.md`) to be updated to front-matter
+   for the four-paper volume; retire the "trilogy" framing. (Not yet done — gated on operator sign-off of the 4-paper shape, per PR description.)
 
 ---
 
@@ -287,8 +287,8 @@ pd begin --identity myapp:api --purpose "refactor auth"
 
 Per operator instruction: reviewers are **domain experts for whatever field a
 claim actually draws on**, not generic CS reviewers, and each must **steelman the
-paper before attacking it**. Run across the model backends with keys present
-(`gemini`, `groq`/`xai`, `openai`/`codex`, `deepseek` — all in `.env.local`).
+paper before attacking it**. Run across the model backends available via `pd spawn`
+(`claude`, `codex`, `cloudflare`, `ollama`, or any custom transport — see `lib/llm-backend-resolver.ts`).
 
 | Lens | Field | Guards which paper's claims |
 |---|---|---|
