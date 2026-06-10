@@ -96,6 +96,12 @@ const daemonEnv = {
   // shows "enforce" in recordings — deterministic across dev and CI. Without
   // this, dev shows enforce (guard installed) but CI shows off (fresh checkout).
   PORT_DADDY_GUARD_CONFIG_DIR: GUARD_CONFIG_DIR,
+  // Redirect context-dir (current.json) to a recording-specific path so the
+  // CLI does not read the dev worktree's .portdaddy/current.json. Without this,
+  // commands that show a session banner (pd pheromone --help etc.) print the
+  // dev session name/purpose in the recording, which drifts from CI where there
+  // is no current session. DAEMON_DIR has no current.json → null → no banner.
+  PORT_DADDY_CONTEXT_DIR: DAEMON_DIR,
   // Fixed TERM so asciinema / CLI tooling never emits "TERM environment variable
   // not set." in CI (where TERM is unset by default). Must match the value used
   // by the asciinema recording invocation so output is consistent dev-vs-CI.

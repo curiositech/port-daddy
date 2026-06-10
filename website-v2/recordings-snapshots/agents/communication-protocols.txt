@@ -1,11 +1,8 @@
   $ pd channels discover git
-
-  LOGICAL                   SCOPE       SOURCE      ACTIVE    PHYSICAL
-  git:committed             repo        declared    0         repo:<REPO_KEY>:git:committed
-  git:pr-opened             repo        declared    0         repo:<REPO_KEY>:git:pr-opened
+  INFO: No declared channels found for this repo/worktree context
 
   $ pd channels ensure git:committed --scope repo --description "commit trigger event"
-  SUCCESS: Updated git:committed
+  SUCCESS: Declared git:committed
     scope: repo
     physical: repo:<REPO_KEY>:git:committed
     worktree: <WORKTREE_ID>

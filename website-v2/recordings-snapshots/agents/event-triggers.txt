@@ -1,5 +1,5 @@
   $ pd channels ensure git:committed --scope repo --description "commit trigger event"
-  SUCCESS: Updated git:committed
+  SUCCESS: Declared git:committed
     scope: repo
     physical: repo:<REPO_KEY>:git:committed
     worktree: <WORKTREE_ID>
@@ -23,8 +23,8 @@
 
   SUCCESS: Fleet "port-daddy" parsed successfully
     agents:   13
-    watchers: 2
-    channels: 12
+    watchers: 3
+    channels: 13
     budget:   8.5
 
   WARN: Topology warnings (3):
