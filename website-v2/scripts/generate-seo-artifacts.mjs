@@ -97,8 +97,12 @@ function llmsTxt() {
     '/library',
     '/whitepaper',
     '/whitepaper/legible-swarm',
+    '/whitepaper/single-writer-kernel',
+    '/whitepaper/spawn-to-person',
     '/whitepaper/harbor-economy',
     '/whitepaper/anchor-protocol',
+    '/whitepaper/bonded-commons',
+    '/whitepaper/federated-harbor',
   ]
     .map((path) => indexableRoutes.find((route) => route.path === path))
     .filter(Boolean)
