@@ -18,7 +18,9 @@ import {
 
 /**
  * Standalone feature page for `pd tube` at /pd-tube. Covers what the
- * command is, the event -> agent reply loop, and the multi-subscriber
+ * command is, the event -> agent reply loop, a "wilder things" GIF showcase
+ * (UI-summons-agent, agent-to-agent review duet, one-message program
+ * bootstrap — scenarios live in demos/tube-*), and the multi-subscriber
  * fan-out shipped in v3.16.2 (distinct `--as` identities each receive
  * every message). Links out to the CLI docs, the tutorial, and the post.
  */
@@ -106,6 +108,81 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
                 icon={GitFork}
                 title="Fan-out to many"
                 body="Distinct --as identities each receive every message on the channel. One broadcast reaches the whole room, not one listener at random."
+              />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* Wilder things — three demo GIFs */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Wilder things"
+              title="The bus doesn't care what's on either end."
+              description="A channel is a name and a POST — which means the publisher can be a menu-bar button, another agent, or you typing one sentence into a shell. The subscriber on the other side is an agent with a working directory, a shell, and opinions. Here is what that combination actually does."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-7)] space-y-[var(--space-8)]">
+              <DemoShowcase
+                title="A button that summons your agent"
+                lede={
+                  <>
+                    A menu-bar app — anything local that can manage an HTTP POST — fires one JSON
+                    blob at <code>ui:fixit</code> when you click <em>Fix failing test</em>. The
+                    agent parked on <code>pd tube ui:fixit</code> wakes holding the event, finds
+                    the off-by-one, patches it, and its <code>--reply</code> comes back as the
+                    toast. The app never linked an SDK; the whole integration is a URL.
+                  </>
+                }
+                src="/demos/pd-tube/tube-ui-summon.gif"
+                alt="Animated terminal recording: a menu-bar app POSTs a JSON event to a tube channel, the listening agent wakes, fixes a failing test, and replies — the reply arrives back in the UI as a toast"
+                caption={
+                  <>
+                    Click → POST → patch → toast. The UI speaks HTTP, the agent speaks shell, and{' '}
+                    <code>pd tube</code> is the only thing between them.
+                  </>
+                }
+              />
+              <DemoShowcase
+                title="Two agents, arguing productively"
+                lede={
+                  <>
+                    A builder agent and a reviewer agent hold a real conversation on{' '}
+                    <code>agents:review</code>: handoff, pushback, revision, approval.{' '}
+                    <code>--reply</code> auto-correlates each turn to the most recent foreign
+                    event, so neither side juggles message ids — and no human relays turns between
+                    two terminal windows.
+                  </>
+                }
+                src="/demos/pd-tube/tube-agent-duet.gif"
+                alt="Animated terminal recording: a builder agent and a reviewer agent exchange correlated replies over one tube channel — a change request, a fix, and an approval, with no human relaying messages"
+                caption={
+                  <>
+                    The reviewer pushes back, the builder patches and re-pings, the reviewer
+                    approves — four turns of genuine code review with zero human relay.
+                  </>
+                }
+              />
+              <DemoShowcase
+                title="One sentence boots a program"
+                lede={
+                  <>
+                    Send <em>&ldquo;spin up the new admin panel&rdquo;</em> and walk away. The
+                    listening agent scaffolds the app, claims a deterministic port from the daemon
+                    (<code>pd claim admin:web:dev</code> — same identity, same port, every time),
+                    starts the dev server, and posts the URL back on the channel that asked. The
+                    interface to an entire bootstrap is one message.
+                  </>
+                }
+                src="/demos/pd-tube/tube-bootstrap.gif"
+                alt="Animated terminal recording: one tube message asks for a new app; the agent scaffolds it, claims a port from the Port Daddy daemon, starts the dev server, and replies with the running URL"
+                caption={
+                  <>
+                    Scaffold, install, <code>pd claim</code>, dev server, URL — a whole program
+                    initialized from a single channel round-trip.
+                  </>
+                }
               />
             </div>
           </PageContainer>
@@ -223,6 +300,38 @@ SUCCESS: tube: posted id=87 to standup:demo
         </section>
       </main>
       <Footer />
+    </div>
+  )
+}
+
+/** A titled demo GIF with a one-paragraph lede above and a caption below. */
+function DemoShowcase({
+  title,
+  lede,
+  src,
+  alt,
+  caption,
+}: {
+  title: string
+  lede: ReactNode
+  src: string
+  alt: string
+  caption: ReactNode
+}) {
+  return (
+    <div className="space-y-[var(--space-4)]">
+      <div className="max-w-[52rem] space-y-[var(--space-3)]">
+        <PanelTitle as="h3" size="display">
+          {title}
+        </PanelTitle>
+        <PanelBody>{lede}</PanelBody>
+      </div>
+      <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+        <img src={src} alt={alt} className="block w-full" loading="lazy" />
+        <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
+          {caption}
+        </figcaption>
+      </figure>
     </div>
   )
 }
