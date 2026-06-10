@@ -144,6 +144,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   attention: 'notify',      // default fetch marks inbox/channel items read for this agent
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
+  relay: 'notify',          // configures cloud relay URL (daemon config mutation); status/exchange are read-only or OIDC-proxied
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
