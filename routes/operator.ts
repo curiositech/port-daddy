@@ -1227,6 +1227,9 @@ const guardStatusCache = new Map<string, { at: number; status: CoordinationGuard
  * Not used by production code paths.
  */
 export function __resetGuardCachesForTest(): void {
+  // Test-only seam. No-op outside the test runner so a shipped binary cannot have
+  // its live guard caches cleared by an unrelated importer of routes/operator.
+  if (process.env.NODE_ENV !== 'test') return;
   guardCheckCache.clear();
   guardStatusCache.clear();
 }
@@ -1279,17 +1282,25 @@ function cachedGuardCheck(projectDir: string): CoordinationGuardCheck | null {
 
   let check: CoordinationGuardCheck | null = null;
   const { result: checkResult, available: checkAvailable } = runGuardCli(projectDir, ['check', '--staged', '--json']);
+  // spawnSync sends SIGTERM on timeout (status=null, signal set, empty stdout). A
+  // timeout is NOT "clean": caching its empty result as null would silently
+  // suppress a real guard_violation for the whole TTL. Treat a timeout as
+  // "unknown" — surface no violation for THIS call, and do NOT cache it, so the
+  // next call re-checks instead of serving a stale "clean".
+  const timedOut = checkResult.signal != null;
   // A non-zero exit is expected when there ARE violations; status 0 means clean.
-  if (checkAvailable && checkResult.status !== 0) {
+  if (checkAvailable && !timedOut && checkResult.status !== 0) {
     try {
       check = parseGuardJson<CoordinationGuardCheck>(spawnText(checkResult.stdout), 'guard check');
     } catch {
-      // Parse failed (or timed out with no JSON) — treat as "no actionable check".
+      // Parse failed on a real (non-timeout) response — no actionable check.
       check = null;
     }
   }
 
-  guardCheckCache.set(projectDir, { at: now, check });
+  if (!timedOut) {
+    guardCheckCache.set(projectDir, { at: now, check });
+  }
   return check;
 }
 
@@ -1696,13 +1707,6 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       const guard: (CoordinationGuardStatus & { available: boolean }) | null =
         cachedGuardStatus(effectiveDir);
 
-      // ── maritime signals ─────────────────────────────────────────────────────
-      // Only actionable signals (non-idle, non-fleet-healthy) are surfaced here.
-      const fleetSignal = deriveFleetSignal(
-        actorsResult.summary,
-        [], // needsYou not built yet — placeholder pass, superseded below
-      );
-
       // ── cockpit missions ─────────────────────────────────────────────────────
       let cockpitMissions: ReturnType<typeof readMissions> | null = null;
       if (opts.deps.roadmapItems) {
@@ -1729,8 +1733,10 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       // ── needsYou ranking ─────────────────────────────────────────────────────
       const needsYou = buildNeedsYou(opts.deps, projectName, projectDir, guard);
 
-      // Re-derive fleet signal with the full needsYou picture
-      const fleetSignalFull = deriveFleetSignal(
+      // ── maritime signals ─────────────────────────────────────────────────────
+      // Actionable signals only (non-idle, non-fleet-healthy), derived from the
+      // full needsYou picture.
+      const fleetSignal = deriveFleetSignal(
         actorsResult.summary,
         needsYou,
       );
@@ -1747,7 +1753,7 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
         },
         needsYou,
         guard,
-        fleetSignal: fleetSignalFull ?? fleetSignal,
+        fleetSignal,
       };
 
       if (dispatch !== null) response.dispatch = dispatch;
