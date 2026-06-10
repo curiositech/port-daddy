@@ -185,6 +185,68 @@ describe('Coordination Guard', () => {
     }));
   });
 
+  describe('the compulsion — no note, no commit (ADR-0050)', () => {
+    const owned = {
+      config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+      active: true,
+      agentId: 'agent-self',
+      sessionId: 'session-self',
+      files: ['src/a.ts'],
+      ownersByFile: { 'src/a.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }] },
+    };
+
+    test('an un-noted commit blocks the next commit', () => {
+      const result = evaluateGuardFacts({ ...owned, commitsSinceLastNote: 1 });
+      expect(result.shouldBlock).toBe(true);
+      expect(result.violations.map(v => v.code)).toContain('rent-due');
+    });
+
+    test('a noted lease (0 un-noted commits) is not charged rent', () => {
+      const result = evaluateGuardFacts({ ...owned, commitsSinceLastNote: 0 });
+      expect(result.violations.map(v => v.code)).not.toContain('rent-due');
+      expect(result.passed).toBe(true);
+    });
+
+    test('rent is not assessed when commitsSinceLastNote is absent (non-commit checks)', () => {
+      const result = evaluateGuardFacts(owned); // no commitsSinceLastNote field
+      expect(result.violations.map(v => v.code)).not.toContain('rent-due');
+    });
+
+    test('requireNotePerCommit:false opts the rent out entirely', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        config: { ...owned.config, requireNotePerCommit: false },
+        commitsSinceLastNote: 5,
+      });
+      expect(result.violations.map(v => v.code)).not.toContain('rent-due');
+    });
+
+    test('warn mode surfaces rent-due without blocking', () => {
+      const result = evaluateGuardFacts({
+        ...owned,
+        config: { ...owned.config, mode: 'warn' },
+        commitsSinceLastNote: 2,
+      });
+      expect(result.shouldBlock).toBe(false);
+      expect(result.violations.map(v => v.code)).toContain('rent-due');
+    });
+
+    test('rent is not charged without an active session (no-session wins)', () => {
+      const result = evaluateGuardFacts({
+        config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
+        active: false,
+        commitsSinceLastNote: 3,
+      });
+      expect(result.violations.map(v => v.code)).not.toContain('rent-due');
+      expect(result.violations.map(v => v.code)).toContain('no-active-session');
+    });
+
+    test('normalizeGuardConfig defaults requireNotePerCommit to true', () => {
+      expect(normalizeGuardConfig({}).requireNotePerCommit).toBe(true);
+      expect(normalizeGuardConfig({ requireNotePerCommit: false }).requireNotePerCommit).toBe(false);
+    });
+  });
+
   test('merges pre-commit hook before final exit 0', () => {
     const existing = [
       '#!/usr/bin/env zsh',
