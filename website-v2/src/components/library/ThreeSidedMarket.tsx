@@ -10,35 +10,40 @@
  * arrives at.
  */
 
+import React from 'react'
+
 interface Side {
   n: string
   title: string
   what: string
-  keysOn: string
   x: number
 }
 
 const SIDES: Side[] = [
-  { n: 'Side 1', title: 'Labor', what: 'operator-for-hire', keysOn: 'the principal (human / org)', x: 90 },
-  { n: 'Side 2', title: 'Capital', what: 'agent or fleet, rented', keysOn: 'the asset owner', x: 300 },
-  { n: 'Side 3', title: 'IP', what: 'skill or tool, licensed', keysOn: 'the content hash', x: 510 },
+  { n: 'Side 1', title: 'Labor', what: 'operator-for-hire', x: 90 },
+  { n: 'Side 2', title: 'Capital', what: 'agent or fleet, rented', x: 300 },
+  { n: 'Side 3', title: 'IP', what: 'skill or tool, licensed', x: 510 },
 ]
 
 const BOX_W = 156
 const BOX_H = 66
 
 export function ThreeSidedMarket() {
+  const uid = React.useId()
+  const titleId = `${uid}-market-title`
+  const descId = `${uid}-market-desc`
+  const arrowId = `${uid}-flow-arrow`
   return (
     <figure className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]">
       <div className="overflow-x-auto p-[var(--space-5)]">
         <svg
           viewBox="0 0 600 320"
           role="img"
-          aria-labelledby="market-title market-desc"
+          aria-labelledby={`${titleId} ${descId}`}
           className="mx-auto block min-w-[34rem] max-w-[46rem]"
         >
-          <title id="market-title">The three-sided market, settling on one conserving ledger</title>
-          <desc id="market-desc">
+          <title id={titleId}>The three-sided market, settling on one conserving ledger</title>
+          <desc id={descId}>
             Three seller boxes across the top — Side 1 Labor (operator-for-hire),
             Side 2 Capital (a rented agent or fleet), Side 3 IP (a licensed skill
             or tool) — each flow down into a single escrow box, which sits on one
@@ -46,7 +51,7 @@ export function ThreeSidedMarket() {
           </desc>
 
           <defs>
-            <marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <marker id={arrowId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--brand-accent)" />
             </marker>
           </defs>
@@ -59,7 +64,7 @@ export function ThreeSidedMarket() {
               fill="none"
               stroke="var(--brand-accent)"
               strokeWidth="2"
-              markerEnd="url(#flow-arrow)"
+              markerEnd={`url(#${arrowId})`}
             />
           ))}
 

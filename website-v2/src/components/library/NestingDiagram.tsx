@@ -63,7 +63,12 @@ const SHELLS: Shell[] = [
   },
 ]
 
+import React from 'react'
+
 export function NestingDiagram() {
+  const uid = React.useId()
+  const titleId = `${uid}-nesting-title`
+  const descId = `${uid}-nesting-desc`
   return (
     <figure className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]">
       <div className="grid gap-[var(--space-5)] p-[var(--space-5)] lg:grid-cols-[minmax(0,0.46fr)_minmax(0,0.54fr)] lg:items-center lg:gap-[var(--space-6)]">
@@ -71,11 +76,11 @@ export function NestingDiagram() {
         <svg
           viewBox="0 0 360 360"
           role="img"
-          aria-labelledby="nesting-title nesting-desc"
+          aria-labelledby={`${titleId} ${descId}`}
           className="mx-auto block w-full max-w-[24rem]"
         >
-          <title id="nesting-title">The four layers, drawn as nested shells</title>
-          <desc id="nesting-desc">
+          <title id={titleId}>The four layers, drawn as nested shells</title>
+          <desc id={descId}>
             Four concentric rounded rectangles. The innermost is the single-writer
             kernel on one machine; around it, the legible swarm for one operator;
             around that, the bridge that gives an agent a continuous identity; and

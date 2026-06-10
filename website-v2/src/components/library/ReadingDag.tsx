@@ -1,3 +1,4 @@
+import React from 'react'
 import { Link } from 'react-router-dom'
 import { findWhitePaperByChapter } from '@/data/whitePapers'
 
@@ -110,17 +111,22 @@ function DagNode({ node }: { node: Node }) {
 }
 
 export function ReadingDag() {
+  const uid = React.useId()
+  const titleId = `${uid}-dag-title`
+  const descId = `${uid}-dag-desc`
+  const arrowReadId = `${uid}-arrow-read`
+  const arrowProofId = `${uid}-arrow-proof`
   return (
     <figure className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]">
       <div className="overflow-x-auto p-[var(--space-5)]">
         <svg
           viewBox="0 0 540 470"
           role="img"
-          aria-labelledby="dag-title dag-desc"
+          aria-labelledby={`${titleId} ${descId}`}
           className="mx-auto block min-w-[34rem] max-w-[44rem]"
         >
-          <title id="dag-title">The reading-order dependency graph of the seven chapters</title>
-          <desc id="dag-desc">
+          <title id={titleId}>The reading-order dependency graph of the seven chapters</title>
+          <desc id={descId}>
             The four explaining chapters form a vertical spine read top to bottom:
             I the Legible Swarm, II the Single-Writer Kernel, III From Spawn to
             Person, IV the Harbor Economy. Dashed lines connect the three proving
@@ -129,10 +135,10 @@ export function ReadingDag() {
           </desc>
 
           <defs>
-            <marker id="arrow-read" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <marker id={arrowReadId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--brand-primary)" />
             </marker>
-            <marker id="arrow-proof" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <marker id={arrowProofId} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
               <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text-muted)" />
             </marker>
           </defs>
@@ -151,7 +157,7 @@ export function ReadingDag() {
                 stroke={isRead ? 'var(--brand-primary)' : 'var(--text-muted)'}
                 strokeWidth={isRead ? 2.5 : 1.75}
                 strokeDasharray={isRead ? undefined : '5 4'}
-                markerEnd={isRead ? 'url(#arrow-read)' : 'url(#arrow-proof)'}
+                markerEnd={isRead ? `url(#${arrowReadId})` : `url(#${arrowProofId})`}
               />
             )
           })}
