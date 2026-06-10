@@ -738,6 +738,34 @@ export async function fetchFilePreview(
 }
 
 /**
+ * Ask the daemon which of the given paths exist on disk, so mention chips can
+ * suppress heuristic false positives (model ids, prose) before rendering.
+ *
+ * Example:
+ * - input: `(['routes/operator.ts', 'ollama/qwen2.5-coder'], '/Users/me/port-daddy')`
+ * - output: `{ 'routes/operator.ts': true, 'ollama/qwen2.5-coder': false }`
+ *
+ * Older daemons lack `/operator/files-exist`; on any failure every path is
+ * reported as existing so chips keep their previous behavior instead of
+ * silently disappearing.
+ */
+export async function fetchFilesExist(
+  paths: string[],
+  projectDir?: string,
+): Promise<Record<string, boolean>> {
+  if (paths.length === 0) return {};
+  try {
+    const payload = await post<{ success?: boolean; results?: Record<string, boolean> }>(
+      '/operator/files-exist',
+      { paths, projectDir },
+    );
+    return payload.results ?? {};
+  } catch {
+    return Object.fromEntries(paths.map((path) => [path, true]));
+  }
+}
+
+/**
  * Load the daemon-backed actor lens for one project so UI surfaces can render
  * the same lifecycle truth instead of re-deriving it independently.
  *
