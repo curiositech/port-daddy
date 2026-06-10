@@ -8,6 +8,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { validateAgentId } from '../shared/validators.js';
 import { WebhookEvent } from '../lib/webhooks.js';
+import { getEffectiveContextWindow } from '../lib/context-window-tracker.js';
 
 interface InboxMessage {
   id: number;
@@ -61,6 +62,9 @@ interface AgentsRouteDeps {
       agent?: string;
     }>;
   };
+  contextTracker?: {
+    upsertContextHealth(agentId: string, model: string, tokensUsed: number): unknown;
+  };
 }
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
@@ -94,7 +98,7 @@ function requestPid(request: FastifyRequest, body: Record<string, unknown>): num
 // Fastify plugin (dual-export)
 // =============================================================================
 export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon } = opts.deps;
+  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon, contextTracker } = opts.deps;
 
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -183,6 +187,14 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
 
       if (result.registered || Math.random() < 0.1) {
         activityLog.logAgent.heartbeat(id);
+      }
+
+      // Optional context health update — agents that know their token usage report it here.
+      const model = typeof body.model === 'string' ? body.model : null;
+      const usedPct = typeof body.context_window_used_pct === 'number' ? body.context_window_used_pct : null;
+      if (contextTracker && model && usedPct !== null) {
+        const tokensUsed = Math.round(usedPct * getEffectiveContextWindow(model));
+        contextTracker.upsertContextHealth(id, model, tokensUsed);
       }
 
       return result;

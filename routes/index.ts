@@ -72,6 +72,7 @@ import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
+import { contextRoutes as contextPlugin } from './context.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -264,5 +265,10 @@ export async function registerAllRoutes(
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
+  }
+
+  // Context health overview — mounts when contextTracker dep is present.
+  if ((deps as { contextTracker?: unknown }).contextTracker) {
+    await fastify.register(contextPlugin, { deps } as any);
   }
 }

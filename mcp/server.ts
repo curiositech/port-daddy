@@ -275,6 +275,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
     tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
   },
+  'context': {
+    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
+    tools: ['get_context_budget', 'get_context_overview', 'get_task_ledger'],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -2797,6 +2801,64 @@ const TOOLS = [
       },
     },
   },
+
+  // ── Context Economics ───────────────────────────────────────────────────
+  {
+    name: 'get_context_budget',
+    description:
+      '[Context] Get effective context window health for the calling agent. ' +
+      'Returns tokensUsed, effectiveMax, usedPct, pressureLevel (ok/warn/critical), and remaining. ' +
+      'Call this to check whether you are approaching context pressure before starting expensive work.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Agent ID to check (defaults to calling agent)',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_context_overview',
+    description:
+      '[Context] Get swarm-wide context health summary. ' +
+      'Returns all agents with their context pressure, daily cost, and pending approvals. ' +
+      'Includes swarm daily cost and custodian status.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project_filter: {
+          type: 'string',
+          description: 'Optional project prefix to filter agents (e.g. "port-daddy")',
+        },
+      },
+    },
+  },
+  {
+    name: 'get_task_ledger',
+    description:
+      '[Context] Get per-sortie COGS ledger rows for cost attribution. ' +
+      'Returns token counts, cost, and landed work (pr/commit/episode) per sortie. ' +
+      'Use for debugging cost overruns or verifying that sorties landed durable work.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agent_id: {
+          type: 'string',
+          description: 'Filter to a specific agent ID',
+        },
+        since: {
+          type: 'string',
+          description: 'ISO timestamp — only rows after this date',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max rows to return (default 50)',
+        },
+      },
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -4187,6 +4249,36 @@ async function handleTool(
         })),
         hint: 'Call pd_discover with a category name to get full tool schemas.',
       }, null, 2);
+    }
+
+    case 'get_context_budget': {
+      const agentId = args.agent_id as string | undefined;
+      if (!agentId) {
+        res = { status: 400, data: { error: 'agent_id is required' } };
+        break;
+      }
+      res = await GET(`/context/overview`);
+      if (res.data?.agents) {
+        const agent = (res.data.agents as Array<Record<string, unknown>>).find(a => a.agentId === agentId);
+        res = { status: 200, data: (agent?.contextHealth as Record<string, unknown>) ?? { error: 'No context health data for this agent. Send context_window_used_pct on heartbeat to populate.' } };
+      }
+      break;
+    }
+
+    case 'get_context_overview': {
+      const projectFilter = args.project_filter as string | undefined;
+      res = await GET(`/context/overview${projectFilter ? `?project=${encodeURIComponent(projectFilter)}` : ''}`);
+      break;
+    }
+
+    case 'get_task_ledger': {
+      const params = new URLSearchParams();
+      if (args.agent_id) params.set('agentId', args.agent_id as string);
+      if (args.since) params.set('since', args.since as string);
+      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/context/task-ledger${qs}`);
+      break;
     }
 
     default:
