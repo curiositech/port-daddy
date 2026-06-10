@@ -6,7 +6,7 @@ allowed-tools: Read,Bash,Grep,Glob
 metadata:
   category: Coordination
   tags: [port-daddy, internal, review, pm-surrogate, acceptance, honesty, anti-potemkin, gate]
-  pairs-with: [port-daddy-internal-dev, redteam-review, code-review]
+  pairs-with: [port-daddy-internal-dev, redteam-review, code-reviewer]
   provenance:
     kind: first-party
     owners: [port-daddy]
