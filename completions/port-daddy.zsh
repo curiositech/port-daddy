@@ -2031,6 +2031,7 @@ _port_daddy() {
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
     'backend:list/use/cost — fleet backend route, framing, and spend'
+    'relay:manage cloud relay URL, status, and OIDC token exchange'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'
