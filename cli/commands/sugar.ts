@@ -121,23 +121,32 @@ export async function handleBegin(
     return;
   }
 
-  // PD_EMIT_EXPORTS=1 — emit shell export lines to stdout BEFORE human output.
-  // Human-readable lines always go to stderr so eval captures only these.
-  // The fish variant uses `set -x` syntax; POSIX sh/bash/zsh get `export`.
+  // PD_EMIT_EXPORTS=1 — emit ONLY the export lines to stdout so the caller can
+  // `eval $(pd begin ...)`. Any other stdout output would be interpreted by the
+  // shell and could inject code. We return immediately after emitting; the
+  // human-readable banner goes to stderr only in this mode.
   if (process.env.PD_EMIT_EXPORTS === '1') {
-    const agentId = data.agentId as string;
-    const sessionId = data.sessionId as string;
-    assertSafeId(agentId, 'agentId');
-    assertSafeId(sessionId, 'sessionId');
-    const shell = process.env.SHELL || '';
-    if (shell.endsWith('/fish')) {
-      console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
-      console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
-    } else {
-      console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
-      console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
+    try {
+      const agentId = data.agentId as string;
+      const sessionId = data.sessionId as string;
+      assertSafeId(agentId, 'agentId');
+      assertSafeId(sessionId, 'sessionId');
+      const shell = process.env.SHELL || '';
+      if (shell.endsWith('/fish')) {
+        console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
+        console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
+      } else {
+        console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
+        console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
+      }
+    } catch (err) {
+      // Refuse to emit — write the reason to stderr so the caller sees it but
+      // eval does NOT execute it. Exit non-zero so the caller's eval fails.
+      process.stderr.write(`pd begin: refusing to emit exports — ${(err as Error).message}\n`);
+      process.exit(1);
     }
-    // Fall through: human-readable output still goes to stderr below.
+    // Return here: nothing else goes to stdout when eval is the consumer.
+    return;
   }
 
   if (isQuiet(options)) {
