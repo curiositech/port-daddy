@@ -164,11 +164,11 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
   // Adaptive thresholds by agent status
   const DEAD_THRESHOLDS: Record<string, number> = {
     starting: 15 * 60 * 1000,
-    ready: 20 * 60 * 1000,
-    busy: 30 * 60 * 1000,
+    ready: 4 * 60 * 60 * 1000,
+    busy: 4 * 60 * 60 * 1000,
     draining: 5 * 60 * 1000,
   };
-  const DEFAULT_DEAD_THRESHOLD = 20 * 60 * 1000;
+  const DEFAULT_DEAD_THRESHOLD = 4 * 60 * 60 * 1000;
 
   function getDeadThreshold(status?: string): number {
     return DEAD_THRESHOLDS[status || ''] || DEFAULT_DEAD_THRESHOLD;
