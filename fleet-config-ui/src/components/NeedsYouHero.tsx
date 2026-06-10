@@ -236,9 +236,9 @@ export default function NeedsYouHero({
       </div>
 
       <div className="space-y-1.5">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <NeedsYouRow
-            key={item.code}
+            key={`${item.code}-${index}`}
             item={item}
             expanded={expandedCode === item.code}
             onToggle={() => toggle(item.code)}

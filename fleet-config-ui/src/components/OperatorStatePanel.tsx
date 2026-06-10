@@ -402,7 +402,7 @@ function ActorsPanel({ actors, summary }: { actors: OperatorActorRecord[]; summa
 // ─── Cockpit missions ─────────────────────────────────────────────────────────
 
 function CockpitMissionsSection({ missions }: { missions: OperatorState['cockpitMissions'] }) {
-  if (!missions || missions.missions.length === 0) {
+  if (!missions?.missions?.length) {
     return <EmptySection icon={<Map size={14} />} label="Cockpit missions" message="No active missions." />;
   }
 
