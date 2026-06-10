@@ -4,7 +4,7 @@
  * around the one beneath it, each serving a different *whom*. The kernel serves
  * the machine and the agents; legibility serves the human operator (this is the
  * wedge that ships today); and the economy serves the market between operators
- * (the horizon you reach only once you trade).
+ * (specified in the papers, targeted for 2027).
  *
  * Every color is a CSS custom property (`var(--token)`), so the figure inherits
  * the page theme via the `[data-theme]` cascade — light and dark switch with no
@@ -19,8 +19,10 @@ interface Shell {
   whom: string
   title: string
   chapter: string
-  /** Build state, in the reader's words: shipped, the wedge, or the horizon. */
+  /** Build state + ETA, in the reader's words. Never a mood word. */
   state: string
+  /** Whether this is the shippable wedge (gets the brand highlight). */
+  isWedge?: boolean
   /** The concrete thing this layer is, in the reader's words. */
   what: string
 }
@@ -31,7 +33,7 @@ const SHELLS: Shell[] = [
     whom: 'the machine & the agents',
     title: 'The Single-Writer Kernel',
     chapter: 'II',
-    state: 'shipped',
+    state: 'Shipped',
     what: 'A daemon decides what is true. One writer, one durable file, no consensus.',
   },
   {
@@ -39,7 +41,8 @@ const SHELLS: Shell[] = [
     whom: 'the human operator',
     title: 'The Legible Swarm',
     chapter: 'I',
-    state: 'the wedge',
+    state: 'The wedge · 2026',
+    isWedge: true,
     what: 'You see the whole swarm as one picture, and zoom to the real artifact.',
   },
   {
@@ -47,7 +50,7 @@ const SHELLS: Shell[] = [
     whom: 'a track record',
     title: 'From Spawn to Person',
     chapter: 'III',
-    state: 'partial',
+    state: 'In progress · 2026',
     what: 'Continuity turns an anonymous spawn into someone with a reputation.',
   },
   {
@@ -55,7 +58,7 @@ const SHELLS: Shell[] = [
     whom: 'the market between operators',
     title: 'The Harbor Economy',
     chapter: 'IV',
-    state: 'the horizon',
+    state: 'Specified · 2027',
     what: 'A market between people who never met, settling on one conserving ledger.',
   },
 ]
@@ -107,7 +110,7 @@ export function NestingDiagram() {
 
         {/* The same four shells, as a read-down legend keyed by chapter. */}
         <ol className="grid gap-[var(--space-2)]">
-          {SHELLS.map((shell, index) => (
+          {SHELLS.map((shell) => (
             <li
               key={shell.code}
               className="grid grid-cols-[auto,1fr] items-baseline gap-x-[var(--space-3)] gap-y-[var(--space-1)] border-2 border-[var(--border-default)] bg-[var(--surface-raised)] p-[var(--space-3)]"
@@ -116,8 +119,8 @@ export function NestingDiagram() {
                 aria-hidden="true"
                 className="grid h-[1.75rem] w-[1.75rem] place-items-center border-2 border-[var(--border-strong)] font-mono text-[length:var(--text-sm)] font-black leading-none"
                 style={{
-                  background: index === 0 ? 'var(--brand-primary)' : 'var(--surface-base)',
-                  color: index === 0 ? 'var(--brand-primary-foreground)' : 'var(--text-primary)',
+                  background: shell.isWedge ? 'var(--brand-primary)' : 'var(--surface-base)',
+                  color: shell.isWedge ? 'var(--brand-primary-foreground)' : 'var(--text-primary)',
                 }}
               >
                 {shell.chapter}
@@ -133,8 +136,8 @@ export function NestingDiagram() {
                   <span
                     className="inline-flex items-center border border-[var(--border-default)] px-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]"
                     style={{
-                      color: shell.state === 'the wedge' ? 'var(--brand-primary)' : 'var(--text-muted)',
-                      borderColor: shell.state === 'the wedge' ? 'var(--brand-primary)' : 'var(--border-default)',
+                      color: shell.isWedge ? 'var(--brand-primary)' : 'var(--text-muted)',
+                      borderColor: shell.isWedge ? 'var(--brand-primary)' : 'var(--border-default)',
                     }}
                   >
                     {shell.state}
@@ -158,9 +161,9 @@ export function NestingDiagram() {
         kernel for the machine, legibility for the operator, the economy for the
         market between operators. The middle shell —{' '}
         <span className="font-black text-[var(--text-primary)]">legibility, the wedge</span>{' '}
-        — is the product a solo developer pays for today. The economy is the
-        horizon you reach only once you sail out to trade. Pull out an inner
-        shell and every shell outside it collapses.
+        — is the product a solo developer pays for today. The economy is
+        specified in the papers and targeted for 2027. Pull out an inner shell
+        and every shell outside it collapses.
       </figcaption>
     </figure>
   )

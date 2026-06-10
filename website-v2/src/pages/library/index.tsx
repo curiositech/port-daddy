@@ -336,7 +336,7 @@ export default function LibraryPage() {
             <div className="space-y-[var(--space-5)]">
               <div className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.4fr)_minmax(0,0.6fr)] lg:items-end">
                 <div className="space-y-[var(--space-3)]">
-                  <PanelEyebrow>The horizon — only once you trade</PanelEyebrow>
+                  <PanelEyebrow>Specified · targeted 2027</PanelEyebrow>
                   <PanelTitle as="h2" size="display" className="max-w-[16ch]">
                     A market for trustworthy agents.
                   </PanelTitle>

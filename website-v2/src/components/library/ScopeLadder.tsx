@@ -1,80 +1,101 @@
-import { GitBranch, Cpu, Network, Store, ArrowRight } from 'lucide-react'
+import { Cpu, Bot, Eye, Store, ArrowRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 /**
- * The scope ladder — the small idea and the big idea in one figure. Port Daddy
- * governs a widening scope: it starts inside one repo, grows to the whole
- * machine, reaches across the network to other operators, and lands on an
- * agentic economy. This is ADR-0048's L0→L3 stack told as *scope*, the version
- * a first-time reader gets in one glance.
+ * The scope ladder — the small idea and the big idea in one figure, and the four
+ * layers of ADR-0048 told as widening scope. The four panels ARE L0→L3: the
+ * machine the daemon governs, the swarm it coordinates, the operator who reads
+ * it, and the market it grows into. Each carries a real build state and an ETA,
+ * never a mood word.
  *
- * Themed entirely through `var(--token)` so it switches light/dark with the
- * page by construction. All text ≥13px; scope codes are uppercase + tracked.
- * Two layouts: the default reads as a left-to-right ladder on wide screens and
- * stacks on narrow; `compact` drops the long descriptions for hero use.
+ * Themed entirely through `var(--token)` so it switches light/dark with the page
+ * by construction. All text ≥13px; layer codes are uppercase + tracked. Two
+ * layouts: default reads left-to-right on wide screens and stacks on narrow;
+ * `compact` tightens it for hero use.
  */
 
-interface Scope {
+type Stage = 'shipped' | 'building' | 'specified'
+
+interface Layer {
   icon: LucideIcon
-  /** The widening unit Port Daddy governs, in the reader's words. */
-  scope: string
   /** The layer code from ADR-0048. */
   code: string
-  /** The one thing Port Daddy does at this scope. */
+  /** The scope this layer governs, in the reader's words. */
+  scope: string
+  /** Who it is for — the load-bearing column from ADR-0048. */
+  whom: string
+  /** The one thing Port Daddy does at this layer. */
   does: string
-  /** Build state: shipped today, or the horizon. */
-  state: 'now' | 'soon'
-  /** A concrete primitive/command, for the non-compact layout. */
-  primitive: string
+  stage: Stage
+  /** A concrete build state + date. Never "horizon" or "soon". */
+  eta: string
 }
 
-const SCOPES: Scope[] = [
-  {
-    icon: GitBranch,
-    scope: 'Your repo',
-    code: 'L0 · L1',
-    does: 'One writer at a time. No two agents clobber the same file.',
-    state: 'now',
-    primitive: 'claims · sessions · locks',
-  },
+const LAYERS: Layer[] = [
   {
     icon: Cpu,
-    scope: 'Your computer',
-    code: 'L2',
-    does: 'The whole swarm as one picture you can zoom into — never a wall of diffs.',
-    state: 'now',
-    primitive: 'legibility · attention · review',
+    code: 'L0',
+    scope: 'Your machine',
+    whom: 'the daemon',
+    does: 'A local daemon decides what is true — one writer, one durable file, no consensus.',
+    stage: 'shipped',
+    eta: 'Shipped',
   },
   {
-    icon: Network,
-    scope: 'The network',
-    code: 'L3 federation',
-    does: 'Your fleet and someone else’s co-work across machines, no shared blockchain.',
-    state: 'soon',
-    primitive: 'capability transfer · revocation',
+    icon: Bot,
+    code: 'L1',
+    scope: 'Your swarm',
+    whom: 'the agents',
+    does: 'Agents claim before they touch, so the second one to reach a file waits instead of clobbering it.',
+    stage: 'shipped',
+    eta: 'Shipped',
+  },
+  {
+    icon: Eye,
+    code: 'L2',
+    scope: 'Your cockpit',
+    whom: 'the operator',
+    does: 'The whole swarm as one picture you zoom into — down to the real diff, never a wall of them.',
+    stage: 'building',
+    eta: 'In progress · 2026',
   },
   {
     icon: Store,
-    scope: 'The economy',
-    code: 'L3 market',
-    does: 'Rent a trustworthy agent from someone you never met, settled on one ledger.',
-    state: 'soon',
-    primitive: 'reputation · escrow · bond ledger',
+    code: 'L3',
+    scope: 'The market',
+    whom: 'operators who never met',
+    does: 'Rent a trustworthy agent across machines, settled on one ledger that cannot lose your money.',
+    stage: 'specified',
+    eta: 'Specified · 2027',
   },
 ]
 
-function StateTag({ state }: { state: Scope['state'] }) {
-  const isNow = state === 'now'
+const STAGE_STYLE: Record<Stage, { fg: string; border: string; bg: string }> = {
+  shipped: {
+    fg: 'var(--brand-primary)',
+    border: 'var(--brand-primary)',
+    bg: 'color-mix(in srgb, var(--brand-primary) 8%, transparent)',
+  },
+  building: {
+    fg: 'var(--brand-accent)',
+    border: 'var(--brand-accent)',
+    bg: 'color-mix(in srgb, var(--brand-accent) 8%, transparent)',
+  },
+  specified: {
+    fg: 'var(--text-muted)',
+    border: 'var(--border-default)',
+    bg: 'transparent',
+  },
+}
+
+function EtaTag({ stage, eta }: { stage: Stage; eta: string }) {
+  const s = STAGE_STYLE[stage]
   return (
     <span
       className="inline-flex items-center border px-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]"
-      style={{
-        color: isNow ? 'var(--brand-primary)' : 'var(--text-muted)',
-        borderColor: isNow ? 'var(--brand-primary)' : 'var(--border-default)',
-        background: isNow ? 'color-mix(in srgb, var(--brand-primary) 8%, transparent)' : 'transparent',
-      }}
+      style={{ color: s.fg, borderColor: s.border, background: s.bg }}
     >
-      {isNow ? 'works today' : 'the horizon'}
+      {eta}
     </span>
   )
 }
@@ -89,43 +110,44 @@ export function ScopeLadder({ compact = false }: { compact?: boolean }) {
             : 'grid items-stretch gap-[var(--space-3)] p-[var(--space-5)] lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr]'
         }
       >
-        {SCOPES.map((scopeItem, index) => {
-          const Icon = scopeItem.icon
+        {LAYERS.map((layer, index) => {
+          const Icon = layer.icon
+          const s = STAGE_STYLE[layer.stage]
           return (
-            <li key={scopeItem.scope} className="contents">
+            <li key={layer.code} className="contents">
               <div className="grid content-start gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]">
                 <div className="flex items-center justify-between gap-[var(--space-2)]">
                   <span
                     aria-hidden="true"
                     className="grid h-[2.25rem] w-[2.25rem] place-items-center border-2 border-[var(--border-strong)]"
                     style={{
-                      background: scopeItem.state === 'now' ? 'var(--brand-primary)' : 'var(--surface-base)',
-                      color: scopeItem.state === 'now' ? 'var(--brand-primary-foreground)' : 'var(--text-primary)',
+                      background: layer.stage === 'shipped' ? 'var(--brand-primary)' : 'var(--surface-base)',
+                      color: layer.stage === 'shipped' ? 'var(--brand-primary-foreground)' : s.fg,
                     }}
                   >
                     <Icon size={18} strokeWidth={2.25} />
                   </span>
-                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-                    {scopeItem.code}
+                  <span className="font-mono text-[length:var(--text-sm)] font-black text-[var(--brand-primary)]">
+                    {layer.code}
                   </span>
                 </div>
-                <p className="font-display text-[length:var(--text-lg)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
-                  {scopeItem.scope}
-                </p>
+                <div className="space-y-[var(--space-1)]">
+                  <p className="font-display text-[length:var(--text-lg)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
+                    {layer.scope}
+                  </p>
+                  <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                    for {layer.whom}
+                  </p>
+                </div>
                 <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  {scopeItem.does}
+                  {layer.does}
                 </p>
-                <div className="flex flex-wrap items-center gap-[var(--space-2)] pt-[var(--space-1)]">
-                  <StateTag state={scopeItem.state} />
-                  {!compact ? (
-                    <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                      {scopeItem.primitive}
-                    </span>
-                  ) : null}
+                <div className="pt-[var(--space-1)]">
+                  <EtaTag stage={layer.stage} eta={layer.eta} />
                 </div>
               </div>
-              {/* The widening arrow between scopes — only in the wide ladder. */}
-              {!compact && index < SCOPES.length - 1 ? (
+              {/* The widening arrow between layers — only in the wide ladder. */}
+              {!compact && index < LAYERS.length - 1 ? (
                 <div aria-hidden="true" className="hidden items-center justify-center self-center text-[var(--brand-primary)] lg:flex">
                   <ArrowRight size={20} strokeWidth={2.5} />
                 </div>
@@ -135,10 +157,10 @@ export function ScopeLadder({ compact = false }: { compact?: boolean }) {
         })}
       </ol>
       <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-        One tool, a widening scope. It earns its place inside a single repo today
-        — and the same authority grows, machine by machine, into a market for
-        agent labor. <span className="font-black text-[var(--text-primary)]">The
-        left two work now.</span> The right two are where it is heading.
+        Four layers, one widening scope. The daemon and the swarm coordination run
+        today. The operator&rsquo;s cockpit is the work of 2026. The cross-machine
+        market is specified in the papers and targeted for 2027 — dated, not
+        promised.
       </figcaption>
     </figure>
   )
