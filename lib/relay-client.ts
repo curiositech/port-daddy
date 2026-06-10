@@ -83,13 +83,20 @@ async function verifyServerHelloSig(
   nonceC: string,
   keyToVerifyWith: string   // MUST be the pinned key, never serverHello.relay_pub_key
 ): Promise<boolean> {
-  const { verifyAsync } = await import('@noble/ed25519');
+  // Use Node's built-in crypto (Ed25519 supported since Node 15, stable in Node 20).
+  // @noble/ed25519 is only installed in apps/relay — do not import it here.
+  const { createPublicKey, verify: cryptoVerify } = await import('node:crypto');
   const msg = createHash('sha256')
     .update([serverHello.session_id, nonceC, serverHello.nonce_s].join('|'))
     .digest();
-  const pubKeyBytes = Buffer.from(keyToVerifyWith, 'hex');
+  const pubKeyDer = Buffer.concat([
+    // DER prefix for Ed25519 SubjectPublicKeyInfo (RFC 8410)
+    Buffer.from('302a300506032b6570032100', 'hex'),
+    Buffer.from(keyToVerifyWith, 'hex'),
+  ]);
+  const pubKey = createPublicKey({ key: pubKeyDer, format: 'der', type: 'spki' });
   const sigBytes = Buffer.from(serverHello.sig, 'hex');
-  return verifyAsync(sigBytes, msg, pubKeyBytes);
+  return cryptoVerify(null, msg, pubKey, sigBytes);
 }
 
 const RELAY_PINNED_KEY_CONFIG_KEY = 'relay_pinned_pub_key';
