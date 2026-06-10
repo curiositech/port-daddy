@@ -98,13 +98,13 @@ function InvariantRow({ result }: { result: InvariantResult }) {
             >
               {result.severity}
             </span>
-            <span className="text-xs font-mono" style={{ color: 'var(--pd-dim)' }}>{result.class}</span>
+            <span className="text-sm font-mono" style={{ color: 'var(--pd-dim)' }}>{result.class}</span>
           </div>
           {hasExtra && (
             <button
               type="button"
               onClick={() => setOpen(v => !v)}
-              className="mt-1 text-xs font-semibold"
+              className="mt-1 text-sm font-semibold"
               style={{ color: 'var(--pd-accent)' }}
             >
               {open ? 'Hide detail' : 'Show detail'}
@@ -113,11 +113,11 @@ function InvariantRow({ result }: { result: InvariantResult }) {
           {open && (
             <div className="mt-2 space-y-1">
               {result.detail && (
-                <div className="text-xs" style={{ color: 'var(--pd-muted)' }}>{result.detail}</div>
+                <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>{result.detail}</div>
               )}
               {result.fix && (
                 <div
-                  className="rounded-md px-2 py-1.5 text-xs font-mono"
+                  className="rounded-md px-2 py-1.5 text-sm font-mono"
                   style={{ backgroundColor: 'var(--pd-code)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
                 >
                   fix: {result.fix}
@@ -225,7 +225,7 @@ export default function CoastGuardPanel() {
 
       {/* CLI note */}
       <div
-        className="px-4 py-2 flex items-start gap-2 flex-shrink-0 text-xs"
+        className="px-4 py-2 flex items-start gap-2 flex-shrink-0 text-sm"
         style={{ backgroundColor: 'var(--pd-surface)', borderBottom: '1px solid var(--pd-border)' }}
       >
         <Terminal size={13} className="shrink-0 mt-0.5" style={{ color: 'var(--pd-dim)' }} />
@@ -244,7 +244,7 @@ export default function CoastGuardPanel() {
 
       {/* Counts strip */}
       {report && (
-        <div className="px-4 py-2 flex flex-wrap gap-3 text-xs flex-shrink-0" style={{ borderBottom: '1px solid var(--pd-border)' }}>
+        <div className="px-4 py-2 flex flex-wrap gap-3 text-sm flex-shrink-0" style={{ borderBottom: '1px solid var(--pd-border)' }}>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--pd-success)' }} />
             <span style={{ color: 'var(--pd-muted)' }}>{passCount} passed</span>

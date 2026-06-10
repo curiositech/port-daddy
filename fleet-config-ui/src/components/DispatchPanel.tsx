@@ -190,7 +190,7 @@ function DispatchRow({ dispatch: d, busy, onAccept, onReject, onCancel }: Dispat
           <div className="text-sm font-semibold leading-snug" style={{ color: 'var(--pd-text)' }}>
             {d.goal}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--pd-dim)' }}>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm" style={{ color: 'var(--pd-dim)' }}>
             <span className="font-mono">{d.slug}</span>
             <span>·</span>
             <RelativeTime ts={d.createdAt} />
@@ -214,12 +214,12 @@ function DispatchRow({ dispatch: d, busy, onAccept, onReject, onCancel }: Dispat
             )}
           </div>
           {d.errorMessage && (
-            <div className="mt-1 text-xs font-semibold" style={{ color: 'var(--pd-accent)' }}>
+            <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-accent)' }}>
               {d.errorMessage}
             </div>
           )}
           {d.rejectReason && (
-            <div className="mt-1 text-xs" style={{ color: 'var(--pd-muted)' }}>
+            <div className="mt-1 text-sm" style={{ color: 'var(--pd-muted)' }}>
               Rejected: {d.rejectReason}
             </div>
           )}
@@ -268,7 +268,7 @@ function DispatchRow({ dispatch: d, busy, onAccept, onReject, onCancel }: Dispat
                     value={rejectDraft}
                     onChange={e => setRejectDraft(e.target.value)}
                     placeholder="Reason (required)"
-                    className="flex-1 min-w-0 rounded-md px-2 py-1.5 text-xs"
+                    className="flex-1 min-w-0 rounded-md px-2 py-1.5 text-sm"
                     style={{
                       backgroundColor: 'var(--pd-surface)',
                       color: 'var(--pd-text)',
@@ -293,7 +293,7 @@ function DispatchRow({ dispatch: d, busy, onAccept, onReject, onCancel }: Dispat
                   </button>
                   <button
                     onClick={() => { setRejecting(false); setRejectDraft(''); }}
-                    className="rounded-md px-2 py-1.5 text-xs"
+                    className="rounded-md px-2 py-1.5 text-sm"
                     style={{ color: 'var(--pd-muted)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-bg)' }}
                   >
                     Cancel
@@ -449,7 +449,7 @@ export default function DispatchPanel() {
               This usually means the daemon binary predates the dispatch queue feature.
             </div>
             <div
-              className="mt-2 rounded-md px-3 py-2 text-xs font-mono"
+              className="mt-2 rounded-md px-3 py-2 text-sm font-mono"
               style={{ backgroundColor: 'var(--pd-code)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' }}
             >
               Use the CLI instead: <span style={{ color: 'var(--pd-accent)' }}>pd dispatch propose "your goal"</span>
@@ -512,7 +512,7 @@ export default function DispatchPanel() {
           </button>
         </div>
         {proposeError && (
-          <div className="mt-2 text-xs font-semibold" style={{ color: 'var(--pd-accent)' }}>{proposeError}</div>
+          <div className="mt-2 text-sm font-semibold" style={{ color: 'var(--pd-accent)' }}>{proposeError}</div>
         )}
       </div>
 
@@ -557,7 +557,7 @@ export default function DispatchPanel() {
         {!loading && dispatches.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>No dispatches</div>
-            <div className="mt-1 text-xs" style={{ color: 'var(--pd-dim)' }}>
+            <div className="mt-1 text-sm" style={{ color: 'var(--pd-dim)' }}>
               Propose a goal above — the dispatch queue will route it to an agent.
             </div>
           </div>

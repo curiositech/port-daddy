@@ -91,7 +91,7 @@ function MessageBubble({ msg }: { msg: ChannelMessage }) {
 
   return (
     <div className="rounded-md border px-3 py-2" style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}>
-      <div className="flex items-center justify-between gap-2 text-xs" style={{ color: 'var(--pd-dim)' }}>
+      <div className="flex items-center justify-between gap-2 text-sm" style={{ color: 'var(--pd-dim)' }}>
         <span className="font-mono">{msg.sender ?? 'unknown'}</span>
         <span><RelativeTime ts={msg.createdAt} /></span>
       </div>
@@ -105,7 +105,7 @@ function MessageBubble({ msg }: { msg: ChannelMessage }) {
         <button
           type="button"
           onClick={() => setOpen(v => !v)}
-          className="mt-1 text-xs font-semibold"
+          className="mt-1 text-sm font-semibold"
           style={{ color: 'var(--pd-accent)' }}
         >
           {open ? 'Collapse' : 'Expand'}
@@ -152,7 +152,7 @@ function ChannelList({ channels, selected, onSelect, query, onQueryChange, loadi
           value={query}
           onChange={e => onQueryChange(e.target.value)}
           placeholder="Filter channels…"
-          className="w-full rounded-md px-2 py-1.5 text-xs"
+          className="w-full rounded-md px-2 py-1.5 text-sm"
           style={{
             backgroundColor: 'var(--pd-bg)',
             color: 'var(--pd-text)',
@@ -162,13 +162,13 @@ function ChannelList({ channels, selected, onSelect, query, onQueryChange, loadi
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
         {error && (
-          <div className="px-3 py-2 text-xs" style={{ color: 'var(--pd-accent)' }}>{error}</div>
+          <div className="px-3 py-2 text-sm" style={{ color: 'var(--pd-accent)' }}>{error}</div>
         )}
         {filtered.map(ch => (
           <button
             key={ch.channel}
             onClick={() => onSelect(ch.channel)}
-            className="w-full text-left px-3 py-2 flex items-center justify-between gap-2 text-xs"
+            className="w-full text-left px-3 py-2 flex items-center justify-between gap-2 text-sm"
             style={{
               backgroundColor: selected === ch.channel ? 'var(--pd-surface)' : 'transparent',
               color: selected === ch.channel ? 'var(--pd-text)' : 'var(--pd-muted)',
@@ -182,7 +182,7 @@ function ChannelList({ channels, selected, onSelect, query, onQueryChange, loadi
           </button>
         ))}
         {filtered.length === 0 && !error && !loading && (
-          <div className="px-3 py-4 text-xs text-center" style={{ color: 'var(--pd-dim)' }}>
+          <div className="px-3 py-4 text-sm text-center" style={{ color: 'var(--pd-dim)' }}>
             {query ? 'No match' : 'No channels'}
           </div>
         )}
@@ -277,7 +277,7 @@ function ChannelView({ channel }: ChannelViewProps) {
         {!loading && messages.length === 0 && !error && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>No messages</div>
-            <div className="mt-1 text-xs" style={{ color: 'var(--pd-dim)' }}>Publish below to send the first message.</div>
+            <div className="mt-1 text-sm" style={{ color: 'var(--pd-dim)' }}>Publish below to send the first message.</div>
           </div>
         )}
         {messages.map(msg => (
@@ -289,10 +289,10 @@ function ChannelView({ channel }: ChannelViewProps) {
       {/* Publish bar */}
       <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}>
         {publishError && (
-          <div className="mb-2 text-xs font-semibold" style={{ color: 'var(--pd-accent)' }}>{publishError}</div>
+          <div className="mb-2 text-sm font-semibold" style={{ color: 'var(--pd-accent)' }}>{publishError}</div>
         )}
         {publishOk && (
-          <div className="mb-2 text-xs font-semibold" style={{ color: 'var(--pd-success)' }}>Published.</div>
+          <div className="mb-2 text-sm font-semibold" style={{ color: 'var(--pd-success)' }}>Published.</div>
         )}
         <div className="flex gap-2">
           <input
@@ -321,7 +321,7 @@ function ChannelView({ channel }: ChannelViewProps) {
             {publishing ? 'Sending…' : 'Send'}
           </button>
         </div>
-        <div className="mt-1 text-xs" style={{ color: 'var(--pd-dim)' }}>
+        <div className="mt-1 text-sm" style={{ color: 'var(--pd-dim)' }}>
           Valid JSON is sent as a JSON object; anything else as a plain string. Enter to send.
         </div>
       </div>
@@ -336,7 +336,7 @@ function NoChannelSelected() {
     <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
       <ChevronRight size={28} style={{ color: 'var(--pd-dim)' }} />
       <div className="mt-3 text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>Select a channel</div>
-      <div className="mt-1 text-xs max-w-[220px]" style={{ color: 'var(--pd-dim)' }}>
+      <div className="mt-1 text-sm max-w-[220px]" style={{ color: 'var(--pd-dim)' }}>
         Pick a channel on the left to browse messages and publish.
       </div>
     </div>

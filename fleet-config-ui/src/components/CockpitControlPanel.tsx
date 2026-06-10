@@ -122,36 +122,40 @@ function MissionRow({ mission }: { mission: MissionCard }) {
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-mono" style={{ color: 'var(--pd-dim)' }}>
         <span className="inline-flex items-center gap-1">
           <Compass size={11} />
-          <span className="text-xs">{mission.source}</span>
+          <span className="text-sm">{mission.source}</span>
         </span>
-        {mission.prUrl && (
-          <a
-            href={mission.prUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-xs hover:underline"
-            style={{ color: 'var(--pd-accent)' }}
-          >
-            <ExternalLink size={10} />
-            {mission.prNumber ? `#${mission.prNumber}` : 'PR'}
-          </a>
-        )}
+        {(() => {
+          // Guard against javascript:/data: XSS — only allow https?:// URLs
+          const safeHref = mission.prUrl && /^https?:\/\//i.test(mission.prUrl) ? mission.prUrl : undefined;
+          return safeHref ? (
+            <a
+              href={safeHref}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1 text-sm hover:underline"
+              style={{ color: 'var(--pd-accent)' }}
+            >
+              <ExternalLink size={10} />
+              {mission.prNumber ? `#${mission.prNumber}` : 'PR'}
+            </a>
+          ) : null;
+        })()}
         {mission.branch && (
-          <span className="text-xs font-mono rounded border px-1.5 py-0.5" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)', color: 'var(--pd-muted)' }}>
+          <span className="text-sm font-mono rounded border px-1.5 py-0.5" style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)', color: 'var(--pd-muted)' }}>
             {mission.branch}
           </span>
         )}
         {fileChips.map(file => (
           <span
             key={file}
-            className="text-xs rounded border px-1.5 py-0.5"
+            className="text-sm rounded border px-1.5 py-0.5"
             style={{ backgroundColor: 'var(--pd-surface)', borderColor: 'var(--pd-border)', color: 'var(--pd-muted)' }}
           >
             {file}
           </span>
         ))}
         {overflowFiles > 0 && (
-          <span className="text-xs" style={{ color: 'var(--pd-dim)' }}>+{overflowFiles} more</span>
+          <span className="text-sm" style={{ color: 'var(--pd-dim)' }}>+{overflowFiles} more</span>
         )}
       </div>
 
@@ -321,7 +325,7 @@ export default function CockpitControlPanel({ projectDir }: Props) {
             <div className="mt-3 text-sm font-semibold" style={{ color: 'var(--pd-muted)' }}>
               {filter === 'all' ? 'No missions yet' : `No ${filter} missions`}
             </div>
-            <div className="mt-1 text-xs max-w-[260px]" style={{ color: 'var(--pd-dim)' }}>
+            <div className="mt-1 text-sm max-w-[260px]" style={{ color: 'var(--pd-dim)' }}>
               Missions are surfaced from the cartographer's roadmap analysis. Dispatch a goal to start one.
             </div>
           </div>
