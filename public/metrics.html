@@ -58,8 +58,8 @@
       --sandstone-3:  #b8a884;
       --ebony:        #1e1b18;
       --ebony-2:      #2a2622;
-      --cinnabar:     #cc3d2e;
-      --rust:         #8b3a2e;
+      --danger:       #bf2f2f;
+      --rust:         #8c2418;
       --teal:         #4a7d7a;
       --olive:        #6b7d4a;
       --gold:         #b89545;
@@ -134,7 +134,7 @@
       color: var(--rust);
       margin-top: 2px;
     }
-    .tile.warn .value { color: var(--cinnabar); }
+    .tile.warn .value { color: var(--danger); }
     .tile.ok   .value { color: var(--olive); }
 
     .panel {
@@ -193,7 +193,7 @@
       font-variant-numeric: tabular-nums;
     }
     tr:hover { background: rgba(255, 245, 220, 0.4); }
-    tr.hot td.num { color: var(--cinnabar); font-weight: 600; }
+    tr.hot td.num { color: var(--danger); font-weight: 600; }
 
     .pill {
       display: inline-block;
@@ -205,12 +205,12 @@
     .pill.GET    { background: rgba(74, 125, 122, 0.18); color: var(--teal); }
     .pill.POST   { background: rgba(184, 149, 69, 0.22); color: var(--gold); }
     .pill.PUT    { background: rgba(184, 149, 69, 0.22); color: var(--gold); }
-    .pill.DELETE { background: rgba(204, 61, 46, 0.18);  color: var(--cinnabar); }
+    .pill.DELETE { background: rgba(204, 61, 46, 0.18);  color: var(--danger); }
     .pill.PATCH  { background: rgba(107, 125, 74, 0.18); color: var(--olive); }
     .pill.s2xx { background: rgba(107, 125, 74, 0.18); color: var(--olive); }
     .pill.s3xx { background: rgba(184, 149, 69, 0.22); color: var(--gold); }
-    .pill.s4xx { background: rgba(204, 61, 46, 0.18); color: var(--cinnabar); }
-    .pill.s5xx { background: var(--cinnabar); color: var(--paper); }
+    .pill.s4xx { background: rgba(204, 61, 46, 0.18); color: var(--danger); }
+    .pill.s5xx { background: var(--danger); color: var(--paper); }
 
     .heatmap {
       display: grid;
@@ -255,7 +255,7 @@
       text-align: right;
       font-variant-numeric: tabular-nums;
       font-weight: 600;
-      color: var(--cinnabar);
+      color: var(--danger);
     }
     .outlier-row .ts {
       font-size: 10px;
@@ -286,7 +286,7 @@
       opacity: 0.7;
     }
     .annot-row.commit  .kind { color: var(--teal); }
-    .annot-row.tag     .kind { color: var(--cinnabar); font-weight: 600; }
+    .annot-row.tag     .kind { color: var(--danger); font-weight: 600; }
     .annot-row.note    .kind { color: var(--gold); }
     .annot-row.session_purpose .kind { color: var(--olive); }
     .annot-row .title { font-weight: 600; }
@@ -319,7 +319,7 @@
     }
     .skill-status.fresh { color: var(--olive); }
     .skill-status.drift { color: var(--gold); }
-    .skill-status.error { color: var(--cinnabar); }
+    .skill-status.error { color: var(--danger); }
 
     .chart-wrap { position: relative; height: 320px; }
     .chart-wrap.tall { height: 380px; }
@@ -367,7 +367,7 @@
       --pd-warning-border: #866137;
       --pd-info-border: #426579;
 
-      --cinnabar: var(--pd-accent);
+      --danger: var(--pd-accent);
       --rust: var(--pd-accent);
       --teal: var(--pd-info);
       --olive: var(--pd-success);
@@ -575,7 +575,7 @@
       </h2>
       <div class="chart-wrap tall"><canvas id="chart-latency"></canvas></div>
       <div class="legend">
-        <span><span class="swatch" style="background: var(--cinnabar)"></span> tag (release)</span>
+        <span><span class="swatch" style="background: var(--danger)"></span> tag (release)</span>
         <span><span class="swatch" style="background: var(--teal)"></span> commit</span>
         <span><span class="swatch" style="background: var(--gold)"></span> pd note</span>
         <span><span class="swatch" style="background: var(--olive)"></span> session purpose</span>

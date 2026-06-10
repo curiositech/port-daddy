@@ -53,7 +53,7 @@ export function PortDaddyMark({ size = 120, className, style }: Props) {
           <circle cx="478" cy="254" r="52" />
           <circle cx="686" cy="436" r="52" />
         </g>
-        <circle cx="742" cy="720" r="70" fill="#CC3D2E" stroke="#0D0C0B" strokeWidth="28" />
+        <circle cx="742" cy="720" r="70" fill="#A66F00" stroke="#0D0C0B" strokeWidth="28" />
         <circle cx="742" cy="720" r="23" fill="#D8C9AE" />
         <path d="M868 112v800" stroke="#D8C9AE" strokeWidth="18" />
         <path d="M112 868h800" stroke="#D8C9AE" strokeWidth="18" />

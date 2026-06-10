@@ -248,4 +248,4 @@ Components to source or reference from 21st.dev for the new pages:
 6. **Testimonial cards** — when we have user quotes
 7. **Pricing table** — when monetization launches
 
-All should use the Harbor Heritage design system: sandstone, cinnabar, teal, warm ebony, neumorphic shadows, CVA variants.
+All should use the canonical design system (website-v2/src/styles/tokens.semantic.css; see BRAND.md): cobalt, teal, amber on cream, flat 2px borders (no neumorphic shadows), CVA variants.

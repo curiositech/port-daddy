@@ -12,6 +12,9 @@ Load only the file that matches the decision in front of you.
   binaries and mirrors into tool-specific installs.
 - `cli-reference.md`: CLI command families, alias coverage, generated detail
   page expectations, and claim-aware git staging doctrine.
+- `git-discipline.md`: the load-bearing git rule set (ADR 0001) — stage only
+  what you claimed, keep the coordination guard green, and the post-mortem
+  that triggered it.
 - `api-reference.md`: full HTTP API reference for the daemon (every endpoint
   with curl examples and response shapes).
 - `sdk-reference.md`: JavaScript/TypeScript SDK methods, typed responses,

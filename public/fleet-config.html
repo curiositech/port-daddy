@@ -14,7 +14,7 @@
             ebony:    '#1E1B18',
             ebony2:   '#2A2622',
             ebony3:   '#343028',
-            cinnabar: '#CC3D2E',
+            danger:   '#BF2F2F',
             sand:     '#D4C5A9',
             sandmid:  '#A8967E',
             sandlow:  '#6B5D4F',
@@ -109,7 +109,7 @@
       color: #A8967E;
     }
     .nav-item:hover  { background: rgba(212,197,169,0.06); color: #D4C5A9; }
-    .nav-item.active { background: rgba(204,61,46,0.15); color: #D4C5A9; border-left: 2px solid #CC3D2E; }
+    .nav-item.active { background: rgba(191,47,47,0.15); color: #D4C5A9; border-left: 2px solid #BF2F2F; }
 
     /* Outcome badges */
     .badge-clean    { background: rgba(34,197,94,0.12);  border: 1px solid rgba(34,197,94,0.3);  color: #4ade80; }
@@ -155,12 +155,12 @@
   <header class="flex items-center justify-between px-5 py-3 border-b border-sand/10 flex-shrink-0" style="background: #161310;">
     <div class="flex items-center gap-3">
       <!-- Antenna icon (SVG, no emoji) -->
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CC3D2E" stroke-width="1.8" stroke-linecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#BF2F2F" stroke-width="1.8" stroke-linecap="round">
         <path d="M12 20V12"/>
         <path d="M5 7.5A9 9 0 0 1 19 7.5"/>
         <path d="M2 4.5A14 14 0 0 1 22 4.5"/>
         <path d="M8 10.5a5 5 0 0 1 8 0"/>
-        <circle cx="12" cy="12" r="1.5" fill="#CC3D2E" stroke="none"/>
+        <circle cx="12" cy="12" r="1.5" fill="#BF2F2F" stroke="none"/>
       </svg>
       <span class="text-sand font-semibold text-sm tracking-wide">PortDaddy</span>
       <span class="text-sandlow text-xs">:</span>
@@ -225,12 +225,12 @@
                   <!-- Radio icon with status -->
                   <div class="relative flex-shrink-0 mt-0.5">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round"
-                         :stroke="agent.isActive ? '#CC3D2E' : '#6B5D4F'">
+                         :stroke="agent.isActive ? '#BF2F2F' : '#6B5D4F'">
                       <path d="M12 20V12"/>
                       <path d="M6 8.5A8 8 0 0 1 18 8.5"/>
                       <path d="M3 5.5A13 13 0 0 1 21 5.5"/>
                       <path d="M9 11A4 4 0 0 1 15 11"/>
-                      <circle cx="12" cy="12" r="1.5" :fill="agent.isActive ? '#CC3D2E' : '#6B5D4F'" stroke="none"/>
+                      <circle cx="12" cy="12" r="1.5" :fill="agent.isActive ? '#BF2F2F' : '#6B5D4F'" stroke="none"/>
                     </svg>
                     <div x-show="agent.isActive" class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-500">
                       <div class="w-2 h-2 rounded-full bg-green-500 animate-ping opacity-60 absolute inset-0"></div>
@@ -443,7 +443,7 @@
             <!-- gardener → git:committed (fires via commit in loop) -->
             <!-- qa ← git:committed -->
             <path d="M130,190 C180,190 210,165 238,163" stroke="rgba(204,61,46,0.25)" stroke-width="1.5" fill="none"/>
-            <path d="M130,190 C180,190 210,165 238,163" stroke="#CC3D2E" stroke-width="1.5" fill="none" class="beam-path" style="animation-delay:0.8s"/>
+            <path d="M130,190 C180,190 210,165 238,163" stroke="#BF2F2F" stroke-width="1.5" fill="none" class="beam-path" style="animation-delay:0.8s"/>
 
             <!-- qa → qa:findings -->
             <path d="M130,190 C180,190 210,245 238,250" stroke="rgba(239,68,68,0.2)" stroke-width="1.5" fill="none"/>
@@ -555,7 +555,7 @@
             <div class="flex flex-col gap-1.5">
               <label class="text-xs text-sandlow uppercase tracking-wider">Agent Name</label>
               <input type="text" x-model="editingAgent.name"
-                     class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-cinnabar/50"
+                     class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-danger/50"
                      @input="markDirty()" />
             </div>
 
@@ -564,12 +564,12 @@
               <label class="text-xs text-sandlow uppercase tracking-wider">Trigger</label>
               <div class="flex gap-2">
                 <select x-model="editingAgent.triggerType" @change="markDirty()"
-                        class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-cinnabar/50">
+                        class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-danger/50">
                   <option value="event">Event (channel)</option>
                   <option value="schedule">Schedule (cron)</option>
                 </select>
                 <input type="text" x-model="editingAgent.trigger" @input="markDirty()"
-                       class="flex-1 bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-cinnabar/50"
+                       class="flex-1 bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-danger/50"
                        :placeholder="editingAgent.triggerType === 'schedule' ? '*/10 * * * *' : 'git:committed'" />
               </div>
             </div>
@@ -587,13 +587,13 @@
                 <label class="text-xs text-sandlow uppercase tracking-wider">On Success</label>
                 <input type="text" x-model="editingAgent.onSuccess" @input="markDirty()"
                        placeholder="publish qa:clean"
-                       class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-cinnabar/50"/>
+                       class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-danger/50"/>
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-xs text-sandlow uppercase tracking-wider">On Failure</label>
                 <input type="text" x-model="editingAgent.onFailure" @input="markDirty()"
                        placeholder="publish qa:findings"
-                       class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-cinnabar/50"/>
+                       class="bg-ebony3 border border-sand/15 rounded-md px-3 py-2 text-sand text-sm font-mono focus:outline-none focus:border-danger/50"/>
               </div>
             </div>
 
@@ -616,7 +616,7 @@
 
         <template x-if="!editingAgent">
           <div class="text-sandlow text-sm py-16 text-center">
-            Select an agent from the <button @click="activeTab='agents'" class="text-cinnabar hover:underline">Agents tab</button> and click Configure.
+            Select an agent from the <button @click="activeTab='agents'" class="text-danger hover:underline">Agents tab</button> and click Configure.
           </div>
         </template>
       </div>

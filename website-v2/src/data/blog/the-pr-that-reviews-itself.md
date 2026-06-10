@@ -57,7 +57,7 @@ flowchart LR
   Contradict --> You
 
   style Fleet fill:#fef3c7,stroke:#003fb8,color:#1f1f1f
-  style You fill:#fef3c7,stroke:#CC3D2E,color:#1f1f1f
+  style You fill:#fef3c7,stroke:#BF2F2F,color:#1f1f1f
 ```
 
 The fan-out is the whole shape of it. One push, six critics, one operator at the bottom of the funnel reading the consolidated case.
@@ -251,7 +251,7 @@ flowchart TB
   Reason --> Learn["Ship adjusts priors for this repo"]
   Push --> Fleet
 
-  style Op fill:#fef3c7,stroke:#CC3D2E,color:#1f1f1f
+  style Op fill:#fef3c7,stroke:#BF2F2F,color:#1f1f1f
   style Learn fill:#fef3c7,stroke:#003fb8,color:#1f1f1f
 ```
 

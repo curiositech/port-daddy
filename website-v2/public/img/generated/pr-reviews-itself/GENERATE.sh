@@ -4,7 +4,7 @@
 #
 # Per ~/.claude/CLAUDE.md: nano-banana is the default. Sequential only.
 # Style: flat Swiss-modern blueprint. Cream paper #f2eee6, cobalt #003fb8,
-# deep teal/sage #006b5f, near-black #1f1f1f, cinnabar accent #CC3D2E.
+# deep teal/sage #006b5f, near-black #1f1f1f,
 #
 # Usage:
 #   export GEMINI_API_KEY=$(grep "^GEMINI_API_KEY=" \
@@ -15,7 +15,7 @@ set -euo pipefail
 
 OUT=/Users/erichowens/coding/port-daddy/website-v2/public/img/generated/pr-reviews-itself
 SCRIPT=~/.claude/skills/nano-banana-image-gen/scripts/generate.py
-STYLE="Flat Swiss-modern blueprint editorial illustration. Cream paper background #f2eee6 with crisp cobalt blue line work #003fb8, deep teal-sage accents #006b5f, near-black #1f1f1f outlines, cinnabar red accent #CC3D2E used sparingly. Hand-lettered italic serif labels. Architectural blueprint hatching in negative space. No painterly gradients, no photo realism — flat lines, like a Tufte diagram crossed with a children's-book kitchen scene."
+STYLE="Flat Swiss-modern blueprint editorial illustration. Cream paper background #f2eee6 with crisp cobalt blue line work #003fb8, deep teal-sage accents #006b5f, near-black #1f1f1f outlines. Hand-lettered italic serif labels. Architectural blueprint hatching in negative space. No painterly gradients, no photo realism — flat lines, like a Tufte diagram crossed with a children's-book kitchen scene."
 
 gen () {
   local name="$1"; local scene="$2"; local aspect="${3:-1:1}"
