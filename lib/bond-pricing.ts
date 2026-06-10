@@ -15,12 +15,22 @@
  *                                    // creates adverse selection.
  *
  * This module computes the `bondUsd` that callers pass in, moving Port
- * Daddy from Fixed Bonds to a **complexity-proportional** pricer. It is
- * the closed-form floor from the Bonded Commons paper, Chapter VI
+ * Daddy from Fixed Bonds to a **complexity-proportional** pricer. It
+ * implements §6.5's closed form from the Bonded Commons paper, Chapter VI
  * (`website-v2/public/whitepaper/agent-transactions-whitepaper.tex`,
  * §6.5 "Pricing the Bond"):
  *
  *     π(F, p) = c · (1 + α · s(F)) · (1 − ρ(p))           [§6.5, line 778]
+ *
+ * EXTENDED beyond the paper's bare closed form with two PD-specific pieces:
+ *   (a) a DURATION multiplier from the mechanism-design skill (the bond/card
+ *       TTL tree — longer access ⇒ more time to do damage), which the paper's
+ *       §6.5 formula does not carry; and
+ *   (b) a reputation SURCHARGE side (a factor > 1 for unknown/failing
+ *       principals) that extends past the paper's discount-only domain
+ *       ρ(p) ∈ [0, r_max]. The paper models ρ as a pure discount; we keep that
+ *       (1 − ρ) discount AND add an explicit > 1 multiplier to screen adverse
+ *       selection. So this is the §6.5 closed form, not a verbatim transcription.
  *
  * where
  *   • c     — cleanup cost lower bound (Theorem "Cleanup Lower Bound",
@@ -85,6 +95,24 @@
  *     ledger spine"). Until it lands, `reputation` is an OPTIONAL hook; when
  *     absent, ρ = 0 (par, 1.0× — no free ride). This module never invents a
  *     history it cannot read.
+ *
+ * ════════════════════════════════════════════════════════════════════════
+ *  CONTAINMENT CAVEAT — priceBond PRICES scope, it does NOT ENFORCE it
+ * ════════════════════════════════════════════════════════════════════════
+ * priceBond PRICES the capability card it is handed; it does NOT enforce
+ * scope. The `cap[]` it classifies is ADVISORY — nothing here gates what the
+ * spawned agent can actually do. Hard containment today is ONLY the Coast
+ * Guard (lib/coast-guard.ts: crown-jewel read-deny + egress cap), and the
+ * Coast Guard does NOT write-gate by priced tier — a `read`-priced and a
+ * `critical`-priced agent face the same Coast-Guard-bounded blast radius.
+ *
+ * So the IC property `bond > max_gain_from_sabotage` holds against the
+ * COAST-GUARD-bounded blast radius, NOT against the priced tier. A bond
+ * priced `critical` buys deterrence proportional to what the Coast Guard
+ * still lets through, not proportional to a tier the runtime enforces.
+ * Bond↔Coast-Guard write-gating (slash/refuse a write the bond did not cover)
+ * is the UNBUILT Layer-1 enforcement, tracked separately. Read every quote
+ * from this module as "priced against the Coast Guard's blast radius."
  *
  * ════════════════════════════════════════════════════════════════════════
  *  PURITY
@@ -217,6 +245,18 @@ export function touchesCrownJewel(
 
 // ─── Capability classification ──────────────────────────────────────────────────
 
+// ⚠ CAP VOCABULARY IS FORWARD-LOOKING. Today's REAL ADR-0027 capability grammar
+// (the emitter is lib/cap-attenuation-monitor.ts) only implements these caps:
+//   spawn:agent, backend:<id>, presence:write, chan:pub:*, chan:sub:*.
+// The OTHER caps this classifier recognizes — db:write, deploy, prod:*, secret:*,
+// fs:* — are the PAPER's conceptual grammar (§6.5.2 s(F) signals) and are NOT YET
+// emitted by any real harbor card. Consequence: a real priced spawn today carries
+// only `spawn:agent` + `backend:<id>`, so it classifies as `full` (25×) every time
+// — the critical/write/read tiers below are exercised by tests and by upstream
+// callers that pass an explicit `scopeTier`, but will not fire from live cap[]
+// strings until the grammar grows. This classifier is wired ahead of the grammar
+// on purpose (so pricing is correct the day those caps land), not dead code.
+
 /**
  * Classify a harbor-card capability set + claimed paths into a consequential
  * scope tier. The TIER is the MAX over every signal — scope only widens, it
@@ -255,7 +295,7 @@ export function classifyScope(
     if (
       cap === '*' || cap === 'full' || cap === 'admin' ||
       cap === 'spawn:agent' || cap.startsWith('spawn:') ||
-      cap === 'backend:*' || cap.startsWith('backend:*')
+      cap === 'backend:*'
     ) {
       raise('full');
       continue;
@@ -317,14 +357,22 @@ export const R_MAX = 0.5;
  * The reputation FACTOR (1 − ρ) and a human-readable discount fraction ρ,
  * from a principal's history. This is the discrete tier table from the
  * mechanism-design skill (Reputation-Adjusted Bonds), expressed as the
- * paper's multiplicative (1 − ρ) form and clamped to r_max:
+ * paper's multiplicative (1 − ρ) form and clamped to r_max. The predicates
+ * are evaluated TOP-DOWN and the boundaries are STRICT exactly as the code
+ * below uses them (failureRate compared with `>` / `<`, never `≥` / `≤`):
  *
- *   unknown principal (no record)        → 2.0× surcharge   (factor 2.0)
- *   1–5 completions, 0 failures          → 1.5× surcharge   (factor 1.5)
- *   5–20 completions, <10% failure       → par              (factor 1.0)
- *   20–50 completions, <5% failure       → 0.7× (ρ = 0.30)  (factor 0.7)
- *   50+ completions, <3% failure         → 0.5× (ρ = 0.50)  (factor 0.5, = r_max)
- *   ANY principal with >20% failure rate → 3.0× penalty     (factor 3.0)
+ *   no record (unknown principal)            → 2.0× surcharge   (factor 2.0)
+ *   failureRate > 0.2 (any completions)      → 3.0× penalty     (factor 3.0)
+ *   completions ≥ 50 AND failureRate < 0.03  → 0.5× (ρ = 0.50)  (factor 0.5, = r_max)
+ *   completions ≥ 20 AND failureRate < 0.05  → 0.7× (ρ = 0.30)  (factor 0.7)
+ *   completions ≥ 5  AND failureRate < 0.1   → par              (factor 1.0)
+ *   completions ≥ 1  AND failureRate == 0    → 1.5× surcharge   (factor 1.5)
+ *   anything else (thin/mixed history)       → 1.5× surcharge   (factor 1.5)
+ *
+ * Boundary cases follow from the strict comparisons: failureRate of EXACTLY
+ * 0.05 fails `< 0.05` and falls to par (1.0×); failureRate of EXACTLY 0.2
+ * fails `> 0.2` and (with no qualifying discount band) lands at the 1.5×
+ * surcharge, not the 3.0× penalty. completions thresholds are inclusive (`≥`).
  *
  * NOTE the asymmetry: the discount side is clamped to (1 − r_max) = 0.5× so a
  * deep history can never trivialize the bond. The SURCHARGE side (>1.0×) is
@@ -438,6 +486,18 @@ export interface PricedBondBreakdown {
   floorApplied: boolean;
   /** True iff the ceiling clamped the bond down. */
   ceilingApplied: boolean;
+  /**
+   * True iff the ceiling clamp pushed the quoted bond BELOW the per-tier
+   * deterrence floor — i.e. `ceilingApplied && bondUsd < floorUsd`. This is the
+   * ceiling-breaches-floor signal: the operator's affordability ceiling sat
+   * under the tier's reconstruction-cost floor, so the IC invariant
+   * `bond > max_gain_from_sabotage` does NOT hold for this quote. The pricer
+   * does NOT throw or re-clamp (the operator may have deliberately set a low
+   * ceiling); it flags, and the CALLER decides whether to escrow, refuse, or
+   * narrow scope. Consuming `bondUsd` while `belowFloor === true` escrows an
+   * UNDERCOLLATERALIZED bond.
+   */
+  belowFloor: boolean;
 }
 
 export interface PricedBond {
@@ -464,6 +524,15 @@ export interface PricedBond {
  * dominates everything (a ceiling below a critical floor is the operator
  * explicitly choosing not to authorize that work at that price — the caller
  * sees ceilingApplied and the still-high floorUsd and can refuse).
+ *
+ * ⚠ CEILING-BREACHES-FLOOR. When `ceilingUsd < floorMultiple(tier)·c`, the
+ * ceiling clamp wins and `bondUsd` lands BELOW the tier's deterrence floor —
+ * the IC invariant `bond > max_gain_from_sabotage` does NOT hold for that
+ * quote. `priceBond` does NOT throw or re-clamp (the low ceiling may be
+ * deliberate); it sets `breakdown.belowFloor = true`. A caller that escrows
+ * `bondUsd` WITHOUT checking `breakdown.belowFloor` can escrow an
+ * UNDERCOLLATERALIZED bond. Inspect `breakdown.belowFloor` and refuse, narrow
+ * scope, or raise the ceiling before escrowing.
  *
  * @example
  *   const { bondUsd, breakdown } = priceBond({
@@ -543,6 +612,12 @@ export function priceBond(input: PriceBondInput): PricedBond {
     ceilingApplied = true;
   }
 
+  // ── CEILING-BREACHES-FLOOR: a ceiling below the tier floor wins the clamp and
+  // lands the bond UNDER its deterrence floor — the IC invariant no longer holds.
+  // We do not re-clamp or throw (the operator may have set the low ceiling on
+  // purpose); we surface the breach so the caller can refuse / narrow scope.
+  const belowFloor = ceilingApplied && finalUsd < floorUsd;
+
   return {
     bondUsd: finalUsd,
     breakdown: {
@@ -555,6 +630,7 @@ export function priceBond(input: PriceBondInput): PricedBond {
       floorUsd,
       floorApplied,
       ceilingApplied,
+      belowFloor,
     },
   };
 }

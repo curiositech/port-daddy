@@ -314,6 +314,35 @@ describe('GATE: ceiling clamp — bondUsd never exceeds ceilingUsd', () => {
     expect(priced.breakdown.floorUsd).toBe(50);
   });
 
+  test('belowFloor flags a ceiling that breaches the deterrence floor (undercollateralized)', () => {
+    // critical/db:write tier, ceiling far below the 50 floor → bond lands under floor.
+    const breached = priceBond({
+      baseUsd: BASE,
+      capabilities: ['db:write'], // critical floor = 10 × 5 = 50
+      ttlMs: 5 * MIN,
+      ceilingUsd: 10,             // ceiling << floor → IC invariant breaks
+    });
+    expect(breached.bondUsd).toBe(10);
+    expect(breached.breakdown.floorUsd).toBe(50);
+    expect(breached.breakdown.belowFloor).toBe(true); // the load-bearing signal
+    // The flag is the ONLY change — the clamp math is untouched (no re-clamp, no throw).
+    expect(breached.breakdown.ceilingApplied).toBe(true);
+
+    // Normal path: a critical bond with no ceiling clears its floor → not below floor.
+    const ok = priceBond({ baseUsd: BASE, capabilities: ['db:write'], ttlMs: 5 * MIN });
+    expect(ok.bondUsd).toBe(50);
+    expect(ok.breakdown.belowFloor).toBe(false);
+
+    // A ceiling AT/ABOVE the floor does not breach it either.
+    const atFloor = priceBond({
+      baseUsd: BASE,
+      capabilities: ['db:write'],
+      ttlMs: 5 * MIN,
+      ceilingUsd: 50, // == floor → clamps the curve but does not breach the floor
+    });
+    expect(atFloor.breakdown.belowFloor).toBe(false);
+  });
+
   test('no ceiling → bond is unclamped above', () => {
     const priced = priceBond({ baseUsd: BASE, capabilities: ['db:write'], ttlMs: 5 * MIN });
     expect(priced.breakdown.ceilingApplied).toBe(false);
@@ -388,6 +417,11 @@ describe('reputationFactor (principal history → (1 − ρ) factor)', () => {
 });
 
 // ── closed-form reconciliation: matches the paper's worked example shape ───────
+// NOTE on honesty: this reconciles §6.5's closed form `c·(1 + α·s)·(1 − ρ)`,
+// EXTENDED with (a) a duration multiplier from the mechanism-design skill and
+// (b) a reputation *surcharge* side (factor > 1) beyond the paper's discount-only
+// ρ ∈ [0, r_max] domain. The breakdown therefore multiplies base × scopeMultiplier
+// × durationMultiplier × reputationFactor — the §6.5 form plus those two PD extensions.
 describe('closed-form reconciliation π(F,p) = c·(1 + α·s)·(1 − ρ)', () => {
   test('breakdown multiplies back to the pre-floor curve', () => {
     const priced = priceBond({
