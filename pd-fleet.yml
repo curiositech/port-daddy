@@ -591,6 +591,70 @@ fleet:
       identity: "{project}:fleet:snipe"
       telos: "Propose a reusable skill-architect skill that makes the PR's kind of work easier."
 
+    # ─── Meta-ships (added 2026-06-10) ──────────────────────────────
+    #
+    # These ships care for the fleet itself. Tender monitors health and
+    # generates the operator's suggestion queue. Shipwright drafts new
+    # ship definitions when ADRs or features lack coverage.
+    # Full contracts in fleet/ships/tender.md and fleet/ships/shipwright.md.
+
+    tender:
+      # Hourly fleet health monitor. Assesses every ship's status, writes
+      # .fleet/tender-manifest.json, updates pinned Fleet Health Board issue,
+      # and POSTs suggestions to /fleet/suggestions/write.
+      schedule: "0 */1 * * *"
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      singleton: true
+      cooldown_ms: 1800000
+      allowedTools: "Read,Bash(pd*),Bash(gh*),Bash(git log*)"
+      prompt: |
+        Read fleet/ships/tender.md for the full quality bar and process.
+
+        Quick protocol:
+        1. Read pd-fleet.yml to inventory all ships.
+        2. Run `pd transcripts --json --limit 100` for recent run history.
+        3. Run `gh issue list --label 'fleet:*' --state open --json number,title,labels`
+           for open ship-generated issues.
+        4. Assess each ship: healthy / dormant / blind / noisy / degraded / skill-starved.
+        5. POST suggestions to http://localhost:9876/fleet/suggestions/write for non-healthy ships.
+        6. Write .fleet/tender-manifest.json with health scores and top suggestions.
+        7. Edit (or create) the pinned [Fleet Health Board] GitHub issue.
+
+        Output: .fleet/tender-manifest.json + GitHub issue edit. No PRs. No commits.
+      identity: "{project}:fleet:tender"
+      telos: "Know the health of every ship. Surface what needs operator attention."
+
+    shipwright:
+      # Watches ADRs + feature manifest + ship contracts for coverage gaps.
+      # Drafts new ship contracts as draft PRs. Never edits pd-fleet.yml directly.
+      trigger: git:committed
+      cooldown_ms: 3600000
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Write(fleet/ships/*),Bash(gh*),Bash(git log*),Bash(git diff*),Bash(git checkout*),Bash(git push*)"
+      prompt: |
+        Read fleet/ships/shipwright.md for the full quality bar and process.
+
+        Quick protocol:
+        1. Run `git log --oneline -3` and `git diff HEAD~1 HEAD -- docs/adr/ features.manifest.json fleet/ships/`
+           to identify what changed.
+        2. Map the change to existing fleet ships (read pd-fleet.yml agents + fleet/ships/*.md).
+        3. If a coverage gap exists, draft fleet/ships/<feature-slug>.md.
+        4. Open a draft PR for review — never edit pd-fleet.yml directly.
+        5. If an existing ship's prompt is stale relative to the new ADR, open a separate draft PR.
+
+        Output: draft PRs with label fleet:shipwright. No direct pd-fleet.yml edits.
+      identity: "{project}:fleet:shipwright"
+      telos: "Every feature should have a ship watching over it. Find the gaps. Draft the ships."
+
     # ─── New ships (added 2026-05-20) ────────────────────────────────
     #
     # Behavior contracts live in fleet/ships/*.md. Prompts here are

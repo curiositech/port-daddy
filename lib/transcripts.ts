@@ -128,6 +128,42 @@ export interface TranscriptListener {
   (event: { type: 'start' | 'update' | 'end'; entry: TranscriptEntry }): void;
 }
 
+export interface ShipRegistryEntry {
+  id: string;
+  source?: 'project' | 'user' | 'system';
+  fleet_file?: string | null;
+  last_run_at?: number | null;
+  last_run_status?: string | null;
+  last_finding_count?: number | null;
+  health_score?: number | null;
+  tender_recommendation?: string | null;
+  paused_at?: number | null;
+  paused_reason?: string | null;
+  updated_at?: number;
+}
+
+export interface FleetSuggestion {
+  id: string;
+  ship_name: string;
+  reason: string;
+  suggested_at: number;
+  priority: number;
+  action: 'run-now' | 'adjust-cooldown' | 'pause' | 'review-prompt' | 'graft-skill';
+  dismissed_at?: number | null;
+  approved_at?: number | null;
+}
+
+export interface SkillApplication {
+  id: string;
+  transcript_id: string;
+  ship_name: string;
+  skill_id: string;
+  skill_version?: string | null;
+  outcome: 'improved' | 'neutral' | 'degraded' | 'unknown';
+  context?: string | null;
+  applied_at: number;
+}
+
 export interface TranscriptsModule {
   /** Open or create a transcript row for a starting ship-run. Returns id. */
   start(input: TranscriptStartInput): string;
@@ -153,6 +189,20 @@ export interface TranscriptsModule {
   subscribe(listener: TranscriptListener): () => void;
   /** Emit an event to all subscribers (called internally; exposed for tests). */
   emit(event: { type: 'start' | 'update' | 'end'; entry: TranscriptEntry }): void;
+  // Ship registry
+  upsertShipRegistry(entry: ShipRegistryEntry): void;
+  listShipRegistry(): ShipRegistryEntry[];
+  getShipRegistryEntry(id: string): ShipRegistryEntry | null;
+  // Fleet suggestions
+  writeSuggestion(s: Omit<FleetSuggestion, 'id' | 'suggested_at'>): string;
+  writeSuggestionIfNew(s: Omit<FleetSuggestion, 'id' | 'suggested_at'>): string | null;
+  listSuggestions(opts?: { includeActioned?: boolean }): FleetSuggestion[];
+  approveSuggestion(id: string): boolean;
+  dismissSuggestion(id: string): boolean;
+  // Skill outcomes
+  recordSkillApplication(app: Omit<SkillApplication, 'id'>): string;
+  listSkillApplications(opts?: { ship_name?: string; skill_id?: string; limit?: number }): SkillApplication[];
+  scoreSkillOutcome(id: string, outcome: SkillApplication['outcome']): boolean;
 }
 
 export interface TranscriptStartInput {
@@ -262,6 +312,63 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_fleet_transcript_outputs_transcript
      ON fleet_transcript_outputs(transcript_id, seq)`,
+
+  // ── Fleet ship registry ────────────────────────────────────────────
+  // One row per declared ship, maintained by Tender. Source of truth for
+  // the suggestibility layer: health scores, recommendations, pause state.
+  `CREATE TABLE IF NOT EXISTS fleet_ship_registry (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL DEFAULT 'project',
+    fleet_file TEXT,
+    last_run_at INTEGER,
+    last_run_status TEXT,
+    last_finding_count INTEGER,
+    health_score REAL,
+    tender_recommendation TEXT,
+    paused_at INTEGER,
+    paused_reason TEXT,
+    updated_at INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_fleet_ship_registry_updated
+     ON fleet_ship_registry(updated_at DESC)`,
+
+  // ── Fleet suggestions ──────────────────────────────────────────────
+  // Tender writes rows here; operator drains them via /fleet/suggestions
+  // and pd suggest. Approved rows become one-shot fleet runs.
+  `CREATE TABLE IF NOT EXISTS fleet_suggestions (
+    id TEXT PRIMARY KEY,
+    ship_name TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    suggested_at INTEGER NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 5,
+    action TEXT NOT NULL DEFAULT 'run-now',
+    dismissed_at INTEGER,
+    approved_at INTEGER,
+    CHECK (action IN ('run-now','adjust-cooldown','pause','review-prompt','graft-skill'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_fleet_suggestions_pending
+     ON fleet_suggestions(priority DESC, suggested_at DESC)
+     WHERE dismissed_at IS NULL AND approved_at IS NULL`,
+
+  // ── Skill application outcomes ─────────────────────────────────────
+  // One row per skill grafted per transcript run. Outcome starts as
+  // 'unknown'; Tender retrospectively scores by comparing finding rate
+  // and cost to the ship's baseline.
+  `CREATE TABLE IF NOT EXISTS skill_applications (
+    id TEXT PRIMARY KEY,
+    transcript_id TEXT NOT NULL REFERENCES fleet_transcripts(id) ON DELETE CASCADE,
+    ship_name TEXT NOT NULL,
+    skill_id TEXT NOT NULL,
+    skill_version TEXT,
+    outcome TEXT NOT NULL DEFAULT 'unknown',
+    context TEXT,
+    applied_at INTEGER NOT NULL,
+    CHECK (outcome IN ('improved','neutral','degraded','unknown'))
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_skill_applications_transcript
+     ON skill_applications(transcript_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_skill_applications_ship_skill
+     ON skill_applications(ship_name, skill_id, applied_at DESC)`,
 ];
 
 const FLEET_TRANSCRIPT_RUNTIME_COLUMNS: Array<{ name: string; definition: string }> = [
@@ -812,6 +919,119 @@ export function createTranscripts(
       archived += 1;
     }
     return { archived };
+  // ==========================================================================
+  // Ship registry
+  // ==========================================================================
+
+  function upsertShipRegistry(entry: ShipRegistryEntry): void {
+    db.prepare(`
+      INSERT INTO fleet_ship_registry
+        (id, source, fleet_file, last_run_at, last_run_status, last_finding_count,
+         health_score, tender_recommendation, paused_at, paused_reason, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        source = excluded.source,
+        fleet_file = excluded.fleet_file,
+        last_run_at = COALESCE(excluded.last_run_at, fleet_ship_registry.last_run_at),
+        last_run_status = COALESCE(excluded.last_run_status, fleet_ship_registry.last_run_status),
+        last_finding_count = COALESCE(excluded.last_finding_count, fleet_ship_registry.last_finding_count),
+        health_score = COALESCE(excluded.health_score, fleet_ship_registry.health_score),
+        tender_recommendation = excluded.tender_recommendation,
+        paused_at = excluded.paused_at,
+        paused_reason = excluded.paused_reason,
+        updated_at = excluded.updated_at
+    `).run(
+      entry.id, entry.source ?? 'project', entry.fleet_file ?? null,
+      entry.last_run_at ?? null, entry.last_run_status ?? null,
+      entry.last_finding_count ?? null, entry.health_score ?? null,
+      entry.tender_recommendation ?? null, entry.paused_at ?? null,
+      entry.paused_reason ?? null, now(),
+    );
+  }
+
+  function listShipRegistry(): ShipRegistryEntry[] {
+    return db.prepare(`SELECT * FROM fleet_ship_registry ORDER BY id`).all() as ShipRegistryEntry[];
+  }
+
+  function getShipRegistryEntry(id: string): ShipRegistryEntry | null {
+    return db.prepare(`SELECT * FROM fleet_ship_registry WHERE id = ?`).get(id) as ShipRegistryEntry | null;
+  }
+
+  // ==========================================================================
+  // Fleet suggestions
+  // ==========================================================================
+
+  function writeSuggestion(s: Omit<FleetSuggestion, 'id' | 'suggested_at'>): string {
+    const id = `sug_${Math.random().toString(36).slice(2, 10)}`;
+    db.prepare(`
+      INSERT INTO fleet_suggestions (id, ship_name, reason, suggested_at, priority, action)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, s.ship_name, s.reason, now(), s.priority ?? 5, s.action ?? 'run-now');
+    return id;
+  }
+
+  function listSuggestions(opts: { includeActioned?: boolean } = {}): FleetSuggestion[] {
+    const where = opts.includeActioned ? '' : 'WHERE dismissed_at IS NULL AND approved_at IS NULL';
+    return db.prepare(`
+      SELECT * FROM fleet_suggestions ${where}
+      ORDER BY priority DESC, suggested_at DESC
+    `).all() as FleetSuggestion[];
+  }
+
+  function approveSuggestion(id: string): boolean {
+    const result = db.prepare(`UPDATE fleet_suggestions SET approved_at = ? WHERE id = ?`).run(now(), id);
+    return result.changes > 0;
+  }
+
+  function dismissSuggestion(id: string): boolean {
+    const result = db.prepare(`UPDATE fleet_suggestions SET dismissed_at = ? WHERE id = ?`).run(now(), id);
+    return result.changes > 0;
+  }
+
+  // Deduplicate: if an unactioned suggestion already exists for this ship+action, skip.
+  function writeSuggestionIfNew(s: Omit<FleetSuggestion, 'id' | 'suggested_at'>): string | null {
+    const existing = db.prepare(`
+      SELECT id FROM fleet_suggestions
+      WHERE ship_name = ? AND action = ? AND dismissed_at IS NULL AND approved_at IS NULL
+    `).get(s.ship_name, s.action);
+    if (existing) return null;
+    return writeSuggestion(s);
+  }
+
+  // ==========================================================================
+  // Skill application outcomes
+  // ==========================================================================
+
+  function recordSkillApplication(app: Omit<SkillApplication, 'id'>): string {
+    const id = `ska_${Math.random().toString(36).slice(2, 10)}`;
+    db.prepare(`
+      INSERT INTO skill_applications
+        (id, transcript_id, ship_name, skill_id, skill_version, outcome, context, applied_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, app.transcript_id, app.ship_name, app.skill_id,
+      app.skill_version ?? null, app.outcome ?? 'unknown',
+      app.context ?? null, app.applied_at ?? now(),
+    );
+    return id;
+  }
+
+  function listSkillApplications(opts: { ship_name?: string; skill_id?: string; limit?: number } = {}): SkillApplication[] {
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+    if (opts.ship_name) { conditions.push('ship_name = ?'); params.push(opts.ship_name); }
+    if (opts.skill_id) { conditions.push('skill_id = ?'); params.push(opts.skill_id); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const limit = opts.limit ?? 200;
+    return db.prepare(`
+      SELECT * FROM skill_applications ${where}
+      ORDER BY applied_at DESC LIMIT ?
+    `).all(...params, limit) as SkillApplication[];
+  }
+
+  function scoreSkillOutcome(id: string, outcome: SkillApplication['outcome']): boolean {
+    const result = db.prepare(`UPDATE skill_applications SET outcome = ? WHERE id = ?`).run(outcome, id);
+    return result.changes > 0;
   }
 
   return {
@@ -827,6 +1047,20 @@ export function createTranscripts(
     subscribe,
     emit,
     backfillArchive,
+    // Ship registry
+    upsertShipRegistry,
+    listShipRegistry,
+    getShipRegistryEntry,
+    // Suggestions
+    writeSuggestion,
+    writeSuggestionIfNew,
+    listSuggestions,
+    approveSuggestion,
+    dismissSuggestion,
+    // Skill outcomes
+    recordSkillApplication,
+    listSkillApplications,
+    scoreSkillOutcome,
   };
 }
 
