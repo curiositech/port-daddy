@@ -1,4 +1,4 @@
-# 0049. The Marketplace Protocol — Encrypted-Capability Trade Across Operators
+# 0051. The Marketplace Protocol — Encrypted-Capability Trade Across Operators
 
 ## Status
 
@@ -34,11 +34,11 @@ the protocol below.
 | **Harbor envelope** | `assessEnvelope(envelope, action) → verdict` — fail-closed capability boundary per action kind; `boundary` label surfaced at the crossing point | `lib/harbor-envelope.ts`; ADR-0047 |
 | **Harbor cards / tokens** | Ed25519-signed JWTs (`hv: 2`), one-hour TTL, JTI audit rows, JTI revocation; capability grammar (`chan:pub:<prefix>`, `spawn:agent`, `backend:<id>`, …) | `lib/harbor-tokens.ts`; ADR-0025/0027 |
 | **Capability attenuation monitor** | TS runtime verifier: a delegated capability set must be a strict subset of the parent's; proven in ProVerif (`harbor_card_v7_multihop_fixed.pv`) | `lib/cap-attenuation-monitor.ts`; Arbiter `CAP_ESCALATION` rule |
-| **Bonds / wallet / conservation** | `escrow → running → refund/slash`; conserving ledger: `wallet + escrow + commons = supply`; conservation property verified across 10 k random traces | `lib/bonds.ts`, `cli/commands/{bond,wallet}.ts` |
+| **Bonds / wallet / conservation** | `escrow → running → refund/slash`; conserving ledger: `wallet + escrow + commons = supply`, enforced by a runtime conservation check (TLA⁺ sketch in `docs/shipwright/FLEETCONTROL-HARDENING.md`) | `lib/bonds.ts`, `cli/commands/{bond,wallet}.ts` |
 | **Attest** | Honest self-report over registered invariants: PASS / FAIL / SKIPPED / UNKNOWN; green is conjunctive — absent attestation is not a pass | `lib/attest.ts`, `lib/attest-invariants.ts`; ADR-0045 |
 | **Tube → spawner router** | Routes work/messages between fleets; loop detection; fail-closed | `lib/tube-spawner-router.ts`, `lib/tube.ts`; ADR-0045 |
 | **Blob store** | Content-addressed local storage; hash-addressed payloads keep relay payloads small | `lib/blob.ts` |
-| **Coordination crypto** | Multi-recipient signed AEAD envelopes (AES-256-GCM + per-recipient sealed data keys) | `lib/coordination-crypto.ts`, `lib/note-encryption.ts` |
+| **Coordination crypto** | Single-fleet authenticated envelope encryption (AES-256-GCM via `encryptEnvelope`/`decryptEnvelope`, keyed per fleet/round; cross-namespace decryption refused). NOT a buyer-sealed multi-recipient primitive — see ECE below | `lib/coordination-crypto.ts` |
 | **Team secret sharing (design-only)** | `use` grant = invoke through daemon without seeing bytes; `read`/`manage` above it; per-recipient X25519 sealed data keys; Merkle audit leaves | ADR-0042 (Proposed) |
 
 ### What is proven on paper but not yet shipped
@@ -85,10 +85,12 @@ structured capability set; by the attenuation invariant (`lib/cap-attenuation-mo
 a delegated token's cap set is a strict subset of the issuer's. A buyer receives a
 token; a seller issued it; neither sees the other's broader authority.
 
-**Encrypted capability envelope (ECE)** — a **coordination-crypto** multi-recipient
-AEAD structure (`lib/coordination-crypto.ts`) that carries one capability token +
-one invocation payload. The relay sees ciphertext and routing metadata; plaintext
-never transits it. This reuses the structure ADR-0042 proposes for team secrets.
+**Encrypted capability envelope (ECE)** — a **proposed** AEAD structure that carries
+one capability token + one invocation payload, sealed to the buyer's account key so
+the relay sees only ciphertext + routing metadata. Today `lib/coordination-crypto.ts`
+provides single-fleet authenticated envelope encryption (`encryptEnvelope` /
+`decryptEnvelope`); the buyer-sealed multi-recipient variant the ECE needs is **not
+built** — it would reuse the structure ADR-0042 proposes for team secrets.
 
 **Seller daemon** — the Port Daddy daemon that holds the implementation (code, skill,
 cooperative-agent definition) and the signing keys for the capability token it offers.
@@ -225,7 +227,7 @@ seller executes it; neither ever receives the other's broader authority.
 
 ```
 Seller:
-  token = harborTokens.issue({
+  token = harborTokens.issueHarborCard({
     sub:        buyer_account_id,
     aud:        seller_harbor,
     cap:        capability_template,   // from the listing
@@ -233,7 +235,7 @@ Seller:
     // delegatedFrom: seller's own harbor card — attenuation enforced
   })
 
-  ece = coordinationCrypto.sealMultiRecipient({
+  ece = sealCapabilityEnvelope({           // PROPOSED primitive — not yet built
     payload:    { token, invocation_endpoint },
     recipients: [buyer_account_pubkey],
     aad:        { negotiation_id, float_plan_hash },
@@ -241,7 +243,7 @@ Seller:
   // relay sees: negotiation_id, sizes, routing metadata — never plaintext
 
 Buyer daemon receives ECE:
-  { token, invocation_endpoint } = coordinationCrypto.open(ece, buyer_privkey)
+  { token, invocation_endpoint } = openCapabilityEnvelope(ece, buyer_privkey)  // PROPOSED
 
   // The buyer's daemon posts to invocation_endpoint, presenting the token.
   // The harbor envelope on the seller's harbor checks the token per action:
@@ -262,11 +264,14 @@ never holds the recipe, consistent with ADR-0042 §2 `use` grant semantics.
 as a hash-linked note appended to the negotiation's evidence chain. On settlement,
 the Merkle root over those notes is the proof of work.
 
-**Build state: Proposed.** `harborTokens.issue()` and token verification are
-**Shipped** (`lib/harbor-tokens.ts`). `harbors.assertWithinEnvelope()` is **Shipped**
-(`lib/harbors.ts`, ADR-0047). `coordinationCrypto.sealMultiRecipient()` is
-**Shipped** (`lib/coordination-crypto.ts`). The cross-machine invocation endpoint,
-the relay delivery path, and per-invocation note hashing are unbuilt.
+**Build state: Proposed.** `harborTokens.issueHarborCard()` and token verification
+are **Shipped** (`lib/harbor-tokens.ts`). `harbors.assertWithinEnvelope()` is
+**Shipped** (`lib/harbors.ts`, ADR-0047). The encrypted capability envelope
+(`sealCapabilityEnvelope` / `openCapabilityEnvelope`) is **not built**:
+`lib/coordination-crypto.ts` today provides only single-fleet authenticated envelope
+encryption (`encryptEnvelope` / `decryptEnvelope`), not buyer-sealed multi-recipient
+envelopes. The cross-machine invocation endpoint, the relay delivery path, and
+per-invocation note hashing are also unbuilt.
 
 **Invocation invariants:**
 
@@ -515,6 +520,7 @@ the protocol structure.
 - `docs/shipwright/FLEETCONTROL-HARDENING.md` — TLA⁺ conservation law sketch
 - Myerson, R. and Satterthwaite, M. (1983). "Efficient mechanisms for bilateral
   trading." *Journal of Economic Theory* 29(2): 265–281.
-- Story bible: `~/coding/tmp/harbor-story-bible.md` §5 (operator edit 2026-06-10)
-- Story rewrite: `~/coding/tmp/harbor-story-v2.md` §"L3 — the market, and the
-  platform underneath it"
+- Operator context (2026-06-10 working session, not a committed source): the L3
+  "market + platform" framing this protocol formalizes — selling encrypted access to
+  skills / agents / cooperative-agent capabilities, with generational selection of
+  high-reputation configurations as the dreamed direction beyond it.
