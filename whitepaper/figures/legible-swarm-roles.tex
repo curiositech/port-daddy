@@ -1,12 +1,12 @@
 % Figure 11 — role assignment in Hobbes' author/actor frame.
 % operator = author, daemon = sovereign-actor, agents = multitude.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -24,13 +24,13 @@
 \node[role,fill=hhsand!30] (mult) at (0,-2.6)
   {\textbf{Agents = MULTITUDE}\\\emph{covenant each-with-all (L1)}\\\emph{to be bound; enforced by the daemon}};
 
-\draw[e,hhbrass] (author) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
+\draw[e,hhamber] (author) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
   {authorizes (scoped grant) $\downarrow$ \quad revokes (override) $\uparrow$} (actor);
 \draw[e,hhink] (actor) -- node[right,font=\scriptsize,text=hhink,xshift=2mm]
   {rules over $\downarrow$ \quad legible to $\uparrow$} (mult);
 
 % the covenant loop on the multitude
-\draw[e,hhpatina] ([xshift=-3mm]mult.south west) to[bend right=55]
+\draw[e,hhteal] ([xshift=-3mm]mult.south west) to[bend right=55]
   node[below,font=\scriptsize,text=hhink]{covenant among subjects}
   ([xshift=3mm]mult.south east);
 \end{tikzpicture}%

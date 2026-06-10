@@ -2,12 +2,12 @@
 % Left: a legible digest line whose every claim zooms to a verifiable artifact.
 % Right: a Potemkin tile whose summary terminates (no zoom path) — the Normalbaum.
 \providecolor{hhsand}{HTML}{E9DCC4}
-\providecolor{hhebony}{HTML}{1E1B18}
-\providecolor{hhink}{HTML}{2C2A26}
-\providecolor{hhcinnabar}{HTML}{CC3D2E}
-\providecolor{hhbrass}{HTML}{B08D57}
-\providecolor{hhpatina}{HTML}{5C7A6A}
-\providecolor{hhpaper}{HTML}{FBF7EE}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
 
 \begin{figure}[H]
 \centering
@@ -18,8 +18,8 @@
                minimum height=11mm,align=center,inner sep=4pt},
   art/.style={draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,
               minimum width=40mm,align=center,inner sep=4pt,font=\footnotesize},
-  zoom/.style={-{Latex[length=2mm]},hhpatina,thick},
-  dead/.style={-{Latex[length=2mm]},hhcinnabar,thick,dashed},
+  zoom/.style={-{Latex[length=2mm]},hhteal,thick},
+  dead/.style={-{Latex[length=2mm]},hhcobalt,thick,dashed},
 ]
 
 % ─── LEFT: legibility-with-zoom (good) ───────────────────────────────────
@@ -40,7 +40,7 @@
   \node[font=\bfseries,text=hhink] at (2.6,3.7) {Potemkin digest (Normalbaum)};
   \node[tile,fill=hhsand!30] (psum) at (2.6,2.6)
     {\textbf{all green}\\``everything is fine''};
-  \node[draw=hhcinnabar,thick,dashed,rounded corners=2pt,fill=none,
+  \node[draw=hhcobalt,thick,dashed,rounded corners=2pt,fill=none,
         minimum width=40mm,align=center,inner sep=4pt,
         font=\footnotesize,text=hhink] (void) at (2.6,0.6)
     {(paraphrased away:\\diff, test, reasoning)};
