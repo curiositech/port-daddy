@@ -28,6 +28,7 @@ const ROOT = join(import.meta.dirname, '..', '..');
 const TOOL_FEATURE_MAP = {
   // Trust / introspection
   'attest': 'attest',
+  'relay_status': 'relay',
 
   // Harbors (permission namespaces) — #199 cop-out conversion
   'list_harbors': 'harbors',
