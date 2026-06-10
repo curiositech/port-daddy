@@ -308,7 +308,8 @@ export async function handleSubscribe(
   // before the live stream opens, preventing silent event loss.
   if (fromSeq > 0) {
     const missedEvents = await env.DB.prepare(
-      `SELECT * FROM events WHERE channel = ? AND seq > ? ORDER BY seq ASC LIMIT 500`
+      `SELECT sender, channel, seq, prev_hash, this_hash, iat, ciphertext, sig
+       FROM events WHERE channel = ? AND seq > ? ORDER BY seq ASC LIMIT 500`
     ).bind(firstChannel, fromSeq).all<{
       sender: string; channel: string; seq: number; prev_hash: string; this_hash: string;
       iat: number; ciphertext: string; sig: string;
@@ -320,11 +321,10 @@ export async function handleSubscribe(
 
     // Write backfill events synchronously before handing off to DO
     const backfillPromise = (async () => {
-      for (const ev of missedEvents.results) {
-        const msg = { type: 'event', payload: JSON.stringify(ev) };
-        await writer.write(enc.encode(`data: ${JSON.stringify(msg)}
-
-`));
+      for (const row of missedEvents.results) {
+        const ev = { v: 1 as const, ...row };
+        const msg = { type: 'event' as const, payload: JSON.stringify(ev) };
+        await writer.write(enc.encode(`data: ${JSON.stringify(msg)}\n\n`));
       }
       // Pipe the DO live stream into the remainder
       const doUrl = `http://do/${doKey}?action=subscribe&session_id=${sessionId}&from_seq=${fromSeq}`;
