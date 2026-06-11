@@ -1,0 +1,92 @@
+name: Whitepaper PDF Build & Deploy
+
+# Rebuilds the published whitepaper PDFs from their LaTeX source whenever the
+# source changes, so the artifacts the website serves never drift from the
+# .tex/figures. Closes the gap that let the trilogy PDFs ship a stale June-3
+# render (retired cinnabar) eight days after the source moved to cobalt.
+#
+# Two modes:
+#   * push  -> rebuild and COMMIT any changed PDFs back to the branch, so the
+#              next deploy-website-v2 run (push to main) serves fresh files.
+#   * PR    -> DRIFT GUARD: rebuild and fail if a committed PDF differs from a
+#              fresh render, i.e. someone edited source without rebuilding.
+#
+# Builds are reproducible (scripts/build-whitepapers.sh pins SOURCE_DATE_EPOCH
+# per paper), so a byte difference means a genuine source change, not timestamp
+# noise.
+
+on:
+  push:
+    branches: [main, claude/papers-feature-branches-hb055f]
+    paths:
+      - 'website-v2/public/whitepaper/**/*.tex'
+      - 'whitepaper/**/*.tex'
+      - 'scripts/build-whitepapers.sh'
+      - '.github/workflows/whitepaper-build.yml'
+  pull_request:
+    paths:
+      - 'website-v2/public/whitepaper/**/*.tex'
+      - 'whitepaper/**/*.tex'
+      - 'scripts/build-whitepapers.sh'
+      - '.github/workflows/whitepaper-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: whitepaper-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: texlive/texlive:latest
+    steps:
+      - name: Ensure git present
+        run: command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)
+
+      - uses: actions/checkout@v4
+        with:
+          # Check out the branch tip (not the PR merge ref) so we can commit
+          # rebuilt PDFs back on push events. Full history so the build script
+          # can read per-paper commit times for reproducible dates.
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Trust the checkout dir (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build all whitepaper PDFs
+        run: bash scripts/build-whitepapers.sh
+
+      - name: Commit rebuilt PDFs (push events)
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
+            echo "PDFs already current — nothing to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website-v2/public/whitepaper/*.pdf
+          echo "Changed PDFs:"; git diff --cached --stat
+          git commit -m "build(whitepaper): regenerate PDFs from source [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Drift guard (pull requests)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
+            echo "All published PDFs match a fresh render. ✔"
+            exit 0
+          fi
+          echo "::error::Published whitepaper PDFs are stale vs their LaTeX source."
+          echo "Run scripts/build-whitepapers.sh and commit the result, or let the"
+          echo "post-merge build job regenerate them. Drift detected in:"
+          git diff --stat -- 'website-v2/public/whitepaper/*.pdf'
+          exit 1
