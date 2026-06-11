@@ -97,11 +97,11 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
-    'bench' 'demo' 'fleet' 'backend' \
+    'bench' 'demo' 'fleet' 'backend' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'daemon' 'ci-gate' 'mcp' \
@@ -188,6 +188,11 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a sortie -d 'Launch and inspect tracked mission records'
     complete -c $prog -n __pd_needs_command -a transcripts -d 'Browse fleet ship-run transcripts (list/show/cost/delete)'
     complete -c $prog -n __pd_needs_command -a transcript -d 'Alias for transcripts — view a single ship-run record'
+    complete -c $prog -n __pd_needs_command -a relay -d 'Cloud relay management — configure, exchange, status (ADR-0049)'
+    complete -c $prog -n "__pd_using_command relay" -x -a 'url status exchange' -d 'Relay subcommand'
+    complete -c $prog -n "__pd_needs_command" -a 'relay url' -d 'Show the configured relay worker URL'
+    complete -c $prog -n "__pd_needs_command" -a 'relay status' -d 'Check relay connectivity and latency'
+    complete -c $prog -n "__pd_needs_command" -a 'relay exchange' -d 'Publish/subscribe events via the relay worker'
     complete -c $prog -n __pd_needs_command -a dispatch -d 'Queue and run autonomous feature dev (ADR-0035; renames nightshift)'
     complete -c $prog -n "__pd_using_command dispatch" -x -a 'propose queue list show run review cancel help' -d 'Dispatch subcommand'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l really-run -d 'Actually spawn the autonomous agent (default is dry-run)'
@@ -391,6 +396,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command demo" -x -a 'coordination' -d 'Demo agent coordination'
     complete -c $prog -n __pd_needs_command -a fleet -d 'Manage background agent fleet'
     complete -c $prog -n __pd_needs_command -a backend -d 'List/use/cost — fleet backend route, framing, and spend'
+    complete -c $prog -n __pd_needs_command -a relay -d 'Manage cloud relay URL, status, and OIDC token exchange'
     complete -c $prog -n "__pd_using_command fleet" -x -a 'init' -d 'Create pd-fleet.yml + git hook in current project'
     complete -c $prog -n "__pd_using_command fleet" -x -a 'up' -d 'Start all fleet agents (CLI mode, terminal-attached)'
     complete -c $prog -n "__pd_using_command fleet" -x -a 'down' -d 'Stop all fleet agents'
