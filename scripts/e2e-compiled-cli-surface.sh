@@ -234,6 +234,7 @@ run_read "sortie list"       sortie       -- sortie list
 run_read "agent (usage)"     agent        -- agent
 run_read "commit (usage)"    commit       -- commit
 run_read "bench"             bench        -- bench
+run_read "benchmark (list)"  benchmark    -- benchmark list-conditions
 run_read "demo (usage)"      demo         -- demo
 run_read "with-lock (usage)" with-lock    -- with-lock
 run_read "salvage"           salvage      -- salvage
