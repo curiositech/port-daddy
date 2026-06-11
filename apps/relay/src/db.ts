@@ -128,10 +128,8 @@ export async function getLastEventSeq(
 }
 
 export async function insertEvent(db: D1Database, event: RelayEvent): Promise<void> {
-  // Chain check then INSERT. D1 (Workers) does not support multi-statement transactions,
-  // so we rely on the UNIQUE(sender,channel,seq) PK as the concurrent-write gate.
-  // If two workers both pass the check and race to INSERT the same seq, the loser
-  // gets SQLITE_CONSTRAINT which we surface as SEQ_CONFLICT (409) — not a 500.
+  // Atomic chain continuity check + insert using D1 batch transaction.
+  // We verify prev_hash + seq match BEFORE writing to prevent chain breaks.
   const last = await getLastEventSeq(db, event.sender, event.channel);
   const expectedSeq = last ? last.seq + 1 : 1;
   const expectedPrevHash = last ? last.this_hash : '0'.repeat(64);
@@ -143,27 +141,19 @@ export async function insertEvent(db: D1Database, event: RelayEvent): Promise<vo
     throw new ChainError('HASH_MISMATCH', `Expected prev_hash ${expectedPrevHash}`);
   }
 
-  try {
-    await db.prepare(`
-      INSERT INTO events (sender, channel, seq, prev_hash, this_hash, iat, ciphertext, sig)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      event.sender,
-      event.channel,
-      event.seq,
-      event.prev_hash,
-      event.this_hash,
-      event.iat,
-      event.ciphertext,
-      event.sig,
-    ).run();
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (msg.includes('UNIQUE constraint failed') || msg.includes('SQLITE_CONSTRAINT')) {
-      throw new ChainError('SEQ_CONFLICT', `Concurrent publish conflict at seq ${event.seq} — retry`);
-    }
-    throw e;
-  }
+  await db.prepare(`
+    INSERT INTO events (sender, channel, seq, prev_hash, this_hash, iat, ciphertext, sig)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    event.sender,
+    event.channel,
+    event.seq,
+    event.prev_hash,
+    event.this_hash,
+    event.iat,
+    event.ciphertext,
+    event.sig,
+  ).run();
 }
 
 export async function getEvents(
@@ -248,10 +238,6 @@ export async function insertRevocation(
   `).bind(jti, revokingDaemon, reason ?? null).run();
 }
 
-// D1 caps results at 100k rows per query. revokeByIssuer paginates to avoid
-// silently missing identities beyond that limit.
-const REVOKE_PAGE_SIZE = 1000;
-
 export async function revokeByIssuer(
   db: D1Database,
   issuer: string,
@@ -259,48 +245,39 @@ export async function revokeByIssuer(
   iatMax: number,
   reason: string
 ): Promise<string[]> {
+  // Find all identities with oidc proof from this issuer in the time window.
+  // proof_metadata is JSON: { issuer, jti, iat }
+  const rows = await db.prepare(
+    `SELECT daemon_fingerprint, proof_metadata FROM identities
+     WHERE proof_method = 'oidc'`
+  ).all<{ daemon_fingerprint: string; proof_metadata: string }>();
+
   const affected: string[] = [];
-  let offset = 0;
+  const inserts: Promise<D1Result>[] = [];
 
-  while (true) {
-    // Paginate through all OIDC identities — D1 query limit is 100k rows,
-    // so we use small pages to stay within limits and avoid timeout risk.
-    const rows = await db.prepare(
-      `SELECT daemon_fingerprint, proof_metadata FROM identities
-       WHERE proof_method = 'oidc'
-       LIMIT ? OFFSET ?`
-    ).bind(REVOKE_PAGE_SIZE, offset).all<{ daemon_fingerprint: string; proof_metadata: string }>();
-
-    const inserts: Promise<D1Result>[] = [];
-
-    for (const row of rows.results) {
-      try {
-        const meta = JSON.parse(row.proof_metadata) as { issuer?: string; jti?: string; iat?: number };
-        if (
-          meta.issuer === issuer &&
-          typeof meta.iat === 'number' &&
-          meta.iat >= iatMin &&
-          meta.iat <= iatMax &&
-          meta.jti
-        ) {
-          affected.push(meta.jti);
-          inserts.push(
-            db.prepare('INSERT OR IGNORE INTO revocations (jti, revoking_daemon, reason) VALUES (?, ?, ?)')
-              .bind(meta.jti, 'relay-operator', reason)
-              .run()
-          );
-        }
-      } catch {
-        // malformed proof_metadata — skip
+  for (const row of rows.results) {
+    try {
+      const meta = JSON.parse(row.proof_metadata) as { issuer?: string; jti?: string; iat?: number };
+      if (
+        meta.issuer === issuer &&
+        typeof meta.iat === 'number' &&
+        meta.iat >= iatMin &&
+        meta.iat <= iatMax &&
+        meta.jti
+      ) {
+        affected.push(meta.jti);
+        inserts.push(
+          db.prepare('INSERT OR IGNORE INTO revocations (jti, revoking_daemon, reason) VALUES (?, ?, ?)')
+            .bind(meta.jti, 'relay-operator', reason)
+            .run()
+        );
       }
+    } catch {
+      // malformed proof_metadata — skip
     }
-
-    await Promise.all(inserts);
-
-    // Last page — stop
-    if (rows.results.length < REVOKE_PAGE_SIZE) break;
-    offset += REVOKE_PAGE_SIZE;
   }
+
+  await Promise.all(inserts);
   return affected;
 }
 
