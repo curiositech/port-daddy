@@ -22,7 +22,7 @@ function DocsFamilyNav() {
       className="relative z-10 border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
     >
       <div className="mx-auto flex max-w-[1440px] items-center gap-[var(--space-2)] overflow-x-auto px-[var(--space-5)] py-[var(--space-3)] lg:px-[var(--space-6)]">
-        <span className="hidden shrink-0 border-r-2 border-[var(--border-strong)] pr-[var(--space-3)] text-xs font-semibold uppercase text-[var(--text-muted)] sm:inline-flex">
+        <span className="hidden shrink-0 border-r-2 border-[var(--border-strong)] pr-[var(--space-3)] text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)] sm:inline-flex">
           Docs
         </span>
         {items.map((item) => (

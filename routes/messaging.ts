@@ -58,6 +58,30 @@ interface MessagingRouteDeps {
 export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> = async (fastify, opts) => {
   const { logger, metrics, messaging } = opts.deps;
 
+  // Bearer token required when PD_WEBHOOK_FORWARD_TOKEN is set.
+  // The Cloudflare Worker sets Authorization: Bearer <token> on every forward;
+  // any POST to /msg that is missing or has a wrong token is rejected 401.
+  // Read from env per-request so the daemon can be reconfigured without restart.
+  function isValidForwardToken(authHeader: string | undefined): boolean {
+    const configured = (process.env.PD_WEBHOOK_FORWARD_TOKEN || '').trim();
+    if (!configured) return true; // token not configured → open (opt-in hardening)
+    if (!authHeader) return false;
+    // Case-insensitive scheme, collapse multiple spaces, handle leading/trailing whitespace
+    const parts = authHeader.trim().split(/\s+/);
+    const scheme = parts[0];
+    const token = parts[1];
+    if (!scheme || scheme.toLowerCase() !== 'bearer' || !token) return false;
+    // constant-time compare: walk both strings regardless of mismatch position
+    const a = configured;
+    const b = token;
+    const len = Math.max(a.length, b.length);
+    let mismatch = a.length === b.length ? 0 : 1;
+    for (let i = 0; i < len; i++) {
+      mismatch |= (i < a.length ? a.charCodeAt(i) : 0) ^ (i < b.length ? b.charCodeAt(i) : 0);
+    }
+    return mismatch === 0;
+  }
+
   function parseTruthyFlag(value: unknown): boolean {
     if (typeof value !== 'string') return false;
     return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
@@ -90,6 +114,11 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
   // POST /msg/:channel - Publish message
   fastify.post('/msg/:channel', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      if (!isValidForwardToken(request.headers.authorization)) {
+        reply.code(401);
+        return { error: 'unauthorized' };
+      }
+
       const channelValidation = validateChannel((request.params as any).channel);
       if (!channelValidation.valid) {
         reply.code(400);

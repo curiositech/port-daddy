@@ -661,6 +661,28 @@ _pd_cmd_bench() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_benchmark() {
+  local -a benchmark_subcmds
+  benchmark_subcmds=(
+    'run:run the diversity experiment (built-in sampler or --tasks file)'
+    'list-models:list available benchmark model ids'
+    'list-conditions:list fleet condition presets'
+    'report:re-render a saved results JSON'
+  )
+
+  local state
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'benchmark subcommand' benchmark_subcmds
+      ;;
+  esac
+}
+
 _pd_cmd_demo() {
   local -a demo_subcmds
   demo_subcmds=(
@@ -2028,9 +2050,11 @@ _port_daddy() {
     'down:stop all services started by up'
     # Benchmarking, Demos & Fleet
     'bench:run performance benchmarks'
+    'benchmark:multi-backend LLM diversity experiment runner'
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
     'backend:list/use/cost — fleet backend route, framing, and spend'
+    'relay:manage cloud relay URL, status, and OIDC token exchange'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'
@@ -2111,6 +2135,7 @@ _port_daddy() {
         up)                 _pd_cmd_up ;;
         down)               _pd_cmd_down ;;
         bench)              _pd_cmd_bench ;;
+        benchmark)          _pd_cmd_benchmark ;;
         demo)               _pd_cmd_demo ;;
         fleet)              _pd_cmd_fleet ;;
         s|scan)             _pd_cmd_scan ;;

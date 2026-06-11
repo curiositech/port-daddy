@@ -4132,6 +4132,21 @@ async function handleTool(
       const purpose = args.purpose as string | undefined;
       const files = Array.isArray(args.files) ? args.files as string[] : undefined;
       const workdir = args.workdir as string | undefined;
+      // workdir flows into the Coast Guard OS-sandbox profile as a `(subpath
+      // "<workdir>")` literal (lib/coast-guard.ts). A quote/backslash/newline/NUL
+      // is an SBPL-injection vector (#339); a relative path is ambiguous against
+      // the daemon cwd. Reject here too (defense-in-depth with routes/spawn.ts).
+      if (workdir !== undefined && workdir !== null) {
+        if (typeof workdir !== 'string' || !workdir.trim()) {
+          throw new Error('spawn_agent: workdir must be a non-empty string');
+        }
+        if (/["\\\n\r\0]/.test(workdir)) {
+          throw new Error('spawn_agent: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
+        }
+        if (!workdir.startsWith('/')) {
+          throw new Error('spawn_agent: workdir must be an absolute path (start with "/").');
+        }
+      }
       const timeout = args.timeout as number | undefined;
       const allowedTools = args.allowed_tools as string | undefined;
       const body: Record<string, unknown> = { backend, task, budgetUsd };

@@ -368,11 +368,15 @@ describe('spawn — harbor bond admission', () => {
         capabilities: ['spawn:agent', 'backend:ollama'],
       })
     );
+    // Bond is now scope-proportional (lib/bond-pricing.ts), not a flat 0.01:
+    // a spawn cap classifies as the `full`/amplifier tier (25×) and the
+    // default 5-min timeout is duration 1.0×, so c=0.01 → 0.01×25×1.0 = 0.25.
+    // (A caller-supplied spec.bondUsd would still win — back-compat preserved.)
     expect(bonds.escrow).toHaveBeenCalledWith(
       expect.objectContaining({
         project: 'myapp',
         agentId: result.agentId,
-        bondUsd: 0.01,
+        bondUsd: 0.25,
         harborName: 'myapp:fleet',
       })
     );

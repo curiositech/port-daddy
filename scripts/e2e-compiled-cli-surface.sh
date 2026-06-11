@@ -192,6 +192,7 @@ run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
 run_read "coast-guard status" coast-guard -- coast-guard status
+run_read "relay status"      relay       -- relay status
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
@@ -233,6 +234,7 @@ run_read "sortie list"       sortie       -- sortie list
 run_read "agent (usage)"     agent        -- agent
 run_read "commit (usage)"    commit       -- commit
 run_read "bench"             bench        -- bench
+run_read "benchmark (list)"  benchmark    -- benchmark list-conditions
 run_read "demo (usage)"      demo         -- demo
 run_read "with-lock (usage)" with-lock    -- with-lock
 run_read "salvage"           salvage      -- salvage
@@ -253,6 +255,14 @@ run_read "harbormaster status" harbormaster -- harbormaster status
 run_read "hm status"         hm           -- hm status
 run_read "review (usage)"    review       -- review
 run_read "dispatch (usage)"  dispatch     -- dispatch
+# Relay status (ADR-0049). `relay status` is a pure GET /relay/status read; the
+# mutating subforms (relay url <value>, relay exchange) are NOT run. Against the
+# scratch daemon relay is unconfigured, so it prints the "disabled" banner. If
+# the relay route is not mounted it exits non-zero WITH an error line — same
+# shape as attest/doctor above, which run_read treats as a PASS because it still
+# proves the compiled relay module loaded and ran (the dead-binary failure mode
+# is exit-non-zero with EMPTY output).
+run_read "relay status"      relay        -- relay status
 
 echo
 echo "=== MUTATING round-trips (safe against the scratch daemon) ======"

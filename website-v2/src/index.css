@@ -518,8 +518,8 @@ pre code {
     padding: 0 0 0 var(--space-3);
     border-left: 1px solid var(--border-default);
     background: transparent;
-    /* Tufte caption baseline. 13px floor, line-height generous. */
-    font-size: 0.8125rem;           /* 13px */
+    /* Tufte caption baseline. ≥14px per vision rule. */
+    font-size: 0.875rem;            /* 14px — a11y bump from 13px */
     line-height: 1.5;
   }
 

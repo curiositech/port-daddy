@@ -166,7 +166,7 @@ function SurfacePreviewFallback({
     >
       <div className="grid gap-[var(--space-3)]">
         <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-          <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
+          <span className="font-mono text-[12px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
             Surface signals
           </span>
           <span className="h-3 w-3 border-2 border-[var(--border-strong)] bg-[var(--brand-primary)]" aria-hidden="true" />
@@ -179,7 +179,7 @@ function SurfacePreviewFallback({
             key={row}
           >
             <span className="h-2 w-2 bg-[var(--brand-accent)]" aria-hidden="true" />
-            <span className="min-w-0 font-mono text-[11px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)] [overflow-wrap:anywhere]">
+            <span className="min-w-0 font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--text-primary)] [overflow-wrap:anywhere]">
               {row}
             </span>
           </div>
