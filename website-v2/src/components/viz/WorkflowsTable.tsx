@@ -30,7 +30,7 @@ export function WorkflowsTable() {
     }
   };
 
-  if (loading) return <motion.div className="p-8 text-center opacity-50 font-black uppercase tracking-widest text-[10px] font-sans">Hailing Pipelines...</motion.div>;
+  if (loading) return <motion.div className="p-8 text-center opacity-50 font-black uppercase tracking-widest text-[12px] font-sans">Hailing Pipelines...</motion.div>;
   if (error) return <motion.div className="p-8 text-center text-[var(--status-error)] font-bold font-sans">Harbor Error: {error}</motion.div>;
 
   return (
@@ -57,7 +57,7 @@ export function WorkflowsTable() {
       <motion.div className="flex-1 overflow-y-auto font-sans">
         <motion.table className="w-full text-left border-collapse font-sans">
           <motion.thead className="font-sans">
-            <motion.tr className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] border-b border-[var(--border-subtle)] font-sans">
+            <motion.tr className="text-[12px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] border-b border-[var(--border-subtle)] font-sans">
               <motion.th className="px-8 py-4 font-sans">Status</motion.th>
               <motion.th className="px-4 py-4 font-sans">Rule Name</motion.th>
               <motion.th className="px-4 py-4 font-sans">Trigger (Channel)</motion.th>

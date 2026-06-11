@@ -142,7 +142,7 @@ export function IntentModal({ isOpen, onClose }: IntentModalProps) {
 
         {/* Quick links */}
         <div className="mt-6 pt-6 border-t border-[var(--border-subtle)]">
-          <p className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-3 text-center">
+          <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] uppercase tracking-wide mb-3 text-center">
             Quick Links
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
