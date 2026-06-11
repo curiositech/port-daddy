@@ -333,6 +333,7 @@ covered uninstall; skip "uninstall" "would deregister a launchd service on the h
 covered up;        skip "up"        "would START services declared in .portdaddyrc (real child processes)"
 covered down;      skip "down"      "would stop an 'up' session (system processes)"
 covered spawn;     skip "spawn"     "would launch a real AI agent backend; bare form prints usage but exec risk — not run"
+covered benchmark; skip "benchmark" "multi-backend LLM diversity experiment runner (#346) — launches real agent backends; exec/cost risk, not run in the surface gate"
 covered watch;     skip "watch"     "blocking SSE subscriber that execs a script on every message"
 covered sub;       skip "sub"       "blocking pub/sub subscriber (subscribe/listen alias) — never terminates"
 covered subscribe; skip "subscribe" "alias of sub — blocking subscriber"
