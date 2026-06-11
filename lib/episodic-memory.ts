@@ -4,6 +4,57 @@ import { collectSemanticAliases } from './semantic-terms.js';
 import type { TupleSpace } from './tuples.js';
 import type { SemanticResolver } from './semantic-resolver.js';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Episode type taxonomy + TTLs
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Canonical episode types — open string allowed for extensibility. */
+export const EPISODE_TYPES = [
+  'finding', 'design', 'handoff', 'note',
+  'idea', 'prototype', 'plan', 'want', 'worry', 'syllogism',
+] as const;
+export type EpisodeTypeName = (typeof EPISODE_TYPES)[number];
+
+/** Time-to-live in ms per episode type. Infinity = permanent, never archived. */
+export const EPISODE_TTLS: Record<EpisodeTypeName, number> = {
+  finding:   Infinity,
+  design:    Infinity,
+  syllogism: Infinity,
+  idea:      365 * DAY,
+  prototype: 365 * DAY,
+  plan:      180 * DAY,
+  want:      90 * DAY,
+  worry:     60 * DAY,
+  handoff:   30 * DAY,
+  note:      30 * DAY,
+};
+
+/** Compute ISO expiry for a given episode type, or null for permanent types. */
+export function episodeExpiresAt(type: string): string | null {
+  const ttl = EPISODE_TTLS[type as EpisodeTypeName];
+  if (!ttl || !Number.isFinite(ttl)) return null;
+  return new Date(Date.now() + ttl).toISOString();
+}
+
+/** Map note.type → episode type. */
+export const NOTE_TYPE_TO_EPISODE: Record<string, EpisodeTypeName> = {
+  handoff: 'handoff',
+  finding: 'finding',
+  idea:    'idea',
+  design:  'design',
+  plan:    'plan',
+  want:    'want',
+  worry:   'worry',
+  prototype: 'prototype',
+  syllogism: 'syllogism',
+  note:    'note',
+  scope:   'note',
+  result:  'finding',
+  // default for unknown types
+};
+
 /**
  * Durable memory episode promoted out of transient execution history.
  */
@@ -21,6 +72,14 @@ export interface Episode {
   metadata: Record<string, unknown> | null;
   createdAt: number;
   updatedAt: number;
+  /** Worktree slug where this episode originated. */
+  worktreeId: string | null;
+  /** Git branch at time of creation. */
+  branchName: string | null;
+  /** ISO timestamp after which the custodian may archive this episode. Null = permanent. */
+  expiresAt: string | null;
+  /** ID of a blob store artifact linked to this episode (for notes > 10KB). */
+  blobId: string | null;
 }
 
 /**
@@ -52,6 +111,10 @@ export interface EpisodeInput {
   sourceType: string;
   sourceId: string;
   metadata?: Record<string, unknown> | null;
+  worktreeId?: string | null;
+  branchName?: string | null;
+  expiresAt?: string | null;
+  blobId?: string | null;
 }
 
 interface EpisodicMemoryOptions {
@@ -74,6 +137,10 @@ interface EpisodeRow {
   metadata: string | null;
   created_at: number;
   updated_at: number;
+  worktree_id: string | null;
+  branch_name: string | null;
+  expires_at: string | null;
+  blob_id: string | null;
 }
 
 function parseMetadata(value: string | null): Record<string, unknown> | null {
@@ -104,6 +171,10 @@ function toEpisode(row: EpisodeRow): Episode {
     metadata: parseMetadata(row.metadata),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    worktreeId: row.worktree_id ?? null,
+    branchName: row.branch_name ?? null,
+    expiresAt: row.expires_at ?? null,
+    blobId: row.blob_id ?? null,
   };
 }
 
@@ -173,12 +244,24 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
       ON episodic_memory(episode_type, updated_at DESC);
   `);
 
+  // Migration: add durability columns (worktree_id, branch_name, expires_at, blob_id)
+  try {
+    const cols = db.prepare("PRAGMA table_info(episodic_memory)").all() as Array<{ name: string }>;
+    const names = new Set(cols.map(c => c.name));
+    if (!names.has('worktree_id')) db.prepare("ALTER TABLE episodic_memory ADD COLUMN worktree_id TEXT").run();
+    if (!names.has('branch_name')) db.prepare("ALTER TABLE episodic_memory ADD COLUMN branch_name TEXT").run();
+    if (!names.has('expires_at')) db.prepare("ALTER TABLE episodic_memory ADD COLUMN expires_at TEXT").run();
+    if (!names.has('blob_id')) db.prepare("ALTER TABLE episodic_memory ADD COLUMN blob_id TEXT").run();
+  } catch { /* idempotent */ }
+  db.prepare("CREATE INDEX IF NOT EXISTS idx_episodic_memory_expires ON episodic_memory(expires_at) WHERE expires_at IS NOT NULL").run();
+
   const stmts = {
     upsert: db.prepare(`
       INSERT INTO episodic_memory (
         project_dir, project, harbor, agent_id, episode_type, title, summary,
-        source_type, source_id, metadata, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        source_type, source_id, metadata, created_at, updated_at,
+        worktree_id, branch_name, expires_at, blob_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(source_type, source_id, episode_type)
       DO UPDATE SET
         project_dir = excluded.project_dir,
@@ -188,7 +271,11 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
         title = excluded.title,
         summary = excluded.summary,
         metadata = excluded.metadata,
-        updated_at = excluded.updated_at
+        updated_at = excluded.updated_at,
+        worktree_id = COALESCE(excluded.worktree_id, worktree_id),
+        branch_name = COALESCE(excluded.branch_name, branch_name),
+        expires_at  = COALESCE(excluded.expires_at, expires_at),
+        blob_id     = COALESCE(excluded.blob_id, blob_id)
     `),
     getBySource: db.prepare(`
       SELECT * FROM episodic_memory
@@ -237,6 +324,7 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
    */
   function remember(input: EpisodeInput): Episode {
     const now = Date.now();
+    const expiresAt = input.expiresAt !== undefined ? input.expiresAt : episodeExpiresAt(input.episodeType);
     stmts.upsert.run(
       input.projectDir ?? null,
       input.project ?? null,
@@ -250,6 +338,10 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
       input.metadata ? JSON.stringify(input.metadata) : null,
       now,
       now,
+      input.worktreeId ?? null,
+      input.branchName ?? null,
+      expiresAt,
+      input.blobId ?? null,
     );
 
     const row = stmts.getBySource.get(
@@ -421,10 +513,31 @@ export function createEpisodicMemory(db: Database.Database, options: EpisodicMem
     };
   }
 
+  function listExpired(before?: string): Episode[] {
+    const cutoff = before ?? new Date().toISOString();
+    const rows = db.prepare(`
+      SELECT * FROM episodic_memory
+      WHERE expires_at IS NOT NULL AND expires_at < ?
+      ORDER BY expires_at ASC
+    `).all(cutoff) as EpisodeRow[];
+    return rows.map(toEpisode);
+  }
+
+  function archiveExpired(before?: string): number {
+    const cutoff = before ?? new Date().toISOString();
+    const result = db.prepare(`
+      UPDATE episodic_memory SET metadata = json_patch(COALESCE(metadata, '{}'), json_object('archived', 1, 'archivedAt', ?))
+      WHERE expires_at IS NOT NULL AND expires_at < ?
+    `).run(cutoff, cutoff) as { changes: number };
+    return result.changes;
+  }
+
   return {
     remember,
     list,
     stats,
+    listExpired,
+    archiveExpired,
   };
 }
 

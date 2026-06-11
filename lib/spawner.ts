@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
+import { getEffectiveContextWindow } from './context-window-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
@@ -122,6 +123,8 @@ export interface SpawnSpec {
   coastGuard?: boolean;     // default true — set false to opt this spawn out
   maxRequests?: number;     // hard egress request cap (default DEFAULT_MAX_REQUESTS)
   maxBytes?: number | null; // optional hard egress byte cap
+  /** Estimated input prompt token count — used to gate spawn if it would exceed effective context. */
+  estimatedPromptTokens?: number;
 }
 
 export interface SpawnResult {
@@ -1141,6 +1144,22 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (isolation.blocked) {
       counters?.bump('spawn.blocked', dims);
       return blockedResult(isolation.reason as string);
+    }
+
+    // Effective-context gate: refuse if the estimated prompt tokens would consume
+    // ≥ 90% of the model's effective context window (60% of advertised).
+    // This prevents launching agents that are already context-starved on arrival.
+    if (spec.estimatedPromptTokens && model) {
+      const effectiveMax = getEffectiveContextWindow(model);
+      const promptPct = spec.estimatedPromptTokens / effectiveMax;
+      if (promptPct >= 0.9) {
+        counters?.bump('spawn.blocked', dims);
+        return blockedResult(
+          `Spawn blocked: contextWindowInsufficientForTask — estimated prompt (${spec.estimatedPromptTokens} tokens) ` +
+          `would consume ${Math.round(promptPct * 100)}% of ${model}'s effective context (${effectiveMax} tokens). ` +
+          `Use a model with a larger context window or reduce the prompt size.`,
+        );
+      }
     }
 
     if (!enforceTelemetryPolicy) {
