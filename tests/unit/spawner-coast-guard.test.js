@@ -179,4 +179,25 @@ describe('bond pricing is logged for operator visibility (the scope-proportional
       consoleLog.mockRestore();
     }
   });
+
+  test('the default full-tier spawn WARNs uncontained scope (the report is now wired in)', async () => {
+    // #342 wires coastGuardStatus() into the spawn-site priceBond call, so the
+    // pricer can compare the priced tier (full) against what the Coast Guard
+    // actually contains on this machine. Whether the guard is armed (enforced
+    // 'read') or degraded (null), `full` exceeds it → uncontainedScope, and the
+    // spawner emits the LOUD warn. This is the honest gap, surfaced live.
+    const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const spawner = createSpawner();
+      await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree });
+      const warned = consoleWarn.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(warned).toMatch(/\[spawner\] WARN uncontained scope/);
+      expect(warned).toMatch(/tier=full EXCEEDS/);
+      expect(warned).toMatch(/pricing != containment/);
+    } finally {
+      consoleLog.mockRestore();
+      consoleWarn.mockRestore();
+    }
+  });
 });

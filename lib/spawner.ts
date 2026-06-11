@@ -30,6 +30,7 @@ import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
+import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
@@ -1281,16 +1282,25 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         baseUsd: DEFAULT_BOND_USD,
         capabilities: effectiveCaps,
         ttlMs: spec.timeout ?? 300_000,
+        // The Coast Guard posture on THIS machine, so the pricer can flag when the
+        // priced tier exceeds what the runtime structurally contains
+        // (breakdown.uncontainedScope → the WARN below). ADVISORY: this changes NO
+        // bondUsd / floor / ceiling — it only lights the containment-gap flag.
+        // Absent it, the flag would stay dark in the live spawn path. coastGuardStatus
+        // is a filesystem-probe-only read (no subprocess), cheap per spawn.
+        coastGuardReport: coastGuardStatus(),
         // principal/reputation intentionally omitted → par; wire the Anchor-keyed
         // reputation hook here once the reputation ledger ships.
       });
       bondUsd = priced.bondUsd;
       // Operator visibility: one INFO line with the chosen tier + every multiplier
       // + the final escrowed amount (the spawn path is not hot enough to be noise),
-      // plus a LOUD warn for any quote whose IC argument does NOT fully hold (today:
-      // `belowFloor` — a ceiling clamp dropped the bond below its deterrence floor).
-      // Formatting lives in the pure pricer helper so the exact text + the warn
-      // conditions stay unit-tested; we just route info → log, warnings → warn.
+      // plus a LOUD warn for any quote whose IC argument does NOT fully hold:
+      // `belowFloor` (a ceiling clamp dropped the bond below its deterrence floor)
+      // and `uncontainedScope` (the priced tier exceeds what the Coast Guard
+      // structurally contains — the default `full`-tier spawn flags under an armed
+      // guard). Formatting lives in the pure pricer helper so the exact text + the
+      // warn conditions stay unit-tested; we just route info → log, warnings → warn.
       const lines = pricedBondLogLines(priced.breakdown, {
         bondUsd,
         agentId,
