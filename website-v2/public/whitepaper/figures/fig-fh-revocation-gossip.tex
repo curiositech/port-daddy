@@ -95,17 +95,6 @@
 \draw[publish] (B1.north east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{$R_B^{(e+1)}$} (W.south);
 \draw[publish] (C2.north east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{$R_C^{(e+1)}$} (W.south east);
 
-% ─── Bottom band: convergence claim ───────────────────────────────
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
-      text width=150mm,align=left,font=\sffamily\footnotesize,
-      anchor=north] at (7.5,-10.0) {%
-  \textbf{Convergence bound (Theorem~\ref{thm:fh-conv}):}
-  with $m$ federated harbors gossiping every $\Delta$, the expected time
-  to global filter agreement on a new revocation is
-  $\Delta \cdot (1 + \ln m)$, generalizing
-  the Anchor intra-mesh bound. The witness log is the cross-check: any
-  harbor that publishes contradictory roots for the same epoch is
-  detectable in expected $O(\log m)$ audit rounds.};
 
 \end{tikzpicture}%
 }
@@ -116,6 +105,10 @@ $R_X^{(e)}$ published to a shared witness log so a third party can audit any
 harbor's local view, and (b) cross-witness signatures so the auditor pattern
 generalizes Certificate Transparency~\cite{laurie2013ct}. The window between
 $t=0$ and $t=\Delta$ is the structural attacker window: bounded, named, and
-priced into the bond in \S\ref{sec:fh-settlement}.}
+priced into the bond in \S\ref{sec:fh-settlement}. The convergence bound
+(Theorem~\ref{thm:fh-conv}): with $m$ federated harbors gossiping every $\Delta$,
+expected time to global filter agreement is $\Delta\cdot(1+\ln m)$, and a harbor
+publishing contradictory roots for the same epoch is detectable in expected
+$O(\log m)$ audit rounds.}
 \label{fig:fh-revocation}
 \end{figure}
