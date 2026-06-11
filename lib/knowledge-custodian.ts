@@ -1,0 +1,405 @@
+/**
+ * Knowledge Custodian — daemon-resident compaction engine caretaker.
+ *
+ * A setInterval loop running inside the daemon process — NOT a separate LLM agent.
+ * For decisions requiring intelligence it spawns a one-shot Haiku sortie (cost cap $0.02).
+ *
+ * Duties:
+ * 1. harvest      — promote session notes to episodes before sessions go stale
+ * 2. resurrect    — event-driven on agent:dead; read salvage capsule, HITL, respawn
+ * 3. dedupWarn    — on sortie:created; BM25 search for similar past work
+ * 4. contextPressure — periodic; warn/propose-spawn for agents at critical context
+ * 5. archiveTTL   — every 6h; archive expired episodes, mark stale resurrections
+ *
+ * The custodian heartbeats every pollIntervalMs, visible in swarm_awareness.
+ * It has its own session registered as 'system:custodian:main'.
+ */
+
+import type { Database } from 'better-sqlite3';
+import { harvestSession } from './session-harvest.js';
+import { createOperatorPermissions, type OperatorPermissions } from './operator-permissions.js';
+
+interface CustodianLogger {
+  info(msg: string, meta?: Record<string, unknown>): void;
+  error(msg: string, meta?: Record<string, unknown>): void;
+}
+
+interface CustodianDeps {
+  db: Database;
+  logger: CustodianLogger;
+  /** episodicMemory module from lib/episodic-memory.ts */
+  episodicMemory: {
+    archiveExpired(before?: string): number;
+    remember(input: Record<string, unknown>): { id: number };
+  };
+  /** messaging module for broadcasting inbox messages */
+  messaging?: {
+    publish(channel: string, payload: Record<string, unknown>): void;
+  };
+  /** resurrection module for listing stale agents */
+  resurrection?: {
+    getQueue(filter?: { status?: string }): Array<{
+      id: string;
+      agentId: string;
+      metadata?: Record<string, unknown>;
+    }>;
+    markDead(id: string): void;
+  };
+  /** context window tracker for pressure-level queries */
+  contextTracker?: {
+    getSwarmContextSummary(project?: string): Array<{
+      agentId: string;
+      pressureLevel: string;
+      usedPct: number;
+      effectiveMax: number;
+      tokensUsed: number;
+    }>;
+  };
+  /** operator permissions store */
+  operatorPermissions?: OperatorPermissions;
+  /** blob store for large artifact promotion */
+  blobs?: {
+    store(content: string, opts: { mimeType?: string; agentId?: string; metadata?: Record<string, unknown> }): Promise<{ id: string }>;
+  };
+  /** poll interval in ms (default 60_000) */
+  pollIntervalMs?: number;
+  /** archiveTTL interval in ms (default 6 * 60 * 60 * 1000) */
+  archiveIntervalMs?: number;
+}
+
+interface DutyTimestamps {
+  harvest: number | null;
+  resurrect: number | null;
+  dedupWarn: number | null;
+  contextPressure: number | null;
+  archiveTTL: number | null;
+}
+
+export interface CustodianStatus {
+  running: boolean;
+  lastDutyAt: DutyTimestamps;
+  episodesHarvestedToday: number;
+  pendingApprovalsCount: number;
+  startedAt: string | null;
+}
+
+const STALE_AFTER_MINUTES = 30;
+const CONTEXT_WARN_INTERVAL_MS = 30_000;
+
+export class KnowledgeCustodian {
+  private readonly db: Database;
+  private readonly deps: CustodianDeps;
+  private readonly operatorPermissions: OperatorPermissions;
+  private running = false;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private archiveTimer: ReturnType<typeof setInterval> | null = null;
+  private contextPressureTimer: ReturnType<typeof setInterval> | null = null;
+  private immediateHarvestTimer: ReturnType<typeof setTimeout> | null = null;
+  private startedAt: string | null = null;
+  private lastDuty: DutyTimestamps = {
+    harvest: null,
+    resurrect: null,
+    dedupWarn: null,
+    contextPressure: null,
+    archiveTTL: null,
+  };
+
+  constructor(deps: CustodianDeps) {
+    this.db = deps.db;
+    this.deps = deps;
+    this.operatorPermissions = deps.operatorPermissions ?? createOperatorPermissions(deps.db);
+  }
+
+  start(): void {
+    if (this.running) return;
+    this.running = true;
+    this.startedAt = new Date().toISOString();
+
+    const pollMs = this.deps.pollIntervalMs ?? 60_000;
+    const archiveMs = this.deps.archiveIntervalMs ?? 6 * 60 * 60 * 1000;
+
+    this.pollTimer = setInterval(() => this.runHarvestDuty(), pollMs);
+    this.archiveTimer = setInterval(() => this.runArchiveTTLDuty(), archiveMs);
+    this.contextPressureTimer = setInterval(() => this.runContextPressureDuty(), CONTEXT_WARN_INTERVAL_MS);
+
+    // Run harvest once immediately; store handle so stop() can cancel it
+    this.immediateHarvestTimer = setTimeout(() => {
+      this.immediateHarvestTimer = null;
+      if (this.running) this.runHarvestDuty();
+    }, 5_000);
+  }
+
+  stop(): void {
+    if (this.immediateHarvestTimer) { clearTimeout(this.immediateHarvestTimer); this.immediateHarvestTimer = null; }
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (this.archiveTimer) { clearInterval(this.archiveTimer); this.archiveTimer = null; }
+    if (this.contextPressureTimer) { clearInterval(this.contextPressureTimer); this.contextPressureTimer = null; }
+    this.running = false;
+  }
+
+  getStatus(): CustodianStatus {
+    const todayStartMs = new Date().setHours(0, 0, 0, 0);
+    const tomorrowStartMs = todayStartMs + 86_400_000;
+    const episodesHarvestedToday = (this.db.prepare(`
+      SELECT COUNT(*) as n FROM episodic_memory
+      WHERE source_type = 'note'
+        AND created_at >= ? AND created_at < ?
+    `).get(todayStartMs, tomorrowStartMs) as { n: number } | undefined)?.n ?? 0;
+
+    const pendingApprovalsCount = this.operatorPermissions.listCandidates().length;
+
+    return {
+      running: this.running,
+      lastDutyAt: { ...this.lastDuty },
+      episodesHarvestedToday,
+      pendingApprovalsCount,
+      startedAt: this.startedAt,
+    };
+  }
+
+  // ─── Duty: harvest ───────────────────────────────────────────────────────────
+
+  async runHarvestDuty(): Promise<void> {
+    const { db, deps } = this;
+    const staleThreshold = Date.now() - STALE_AFTER_MINUTES * 60 * 1000;
+
+    const staleSessions = db.prepare(`
+      SELECT id FROM sessions
+      WHERE status = 'active' AND updated_at < ?
+    `).all(staleThreshold) as Array<{ id: string }>;
+
+    let harvested = 0;
+    for (const { id } of staleSessions) {
+      try {
+        const result = await harvestSession(id, db, {
+          episodicMemory: deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
+          blobs: deps.blobs,
+        });
+        harvested += result.promoted;
+      } catch (err) {
+        deps.logger.error('Custodian harvest failed', { sessionId: id, err });
+      }
+    }
+
+    if (harvested > 0) {
+      deps.logger.info('Custodian harvest duty complete', { harvested, staleSessions: staleSessions.length });
+    }
+    this.lastDuty.harvest = Date.now();
+  }
+
+  // Called externally when a session ends — immediate harvest before cascade delete
+  async onSessionEnd(sessionId: string): Promise<void> {
+    try {
+      await harvestSession(sessionId, this.db, {
+        episodicMemory: this.deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
+        blobs: this.deps.blobs,
+      });
+    } catch (err) {
+      this.deps.logger.error('Custodian onSessionEnd harvest failed', { sessionId, err });
+    }
+  }
+
+  // ─── Duty: resurrect (event-driven on agent:dead) ────────────────────────────
+
+  async onAgentDead(agentId: string, capsule?: Record<string, unknown>): Promise<void> {
+    const { deps } = this;
+    if (!deps.messaging) return;
+
+    const estimatedCostUsd = 0.02;
+    const identityProject = (capsule?.identityProject as string) ?? '';
+    const policy = this.operatorPermissions.check('resurrect', identityProject, estimatedCostUsd);
+
+    if (policy === 'deny') {
+      deps.logger.info('Custodian resurrect blocked by policy', { agentId });
+      return;
+    }
+
+    if (policy === 'ask') {
+      deps.messaging.publish('operator:approvals', {
+        type: 'resurrect_request',
+        agentId,
+        identityProject,
+        estimatedCostUsd,
+        capsule,
+        requestedAt: new Date().toISOString(),
+        message: `Agent ${agentId} died. Resurrect? (est. cost: $${estimatedCostUsd.toFixed(3)})`,
+      });
+      this.lastDuty.resurrect = Date.now();
+      return;
+    }
+
+    // auto: spawn immediately with capsule in context
+    await this.doResurrect(agentId, capsule);
+    this.lastDuty.resurrect = Date.now();
+  }
+
+  async resolveResurrection(agentId: string, decision: 'approved' | 'denied', capsule?: Record<string, unknown>): Promise<void> {
+    const identityProject = (capsule?.identityProject as string) ?? '';
+    this.operatorPermissions.record('resurrect', identityProject, 0.02, decision);
+
+    if (decision === 'approved') {
+      await this.doResurrect(agentId, capsule);
+    }
+  }
+
+  private async doResurrect(agentId: string, capsule?: Record<string, unknown>): Promise<void> {
+    const { deps } = this;
+    if (!deps.messaging) return;
+
+    // Inject capsule as first context for the new agent
+    deps.messaging.publish(`agent:${agentId}:inbox`, {
+      type: 'resurrection_context',
+      capsule,
+      from: 'system:custodian:main',
+      message: `You are being resurrected. Previous context: ${JSON.stringify(capsule?.nextPlan ?? 'unknown')}`,
+    });
+
+    deps.logger.info('Custodian resurrected agent', { agentId });
+  }
+
+  // ─── Duty: dedupWarn (event-driven on sortie:created) ────────────────────────
+
+  async onSortieCreated(sortieId: string, purpose: string, agentId?: string): Promise<void> {
+    const { db, deps } = this;
+    if (!deps.messaging || !purpose.trim()) return;
+
+    // BM25-style search using LIKE (avoid keyword enumeration — search all terms)
+    const terms = purpose
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(t => t.length > 2)
+      .slice(0, 8);
+
+    if (terms.length === 0) return;
+
+    const whereClauses = terms.map(() => `(LOWER(title) LIKE ? OR LOWER(summary) LIKE ?)`).join(' OR ');
+    const params = terms.flatMap(t => [`%${t}%`, `%${t}%`]);
+    params.push('10');
+
+    const rows = db.prepare(`
+      SELECT id, title, summary, episode_type, source_id, project
+      FROM episodic_memory
+      WHERE ${whereClauses}
+      ORDER BY updated_at DESC
+      LIMIT ?
+    `).all(...params) as Array<Record<string, unknown>>;
+
+    if (rows.length === 0) {
+      this.lastDuty.dedupWarn = Date.now();
+      return;
+    }
+
+    // Score by term coverage
+    const scored = rows
+      .map(row => {
+        const text = `${row.title} ${row.summary}`.toLowerCase();
+        const hits = terms.filter(t => text.includes(t)).length;
+        return { row, score: hits / terms.length };
+      })
+      .filter(r => r.score >= 0.5)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+
+    if (scored.length === 0) {
+      this.lastDuty.dedupWarn = Date.now();
+      return;
+    }
+
+    const matchList = scored
+      .map(({ row, score }) => `- "${row.title}" (id: ${row.id}, score: ${score.toFixed(2)}) — \`pd memory episode ${row.id}\``)
+      .join('\n');
+
+    const channel = agentId ? `agent:${agentId}:inbox` : 'operator:notifications';
+    deps.messaging.publish(channel, {
+      type: 'dedup_warning',
+      sortieId,
+      purpose,
+      matches: scored.map(({ row, score }) => ({ id: row.id, title: row.title, score })),
+      message: `Possible duplicate work detected for sortie ${sortieId}.\n\nSimilar past work:\n${matchList}\n\nRun \`pd memory find "${purpose}"\` before starting.`,
+    });
+
+    this.lastDuty.dedupWarn = Date.now();
+  }
+
+  // ─── Duty: contextPressure ────────────────────────────────────────────────────
+
+  runContextPressureDuty(): void {
+    const { deps } = this;
+    if (!deps.contextTracker || !deps.messaging) return;
+
+    const agents = deps.contextTracker.getSwarmContextSummary();
+
+    for (const agent of agents) {
+      if (agent.pressureLevel === 'critical') {
+        deps.messaging.publish(`agent:${agent.agentId}:inbox`, {
+          type: 'context_pressure',
+          agentId: agent.agentId,
+          usedPct: agent.usedPct,
+          pressureLevel: 'critical',
+          message: `Context critical (${Math.round(agent.usedPct * 100)}% of effective window used). ` +
+            `Consider spawning a continuation agent or executing a handoff. ` +
+            `Remaining effective capacity: ~${Math.round((agent.effectiveMax - agent.tokensUsed) / 1000)}k tokens.`,
+        });
+      } else if (agent.pressureLevel === 'warn') {
+        deps.messaging.publish(`agent:${agent.agentId}:inbox`, {
+          type: 'context_advisory',
+          agentId: agent.agentId,
+          usedPct: agent.usedPct,
+          pressureLevel: 'warn',
+          message: `Context at ${Math.round(agent.usedPct * 100)}% of effective window. Plan handoff soon.`,
+        });
+      }
+    }
+
+    this.lastDuty.contextPressure = Date.now();
+  }
+
+  // ─── Duty: archiveTTL ────────────────────────────────────────────────────────
+
+  runArchiveTTLDuty(): void {
+    const { db, deps } = this;
+
+    // Archive expired episodes
+    const archived = deps.episodicMemory.archiveExpired();
+
+    // Mark stale resurrection queue entries (pending > 30 days)
+    if (deps.resurrection) {
+      const staleThreshold = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const pending = deps.resurrection.getQueue({ status: 'pending' });
+      for (const entry of pending) {
+        const detectedAt = entry.metadata?.detectedAt;
+        if (typeof detectedAt === 'number' && detectedAt < staleThreshold) {
+          deps.resurrection.markDead(entry.id);
+        }
+      }
+    }
+
+    // Harvest + abandon sessions inactive > 7 days
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const orphaned = db.prepare(`
+      SELECT id FROM sessions WHERE status = 'active' AND updated_at < ?
+    `).all(sevenDaysAgo) as Array<{ id: string }>;
+
+    for (const { id } of orphaned) {
+      harvestSession(id, db, {
+        episodicMemory: deps.episodicMemory as unknown as Parameters<typeof harvestSession>[2]['episodicMemory'],
+        blobs: deps.blobs,
+      })
+        .then(() => {
+          db.prepare(`UPDATE sessions SET status = 'abandoned', updated_at = ? WHERE id = ?`).run(Date.now(), id);
+        })
+        .catch(err => {
+          deps.logger.error('Custodian archiveTTL harvest failed', { sessionId: id, err });
+        });
+    }
+
+    if (archived > 0 || orphaned.length > 0) {
+      deps.logger.info('Custodian archiveTTL duty complete', { archived, orphanedSessions: orphaned.length });
+    }
+    this.lastDuty.archiveTTL = Date.now();
+  }
+}
+
+export function createKnowledgeCustodian(deps: CustodianDeps): KnowledgeCustodian {
+  return new KnowledgeCustodian(deps);
+}

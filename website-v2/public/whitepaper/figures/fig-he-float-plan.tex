@@ -51,12 +51,6 @@
   {\textbf{(3)} The daemon proves to $W$ that funds are locked
    \emph{before any work runs}. This is ``no-spawn-without-bond.''};
 
-% the conservation invariant box
-\node[inv,below=46mm of R,xshift=2mm]
-  {\textbf{Invariant held at every step (implemented):}\\
-   $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$.\\
-   Verified over 10k random operation traces\\
-   by a property test.};
 
 \end{tikzpicture}%
 }
@@ -66,8 +60,9 @@ the requester signs a FloatPlan (task, machine-checkable acceptance criteria,
 budget, bounty); the daemon debits and escrows the value inside one serialized
 database transaction; the daemon then signs $\{\textit{anchor id},\,\textit{plan
 hash}\}$, proving to the worker that funds are pinned before any work begins. The
-conservation invariant holds at every step and is the \emph{implemented} floor the
-whole economy stands on --- the one claim this paper can make at the highest
-maturity.}
+conservation invariant ($\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$,
+verified over 10k random operation traces by a property test) holds at every step
+and is the \emph{implemented} floor the whole economy stands on --- the one claim
+this paper can make at the highest maturity.}
 \label{fig:he-float-plan}
 \end{figure}

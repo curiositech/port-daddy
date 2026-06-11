@@ -28,9 +28,6 @@
 \node[agent] (a2) at ($(HA.center)+(0,-7mm)$) {$a_2$};
 \node[agent] (a3) at ($(HA.center)+(12mm,-7mm)$) {$a_3$};
 \foreach \a in {a1,a2,a3} { \draw[->,>=Latex,hhteal,thick] (rA) -- (\a); }
-\node[font=\scriptsize\itshape,below=1mm of HA,text=hhink,text width=52mm,align=center]
-  {\textbf{Local non-forgeable identity} covers \emph{here}: an id no agent can edit
-   within one trusted daemon.};
 
 % Harbor B
 \node[harbor,label={[font=\bfseries\footnotesize]north:Harbor $B$ (Bob owns)},
@@ -50,18 +47,6 @@
    principal?}};
 \draw[<->,>=Latex,line width=1.4pt,hhcobalt] (HA.east) -- (HB.west);
 
-% the warning
-\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=5pt,
-      text width=150mm,align=center,below=14mm of HA,xshift=49mm,
-      font=\footnotesize]
-  {\textbf{The keystone overreach (blocking).} Local non-forgeable identity's
-   \emph{own} threat model is \emph{intra-fleet, single trusted operator, not a
-   cross-party PKI, no defense against a hostile operator}. Across the boundary, the
-   counterparty's daemon \emph{is} the adversary that threat model declares out of
-   scope. The witness log gives \emph{log integrity}, not \emph{identity binding}.
-   This paper names \textbf{cross-operator attestation} as the unbuilt keystone and
-   \emph{stops} calling the boundary one ``neither controls'' while resting on a
-   single trusted root.};
 
 \end{tikzpicture}%
 }
@@ -73,7 +58,9 @@ mutually-distrusting operators trading across a boundary neither controls, and t
 primitive explicitly disclaims the relevant threat model (intra-fleet, not a
 cross-party PKI, no hostile-operator defense). Binding signing keys across harbors
 you do not own is a different, unsolved problem: \textbf{cross-operator
-attestation}. It is the highest-leverage unbuilt keystone, and it gates the entire
-market thesis.}
+attestation}. Across the boundary, the counterparty's daemon \emph{is} the
+adversary the local threat model declares out of scope, and the witness log gives
+\emph{log integrity}, not \emph{identity binding}. It is the highest-leverage
+unbuilt keystone, and it gates the entire market thesis.}
 \label{fig:he-keystone-split}
 \end{figure}
