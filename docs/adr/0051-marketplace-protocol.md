@@ -347,10 +347,11 @@ Revocation is asynchronous and must converge in bounded time even over a flaky
 relay (ADR-0027 §"What Is Proposed Here" — revocation gossip with bounded convergence
 is specified there, not yet built).
 
-**Token revocation:** the seller daemon revokes a JTI by writing it to the `revoked_jtis`
-table (`lib/harbor-tokens.ts` `revokeToken()`). This is **Shipped** for local
-harbor cards. Cross-machine revocation propagation (buyer daemon learns JTI is
-revoked) requires relay gossip — unbuilt.
+**Token revocation:** the seller daemon revokes JTIs by writing them to the
+`harbor_token_revocations` table (`lib/harbor-tokens.ts` `revokeHarborCardsForAgent()`;
+every verify path checks `isRevoked` and refuses a revoked JTI). This is **Shipped**
+for local harbor cards. Cross-machine revocation propagation (buyer daemon learns JTI
+is revoked) requires relay gossip — unbuilt.
 
 **Listing revocation:** the seller publishes a signed `ListingRevoke` envelope to the
 relay. Buyers cache the revocation for the listing's TTL. In-flight negotiations with
