@@ -734,3 +734,55 @@ export function priceBond(input: PriceBondInput): PricedBond {
     },
   };
 }
+
+// ─── Operator log lines (PURE — formatting only, no I/O) ─────────────────────────
+//
+// A caller that escrows a priced bond (lib/spawner.ts) wants OPERATOR VISIBILITY:
+// the chosen tier + the multipliers that produced it + the final amount, and a
+// LOUD warning when the quote is undercollateralized (`belowFloor`). This is the
+// one place that turns a `PricedBondBreakdown` into those human strings. It is
+// kept PURE (returns strings; the caller does the console I/O) so the exact log
+// text AND the warn-trigger conditions are unit-testable without a daemon, and so
+// this module keeps its "no I/O" invariant. The caller routes `info` → its
+// info/debug sink and every `warnings` entry → its warn sink.
+
+/** Context for a priced-bond log line — who/what the bond is for. */
+export interface PricedBondLogContext {
+  /** The bond amount actually escrowed (post floor/ceiling). */
+  bondUsd: number;
+  /** A short identifier for the bonded subject (e.g. the agent id). Optional. */
+  agentId?: string;
+  /** The backend / archetype the bond is for (e.g. 'claude-cli'). Optional. */
+  backend?: string;
+}
+
+/**
+ * Render the operator-facing log lines for a priced bond: one `info` line with
+ * the tier + every multiplier + the final amount (+ floor/ceiling annotations),
+ * and zero-or-more `warnings` for a quote whose IC argument does NOT fully hold.
+ * Today the only warning is `belowFloor` (the ceiling clamp pushed the bond under
+ * the tier's reconstruction-cost floor → bond < max_gain_from_sabotage). PURE.
+ */
+export function pricedBondLogLines(
+  breakdown: PricedBondBreakdown,
+  ctx: PricedBondLogContext,
+): { info: string; warnings: string[] } {
+  const who =
+    `${ctx.agentId ? ` agent=${ctx.agentId}` : ''}${ctx.backend ? ` backend=${ctx.backend}` : ''}`;
+  const b = breakdown;
+  const info =
+    `[spawner] bond priced $${ctx.bondUsd.toFixed(4)} — tier=${b.scopeTier} ` +
+    `base=$${b.base.toFixed(4)} ×scope=${b.scopeMultiplier} ×dur=${b.durationMultiplier} ` +
+    `×rep=${b.reputationFactor} floor=$${b.floorUsd.toFixed(4)}` +
+    `${b.floorApplied ? ' (floor applied)' : ''}${b.ceilingApplied ? ' (ceiling clamped)' : ''}` +
+    who;
+  const warnings: string[] = [];
+  if (b.belowFloor) {
+    warnings.push(
+      `[spawner] WARN undercollateralized bond — ceiling clamp pushed $${ctx.bondUsd.toFixed(4)} ` +
+        `BELOW the ${b.scopeTier}-tier deterrence floor $${b.floorUsd.toFixed(4)} ` +
+        `(bond < max_gain_from_sabotage; IC invariant does NOT hold)${who}`,
+    );
+  }
+  return { info, warnings };
+}

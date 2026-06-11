@@ -9,7 +9,7 @@
  * own integration coverage when those binaries are present).
  */
 
-import { describe, test, expect } from '@jest/globals';
+import { describe, test, expect, jest } from '@jest/globals';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, symlinkSync } from 'node:fs';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
@@ -276,6 +276,24 @@ d('live Seatbelt injection + deny robustness (macOS)', () => {
     ).toThrow(SbplInjectionError);
   });
 
+  test('the SBPL-injection refusal is LOUDLY logged at error level (fail-closed, never silent)', () => {
+    // Operator visibility: when the guard refuses, an operator must see WHY a
+    // confined spawn aborted — not a silent throw. We assert the loud-fail line
+    // fires (and still throws) for the reviewer payload.
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(() =>
+        wrapWithSandbox('sh', ['-c', 'true'], defaultCrownJewels(homedir()), REVIEWER_PAYLOAD, 'read-only'),
+      ).toThrow(SbplInjectionError);
+      const logged = consoleError.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(logged).toMatch(/\[coast-guard\] REFUSED to build a Seatbelt profile/);
+      expect(logged).toMatch(/SBPL-injection guard/);
+      expect(logged).toMatch(/fail-closed/);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   // Helper: build+run a shell command under a read-only policy for `workdir`.
   function runUnderReadOnly(workdir, shellCmd) {
     const w = wrapWithSandbox('sh', ['-c', shellCmd], defaultCrownJewels(homedir()), workdir, 'read-only');
@@ -285,6 +303,37 @@ d('live Seatbelt injection + deny robustness (macOS)', () => {
     for (const c of w.cleanup) rmSync(c, { recursive: true, force: true });
     return { status: r.status, out: (r.stdout || '') + (r.stderr || '') };
   }
+
+  test('building a read-only write-deny profile is logged for operator visibility', async () => {
+    await mkdir(SCRATCH_ROOT, { recursive: true });
+    const work = await mkdtemp(join(SCRATCH_ROOT, 'cg-rob-'));
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const w = wrapWithSandbox('sh', ['-c', 'true'], defaultCrownJewels(homedir()), work, 'read-only');
+      for (const c of w.cleanup) rmSync(c, { recursive: true, force: true });
+      const logged = consoleLog.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(logged).toMatch(/\[coast-guard\] seatbelt read-only write-deny profile built/);
+      expect(logged).toContain(work); // names the write-confined workdir root
+    } finally {
+      consoleLog.mockRestore();
+      await rm(work, { recursive: true, force: true });
+    }
+  });
+
+  test('an UNRESTRICTED (non-read-only) profile is NOT announced as write-confined (no log noise)', async () => {
+    await mkdir(SCRATCH_ROOT, { recursive: true });
+    const work = await mkdtemp(join(SCRATCH_ROOT, 'cg-rob-'));
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const w = wrapWithSandbox('sh', ['-c', 'true'], defaultCrownJewels(homedir()), work, 'unrestricted');
+      for (const c of w.cleanup) rmSync(c, { recursive: true, force: true });
+      const logged = consoleLog.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(logged).not.toMatch(/read-only write-deny profile built/);
+    } finally {
+      consoleLog.mockRestore();
+      await rm(work, { recursive: true, force: true });
+    }
+  });
 
   test('O_APPEND to an existing workdir file is DENIED (append is a write)', async () => {
     await mkdir(SCRATCH_ROOT, { recursive: true });

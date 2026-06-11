@@ -22,6 +22,7 @@ import {
   reputationFactor,
   touchesCrownJewel,
   scopeTierWritePolicy,
+  pricedBondLogLines,
   SCOPE_MULTIPLIER,
   FLOOR_MULTIPLE,
   R_MAX,
@@ -546,5 +547,88 @@ describe('scopeTierWritePolicy — priced tier → OS write policy', () => {
     expect(scopeTierWritePolicy(classifyScope(['fs:write']))).toBe('unrestricted');
     expect(scopeTierWritePolicy(classifyScope(['db:write']))).toBe('unrestricted');
     expect(scopeTierWritePolicy(classifyScope(['*']))).toBe('unrestricted');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  GATE 9 — OPERATOR LOG LINES (pricedBondLogLines)
+//  The pure formatter the spawner uses for operator visibility: one INFO line
+//  with the tier + every multiplier + the final amount, and a LOUD warn for an
+//  undercollateralized quote (belowFloor). Pure → the exact text + the warn
+//  trigger are tested here, not behind a live spawn.
+// ════════════════════════════════════════════════════════════════════════════
+describe('pricedBondLogLines — operator-facing log lines (pure)', () => {
+  test('info line carries the tier, every multiplier, the floor, and the final amount', () => {
+    // critical tier, 45 min (2.0×), par reputation, no ceiling.
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 5,
+      capabilities: ['db:write'],
+      ttlMs: 45 * 60_000,
+    });
+    const { info, warnings } = pricedBondLogLines(breakdown, {
+      bondUsd,
+      agentId: 'proj:stack:ctx',
+      backend: 'claude-cli',
+    });
+    expect(info).toContain('[spawner] bond priced');
+    expect(info).toContain(`$${bondUsd.toFixed(4)}`);
+    expect(info).toContain('tier=critical');
+    expect(info).toContain(`×scope=${breakdown.scopeMultiplier}`);
+    expect(info).toContain(`×dur=${breakdown.durationMultiplier}`);
+    expect(info).toContain(`×rep=${breakdown.reputationFactor}`);
+    expect(info).toContain(`floor=$${breakdown.floorUsd.toFixed(4)}`);
+    expect(info).toContain('agent=proj:stack:ctx');
+    expect(info).toContain('backend=claude-cli');
+    // A healthy quote (floor holds) emits no warnings.
+    expect(warnings).toEqual([]);
+  });
+
+  test('info line annotates when the floor was applied', () => {
+    // A deep discount on a critical tier → the floor clamps the bond UP.
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 10,
+      capabilities: ['db:write'],
+      ttlMs: 5 * 60_000,
+      principalId: 'anchor:trusted',
+      reputation: () => ({ completions: 100, failureRate: 0 }), // 0.5× discount
+    });
+    expect(breakdown.floorApplied).toBe(true);
+    const { info } = pricedBondLogLines(breakdown, { bondUsd });
+    expect(info).toContain('(floor applied)');
+  });
+
+  test('belowFloor → a LOUD undercollateralized-bond warning naming the breached floor', () => {
+    // A ceiling BELOW the critical floor → bondUsd lands under floorUsd.
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 10,
+      capabilities: ['db:write'], // critical → floor = 100
+      ttlMs: 5 * 60_000,
+      ceilingUsd: 25, // below the 100 floor
+    });
+    expect(breakdown.belowFloor).toBe(true);
+    expect(breakdown.ceilingApplied).toBe(true);
+    const { info, warnings } = pricedBondLogLines(breakdown, {
+      bondUsd,
+      agentId: 'a1',
+      backend: 'custom',
+    });
+    expect(info).toContain('(ceiling clamped)');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('WARN undercollateralized bond');
+    expect(warnings[0]).toContain('max_gain_from_sabotage');
+    expect(warnings[0]).toContain(`$${breakdown.floorUsd.toFixed(4)}`); // names the breached floor
+    expect(warnings[0]).toContain('agent=a1');
+  });
+
+  test('context fields are optional — no agent/backend ⇒ no who-suffix, still valid', () => {
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 1,
+      capabilities: ['fs:read'],
+      ttlMs: 60_000,
+    });
+    const { info } = pricedBondLogLines(breakdown, { bondUsd });
+    expect(info).toContain('[spawner] bond priced');
+    expect(info).not.toContain('agent=');
+    expect(info).not.toContain('backend=');
   });
 });

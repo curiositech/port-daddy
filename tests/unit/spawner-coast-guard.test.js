@@ -145,3 +145,38 @@ describe('Coast Guard is the default for subprocess spawns', () => {
     expect(JSON.stringify(res.coastGuard)).not.toContain('PD_COAST_GUARD_OFF');
   });
 });
+
+describe('bond pricing is logged for operator visibility (the scope-proportional path)', () => {
+  test('a scope-proportionally-priced spawn logs the tier, multipliers, and final bond', async () => {
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const spawner = createSpawner();
+      // No spec.bondUsd → the scope-proportional pricer runs. Default spawn caps
+      // (spawn:agent + backend) classify as the `full` tier (the amplifier).
+      await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree });
+      const logged = consoleLog.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(logged).toMatch(/\[spawner\] bond priced/);
+      expect(logged).toMatch(/tier=full/); // the default spawn classifies as full
+      expect(logged).toMatch(/×scope=/);
+      expect(logged).toMatch(/×dur=/);
+      expect(logged).toMatch(/backend=custom/);
+    } finally {
+      consoleLog.mockRestore();
+    }
+  });
+
+  test('a caller-supplied fixed bond is logged as a pricer bypass (back-compat path)', async () => {
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const spawner = createSpawner();
+      await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree, bondUsd: 0.5 });
+      const logged = consoleLog.mock.calls.map((c) => String(c[0])).join('\n');
+      expect(logged).toMatch(/\[spawner\] bond: caller-supplied fixed bond \$0\.5000/);
+      expect(logged).toMatch(/scope-proportional pricer bypassed/);
+      // The scope-proportional "bond priced" line must NOT appear on this path.
+      expect(logged).not.toMatch(/\[spawner\] bond priced/);
+    } finally {
+      consoleLog.mockRestore();
+    }
+  });
+});

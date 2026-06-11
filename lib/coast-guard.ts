@@ -424,7 +424,28 @@ export function wrapWithSandbox(
       writeFileSync(profile, buildSeatbeltProfile(jewelsForRun, write));
     } catch (err) {
       rmSync(dir, { recursive: true, force: true });
+      // LOUD-FAIL: the SBPL-injection guard REFUSED to emit a profile from an
+      // unsafe root (a `"`/`\`/newline/NUL that would break out of a
+      // `(subpath "...")` literal and re-open writes — SBPL is last-match-wins).
+      // This is a fail-closed REFUSAL: the spawn aborts rather than run
+      // unconfined. We surface it at error level (never a silent fallthrough) so
+      // the operator sees a confinement attempt was rejected for a malformed root.
+      if (err instanceof SbplInjectionError) {
+        console.error(
+          `[coast-guard] REFUSED to build a Seatbelt profile — SBPL-injection guard ` +
+            `rejected an unsafe write/deny root (fail-closed, spawn aborts): ${err.message}`,
+        );
+      }
       throw err;
+    }
+    // Operator visibility: a read-only write-deny profile is in force for this
+    // spawn (the project workdir is write-confined — scope-tier containment).
+    if (write.writePolicy === 'read-only' && write.readOnlyRoots.length > 0) {
+      console.log(
+        `[coast-guard] seatbelt read-only write-deny profile built — ` +
+          `denying writes to ${write.readOnlyRoots.length} workdir root(s): ` +
+          `${write.readOnlyRoots.join(', ')}`,
+      );
     }
     return {
       cmd: 'sandbox-exec',
@@ -458,6 +479,12 @@ export function wrapWithSandbox(
         '--share-net', // outbound API needs the network (capped by the proxy)
         cmd, ...args,
       ];
+      if (readOnly && workdir) {
+        console.log(
+          `[coast-guard] bwrap read-only profile built — project bound read-only ` +
+            `(write-confined): ${project}`,
+        );
+      }
       return { cmd: 'bwrap', args: bwArgs, confined: true, mechanism: 'bwrap', cleanup: [] };
     }
     if (kind === 'landlock-helper') {
@@ -469,6 +496,12 @@ export function wrapWithSandbox(
       // that does not understand it will reject the flag loudly (fail-closed),
       // never silently grant write.
       const allowFlags = readOnly ? ['--ro', project] : ['--allow', project];
+      if (readOnly && workdir) {
+        console.log(
+          `[coast-guard] landlock-helper (${helper}) read-only profile built — ` +
+            `project granted read-only (write-confined): ${project}`,
+        );
+      }
       return {
         cmd: helper,
         args: [...allowFlags, '--', cmd, ...args],
