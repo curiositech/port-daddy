@@ -44,6 +44,14 @@ export interface CoastGuardRunInput {
   envSource?: Record<string, string | undefined>;
   /** Keys loaded from .env/.env.local — the broker scrubs ALL of them. */
   dotenvKeys?: readonly string[];
+  /**
+   * Scope-tier write confinement (lib/bond-pricing.ts `scopeTierWritePolicy`).
+   * `'read-only'` denies the agent writes to its project workdir; default
+   * `'unrestricted'`. The spawner derives this from the spawn's priced scope
+   * tier so a read-tier agent is physically held to reads of the shared state
+   * its bond covers.
+   */
+  writePolicy?: 'read-only' | 'unrestricted';
 }
 
 export interface CoastGuardRun {
@@ -96,6 +104,8 @@ export async function withCoastGuard(input: CoastGuardRunInput): Promise<CoastGu
           scrubbedSecrets: [],
           egressCap: { maxRequests: 0, maxBytes: null },
           egress: null,
+          writePolicy: 'unrestricted',
+          writeDeniedPaths: [],
           startedAt,
           endedAt,
           honestLimits:
@@ -124,6 +134,7 @@ export async function withCoastGuard(input: CoastGuardRunInput): Promise<CoastGu
     env: input.env,
     workdir: input.workdir,
     dotenvKeys: input.dotenvKeys,
+    writePolicy: input.writePolicy,
     policy,
     deps: {
       proxyUrl: meter.proxyUrl,

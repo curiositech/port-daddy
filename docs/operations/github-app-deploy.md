@@ -56,10 +56,16 @@ GitHub  ──webhook (HMAC-signed)──►  Receiver Worker (Cloudflare)
 Two endpoints matter and they are **not** the same string:
 
 - **Receiver Worker public URL** — what you paste into the GitHub App's
-  *Webhook URL* field. `https://github-app-receiver.<subdomain>.workers.dev`.
+  *Webhook URL* field. The Worker only accepts inbound requests under `/msg/*`
+  and returns **404** for every other path (the `/msg/*` guard added in #313
+  hides the rest of the daemon surface), so the Webhook URL **must** include a
+  `/msg/*` path, e.g.
+  `https://github-app-receiver.<subdomain>.workers.dev/msg/github:webhook:dispatch`.
+  A bare-root Webhook URL silently 404s every delivery.
 - **Daemon inbound route** — `POST /webhooks/github` (note the order:
   `/webhooks/github`, **not** `/github/webhook`). This is what
-  `DAEMON_FORWARD_URL` must end with.
+  `DAEMON_FORWARD_URL` must end with. (Distinct from the inbound `/msg/*` path
+  above: GitHub → Worker is `/msg/*`; Worker → daemon is `/webhooks/github`.)
 
 > **Doc drift to be aware of.** `apps/github-app-receiver/README.md` and the
 > App manifest still reference `/github/webhook` in a couple of examples. The

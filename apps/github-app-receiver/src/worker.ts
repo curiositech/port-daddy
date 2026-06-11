@@ -20,7 +20,7 @@
  * Environment (bound via wrangler.toml / wrangler secret):
  *   GITHUB_WEBHOOK_SECRET   (secret) HMAC shared secret with the GitHub App
  *   DAEMON_FORWARD_URL      (var)    HTTPS URL the daemon (or its tunnel) listens on
- *   FORWARD_AUTH_TOKEN      (secret) optional bearer token included on forward
+ *   FORWARD_AUTH_TOKEN      (secret) REQUIRED bearer token the daemon validates
  *   FORWARD_TIMEOUT_MS      (var)    optional, default 8000
  */
 
@@ -33,7 +33,7 @@ import {
 export interface Env {
   GITHUB_WEBHOOK_SECRET: string;
   DAEMON_FORWARD_URL: string;
-  FORWARD_AUTH_TOKEN?: string;
+  FORWARD_AUTH_TOKEN: string;
   FORWARD_TIMEOUT_MS?: string;
 }
 
@@ -123,6 +123,14 @@ function parseJson(raw: string): ParsedPayload | null {
  * Cloudflare-specific IncomingRequest type).
  */
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
+  // Only forward to /msg/* — reject everything else so the daemon's other
+  // routes are not reachable through this public-facing Worker. Configure
+  // your GitHub App webhook URL under a /msg/* path (e.g. /msg/fleet:github:webhook).
+  const url = new URL(request.url);
+  if (!url.pathname.startsWith('/msg/')) {
+    return new Response('not found', { status: 404 });
+  }
+
   if (request.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
   }
@@ -134,6 +142,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
   }
   if (!env.DAEMON_FORWARD_URL) {
     return new Response('worker misconfigured: DAEMON_FORWARD_URL unset', {
+      status: 500,
+    });
+  }
+  if (!env.FORWARD_AUTH_TOKEN) {
+    return new Response('worker misconfigured: FORWARD_AUTH_TOKEN unset', {
       status: 500,
     });
   }

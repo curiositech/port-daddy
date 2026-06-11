@@ -11,6 +11,7 @@ import { CLIOptions, isQuiet, isJson } from '../types.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { readCurrentContext } from '../utils/current-context.js';
 
 interface StaleAgent {
   id: string;
@@ -381,7 +382,7 @@ async function claimSalvageAgent(agentId: string, options: CLIOptions): Promise<
   const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/salvage/claim/${encodeURIComponent(agentId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ newAgentId: options.agent || `cli-${process.pid}` })
+    body: JSON.stringify({ newAgentId: options.agent || readCurrentContext()?.agentId || `cli-${process.pid}` })
   });
   const data = await res.json();
 
