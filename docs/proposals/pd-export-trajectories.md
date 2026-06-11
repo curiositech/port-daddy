@@ -200,7 +200,7 @@ future episodes label themselves.
 ### 5.2 Guard verdict persistence (new write path)
 
 Coast Guard commit-path decisions (`lib/coast-guard/compulsion.ts`,
-`evaluateRent()`) are currently computed and returned, not stored. Phase 1
+`evaluateLeaseRent()`) are currently computed and returned, not stored. Phase 1
 adds a `guard_verdicts` table — `(id, session_id, agent_id, ts, decision,
 rule, context_json)` — written **fire-and-forget** from the check path: a
 failed insert logs and never blocks or delays the commit decision. This is the
