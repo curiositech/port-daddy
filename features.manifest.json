@@ -674,6 +674,7 @@
         "GET /ping",
         "GET /sitrep",
         "GET /operator/actors",
+        "GET /operator/state",
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
