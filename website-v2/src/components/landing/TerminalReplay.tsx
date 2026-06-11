@@ -120,14 +120,14 @@ export function TerminalReplay() {
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-amber)' }} />
               <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--code-dot-green)' }} />
             </div>
-            <span className="text-xs font-mono" style={{ color: 'var(--code-comment)' }}>
+            <span className="text-[14px] font-mono" style={{ color: 'var(--code-comment)' }}>
               zsh — port-daddy demo
             </span>
           </div>
           {done && (
             <button
               onClick={restart}
-              className="text-xs px-2 py-1 rounded transition-colors cursor-pointer"
+              className="text-[length:var(--type-meta-size)] px-2 py-1 rounded transition-colors cursor-pointer"
               style={{ color: 'var(--code-dot-green)' }}
             >
               Replay
