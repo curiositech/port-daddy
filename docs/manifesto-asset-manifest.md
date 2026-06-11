@@ -9,11 +9,13 @@ analogies grounded by self-deprecation, lists with personality. Never corporate-
 never a "Port Daddy team" (single author). Understate hype (evangelism rule: ≤1
 superlative / 500 words); lead with the felt problem, not the formalism.
 
-**Palette / brand:** read `website-v2/src/styles/tokens.semantic.css` for current tokens
-(source of truth — never hardcode hex from memory). The whitepaper "harbor house"
-palette is the companion signal: sand `#E9DCC4`, ebony `#1E1B18`, cinnabar `#CC3D2E`,
-brass `#B08D57`, patina `#5C7A6A`, paper `#FBF7EE`. Cohesion across all three artifacts
-matters — National Geographic prestige = ONE coherent visual world.
+**Palette / brand:** read `website-v2/src/styles/tokens.semantic.css` for current web
+tokens (source of truth — never hardcode hex from memory). For the editorial art's warm
+"harbor house" register, read the whitepaper's own palette definitions in
+`website-v2/public/whitepaper/*.tex` (the `hh*` color block — sand, ebony, cinnabar,
+brass, patina, paper) rather than copying the literals here; that file is the single
+source so this doc can't drift. Cohesion across all three artifacts matters —
+National Geographic prestige = ONE coherent visual world.
 
 **Working dir for everything:** `/Users/erichowens/coding/port-daddy-paper3` (a git
 worktree). Never write to `/tmp`; scratch goes under `~/coding/tmp/` if needed.

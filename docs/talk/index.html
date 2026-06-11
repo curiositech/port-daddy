@@ -20,9 +20,9 @@
     --paper:    #fbf7ee;
     --ebony:    #1e1b18;
     --ebony-2:  #15110d;
-    --cinnabar: #cc3d2e;
-    --brass:    #b08d57;
-    --patina:   #5c7a6a;
+    --cinnabar: #bf2f2f;
+    --brass:    #a66f00;
+    --patina:   #006b5f;
     --ink:      #f5f3ed;   /* primary text on dark, ~ tokens --text-primary dark */
     --ink-dim:  #d3cec2;   /* ~ tokens --text-secondary dark */
     --ink-mute: #a59f93;   /* ~ tokens --text-muted dark */
@@ -41,8 +41,8 @@
 
   .reveal-viewport {
     background:
-      radial-gradient(1200px 700px at 78% -10%, rgba(176,141,87,0.18), transparent 60%),
-      radial-gradient(900px 600px at 0% 110%, rgba(92,122,106,0.16), transparent 55%),
+      radial-gradient(1200px 700px at 78% -10%, rgba(166,111,0,0.18), transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, rgba(0,107,95,0.16), transparent 55%),
       var(--ebony-2);
   }
 
@@ -95,8 +95,8 @@
   .hero-fallback {
     position: absolute; inset: 0;
     background:
-      radial-gradient(700px 500px at 30% 30%, rgba(204,61,46,0.30), transparent 60%),
-      radial-gradient(700px 500px at 75% 70%, rgba(176,141,87,0.28), transparent 60%),
+      radial-gradient(700px 500px at 30% 30%, rgba(191,47,47,0.30), transparent 60%),
+      radial-gradient(700px 500px at 75% 70%, rgba(166,111,0,0.28), transparent 60%),
       linear-gradient(135deg, var(--ebony), var(--ebony-2));
     z-index: -1;
   }
@@ -115,7 +115,7 @@
     border-radius: 8px;
     min-height: 58vh;
     background-size: cover; background-position: center;
-    border: 1px solid rgba(176,141,87,0.45);
+    border: 1px solid rgba(166,111,0,0.45);
     box-shadow: 0 18px 50px rgba(0,0,0,0.5);
     position: relative;
     overflow: hidden;
@@ -133,7 +133,7 @@
   .reveal pre {
     width: 100%;
     box-shadow: 0 14px 40px rgba(0,0,0,0.5);
-    border: 1px solid rgba(176,141,87,0.45);
+    border: 1px solid rgba(166,111,0,0.45);
     border-radius: 8px;
     font-size: 0.62em;
   }
@@ -156,7 +156,7 @@
   blockquote.reveal-quote, .reveal blockquote {
     border: none;
     border-left: 5px solid var(--cinnabar);
-    background: rgba(204,61,46,0.08);
+    background: rgba(191,47,47,0.08);
     padding: 0.7em 1.1em;
     width: auto;
     box-shadow: none;
@@ -165,7 +165,7 @@
     font-size: 1.05em;
     line-height: 1.4;
   }
-  blockquote.proof { border-left-color: var(--patina); background: rgba(92,122,106,0.10); }
+  blockquote.proof { border-left-color: var(--patina); background: rgba(0,107,95,0.10); }
 
   ul.tight li { margin: 0.28em 0; }
   .reveal ul { list-style: none; padding-left: 0; }
@@ -176,7 +176,7 @@
 
   .trilogy { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3%; margin-top: 0.6em; }
   .beam {
-    border: 1px solid rgba(176,141,87,0.45);
+    border: 1px solid rgba(166,111,0,0.45);
     border-top: 4px solid var(--brass);
     border-radius: 8px;
     padding: 0.8em 0.9em;
