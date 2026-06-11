@@ -145,6 +145,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
+  benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
   pub: 'approval',
@@ -377,6 +378,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   // backup: run writes a snapshot; schedule install/uninstall toggle the timer
   'backup run': 'notify',
   'backup schedule': 'notify',
+
+  // benchmark: `run` makes paid LLM calls (notify); the listing/report forms are read-only
+  'benchmark list-models': 'silent',
+  'benchmark list-conditions': 'silent',
+  'benchmark models': 'silent',
+  'benchmark conditions': 'silent',
+  'benchmark report': 'silent',
 
   // dispatch: status/list are read-only; cancel/reject affect queued work
   'dispatch status': 'silent',
