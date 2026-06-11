@@ -1,4 +1,7 @@
 % Figure 4 — the four design questions as a decision flow for any read-surface.
+% Design: vertical spine, asked in order top to bottom (they are not branches);
+% each question's obligation sits to its right. No resizebox shrink — the text
+% renders at its natural size.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -9,40 +12,42 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  q/.style={draw=hhebony,thick,diamond,aspect=2.2,fill=hhsand!30,
-            align=center,inner sep=2pt,font=\footnotesize,text width=30mm},
-  act/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
-              align=center,inner sep=4pt,font=\footnotesize,text=hhink,text width=34mm},
+  q/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
+            align=left,inner sep=6pt,font=\footnotesize,text width=46mm,
+            minimum height=11mm},
+  act/.style={draw=hhteal,thick,rounded corners=2pt,fill=hhpaper,
+              align=left,inner sep=5pt,font=\footnotesize,text=hhink,text width=52mm},
   edge/.style={-{Latex[length=2mm]},thick,hhink},
+  ob/.style={-{Latex[length=2mm]},thick,hhteal},
 ]
-\node[q] (q1) at (0,0) {Q1. Irreversible\\act?};
-\node[act,above=11mm of q1] (a1) {force a zoom;\\artifact one keystroke away};
-\node[q,right=24mm of q1] (q2) {Q2. Admin vs\\m\^etis?};
-\node[act,above=11mm of q2] (a2) {flatten admin;\\link m\^etis verbatim};
-\node[q,right=24mm of q2] (q3) {Q3. Can the\\summary lie?};
-\node[act,above=11mm of q3] (a3) {point zoom at the\\artifact, not narration};
-\node[q,right=24mm of q3] (q4) {Q4. Authority\\legible?};
-\node[act,above=11mm of q4] (a4) {every act carries\\a named reason};
-\node[act,below=12mm of q4,fill=hhsand!30,draw=hhink,text width=30mm] (ok)
-  {ship the surface};
+\node[q] (q1) at (0,0)    {\textbf{Q1.} Is the act irreversible?};
+\node[q] (q2) at (0,-1.7) {\textbf{Q2.} Administrative vs.\ m\^etis?};
+\node[q] (q3) at (0,-3.4) {\textbf{Q3.} Can the summary lie?};
+\node[q] (q4) at (0,-5.1) {\textbf{Q4.} Is the authority legible?};
+\node[q,draw=hhcobalt,very thick,text width=30mm] (ok) at (0,-6.8) {ship the surface};
 
-\draw[edge] (q1)--node[midway,right=1pt,font=\scriptsize\itshape]{yes}(a1);
-\draw[edge] (q2)--node[midway,right=1pt,font=\scriptsize\itshape]{yes}(a2);
-\draw[edge] (q3)--node[midway,right=1pt,font=\scriptsize\itshape]{yes}(a3);
-\draw[edge] (q4)--node[midway,right=1pt,font=\scriptsize\itshape]{yes}(a4);
-\draw[edge] (q1)--node[below,font=\scriptsize\itshape]{no/then}(q2);
-\draw[edge] (q2)--node[below,font=\scriptsize\itshape]{no/then}(q3);
-\draw[edge] (q3)--node[below,font=\scriptsize\itshape]{no/then}(q4);
-\draw[edge] (q4)--node[midway,right=1pt,font=\scriptsize\itshape]{no/then}(ok);
-\end{tikzpicture}%
-}
+\node[act] (a1) at (6.4,0)    {force a zoom; artifact one keystroke away};
+\node[act] (a2) at (6.4,-1.7) {flatten admin; link m\^etis verbatim};
+\node[act] (a3) at (6.4,-3.4) {point zoom at the artifact, not narration};
+\node[act] (a4) at (6.4,-5.1) {every act carries a named reason};
+
+\draw[ob] (q1.east) -- (a1.west);
+\draw[ob] (q2.east) -- (a2.west);
+\draw[ob] (q3.east) -- (a3.west);
+\draw[ob] (q4.east) -- (a4.west);
+
+\draw[edge] (q1) -- node[right=1pt,font=\scriptsize\itshape]{then} (q2);
+\draw[edge] (q2) -- node[right=1pt,font=\scriptsize\itshape]{then} (q3);
+\draw[edge] (q3) -- node[right=1pt,font=\scriptsize\itshape]{then} (q4);
+\draw[edge] (q4) -- (ok);
+\end{tikzpicture}
 \caption{The four design questions (\S\ref{sec:four-questions}) as a decision flow
-applied to every read-surface. They are asked in order; each ``yes'' adds an
-obligation (force-zoom, verbatim-link, artifact-target, named-reason) before the
-surface may ship. The procedure is the operational form of the one law
-(Def.~\ref{def:zoom}) and the legible-sovereign rule (Prop.~\ref{prop:legible-sovereign}).}
+applied to every read-surface. They are asked in order, and each question binds an
+obligation (force-zoom, verbatim-link, artifact-target, named-reason) the surface
+must satisfy before it may ship. The procedure is the operational form of the one
+law (Def.~\ref{def:zoom}) and the legible-sovereign rule
+(Prop.~\ref{prop:legible-sovereign}).}
 \label{fig:four-questions}
 \end{figure}

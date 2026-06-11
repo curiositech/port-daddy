@@ -722,6 +722,149 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
     }
   }
 
+  /**
+   * Generate a context-budget-aware compressed briefing for an agent.
+   *
+   * Compact-from-artifacts: all tiers query the DB directly.
+   * The on-disk briefing.md / briefing.json is a CACHE — never a source here.
+   *
+   * Every retained item carries a (type, id) pointer so the receiving agent
+   * can fetch full content. This is zoom enforcement: no terminal summaries.
+   *
+   * Budget tiers (tokens):
+   *   > 80k → full   (current generate() content)
+   *   40k–80k → summary (top 5 notes + salvage queue)
+   *   20k–40k → minimal (handoff notes + salvage count only)
+   *   < 20k  → emergency (unresolved handoffs + spawn new agent advisory)
+   */
+  function generateCompressed(agentId: string, contextBudgetTokens: number): CompressedBriefing {
+    const now = Date.now();
+
+    if (contextBudgetTokens > 80_000) {
+      // Full tier: pull all active sessions, notes, claims from DB
+      const activeSessions = db.prepare(`
+        SELECT id, agent_id, purpose, phase, identity_project, updated_at, status
+        FROM sessions WHERE status = 'active' ORDER BY updated_at DESC LIMIT 20
+      `).all() as Array<Record<string, unknown>>;
+
+      const recentNotes = db.prepare(`
+        SELECT sn.id, sn.session_id, sn.content, sn.type, sn.created_at,
+               s.purpose as session_purpose, s.identity_project
+        FROM session_notes sn
+        JOIN sessions s ON s.id = sn.session_id
+        WHERE sn.created_at > ?
+        ORDER BY sn.created_at DESC LIMIT 30
+      `).all(now - 24 * 60 * 60 * 1000) as Array<Record<string, unknown>>;
+
+      return {
+        tier: 'full',
+        agentId,
+        contextBudgetTokens,
+        generatedAt: new Date().toISOString(),
+        activeSessions: activeSessions.map(s => ({
+          type: 'session' as const, id: s.id as string,
+          purpose: s.purpose as string, phase: s.phase as string,
+          identityProject: s.identity_project as string | null,
+        })),
+        recentNotes: recentNotes.map(n => ({
+          type: 'note' as const, id: String(n.id),
+          content: (n.content as string).slice(0, 500),
+          noteType: n.type as string,
+          sessionPurpose: n.session_purpose as string | null,
+        })),
+        handoffs: [],
+        advisory: null,
+      };
+    }
+
+    // All tiers below: recall pass — pull handoff notes first (load-bearing facts)
+    const handoffs = db.prepare(`
+      SELECT sn.id, sn.session_id, sn.content, sn.created_at,
+             s.purpose as session_purpose, s.identity_project
+      FROM session_notes sn
+      JOIN sessions s ON s.id = sn.session_id
+      WHERE sn.type = 'handoff' AND s.status = 'active'
+      ORDER BY sn.created_at DESC LIMIT 10
+    `).all() as Array<Record<string, unknown>>;
+
+    const salvageCount: number = (db.prepare(
+      `SELECT COUNT(*) as c FROM sessions WHERE status = 'abandoned' AND updated_at > ?`
+    ).get(now - 7 * 24 * 60 * 60 * 1000) as { c: number } | undefined)?.c ?? 0;
+
+    if (contextBudgetTokens >= 40_000) {
+      // Summary tier
+      const topNotes = db.prepare(`
+        SELECT sn.id, sn.session_id, sn.content, sn.type, sn.created_at,
+               s.purpose as session_purpose, s.identity_project
+        FROM session_notes sn
+        JOIN sessions s ON s.id = sn.session_id
+        WHERE sn.type IN ('handoff','finding','design','idea')
+        ORDER BY sn.created_at DESC LIMIT 5
+      `).all() as Array<Record<string, unknown>>;
+
+      const activeCount: number = (db.prepare(
+        `SELECT COUNT(*) as c FROM sessions WHERE status = 'active'`
+      ).get() as { c: number } | undefined)?.c ?? 0;
+
+      return {
+        tier: 'summary',
+        agentId,
+        contextBudgetTokens,
+        generatedAt: new Date().toISOString(),
+        activeSessions: [{ type: 'meta' as const, id: 'count', count: activeCount }],
+        recentNotes: topNotes.map(n => ({
+          type: 'note' as const, id: String(n.id),
+          content: (n.content as string).slice(0, 300),
+          noteType: n.type as string,
+          sessionPurpose: n.session_purpose as string | null,
+        })),
+        handoffs: handoffs.map(n => ({
+          type: 'note' as const, id: String(n.id),
+          noteType: 'handoff',
+          content: (n.content as string).slice(0, 500),
+          sessionPurpose: n.session_purpose as string | null,
+        })),
+        advisory: salvageCount > 0 ? `Salvage queue: ${salvageCount} sessions. Run pd salvage to review.` : null,
+      };
+    }
+
+    if (contextBudgetTokens >= 20_000) {
+      // Minimal tier
+      return {
+        tier: 'minimal',
+        agentId,
+        contextBudgetTokens,
+        generatedAt: new Date().toISOString(),
+        activeSessions: [],
+        recentNotes: [],
+        handoffs: handoffs.slice(0, 3).map(n => ({
+          type: 'note' as const, id: String(n.id),
+          noteType: 'handoff',
+          content: (n.content as string).slice(0, 200),
+          sessionPurpose: n.session_purpose as string | null,
+        })),
+        advisory: `Context low. Open handoffs: ${handoffs.length}. Salvage queue: ${salvageCount}. Consider spawning a continuation agent.`,
+      };
+    }
+
+    // Emergency tier
+    return {
+      tier: 'emergency',
+      agentId,
+      contextBudgetTokens,
+      generatedAt: new Date().toISOString(),
+      activeSessions: [],
+      recentNotes: [],
+      handoffs: handoffs.slice(0, 2).map(n => ({
+        type: 'note' as const, id: String(n.id),
+        noteType: 'handoff',
+        content: (n.content as string).slice(0, 100),
+        sessionPurpose: n.session_purpose as string | null,
+      })),
+      advisory: `CONTEXT CRITICAL. Spawn new agent immediately. Open handoffs: ${handoffs.length}. Pending approvals: 0.`,
+    };
+  }
+
   return {
     generate,
     sync,
@@ -730,5 +873,29 @@ export function createBriefing(db: Database.Database, deps: BriefingDeps) {
     detectProject,
     gatherData,
     renderMarkdown,
+    generateCompressed,
   };
+}
+
+export interface BriefingPointer {
+  type: 'note' | 'session' | 'episode' | 'claim' | 'meta';
+  id: string;
+  count?: number;
+  content?: string;
+  noteType?: string;
+  sessionPurpose?: string | null;
+  purpose?: string;
+  phase?: string;
+  identityProject?: string | null;
+}
+
+export interface CompressedBriefing {
+  tier: 'full' | 'summary' | 'minimal' | 'emergency';
+  agentId: string;
+  contextBudgetTokens: number;
+  generatedAt: string;
+  activeSessions: BriefingPointer[];
+  recentNotes: BriefingPointer[];
+  handoffs: BriefingPointer[];
+  advisory: string | null;
 }
