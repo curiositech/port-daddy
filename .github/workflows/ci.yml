@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs: a new push to a PR aborts the older, now-pointless
+# run instead of letting both finish. Frees runners and shrinks the merge-race
+# window. main runs use a per-SHA group so post-merge runs never cancel.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   brand-color-guard:
     runs-on: ubuntu-latest
@@ -18,12 +25,16 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  # PR-blocking unit tests: only the node-22 legs (the required checks). The
+  # node 20/24 compatibility matrix moved to `unit-tests-compat` which runs
+  # post-merge on main — every PR previously paid for 4 extra full ~10-min
+  # test runs (ubuntu+macos × node 20/24) that no required check gates on.
   unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        node-version: [20, 22, 24]
+        node-version: [22]
       fail-fast: false
 
     steps:
@@ -54,6 +65,36 @@ jobs:
           node bin/port-daddy-cli.js status || true
           node bin/port-daddy-cli.js doctor || true
           node bin/port-daddy-cli.js --version
+
+  # Node 20/24 compatibility: full coverage, but only post-merge on main so it
+  # never blocks (or slows) a PR. If a Node-version regression lands, it shows
+  # red on main immediately and is caught before release.
+  unit-tests-compat:
+    if: github.event_name == 'push'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node-version: [20, 24]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -277,10 +318,19 @@ jobs:
           bun-version: 1.2.21
 
       - name: Install recorder tools
+        # agg is a Rust binary; `cargo install --git` recompiled it from source
+        # on every run (several minutes). Pull the pinned prebuilt linux release
+        # instead — seconds, not minutes. Bump AGG_VERSION to upgrade.
+        env:
+          AGG_VERSION: v1.9.0
         run: |
           python3 -m pip install --user asciinema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          cargo install --locked --git https://github.com/asciinema/agg
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o "$HOME/.local/bin/agg" \
+            "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
+          chmod +x "$HOME/.local/bin/agg"
+          "$HOME/.local/bin/agg" --version
 
       - name: Build daemon binary
         run: npm run build:daemon:dist
