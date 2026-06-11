@@ -156,24 +156,6 @@ A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob
 
 \vspace{0.6cm}
 
-% ─── Series locator box (identical template across all three papers) ──────────
-\begin{center}
-\begin{tikzpicture}
-\node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
-      inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE PORT DADDY TRILOGY\hfill PAPER~III~OF~III}}\\[5pt]
-  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  \textbf{I.~The Bonded Commons.}~\emph{Why} mutually-suspicious agents need a pre-transactional \emph{commons authority}: bonded participation, an immutable evidence trail, and a value-conservation law. The economic and governance case for coordination at all.\\[4pt]
-  \textbf{II.~The Anchor Protocol.}~\emph{How} a single process proves its identity and attenuates its capability to the local daemon --- a formally verified (ProVerif, Kani) capability substrate, scoped to one machine.\\[4pt]
-  {\color{hhcobalt}\textbf{III.~The Federated Harbor \textnormal{(this paper)}.}}~How identity, revocation, and settlement compose \emph{across sovereign machines} when no operator is a root of authority for any other --- the federation layer.\\[6pt]
-  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize You are reading \textbf{Paper III}. It assumes the primitives of I and II and carries them across the trust boundary between two operators' machines; \S\ref{sec:fh-xfer}, \S\ref{sec:fh-revocation}, and \S\ref{sec:fh-settlement} each mark the exact dependency. Either companion can be read first or in parallel.}
-};
-\end{tikzpicture}
-\end{center}
-
-\vspace{0.4cm}
-
 % ═══════════════════════════════════════════════════════════════════════════════
 \section*{Reader's Map}\label{sec:fh-readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -205,7 +187,7 @@ The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\re
 \end{itemize}
 
 \vspace{0.5cm}
-\noindent\textbf{Companion papers.} The Anchor Protocol pins down what it means for a process on a single machine to prove its identity to the local daemon. The Bonded Commons explains why coordination at scale needs a pre-transactional commons authority rather than per-transaction trust negotiation. This paper extends both into the cross-machine, cross-organization case. We will cite specific sections (e.g.\ \emph{Anchor~\S2.4}, \emph{Bonded~\S2}) when we depend on a primitive rather than re-derive it.
+\noindent\textbf{Companion papers.} The Anchor Protocol pins down what it means for a process on a single machine to prove its identity to the local daemon. The Bonded Commons explains why coordination at scale needs a pre-transactional commons authority rather than per-transaction trust negotiation. This paper extends both into the cross-machine, cross-organization case. We will cite specific sections (e.g.\ \emph{Anchor~\S4}, \emph{Bonded~\S\ref{sec:fh-bonded-anchor}}) when we depend on a primitive rather than re-derive it.
 
 \newpage
 \tableofcontents
