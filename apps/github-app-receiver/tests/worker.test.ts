@@ -38,11 +38,13 @@ function stubFetch(response: Response | Error): FetchStub {
   return { calls, fn };
 }
 
+const AUTH_TOKEN = 'test-forward-token-xyz';
+
 function makeEnv(overrides: Partial<Env> = {}): Env {
   return {
     GITHUB_WEBHOOK_SECRET: SECRET,
     DAEMON_FORWARD_URL: 'https://daemon.example/forward',
-    FORWARD_AUTH_TOKEN: undefined,
+    FORWARD_AUTH_TOKEN: AUTH_TOKEN,
     FORWARD_TIMEOUT_MS: '5000',
     ...overrides,
   };
@@ -50,16 +52,18 @@ function makeEnv(overrides: Partial<Env> = {}): Env {
 
 async function signedRequest(
   payload: object,
-  opts: { secret?: string; event?: string; delivery?: string; signature?: string } = {},
+  opts: { secret?: string; event?: string; delivery?: string; signature?: string; path?: string } = {},
 ): Promise<Request> {
   const body = JSON.stringify(payload);
   const signature =
     opts.signature ?? (await computeSignature(opts.secret ?? SECRET, body));
-  return new Request('https://worker.example/', {
+  const event = opts.event ?? 'pull_request';
+  const path = opts.path ?? `/msg/github:webhook:${event}`;
+  return new Request(`https://worker.example${path}`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-github-event': opts.event ?? 'pull_request',
+      'x-github-event': event,
       'x-github-delivery': opts.delivery ?? 'd-12345',
       'x-hub-signature-256': signature,
     },
@@ -223,7 +227,7 @@ describe('handleRequest', () => {
   });
 
   it('401s when signature header is missing', async () => {
-    const req = new Request('https://worker.example/', {
+    const req = new Request('https://worker.example/msg/github:webhook:push', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -239,7 +243,7 @@ describe('handleRequest', () => {
   it('400s when GitHub headers are missing', async () => {
     const body = JSON.stringify({});
     const signature = await computeSignature(SECRET, body);
-    const req = new Request('https://worker.example/', {
+    const req = new Request('https://worker.example/msg/github:webhook:push', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -254,7 +258,7 @@ describe('handleRequest', () => {
   it('400s when body is not valid JSON object', async () => {
     const body = '"not an object"';
     const signature = await computeSignature(SECRET, body);
-    const req = new Request('https://worker.example/', {
+    const req = new Request('https://worker.example/msg/github:webhook:ping', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -278,9 +282,21 @@ describe('handleRequest', () => {
   });
 
   it('405s on non-POST', async () => {
-    const req = new Request('https://worker.example/', { method: 'GET' });
+    const req = new Request('https://worker.example/msg/github:webhook:push', { method: 'GET' });
     const res = await handleRequest(req, makeEnv());
     expect(res.status).toBe(405);
+  });
+
+  it('404s when path is not /msg/*', async () => {
+    const req = new Request('https://worker.example/services', { method: 'POST', body: '{}' });
+    const res = await handleRequest(req, makeEnv());
+    expect(res.status).toBe(404);
+  });
+
+  it('404s for bare root path', async () => {
+    const req = new Request('https://worker.example/', { method: 'POST', body: '{}' });
+    const res = await handleRequest(req, makeEnv());
+    expect(res.status).toBe(404);
   });
 
   it('500s when GITHUB_WEBHOOK_SECRET is missing', async () => {
@@ -293,6 +309,13 @@ describe('handleRequest', () => {
   it('500s when DAEMON_FORWARD_URL is missing', async () => {
     const req = await signedRequest({});
     const env = makeEnv({ DAEMON_FORWARD_URL: '' });
+    const res = await handleRequest(req, env);
+    expect(res.status).toBe(500);
+  });
+
+  it('500s when FORWARD_AUTH_TOKEN is missing', async () => {
+    const req = await signedRequest({});
+    const env = makeEnv({ FORWARD_AUTH_TOKEN: '' });
     const res = await handleRequest(req, env);
     expect(res.status).toBe(500);
   });

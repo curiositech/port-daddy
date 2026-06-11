@@ -1,21 +1,23 @@
 # Cloudflare Worker config for the GitHub App webhook receiver.
 #
-# Two values must be set by the operator before `wrangler deploy`:
+# Two secrets + two vars must be set before `wrangler deploy`:
 #
 #   1. GITHUB_WEBHOOK_SECRET (secret)
-#         echo "<value>" | wrangler secret put GITHUB_WEBHOOK_SECRET
+#         openssl rand -base64 32 | wrangler secret put GITHUB_WEBHOOK_SECRET
 #      Must match the webhook secret registered on the GitHub App.
 #
-#   2. DAEMON_FORWARD_URL (var, set below or via secret if sensitive)
-#      The HTTPS URL the operator's Port Daddy daemon (or its public
-#      tunnel — smee.io for dev, cloudflared / ngrok / Tailscale Funnel
-#      for prod) listens on. The Worker POSTs the normalized webhook
-#      envelope to this URL.
+#   2. FORWARD_AUTH_TOKEN (secret) — REQUIRED, not optional
+#         openssl rand -base64 32 | tee /dev/stderr | wrangler secret put FORWARD_AUTH_TOKEN
+#      Set the same value on the daemon side:
+#         echo 'PD_WEBHOOK_FORWARD_TOKEN=<value>' >> ~/.port-daddy-env
+#      The daemon rejects /msg/* POSTs without a matching Bearer token.
+#      Note: configure your GitHub App webhook URL under /msg/* (e.g. /msg/fleet:github:webhook).
 #
-# Optional:
-#   FORWARD_AUTH_TOKEN (secret) — bearer token the daemon expects.
-#         echo "<value>" | wrangler secret put FORWARD_AUTH_TOKEN
-#   FORWARD_TIMEOUT_MS (var)    — forward timeout in ms (default 8000).
+#   3. DAEMON_FORWARD_URL (var, set below)
+#      The HTTPS URL the cloudflared tunnel exposes, pointing at the daemon.
+#      The Worker ONLY forwards requests to /msg/* paths — all other paths return 404.
+#
+#   4. FORWARD_TIMEOUT_MS (var)    — forward timeout in ms (default 8000).
 
 name = "github-app-receiver"
 main = "src/worker.ts"
@@ -31,4 +33,4 @@ enabled = true
 
 # Secrets (do not commit values):
 #   GITHUB_WEBHOOK_SECRET
-#   FORWARD_AUTH_TOKEN   (optional)
+#   FORWARD_AUTH_TOKEN   (REQUIRED — worker refuses to start without it)
