@@ -1,3 +1,28 @@
+/* Recursive (default type system) — one variable file, all axes
+   (MONO 0→1, CASL, wght 300–1000, slnt, CRSV). Registered twice: once as
+   the sans ("Recursive", MONO=0 default) and once as the mono
+   ("Recursive Mono", MONO pinned to 1 via the font-variation-settings
+   descriptor). Same 305KB woff2, fetched once. */
+@font-face {
+  font-family: "Recursive";
+  src: url("/fonts/recursive/recursive-latin-full-normal.woff2")
+    format("woff2-variations");
+  font-style: normal;
+  font-weight: 300 1000;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Recursive Mono";
+  src: url("/fonts/recursive/recursive-latin-full-normal.woff2")
+    format("woff2-variations");
+  font-style: normal;
+  font-weight: 300 1000;
+  font-display: swap;
+  font-variation-settings: "MONO" 1, "CASL" 0;
+}
+
+/* Radnika — kept for the "current" option in the type-theme switcher. */
 @font-face {
   font-family: "Radnika";
   src: url("/fonts/radnika/Radnika-Regular.woff2") format("woff2");
@@ -67,10 +92,10 @@
   --text-4xl: 2.25rem;
   --text-5xl: 3rem;
 
-  --font-sans: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono:
-    "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    "Recursive Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 
   --type-meta-size: 0.8125rem;
   --type-code-size: 0.8125rem;
@@ -132,4 +157,73 @@
     --radnika-opsz-small: 13;
     --radnika-opsz-display: 64;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Recursive metric tuning (default theme only — :not([data-type-theme])).
+   Recursive's upper weights are heavier and wider than Radnika Black, and
+   its large x-height wants slightly negative display tracking. Cap the
+   display weight at 800 and tighten tracking so heroes/wordmark don't read
+   as slabs. These die with the switcher once a winner is chosen.
+--------------------------------------------------------------------------- */
+
+html:not([data-type-theme]) {
+  --tracking-display-tight: -0.02em;
+  --tracking-display-card: -0.015em;
+  --tracking-display-nav: -0.01em;
+}
+
+html:not([data-type-theme]) .font-black {
+  font-weight: 800;
+}
+
+/* ---------------------------------------------------------------------------
+   Type-theme switcher (feel-out tool, see TypeThemeSwitcher.tsx).
+   Default (no attribute) is Recursive, above. Each block swaps the three
+   font roles; alternate webfonts are CDN-loaded on demand by the switcher.
+   Remove the unused blocks once a winner is chosen.
+--------------------------------------------------------------------------- */
+
+html[data-type-theme="radnika"] {
+  --font-sans: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono:
+    "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html[data-type-theme="general-sans"] {
+  --font-sans: "General Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display:
+    "General Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html[data-type-theme="geist-inter"] {
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html[data-type-theme="plex"] {
+  --font-sans: "IBM Plex Serif", Georgia, serif;
+  --font-display: "IBM Plex Sans", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html[data-type-theme="fraunces"] {
+  --font-sans: "Source Sans 3", "Helvetica Neue", Helvetica, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html[data-type-theme="archivo"] {
+  --font-sans: "Source Serif 4", Georgia, serif;
+  --font-display: "Archivo", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+html[data-type-theme="fraunces"] .display,
+html[data-type-theme="fraunces"] h1,
+html[data-type-theme="fraunces"] h2 {
+  font-variation-settings: "opsz" 120, "SOFT" 0, "WONK" 0;
 }

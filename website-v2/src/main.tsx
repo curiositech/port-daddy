@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
+import { TypeThemeSwitcher } from '@/components/layout/TypeThemeSwitcher'
 import { HashScroll } from '@/components/layout/HashScroll'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { RouteFallback } from '@/components/layout/RouteFallback'
@@ -189,6 +190,7 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <BrowserRouter>
         <DocumentMeta />
+        <TypeThemeSwitcher />
         <HashScroll />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
