@@ -18,9 +18,13 @@ import {
 
 /**
  * Standalone feature page for `pd tube` at /pd-tube. Covers what the
- * command is, the event -> agent reply loop, and the multi-subscriber
- * fan-out shipped in v3.16.2 (distinct `--as` identities each receive
- * every message). Links out to the CLI docs, the tutorial, and the post.
+ * command is, the event -> agent reply loop, a "wilder things" GIF showcase
+ * (UI-summons-agent, agent-to-agent review duet, one-message program
+ * bootstrap — scenarios live in demos/tube-*), the eight Rube Goldberg
+ * cascade machines (docs/tube-router-rube-goldberg.md; scenarios in
+ * demos/rube-goldberg/*), and the multi-subscriber fan-out shipped in
+ * v3.16.2 (distinct `--as` identities each receive every message). Links
+ * out to the CLI docs, the tutorial, and the post.
  */
 export function PdTubePage() {
   return (
@@ -108,6 +112,104 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
                 body="Distinct --as identities each receive every message on the channel. One broadcast reaches the whole room, not one listener at random."
               />
             </div>
+          </PageContainer>
+        </section>
+
+        {/* Wilder things — three demo GIFs */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Wilder things"
+              title="The bus doesn't care what's on either end."
+              description="A channel is a name and a POST — which means the publisher can be a menu-bar button, another agent, or you typing one sentence into a shell. The subscriber on the other side is an agent with a working directory, a shell, and opinions. Here is what that combination actually does."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-7)] space-y-[var(--space-8)]">
+              <DemoShowcase
+                title="A button that summons your agent"
+                lede={
+                  <>
+                    A menu-bar app — anything local that can manage an HTTP POST — fires one JSON
+                    blob at <code>ui:fixit</code> when you click <em>Fix failing test</em>. The
+                    agent parked on <code>pd tube ui:fixit</code> wakes holding the event, finds
+                    the off-by-one, patches it, and its <code>--reply</code> comes back as the
+                    toast. The app never linked an SDK; the whole integration is a URL.
+                  </>
+                }
+                src="/demos/pd-tube/tube-ui-summon.gif"
+                alt="Animated terminal recording: a menu-bar app POSTs a JSON event to a tube channel, the listening agent wakes, fixes a failing test, and replies — the reply arrives back in the UI as a toast"
+                caption={
+                  <>
+                    Click → POST → patch → toast. The UI speaks HTTP, the agent speaks shell, and{' '}
+                    <code>pd tube</code> is the only thing between them.
+                  </>
+                }
+              />
+              <DemoShowcase
+                title="Two agents, arguing productively"
+                lede={
+                  <>
+                    A builder agent and a reviewer agent hold a real conversation on{' '}
+                    <code>agents:review</code>: handoff, pushback, revision, approval.{' '}
+                    <code>--reply</code> auto-correlates each turn to the most recent foreign
+                    event, so neither side juggles message ids — and no human relays turns between
+                    two terminal windows.
+                  </>
+                }
+                src="/demos/pd-tube/tube-agent-duet.gif"
+                alt="Animated terminal recording: a builder agent and a reviewer agent exchange correlated replies over one tube channel — a change request, a fix, and an approval, with no human relaying messages"
+                caption={
+                  <>
+                    The reviewer pushes back, the builder patches and re-pings, the reviewer
+                    approves — four turns of genuine code review with zero human relay.
+                  </>
+                }
+              />
+              <DemoShowcase
+                title="One sentence boots a program"
+                lede={
+                  <>
+                    Send <em>&ldquo;spin up the new admin panel&rdquo;</em> and walk away. The
+                    listening agent scaffolds the app, claims a deterministic port from the daemon
+                    (<code>pd claim admin:web:dev</code> — same identity, same port, every time),
+                    starts the dev server, and posts the URL back on the channel that asked. The
+                    interface to an entire bootstrap is one message.
+                  </>
+                }
+                src="/demos/pd-tube/tube-bootstrap.gif"
+                alt="Animated terminal recording: one tube message asks for a new app; the agent scaffolds it, claims a port from the Port Daddy daemon, starts the dev server, and replies with the running URL"
+                caption={
+                  <>
+                    Scaffold, install, <code>pd claim</code>, dev server, URL — a whole program
+                    initialized from a single channel round-trip.
+                  </>
+                }
+              />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* Rube Goldberg machines — eight cascade demos */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Rube Goldberg machines"
+              title="Cascade the tubes and the machines build themselves."
+              description="Once channels chain into channels — and every hop carries a loop-guarded delegation chain — you can tier cheap local models under expensive cloud ones and let whole workflows run unattended. Eight machines, each with the exact moment a loop guard keeps it from running away. That refusal is the reason you can trust any of this overnight."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-7)] space-y-[var(--space-8)]">
+              {RUBE_MACHINES.map((m) => (
+                <RubeMachineCard key={m.slug} machine={m} />
+              ))}
+            </div>
+            <PanelBody className="mt-[var(--space-6)] max-w-none text-[var(--text-muted)]">
+              Every machine above is a runnable scenario in{' '}
+              <code>demos/rube-goldberg/</code>; the full pattern catalog — chains, payoffs, and
+              guard moments — lives in <code>docs/tube-router-rube-goldberg.md</code>.
+            </PanelBody>
           </PageContainer>
         </section>
 
@@ -223,6 +325,214 @@ SUCCESS: tube: posted id=87 to standup:demo
         </section>
       </main>
       <Footer />
+    </div>
+  )
+}
+
+interface RubeMachine {
+  slug: string
+  number: string
+  title: string
+  chain: string
+  lede: ReactNode
+  guard: string
+  alt: string
+}
+
+const RUBE_MACHINES: RubeMachine[] = [
+  {
+    slug: 'test-whittler',
+    number: '№1',
+    title: 'The test whittler',
+    chain: 'failing:tests → ollama triage → codex fix → ollama verify → pr:ready',
+    lede: (
+      <>
+        CI red never pages a human. A local model splits flaky from real for free, codex writes
+        the minimal fix for the one confirmed regression, and a verification pass re-runs the
+        suite before the PR opens.
+      </>
+    ),
+    guard:
+      'When codex can’t reproduce a failure and tries to re-delegate triage upward, the depth cap fires and escalates to a human instead of looping.',
+    alt: 'Animated terminal recording: CI posts failing tests to a channel, a local model triages flaky from real, codex patches the regression, and the depth cap refuses an upward re-delegation',
+  },
+  {
+    slug: 'adversarial-reviewer',
+    number: '№2',
+    title: 'The adversarial reviewer',
+    chain: 'pr:diff → 3 × ollama lenses (parallel) → claude synthesis → pr:comment',
+    lede: (
+      <>
+        Three cheap local reviewers read the same diff through correctness, security, and perf
+        lenses — in parallel, in seconds. The cloud synthesizer fires once, after all three
+        resolve, and surfaces their disagreements as explicit conflicts instead of averaging
+        them into mush.
+      </>
+    ),
+    guard:
+      'The fan-out budget stops the synthesizer from hiring reviewer #4 when it disputes a finding — it must resolve disagreements with what it has.',
+    alt: 'Animated terminal recording: three local model reviewers fan out over one PR diff in parallel lenses, a cloud model synthesizes their verdicts, and the fan-out budget refuses a fourth reviewer',
+  },
+  {
+    slug: 'crash-archaeologist',
+    number: '№3',
+    title: 'The crash archaeologist',
+    chain: 'crash:log → ollama suspects → codex repro → ollama confirm → claude fix → pr:patch',
+    lede: (
+      <>
+        A production 500 becomes a tested PR with no human reading a stack trace. The expensive
+        model is only paid after the crash is <em>confirmed reproducible</em> — phantom bugs
+        never reach it.
+      </>
+    ),
+    guard:
+      'Ping-pong detection breaks the codex⇄ollama bounce on the third pass over the same crash signature and escalates with the full chain attached.',
+    alt: 'Animated terminal recording: a crash log flows through suspect-naming, repro-writing, and confirmation stages before a cloud model writes the fix; ping-pong detection refuses a third bounce',
+  },
+  {
+    slug: 'doc-rot-hunter',
+    number: '№4',
+    title: 'The doc rot hunter',
+    chain: 'docs:scan → ollama claims → fan-out verify per claim → gemini corrections → pr:docs',
+    lede: (
+      <>
+        Nightly, every &ldquo;function X returns Y&rdquo; claim in the docs gets its own grep of
+        the actual source. The rewrite model only ever sees the stale claims, never the whole
+        corpus — which is what makes a nightly run affordable.
+      </>
+    ),
+    guard:
+      'The fan-out budget (50 per run) stops one doc page from spawning four hundred per-sentence agents; overflow queues for tomorrow night.',
+    alt: 'Animated terminal recording: a nightly docs scan extracts 118 verifiable claims, fans out fifty source checks, queues the overflow, and sends only the three stale claims to a rewrite model',
+  },
+  {
+    slug: 'security-bounty-hunter',
+    number: '№5',
+    title: 'The security bounty hunter',
+    chain: 'security:scan → ollama lenses per module → dedup + triage → claude writeup → pr:security',
+    lede: (
+      <>
+        A full-codebase audit that costs roughly nothing until a finding is real: injection,
+        auth, and crypto lenses sweep every module locally, triage locally, and the first cloud
+        token is spent writing the writeup for a <em>confirmed</em> finding. The PR opens as a
+        draft — a human signs every security change.
+      </>
+    ),
+    guard:
+      'Pointed at a monorepo, the fan-out budget fires hard (40 per invocation) instead of spawning eight hundred agents; overflow continues next run.',
+    alt: 'Animated terminal recording: security lenses fan out across modules, findings dedupe down to one confirmed issue, and a cloud model writes the advisory as a draft PR',
+  },
+  {
+    slug: 'living-changelog',
+    number: '№6',
+    title: 'The living changelog',
+    chain: 'git:push → ollama summary → gemini enrich → ollama copy edit → CHANGELOG.md',
+    lede: (
+      <>
+        Every push becomes an honest changelog entry: a local model turns the diff into plain
+        English, gemini adds the &ldquo;why this matters&rdquo; context commit messages never
+        carry, and a final local pass hunts down the &ldquo;refactor internals&rdquo; cop-outs.
+      </>
+    ),
+    guard:
+      'Ping-pong detection gives the copy editor exactly one re-enrichment pass — after that it accepts the output or flags a human, no infinite style war.',
+    alt: 'Animated terminal recording: a git push flows through summary, enrichment, and copy-edit stages into a changelog entry; the router refuses a second re-enrichment loop',
+  },
+  {
+    slug: 'oncall-whisperer',
+    number: '№7',
+    title: 'The on-call whisperer',
+    chain: 'alert:fire → ollama classify → codex runbook patch → ollama sanity → oncall:gate',
+    lede: (
+      <>
+        The 3am page arrives pre-chewed: classified, runbook excerpt attached, patch drafted,
+        sanity verdict written. The on-call engineer wakes to a yes/no question instead of an
+        investigation — and the machine never self-merges, by construction.
+      </>
+    ),
+    guard:
+      'Upward delegation is blocked outright: codex hitting ambiguity must emit a “?” verdict to the human gate, never spawn a fresh classifier.',
+    alt: 'Animated terminal recording: a PagerDuty alert is classified, a remediation patch drafted from the runbook, everything stops at a human approval gate, and an upward re-classification is refused',
+  },
+  {
+    slug: 'debt-snake',
+    number: '№8',
+    title: 'The debt snake',
+    chain: 'debt:scan → ollama inventory → codex/claude fan-out in worktrees → verify → one PR',
+    lede: (
+      <>
+        The technical debt that lives forever because it&rsquo;s too small to prioritize gets
+        eaten on a weekly cron. Small TODOs go to codex, nuanced ones to claude, each in its own
+        worktree; every tree re-runs the suite before it counts, and the survivors squash into
+        one reviewable PR.
+      </>
+    ),
+    guard:
+      'The worktree budget (20 concurrent) keeps a ten-year codebase from spawning an agent per TODO; the depth cap stops a fixed TODO from being fixed twice.',
+    alt: 'Animated terminal recording: a weekly debt scan sizes 137 TODO markers, fans fixes out across isolated worktrees, reverts the two that broke tests, and squashes the rest into a single PR',
+  },
+]
+
+/** One Rube Goldberg machine: numbered title, chain, GIF, and its guard moment. */
+function RubeMachineCard({ machine }: { machine: RubeMachine }) {
+  return (
+    <div className="space-y-[var(--space-4)]">
+      <div className="max-w-[52rem] space-y-[var(--space-3)]">
+        <div className="flex items-baseline gap-[var(--space-3)]">
+          <span className="font-display text-[length:var(--type-panel-title-display-size)] font-black text-[var(--brand-primary)]">
+            {machine.number}
+          </span>
+          <PanelTitle as="h3" size="display">
+            {machine.title}
+          </PanelTitle>
+        </div>
+        <p className="font-mono text-sm text-[var(--text-muted)]">{machine.chain}</p>
+        <PanelBody>{machine.lede}</PanelBody>
+      </div>
+      <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+        <img
+          src={`/demos/rube-goldberg/${machine.slug}.gif`}
+          alt={machine.alt}
+          className="block w-full"
+          loading="lazy"
+        />
+        <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
+          <span className="font-semibold text-[var(--text-primary)]">The guard moment: </span>
+          {machine.guard}
+        </figcaption>
+      </figure>
+    </div>
+  )
+}
+
+/** A titled demo GIF with a one-paragraph lede above and a caption below. */
+function DemoShowcase({
+  title,
+  lede,
+  src,
+  alt,
+  caption,
+}: {
+  title: string
+  lede: ReactNode
+  src: string
+  alt: string
+  caption: ReactNode
+}) {
+  return (
+    <div className="space-y-[var(--space-4)]">
+      <div className="max-w-[52rem] space-y-[var(--space-3)]">
+        <PanelTitle as="h3" size="display">
+          {title}
+        </PanelTitle>
+        <PanelBody>{lede}</PanelBody>
+      </div>
+      <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+        <img src={src} alt={alt} className="block w-full" loading="lazy" />
+        <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
+          {caption}
+        </figcaption>
+      </figure>
     </div>
   )
 }
