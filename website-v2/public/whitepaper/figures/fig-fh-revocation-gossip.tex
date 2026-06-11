@@ -16,89 +16,85 @@
   font=\sffamily\small,
   harbor/.style={draw=hhebony,thick,rounded corners=3pt,
                  fill=hhsand!50,inner sep=4pt,minimum width=20mm,
-                 minimum height=14mm,align=center,
+                 minimum height=12mm,align=center,
                  font=\sffamily\bfseries\small},
+  harborrev/.style={harbor,fill=hhcobalt!22},
   filter/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
-                 inner sep=2pt,minimum width=20mm,minimum height=8mm,
+                 inner sep=2pt,minimum width=20mm,minimum height=7mm,
                  align=center,font=\sffamily\scriptsize},
-  filterrev/.style={draw=hhcobalt,thick,fill=hhcobalt!12,
-                    rounded corners=2pt,inner sep=2pt,
-                    minimum width=20mm,minimum height=8mm,
-                    align=center,font=\sffamily\scriptsize},
+  filterrev/.style={filter,draw=hhcobalt,fill=hhcobalt!12},
+  note/.style={font=\sffamily\scriptsize\itshape,text width=24mm,align=center},
   witnesslog/.style={draw=hhteal,very thick,fill=hhpaper,
                      rounded corners=3pt,inner sep=3pt,
-                     minimum width=90mm,minimum height=10mm,
+                     minimum width=92mm,minimum height=10mm,
                      align=center,font=\sffamily\bfseries\small},
   edge/.style={->,>=Latex,thick,draw=hhebony},
   gossip/.style={->,>=Latex,thick,draw=hhteal,dashed},
-  publish/.style={->,>=Latex,thick,draw=hhamber},
+  publish/.style={->,>=Latex,semithick,draw=hhamber},
+  glab/.style={font=\sffamily\scriptsize\itshape,fill=hhpaper,inner sep=1pt},
   tlabel/.style={font=\sffamily\bfseries\small,text=hhebony},
 ]
 
+% Column x-positions and row y-positions (rows generously spaced so the
+% per-cell notes never reach into the row below).
+\def\cx{0}   \def\cy{5}   \def\cz{10}  \def\cw{15}
+\def\rA{-3.4} \def\rB{-7.4} \def\rC{-11.4}
+
 % ─── Timeline labels at the top ──────────────────────────────────
-\node[tlabel] (t0) at (0,0)   {$t = 0$};
-\node[tlabel] (t1) at (5,0)   {$t = \Delta$};
-\node[tlabel] (t2) at (10,0)  {$t = 2\Delta$};
-\node[tlabel] (t3) at (15,0)  {$t = 3\Delta$};
+\node[tlabel] at (0,0.4)  {$t = 0$};
+\node[tlabel] at (5,0.4)  {$t = \Delta$};
+\node[tlabel] at (10,0.4) {$t = 2\Delta$};
+\node[tlabel] at (15,0.4) {$t = 3\Delta$};
 
 % ─── Witness log spanning the whole timeline ─────────────────────
-\node[witnesslog] (W) at (7.5,-1.4) {Federated Witness Log (publish on epoch boundary)};
+\node[witnesslog] (W) at (7.5,-1.4) {Federated Witness Log\\[1pt]\footnotesize\mdseries(roots published on each epoch boundary)};
 
-% ─── t=0: A revokes card c ───────────────────────────────────────
-\node[harbor,fill=hhcobalt!22] (A0) at (0,-3) {Harbor $A$};
+% ─── Row A : issuer, revokes at t=0, then steady ─────────────────
+\node[harborrev] (A0) at (\cx,\rA) {Harbor $A$};
 \node[filterrev,below=2pt of A0] (FA0) {$c \in F_A$};
-\node[font=\sffamily\scriptsize\itshape,below=2pt of FA0,text width=22mm,align=center]{operator revokes $c$};
+\node[note,below=2pt of FA0] {operator revokes $c$};
+\node[harborrev] (A1) at (\cy,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A1] {$c \in F_A$};
+\node[harborrev] (A2) at (\cz,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A2] {$c \in F_A$};
+\node[harborrev] (A3) at (\cw,\rA) {Harbor $A$}; \node[filterrev,below=2pt of A3] {$c \in F_A$};
 
-\node[harbor] (B0) at (0,-5.8) {Harbor $B$};
+% ─── Row B : hears at t=Δ ────────────────────────────────────────
+\node[harbor] (B0) at (\cx,\rB) {Harbor $B$};
 \node[filter,below=2pt of B0] (FB0) {$c \notin F_B$};
-\node[font=\sffamily\scriptsize,below=2pt of FB0,text width=22mm,align=center]{stale (\emph{vulnerable})};
+\node[note,below=2pt of FB0] {stale (\emph{vulnerable})};
+\node[harborrev] (B1) at (\cy,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B1] {$c \in F_B$};
+\node[harborrev] (B2) at (\cz,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B2] {$c \in F_B$};
+\node[harborrev] (B3) at (\cw,\rB) {Harbor $B$}; \node[filterrev,below=2pt of B3] {$c \in F_B$};
 
-\node[harbor] (C0) at (0,-8.0) {Harbor $C$};
+% ─── Row C : hears at t=2Δ ───────────────────────────────────────
+\node[harbor] (C0) at (\cx,\rC) {Harbor $C$};
 \node[filter,below=2pt of C0] (FC0) {$c \notin F_C$};
-\node[font=\sffamily\scriptsize,below=2pt of FC0,text width=22mm,align=center]{stale (\emph{vulnerable})};
+\node[note,below=2pt of FC0] {stale (\emph{vulnerable})};
+\node[harbor] (C1) at (\cy,\rC) {Harbor $C$};
+\node[filter,below=2pt of C1] (FC1) {$c \notin F_C$};
+\node[note,below=2pt of FC1] {still stale};
+\node[harborrev] (C2) at (\cz,\rC) {Harbor $C$}; \node[filterrev,below=2pt of C2] {$c \in F_C$};
+\node[harborrev] (C3) at (\cw,\rC) {Harbor $C$};
+\node[filterrev,below=2pt of C3] (FC3) {$c \in F_C$};
+\node[note,below=2pt of FC3,text=hhteal] {auditor confirms\\no equivocation};
 
-% ─── t=Δ: A publishes new root; B hears via gossip ───────────────
-\node[harbor,fill=hhcobalt!22] (A1) at (5,-3) {Harbor $A$};
-\node[filterrev,below=2pt of A1] {$c \in F_A$};
+% ─── Gossip (anti-entropy) hops: A→B at t=Δ, B→C at t=2Δ ──────────
+\draw[gossip] (A0.east) to[bend left=8]
+  node[glab,pos=0.5]{anti-entropy} (B1.west);
+\draw[gossip] (B1.east) to[bend left=8]
+  node[glab,pos=0.5]{anti-entropy} (C2.west);
 
-\node[harbor,fill=hhcobalt!22] (B1) at (5,-5.8) {Harbor $B$};
-\node[filterrev,below=2pt of B1] {$c \in F_B$};
-
-\node[harbor] (C1) at (5,-8.0) {Harbor $C$};
-\node[filter,below=2pt of C1] {$c \notin F_C$};
-\node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center] at (5,-9){still stale};
-
-% ─── t=2Δ: C also has it; root inclusion proven ──────────────────
-\node[harbor,fill=hhcobalt!22] (A2) at (10,-3) {Harbor $A$};
-\node[filterrev,below=2pt of A2] {$c \in F_A$};
-\node[harbor,fill=hhcobalt!22] (B2) at (10,-5.8) {Harbor $B$};
-\node[filterrev,below=2pt of B2] {$c \in F_B$};
-\node[harbor,fill=hhcobalt!22] (C2) at (10,-8.0) {Harbor $C$};
-\node[filterrev,below=2pt of C2] {$c \in F_C$};
-
-% ─── t=3Δ: equivocation detector verified ────────────────────────
-\node[harbor,fill=hhcobalt!22] (A3) at (15,-3) {Harbor $A$};
-\node[filterrev,below=2pt of A3] {$c \in F_A$};
-\node[harbor,fill=hhcobalt!22] (B3) at (15,-5.8) {Harbor $B$};
-\node[filterrev,below=2pt of B3] {$c \in F_B$};
-\node[harbor,fill=hhcobalt!22] (C3) at (15,-8.0) {Harbor $C$};
-\node[filterrev,below=2pt of C3] {$c \in F_C$};
-\node[font=\sffamily\scriptsize\itshape,below=2pt,text width=22mm,align=center,text=hhteal] at (15,-9){auditor confirms\\no equivocation};
-
-% ─── Gossip arrows (pairwise) ────────────────────────────────────
-\draw[gossip] (A0.east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{anti-entropy} (B1.west);
-\draw[gossip] (B1.east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{anti-entropy} (C2.west);
-\draw[gossip] (A1.east) to[bend right=20] (C2.west);
-
-% ─── Witness publish arrows ──────────────────────────────────────
-\draw[publish] (A0.north east) to[bend left=20] node[font=\sffamily\scriptsize\itshape,above,midway]{$R_A^{(e+1)}$} (W.west);
-\draw[publish] (B1.north east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{$R_B^{(e+1)}$} (W.south);
-\draw[publish] (C2.north east) to[bend left=10] node[font=\sffamily\scriptsize\itshape,above,midway]{$R_C^{(e+1)}$} (W.south east);
+% ─── Publish-to-witness arrows, routed up the inter-column gutters ─
+\draw[publish] (A0.north) to[bend right=8]
+  node[glab,pos=0.55]{$R_A^{(e+1)}$} (W.west);
+\draw[publish] (B1.north) to[out=80,in=255]
+  node[glab,pos=0.6]{$R_B^{(e+1)}$} ($(W.south)+(-0.2,0)$);
+\draw[publish] (C2.north) to[out=85,in=285]
+  node[glab,pos=0.62]{$R_C^{(e+1)}$} ($(W.south east)+(-0.3,0)$);
 
 % ─── Bottom band: convergence claim ───────────────────────────────
-\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
-      text width=150mm,align=left,font=\sffamily\footnotesize,
-      anchor=north] at (7.5,-10.0) {%
+\node[draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,inner sep=6pt,
+      minimum width=164mm,align=center,font=\sffamily\footnotesize]
+      at (7.5,-14.1) {%
   \textbf{Convergence bound (Theorem~\ref{thm:fh-conv}):}
   with $m$ federated harbors gossiping every $\Delta$, the expected time
   to global filter agreement on a new revocation is
@@ -110,7 +106,7 @@
 \end{tikzpicture}%
 }
 \caption{Federated revocation propagation across three harbors. The cuckoo
-filter mechanism is unchanged from Anchor~\S\ref{sec:revocation} of the
+filter mechanism is unchanged from Anchor~\S2.4 of the
 companion paper, but two new pieces are bolted on: (a) per-epoch roots
 $R_X^{(e)}$ published to a shared witness log so a third party can audit any
 harbor's local view, and (b) cross-witness signatures so the auditor pattern

@@ -370,10 +370,10 @@ export async function handleWithLock(
   }
 
   const ttl = options.ttl ? parseInt(options.ttl as string, 10) : 300000;
-  const owner = (options.owner as string) || `cli-${process.pid}`;
   const current = readCurrentContext();
+  const owner = (options.owner as string) || current?.agentId || `cli-${process.pid}`;
   const pd = new PortDaddy({
-    agentId: current?.agentId || owner,
+    agentId: owner,
     pid: process.pid,
   });
 

@@ -1002,7 +1002,7 @@ export function CopyableCommandBlock({
         </Button>
       </div>
       <div
-        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
+        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[14px] leading-[1.65]"
         style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
       >
         <code
