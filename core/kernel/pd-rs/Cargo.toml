@@ -1,0 +1,21 @@
+[package]
+name = "pd-rs"
+description = "Port Daddy Rust kernel CLI and TUI entrypoint"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "pd-rs"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+pd-core = { path = "../pd-core" }
+pd-mesh = { path = "../pd-mesh" }
+pd-runtime = { path = "../pd-runtime" }
+pd-tui = { path = "../pd-tui" }

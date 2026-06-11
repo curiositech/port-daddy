@@ -15,12 +15,14 @@
 mod agent;
 mod dispatch_pane;
 mod pane;
+mod sortie_pane;
 mod theme;
 
 use agent::{AgentManager, Backend};
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use pane::{Block, PaneRegistry};
+use sortie_pane::SortiePane;
 use std::io::{self, Write};
 use std::time::Duration;
 
@@ -62,8 +64,9 @@ async fn main() -> Result<()> {
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
+    reg.register(Box::new(SortiePane::new()));
 
-    println!("   :new <backend> <prompt> · :agents · :switch <n> · :dispatch · <text> · :quit\n");
+    println!("   :new <backend> <prompt> · :agents · :switch <n> · :dispatch · :sorties · <text> · :quit\n");
 
     let stdin = io::stdin();
     loop {
@@ -80,6 +83,14 @@ async fn main() -> Result<()> {
 
         if line == ":quit" || line == ":q" {
             break;
+        } else if line == ":sorties" || line == ":s" {
+            reg.active = reg.panes.iter().position(|p| p.id() == "sorties").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                println!("  refresh failed: {e}");
+            }
+            if let Some(p) = reg.active() {
+                print_blocks(&p.view());
+            }
         } else if line == ":dispatch" {
             // Refresh the dispatch pane then render it.
             reg.active = reg.panes.iter().position(|p| p.id() == "dispatch").unwrap_or(0);
