@@ -72,6 +72,7 @@ import {
   handleDaemon, handleDaemonCommand, handleDev, runDaemonInProcess,
   // Benchmarking
   handleBench,
+  handleBenchmark,
   // Setup
   handleSetup,
   // DNS, Briefing, Integration
@@ -188,7 +189,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'demo', 'tuple', 'sortie', 'roadmap',
+  'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
   'secret', 'secrets'
 ]);
 
@@ -1259,7 +1260,7 @@ const ALL_COMMANDS: string[] = [
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
-  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep', 'roadmap',
+  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
@@ -2622,6 +2623,10 @@ export async function main(): Promise<void> {
 
       case 'bench':
         await handleBench(positional);
+        break;
+
+      case 'benchmark':
+        await handleBenchmark(positional);
         break;
 
       case 'demo':

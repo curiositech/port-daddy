@@ -30,6 +30,8 @@ import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
+import { coastGuardStatus } from './coast-guard.js';
+import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -104,6 +106,15 @@ export interface SpawnSpec {
   // observers like the gardener, or genuinely read-only agents). When unset,
   // the spawner refuses to launch into a main checkout — see assessSpawnIsolation.
   allowSharedCheckout?: boolean;
+  // Harbor-card capability set this spawn enters with (lib/harbor-tokens.ts
+  // `cap[]` grammar). Drives THREE things consistently: the scope-proportional
+  // bond price (lib/bond-pricing.ts), the harbor-entry capabilities, and the
+  // Coast Guard write policy (a `read`-tier card → the child is physically
+  // denied writes to its workdir; lib/bond-pricing.ts `scopeTierWritePolicy`).
+  // When unset, defaults to `['spawn:agent', 'backend:<backend>']` — the
+  // historical spawn caps, which classify as the `full`/amplifier tier, so the
+  // default spawn is unchanged (writes allowed, full-tier bond).
+  capabilities?: string[];
   env?: Record<string, string>;
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
@@ -384,6 +395,16 @@ async function runConfinedChild(
   opts: ConfinedChildOpts,
 ): Promise<{ output: string; error: string | null; child: ChildProcess; coastGuardReceipt: CoastGuardReceipt }> {
   const cwd = opts.cwd ?? opts.spec.workdir;
+  // Scope-tier write confinement (ADR-VI containment): derive the same priced
+  // tier from the spawn's capabilities that the bond was priced on, so a
+  // read-tier agent is physically denied writes to its workdir. Default caps
+  // (`spawn:agent` + `backend:<id>`) → `full` tier → 'unrestricted' (no-op for
+  // ordinary spawns); only an explicit read-tier `capabilities` engages it.
+  const confineCaps =
+    opts.spec.capabilities && opts.spec.capabilities.length > 0
+      ? opts.spec.capabilities
+      : ['spawn:agent', `backend:${opts.spec.backend}`];
+  const writePolicy = scopeTierWritePolicy(classifyScope(confineCaps));
   const cg = await withCoastGuard({
     agentId: opts.spec.identity || opts.spec.name || 'spawned',
     backend: opts.spec.backend,
@@ -391,6 +412,7 @@ async function runConfinedChild(
     args: opts.args,
     env: opts.env,
     workdir: cwd,
+    writePolicy,
     spec: { coastGuard: opts.spec.coastGuard, maxRequests: opts.spec.maxRequests, maxBytes: opts.spec.maxBytes },
     // The broker scrubs EVERY key loaded from the operator's dotenv files, not
     // just the managed allow-list — those files ARE the operator's secret store.
@@ -1184,6 +1206,20 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const projectName = getProjectName(spec.identity);
     const defaultHarborName = projectName ? `${projectName}:fleet` : undefined;
     const harborName = spec.harborName || defaultHarborName;
+
+    // The capability set this spawn carries — the ONE source for the bond price,
+    // the harbor-entry caps, and the Coast Guard write policy, so all three
+    // agree on scope (no under-declaring one while acting on another). Defaults
+    // to the historical spawn caps (`spawn:agent` + `backend:<id>` → `full`
+    // tier), so an unset `capabilities` leaves the default spawn unchanged.
+    const effectiveCaps =
+      spec.capabilities && spec.capabilities.length > 0
+        ? spec.capabilities
+        : ['spawn:agent', `backend:${spec.backend}`];
+    // NOTE: the priced scope tier → OS write policy mapping
+    // (scopeTierWritePolicy) is applied per-backend-exec in runConfinedChild,
+    // which derives the SAME tier from these caps. Keeping the derivation there
+    // co-locates it with the Coast Guard call and avoids passing extra state.
     const displayName = deriveAgentDisplayName({
       name: spec.name,
       purpose: spec.purpose,
@@ -1211,7 +1247,74 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // Escrow bond BEFORE any spawn work. If the wallet is insufficient OR
     // bonds aren't wired, we refuse here rather than run an unbonded agent —
     // the Ostrom "rule-monitoring" invariant: every running agent has a bond.
-    const bondUsd = spec.bondUsd ?? DEFAULT_BOND_USD;
+    //
+    // BOND PRICING (ADR-VI / agent-transactions-whitepaper §6.5). A
+    // caller-supplied `spec.bondUsd` ALWAYS wins (back-compat — the Fixed
+    // Bonds path is preserved). When it is omitted, we compute a
+    // scope-proportional bond with the closed-form floor
+    // π = c·(1 + α·s)·(1 − ρ) instead of a flat constant:
+    //   • c (base)   — DEFAULT_BOND_USD, the historical per-spawn cleanup unit,
+    //                  so quoted bonds stay on the same dollar scale as before.
+    //   • s (scope)  — `effectiveCaps`, the capability set the spawn enters its
+    //                  harbor with (default `spawn:agent` + `backend:<id>`). A
+    //                  spawn cap is an amplifier (it can create children), so the
+    //                  default classifies as the `full` tier — correct: the bond
+    //                  must cover the blast radius of the child it launches. A
+    //                  caller that requests a read-tier `capabilities` is priced
+    //                  AND confined to that tier (same set drives both).
+    //   • duration   — the spawn timeout (longer access ⇒ more time to drift).
+    //   • ρ          — par for now (1.0×): no reputation/quality-eval ledger
+    //                  exists yet (Proposed). When it lands, pass a `reputation`
+    //                  hook keyed on the PRINCIPAL / Anchor identity (NOT the
+    //                  re-rollable agent id — the Sybil defense, ADR-0014/0022).
+    let bondUsd: number;
+    if (spec.bondUsd !== undefined) {
+      // Caller-supplied Fixed Bond (back-compat) — the pricer is bypassed; no
+      // breakdown to log. Record the override so an operator reading the log can
+      // see WHY a spawn's bond did not follow the scope-proportional curve.
+      bondUsd = spec.bondUsd;
+      console.log(
+        `[spawner] bond: caller-supplied fixed bond $${bondUsd.toFixed(4)} ` +
+          `(scope-proportional pricer bypassed) — agent=${agentId} backend=${spec.backend}`,
+      );
+    } else {
+      const priced = priceBond({
+        baseUsd: DEFAULT_BOND_USD,
+        capabilities: effectiveCaps,
+        ttlMs: spec.timeout ?? 300_000,
+        // The Coast Guard posture on THIS machine, so the pricer can flag when the
+        // priced tier exceeds what the runtime structurally contains
+        // (breakdown.uncontainedScope → the WARN below). ADVISORY: this changes NO
+        // bondUsd / floor / ceiling — it only lights the containment-gap flag.
+        // Absent it, the flag would stay dark in the live spawn path. coastGuardStatus
+        // is a filesystem-probe-only read (no subprocess), cheap per spawn.
+        coastGuardReport: coastGuardStatus(),
+        // principal/reputation intentionally omitted → par; wire the Anchor-keyed
+        // reputation hook here once the reputation ledger ships.
+      });
+      bondUsd = priced.bondUsd;
+      // Operator visibility: one INFO line with the chosen tier + every multiplier
+      // + the final escrowed amount (the spawn path is not hot enough to be noise),
+      // plus INFO `notices` for an EXPECTED posture (the priced tier outrunning a
+      // present-but-modest enforced tier — the documented pricing-ahead-of-
+      // containment gap the default `full`-tier spawn trips on ~100% of spawns
+      // under an armed guard), and a LOUD `warnings` only for an ACTIONABLE
+      // anomaly: `belowFloor` (a ceiling clamp dropped the bond below its
+      // deterrence floor) or an uncontained scope with NO OS sandbox at all
+      // (`enforcedScopeTier === null` → the spawn is truly unconfined). An
+      // always-on uncontained WARN under an armed guard would be alarm fatigue, so
+      // that benign steady-state case is INFO. Formatting + level-routing live in
+      // the pure pricer helper so they stay unit-tested; we just route info +
+      // notices → log, warnings → warn.
+      const lines = pricedBondLogLines(priced.breakdown, {
+        bondUsd,
+        agentId,
+        backend: spec.backend,
+      });
+      console.log(lines.info);
+      for (const n of lines.notices) console.log(n);
+      for (const w of lines.warnings) console.warn(w);
+    }
     let bondId: number | null = null;
     let enteredHarborName: string | null = null;
     if (harbors && projectName && bondUsd > 0) {
@@ -1237,7 +1340,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
       const entered = await harbors.enter(harborName, agentId, {
         identity: spec.identity,
-        capabilities: ['spawn:agent', `backend:${spec.backend}`],
+        capabilities: effectiveCaps,
       });
       if (!entered.success) {
         counters?.bump('spawn.blocked', dims);
