@@ -1167,7 +1167,7 @@
       }
     },
     "backend": {
-      "description": "CLI surface for the fleet backend catalog \u2014 list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex) ride the operator's Claude Max or ChatGPT Pro subscription at $0 marginal cost. Read-only CLI surface \u2014 uses existing routes owned by the fleet + metrics features.",
+      "description": "CLI surface for the fleet backend catalog — list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok) ride the operator's existing CLI subscriptions (Claude Max, ChatGPT Pro, Google account, Groq account, SuperGrok) at $0 marginal cost. Read-only CLI surface — uses existing routes owned by the fleet + metrics features.",
       "cli": [
         "backend"
       ],

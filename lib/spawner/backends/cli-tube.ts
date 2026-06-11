@@ -41,7 +41,7 @@ import { join } from 'node:path';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CliTubeTool = 'claude-code' | 'codex';
+export type CliTubeTool = 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -113,6 +113,9 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
   'claude-code': 'claude',
   codex: 'codex',
+  gemini: 'gemini',
+  groq: 'groq',
+  grok: 'grok',
 };
 
 // Environment override key per tool — operators can swap the binary
@@ -120,6 +123,9 @@ const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
 const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
   'claude-code': 'PD_CLI_CLAUDE_CODE_BIN',
   codex: 'PD_CLI_CODEX_BIN',
+  gemini: 'PD_CLI_GEMINI_BIN',
+  groq: 'PD_CLI_GROQ_BIN',
+  grok: 'PD_CLI_GROK_BIN',
 };
 
 // Auth-error sentinels we surface verbatim so the operator sees
@@ -128,6 +134,9 @@ const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
 const AUTH_NEXT_STEP: Record<CliTubeTool, string> = {
   'claude-code': 'Run `claude setup-token` or `claude auth` to authenticate.',
   codex: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
+  gemini: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
+  groq: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
+  grok: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -175,6 +184,17 @@ export function buildArgs(
       '--json',
     ];
     if (outputPath) args.push('--output-last-message', outputPath);
+    if (model) args.push('--model', model);
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+
+  if (cli === 'gemini' || cli === 'groq' || cli === 'grok') {
+    // All three agent CLIs share the claude-code-style headless surface:
+    // `-p <prompt>` runs one non-interactive turn and prints the response
+    // to stdout; `--model` overrides the model. (Gemini CLI, Groq Code
+    // CLI, and Grok CLI all follow this convention.)
+    const args = ['-p'];
     if (model) args.push('--model', model);
     args.push(prompt);
     return { args, stdin: null };

@@ -53,6 +53,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   delete process.env.PD_CLI_CLAUDE_CODE_BIN;
   delete process.env.PD_CLI_CODEX_BIN;
+  delete process.env.PD_CLI_GEMINI_BIN;
+  delete process.env.PD_CLI_GROQ_BIN;
+  delete process.env.PD_CLI_GROK_BIN;
 });
 
 describe('buildArgs', () => {
@@ -87,8 +90,54 @@ describe('buildArgs', () => {
     expect(args[idx + 1]).toBe('/tmp/fake.txt');
   });
 
+  test.each(['gemini', 'groq', 'grok'])('%s uses -p headless flag with prompt last', (cli) => {
+    const { args } = buildArgs(cli, 'hello');
+    expect(args[0]).toBe('-p');
+    expect(args[args.length - 1]).toBe('hello');
+  });
+
+  test.each(['gemini', 'groq', 'grok'])('%s includes --model when provided', (cli) => {
+    const { args } = buildArgs(cli, 'hi', undefined, 'some-model');
+    const idx = args.indexOf('--model');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('some-model');
+  });
+
   test('throws on unknown tool', () => {
     expect(() => buildArgs('bogus-tool', 'hi')).toThrow(/unknown cli tool/);
+  });
+});
+
+describe('spawnViaCliTube — gemini/groq/grok binaries + overrides', () => {
+  test.each([
+    ['gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
+    ['groq', 'groq', 'PD_CLI_GROQ_BIN'],
+    ['grok', 'grok', 'PD_CLI_GROK_BIN'],
+  ])('%s invokes the `%s` binary by default and honors %s', async (cli, bin, envKey) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli, prompt: 'say hi' });
+    expect(mockSpawn.mock.calls[0][0]).toBe(bin);
+    expect(res.tube).toMatch(new RegExp(`^cli:${cli}:`));
+    expect(res.error).toBeNull();
+
+    process.env[envKey] = `/custom/path/${bin}-beta`;
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(mockSpawn.mock.calls[1][0]).toBe(`/custom/path/${bin}-beta`);
+  });
+
+  test('gemini maps auth-flavored stderr to an actionable error', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stderr: 'Error: not authenticated', exitCode: 1 }));
+    const res = await spawnViaCliTube({ cli: 'gemini', prompt: 'hi' });
+    expect(res.error).toMatch(/authentication failed/i);
+    expect(res.error).toMatch(/GEMINI_API_KEY/);
+  });
+
+  test('grok ENOENT maps to install guidance', async () => {
+    const err = new Error('spawn grok ENOENT');
+    mockSpawn.mockReturnValue(fakeChild({ error: err }));
+    const res = await spawnViaCliTube({ cli: 'grok', prompt: 'hi' });
+    expect(res.error).toMatch(/not found on PATH/);
   });
 });
 

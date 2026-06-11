@@ -317,6 +317,66 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
+    case 'cli:gemini': {
+      const bin = process.env.PD_CLI_GEMINI_BIN || 'gemini';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Gemini CLI binary "${bin}" not found`,
+          nextStep: 'Install the Gemini CLI (npm install -g @google/gemini-cli) and run `gemini` once to authenticate.',
+          setupCommand: 'npm install -g @google/gemini-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        summary: 'Gemini CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `gemini -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=gemini forces all spawns through this CLI.',
+        setupCommand: 'gemini -p "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:groq': {
+      const bin = process.env.PD_CLI_GROQ_BIN || 'groq';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Groq CLI binary "${bin}" not found`,
+          nextStep: 'Install the Groq Code CLI (npm install -g groq-code-cli) and run `groq` once to authenticate.',
+          setupCommand: 'npm install -g groq-code-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        summary: 'Groq CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `groq -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=groq forces all spawns through this CLI.',
+        setupCommand: 'groq -p "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:grok': {
+      const bin = process.env.PD_CLI_GROK_BIN || 'grok';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Grok CLI binary "${bin}" not found`,
+          nextStep: 'Install the Grok CLI (npm install -g @vibe-kit/grok-cli) and authenticate before using this backend.',
+          setupCommand: 'npm install -g @vibe-kit/grok-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        summary: 'Grok CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `grok -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=grok forces all spawns through this CLI.',
+        setupCommand: 'grok -p "hello"',
+      }, telemetryPolicy);
+    }
+
     case 'ollama': {
       if (await ollamaReachable()) {
         return applyTelemetryPolicy({
