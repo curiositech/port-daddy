@@ -574,17 +574,29 @@ function resolvePdBinary(): string | null {
   return null;
 }
 
+/**
+ * Hard ceiling on every synchronous `pd guard …` subprocess invoked from the
+ * request path. A guard subprocess boots Node + connects to the daemon, so an
+ * unbounded `spawnSync` can stall the Fastify event loop for tens of seconds
+ * (observed ~47s on GET /operator/state). Capping it keeps the worst case
+ * bounded; callers degrade gracefully when the timeout fires.
+ */
+const GUARD_CLI_TIMEOUT_MS = 1500;
+
 function runGuardCli(projectDir: string, args: string[]): { command: string; result: ReturnType<typeof spawnSync>; available: boolean } {
   // Prefer an absolute binary path so the daemon's launchd-restricted PATH
   // (often only /usr/bin:/bin) doesn't silently swallow the command.
   const binary = resolvePdBinary();
 
+  const spawnOpts = {
+    cwd: projectDir,
+    encoding: 'utf8' as const,
+    env: process.env,
+    timeout: GUARD_CLI_TIMEOUT_MS,
+  };
+
   if (binary) {
-    const result = spawnSync(binary, ['guard', ...args, '--dir', projectDir], {
-      cwd: projectDir,
-      encoding: 'utf8',
-      env: process.env,
-    });
+    const result = spawnSync(binary, ['guard', ...args, '--dir', projectDir], spawnOpts);
     // ENOENT on an absolute path means the binary was deleted between probe and spawn —
     // fall through to the bare-name fallback rather than returning available=false.
     if (!isMissingCommand(result.error)) {
@@ -594,11 +606,7 @@ function runGuardCli(projectDir: string, args: string[]): { command: string; res
 
   // Bare-name fallback — works in dev terminals; may fail under launchd.
   for (const command of ['pd', 'port-daddy']) {
-    const result = spawnSync(command, ['guard', ...args, '--dir', projectDir], {
-      cwd: projectDir,
-      encoding: 'utf8',
-      env: process.env,
-    });
+    const result = spawnSync(command, ['guard', ...args, '--dir', projectDir], spawnOpts);
     if (!isMissingCommand(result.error)) {
       return { command, available: true, result };
     }
@@ -1195,6 +1203,108 @@ interface NeedsYouItem {
 }
 
 /**
+ * Short-TTL caches for the two guard subprocesses GET /operator/state would
+ * otherwise spawn on every request. The endpoint is polled by the Operator TUI
+ * / FleetBar, and each `pd guard …` invocation boots Node + round-trips the
+ * daemon (~1–2s, observed up to ~47s when contended). Running both the status
+ * and the staged-check subprocess synchronously per request blocks the Fastify
+ * event loop. Memoising per project directory for a few seconds means a burst of
+ * polls reuses one subprocess result instead of re-spawning each time.
+ *
+ * These caches back ONLY the /operator/state snapshot. The dedicated
+ * /operator/coordination-guard endpoints intentionally call the guard CLI
+ * directly so a client asking for guard status always gets a fresh read.
+ */
+const GUARD_CACHE_TTL_MS = 5_000;
+const guardCheckCache = new Map<string, { at: number; check: CoordinationGuardCheck | null }>();
+const guardStatusCache = new Map<string, { at: number; status: CoordinationGuardStatus & { available: boolean } }>();
+
+/**
+ * Test seam: clear the module-level guard caches. The caches are keyed by
+ * project directory and persist for the process lifetime, so unit tests that
+ * stub the guard CLI per-case must reset them between cases to avoid one test's
+ * cached status/check leaking into the next (both default to process.cwd()).
+ * Not used by production code paths.
+ */
+export function __resetGuardCachesForTest(): void {
+  // Test-only seam. No-op outside the test runner so a shipped binary cannot have
+  // its live guard caches cleared by an unrelated importer of routes/operator.
+  if (process.env.NODE_ENV !== 'test') return;
+  guardCheckCache.clear();
+  guardStatusCache.clear();
+}
+
+/**
+ * Run (or reuse a recent) `guard status` for the given project dir. Degrades to
+ * an "unavailable" status when the binary is missing / the call times out, so
+ * the state snapshot never 500s on guard trouble.
+ */
+function cachedGuardStatus(projectDir: string): CoordinationGuardStatus & { available: boolean } {
+  const now = Date.now();
+  const cached = guardStatusCache.get(projectDir);
+  if (cached && now - cached.at < GUARD_CACHE_TTL_MS) {
+    return cached.status;
+  }
+
+  let status: CoordinationGuardStatus & { available: boolean };
+  try {
+    status = readCoordinationGuardStatus(projectDir);
+  } catch {
+    status = {
+      available: false,
+      success: false,
+      name: 'Coordination Guard',
+      enabled: false,
+      mode: 'off',
+      requireSession: false,
+      requireClaims: false,
+      configPath: '',
+      projectDir,
+    };
+  }
+
+  guardStatusCache.set(projectDir, { at: now, status });
+  return status;
+}
+
+/**
+ * Run (or reuse a recent) `guard check --staged` for the given project dir.
+ * Returns the parsed check, or null when the binary is unavailable / the call
+ * timed out / parsing failed. Never throws — a guard check must not break the
+ * whole state response.
+ */
+function cachedGuardCheck(projectDir: string): CoordinationGuardCheck | null {
+  const now = Date.now();
+  const cached = guardCheckCache.get(projectDir);
+  if (cached && now - cached.at < GUARD_CACHE_TTL_MS) {
+    return cached.check;
+  }
+
+  let check: CoordinationGuardCheck | null = null;
+  const { result: checkResult, available: checkAvailable } = runGuardCli(projectDir, ['check', '--staged', '--json']);
+  // spawnSync sends SIGTERM on timeout (status=null, signal set, empty stdout). A
+  // timeout is NOT "clean": caching its empty result as null would silently
+  // suppress a real guard_violation for the whole TTL. Treat a timeout as
+  // "unknown" — surface no violation for THIS call, and do NOT cache it, so the
+  // next call re-checks instead of serving a stale "clean".
+  const timedOut = checkResult.signal != null;
+  // A non-zero exit is expected when there ARE violations; status 0 means clean.
+  if (checkAvailable && !timedOut && checkResult.status !== 0) {
+    try {
+      check = parseGuardJson<CoordinationGuardCheck>(spawnText(checkResult.stdout), 'guard check');
+    } catch {
+      // Parse failed on a real (non-timeout) response — no actionable check.
+      check = null;
+    }
+  }
+
+  if (!timedOut) {
+    guardCheckCache.set(projectDir, { at: now, check });
+  }
+  return check;
+}
+
+/**
  * Build the ranked list of items that require the operator's attention.
  *
  * Rules (applied in order; lower `priority` = more urgent):
@@ -1234,46 +1344,41 @@ function buildNeedsYou(
     }
   }
 
-  // 1 · guard_violation — guard is enforcing and has current violations
+  // 1 · guard_violation — guard is enforcing and has current violations.
+  // We reuse the guard *status* already computed by the handler (passed in as
+  // `guardStatus`) to gate this branch — no extra `guard status` subprocess.
+  // The one remaining `guard check --staged` call is memoised via
+  // cachedGuardCheck() (short TTL + hard spawn timeout) so polling /operator/state
+  // can't re-block the event loop on every request.
   if (guardStatus && guardStatus.available && guardStatus.enabled && guardStatus.mode === 'enforce') {
-    // We only flag this if guard is actively enforcing. The violation detail
-    // is surfaced by the /operator/state guard section; here we just raise
-    // the alert so the operator knows to check.
     const effectiveDir = projectDir ?? process.cwd();
-    const { result: checkResult, available: checkAvailable } = runGuardCli(effectiveDir, ['check', '--staged', '--json']);
-    if (checkAvailable && checkResult.status !== 0) {
-      try {
-        const check = parseGuardJson<CoordinationGuardCheck>(spawnText(checkResult.stdout), 'guard check');
-        if (check.violations && check.violations.length > 0) {
-          items.push({
-            code: 'guard_violation',
-            label: `${check.violations.length} coordination guard violation${check.violations.length === 1 ? '' : 's'}`,
-            action: 'pd guard check --staged',
-            priority: 1,
-            meta: {
-              violations: check.violations.slice(0, 3).map((v) => ({ code: v.code, severity: v.severity, message: v.message })),
-            },
-          });
-        }
-      } catch {
-        // Guard check parse failed — don't block the whole state response
-      }
+    const check = cachedGuardCheck(effectiveDir);
+    if (check && check.violations && check.violations.length > 0) {
+      items.push({
+        code: 'guard_violation',
+        label: `${check.violations.length} coordination guard violation${check.violations.length === 1 ? '' : 's'}`,
+        action: 'pd guard check --staged',
+        priority: 1,
+        meta: {
+          violations: check.violations.slice(0, 3).map((v) => ({ code: v.code, severity: v.severity, message: v.message })),
+        },
+      });
     }
   }
 
   // 2 · budget_ceiling — any project over daily budget
   if (deps.costTracker && deps.bonds) {
-    const projectsToCkeck = projectName ? [projectName] : [];
-    if (projectsToCkeck.length === 0) {
+    const projectsToCheck = projectName ? [projectName] : [];
+    if (projectsToCheck.length === 0) {
       // No project filter — check recent cost events for project names
       const recentEvents = deps.costTracker.recent(20);
       for (const ev of recentEvents) {
-        if (ev.projectName && !projectsToCkeck.includes(ev.projectName)) {
-          projectsToCkeck.push(ev.projectName);
+        if (ev.projectName && !projectsToCheck.includes(ev.projectName)) {
+          projectsToCheck.push(ev.projectName);
         }
       }
     }
-    for (const pName of projectsToCkeck.slice(0, 5)) {
+    for (const pName of projectsToCheck.slice(0, 5)) {
       const budget = deps.bonds.getBudget(pName);
       if (budget && budget > 0) {
         const status = deps.costTracker.budgetStatus(pName, budget);
@@ -1365,9 +1470,11 @@ function buildNeedsYou(
 function deriveFleetSignal(
   actorSummary: Record<OperatorActorState, number>,
   needsYou: NeedsYouItem[],
-  guardAvailable: boolean,
-  guardEnforcing: boolean,
 ): { code: string; state: CoordinationState; meaning: string } | null {
+  // The state is derived entirely from the ranked needsYou items and the actor
+  // summary. Guard status is already folded in upstream: buildNeedsYou only emits
+  // a `guard_violation` item when the guard is available + enforcing, so we read
+  // that here via `hasGuardViolation` rather than taking redundant guard flags.
   // Priority: mayday if budget/stuck > guard violation > awaiting-human > salvage
   const hasBudgetCeiling = needsYou.some((n) => n.code === 'budget_ceiling');
   const hasStuck = needsYou.some((n) => n.code === 'stuck_agent');
@@ -1390,9 +1497,6 @@ function deriveFleetSignal(
   } else {
     state = 'idle';
   }
-
-  const _ = guardAvailable; // used above indirectly; silence linter
-  const __ = guardEnforcing;
 
   try {
     const code = signalFor(state);
@@ -1566,7 +1670,22 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
         total: ReturnType<NonNullable<typeof opts.deps.costTracker>['total']>;
       } | null = null;
       if (opts.deps.costTracker) {
-        const recentEvents = opts.deps.costTracker.recent(15);
+        // When a project context is resolved, scope the recent cost events to
+        // that project so a project-scoped /operator/state view doesn't leak
+        // unrelated spend. We over-fetch then filter+slice (the tracker has no
+        // server-side project filter for recent()). An event matches when either
+        // its projectName or projectDir lines up with the resolved context.
+        const scoped = projectName || projectDir;
+        const recentRaw = opts.deps.costTracker.recent(scoped ? 100 : 15);
+        const recentEvents = scoped
+          ? recentRaw
+              .filter(
+                (ev) =>
+                  (projectName != null && ev.projectName === projectName) ||
+                  (projectDir != null && ev.projectDir === projectDir),
+              )
+              .slice(0, 15)
+          : recentRaw;
         const total = opts.deps.costTracker.total({ since: Date.now() - 86_400_000 });
         let budgetStatusResult = null;
         if (opts.deps.bonds && projectName) {
@@ -1582,32 +1701,11 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       }
 
       // ── coordination guard ───────────────────────────────────────────────────
-      let guard: (CoordinationGuardStatus & { available: boolean }) | null = null;
-      try {
-        guard = readCoordinationGuardStatus(effectiveDir);
-      } catch {
-        // Guard unavailable — degrade gracefully, don't 500
-        guard = {
-          available: false,
-          success: false,
-          name: 'Coordination Guard',
-          enabled: false,
-          mode: 'off',
-          requireSession: false,
-          requireClaims: false,
-          configPath: '',
-          projectDir: effectiveDir,
-        };
-      }
-
-      // ── maritime signals ─────────────────────────────────────────────────────
-      // Only actionable signals (non-idle, non-fleet-healthy) are surfaced here.
-      const fleetSignal = deriveFleetSignal(
-        actorsResult.summary,
-        [], // needsYou not built yet — placeholder pass
-        guard?.available ?? false,
-        guard?.mode === 'enforce',
-      );
+      // Short-TTL cached read (see cachedGuardStatus): keeps the polled snapshot
+      // off the per-request `pd guard status` subprocess and degrades gracefully
+      // (never 500s) when the binary is absent or the call times out.
+      const guard: (CoordinationGuardStatus & { available: boolean }) | null =
+        cachedGuardStatus(effectiveDir);
 
       // ── cockpit missions ─────────────────────────────────────────────────────
       let cockpitMissions: ReturnType<typeof readMissions> | null = null;
@@ -1635,12 +1733,12 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
       // ── needsYou ranking ─────────────────────────────────────────────────────
       const needsYou = buildNeedsYou(opts.deps, projectName, projectDir, guard);
 
-      // Re-derive fleet signal with the full needsYou picture
-      const fleetSignalFull = deriveFleetSignal(
+      // ── maritime signals ─────────────────────────────────────────────────────
+      // Actionable signals only (non-idle, non-fleet-healthy), derived from the
+      // full needsYou picture.
+      const fleetSignal = deriveFleetSignal(
         actorsResult.summary,
         needsYou,
-        guard?.available ?? false,
-        guard?.mode === 'enforce',
       );
 
       const response: Record<string, unknown> = {
@@ -1655,7 +1753,7 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
         },
         needsYou,
         guard,
-        fleetSignal: fleetSignalFull ?? fleetSignal,
+        fleetSignal,
       };
 
       if (dispatch !== null) response.dispatch = dispatch;
