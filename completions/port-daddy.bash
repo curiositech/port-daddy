@@ -150,7 +150,7 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench demo fleet backend relay
+    bench benchmark demo fleet backend relay
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
@@ -1053,6 +1053,23 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     bench)
       _pd_opts ''
+      ;;
+
+    # -----------------------------------------------------------------------
+    # benchmark <subcommand>  (multi-backend LLM diversity experiment runner)
+    # Subcommands: run, list-models, list-conditions, report
+    # -----------------------------------------------------------------------
+    benchmark)
+      local benchmark_subcmds="run list-models list-conditions report"
+      case "$prev" in
+        benchmark)
+          # shellcheck disable=SC2207
+          COMPREPLY=( $(compgen -W "$benchmark_subcmds" -- "$cur") )
+          ;;
+        *)
+          _pd_opts ''
+          ;;
+      esac
       ;;
 
     # -----------------------------------------------------------------------

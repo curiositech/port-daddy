@@ -101,7 +101,7 @@ set -l __pd_commands \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
-    'bench' 'demo' 'fleet' 'backend' 'relay' \
+    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'daemon' 'ci-gate' 'mcp' \
@@ -391,6 +391,11 @@ for prog in port-daddy pd
 
     # Benchmarking & Demos
     complete -c $prog -n __pd_needs_command -a bench -d 'Run performance benchmarks'
+    complete -c $prog -n __pd_needs_command -a benchmark -d 'Multi-backend LLM diversity experiment runner'
+    complete -c $prog -n "__pd_using_command benchmark" -x -a 'run' -d 'Run the diversity experiment'
+    complete -c $prog -n "__pd_using_command benchmark" -x -a 'list-models' -d 'List available benchmark model ids'
+    complete -c $prog -n "__pd_using_command benchmark" -x -a 'list-conditions' -d 'List fleet condition presets'
+    complete -c $prog -n "__pd_using_command benchmark" -x -a 'report' -d 'Re-render a saved results JSON'
     complete -c $prog -n __pd_needs_command -a demo -d 'Interactive demos of Port Daddy features'
     complete -c $prog -n "__pd_using_command demo" -x -a 'port-conflict' -d 'Demo port conflict resolution'
     complete -c $prog -n "__pd_using_command demo" -x -a 'coordination' -d 'Demo agent coordination'
