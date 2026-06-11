@@ -20,17 +20,27 @@ describe('Semantic Index', () => {
   let db;
   let index;
 
+  // Monotonic counter for deterministic, collision-free service ports.
+  // services.port carries a UNIQUE constraint (see tests/setup-unit.js), so a
+  // random port (the old `3000 + Math.random()*1000`) had a birthday-collision
+  // chance of hitting `UNIQUE constraint failed: services.port` whenever a test
+  // inserted two services — a non-deterministic flake on CI. Resetting the
+  // counter in beforeEach keeps every test isolated and every port distinct.
+  let servicePortSeq;
+
   beforeEach(() => {
     db = createTestDb();
     index = createSemanticIndex(db);
+    servicePortSeq = 0;
   });
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
 
   function insertService(id) {
+    const port = 3000 + ++servicePortSeq; // deterministic & unique per insert
     db.prepare(
       'INSERT INTO services (id, port, status, created_at, last_seen) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, 3000 + Math.floor(Math.random() * 1000), 'assigned', Date.now(), Date.now());
+    ).run(id, port, 'assigned', Date.now(), Date.now());
   }
 
   function insertAgent(id, project, stack = null, context = null, status = 'active') {
