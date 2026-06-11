@@ -19,7 +19,7 @@ accepted ADR, no merged code. **[VISION]** = argued, unspecified.
 
 | # | Quality gate | Verdict | Grounded at |
 |---|---|---|---|
-| L1 | **Honest-green liveness** — does the operator see a *true* alive/stale/dead status, never a faked green? | **[BUILT]** | `routes/operator.ts:167` (`liveness: 'alive' \| 'stale' \| 'dead' \| null`) |
+| L1 | **Honest-green liveness** — does the operator see a *true* alive/stale/dead status, never a faked green? | **[BUILT]** | `routes/operator.ts:184` (`liveness: 'alive' \| 'stale' \| 'dead' \| null`) |
 | L2 | **Legible authority** — when authority refuses, does the refusal name *why* (the invariant) and *what to do* (the fix)? | **[BUILT]** | `cli/commands/guard.ts` (typed refusal messages); `lib/budget-guard.ts` (named `reason`) |
 | L3 | **No-advertise-bypass** — does a refusal point *only* to the correct action, never naming the override? | **[BUILT]** | `cli/commands/guard.ts:390,406` (points to `pd begin` / the claim owner, not `--no-verify`) |
 | L4 | **Mētis-home (append-only audit)** — is there an immutable record the operator can zoom *into*, that no agent can rewrite? | **[BUILT]** | `lib/sessions.ts:1096` (notes immutable, create-only); `lib/tuples.ts` (append + TTL) |
@@ -59,8 +59,8 @@ narration, check the artifact* — applied to the operator's read surface.
 **L1 — Honest-green liveness [BUILT].** The operator's view of an agent's aliveness
 is a *true* four-state value, not a green light an agent can assert. The operator
 route (`routes/operator.ts`) exposes **`liveness: 'alive' | 'stale' | 'dead' | null`**
-(`:167`), computed from `lastActivityAt` (`:168`, `:895`) and reconciliation windows
-(`:794` orphan-reconciled), with `null` for genuinely-unknown. This is the
+(`:184`), computed from `lastActivityAt` (`:185`, `:895`) and reconciliation windows
+(`:892` orphan-reconciled), with `null` for genuinely-unknown. This is the
 direct realization of ADR-0045's *"a green that wasn't checked is a lie"*: the
 status is **derived from observed activity**, and the honest fourth state (`null`)
 refuses to claim knowledge the daemon does not have. The operator never sees a
