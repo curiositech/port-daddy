@@ -233,6 +233,39 @@ jobs:
           test -f .claude-plugin/plugin.json && echo "plugin.json exists" || exit 1
           node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))" && echo "plugin.json is valid JSON" || exit 1
 
+  fleet-ui:
+    # Builds + type-checks + tests the Control Center (fleet-config-ui). This is
+    # the gate that keeps the NeedsYou force-zoom invariant (legibility F3) from
+    # rotting: a P0/irreversible attention item must not be dismissable until the
+    # operator has expanded it. The fleet-config-ui has its own tsconfig graph and
+    # vitest suite — root jest never compiles or runs it, so without this job a
+    # regression in the gate (or any TS break in the UI) would ship green.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fleet-config-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: fleet-config-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (tsc -b — app + node + test projects)
+        run: npm run typecheck
+
+      - name: Component tests (vitest — force-zoom gate)
+        run: npm test
+
+      - name: Production build (vite)
+        run: npm run build
+
   skill-hygiene:
     # Audit every skill bundle for drift on every PR. Fails the build if any
     # bundle has orphaned docs, broken links, INDEX drift, or a missing INDEX

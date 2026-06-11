@@ -127,7 +127,7 @@ export function ModesMatrixViz() {
               {MODES.map(m => (
                 <div key={m} className="grid grid-cols-[28px_1fr] gap-2">
                   <span className="font-mono text-base font-bold text-[var(--text-primary)]">{m}</span>
-                  <span className="text-[13px]">{FULL[m].name} — <em className="text-[var(--text-muted)]">{FULL[m].desc}</em></span>
+                  <span className="text-[14px]">{FULL[m].name} — <em className="text-[var(--text-muted)]">{FULL[m].desc}</em></span>
                 </div>
               ))}
               <div className="border-t border-[var(--border-soft)] pt-2 text-xs text-[var(--text-muted)]">
