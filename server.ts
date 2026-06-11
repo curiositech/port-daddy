@@ -1009,6 +1009,18 @@ await registerAllRoutes(
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
     cleanupStale, getSystemPorts,
+    // Relay (ADR-0049) connection status. The daemon does not yet start the
+    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
+    // reports "not connected" — `pd relay status` shows disconnected even when
+    // a relay_url is configured. When the SSE manager is wired, replace this
+    // with the manager's live status getter.
+    getRelayStatus: () => ({
+      connected: false,
+      session_id: null,
+      last_handshake: null as number | null,
+      accepted_channels: [] as string[],
+      relay_version: null as string | null,
+    }),
   },
   arbiter,
   { pheromones, sessions, db },
