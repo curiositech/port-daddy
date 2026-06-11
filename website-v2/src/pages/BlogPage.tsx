@@ -28,7 +28,7 @@ const focusLanes = [
 
 function DateStamp({ date }: { date: string }) {
   return (
-    <time dateTime={date} className="inline-flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+    <time dateTime={date} className="inline-flex items-center gap-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
       <Calendar size={13} aria-hidden="true" />
       {date}
     </time>
@@ -37,7 +37,7 @@ function DateStamp({ date }: { date: string }) {
 
 function Tag({ children }: { children: string }) {
   return (
-    <span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+    <span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
       {children}
     </span>
   )
@@ -85,7 +85,7 @@ function FeaturedArticle({ post }: { post: BlogPost }) {
             to={`/blog/${post.slug}`}
             className="inline-flex w-fit items-center gap-2 border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-4 py-3 text-[var(--text-inverse)] no-underline transition-colors hover:bg-[var(--brand-primary)]"
           >
-            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.16em]">Read article</span>
+            <span className="font-mono text-[length:var(--type-meta-size,14px)] font-bold uppercase tracking-[0.16em]">Read article</span>
             <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
         </div>
@@ -102,7 +102,7 @@ function ArticleRow({ post, index }: { post: BlogPost; index: number }) {
       </Link>
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          <span className="font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
             {String(index + 2).padStart(2, '0')}
           </span>
           <DateStamp date={post.date} />
@@ -151,15 +151,15 @@ export function BlogPage() {
             <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
               <div className="border-r-2 border-[var(--border-strong)] p-4">
                 <div className="font-mono text-3xl font-black leading-none">{blogPosts.length}</div>
-                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">In rotation</div>
+                <div className="mt-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">In rotation</div>
               </div>
               <div className="border-r-2 border-[var(--border-strong)] p-4">
                 <div className="font-mono text-3xl font-black leading-none">{deprecatedBlogPosts.length}</div>
-                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Retired</div>
+                <div className="mt-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Retired</div>
               </div>
               <div className="p-4">
                 <div className="font-mono text-3xl font-black leading-none">0</div>
-                <div className="mt-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Pretending to be published</div>
+                <div className="mt-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Pretending to be published</div>
               </div>
             </div>
           </div>
@@ -189,7 +189,7 @@ export function BlogPage() {
           <section aria-labelledby="article-index" className="space-y-0">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
-                <div className="mb-2 flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                <div className="mb-2 flex items-center gap-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
                   <NotebookText size={14} aria-hidden="true" />
                   The rest of the rotation
                 </div>
@@ -214,7 +214,7 @@ export function BlogPage() {
             <div className="divide-y-2 divide-[var(--border-strong)] border-2 border-[var(--border-strong)]">
               {deprecatedBlogPosts.slice(0, 6).map((post) => (
                 <div key={post.slug} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)]">
-                  <div className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-primary)]">
+                  <div className="font-mono text-[length:var(--type-meta-size,14px)] font-bold uppercase tracking-[0.14em] text-[var(--text-primary)]">
                     {post.retiredLabel}
                   </div>
                   <div className="text-sm leading-relaxed text-[var(--text-secondary)]">

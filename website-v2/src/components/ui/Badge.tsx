@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 const badgeVariants = cva(
   [
     'inline-flex w-fit shrink-0 items-center justify-center gap-1',
-    'rounded-[var(--radius-sm)] text-xs font-semibold uppercase tracking-wider',
+    'rounded-[var(--radius-sm)] font-semibold uppercase tracking-wider',
     'whitespace-nowrap transition-all duration-200',
     '[&>svg]:pointer-events-none [&>svg]:size-3',
   ].join(' '),
@@ -25,8 +25,8 @@ const badgeVariants = cva(
         outline: '',
       },
       size: {
-        sm: 'px-2 py-px text-[10px]',
-        md: 'px-2.5 py-0.5',
+        sm: 'px-2 py-px text-[12px] font-black tracking-[0.12em]',
+        md: 'px-2.5 py-0.5 text-[length:var(--type-meta-size,14px)]',
         lg: 'px-3 py-1 text-sm',
       },
     },
