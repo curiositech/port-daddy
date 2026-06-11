@@ -10,14 +10,29 @@
 #         openssl rand -base64 32 | tee /dev/stderr | wrangler secret put FORWARD_AUTH_TOKEN
 #      Set the same value on the daemon side:
 #         echo 'PD_WEBHOOK_FORWARD_TOKEN=<value>' >> ~/.port-daddy-env
-#      The daemon rejects /msg/* POSTs without a matching Bearer token.
-#      Note: configure your GitHub App webhook URL under /msg/* (e.g. /msg/fleet:github:webhook).
+#      The daemon rejects forwarded POSTs without a matching Bearer token.
 #
 #   3. DAEMON_FORWARD_URL (var, set below)
-#      The HTTPS URL the cloudflared tunnel exposes, pointing at the daemon.
-#      The Worker ONLY forwards requests to /msg/* paths — all other paths return 404.
+#      The public HTTPS ingress to the (loopback-bound) daemon. The daemon binds
+#      127.0.0.1:9876, so a tunnel is required. It MUST end in /webhooks/github —
+#      that is the only inbound route the daemon registers (routes/github-webhook.ts
+#      → POST /webhooks/github; NOT /github/webhook, NOT /fleet/github/webhook).
+#      A cloudflared QUICK tunnel (`cloudflared tunnel --url http://127.0.0.1:9876`)
+#      gives an EPHEMERAL trycloudflare.com hostname that rotates on every restart —
+#      fine for a live smoke, but for a stable prod hostname create a NAMED tunnel +
+#      DNS route (docs/operations/github-app-deploy.md §4). The live deployed value
+#      is held as a Worker var in Cloudflare and set at deploy time:
+#        wrangler deploy --var DAEMON_FORWARD_URL:https://<host>/webhooks/github
+#      The committed default below stays an honest placeholder so it never rots.
 #
 #   4. FORWARD_TIMEOUT_MS (var)    — forward timeout in ms (default 8000).
+#
+# Two distinct URLs (do not confuse them):
+#   • The GitHub App "Webhook URL" (inbound, GitHub → this Worker) MUST be a /msg/*
+#     path — the Worker 404s every other path (src/worker.ts). Use e.g.
+#     https://<worker-subdomain>.workers.dev/msg/github:webhook:dispatch
+#   • DAEMON_FORWARD_URL (outbound, this Worker → daemon) ends in /webhooks/github
+#     (above). The Worker forwards the normalized envelope there verbatim.
 
 name = "github-app-receiver"
 main = "src/worker.ts"
@@ -25,7 +40,7 @@ compatibility_date = "2026-05-01"
 
 # Override per environment with `--env <name>` or `[env.production]` blocks.
 [vars]
-DAEMON_FORWARD_URL = "https://plain-coins-nyc-generated.trycloudflare.com/fleet/github/webhook"
+DAEMON_FORWARD_URL = "https://example.invalid/replace-me/webhooks/github"
 FORWARD_TIMEOUT_MS = "8000"
 
 [observability]
