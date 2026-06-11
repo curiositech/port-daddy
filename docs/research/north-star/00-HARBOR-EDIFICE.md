@@ -28,19 +28,19 @@ perpendicular.
 
 | # | Floor | Paper | Layer | State |
 |---|-------|-------|-------|-------|
-| 1 | **Kernel** — the foundation slab | The Single-Writer Kernel | L0 daemon + L1 protocol | built |
-| 2 | **Legibility** — the wedge / the lobby | The Legible Swarm | L2 | built · the wedge |
-| 3 | **Personhood** — where a spawn becomes a person | From Spawn to Person | L3 bridge | partial |
-| 4 | **Economy** — the trading floor | The Harbor Economy | L3 | designed |
+| 1 | **Kernel** — the foundation slab | The Single-Writer Kernel | L0 daemon + L1 protocol | ▰ built |
+| 2 | **Legibility** — the wedge / the lobby | The Legible Swarm | L2 | ▰ built · ★ wedge |
+| 3 | **Personhood** — where a spawn becomes a person | From Spawn to Person | L3 bridge | ▰ built · identity root local-only |
+| 4 | **Economy** — the trading floor | The Harbor Economy | L3 | ▱ designed |
 
 ### Beams (prove, each crosses the floors it secures)
 
 | Beam | Property proved | Paper | Maturity |
 |------|-----------------|-------|----------|
-| **A** | **Identity & capability** | The Anchor Protocol | mechanized (ProVerif, Kani) |
-| **B** | **Conservation & bonding** | The Bonded Commons | mechanized (TLA⁺, ProVerif) |
-| **C** | **Federation across machines** | The Federated Harbor | mechanized v0.9 (TLA⁺, ProVerif) |
-| **D** | **Containment & reversibility** | *(new)* Bounded Authority — the Coast Guard | designed · proof open |
+| **A** | **Identity & capability** | The Anchor Protocol | ▰ built · ProVerif, Kani |
+| **B** | **Conservation & bonding** | The Bonded Commons | ▰ built · TLA⁺, ProVerif |
+| **C** | **Federation across machines** | The Federated Harbor | ▰ built · TLA⁺, ProVerif (v0.9) |
+| **D** | **Containment & reversibility** | *(new)* Bounded Authority — the Coast Guard | ▱ designed · proof open |
 
 Beam **D is new.** Port Daddy's largest safety ambition — scope containment,
 irreversibility gating, the Coast Guard, human-in-the-loop compulsion — had **no
@@ -101,7 +101,11 @@ roadmap rather than a confession.
 3. **No inexplicable label-tags / design-isms.** Kill decorative chips, badges,
    pill-tags, and status confetti that don't carry a defined meaning. The only
    sanctioned status vocabulary is the maturity key: **built · designed · open**
-   (▰/▱/·). One accent colour (**cobalt #003FB8**), AAA contrast, status labels
+   (▰/▱/·). These three marks are the *whole* key — there is no fourth label.
+   Degrees of "built" (proof stubbed, bounded, v0.9, identity-root local-only)
+   are carried as plain verifier text *after* the glyph — e.g. `▰ built · ProVerif`,
+   `▰ built · proof stubbed` — never as a separate `BUILT-WEAK` / `partial` tag.
+   One accent colour (**cobalt #003FB8**), AAA contrast, status labels
    in muted ink — never a rainbow of bolds.
 4. **One typeface per figure; colour reserved for arrows and the single
    "you-are-here" mark.** Restraint reads as authority.
