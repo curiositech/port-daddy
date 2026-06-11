@@ -82,7 +82,7 @@ pub mod flags {
 
     /// ICS Bravo — dangerous cargo / burning resource. Solid red.
     pub fn bravo() -> Vec<FlagRect> {
-        let red = Color::Rgb(204, 61, 46);
+        let red = Color::Rgb(191, 47, 47);
         vec![FlagRect { x: 0.0, y: 0.0, w: 16.0, h: 16.0, color: red }]
     }
 }

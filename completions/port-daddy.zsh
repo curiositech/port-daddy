@@ -1980,6 +1980,7 @@ _port_daddy() {
     'periscope:operator loop SIGHT stage — raise the periscope (state + next cut)'
     'coast-guard:Coast Guard read path — whether spawns are confined + what they cannot read'
     'cg:alias for coast-guard — the Coast Guard read path'
+    'relay:Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
@@ -1987,10 +1988,11 @@ _port_daddy() {
     'secret:manage keychain-backed provider credentials (set/list/reveal/rm)'
     'secrets:alias for secret — manage keychain-backed provider credentials'
     'watch:subscribe to a channel and run a script on each message'
-    'relay:cloud relay configuration and status (ADR-0049)'
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
+    # Cloud relay — zero-trust event fabric (ADR-0049)
+    'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
     'hm:alias for harbormaster'
@@ -2029,6 +2031,7 @@ _port_daddy() {
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
     'backend:list/use/cost — fleet backend route, framing, and spend'
+    'relay:manage cloud relay URL, status, and OIDC token exchange'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'

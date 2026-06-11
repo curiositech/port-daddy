@@ -503,6 +503,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
     // Mapping from MCP tool name -> expected feature
     const toolFeatureMap = {
       'attest': 'attest',
+      'relay_status': 'relay',
       // #199 cop-out conversion → real MCP tools
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',
@@ -708,10 +709,19 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_feedback': 'feedback',
       'feedback_summary': 'feedback',
 
-      // Context Economics
-      'get_context_budget': 'context',
-      'get_context_overview': 'context',
-      'get_task_ledger': 'context',
+      // Context Health (ADR-0048 P1/P3)
+      'get_context_budget': 'context_health',
+      'get_context_overview': 'context_health',
+      'get_task_ledger': 'context_health',
+
+      // Harvest (ADR-0048 P2/P3)
+      'harvest_session': 'harvest',
+      'find_related_work': 'harvest',
+
+      // Custodian (ADR-0048 P3)
+      'custodian_status': 'custodian',
+      'list_pending_approvals': 'custodian',
+      'resolve_approval': 'custodian',
     };
 
     const unmapped = [];

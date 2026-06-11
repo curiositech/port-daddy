@@ -674,6 +674,7 @@
         "GET /ping",
         "GET /sitrep",
         "GET /operator/actors",
+        "GET /operator/state",
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
@@ -2012,41 +2013,79 @@
       },
       "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
     },
+    "context_health": {
+      "description": "Agent context-window health and per-task token ledger — swarm-wide budget visibility (ADR-0048 P1/P3)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /context/overview",
+        "GET /context/task-ledger"
+      ],
+      "mcp": [
+        "get_context_budget",
+        "get_context_overview",
+        "get_task_ledger"
+      ],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase 1/3 context economics. routes/context.ts, lib/context-window-tracker.ts."
+    },
+    "harvest": {
+      "description": "Session note → episode promotion (Knowledge Custodian harvest duty, ADR-0048 P2/P3)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /harvest/related"
+      ],
+      "mcp": [
+        "harvest_session",
+        "find_related_work"
+      ],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase 2/3 session harvest. routes/harvest.ts, lib/session-harvest.ts."
+    },
+    "custodian": {
+      "description": "Knowledge Custodian — daemon-resident compaction engine and operator permission learning (ADR-0048 P3)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /custodian/status",
+        "GET /custodian/approvals",
+        "GET /custodian/permissions"
+      ],
+      "mcp": [
+        "custodian_status",
+        "list_pending_approvals",
+        "resolve_approval"
+      ],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase 3 knowledge custodian. routes/custodian.ts, lib/knowledge-custodian.ts, lib/operator-permissions.ts."
+    },
     "relay": {
       "description": "Cloud relay \u2014 zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
       "cli": [
         "relay"
       ],
-      "completions": [
-        "relay"
-      ],
-      "docs": {
-        "readme": false,
-        "sdk": false
-      },
-      "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE.",
+      "sdk": [],
       "routes": [
         "GET /relay/config",
         "POST /relay/config",
         "GET /relay/status",
         "POST /relay/exchange"
       ],
-      "sdk": []
-    },
-    "context": {
-      "description": "Context economics \u2014 per-agent context health + task token/cost ledger (ADR-0048)",
-      "cli": [],
-      "routes": [
-        "GET /context/overview",
-        "GET /context/task-ledger"
+      "completions": [
+        "relay"
       ],
-      "completions": [],
-      "sdk": [],
+      "mcp": [
+        "relay_status"
+      ],
       "docs": {
         "readme": false,
         "sdk": false
       },
-      "_note": "lib/context-window-tracker.ts + routes/context.ts. Heartbeat upserts health; spawner gates on context saturation."
+      "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE. Subcommands: relay url <url>|--clear, relay status, relay exchange."
     }
   }
 }

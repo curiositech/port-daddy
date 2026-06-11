@@ -232,7 +232,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -278,6 +278,14 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
     tools: ['get_context_budget', 'get_context_overview', 'get_task_ledger'],
+  },
+  'harvest': {
+    description: 'Session harvest + related work search — promote session notes to durable episodic memory, find similar past work',
+    tools: ['harvest_session', 'find_related_work'],
+  },
+  'custodian': {
+    description: 'Knowledge Custodian — daemon-resident compaction loop status, pending HITL approvals, operator permission patterns',
+    tools: ['custodian_status', 'list_pending_approvals', 'resolve_approval'],
   },
 };
 
@@ -374,6 +382,18 @@ const TOOLS = [
       'invariant with its REAL runtime state (enforced / degraded / stubbed) instead ' +
       'of an aggregate "ok". Call this to verify the daemon is actually doing what it ' +
       'claims before you rely on its coordination. Usage: attest()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'relay_status',
+    description:
+      '[System] Relay federation status (ADR-0049). Returns whether this daemon is ' +
+      'connected to the cloud relay, its session, last handshake, and which channels ' +
+      'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
+      'relying on it. Read-only. Usage: relay_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -2859,6 +2879,88 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'harvest_session',
+    description:
+      '[Context] Promote all notes from a session into durable episodic memory. ' +
+      'Call this before a session ends to ensure notes survive session cleanup. ' +
+      'Idempotent — safe to call multiple times. Returns episode IDs created.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'string',
+          description: 'Session ID to harvest notes from',
+        },
+      },
+      required: ['session_id'],
+    },
+  },
+  {
+    name: 'find_related_work',
+    description:
+      '[Context] Search episodic memory for similar past work by purpose/description. ' +
+      'Use before starting a task to avoid duplicating completed work. ' +
+      'Returns episode stubs with IDs and retrieval commands.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        purpose: {
+          type: 'string',
+          description: 'Description of the work you are about to start',
+        },
+        limit: {
+          type: 'number',
+          description: 'Max results to return (default 5)',
+        },
+      },
+      required: ['purpose'],
+    },
+  },
+  {
+    name: 'custodian_status',
+    description:
+      '[Custodian] Get status of the Knowledge Custodian daemon loop — running state, duty timestamps, ' +
+      'episodes harvested today, pending HITL approval count.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'list_pending_approvals',
+    description:
+      '[Custodian] List operator permission patterns that have been suggested for auto-approval ' +
+      '(3+ consecutive approvals of same kind/project). Each item includes a human-readable message ' +
+      'for the operator to approve or deny.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'resolve_approval',
+    description:
+      '[Custodian] Accept or deny a meta-permission candidate. Accepting flips the policy to "auto" ' +
+      'so future operations of that kind are approved without asking.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        pattern_id: {
+          type: 'number',
+          description: 'ID of the permission pattern to resolve',
+        },
+        decision: {
+          type: 'string',
+          enum: ['approved', 'denied'],
+          description: '"approved" to flip policy to auto, "denied" to reset and keep asking',
+        },
+      },
+      required: ['pattern_id', 'decision'],
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -2935,6 +3037,11 @@ async function handleTool(
 
     case 'attest': {
       res = await GET('/attest');
+      break;
+    }
+
+    case 'relay_status': {
+      res = await GET('/relay/status');
       break;
     }
 
@@ -4266,24 +4373,40 @@ async function handleTool(
       }, null, 2);
     }
 
+    case 'harvest_session': {
+      res = await POST(`/harvest/session/${encodeURIComponent(args.session_id as string)}`, {});
+      break;
+    }
+
+    case 'find_related_work': {
+      const params = new URLSearchParams({ purpose: args.purpose as string });
+      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
+      res = await GET(`/harvest/related?${params.toString()}`);
+      break;
+    }
+
     case 'get_context_budget': {
-      const agentId = (args.agent_id ?? args.agent) as string | undefined;
+      const agentId = args.agent_id as string | undefined;
+      res = await GET(`/context/overview`);
       if (!agentId) {
-        res = { status: 400, data: { error: 'agent_id is required' } };
+        // No agent_id: return swarm summary (all agents)
         break;
       }
-      res = await GET(`/context/overview`);
       if (res.data?.agents) {
         const agent = (res.data.agents as Array<Record<string, unknown>>).find(a => a.agentId === agentId);
-        res = { status: 200, data: (agent?.contextHealth as Record<string, unknown>) ?? { error: 'No context health data for this agent. Send context_window_used_pct on heartbeat to populate.' } };
+        if (!agent) {
+          res = { status: 404, data: { error: 'No context health data for this agent. Send context_window_used_pct on heartbeat to populate.' } };
+        } else {
+          res = { status: 200, data: agent.contextHealth as Record<string, unknown> };
+        }
       }
       break;
     }
 
     case 'get_context_overview': {
       const projectFilter = args.project_filter as string | undefined;
-      const overviewQs = projectFilter ? `?project=${encodeURIComponent(projectFilter)}` : '';
-      res = await GET(`/context/overview${overviewQs}`);
+      const projectQs = projectFilter ? '?project=' + encodeURIComponent(projectFilter) : '';
+      res = await GET('/context/overview' + projectQs);
       break;
     }
 
@@ -4294,6 +4417,23 @@ async function handleTool(
       if (typeof args.limit === 'number') params.set('limit', String(args.limit));
       const qs = params.toString() ? `?${params.toString()}` : '';
       res = await GET(`/context/task-ledger${qs}`);
+      break;
+    }
+
+    case 'custodian_status': {
+      res = await GET('/custodian/status');
+      break;
+    }
+
+    case 'list_pending_approvals': {
+      res = await GET('/custodian/approvals');
+      break;
+    }
+
+    case 'resolve_approval': {
+      const patternId = args.pattern_id as number;
+      const decision = args.decision as 'approved' | 'denied';
+      res = await POST(`/custodian/approvals/${patternId}`, { decision });
       break;
     }
 

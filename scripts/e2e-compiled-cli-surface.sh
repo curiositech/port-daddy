@@ -192,6 +192,7 @@ run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
 run_read "coast-guard status" coast-guard -- coast-guard status
+run_read "relay status"      relay       -- relay status
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
@@ -253,6 +254,14 @@ run_read "harbormaster status" harbormaster -- harbormaster status
 run_read "hm status"         hm           -- hm status
 run_read "review (usage)"    review       -- review
 run_read "dispatch (usage)"  dispatch     -- dispatch
+# Relay status (ADR-0049). `relay status` is a pure GET /relay/status read; the
+# mutating subforms (relay url <value>, relay exchange) are NOT run. Against the
+# scratch daemon relay is unconfigured, so it prints the "disabled" banner. If
+# the relay route is not mounted it exits non-zero WITH an error line — same
+# shape as attest/doctor above, which run_read treats as a PASS because it still
+# proves the compiled relay module loaded and ran (the dead-binary failure mode
+# is exit-non-zero with EMPTY output).
+run_read "relay status"      relay        -- relay status
 
 echo
 echo "=== MUTATING round-trips (safe against the scratch daemon) ======"
@@ -342,7 +351,6 @@ covered guard;     skip "guard"     "guard install/check mutate hooks; only 'gua
 covered harbor;    skip "harbor"    "harbor create/enter/leave/destroy mutate permission namespaces; usage read-tested above"
 covered add;       skip "add"       "git staging wrapper; mutates the index — not run in the surface gate"
 covered nightshift; skip "nightshift" "deprecated alias of 'dispatch' (ADR-0035); emits a deprecation banner then runs the dispatch queue — 'dispatch' usage is read-tested above"
-covered relay;     skip "relay"     "cloud relay management (ADR-0049); connects to external relay services — not safe in CI"
 
 echo
 echo "=== Verb-surface reconciliation against bin/port-daddy-cli.ts ====="

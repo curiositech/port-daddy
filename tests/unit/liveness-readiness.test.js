@@ -320,39 +320,34 @@ describe('Agent Liveness & Readiness', () => {
     });
 
     it('should show stale liveness for old heartbeat', () => {
-      // Use 'starting' status: dead threshold = 15min, stale threshold = 9min (60% of dead).
-      // Backdate by 10 minutes → past stale (9min) but before dead (15min).
-      agents.register('agent-1', { status: 'starting' });
+      agents.register('agent-1', { status: 'ready' });
 
-      // Manually backdate heartbeat
+      // Backdate past stale threshold (60% of 4h = 2.4h). Use 2.5h.
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 10 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 2.5 * 60 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('stale');
     });
 
     it('should show dead liveness for very old heartbeat', () => {
-      // Use 'starting' status: dead threshold = 15 min. Backdate by 16 min → dead.
-      agents.register('agent-1', { status: 'starting' });
+      agents.register('agent-1', { status: 'ready' });
 
-      // Backdate heartbeat past dead threshold
+      // Backdate past dead threshold (4h for ready). Use 5h.
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 16 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 5 * 60 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('dead');
     });
 
     it('should compute graceRemaining', () => {
-      // busy dead threshold = 4h (240 min), stale at 60% = 144 min.
-      // Just registered → graceRemaining ≈ 240 min.
       agents.register('agent-1', { status: 'busy' });
       const result = agents.get('agent-1');
 
-      // Just registered, so graceRemaining should be near the full dead threshold for busy (4h = 240 min)
+      // Just registered, so graceRemaining ≈ full dead threshold for busy (4h)
       expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(239 * 60 * 1000);
-      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(240 * 60 * 1000);
+      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(4 * 60 * 60 * 1000);
     });
   });
 
