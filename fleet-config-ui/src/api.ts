@@ -745,6 +745,18 @@ export async function fetchFilePreview(
  * - input: `{ projectDir: '/Users/me/port-daddy' }`
  * - output: `[{ id: 'spark', actorState: 'running', ... }]`
  */
+export async function fetchOperatorState(opts: {
+  project?: string;
+  projectDir?: string;
+  limit?: number;
+} = {}): Promise<import('./types').OperatorState> {
+  const params = new URLSearchParams();
+  if (opts.project) params.set('project', opts.project);
+  if (opts.projectDir) params.set('projectDir', opts.projectDir);
+  if (opts.limit) params.set('limit', String(opts.limit));
+  return get(`/operator/state${params.toString() ? `?${params}` : ''}`);
+}
+
 export async function fetchOperatorActors(opts: {
   project?: string;
   projectDir?: string;

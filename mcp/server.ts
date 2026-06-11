@@ -232,7 +232,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'system': {
     description: 'Daemon status, version, metrics, config, and launch hints',
-    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints'],
+    tools: ['daemon_status', 'get_version', 'get_metrics', 'get_config', 'wait_for_service', 'get_launch_hints', 'relay_status'],
   },
   'tuples': {
     description: 'Shared tuple space for swarm coordination — write, read, take, scan, count',
@@ -382,6 +382,18 @@ const TOOLS = [
       'invariant with its REAL runtime state (enforced / degraded / stubbed) instead ' +
       'of an aggregate "ok". Call this to verify the daemon is actually doing what it ' +
       'claims before you rely on its coordination. Usage: attest()',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {},
+    },
+  },
+  {
+    name: 'relay_status',
+    description:
+      '[System] Relay federation status (ADR-0049). Returns whether this daemon is ' +
+      'connected to the cloud relay, its session, last handshake, and which channels ' +
+      'are accepted — so an agent can tell if cross-machine pub/sub is live before ' +
+      'relying on it. Read-only. Usage: relay_status()',
     inputSchema: {
       type: 'object' as const,
       properties: {},
@@ -3025,6 +3037,11 @@ async function handleTool(
 
     case 'attest': {
       res = await GET('/attest');
+      break;
+    }
+
+    case 'relay_status': {
+      res = await GET('/relay/status');
       break;
     }
 

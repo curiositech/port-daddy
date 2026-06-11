@@ -48,11 +48,8 @@
 
 % ─── The substrate floor ──────────────────────────────────────────────────
 \node[sub,below=6mm of cont] (substrate)
-  {{\bfseries\large Substrate organ --- the single-writer transactional floor}\\[2pt]
-   one SQLite database in write-ahead-log mode with normal synchronization,
-   a bounded busy-wait, and foreign-key enforcement; a runtime-shim layer keeps the
-   deployment and test SQLite bindings in step.\\
-   {\footnotesize\textsf{implemented} (durability split I1a/I1b --- see \S\ref{sec:invariants})}};
+  {{\bfseries Substrate organ --- the single-writer transactional floor}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
+   \textit{one SQLite database in WAL mode: normal sync, bounded busy-wait, foreign keys}};
 
 % ─── Connect each organ to the substrate ──────────────────────────────────
 \foreach \o in {oblig,cont,attest} {
@@ -67,8 +64,9 @@
 for the layers above to be coherent. Six organs are, mechanically, just tables
 \emph{with discipline} over a single shared file --- the \textbf{substrate organ},
 the single-writer transactional floor. The substrate's storage configuration
-\emph{is} the kernel's durability claim; everything else is convenience built on top
-of it. Maturity grades (\textsf{implemented} $\cdot$ \textsf{partial} $\cdot$
+\emph{is} the kernel's durability claim (the I1a/I1b split, \S\ref{sec:invariants});
+a runtime-shim layer keeps the deployment and test SQLite bindings in step, and
+everything else is convenience built on top of it. Maturity grades (\textsf{implemented} $\cdot$ \textsf{partial} $\cdot$
 \textsf{specified} $\cdot$ \textsf{proposed}) are per organ; note that the identity
 organ is implemented but \emph{self-asserted}, the gap a cross-machine economy must
 eventually close with cryptographic identity.}
