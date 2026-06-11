@@ -185,6 +185,51 @@ describe('operator routes', () => {
     await app.close();
   });
 
+  test('POST /operator/files-exist reports per-path existence, false for model ids', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/files-exist',
+      payload: {
+        paths: ['package.json', 'ollama/qwen2.5-coder'],
+        projectDir,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      success: true,
+      results: {
+        'package.json': true,
+        'ollama/qwen2.5-coder': false,
+      },
+    });
+
+    await app.close();
+  });
+
+  test('POST /operator/files-exist rejects empty payloads', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/files-exist',
+      payload: { paths: [] },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: false,
+      error: 'At least one file path is required.',
+    }));
+
+    await app.close();
+  });
+
   test('GET /operator/coordination-guard returns guard status for a project', async () => {
     const { app, register } = buildApp();
     await register();
