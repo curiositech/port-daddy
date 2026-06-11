@@ -44,6 +44,11 @@ jest.unstable_mockModule('node:child_process', () => ({
 }));
 
 const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+// coast-guard is NOT mocked — import the real posture readers so the
+// uncontained-scope assertion can branch on what THIS machine actually enforces
+// (armed → enforced 'read' → INFO steady-state; degraded → null → WARN).
+const { coastGuardStatus } = await import('../../lib/coast-guard.js');
+const { enforcedContainmentTier } = await import('../../lib/coast-guard.js');
 
 const TEST_TELEMETRY_BYPASS = {
   humanConfirmed: true,
@@ -180,21 +185,62 @@ describe('bond pricing is logged for operator visibility (the scope-proportional
     }
   });
 
-  test('the default full-tier spawn WARNs uncontained scope (the report is now wired in)', async () => {
+  test('the default full-tier spawn surfaces uncontained scope at the RIGHT level (INFO armed / WARN unconfined)', async () => {
     // #342 wires coastGuardStatus() into the spawn-site priceBond call, so the
-    // pricer can compare the priced tier (full) against what the Coast Guard
-    // actually contains on this machine. Whether the guard is armed (enforced
-    // 'read') or degraded (null), `full` exceeds it → uncontainedScope, and the
-    // spawner emits the LOUD warn. This is the honest gap, surfaced live.
+    // pricer compares the priced tier (full) against what the Coast Guard
+    // actually contains on this machine. The level is now right-sized:
+    //   • armed guard (enforced 'read', the steady state): full merely outruns a
+    //     present-but-modest tier — the KNOWN gap on ~100% of spawns → INFO
+    //     notice on the log channel, NO uncontained WARN (alarm-fatigue fix).
+    //   • degraded posture (enforced null — no OS sandbox): the spawn is truly
+    //     unconfined → a LOUD WARN.
+    // We read the live posture and assert the branch this CI machine is actually
+    // in, so the test is honest on any runner.
+    const enforced = enforcedContainmentTier(coastGuardStatus());
     const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     try {
       const spawner = createSpawner();
       await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree });
+      const logged = consoleLog.mock.calls.map((c) => String(c[0])).join('\n');
+      const warned = consoleWarn.mock.calls.map((c) => String(c[0])).join('\n');
+      if (enforced === null) {
+        // No OS sandbox on this runner → the actionable anomaly: LOUD WARN.
+        expect(warned).toMatch(/\[spawner\] WARN uncontained scope/);
+        expect(warned).toMatch(/NO OS sandbox is active/);
+        expect(warned).toMatch(/structurally\s+unconfined/);
+      } else {
+        // Sandbox present (enforced 'read') → benign steady-state INFO notice,
+        // and crucially NO uncontained WARN (the regression this guards).
+        expect(logged).toMatch(/\[spawner\] bond scope advisory/);
+        expect(logged).toMatch(/priced tier=full exceeds/);
+        expect(logged).toMatch(new RegExp(`enforced containment tier=${enforced}`));
+        expect(warned).not.toMatch(/uncontained/);
+      }
+    } finally {
+      consoleLog.mockRestore();
+      consoleWarn.mockRestore();
+    }
+  });
+
+  test('guard OFF (PD_COAST_GUARD_OFF) → enforced null → the spawn emits the LOUD uncontained WARN', async () => {
+    // Deterministically force the degraded posture so the WARN branch is covered
+    // end-to-end through the real spawn on ANY runner (not just one without a
+    // sandbox). With the guard off, enforcedContainmentTier is null → the
+    // full-tier default spawn is truly unconfined → WARN, not the INFO notice.
+    process.env.PD_COAST_GUARD_OFF = '1'; // afterEach deletes it
+    expect(enforcedContainmentTier(coastGuardStatus())).toBeNull();
+    const consoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const spawner = createSpawner();
+      await spawner.spawn({ backend: 'custom', task: 'echo hi', workdir: worktree });
+      const logged = consoleLog.mock.calls.map((c) => String(c[0])).join('\n');
       const warned = consoleWarn.mock.calls.map((c) => String(c[0])).join('\n');
       expect(warned).toMatch(/\[spawner\] WARN uncontained scope/);
-      expect(warned).toMatch(/tier=full EXCEEDS/);
-      expect(warned).toMatch(/pricing != containment/);
+      expect(warned).toMatch(/NO OS sandbox is active/);
+      // The benign steady-state INFO notice must NOT also fire when degraded.
+      expect(logged).not.toMatch(/bond scope advisory/);
     } finally {
       consoleLog.mockRestore();
       consoleWarn.mockRestore();
