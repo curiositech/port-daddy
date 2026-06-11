@@ -855,9 +855,15 @@ export interface PricedBondLogContext {
 /**
  * Render the operator-facing log lines for a priced bond: one `info` line with
  * the tier + every multiplier + the final amount (+ floor/ceiling annotations),
- * and zero-or-more `warnings` for a quote whose IC argument does NOT fully hold.
- * Today the only warning is `belowFloor` (the ceiling clamp pushed the bond under
- * the tier's reconstruction-cost floor → bond < max_gain_from_sabotage). PURE.
+ * and zero-or-more `warnings` for a quote whose IC argument does NOT fully hold:
+ *   • `belowFloor`        — the ceiling clamp pushed the bond under the tier's
+ *                           reconstruction-cost floor → bond < max_gain_from_sabotage.
+ *   • `uncontainedScope`  — the priced tier exceeds what the Coast Guard
+ *                           structurally contains on this machine; the bond's
+ *                           deterrence is sound but UNBACKED by enforcement
+ *                           (pricing != containment). Only set when the caller
+ *                           passed a `coastGuardReport` to `priceBond`.
+ * PURE.
  */
 export function pricedBondLogLines(
   breakdown: PricedBondBreakdown,
@@ -878,6 +884,14 @@ export function pricedBondLogLines(
       `[spawner] WARN undercollateralized bond — ceiling clamp pushed $${ctx.bondUsd.toFixed(4)} ` +
         `BELOW the ${b.scopeTier}-tier deterrence floor $${b.floorUsd.toFixed(4)} ` +
         `(bond < max_gain_from_sabotage; IC invariant does NOT hold)${who}`,
+    );
+  }
+  if (b.uncontainedScope) {
+    warnings.push(
+      `[spawner] WARN uncontained scope — priced tier=${b.scopeTier} EXCEEDS the Coast ` +
+        `Guard's enforced containment tier on this machine; the bond underwrites a blast ` +
+        `radius the runtime cannot structurally prevent (pricing != containment; ` +
+        `deterrence sound but UNBACKED by enforcement)${who}`,
     );
   }
   return { info, warnings };

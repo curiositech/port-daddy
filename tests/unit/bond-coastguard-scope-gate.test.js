@@ -26,7 +26,7 @@
  */
 
 import { enforcedContainmentTier } from '../../lib/coast-guard.js';
-import { priceBond, TIER_RANK } from '../../lib/bond-pricing.js';
+import { priceBond, TIER_RANK, pricedBondLogLines } from '../../lib/bond-pricing.js';
 
 // ── Fixtures: representative CoastGuardStatusReports ──────────────────────────
 const MIN = 60_000;
@@ -227,5 +227,55 @@ describe('breakdown.uncontainedScope — bond prices risk the platform cannot co
     expect(breakdown.uncontainedScope).toBe(true);
     // And the ranking that drives it: full strictly dominates read.
     expect(TIER_RANK.full > TIER_RANK.read).toBe(true);
+  });
+});
+
+// ── pricedBondLogLines: the uncontainedScope WARN the spawner emits ───────────
+// The pure helper turns breakdown.uncontainedScope into the operator-facing LOUD
+// warn line. We test the exact text + the trigger here so the WARN is covered
+// even though the spawn path always supplies a report (the spawner test proves
+// the wiring; this proves the message).
+describe('pricedBondLogLines — uncontainedScope LOUD warning', () => {
+  test('uncontainedScope=true → a WARN naming the pricing≠containment gap', () => {
+    // full tier priced against an armed guard (enforced=read) → uncontained.
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 0.01,
+      capabilities: ['spawn:agent', 'backend:claude'],
+      ttlMs: 300_000,
+      coastGuardReport: armedReport(),
+    });
+    expect(breakdown.uncontainedScope).toBe(true);
+    const { warnings } = pricedBondLogLines(breakdown, { bondUsd, agentId: 'a1', backend: 'claude-cli' });
+    const uncontained = warnings.find((w) => w.includes('uncontained scope'));
+    expect(uncontained).toBeDefined();
+    expect(uncontained).toMatch(/WARN uncontained scope/);
+    expect(uncontained).toMatch(/tier=full EXCEEDS/);
+    expect(uncontained).toMatch(/pricing != containment/);
+    expect(uncontained).toContain('agent=a1');
+  });
+
+  test('uncontainedScope=false (no report supplied) → NO uncontained warning', () => {
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 0.01,
+      capabilities: ['spawn:agent', 'backend:claude'],
+      ttlMs: 300_000,
+      // no coastGuardReport → flag stays false (no posture to read)
+    });
+    expect(breakdown.uncontainedScope).toBe(false);
+    const { warnings } = pricedBondLogLines(breakdown, { bondUsd });
+    expect(warnings.some((w) => w.includes('uncontained scope'))).toBe(false);
+  });
+
+  test('a degraded posture (no sandbox) makes even a read-tier bond uncontained → WARN', () => {
+    const { bondUsd, breakdown } = priceBond({
+      baseUsd: 1,
+      capabilities: ['fs:read'], // read tier
+      ttlMs: 60_000,
+      coastGuardReport: armedReport({ mechanism: 'none', confinementAvailable: false }),
+    });
+    expect(breakdown.scopeTier).toBe('read');
+    expect(breakdown.uncontainedScope).toBe(true); // degraded contains nothing
+    const { warnings } = pricedBondLogLines(breakdown, { bondUsd });
+    expect(warnings.some((w) => w.includes('uncontained scope'))).toBe(true);
   });
 });
