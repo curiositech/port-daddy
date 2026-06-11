@@ -1295,18 +1295,24 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       bondUsd = priced.bondUsd;
       // Operator visibility: one INFO line with the chosen tier + every multiplier
       // + the final escrowed amount (the spawn path is not hot enough to be noise),
-      // plus a LOUD warn for any quote whose IC argument does NOT fully hold:
-      // `belowFloor` (a ceiling clamp dropped the bond below its deterrence floor)
-      // and `uncontainedScope` (the priced tier exceeds what the Coast Guard
-      // structurally contains — the default `full`-tier spawn flags under an armed
-      // guard). Formatting lives in the pure pricer helper so the exact text + the
-      // warn conditions stay unit-tested; we just route info → log, warnings → warn.
+      // plus INFO `notices` for an EXPECTED posture (the priced tier outrunning a
+      // present-but-modest enforced tier — the documented pricing-ahead-of-
+      // containment gap the default `full`-tier spawn trips on ~100% of spawns
+      // under an armed guard), and a LOUD `warnings` only for an ACTIONABLE
+      // anomaly: `belowFloor` (a ceiling clamp dropped the bond below its
+      // deterrence floor) or an uncontained scope with NO OS sandbox at all
+      // (`enforcedScopeTier === null` → the spawn is truly unconfined). An
+      // always-on uncontained WARN under an armed guard would be alarm fatigue, so
+      // that benign steady-state case is INFO. Formatting + level-routing live in
+      // the pure pricer helper so they stay unit-tested; we just route info +
+      // notices → log, warnings → warn.
       const lines = pricedBondLogLines(priced.breakdown, {
         bondUsd,
         agentId,
         backend: spec.backend,
       });
       console.log(lines.info);
+      for (const n of lines.notices) console.log(n);
       for (const w of lines.warnings) console.warn(w);
     }
     let bondId: number | null = null;

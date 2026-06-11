@@ -653,6 +653,28 @@ export interface PricedBondBreakdown {
    * cannot back with enforcement — the bond is sound, the CONTAINMENT is not.
    */
   uncontainedScope: boolean;
+  /**
+   * The tier the Coast Guard ACTUALLY contains on this machine, as
+   * `enforcedContainmentTier(coastGuardReport)` returned it — the honest counter-
+   * party to `scopeTier` in the `uncontainedScope` comparison. Surfaced so a
+   * caller (and `pricedBondLogLines`) can tell the two KINDS of uncontainment
+   * apart, which carry very different operator urgency:
+   *   • a present-but-MODEST tier (today honestly `'read'` under an armed
+   *     sandbox) — the EXPECTED steady state. The default `full`-tier spawn
+   *     exceeds `'read'`, so ~100% of priced spawns are "uncontained" in this
+   *     benign, KNOWN sense (the documented pricing-ahead-of-containment gap). An
+   *     always-on WARN here is alarm-fatigue, not signal → log at INFO.
+   *   • `null` — DEGRADED: no OS sandbox, the guard is off, or a core bound is
+   *     missing. NOTHING is structurally contained, so the spawn is truly
+   *     unconfined. THIS is the actionable anomaly → log at WARN.
+   *
+   * `undefined` when no `coastGuardReport` was supplied (no posture was read —
+   * `uncontainedScope` is then `false` and there is nothing to compare). This
+   * field is pure metadata: it changes no escrow, no `bondUsd`, and does NOT
+   * alter the `uncontainedScope` flag's value — it only lets the caller choose
+   * the right LOG LEVEL for an uncontained quote.
+   */
+  enforcedScopeTier?: ScopeTier | null;
 }
 
 export interface PricedBond {
@@ -804,9 +826,15 @@ export function priceBond(input: PriceBondInput): PricedBond {
   // posture to read; never fabricate a containment claim). A `null` enforced tier
   // (DEGRADED — no sandbox) means NOTHING is contained, so ANY priced tier
   // (including `read`) is uncontained.
+  // `enforcedScopeTier` (below) carries the enforced side of this comparison out
+  // to the caller so it can tell a MODEST-but-present tier (benign steady-state
+  // gap → INFO) apart from `null` (degraded, truly unconfined → WARN) without
+  // re-deriving it. `undefined` when no report was read.
   let uncontainedScope = false;
+  let enforcedScopeTier: ScopeTier | null | undefined;
   if (coastGuardReport !== undefined) {
     const enforcedTier = enforcedContainmentTier(coastGuardReport);
+    enforcedScopeTier = enforcedTier;
     uncontainedScope =
       enforcedTier === null
         ? true // degraded posture contains no tier at all → any priced scope is uncontained
@@ -827,6 +855,7 @@ export function priceBond(input: PriceBondInput): PricedBond {
       ceilingApplied,
       belowFloor,
       uncontainedScope,
+      enforcedScopeTier,
     },
   };
 }
@@ -834,13 +863,28 @@ export function priceBond(input: PriceBondInput): PricedBond {
 // ─── Operator log lines (PURE — formatting only, no I/O) ─────────────────────────
 //
 // A caller that escrows a priced bond (lib/spawner.ts) wants OPERATOR VISIBILITY:
-// the chosen tier + the multipliers that produced it + the final amount, and a
-// LOUD warning when the quote is undercollateralized (`belowFloor`). This is the
-// one place that turns a `PricedBondBreakdown` into those human strings. It is
-// kept PURE (returns strings; the caller does the console I/O) so the exact log
-// text AND the warn-trigger conditions are unit-testable without a daemon, and so
-// this module keeps its "no I/O" invariant. The caller routes `info` → its
-// info/debug sink and every `warnings` entry → its warn sink.
+// the chosen tier + the multipliers that produced it + the final amount, an
+// informative line when the priced tier outruns a present-but-modest enforced
+// tier (the KNOWN, benign pricing-ahead-of-containment gap), and a LOUD warning
+// only for the ACTIONABLE anomalies — an undercollateralized quote (`belowFloor`)
+// or a TRULY UNCONFINED spawn (no OS sandbox at all → enforced tier is `null`).
+// This is the one place that turns a `PricedBondBreakdown` into those human
+// strings. It is kept PURE (returns strings; the caller does the console I/O) so
+// the exact log text AND the level-routing conditions are unit-testable without a
+// daemon, and so this module keeps its "no I/O" invariant. The caller routes
+// `info` + every `notices` entry → its info/log sink and every `warnings` entry →
+// its warn sink.
+//
+// WHY THE SPLIT (alarm fatigue is a regression). `scopeTierWritePolicy` leaves
+// every tier above `read` `unrestricted`, so the enforced ceiling is honestly
+// `'read'` even under an armed sandbox (lib/coast-guard.ts `enforcedContainmentTier`).
+// The DEFAULT spawn prices `full`. So `uncontainedScope` is true on ~100% of
+// full-tier spawns whenever the guard is armed — the EXPECTED steady state, not
+// an incident. Emitting that at WARN buries the one case that IS an incident
+// (`enforcedScopeTier === null`: no sandbox, guard off, or a core bound missing →
+// the spawn is structurally unconfined). So: present-but-modest enforced tier →
+// INFO notice; `null` enforced tier → WARN. The `uncontainedScope` flag value is
+// unchanged — this is purely the operator-facing LOG LEVEL.
 
 /** Context for a priced-bond log line — who/what the bond is for. */
 export interface PricedBondLogContext {
@@ -853,22 +897,34 @@ export interface PricedBondLogContext {
 }
 
 /**
- * Render the operator-facing log lines for a priced bond: one `info` line with
- * the tier + every multiplier + the final amount (+ floor/ceiling annotations),
- * and zero-or-more `warnings` for a quote whose IC argument does NOT fully hold:
- *   • `belowFloor`        — the ceiling clamp pushed the bond under the tier's
- *                           reconstruction-cost floor → bond < max_gain_from_sabotage.
- *   • `uncontainedScope`  — the priced tier exceeds what the Coast Guard
- *                           structurally contains on this machine; the bond's
- *                           deterrence is sound but UNBACKED by enforcement
- *                           (pricing != containment). Only set when the caller
- *                           passed a `coastGuardReport` to `priceBond`.
- * PURE.
+ * Render the operator-facing log lines for a priced bond:
+ *   • `info`     — one always-present line with the tier + every multiplier + the
+ *                  final amount (+ floor/ceiling annotations).
+ *   • `notices`  — zero-or-more INFORMATIVE lines for an EXPECTED, benign posture
+ *                  the operator should be able to see but NOT be alarmed by:
+ *                    – `uncontainedScope` with a present-but-MODEST enforced tier
+ *                      (`enforcedScopeTier !== null`, today honestly `'read'`): the
+ *                      priced tier outruns what the sandbox structurally contains.
+ *                      This is the documented pricing-ahead-of-containment gap and
+ *                      is true on ~100% of full-tier spawns under an armed guard —
+ *                      steady state, not an incident → INFO, naming both tiers.
+ *   • `warnings` — zero-or-more LOUD lines for an ACTIONABLE anomaly where the IC
+ *                  argument does NOT hold or the spawn is structurally unconfined:
+ *                    – `belowFloor` — the ceiling clamp pushed the bond under the
+ *                      tier's reconstruction-cost floor → bond < max_gain_from_sabotage.
+ *                    – `uncontainedScope` with `enforcedScopeTier === null` — no OS
+ *                      sandbox at all (degraded / guard off / a core bound missing),
+ *                      so NOTHING is contained and the spawn is truly unconfined.
+ *
+ * The `uncontainedScope` flag's value is unchanged; this helper only chooses the
+ * LEVEL (notice vs warn) for an uncontained quote. Both `uncontainedScope`
+ * branches require a `coastGuardReport` to have been supplied to `priceBond`
+ * (else the flag is `false` and neither fires). PURE.
  */
 export function pricedBondLogLines(
   breakdown: PricedBondBreakdown,
   ctx: PricedBondLogContext,
-): { info: string; warnings: string[] } {
+): { info: string; notices: string[]; warnings: string[] } {
   const who =
     `${ctx.agentId ? ` agent=${ctx.agentId}` : ''}${ctx.backend ? ` backend=${ctx.backend}` : ''}`;
   const b = breakdown;
@@ -878,6 +934,7 @@ export function pricedBondLogLines(
     `×rep=${b.reputationFactor} floor=$${b.floorUsd.toFixed(4)}` +
     `${b.floorApplied ? ' (floor applied)' : ''}${b.ceilingApplied ? ' (ceiling clamped)' : ''}` +
     who;
+  const notices: string[] = [];
   const warnings: string[] = [];
   if (b.belowFloor) {
     warnings.push(
@@ -887,12 +944,27 @@ export function pricedBondLogLines(
     );
   }
   if (b.uncontainedScope) {
-    warnings.push(
-      `[spawner] WARN uncontained scope — priced tier=${b.scopeTier} EXCEEDS the Coast ` +
-        `Guard's enforced containment tier on this machine; the bond underwrites a blast ` +
-        `radius the runtime cannot structurally prevent (pricing != containment; ` +
-        `deterrence sound but UNBACKED by enforcement)${who}`,
-    );
+    if (b.enforcedScopeTier === null) {
+      // ACTIONABLE: no OS sandbox at all (degraded posture / guard off / a core
+      // bound missing) → the spawn is structurally unconfined. This is the
+      // anomaly worth a LOUD warn.
+      warnings.push(
+        `[spawner] WARN uncontained scope — NO OS sandbox is active on this machine ` +
+          `(degraded Coast Guard posture); the ${b.scopeTier}-tier spawn is structurally ` +
+          `unconfined and the bond is its ONLY check (pricing != containment; deterrence ` +
+          `sound but UNBACKED by enforcement)${who}`,
+      );
+    } else {
+      // EXPECTED steady state: the priced tier exceeds a present-but-modest
+      // enforced tier (today `'read'`). The default full-tier spawn trips this on
+      // ~100% of spawns — informative, not alarming → INFO notice.
+      notices.push(
+        `[spawner] bond scope advisory — priced tier=${b.scopeTier} exceeds the Coast ` +
+          `Guard's enforced containment tier=${b.enforcedScopeTier} on this machine; the bond ` +
+          `underwrites a blast radius the runtime does not yet structurally prevent ` +
+          `(pricing ahead of containment — known advisory gap, deterrence sound)${who}`,
+      );
+    }
   }
-  return { info, warnings };
+  return { info, notices, warnings };
 }

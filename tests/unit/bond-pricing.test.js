@@ -626,9 +626,62 @@ describe('pricedBondLogLines — operator-facing log lines (pure)', () => {
       capabilities: ['fs:read'],
       ttlMs: 60_000,
     });
-    const { info } = pricedBondLogLines(breakdown, { bondUsd });
+    const { info, notices, warnings } = pricedBondLogLines(breakdown, { bondUsd });
     expect(info).toContain('[spawner] bond priced');
     expect(info).not.toContain('agent=');
     expect(info).not.toContain('backend=');
+    // No coastGuardReport was supplied → nothing on the advisory/warn channels.
+    expect(notices).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  test('an uncontained quote vs a present-but-modest enforced tier rides INFO notices, NOT warnings', () => {
+    // The steady-state alarm-fatigue fix at the pure-formatter level: enforced
+    // tier present ('read') but the priced tier exceeds it → an INFO `notices`
+    // line, never a WARN. (A hand-built breakdown keeps this test independent of
+    // the coast-guard fixture; the scope-gate suite covers the priceBond wiring.)
+    const breakdown = {
+      base: 0.01,
+      scopeTier: 'full',
+      scopeMultiplier: 25,
+      durationMultiplier: 1,
+      reputationDiscount: 0,
+      reputationFactor: 1,
+      floorUsd: 0.25,
+      floorApplied: true,
+      ceilingApplied: false,
+      belowFloor: false,
+      uncontainedScope: true,
+      enforcedScopeTier: 'read', // present-but-modest → INFO, not WARN
+    };
+    const { notices, warnings } = pricedBondLogLines(breakdown, { bondUsd: 0.25, agentId: 'a1' });
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain('bond scope advisory');
+    expect(notices[0]).toMatch(/priced tier=full exceeds/);
+    expect(notices[0]).toMatch(/enforced containment tier=read/);
+    expect(notices[0]).toContain('agent=a1');
+    expect(warnings).toEqual([]); // crucially NO WARN for the steady-state gap
+  });
+
+  test('an uncontained quote with NO enforced tier (null) is a LOUD WARN — truly unconfined', () => {
+    const breakdown = {
+      base: 1,
+      scopeTier: 'read',
+      scopeMultiplier: 1,
+      durationMultiplier: 1,
+      reputationDiscount: 0,
+      reputationFactor: 1,
+      floorUsd: 5,
+      floorApplied: true,
+      ceilingApplied: false,
+      belowFloor: false,
+      uncontainedScope: true,
+      enforcedScopeTier: null, // no OS sandbox at all → WARN
+    };
+    const { notices, warnings } = pricedBondLogLines(breakdown, { bondUsd: 5 });
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/WARN uncontained scope/);
+    expect(warnings[0]).toMatch(/NO OS sandbox is active/);
+    expect(notices).toEqual([]); // degraded does not also emit the steady-state notice
   });
 });
