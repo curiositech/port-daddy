@@ -2,10 +2,24 @@
  * NeedsYouHero — renders the prioritized `needsYou` list from /operator/state.
  * Priority 0 items appear first (most urgent). Each item shows its action as
  * either a clickable route button or a copyable `pd` command.
+ *
+ * ── Force-zoom (legibility F3) ────────────────────────────────────────────────
+ * An operator must not be able to acknowledge/dismiss an IRREVERSIBLE or P0
+ * attention item without first EXPANDING it to read the action/command + meta.
+ * Stakes-proportional friction: there is no approve-without-seeing at scale.
+ *
+ * The gate does NOT hide the item — it only disables the Dismiss affordance
+ * until the row has been expanded at least once (the operator has SEEN the
+ * action and meta). Lower-priority rows keep quick/batch dismissal: their
+ * Dismiss is live without any expansion.
  */
 import { useState } from 'react';
-import { AlertTriangle, ShieldAlert, TrendingDown, Anchor, BotOff, Map, Inbox, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
-import type { NeedsYouItem, FleetSignal } from '../types';
+import {
+  AlertTriangle, ShieldAlert, TrendingDown, Anchor, BotOff, Map, Inbox,
+  ChevronDown, ChevronUp, Copy, Check, X, Lock,
+} from 'lucide-react';
+import type { NeedsYouItem, FleetSignal, NeedsYouCode } from '../types';
+import { isForceZoomGated } from '../lib/needsYouGate';
 
 // ─── Icon mapping ─────────────────────────────────────────────────────────────
 
@@ -66,11 +80,79 @@ function CopyButton({ text }: { text: string }) {
     <button
       onClick={handleCopy}
       title="Copy to clipboard"
-      className="flex items-center gap-1 rounded px-1.5 py-1 text-[11px] font-semibold transition-opacity hover:opacity-80"
+      className="flex items-center gap-1 rounded px-1.5 py-1 text-[13px] font-semibold transition-opacity hover:opacity-80"
       style={{ color: 'var(--pd-dim)', backgroundColor: 'var(--pd-surface-2)', border: '1px solid var(--pd-border)' }}
     >
-      {copied ? <Check size={11} /> : <Copy size={11} />}
+      {copied ? <Check size={13} /> : <Copy size={13} />}
       <span>{copied ? 'Copied' : 'Copy'}</span>
+    </button>
+  );
+}
+
+// ─── Dismiss / acknowledge affordance ─────────────────────────────────────────
+
+/**
+ * The Dismiss button. For force-zoom-gated rows it is DISABLED until the row
+ * has been expanded at least once (`seen`). Honest UX: the disabled state names
+ * exactly why ("Expand to review first") and points at the unlock action — it
+ * never silently no-ops, and never hides the item.
+ */
+function DismissButton({
+  gated,
+  seen,
+  onDismiss,
+}: {
+  gated: boolean;
+  seen: boolean;
+  onDismiss: () => void;
+}) {
+  const locked = gated && !seen;
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Stop the row toggle from also firing.
+    e.stopPropagation();
+    if (locked) return;
+    onDismiss();
+  };
+
+  if (locked) {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled
+        aria-disabled="true"
+        data-dismiss-locked="true"
+        title="Expand to review the action and meta before dismissing"
+        className="flex shrink-0 cursor-not-allowed items-center gap-1 rounded px-2 py-1 text-[13px] font-semibold"
+        style={{
+          color: 'var(--pd-dim)',
+          backgroundColor: 'var(--pd-surface-3)',
+          border: '1px dashed var(--pd-border)',
+          opacity: 0.85,
+        }}
+      >
+        <Lock size={13} />
+        <span>Expand to dismiss</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      data-dismiss-locked="false"
+      title="Acknowledge and dismiss this item"
+      className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[13px] font-semibold transition-opacity hover:opacity-80"
+      style={{
+        color: 'var(--pd-muted)',
+        backgroundColor: 'var(--pd-surface-2)',
+        border: '1px solid var(--pd-border)',
+      }}
+    >
+      <X size={13} />
+      <span>Dismiss</span>
     </button>
   );
 }
@@ -122,57 +204,75 @@ function ActionArea({ action }: { action: string }) {
 function NeedsYouRow({
   item,
   expanded,
+  seen,
   onToggle,
+  onDismiss,
 }: {
   item: NeedsYouItem;
   expanded: boolean;
+  /** True once this row has been expanded at least once this session. */
+  seen: boolean;
   onToggle: () => void;
+  onDismiss: () => void;
 }) {
   const style = urgencyStyle(item.priority);
   const icon = itemIcon(item.code);
+  const gated = isForceZoomGated(item);
+  const locked = gated && !seen;
 
   return (
     <div
       className="rounded-lg"
+      data-needsyou-code={item.code}
+      data-gated={gated ? 'true' : 'false'}
       style={{ backgroundColor: style.bg, border: `1px solid ${style.border}` }}
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-start gap-3 px-4 py-3 text-left"
-        style={{ color: style.color }}
-      >
-        <span className="mt-0.5 shrink-0">{icon}</span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold leading-snug" style={{ color: 'var(--pd-text)' }}>
-            {item.label}
-          </div>
-          {!expanded && (
-            <div
-              className="mt-0.5 truncate text-[13px]"
-              style={{ color: 'var(--pd-muted)', fontFamily: 'var(--pd-font-mono)' }}
-            >
-              {item.action}
-            </div>
-          )}
-        </div>
-        <span
-          className="ml-1 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold tracking-wider uppercase"
-          style={{ backgroundColor: style.bg, color: style.color, border: `1px solid ${style.border}` }}
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left"
+          style={{ color: style.color }}
         >
-          P{item.priority}
-        </span>
-        <span className="shrink-0 opacity-60">
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </span>
-      </button>
+          <span className="mt-0.5 shrink-0">{icon}</span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold leading-snug" style={{ color: 'var(--pd-text)' }}>
+              {item.label}
+            </div>
+            {!expanded && (
+              <div
+                className="mt-0.5 truncate text-[13px]"
+                style={{ color: 'var(--pd-muted)', fontFamily: 'var(--pd-font-mono)' }}
+              >
+                {item.action}
+              </div>
+            )}
+          </div>
+          <span
+            className="ml-1 shrink-0 self-start rounded-full px-2 py-0.5 text-[11px] font-bold tracking-wider uppercase"
+            style={{ backgroundColor: style.bg, color: style.color, border: `1px solid ${style.border}` }}
+          >
+            P{item.priority}
+          </span>
+          <span className="shrink-0 self-start pt-0.5 opacity-60">
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </span>
+        </button>
+
+        {/* Dismiss lives outside the toggle button so its disabled state is
+            independent of expand/collapse. */}
+        <div className="flex shrink-0 items-center pr-3 pl-1">
+          <DismissButton gated={gated} seen={seen} onDismiss={onDismiss} />
+        </div>
+      </div>
 
       {expanded && (
         <div className="border-t px-4 pb-3" style={{ borderColor: style.border }}>
           <ActionArea action={item.action} />
           {item.meta && Object.keys(item.meta).length > 0 && (
             <pre
-              className="mt-2 overflow-x-auto rounded p-2 text-[11px] leading-relaxed"
+              className="mt-2 overflow-x-auto rounded p-2 text-[13px] leading-relaxed"
               style={{
                 backgroundColor: 'var(--pd-code)',
                 color: 'var(--pd-muted)',
@@ -183,6 +283,16 @@ function NeedsYouRow({
               {JSON.stringify(item.meta, null, 2)}
             </pre>
           )}
+        </div>
+      )}
+
+      {locked && (
+        <div
+          className="flex items-center gap-1.5 border-t px-4 py-2 text-[13px] font-semibold"
+          style={{ borderColor: style.border, color: 'var(--pd-accent)' }}
+        >
+          <Lock size={13} className="shrink-0" />
+          <span>Expand to review the command and details before dismissing.</span>
         </div>
       )}
     </div>
@@ -199,12 +309,34 @@ export default function NeedsYouHero({
   signal: FleetSignal | null;
 }) {
   const [expandedCode, setExpandedCode] = useState<NeedsYouItem['code'] | null>(null);
+  /** Codes the operator has expanded at least once — unlocks gated dismissal. */
+  const [seenCodes, setSeenCodes] = useState<ReadonlySet<NeedsYouCode>>(new Set());
+  /** Codes the operator has dismissed this session — removed from view. */
+  const [dismissedCodes, setDismissedCodes] = useState<ReadonlySet<NeedsYouCode>>(new Set());
 
   const toggle = (code: NeedsYouItem['code']) => {
+    // Expanding a row marks it seen (force-zoom satisfied).
+    setSeenCodes((prev) => {
+      if (prev.has(code)) return prev;
+      const next = new Set(prev);
+      next.add(code);
+      return next;
+    });
     setExpandedCode((prev) => (prev === code ? null : code));
   };
 
-  if (items.length === 0) {
+  const dismiss = (code: NeedsYouItem['code']) => {
+    setDismissedCodes((prev) => {
+      const next = new Set(prev);
+      next.add(code);
+      return next;
+    });
+    setExpandedCode((prev) => (prev === code ? null : prev));
+  };
+
+  const visible = items.filter((item) => !dismissedCodes.has(item.code));
+
+  if (visible.length === 0) {
     return (
       <section
         aria-label="Needs your attention"
@@ -230,18 +362,20 @@ export default function NeedsYouHero({
     <section aria-label="Needs your attention" className="space-y-1">
       <div className="flex items-center justify-between gap-3 px-1 py-1">
         <div className="text-[11px] font-bold tracking-widest uppercase" style={{ color: 'var(--pd-accent)' }}>
-          NEEDS YOU — {items.length} item{items.length === 1 ? '' : 's'}
+          NEEDS YOU — {visible.length} item{visible.length === 1 ? '' : 's'}
         </div>
         {signal && <FleetSignalBadge signal={signal} />}
       </div>
 
       <div className="space-y-1.5">
-        {items.map((item, index) => (
+        {visible.map((item, index) => (
           <NeedsYouRow
             key={`${item.code}-${index}`}
             item={item}
             expanded={expandedCode === item.code}
+            seen={seenCodes.has(item.code)}
             onToggle={() => toggle(item.code)}
+            onDismiss={() => dismiss(item.code)}
           />
         ))}
       </div>
