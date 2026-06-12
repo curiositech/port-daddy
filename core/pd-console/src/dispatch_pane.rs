@@ -9,27 +9,59 @@
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
 use anyhow::Result;
-use serde::Deserialize;
 
 /// One dispatch entry as returned by `GET /dispatches?state=review_pending`.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+///
+/// Tolerant `from_value` extraction, never strict serde — the daemon sends
+/// epoch-ms numbers and nulls (`createdAt: 1781133247168`), which a strict
+/// struct turns into a whole-response decode failure ("bad response: error
+/// decoding response body").
+#[derive(Debug, Clone)]
 struct DispatchEntry {
     id: String,
     goal: String,
     state: String,
+    #[allow(dead_code)]
     budget_usd: Option<f64>,
     cost_usd: Option<f64>,
-    created_at: Option<String>,
+    #[allow(dead_code)]
+    created_at: Option<u64>,
 }
 
-/// The daemon response shape for the dispatches list endpoint.
-#[derive(Debug, Deserialize)]
-struct DispatchesResponse {
-    #[allow(dead_code)]
-    ok: bool,
-    dispatches: Vec<DispatchEntry>,
-    count: u32,
+impl DispatchEntry {
+    /// Tolerant extraction from one daemon JSON object. Only `id` is required.
+    fn from_value(v: &serde_json::Value) -> Option<Self> {
+        let id = v.get("id")?.as_str()?.to_string();
+        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).map(str::to_string);
+        let f = |k: &str| v.get(k).and_then(|x| x.as_f64());
+        Some(Self {
+            id,
+            goal: s("goal").unwrap_or_default(),
+            state: s("state").or_else(|| s("status")).unwrap_or_else(|| "unknown".into()),
+            budget_usd: f("budgetUsd").or_else(|| f("budget_usd")),
+            cost_usd: f("costUsd").or_else(|| f("cost_usd")),
+            created_at: v
+                .get("createdAt")
+                .or_else(|| v.get("created_at"))
+                .and_then(|x| x.as_u64().or_else(|| x.as_f64().map(|n| n as u64))),
+        })
+    }
+}
+
+/// Pure decode of a `GET /dispatches` body: `{ok, dispatches: […], count}`.
+/// Count falls back to the parsed length when absent.
+fn parse_dispatches(v: &serde_json::Value) -> (Vec<DispatchEntry>, u32) {
+    let entries: Vec<DispatchEntry> = v
+        .get("dispatches")
+        .and_then(|d| d.as_array())
+        .map(|arr| arr.iter().filter_map(DispatchEntry::from_value).collect())
+        .unwrap_or_default();
+    let count = v
+        .get("count")
+        .and_then(|c| c.as_u64())
+        .map(|c| c as u32)
+        .unwrap_or(entries.len() as u32);
+    (entries, count)
 }
 
 /// Pane that shows the dispatch queue (sorties in `review_pending` state).
@@ -123,14 +155,24 @@ impl Pane for DispatchQueuePane {
                     self.count = 0;
                 }
                 Ok(resp) => {
-                    match resp.json::<DispatchesResponse>().await {
+                    let status = resp.status();
+                    if !status.is_success() {
+                        self.last_error = Some(format!(
+                            "GET /dispatches → {status} (daemon may predate this route)"
+                        ));
+                        self.dispatches.clear();
+                        self.count = 0;
+                        return Ok(());
+                    }
+                    match resp.json::<serde_json::Value>().await {
                         Err(e) => {
                             self.last_error = Some(format!("bad response: {e}"));
                         }
-                        Ok(data) => {
+                        Ok(v) => {
                             self.last_error = None;
-                            self.count = data.count;
-                            self.dispatches = data.dispatches;
+                            let (dispatches, count) = parse_dispatches(&v);
+                            self.dispatches = dispatches;
+                            self.count = count;
                         }
                     }
                 }
@@ -179,7 +221,7 @@ mod tests {
             state: "review_pending".into(),
             budget_usd: Some(1.0),
             cost_usd: Some(0.3456),
-            created_at: Some("2026-06-10T00:00:00Z".into()),
+            created_at: Some(1781133247168),
         };
         let pane = make_pane(vec![entry], 1);
         let blocks = pane.view();
@@ -218,6 +260,40 @@ mod tests {
             }
             _ => panic!("last block must be Chip"),
         }
+    }
+
+    /// Regression: real `routes/dispatches.ts` entities carry epoch-ms
+    /// `createdAt` numbers and nulls — the old strict struct (created_at as
+    /// String) failed the whole-response decode.
+    #[test]
+    fn parse_dispatches_real_shape() {
+        let body = serde_json::json!({
+            "ok": true,
+            "count": 2,
+            "dispatches": [
+                {"id": "d1", "goal": "ship it", "state": "review_pending",
+                 "requestedBy": "operator", "budgetUsd": 2.5, "costUsd": null,
+                 "createdAt": 1781133247168u64},
+                {"id": "d2", "goal": "fix it", "state": "review_pending",
+                 "budgetUsd": null, "costUsd": 0.12, "createdAt": 1781133250000u64}
+            ]
+        });
+        let (entries, count) = parse_dispatches(&body);
+        assert_eq!(count, 2);
+        assert_eq!(entries.len(), 2, "epoch-ms/null rows must not be dropped");
+        assert_eq!(entries[0].cost_usd, None);
+        assert_eq!(entries[1].cost_usd, Some(0.12));
+        assert_eq!(entries[0].created_at, Some(1781133247168));
+    }
+
+    /// Missing `count` falls back to parsed length; missing array → empty.
+    #[test]
+    fn parse_dispatches_missing_fields() {
+        let (entries, count) =
+            parse_dispatches(&serde_json::json!({"dispatches": [{"id": "x"}]}));
+        assert_eq!((entries.len(), count), (1, 1));
+        let (entries, count) = parse_dispatches(&serde_json::json!({"ok": true}));
+        assert_eq!((entries.len(), count), (0, 0));
     }
 
     #[test]

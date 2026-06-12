@@ -17,28 +17,68 @@
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
 use anyhow::Result;
-use serde::Deserialize;
 
 /// One sortie entry as returned by `GET /sorties`.
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+///
+/// Built via tolerant `from_value` extraction, never strict serde: the daemon
+/// sends epoch-ms numbers, nulls, and has drifted field names across versions
+/// (`status` vs `state`, `harbor` vs `identity`). A strict struct silently
+/// dropped every row (rendered "total 0" against a live daemon with sorties).
+#[derive(Debug, Clone)]
 struct SortieEntry {
     id: String,
-    #[serde(default)]
     identity: String,
-    #[serde(default)]
     goal: String,
     state: String,
-    #[serde(default)]
     backend: String,
-    #[serde(default)]
     cost_usd: Option<f64>,
-    #[serde(default)]
     started_at: Option<u64>,
-    #[serde(default)]
     ended_at: Option<u64>,
-    #[serde(default)]
     error: Option<String>,
+}
+
+/// First string value among `keys`, owned. Missing/null/non-string → None.
+fn vstr(v: &serde_json::Value, keys: &[&str]) -> Option<String> {
+    keys.iter().find_map(|k| v.get(k).and_then(|x| x.as_str()).map(str::to_string))
+}
+
+/// First numeric value among `keys` as u64 (accepts integer or float ms).
+fn vu64(v: &serde_json::Value, keys: &[&str]) -> Option<u64> {
+    keys.iter().find_map(|k| {
+        let x = v.get(*k)?;
+        x.as_u64().or_else(|| x.as_f64().map(|f| f as u64))
+    })
+}
+
+impl SortieEntry {
+    /// Tolerant extraction from one daemon JSON object. Only `id` is required;
+    /// every other field falls back to a sensible default rather than dropping
+    /// the row.
+    fn from_value(v: &serde_json::Value) -> Option<Self> {
+        let id = vstr(v, &["id"])?;
+        Some(Self {
+            id,
+            identity: vstr(v, &["harbor", "identity", "project"]).unwrap_or_default(),
+            goal: vstr(v, &["goal"]).unwrap_or_default(),
+            state: vstr(v, &["status", "state"]).unwrap_or_else(|| "unknown".into()),
+            backend: vstr(v, &["backend"]).unwrap_or_default(),
+            cost_usd: ["costUsd", "cost_usd"].iter().find_map(|k| v.get(*k).and_then(|x| x.as_f64())),
+            started_at: vu64(v, &["startedAt", "started_at", "createdAt", "created_at"]),
+            ended_at: vu64(v, &["endedAt", "ended_at", "completedAt", "completed_at"]),
+            error: vstr(v, &["error"]),
+        })
+    }
+}
+
+/// Pure decode of a `GET /sorties` body. Accepts both `[…]` and
+/// `{sorties:[…]}` shapes; rows missing an `id` are the only ones dropped.
+fn parse_sorties(v: &serde_json::Value) -> Vec<SortieEntry> {
+    let arr = v
+        .as_array()
+        .cloned()
+        .or_else(|| v.get("sorties").and_then(|s| s.as_array()).cloned())
+        .unwrap_or_default();
+    arr.iter().filter_map(SortieEntry::from_value).collect()
 }
 
 /// State bucket for grouping and display.
@@ -253,20 +293,21 @@ impl Pane for SortiePane {
                     self.sorties.clear();
                 }
                 Ok(resp) => {
+                    let status = resp.status();
+                    if !status.is_success() {
+                        self.last_error = Some(format!(
+                            "GET /sorties → {status} (daemon may predate this route)"
+                        ));
+                        self.sorties.clear();
+                        return Ok(());
+                    }
                     match resp.json::<serde_json::Value>().await {
                         Err(e) => {
                             self.last_error = Some(format!("parse: {e}"));
                         }
                         Ok(v) => {
                             self.last_error = None;
-                            // Accept both `[…]` and `{sorties:[…]}` shapes.
-                            let arr = v.as_array().cloned().or_else(|| {
-                                v.get("sorties").and_then(|s| s.as_array()).cloned()
-                            }).unwrap_or_default();
-                            self.sorties = arr
-                                .iter()
-                                .filter_map(|item| serde_json::from_value(item.clone()).ok())
-                                .collect();
+                            self.sorties = parse_sorties(&v);
                         }
                     }
                 }
@@ -292,6 +333,62 @@ mod tests {
             ended_at: None,
             error: None,
         }
+    }
+
+    /// Regression: a real daemon payload (captured from pd 3.18.0 live) uses
+    /// `status` not `state`, `harbor` not `identity`, epoch-ms `createdAt`,
+    /// and nulls. The old strict-serde decode dropped every row → "total 0".
+    #[test]
+    fn parse_sorties_real_daemon_payload() {
+        let body: serde_json::Value = serde_json::json!({
+            "success": true,
+            "sorties": [{
+                "id": "sortie-6b79acdd6ac7",
+                "projectDir": "/Users/x/coding/port-daddy",
+                "project": "port-daddy",
+                "harbor": "port-daddy:sortie:sortie-6b79acdd6ac7",
+                "goal": "Extend the pd-tube CLI backend family",
+                "recipe": "spawner-tube-backends",
+                "status": "blocked",
+                "backend": "cli:claude-code",
+                "model": null,
+                "modelTier": null,
+                "budgetUsd": 8,
+                "spawnAgentId": null,
+                "resultOutput": null,
+                "error": "No launchable backend",
+                "createdAt": 1781133247168u64
+            }]
+        });
+        let sorties = parse_sorties(&body);
+        assert_eq!(sorties.len(), 1, "real daemon row must not be dropped");
+        let s = &sorties[0];
+        assert_eq!(s.state, "blocked");
+        assert_eq!(s.bucket(), Bucket::NeedsInput);
+        assert_eq!(s.identity, "port-daddy:sortie:sortie-6b79acdd6ac7");
+        assert_eq!(s.started_at, Some(1781133247168));
+        assert_eq!(s.error.as_deref(), Some("No launchable backend"));
+    }
+
+    /// Rows without an `id` are dropped; everything else defaults.
+    #[test]
+    fn parse_sorties_tolerates_sparse_rows() {
+        let body = serde_json::json!({"sorties": [
+            {"id": "a1", "state": "running"},
+            {"goal": "no id — dropped"},
+            {"id": "b2"}
+        ]});
+        let sorties = parse_sorties(&body);
+        assert_eq!(sorties.len(), 2);
+        assert_eq!(sorties[0].state, "running");
+        assert_eq!(sorties[1].state, "unknown");
+    }
+
+    /// Bare-array shape still accepted.
+    #[test]
+    fn parse_sorties_bare_array() {
+        let body = serde_json::json!([{"id": "c3", "status": "completed"}]);
+        assert_eq!(parse_sorties(&body).len(), 1);
     }
 
     #[test]
