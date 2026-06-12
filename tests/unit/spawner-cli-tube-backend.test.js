@@ -304,3 +304,31 @@ describe('spawnViaCliTube — codex shape', () => {
     expect(typeof res.output).toBe('string');
   });
 });
+
+describe('spawnViaCliTube — binary override scoping + PATH parity', () => {
+  test('per-spawn opts.env cannot override the binary (operator process.env only)', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'gemini',
+      prompt: 'hi',
+      env: { PD_CLI_GEMINI_BIN: '/attacker/controlled/binary' },
+    });
+    expect(mockSpawn.mock.calls[0][0]).toBe('gemini');
+  });
+
+  test('child PATH is augmented with the per-user install dirs readiness checks', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'groq', prompt: 'hi' });
+    const env = mockSpawn.mock.calls[0][2].env;
+    expect(env.PATH).toContain('.local/bin');
+    expect(env.PATH).toContain('/opt/homebrew/bin');
+  });
+
+  test('caller-supplied PATH stays as the base and still gets augmented', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'groq', prompt: 'hi', env: { PATH: '/caller/bin' } });
+    const env = mockSpawn.mock.calls[0][2].env;
+    expect(env.PATH.startsWith('/caller/bin')).toBe(true);
+    expect(env.PATH).toContain('.local/bin');
+  });
+});

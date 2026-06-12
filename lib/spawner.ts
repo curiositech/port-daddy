@@ -789,13 +789,14 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
 }
 
 /**
- * `PD_USE_CLI_BACKEND` override. When set to `claude-code` or `codex`,
- * every spawn — regardless of `spec.backend` — routes through the
- * matching `cli:<tool>` backend. Empty / unset values disable the
- * override.
+ * `PD_USE_CLI_BACKEND` override. Accepted values: `claude-code` (or
+ * `claude`), `codex`, `gemini`, `groq`, `grok`. When set, every spawn —
+ * regardless of `spec.backend` — routes through the matching
+ * `cli:<tool>` backend. Empty / unset / unrecognized values disable the
+ * override (fail-closed: the original backend stays in place).
  *
- * This is the operator-level "I'm a Claude Max subscriber, use my
- * unmetered CLI for everything" knob. Documented in
+ * This is the operator-level "I already pay for a CLI subscription, use
+ * my unmetered CLI for everything" knob. Documented in
  * `docs/fleet/backend-costs.md`.
  */
 function resolveCliBackendOverride(): SpawnSpec['backend'] | null {

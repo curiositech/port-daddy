@@ -27,24 +27,13 @@ const require = createRequire(import.meta.url);
 // this readiness check used the bare PATH and fail-closed BEFORE the executor ran,
 // reporting "Claude CLI binary not found" for an install that works in the user's
 // shell. Resolve the same locations the executor does so the gate matches reality.
-// Standard per-user CLI install dirs, plus an operator override
-// (PD_CLI_BIN_DIRS, colon-separated). Computed per-call so the override is
-// honored at runtime (and testable). Operators whose agent CLI lives somewhere
-// unusual can point the daemon at it without touching launchd's PATH.
-function cliBinDirs(): string[] {
-  const home = process.env.HOME || '';
-  const override = process.env.PD_CLI_BIN_DIRS
-    ? process.env.PD_CLI_BIN_DIRS.split(':').filter(Boolean)
-    : [];
-  return [
-    ...override,
-    join(home, '.local', 'bin'), // claude-code + many per-user installs
-    join(home, '.claude', 'local'), // claude-code alternate install path
-    join(home, '.codex', 'bin'), // codex
-    '/opt/homebrew/bin',
-    '/usr/local/bin',
-  ];
-}
+// Standard per-user CLI install dirs live in lib/cli-bin-dirs.ts, shared
+// with the spawn path (lib/spawner/backends/cli-tube.ts) so this readiness
+// gate and the actual spawn resolve binaries against the SAME locations —
+// otherwise readiness can say "binary exists" while the spawn fails under
+// launchd's bare PATH.
+import { cliBinDirs } from './cli-bin-dirs.js';
+export { cliBinDirs };
 
 export function commandExists(command: string): boolean {
   const augmentedPath = [process.env.PATH || '', ...cliBinDirs()].filter(Boolean).join(':');

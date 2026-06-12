@@ -38,6 +38,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { cliBinDirs } from '../../cli-bin-dirs.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,8 +219,21 @@ export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
-  const env = { ...process.env, ...(opts.env || {}), OTEL_SDK_DISABLED: 'true' } as Record<string, string>;
-  const binary = env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
+  // only, never from per-spawn opts.env/spec.env — a caller-supplied env
+  // must not be able to redirect which executable runs.
+  const binary = process.env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Augment PATH with the same per-user install dirs backend-readiness
+  // checks, so a binary the readiness gate found is also findable at spawn
+  // time under launchd's bare PATH.
+  const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
+  const augmentedPath = [basePath, ...cliBinDirs()].filter(Boolean).join(':');
+  const env = {
+    ...process.env,
+    ...(opts.env || {}),
+    PATH: augmentedPath,
+    OTEL_SDK_DISABLED: 'true',
+  } as Record<string, string>;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
