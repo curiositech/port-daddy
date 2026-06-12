@@ -182,9 +182,13 @@ a {
 
 /* Inline code uses tokenized inset contrast, not a black-code default. */
 code:not(pre code) {
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
+  /* inline (not inline-flex) so long tokens can wrap at narrow widths;
+     box-decoration-break keeps the chip border on each fragment */
+  display: inline;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
   font-family: var(--font-mono);
   font-variation-settings: normal;
   font-size: 0.82em;
