@@ -161,6 +161,20 @@ describe('Durable Sessions', () => {
       expect(sessions.get(ordinary.id).session.status).toBe('abandoned');
     });
 
+    it('resets phase and completed_at left behind by an abandonment write', () => {
+      const durable = sessions.start('Durable work', { durable: true });
+      // Mirror the orphan reaper's full abandonment write: status, phase, completed_at.
+      db.prepare("UPDATE sessions SET status = 'abandoned', phase = 'abandoned', completed_at = ? WHERE id = ?")
+        .run(Date.now(), durable.id);
+
+      sessions.resurrect(durable.id);
+
+      const session = sessions.get(durable.id).session;
+      expect(session.status).toBe('active');
+      expect(session.phase).toBe('in_progress');
+      expect(session.completedAt).toBeNull();
+    });
+
     it('does not touch completed durable sessions (pd done is final)', () => {
       const durable = sessions.start('Durable work', { durable: true });
       db.prepare("UPDATE sessions SET status = 'completed' WHERE id = ?").run(durable.id);

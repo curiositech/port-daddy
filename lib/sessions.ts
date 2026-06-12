@@ -1959,8 +1959,10 @@ export function createSessions(
    * does NOT restore them — the agent must re-claim files it still needs.
    */
   function resurrect(sessionId: string): void {
+    // Abandonment writes set phase='abandoned' and completed_at — reset both
+    // so the resurrected session is coherent (active, in progress, not done).
     db.prepare(
-      "UPDATE sessions SET status = 'active', updated_at = ? WHERE id = ? AND is_durable = 1 AND status = 'abandoned'"
+      "UPDATE sessions SET status = 'active', phase = 'in_progress', completed_at = NULL, updated_at = ? WHERE id = ? AND is_durable = 1 AND status = 'abandoned'"
     ).run(Date.now(), sessionId);
   }
 
