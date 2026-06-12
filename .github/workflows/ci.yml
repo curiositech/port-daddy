@@ -33,6 +33,11 @@ jobs:
   # checkout / fetch-depth gymnastics are needed.
   detect-changes:
     runs-on: ubuntu-latest
+    # Job-level grant so the files-API read works even if the repo/org
+    # default token permissions are restricted. This job needs nothing else
+    # (no checkout), and job-level permissions reset unlisted scopes to none.
+    permissions:
+      pull-requests: read
     outputs:
       recordings: ${{ steps.filter.outputs.recordings }}
     steps:
