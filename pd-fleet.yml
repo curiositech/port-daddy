@@ -73,7 +73,7 @@ fleet:
     # for voice-sensitive review). If PD_USE_CLI_BACKEND=claude-code
     # is set and the operator is a Max subscriber, marginal cost
     # drops to ~$0 — the cap becomes a safety net, not a forecast.
-    budget_usd_per_day: 8.50
+    budget_usd_per_day: 20.51
 
   agents:
     # ─── Existing ships, retooled for GitHub output ──────────────────
@@ -293,7 +293,8 @@ fleet:
           model: '@cf/qwen/qwen3-30b-a3b-fp8'
       timeout: 900000
       singleton: true
-      allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd ideas*),Bash(git*)"
+      allowedTools: "Read,Grep,Glob,Write,Bash(pd feedback*),Bash(pd roadmap*),Bash(pd
+        ideas*),Bash(git*)"
       prompt: |
         You are the Cartographer — you maintain the map between what
         we've planned, what we've built, and what remains.
@@ -540,7 +541,8 @@ fleet:
       dedupe_window_ms: 1800000
       singleton: false
       worktree: true
-      allowedTools: "Read,Grep,Glob,Write,Edit,Bash(npm test*),Bash(npx vite*),Bash(git*),Bash(gh*)"
+      allowedTools: "Read,Grep,Glob,Write,Edit,Bash(npm test*),Bash(npx
+        vite*),Bash(git*),Bash(gh*)"
       prompt: |
         Read fleet/ships/test-author.md end to end before doing
         anything else.
@@ -663,7 +665,8 @@ fleet:
         Dedup is critical: same issue every Monday is the failure
         mode. Search before you file.
       identity: "{project}:fleet:tenderfoot"
-      telos: "Catch drift between what we tell new operators and what the binary does."
+      telos: "Catch drift between what we tell new operators and what the binary
+        does."
 
   watchers:
     # Operator-facing watcher: when a HIGH finding lands, drop a
@@ -672,18 +675,18 @@ fleet:
     # ambient awareness ping.
     pr-finding-notify:
       trigger: pull_request:finding-high
-      exec: "curl -fsS -X POST http://localhost:9876/notes
-        -H 'Content-Type: application/json'
-        -d '{\"content\":\"HIGH finding on PR\",\"type\":\"warning\"}'
-        > /dev/null 2>&1 || true"
+      exec: "curl -fsS -X POST http://localhost:9876/notes -H 'Content-Type:
+        application/json' -d '{\"content\":\"HIGH finding on
+        PR\",\"type\":\"warning\"}' > /dev/null 2>&1 || true"
 
     # Preserved: coordination:inconsistency still feeds the recovery
     # log. This is INTER-agent coordination, not operator output.
     coordination-log:
       trigger: coordination:inconsistency
-      exec: "mkdir -p docs/recovery &&
-        printf '\\n## %s\\n\\n```\\n%s\\n```\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"${PD_MESSAGE_CONTENT:-${PD_MESSAGE:-empty}}\"
-        >> docs/recovery/COORDINATION-LOG.md"
+      exec: "mkdir -p docs/recovery && printf '\\n## %s\\n\\n```\\n%s\\n```\\n'
+        \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\"
+        \"${PD_MESSAGE_CONTENT:-${PD_MESSAGE:-empty}}\" >>
+        docs/recovery/COORDINATION-LOG.md"
 
     # ─── Developer-generalization sentinel ───────────────────────────
     #
@@ -699,7 +702,7 @@ fleet:
     # the preference.
     developer-onboarding-sentinel:
       trigger: schedule:daily
-      cooldown_ms: 82800000       # 23 h — one run per day max
+      cooldown_ms: 82800000 # 23 h — one run per day max
       backend: cli:claude-code
       fallbacks:
         - backend: cli:codex
@@ -783,9 +786,9 @@ fleet:
       consumers: [ gardener, test-hunter, simplifier, spark ]
 
     promotion:release-surfaces:
-      description: "Fired by promote-stable after tests pass and before
-        stable merge; asks Documentarian to sync README/docs/website/
-        skill/SDK/CLI/MCP surfaces"
+      description: "Fired by promote-stable after tests pass and before stable merge;
+        asks Documentarian to sync README/docs/website/ skill/SDK/CLI/MCP
+        surfaces"
       external_producer: scripts/promote-stable.sh
       consumers: [ documentarian ]
 
@@ -794,14 +797,14 @@ fleet:
       consumers: [ spider ]
 
     spider:connections:
-      description: "Spider found new combinatorial possibilities
-        (cartographer harvests on its 30-min schedule)"
+      description: "Spider found new combinatorial possibilities (cartographer
+        harvests on its 30-min schedule)"
 
     coordination:inconsistency:
-      description: "INTER-agent coordination channel — overlapping
-        claims, stale active/dead signals, implied-goal drift,
-        security/trust contradictions. Routine progress belongs in
-        notes, NOT here. This is plumbing, not operator output."
+      description: "INTER-agent coordination channel — overlapping claims, stale
+        active/dead signals, implied-goal drift, security/trust contradictions.
+        Routine progress belongs in notes, NOT here. This is plumbing, not
+        operator output."
       external_producer: agents/manual callouts
       consumers: [ coordination-log ]
 
@@ -813,32 +816,30 @@ fleet:
     # testing. The webhook receiver is the persistent path.
 
     pull_request:opened:
-      description: "GitHub PR opened. Payload: { prNumber, headRef,
-        baseRef, title, author, changedFiles }. Producer: GitHub
-        webhook receiver (forthcoming) OR manual `pd pub` for
-        testing."
+      description: "GitHub PR opened. Payload: { prNumber, headRef, baseRef, title,
+        author, changedFiles }. Producer: GitHub webhook receiver (forthcoming)
+        OR manual `pd pub` for testing."
       external_producer: github-webhook-bridge
       consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer ]
 
     pull_request:synchronize:
-      description: "GitHub PR head updated. Same payload as :opened.
-        Drives code-reviewer's edit-in-place re-review."
+      description: "GitHub PR head updated. Same payload as :opened. Drives
+        code-reviewer's edit-in-place re-review."
       external_producer: github-webhook-bridge
       consumers: [ code-reviewer ]
 
     pull_request:merged:
-      description: "GitHub PR merged to main. Payload: { prNumber,
-        mergeSha }. Triggers tenderfoot sweeps of release surfaces."
+      description: "GitHub PR merged to main. Payload: { prNumber, mergeSha }.
+        Triggers tenderfoot sweeps of release surfaces."
       external_producer: github-webhook-bridge
       consumers: [ tenderfoot ]
 
     pull_request:finding-high:
-      description: "Internal: emitted by any ship after posting a
-        HIGH-severity PR comment. Drives the operator-facing badge
-        watcher. TODO(2026-05-20): ships do not yet emit this — add
-        `on_high_finding: publish pull_request:finding-high` to the
-        ship runtime once the GitHub-output helper grows a
-        `wasHigh` callback. Until then, this channel is wired but
+      description: "Internal: emitted by any ship after posting a HIGH-severity PR
+        comment. Drives the operator-facing badge watcher. TODO(2026-05-20):
+        ships do not yet emit this — add `on_high_finding: publish
+        pull_request:finding-high` to the ship runtime once the GitHub-output
+        helper grows a `wasHigh` callback. Until then, this channel is wired but
         silent."
       external_producer: "ships (via lib/fleet/github-output.ts — pending)"
       consumers: [ pr-finding-notify ]
@@ -850,8 +851,7 @@ fleet:
     # 30 days of no consumers.
 
     git:status:
-      description: "DEPRECATED 2026-05-20. Gardener now opens GitHub
-        issues instead."
+      description: "DEPRECATED 2026-05-20. Gardener now opens GitHub issues instead."
 
     qa:clean:
       description: "DEPRECATED 2026-05-20. Silence is the new clean."
@@ -861,8 +861,8 @@ fleet:
 
     # ─── Developer-generalization channels ────────────────────────────
     developer-generalization:health:
-      description: "Emitted by developer-onboarding-sentinel after each
-        persona test run. Payload: { persona, repo, step, status,
-        durationMs, failureReason? }."
+      description: "Emitted by developer-onboarding-sentinel after each persona test
+        run. Payload: { persona, repo, step, status, durationMs, failureReason?
+        }."
       external_producer: developer-onboarding-sentinel
       consumers: []
