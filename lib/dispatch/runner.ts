@@ -128,10 +128,15 @@ export function buildSpawnArgv(
     if (model) args.push('--model', model);
     return { command: 'claude', args };
   }
+  // `codex exec` is non-interactive by construction. We pass `--sandbox
+  // workspace-write` for blast-radius (writes confined to the worktree) and
+  // NOT the legacy `--full-auto` flag, which recent codex deprecates in favor
+  // of `--sandbox` ("warning: `--full-auto` is deprecated; use `--sandbox
+  // workspace-write` instead"). The deprecation warning was polluting the
+  // captured transcript and the redundant flag bought nothing.
   const args = [
     'exec',
     '--skip-git-repo-check',
-    '--full-auto',
     '--sandbox', 'workspace-write',
     '-C', worktreePath,
     '--json',
@@ -170,7 +175,7 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
     rationale.push('claude bypass = --dangerously-skip-permissions');
     rationale.push('blast-radius = wrapper deny-list (PR #161 destructive-op shim is the floor)');
   } else {
-    rationale.push('codex bypass = --full-auto --sandbox workspace-write');
+    rationale.push('codex sandbox = --sandbox workspace-write (self-confining; not double-wrapped)');
     rationale.push('blast-radius = codex sandbox enforces workspace-write');
   }
   if (dispatch.mergePolicy === 'auto') {

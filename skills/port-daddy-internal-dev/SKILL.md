@@ -96,6 +96,59 @@ and `routes/shipwright.ts`. Tests under `tests/unit/shipwright-*.test.js`.
 Don't expose Shipwright in the public skill — it's a port-daddy-internal
 abstraction.
 
+## Recently Shipped Surfaces — contributor module map
+
+These landed on `main` in the last few weeks. When you touch one, you own
+its full mirror set (Release-Surface Drift, below). Each is a release
+surface: CLI help, manifest, MCP catalog, and skill docs must move with the
+code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md`
+§ *Recently Shipped Surfaces* — keep the two in sync.
+
+| Surface | ADR | Edit these together |
+|---|---|---|
+| **Relay** — cross-machine pub/sub | `docs/adr/0049-relay-architecture.md` | Worker `apps/relay/` (D1 schema `apps/relay/schema.sql`, `wrangler.toml`) · daemon routes `routes/relay.ts` · outbound SSE `lib/relay-client.ts` · CLI `cli/commands/relay.ts` · MCP `relay_status` in `mcp/server.ts` |
+| **Dispatch** — autonomous feature-dev queue | ADR-0035 | `cli/commands/dispatch.ts` (+ deprecated alias `cli/commands/nightshift.ts`) · `lib/dispatch/{runner,spawn-adapter,queue,state-machine}.ts` · `routes/dispatches.ts` · `pd review` · `docs/proposals/pd-nightshift.md` |
+| **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) |
+| **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
+| **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
+
+Contributor gotchas specific to these:
+
+- **Dispatch is dry-run by default.** `pd dispatch run <id>` prints the plan;
+  only `--really-run` spawns. The worktree root is `~/coding/tmp/port-daddy-dispatch-<id>`
+  (never `os.tmpdir()` / `/tmp`). If you change the spawn path, keep it under
+  the scratch root — the Coast Guard reclaim gate (`isReclaimableSandbox`)
+  assumes disposable sandboxes live there and the operator's main checkout
+  does not.
+- **`pd nightshift` must keep delegating.** The alias rewrites legacy flags
+  (`--auto-queue` → `--auto-claim`, `--status` → `--state`) before calling
+  `handleDispatch`. If you add a dispatch flag, check the alias still maps it.
+- **Coast Guard is opt-out and never advertised.** It is the default for
+  every subprocess backend in `lib/spawner.ts`; the agent-facing refusal must
+  never name the opt-out (same rule as the guard bypass — guardrails do not
+  advertise their bypass).
+- **`pd attest` is a loud-fail gate.** Adding an invariant means it can flip
+  CI/boot gates red. New CRITICAL invariants go in `lib/attest-invariants.ts`
+  with a test; mark non-blocking checks as such so a green exit keeps meaning
+  "every CRITICAL invariant holds."
+- **Manifest bijection.** `features.manifest.json` is the parity source of
+  truth (`npm run parity`). The `dispatch`/`relay`/`attest`/`operator_coast_guard`
+  feature rows carry `_note` fields explaining intentionally-omitted routes
+  (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
+  those notes accurate when you add or remove a route.
+
+### Rust surfaces — three crates, no single kernel (be honest)
+
+`core/` holds three separate crates on `main`: `core/pd-tui` (ratatui),
+`core/pd-bosun`, and `core/harbor-card-rs`. There is **no single landed
+"rust kernel."** `core/pd-console` (the GPUI conversation-multiplexer) is
+**unlanded** — PRs #306/#318. A sibling WIP build `~/coding/port-daddy-kernel-rs`
+maps the product spine (pd-anchor / pd-mesh / pd-eventlog / pd-runtime /
+pd-core) but is not this repo. **Do not scaffold a fourth Rust shell** without
+reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +
+Rust-surface-alignment ADR (ADR-0054) is being written in parallel; cite it by
+number until it lands.
+
 ## Release-Surface Drift (the contributor's prime directive)
 
 When Port Daddy itself ships, the cost of inconsistency lands on every
@@ -310,6 +363,43 @@ Both? → public, with a port-daddy-specific extension page in this skill.
 
 After landing, send Cartographer:
 `pd actor cartographer --message "port-daddy-internal-dev updated: <section>. Reason: <session/incident>."`
+
+## Advance (the invocable "move it along" call)
+
+When the operator invokes this skill with `advance` (or any phrasing like
+"move things along", "go on", "keep going", "you know what to do"), run the
+standing autonomous sweep. **Do not ask permission at any step** — review is
+the gate, not the operator. These are the operator's recorded expectations;
+re-asking them is the failure mode this section exists to kill.
+
+1. **Recon.** `pd status` / `pd briefing` / `pd sessions --all-worktrees`,
+   then `env -u GITHUB_HOST gh pr list --author @me --state open` (plus any
+   PRs this fleet opened under other identities). Snapshot main's CI:
+   `gh run list --branch main --limit 5`.
+2. **Classify each open PR**: green-and-mergeable → land it now; stale base →
+   rebase; red required check → root-cause it; superseded by a landed PR →
+   close it with a comment naming the superseding PR (never merge a
+   semantically obsolete diff — see the #353 incident); draft → leave unless
+   its gate condition is met.
+3. **Red required check = STOP and fix the root cause**, even when the debt
+   is inherited from main. Never `--admin` over a real red. Cloudflare Pages
+   is the one external gate that is never a blocker.
+4. **Answer every review thread.** Copilot and claude-review inline comments
+   are first-class reviews: fix-and-reply, or dismiss-with-reason against
+   origin/main. A PR with unanswered threads is not "ready".
+5. **Land in dependency order**, base before dependent, rebasing the
+   dependent after each merge (`gh pr merge <n> --squash --admin` — `--admin`
+   here bypasses only the BEHIND gate and Pages, never a red required check).
+6. **Clean up**: delete only worktrees whose branch is merged AND whose
+   `git status --porcelain` is clean. Never touch the main checkout.
+7. **Close the ledger**: `pd note "Result: ... Validation: ... Remaining: ..."`,
+   `pd done`, `pd feedback` — and if the sweep taught this skill something,
+   land the skill edit in the same sweep.
+
+Built bundles (`public/fleet-ui/`) conflict on every rebase because both
+sides rebuilt them: resolve toward main's bundle, finish the rebase, rebuild
+from the rebased source (`cd fleet-config-ui && npx vite build`), and commit
+the fresh bundle. Never hand-merge a minified asset.
 
 ## Operating Loop (contributor)
 
