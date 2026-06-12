@@ -76,3 +76,11 @@ agentsd_mocks/
 
 # Ephemeral scratch for scripts/smoke-compiled-daemon.sh
 .smoke-tmp/
+
+# Xcode per-user UI state — never belongs in git (regenerated on every open)
+*.xcuserstate
+**/xcuserdata/
+
+# Throwaway design scratch (website-v2). Note: root .scratch/ DOES hold
+# tracked research notes, so this is scoped to website-v2 only.
+website-v2/.scratch/
