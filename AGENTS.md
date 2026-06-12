@@ -290,6 +290,26 @@ These bite every contributor session; they are not theoretical.
 - Project-scoped Activity filtering must include `story.agentId`; if you only filter note text and `identityProject`, valid handoffs will disappear from the timeline.
 - Session lifecycle activity is also structured data. `session.start`, `session.end`, `session.note`, `file.claim`, `file.release`, and sugar begin/done events should stamp `agentId`, `targetId`, and `identityProject` so briefing/FleetBar/UI do not have to reverse-engineer scope from prose.
 
+## Workflow Token Economics (fan-out budgeting)
+
+Measured 2026-06-12 on a 65-agent copy-audit fan-out (6.26M tokens for 160
+findings). Three rules, each worth roughly a third of that bill:
+
+- **Judge/review/audit agents run on Sonnet by default.** Reviewer-shaped
+  work (one artifact, one rubric, structured findings out) does not need the
+  frontier tier, and running fan-outs at the inherited Opus tier burns the
+  session quota the interactive operator loop needs. Quota contention IS the
+  cost. Reserve the frontier tier for synthesis, taste-critical writing, and
+  ambiguous judgment calls.
+- **Never make N agents re-read the same fixed reference.** A 34K-token
+  rubric read by 65 agents is 2.2M tokens of duplicate spend. Distill shared
+  references to ~2K and embed in the prompt, or batch 4-5 items per agent to
+  amortize the read.
+- **Guard fan-outs with budget.remaining() and loud-fail at the wall.**
+  A quota wall mid-run should halt the loop with a count of what's left, not
+  silently kill the tail. Record per-run spend (agent count, tokens,
+  findings) in the PR or note so the next fan-out can be sized from data.
+
 ## Operator UX Expectations
 
 - Top-level tabs must behave like top-level pages. Do not hide a selected tab's main content inside a collapsed lower panel.
