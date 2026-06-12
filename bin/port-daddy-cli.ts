@@ -712,6 +712,7 @@ Commands:
   session start <purpose>    Start a new session
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
+    --durable                Session survives without a live heartbeat; never abandoned by the orphan reaper
     --files <paths...>       Claim files at session start
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 

@@ -42,6 +42,8 @@ interface SessionsModule {
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
+  /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
+  resurrect?(sessionId: string): void;
 }
 
 interface ActivityLogModule {
@@ -77,6 +79,8 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
+  /** Create a durable session that survives without a live heartbeat process. */
+  durable?: boolean;
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -153,7 +157,7 @@ export function createSugar(deps: SugarDeps) {
    * Rolls back agent registration if session start fails.
    */
   function begin(options: BeginOptions) {
-    const { purpose, identity, type, files, force } = options;
+    const { purpose, identity, type, files, force, durable } = options;
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
@@ -378,6 +382,9 @@ export function createSugar(deps: SugarDeps) {
     }
     if (metadata && typeof metadata === 'object') {
       sessionOpts.metadata = metadata;
+    }
+    if (durable) {
+      sessionOpts.durable = true;
     }
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
@@ -644,7 +651,21 @@ export function createSugar(deps: SugarDeps) {
           };
         }
 
-        if (session.status === 'active') {
+        // Durable sessions remain "active" even if the daemon marked them abandoned
+        // because the agent process heartbeat stopped. They're work contexts, not
+        // process lifetimes — only pd done / worktree-removed / branch-merged ends them.
+        const isDurable = session.durable === true ||
+          session.is_durable === 1 || session.is_durable === true;
+        const isEffectivelyActive = session.status === 'active' ||
+          (isDurable && session.status === 'abandoned');
+
+        if (isEffectivelyActive) {
+          // For abandoned-but-durable sessions, resurrect to active in the DB
+          // so future checks don't require special-casing.
+          if (isDurable && session.status === 'abandoned') {
+            sessions.resurrect?.(explicitSessionId);
+          }
+
           const lookupAgentId = sessionAgentId || agentId;
           const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
           const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;

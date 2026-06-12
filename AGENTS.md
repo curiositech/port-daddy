@@ -117,6 +117,15 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 
 ## Pull Request Operating Procedure
 
+**This lifecycle is autonomous — never gated on operator confirmation.**
+Once you open a PR, you drive it all the way to merge without pausing to
+ask "should I push?" or "should I merge?". Solicit bot reviews, run the
+adversarial agent review, respond to every comment, add unit tests wired
+into CI, get CI green the right way, and merge. The only legitimate pause
+is a real red you cannot fix unilaterally (missing secrets, infra outage).
+Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
+every Claude this?" — don't be the Claude that has to be told.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:
