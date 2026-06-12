@@ -102,6 +102,13 @@ interface FilePreviewBody {
   maxLines?: number;
 }
 
+interface FilesExistBody {
+  paths?: string[];
+  projectDir?: string;
+}
+
+const FILES_EXIST_MAX_PATHS = 64;
+
 type CoordinationGuardAction = 'status' | 'check' | 'enable' | 'install';
 type CoordinationGuardMode = 'off' | 'warn' | 'enforce';
 
@@ -1836,6 +1843,31 @@ export const operatorPlugin: FastifyPluginAsync<{ deps: OperatorRouteDeps }> = a
         error: error instanceof Error ? error.message : 'Failed to open file.',
       };
     }
+  });
+
+  fastify.post('/operator/files-exist', async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = (request.body || {}) as FilesExistBody;
+    const projectDir = typeof body.projectDir === 'string' ? body.projectDir.trim() : '';
+    const paths = (Array.isArray(body.paths) ? body.paths : [])
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .slice(0, FILES_EXIST_MAX_PATHS);
+
+    if (paths.length === 0) {
+      reply.code(400);
+      return { success: false, error: 'At least one file path is required.' };
+    }
+
+    const results: Record<string, boolean> = {};
+    for (const requestedPath of paths) {
+      try {
+        results[requestedPath] = existsSync(resolveRequestedPath(requestedPath, projectDir || undefined));
+      } catch {
+        results[requestedPath] = false;
+      }
+    }
+    return { success: true, results };
   });
 
   fastify.post('/operator/file-preview', async (request: FastifyRequest, reply: FastifyReply) => {
