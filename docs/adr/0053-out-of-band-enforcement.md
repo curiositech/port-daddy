@@ -377,7 +377,7 @@ confinement upgrade**, and the caveat schema is its own artifact row. The old
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
 | 0b | adr-0053-tripwire-bypass-line-removal | **shipped (PR #367)** | — | Removed the `PD_SHIM_OFF=1` advertisement from `cli/utils/git-shim.ts` agent-facing stderr; override still works + still audited; bumped `SHIM_VERSION` 3→4 + regression test. A guardrail must not advertise its bypass. |
-| 1-schema | adr-0053-macaroon-caveat-schema | now | — | **Owned by `port-daddy:enforcement:dom-daddy-design-sync`.** The caveat schema artifact: predicate set, the third-party "rent-paid for session S" discharge protocol, TTL + renewal, one-directional attenuation grammar. Design doc into this ADR — **not a new ADR**. Blocks Phase 1. |
+| 1-schema | adr-0053-macaroon-caveat-schema | **drafted (Appendix A)** | — | The caveat schema: macaroon structure, first-party attenuation grammar, the third-party "rent-paid for session S" discharge protocol (reuses `evaluateLeaseRent`), TTL + renewal + revocation. Authored in **Appendix A** by `port-daddy:dom-daddy-enforcement` after the original owner (`…:dom-daddy-design-sync`) went offline. Design text in this ADR — not a new ADR. Unblocks Phase 1. |
 | 1 | adr-0053-macaroon-discharge-gate | now | adr-0053-macaroon-caveat-schema | **The crypto gate (new highest-leverage rail).** Push/key grant = a macaroon whose third-party caveat is "PD daemon attests rent-paid for session S" (session + claims + note-per-commit + rebased). The daemon/Relay (`apps/relay`, ADR-0049) rejects any push lacking a valid discharge. Reuses **already-built** `feat/cap-attenuation-monitor` (CAP_ESCALATION no-broadening) + `defense/anchor-attenuation-soundness` (per-hop attenuation ProVerif-proven). **Wall property holds even while the push still flows through the operator's `gh` token** — corrective-only refusal copy, never names a bypass. Subsumes the old `layer-1a-push-gate`. |
 | 1-bp | adr-0053-branch-protection-app-only-push | now · **operator-gated** | — | Server-side GitHub branch protection on `main`/release glob (no direct push/force/delete, required PR + checks) + null `credential.helper` (empty `helper =` reset line) on agent repo-local config. Independent server-side wall for the protected refs. **Outward-facing settings change that can disrupt the auto-merge bots — needs explicit operator go.** |
 | 0a | adr-0053-github-app-egress-auth | backlog (**demoted to upgrade**) | adr-0053-macaroon-discharge-gate | GitHub App **egress** auth: App registration, private-key storage, `@octokit/auth-app` `createAppAuth` + installation-token exchange (the "sibling work in flight" `lib/fleet/github-output.ts` references). **No longer a prerequisite** — it upgrades the Phase-1 gate from gates+audits to true credential **confinement** ("a token the agent never sees"). NOT yet built; webhook ingress only today. |
@@ -462,6 +462,101 @@ State plainly, in this ADR and in all shipped copy:
   alarm for the common case; they are not a safe. Marketing, refusal copy, and
   operator-facing status must keep that line bright. No precise "% of harm
   defended" figure should be claimed without incident data behind it.
+
+## Appendix A — Macaroon caveat schema (Phase 1-schema artifact)
+
+> Authored here by `port-daddy:dom-daddy-enforcement` after the original owner
+> (`port-daddy:enforcement:dom-daddy-design-sync`) went offline. This is the
+> `adr-0053-macaroon-caveat-schema` matrix row, landed as ADR text rather than a
+> separate ADR. A **macaroon** (Birgisson et al., 2014) is the grant object for
+> both the Layer 1 push capability and the Layer 2 API-key capability.
+
+### A.1 Macaroon structure
+
+```
+Macaroon {
+  location:   "pd://daemon/<repo-id>"        // hint: who minted it / who to ask
+  identifier: "<grant-uuid>"                  // opaque; maps to a root key in the daemon
+  caveats:    [ Caveat, ... ]                 // ordered; each HMAC-chained to the last
+  signature:  HMAC(prev_sig, caveat_bytes)    // standard macaroon chained MAC
+}
+```
+
+The **root key** for `identifier` never leaves the daemon (Layer 1) or the Relay
+(cross-machine). The agent holds the macaroon, not the root key — so it can
+**verify-by-presenting** but cannot mint or re-sign.
+
+### A.2 First-party caveats — the attenuation grammar
+
+First-party caveats are predicates the verifier checks locally. The holder may
+**append** any of these (narrowing); it can never remove one (the chained
+signature breaks). One-directional narrowing is enforced today by
+`feat/cap-attenuation-monitor`'s `CAP_ESCALATION` check.
+
+| Caveat | Grammar | Example |
+|---|---|---|
+| operation | `op = push \| api-call` | `op = push` |
+| repo | `repo = <repo-id>` | `repo = curiositech/port-daddy` |
+| branch | `branch = <glob>` | `branch = feat/dom-daddy-*` |
+| protected-ref deny | `branch != main` (implicit; root mints it) | — |
+| host (Layer 2) | `host = <fqdn>` | `host = api.anthropic.com` |
+| spend ceiling (Layer 2) | `spend_usd <= <n>` | `spend_usd <= 2.00` |
+| expiry | `expires = <unix-ms>` | `expires = 1786000000000` |
+| session bind | `session = <session-id>` | `session = session-…` |
+
+The root daemon always appends the non-negotiable caveats (`repo`, protected-ref
+deny, a hard `expires`); the agent may attenuate further (one branch, lower
+spend, sooner expiry) for a sub-task or a sub-delegated agent.
+
+### A.3 The third-party caveat — rent-paid discharge
+
+Exactly one third-party caveat carries the compulsion:
+
+```
+third_party_caveat {
+  location:    "pd://daemon/rent"            // where to get the discharge
+  caveat_id:   enc(root_key_cid, { session, nonce, predicate: "rent-paid" })
+  vid:         // verification id binding the discharge key into the chain
+}
+```
+
+To use the macaroon the agent must present a **discharge macaroon** proving the
+daemon attested rent-paid for `session`. Discharge protocol:
+
+1. Agent calls `pd discharge --session S` (or the Relay endpoint).
+2. The daemon evaluates the rent predicate using the **already-shipped**
+   `evaluateLeaseRent()` (`lib/coast-guard/compulsion.ts`, ADR-0050 phase 7) over
+   facts from `compulsion-facts.ts`: **session active**, **scope claimed for the
+   touched paths**, **a note per commit being pushed**, **branch rebased on the
+   canonical head**. All four must hold (mechanical good faith — §"Mechanical vs.
+   semantic").
+3. If they hold, the daemon mints a discharge macaroon bound to `nonce`, with its
+   own short `expires` (default **20 min**, matching the rent TTL).
+4. The Relay (ADR-0049) verifies: root signature valid → every first-party caveat
+   satisfied → a valid, unexpired discharge for the third-party caveat. Per-hop
+   attenuation soundness is the property **proven in ProVerif** on
+   `defense/anchor-attenuation-soundness` (the naive final-vs-root verifier was
+   unsound; verification is per-hop).
+
+### A.4 TTL, renewal, and revocation
+
+- The **grant** macaroon may be long-lived (a session); the **discharge** is
+  short (≈20 min) and must be re-fetched. This is the decay loop: rent lapses →
+  no fresh discharge → the capability is dead within one TTL **without revoking
+  anything** (the absence of a renewal *is* the revocation).
+- Hard revocation (compromise) bumps the daemon-side root key for `identifier`,
+  invalidating every macaroon derived from it immediately.
+- Renewal is not automatic: each re-discharge re-runs the rent check, so an agent
+  that stops coordinating stops being able to push within one window — the
+  Nash-equilibrium property, realized cryptographically rather than by a hook.
+
+### A.5 What this schema does NOT do
+
+It does not confine a malicious same-UID process: between fetching a discharge
+and using it, the agent holds a valid capability it could copy or use directly.
+The macaroon makes the gate **unforgeable** and the audit a **verifiable
+transcript**; **only Layer 3 (separate-UID/VM) confines the holder.** Stated here
+so the schema is never mistaken for the vault.
 
 ## Composes with
 
