@@ -11,6 +11,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -40,16 +41,17 @@
 \draw[->,>=Latex,thick,hhebony] (pk) -- node[above,font=\footnotesize]{admit} (wal);
 \draw[->,>=Latex,thick,hhebony] (wal) -- node[above,font=\footnotesize]{emit event} (log);
 
-% reject edge
-\draw[->,>=Latex,thick,hhcobalt] (pk.south) to[bend right=30]
-  node[below,font=\footnotesize,text=hhink]{reject} ([yshift=-7mm]pk.south);
+% reject edge — a forbidden write barred pre-commit (mayday-red + cross)
+\draw[->,>=Latex,thick,maydayred] (pk.south) to[bend right=30]
+  node[below,font=\footnotesize,text=maydayred]{$\times$\,reject} ([yshift=-7mm]pk.south);
 
 % ─── Policy monitor: subscriber DOWNSTREAM of commit ───────────────────────
 \node[mon,below=15mm of log] (arb) {policy monitor\\ (post-commit subscriber)};
 \draw[->,>=Latex,thick,hhteal] (log.south) -- (arb.north)
   node[midway,right,font=\footnotesize,text=hhink]{observes};
-\draw[->,>=Latex,thick,dashed,hhteal] (arb.west) to[bend right=18]
-  node[below,font=\footnotesize,text=hhink,align=center]{compensate\\(undo / salvage)} (wal.south);
+% the monitor's ONLY power: a post-commit compensating undo (solid, mayday-red)
+\draw[->,>=Latex,thick,maydayred] (arb.west) to[bend right=18]
+  node[below,font=\footnotesize,text=maydayred,align=center]{compensate\\(undo / salvage)} (wal.south);
 
 % ─── The interception line ─────────────────────────────────────────────────
 \draw[hhcobalt,line width=1pt,dash pattern=on 3pt off 2pt]

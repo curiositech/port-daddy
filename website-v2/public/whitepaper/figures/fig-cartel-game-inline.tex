@@ -8,6 +8,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -20,9 +21,9 @@
                    inner sep=4pt,align=center,minimum width=20mm},
   payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
-  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+  bad/.style={draw=maydayred,line width=1.1pt,fill=hhpaper,rounded corners=2pt,
               inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
-              text=hhcobalt},
+              text=maydayred},
   arr/.style={->,>=Latex,thick,draw=hhink},
   prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
 ]
@@ -37,11 +38,11 @@
 \draw[arr] (dec.south east) to[bend right=10] (defect.west);
 \node[state,right=14mm of collude,yshift=10mm] (det) {detected};
 \node[state,right=14mm of collude,yshift=-10mm] (safe) {survived};
-\draw[arr] (collude.east) to[bend left=10]
+\draw[arr,draw=maydayred] (collude.east) to[bend left=10]
   node[prob,above] {$p_d$} (det.west);
 \draw[arr] (collude.east) to[bend right=10]
   node[prob,below] {$1-p_d$} (safe.west);
-\node[bad,right=4mm of det] {$-5(q_f - \mu)$};
+\node[bad,right=4mm of det] {\textcolor{maydayred}{$\times$}\,\,$-5(q_f - \mu)$\\\scriptsize slashed};
 \node[payoff,right=4mm of safe] {$+\pi_C$};
 \node[state,right=14mm of defect] (collapse) {collapse};
 \draw[arr] (defect.east) -- (collapse.west);
@@ -55,6 +56,14 @@
    $\dfrac{\delta \cdot \pi_C}{1 - \delta(1 - p_d)} \;\geq\; \pi_D$};
 \end{tikzpicture}%
 }
-\caption{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or undercutting it by $\varepsilon$. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi_D$ gain once and forfeits future $\pi_C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star$ used in Figure~\ref{fig:cartel-folk}.}
+\caption{Cartel repeated-game node under the grim-trigger strategy. Each round a
+colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or
+undercutting it by $\varepsilon$. Detection (probability $p_d$) lands on the red
+$\times$ path: the colluder is slashed $-5(q_f-\mu)$. One-shot defection takes the
+$\pi_D$ gain once, then collapses the future $\pi_C$ stream to $\pi_N\approx 0$. The
+cartel is self-sustaining exactly when the inequality at the bottom holds; raising
+$p_d$ (sampled adversarial re-audit) or capping $\pi_C$ (diminishing-returns
+concavity on pairwise outcomes) pushes the critical discount factor past $1$ and
+breaks it.}
 \label{fig:cartel-game-inline}
 \end{figure}

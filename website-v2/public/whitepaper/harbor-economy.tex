@@ -1,7 +1,7 @@
 \documentclass[11pt,a4paper]{article}
 
 % ═══════════════════════════════════════════════════════════════════════════════
-%  THE HARBOR ECONOMY  —  Paper 4 of the Harbor Volume (L3: the market)
+%  THE HARBOR ECONOMY  —  Floor 4 (Economy) of the Harbor Volume (L3: the market)
 %  House style matched to anchor-protocol-whitepaper.tex + agent-transactions +
 %  federated-harbor.  hh-* palette, fancyhdr, TikZ figures in figures/.
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -43,18 +43,22 @@
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
 
-% ─── Maturity markers (honest self-grading of every claim) ────────────────────
-% Muted ink throughout; the four grades differ by WEIGHT and SMALL-CAPS /
-% italic, never by hue (house style: status by weight/small-caps, not a rainbow).
-\newcommand{\Built}{{\textcolor{hhink}{\textsc{\textbf{implemented}}}}}
-\newcommand{\BuiltWeak}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Designed}{{\textcolor{hhgray}{\textsc{specified}}}}
-\newcommand{\Vision}{{\textcolor{hhgray}{\textit{proposed}}}}
-
-% Verification-status markers (for the open-problem / status tables).
-\newcommand{\Closed}{{\textcolor{hhink}{\textsc{\textbf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhink}{\textsc{partial}}}}
-\newcommand{\Open}{{\textcolor{hhgray}{\textit{open}}}}
+% ─── Maturity markers (the volume's whole status vocabulary) ──────────────────
+% One status accent: cobalt. The glyph carries the grade; any degree of
+% qualification rides as plain text AFTER the glyph at the call site.
+%   \built  → ▰ built      \designed → ▱ designed      \openmark → · open
+\definecolor{maydayred}{HTML}{8B0000}
+\newcommand{\built}{{\textcolor{hhcobalt}{$\blacksquare$}}\,\textsc{built}}
+\newcommand{\designed}{{\textcolor{hhcobalt}{$\square$}}\,\textsc{designed}}
+\newcommand{\openmark}{{\textcolor{hhcobalt}{$\cdot$}}\,\textsc{open}}
+% Back-compat aliases so legacy call sites still grade onto the new vocabulary.
+\newcommand{\Built}{\built}
+\newcommand{\BuiltWeak}{\built}        % degree ("partial") carried as plain text
+\newcommand{\Designed}{\designed}
+\newcommand{\Vision}{\designed}
+\newcommand{\Closed}{\built}
+\newcommand{\Partial}{\built}
+\newcommand{\Open}{\openmark}
 
 % ─── Pull-quote sidebar: large quote, left-edge accent stripe. ────────────────
 \newcommand{\pullquote}[1]{%
@@ -102,18 +106,6 @@
   \end{tikzpicture}\vspace{4pt}%
 }
 
-% ─── Exercises environment (the pedagogic block) ──────────────────────────────
-\newenvironment{exercises}{%
-  \par\vspace{8pt}\noindent
-  {\scshape\bfseries\textcolor{hhink}{\textcolor{hhgray!70}{\rule[-1pt]{2.5pt}{11pt}}\enspace Exercises}}
-  \par\nobreak\vspace{2pt}
-  \begin{enumerate}[label=\textbf{E\arabic*.},leftmargin=2.6em,itemsep=2pt,topsep=2pt]
-}{%
-  \end{enumerate}\vspace{6pt}
-}
-% star marker for open-problem exercises
-\newcommand{\openstar}{{\textcolor{hhcobalt}{$\bigstar$}}\;}
-
 % ─── Listings Setup ──────────────────────────────────────────────────────────
 \lstdefinestyle{pseudocode}{
   backgroundcolor=\color{codebg},
@@ -157,14 +149,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Harbor Economy}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 4 of 4 \textperiodcentered\ pre-release}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Floor 4: Economy \textperiodcentered\ pre-release}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ────────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Technical White Paper --- Harbor Volume, Paper 4}}\\[0.5cm]
+  {\Large\textsc{Technical White Paper --- The Harbor Volume}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Harbor Economy:}}\\[0.2cm]
   {\Large A Three-Sided Market for Agent Labor,\\
@@ -176,7 +168,7 @@
   Curiositech LLC\\[0.2cm]
   \texttt{engineering@portdaddy.dev}
 }
-\date{June 2026\\Harbor Volume, Paper 4 of 4 (L3 --- the market)}
+\date{June 2026\\Floor 4 --- Economy (L3, the trading floor)}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \begin{document}
@@ -187,23 +179,23 @@
 \vspace{0.6cm}
 
 \begin{abstract}\noindent
-The first three papers of this volume build a harbor for a \emph{single} operator:
+The lower floors of this volume build a harbor for a single operator:
 a daemon, a coordination protocol, a legible authority anyone would pay for today,
-and the continuity that turns an anonymous \emph{spawn} into an accountable
-\emph{person}. This paper is the rung above all of them --- the only one whose
+and the continuity that turns an anonymous spawn into an accountable
+\emph{person}. This is the floor above all of them --- the only one whose
 participants are plural and mutually distrusting. We argue that the harbor economy
 is a \textbf{three-sided market}: operators sell labor and fleet-for-hire; agents
 and fleets are rentable assets; skills and tools are licensed --- all settling on
-\emph{one} conserving bond ledger via float-plan escrow. We present the
+one conserving bond ledger via float-plan escrow. We present the
 \textbf{cross-harbor capability-transfer ceremony} and the federation that lets
 fleets on machines you do not own trade without a shared chain: a witness log, an
 escrow that provably cannot steal, and revocation gossip with a convergence bound.
 We carry the volume's heaviest reconciliations honestly rather than papering over
 them. The keystone the market leans on is \textbf{local non-forgeable identity}
---- an identity no agent can edit \emph{within a single trusted daemon} --- and
-that primitive covers a single-operator threat model, \emph{not} the
+--- an identity no agent can edit within a single trusted daemon --- and
+that primitive covers a single-operator threat model, not the
 cross-operator adversary this market is defined by; the missing, blocking keystone
-is \textbf{cross-operator attestation}, which is specified-to-proposed, not built.
+is \textbf{cross-operator attestation}, which is designed, not built.
 ``Conservation composes upward'' is a true functor only within a single unit of
 account, and a $\varphi$-bounded \emph{lax} functor otherwise. The double-spend and
 equivocation problems are one obstruction: the non-vanishing of the first
@@ -212,9 +204,10 @@ individually revocable by a propagating tombstone --- it ends, by design, when a
 outcome is shown fraudulent. Every folk-theorem incentive-compatibility claim rests
 on a grading oracle that must be made strategy-proof or bonded-and-slashed. And
 strict conservation is budget balance, so by Myerson--Satterthwaite the market must
-sacrifice efficiency. The defensible product is \textbf{hosted trust} --- a
-verified ledger, a relay, and a reputation system --- not the commoditized payment
-rail.
+sacrifice efficiency. The one thing here that is shipped and property-tested is
+the conserving bond ledger the whole market settles on. The defensible product is
+\textbf{hosted trust} --- a verified ledger, a relay, and a reputation system ---
+not the commoditized payment rail.
 \end{abstract}
 
 \vspace{0.4cm}
@@ -223,13 +216,26 @@ compatibility, reputation systems, capability-based security, cross-chain
 settlement, applied category theory, federation, Port Daddy
 
 \vspace{0.4cm}
-\noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
+
+% ─── Series banner (identical across every paper in the volume) ───────────────
+\noindent\begin{tikzpicture}
+\node[draw=hhcobalt,line width=0.6pt,fill=hhsand!12,rounded corners=2pt,
+      inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{%
+  \small{\scshape\bfseries\textcolor{hhcobalt}{The Harbor Volume}} ---
+  four Floors (explain) $\times$ four Beams (prove).\par
+  \vspace{2pt}\small This paper: \textbf{Floor 4 --- Economy}, the trading floor.
+  \emph{You don't sell crypto, you sell hosted trust --- a three-sided agent labor
+  market.} \quad {\textcolor{hhcobalt}{$\square$}}\,\textsc{designed}.%
+};
+\end{tikzpicture}
+
+\vspace{0.4cm}
+\noindent Reading time: approximately 45 minutes end-to-end; about 12
 minutes for \S\ref{sec:thesis}--\S\ref{sec:three-sides} alone (the market thesis).
-This is Paper~4 of a four-paper volume and is written cold: no prior platform
-knowledge is assumed. It can be read first, but \S\ref{sec:keystone} leans on
-Paper~3 (\emph{From Spawn to Person}) for the identity substrate, and the
-cryptographic hop-bound authorization chain it rides on is proven in Paper~2
-(\emph{The Anchor Protocol substrate}).}
+It is written cold: no prior platform knowledge is assumed, and it can be read
+first. \S\ref{sec:keystone} leans on \emph{From Spawn to Person} (Floor 3) for the
+identity substrate, and the cryptographic hop-bound authorization chain it rides on
+is proven in \emph{The Anchor Protocol} (Beam A).
 
 \vspace{0.5cm}
 
@@ -238,14 +244,14 @@ cryptographic hop-bound authorization chain it rides on is proven in Paper~2
 \node[draw=hhgray!45,line width=0.4pt,fill=hhsand!12,rounded corners=2pt,
       inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,align=left]{%
   \small{\scshape\bfseries Maturity key (honest self-grading).}\enspace
-  Every claim in this paper carries one of four maturity labels, so the reader
-  always knows whether a sentence reports running code or a designed target.
-  \Built{} --- shipped and exercised by tests in the reference implementation.
-  \BuiltWeak{} --- shipped but materially weaker than its name suggests.
-  \Designed{} --- specified, with a proof or a written protocol, but not yet
+  Every claim carries one mark, so the reader always knows whether a sentence
+  reports running code or a designed target.
+  \built{} --- shipped and exercised by tests in the reference implementation
+  (any weakness is named in plain text right after the mark).
+  \designed{} --- specified, with a proof or a written protocol, but not yet
   shipped.
-  \Vision{} --- a stated direction whose load-bearing part has no specification
-  yet.
+  \openmark{} --- a stated direction whose load-bearing part has no specification
+  yet, or a result not yet proved.
   Nomenclature is likewise fixed: the cryptographic \emph{hop-bound authorization
   chain} (which proves who delegated what, and bounds it) is never conflated with
   the \emph{coordination lineage} (who-talked-to-whom, advisory only);
@@ -265,9 +271,10 @@ cryptographic hop-bound authorization chain it rides on is proven in Paper~2
 \section{Reader's map}\label{sec:readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-This paper is the top rung of a ladder (Figure~\ref{fig:he-stack-map}). It assumes
-the rungs below it and cites the papers that build them. Read it cold if you must,
-but it is the fourth paper for a reason: it depends on everything underneath.
+This paper is the top floor of the edifice (Figure~\ref{fig:he-stack-map}). It
+assumes the floors below it and cites the papers that build them. Read it cold if
+you must, but it is the top floor for a reason: it depends on everything
+underneath.
 
 \input{figures/fig-he-stack-map}
 
@@ -299,12 +306,12 @@ An implementer &
 \end{tabular}
 \end{table}
 
-\noindent\textbf{Reading order within the volume.} Paper~1 (\emph{The Legible
-Swarm}, L2 --- the wedge) is the front door. Paper~2 (\emph{The Anchor Protocol
-substrate}, L0/L1) is the cryptographic and kernel core. Paper~3 (\emph{From Spawn
-to Person}, the L3 identity bridge) supplies the durable identity and the outcome
-ledger this paper trades on. \emph{This} paper, Paper~4, is the market that stands
-on all three.
+\noindent\textbf{Where this sits.} \emph{The Single-Writer Kernel} (Floor 1) and
+\emph{The Anchor Protocol} (Beam A) are the kernel and cryptographic core.
+\emph{The Legible Swarm} (Floor 2, the wedge) is the front door anyone would pay
+for today. \emph{From Spawn to Person} (Floor 3) supplies the durable identity and
+the outcome ledger this paper trades on. The Harbor Economy is Floor 4 --- the
+market that stands on all of them.
 
 \xrefbox{\textbf{Dramatis personae.} Every mechanism in this paper is dramatized
 end-to-end with the same cast, so an abstraction is never introduced without a
@@ -312,10 +319,10 @@ concrete trade to attach it to. \textbf{Alice} runs Harbor~$A$ on her laptop and
 owns a well-reputed refactoring specialist agent, $a_2$. \textbf{Bob} runs
 Harbor~$B$ and needs work done he cannot staff himself. \textbf{Carol} runs
 Harbor~$C$ and sells a licensed lint-and-type skill. \textbf{Judy} is a human
-grader who arbitrates disputes for a bond. The two harbors do \emph{not} trust each
+grader who arbitrates disputes for a bond. The two harbors do not trust each
 other and neither is a root of authority for the other; that distrust is the entire
 reason the rest of the paper exists. We price everything in an abstract unit, the
-\emph{credit} (\textsc{cr}); read it as a stablecoin cent if you like.}
+\textbf{credit} (\textsc{cr}); read it as a stablecoin cent if you like.}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The thesis: a market, not a payment rail}\label{sec:thesis}
@@ -344,7 +351,8 @@ Three claims follow, and the rest of the paper defends each:
   \item \textbf{C2 (one ledger, one escrow object).} All three sides settle on the
     same \textbf{float plan} escrowed in the same bond ledger. Conservation of
     value across every settlement path is the invariant that holds the market
-    together, and it is the one thing here that is actually \Built{}
+    together --- and it is shipped: a conserving bond ledger, \built{} and
+    property-tested over ten thousand random operation traces
     (\S\ref{sec:float-plan}, \S\ref{sec:conservation}).
   \item \textbf{C3 (hosted trust is the moat).} The defensible asset is the
     verified ledger $+$ relay $+$ reputation, not the settlement rail, which the
@@ -352,42 +360,27 @@ Three claims follow, and the rest of the paper defends each:
     (\S\ref{sec:hosted-trust}).
 \end{itemize}
 
-\keyidea{The economy is strictly \emph{additive} on top of the single-player tool.
-Because all three market sides settle on the \emph{same} built bond ledger, none
-of the economy needs to ship before the wedge does. The discipline ``don't chase
-the market early'' is \emph{safe} precisely because the market reuses the kernel
-primitive. The harbor comes first; the trade comes when the ships do.}
+\keyidea{The economy is strictly additive on top of the single-player tool.
+Because all three market sides settle on the same built bond ledger, none of the
+economy needs to ship before the wedge does. The discipline ``don't chase the
+market early'' is safe precisely because the market reuses the kernel primitive.
+The harbor comes first; the trade comes when the ships do.}
 
 \subsection{The through-line: why a market needs persons, not spawns}
 
-The whole volume climbs one spine (the vertical arrow in
-Figure~\ref{fig:he-stack-map}):
-\[
-\text{memory} \to \text{checkpoint} \to \text{continuity} \to
-\underbrace{\text{a \emph{person}, not a \emph{spawn}}}_{\text{Paper 3}} \to
-\text{registered outcomes} \to \text{reputation} \to
-\underbrace{\text{a tradeable asset} \to \text{the market}}_{\text{this paper}}.
-\]
-Sides 2 and 3 of the market --- renting an \emph{asset}, licensing a \emph{good}
---- presuppose that there is a \emph{thing} to rent or sell that cannot be
+The whole volume climbs one spine (Figure~\ref{fig:he-spine-pipeline}).
+
+\input{figures/fig-he-spine-pipeline}
+
+Sides 2 and 3 of the market --- renting an asset, licensing a good ---
+presuppose that there is something to rent or sell that cannot be
 costlessly cloned. You cannot rent a reputation that any spawn can fork, and you
 cannot license a skill whose track record is unverifiable. The canonical
-cross-layer sentence, repeated identically in Papers~3 and~4, states the dependency
+cross-floor sentence, repeated identically on Floors 3 and 4, states the dependency
 exactly:
 
 \pullquote{The score is cheap; the substrate it scores over --- witnessed outcomes
 on a non-forgeable identity --- is the gate.}
-
-\begin{exercises}
-\item Give a one-sentence reason the market cannot ship before reputation does,
-  using only the word ``clone.''
-\item Side~1 (operator-for-hire) does \emph{not} require durable identity in the
-  same way sides 2 and 3 do. Why? (Hint: who is the counterparty, and who bears
-  the consequence?)
-\item \openstar Construct a market design in which sides 2 and 3 exist
-  \emph{without} a non-forgeable identity. Argue informally why every such design
-  collapses to a Sybil attack (forward-reference \S\ref{sec:keystone}).
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{What a ``side'' is, and why there are three}\label{sec:three-sides}
@@ -471,13 +464,12 @@ The canonical statement of the market's shape carries a rider that must never be
 dropped:
 
 \pullquote{The harbor economy is a three-sided market \emph{by design}; two-sided
-until reputation ships. The third side \emph{is} the tradeable-person terminus of
-Paper~3.}
+until reputation ships. The third side is the tradeable-person terminus of
+\emph{From Spawn to Person} (Floor 3).}
 
 Today there is no reputation estimator in the reference implementation; it is a
-gated phase on the roadmap. So sides 2 and 3 are \Designed{}, not shipped. What
-\emph{is} shipped is the escrow $+$ conservation floor they will sit on. We do not
-overclaim the market.
+gated phase on the roadmap. So sides 2 and 3 are \designed{}, not shipped. What is
+shipped is the escrow and conservation floor they will sit on.
 
 \subsection*{The category-theory caveat: not ``one structure, three decorations''}
 
@@ -492,19 +484,6 @@ three partial functors into the ledger that \emph{disagree on the identity objec
 \emph{isomorphic at the conservation object, non-isomorphic at the identity
 object}. Asserting full isomorphism without that qualifier is the decorative-analogy
 failure (\S\ref{sec:conservation}).
-
-\begin{exercises}
-\item State the operational test for ``how many sides'' in one sentence, then apply
-  it to a ride-share platform: how many sides, and why?
-\item Side~3 (skill licensing) keys reputation on a \emph{content hash}, not a
-  person. What breaks when a licensor ships v2 of a skill? (Hint:
-  \S\ref{sec:gaps}, skill versioning.)
-\item \openstar A buyer reads a three-axis reputation vector
-  $(\text{accuracy},\text{aesthetics},\text{efficiency})$. Specify a disclosure
-  rule that lets the buyer weight the axes \emph{without} re-introducing a single
-  Goodhart target. Argue why every fixed scalar collapse re-creates the bandit
-  framing the design rejects.
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The float plan: the built floor}\label{sec:float-plan}
@@ -552,8 +531,8 @@ $W$ has a signed proof of locked funds; no process for this task can enter
 
 \subsection{The bond ledger conserves value (this is built)}
 
-The single most load-bearing primitive --- and the one that is \emph{actually}
-\Built{} --- is the \textbf{bond-ledger module}: bond escrow for agent spawning. It
+The single most load-bearing primitive --- and the one that is shipped today
+(\built{}) --- is the \textbf{bond-ledger module}: bond escrow for agent spawning. It
 debits a project wallet into an escrow row before spawn, refunds on clean exit, and
 slashes on breach, splitting the slash between the wallet and a commons pool. It
 guards two invariants:
@@ -562,13 +541,13 @@ guards two invariants:
 $\text{wallet} + \text{escrow} + \text{commons} = \text{supply}$, always. Every
 debit has a matching credit. In the reference implementation this is verified
 across ten thousand random operation traces by a property test --- a real
-randomized test, not an aspiration. (\Built{}; see Appendix~\ref{app:impl}.)
+randomized test, not an aspiration. (\built{}; see Appendix~\ref{app:impl}.)
 \end{property}
 
 \begin{property}[No-spawn-without-bond]\label{prop:nospawn}
 A process enters the \texttt{running} state only if a bond was escrowed against its
-agent id. (\BuiltWeak{}: the ledger enforces escrow-first, but the runtime
-\texttt{running}-state check is a roadmap item, so today the gate is
+agent id. (\built{}, with a named gap: the ledger enforces escrow-first, but the
+runtime \texttt{running}-state check is a roadmap item, so today the gate is
 caller-discipline, not runtime-enforced. See Appendix~\ref{app:impl}.)
 \end{property}
 
@@ -624,19 +603,6 @@ $\text{escrow}=500$; after, Bob is refunded $400$, $a_2$'s wallet is up $40$, th
 commons/salvage pool is up $60$, escrow is $0$ --- and $400+40+60 = 500$, the total
 is unchanged. No value was created or destroyed; it only moved.
 
-\begin{exercises}
-\item Trace the flow of funds for a \textbf{Partial} settlement where the worker
-  completed 40\% of the evidence chain. Confirm Property~\ref{prop:conservation}
-  holds across the split (the dramatization above is one such trace; redo it for a
-  bond of $250$\,\textsc{cr} and $70\%$ completion).
-\item Why does closure bind to an oracle rather than a self-reported note? Name the
-  attack a free-text ``Result:'' note enables.
-\item \openstar The four states assume the acceptance criteria were \emph{right}.
-  Design a \emph{float-plan amendment} protocol for the common case where the
-  criteria themselves turn out wrong mid-flight (re-sign by both parties, escrow
-  top-up/refund delta), preserving Property~\ref{prop:conservation}. (Gap, \S\ref{sec:gaps}.)
-\end{exercises}
-
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Three sides on one escrow}\label{sec:three-on-one}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -676,17 +642,6 @@ license drives good skills out. Metering $+$ clawback $+$ a Merkle \emph{portfol
 proof} (the skill's prior settled outcomes, anchored in the evidence chain) restore
 the seller's incentive to ship quality.
 
-\begin{exercises}
-\item Map each of Grossman--Hart's two parties (residual-control-right holder vs.\
-  reputational-consequence bearer) onto the rental side's roles. Which one is the
-  Arbiter jail?
-\item Show that adding a lease line item and a metered-license line item to a float
-  plan cannot violate Property~\ref{prop:conservation}, no matter the amounts.
-\item \openstar A skill's portfolio proof for v1 says nothing about v2. Specify a
-  \emph{version-binding} for the Merkle portfolio proof so a new version starts
-  with a discounted inherited prior --- the newcomer policy, but for code.
-\end{exercises}
-
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The keystone the market rests on --- and does not yet have}\label{sec:keystone}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -710,18 +665,18 @@ can hold state agents cannot reach, so it is a trusted root by construction. (Pa
 For a single-operator harbor this is exactly right and is correctly named the
 highest-leverage keystone. Its threat model, stated plainly, is ``a lazy or
 self-interested agent in a fleet the operator owns'' --- not a hostile peer. It is
-explicitly \emph{not} a public-key infrastructure spanning strangers.
+explicitly not a public-key infrastructure spanning strangers.
 
 \subsection{But its threat model does not reach the market}\label{sec:0040b}
 
 \pitfall{Local non-forgeable identity defends against an agent inside a fleet the
-operator owns; it explicitly does \emph{not} claim to defend against a hostile
-operator, and it is not a cross-party PKI. The market, by contrast, is
-\emph{defined} by mutually-distrusting operators trading across a boundary neither
-controls. You cannot make the single-operator root the foundation of the
-cross-operator market by assertion. Across the boundary, the counterparty's daemon
-\emph{is} the adversary that local identity declares out of scope. The witness log
-gives \emph{log integrity}, not \emph{identity binding}: it does not answer ``who
+operator owns; it does not claim to defend against a hostile operator, and it is not
+a cross-party PKI. The market, by contrast, is defined by mutually-distrusting
+operators trading across a boundary neither controls. You cannot make the
+single-operator root the foundation of the cross-operator market by assertion.
+Across the boundary, the counterparty's daemon is the adversary that local identity
+declares out of scope. The witness log gives \emph{log integrity}, not
+\emph{identity binding}: it does not answer ``who
 vouches that Harbor~$B$'s signing keys map to a real, distinct principal, rather
 than a hundred sock puppets Bob minted this morning?''}
 
@@ -730,16 +685,16 @@ than a hundred sock puppets Bob minted this morning?''}
 across harbors you do not own: an actual key-distribution and attestation story for
 the cross-operator threat model --- something that lets Alice's harbor trust that a
 key presented as ``Bob'' really is the one principal she has been building a
-reputation history against. \textbf{Status:} \Designed{}-to-\Vision{}; it has no
+reputation history against. \textbf{Status:} \designed{}, proof open; it has no
 implementation and only a partial specification for its load-bearing part. It is the
 highest-leverage unbuilt keystone, and it gates the entire market thesis.
 \end{definition}
 
-\keyidea{This paper \emph{stops} describing the federation boundary as one
-``neither controls'' while quietly resting on a single trusted root. Either
-cross-operator attestation is built (a real attestation story), or the market's
-scope is honestly restated as ``federation among \emph{semi-trusted} operators.'' We
-take the first horn as the designed target and flag every claim that depends on it.}
+\keyidea{A federation boundary described as one ``neither controls'' cannot also
+rest on a single trusted root. The boundary forces a choice: either cross-operator
+attestation is built (a real attestation story), or the market's scope is restated
+as federation among \emph{semi-trusted} operators. We take the first horn as the
+designed target and flag every claim that depends on it.}
 
 \subsection{The principal above the actor}
 
@@ -751,19 +706,6 @@ bond-farming works by spawning fresh \emph{agents} under one principal
 any reputation or quorum system}). Defining the principal as a first-class economic
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
 specified in Paper~3 and consumed here.
-
-\begin{exercises}
-\item In one sentence, state why a reputation system layered on forgeable
-  pseudonyms is \emph{no mechanism}, not merely a weak one (cite Douceur).
-\item Local non-forgeable identity has a non-goal: ``no defense against a hostile
-  operator.'' Name the exact word in the market's definition
-  (``mutually-distrusting,'' ``boundary neither controls'') that this non-goal
-  contradicts.
-\item \openstar Specify a cryptographic binding tying $N$ agents to one principal
-  such that spawning fresh agents does not reset the bond floor, and that survives
-  into the cross-operator world (where the single-operator ``trusted credential''
-  shortcut is unavailable). This is the hard half of cross-operator attestation.
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Conservation as a functor (and where it is only lax)}\label{sec:conservation}
@@ -791,14 +733,14 @@ federation map $F:\mathbf{Harbor}\to\mathbf{Federation}$, sending each harbor to
 ledger and each cross-harbor transfer to the corresponding federated morphism,
 preserves composition: $F(g\circ f)=F(g)\circ F(f)$. Consequently the per-harbor
 invariant lifts \emph{exactly} to the federation, with only an in-escrow accounting
-term for in-flight bonds. (\Designed{}; proof sketch in Appendix~\ref{app:proofs}.)
+term for in-flight bonds. (\designed{}; proof sketch in Appendix~\ref{app:proofs}.)
 \end{theorem}
 
 \begin{theorem}[Multi-currency federation is at most lax]\label{thm:lax}
 If harbors price bonds in heterogeneous units, $F$ is at most a \emph{lax} functor:
 conservation is preserved only up to the bounded-escrow slack $\varphi$, via a
 coherence 2-cell $F(g\circ f)\overset{\varphi}{\Rightarrow}F(g)\circ F(f)$, and the
-coherence conditions are \emph{unproven}. (\Open{}.)
+coherence conditions are \emph{unproven}. (\openmark{}.)
 \end{theorem}
 
 \pullquote{The slogan ``conservation composes upward'' is licensed \emph{only} with
@@ -831,26 +773,15 @@ the cost of dominant-strategy IC and individual rationality) because IR --- nobo
 is forced to enter the harbor --- is non-negotiable for a \emph{voluntary}
 federation.
 
-\begin{exercises}
-\item State Myerson--Satterthwaite in one sentence, then identify which of its four
-  desiderata the harbor sacrifices and why.
-\item Theorem~\ref{thm:functor} requires a \emph{single} unit of account. Give a
-  concrete two-harbor example where heterogeneous units make $F$ fail to preserve
-  composition (the source of Theorem~\ref{thm:lax}'s slack $\varphi$).
-\item \openstar Write the coherence 2-cells of the lax functor in
-  Theorem~\ref{thm:lax} explicitly and bound them by $\varphi$. Determine whether
-  the pentagon/triangle coherence holds.
-\end{exercises}
-
 % ═══════════════════════════════════════════════════════════════════════════════
-\section{The Anchor Protocol proper: cross-harbor capability transfer}\label{sec:anchor}\label{sec:fh-xfer}
+\section{Cross-harbor capability transfer}\label{sec:anchor}\label{sec:fh-xfer}
 % ═══════════════════════════════════════════════════════════════════════════════
 
 The \emph{cross-harbor capability-transfer ceremony} is the market's identity-level
 hot path: how an authorization minted under Alice's harbor becomes usable, safely,
 inside Bob's. Paper~2 proves the cryptographic substrate (the hop-bound
 authorization chain, mechanically verified with a protocol model checker and a Rust
-verifier); \emph{this} section is the ceremony that rides that substrate across a
+verifier); this section is the ceremony that rides that substrate across a
 boundary.
 
 \input{figures/fig-fh-xfer-ceremony}
@@ -910,19 +841,8 @@ what makes ``rent my agent for an afternoon'' safe to say to a stranger.}
 verified'' halo. The hop-bound authorization chain is mechanized (a protocol model
 checker plus a Rust verifier, in Paper~2). The \emph{federation} theorems
 (convergence, bounded escrow) are pen-and-paper plus a TLA\textsuperscript{+}
-extension; they are \Designed{}, not mechanized. Two different confidence levels,
+extension; they are \designed{}, not mechanized. Two different confidence levels,
 never blurred.}
-
-\begin{exercises}
-\item Why is the ceremony four messages and not two? Identify what message (3)
-  buys (Hint: who must counter-sign, and under whose key does $C_B'$ later verify?).
-\item Trace what happens to an in-flight $C_B'$ when Alice rotates her signing key
-  between messages (3) and a later presentation at $B$. (Gap: cross-boundary key
-  rotation, \S\ref{sec:gaps}.)
-\item \openstar Specify replay protection across the boundary: is the
-  \textit{anchor id} a nonce? Does $B$ reject a re-presented message (3)? State the
-  freshness invariant.
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Federation: trading across machines you don't own}\label{sec:federation}\label{sec:fh-admission}
@@ -948,7 +868,7 @@ via a slashable bond.}
 
 The convergence and detection bounds smuggle in \emph{partial synchrony}
 (\textbf{Dwork--Lynch--Stockmeyer}~1988~\cite{dls1988}, the canonical escape from
-FLP): ``gossip every $\Delta$'' \emph{is} an eventual-synchrony assumption, and we
+FLP): ``gossip every $\Delta$'' is an eventual-synchrony assumption, and we
 state it as such rather than burying it.
 
 \subsection{Settlement and the cross-chain-deals lineage}\label{sec:fh-settlement}
@@ -968,7 +888,7 @@ locate it there explicitly rather than reinvent it.
 \begin{conjecture}[Trustless cross-harbor settlement]\label{conj:trustless}\label{thm:fh-escrow-bound}
 Trustless settlement for \emph{non-fungible, reputation-priced} bonds is impossible
 (unlike HTLC for fungible value). Proving or refuting this is the deepest crypto-
-economic question in the layer. (\Open{}.)
+economic question in the layer. (\openmark{}.)
 \end{conjecture}
 
 \subsection{Revocation gossip and the equivocation race}\label{sec:fh-revocation}\label{sec:revocation}
@@ -1023,22 +943,10 @@ worst-case cost of the damage it underwrites), and we state it as a target:
 The witness bond must dominate the maximum value spendable against a revoked-but-not-
 yet-converged capability across the \emph{worst-case} (not expected) detection
 window. Without it, a well-capitalized adversary can rationally equivocate, extract,
-and eat the slash. (\Open{}; analogue of the proven cleanup lower bound.)
+and eat the slash. (\openmark{}; analogue of the proven cleanup lower bound.)
 \end{conjecture}
 
 \input{figures/fig-fh-threat-bands}
-
-\begin{exercises}
-\item The convergence bound is $\Delta(1+\ln m)$ \emph{expected}. Name the two
-  assumptions that make it false in the adversarial setting, and the partial-
-  synchrony assumption that rescues a weaker version.
-\item Trace a revoked capability through Figure~\ref{fig:fh-revocation}: at which
-  harbor, and at what time, can it still be spent? That window is what
-  Conjecture~\ref{conj:eq-bound} must price.
-\item \openstar State and (attempt to) prove the Equivocation Lower Bound for a
-  three-harbor mesh under a fixed gossip period $\Delta$ and a single equivocating
-  witness.
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Reputation: monotone, but revocable}\label{sec:reputation}\label{sec:ic}
@@ -1125,17 +1033,6 @@ became exogenous again not because Judy was honest but because lying was bonded 
 the re-audit made it expensive --- and the recursion stops at the second panel,
 whose own evidence is machine-checkable (the same diff, the same tests).
 
-\begin{exercises}
-\item State the exact assumption Theorem~\ref{thm:folk} needs about the public
-  signal, and explain why a capturable grader violates it.
-\item Classify three settlement criteria as machine-checkable (Fix A) or judge-
-  dependent (Fix B): a unit test passing; a merged SHA; ``the refactor is
-  tasteful.''
-\item \openstar Prove the rate-the-raters recursion terminates: define a well-
-  founded order on ``levels of judge,'' grounded at machine-checkable oracles, and
-  show no infinite ascending chain of ``judges judging judges'' is needed.
-\end{exercises}
-
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Hosted trust is the product}\label{sec:hosted-trust}
 % ═══════════════════════════════════════════════════════════════════════════════
@@ -1199,7 +1096,7 @@ tail reinsurance), not a per-transaction bond. The \emph{form} of the answer is
 determined; only the reserve formula is open.
 \end{proposition}
 
-\subsection{Cartels and wash-trading}\label{sec:fh-failure-modes}
+\subsection{Cartels and wash-trading}\label{sec:fh-failure-modes}\label{sec:fh-lim-cartel}
 
 \input{figures/fig-cartel-game-inline}
 
@@ -1212,19 +1109,6 @@ marginal value is endogenous to the same market. The fix is a structural break:
 make settled outcomes between a counterparty \emph{pair} exhibit sharply diminishing
 reputation returns (a concavity that caps the wash-trade payoff regardless of
 price), plus sampled adversarial re-audit of high-velocity pairs.
-
-\begin{exercises}
-\item Which side should Phase~1 subsidize, and why? Apply the ``scarcest cross-side
-  externality'' rule.
-\item Use Figure~\ref{fig:cartel-game-inline} to identify the grim-trigger
-  condition under which the cartel is self-sustaining. What raises the critical
-  discount factor $\delta$ enough to break it?
-\item \openstar ``Price of anarchy when reputation is for sale'' is the wrong tool:
-  once reputation is tradeable, you have changed the game, so PoA (a ratio for a
-  \emph{fixed} game) does not apply. Reframe it as a \emph{signal-existence}
-  question (Spence-signaling with a resale market): does \emph{any} informative
-  separating equilibrium survive reputation resale?
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{The sheaf-gluing problem (one question, three guises)}\label{sec:sheaf}
@@ -1243,24 +1127,13 @@ on overlaps (cross-harbor conservation). The double-spend / equivocation race is
 obstruction to gluing local-consistent ledgers into one global-consistent state.
 Open Problems on settlement (Conj.~\ref{conj:trustless}), equivocation
 (Conj.~\ref{conj:eq-bound}), and unit-of-account
-(Theorem~\ref{thm:lax}) are this single obstruction. (\Open{}.)
+(Theorem~\ref{thm:lax}) are this single obstruction. (\openmark{}.)
 \end{conjecture}
 
 This earns the Spivak/applied-category-theory citation honestly rather than
 decoratively (\textbf{Fong \& Spivak}, \emph{Seven Sketches in
 Compositionality}~\cite{fong2019}): it sharpens three vague problems into one precise
 one and tells a defense exactly what it must kill --- the $H^1$ class.
-
-\begin{exercises}
-\item In one sentence each, restate Conjectures~\ref{conj:trustless},
-  \ref{conj:eq-bound}, and Theorem~\ref{thm:lax} as facets of the gluing
-  obstruction.
-\item Why is double-spend ``$H^1 \ne 0$'' and not ``$H^0 \ne 0$''? (Hint: $H^0$ is
-  global sections; $H^1$ is the obstruction to building one.)
-\item \openstar Either exhibit a defense that forces $H^1 = 0$ for a bounded gossip
-  topology, or prove no such defense exists without consensus (which would refute
-  the federation thesis's no-consensus stance).
-\end{exercises}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Gaps the design must still close}\label{sec:gaps}
@@ -1274,7 +1147,7 @@ defended; they are holes.
     efficiency judged by separate experts'' has no specified combination rule.
     Categorically, it is a functor into a product object with no chosen universal
     map to $\mathbb{R}$; you cannot have ``separate axes'' and ``one buyer-readable
-    score'' without specifying the cone. (\Vision{}.)
+    score'' without specifying the cone. (\openmark{}.)
   \item \textbf{Float-plan amendment under scope drift.} The four states assume the
     acceptance criteria were right. Mid-flight re-specification needs a re-sign
     protocol with escrow top-up/refund delta, preserving conservation.
@@ -1393,12 +1266,13 @@ on sand.
 The body of this paper is deliberately implementation-agnostic. This appendix
 records, for the reader who wants to check the claims against running code, exactly
 which mechanisms are shipped in the reference implementation, which are specified
-with a proof or a written protocol, and which are still proposed. The single-line
-summary: an \Built{} conserving bond ledger, an \Built{} continuity organ (episodic
-memory), a \BuiltWeak{} checkpoint, and a richly \Designed{}-and-model-verified
-protocol stack --- but the spine the market trades on (cross-operator identity
-$\to$ outcome ledger $\to$ reputation) is \Designed{}-to-\Vision{}. Today the harbor
-economy is a two-sided market with a proof-backed roadmap to three.
+with a proof or a written protocol, and which are still open. The single-line
+summary: a \built{} conserving bond ledger, a \built{} continuity organ (episodic
+memory), a checkpoint that is \built{} but weak (it passes notes, not live state),
+and a \designed{}, model-verified protocol stack --- but the spine the market trades
+on (cross-operator identity $\to$ outcome ledger $\to$ reputation) is \designed{},
+proof open. Today the harbor economy is a two-sided market with a proof-backed
+roadmap to three.
 
 \begin{table}[H]
 \centering
@@ -1412,34 +1286,34 @@ test exercising the invariant.}
 \toprule
 \textbf{Claim / mechanism} & \textbf{State} & \textbf{Grounding} \\
 \midrule
-Bond ledger: escrow, slash, commons pool & \Built{} & bond-ledger module
+Bond ledger: escrow, slash, commons pool & \built{} & bond-ledger module
   (\texttt{lib/bonds.ts}) \\
-Conservation $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ & \Built{} &
+Conservation $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$ & \built{} &
   10k-trace property test \\
-No-spawn-without-bond & \BuiltWeak{} & escrow-first; runtime gate is a roadmap item \\
-Episodic memory (continuity organ 1) & \Built{} & episodic-memory module \\
-Resurrection / checkpoint (organ 2) & \BuiltWeak{} & passes notes, not state \\
-Outcome ledger (organ 3 --- reputation keys here) & \Designed{} & commitment module
+No-spawn-without-bond & \built{} & escrow-first; runtime gate is a roadmap item \\
+Episodic memory (continuity organ 1) & \built{} & episodic-memory module \\
+Resurrection / checkpoint (organ 2) & \built{} & weak: passes notes, not live state \\
+Outcome ledger (organ 3 --- reputation keys here) & \designed{} & commitment module
   (specified; partial) \\
-Local non-forgeable identity (intra-harbor) & \Designed{} & specified, not shipped \\
-Cross-operator attestation & \Designed{}/\Vision{} & no spec for the load-bearing part \\
-Float plan $+$ signed escrow ceremony & \Designed{} & Protocol~\ref{prot:escrow} \\
-Cross-harbor capability transfer (attenuation) & \Designed{} & verified \emph{as model};
+Local non-forgeable identity (intra-harbor) & \designed{} & specified, not shipped \\
+Cross-operator attestation & \designed{} & no spec for the load-bearing part \\
+Float plan $+$ signed escrow ceremony & \designed{} & Protocol~\ref{prot:escrow} \\
+Cross-harbor capability transfer (attenuation) & \designed{} & verified as model;
   Protocol~\ref{prot:xfer} \\
-Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \Designed{}/\Vision{} &
+Reputation estimator (Elo / Bradley--Terry / TrueSkill) & \designed{} &
   no estimator shipped \\
-Multi-dimensional reputation, neutral judges & \Vision{} & no axis-aggregation spec \\
-Three-sided market (labor / rental / licensing) & \Designed{} & two-sided in reality \\
-Skill licensing (metered $+$ clawback $+$ Merkle proof) & \Designed{} &
+Multi-dimensional reputation, neutral judges & \openmark{} & no axis-aggregation spec \\
+Three-sided market (labor / rental / licensing) & \designed{} & two-sided in reality \\
+Skill licensing (metered $+$ clawback $+$ Merkle proof) & \designed{} &
   cross-harbor verifiability undeployed \\
-Federation: witness log, capability transfer & \Designed{} & companion federation paper \\
-Bounded escrow (extraction $\le \varphi$) & \Designed{} (theorem) &
-  trustless variant conjectured impossible \\
-Cross-harbor conservation & \Designed{} (property) & proof sketch
+Federation: witness log, capability transfer & \designed{} & full proofs in \emph{The Federated Harbor} (Beam C) \\
+Bounded escrow (extraction $\le \varphi$) & \designed{} & theorem; trustless
+  variant conjectured impossible \\
+Cross-harbor conservation & \designed{} & property proof sketch
   (App.~\ref{app:proofs}) $+$ TLA\textsuperscript{+} \\
-Federated revocation convergence & \Designed{} (theorem) & equivocation race \Open{} \\
-Hosted-trust moat / rail separation & \Designed{} (positioning) & not a code artifact \\
-Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
+Federated revocation convergence & \designed{} & theorem; equivocation race open \\
+Hosted-trust moat / rail separation & \designed{} & positioning, not a code artifact \\
+Competitive underwriting (4th side) & \openmark{} & composition unresolved \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1447,7 +1321,7 @@ Competitive underwriting (4th side) & \Vision{} & composition unresolved \\
 \section{Proof sketches}\label{app:proofs}
 
 We sketch the three load-bearing results; full proofs of the conservation results
-appear in the companion federation paper.
+appear in \emph{The Federated Harbor} (Beam C).
 
 \begin{proof}[Proof sketch of Theorem~\ref{thm:functor} (single-unit federation is a
 conservative functor)]
@@ -1490,6 +1364,11 @@ allocation strictly below first-best. The AGV escape is declined because it buys
 budget balance and Bayesian-IC at the cost of individual rationality, which is
 non-negotiable for a voluntary federation.
 \end{proof}
+
+\vspace{6pt}
+\noindent\emph{Exercises, traces, and open problems for this paper --- with worked
+solutions --- are in the Harbor Volume Workbook, Part IV.}
+
 % ═══════════════════════════════════════════════════════════════════════════════
 \begin{thebibliography}{99}
 % ═══════════════════════════════════════════════════════════════════════════════

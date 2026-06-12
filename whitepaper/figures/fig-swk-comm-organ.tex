@@ -27,35 +27,33 @@
 \node[box,built,fill=hhsand!30,minimum width=88mm,minimum height=42mm,anchor=north west] (l0env) at (0,0) {};
 \node[anchor=north west,align=left,text width=82mm,font=\small]
   at ([xshift=2.5mm,yshift=-2mm]l0env.north west)
-  {{\bfseries The bus envelope}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
+  {{\bfseries The bus envelope}\hfill{\footnotesize built}\\[2pt]
    durable, ordered, at-least-once;\\ channel publish/subscribe + history cursor};
 \node[box,designed,fill=hhpaper,text width=72mm,anchor=north west] (l1perf) at (5mm,-24mm)
-  {{\bfseries Typed speech act (rides \emph{inside})}\hfill{\footnotesize\textsf{specified}}\\[2pt]
+  {{\bfseries Typed speech act (rides \emph{inside})}\hfill{\footnotesize designed}\\[2pt]
    a performative, a conversation id,\\ a coordination lineage, a reply deadline};
 
 % ─── Stigmergic-marker decay panel ────────────────────────────────────────
 \node[box,built,fill=hhsand!30,text width=66mm,minimum height=42mm,anchor=north west] (pher) at (94mm,0)
-  {{\bfseries Stigmergic markers}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
+  {{\bfseries Stigmergic markers}\hfill{\footnotesize built}\\[2pt]
    numeric coordination signals in shared state;\\
    per-kind exponential decay $w \cdot r^{\,\Delta t}$,\\
    computed on a background tick \emph{and} at read time};
 
-% ─── The two delegation objects (nomenclature fix) ────────────────────────
-\node[box,built,fill=hhsand!30,text width=78mm,anchor=north west] (authchain) at (0,-50mm)
-  {{\bfseries Authorization chain}\hfill{\footnotesize\textsf{implemented}, verified}\\[2pt]
-   a chain of digital signatures.\\ \emph{Proves who authorized whom.}};
-\node[box,designed,fill=hhpaper,text width=78mm,anchor=north west] (deltrace) at (94mm,-50mm)
-  {{\bfseries Coordination lineage}\hfill{\footnotesize\textsf{specified}}\\[2pt]
-   the task-lineage for loop detection.\\ \emph{Prevents ping-pong.}};
-
-\draw[->,>=Latex,thick,hhink] (deltrace.west) --
-  node[above,font=\scriptsize,align=center]{carried \emph{inside}}
-  (authchain.east);
+% ─── The two delegation objects: lineage drawn literally INSIDE the chain ──
+\node[box,built,fill=hhsand!30,text width=150mm,minimum height=30mm,anchor=north west] (authchain) at (0,-50mm)
+  {{\bfseries Authorization chain}\hfill{\footnotesize built, verified}\\[2pt]
+   a hop-bound, attenuation-monotonic chain of digital signatures.
+   \emph{Proves who authorized whom.}};
+\node[box,designed,fill=hhpaper,text width=92mm,anchor=south west]
+  at ([xshift=4mm,yshift=4mm]authchain.south west) (deltrace)
+  {{\bfseries Coordination lineage (rides \emph{inside})}\hfill{\footnotesize designed}\\[2pt]
+   the task-lineage for loop detection. \emph{Prevents ping-pong.}};
 
 \end{tikzpicture}%
 }
 \caption{The communication organ. The \textbf{bus} envelope --- durable, ordered,
-at-least-once, history-cursored (\textsf{implemented}) --- is the carrier
+at-least-once, history-cursored (built) --- is the carrier
 \emph{into which} the typed speech act is layered; the kernel ships the envelope,
 the coordination layer ships the semantics that ride inside it. \textbf{Stigmergic
 markers} implement coordination with per-kind exponential decay computed both on a

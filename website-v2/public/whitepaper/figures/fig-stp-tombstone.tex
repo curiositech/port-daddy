@@ -7,6 +7,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -20,13 +21,13 @@
 % the append-only ledger
 \node[row,fill=hhsand!30] (e1) at (0,0.8) {outcome $o_1$\\{\scriptsize honest}};
 \node[row,fill=hhsand!30,right=5mm of e1] (e2) {outcome $o_2$\\{\scriptsize honest}};
-\node[row,fill=hhsand!30,right=5mm of e2] (e3) {outcome $o_3$\\{\scriptsize \textcolor{hhcobalt}{fraudulent}}};
+\node[row,fill=maydayred!10,draw=maydayred,right=5mm of e2] (e3) {outcome $o_3$\\{\scriptsize \textcolor{maydayred}{fraudulent}}};
 \node[row,fill=hhsand!30,right=5mm of e3] (e4) {outcome $o_4$\\{\scriptsize honest}};
-\node[row,fill=hhsand!30,draw=hhcobalt,right=5mm of e4] (t) {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
+\node[row,fill=hhsand!30,draw=hhebony,right=5mm of e4] (t) {\textbf{tombstone}\\{\scriptsize nullifies $o_3$}};
 \draw[arr] (e1)--(e2); \draw[arr] (e2)--(e3); \draw[arr] (e3)--(e4); \draw[arr] (e4)--(t);
 
 % tombstone points back at o3
-\draw[->,>=Latex,thick,draw=hhcobalt,dashed]
+\draw[->,>=Latex,thick,draw=hhebony,dashed]
   (t.north) .. controls ($(t.north)+(0,9mm)$) and ($(e3.north)+(0,9mm)$) .. (e3.north)
   node[pos=0.5,above=7mm,font=\scriptsize,text=hhink] {compensates (saga)};
 
@@ -36,7 +37,7 @@
 place). A fraudulent outcome is not deleted (that would break append-only and
 auditability); it is nullified by an appended \emph{tombstone} --- a saga-style
 compensating entry --- which propagates across harbors bounded by the
-revocation-convergence window (Paper~4); the poisoned point was spendable only
+revocation-convergence window (Floor~4 --- Harbor Economy); the poisoned point was spendable only
 during that window. ``Reputation never ends'' is corrected to: monotone in
 \emph{honest} outcomes (they are never silently erased), individually revocable via
 tombstone, with bounded memory (Liu--Skrzypacz) as a tunable parameter rather than a

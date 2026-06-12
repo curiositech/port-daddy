@@ -36,6 +36,8 @@
 \definecolor{hhamber}{HTML}{6B4500}
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
+\definecolor{hhgray}{HTML}{5C5650}
+\definecolor{maydayred}{HTML}{8B0000}
 
 % Verification-status markers for the Appendix A status table.
 \newcommand{\Closed}{{\textcolor{hhteal}{\textbf{\textsf{closed}}}}}
@@ -119,7 +121,7 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Bonded Commons}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v3.13.0 --- pre-release}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Beam~B: Bonded Commons \textperiodcentered\ pre-release}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -163,18 +165,17 @@ Two autonomous agents working on the same project corrupt each other's state, do
 
 \vspace{0.6cm}
 
-% --- Series locator box (identical template across all three papers) ----------
+% --- Series locator box (identical banner across every paper in the volume) ---
 \begin{center}
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE PORT DADDY TRILOGY\hfill PAPER~I~OF~III}}\\[5pt]
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE HARBOR VOLUME}\hfill\textcolor{hhebony!70}{four Floors (explain) $\times$ four Beams (prove)}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  {\color{hhcobalt}\textbf{I.~The Bonded Commons \textnormal{(this paper)}.}}~\emph{Why} mutually-suspicious agents need a pre-transactional \emph{commons authority}: bonded participation, an immutable evidence trail, and a value-conservation law. The economic and governance case for coordination at all.\\[4pt]
-  \textbf{II.~The Anchor Protocol.}~\emph{How} a single process proves its identity and attenuates its capability to the local daemon --- a formally verified (ProVerif, Kani) capability substrate, scoped to one machine.\\[4pt]
-  \textbf{III.~The Federated Harbor.}~How identity, revocation, and settlement compose \emph{across sovereign machines} when no operator is a root of authority for any other --- the federation layer.\\[6pt]
+  The volume is one building on two axes. Its \textbf{Floors} climb the vision --- Kernel, Legibility, Personhood, Economy --- and its \textbf{Beams} cross it with proof: identity and capability, conservation and bonding, federation.\\[5pt]
+  {\color{hhcobalt}\textbf{This paper: Beam~B --- Conservation \& bonding.}}~Walls, not laws: a correlated-equilibrium sovereign for mutually-suspicious agents. \textsc{$\square$ designed.}\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize You are reading \textbf{Paper~I}, the economic foundation of the series; it can be read first or on its own.}
+  {\footnotesize It can be read first or on its own; Beam~A (Anchor Protocol) supplies the cryptographic substrate this paper consumes.}
 };
 \end{tikzpicture}
 \end{center}
@@ -185,13 +186,13 @@ Two autonomous agents working on the same project corrupt each other's state, do
 \section*{Reader's Map}\label{sec:readers-map}
 % ═══════════════════════════════════════════════════════════════════════════════
 
-The paper builds in four layers; each layer carries a load-bearing theorem or empirical result. If you have less than 50 minutes, the table below tells you where to start.
+The paper builds in four tracks; each carries a load-bearing theorem or empirical result. The four tracks use distinct primitives and can be read independently; the table below maps them. If you have less than 50 minutes, start at the track that matches your question.
 
 \vspace{0.4cm}
 \noindent
 \begin{tabular}{p{3.5cm} p{8.5cm} p{3.5cm}}
 \toprule
-\textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
+\textbf{Track} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
 \midrule
 \textbf{(1) Structural prevention} & Capability-attenuated tokens; ProVerif proofs of algorithm-confusion immunity and delegation replay resistance & \S\ref{sec:structural}--\S\ref{sec:isolation}; companion Anchor paper \\
 \textbf{(2) Immutable attribution} & Merkle Forest with cross-daemon inclusion proofs; EasyCrypt binding mechanization (\texttt{binding.ec}) & \S\ref{sec:merkle-forest}; Appendix~\ref{app:mech} \\
@@ -308,7 +309,7 @@ Port Daddy's daemon implements a correlating device for the agent-coordination g
 \end{enumerate}
 \end{property}
 
-The reframe is what turns the paper's headline result from a description into a guarantee. Earlier drafts called the daemon ``advisory, not enforcing'' and stopped---leaving the reader to ask the obvious question: what stops the agents from ignoring the advice? The correlated-equilibrium reading answers: nothing stops them, and nothing needs to. The recommendation distribution and the bond structure jointly leave each agent's incentive constraint slack at obedience. Enforcement is the wrong frame; mechanism design is the right one. The detailed deviation analysis lives in Section~\ref{sec:economic}; the safety and liveness properties of the lifecycle are checked formally in Section~\ref{sec:tlaplus}.
+The reframe is what turns the paper's headline result from a description into a guarantee. The correlated-equilibrium reading answers the obvious question immediately: nothing stops them, and nothing needs to. The recommendation distribution and the bond structure jointly leave each agent's incentive constraint slack at obedience. Enforcement is the wrong frame; mechanism design is the right one. The detailed deviation analysis lives in Section~\ref{sec:economic}; the safety and liveness properties of the lifecycle are checked formally in Section~\ref{sec:tlaplus}.
 
 A consequence worth surfacing: the \emph{price of anarchy} of this game---worst-case ratio of social cost at any correlated equilibrium to the social optimum---is one to one in the limit where bonds cover full cleanup cost and reputation noise is bounded. The simulation evidence of \S\ref{sec:youle:welfare} supports this empirically for $\sigma_r \le 0.1$. The analytical bound under realistic reputation noise is open; we do not close it here.
 
@@ -670,7 +671,7 @@ The Float Plan does not make sabotage impossible. It makes sabotage \emph{expens
 
 \subsection{Truthful Claim Signaling as Nash Equilibrium}\label{sec:claim-signaling-ic}
 
-The bond machinery above prices \emph{outcomes}: an agent that destroys files pays for the destruction. The paper's headline claim, however, is upstream of outcomes---that truthful file-claim signaling (\S\ref{sec:attribution-survives}, \S\ref{sec:advisory}) is incentive-compatible in the first place. The cartel analysis of \S\ref{sec:youle:a6} works that argument out for insurer pricing. The corresponding argument for the claim signal itself has been carried on faith until now. This subsection closes that gap.
+The bond machinery above prices \emph{outcomes}: an agent that destroys files pays for the destruction. The paper's headline claim is upstream of outcomes---that truthful file-claim signaling (\S\ref{sec:attribution-survives}, \S\ref{sec:advisory}) is incentive-compatible in the first place. Truthful claim signaling is incentive-compatible; we prove it here. The cartel analysis of \S\ref{sec:youle:a6} works the parallel argument for insurer pricing.
 
 \paragraph{Stage game.}
 Consider two agents $A$ and $B$ working on a shared project, deciding per round on each file whether to signal:
@@ -738,7 +739,7 @@ Under the observable-history regime of \S\ref{sec:attribution} and the Sybil-res
 The proposition is conditional, and the conditions matter. Naming what each one is doing makes the dependency on the rest of the architecture explicit rather than implicit.
 \begin{itemize}[nosep]
   \item \emph{Remove observable history (\S\ref{sec:attribution}).} The repeated game collapses to repeated one-shot play: with no public record of prior actions, no trigger can fire, and both players play $F$ in every round. This is why the Merkle forest of \S\ref{sec:merkle-forest} is load-bearing for the claim signal, not just for post-hoc audit.
-  \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible. The Anchor protocol is therefore a precondition of this proposition, not an unrelated artifact; the audit caught that this dependency had been implicit.
+  \item \emph{Remove persistent identity (Anchor~\cite{owens2026anchor}).} An agent who can re-register after each defection effectively faces $\delta = 0$: future punishment falls on a discarded identity. Cooperation is impossible. The Anchor protocol is therefore a precondition of this proposition, not an unrelated artifact.
   \item \emph{Drop $\delta$ below $\delta^\star_{k=3} \approx 0.253$.} The three-round graduated trigger is insufficient. Either lengthen the punishment window (each additional round buys further headroom, asymptoting to the grim-trigger bound of $1/4$) or accept that the equilibrium does not bind for very short-lived principals. The latter is the regime where one-shot defectors (\S\ref{sec:crash-recovery}, the first adversary) live; \S\ref{sec:economic} prices them out rather than relying on equilibrium discipline.
   \item \emph{Drop $\delta$ below $1/4$.} No trigger of any duration sustains $(T, T)$. The repeated game has the same equilibrium structure as the stage game, and only the bond mechanism of this section, not the signal itself, deters defection.
 \end{itemize}
@@ -889,7 +890,7 @@ The pricing function $\pi$ resolves to one of three nominal bands, calibrated to
 \end{itemize}
 A Monte Carlo sweep over the cross product of seven plausible threat-distribution mixes and the three bands quantifies defensibility: for every \emph{matched} (mix, band) pair---where the mix concentrates on the class the band is designed to defend against---observed extraction stays within $1.10\times$ the band's upper bound (10\% stochastic tolerance). Off-diagonal cells (e.g. a sabotage-heavy mix posted against the careless band) are surfaced as widening recommendations rather than silent failures. The simulation is mechanized as \texttt{proofs/bonded/pareto/threat-bands.mjs} and runs on every PR (\S\ref{app:mech}, Table~\ref{tab:verification-status}).
 
-\subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft pending economist review of \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}}\label{sec:youle}
+\subsubsection{Competitive-Insurance Pricing Mechanism\protect\footnote{This subsection contributed by Thomas Youle (Indiana University, Business Economics \& Public Policy) based on conversations with the primary author in March--April 2026. The mechanism builds on classical competitive-insurance market literature~\cite{rothschildstiglitz1976,wilson1977insurance} adapted to the agent-transactions setting. The text here is a pre-print draft; formal economist write-up forthcoming for \S\ref{sec:youle:mechanism}--\S\ref{sec:youle:welfare}.}}\label{sec:youle}
 
 \paragraph{The mechanism.}\label{sec:youle:mechanism}
 Instead of a static bond size $B(\pi, r, s)$ selected by the commons authority (\S\ref{sec:scope-multiplier}), allow a market of \emph{insurer agents} to bid on underwriting each agent transaction. An insurer $I$ offers a quote $(q_I, c_I)$ where $q_I$ is the required premium and $c_I$ is the claim ceiling.
@@ -1594,5 +1595,8 @@ Vitalik Buterin.
 \newblock Ethereum white paper, 2014.
 
 \end{thebibliography}
+
+\vspace{0.8cm}
+\noindent\emph{Exercises, traces, and open problems for this paper --- with worked solutions --- are in the Harbor Volume Workbook, Part~VI.}
 
 \end{document}

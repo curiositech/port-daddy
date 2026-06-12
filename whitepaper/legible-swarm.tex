@@ -33,6 +33,7 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 \definecolor{hhgray}{HTML}{5C5650}
+\definecolor{maydayred}{HTML}{8B0000}
 
 % Honest-label markers (ADR-0045 discipline; one key for the whole volume).
 % Muted ink throughout; the four states differ by WEIGHT and SMALL-CAPS, never
@@ -158,14 +159,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\itshape\color{hhgray} The Legible Swarm}
 \fancyhead[R]{\small\color{hhgray}\thepage}
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 1 of 4}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Floor~2: Legibility \textperiodcentered\ v1.0 (pre-print)}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{The Harbor Volume --- Paper 1 of 4}}\\[0.5cm]
+  {\Large\textsc{The Harbor Volume --- Floor 2: Legibility}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Legible Swarm:}}\\[0.2cm]
   {\Large A Consented Local Leviathan, Legibility-with-Zoom,\\and the Read-Poverty Bottleneck of Agent Swarms}\\[0.3cm]
@@ -228,11 +229,27 @@ attention, Hobbes, Scott
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 45 minutes end-to-end; about 12
 minutes for the wedge argument (\S\ref{sec:intro}--\ref{sec:zoom}) alone. This is
-the flagship of a four-paper volume. The companion papers are \emph{The Anchor
-Protocol / The Harbor Daemon} (Paper~2, the kernel and crypto substrate this paper
-assumes), \emph{From Spawn to Person} (Paper~3, identity~$\to$~reputation), and
-\emph{The Harbor Economy} (Paper~4, the market). Any paper can be read first;
+Floor~2 of the Harbor Volume. The companion papers are \emph{The Anchor
+Protocol / The Harbor Daemon} (Beam~A, the kernel and crypto substrate this paper
+assumes), \emph{From Spawn to Person} (Floor~3, identity~$\to$~reputation), and
+\emph{The Harbor Economy} (Floor~4, the market). Any paper can be read first;
 Figure~\ref{fig:stack-map} shows how they interlock.}
+
+\vspace{0.4cm}
+% --- Series locator box (identical banner across every paper in the volume) ---
+\begin{center}
+\begin{tikzpicture}
+\node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
+      inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE HARBOR VOLUME}\hfill\textcolor{hhebony!70}{four Floors (explain) $\times$ four Beams (prove)}}\\[5pt]
+  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
+  The volume is one building on two axes. Its \textbf{Floors} climb the vision --- Kernel, Legibility, Personhood, Economy --- and its \textbf{Beams} cross it with proof: identity and capability, conservation and bonding, federation.\\[5pt]
+  {\color{hhcobalt}\textbf{This paper: Floor~2 --- Legibility.}}~A coding-agent swarm is Hobbes' state of nature; consent to a local Leviathan --- and the digest-with-zoom loop that keeps it legible. \textsc{$\blacksquare$ built.}\\[6pt]
+  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
+  {\footnotesize This is the flagship of the volume: the Kernel (Floor~1) is the substrate; Personhood (Floor~3) and the Economy (Floor~4) rest on the legibility primitives proved here. Any Floor can be opened first.}
+};
+\end{tikzpicture}
+\end{center}
 
 \vspace{0.3cm}
 \input{figures/legible-swarm-stack-map}
@@ -2148,6 +2165,9 @@ avoided.
 boot-gate-enforced states only (Prop.~\ref{prop:regiment}); a detect-and-compensate
 monitor never earns the phrase.
 \end{itemize}
+
+\vspace{0.8cm}
+\noindent\emph{Exercises, traces, and open problems for this paper --- with worked solutions --- are in the Harbor Volume Workbook, Part~II.}
 
 \end{document}
 

@@ -14,6 +14,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -21,7 +22,7 @@
 \begin{tikzpicture}[
   font=\sffamily\small,
   ring/.style={draw=hhebony,thick,rounded corners=6pt,align=center,inner sep=10pt},
-  ringtitle/.style={font=\sffamily\bfseries\small,align=center,
+  ringtitle/.style={font=\sffamily\small,align=center,
                     fill=hhpaper,inner sep=2pt},
   ringsub/.style={font=\sffamily\footnotesize\itshape,align=center,
                   fill=hhpaper,inner sep=1.5pt,text=hhink},
@@ -31,17 +32,17 @@
   okarr/.style={->,>=Latex,thick,draw=hhink},
   bondarr/.style={->,>=Latex,thick,draw=hhamber,line width=1.2pt},
   refund/.style={->,>=Latex,thick,draw=hhteal,line width=1.2pt},
-  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed,line width=1.1pt},
+  badarr/.style={->,>=Latex,thick,draw=maydayred,line width=1.1pt},
   okxlbl/.style={font=\sffamily\bfseries\footnotesize,text=hhink,
                  fill=hhpaper,inner sep=1.5pt},
-  wallnote/.style={font=\sffamily\bfseries\footnotesize,text=hhcobalt,
+  wallnote/.style={font=\sffamily\bfseries\footnotesize,text=maydayred,
                    fill=hhpaper,inner sep=1.5pt,align=center},
   pricenote/.style={font=\sffamily\footnotesize\itshape,text=hhamber,
                     fill=hhpaper,inner sep=1.5pt,align=center},
   invariant/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
                     align=left,inner sep=6pt,
                     font=\sffamily\footnotesize},
-  stopmark/.style={circle,draw=hhcobalt,fill=hhcobalt,inner sep=0pt,
+  stopmark/.style={circle,draw=maydayred,fill=maydayred,inner sep=0pt,
                    minimum size=5pt},
 ]
 % ───────────────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@
 % (i) Unauthorized action — red dashed arrow, BLOCKED at L1's southern boundary.
 % Place principal well below L3 so the stop is clearly outside L1.
 % ───────────────────────────────────────────────────────────────────────────
-\node[actor,fill=hhcobalt!22,draw=hhcobalt,
+\node[actor,fill=maydayred!10,draw=maydayred,
       below=20mm of L3.south,xshift=-30mm]
   (bad1) {Unauthorized\\action};
 \coordinate (badStop) at ($(L1.south)+(-12mm,-3mm)$);
@@ -127,7 +128,7 @@
 % ───────────────────────────────────────────────────────────────────────────
 \node[invariant,below=10mm of bad1.south,xshift=30mm,text width=128mm]
   {{\bfseries Composition (defense in depth):}\quad
-   {\color{hhcobalt}$\bullet$} \textbf{L1 prevents} unauthorized acts \emph{(walls, not laws)}\quad
+   {\color{maydayred}$\bullet$} \textbf{L1 prevents} unauthorized acts \emph{(walls, not laws)}\quad
    {\color{hhteal}$\bullet$} \textbf{L2 records} every authorized act \emph{(tamper-evident lineage)}\quad
    {\color{hhamber}$\bullet$} \textbf{L3 prices} authorized-but-harmful acts \emph{(bond pays for damage)}.\quad
    No layer is sufficient alone; each closes a failure mode the others cannot.};

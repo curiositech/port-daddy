@@ -8,6 +8,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -19,7 +20,7 @@
   prin/.style={draw=hhebony,thick,fill=hhcobalt!30,rounded corners=2pt,
                inner sep=4pt,font=\sffamily\bfseries\footnotesize,align=center},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  na/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  na/.style={->,>=Latex,line width=1.3pt,draw=maydayred},
 ]
 % Outermost capability: root cap from daemon (80mm wide, 56mm tall, centered).
 \node[capring,fill=hhsand,minimum width=80mm,minimum height=56mm] (root) at (0,0)
@@ -56,10 +57,11 @@
 \node[prin,above=8mm of invbox.north,fill=hhcobalt!30] (daemon) {Daemon};
 \draw[arr] (daemon.south west) -- node[left,font=\sffamily\footnotesize] {issue}
   (root.north east);
-% Forbidden grant attempt
-\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
-      below=6mm of agentB,align=center]
-  (forbid) {AgentB cannot grant \texttt{net:*} downstream};
+% Forbidden grant attempt — blocked path: mayday-red arrow into a crossed node.
+\node[draw=maydayred,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      font=\sffamily\footnotesize\bfseries,text=maydayred,
+      below=9mm of agentB,align=center]
+  (forbid) {{\large\boldmath$\times$}\ AgentB cannot grant\\ \texttt{net:*} downstream};
 \draw[na] (agentB.south) -- (forbid.north);
 \end{tikzpicture}%
 }
