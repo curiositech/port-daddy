@@ -177,6 +177,19 @@ html:not([data-type-theme]) .font-black {
   font-weight: 800;
 }
 
+/* Normalize apparent text size across all type themes: every theme's body
+   renders at Recursive's measured x-height ratio (0.526), so swapping
+   themes compares letterforms, not accidental size differences. */
+body {
+  font-size-adjust: 0.526;
+}
+pre,
+code,
+kbd,
+samp {
+  font-size-adjust: none;
+}
+
 /* ---------------------------------------------------------------------------
    Type-theme switcher (feel-out tool, see TypeThemeSwitcher.tsx).
    Default (no attribute) is Recursive, above. Each block swaps the three

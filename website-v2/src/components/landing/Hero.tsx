@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Download, Terminal } from 'lucide-react'
-import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
   return (
@@ -72,27 +71,6 @@ export function Hero() {
               </div>
             </Link>
 
-            {/* Feature pills */}
-            <div className="flex max-w-[34rem] flex-wrap gap-2">
-              {[
-                'Shared state substrate',
-                'Visible ownership',
-                'Fail-closed launches',
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-[var(--radius-sm)] px-3 py-1 text-xs font-semibold"
-                  style={{
-                    background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-
             <div className="flex flex-wrap items-center gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
                 <Link to="/mac-preview#download">
@@ -110,27 +88,29 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- synchronized light/dark capture */}
+          {/* Right -- the system, as the paper draws it */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[6%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
-              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-              <img
-                alt=""
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover"
-                src="/img/generated/agent-runtime-map.jpg"
-              />
-            </picture>
-            <div className="relative z-10">
-              <LiveGloryVideo />
-            </div>
+            <figure className="m-0">
+              <Link to="/whitepaper" className="block border-2 border-[var(--border-strong)] bg-[#FBF7EF] p-[var(--space-4)] no-underline">
+                <img
+                  src="/img/papers/swk-stack-map.png"
+                  alt="Stack map from the Single-Writer Kernel paper: the machine and operating system at the base, the daemon substrate above it, then the coordination protocol for agents, legibility and authority for the operator, and economy and federation at the top."
+                  className="h-auto w-full"
+                  fetchPriority="high"
+                  decoding="async"
+                />
+              </Link>
+              <figcaption className="mt-[var(--space-2)] flex items-baseline justify-between font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                <span>Fig. 1 — the stack, machine to market</span>
+                <Link to="/whitepaper" className="text-[var(--brand-accent)]">
+                  From the papers →
+                </Link>
+              </figcaption>
+            </figure>
           </motion.div>
         </div>
       </PageContainer>
