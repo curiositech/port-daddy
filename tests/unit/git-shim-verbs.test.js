@@ -16,12 +16,12 @@ import { describe, expect, test } from '@jest/globals';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
 
 describe('git shim v3 destructive-verb coverage', () => {
-  test('SHIM_VERSION is bumped to 3', () => {
-    expect(SHIM_VERSION).toBe('3');
+  test('SHIM_VERSION is bumped to 4', () => {
+    expect(SHIM_VERSION).toBe('4');
   });
 
-  test('shim header documents v3', () => {
-    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v3');
+  test('shim header documents v4', () => {
+    expect(GIT_SHIM_CONTENT).toContain('Port Daddy git shim v4');
   });
 
   test('shim intercepts the original v1 verbs', () => {
@@ -67,6 +67,23 @@ describe('git shim v3 destructive-verb coverage', () => {
 
   test('shim refers operators to pd guard status on refusal', () => {
     expect(GIT_SHIM_CONTENT).toContain('pd guard status');
+  });
+
+  // v4 — guardrails never advertise their bypass (ADR-0053 Phase 0b).
+  // The override must keep working and stay audited, but the agent-facing
+  // refusal message must point only at the corrective action, never name
+  // PD_SHIM_OFF. An agent takes whatever exit the error hands it.
+  test('v4: refusal copy points to the corrective action, not the bypass', () => {
+    expect(GIT_SHIM_CONTENT).toContain("coordinate first — 'pd begin'");
+    // The agent-facing "bypass once with PD_SHIM_OFF=1 git" line is gone.
+    expect(GIT_SHIM_CONTENT).not.toContain('bypass once with PD_SHIM_OFF');
+  });
+
+  test('v4: PD_SHIM_OFF bypass still functions and is still audited', () => {
+    // The escape hatch is intact for human operators (header doc) and still
+    // writes destructive-ops.log; only the agent-facing advertisement is gone.
+    expect(GIT_SHIM_CONTENT).toContain('PD_SHIM_OFF:-');
+    expect(GIT_SHIM_CONTENT).toContain('destructive-ops.log');
   });
 
   // -------------------------------------------------------------------------
