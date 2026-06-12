@@ -94,8 +94,11 @@ def analyze_prose(path: Path, text: str):
     if words == 0:
         return out
 
-    # em-dash density (em dash, double hyphen used as one)
-    dashes = text.count("—") + len(re.findall(r"(?<=\w)--(?=\w)", text))
+    # em-dash density (em dash, double hyphen used as one). A line-leading
+    # "—  " is a bullet glyph in many design idioms, not prose punctuation —
+    # count only intra-line dashes.
+    dashes = sum(re.sub(r"^\s*—\s*", "", l).count("—") for l in lines)
+    dashes += len(re.findall(r"(?<=\w)--(?=\w)", text))
     per_100 = dashes / words * 100
     if words > 80 and per_100 > 1.2:
         first = next((i + 1 for i, l in enumerate(lines) if "—" in l or re.search(r"(?<=\w)--(?=\w)", l)), 1)
