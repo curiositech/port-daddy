@@ -10,7 +10,7 @@ import {
   type SyntheticEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { fetchFilePreview, openFileInEditor, revealFileInFinder } from '../api';
+import { fetchFilePreview, fetchFilesExist, openFileInEditor, revealFileInFinder } from '../api';
 import type { FilePreview, FilePreviewLine } from '../types';
 
 interface Props {
@@ -23,6 +23,23 @@ const HOVER_OPEN_DELAY_MS = 120;
 const HOVER_CLOSE_DELAY_MS = 180;
 const PREVIEW_CARD_WIDTH = 420;
 const PREVIEW_CARD_HEIGHT = 320;
+
+// Mention chips come from heuristic path extraction, which occasionally
+// surfaces non-paths (model ids like `ollama/qwen2.5-coder`). Each chip
+// confirms its path exists on disk before rendering; misses vanish silently
+// instead of producing "File not found" errors. Cached per (projectDir, path)
+// for the life of the page so repeated mentions cost one daemon call.
+const fileExistenceCache = new Map<string, Promise<boolean>>();
+
+function checkFileExists(filePath: string, projectDir?: string): Promise<boolean> {
+  const key = `${projectDir ?? ''}|${filePath}`;
+  let pending = fileExistenceCache.get(key);
+  if (!pending) {
+    pending = fetchFilesExist([filePath], projectDir).then((results) => results[filePath] !== false);
+    fileExistenceCache.set(key, pending);
+  }
+  return pending;
+}
 
 /**
  * Map preview line kinds onto the operator palette used in FleetBar.
@@ -120,11 +137,23 @@ export default function FileActionLinks({ filePath, projectDir, compact = false 
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [preview, setPreview] = useState<FilePreview | null>(null);
   const [position, setPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [exists, setExists] = useState<boolean | null>(null);
 
   useEffect(() => {
     setPreview(null);
     setPreviewError(null);
     setPreviewOpen(false);
+  }, [filePath, projectDir]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setExists(null);
+    void checkFileExists(filePath, projectDir).then((value) => {
+      if (!cancelled) setExists(value);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [filePath, projectDir]);
 
   const clearOpenTimer = useCallback(() => {
@@ -251,6 +280,8 @@ export default function FileActionLinks({ filePath, projectDir, compact = false 
     if (!preview) return null;
     return `${previewSourceLabel(preview.source)} • +${preview.additions} / -${preview.deletions}`;
   }, [preview]);
+
+  if (exists !== true) return null;
 
   return (
     <>

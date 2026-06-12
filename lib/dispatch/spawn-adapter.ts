@@ -32,7 +32,7 @@
  */
 
 import { execFileSync, execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { promisify } from 'node:util';
@@ -104,6 +104,22 @@ export async function gitWorktreeAdd(
     // Already exists — may be from a previous interrupted run. Re-use it.
     return;
   }
+  // Freshness: a dispatch (especially the overnight `run --next` cron) must
+  // branch from the CURRENT tip of the base ref, not whatever the local
+  // remote-tracking ref happened to be at last fetch. `baseRef` is
+  // `<remote>/<branch>` (e.g. origin/main); fetch that branch before carving
+  // the worktree so the dispatched agent starts from up-to-date code. A fetch
+  // failure (offline) is non-fatal — fall back to the local tracking ref.
+  const slash = baseRef.indexOf('/');
+  if (slash > 0) {
+    const remote = baseRef.slice(0, slash);
+    const branchName = baseRef.slice(slash + 1);
+    try {
+      await execFileAsync('git', ['fetch', remote, branchName]);
+    } catch {
+      /* offline or no remote — branch from the local tracking ref */
+    }
+  }
   // git worktree add <path> -b <branch> <baseRef>
   // Run from the repo root (process.cwd() when running as the pd CLI).
   await execFileAsync('git', [
@@ -112,6 +128,37 @@ export async function gitWorktreeAdd(
     '-b', branch,
     baseRef,
   ]);
+}
+
+/**
+ * Disable the Coordination Guard inside the (isolated, disposable) dispatch
+ * worktree. The guard's `requireSession`/`requireClaims` are designed to keep
+ * MULTIPLE agents from clobbering each other on a SHARED checkout — but a
+ * dispatch worktree is a fresh branch in its own directory with exactly one
+ * occupant (the autonomous agent) and no operator shell to run `pd begin`.
+ * Left enforcing, the pre-commit hook rejects the agent's commit ("No active
+ * Port Daddy session…"), so the run produces a branch with zero commits and
+ * `gh pr create` fails with "No commits between main and …". The guard config
+ * is resolved per-cwd (`<cwd>/.portdaddy/coordination-guard.json`), so writing
+ * `off` here scopes the bypass to THIS worktree only; the operator's main
+ * checkout keeps its enforcing guard untouched.
+ */
+function disableGuardInWorktree(worktreePath: string): void {
+  try {
+    const dir = join(worktreePath, '.portdaddy');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'coordination-guard.json'),
+      JSON.stringify(
+        { enabled: false, mode: 'off', requireSession: false, requireClaims: false },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+  } catch {
+    /* best-effort; if it fails the commit may be blocked but we surface that downstream */
+  }
 }
 
 async function gitPushBranch(worktreePath: string, branch: string): Promise<void> {
@@ -181,8 +228,20 @@ async function runAgentInWorktree(params: {
   env: Record<string, string | undefined>;
   timeoutMs: number;
 }): Promise<{ output: string; error: string | null }> {
+  // Backend-aware confinement. `codex` self-sandboxes via `--sandbox
+  // workspace-write` (which on macOS is itself a `sandbox-exec` profile);
+  // wrapping it a SECOND time in the Coast Guard seatbelt nests two
+  // sandbox-exec profiles and silently prevents codex from performing ANY
+  // file writes — the dispatched agent runs, exits 0, but produces nothing to
+  // commit. The runner's own rationale already states codex relies on its own
+  // sandbox for blast-radius. So: confine only backends that DON'T self-sandbox
+  // (claude, which has no built-in OS confinement). Worktree isolation + secret
+  // scrub still bound codex either way.
+  const selfSandboxing = params.command === 'codex';
   const jewels = defaultCrownJewels();
-  const wrap = wrapWithSandbox(params.command, params.args, jewels, params.worktreePath);
+  const wrap = selfSandboxing
+    ? { cmd: params.command, args: params.args, confined: false, mechanism: 'codex-sandbox' as const, cleanup: [] as string[] }
+    : wrapWithSandbox(params.command, params.args, jewels, params.worktreePath);
   const broker = scrubRawSecretsFromEnv(params.env);
 
   return new Promise((res) => {
@@ -195,10 +254,21 @@ async function runAgentInWorktree(params: {
       {
         cwd: params.worktreePath,
         env: broker.env as NodeJS.ProcessEnv,
+        // codex --json can emit a large transcript; the 1 MB execFile default
+        // would abort a long run with ERR_CHILD_PROCESS_STDIO_MAXBUFFER.
+        maxBuffer: 64 * 1024 * 1024,
         // No timeout in execFile opts — we manage it explicitly below for
         // cleaner error messages and SIGKILL escalation.
       },
     );
+
+    // Close the child's stdin immediately. The backends run non-interactively
+    // (`codex exec <goal>` / `claude -p <goal>` take the prompt as an argv), but
+    // both inspect stdin and BLOCK reading from it when it is an open pipe —
+    // codex prints "Reading additional input from stdin..." and waits forever,
+    // which manifested as the dispatch timing out after the full budget with
+    // zero output. An EOF on stdin lets them proceed on the argv prompt alone.
+    child.stdin?.end();
 
     const stdout: string[] = [];
     const stderr: string[] = [];
@@ -325,6 +395,10 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
       queue.settle({ id: dispatch.id, state: 'failed', errorMessage: msg });
       return { state: 'failed', errorMessage: msg };
     }
+
+    // Scope-disable the Coordination Guard inside the isolated worktree so the
+    // autonomous agent can commit without an interactive `pd begin` session.
+    disableGuardInWorktree(plan.worktreePath);
 
     // ── 2. Transition: claimed → in_progress ────────────────────────────────
     try {

@@ -678,7 +678,8 @@
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
-        "POST /operator/file-preview"
+        "POST /operator/file-preview",
+        "POST /operator/files-exist"
       ],
       "completions": [
         "metrics",
