@@ -47,7 +47,12 @@ jobs:
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"
+          # Fail safe: if the files API errors (outage, rate limit), run the
+          # recordings rather than silently skipping a required gate.
+          if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
+            echo "recordings=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
             echo "recordings=true" >> "$GITHUB_OUTPUT"
           else
