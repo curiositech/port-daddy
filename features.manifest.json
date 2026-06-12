@@ -674,10 +674,12 @@
         "GET /ping",
         "GET /sitrep",
         "GET /operator/actors",
+        "GET /operator/state",
         "GET /operator/coordination-guard",
         "POST /operator/coordination-guard",
         "POST /operator/open-file",
-        "POST /operator/file-preview"
+        "POST /operator/file-preview",
+        "POST /operator/files-exist"
       ],
       "completions": [
         "metrics",
@@ -1300,6 +1302,21 @@
       "routes": [],
       "completions": [
         "bench"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "benchmark": {
+      "description": "Multi-backend LLM diversity experiment runner (the diversity dividend): run a task corpus across homogeneous and heterogeneous fleet conditions, synthesize via MoA, and score with a rotating blind judge panel",
+      "cli": [
+        "benchmark"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "benchmark"
       ],
       "docs": {
         "readme": false,

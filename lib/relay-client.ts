@@ -29,7 +29,23 @@ export const RELAY_HEARTBEAT_INTERVAL_MS = 25_000;
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
+/**
+ * Idempotently create the `config` key/value table that relay state lives in.
+ *
+ * Self-initialization mirrors every other module in this repo (each owns its
+ * tables via `CREATE TABLE IF NOT EXISTS`). This table was previously never
+ * created anywhere, so getRelayUrl/setRelayUrl threw "no such table: config"
+ * the moment the relay routes were exercised — which is part of why the relay
+ * surface shipped dead. Ensuring here makes the relay config/status/exchange
+ * routes work against a fresh daemon DB. SQLite caches the statement, so the
+ * cost on the hot read path is negligible.
+ */
+export function ensureRelayConfigTable(db: Database): void {
+  db.exec('CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT)');
+}
+
 export function getRelayUrl(db: Database): string | null {
+  ensureRelayConfigTable(db);
   const row = db
     .prepare("SELECT value FROM config WHERE key = ?")
     .get(RELAY_CONFIG_KEY) as { value: string } | undefined;
@@ -37,6 +53,7 @@ export function getRelayUrl(db: Database): string | null {
 }
 
 export function setRelayUrl(db: Database, url: string | null): void {
+  ensureRelayConfigTable(db);
   if (url === null) {
     db.prepare("DELETE FROM config WHERE key = ?").run(RELAY_CONFIG_KEY);
   } else {
@@ -102,6 +119,7 @@ async function verifyServerHelloSig(
 const RELAY_PINNED_KEY_CONFIG_KEY = 'relay_pinned_pub_key';
 
 export function getRelayPinnedKey(db: Database): string | null {
+  ensureRelayConfigTable(db);
   const row = db
     .prepare('SELECT value FROM config WHERE key = ?')
     .get(RELAY_PINNED_KEY_CONFIG_KEY) as { value: string } | undefined;
@@ -109,12 +127,14 @@ export function getRelayPinnedKey(db: Database): string | null {
 }
 
 export function setRelayPinnedKey(db: Database, pubKeyHex: string): void {
+  ensureRelayConfigTable(db);
   db.prepare(
     'INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'
   ).run(RELAY_PINNED_KEY_CONFIG_KEY, pubKeyHex);
 }
 
 export function clearRelayKeyPin(db: Database): void {
+  ensureRelayConfigTable(db);
   db.prepare('DELETE FROM config WHERE key = ?').run(RELAY_PINNED_KEY_CONFIG_KEY);
 }
 

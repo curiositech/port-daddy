@@ -20,6 +20,7 @@ import { agentsPlugin } from './agents.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
+import { relayPlugin } from './relay.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
 import { sessionsPlugin } from './sessions.js';
@@ -106,6 +107,31 @@ export async function registerAllRoutes(
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(githubWebhookPlugin, { deps } as any);
+
+  // Relay — daemon-side federation management (ADR-0049). Was SHIPPED-DEAD:
+  // routes/relay.ts defined GET/POST /relay/config, /relay/status and
+  // POST /relay/exchange but the plugin was never registered, so the
+  // `pd relay` CLI 404'd against a live daemon. Mutating routes are
+  // loopback-guarded + SSRF-validated inside the plugin (see routes/relay.ts).
+  // getRelayStatus is supplied by server.ts; it honestly reports
+  // "not connected" because the outbound SSE connection manager is not yet
+  // started in the daemon.
+  await fastify.register(relayPlugin, {
+    deps: {
+      db: (deps as any).db,
+      logger: (deps as any).logger,
+      getRelayStatus:
+        (deps as { getRelayStatus?: () => unknown }).getRelayStatus ??
+        (() => ({
+          connected: false,
+          session_id: null,
+          last_handshake: null,
+          accepted_channels: [],
+          relay_version: null,
+        })),
+    },
+  } as any);
+
   await fastify.register(configPlugin, { deps } as any);
   await fastify.register(projectsPlugin, { deps } as any);
   await fastify.register(sessionsPlugin, { deps } as any);

@@ -76,6 +76,16 @@ ADR-0048 resolves "what Port Daddy is" into four layers, each for a different
 | **identity-reputation** — *From Spawn to Person: Identity Continuity as the Foundation of Agentic Reputation* (`identity-reputation.md`) | **L3 bridge** — Phases 5–6 (identity-continuity → reputation) | A reputation system is exactly as real as the identity it keys on; identity is durable only if it carries continuity. |
 | **agent-economy-anchor** — *The Harbor Economy: Float Plans, Bonds, and a Three-Sided Market for Agent Labor* (`agent-economy-anchor.md`) | **L3** — economy & federation (the market between operators) | The harbor economy is a three-sided market on one conserving ledger, sold as hosted trust. |
 
+> **Companion volume — the doctrine scorecards (`doctrine/`).** Where these five
+> papers *argue* the North Star, the five docs in `doctrine/` *score the codebase
+> against it*: each opens with a quality-gate scorecard and grounds every claim in a
+> repo path you can open (`doctrine/README.md`). Its thesis is the L2-built /
+> L3-designed split — *the line sits exactly where the folk theorem stops working*:
+> single-operator coordination is a Nash equilibrium (observable history +
+> worktree-anchored identity + high δ), and the market layer exists because
+> federation breaks persistent identity (δ→0), requiring economic enforcement to
+> replace the game-theoretic guarantee. See `doctrine/game-theory.md` for the proof.
+
 Mapped onto the ADR-0048 Implementation Matrix phases:
 
 ```

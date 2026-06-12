@@ -121,6 +121,36 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         };
       }
 
+      // workdir is interpolated into the Coast Guard's OS-sandbox profile
+      // (lib/coast-guard.ts buildSeatbeltProfile → `(subpath "<workdir>")`). A
+      // quote/backslash/newline/NUL in it is an SBPL-injection vector (#339), so
+      // reject it at the boundary — same posture as `task`'s metachar check.
+      // We also require an absolute path: the sandbox confines an absolute root,
+      // and a relative workdir is ambiguous against the daemon's cwd.
+      if (workdir !== undefined && workdir !== null) {
+        if (typeof workdir !== 'string' || !workdir.trim()) {
+          reply.code(400); return {
+            success: false,
+            error: 'workdir must be a non-empty string',
+            code: 'VALIDATION_ERROR',
+          };
+        }
+        if (/["\\\n\r\0]/.test(workdir)) {
+          reply.code(400); return {
+            success: false,
+            error: 'workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.',
+            code: 'VALIDATION_ERROR',
+          };
+        }
+        if (!workdir.startsWith('/')) {
+          reply.code(400); return {
+            success: false,
+            error: 'workdir must be an absolute path (start with "/").',
+            code: 'VALIDATION_ERROR',
+          };
+        }
+      }
+
       const parsedBudgetUsd = typeof rawBudgetUsd === 'number'
         ? rawBudgetUsd
         : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()

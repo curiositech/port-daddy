@@ -156,7 +156,7 @@ function BehaviorCard({
     <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
       <div className="mb-[var(--space-2)] flex items-center gap-2 text-[var(--brand-primary)]">
         <Icon size={18} />
-        <span className="text-xs uppercase tracking-[0.18em] text-[var(--text-muted)]">
+        <span className="text-[length:var(--type-meta-size)] uppercase tracking-[0.18em] text-[var(--text-muted)]">
           Behavior
         </span>
       </div>

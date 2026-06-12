@@ -91,6 +91,13 @@ assert_200 "/roadmap/items?status=all" || fail=1
 assert_200 "/roadmap/items?status=now" || fail=1
 assert_200 "/roadmap/items?limit=5" || fail=1
 assert_200 "/secrets" || fail=1
+# /relay/config is the relay surface (ADR-0049). It shipped DEAD on three
+# layers (plugin never registered; the `config` table it reads was never
+# created; the exchange key lookup hit a non-existent table). Asserting 200
+# here under the COMPILED bun:sqlite binary guards all three against
+# regression in the exact runtime the daemon ships — a 404 means the plugin
+# is unregistered again; a 500 means the `config` self-init regressed.
+assert_200 "/relay/config" || fail=1
 
 if [ "$fail" -ne 0 ]; then
   echo "Compiled-daemon smoke FAILED" >&2

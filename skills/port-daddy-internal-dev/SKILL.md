@@ -311,6 +311,43 @@ Both? → public, with a port-daddy-specific extension page in this skill.
 After landing, send Cartographer:
 `pd actor cartographer --message "port-daddy-internal-dev updated: <section>. Reason: <session/incident>."`
 
+## Advance (the invocable "move it along" call)
+
+When the operator invokes this skill with `advance` (or any phrasing like
+"move things along", "go on", "keep going", "you know what to do"), run the
+standing autonomous sweep. **Do not ask permission at any step** — review is
+the gate, not the operator. These are the operator's recorded expectations;
+re-asking them is the failure mode this section exists to kill.
+
+1. **Recon.** `pd status` / `pd briefing` / `pd sessions --all-worktrees`,
+   then `env -u GITHUB_HOST gh pr list --author @me --state open` (plus any
+   PRs this fleet opened under other identities). Snapshot main's CI:
+   `gh run list --branch main --limit 5`.
+2. **Classify each open PR**: green-and-mergeable → land it now; stale base →
+   rebase; red required check → root-cause it; superseded by a landed PR →
+   close it with a comment naming the superseding PR (never merge a
+   semantically obsolete diff — see the #353 incident); draft → leave unless
+   its gate condition is met.
+3. **Red required check = STOP and fix the root cause**, even when the debt
+   is inherited from main. Never `--admin` over a real red. Cloudflare Pages
+   is the one external gate that is never a blocker.
+4. **Answer every review thread.** Copilot and claude-review inline comments
+   are first-class reviews: fix-and-reply, or dismiss-with-reason against
+   origin/main. A PR with unanswered threads is not "ready".
+5. **Land in dependency order**, base before dependent, rebasing the
+   dependent after each merge (`gh pr merge <n> --squash --admin` — `--admin`
+   here bypasses only the BEHIND gate and Pages, never a red required check).
+6. **Clean up**: delete only worktrees whose branch is merged AND whose
+   `git status --porcelain` is clean. Never touch the main checkout.
+7. **Close the ledger**: `pd note "Result: ... Validation: ... Remaining: ..."`,
+   `pd done`, `pd feedback` — and if the sweep taught this skill something,
+   land the skill edit in the same sweep.
+
+Built bundles (`public/fleet-ui/`) conflict on every rebase because both
+sides rebuilt them: resolve toward main's bundle, finish the rebase, rebuild
+from the rebased source (`cd fleet-config-ui && npx vite build`), and commit
+the fresh bundle. Never hand-merge a minified asset.
+
 ## Operating Loop (contributor)
 
 ```bash
