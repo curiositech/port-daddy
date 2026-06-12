@@ -281,7 +281,7 @@ export default function Decisions() {
         title="Why We Built It This Way"
         summary="Architecture Decision Records capture the significant choices made during Port Daddy's development -- what was decided and why. Most readers can skim the summaries. The curious can click through to the full ADR on GitHub."
         paragraphs={[
-          'Each record explains a decision that shaped how Port Daddy works: what was chosen, why it beat the alternatives, and what consequences follow. The full text of every ADR lives in the repository.',
+          'Each record explains a decision that shaped how Port Daddy works: what was chosen, why it beat the alternatives, and what you inherit as a result. The full text of every ADR lives in the repository.',
         ]}
       />
 

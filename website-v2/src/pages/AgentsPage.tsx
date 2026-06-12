@@ -463,7 +463,7 @@ open "http://127.0.0.1:$port/fleet-ui/?surface=flow"
 # The view should show the topology before you launch more work.`,
     theory: [
       'Flow is the answer to the question the terminal is bad at: what is actually happening across this repo right now? It puts the graph, the launch controls, budget posture, guard state, agent roster, and recent chronology next to each other so the operator does not have to assemble truth from ten command outputs.',
-      'The cool part is that Flow is not just a pretty map. It is an operator cockpit. The left side shows the relationship graph: who publishes, who triggers, which channels connect the fleet, and whether topology looks clean. The right side shows the consequences: stop fleet, refresh, open Agents, inspect YAML, check guard state, adjust the daily cap, and read the live history of sessions, notes, events, and file movement.',
+      'Flow is an operator cockpit, not a visualization layer. The left side shows the relationship graph: who publishes, who triggers, which channels connect the fleet, and whether topology looks clean. The right side shows the consequences: stop fleet, refresh, open Agents, inspect YAML, check guard state, adjust the daily cap, and read the live history of sessions, notes, events, and file movement.',
       'That makes Flow the safest first screen before adding more automation. If the graph is tangled, the budget is zero, guard is not installed, or live chronology is noisy, you can see it before another model process starts spending money or touching files.',
       'Use Flow when a repo feels alive and slightly too alive. It gives the whole fleet a shape: channels are no longer invisible strings, recurring agents are no longer background folklore, and recent movement stops being a pile of disconnected logs.',
     ],
@@ -606,7 +606,7 @@ pd fleet run qa
     theory: [
       'Smart resource management is the difference between a useful fleet and a laptop-shaped space heater. Port Daddy is measuring the things agents actually consume: backend readiness, exact model cost posture, local AI processes, memory, disk, ports, streams, daemon overhead, and the daily cap the operator set for this project.',
       'The important move is advisory first. Resources can say "this computer looks comfortable enough to ask for more" without silently increasing the fleet cap. That preserves operator control while still giving the agent system a real picture of headroom.',
-      'This matters because agent coordination is not only file coordination. Two agents can avoid editing the same file and still overload the machine, burn budget, or wake more work than the repo can absorb. Resource pressure is coordination pressure.',
+      'Agent coordination covers more than files. Two agents can avoid editing the same file and still overload the machine, burn budget, or wake more work than the repo can absorb. Resource pressure is coordination pressure.',
       'In practice, Resources gives Quartermaster a product surface. Launchable agents, suggested cap, backend processes, 24-hour spend, memory free, disk space, daemon overhead, and port pressure all become visible facts that a human and an agent can discuss before expanding the fleet.',
     ],
     bullets: [
@@ -814,7 +814,7 @@ pd session files add website-v2/src/pages/AgentsPage.tsx
 pd guard check --staged`,
     theory: [
       'Most agent failures are not model failures. They are coordination failures: stale runtime assumptions, invisible edit intent, ambiguous ownership, missing validation, or a handoff that reads like a vibe instead of an audit trail. The Port Daddy agent skill turns those hazards into a repeatable loop.',
-      'The sexy part is that the skill is not just a prompt. It is a field manual with references, diagrams, schemas, scripts, templates, examples, and UI metadata. An agent can load the lean SKILL.md, then pull deeper procedural guidance only when the task asks for salvage, file claims, FleetBar diagnosis, or release-surface sync.',
+      'The skill is a field manual: references, diagrams, schemas, scripts, templates, examples, and UI metadata. An agent can load the lean SKILL.md, then pull deeper procedural guidance only when the task asks for salvage, file claims, FleetBar diagnosis, or release-surface sync.',
       'Treat it as the instruction manual for agents doing multi-agent coordination. It teaches the difference between a durable actor and a temporary model body, between notes and channels, between claims and locks, and between process success and operator-visible proof.',
     ],
     bullets: [

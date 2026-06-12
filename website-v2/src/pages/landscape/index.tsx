@@ -256,7 +256,7 @@ export default function LandscapePage() {
               <div className="space-y-[var(--space-4)]">
                 <BracketLabel>01 / Comparison</BracketLabel>
                 <PanelTitle as="h2" size="section" className="max-w-[15ch]">
-                  Five tools, five different jobs, one shared coordination layer.
+                  Five tools, five jobs — one coordination layer they all sit on.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch]">
                   Each row is a real multi-agent system in active use. The
@@ -512,7 +512,7 @@ export default function LandscapePage() {
                     overriding.
                   </li>
                   <li>
-                    <strong className="text-[var(--text-primary)]">Salvage is durable.</strong>{' '}
+                    <strong className="text-[var(--text-primary)]">Salvage persists.</strong>{' '}
                     When Agent A's process dies, its session, notes, and
                     claims survive on the daemon. Any future agent can pick
                     up where it left off.

@@ -238,9 +238,9 @@ Glyphs:  ● file   ▪ region   ◆ symbol   ◆▾ block   ⌗ fenced`} />
               <h3 className="text-base font-semibold text-[var(--text-primary)]">The tree is overkill when</h3>
             </div>
             <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
-              <li>You only ever want file-level claims (no symbols, no regions)</li>
-              <li>You have one agent per project and no concurrent work</li>
-              <li>You don't care about retrospective analytics</li>
+              <li>You only ever want file-level claims — no symbols, no regions</li>
+              <li>One agent, one project, no concurrent work</li>
+              <li>Retrospective analytics are irrelevant to you</li>
             </ul>
           </div>
         </section>

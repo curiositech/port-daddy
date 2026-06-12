@@ -57,6 +57,7 @@ export interface SiteMetadata {
   section: SiteMetadataSection
   index?: boolean
   publishedAt?: string
+  modifiedAt?: string
   author?: string
   tags?: string[]
 }
@@ -630,10 +631,22 @@ export function structuredDataForRoute(route: SiteMetadata) {
 
   return {
     ...base,
+    '@type': 'BlogPosting',
     datePublished: route.publishedAt,
+    dateModified: route.modifiedAt ?? route.publishedAt,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     author: {
       '@type': 'Person',
       name: route.author ?? 'Erich Owens',
+      url: absoluteUrl('/'),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      logo: {
+        '@type': 'ImageObject',
+        url: absoluteUrl('/logos/portdaddy-favicon.svg'),
+      },
     },
     keywords: route.tags?.join(', '),
   }

@@ -133,7 +133,7 @@ export function TemplatesPage() {
         >
           <Surface depth="raised" radius="2xl" padding="lg" className="space-y-4">
             <h2 className="text-xl font-display font-black m-0 text-[var(--text-primary)]">
-              One command. Five agents. Every commit.
+              Five agents, one command, fired on every commit.
             </h2>
             <CodeBlock language="bash">{`cd ~/my-project
 pd fleet init          # Creates pd-fleet.yml + git hook + output dirs
@@ -244,7 +244,7 @@ cat templates/pd-fleet-always-on.yml >> pd-fleet.yml`}</CodeBlock>
               Build your own agents
             </h2>
             <p className="text-sm m-0 max-w-md mx-auto text-[var(--text-secondary)]">
-              These templates are starting points. Edit the prompts, add new agents, chain them through channels. The fleet is yours.
+              These templates are starting points. Edit the prompts, wire up more agents, chain them through channels — it's all YAML. The fleet is yours.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button asChild>

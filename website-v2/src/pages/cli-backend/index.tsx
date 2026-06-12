@@ -280,8 +280,8 @@ export default function CliBackendPage() {
         <PageContainer width="wide">
           <SectionIntro
             eyebrow="The setup"
-            title="Three commands. Two minutes. Done."
-            description="There is no plugin to install, no marketplace dance, no API key to rotate. If the CLI is on your PATH and the daemon is up, the fleet can ride it."
+            title="Three commands, two minutes, and the fleet is up."
+            description="If the CLI is on your PATH and the daemon is up, the fleet can ride it. No plugin, no API key, no marketplace signup."
             titleAs="h2"
           />
           <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-3">

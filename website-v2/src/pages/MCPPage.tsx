@@ -619,7 +619,7 @@ export default function McpPage() {
                       pd mcp install
                     </PanelTitle>
                     <PanelBody tone="primary" className="max-w-none">
-                      One local daemon. MCP-compatible clients. Durable session truth.
+                      One local daemon, shared by every MCP client, keeping session state durable.
                     </PanelBody>
                   </div>
                   <DocsCodeBlock
@@ -654,7 +654,7 @@ pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP"`}
                       What ships
                     </BracketLabel>
                     <PanelTitle as="h2" size="card" tone="primary">
-                      A procedural field manual, not a thin prompt.
+                      A procedural field manual with runnable diagnostics, reference diagrams, and a full operating loop.
                     </PanelTitle>
                     <PanelBody tone="primary" className="max-w-none">
                       Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
@@ -731,7 +731,7 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
               <SectionIntro
                 eyebrow="High-level MCP tools"
                 title="Useful calls that carry Port Daddy context."
-                description="The MCP tools are not a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
+                description="The important MCP calls preserve identity, budget, file claims, session notes, and recovery semantics — not stateless one-shots."
                 titleSize="display"
               />
             </SwissGridItem>

@@ -104,7 +104,7 @@ export default function McpOverview() {
         <ul className="mt-4 space-y-2">
           <li className="flex items-start gap-2 text-[var(--text-secondary)]">
             <Check size={16} className="text-[var(--success)] mt-1 shrink-0" />
-            <span>Claim and manage ports without hardcoded values</span>
+            <span>Claim and release ports without hardcoded values — no more port 3000 collisions</span>
           </li>
           <li className="flex items-start gap-2 text-[var(--text-secondary)]">
             <Check size={16} className="text-[var(--success)] mt-1 shrink-0" />
@@ -112,7 +112,7 @@ export default function McpOverview() {
           </li>
           <li className="flex items-start gap-2 text-[var(--text-secondary)]">
             <Check size={16} className="text-[var(--success)] mt-1 shrink-0" />
-            <span>Enter cryptographic harbors for secure operations</span>
+            <span>Enter cryptographic harbors for secure, isolated operations</span>
           </li>
           <li className="flex items-start gap-2 text-[var(--text-secondary)]">
             <Check size={16} className="text-[var(--success)] mt-1 shrink-0" />
@@ -231,7 +231,7 @@ export default function McpOverview() {
       <div className="space-y-4">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)]">Example Usage</h2>
         <p className="text-[var(--text-secondary)]">
-          Once configured, simply ask your AI agent to use Port Daddy:
+          Once configured, ask your AI agent to use Port Daddy:
         </p>
         <div className="p-4 rounded-xl bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
           <div className="text-sm text-[var(--text-muted)] mb-2">Example prompts:</div>

@@ -4,7 +4,7 @@ export default function SalvageCommand() {
   return (
     <CommandPage
       command="pd salvage"
-      description="Show agents in the resurrection queue — agents that died mid-task with active sessions. Allows a new agent to claim their work and continue. This is the foundation of fault-tolerant multi-agent workflows."
+      description="Show agents in the resurrection queue — agents that died mid-task with active sessions. Allows a new agent to claim their work and continue. Dead agents happen. This is how work survives them."
       version="3.13.0"
       syntax="pd salvage [flags]"
       flags={[
@@ -36,7 +36,7 @@ export default function SalvageCommand() {
   agent-002  myapp:tester  died 3m ago   "Run test suite"`
         },
         {
-          description: 'JSON output for programmatic use',
+          description: 'JSON output',
           code: 'pd salvage --json',
           output: `[
   {
@@ -74,7 +74,7 @@ export default function SalvageCommand() {
   Files: src/auth/login.ts (claimed)
   Purpose: Fix auth bug
 
-[pd] You are now continuing this work.
+[pd] You're now continuing their work.
 [pd] Run 'pd notes --session abc123' to see previous notes.`
         },
       ]}

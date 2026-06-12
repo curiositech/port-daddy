@@ -51,9 +51,9 @@ flowchart LR
 
 <!-- figure: pd-tube routes fleet spawns and your interactive session through the same CLI binary, against the same hourly budget — same wallet, same auth, two streams of consumption -->
 
-The wrapper is intentionally boring. It is not a clever API client. It is not a re-implementation of the vendor's protocol. It does not try to be smarter than the official CLI. It just lets the daemon talk to the same binary your terminal already talks to, with a payload format Port Daddy understands on the other end.
+The wrapper is intentionally boring. It talks to the same binary your terminal already talks to, with a payload format Port Daddy understands on the other end. No clever API client, no protocol reimplementation.
 
-That boring shape is what unlocks the economics. The vendor sees an authenticated subscription user — sometimes typing fast, sometimes typing slow, sometimes apparently typing in their sleep. The daemon sees a programmable agent loop. Both are correct. Both are happy. The hourly rate-limit budget is the seam where they meet, and the rest of this post is about how to share that seam without pinching either side.
+That boring shape is why the economics work. The vendor sees an authenticated subscription user — sometimes typing fast, sometimes typing slow, sometimes apparently typing in their sleep. The daemon sees a programmable agent loop. Both are correct. Both are happy. The hourly rate-limit budget is the seam where they meet, and the rest of this post is about how to share that seam without pinching either side.
 
 ## The fleet that runs on it
 
@@ -208,16 +208,16 @@ The deeper move underneath all of this — and this is where I'd point if you wa
 <!-- sidenote: 12 -->
 > *Cooperative multitasking* was the OS model from System 6 through Windows 3.1 — programs voluntarily yielded the CPU to each other, no preemption. It worked when programs were polite, broke when one was greedy. Modern OSes are preemptive. Port Daddy's fleet is closer to cooperative: ships yield when they can, and the operator (or the rate limit) preempts when they can't. The interactive session is the program that gets to be a little greedy, because there's only one of it.
 
-What would I do with that capacity? I would write code-reviewer. And red-team. And tautology-sniffer. And the eight others. And I would let them run while I sleep, on a budget I was already paying for, against a wallet that did not move when I added them. The bill is the same. The morning is different.
+What would I do with that capacity? Write code-reviewer, red-team, tautology-sniffer, and the eight others — and let them run while I sleep, on a budget I was already paying for, against a wallet that did not move when I added them. The bill is the same. The morning is different.
 
-That is the pitch. Your $20–$200/mo subscription. Agents work when you don't. Same wallet. Much more useful agent.
+That is the pitch: your $20–$200/mo subscription, running agents while you sleep, same wallet.
 
 ## Read next
 
-If the fleet sounds interesting, the right next post is [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) — a sibling argument that the operator should not be typing `pd` commands; they should be pressing buttons, and the CLI is reserved for the agents themselves. The post you are reading is about *what* the fleet does with your subscription; the CLI-for-robots post is about *who* should be talking to it.
+The sibling post [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) argues the operator should stop typing `pd` commands and let the agents do it — same fleet, different angle on who's at the keyboard.
 
-If the morning-diff experience is interesting, the companion post is [The PR That Reviews Itself](/blog/the-pr-that-reviews-itself) — a slightly different angle on the same idea: the moment you push at eleven at night and somebody is already reviewing it. Same primitive, narrower frame.
+[The PR That Reviews Itself](/blog/the-pr-that-reviews-itself) narrows to the morning-diff moment: you push at eleven and somebody is already reading the diff.
 
-If the underlying plumbing is interesting, [PD Tube Turns UI Events Into Agent Work](/blog/pd-tube-event-reply-loop) walks through `pd tube` from a different angle — how the same wrapper that fans out to fleet ships also handles browser button clicks and failing-test hooks. Same plumbing. Different consumers.
+[PD Tube Turns UI Events Into Agent Work](/blog/pd-tube-event-reply-loop) takes the same `pd tube` primitive and shows it handling browser button clicks and failing-test hooks, not just fleet spawns.
 
-If the *control plane* idea is interesting — the operating-system-shaped frame I waved at near the end — [The Control Plane Is The Product](/blog/control-plane-is-the-product) is the long version of that argument. The fleet is one of the things the control plane controls. There are several others.
+And [The Control Plane Is The Product](/blog/control-plane-is-the-product) is the long version of the OS-service frame I waved at near the end — the fleet is one piece of it.

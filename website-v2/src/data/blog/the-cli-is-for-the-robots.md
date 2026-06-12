@@ -15,7 +15,7 @@ There is a clean line, and Port Daddy needs to stay on the right side of it:
 - **Agents** read `AGENTS.md`. They run `pd whoami`, `pd begin`, `pd note`, `pd guard check`. They tail logs. They kickstart launchd jobs. They live in a terminal because they *are* a terminal-shaped thing.
 - **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a green dot or a red dot. They press "restart daemon" if something looks angry. They never type `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon` because that string is *not a thing a human should ever produce by hand* — it is a string you copy-paste with mild horror.
 
-If a routine operator action — configure a credential, restart the daemon, see what the fleet is failing on, harvest a roadmap entry, accept a salvage item, ack a coordination conflict — does not have a button in FleetBar or a panel in the dashboard at `localhost:9876`, that is a *roadmap item*, not a "well, just run this command for now."
+If a routine operator action (configure a credential, restart the daemon, see what the fleet is failing on, harvest a roadmap entry, accept a salvage item, ack a coordination conflict) does not have a button in FleetBar or a panel in the dashboard at `localhost:9876`, that is a *roadmap item*, not a "well, just run this command for now."
 
 ## The dotenv incident
 
@@ -45,7 +45,7 @@ If you (the agent) are about to type "now just run `launchctl ...`" or "edit `~/
 
 The right instruction is "open FleetBar → Credentials → Cloudflare → paste token (the panel will deep-link `dash.cloudflare.com/profile/api-tokens?template=workers-ai`)." If the panel does not exist yet, file a `high`-severity FleetBar feedback drop and tell the operator, plainly: "the button isn't built; here is the gap on the roadmap; the temporary CLI workaround is X — and that's a bug, not the design."
 
-That last clause matters. The temporary CLI workaround is *not the design*. It is the apology.
+The temporary CLI workaround is *not the design*. It is the apology.
 
 ## What stays in the CLI
 
@@ -60,7 +60,7 @@ These do not move. They are not what this post is about. This post is about the 
 
 ## Coda
 
-Port Daddy started as a port manager. It became a coordination substrate. It is becoming a control plane. Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."
+Port Daddy started as a port manager, became a coordination substrate, and is now becoming a control plane. Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."
 
 Today the operator edited the wrong `.env.local`. Tomorrow they shouldn't have to know `.env.local` exists.
 

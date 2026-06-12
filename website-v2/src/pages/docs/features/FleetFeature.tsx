@@ -230,8 +230,8 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
         <div className="space-y-2">
           {[
             { name: 'claude-cli', desc: 'Runs the local Claude Code CLI directly under your Claude Max / Pro login. First-class default if the binary is on PATH — marginal cost is $0 because the seat is already paid for.' },
-            { name: 'codex', desc: 'Runs OpenAI Codex through the local CLI under your ChatGPT Pro login. First-class default for Pro subscribers — same zero-marginal economics, same tiered low/mid/high ladder.' },
-            { name: 'cloudflare', desc: 'Runs Qwen3 30B (and others) on Cloudflare Workers AI. Honest cheap alternative when you do not have a subscription seat to ride.' },
+            { name: 'codex', desc: 'Runs OpenAI Codex through the local CLI under your ChatGPT Pro login. Default if the binary is on PATH and you have a Pro seat — marginal cost is $0, and the low/mid/high tier ladder works the same way.' },
+            { name: 'cloudflare', desc: 'Runs Qwen3 30B (and others) on Cloudflare Workers AI. Cheap fallback when you don't have a subscription seat.' },
             { name: 'claude', desc: 'Runs Claude via the Anthropic SDK with ANTHROPIC_API_KEY. Use when you need a specific model the subscription does not expose, or per-call metered billing.' },
             { name: 'ollama', desc: 'Runs a local Ollama model via HTTP. Best for fully offline / private fleets when latency on subscription CLIs is unacceptable.' },
             { name: 'gemini', desc: 'Runs Gemini via the Google SDK. Needs GOOGLE_API_KEY.' },
