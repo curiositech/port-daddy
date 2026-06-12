@@ -15,7 +15,7 @@
     "ebony-deep":   { "hex": "#100E0C", "rgb":  [16,  14,  12], "note": "shadow pad, deeper than ebony" },
     "ebony-soft":   { "hex": "#2B2724", "rgb":  [43,  39,  36], "note": "ebony-elevated, for raised surfaces in dark mode" },
 
-    "cinnabar":     { "hex": "#CC3D2E", "rgb": [204,  61,  46], "note": "signal red — danger/alert/burning-resource" },
+    "cinnabar":     { "hex": "#BF2F2F", "rgb": [191, 47, 47], "note": "signal red — danger/alert/burning-resource" },
     "cinnabar-lit": { "hex": "#FF9081", "rgb": [255, 144, 129], "note": "lifted cinnabar — body text on ebony, 6.9:1" },
     "cinnabar-dim": { "hex": "#8B1622", "rgb": [139,  22,  34], "note": "deeper crimson for mayday band, 9.2:1 on paper" },
     "tan":          { "hex": "#8B5A1A", "rgb": [139,  90,  26], "note": "warm tan — securité severity band, 7.6:1 on cream" },

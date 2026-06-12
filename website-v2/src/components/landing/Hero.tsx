@@ -72,7 +72,7 @@ export function Hero() {
               ].map((label) => (
                 <span
                   key={label}
-                  className="rounded-[var(--radius-sm)] px-3 py-1 text-xs font-semibold"
+                  className="rounded-[var(--radius-sm)] px-3 py-1 text-[length:var(--type-meta-size)] font-semibold"
                   style={{
                     background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
                     border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',

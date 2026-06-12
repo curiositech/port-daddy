@@ -1,7 +1,7 @@
-% Figure 6 — the claim/lock lifecycle as a finite-state machine, exhibiting the
+% Figure — the claim/lock lifecycle as a finite-state machine, exhibiting the
 % four properties on which typed ownership is built: atomic-exclusive acquire,
-% idempotent re-claim, idempotent release, lazy TTL sweep. Open problem OP-1
-% (fair exclusion) marked: there is no wait-list, so a slow agent can starve.
+% idempotent re-claim, idempotent release, lazy TTL sweep. The missing QUEUED
+% state (open problem OP-1, fairness) is discussed in the caption.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -14,7 +14,7 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.92\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   st/.style={draw=hhebony,thick,rounded corners=10pt,fill=hhsand!30,
@@ -25,43 +25,34 @@
   selfedge/.style={->,>=Latex,thick,hhteal,font=\scriptsize},
 ]
 
-% Wider horizontal spacing so transition labels never stack.
 \node[st] (free) at (0,0) {FREE};
 \node[held] (held) at (74mm,0) {HELD by $a$};
 \node[st,fill=hhsand!30] (expired) at (148mm,0) {EXPIRED\\ (TTL passed)};
 
-% acquire (atomic, exclusive) — label sits high above the upper arc
+% acquire (atomic, exclusive)
 \draw[edge] (free) to[bend left=22]
   node[pos=0.5,above=1pt,align=center]{\textbf{acquire}\\ atomic insert (I2)} (held);
 
-% re-claim self-loop ABOVE held, with generous clearance and a high label
+% re-claim self-loop above held
 \draw[selfedge] (held.north) to[out=115,in=65,looseness=7] (held.north);
 \node[align=center,font=\scriptsize,above=11mm of held]
-  {\textbf{re-claim} by $a$ (I3): idempotent, refresh last-seen};
+  {\textbf{re-claim} by $a$ (I3): idempotent};
 
-% concurrent-loser self-loop BELOW free, label clearly below
+% concurrent-loser self-loop below free
 \draw[selfedge,hhcobalt] (free.south) to[out=-115,in=-65,looseness=7] (free.south);
 \node[align=center,font=\scriptsize,text=hhink,below=10mm of free,text width=42mm]
-  {concurrent acquire $\to$ constraint violation; loser is handed the holder};
+  {concurrent acquire loses cleanly;\\ handed the holder (I2)};
 
-% release (idempotent) — lower arc between FREE and HELD, label below it
+% release (idempotent)
 \draw[edge] (held) to[bend left=22]
-  node[pos=0.5,below=1pt,align=center]{\textbf{release} by $a$ (I3):\\ idempotent (release-twice $=$ no-op)} (free);
+  node[pos=0.5,below=1pt,align=center]{\textbf{release} by $a$ (I3): idempotent} (free);
 
 % TTL expiry
 \draw[edge] (held) -- node[above,align=center]{TTL\\ elapses} (expired);
 
-% lazy sweep back to FREE — long low arc well beneath the row
+% lazy sweep back to FREE
 \draw[edge,hhteal] (expired) to[out=-90,in=-90,looseness=0.55]
-  node[pos=0.5,below=1pt,align=center,text=hhink]{\textbf{lazy sweep} on next read (I4): delete rows whose expiry has passed} (free);
-
-% OP-1 callout, set to the right so it never overlaps the FSM
-\node[draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
-      text width=72mm,align=left,font=\scriptsize,below=30mm of held]
-  {{\bfseries $\bigstar$ OP-1 (open problem):} there is \emph{no} wait-list and
-   \emph{no} fairness. A fast agent that churns a hot file can starve a slow one
-   indefinitely. The machine has no \textsc{queued} state; adding bounded-wait without
-   a scheduler is open.};
+  node[pos=0.5,below=1pt,align=center,text=hhink]{\textbf{lazy sweep} on next read (I4)} (free);
 
 \end{tikzpicture}%
 }
@@ -70,9 +61,11 @@ properties on which the coordination layer builds typed ownership. \emph{Acquire
 a single atomic insert against a uniqueness constraint (I2: a concurrent acquirer
 loses cleanly to a constraint violation and is handed the current holder).
 \emph{Re-claim} and \emph{release} are idempotent (I3): safe to retry, safe to
-double. Expiry is \emph{lazy-swept} on the next read (I4), not on a timer. The
-conspicuous missing state is \textsc{queued}: there is no fairness primitive, so a
-hot resource can starve a slow agent --- open problem OP-1, which asks whether
-bounded-wait can be added without dragging a scheduler down into the kernel.}
+double. Expiry is \emph{lazy-swept} on the next read (I4) --- expired rows are
+deleted when encountered, not on a timer. The conspicuous missing state is
+\textsc{queued}: there is no wait-list and no fairness primitive, so a fast agent
+churning a hot resource can starve a slow one indefinitely --- open problem OP-1,
+which asks whether bounded-wait can be added without dragging a scheduler down into
+the kernel.}
 \label{fig:swk-claim-lifecycle}
 \end{figure}

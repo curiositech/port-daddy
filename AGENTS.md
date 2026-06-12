@@ -2,6 +2,20 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
+## Recently Shipped Surfaces (verify before you depend on them)
+
+These landed on `main` in the last few weeks. The installed Homebrew `pd` binary **lags `main`** — a feature being in source does not mean it is in the operator's `pd`. Run `pd <verb> --help` to confirm, and rebuild + relaunch the daemon when dogfooding a just-landed route. Canonical docs are cited; read them, do not paraphrase from memory.
+
+- **Relay — cross-machine pub/sub** (`docs/adr/0049-relay-architecture.md`). Zero-trust event fabric: a Cloudflare Worker (`apps/relay/`) federates channels across machines; the daemon holds an outbound SSE connection (`lib/relay-client.ts`), routes in `routes/relay.ts`. CLI: `pd relay url <url> | --clear`, `pd relay status`, `pd relay exchange --oidc-token <t>` (CI OIDC → PD card). MCP: `relay_status()` (read-only).
+- **Dispatch — autonomous feature-dev queue** (ADR-0035; `cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`, `lib/dispatch/spawn-adapter.ts`, `docs/proposals/pd-nightshift.md`). `pd dispatch propose|queue|list|show|run|cancel`. `run` is **dry-run by default**; `--really-run` spawns a backend (default `cli:codex`) in an isolated worktree under `~/coding/tmp/port-daddy-dispatch-<id>` and opens a **draft PR**. Per-dispatch `--budget` (default 5 USD, max 25) and `--timeout` (default 3h, max 6h). `pd nightshift` is a **deprecated alias** for one minor version — `pd dispatch` is the verb.
+- **Coast Guard — OS-sandbox confinement + compulsion rent** (`docs/adr/0050-coast-guard.md`; `lib/coast-guard.ts`, `lib/coast-guard/compulsion.ts`). Every spawned subprocess is confined (Seatbelt on macOS, bubblewrap/Landlock on Linux), managed secrets scrubbed from the child env, hard egress cap (`402 Spend Cap Exceeded`); wired into `lib/spawner.ts` as the default. The compulsion: an un-noted commit blocks the next commit (`requireNotePerCommit`); a silent, drifted sandbox becomes reclaim-eligible but reclaim never touches the live main checkout. Read path: `pd coast-guard status` (alias `pd cg`).
+- **Attest — honest self-report** (ADR-0045; `cli/commands/attest.ts`, `lib/attest.ts`). `pd attest` exits NON-ZERO when any CRITICAL invariant fails (safe for boot/CI gates); `pd attest --json` for the merged report. No subcommands.
+- **Tube — conversational pipe over channels** (`cli/commands/tube.ts`). Multi-subscriber, relay-independent. `pd tube <channel>` listens; `--send`, `--reply`, `--once`. Prefer a persistent tube channel over point-to-point inboxes for agent↔agent back-and-forth — see `## Architecture truths` below.
+- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs` are separate crates on `main` — there is **no single landed "rust kernel"**. `core/pd-console` (the GPUI conversation-multiplexer) is **unlanded** (PRs #306/#318). Reconcile against `## Architecture truths` before scaffolding any new Rust shell.
+- **Design-stage / in-flight (do NOT document as shipped):** marketplace (ADR-0051), trajectory export + RL loop (ADR-0052), out-of-band enforcement / "DOM DADDY" (ADR-0053, in-flight PR #366), and a release-cadence + Rust-surface-alignment ADR (ADR-0054, being written in parallel — the canonical answer to "is this in my installed `pd`?" once it lands). These are not on every branch; reference by number, do not invent their verbs.
+
+The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any backend, not specifically Claude — acting adversarial, skeptical, and PM-minded. Respond to every Copilot / bot review comment; create tests where you can. See `## Pull Request Operating Procedure`.
+
 ## Operator vs Agent — know which surface you are
 
 The CLI is for agents and emergencies. **The operator does not run `pd` commands, does not edit `.env.local` files, does not run `launchctl kickstart`, does not tail logs.** That work is yours.
@@ -384,9 +398,11 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
   the durable bus / suggestibility signal), **pd-runtime** (queue/scheduler = voyages),
   **pd-core** (deterministic kernel transitions), **pd-tui/pd-rs** (the console).
   **Do NOT scaffold yet-another Rust UI/daemon without reconciling here first** — the
-  TS repo's `core/pd-tui` (ratatui), `core/pd-console` (the on-bus, backend-agnostic,
-  OKLCH conversation-multiplexer engine), and kernel-rs's `pd-tui` are converging and
-  must not fork into 3–4 rival shells.
+  TS repo's `core/pd-tui` (ratatui, landed), the unlanded `core/pd-console` (the
+  on-bus, backend-agnostic, OKLCH conversation-multiplexer engine — PRs #306/#318),
+  and kernel-rs's `pd-tui` are converging and must not fork into 3–4 rival shells.
+  On `main` today `core/` holds only `pd-tui`, `pd-bosun`, and `harbor-card-rs` —
+  there is no single landed "rust kernel," only separate crates.
 - **Coordinate over DURABLE ids/channels, never `cli-<pid>`.** `cli-<pid>` is ephemeral
   (new per CLI invocation) — two agents using it can never reach each other and there
   is no delivery receipt. `pd inbox`/`pd agents` now resolve `readCurrentContext().agentId`

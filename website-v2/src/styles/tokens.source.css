@@ -72,8 +72,8 @@
   --font-mono:
     "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
 
-  --type-meta-size: 0.8125rem;
-  --type-code-size: 0.8125rem;
+  --type-meta-size: 0.875rem; /* a11y: bumped 13px→14px per vision rule */
+  --type-code-size: 0.875rem; /* a11y: bumped 13px→14px per vision rule */
   --type-panel-body-size: 1.125rem;
   --type-panel-body-compact-size: 1.0625rem;
   --type-section-title-size: clamp(2rem, 3vw, 3rem);
