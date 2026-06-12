@@ -1257,6 +1257,24 @@
         "sdk": false
       }
     },
+    "compulsion_rent_slash": {
+      "description": "Rent-to-slash loop (ADR-0050 phase 7) - turns repeated coordination-rent breaches (commits without notes) into a graduated, capped bond slash. ADVISORY by default: logs the slash that WOULD happen and debits nothing; only PD_RENT_SLASH_MODE=enforce arms real debits (operator opt-in). Breaching principal is derived server-side from the caller's own session, never the request body.",
+      "module": "lib/coast-guard/rent-slash.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /coast-guard/rent-breach",
+        "POST /coast-guard/rent-cure",
+        "GET /coast-guard/rent-status"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Routes are guard/daemon ingestion + operator read, not a general agent surface: breach/cure are deliberately NOT exposed as MCP tools while ingestion is authenticated only by sessionId possession (griefing/self-cure hardening is a pre-enforce requirement). rent-status joins the Coast Guard read-path MCP work alongside operator_coast_guard.",
+      "_status": "experimental"
+    },
     "budget_guard": {
       "description": "Pre-flight canSpawn() + mid-flight onCharge() kill-switch that SIGTERMs live spawns when daily budget is breached. Works in tandem with cost-tracker (observability) and bonds (enforcement).",
       "module": "lib/budget-guard.ts",

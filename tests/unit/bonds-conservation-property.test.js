@@ -33,6 +33,7 @@ import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import fc from 'fast-check';
 import { createTestDb } from '../setup-unit.js';
 import { createBonds } from '../../lib/bonds.js';
+import { applyRentSlash } from '../../lib/coast-guard/rent-slash-enforcer.js';
 
 describe('lib/bonds.ts — No-Overdraft + Conservation properties', () => {
   let db;
@@ -250,5 +251,124 @@ describe('lib/bonds.ts — No-Overdraft + Conservation properties', () => {
     expect(bonds.slash(r.id, 1, 'too late')).toBe(false);
     const after = bonds.conservation(project);
     expect(after).toEqual(before);
+  });
+});
+
+/**
+ * Conservation under the RENT → SLASH path (ADR-0050 phase 7).
+ *
+ * The rent-slash enforcer is the new dollar-moving caller into bonds.slash. It
+ * MUST inherit the conservation invariant: random sequences of escrows + rent
+ * breaches (in enforce mode, the only mode that debits) keep
+ * wallet + escrow + commons = supply after every operation. Advisory/off must
+ * move NO money at all.
+ */
+describe('lib/coast-guard/rent-slash-enforcer.ts — Conservation on the rent→slash path', () => {
+  let db;
+  let bonds;
+  const project = 'rent-slash-prop';
+  const silentLogger = { info: () => {}, warn: () => {} };
+
+  beforeEach(() => {
+    db = createTestDb();
+    bonds = createBonds(db);
+  });
+
+  afterEach(() => {
+    if (db) db.close();
+  });
+
+  function checkConservation() {
+    const c = bonds.conservation(project);
+    expect(c.supplyUsd).toBeCloseTo(c.walletUsd + c.escrowUsd + c.commonsUsd, 9);
+    expect(c.walletUsd).toBeGreaterThanOrEqual(-1e-9);
+    expect(c.escrowUsd).toBeGreaterThanOrEqual(-1e-9);
+    expect(c.commonsUsd).toBeGreaterThanOrEqual(-1e-9);
+    return c;
+  }
+
+  test('ENFORCE rent-slash holds conservation under random escrow+breach sequences', () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.oneof(
+            fc.record({
+              op: fc.constant('topUp'),
+              usd: fc.double({ min: 1, max: 100, noNaN: true, noDefaultInfinity: true }),
+            }),
+            fc.record({
+              op: fc.constant('escrow'),
+              principalIdx: fc.integer({ min: 0, max: 3 }),
+              bondUsd: fc.double({ min: 0.01, max: 20, noNaN: true, noDefaultInfinity: true }),
+            }),
+            fc.record({
+              op: fc.constant('breach'),
+              principalIdx: fc.integer({ min: 0, max: 3 }),
+              breachCount: fc.integer({ min: 1, max: 12 }),
+            }),
+          ),
+          { minLength: 1, maxLength: 30 },
+        ),
+        (operations) => {
+          if (db) db.close();
+          db = createTestDb();
+          bonds = createBonds(db);
+          const principalOf = (i) => `rent-slash-prop:lane:p${i}`;
+
+          for (const op of operations) {
+            switch (op.op) {
+              case 'topUp':
+                bonds.topUpWallet(project, op.usd);
+                break;
+              case 'escrow': {
+                const r = bonds.escrow({ project, agentId: principalOf(op.principalIdx), bondUsd: op.bondUsd });
+                if (r.ok) bonds.markRunning(r.id);
+                break;
+              }
+              case 'breach': {
+                applyRentSlash(
+                  { bonds, mode: 'enforce', logger: silentLogger },
+                  {
+                    principal: principalOf(op.principalIdx),
+                    project,
+                    breachCount: op.breachCount,
+                    commitsWithoutNote: 1,
+                  },
+                );
+                break;
+              }
+            }
+            // (I1) Conservation must hold after EVERY operation, slash included.
+            checkConservation();
+          }
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+
+  test('ADVISORY and OFF never move money under any breach sequence', () => {
+    for (const mode of ['advisory', 'off']) {
+      if (db) db.close();
+      db = createTestDb();
+      bonds = createBonds(db);
+      bonds.topUpWallet(project, 50);
+      const principal = `${project}:lane:steady`;
+      const r = bonds.escrow({ project, agentId: principal, bondUsd: 5 });
+      bonds.markRunning(r.id);
+
+      const before = bonds.conservation(project);
+      // Hammer with escalating breaches — none may debit.
+      for (let n = 1; n <= 20; n++) {
+        const out = applyRentSlash(
+          { bonds, mode, logger: silentLogger },
+          { principal, project, breachCount: n, commitsWithoutNote: 1 },
+        );
+        expect(out.slashed).toBe(false);
+      }
+      const after = bonds.conservation(project);
+      expect(after).toEqual(before);
+      expect(bonds.getBond(r.id).state).toBe('running'); // bond untouched
+    }
   });
 });

@@ -56,6 +56,7 @@ import { graphPlugin } from './graph.js';
 import { memoryPlugin } from './memory.js';
 import { semanticPlugin } from './semantic.js';
 import { bondsPlugin } from './bonds.js';
+import { coastGuardPlugin } from './coast-guard.js';
 import { walletsPlugin } from './wallets.js';
 import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
@@ -212,6 +213,13 @@ export async function registerAllRoutes(
   if ((deps as any).bonds && (deps as any).budgetGuard) {
     await fastify.register(bondsPlugin, { deps } as any);
     await fastify.register(walletsPlugin, { deps } as any);
+  }
+
+  // ADR-0050 phase 7: the rent → slash loop (advisory by default). Needs the
+  // bonds ledger, the per-principal breach ledger, and session lookup (to derive
+  // the breaching principal server-side — never from the request body).
+  if ((deps as any).bonds && (deps as any).breachLedger && (deps as any).sessions) {
+    await fastify.register(coastGuardPlugin, { deps } as any);
   }
   await fastify.register(panicPlugin, { deps } as any);
 

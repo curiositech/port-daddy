@@ -2701,10 +2701,11 @@ export async function main(): Promise<void> {
         await handlePeriscope(options);
         break;
 
-      // Coast Guard read path: SEE the guard — confinement, broker, egress cap.
+      // Coast Guard read path: SEE the guard — confinement, broker, egress cap,
+      // and the rent→slash loop mode + breach state (`pd coast-guard rent`).
       case 'coast-guard':
       case 'cg':
-        handleCoastGuard(positional[0], options);
+        await handleCoastGuard(positional[0], options);
         break;
 
       case 'history':

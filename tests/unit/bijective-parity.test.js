@@ -333,6 +333,11 @@ describe('Test Group 3: API -> CLI Parity', () => {
     feedback: ['feedback'],
     bonds: ['bond'],
     wallets: ['wallet'],
+    // coastguard: the Coast Guard rent→slash surface (ADR-0050 phase 7).
+    // routes/coast-guard.ts (coastGuardPlugin) exposes POST /coast-guard/rent-breach
+    // /rent-cure + GET /coast-guard/rent-status; `pd coast-guard rent` is its
+    // operator/agent read surface (and `pd coast-guard status` the confinement read).
+    coastguard: ['coast-guard', 'cg'],
     panic: ['fleet'],
     budget: ['wallet'],
     shipwright: ['shipwright'],

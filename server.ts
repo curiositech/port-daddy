@@ -83,6 +83,7 @@ import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
+import { createRentBreachLedger } from './lib/coast-guard/rent-breach-ledger.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
@@ -440,6 +441,11 @@ const bonds = createBonds(db, {
   harbors, noteEncryption,
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
+// ADR-0050 phase 7: the rent → slash escalation memory. Counts un-cured
+// coordination-rent breaches per PRINCIPAL so the graduated slash can escalate
+// across commits (a first miss is grace; repeats escalate). The slash itself is
+// ADVISORY by default — see lib/coast-guard/rent-slash.ts / routes/coast-guard.ts.
+const breachLedger = createRentBreachLedger(db);
 const budgetGuard = createBudgetGuard(db, {}, {
   broadcast: (channel, event) => messaging.publish(channel, event),
 });
@@ -1004,7 +1010,7 @@ await registerAllRoutes(
     custodian, operatorPermissions,
     quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor,
-    bonds, budgetGuard, budgetPause,
+    bonds, breachLedger, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
