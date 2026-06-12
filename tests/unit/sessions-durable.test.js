@@ -103,6 +103,42 @@ describe('Durable Sessions', () => {
   });
 
   // ===========================================================================
+  // cleanup() — abandoned-durable sessions survive TTL deletion
+  // ===========================================================================
+
+  describe('cleanup', () => {
+    it('keeps abandoned durable sessions, deletes abandoned ordinary and completed durable ones', () => {
+      const abandonedDurable = sessions.start('Durable suspended', { durable: true });
+      const abandonedOrdinary = sessions.start('Ordinary abandoned');
+      const completedDurable = sessions.start('Durable finished', { durable: true });
+      const longAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      db.prepare("UPDATE sessions SET status = 'abandoned', updated_at = ? WHERE id IN (?, ?)")
+        .run(longAgo, abandonedDurable.id, abandonedOrdinary.id);
+      db.prepare("UPDATE sessions SET status = 'completed', updated_at = ? WHERE id = ?")
+        .run(longAgo, completedDurable.id);
+
+      const result = sessions.cleanup({ olderThan: 7 * 24 * 60 * 60 * 1000 });
+
+      expect(result.cleaned).toBe(2);
+      expect(sessions.get(abandonedDurable.id).success).toBe(true);
+      expect(sessions.get(abandonedOrdinary.id).success).toBe(false);
+      expect(sessions.get(completedDurable.id).success).toBe(false);
+    });
+
+    it('status-filtered cleanup also spares abandoned durable sessions', () => {
+      const abandonedDurable = sessions.start('Durable suspended', { durable: true });
+      const longAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      db.prepare("UPDATE sessions SET status = 'abandoned', updated_at = ? WHERE id = ?")
+        .run(longAgo, abandonedDurable.id);
+
+      const result = sessions.cleanup({ olderThan: 7 * 24 * 60 * 60 * 1000, status: 'abandoned' });
+
+      expect(result.cleaned).toBe(0);
+      expect(sessions.get(abandonedDurable.id).success).toBe(true);
+    });
+  });
+
+  // ===========================================================================
   // resurrect()
   // ===========================================================================
 
@@ -167,6 +203,29 @@ describe('Durable Sessions', () => {
       expect(who.sessionId).toBe(begun.sessionId);
       // Side effect: status flipped back to active in the DB.
       expect(sessions.get(begun.sessionId).session.status).toBe('active');
+    });
+
+    it('whoami by agentId (no explicit sessionId) finds and resurrects an abandoned durable session', () => {
+      const begun = sugar.begin({ purpose: 'Long-running build', durable: true });
+      db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
+
+      const who = sugar.whoami({ agentId: begun.agentId });
+
+      expect(who.success).toBe(true);
+      expect(who.active).toBe(true);
+      expect(who.sessionId).toBe(begun.sessionId);
+      expect(sessions.get(begun.sessionId).session.status).toBe('active');
+    });
+
+    it('whoami by agentId still reports inactive for an abandoned non-durable session', () => {
+      const begun = sugar.begin({ purpose: 'Quick fix' });
+      db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
+
+      const who = sugar.whoami({ agentId: begun.agentId });
+
+      expect(who.success).toBe(true);
+      expect(who.active).toBe(false);
+      expect(sessions.get(begun.sessionId).session.status).toBe('abandoned');
     });
 
     it('whoami still reports an abandoned non-durable session as inactive', () => {

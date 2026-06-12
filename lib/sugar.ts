@@ -714,6 +714,26 @@ export function createSugar(deps: SugarDeps) {
     const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
 
     if (sessionsList.length === 0) {
+      // Abandoned-but-durable sessions are still live work contexts: an
+      // abandonment write (e.g. zombie protocol) suspends them, it doesn't
+      // end them. Find the most recent one, resurrect it, and report active.
+      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true });
+      const abandonedList = (abandonedResult.sessions || []) as Array<Record<string, unknown>>;
+      const durableSession = abandonedList.find(s => s.durable === true);
+      if (durableSession) {
+        sessions.resurrect?.(durableSession.id as string);
+        const durableDetail = sessions.get(durableSession.id as string);
+        if (durableDetail.success && durableDetail.session) {
+          return buildWhoamiResponse(
+            durableDetail.session as Record<string, unknown>,
+            (durableDetail.notes as unknown[] | undefined) || [],
+            (durableDetail.files as Array<Record<string, unknown>> | undefined) || [],
+            agent,
+            agentId,
+          );
+        }
+      }
+
       return {
         success: true,
         active: false,

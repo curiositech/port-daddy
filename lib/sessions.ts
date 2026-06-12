@@ -391,11 +391,16 @@ export function createSessions(
     mostRecentActiveByAgentAndWorktree: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' AND agent_id = ? AND worktree_id = ? ORDER BY updated_at DESC LIMIT 1
     `),
+    // Abandoned durable sessions are suspended work contexts, not garbage —
+    // they must survive cleanup until pd done completes them. Completed
+    // durable sessions are fair game (pd done is final).
     cleanupOld: db.prepare(`
       DELETE FROM sessions WHERE status = ? AND updated_at < ?
+        AND NOT (is_durable = 1 AND status = 'abandoned')
     `),
     cleanupOldAny: db.prepare(`
       DELETE FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
+        AND NOT (is_durable = 1 AND status = 'abandoned')
     `),
     listOrphanedActive: db.prepare(hasAgentsTable ? `
         SELECT s.*
@@ -1947,7 +1952,12 @@ export function createSessions(
     };
   }
 
-  /** Flip an abandoned durable session back to active (called by whoami). */
+  /**
+   * Flip an abandoned durable session back to active (called by whoami).
+   *
+   * Note: abandonment released the session's file claims, and resurrection
+   * does NOT restore them — the agent must re-claim files it still needs.
+   */
   function resurrect(sessionId: string): void {
     db.prepare(
       "UPDATE sessions SET status = 'active', updated_at = ? WHERE id = ? AND is_durable = 1 AND status = 'abandoned'"
