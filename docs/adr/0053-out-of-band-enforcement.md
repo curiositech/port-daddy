@@ -105,6 +105,42 @@ demoted from *wall* to **loud tripwire**: they keep logging every attempt to
 `activity_log` and `~/.port-daddy/destructive-ops.log`, so the operator sees the
 escape even when the boundary already stopped the damage.
 
+#### The unifying primitive — one macaroon, one third-party caveat
+
+A **macaroon** (Birgisson et al., 2014 — a bearer credential whose holder can
+*attenuate* it by appending caveats but never broaden it, and that can require a
+**third-party discharge** — a separate proof that some condition holds) makes the
+Layer 1 push grant and the Layer 2 API-key grant **the same object**. The grant
+is a macaroon whose single third-party caveat is *"the Port Daddy daemon attests
+rent-paid for session S"*, dischargeable **iff** the coordination invariants hold
+(session active, scope claimed, a note per commit, branch rebased). This buys
+three things the imperative gate does not:
+
+1. **The broker's four checks collapse into one cryptographically-verifiable
+   capability.** The Relay (`apps/relay`, shipped + ProVerif-modeled, ADR-0049)
+   already verifies discharges; the gate becomes "reject any push/key-use whose
+   macaroon lacks a valid rent-paid discharge," not four imperative `if`s that can
+   drift.
+2. **Attenuation is free and one-directional.** An agent can narrow a push
+   macaroon to a single branch or a short TTL; it can never broaden one. The
+   enforcement half is **already built** — `feat/cap-attenuation-monitor` enforces
+   `CAP_ESCALATION` (no-broadening) in pure TS, and `defense/anchor-attenuation-soundness`
+   has the **per-hop** attenuation **proven in ProVerif** (the naive
+   final-vs-root verifier was unsound; per-hop is sound).
+3. **It splits Layer 1 into two independently-shippable halves** (see the matrix):
+   the crypto **gate** — the daemon/Relay refuses to push without a valid
+   rent-paid discharge — lands **before** the egress **confinement** (the GitHub
+   App installation token). The gate delivers the *wall* property even while the
+   push still flows through the operator's `gh` token, which **directly de-risks
+   the Phase-0a gap** below (a token-shelling broker gates + audits but does not
+   confine — with the macaroon, it still cannot push without a valid discharge).
+
+This does **not** weaken the honesty rule: the agent still briefly holds the
+discharged macaroon, so Layers 1–2 remain *not a vault* against a malicious
+same-UID process (only Layer 3 is). The macaroon makes the gate **unforgeable**
+and the audit a **verifiable transcript** — it does not confine a process that
+copies the credential it legitimately holds.
+
 ### Layer 1 — Branch protection + push broker (the wall for protected refs)
 
 The highest-leverage layer. Buildable in days for the branch-protection half.
@@ -221,6 +257,17 @@ through the metering proxy with **pf** (`pfctl`, the macOS packet filter)
 configured so that `unset HTTPS_PROXY` does nothing: the firewall, not an env
 var, decides where packets go.
 
+**Not Seatbelt.** Earlier sketches (and ADR-0037 §Layer 4) reached for macOS
+**`sandbox-exec`** (Seatbelt) to confine writes. This ADR explicitly rejects it
+as the *wall*: Seatbelt is `DEPRECATED` by Apple, runs the agent at the **same
+UID** (so a determined process escapes), and a raw-terminal agent simply declines
+to launch under it. Seatbelt is at best a defense-in-depth speed bump for
+cooperating sorties, never the structural boundary — the structural write
+boundary is the separate UID / VM, where the kernel owns the decision. (The
+read-only-real-tree + daemon-issued-writable-worktree mechanism rides on the same
+UID/VM boundary: if the only writable path is one the daemon mints, `git worktree
+add` elsewhere fails and `pd worktree claim` becomes the single door.)
+
 Only under Layer 3 is it true that **using Port Daddy is the only path to a
 usable credential** — that is where the Nash-equilibrium framing in the Decision
 Drivers actually holds.
@@ -241,10 +288,33 @@ at commit time by `cli/commands/guard.ts`'s `requireNotePerCommit`). Phase 7
 already blocks a *commit* that owes a coordination note. This ADR extends the
 same rule to the *credential*: the broker (push token in Layer 1, API key in
 Layer 2) acts **only for a coordinating session** — session active, claims held,
-a note per commit, branch rebased. That makes coordination the dominant strategy
-**for any agent whose only usable credential is the broker's** — i.e. an agent
-under Layer 3. Until then it shapes behavior for cooperating agents and logs the
-rest; it is not yet a Nash equilibrium for an agent holding an ambient credential.
+a note per commit, branch rebased — encoded as the macaroon's rent-paid discharge
+condition above. That makes coordination the dominant strategy **for any agent
+whose only usable credential is the broker's** — i.e. an agent under Layer 3.
+Until then it shapes behavior for cooperating agents and logs the rest; it is not
+yet a Nash equilibrium for an agent holding an ambient credential.
+
+#### Mechanical vs. semantic good faith — be honest about the seam
+
+The discharge condition can only hard-gate **mechanical** good faith: a note
+*exists*, messages were *fetched*, scope was *claimed*, the branch *is* rebased.
+These are binary, forgery-resistant, and belong in the macaroon caveat. It
+**cannot** hard-gate **semantic** good faith — that the note is *meaningful* or
+the agent actually *read* the messages. Trying to hard-gate semantics trains
+agents to emit a one-word note to clear the check (**Goodhart's law** — a measure
+that becomes a target stops measuring). And per the standing rule, the meaning of
+free text is **never** decided by keyword/substring matching. The split:
+
+- **Mechanical → hard gate.** A binary broker precondition baked into the
+  rent-paid discharge. No discharge, no capability.
+- **Semantic → scored, feeds reputation.** A ~$0.001 Haiku call judges note/ack
+  quality (not a keyword check); the score updates the session's standing in the
+  **reputation estimator** (`paper/identity-reputation`, the L3 identity→reputation
+  bridge — Elo / Bradley–Terry / TrueSkill over outcomes, de-biased LLM-as-judge).
+  Reputation then gates *future* grant **cost**, not the current binary check:
+  high standing → fast, cheap, long-TTL discharges; low standing → more scrutiny,
+  shorter TTLs, or denial. This is where "in good faith" actually lives, because
+  it is the only place bad faith can be **priced** without being forgeable.
 
 ## Considered Options
 
@@ -297,16 +367,24 @@ column is the last-known value; once `pd adr sync` / `pd adr matrix` ships
 will override this column from `roadmap_items` via `GET /adr/:n/matrix`. Slugs
 are the contract — do not rename mid-stream. Each row is its own PR.
 
+**Re-sequenced 2026-06-12** after the `port-daddy:enforcement:dom-daddy-design-sync`
+review: the **macaroon-discharge gate is the new Phase 1** (it delivers the wall
+property without waiting on App-token egress), the App token (formerly the
+gating prerequisite, `adr-0053-layer-0-github-app-egress-auth`) **demotes to a
+confinement upgrade**, and the caveat schema is its own artifact row. The old
+`adr-0053-layer-1a-push-gate` slug is **subsumed** by `adr-0053-macaroon-discharge-gate`.
+
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
-| 0a | adr-0053-layer-0-github-app-egress-auth | backlog | — | Build GitHub App **egress** auth (the "sibling work in flight" `lib/fleet/github-output.ts` references): App registration/config, private-key storage, `@octokit/auth-app` `createAppAuth` + installation-token exchange, Octokit wiring. Prerequisite for any "token the agent never sees" push broker. NOT yet built; webhook ingress only is wired today. |
-| 0b | adr-0053-tripwire-bypass-line-removal | now | — | Remove the `PD_SHIM_OFF=1` line from `cli/utils/git-shim.ts` agent-facing stderr (line 256); keep the audit-log behavior. Dependency-free quick win — a guardrail must not advertise its bypass. |
-| 1 | adr-0053-layer-1-branch-protection-push-broker | now | — | Server-side GitHub branch protection on `main`/release glob (no direct push/force/delete, required PR + checks); null `credential.helper` (with empty `helper =` reset line) on agent repo-local git config. **v1 broker brokers pushes via the daemon-held operator `gh` token** (audit + gating, not credential confinement); App-token confinement depends on Phase 0a. Wall is the server-side ruleset for protected refs only. |
-| 1a | adr-0053-layer-1a-push-gate | next | adr-0053-layer-1-branch-protection-push-broker | Broker-side compulsion gate: verify active session + Coordination Guard green + note-per-commit + rebased before pushing; corrective-only refusal copy (never names a bypass). Reuses `cli/commands/guard.ts` checks. Gate binds only traffic routed through `pd push`. |
-| 1b | adr-0053-layer-1b-tripwire-demotion | next | adr-0053-layer-1-branch-protection-push-broker | Demote `cli/utils/git-shim.ts` from wall to tripwire: keep audit to `activity_log` + `~/.port-daddy/destructive-ops.log`. (Bypass-line removal already landed in Phase 0b.) |
-| 2 | adr-0053-layer-2-credential-broker | partial | adr-0053-layer-1a-push-gate | API-key broker. `scrubRawSecretsFromEnv()` (ADR-0050 phase 1) ships; remaining work is local CA + MITM proxy injecting keys + USD metering on top of `lib/coast-guard/egress-meter.ts`. Meters only proxy-routed, CA-trusting traffic. Composes with ADR-0050 phases 1–2. |
-| 2a | adr-0053-layer-2a-macaroon-caveats | backlog | adr-0053-layer-2-credential-broker | Per-task attenuated macaroon caveats scoping each task's spend/reach (auth-chain / `pd-relay-zero-trust`). |
-| 3 | adr-0053-layer-3-separate-uid-vm-egress | backlog | adr-0053-layer-2-credential-broker | Separate `pd-agent` UID or Virtualization.framework guest; kernel-denied reads of `~/.ssh`/`.env.local`/keychain/broker token; pf forced egress through the meter. ADR-0050 phase 4. Removes ambient credential; defends truly-malicious same-UID; trades away live-tree editing. |
+| 0b | adr-0053-tripwire-bypass-line-removal | **shipped (PR #367)** | — | Removed the `PD_SHIM_OFF=1` advertisement from `cli/utils/git-shim.ts` agent-facing stderr; override still works + still audited; bumped `SHIM_VERSION` 3→4 + regression test. A guardrail must not advertise its bypass. |
+| 1-schema | adr-0053-macaroon-caveat-schema | now | — | **Owned by `port-daddy:enforcement:dom-daddy-design-sync`.** The caveat schema artifact: predicate set, the third-party "rent-paid for session S" discharge protocol, TTL + renewal, one-directional attenuation grammar. Design doc into this ADR — **not a new ADR**. Blocks Phase 1. |
+| 1 | adr-0053-macaroon-discharge-gate | now | adr-0053-macaroon-caveat-schema | **The crypto gate (new highest-leverage rail).** Push/key grant = a macaroon whose third-party caveat is "PD daemon attests rent-paid for session S" (session + claims + note-per-commit + rebased). The daemon/Relay (`apps/relay`, ADR-0049) rejects any push lacking a valid discharge. Reuses **already-built** `feat/cap-attenuation-monitor` (CAP_ESCALATION no-broadening) + `defense/anchor-attenuation-soundness` (per-hop attenuation ProVerif-proven). **Wall property holds even while the push still flows through the operator's `gh` token** — corrective-only refusal copy, never names a bypass. Subsumes the old `layer-1a-push-gate`. |
+| 1-bp | adr-0053-branch-protection-app-only-push | now · **operator-gated** | — | Server-side GitHub branch protection on `main`/release glob (no direct push/force/delete, required PR + checks) + null `credential.helper` (empty `helper =` reset line) on agent repo-local config. Independent server-side wall for the protected refs. **Outward-facing settings change that can disrupt the auto-merge bots — needs explicit operator go.** |
+| 0a | adr-0053-github-app-egress-auth | backlog (**demoted to upgrade**) | adr-0053-macaroon-discharge-gate | GitHub App **egress** auth: App registration, private-key storage, `@octokit/auth-app` `createAppAuth` + installation-token exchange (the "sibling work in flight" `lib/fleet/github-output.ts` references). **No longer a prerequisite** — it upgrades the Phase-1 gate from gates+audits to true credential **confinement** ("a token the agent never sees"). NOT yet built; webhook ingress only today. |
+| 1b | adr-0053-tripwire-demotion | next | adr-0053-macaroon-discharge-gate | Demote `cli/utils/git-shim.ts` from wall to tripwire: keep audit to `activity_log` + `~/.port-daddy/destructive-ops.log`. (Bypass-line removal already shipped in 0b.) |
+| 2 | adr-0053-layer-2-credential-broker | partial | adr-0053-macaroon-discharge-gate | API-key broker — the **same macaroon** as Phase 1, second resource. `scrubRawSecretsFromEnv()` (ADR-0050 phase 1) ships; remaining work is local CA + MITM proxy injecting keys + USD metering on `lib/coast-guard/egress-meter.ts`. Meters only proxy-routed, CA-trusting traffic. Composes with ADR-0050 phases 1–2. |
+| 2-rep | adr-0053-semantic-reputation-scoring | backlog | adr-0053-layer-2-credential-broker | The semantic-good-faith layer: a ~$0.001 Haiku judge scores note/ack quality (never keyword-based) → **reputation estimator** (`paper/identity-reputation`). Reputation gates future grant **cost** (TTL/scrutiny/denial), not the binary discharge. Where bad faith gets priced. |
+| 3 | adr-0053-layer-3-separate-uid-vm-egress | backlog | adr-0053-layer-2-credential-broker | Separate `pd-agent` UID or Virtualization.framework guest; kernel-denied reads of `~/.ssh`/`.env.local`/keychain/broker token; pf forced egress; RO real tree + daemon-issued writable worktree (single door). ADR-0050 phase 4. **NOT Seatbelt** (deprecated, same-UID, escapable). Removes ambient credential; defends truly-malicious same-UID; trades away live-tree editing. |
 | 3a | adr-0053-layer-3a-per-fleet-adoption | backlog | adr-0053-layer-3-separate-uid-vm-egress | Per-fleet opt-in: Layer 3 for low-trust sorties first; operator interactive sessions last. Live-tree-tension UX disclosure surfaced in `pd status` / fleet config. |
 
 ## Consequences
@@ -335,10 +413,15 @@ are the contract — do not rename mid-stream. Each row is its own PR.
   the agent no longer edits the operator's working checkout in place. This is the
   central cost and is disclosed, not hidden; mitigated by per-fleet, low-trust-
   first adoption.
-- **App-token egress must be built before the broker confines anything.** Until
-  Phase 0a lands, the v1 broker pushes with the operator's ambient `gh` token —
-  the same credential the agent can reach — so it offers gating and audit, not
-  confinement. Shipping the broker without disclosing this would overclaim.
+- **The gate is a wall before App-token egress; it is not yet *confinement*.**
+  The macaroon-discharge gate (Phase 1) refuses any push without a valid
+  rent-paid discharge *today*, even while the push still flows through the
+  operator's ambient `gh` token — so the *gate* property arrives early. But until
+  Phase 0a (App installation token) lands, the broker still pushes with a
+  credential the agent can also reach, so it offers gating + audit, **not credential
+  confinement**. Calling the early gate "confinement" would overclaim; calling it
+  merely advisory would underclaim. It is an unforgeable gate over a
+  non-confined credential.
 - **Operational surface grows.** Branch protection rules, a null credential
   helper, a push broker route, a local CA + MITM proxy, and (Layer 3) UID/VM
   provisioning are all new things to install, rotate, and debug. The CA in
@@ -402,3 +485,17 @@ State plainly, in this ADR and in all shipped copy:
   pf forced egress, backlog); the broker gate generalizes **phase 7**
   (coordination rent — `evaluateLeaseRent`, note-per-commit enforcement shipped
   via `cli/commands/guard.ts`).
+- **ADR-0049** (`docs/adr/0049-relay-architecture.md`) — the Relay
+  (`apps/relay`, shipped + ProVerif-modeled) is the zero-trust capability
+  verifier the Phase-1 macaroon discharge rides on; the gate is "Relay rejects a
+  push whose macaroon lacks a valid rent-paid discharge."
+- **Built prior art (unmerged branches) the matrix reuses rather than rebuilds:**
+  `feat/cap-attenuation-monitor` (pure-TS `CAP_ESCALATION` no-broadening monitor —
+  the macaroon attenuation enforcement); `defense/anchor-attenuation-soundness`
+  (**per-hop** attenuation **proven in ProVerif** — the naive final-vs-root
+  verifier was unsound); `verify-claim-signaling-tla` (TLA+ claim-signaling
+  model); `paper/identity-reputation` (the *From Spawn to Person* reputation
+  estimator — the home of the Phase 2-rep semantic-good-faith layer);
+  `docs/coordination-cookbook` (the topology/pattern catalog the coordinated
+  agents follow). These mean Phases 1, 2-rep, and 3 are substantially **assembly,
+  not greenfield**.
