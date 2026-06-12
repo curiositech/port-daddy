@@ -379,54 +379,136 @@ async function fleetModels(options: CLIOptions, positionalBackend?: string): Pro
   }
 }
 
-async function fleetUp(): Promise<void> {
+/**
+ * Split a fleet config's agents into enabled vs paused for a partial
+ * `pd fleet up <ship...>`. No ships requested = everything enabled.
+ */
+export function partitionFleetShips(
+  config: { agents: Array<{ name: string }> },
+  ships: string[],
+): { ok: true; enabled: string[]; paused: string[] } | { ok: false; error: string } {
+  const known = config.agents.map((agent) => agent.name);
+  if (ships.length === 0) {
+    return { ok: true, enabled: known, paused: [] };
+  }
+  const knownSet = new Set(known);
+  const unknown = ships.filter((name) => !knownSet.has(name));
+  if (unknown.length > 0) {
+    return {
+      ok: false,
+      error: `Unknown ship(s): ${unknown.join(', ')}. Available: ${known.join(', ')}`,
+    };
+  }
+  const requested = new Set(ships);
+  return {
+    ok: true,
+    enabled: ships,
+    paused: known.filter((name) => !requested.has(name)),
+  };
+}
+
+async function fleetUp(ships: string[] = []): Promise<void> {
   if (!(await isDaemonRunning())) {
     ui.error('Port Daddy daemon not running. Start it first: pd start');
     process.exit(1);
   }
 
+  const projectDir = process.cwd();
+  const config = loadFleetConfig(projectDir);
+
+  let selection: { enabled: string[]; paused: string[] } = { enabled: [], paused: [] };
+  if (ships.length > 0) {
+    if (!config) {
+      ui.error('No pd-fleet.yml found — cannot select ships.');
+      process.exit(1);
+      return;
+    }
+    const partition = partitionFleetShips(config, ships);
+    if (!partition.ok) {
+      ui.error(partition.error);
+      process.exit(1);
+      return;
+    }
+    selection = partition;
+  }
+
   const state = await getFleetRunningState();
   if (state.running) {
+    if (state.source === 'daemon-supervised' && ships.length > 0) {
+      // Daemon supervises this fleet: apply the subset in place.
+      const res = await pdFetch('/fleet/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectDir, enabledAgents: selection.enabled }),
+      });
+      const body = await res.json().catch(() => ({})) as { success?: boolean; error?: string };
+      if (!res.ok || body.success === false) {
+        ui.error(`Could not apply ship selection: ${body.error ?? 'daemon error'}`);
+        process.exit(1);
+        return;
+      }
+      ui.success(`Fleet "${state.name ?? config?.name ?? ''}" now sailing a partial fleet:`);
+      for (const name of selection.enabled) ui.success(`  ${name} — enabled`);
+      for (const name of selection.paused) ui.info(`  ${name} — paused`);
+      ui.info('  Watch them go: pd fleet status');
+      return;
+    }
     if (state.source === 'daemon-supervised') {
       ui.warn(`Fleet "${state.name}" already supervised by the daemon (${describeFleetRunningState(state)})`);
       ui.info('  Status: pd fleet status');
       ui.info('  Stop:   pd fleet down');
+      ui.info('  Partial fleet: pd fleet up <ship...> to enable only some ships');
     } else {
       ui.warn(`Fleet already running (Dock Master PID ${state.pid})`);
       ui.info('  Status: pd fleet status');
       ui.info('  Stop:   pd fleet down');
+      if (ships.length > 0) {
+        ui.info('  Ship selection needs the fleet restarted: pd fleet down, then pd fleet up ' + ships.join(' '));
+      }
     }
     return;
   }
 
-  const projectDir = process.cwd();
-  const config = loadFleetConfig(projectDir);
-
   if (config) {
     // ─── Declarative mode: pd-fleet.yml found ───────────────────────
+    const partial = selection.paused.length > 0;
     ui.info(`Starting fleet "${config.name}" from pd-fleet.yml`);
-    ui.info(`  Agents: ${config.agents.length}`);
+    ui.info(`  Agents: ${partial ? `${selection.enabled.length} of ${config.agents.length} (partial fleet)` : config.agents.length}`);
     ui.info(`  Watchers: ${config.watchers.length}`);
     ui.info(`  Channels: ${Object.keys(config.channels).length}`);
     console.log('');
 
-    activeRunner = createFleetRunner(config, projectDir);
+    activeRunner = createFleetRunner(
+      config,
+      projectDir,
+      partial ? { initiallyPausedAgents: selection.paused } : undefined,
+    );
     activeRunner.startAll();
 
     // Save state so pd fleet status/stop can find it
     const stateFile = join(projectDir, '.portdaddy', 'fleet-state.json');
-    mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
-    writeFileSync(stateFile, JSON.stringify({
-      pid: process.pid,
-      name: config.name,
-      agents: config.agents.map(a => a.name),
-      watchers: config.watchers.map(w => w.name),
-      startedAt: new Date().toISOString(),
-    }));
+    const pausedSet = new Set(selection.paused);
+    const enabledAgents = config.agents.filter(a => !pausedSet.has(a.name));
+    try {
+      mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
+      writeFileSync(stateFile, JSON.stringify({
+        pid: process.pid,
+        name: config.name,
+        agents: enabledAgents.map(a => a.name),
+        pausedAgents: selection.paused,
+        watchers: config.watchers.map(w => w.name),
+        startedAt: new Date().toISOString(),
+      }));
+    } catch {
+      // Non-fatal: status/stop fall back to daemon discovery.
+    }
 
-    for (const agent of config.agents) {
+    for (const agent of enabledAgents) {
       const mode = agent.schedule ? `schedule: ${agent.schedule}` : `trigger: ${agent.trigger}`;
       ui.success(`  ${agent.name} (${agent.backend}) — ${mode}`);
+    }
+    for (const name of selection.paused) {
+      ui.info(`  ${name} — paused (not selected)`);
     }
     for (const watcher of config.watchers) {
       ui.success(`  ${watcher.name} (watcher) — trigger: ${watcher.trigger}`);
@@ -1011,7 +1093,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
 
   switch (subcommand) {
     case 'up':
-      await fleetUp();
+      await fleetUp(positional.slice(1));
       break;
 
     case 'down':
@@ -1057,7 +1139,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('');
       console.log('Lifecycle:');
       console.log('  init            Create pd-fleet.yml + git hook in current project');
-      console.log('  up              Start all agents from pd-fleet.yml');
+      console.log('  up [ship...]    Start agents from pd-fleet.yml (name ships for a partial fleet)');
       console.log('  down            Stop all agents');
       console.log('  status          Show fleet health');
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');

@@ -18,14 +18,17 @@ const DEFAULT_MAX_LOCKS_PER_AGENT = 20;
 
 const VALID_STATUSES = ['starting', 'ready', 'busy', 'draining'] as const;
 
-// Adaptive reaper thresholds by agent status (operational concern)
+// Adaptive reaper thresholds by agent status (operational concern).
+// Background Claude Code agents have no heartbeat loop — use 4h so sessions survive
+// a long background job. Only the work being gone (worktree removed / branch merged)
+// should kill a session; time alone does not (see session-liveness.ts).
 const DEAD_THRESHOLDS: Record<string, number> = {
   starting: 15 * 60 * 1000,
-  ready: 20 * 60 * 1000,
-  busy: 30 * 60 * 1000,
+  ready:    4 * 60 * 60 * 1000,   // was 20m — background agents survive now
+  busy:     4 * 60 * 60 * 1000,   // was 30m
   draining: 5 * 60 * 1000,
 };
-const DEFAULT_DEAD_THRESHOLD = 20 * 60 * 1000;
+const DEFAULT_DEAD_THRESHOLD = 4 * 60 * 60 * 1000;  // was 20m — see above
 const DEFAULT_CLEANUP_TTL = DEFAULT_DEAD_THRESHOLD;
 
 function getDeadThresholdForStatus(status?: string): number {

@@ -661,6 +661,28 @@ _pd_cmd_bench() {
     '(-h --help)'{-h,--help}'[show help]'
 }
 
+_pd_cmd_benchmark() {
+  local -a benchmark_subcmds
+  benchmark_subcmds=(
+    'run:run the diversity experiment (built-in sampler or --tasks file)'
+    'list-models:list available benchmark model ids'
+    'list-conditions:list fleet condition presets'
+    'report:re-render a saved results JSON'
+  )
+
+  local state
+  _arguments -C \
+    '(-h --help)'{-h,--help}'[show help]' \
+    '1:subcommand:->subcommand' \
+    && return
+
+  case "$state" in
+    subcommand)
+      _describe 'benchmark subcommand' benchmark_subcmds
+      ;;
+  esac
+}
+
 _pd_cmd_demo() {
   local -a demo_subcmds
   demo_subcmds=(
@@ -1980,6 +2002,7 @@ _port_daddy() {
     'periscope:operator loop SIGHT stage — raise the periscope (state + next cut)'
     'coast-guard:Coast Guard read path — whether spawns are confined + what they cannot read'
     'cg:alias for coast-guard — the Coast Guard read path'
+    'relay:Relay v0 — zero-trust event fabric for cross-machine pub/sub (ADR-0049)'
     'sight:alias for periscope — operator loop SIGHT stage'
     'scope:alias for periscope — operator loop SIGHT stage'
     'cockpit:App-Native Development Cockpit — read roadmap into mission cards'
@@ -1990,6 +2013,8 @@ _port_daddy() {
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
+    # Cloud relay — zero-trust event fabric (ADR-0049)
+    'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
     'hm:alias for harbormaster'
@@ -2025,9 +2050,11 @@ _port_daddy() {
     'down:stop all services started by up'
     # Benchmarking, Demos & Fleet
     'bench:run performance benchmarks'
+    'benchmark:multi-backend LLM diversity experiment runner'
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
     'backend:list/use/cost — fleet backend route, framing, and spend'
+    'relay:manage cloud relay URL, status, and OIDC token exchange'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'
@@ -2108,6 +2135,7 @@ _port_daddy() {
         up)                 _pd_cmd_up ;;
         down)               _pd_cmd_down ;;
         bench)              _pd_cmd_bench ;;
+        benchmark)          _pd_cmd_benchmark ;;
         demo)               _pd_cmd_demo ;;
         fleet)              _pd_cmd_fleet ;;
         s|scan)             _pd_cmd_scan ;;

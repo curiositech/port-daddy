@@ -1,0 +1,58 @@
+% Fig 1 — the L0->L3 stack map, placing Paper 3 (the bridge). Harbor Volume idiom.
+% Design: one bold title + small-caps whom per rung, one italic content line with
+% an honest-state tag; Paper 3 is a cobalt bracket spanning the L2->L3 gap.
+% The through-line chain lives in the caption.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  rung/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=7pt,
+               minimum width=132mm,minimum height=15mm,align=left,text width=124mm},
+  paper/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+                font=\footnotesize,align=center,text width=22mm},
+]
+% The four rungs, L0 bottom -> L3 top
+\node[rung,fill=hhsand!30] (l0) at (0,0)
+  {{\bfseries L0 --- Daemon (kernel)}\hfill{\footnotesize\textsc{for the machine}}\\[2pt]
+   \textit{always-on local SQLite truth: ports, claims, sessions, tube, memory}\hfill{\footnotesize\textsc{built}}};
+\node[rung,fill=hhsand!30,above=5mm of l0] (l1)
+  {{\bfseries L1 --- Coordination protocol}\hfill{\footnotesize\textsc{for the agents}}\\[2pt]
+   \textit{typed conversation, commitments, delegation, Arbiter}\hfill{\footnotesize\textsc{designed}}};
+\node[rung,fill=hhsand!30,above=5mm of l1] (l2)
+  {{\bfseries L2 --- Legibility \& authority (the wedge)}\hfill{\footnotesize\textsc{for the operator}}\\[2pt]
+   \textit{digest-with-zoom, roadmap-as-truth, adversarial review, the console}\hfill{\footnotesize\textsc{built}}};
+\node[rung,fill=hhsand!30,above=5mm of l2] (l3)
+  {{\bfseries L3 --- Economy \& federation}\hfill{\footnotesize\textsc{for the market}}\\[2pt]
+   \textit{anchor, escrow, reputation, federation, the labor/skill market}\hfill{\footnotesize\textsc{whitepaper'd}}};
+
+% Paper 3 = the bridge from L2 to L3: a cobalt bracket spanning the gap
+\draw[hhcobalt,very thick] ([xshift=-4mm]l2.north west) -- ([xshift=-7mm]l2.north west)
+  -- ([xshift=-7mm]l3.south west) -- ([xshift=-4mm]l3.south west);
+\node[paper,draw=hhcobalt,very thick,anchor=east,align=center]
+  at ([xshift=-9mm]$(l2.north west)!0.5!(l3.south west)$)
+  {\textbf{Paper 3}\\\emph{From Spawn to Person}\\\textit{the bridge}};
+
+% companion papers, left column
+\node[paper,anchor=east] at ([xshift=-9mm]l0.west) {Paper 2\\\emph{Anchor} (L0--L1)};
+\node[paper,anchor=east] at ([xshift=-9mm]l2.west) {Paper 1\\\emph{Legible Swarm}};
+\node[paper,anchor=east] at ([xshift=-9mm]l3.west) {Paper 4\\\emph{Harbor Economy}};
+\end{tikzpicture}}
+\caption{\textbf{The Harbor Volume stack, and where this paper sits.} Each rung is
+for a different \emph{whom}; the honest state of each is labelled. This paper is the
+\emph{bridge} from L2 (a legible \emph{person} doing work) to L3 (a tradeable
+\emph{reputation}) --- the through-line memory $\to$ checkpoint $\to$
+\emph{continuity} $\to$ a \emph{person} $\to$ outcomes $\to$ \emph{reputation} $\to$
+the market. Paper~2 supplies the cryptographic identity below; Paper~4 consumes the
+reputation substrate above.}
+\label{fig:stack}
+\end{figure}

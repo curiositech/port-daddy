@@ -366,6 +366,91 @@ pre code {
   max-width: 100%;
 }
 
+/* ─── Wrapping figures (generated art with prose flowing around it) ─────────
+ * A figure tagged `figure--wrap` floats to one side on wide viewports so the
+ * body text wraps around the generated art instead of stacking full-width.
+ * On narrow viewports it falls back to a centered, full-width block. */
+@media (min-width: 900px) {
+  .blog-article figure.figure--wrap {
+    float: right;
+    clear: right;
+    width: 22rem;
+    max-width: 46%;
+    margin: var(--space-2) 0 var(--space-4) var(--space-6);
+  }
+  .blog-article figure.figure--wrap-left {
+    float: left;
+    clear: left;
+    margin: var(--space-2) var(--space-6) var(--space-4) 0;
+  }
+}
+.blog-article figure.figure--wrap img,
+.blog-article figure.figure--wrap-left img {
+  border: 2px solid var(--border-strong);
+  background: var(--surface-sunken);
+}
+
+/* ─── Footnotes (remark-gfm) ───────────────────────────────────────────────
+ * remark-gfm renders [^id] references as <sup><a> and collects definitions in
+ * a <section class="footnotes"> with an <ol>. Style them as a quiet citation
+ * apparatus: a ruled-off block, smaller (but still ≥ readable) text, with the
+ * accent only on the reference marks. */
+.blog-article sup a[data-footnote-ref],
+.blog-article a[data-footnote-ref] {
+  color: var(--brand-primary);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0 1px;
+}
+.blog-article sup a[data-footnote-ref]:hover,
+.blog-article a[data-footnote-ref]:hover {
+  color: var(--brand-secondary);
+}
+.blog-article .footnotes {
+  margin-top: var(--blog-section-break);
+  padding-top: var(--space-6);
+  border-top: 2px solid var(--border-strong);
+  font-size: var(--text-base);              /* 1rem — still ≥ 16px, no text-xs */
+  color: var(--text-muted);
+}
+.blog-article .footnotes h2.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.blog-article .footnotes::before {
+  content: "References";
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+.blog-article .footnotes ol {
+  padding-left: var(--space-6);
+}
+.blog-article .footnotes li {
+  margin-bottom: var(--space-3);
+  line-height: 1.6;
+}
+.blog-article .footnotes li::marker {
+  color: var(--brand-primary);
+}
+.blog-article .footnotes a[data-footnote-backref] {
+  color: var(--brand-primary);
+  text-decoration: none;
+  margin-left: 4px;
+}
+
 /* ─── Tufte sidenotes ─────────────────────────────────────────────────────
  * A `<!-- sidenote: LABEL? -->` directive in markdown wraps the next
  * paragraph or blockquote, replacing it with an <aside class="sidenote">.
@@ -433,8 +518,8 @@ pre code {
     padding: 0 0 0 var(--space-3);
     border-left: 1px solid var(--border-default);
     background: transparent;
-    /* Tufte caption baseline. 13px floor, line-height generous. */
-    font-size: 0.8125rem;           /* 13px */
+    /* Tufte caption baseline. ≥14px per vision rule. */
+    font-size: 0.875rem;            /* 14px — a11y bump from 13px */
     line-height: 1.5;
   }
 

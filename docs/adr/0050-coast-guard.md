@@ -105,6 +105,33 @@ for everything else.
 | 4 | adr-0050-phase-4-real-isolation | backlog | adr-0050-phase-1-secret-broker | The honest upgrade against the malicious case: separate UID / `Virtualization.framework` + pf forced egress. **Done when:** an agent that `unset HTTPS_PROXY` still cannot egress or read secrets — with the live-tree tradeoff documented. |
 | 5 | adr-0050-phase-5-littlesnitch-policy | backlog | adr-0050-phase-2-dollar-metering | Per-agent network policy (LittleSnitch-style allow/deny by host) + an operator prompt surface. **Done when:** the operator can scope each agent's egress to named hosts. |
 | 6 | adr-0050-phase-6-team-rollup | backlog | adr-0050-phase-3-signed-outcome-format | The paid Trust tier: roll receipts up to a team policy-and-audit plane. **Done when:** an eng lead sees every agent's signed record across the team. |
+| 7 | adr-0050-phase-7-compulsion | **shipped (note-per-commit enforced; reclaim sweep next)** | adr-0050-phase-0-pd-cutter-wrapper | **The compulsion — coordination is the price of the sandbox.** Mechanism design, not politeness: a voyage keeps its Coast-Guard sandbox only while it pays coordination rent. **Done when:** an un-noted commit blocks the next commit; a dark/abandoned sandbox is reclaim-eligible — and reclaim can NEVER touch the live main checkout. **Landed:** `lib/coast-guard/compulsion.ts` (pure rent evaluator + reclaim safety gate, 19 tests), `lib/coast-guard/compulsion-facts.ts` (git+daemon fact gatherer, fails open), wired into the Coordination Guard as `requireNotePerCommit` (default on) so "no note, no commit" is enforced at commit-time (7 guard tests). The reclaim sweep (`shouldReclaim` is built + gated; the reaper CLI surface is the next slice). |
+
+### The compulsion (phase 7) — why it's the keystone
+
+The other phases defend the operator *from* agents (secrets, spend). Phase 7 makes
+agents **use Port Daddy at all**. The failure it fixes is the dark lane: an agent
+that works without coordinating — no notes, no claims, never rebased — is invisible
+to the fleet and collides with everyone. Asking nicely does not scale.
+
+So we price it. The Coast Guard already hands out the sandbox (phase 0); phase 7
+makes *keeping* it conditional on coordination:
+
+- **commit ⇒ note publish** — every commit must publish a coordination note. An
+  un-noted commit blocks the next commit. (Enforced now, in the guard.)
+- **stay rebased** — drift far behind the live base *and* go silent, and the lease
+  is stale → reclaim-eligible.
+- **feed suggestibility** — leave the inputs the cartographer needs (a scope note,
+  a claim). A lease with zero signal past the grace window is idle → reclaim-eligible.
+
+The Nash-equilibrium behavior becomes *communicate*, because the alternative is
+losing the live sandbox — incentive-compatible by construction. Two honesty rules
+carry over from the rest of this ADR: the refusal copy points only at the
+corrective action and **never names a bypass**; and reclaim is gated so it can act
+**only** on a disposable sandbox under the scratch root, **never** the operator's
+live main checkout (`isReclaimableSandbox`). Cold ≠ dead: the grace windows are
+lenient on purpose — rent bites the hoarder, not the operator who walked away
+mid-thought.
 
 This is the L1-safety / L2-legibility wedge of ADR-0048 made concrete; it is the
 **"don't let my agents bankrupt me"** product the strategy memo names as the

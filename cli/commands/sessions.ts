@@ -14,6 +14,7 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
+import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
 import {
   attachCliSessionWorktreePolicy,
   resolveCliSessionWorktreePolicy,
@@ -868,10 +869,53 @@ export async function handleNote(content: string | undefined, options: CLIOption
     process.exit(1);
   }
 
+  // Rent-note → changelog (ADR-0050 phase 7). The compulsion already guarantees
+  // a note per commit; when the author marks it (--changelog or a leading
+  // Conventional-Commit token), that same note also files a changelog entry —
+  // one note, two purposes. Best-effort: a changelog failure never fails the
+  // note (coordination rent is already paid by this point).
+  // NOTE: `--type` is the NOTE's own kind (general/progress/decision/…) and must
+  // NOT be reused as the changelog type. The changelog type comes from the
+  // leading Conventional-Commit token or an explicit `--changelog-type`.
+  const intent = deriveChangelogFromNote({
+    content,
+    changelog: Boolean(options.changelog),
+    type: typeof options['changelog-type'] === 'string' ? (options['changelog-type'] as string) : undefined,
+  });
+  let changelogId: number | undefined;
+  if (intent.record) {
+    const identity =
+      (typeof options.identity === 'string' && options.identity) ||
+      current?.identity ||
+      inferNotesProject(options) ||
+      'port-daddy';
+    try {
+      const res = await pdFetch(`${PORT_DADDY_URL}/changelog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identity,
+          type: intent.type,
+          summary: intent.summary,
+          description: intent.description,
+          sessionId: data.sessionId ?? sessionId,
+          agentId,
+        }),
+      });
+      const cl = await res.json();
+      if (res.ok && typeof cl.id === 'number') changelogId = cl.id;
+    } catch {
+      // Changelog is best-effort; the note (the rent) already landed.
+    }
+  }
+
   if (isJson(options)) {
-    console.log(JSON.stringify(data, null, 2));
+    console.log(JSON.stringify({ ...data, changelogId }, null, 2));
   } else if (!isQuiet(options)) {
     ui.success(`Note added to session ${data.sessionId}`);
+    if (changelogId !== undefined) {
+      ui.info(`Changelog entry #${changelogId} filed (${intent.type}): ${intent.summary}`);
+    }
   }
 }
 

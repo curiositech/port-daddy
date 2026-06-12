@@ -1,0 +1,50 @@
+% Figure 5 — the authority half: the organs by which the Leviathan rules.
+% Design: one bold name + one italic line per organ; engineering detail lives
+% in the caption and Appendix A.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.97\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=40mm,
+                minimum height=14mm,align=center,inner sep=4pt,
+                font=\footnotesize,text width=36mm,fill=hhsand!30},
+  hub/.style={draw=hhebony,very thick,circle,fill=hhsand!30,minimum size=20mm,
+              align=center,font=\bfseries\footnotesize},
+  e/.style={-{Latex[length=2mm]},thick,hhink},
+]
+\node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
+
+\node[organ] (road) at (-5.4,3.0)
+  {\textbf{Roadmap-as-truth}\\\emph{what the authority answers to}};
+\node[organ] (rev) at (0,3.6)
+  {\textbf{Adversarial review}\\\emph{conflict-free quality organ}};
+\node[organ] (done) at (5.4,3.0)
+  {\textbf{Completionist completion}\\\emph{verifier-gated ``done''}};
+\node[organ] (land) at (-5.4,-3.0)
+  {\textbf{Thoughtful landing}\\\emph{conflict-aware merge order}};
+\node[organ] (guard) at (0,-3.6)
+  {\textbf{Footgun guards}\\\emph{prevent, or detect \& compensate}};
+\node[organ] (esc) at (5.4,-3.0)
+  {\textbf{Escalation to human}\\\emph{typed, prioritized interrupt}};
+
+\draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
+\draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);
+\end{tikzpicture}%
+}
+\caption{The authority half (\S\ref{sec:authority-rules}): six organs by which the
+consented daemon \emph{rules}. The legibility read-surfaces
+(Figure~\ref{fig:read-surfaces}) make the swarm \emph{seeable}; these organs make the
+authority \emph{act} --- and, per the legible-sovereign rule
+(Prop.~\ref{prop:legible-sovereign}), each act is itself a named, zoomable event. The
+engineering status of each organ is recorded in Appendix~\ref{app:honest}.}
+\label{fig:authority-organs}
+\end{figure}

@@ -1,0 +1,84 @@
+% Figure 1 — the L0->L3 stack map. Where this paper sits, what it assumes,
+% which companion papers it cites. Opens every paper in the Harbor Volume.
+% Design: one bold title line + one italic content line per layer; the
+% "for whom" audience rides the title line as small caps. Explanatory prose
+% lives in the caption, not the canvas.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  layer/.style={draw=hhebony,thick,rounded corners=4pt,
+                minimum width=150mm,minimum height=16mm,
+                align=left,inner sep=8pt,text width=142mm},
+  paper/.style={draw=hhcobalt,thick,fill=hhsand!30,rounded corners=2pt,
+                inner sep=3pt,font=\bfseries\footnotesize,text=hhink,
+                align=center,text width=20mm},
+]
+
+% ─── The four layers, L3 on top, L0 at the bottom ─────────────────────────
+\node[layer,fill=hhsand!30] (l3) at (0,0)
+  {{\bfseries L3 --- Economy \& Federation}\hfill{\footnotesize\textsc{for the market}}\\[2pt]
+   \textit{capability ceremony, escrow, reputation market, harbor federation}};
+\node[layer,fill=hhsand!30,draw=hhcobalt,very thick,below=8mm of l3] (l2)
+  {{\bfseries L2 --- Legibility \& Authority}\hfill{\footnotesize\textsc{for the operator}}\\[2pt]
+   \textit{digest-with-zoom, roadmap-as-truth, adversarial review, consent, the console}};
+\node[layer,fill=hhsand!30,below=8mm of l2] (l1)
+  {{\bfseries L1 --- Coordination Protocol}\hfill{\footnotesize\textsc{for the agents}}\\[2pt]
+   \textit{typed performatives, commitments, delegation trace, discovery (DF/AMS)}};
+\node[layer,fill=hhsand!30,below=8mm of l1] (l0)
+  {{\bfseries L0 --- The Daemon (kernel)}\hfill{\footnotesize\textsc{for the machine}}\\[2pt]
+   \textit{single-writer embedded DB: ports, claims, sessions, anomaly monitor, memory}};
+
+% "this paper" flag on L2
+\node[anchor=west,font=\bfseries\footnotesize,text=hhcobalt]
+  at ([xshift=3mm]l2.east) {$\blacktriangleleft$ this paper};
+
+% companion-paper column (left)
+\node[paper,left=5mm of l3] {Paper 4\\\emph{Harbor Economy}};
+\node[paper,left=5mm of l2,draw=hhcobalt,very thick] {\textbf{Paper 1}\\\emph{this}};
+\node[paper,left=5mm of l1] {Papers 1+2\\split L1};
+\node[paper,left=5mm of l0] {Paper 2\\\emph{Anchor /}\\\emph{the Kernel}};
+
+% ─── one assumes-spine (down) and one provides-spine (up) ─────────────────
+\draw[->,>=Latex,very thick,hhcobalt]
+  ([xshift=18mm]l3.south) -- ([xshift=18mm]l2.north)
+  node[midway,right=1mm,font=\scriptsize\itshape,text=hhink]{assumes};
+\draw[->,>=Latex,very thick,hhcobalt]
+  ([xshift=18mm]l2.south) -- ([xshift=18mm]l1.north)
+  node[midway,right=1mm,font=\scriptsize\itshape,text=hhink]{assumes};
+\draw[->,>=Latex,very thick,hhcobalt]
+  ([xshift=18mm]l1.south) -- ([xshift=18mm]l0.north)
+  node[midway,right=1mm,font=\scriptsize\itshape,text=hhink]{assumes};
+\draw[->,>=Latex,very thick,hhteal]
+  ([xshift=-18mm]l0.north) -- ([xshift=-18mm]l1.south)
+  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{provides};
+\draw[->,>=Latex,very thick,hhteal]
+  ([xshift=-18mm]l1.north) -- ([xshift=-18mm]l2.south)
+  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{provides};
+\draw[->,>=Latex,very thick,hhteal]
+  ([xshift=-18mm]l2.north) -- ([xshift=-18mm]l3.south)
+  node[midway,left=1mm,font=\scriptsize\itshape,text=hhink]{provides};
+
+\end{tikzpicture}%
+}
+\caption{The four-layer stack. Each layer serves a different \emph{whom}; each paper
+in the volume owns one rung. \textbf{This paper owns L2 --- the legibility \&
+authority ``wedge'' --- plus the L1 directory substrate} (the existence layer that a
+message must address). Each layer \emph{assumes} the one below it and \emph{provides}
+to the one above: this paper assumes the single-writer kernel (the companion protocol
+paper, \emph{The Anchor Protocol / The Harbor Daemon}) and provides the legible,
+checkpointed, outcome-bearing identity that the reputation bridge (\emph{From Spawn
+to Person}) and the market (\emph{The Harbor Economy}) consume. The volume is one
+ladder, climbed in order; you buy the next rung only when you need it.}
+\label{fig:stack-map}
+\end{figure}

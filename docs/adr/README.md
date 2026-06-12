@@ -32,13 +32,18 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0022](0022-durable-actor-souls-and-body-leases.md) | Durable Actor Souls and Body Leases | Accepted | 2026-04 |
 | [0023](0023-cartographer-roadmap-actor.md) | Cartographer as Navigator Roadmap Actor | Accepted | 2026-04 |
 | [0024](0024-daemon-profiles.md) | Named Daemon Profiles | Accepted | 2026-04 |
-| … | _(0025–0042 — index backfill tracked as `adr-0043-phase-5-retrofit-existing-adrs`)_ | | |
+| … | _(0025–0035, 0037–0042 — index backfill tracked as `adr-0043-phase-5-retrofit-existing-adrs`)_ | | |
+| [0036](0036-bosun-supervisor.md) | pd-bosun — Minimalist Daemon Supervisor (Rust binary) | Accepted | 2026-06 |
 | [0043](0043-adr-implementation-matrix.md) | ADRs Carry a Roadmap-Linked Implementation Matrix | Accepted | 2026-06 |
 | [0044](0044-shadow-db-path-consolidation.md) | Shadow-Mode DB Path Consolidation | Accepted | 2026-06 |
 | [0045](0045-loud-fail-invariants-and-honest-attestation.md) | Loud-Fail Invariants and Honest Attestation | Accepted | 2026-06 |
 | [0046](0046-operator-tui.md) | The Operator TUI — Conversation Multiplexer | Accepted | 2026-06 |
 | [0047](0047-conversation-protocol.md) | The Port Daddy Conversation Protocol | Accepted | 2026-06 |
 | [0048](0048-what-port-daddy-is.md) | What Port Daddy Is — the North Star | Accepted | 2026-06 |
+| [0049](0049-relay-architecture.md) | Relay v0 Architecture | Accepted | 2026-06 |
+| [0050](0050-coast-guard.md) | The Coast Guard — Agentic Safety on the Operator's Machine | Accepted | 2026-06 |
+| [0051](0051-marketplace-protocol.md) | The Marketplace Protocol — Encrypted-Capability Trade Across Operators | Proposed | 2026-06 |
+| [0052](0052-trajectory-export-and-rl-loop.md) | Trajectory Export and the Coordination RL Loop | Proposed | 2026-06 |
 
 ## How to Read These
 

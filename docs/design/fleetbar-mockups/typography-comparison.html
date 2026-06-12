@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetBar — Typography Direction: Two Approaches</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+<style>
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PAGE CHROME
+   ───────────────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-feature-settings: 'ss01' 1, 'cv01' 1, 'kern' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: #141414;
+  color: #FFFFFF;
+  padding: 48px 24px 80px;
+  min-height: 100vh;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 52px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  margin-bottom: 10px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  font-weight: 400;
+  color: #9A9890;
+  letter-spacing: -0.01em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TWO-PANEL LAYOUT
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  max-width: 900px;
+  margin: 0 auto 64px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .comparison-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+}
+
+.panel-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  align-self: flex-start;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN NOTES (under each panel)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.design-notes {
+  width: 100%;
+  max-width: 380px;
+}
+
+.design-notes ul {
+  list-style: none;
+  padding: 0;
+}
+
+.design-notes li {
+  font-size: 14px;
+  font-weight: 400;
+  color: #9A9890;
+  line-height: 1.6;
+  padding: 6px 0;
+  padding-left: 16px;
+  position: relative;
+  border-top: 1px solid #2A2A2A;
+}
+
+.design-notes li:last-child {
+  border-bottom: 1px solid #2A2A2A;
+}
+
+.design-notes li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  background: #5C5C5A;
+  border-radius: 50%;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BOTTOM DECISION PARAGRAPH
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.decision-section {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.decision-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  margin-bottom: 16px;
+}
+
+.decision-text {
+  font-size: 16px;
+  font-weight: 400;
+  color: #C8C4BC;
+  line-height: 1.7;
+  letter-spacing: -0.005em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PANEL A — SWISS MODERN
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.swiss-panel {
+  width: 380px;
+  background: #FAFAF8;
+  border: none;
+  overflow: hidden;
+  /* Elevation via background differentiation only — no shadow chrome */
+  outline: 1px solid #DDDBD6;
+}
+
+/* Header */
+.sw-header {
+  background: #FAFAF8;
+  padding: 16px 16px 0;
+  border-bottom: 1px solid #DDDBD6;
+}
+
+.sw-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+}
+
+.sw-header-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+}
+
+.sw-close {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #5C5C5A;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.1s;
+}
+
+.sw-close:hover {
+  color: #0F0F0E;
+}
+
+/* Agent list — vertical rows */
+.sw-agent-list {
+  padding: 0;
+}
+
+.sw-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+  position: relative;
+}
+
+.sw-agent-row:hover {
+  background: #F2F0EA;
+}
+
+.sw-agent-row.selected {
+  border-left-color: #003FB8;
+  background: #F5F4F0;
+}
+
+.sw-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sw-status-dot.running { background: #2E8B57; }
+.sw-status-dot.idle    { background: #9A9890; }
+.sw-status-dot.queued  { background: #A66F00; }
+
+.sw-agent-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #3C3A36;
+  flex: 1;
+  min-width: 0;
+}
+
+.sw-agent-row.selected .sw-agent-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #003FB8;
+}
+
+.sw-agent-meta {
+  font-size: 13px;
+  color: #7A7870;
+  white-space: nowrap;
+}
+
+/* Active agent header */
+.sw-active-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #DDDBD6;
+}
+
+.sw-active-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #003FB8;
+  margin-bottom: 4px;
+}
+
+.sw-active-name {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0F0F0E;
+  line-height: 1.15;
+}
+
+.sw-active-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.sw-active-status-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #003FB8;
+}
+
+/* Response area */
+.sw-response {
+  background: #F2F0EA;
+  padding: 14px 16px 16px;
+  border-bottom: 1px solid #DDDBD6;
+}
+
+.sw-response-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  margin-bottom: 10px;
+}
+
+.sw-response-text {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: #3C3A36;
+}
+
+.sw-response-text code {
+  font-family: 'SF Mono', 'Cascadia Code', ui-monospace, Menlo, monospace;
+  font-size: 14px;
+  background: #E8E5DD;
+  padding: 1px 4px;
+  color: #0F0F0E;
+}
+
+.sw-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 4px 8px;
+  background: #FFF0EE;
+  border-left: 3px solid #CC3D2E;
+}
+
+.sw-severity-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #CC3D2E;
+}
+
+/* Compose area */
+.sw-compose {
+  padding: 14px 16px 16px;
+}
+
+.sw-compose-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  margin-bottom: 10px;
+}
+
+.sw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.sw-chip {
+  font-size: 14px;
+  font-weight: 600;
+  color: #3C3A36;
+  padding: 5px 10px;
+  border: 1px solid #DDDBD6;
+  background: #FAFAF8;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  white-space: nowrap;
+  border-radius: 0;
+  /* Explicitly: no border-radius per spec */
+}
+
+.sw-chip:hover {
+  background: #F2F0EA;
+  border-color: #003FB8;
+  color: #003FB8;
+}
+
+.sw-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.sw-input-wrap {
+  flex: 1;
+  border-bottom: 1px solid #DDDBD6;
+  transition: border-color 0.15s;
+}
+
+.sw-input-wrap:focus-within {
+  border-bottom-color: #003FB8;
+}
+
+.sw-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  color: #0F0F0E;
+  padding: 6px 0;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+}
+
+.sw-input::placeholder {
+  color: #9A9890;
+}
+
+.sw-send {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5C5C5A;
+  padding: 6px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.1s;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+.sw-send:hover {
+  color: #003FB8;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PANEL B — NEOBRUTALIST REFINED
+   ───────────────────────────────────────────────────────────────────────────── */
+
+.neo-panel {
+  width: 380px;
+  background: #F2EEE6;
+  border: 2px solid #121212;
+  box-shadow: 4px 4px 0 #121212;
+  overflow: visible;
+  position: relative;
+}
+
+/* Header */
+.neo-header {
+  background: #121212;
+  padding: 14px 14px 12px;
+  border-bottom: 2px solid #121212;
+}
+
+.neo-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.neo-header-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9A9890;
+}
+
+.neo-close {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #9A9890;
+  font-size: 14px;
+  font-weight: 700;
+  transition: color 0.1s;
+  font-family: inherit;
+  background: none;
+  border: none;
+}
+
+.neo-close:hover {
+  color: #FFFFFF;
+}
+
+/* Agent tiles — horizontal row */
+.neo-agent-strip {
+  padding: 12px 12px 0;
+  border-bottom: 2px solid #121212;
+  background: #E8E2D8;
+}
+
+.neo-strip-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  margin-bottom: 8px;
+}
+
+.neo-tiles {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+
+.neo-tiles::-webkit-scrollbar {
+  display: none;
+}
+
+.neo-tile {
+  flex-shrink: 0;
+  padding: 7px 10px 7px;
+  border: 2px solid #121212;
+  box-shadow: 2px 2px 0 #121212;
+  background: #F2EEE6;
+  cursor: pointer;
+  transition: background 0.1s, box-shadow 0.1s, transform 0.1s;
+  position: relative;
+}
+
+.neo-tile:hover {
+  background: #E8E2D8;
+  box-shadow: 3px 3px 0 #121212;
+  transform: translate(-1px, -1px);
+}
+
+.neo-tile:active {
+  box-shadow: 1px 1px 0 #121212;
+  transform: translate(1px, 1px);
+}
+
+.neo-tile.selected {
+  background: #003FB8;
+  border-color: #003FB8;
+  box-shadow: 3px 3px 0 #00257A;
+  transform: translate(-1px, -1px);
+}
+
+.neo-tile-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #121212;
+  display: block;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.neo-tile.selected .neo-tile-name {
+  color: #FFFFFF;
+}
+
+.neo-tile-status {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  display: block;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.neo-tile.selected .neo-tile-status {
+  color: rgba(255,255,255,0.65);
+}
+
+.neo-tile-status.running { color: #006B5F; }
+.neo-tile-status.idle    { color: #7A7870; }
+.neo-tile-status.queued  { color: #A66F00; }
+.neo-tile.selected .neo-tile-status.running,
+.neo-tile.selected .neo-tile-status.idle,
+.neo-tile.selected .neo-tile-status.queued {
+  color: rgba(255,255,255,0.65);
+}
+
+/* Active agent section */
+.neo-active-header {
+  padding: 14px 14px 10px;
+  border-bottom: 2px solid #121212;
+  background: #F2EEE6;
+}
+
+.neo-active-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #003FB8;
+  margin-bottom: 3px;
+}
+
+.neo-active-name {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #121212;
+  line-height: 1.1;
+}
+
+.neo-active-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.neo-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border: 1.5px solid #121212;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: #F2EEE6;
+}
+
+.neo-badge.running {
+  border-color: #006B5F;
+  color: #006B5F;
+  background: #D0EEEB;
+}
+
+.neo-badge.high-sev {
+  border-color: #CC3D2E;
+  color: #CC3D2E;
+  background: #FDE8E6;
+  box-shadow: 2px 2px 0 #CC3D2E;
+}
+
+/* Response block */
+.neo-response {
+  padding: 14px 14px 14px;
+  border-bottom: 2px solid #121212;
+  background: #EDE8DF;
+  position: relative;
+}
+
+.neo-response::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #CC3D2E;
+}
+
+.neo-response-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  margin-bottom: 8px;
+  padding-left: 10px;
+}
+
+.neo-response-text {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: #121212;
+  padding-left: 10px;
+}
+
+.neo-response-text code {
+  font-family: 'SF Mono', 'Cascadia Code', ui-monospace, Menlo, monospace;
+  font-size: 14px;
+  background: #D8D1C3;
+  padding: 1px 4px;
+  border: 1px solid #B8B0A0;
+  color: #121212;
+}
+
+.neo-sev-block {
+  margin-top: 10px;
+  margin-left: 10px;
+  padding: 8px 10px;
+  border: 2px solid #CC3D2E;
+  box-shadow: 3px 3px 0 #CC3D2E;
+  background: #FDE8E6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neo-sev-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #CC3D2E;
+}
+
+.neo-sev-desc {
+  font-size: 14px;
+  font-weight: 600;
+  color: #121212;
+}
+
+/* Compose */
+.neo-compose {
+  padding: 12px 14px 14px;
+  background: #F2EEE6;
+}
+
+.neo-compose-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  margin-bottom: 8px;
+}
+
+.neo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.neo-chip {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #121212;
+  padding: 5px 9px;
+  border: 2px solid #121212;
+  box-shadow: 2px 2px 0 #121212;
+  background: #F2EEE6;
+  cursor: pointer;
+  transition: background 0.1s, box-shadow 0.08s, transform 0.08s;
+  white-space: nowrap;
+  border-radius: 0;
+  font-family: inherit;
+}
+
+.neo-chip:hover {
+  background: #003FB8;
+  color: #FFFFFF;
+  border-color: #003FB8;
+  box-shadow: 2px 2px 0 #00257A;
+}
+
+.neo-chip:active {
+  box-shadow: 1px 1px 0 #00257A;
+  transform: translate(1px, 1px);
+}
+
+.neo-input-container {
+  border: 2px solid #121212;
+  background: #FDFBF7;
+  padding: 8px 10px;
+  box-shadow: 3px 3px 0 #121212;
+  transition: box-shadow 0.1s;
+}
+
+.neo-input-container:focus-within {
+  box-shadow: 3px 3px 0 #003FB8;
+  border-color: #003FB8;
+}
+
+.neo-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.neo-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  color: #121212;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+}
+
+.neo-input::placeholder {
+  color: #9A9890;
+}
+
+.neo-send {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5C5C5A;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.1s;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+.neo-send:hover {
+  color: #003FB8;
+}
+
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1 class="page-title">Typography Direction — Two Approaches</h1>
+  <p class="page-subtitle">Same content, different philosophy.</p>
+</header>
+
+<div class="comparison-grid">
+
+  <!-- ────────────── PANEL A: SWISS MODERN ────────────── -->
+  <div class="panel-column">
+    <span class="panel-label">A — Swiss Modern</span>
+
+    <div class="swiss-panel">
+
+      <!-- Header with agent list -->
+      <div class="sw-header">
+        <div class="sw-header-top">
+          <span class="sw-header-label">Fleet Agents</span>
+          <button class="sw-close" aria-label="Close">✕</button>
+        </div>
+
+        <div class="sw-agent-list">
+
+          <div class="sw-agent-row selected" role="button" tabindex="0">
+            <span class="sw-status-dot running"></span>
+            <span class="sw-agent-name">Spider</span>
+            <span class="sw-agent-meta">Security</span>
+          </div>
+
+          <div class="sw-agent-row" role="button" tabindex="0">
+            <span class="sw-status-dot running"></span>
+            <span class="sw-agent-name">QA</span>
+            <span class="sw-agent-meta">Testing</span>
+          </div>
+
+          <div class="sw-agent-row" role="button" tabindex="0">
+            <span class="sw-status-dot running"></span>
+            <span class="sw-agent-name">Gardener</span>
+            <span class="sw-agent-meta">Cleanup</span>
+          </div>
+
+          <div class="sw-agent-row" role="button" tabindex="0">
+            <span class="sw-status-dot idle"></span>
+            <span class="sw-agent-name">Spark</span>
+            <span class="sw-agent-meta">Ideas</span>
+          </div>
+
+          <div class="sw-agent-row" role="button" tabindex="0">
+            <span class="sw-status-dot queued"></span>
+            <span class="sw-agent-name">Cartographer</span>
+            <span class="sw-agent-meta">Mapping</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Active agent -->
+      <div class="sw-active-header">
+        <div class="sw-active-eyebrow">Selected Agent</div>
+        <div class="sw-active-name">Spider</div>
+        <div class="sw-active-status">
+          <span class="sw-status-dot running"></span>
+          <span class="sw-active-status-text">Running</span>
+        </div>
+      </div>
+
+      <!-- Last response -->
+      <div class="sw-response">
+        <div class="sw-response-eyebrow">Last Response</div>
+        <p class="sw-response-text">
+          Found potential SQL injection in <code>queries/user.ts:47</code> — unsanitized <code>req.query.id</code> passed directly to template literal. Recommend parameterized queries.
+        </p>
+        <div class="sw-severity">
+          <span class="sw-severity-text">Severity: High</span>
+        </div>
+      </div>
+
+      <!-- Compose -->
+      <div class="sw-compose">
+        <div class="sw-compose-eyebrow">Ask Spider</div>
+        <div class="sw-chips">
+          <button class="sw-chip">Scan last commit</button>
+          <button class="sw-chip">Check auth routes</button>
+          <button class="sw-chip">Full audit</button>
+        </div>
+        <div class="sw-input-row">
+          <div class="sw-input-wrap">
+            <textarea class="sw-input" rows="2" placeholder="Ask a question…" aria-label="Message to Spider"></textarea>
+          </div>
+          <button class="sw-send">⌘↵</button>
+        </div>
+      </div>
+
+    </div><!-- /swiss-panel -->
+
+    <div class="design-notes">
+      <ul>
+        <li>Type hierarchy only — no border chrome</li>
+        <li>Hairlines and whitespace as structure</li>
+        <li>Accent reserved for selection and primary action</li>
+      </ul>
+    </div>
+  </div><!-- /panel-column A -->
+
+
+  <!-- ────────────── PANEL B: NEOBRUTALIST REFINED ────────────── -->
+  <div class="panel-column">
+    <span class="panel-label">B — Neobrutalist Refined</span>
+
+    <div class="neo-panel">
+
+      <!-- Dark header -->
+      <div class="neo-header">
+        <div class="neo-header-top">
+          <span class="neo-header-label">Fleet Agents</span>
+          <button class="neo-close" aria-label="Close">✕</button>
+        </div>
+      </div>
+
+      <!-- Agent tiles strip -->
+      <div class="neo-agent-strip">
+        <div class="neo-strip-eyebrow">Agents</div>
+        <div class="neo-tiles">
+
+          <div class="neo-tile selected" role="button" tabindex="0">
+            <span class="neo-tile-name">Spider</span>
+            <span class="neo-tile-status running">Running</span>
+          </div>
+
+          <div class="neo-tile" role="button" tabindex="0">
+            <span class="neo-tile-name">QA</span>
+            <span class="neo-tile-status running">Running</span>
+          </div>
+
+          <div class="neo-tile" role="button" tabindex="0">
+            <span class="neo-tile-name">Gardener</span>
+            <span class="neo-tile-status running">Running</span>
+          </div>
+
+          <div class="neo-tile" role="button" tabindex="0">
+            <span class="neo-tile-name">Spark</span>
+            <span class="neo-tile-status idle">Idle</span>
+          </div>
+
+          <div class="neo-tile" role="button" tabindex="0">
+            <span class="neo-tile-name">Cartographer</span>
+            <span class="neo-tile-status queued">Queued</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Active agent -->
+      <div class="neo-active-header">
+        <div class="neo-active-eyebrow">Selected Agent</div>
+        <div class="neo-active-name">Spider</div>
+        <div class="neo-active-meta">
+          <span class="neo-badge running">Running</span>
+          <span class="neo-badge high-sev">High Severity</span>
+        </div>
+      </div>
+
+      <!-- Last response -->
+      <div class="neo-response">
+        <div class="neo-response-eyebrow">Last Response</div>
+        <p class="neo-response-text">
+          Found potential SQL injection in <code>queries/user.ts:47</code> — unsanitized <code>req.query.id</code> passed directly to template literal. Recommend parameterized queries.
+        </p>
+        <div class="neo-sev-block">
+          <span class="neo-sev-label">Severity</span>
+          <span class="neo-sev-desc">High — immediate fix required</span>
+        </div>
+      </div>
+
+      <!-- Compose -->
+      <div class="neo-compose">
+        <div class="neo-compose-eyebrow">Ask Spider</div>
+        <div class="neo-chips">
+          <button class="neo-chip">Scan last commit</button>
+          <button class="neo-chip">Check auth routes</button>
+          <button class="neo-chip">Full audit</button>
+        </div>
+        <div class="neo-input-container">
+          <div class="neo-input-row">
+            <textarea class="neo-input" rows="2" placeholder="Ask a question…" aria-label="Message to Spider"></textarea>
+            <button class="neo-send">⌘↵</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /neo-panel -->
+
+    <div class="design-notes">
+      <ul>
+        <li>Border chrome stays — 2px borders, 4px shadows</li>
+        <li>Type scale is now a system: Perfect Fourth ratio</li>
+        <li>All prose ≥15px; labels ≥12px uppercase+bold</li>
+      </ul>
+    </div>
+  </div><!-- /panel-column B -->
+
+</div><!-- /comparison-grid -->
+
+<!-- Decision paragraph -->
+<div class="decision-section">
+  <div class="decision-eyebrow">Decision</div>
+  <p class="decision-text">
+    Swiss Modern makes the typography do structural work the borders were doing before — it reads cleaner but loses the tactile assertiveness. Neobrutalist Refined keeps the assertiveness while removing the apology of tiny type. Both are viable; the question is whether the chrome is load-bearing brand DNA or just a habit.
+  </p>
+</div>
+
+</body>
+</html>

@@ -665,6 +665,63 @@ fleet:
       identity: "{project}:fleet:tenderfoot"
       telos: "Catch drift between what we tell new operators and what the binary does."
 
+    officer-of-the-watch:
+      # The project's avatar — the one ship SOLELY RESPONSIBLE for
+      # reading the logs and traffic nobody else reads. Born from the
+      # 2026-06-10 incident: "File not found: ollama/qwen2.5-coder"
+      # errors flooded MESSAGE TRAFFIC for weeks with no agent
+      # noticing, because no agent owned the question.
+      #
+      # Maritime watch system: six four-hour watches a day. Each
+      # watch covers the gap since the previous deck-log entry (a
+      # missed watch widens the next window — no blind spots). Every
+      # watch ends with a mandatory deck-log note, ALL QUIET included:
+      # a silent watch officer is indistinguishable from a dead one.
+      #
+      # Sole-responsibility contract, state surfaces, escalation
+      # tiers, and known gaps: fleet/ships/officer-of-the-watch.md.
+      # General pattern: the `solely-responsible-agent` skill.
+      schedule: "0 */4 * * *"
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      cooldown_ms: 3600000
+      dedupe_window_ms: 10800000
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Bash(pd*),Bash(gh*),Bash(curl*),Bash(git
+        log*),Bash(tail*)"
+      prompt: |
+        Read fleet/ships/officer-of-the-watch.md end to end before
+        doing anything else. That is your full behavior contract —
+        the sole-responsibility constitution, the watch procedure,
+        the escalation tiers, and the deck-log format.
+
+        Short form, in case the contract is unreachable:
+        1. RELIEVE THE WATCH: read the latest `watch-log:` note via
+           `pd notes`; its timestamp starts your coverage window
+           (first watch ever: cover 24h and say so).
+        2. SWEEP: pd notes, channel messages, /activity,
+           /fleet/transcripts, daemon log tail, your own open
+           `watch:finding` issues.
+        3. ANALYZE by error class, never by occurrence. "Would Erich
+           want to know?" is the bar. 347 identical errors = ONE
+           finding with a count.
+        4. ESCALATE per tier: log-only → GitHub issue (label
+           watch:finding, dedupe by title) → issue tagging
+           @erichowens + warning note. Close your own resolved
+           issues.
+        5. WRITE THE DECK LOG — always, even ALL QUIET:
+           pd note "watch-log: <ts> | window <a>..<b> | swept: ... |
+           anomalies: ... | escalations: ... | handover: ..."
+
+        You report; you do not repair. The watch officer never
+        leaves the bridge to patch the engine.
+      identity: "{project}:fleet:officer-of-the-watch"
+      telos: "Stand the watch: read what nobody else reads, keep the deck log,
+        escalate what the operator must see."
+
   watchers:
     # Operator-facing watcher: when a HIGH finding lands, drop a
     # session note so the FleetBar app's `dock-master` badge
@@ -684,6 +741,96 @@ fleet:
       exec: "mkdir -p docs/recovery &&
         printf '\\n## %s\\n\\n```\\n%s\\n```\\n' \"$(date -u '+%Y-%m-%dT%H:%M:%SZ')\" \"${PD_MESSAGE_CONTENT:-${PD_MESSAGE:-empty}}\"
         >> docs/recovery/COORDINATION-LOG.md"
+
+    # ─── Developer-generalization sentinel ───────────────────────────
+    #
+    # Owns the question: "Can any developer on any machine install and
+    # use Port Daddy in 2026?" Runs on a schedule, tests real public
+    # repos under realistic developer personas, tracks regressions,
+    # opens issues for install failures, and drives the roadmap item
+    # "pd fleet init works end-to-end in under 5 minutes."
+    #
+    # Backend: cli:claude-code is the default (free for Max
+    # subscribers). This ship does significant multi-step reasoning and
+    # benefits from a capable model — cloudflare is the fallback, not
+    # the preference.
+    developer-onboarding-sentinel:
+      trigger: schedule:daily
+      cooldown_ms: 82800000       # 23 h — one run per day max
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      singleton: true
+      prompt: |
+        You are the Developer-Onboarding Sentinel. Your mission:
+        ensure Port Daddy works for any developer on any machine in
+        2026, not just the author. You test installation realism,
+        track regressions, and drive improvements.
+
+        PERSONAS — rotate through one persona per run (use today's
+        day-of-month mod 6 to pick):
+          0  solo-oss-maintainer   macOS, homebrew, personal GitHub
+          1  startup-backend-dev   Ubuntu 22, apt, company GitHub org
+          2  indie-hacker          macOS, nix, personal GitHub
+          3  enterprise-dev        macOS, managed machine, GitHub Enterprise
+          4  student-first-timer   Windows WSL2, no prior CLI tools
+          5  open-source-contrib   Arch Linux, pacman, fork workflow
+
+        TEST MATRIX — for today's persona, run through these steps
+        using the PORT DADDY REPO as the test subject AND one large
+        public repo (rotate: rails/rails, vercel/next.js,
+        facebook/react, microsoft/vscode, torvalds/linux):
+
+          1. INSTALL: Can `pd` be installed from scratch following
+             the README? Check the README install section is
+             accurate for this persona's OS/package-manager.
+          2. INIT: Does `pd begin` work without a .portdaddy dir?
+          3. CLAIM: Does `pd session files add <file>` work?
+          4. GUARD: Does the commit guard fire correctly?
+          5. FLEET-INIT: Does `pd fleet init` exist and provide
+             clear next steps for someone who has never set up a
+             tunnel? If not, file this as a gap.
+          6. GITHUB-APP: Can a developer find how to install the
+             Port Daddy GitHub App from the docs/README? Is the
+             install URL present and correct?
+          7. SMOKE: Does `pd status` and `pd whoami` work as
+             expected for a new user?
+
+        FOR EACH STEP:
+        - Actually attempt the step where safe (read docs, check
+          scripts, trace code paths). For steps that would modify
+          state, simulate by reading the relevant code/scripts and
+          reasoning about what would happen.
+        - Mark: PASS / FAIL / GAP (feature doesn't exist yet) /
+          UNCLEAR (docs missing or contradictory).
+
+        OUTPUT FORMAT — post a GitHub issue titled:
+        "Sentinel run [DATE]: [PERSONA] × [REPO] — N pass, M fail,
+        K gap"
+
+        Body sections:
+        ## Summary
+        One paragraph verdict.
+
+        ## Results
+        | Step | Status | Notes |
+        |------|--------|-------|
+        ...
+
+        ## Failures & Gaps (file sub-issues for each FAIL/GAP)
+        For each FAIL or GAP: open a separate GitHub issue with
+        label `sentinel-finding` and link it here.
+
+        ## Recommended next action
+        The single highest-leverage fix that would unblock the most
+        developers. Reference the roadmap item or open a new one.
+
+        COORDINATION: Before running, check pd notes for any
+        in-progress work on the install flow. After posting, publish
+        to the developer-generalization:health channel with the
+        summary payload.
 
   channels:
     # ─── Internal plumbing (ship-to-ship chains) ─────────────────────
@@ -768,3 +915,11 @@ fleet:
 
     qa:findings:
       description: "DEPRECATED 2026-05-20. QA posts PR comments now."
+
+    # ─── Developer-generalization channels ────────────────────────────
+    developer-generalization:health:
+      description: "Emitted by developer-onboarding-sentinel after each
+        persona test run. Payload: { persona, repo, step, status,
+        durationMs, failureReason? }."
+      external_producer: developer-onboarding-sentinel
+      consumers: []

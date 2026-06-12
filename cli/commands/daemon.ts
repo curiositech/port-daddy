@@ -31,6 +31,7 @@ import {
 } from '../../lib/daemon-profiles.js';
 import * as ui from '../utils/ui.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { posixShellQuote } from '../../lib/shell-quote.js';
 
 // __dirname equivalent for ESM
 const __dirname = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
@@ -201,10 +202,6 @@ function readProfileRuntimeState(profile: DaemonProfilePaths): DaemonProfileStat
 
 function profileUrl(state: Pick<DaemonProfileState, 'port'>): string | null {
   return state.port ? `http://${LOOPBACK_TCP_HOST}:${state.port}` : null;
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 function tailFile(path: string, maxChars = 4000): string {
@@ -461,13 +458,13 @@ export async function handleDaemonCommand(positional: string[], options: DaemonC
 
     case 'env': {
       const profile = resolveDaemonProfile(getRequestedProfile(action, positional, options));
-      console.log(`export PORT_DADDY_PROFILE=${shellQuote(profile.name)}`);
-      console.log(`export PORT_DADDY_DB=${shellQuote(profile.dbPath)}`);
-      console.log(`export PORT_DADDY_SOCK=${shellQuote(profile.sockPath)}`);
-      console.log(`export PORT_DADDY_IPC=${shellQuote(profile.ipcPath)}`);
-      console.log(`export PORT_DADDY_PID_FILE=${shellQuote(profile.pidFile)}`);
-      console.log(`export PORT_DADDY_PORT_FILE=${shellQuote(profile.portFile)}`);
-      console.log(`export PORT_DADDY_HEARTBEAT_FILE=${shellQuote(profile.heartbeatFile)}`);
+      console.log(`export PORT_DADDY_PROFILE=${posixShellQuote(profile.name)}`);
+      console.log(`export PORT_DADDY_DB=${posixShellQuote(profile.dbPath)}`);
+      console.log(`export PORT_DADDY_SOCK=${posixShellQuote(profile.sockPath)}`);
+      console.log(`export PORT_DADDY_IPC=${posixShellQuote(profile.ipcPath)}`);
+      console.log(`export PORT_DADDY_PID_FILE=${posixShellQuote(profile.pidFile)}`);
+      console.log(`export PORT_DADDY_PORT_FILE=${posixShellQuote(profile.portFile)}`);
+      console.log(`export PORT_DADDY_HEARTBEAT_FILE=${posixShellQuote(profile.heartbeatFile)}`);
       console.log(`export PORT_DADDY_NO_FLEET=1`);
       console.log(`export PORT_DADDY_NO_FLEETBAR=1`);
       console.log(`unset PORT_DADDY_URL PD_URL PORT_DADDY_PREFIX`);
