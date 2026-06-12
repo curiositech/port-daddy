@@ -638,7 +638,7 @@ export function structuredDataForRoute(route: SiteMetadata) {
     author: {
       '@type': 'Person',
       name: route.author ?? 'Erich Owens',
-      url: absoluteUrl('/'),
+      url: 'https://erichowens.com',
     },
     publisher: {
       '@type': 'Organization',

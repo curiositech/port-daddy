@@ -126,6 +126,21 @@ export function SiteFooter() {
             </div>
           </div>
         </div>
+
+        <div className="mt-[var(--space-6)] flex flex-wrap items-baseline justify-between gap-[var(--space-3)] border-t border-[var(--border-subtle)] pt-[var(--space-4)]">
+          <p className="m-0 text-[length:var(--type-meta-size)] text-[var(--text-secondary)]">
+            Port Daddy is built by Erich Owens — one engineer running a fleet of
+            agents, whole stack.
+          </p>
+          <a
+            href="https://erichowens.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-accent)] hover:text-[var(--brand-primary)]"
+          >
+            Work with me →
+          </a>
+        </div>
       </div>
     </footer>
   )

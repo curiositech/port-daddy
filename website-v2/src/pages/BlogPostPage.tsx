@@ -246,7 +246,14 @@ export function BlogPostPage() {
               <div className="h-5 w-px bg-border-strong" />
               <div className="flex items-center gap-2">
                 <User size={18} className="text-brand-secondary" />
-                <span className="text-text-primary">{post.author}</span>
+                <a
+                  href="https://erichowens.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-text-primary hover:text-brand-primary"
+                >
+                  {post.author}
+                </a>
               </div>
             </div>
 
