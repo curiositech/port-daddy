@@ -15,6 +15,32 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
+        {/* Full-width headline — the H1 spans the whole container, the
+            two-column copy/video grid starts below it. */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' as const }}
+          className="mb-[var(--space-6)]"
+        >
+          <SectionIntro
+            eyebrow="For AI engineering teams"
+            title={
+              <>
+                A local control plane for{' '}
+                <span className="text-[var(--brand-primary)]">
+                  coding agents.
+                </span>
+              </>
+            }
+            description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
+            titleAs="h1"
+            titleSize="hero"
+            titleClassName="max-w-none"
+            bodyClassName="max-w-[62ch]"
+          />
+        </motion.div>
+
         <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
@@ -23,23 +49,6 @@ export function Hero() {
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
             className="space-y-[var(--space-5)]"
           >
-            <SectionIntro
-              eyebrow="For AI engineering teams"
-              title={
-                <>
-                  A local control plane for{' '}
-                  <span className="text-[var(--brand-primary)]">
-                    coding agents.
-                  </span>
-                </>
-              }
-              description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
-              titleAs="h1"
-              titleSize="hero"
-              titleClassName="max-w-[14ch]"
-              bodyClassName="max-w-[34rem]"
-            />
-
             {/* CLI-backend pitch — the operator's load-bearing line. */}
             <Link
               to="/cli-backend"
