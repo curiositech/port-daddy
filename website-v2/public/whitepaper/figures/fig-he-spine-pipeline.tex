@@ -1,0 +1,74 @@
+% The volume's spine, as a maturity-coded pipeline (replaces the overflowing
+% inline equation). memory -> checkpoint(weak) -> ledger -> identity ->
+% reputation -> tradeable asset -> market. Each node carries its built/designed
+% mark; the checkpoint is the weak link, drawn half-faded.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.97\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  % built nodes: solid cobalt border
+  builtN/.style={draw=hhcobalt,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
+                 inner sep=4pt,text width=24mm,align=center,minimum height=15mm},
+  % the weak link: half-faded, dashed
+  weakN/.style={draw=hhcobalt!55,line width=1pt,dashed,fill=hhsand!12,
+                rounded corners=2pt,inner sep=4pt,text width=24mm,align=center,
+                minimum height=15mm,text=hhgray},
+  % designed nodes: light cobalt outline, paper fill
+  desN/.style={draw=hhcobalt,line width=0.8pt,fill=hhpaper,rounded corners=2pt,
+               inner sep=4pt,text width=24mm,align=center,minimum height=15mm},
+  flow/.style={->,>=Latex,line width=1.2pt,draw=hhebony},
+  mtag/.style={font=\sffamily\scriptsize\bfseries,text=hhcobalt},
+]
+\providecolor{hhgray}{HTML}{5C5650}
+
+\node[builtN] (mem)  at (0,0)    {\textbf{memory}\\\scriptsize what the agent remembers};
+\node[weakN,right=7mm of mem]   (chk)  {\textbf{checkpoint}\\\scriptsize what survives its death};
+\node[desN,right=7mm of chk]    (led)  {\textbf{outcome ledger}\\\scriptsize what the world will vouch for};
+\node[desN,right=7mm of led]    (id)   {\textbf{durable identity}\\\scriptsize one accountable principal};
+\node[desN,right=7mm of id]     (rep)  {\textbf{reputation}\\\scriptsize the cheap score};
+\node[desN,right=7mm of rep]    (mkt)  {\textbf{tradeable asset}\\\scriptsize $\to$ the market};
+
+\foreach \a/\b in {mem/chk,chk/led,led/id,id/rep,rep/mkt} {
+  \draw[flow] (\a.east) -- (\b.west);
+}
+
+% maturity marks under each node
+\node[mtag,below=1.5mm of mem] {$\blacksquare$ built};
+\node[font=\sffamily\scriptsize\bfseries,text=hhgray,below=1.5mm of chk]
+  {$\square$ built, weak};
+\node[mtag,below=1.5mm of led] {$\square$ designed};
+\node[mtag,below=1.5mm of id]  {$\square$ designed};
+\node[mtag,below=1.5mm of rep] {$\square$ designed};
+\node[mtag,below=1.5mm of mkt] {$\square$ designed};
+
+% span brackets
+\draw[decorate,decoration={brace,amplitude=4pt},hhgray]
+  ($(led.north west)+(0,4mm)$) -- node[above=3pt,font=\sffamily\scriptsize\itshape,text=hhgray]
+  {Floor 3 --- From Spawn to Person} ($(id.north east)+(0,4mm)$);
+\draw[decorate,decoration={brace,amplitude=4pt},hhgray]
+  ($(rep.north west)+(0,4mm)$) -- node[above=3pt,font=\sffamily\scriptsize\itshape,text=hhgray]
+  {this floor} ($(mkt.north east)+(0,4mm)$);
+
+\end{tikzpicture}%
+}
+\caption{The volume's spine, climbing left to right. Memory makes a spawn legible
+to itself; a checkpoint makes it survive its own death; a witnessed outcome ledger
+makes the world able to vouch for it; a durable identity binds those outcomes to
+one accountable principal; reputation scores that principal; and the score, once
+durable, becomes a tradeable asset. The marks are honest: the bond-ledger floor and
+episodic memory are \built{}; the \textbf{checkpoint is the weak link} --- it passes
+notes, not live execution state --- so it is drawn half-faded; everything from the
+outcome ledger rightward is \designed{}. The score is cheap; the substrate it scores
+over --- witnessed outcomes on a non-forgeable identity --- is the gate.}
+\label{fig:he-spine-pipeline}
+\end{figure}

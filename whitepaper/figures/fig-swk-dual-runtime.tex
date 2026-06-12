@@ -49,7 +49,7 @@ bridge is not a proof: an invariant green under test can fail in deployment if t
 bindings diverge in lock or pragma semantics --- the recurring ``green in the test
 runtime, broken in deployment'' failure, which is why CI must \emph{boot the
 deployment runtime} and exercise its endpoints, not merely build it. Invariant I11
-(runtime parity) is therefore \textsf{partial}, and open problem OP-3 asks for the
+(runtime parity) is therefore built but held by a shim rather than a proof, and open problem OP-3 asks for the
 differential-test harness --- identical operation sequences against both runtimes,
 asserting identical observable state --- that would make it a theorem.}
 \label{fig:swk-dual-runtime}

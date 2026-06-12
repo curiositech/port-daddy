@@ -1,7 +1,11 @@
-% Figure — the three continuity organs the whole economy rests on: memory
-% (implemented), checkpoint (partial: notes, not execution state), and the
-% witnessed-outcome ledger (specified). Reputation keys on the third, which
-% does not yet exist. The canonical sentence lives in the caption.
+% Figure — the continuity spine, drawn as an ASCENDING, maturity-coded staircase
+% (not a flat conveyor). The three continuity organs the kernel ships — memory
+% (built), checkpoint (built, the weak link, drawn half-faded), and the
+% witnessed-outcome ledger (designed) — are the lower treads; identity,
+% reputation, and price are the Floors above that lean on them. Each node carries
+% its Harbor maturity mark (filled = built, open = designed, dot = open). The
+% through-line leaves the top toward the economy. The canonical sentence lives in
+% the caption.
 
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -11,50 +15,91 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{hhgray}{HTML}{5C5650}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
-\resizebox{0.92\textwidth}{!}{%
+\resizebox{0.86\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=50mm,
-                minimum height=24mm,align=left,inner sep=6pt,text width=46mm,anchor=north},
-  link/.style={->,>=Latex,line width=1.4pt},
+  tread/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=78mm,
+                minimum height=14mm,align=left,inner sep=6pt,text width=72mm,
+                anchor=south west},
+  built/.style={fill=hhsand!40},
+  weak/.style={fill=hhsand!18,draw=hhamber,thick},        % the half-faded weak tread
+  designed/.style={fill=hhpaper,draw=hhgray,dash pattern=on 3pt off 2pt},
+  above/.style={fill=hhpaper,draw=hhgray,dash pattern=on 1pt off 2pt},
+  rise/.style={->,>=Latex,line width=1.4pt,hhteal},
+  mark/.style={anchor=west,font=\footnotesize\bfseries},
 ]
 
-\node[organ,fill=hhsand!30] (mem) at (0,0)
-  {{\bfseries\footnotesize 1.\ Memory}\hfill{\footnotesize\color{hhteal}\textsf{implemented}}\\[3pt]
-   append-only session notes; episodic story-beats; the operation log};
+% step geometry: each tread rises and shifts right
+\def\dx{20mm}\def\dy{17mm}
 
-\node[organ,fill=hhsand!30,right=8mm of mem] (chk)
-  {{\bfseries\footnotesize 2.\ Checkpoint}\hfill{\footnotesize\color{hhcobalt}\textsf{partial}}\\[3pt]
-   recovery passes durable \emph{notes} --- not execution state};
+% ─── Tread 1 — episodic memory (BUILT) ────────────────────────────────────
+\node[tread,built] (mem) at (0,0)
+  {{\bfseries 1.\ Journal --- episodic memory}\hfill{\color{hhteal}$\blacksquare$~built}\\[1pt]
+   {\footnotesize\itshape what the agent remembers}\\[1pt]
+   {\scriptsize session notes, story-beats, the operation log}};
 
-\node[organ,fill=hhsand!30,right=8mm of chk] (ledger)
-  {{\bfseries\footnotesize 3.\ Witnessed-outcome ledger}\hfill{\footnotesize\color{hhamber}\textsf{specified}}\\[3pt]
-   the durable, oracle-bound record of what an agent actually delivered};
+% ─── Tread 2 — checkpoint (BUILT, the weak link, half-faded) ──────────────
+\node[tread,weak] (chk) at ($(mem.south west)+(\dx,\dy)$)
+  {{\bfseries 2.\ Snapshot --- checkpoint}\hfill{\color{hhamber}$\blacksquare$~built, the weak link}\\[1pt]
+   {\footnotesize\itshape what survives its death}\\[1pt]
+   {\scriptsize recovery passes \emph{notes}, not execution state (OP-4)}};
 
-\draw[link,hhteal] (mem.east) -- (chk.west);
-\draw[link,hhcobalt] (chk.east) -- (ledger.west);
+% ─── Tread 3 — witnessed-outcome ledger (DESIGNED) ────────────────────────
+\node[tread,designed] (led) at ($(chk.south west)+(\dx,\dy)$)
+  {{\bfseries 3.\ Sealed receipt --- witnessed ledger}\hfill{\color{hhgray}$\square$~designed}\\[1pt]
+   {\footnotesize\itshape what the world will vouch for}\\[1pt]
+   {\scriptsize the oracle-bound record reputation keys on --- not yet built}};
 
-% The weakest-link marker over checkpoint
-\node[font=\bfseries\footnotesize,text=hhink,above=2mm of chk]
-  {$\bigstar$ the weakest \emph{implemented} link};
+% ─── Treads 4–6 — the Floors above that lean on the spine ─────────────────
+\node[tread,above] (id) at ($(led.south west)+(\dx,\dy)$)
+  {{\bfseries 4.\ Identity}\hfill{\color{hhgray}$\square$~designed}\\[1pt]
+   {\scriptsize a non-forgeable principal the outcomes bind to}};
+\node[tread,above] (rep) at ($(id.south west)+(\dx,\dy)$)
+  {{\bfseries 5.\ Reputation}\hfill{\color{hhgray}$\cdot$~open}\\[1pt]
+   {\scriptsize a cheap estimator over the witnessed record}};
+\node[tread,above] (price) at ($(rep.south west)+(\dx,\dy)$)
+  {{\bfseries 6.\ Price}\hfill{\color{hhgray}$\cdot$~open}\\[1pt]
+   {\scriptsize the bonded market that trades the result}};
+
+% ─── risers connecting the treads ────────────────────────────────────────
+\draw[rise] (mem.east)  -- ($(chk.south west)+(0,1mm)$);
+\draw[rise] (chk.east)  -- ($(led.south west)+(0,1mm)$);
+\draw[rise] (led.east)  -- ($(id.south west)+(0,1mm)$);
+\draw[rise] (id.east)   -- ($(rep.south west)+(0,1mm)$);
+\draw[rise] (rep.east)  -- ($(price.south west)+(0,1mm)$);
+
+% ─── the through-line leaves the top toward the economy ───────────────────
+\draw[rise,line width=2pt] (price.north east) -- ++(10mm,8mm)
+  node[anchor=south west,font=\footnotesize\itshape,text=hhteal,align=left]
+  {toward the\\ Economy (Floor 4)};
+
+% ─── a bracket marking which treads THIS paper ships ──────────────────────
+\draw[decorate,decoration={brace,amplitude=5pt,mirror},hhink,line width=0.8pt]
+  ($(mem.south west)+(-3mm,0)$) -- ($(led.north west)+(-3mm,4mm)$)
+  node[midway,left=4mm,align=center,font=\footnotesize,text=hhink,rotate=90,anchor=south]
+  {the three continuity organs --- this paper's floor};
 
 \end{tikzpicture}%
 }
-\caption{The three continuity organs the entire economy stands on --- the canonical
-sentence the rest of the volume depends on. The through-line of the volume ---
-memory $\to$ checkpoint $\to$ continuity $\to$ durable identity $\to$ reputation
-$\to$ market --- bottoms out \emph{here}, in the kernel. \textbf{Memory} is
-\textsf{implemented}, and the kernel even forbids amnesia (a monitor rule keeps an
-active session's note count from regressing). \textbf{Checkpoint} is
-\textsf{partial}: recovery (heartbeat $\to$ stale/dead $\to$ queue $\to$ salvage
-handoff) passes the durable notes but does not capture execution state, so it is the
-weakest implemented link --- a checkpoint with teeth (a real execution-state
-snapshot, OP-4) is the literal foundation of a cross-machine reputation economy.
-\textbf{The witnessed-outcome ledger}, on which reputation actually keys, is
-\textsf{specified} only --- it does not yet exist. One ``the foundation is soft
-here'' claim, not three.}
+\caption{The continuity spine, ascending. The volume's through-line --- memory
+$\to$ checkpoint $\to$ witnessed ledger $\to$ identity $\to$ reputation $\to$ price
+--- bottoms out \emph{here}, in the kernel's three continuity organs (the lower
+three treads), and the maturity mark on each tread is the honest part. \textbf{Memory}
+(journal) is built: the kernel even forbids amnesia, a monitor rule keeping an active
+session's note count from regressing. \textbf{Checkpoint} (snapshot) is built but the
+weakest link --- drawn half-faded and amber-edged --- because recovery (heartbeat
+$\to$ stale/dead $\to$ queue $\to$ salvage handoff) passes the durable notes yet does
+\emph{not} capture execution state; a checkpoint with teeth (a real execution-state
+snapshot, OP-4) is the literal foundation of any cross-machine reputation economy.
+\textbf{The witnessed-outcome ledger} (sealed receipt), on which reputation actually
+keys, is designed only --- it does not yet exist; the personhood paper builds it.
+Identity, reputation, and price are the Floors above that lean on this slab. One
+``the foundation is soft here'' claim, marked once on the tread that earns it --- not
+three boxes in a row.}
 \label{fig:swk-continuity-organs}
 \end{figure}

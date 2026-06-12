@@ -163,14 +163,14 @@
 \fancyhead[R]{\small\color{hhgray}\thepage}
 % Footer is quiet chrome: small, single muted ink, no colored maturity key.
 % The maturity scale lives in the appendix status table, not the running chrome.
-\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Paper 3 of 4}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Floor~3: Personhood}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Technical White Paper --- Harbor Volume, Paper 3}}\\[0.5cm]
+  {\Large\textsc{The Harbor Volume --- Floor 3: Personhood}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{From Spawn to Person:}}\\[0.2cm]
   {\Large Identity, Continuity, and the Substrate\\of Agentic Reputation}\\[0.3cm]
@@ -197,7 +197,7 @@ something that survives the process that did it, none of it can be priced. This
 paper is the bridge of the Harbor Volume: it carries the through-line
 \emph{memory $\to$ checkpoint $\to$ continuity $\to$ a person, not a spawn $\to$
 witnessed outcomes $\to$ reputation $\to$ a tradeable asset} from the legible
-single-operator tool (Papers~1--2) to the cross-operator market (Paper~4). We
+single-operator tool (Floor~2 and Beam~A) to the cross-operator market (Floor~4). We
 make a single distinction load-bearing: a \textbf{role} is a bundle of
 $\{\text{obligation}, \text{capability}, \text{authority}\}$ --- an org-chart
 entry any spawn can fill --- while a \textbf{person} is a role instance
@@ -241,20 +241,21 @@ legibility surfaces and the cryptographic identity ceremony this paper builds on
 substrate as the third side of its market. Any of the four can be opened first;
 this one is the hinge.}
 
-\vspace{0.3cm}
-\noindent\begin{tikzpicture}
-\node[draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,
-      inner sep=8pt,text width=\dimexpr\textwidth-22pt\relax,
-      align=left] (cbox) {%
-  \small{\scshape\bfseries Where this paper sits.}\enspace This is the
-  \emph{bridge} of the volume. Papers~1--2 build a tool one developer runs alone:
-  a daemon that makes a swarm legible and an agent that can prove who it is. This
-  paper asks what has to be true before that legible agent's track record can be
-  \emph{sold}. The answer is the substrate, not the score --- and most of the
-  substrate is honestly not built yet. We say so, in the same words, everywhere
-  the volume leans on it.
+% --- Series locator box (identical banner across every paper in the volume) ---
+\vspace{0.4cm}
+\begin{center}
+\begin{tikzpicture}
+\node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
+      inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE HARBOR VOLUME}\hfill\textcolor{hhebony!70}{four Floors (explain) $\times$ four Beams (prove)}}\\[5pt]
+  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
+  The volume is one building on two axes. Its \textbf{Floors} climb the vision --- Kernel, Legibility, Personhood, Economy --- and its \textbf{Beams} cross it with proof: identity and capability, conservation and bonding, federation.\\[5pt]
+  {\color{hhcobalt}\textbf{This paper: Floor~3 --- Personhood.}}~Identity is the gate, not the score --- role + continuity = an accountable principal. \textsc{$\square$ designed.}\\[6pt]
+  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
+  {\footnotesize This is the bridge of the volume: it carries the through-line from the legible single-operator tool (Floors~1--2) to the cross-operator market (Floor~4). Most of the substrate is honestly not built yet; the paper says so, in the same words, everywhere the volume leans on it. Any Floor can be opened first.}
 };
 \end{tikzpicture}
+\end{center}
 
 \tableofcontents
 \newpage
@@ -286,7 +287,7 @@ A philosopher / cognitive scientist &
 The continuity-organs figure (Fig.~\ref{fig:organs}) \\
 A mechanism-design / reputation-systems reader &
 \S\ref{sec:substrate} (substrate vs.\ score), \S\ref{sec:not-bandit} (why
-\emph{not} a bandit), \S\ref{sec:adr0049} (the reputation protocol),
+\emph{not} a bandit), \S\ref{sec:multidim-reputation} (the reputation protocol),
 \S\ref{sec:oracle} (the grading-oracle hole). &
 The neutral-judge market (Fig.~\ref{fig:judge-market}) \\
 A distributed-systems / crypto reader &
@@ -296,10 +297,10 @@ A distributed-systems / crypto reader &
 The keystone-split figure (Fig.~\ref{fig:keystone}) \\
 \bottomrule
 \end{tabular}
-\caption{Reader's Map. Within the volume the suggested order is Paper~1 (the
-wedge) $\to$ Paper~2 (the formal core) $\to$ \textbf{Paper~3 (this one, the
-bridge)} $\to$ Paper~4 (the market). This paper can be read directly after
-Paper~1 if you only want the ``why a person can be priced'' argument.}
+\caption{Reader's Map. Within the volume the suggested order is Floor~2 (the
+wedge) $\to$ Beam~A (the formal core) $\to$ \textbf{Floor~3 (this one, the
+bridge)} $\to$ Floor~4 (the market). This paper can be read directly after
+Floor~2 if you only want the ``why a person can be priced'' argument.}
 \label{tab:readers-map}
 \end{table}
 
@@ -501,7 +502,7 @@ skin in the game is capturable regardless of how well it is prompted.
 \midrule
 What is a tradeable agent? & org-role theory; personal identity & role + continuity = \emph{person} (Defs.~\ref{def:role}--\ref{def:person}) \\
 Why is identity load-bearing? & cheap pseudonyms; Sybil & \emph{necessity proof} (Thm.~\ref{thm:necessity}) + cost bound (Thm.~\ref{thm:whitewash-cost}) \\
-How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:adr0049}) \\
+How to score quality? & Elo/BT/TrueSkill (scalar) & multi-dimensional vector, judge-per-axis (\S\ref{sec:multidim-reputation}) \\
 Who grades the graders? & LLM-as-judge (debias only) & bonded judge ceremony + rate-the-raters recursion (\S\ref{sec:oracle}) \\
 \bottomrule
 \end{tabular}
@@ -1126,7 +1127,7 @@ a market.}
   axes, often in tension (the fast cheap answer is rarely the most beautiful), and
   a buyer's weighting of them is a \emph{preference vector}, not a constant. Collapse
   them into one scalar and you have re-created the Goodhart target the substrate
-  argument warned against (\S\ref{sec:adr0049}).
+  argument warned against (\S\ref{sec:multidim-reputation}).
   \item \textbf{A non-strategic environment.} Bandit arms do not \emph{try} to
   look good. Agents and their principals are \emph{strategic adversaries}: they
   will Goodhart the measured axis, wash-trade fake outcomes, whitewash a bad
@@ -1169,7 +1170,7 @@ arms-race open problem.
 \end{exercises}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{The multi-dimensional reputation protocol}\label{sec:adr0049}
+\section{The multi-dimensional reputation protocol}\label{sec:multidim-reputation}
 % ═════════════════════════════════════════════════════════════════════════════
 
 We now define the central protocol contribution of this paper: a
@@ -1372,7 +1373,7 @@ Assuming $J$ honest is assuming the conclusion.
 \noindent There are two honest ways to close the hole, and a recursion to bound.
 
 \paragraph{Option A --- bond-and-slash the judges.}
-Make judging a bonded role (\S\ref{sec:adr0049}): $J$ posts a bond before grading;
+Make judging a bonded role (\S\ref{sec:multidim-reputation}): $J$ posts a bond before grading;
 a later \textbf{re-audit} (a fresh, conflict-free judge, sampled) that overturns
 $J$'s grade \emph{slashes} $J$. Now lying has an expected cost, and a judge's own
 reputation is the asset they protect. This converts ``trust the oracle'' into
@@ -1606,7 +1607,7 @@ wants the research frontier rather than the pedagogy:
   \item \textbf{The grading-oracle / rate-the-raters recursion (\S\ref{sec:oracle},
   Conj.~\ref{conj:contract}).} Prove the re-audit tower contracts, or accept the
   core IC theorem is conditional.
-  \item \textbf{Vector-reputation disclosure (\S\ref{sec:adr0049}).} Publish a
+  \item \textbf{Vector-reputation disclosure (\S\ref{sec:multidim-reputation}).} Publish a
   vector and agents Goodhart the heaviest axis; publish a scalar and you have a
   bandit. The right disclosure form is open.
   \item \textbf{Self-improvement arms race (\S\ref{sec:not-bandit}).} Chiu et
@@ -1621,7 +1622,7 @@ wants the research frontier rather than the pedagogy:
   \item \textbf{Arbitration capacity (\S\ref{sec:oracle}).} A market for bonded,
   rated, slashable human/automated arbiters: honest rulings, or rubber-stamping
   under load?
-  \item \textbf{Skill-version reputation (\S\ref{sec:adr0049}).} A portfolio proof
+  \item \textbf{Skill-version reputation (\S\ref{sec:multidim-reputation}).} A portfolio proof
   for skill v1 says nothing about v2; the lemons problem reappears at every version
   bump.
 \end{enumerate}
@@ -1839,5 +1840,8 @@ Thomas Hobbes.
 \newblock 1651.
 
 \end{thebibliography}
+
+\vspace{0.8cm}
+\noindent\emph{Exercises, traces, and open problems for this paper --- with worked solutions --- are in the Harbor Volume Workbook, Part~III.}
 
 \end{document}

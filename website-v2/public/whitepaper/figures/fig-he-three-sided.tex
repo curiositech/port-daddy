@@ -6,6 +6,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -17,7 +18,7 @@
   escrow/.style={draw=hhebony,line width=1.4pt,fill=hhsand!30,
                  rounded corners=3pt,inner sep=6pt,text width=58mm,
                  align=center,minimum height=26mm},
-  idobj/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+  idobj/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,font=\scriptsize,text width=42mm,
                 align=center,text=hhink},
   flow/.style={->,>=Latex,thick,draw=hhebony},
@@ -54,26 +55,31 @@
 \node[idobj,above=2mm of capital] {keys on the \textbf{asset owner}};
 \node[idobj,above=2mm of ip]      {keys on the \textbf{content hash} (skill version)};
 
-\node[draw=hhcobalt,thick,dashed,rounded corners=3pt,inner sep=3pt,
-      fit=(labor)(capital)(ip)] {};
+% identity-divergence band: the three functors DISAGREE on the identity object.
+\node[draw=maydayred,line width=1.2pt,dashed,rounded corners=3pt,inner sep=3pt,
+      fit=(labor)(capital)(ip)] (divband) {};
+\node[font=\bfseries\scriptsize,text=maydayred,anchor=west,align=left,
+      text width=20mm]
+  at ([xshift=2mm]divband.east)
+  {\textcolor{maydayred}{$\times$}\,functors disagree here};
 
 
 \end{tikzpicture}%
 }
 \caption{The three-sided market. Labor, capital (rented agents), and IP (licensed
 skills) are three distinct \emph{incentive constraints} --- not three UI tabs ---
-that all settle on a \emph{single} float-plan escrow, so conservation holds
-globally without a second ledger. This is the categorical heart of the design: the
-three sides are isomorphic at the conservation object (the escrow) and
-\textbf{non-isomorphic at the identity object} (each side keys reputation on a
-different entity, the dashed band). Calling it ``one structure, three decorations''
-without that qualifier is a decorative-analogy failure. The rider is mandatory: the
-market is three-sided by design and two-sided
-in shipped reality, because sides 2 and 3 presuppose a non-forgeable, durable
-identity (\S\ref{sec:keystone}). The economics per side: labor's margin is
-bounty $-$ slashed sub-bonds $-$ fee; capital's renter holds the runtime jail while
-the owner bears reputation; IP is metered with clawback, paid only on green
-settlement. The escrow and its conservation invariant are implemented and
-property-tested.}
+that all settle on a single float-plan escrow, so conservation holds globally
+without a second ledger. This is the categorical heart of the design: the three
+sides are isomorphic at the conservation object (the escrow) and
+\textbf{non-isomorphic at the identity object} --- each side keys reputation on a
+different entity, so the three partial functors disagree there (the dashed-red band,
+marked $\times$). Calling it ``one structure, three decorations'' without that
+qualifier is a decorative-analogy failure. The rider is mandatory: the market is
+three-sided by design and two-sided in shipped reality, because sides 2 and 3
+presuppose a non-forgeable, durable identity (\S\ref{sec:keystone}). The economics
+per side: labor's margin is bounty $-$ slashed sub-bonds $-$ fee; capital's renter
+holds the runtime jail while the owner bears reputation; IP is metered with
+clawback, paid only on green settlement. The escrow and its conservation invariant
+are built and property-tested.}
 \label{fig:he-three-sided}
 \end{figure}

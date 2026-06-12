@@ -28,27 +28,27 @@
 % ─── Six organs in a 3x2 grid ─────────────────────────────────────────────
 \node[organ] (resource) at (0,0)
   {{\bfseries Resource}\\ ports, file/region/symbol claims, named locks.\\
-   {\footnotesize\textsf{implemented}}};
+   {\footnotesize built}};
 \node[organ,right=4mm of resource] (identity)
   {{\bfseries Identity}\\ semantic actor names (project\,:\,stack\,:\,context); heartbeat.\\
-   {\footnotesize\textsf{implemented} (self-asserted)}};
+   {\footnotesize built (self-asserted)}};
 \node[organ,right=4mm of identity] (comm)
   {{\bfseries Communication}\\ message bus, tuple space, stigmergic markers, two transports.\\
-   {\footnotesize\textsf{implemented}}};
+   {\footnotesize built}};
 
 \node[organ,below=4mm of resource] (oblig)
   {{\bfseries Obligation \& enforcement}\\ a policy monitor (regiment/detect) + commitments (enforce).\\
-   {\footnotesize\textsf{implemented}\,/\,\textsf{partial}}};
+   {\footnotesize built\,/\,partial}};
 \node[organ,below=4mm of identity] (cont)
   {{\bfseries Continuity}\\ sessions, notes, recovery, episodic memory, audit log.\\
-   {\footnotesize\textsf{implemented}\,/\,\textsf{partial}}};
+   {\footnotesize built\,/\,partial}};
 \node[organ,below=4mm of comm] (attest)
   {{\bfseries Self-attestation}\\ an invariant registry; boot gate, pre-flight, watchdog.\\
-   {\footnotesize\textsf{implemented}}};
+   {\footnotesize built}};
 
 % ─── The substrate floor ──────────────────────────────────────────────────
 \node[sub,below=6mm of cont] (substrate)
-  {{\bfseries Substrate organ --- the single-writer transactional floor}\hfill{\footnotesize\textsf{implemented}}\\[2pt]
+  {{\bfseries Substrate organ --- the single-writer transactional floor}\hfill{\footnotesize built}\\[2pt]
    \textit{one SQLite database in WAL mode: normal sync, bounded busy-wait, foreign keys}};
 
 % ─── Connect each organ to the substrate ──────────────────────────────────
@@ -60,15 +60,15 @@
 
 \end{tikzpicture}%
 }
-\caption{The kernel as \emph{seven organs}, each a contract the daemon must hold
+\caption{The kernel as seven organs, each a contract the daemon must hold
 for the layers above to be coherent. Six organs are, mechanically, just tables
-\emph{with discipline} over a single shared file --- the \textbf{substrate organ},
+with discipline over a single shared file --- the \textbf{substrate organ},
 the single-writer transactional floor. The substrate's storage configuration
-\emph{is} the kernel's durability claim (the I1a/I1b split, \S\ref{sec:invariants});
+is the kernel's durability claim (the I1a/I1b split, \S\ref{sec:invariants});
 a runtime-shim layer keeps the deployment and test SQLite bindings in step, and
-everything else is convenience built on top of it. Maturity grades (\textsf{implemented} $\cdot$ \textsf{partial} $\cdot$
-\textsf{specified} $\cdot$ \textsf{proposed}) are per organ; note that the identity
-organ is implemented but \emph{self-asserted}, the gap a cross-machine economy must
+everything else is convenience built on top of it. The maturity mark (built $\cdot$
+designed $\cdot$ open, degree in plain words) is per organ; note that the identity
+organ is built but \emph{self-asserted} --- the gap a cross-machine economy must
 eventually close with cryptographic identity.}
 \label{fig:swk-seven-organs}
 \end{figure}

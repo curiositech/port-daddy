@@ -37,10 +37,13 @@
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
 
-% Verification-status markers for the Appendix A status table.
-\newcommand{\Closed}{{\textcolor{hhteal}{\textbf{\textsf{closed}}}}}
-\newcommand{\Partial}{{\textcolor{hhamber}{\textbf{\textsf{partial}}}}}
-\newcommand{\Open}{{\textcolor{hhcobalt}{\textbf{\textsf{open}}}}}
+\definecolor{maydayred}{HTML}{8B0000}
+
+% Maturity markers for the Appendix A status table. The glyph carries the grade;
+% plain text after it carries the degree.
+\newcommand{\Closed}{{\textcolor{hhteal}{\textbf{\textsf{$\blacksquare$ built}}}}}
+\newcommand{\Partial}{{\textcolor{hhamber}{\textbf{\textsf{$\square$ designed}}}}}
+\newcommand{\Open}{{\textcolor{hhink}{\textbf{\textsf{$\cdot$ open}}}}}
 
 % Pull-quote sidebar: large quote, left-edge accent stripe.
 \newcommand{\pullquote}[1]{%
@@ -112,7 +115,7 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Anchor Protocol}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v3.13.0 --- Formally Verified}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Beam~A: Anchor Protocol \textperiodcentered\ v1.0 (pre-print)}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
@@ -154,18 +157,17 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 
 \vspace{0.6cm}
 
-% --- Series locator box (identical template across all three papers) ----------
+% --- Series locator box (identical banner across every paper in the volume) ---
 \begin{center}
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE PORT DADDY TRILOGY\hfill PAPER~II~OF~III}}\\[5pt]
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE HARBOR VOLUME}\hfill\textcolor{hhebony!70}{four Floors (explain) $\times$ four Beams (prove)}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  \textbf{I.~The Bonded Commons.}~\emph{Why} mutually-suspicious agents need a pre-transactional \emph{commons authority}: bonded participation, an immutable evidence trail, and a value-conservation law. The economic and governance case for coordination at all.\\[4pt]
-  {\color{hhcobalt}\textbf{II.~The Anchor Protocol \textnormal{(this paper)}.}}~\emph{How} a single process proves its identity and attenuates its capability to the local daemon --- a formally verified (ProVerif, Kani) capability substrate, scoped to one machine.\\[4pt]
-  \textbf{III.~The Federated Harbor.}~How identity, revocation, and settlement compose \emph{across sovereign machines} when no operator is a root of authority for any other --- the federation layer.\\[6pt]
+  The volume is one building on two axes. Its \textbf{Floors} climb the vision --- Kernel, Legibility, Personhood, Economy --- and its \textbf{Beams} cross it with proof: identity and capability, conservation and bonding, federation.\\[5pt]
+  {\color{hhcobalt}\textbf{This paper: Beam A --- Identity \& capability.}}~Math-based identity for a process: a verified control plane on localhost. \textsc{$\blacksquare$ built \,$\cdot$\, ProVerif, Kani.}\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize You are reading \textbf{Paper~II}, the cryptographic substrate of the series; it can be read first or on its own.}
+  {\footnotesize It can be read first or on its own.}
 };
 \end{tikzpicture}
 \end{center}
@@ -209,6 +211,8 @@ The Anchor Protocol defines how agents authenticate to a Harbor and to each othe
 
 \input{figures/fig-anchor-four-phases}
 
+The four phases are not four proofs. Phases~1--3 --- pinning, asymmetric identity, and multi-hop delegation --- carry the protocol's authentication and attenuation guarantees, and those three are what ProVerif mechanizes for an unbounded number of sessions (\S\ref{sec:algorithms}). Phase~4, revocation, narrows acceptance rather than granting it, so it is enforced at runtime against monotonicity and reanimation invariants rather than re-proved symbolically (\S\ref{sec:revocation}). When this paper says ``three verified phases,'' it means those first three; ``four phases'' counts the full Harbor Card lifecycle.
+
 A common thread across all phases is \emph{capability attenuation}: a delegated token never carries more authority than its parent, and TTL only shrinks. Figure~\ref{fig:anchor-capability-attenuation} shows the nested-cap structure that the verifier enforces on every chain.
 
 \input{figures/fig-anchor-capability-attenuation}
@@ -238,7 +242,7 @@ The Port Daddy Daemon acts as the Root Certificate Authority (CA). Each Harbor i
 Port Daddy v4 introduces multi-hop delegation. When Agent A spawns Agent B, it does not need to request a new token from the Daemon. Instead, it uses \textbf{Offline Attenuation}, inspired by Macaroons~\cite{birgisson2014macaroons}.
 
 \begin{definition}[Offline Attenuation]\label{def:offline-attn}
-Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., \texttt{["db:read"]} reduced from \texttt{["db:read", "db:write"]}), and signs the \textit{entire chain} with its own ephemeral private key.
+Agent A takes its existing Harbor Card, appends a new set of restricted capabilities (e.g., \texttt{["db:read"]} reduced from \texttt{["db:read", "db:write"]}), and signs the \emph{entire chain} with its own ephemeral private key.
 
 The Harbor verifies the Daemon's root signature, Agent A's delegation signature, and mathematically ensures that Agent B's capabilities are a strict subset of Agent A's.
 \end{definition}
@@ -283,7 +287,9 @@ A revoked card cannot be un-revoked within its TTL. If an operator decides the r
 Under the gossip protocol with period $\Delta$ in a mesh of $m$ daemons, every daemon's filter converges to global $R_t$ within expected time $\Delta \cdot (1 + \ln m)$.
 \end{property}
 
-\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Theorem~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. The card lifecycle gains a state ($\textit{valid} \to \textit{revoked} \to \textit{expired}$) modeled as an additional transition.
+The two figures for this bound state it two ways that agree. The ``$O(\log m)$ rounds'' phrasing counts gossip rounds asymptotically; the $\Delta(1+\ln m)$ bound multiplies the expected round count by the period $\Delta$ to give wall-clock time. The companion federation paper proves the same bound in its cross-harbor setting; both papers use $\Delta(1+\ln m)$. Plugging in $m=10$ and $\Delta=30$\,s gives $\approx 100$\,s expected, $\approx 2$\,min worst case --- the figure's headline number.
+
+\paragraph{Soundness preservation.} Revocation strictly narrows acceptance, so existing ProVerif soundness proofs (Theorem~\ref{thm:injective}) are unaffected. The new proof obligation is small: revocation is \emph{enforced}, which follows by inspection of the verification path---the revocation check is unconditional and precedes admission. The card lifecycle gains a state ($\texttt{valid} \to \texttt{revoked} \to \texttt{expired}$) modeled as an additional transition.
 
 \paragraph{Privacy.} A Dolev-Yao adversary observing all gossip traffic learns the revoked-card IDs, leaking which agents have been disciplined. For an organization's own daemons, this is acceptable audit transparency. Stronger privacy is available by encoding revocations as salted hashes $H(\texttt{kid}, \texttt{salt})$ where the salt rotates daily, stored encrypted under a harbor session key.
 
@@ -317,7 +323,7 @@ JSON Web Tokens have been the subject of extensive security analysis. Algorithm 
 \section{Formal Verification Strategy}
 % ═════════════════════════════════════════════════════════════════════════════
 
-Following the industry standard set by AWS (s2n-tls~\cite{aws2022s2n}) and Microsoft (Project Everest~\cite{bhargavan2017everest}), we decoupled the verification of the \textit{protocol design} from the verification of the \textit{implementation}. The full stack has three layers (Figure~\ref{fig:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
+We verify the protocol \emph{design} and its \emph{implementation} separately, then bind them with conformance tests --- the discipline AWS established for s2n-tls~\cite{aws2022s2n} and Microsoft for Project Everest~\cite{bhargavan2017everest}. The full stack has three layers (Figure~\ref{fig:anchor-verification-stack}): symbolic protocol analysis at the top, bounded model checking on the Rust source in the middle, and runtime conformance tests against the deployed binary at the bottom. Each layer's obligations flow downward; each layer's evidence flows back up. The stack is sound only if every bridge --- symbolic-to-source and source-to-deployed --- holds.
 
 \input{figures/fig-anchor-verification-stack}
 
@@ -331,7 +337,7 @@ For the multi-hop delegation chain, ProVerif confirmed that:
 \text{Accepted}(b, h, cap) \implies& \ (\text{IssuedRoot}(a, h, cap) \land \text{Delegated}(a, b, cap)) \nonumber\\
 & \lor \ \text{IssuedRoot}(b, h, cap)
 \end{align}
-This \textit{injective agreement} property~\cite{lowe1997hierarchy} guarantees that capabilities cannot be escalated and trust is perfectly transitive.
+This \emph{injective agreement} property~\cite{lowe1997hierarchy} guarantees that capabilities cannot be escalated and trust is perfectly transitive.
 \end{theorem}
 
 All three protocol phases were independently verified in ProVerif 2.05. Table~\ref{tab:proverif-results} summarizes the results; full models are reproduced in Appendices~\ref{app:proverif}, \ref{app:phase2}, and~\ref{app:phase3}.
@@ -491,7 +497,7 @@ function Harbor.VerifyChain(chain, pk_root):
     return T
 \end{lstlisting}
 
-\textbf{Security Property:} The subset check on line 7 and line 22 ensures \textit{capability attenuation}—delegated capabilities can only be restricted, never expanded. This is the mechanized content of Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}): under an enriched model with a real capability order and an active insider escalation adversary, ProVerif proves no escalating delegation is ever accepted, and a negative control confirms the guard is load-bearing. Combined with Theorem~\ref{thm:injective}, this guarantees transitive trust.
+\textbf{Security Property:} The subset check on line 7 and line 22 ensures \emph{capability attenuation}---delegated capabilities can only be restricted, never expanded. This is the mechanized content of Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}): under an enriched model with a real capability order and an active insider escalation adversary, ProVerif proves no escalating delegation is ever accepted, and a negative control confirms the guard is load-bearing. Combined with Theorem~\ref{thm:injective}, this guarantees transitive trust.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Implementation: Deployed Rust Core}
@@ -657,11 +663,15 @@ Capability Attenuation & Yes & Kani & Yes (FFI) & \cite{birgisson2014macaroons} 
 
 \subsection{Limitations}\label{sec:limitations}
 
+\begingroup\sloppy
 \begin{enumerate}
-  \item \textbf{Delegation-chain depth.} The symbolic proof of delegation soundness (Table~\ref{tab:anchor-status}, ``\texttt{chain-replay.pv}'') is machine-checked at the chain depth realized in deployment (depth~3); it is \emph{not} a proof for unbounded chain length. ProVerif's unbounded-session guarantee quantifies over the number of protocol \emph{sessions}, not over the number of hops in a single delegation chain, which is a fixed structural bound in the modeled process. Extending the proof to unbounded depth (via recursive replication of the delegation process) is future work. The current depth bound is a \emph{spawn-time} policy check (\texttt{assessDelegation} in \texttt{lib/tube-spawner-router.ts}, \texttt{HARD\_MAX\_DELEGATION\_DEPTH}\,=\,8, default~4) applied when a spawn request arrives; it is \emph{not} a verification-time invariant. The cryptographic chain verifier (\texttt{lib/delegation-chain.ts}) accepts arbitrary chain depth, and the attenuation monitor (\texttt{lib/cap-attenuation-monitor.ts}) enforces only per-hop capability monotonicity---not total depth. Machine-enforced depth at verification time is a planned hardening item.
+  \item \textbf{Delegation-chain depth.} The symbolic proof of delegation soundness (Table~\ref{tab:anchor-status}, \texttt{chain-replay.pv}) is machine-checked at the chain depth realized in deployment, depth~3. It is not a proof for unbounded chain length. ProVerif's unbounded-session guarantee quantifies over the number of protocol \emph{sessions}, not over the number of hops in a single delegation chain; the hop count is a fixed structural bound in the modeled process. Extending the proof to unbounded depth, via recursive replication of the delegation process, is future work.
+
+  Two facts about the current depth handling matter. First, the depth bound is a spawn-time policy check, not a verification-time invariant: \texttt{assessDelegation} in \texttt{lib/\allowbreak tube-spawner-router.ts} caps depth at \texttt{HARD\_MAX\_DELEGATION\_DEPTH}\,=\,8 (default~4) when a spawn request arrives. Second, the cryptographic chain verifier (\texttt{lib/\allowbreak delegation-chain.ts}) accepts arbitrary depth, and the attenuation monitor (\texttt{lib/\allowbreak cap-attenuation-monitor.ts}) enforces only per-hop capability monotonicity, not total depth. Machine-enforced depth at verification time is a planned hardening item.
   \item \textbf{PID Binding:} The ``Ghost in the Harbor'' scenario requires binding tokens to the requesting PID, which is handled at the OS level.
   \item \textbf{Local Transport Security:} On multi-user systems, local unix sockets or loopback TLS should be used to prevent local bearer token sniffing.
 \end{enumerate}
+\endgroup
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
@@ -829,7 +839,7 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Anchor Protocol verification status. \Closed: model verified \emph{and} runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized.}
+\caption{Anchor Protocol verification status. \Closed: model verified and runtime conformance test passes. \Partial: design verified, runtime empirically tested rather than proved. \Open: known unmechanized. The glyph carries the grade; the text after it carries the degree.}
 \label{tab:anchor-status}
 \small
 \begin{tabular}{@{}p{56mm}p{32mm}p{28mm}p{30mm}@{}}
@@ -849,9 +859,9 @@ Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy 
 \end{tabular}
 \end{table}
 
-\paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+\paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. Both are open problems, named here and tracked in Table~\ref{tab:anchor-status}.
 
-\pullquote{We err toward listing fewer items as closed rather than more.}
+\noindent We err toward listing fewer items as built rather than more.
 
 % ═════════════════════════════════════════════════════════════════════════════
 
@@ -907,7 +917,7 @@ process
    !SecureHarbor(master_key, harbor_id))
 \end{lstlisting}
 
-\section{Phase 2: Asymmetric Ed25519}\label{app:phase2}
+\subsection{Phase 2: Asymmetric Ed25519}\label{app:phase2}
 
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v2\_asymmetric.pv} --- Verified in ProVerif 2.05}]
 (* Port Daddy: Harbor Card v2 (Ed25519 / EdDSA) Formal Model *)
@@ -964,7 +974,7 @@ process
   )
 \end{lstlisting}
 
-\section{Phase 3: Multi-hop Delegation}\label{app:phase3}
+\subsection{Phase 3: Multi-hop Delegation}\label{app:phase3}
 
 \begin{lstlisting}[caption={\texttt{harbor\_card\_v3\_delegation.pv} --- reflexive-order model (see §\ref{sec:attn-soundness} for the soundness caveat and the enriched v5 proof)}]
 (* Port Daddy: Harbor Card v3 (Delegation Chains) Formal Model *)
@@ -1109,5 +1119,8 @@ C{:}\texttt{write}$ is accepted (ProVerif: escalation reachable). The fix,
 chain rejected. The runtime delegation verifier --- and the cross-harbor
 recompute $\mathrm{att}_B \circ \mathrm{att}_A$ --- must be per-hop, never
 final-vs-root.
+
+\vspace{0.8cm}
+\noindent\emph{Exercises, traces, and open problems for this paper --- with worked solutions --- are in the Harbor Volume Workbook, Part V.}
 
 \end{document}

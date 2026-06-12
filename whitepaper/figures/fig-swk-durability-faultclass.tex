@@ -11,6 +11,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -42,9 +43,9 @@
 \draw[->,>=Latex,thick,hhteal] (oscache.south) -- (i1a.north);
 
 % ─── I1b NOT guaranteed against OS crash / power loss ──────────────────────
-\node[fault,fill=hhsand!30,below=14mm of waldisk] (i1b)
-  {\textbf{I1b --- OS crash / power loss}\\ {\color{hhcobalt}\textbf{NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}};
-\draw[->,>=Latex,thick,hhcobalt] (waldisk.south) -- (i1b.north);
+\node[fault,draw=maydayred,fill=hhsand!30,below=14mm of waldisk] (i1b)
+  {\textbf{I1b --- OS crash / power loss}\\ {\color{maydayred}\textbf{$\times$\,NOT GUARANTEED}}\\ {\scriptsize last commits may roll back}};
+\draw[->,>=Latex,thick,maydayred] (waldisk.south) -- (i1b.north);
 
 \end{tikzpicture}%
 }
@@ -59,7 +60,7 @@ synchronization the WAL is synced only at checkpoints --- the seductive belief t
 power-loss \emph{durability} (false). The remedy for I1b is full synchronization or
 a checkpoint on the commit path; the kernel does not pay that cost by default, and
 the prose must not imply it does. We split the invariant accordingly: I1a is
-\textsf{implemented}; I1b is \textsf{not guaranteed} under the default WAL
-configuration.}
+built (power-loss durable across a process crash); I1b is \textbf{\color{maydayred}not
+guaranteed} under the default WAL configuration.}
 \label{fig:swk-durability-faultclass}
 \end{figure}

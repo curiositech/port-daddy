@@ -1,6 +1,6 @@
-% Fig 1 — the L0->L3 stack map, placing Paper 3 (the bridge). Harbor Volume idiom.
+% Fig 1 — the L0->L3 stack map, placing Floor 3 (the bridge). Harbor Volume idiom.
 % Design: one bold title + small-caps whom per rung, one italic content line with
-% an honest-state tag; Paper 3 is a cobalt bracket spanning the L2->L3 gap.
+% an honest-state tag; Floor 3 is a cobalt bracket spanning the L2->L3 gap.
 % The through-line chain lives in the caption.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
@@ -33,26 +33,26 @@
    \textit{digest-with-zoom, roadmap-as-truth, adversarial review, the console}\hfill{\footnotesize\textsc{built}}};
 \node[rung,fill=hhsand!30,above=5mm of l2] (l3)
   {{\bfseries L3 --- Economy \& federation}\hfill{\footnotesize\textsc{for the market}}\\[2pt]
-   \textit{anchor, escrow, reputation, federation, the labor/skill market}\hfill{\footnotesize\textsc{whitepaper'd}}};
+   \textit{anchor, escrow, reputation, federation, the labor/skill market}\hfill{\footnotesize$\square$~\textsc{designed}}};
 
-% Paper 3 = the bridge from L2 to L3: a cobalt bracket spanning the gap
+% Floor 3 = the bridge from L2 to L3: a cobalt bracket spanning the gap
 \draw[hhcobalt,very thick] ([xshift=-4mm]l2.north west) -- ([xshift=-7mm]l2.north west)
   -- ([xshift=-7mm]l3.south west) -- ([xshift=-4mm]l3.south west);
 \node[paper,draw=hhcobalt,very thick,anchor=east,align=center]
   at ([xshift=-9mm]$(l2.north west)!0.5!(l3.south west)$)
-  {\textbf{Paper 3}\\\emph{From Spawn to Person}\\\textit{the bridge}};
+  {\textbf{Floor 3}\\\emph{From Spawn to Person}\\\textit{the bridge}};
 
 % companion papers, left column
-\node[paper,anchor=east] at ([xshift=-9mm]l0.west) {Paper 2\\\emph{Anchor} (L0--L1)};
-\node[paper,anchor=east] at ([xshift=-9mm]l2.west) {Paper 1\\\emph{Legible Swarm}};
-\node[paper,anchor=east] at ([xshift=-9mm]l3.west) {Paper 4\\\emph{Harbor Economy}};
+\node[paper,anchor=east] at ([xshift=-9mm]l0.west) {Beam~A\\\emph{Anchor Protocol}};
+\node[paper,anchor=east] at ([xshift=-9mm]l2.west) {Floor~2\\\emph{Legible Swarm}};
+\node[paper,anchor=east] at ([xshift=-9mm]l3.west) {Floor~4\\\emph{Harbor Economy}};
 \end{tikzpicture}}
 \caption{\textbf{The Harbor Volume stack, and where this paper sits.} Each rung is
 for a different \emph{whom}; the honest state of each is labelled. This paper is the
 \emph{bridge} from L2 (a legible \emph{person} doing work) to L3 (a tradeable
 \emph{reputation}) --- the through-line memory $\to$ checkpoint $\to$
 \emph{continuity} $\to$ a \emph{person} $\to$ outcomes $\to$ \emph{reputation} $\to$
-the market. Paper~2 supplies the cryptographic identity below; Paper~4 consumes the
+the market. Beam~A (Anchor Protocol) supplies the cryptographic identity below; Floor~4 (Harbor Economy) consumes the
 reputation substrate above.}
 \label{fig:stack}
 \end{figure}

@@ -35,6 +35,8 @@
 \definecolor{hhamber}{HTML}{6B4500}
 \definecolor{hhteal}{HTML}{00564C}
 \definecolor{hhpaper}{HTML}{FBF7EF}
+\definecolor{hhgray}{HTML}{5C5650}
+\definecolor{maydayred}{HTML}{8B0000}
 
 % Verification-status markers, matching the Anchor / Bonded conventions.
 \newcommand{\Closed}{{\textcolor{hhteal}{\textbf{\textsf{closed}}}}}
@@ -116,14 +118,14 @@
 \fancyhf{}
 \fancyhead[L]{\small\textit{The Federated Harbor}}
 \fancyhead[R]{\small\thepage}
-\fancyfoot[C]{\small Port Daddy v4 --- pre-print}
+\fancyfoot[C]{\footnotesize\color{hhgray} The Harbor Volume \textperiodcentered\ Beam~C: Federated Harbor \textperiodcentered\ v0.9 (pre-print)}
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0pt}
 
 % ─── Title ───────────────────────────────────────────────────────────────────
 \title{
   \vspace{-1cm}
-  {\Large\textsc{Technical White Paper}}\\[0.5cm]
+  {\Large\textsc{The Harbor Volume --- Beam C: Federated Harbor}}\\[0.5cm]
   \rule{\textwidth}{0.5pt}\\[0.3cm]
   {\LARGE\textbf{The Federated Harbor:}}\\[0.2cm]
   {\Large Identity, Coordination, and Settlement\\Across Administrative Domains}\\[0.3cm]
@@ -145,7 +147,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob runs the front end on his. Each operator has a working local harbor in the sense of the two prior papers in this series --- capability tokens are pinned and attenuated, evidence is Merkle-chained, bonds are posted, and the Conservation invariant holds inside each machine. The problem is not internal. Alice's \texttt{db:write} card is gibberish to Bob's daemon, Bob's revocation gossip is invisible to Alice's mesh, and a bond Alice posted to cover a botched migration sits in her harbor's collateral pool while the migration lands in Bob's staging database. Two harbors, each individually trustworthy, jointly useless. This paper extends the Anchor Protocol's capability ceremony, the Bonded Commons' evidence trail and competitive-insurance market, and the daemon-as-correlation-device argument to settings where the sovereign is not single. We define an inter-harbor capability transfer protocol with explicit attenuation across the boundary; a federated revocation gossip layer with a named convergence bound and cross-witness equivocation detection; a settlement protocol in which a bond posted at one harbor clears against damage measured at another through a structurally bounded escrow; and an admission ceremony for new harbors to join an existing mesh without prior reputation. We are disciplined about which claims are mechanized, which are bounded against named threat windows, and which are honestly open. The point of the paper is to draw the new boundary cleanly so that the unsolved problems are visible rather than hidden.
+A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob runs the front end on his. Each operator has a working local harbor in the sense of Beam~A (Anchor Protocol) and Beam~B (Bonded Commons) --- capability tokens are pinned and attenuated, evidence is Merkle-chained, bonds are posted, and the Conservation invariant holds inside each machine. The problem is not internal. Alice's \texttt{db:write} card is gibberish to Bob's daemon, Bob's revocation gossip is invisible to Alice's mesh, and a bond Alice posted to cover a botched migration sits in her harbor's collateral pool while the migration lands in Bob's staging database. Two harbors, each individually trustworthy, jointly useless. This paper extends the Anchor Protocol's capability ceremony, the Bonded Commons' evidence trail and competitive-insurance market, and the daemon-as-correlation-device argument to settings where the sovereign is not single. We define an inter-harbor capability transfer protocol with explicit attenuation across the boundary; a federated revocation gossip layer with a named convergence bound and cross-witness equivocation detection; a settlement protocol in which a bond posted at one harbor clears against damage measured at another through a structurally bounded escrow; and an admission ceremony for new harbors to join an existing mesh without prior reputation. We are disciplined about which claims are mechanized, which are bounded against named threat windows, and which are honestly open. The point of the paper is to draw the new boundary cleanly so that the unsolved problems are visible rather than hidden.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -156,18 +158,17 @@ A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob
 
 \vspace{0.6cm}
 
-% ─── Series locator box (identical template across all three papers) ──────────
+% --- Series locator box (identical banner across every paper in the volume) ---
 \begin{center}
 \begin{tikzpicture}
 \node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
       inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
-  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE PORT DADDY TRILOGY\hfill PAPER~III~OF~III}}\\[5pt]
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE HARBOR VOLUME}\hfill\textcolor{hhebony!70}{four Floors (explain) $\times$ four Beams (prove)}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
-  \textbf{I.~The Bonded Commons.}~\emph{Why} mutually-suspicious agents need a pre-transactional \emph{commons authority}: bonded participation, an immutable evidence trail, and a value-conservation law. The economic and governance case for coordination at all.\\[4pt]
-  \textbf{II.~The Anchor Protocol.}~\emph{How} a single process proves its identity and attenuates its capability to the local daemon --- a formally verified (ProVerif, Kani) capability substrate, scoped to one machine.\\[4pt]
-  {\color{hhcobalt}\textbf{III.~The Federated Harbor \textnormal{(this paper)}.}}~How identity, revocation, and settlement compose \emph{across sovereign machines} when no operator is a root of authority for any other --- the federation layer.\\[6pt]
+  The volume is one building on two axes. Its \textbf{Floors} climb the vision --- Kernel, Legibility, Personhood, Economy --- and its \textbf{Beams} cross it with proof: identity and capability, conservation and bonding, federation.\\[5pt]
+  {\color{hhcobalt}\textbf{This paper: Beam~C --- Federation.}}~Two harbors, each trustworthy, jointly useless --- and the witness log that fixes it. \textsc{$\square$ designed.}\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
-  {\footnotesize You are reading \textbf{Paper III}. It assumes the primitives of I and II and carries them across the trust boundary between two operators' machines; \S\ref{sec:fh-xfer}, \S\ref{sec:fh-revocation}, and \S\ref{sec:fh-settlement} each mark the exact dependency. Either companion can be read first or in parallel.}
+  {\footnotesize It builds on Beam~A (Anchor Protocol, \S\ref{sec:fh-xfer}), Beam~B (Bonded Commons, \S\ref{sec:fh-settlement}), and the Floor~1 kernel daemon. Either companion can be read first or in parallel.}
 };
 \end{tikzpicture}
 \end{center}
@@ -184,7 +185,7 @@ The paper has a topology: it opens with the gestalt (\S\ref{sec:fh-intro}--\S\re
 \noindent
 \begin{tabular}{p{3.6cm} p{8.6cm} p{3.4cm}}
 \toprule
-\textbf{Layer} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
+\textbf{Track} & \textbf{Load-bearing artifact} & \textbf{Lives at} \\
 \midrule
 \textbf{(1) Topology}        & Two harbors, witness log, settlement escrow as a four-element gestalt & \S\ref{sec:fh-authority}; Figure~\ref{fig:fh-topology} \\
 \textbf{(2) Cap.\ transfer}  & Four-message ceremony; ProVerif model of cross-realm authenticity \& attenuation, \emph{conditional on a witness-log freshness assumption} (\S\ref{sec:fh-xfer-mech}) & \S\ref{sec:fh-xfer}; Figure~\ref{fig:fh-xfer} \\
@@ -309,7 +310,7 @@ A witness log $W$ is admissible for the Federated Harbor if it provides:
 \item \textbf{Per-harbor latest-root binding.} For each harbor $X$ in the federation and each epoch $e$, $W$ records at most one root $R_X^{(e)}$ signed under $\mathit{sk}_X$.
 \item \textbf{Auditable consistency.} Any third party can verify, given $R_X^{(e_1)}$ and $R_X^{(e_2)}$ with $e_1 \le e_2$, that $R_X^{(e_2)}$ is a Merkle-consistent extension of $R_X^{(e_1)}$.
 \item \textbf{Equivocation detectability.} If a malicious daemon $D_X$ presents two different roots $R_X^{(e)}$ and $R_X^{(e)\prime}$ to two different parties, any auditor that observes both detects the equivocation in expected $O(\log m)$ gossip rounds where $m$ is the size of the federation (Theorem~\ref{thm:fh-conv}).
-\item \textbf{Threshold publishability.} The act of publishing $R_X^{(e)}$ to $W$ does not require $D_X$ to trust any other party; the cross-signatures collected from other daemons in the federation are an auditor convenience, not an authorization gate.
+\item \textbf{Independent publishability.} The act of publishing $R_X^{(e)}$ to $W$ does not require $D_X$ to trust any other party; the cross-signatures collected from other daemons in the federation are an auditor convenience, not an authorization gate.
 \end{enumerate}
 \end{property}
 
@@ -641,7 +642,7 @@ Notice in particular what \emph{did not} happen:
 \item The revocation propagated through gossip with a named convergence bound; no consensus protocol was invoked.
 \end{itemize}
 
-Each of these is a deliberate design choice. The Federated Harbor's architecture is not heroically more powerful than alternatives; it is heroically more honest about what is happening at each step.
+Each of these is a deliberate design choice. The Federated Harbor's architecture is not more powerful than alternatives; it is more honest about what is happening at each step.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Formal Model}\label{sec:fh-formal}
@@ -773,7 +774,7 @@ Theorem~\ref{thm:fh-conv} gives expected $O(\log m)$ detection of cross-witness 
 
 \subsection{What this means for the reader}\label{sec:fh-lim-reader}
 
-A federation paper with five named open questions is doing its job. The point of the paper is to draw the new boundary cleanly so the open problems are visible; if every claim in this paper were closed, there would be no third paper to write. The honest read is that the Federated Harbor is closer to a research agenda than to a deployed product, and the prior two papers (Anchor, Bonded) have a tighter ratio of theorem to conjecture for the same reason. The substrate is real; the federation layer is in progress.
+A federation paper with five named open questions is doing its job. The point of the paper is to draw the new boundary cleanly so the open problems are visible; if every claim in this paper were closed, there would be no third paper to write. The substrate is in production; the federation layer is a research agenda built on it. Anchor and Bonded have a tighter theorem-to-conjecture ratio for the same reason the sky has a floor: they are the floor.
 
 \pullquote{The point of the paper is to draw the new boundary cleanly so that the unsolved problems are visible rather than hidden.}
 
@@ -785,7 +786,7 @@ The two-machine problem is the structural sequel to the local-swarm problem of A
 
 The proof posture matches the prior papers' discipline. Where we mechanize, we mechanize (with the same ProVerif and TLA+ infrastructure). Where we bound a threat, we name the bound and price the bond against it. Where we leave a question open, we name it. The threat-band diagram of Figure~\ref{fig:fh-threat-bands} is the most concentrated summary of where each claim lives.
 
-What this paper buys is a clean federation surface that composes with the substrate already in production. Two harbors that have never met can run a shared project. Bonds posted at one harbor clear against damage measured at another. Revocations issued at one harbor reach every harbor in the federation within a named convergence bound. New harbors join under bonded sponsorship without forcing the federation into either an invitation-only failure mode or a Sybil-prone permissionless one. None of these is heroic in isolation. The contribution is the composition.
+What this paper buys is a clean federation surface that composes with the substrate already in production. Two harbors that have never met can run a shared project. Bonds posted at one harbor clear against damage measured at another. Revocations issued at one harbor reach every harbor in the federation within a named convergence bound. New harbors join under bonded sponsorship without forcing the federation into either an invitation-only failure mode or a Sybil-prone permissionless one. None of these is complex in isolation. The contribution is the composition.
 
 The remaining open work --- the multi-principal correlated-equilibrium extension, the trustless-settlement impossibility conjecture, the cartel-resistance bound at the federation layer --- is genuine open work. It is not minor. The paper is honest about that. The federation is real; the theory of the federation is in progress.
 
@@ -970,5 +971,8 @@ For brevity we omit the full model text in this pre-print; the draft \texttt{fh-
 \section{TLA+ Specification (draft)}\label{app:fh-tla}
 
 The full \texttt{CrossHarborConservation.tla} extends Bonded's Conservation specification with per-harbor pools, an escrow pool, and an inter-harbor transit relation. Apalache symbolic model-checking at $|F| = 4$ harbors and bond depth 16 establishes that Conservation holds across all reachable states under the transition relation. The full specification accompanies the revised version.
+
+\vspace{0.8cm}
+\noindent\emph{Exercises, traces, and open problems for this paper --- with worked solutions --- are in the Harbor Volume Workbook, Part~VII.}
 
 \end{document}

@@ -9,6 +9,7 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
@@ -21,7 +22,7 @@
   cure/.style={draw=hhink,thick,rounded corners=2pt,fill=hhsand!30,
                minimum width=52mm,minimum height=12mm,align=left,inner sep=5pt,
                font=\footnotesize,text width=48mm,text=hhink},
-  e/.style={-{Latex[length=2.8mm]},very thick,hhcobalt},
+  e/.style={-{Latex[length=2.8mm]},very thick,maydayred},
   ce/.style={-{Latex[length=2mm]},thick,hhteal},
 ]
 \node[rung] (r1) at (0,6.6) {\textbf{1. Context rot}\\quality decays as window grows, nothing dropped};
@@ -43,7 +44,7 @@
 \caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
 compact, naive compaction loses the middle, recursion fabricates, and the
 operator-facing digest over-flattens what's left --- the failures compound, hence
-``cascade.'' Each rung (cobalt) has a cure (teal), and breaking \emph{any} rung
+``cascade.'' Each rung (red) has a cure (teal), and breaking \emph{any} rung
 stops the cascade; the load-bearing cure is \emph{compact-from-artifacts} (rung~3),
 which a system with durable, addressable state (claims, notes, episodes) makes
 cheap. Cost and legibility share this surface: when compaction fails, the bill
