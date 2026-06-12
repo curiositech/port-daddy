@@ -10,7 +10,7 @@ interface ReplayStep {
 }
 
 const REPLAY_SCRIPT: ReplayStep[] = [
-  { type: 'comment', text: '# Two agents, one project, zero collisions' },
+  { type: 'comment', text: '# Two agents in the same project, zero collisions' },
   { type: 'blank', text: '' },
   { type: 'command', text: 'pd begin --identity myapp:api --purpose "Refactor auth module"' },
   { type: 'output', text: '[pd] Session started · myapp:api · agent-7f3a' },

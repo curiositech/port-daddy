@@ -44,7 +44,7 @@ export function CTABanner() {
                 Install the coordination layer, then drive it from FleetBar.
               </PanelTitle>
               <PanelBody className="max-w-[46rem]">
-                Port Daddy is still open-source infrastructure. The product surface is now the Mac
+                Port Daddy is still open-source infrastructure. The product surface is the Mac
                 app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
                 <RoleTerm role="sortie">sorties</RoleTerm>, resource controls, backend readiness,
                 and agent-to-agent handoffs. Agents can use the CLI; humans should not have to infer
@@ -118,8 +118,8 @@ export function CTABanner() {
             </picture>
             <PanelBody size="compact" className="max-w-none">
               Open FleetBar for daemon health, project selection, agents, resources, handoffs, and
-              guard state. The install command can live in docs; the homepage should show what the
-              operator gets after it runs.
+              guard state. The install command lives in the docs; this is what the operator sees
+              after it runs.
             </PanelBody>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
               {[

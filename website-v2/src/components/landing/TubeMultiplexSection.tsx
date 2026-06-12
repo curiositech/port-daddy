@@ -36,8 +36,8 @@ export function TubeMultiplexSection() {
               <BracketLabel>New in v3.16.2</BracketLabel>
               <SectionIntro
                 eyebrow="pd tube · fan-out"
-                title="One channel. Many listeners. Every message."
-                description="Point several agents at the same channel and each one receives every message — not one-of-N. A broadcaster sends once; three listeners on three different identities all wake up. The channel is a fan-out, not a queue."
+                title="Every listener on the channel hears every message."
+                description="Point several agents at the same channel and each one receives every message. A broadcaster sends once; three listeners on three different identities all wake up. The channel is a fan-out, not a queue."
                 titleAs="h2"
               />
               <div className="space-y-[var(--space-3)] text-[var(--text-muted)]">
@@ -96,7 +96,7 @@ $ pd tube standup:demo --tail --as gardener-bot
 $ pd tube standup:demo --send "Standup in 5. Post blockers."
 SUCCESS: tube: posted id=87 to standup:demo
 
-# id=87 now prints in ALL THREE listener terminals — fan-out, not one-of-N.`}
+# id=87 now prints in ALL THREE listener terminals.`}
               </CodeBlock>
             </SurfacePanel>
 
@@ -133,7 +133,7 @@ SUCCESS: tube: posted id=87 to standup:demo
               <BehaviorCard
                 icon={RotateCcw}
                 title="Resumes per identity"
-                body="A listener that drops and reconnects with the same identity picks up exactly where it left off — without consuming the backlog meant for anyone else."
+                body="A listener that drops and reconnects with the same identity resumes from its own cursor; the backlog meant for anyone else stays untouched."
               />
             </div>
           </SwissGridItem>

@@ -38,12 +38,12 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
       type: 'gif',
       src: '/gifs/agents/communication-protocols.gif',
       title: 'Agent Radio recording',
-      caption: 'A real terminal recording with command output, kept as agent proof instead of human setup UI.',
+      caption: 'A real terminal recording with command output, kept because it documents agents at work rather than walking a human through setup.',
     },
     evidence: [
       'Notes, signals, and actor messages stay durable after a shell exits.',
       'The operator reads coordination state in Activity, Channels, Inbox, and Flow.',
-      'Terminal evidence is acceptable here because the recording includes daemon responses.',
+      'The recording includes real daemon responses, which is what earns a terminal clip a spot here.',
     ],
   },
   {
@@ -75,7 +75,7 @@ const MAC_APP_DEMOS: MacAppDemo[] = [
       caption: 'The app turns MCP and runtime capability into inspectable readiness.',
     },
     evidence: [
-      'Capability breadth is an app/readiness surface, not a wall of function names.',
+      'The app shows the breadth of tools as a readiness surface, not a wall of function names.',
       'Resource pressure and dependency state sit next to launch choices.',
       'The operator can compare capacity before letting agents spend work.',
     ],

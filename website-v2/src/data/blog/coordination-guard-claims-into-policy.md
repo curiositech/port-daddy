@@ -6,7 +6,7 @@ The embarrassing bit first: I made this sound cleaner than it was.
 
 Trying to stop Port Daddy agents from clobbering each other set me down a rabbit hole of treating Git as an enforcement point. That phrase, "Git as a policy layer," sounded clever enough when I was moving fast and trying to explain the newest feature. Reading it back, I had made the checkpoint sound like the coordination model.
 
-I had. In fact, those other primitives are the main system.
+The primitives underneath the checkpoint are the main system.
 
 So the original framing was a little backwards. Git was not the beautiful first principle. Git was where the mess became impossible to ignore.
 
@@ -20,7 +20,7 @@ And still, a normal Git command could wipe out the story.
 
 One agent would leave a note saying it was touching a page. Another would claim a nearby file. A third would stage a broad slice because it had a green build. A cherry-pick would replay something without the same hook path. A reset would erase a local buffer. Nobody was trying to be reckless. The tooling just made the reckless path cheap.
 
-That is how Coordination Guard happened. It was not me discovering that Git had a soul. It was me noticing that a repo history does not care how elegant your coordination model is if `git add -A` can still scoop up the wrong files.
+That is how Coordination Guard happened. It wasn't me discovering that Git had a soul. It was me noticing that a repo history doesn't care how elegant your coordination model is if `git add -A` can still scoop up the wrong files.
 
 Pretty good, distributed runtime. Bad ending, local checkout.
 
@@ -36,7 +36,7 @@ The Port Daddy runtime is where intent and ownership live. Git is where work bec
 
 > Does this staged change have an active session, and do the staged files match the scope that session claimed?
 
-That is all. It is not a judge of taste. It is not a reviewer. It does not know if the UI is good or if the abstraction is silly. It only checks whether the commit has a coordination story.
+That is all. It's not a judge of taste or a reviewer; it doesn't know if the UI is good or if the abstraction is silly. It just checks whether the commit has a coordination story.
 
 ## The Runtime Primitives
 
@@ -130,7 +130,7 @@ That would have prevented a lot of the dumbest damage. If each agent has its own
 
 But worktrees do not answer everything.
 
-They do not say which session owns the integration commit. They do not tell you whether two clean branches break the program together. They do not protect generated assets or migrations that need a lock. They do not salvage a dead agent's intent. They do not make a cherry-pick explain itself.
+They don't say which session owns the integration commit, or whether two clean branches break the program together. They don't protect generated assets or migrations that need a lock. They won't salvage a dead agent's intent, and they can't make a cherry-pick explain itself.
 
 So I now think the default should be:
 
@@ -177,7 +177,7 @@ Useful dossiers:
 
 Coordination Guard should stay narrow.
 
-It should not decide whether an abstraction is elegant. It should not decide whether a landing page sounds corny. It should not decide whether the product is good.
+It shouldn't decide whether an abstraction is elegant, whether a landing page sounds corny, or whether the product is good.
 
 It should answer the boring operational questions:
 
@@ -187,7 +187,7 @@ It should answer the boring operational questions:
 - did a sequencer path bypass the normal hook;
 - did enforcement actually fail closed?
 
-That is enough. Review can handle taste. Tests can handle behavior. Humans can handle judgment. The guard handles the small mechanical lie that causes too much damage: "this commit just happened," with no ownership trail behind it.
+That is enough. Review can handle taste, tests can handle behavior, and judgment stays with humans. The guard handles the small mechanical lie that causes too much damage: "this commit just happened," with no ownership trail behind it.
 
 ## The Version I Would Write Now
 

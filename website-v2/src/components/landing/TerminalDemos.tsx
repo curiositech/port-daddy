@@ -36,7 +36,7 @@ $ pd done "Upload API complete with tests"
     title: 'Multi-Agent',
     description: 'Shared repo work',
     gif: '/gifs/agents/coordination.gif',
-    caption: 'A real coordination recording with visible terminal responses for claims, notes, and guard state.',
+    caption: 'Recorded live: two agents claiming ports, posting notes, and checking guard state, with each daemon reply on screen.',
     code: `# Agent 1: Backend developer
 $ pd begin "REST API for auth" --identity myapp:api
   Agent agent-c3d1 ready
@@ -66,7 +66,7 @@ $ pd with-lock db-migrations npm run migrate
     title: 'AI Spawn',
     description: 'Budgeted delegated work',
     gif: '/gifs/agents/event-triggers.gif',
-    caption: 'A real agent-trigger recording. Terminal examples on this page must show the system answering back.',
+    caption: 'An agent-trigger run, recorded — the system answers back at every step.',
     code: `# Spawn a cheap Codex agent with an explicit budget ceiling
 $ pd spawn --backend codex \\
     --tier low \\
@@ -94,7 +94,7 @@ $ pd spawned
     title: 'Salvage',
     description: 'Recover interrupted work',
     gif: '/gifs/salvage.gif',
-    caption: 'A real salvage recording with command output visible for the recovery path.',
+    caption: 'The salvage flow, recorded with the daemon's output left in so you can follow the recovery path.',
     code: `# Check for dead agents at session start
 $ pd salvage
   1 agent pending salvage:

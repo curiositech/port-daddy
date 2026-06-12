@@ -19,7 +19,7 @@ daemon: reachable
 project: acme-web
 ```
 
-That is useful, but it is not sufficient. Reachable only answers one question: can the client talk to something? It does not answer:
+That's useful, but it's not sufficient. Reachable only answers one question: can the client talk to something? It does not answer:
 
 - which checkout started the daemon;
 - which TCP port serves browser clients;
@@ -69,7 +69,7 @@ The output should let a developer answer four questions:
 3. What endpoint are browser clients using?
 4. Which binary is the shell invoking?
 
-If those answers disagree, the tool should say so. The ideal product experience is not "read five commands and infer the mismatch." The ideal experience is a provenance panel that tells the operator exactly which layer is stale.
+If those answers disagree, the tool should say so. Nobody should have to read five commands and infer the mismatch. A provenance panel should tell the operator exactly which layer is stale.
 
 ![Daemon runtime terminal recording](/gifs/agents/daemon-runtime.gif)
 
@@ -155,7 +155,7 @@ next:
   restart the daemon or switch the shell to the installed CLI
 ```
 
-That is the experience Port Daddy should optimize for. Do not let a user discover stale runtime state after an expensive or mutating operation. Block early, name the disagreement, and give the next command or UI action.
+That is the experience Port Daddy should optimize for. Don't let a user discover stale runtime state after an expensive or mutating operation. Block early, name the disagreement, and give the next command or UI action.
 
 This is also why provenance belongs in normal product UI, not only diagnostics. A tiny "served by daemon pid 73122 from installed app" line in a resources panel can prevent the wrong debugging story. A bundle hash in an about menu can prove that a screenshot was taken against the current build. A project identity label in FleetBar can stop an operator from launching an agent into the wrong repo. These details feel small until they are missing.
 
@@ -213,7 +213,7 @@ Then verify the actual surface:
 - confirm the route renders the expected feature;
 - capture a screenshot if the change is visual.
 
-The important rule is simple: process success is not visual success. Runtime truth is not source truth. The control plane has to make that distinction impossible to miss.
+Process success is not visual success. Runtime truth is not source truth. The control plane has to make that distinction impossible to miss.
 
 ## The Product Bet
 

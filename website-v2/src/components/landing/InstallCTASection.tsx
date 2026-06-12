@@ -16,14 +16,14 @@ const tabs: Tab[] = [
     id: 'pd-init',
     label: 'pd init',
     command: 'pd init',
-    description: 'Initialize a new project with our flagship CLI tool',
+    description: 'Initialize a new project with the pd CLI',
     icon: <Zap className="w-4 h-4" />,
   },
   {
     id: 'homebrew',
     label: 'Homebrew',
     command: 'brew install port-daddy',
-    description: 'Install via Homebrew package manager for macOS',
+    description: 'Install with Homebrew on macOS',
     icon: <Package className="w-4 h-4" />,
   },
   {
@@ -93,13 +93,13 @@ const InstallCTASection: React.FC = () => {
             className="text-4xl md:text-5xl font-bold mb-4"
             style={{ color: 'var(--text-primary)' }}
           >
-            Get Started in Seconds
+            Install in One Command
           </h2>
           <p
             className="text-lg md:text-xl"
             style={{ color: 'var(--text-secondary)' }}
           >
-            Choose your preferred installation method
+            Pick whichever install path you like
           </p>
         </div>
 
@@ -247,7 +247,7 @@ const InstallCTASection: React.FC = () => {
         {/* Additional Info */}
         <div className="text-center mt-8">
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Need help? Check out our{' '}
+            Stuck? Try the{' '}
             <a
               href="#"
               className="font-semibold hover:underline"

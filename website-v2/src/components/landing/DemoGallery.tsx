@@ -81,7 +81,7 @@ export function DemoGallery() {
             <motion.span style={{ color: 'var(--brand-primary)' }}>Coordination.</motion.span>
           </motion.h2>
           <motion.p className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans font-bold" style={{ color: 'var(--text-secondary)' }}>
-            Real features, real coordination. See Port Daddy's core primitives in action.
+            Watch Port Daddy's core primitives do real coordination work, captured live.
           </motion.p>
         </motion.div>
 

@@ -41,7 +41,7 @@ flowchart LR
   Projection --> Agent["next agent"]
 ```
 
-A useful map is not a perfect database. It is a current-enough explanation of where work stands and why.
+A useful map is a current-enough explanation of where work stands and why; nobody needs it to be a perfect database.
 
 ![Flow graph view showing connected work state](/media/landing-live-glory/live-flow-graph-light.png)
 
@@ -72,7 +72,7 @@ The inference can be conservative. If validation is missing, say validation is m
 
 ## Drift Should Be A First-Class Object
 
-The best map is not only a pretty status page. It should represent disagreement explicitly:
+A map should do more than render status. It should represent disagreement explicitly:
 
 ```json
 {
@@ -126,7 +126,7 @@ When you return to a repo after several agents worked on it, you want a short op
 | What is stale? | Old docs, outdated generated assets, abandoned branches. |
 | What should happen next? | A small ordered list with evidence. |
 
-The map is not for ceremony. It saves engineering time.
+The map exists to save engineering time.
 
 ## A Concrete Agent Handoff
 
@@ -208,6 +208,6 @@ Those commands are useful because they put the messy world into a queryable shap
 
 ## The Product Bet
 
-The next generation of agent tooling will not be judged only by how well it writes code. It will be judged by how well it preserves context across many small runs.
+Agent tooling is going to be judged on how well it preserves context across many small runs, not just on how well it writes code.
 
 Keeping the map honest is how Port Daddy turns agent work from a series of disconnected attempts into an operating history. That history is what lets engineers trust the next move.

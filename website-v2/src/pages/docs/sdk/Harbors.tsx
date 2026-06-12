@@ -75,7 +75,7 @@ const FUNCTIONS: SdkFunction[] = [
         A harbor card is a junior token. It cannot grant verbs the harbor itself does not permit
         — <code>issueHarborCard()</code> always intersects requested capabilities with the
         harbor&rsquo;s capabilities. Use it to hand a one-task agent the smallest possible
-        permission set: read this row, write this folder, hit this single endpoint.
+        permission set: read this row, write inside this one folder, hit this endpoint no more than a hundred times.
       </>
     ),
     params: [

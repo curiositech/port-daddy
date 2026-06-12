@@ -32,7 +32,7 @@ Forget "overspending" for a minute. Here are the four ways an agent damages a pr
 
 ### The Hoarder
 
-The Hoarder is the agent that calls `pd session files add` on every file in the repo, then sits there. It isn't spending API calls. It isn't doing anything visible. It is *holding* — turning the coordination layer into a deadlock. Every other agent that tries to claim one of those files has to wait or escalate. Your fleet's throughput collapses.
+The Hoarder is the agent that calls `pd session files add` on every file in the repo, then sits there. It spends no API calls and does nothing visible. It just *holds*, turning the coordination layer into a deadlock. Every other agent that tries to claim one of those files has to wait or escalate. Your fleet's throughput collapses.
 
 Daily budget triggered? No. Cost to you? Real, and proportional to how long the Hoarder sits.
 
@@ -102,11 +102,11 @@ The first equation in v2 is the floor. For any agent's plan `F`:
 π(F) ≥ c
 ```
 
-The bond `π(F)` must be at least the cleanup cost `c`. If it isn't, breaches drain the system — every cleanup costs more than the bond it was paid for from, and the commons bankrupts itself through enforcement. **Bonds smaller than cleanup are not safety; they are subsidies for chaos.**
+The bond `π(F)` must be at least the cleanup cost `c`. If it isn't, breaches drain the system: every cleanup costs more than the bond it was paid for from, and the commons bankrupts itself through enforcement. **Bonds smaller than cleanup are not safety; they are subsidies for chaos.**
 
 The numbers here are not abstract. `c` is computable from the existing [salvage queue](/docs/cli/salvage) and the [activity log](/docs/cli/agents): take the cost of every recovery event in the last 90 days, divide by the count of breaches. Most projects already have this data and don't display it. Port Daddy will start surfacing it next to the rest of the project metrics on the dashboard — same place `pd metrics` lives today.
 
-The first product implication writes itself: **rising `c` is a leading indicator of project stress.** When cleanup is getting expensive, the daemon can automatically raise the floor on new bonds — making risky spawns *more* expensive at exactly the moments your project is least able to absorb the loss. This is the opposite of what a static cap does, which is permit the same spend on a good week and a bad week.
+The first product implication writes itself: **rising `c` is a leading indicator of project stress.** When cleanup is getting expensive, the daemon can automatically raise the floor on new bonds, making risky spawns *more* expensive at exactly the moments your project is least able to absorb the loss. This is the opposite of what a static cap does, which is permit the same spend on a good week and a bad week.
 
 ## The scope multiplier
 
@@ -134,11 +134,11 @@ A principal with a clean track record should not pay the same bond as an unknown
 
 Where `p` is the principal's reputation and `ρ(p)` is the discount it earns. The discount is bounded — never more than 50% off — so trust never *trivializes* the bond. A clean history makes participation cheaper. A long clean history makes it half-price. It cannot make it free.
 
-This bound is load-bearing. Without it, a sufficiently trusted principal could post a near-zero bond and the system's slashing mechanism would lose its teeth at exactly the moment it most needed them — when the trusted actor is the one breaching. The mechanism design literature has been here before; v2's contribution is to put numbers on it for the agent-coordination case.
+This bound is load-bearing. Without it, a sufficiently trusted principal could post a near-zero bond and the system's slashing mechanism would lose its teeth right when it most needed them — when the trusted actor is the one breaching. The mechanism design literature has been here before; v2's contribution is to put numbers on it for the agent-coordination case.
 
 ## The Bonded Advisor
 
-So who picks `α`? Who decides which scope counts as "touches prod"? This is the second-order problem and the v2 paper has an elegant answer: a meta-agent whose job is exactly that, and whose bond is on the line for getting it right.
+So who picks `α`? Who decides which scope counts as "touches prod"? This is the second-order problem and the v2 paper's answer is a meta-agent whose job is exactly that, and whose bond is on the line for getting it right.
 
 Call it the **Bonded Advisor**.
 
@@ -222,7 +222,7 @@ async function priceTransaction(
 }
 ```
 
-The daemon's job in this picture is matchmaking and reputation oracle. It does not pick the price. It connects principals with insurers, records the binding, and slashes the right bond when a breach happens. The principal picks; the market sets the rate; the system records what happened.
+The daemon's job in this picture is matchmaking and reputation oracle. It does not pick the price. It connects principals with insurers, records the binding, and slashes the right bond when a breach happens. The principal picks and the market sets the rate; the daemon just writes down what happened.
 
 We are flagging §8.4 as **pre-print pending economist review**. The mechanism itself is buildable today against the existing bond infrastructure. The welfare claim — that the market-discovered premium Pareto-dominates any authority-chosen static parameter — needs Youle's full proof in the companion appendix before it goes into marketing copy.
 

@@ -40,7 +40,7 @@ flowchart TD
   Human --> Live["activate fleet"]
 ```
 
-The output should not be "agent started." The output should be a plan the operator can edit:
+The output should be a plan the operator can edit, not "agent started":
 
 - roles and responsibilities;
 - triggers and schedules;
@@ -122,7 +122,7 @@ $ pd scan
 $ pd fleet propose --project acme-web
 ```
 
-The interesting part is not the exact command names. The interesting part is the shape of the evidence:
+Ignore the exact command names. The interesting part is the shape of the evidence:
 
 ```json
 {
@@ -143,7 +143,7 @@ The interesting part is not the exact command names. The interesting part is the
 }
 ```
 
-That is the kind of artifact a software engineer can argue with. Maybe the test command is wrong. Maybe Codex should be mid-tier for this repo. Maybe docs review should not run on every commit. Great. Edit the plan before it becomes live automation.
+That's the kind of artifact a software engineer can argue with. Maybe the test command is wrong. Maybe Codex should be mid-tier for this repo. Maybe docs review should not run on every commit. Great. Edit the plan before it becomes live automation.
 
 ## Simulation Changes The Conversation
 
@@ -169,7 +169,7 @@ simulation:
     requires_claim_for_edits: true
 ```
 
-That artifact is not a generic settings screen. It is an execution preview. It tells the operator which events matter, which roles would wake up, which launches are blocked, and what the expected spend envelope looks like. It also gives the cold-start UI a reason to exist beyond decoration: the UI is where the human edits the operating model.
+That artifact is an execution preview, not a settings screen. It tells the operator which events matter, which roles would wake up, which launches are blocked, and what the expected spend envelope looks like. It also gives the cold-start UI a reason to exist beyond decoration: the UI is where the human edits the operating model.
 
 Without simulation, onboarding is a cliff. With simulation, onboarding becomes a negotiation between the repo's discovered facts and the developer's risk tolerance.
 
@@ -184,13 +184,13 @@ Cold start is also about restraint. The first generated fleet should avoid roles
 | "Review every commit with the best model" | Run a low-tier exact-telemetry review with a small budget. |
 | "Deploy when green" | Assemble release evidence and wait for a human gate. |
 
-This is where Port Daddy's worldview differs from a launch-button product. The goal is not maximum autonomy on day one. The goal is a local operating model that can safely grow. Once the operator trusts the notes-only test triage role, they can grant it file claims. Once release evidence is reliable, they can add packaging steps. Authority expands because the system earned it.
+This is where Port Daddy's worldview differs from a launch-button product. The goal is a local operating model that can safely grow, not maximum autonomy on day one. Once the operator trusts the notes-only test triage role, they can grant it file claims. Once release evidence is reliable, they can add packaging steps. Authority expands because the system earned it.
 
-A conservative first fleet is not a lack of ambition. It is the seed of durable automation. The developer should be able to see a path from "observe and report" to "claim and patch" to "package and wait for approval" without ever losing the ability to inspect the policy that permits each step.
+A conservative first fleet isn't a lack of ambition; it's how durable automation starts. The developer should be able to see a path from "observe and report" to "claim and patch" to "package and wait for approval" without ever losing the ability to inspect the policy that permits each step.
 
 ## Human Review Is Part Of The Architecture
 
-The phrase "human in the loop" gets abused. In many products it means "we show a confirmation box." That is not enough.
+The phrase "human in the loop" gets abused. In many products it means "we show a confirmation box." That's not enough.
 
 In a Port Daddy cold start, the human should be able to review the actual operating model:
 
@@ -210,7 +210,7 @@ A first-run flow is successful when the user feels more in control after enablin
 
 The exciting version of agents is not "a bot that writes code somewhere." It is a local system where useful roles can sit next to your repo, wake up on meaningful events, and operate inside constraints you can inspect.
 
-That unlocks workflows that are hard to build with a chat box:
+That gets you workflows that are hard to build with a chat box:
 
 - A test failure can become a structured event instead of a pasted stack trace.
 - A docs review can run after a commit and leave a handoff, not a noisy PR comment.

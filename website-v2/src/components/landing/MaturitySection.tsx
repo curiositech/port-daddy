@@ -10,7 +10,7 @@ const MATURITY_FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Local-First Architecture',
-    description: 'All coordination happens through a local daemon, typically on localhost:9876. No cloud dependency, no external services, no data leaving your machine.',
+    description: 'All coordination happens through a local daemon, typically on localhost:9876. Nothing leaves your machine, and there's no cloud service to depend on.',
   },
   {
     icon: Lock,
@@ -20,7 +20,7 @@ const MATURITY_FEATURES = [
   {
     icon: Database,
     title: 'Immutable Auditing',
-    description: 'Every port claim, note, and message is persisted to an append-only SQLite log. Perfect for compliance, forensics, and swarm post-mortems.',
+    description: 'Every port claim, note, and message is persisted to an append-only SQLite log. Handy for compliance, forensics, and swarm post-mortems.',
   },
   {
     icon: Scale,
@@ -77,7 +77,7 @@ export function MaturitySection() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
             Production-grade <br />
-            <motion.span style={{ color: 'var(--brand-primary)' }}>Agentic Reliability.</motion.span>
+            <motion.span style={{ color: 'var(--brand-primary)' }}>Reliability for Agent Swarms.</motion.span>
           </motion.h2>
           <motion.p
             className="text-2xl sm:text-3xl max-w-4xl mx-auto leading-relaxed font-sans opacity-80"
@@ -157,7 +157,7 @@ export function MaturitySection() {
                 What's <motion.span style={{ color: 'var(--brand-primary)' }}>Next.</motion.span>
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed opacity-80 max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
-                V4 will bring end-to-end encrypted networking via Noise Protocol, formal verification with ProVerif, and enforced harbor permission boundaries. Here's what's on the roadmap.
+                V4 will bring end-to-end encrypted networking via Noise Protocol, formal verification with ProVerif, and enforced harbor permission boundaries.
               </motion.p>
               <motion.div className="flex flex-wrap justify-center gap-8 pt-6">
                  <motion.div

@@ -40,7 +40,7 @@ This is not paperwork. It prevents three common classes of failed launch: missin
 
 ## A Useful Readiness Shape
 
-Software engineers do not need a magic status. They need a structured one.
+Software engineers need a structured status, not a magic one.
 
 ```typescript
 type ReadinessState = 'ready' | 'blocked' | 'manual-only'
@@ -129,7 +129,7 @@ async function readBackendReadiness(backend: string) {
 }
 ```
 
-That boundary keeps the product honest. The readiness panel is not a setup checklist in disguise. It is a report from the runtime that will accept or reject the launch.
+That boundary keeps the product honest. The readiness panel is a report from the runtime that will accept or reject the launch — not a setup checklist running in some other process.
 
 ## Fix Messages Are API Design
 
@@ -185,7 +185,7 @@ The key is honesty. Different backends can have different contracts as long as t
 
 ## Opaque Backends Need Boundaries
 
-Some integrations can produce useful answers but cannot prove exact usage. That does not make them useless. It makes them inappropriate for unattended spend-sensitive automation unless a human explicitly accepts the boundary.
+Some integrations can produce useful answers but cannot prove exact usage. They're still useful — just not for unattended spend-sensitive automation, unless a human explicitly accepts the boundary.
 
 ```mermaid
 flowchart TD
@@ -207,13 +207,13 @@ Readiness also protects correctness. If a high-tier model alias points at an unk
 
 The readiness matrix is therefore part of engineering quality:
 
-- it prevents a docs task from accidentally using an expensive model;
-- it prevents a release task from running on an unauthenticated CLI;
-- it prevents a background fleet from using a backend with no ledger;
-- it helps local models participate without pretending they are cloud APIs;
-- it gives setup flows a concrete list of missing work.
+- a docs task can't accidentally use an expensive model;
+- a release task can't run on an unauthenticated CLI;
+- a background fleet can't use a backend with no ledger;
+- local models participate without pretending they're cloud APIs;
+- setup flows get a concrete list of missing work.
 
-That is the bigger idea. Backend readiness is not a preferences page. It is the dependency graph for agent execution.
+The bigger idea: backend readiness isn't a preferences page, it's the dependency graph for agent execution.
 
 Engineers should be able to treat that dependency graph the way they treat any other preflight. If the graph is green, launch. If it is yellow, run manually with the boundary visible. If it is red, fix the missing dependency before asking an agent to do real work. The UI earns confidence by making those states impossible to confuse.
 

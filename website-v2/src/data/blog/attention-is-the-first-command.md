@@ -68,7 +68,7 @@ This is the part I want adoption on. The verb is mine to maintain; the conventio
 
 ![A split-pane editorial illustration. On the LEFT: a model-shaped silhouette sitting at a desk, surrounded by tool icons labeled "pd_status", "pd_claim", "pd_session_start", "pd_attention" — the model is reaching for the attention tool with visible hesitation, a thought bubble showing a question mark. On the RIGHT: the same desk, but the attention tool has been removed; in its place a window above the desk is open, and through it a paper note is being passed in by an unseen hand labeled "SessionStart". The note lands on the desk before the model even sits down. Warm-painterly editorial style. The visual argument is clear: on the left, the model decides whether to check the mailbox; on the right, the mailbox check is delivered upstream of the decision.](/img/generated/attention-first-command/mcp-vs-hook.png)
 
-It would be the most natural thing in the world to expose `pd attention` as an MCP tool. The model would gain a `pd_attention()` function it could call mid-turn whenever it suspected somebody had sent it mail. Beautiful. Symmetric. Wrong.
+It would be the most natural thing in the world to expose `pd attention` as an MCP tool. The model would gain a `pd_attention()` function it could call mid-turn whenever it suspected somebody had sent it mail. Beautiful, symmetric, and wrong.
 
 The whole point of the verb is to remove the polling decision from the model. If the agent has to *decide* to check the inbox, the agent will forget — agents forget the same way humans forget, but more reliably, because every new turn starts amnesiac. The SessionStart hook fires the verb before the model's first token. The model never has the opportunity to skip.
 
@@ -77,7 +77,7 @@ The whole point of the verb is to remove the polling decision from the model. If
 
 Exposing this as an MCP tool would put the decision *back* on the model. That's the exact failure mode this whole slice is supposed to fix. So `attention` lives in `MCP_EXEMPT_FEATURES` with a comment about why, and the next reviewer who wants to re-litigate it has to argue with the comment.
 
-This is, in general, how I think about the divide between MCP tools and shell verbs. **MCP tools should be things the model is choosing to do.** Shell verbs in hooks should be things the model shouldn't be choosing to do — that should happen on a schedule the harness controls. Attention is squarely in the second bucket.
+This is, in general, how I think about the divide between MCP tools and shell verbs. **MCP tools should be things the model is choosing to do.** Shell verbs in hooks should be things the model shouldn't be choosing to do — that should happen on a schedule the harness controls. Attention sits in the second bucket.
 
 ---
 

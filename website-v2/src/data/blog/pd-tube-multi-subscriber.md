@@ -9,7 +9,7 @@ This post is about that bug — why a "broadcast" channel was quietly behaving l
 ![One broadcast node fanning out over cobalt wires to four identical listener terminals, each showing the same messages and each holding its own little bookmark card](/img/generated/tube-multiplex/hero.png)
 
 <!-- sidenote: what's pd tube? -->
-**`pd tube`** is Port Daddy's local event-reply channel (`lib/tube.ts`). A producer posts a structured message to a named channel; a listener subscribes from the terminal with one command, does work, and replies — and the command *returns* instead of holding the terminal hostage. If you've never seen it, start with [PD Tube Turns UI Events Into Agent Work](/blog/pd-tube-event-reply-loop).
+**`pd tube`** is Port Daddy's local event-reply channel (`lib/tube.ts`). A producer posts a structured message to a named channel; a listener subscribes from the terminal with one command, does work, and replies; the command *returns* instead of holding the terminal hostage. If you've never seen it, start with [PD Tube Turns UI Events Into Agent Work](/blog/pd-tube-event-reply-loop).
 
 ## The party where only one guest hears you
 
@@ -26,7 +26,7 @@ pd tube standup:demo --tail --as gardener-bot
 echo "deploy window opens at 14:00" | pd tube standup:demo --send --as broadcaster
 ```
 
-You'd expect all three `--tail` listeners to print that line. With the fix, they do — here's the actual recording, one send landing in all three subscribers plus the sender's own confirmation:
+You'd expect all three `--tail` listeners to print that line. With the fix, they do. Here's the actual recording, one send landing in all three subscribers plus the sender's own confirmation:
 
 ![Four-pane recording: a broadcaster posts three messages and all three subscribers receive every one](/demos/pd-tube/pd-tube-multiplex.gif)
 
@@ -57,7 +57,7 @@ sequenceDiagram
 ```
 <!-- figure: A shared per-channel cursor turns a broadcast into a race — first poll wins, the rest get an empty result. -->
 
-Whoever polled first advanced the shared bookmark; everyone else asked the daemon for "messages after 7," and the daemon — correctly, honestly — said *there are none*. A broadcast channel had quietly become a work queue with exactly one winner. No error. No warning. Just a silent single-consumer pretending to be a bus.
+Whoever polled first advanced the shared bookmark; everyone else asked the daemon for "messages after 7," and the daemon — correctly, honestly — said *there are none*. A broadcast channel had quietly become a work queue with exactly one winner. No error, no warning, just a silent single-consumer pretending to be a bus.
 
 ![Diptych: on the left three listeners fight over one shared bookmark and two get an empty mailbox; on the right each listener holds its own bookmark and all three read the same message tape](/img/generated/tube-multiplex/cursor-fanout.png)
 
@@ -90,7 +90,7 @@ sequenceDiagram
 
 That's the entire fix. Two consequences fall straight out of it, and they're the part I actually like:
 
-- **Distinct `--as` identities → independent cursors → true fan-out.** A human, an agent, and a second agent each have their own identity, so each receives every message. The thing you'd naturally do now just works.
+- **Distinct `--as` identities keep independent cursors, so the channel actually fans out.** A human, an agent, and a second agent each have their own identity, so each receives every message. The thing you'd naturally do now just works.
 - **The same identity still resumes.** Two invocations as `--as you` share a cursor on purpose — that's one logical listener reconnecting, exactly the case the cursor was built for. Resume didn't regress; it got *scoped correctly*.
 
 <!-- sidenote: why not just broadcast live? -->
@@ -125,4 +125,4 @@ pd tube standup --tail --as claude-code
 echo "ship it" | pd tube standup --send --as ci
 ```
 
-Full command reference lives in [the `pd tube` docs](/docs/cli/tube). The short version: a channel is now a channel. Everyone listening hears you — and everyone keeps their own place in line.
+Full command reference lives in [the `pd tube` docs](/docs/cli/tube). The short version: a channel is now a channel. Everyone listening hears you, and everyone keeps their own place in line.

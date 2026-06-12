@@ -280,7 +280,7 @@ function SurfaceTile({
         </PanelBody>
         <div className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
           <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
-            <PanelEyebrow>What it unlocks</PanelEyebrow>
+            <PanelEyebrow>Why it matters</PanelEyebrow>
             <span className="inline-flex items-center gap-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
               <Maximize2 size={13} />
               Open details
@@ -424,7 +424,7 @@ export function MacAppShowcase() {
                 title="FleetBar is the front door to the substrate."
                 description={
                   <>
-                    The native app is not a toy launcher. It is the compact Mac entrance to shared
+                    The native app isn't a toy launcher. It's the compact Mac entrance to shared
                     agent state: Fleet Control Center, project fleets, agent radio,{' '}
                     <RoleTerm role="sortie">sortie</RoleTerm> work,{' '}
                     <RoleTerm role="shipwright">Shipwright</RoleTerm> proposals, resource pressure,
@@ -472,7 +472,7 @@ export function MacAppShowcase() {
             <div className="lg:col-span-12">
               <SectionIntro
                 eyebrow="Fleet Control Center gallery"
-                title="Every tab is a job surface, not decoration."
+                title="Every tab does a real job."
                 description="The Mac app exposes the same daemon truth from multiple angles: launch safety, agent handoffs, project memory, resource pressure, mission history, and Shipwright cold-start design."
                 titleAs="h2"
                 titleSize="card"

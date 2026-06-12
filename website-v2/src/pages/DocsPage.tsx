@@ -83,7 +83,7 @@ const SECTIONS: DocSection[] = [
   {
     id: 'salvage',
     title: 'Agent Salvage',
-    description: 'When an agent crashes, its work is preserved. New agents can claim and continue dead agents\' sessions.',
+    description: 'An agent crashes and its work doesn\'t go down with it. A new agent can claim the dead one\'s session — notes, context, file claims — and pick up where it stopped.',
     icon: RefreshCw,
     tone: 'primary',
     commands: [
@@ -255,7 +255,7 @@ export default function DocsPage() {
                 { label: 'Unix Socket Native', icon: Zap },
                 { label: 'HMAC Handshake', icon: Shield },
                 { label: 'SQLite Persistent', icon: Box },
-                { label: 'Formal Verified', icon: ShieldCheck }
+                { label: 'Formally Verified', icon: ShieldCheck }
               ].map((item, i) => (
                 <Surface key={i} depth="inset" radius="md" padding="md" className="flex flex-col items-center gap-[var(--space-4)]">
                    <item.icon size={24} className="text-[var(--brand-primary)]" />

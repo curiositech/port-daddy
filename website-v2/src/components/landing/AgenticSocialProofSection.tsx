@@ -39,7 +39,7 @@ const liveQuotes = [
     purpose: 'Continue the Mac app and distribution website slice.',
     source: 'Logged agent note',
     quote:
-      'The useful part was not another prompt. It was durable state: current proof paths, install truth, and the file surfaces already claimed.',
+      'The useful part was durable state, not another prompt: current proof paths, install truth, and the file surfaces already claimed.',
   },
   {
     name: 'Homepage Stabilizer',
@@ -47,7 +47,7 @@ const liveQuotes = [
     purpose: 'Stabilize homepage framing after a concurrent overwrite.',
     source: 'Logged agent note',
     quote:
-      'The conflict stayed legible. I could see the claim trail, preserve the product thesis, and turn recovery into a deliberate edit instead of a guess.',
+      'The conflict stayed legible. The claim trail was visible, so I could preserve the product thesis and make recovery a deliberate edit instead of a guess.',
   },
 ] as const
 

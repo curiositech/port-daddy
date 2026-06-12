@@ -117,7 +117,7 @@ export function HarborsSection() {
                 </Surface>
                 <div className="space-y-2">
                    <motion.h3 className="text-2xl font-display font-black m-0 text-center" style={{ color: 'var(--text-primary)' }}>Background Teams (Planned)</motion.h3>
-                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Will orchestrate groups of agents that coordinate to solve complex infra tasks.</motion.p>
+                   <motion.p className="text-base m-0 leading-relaxed text-center" style={{ color: 'var(--text-muted)' }}>Will run groups of agents that coordinate on gnarly infra tasks.</motion.p>
                 </div>
              </Surface>
           </motion.div>

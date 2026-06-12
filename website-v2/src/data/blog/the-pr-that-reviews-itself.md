@@ -10,7 +10,7 @@ The CI gear-wheel is, as a matter of plain fact, the only thing standing between
 
 What if every PR you opened arrived with the adversarial review you would have asked for — automatically, in the same `git push` you were already doing? Not a single noisy bot dumping nits, but a chorus of paid critics, each opinionated about one specific axis, each willing to file a blocking comment when they smell smoke?
 
-That's this post. Six ships, all on the same PR. They are not nice. They are not cruel. They are *useful*.
+That's this post. Six ships, all on the same PR. They aren't nice, but they aren't cruel either — they're *useful*.
 
 ---
 
@@ -23,7 +23,7 @@ Here is what code review actually is when you strip the org-chart away from it. 
 
 The trouble is that reviewers are expensive. A staff engineer who could spot the regression *also* has their own PR open, their own oncall page going off, their own children to feed. So the review you actually get is some compromise between the review your code deserved and the review the reviewer had time to give.
 
-This is where the public defender's office image becomes useful, painful, and instructive. The defendant — your PR — has a constitutional right to representation. The state, if it cares about justice, pays for that representation regardless of whether the defendant can afford it. We do not, as a society, let the prosecutor cross-examine themselves. We expect a *paid critic* in the room.
+This is where the public defender's office image becomes useful, and a little painful. The defendant — your PR — has a constitutional right to representation. The state, if it cares about justice, pays for that representation regardless of whether the defendant can afford it. We do not, as a society, let the prosecutor cross-examine themselves. We expect a *paid critic* in the room.
 
 A repo is the same kind of room. You wrote the PR. CI is the bench clerk. Without an adversary in the room, the question "is this change actually good?" has nobody asking it on the defendant's behalf — or, worse, on the *codebase's* behalf, because the codebase is the one that has to live with what you ship.
 
@@ -64,7 +64,7 @@ The fan-out is the whole shape of it. One push, six critics, one operator at the
 
 ## Six ships, each opinionated, all on the same PR
 
-The fleet is six members because six is the number of axes that empirically matter when somebody opens a non-trivial pull request. Fewer than six and you miss a class. More than six and reviewers stop reading. The names are deliberately *human*: a ship is not a bot, it is a role in a kitchen, a role in a courtroom, a role in a chorus. Each ship has a job, a fire-condition, and a voice.
+The fleet is six members because six is the number of axes that empirically matter when somebody opens a non-trivial pull request. Fewer than six and you miss a class. More than six and reviewers stop reading. The names are deliberately *human*: a ship is not a bot, it is a role — a station in the kitchen brigade, a chair at the defense table. Each ship has a job, a fire-condition, and a voice.
 
 <!-- sidenote: 2 -->
 > Every ship runs on the same fleet primitive that runs the personal agents elsewhere in Port Daddy. The substrate is identical. The *opinions* are the differentiator. See [the personal fleet post](#) for the morning-briefing variant of the same pattern.
@@ -268,7 +268,7 @@ The civility property is also load-bearing. The ships are opinionated — that's
 
 ## Connecting to the universe of fleets
 
-Everything in this post runs on the same fleet primitive that runs the personal agents in Port Daddy. The `morning-briefing` agent that reads your calendar and prepares your day is the same shape as `code-reviewer` reading your diff and preparing your review. Different prompts. Different priors. Same substrate.
+Everything in this post runs on the same fleet primitive that runs the personal agents in Port Daddy. The `morning-briefing` agent that reads your calendar and prepares your day is the same shape as `code-reviewer` reading your diff and preparing your review. The prompts and the priors differ; the substrate is the same.
 
 <!-- sidenote: 12 -->
 > The unified fleet is the bet. Personal agents and dev-repo agents look like different products, but they are the same animal eating different food. Sharing the substrate means the cost model, the cap, the dashboard, and the dismiss-with-reason loop are all one system instead of six.

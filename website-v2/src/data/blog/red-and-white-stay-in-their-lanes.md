@@ -16,7 +16,7 @@ Adversarial review answers that pressure with personas:
 - A **white-hat fleet** of six defenders. Five mirror the red side; the sixth is `sec-eng-lead`, the round coordinator.
 - A monthly **round** that opens with `sec-eng-lead` deriving fresh fleet keys, runs ten days of attack inside a sealed namespace, ten days of defense inside a different sealed namespace, and closes with a published dialogue artifact and a paper version bump.
 
-The personas live as Markdown specs in the repo (`skills/redteam-review/agents/`, `skills/whitehat-defense/agents/`). Each spec names the persona's target paper sections, its toolkit (ProVerif, Tamarin, TLA+, Apalache, Kani, EasyCrypt, Z3, agent-based market sims), the structured shape of every probe or counter, and the persona's bond. They are real specs intended to drive real agent runs --- not slide-deck personas.
+The personas live as Markdown specs in the repo (`skills/redteam-review/agents/`, `skills/whitehat-defense/agents/`). Each spec names the persona's target paper sections, its toolkit (ProVerif, Tamarin, TLA+, Apalache, Kani, EasyCrypt, Z3, agent-based market sims), the structured shape of every probe or counter, and the persona's bond. These specs drive actual agent runs.
 
 ## Why isolation matters
 
@@ -116,7 +116,7 @@ If you want to contribute a smell to the canonical Port Daddy rounds, the entry 
 
 ## What we are still deferring
 
-We have a long list of mechanizations the next round will land. The high-priority ones are the Conservation Theorem TLA+ spec, the No-Overdraft Lemma Kani harness on `lib/bonds.ts`, and the passkey-pairing ProVerif model. Each is a real artifact obligation, not a marketing promise. The proof-completer persona carries them as standing target gaps; if they aren't closed in v2.2, the persona's bond slashes.
+We have a long list of mechanizations the next round will land. The high-priority ones are the Conservation Theorem TLA+ spec, the No-Overdraft Lemma Kani harness on `lib/bonds.ts`, and the passkey-pairing ProVerif model. Each is an artifact obligation. The proof-completer persona carries them as standing target gaps; if they aren't closed in v2.2, the persona's bond slashes.
 
 Adversarial review is not a feature you ship and walk away from. It is a recurring cost the project pays to keep its papers honest. We are paying it now, on the cadence in `docs/shipwright/REDTEAM-WHITEHAT-CADENCE.md`, and the dialogue artifacts will accumulate in `docs/shipwright/dialogue-*.md`. If a future round catches us shipping a counter that does not survive its next probe, the persona that signed it slashes. If it catches the lead writing a lazy round outcome, the lead's reputation slashes too.
 

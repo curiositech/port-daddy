@@ -2,7 +2,7 @@
 
 A note that only your laptop can verify is half a record. The original Bonded Commons paper said "Merkle root commits to the evidence trail" and treated that as enough. For one daemon, it is. For two, it is not --- and the moment you have a laptop, a desktop, and a CI runner all touching the same project, you have two daemons.
 
-The v2 paper reworks §4.2 to fix this, and adds a new §4.3 that quietly does something the original was silent on: it makes coordination signals revocable without erasing them. Both changes are about making evidence portable and auditable across machines. This post is what that means for the product.
+The v2 paper reworks §4.2 to fix this, and adds a new §4.3 that does something the original was silent on: it makes coordination signals revocable without erasing them. Both changes are about making evidence portable and auditable across machines. This post is what that means for the product.
 
 ![Evidence across machines](/img/generated/blog-map-truth.jpg)
 
@@ -108,7 +108,7 @@ consistency_proof(STH_t1, STH_t2):
   if it does not match: published proof of misbehavior
 ```
 
-For the product, the KMS unlocks:
+For the product, the KMS buys you:
 
 - **Cross-machine audit.** A user on a new machine can verify historical work against the witness without restoring a SQLite database.
 - **Freshness guarantees.** No more "is this PDF the latest version?" --- the witness tells you.
@@ -116,7 +116,7 @@ For the product, the KMS unlocks:
 
 ## Mutable Signals on an Immutable Substrate
 
-§4.3 (new in v2) is the part that surprised me when we wrote it. Stigmergic coordination borrowed pheromones from biology, where they are accumulate-only --- ants deposit, the environment evaporates. Software agents need more: coordination signals must be revocable, renamable, and provenance-attributable as understanding evolves.
+§4.3 (new in v2) is the part that surprised me when I wrote it. Stigmergic coordination borrowed pheromones from biology, where they are accumulate-only --- ants deposit, the environment evaporates. Software agents need more: coordination signals must be revocable, renamable, and provenance-attributable as understanding evolves.
 
 What v2 commits to is a dual:
 
@@ -125,7 +125,7 @@ What v2 commits to is a dual:
 
 So an agent that sprays a hint, later realizes the hint was wrong, and revokes it has not erased anything. The hint, the revocation, and the reasoning are all in the chain. A consumer that read the hint at time `t` and later discovers a revocation timestamped `t' < t` can compute the correct counterfactual view by replaying events.
 
-This matters for the product in a very practical way: notes and tuples can become richer without becoming dangerous. Today, the rule is "notes are immutable --- once written, they cannot be edited or deleted." That rule is correct for audit but blunt for coordination. With the mutable-signal ledger, the public record is *"this note was deposited; this revocation was deposited; the current view is the diff."* You get retraction without rewriting history.
+This matters for the product: notes and tuples can become richer without becoming dangerous. Today, the rule is "notes are immutable --- once written, they cannot be edited or deleted." That rule is correct for audit but blunt for coordination. With the mutable-signal ledger, the public record is *"this note was deposited; this revocation was deposited; the current view is the diff."* You get retraction without rewriting history.
 
 ![Cross-machine verification surface in FleetBar](/img/app-screens/shipwright-harbor-light.png)
 
@@ -141,8 +141,8 @@ Concrete things that become possible once the forest is built:
 
 ## The Honest Limit
 
-None of this makes evidence indestructible. If you lose your passphrase *and* your old machine, harbor session keys wrapped only for that pubkey cannot be recovered --- this is the price of zero-knowledge at-rest encryption. The paper documents that limit explicitly in §7. We are not going to pretend it away. The opt-in Shamir escrow mode (`t`-of-`n` secret sharing across the KMS, email, and recovery contacts) is there for users who want stronger recovery at the cost of giving up some of the zero-knowledge property.
+None of this makes evidence indestructible. If you lose your passphrase *and* your old machine, harbor session keys wrapped only for that pubkey cannot be recovered --- this is the price of zero-knowledge at-rest encryption. The paper documents that limit explicitly in §7. I'm not going to pretend it away. The opt-in Shamir escrow mode (`t`-of-`n` secret sharing across the KMS, email, and recovery contacts) is there for users who want stronger recovery at the cost of giving up some of the zero-knowledge property.
 
-Cross-machine evidence is a feature you opt into. The default for solo developers stays single-daemon. The forest exists to make multi-machine usage *honest* --- not to force it on everyone.
+Cross-machine evidence is a feature you opt into. The default for solo developers stays single-daemon. The forest exists to make multi-machine usage *honest*.
 
 For the identity side of multi-machine usage --- how a passkey on a new device unwraps the keys without exposing them to the daemon you bought it from --- see [the federated-sovereign post](/blog/passkey-identity-across-machines).

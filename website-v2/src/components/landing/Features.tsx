@@ -126,7 +126,7 @@ function FeatureDetailDialog({
             <div className="grid content-start gap-[var(--space-5)] p-[var(--space-4)]">
               <div className="grid gap-[var(--space-3)]">
                 <PanelTitle as="h4" size="nav" className="max-w-none">
-                  Why this matters
+                  What this changes
                 </PanelTitle>
                 <ul className="grid gap-[var(--space-2)]">
                   {feature.outcomes.map((outcome) => (
@@ -225,7 +225,7 @@ function FeatureCard({
           </PanelBody>
 
           <div className="grid gap-[var(--space-2)] border-t-2 border-[var(--border-default)] pt-[var(--space-3)]">
-            <PanelEyebrow>What it unlocks</PanelEyebrow>
+            <PanelEyebrow>What it gets you</PanelEyebrow>
             <PanelBody size="compact" className="max-w-none">
               {feature.outcomes[0]}
             </PanelBody>

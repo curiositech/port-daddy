@@ -4,25 +4,25 @@ Agent platforms love launch buttons. Launch buttons are easy. The hard part is p
 
 If a tool cannot say which model ran, how many tokens it used, what rate was applied, which budget policy accepted it, and where the cost was recorded, it is not operating a fleet. It is hoping the bill is fine.
 
-Port Daddy treats telemetry as a launch gate, not an afterthought.
+Port Daddy treats telemetry as a launch gate.
 
 ![Telemetry gate diagram for agent launches](/img/generated/blog-telemetry-launch-gate.jpg)
 
 ## Why Spend Control Is A Product Feature
 
-In 2026, model choice is an engineering decision. A low-tier model may be perfect for a docs sweep. A high-tier model may be justified for a tricky architecture review. A local model may be better for private or repetitive work. A backend without exact usage may still be useful, but it should not silently join unattended automation.
+In 2026, model choice is an engineering decision. A low-tier model may be perfect for a docs sweep. A tricky architecture review can justify a high-tier one. Private or repetitive work often belongs on a local model. A backend without exact usage may still be useful, but it should not silently join unattended automation.
 
 The operator should see those differences before launch.
 
-The mistake is treating cost as accounting. It is not. Cost is a control-plane primitive:
+The mistake is treating cost as accounting. It is not. Cost is a control-plane primitive. It determines:
 
-- it determines which work can run unattended;
-- it determines whether a failed launch should retry;
-- it determines whether a fleet can wake up on every commit;
-- it determines whether a human must approve a model tier;
-- it determines whether a backend is ready for production use.
+- which work can run unattended;
+- whether a failed launch should retry;
+- whether a fleet gets to wake up on every commit;
+- whether a model tier needs human sign-off;
+- and whether a backend is ready for production at all.
 
-If cost is invisible, every automation looks cheap until it is not.
+If cost is invisible, every automation looks cheap until it isn't.
 
 ## The Gate
 
@@ -149,7 +149,7 @@ models:
     high: "@cf/moonshotai/kimi-k2.6"
 ```
 
-The ladder is not only about cost. It is about expectation. A low-tier docs watcher should not silently become a high-tier architecture agent because a wrapper default changed. A high-tier run should be an explicit choice.
+The ladder sets expectation as much as cost. A low-tier docs watcher should not silently become a high-tier architecture agent because a wrapper default changed. A high-tier run should be an explicit choice.
 
 ## Model Routers Need Guardrails Too
 
@@ -189,7 +189,7 @@ A launch form that hides telemetry status teaches users to ignore it. Port Daddy
 - "Manual only: usage estimated."
 - "Manual only: no daily budget configured."
 
-That is not a worse user experience. It is a better one. The operator knows what to fix.
+That is the better experience, whatever a launch-button purist says: the operator knows exactly what to fix.
 
 ```mermaid
 flowchart TD
@@ -235,7 +235,7 @@ The bigger idea is that telemetry turns automation from a mood into an accountab
 
 ## The Developer Payoff
 
-The exciting part is not the cost math. The exciting part is what cost math enables.
+The cost math is the boring part. What it enables is the fun part.
 
 Once launches are accountable, you can safely build policies:
 

@@ -34,9 +34,9 @@ sequenceDiagram
   PD-->>UI: GET /msg/ui:clicks?after=42 → { inReplyTo: 42, body: "done" }
 ```
 
-The point is not that PD Tube replaces a backend. The point is that a large class of local agent workflows should not need one.
+PD Tube doesn't replace a backend. It exists because a large class of local agent workflows shouldn't need one.
 
-## The Single Command That Unlocks The Agent Loop
+## The Single Command Behind The Agent Loop
 
 Here is the trick that makes the whole thing work: every `pd tube` invocation **returns**. There is no infinite loop holding the agent's bash tool hostage. Each call blocks until the next event arrives, prints a prose &quot;crank-handle&quot; block telling the agent how to reply, and exits.
 
@@ -97,7 +97,7 @@ The browser side of the checked-in `examples/pd-tube` demo is just `fetch()`:
 </script>
 ```
 
-No SDK. No MCP. No websocket. Plain HTTP and a tiny envelope on the wire:
+You don't need an SDK, an MCP server, or a websocket. Plain HTTP and a tiny envelope on the wire:
 
 ```json
 { "v": 1, "kind": "tube.msg", "body": "Deployed to staging. CI is green.", "inReplyTo": 42 }
@@ -251,7 +251,7 @@ That is the payoff of keeping replies structured. The browser does not have to g
 
 ## The Product Bet
 
-The next wave of useful agent features will not only be giant autonomous runs. It will be dozens of small local loops:
+Giant autonomous runs get the attention, but the next wave of useful agent features is dozens of small local loops:
 
 - explain this UI state;
 - inspect this failing test;

@@ -63,7 +63,7 @@ Anyone running a service that satisfies all five is a valid KMS. The protocol do
 
 ## Why Passkeys, Not Passwords
 
-The §7.4 commitment is that Port Daddy identity is anchored in WebAuthn-backed device keypairs. Passkeys, not passwords. This is not branding. It changes the product in concrete ways:
+The §7.4 commitment is that Port Daddy identity is anchored in WebAuthn-backed device keypairs. Passkeys, not passwords. That choice changes the product in concrete ways:
 
 1. **No phishable secret on the critical path.** The thing you use to authorize an action is a private key on a hardware-backed enclave, not a string you can be tricked into pasting.
 2. **Devices pair without typing.** A new device enrolls by exchanging a short-lived pairing token that re-encrypts the KMS master under the new device's public key. You scan a QR code or tap a button. There is no password to share.
@@ -76,7 +76,7 @@ What we deliberately do *not* do, and the paper says so out loud:
 - We do not use TOTP as a primary factor (we may add it as a *recovery* factor, opt-in).
 - We do not couple recovery to a single cloud vendor.
 
-A device-pairing flow, in pseudocode --- this is the actual handshake, not a marketing diagram:
+A device-pairing flow, in pseudocode --- this is the actual handshake:
 
 ```typescript
 // On the existing trusted device (Device A):
@@ -114,7 +114,7 @@ The honest limit, written into the paper: *if the user loses both passphrase and
 
 For users who want stronger recovery, we ship an opt-in **Shamir escrow** mode: `t`-of-`n` secret sharing across the KMS, email, and recovery contacts. You give up some of the zero-knowledge property in exchange for being able to recover from worst-case device-and-passphrase loss. This is a deliberate tradeoff users make project by project.
 
-The theorem also explicitly excludes the same-user adversary --- an unsandboxed agent, a malicious postinstall, a compromised editor extension running as the same UNIX user. Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The macOS Keychain integration ships now; native keyring on Linux and hardware-backed keystore on Windows extend the theorem's reach to that case. We are honest that this is in flight.
+The theorem also explicitly excludes the same-user adversary --- an unsandboxed agent, a malicious postinstall, a compromised editor extension running as the same UNIX user. Such an adversary reads any file the user can read, which absent OS-mediated key custody includes the daemon's keys and database. The macOS Keychain integration ships now; native keyring on Linux and hardware-backed keystore on Windows extend the theorem's reach to that case. That work is in flight.
 
 ## What Changes for Users
 

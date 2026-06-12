@@ -126,7 +126,7 @@ export function AgentEcosystem() {
                     </Surface>
                     <div className="space-y-3">
                        <motion.p className="font-black m-0 text-xl tracking-tight" style={{ color: 'var(--text-primary)' }}>Cross-Framework Signaling</motion.p>
-                       <motion.p className="text-base m-0 opacity-80 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>Agents from any framework publish and subscribe through the local daemon's REST API and SSE streams, enabling real-time coordination across tool boundaries.</motion.p>
+                       <motion.p className="text-base m-0 opacity-80 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>Agents from any framework publish and subscribe through the local daemon's REST API and SSE streams, so a Claude Code session and an Aider session can react to each other's events in real time.</motion.p>
                     </div>
                  </motion.div>
               </div>

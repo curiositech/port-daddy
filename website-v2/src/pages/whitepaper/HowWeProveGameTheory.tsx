@@ -302,9 +302,7 @@ export default function HowWeProveGameTheoryPage() {
                 throughout this page resolve to real files in the
                 repo&apos;s{' '}
                 <code>proofs/economics/</code> and{' '}
-                <code>proofs/bonded/pareto/</code> directories. The
-                credibility loan this page used to take on
-                &ldquo;Apalache + Z3, planned&rdquo; is closed.
+                <code>proofs/bonded/pareto/</code> directories.
               </p>
             </div>
           </PageContainer>
@@ -361,8 +359,8 @@ export default function HowWeProveGameTheoryPage() {
                     {' '}probability distribution, the set of stable strategy
                     profiles you can support is{' '}
                     <strong>strictly larger</strong> than the set of Nash
-                    equilibria — and frequently better for everyone in it. No
-                    sword. No culture. Just a fair coin and a referee who
+                    equilibria — and frequently better for everyone in it. It takes no
+                    sword and no culture — just a fair coin and a referee who
                     publishes the coin&apos;s weighting.
                   </p>
                   <Sidenote label="Aumann (1974)">
@@ -396,9 +394,9 @@ export default function HowWeProveGameTheoryPage() {
                     the trick Aumann gave us, dropped into a Unix socket.
                   </PullQuote>
                   <p>
-                    The analogy I keep returning to is the four-way stop. No
-                    sword. No convention deep enough to be called culture.
-                    Just a small piece of <em>shared information</em> — &ldquo;the
+                    The analogy I keep returning to is the four-way stop. It
+                    needs no sword and no convention deep enough to be called
+                    culture: just a small piece of <em>shared information</em> — &ldquo;the
                     one on the right goes first&rdquo; — that turns a
                     coordination disaster into a boring tuesday. Port Daddy
                     is, at one level of description, an exceptionally
@@ -817,7 +815,7 @@ export default function HowWeProveGameTheoryPage() {
 
                   <p>
                     Why bother? Because the bar for &ldquo;you should trust
-                    the algebra in this paper&rdquo; has quietly moved. A
+                    the algebra in this paper&rdquo; has moved. A
                     decade ago, pen-and-paper algebra in a paper was the gold
                     standard. Today, when a six-line script can verify the
                     same claim in a hundred milliseconds, the gold standard
@@ -855,7 +853,7 @@ z3 cubic-root.smt2
 # sat
 # (model
 #   (define-fun d () Real
-#     (/ 7167... 28194...))   ; a rational very close to 0.2541
+#     (/ 7167... 28194...))   ; a rational very close to 0.2531
 # )`}
                         language="cli"
                         label="Z3 in your terminal"
@@ -1055,7 +1053,7 @@ z3 cubic-root.smt2
                     {[
                       {
                         label: 'State explosion',
-                        body: 'Explicit-state checkers (TLC) die on parametric models. We mitigate with bounded instances; we plan to migrate to Apalache for the depths TLC cannot reach.',
+                        body: 'Explicit-state checkers (TLC) die on parametric models. We mitigate with bounded instances; the Apalache path on the same spec reaches the depths TLC cannot.',
                       },
                       {
                         label: 'Spec faithfulness',

@@ -85,7 +85,7 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="The loop"
-              title="A publisher speaks. The agent answers. Both in one call."
+              title="A publisher speaks, the agent answers — each is a single shell call."
               description="Any process that can POST JSON to /msg/<channel> can summon the agent. The agent runs pd tube in a loop: each invocation blocks for the next event, prints a prose block telling the model exactly how to respond, and returns — which is what lets the model take its turn and post a reply."
               titleAs="h2"
               titleSize="display"
@@ -109,7 +109,7 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
               <FeatureCard
                 icon={GitFork}
                 title="Fan-out to many"
-                body="Distinct --as identities each receive every message on the channel. One broadcast reaches the whole room, not one listener at random."
+                body="Listeners on different --as identities all hear every message on the channel. One broadcast reaches the whole room, not one listener at random."
               />
             </div>
           </PageContainer>
@@ -222,7 +222,7 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
                   <BracketLabel>New in v3.16.2</BracketLabel>
                   <SectionIntro
                     eyebrow="Multi-subscriber"
-                    title="One channel. Many listeners. Every message."
+                    title="One channel, many listeners, and every message reaches all of them."
                     description="Earlier builds shared a single resume cursor per channel, so two --tail listeners raced for each message and only one won it. The cursor is now namespaced per listener identity, so every distinct --as subscriber keeps its own place in the stream and receives every message."
                     titleAs="h2"
                     titleSize="display"

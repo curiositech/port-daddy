@@ -82,7 +82,7 @@ export function HowItWorks() {
           </motion.h2>
           <motion.p className="text-xl sm:text-2xl lg:text-3xl max-w-4xl mx-auto leading-relaxed font-sans" style={{ color: 'var(--text-secondary)' }}>
             Port Daddy manages the low-level coordination so your agents can focus on the logic.
-            From initial handshake to crash recovery, it is the bedrock of your autonomous team.
+            From initial handshake to crash recovery, it's the infrastructure your autonomous team runs on.
           </motion.p>
         </motion.div>
 
@@ -142,7 +142,7 @@ export function HowItWorks() {
                 The <span style={{ color: 'var(--brand-primary)' }}>Self-Healing</span> <br /> Swarm.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed max-w-xl" style={{ color: 'var(--text-secondary)' }}>
-                Port Daddy doesn't just manage ports—it manages <strong>resilience</strong>. If a critical background agent dies, its state, file claims, and notes are held in an escrow harbor until a replacement is spawned to take its place.
+                Port assignment is the easy part. The real work is <strong>resilience</strong>. If a critical background agent dies, its state, file claims, and notes are held in an escrow harbor until a replacement is spawned.
               </motion.p>
               <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
                  <div className="flex -space-x-6">

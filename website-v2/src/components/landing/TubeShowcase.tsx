@@ -40,12 +40,12 @@ export function TubeShowcase() {
               />
               <div className="space-y-[var(--space-3)] text-[var(--text-muted)]">
                 <p>
-                  No SDK. No MCP server. No websocket dance. The publisher is plain{' '}
+                  No SDK, no MCP server, no websocket dance. The publisher is plain{' '}
                   <code>fetch()</code>; the agent runs <code>pd tube</code> in a loop. The substrate is
                   the same SQLite-backed channel system Port Daddy already ships.
                 </p>
                 <p>
-                  Every <code>pd tube</code> invocation returns. That is what unlocks the agent loop:
+                  Every <code>pd tube</code> invocation returns. That's what makes the agent loop work:
                   the tool yields, the model decides what to reply, the next call posts the answer{' '}
                   <em>and</em> blocks for the next event.
                 </p>
@@ -154,7 +154,7 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
             CoordinationEnforcementSection and AgentConversationSection.
           */}
           <SectionIntro
-            eyebrow="What this unlocks"
+            eyebrow="What you can build"
             title="Publishers that already exist on every dev machine."
             description="The same primitive turns each of these into a real agent integration with no new infrastructure. The agent that's already running is the backend."
             titleAs="h3"

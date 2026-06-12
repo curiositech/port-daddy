@@ -27,7 +27,7 @@ export function CliBackendValueProp() {
           <div className="space-y-[var(--space-5)]">
             <BracketLabel>The fleet wallet</BracketLabel>
             <PanelTitle as="h2" size="display" className="max-w-[18ch]">
-              Your AI subscription, but better.
+              Your AI subscription, but it runs a fleet.
             </PanelTitle>
             <PanelBody className="max-w-[44rem]">
               Bring your Claude Max or ChatGPT Pro. The fleet rides for free.{' '}
@@ -36,7 +36,7 @@ export function CliBackendValueProp() {
                 fleet at zero marginal cost.
               </strong>{' '}
               Same login, same model, more hours of work per day — the difference between a
-              tireless coworker and a metered API connection turns out to be one environment
+              coworker who never clocks out and a metered API connection turns out to be one environment
               variable.
             </PanelBody>
             <div className="grid gap-[var(--space-3)] sm:grid-cols-3">

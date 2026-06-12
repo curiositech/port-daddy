@@ -66,7 +66,7 @@ const AGENT_SIGNALS: AgentSignal[] = [
         </span>
       </>
     ),
-    appEvidence: 'Durable actor inboxes keep ownership visible after a process exits.',
+    appEvidence: 'Ownership stays addressable: the inbox is still there when the shell that registered it isn't.',
   },
 ]
 

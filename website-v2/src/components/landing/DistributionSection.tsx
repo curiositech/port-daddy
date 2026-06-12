@@ -29,7 +29,7 @@ const statusCopy = {
 
 const distributionOperatorCopy = {
   brew: 'Use the setup guide for the agent-side install command. FleetBar is the human checkpoint for daemon health, MCP wiring, and project readiness after setup runs.',
-  npm: 'Use npm when the CLI and daemon are the installation target. The operator still verifies readiness from the app, not from a pasted prompt.',
+  npm: 'npm is the path when you're installing the CLI and daemon. The operator still verifies readiness from the app.',
   'release-artifacts': 'Use GitHub release artifacts when you need provenance. Checksums, manifests, and release notes carry the proof instead of a homepage command card.',
 } as const
 

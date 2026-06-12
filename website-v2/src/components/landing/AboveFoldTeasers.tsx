@@ -55,7 +55,7 @@ export function AboveFoldTeasers() {
               Open the sharpest Port Daddy proofs.
             </h2>
             <p className="max-w-[58rem] text-[0.98rem] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-              The first screen now exposes the work worth evaluating: the product thesis, runnable agent loops,
+              The work worth evaluating, right up front: the product thesis, runnable agent loops,
               and guides that show how the local control plane changes day-to-day software work.
             </p>
           </div>

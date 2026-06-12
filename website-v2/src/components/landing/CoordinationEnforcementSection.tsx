@@ -24,7 +24,7 @@ const outcomes = [
   },
   {
     title: 'Terminal proof includes output',
-    detail: 'Command surfaces show the invocation and the daemon response, because serious evaluators need proof of behavior, not input-only demos.',
+    detail: 'Command surfaces show the invocation and the daemon response, so anyone kicking the tires can see the daemon actually answered.',
     icon: GitCommit,
   },
   {
@@ -59,7 +59,7 @@ function GuardControlMock() {
           Coordination Guard
         </PanelTitle>
         <PanelBody size="compact" className="max-w-none">
-          Humans do not need to remember the shell ceremony. FleetBar shows the guard state, lets an operator switch from observe to enforce, checks staged files, and points agents at the files that need claims.
+          Humans don't need to remember the shell ceremony. FleetBar shows the guard state, lets an operator switch from observe to enforce, checks staged files, and points agents at the files that need claims.
         </PanelBody>
       </div>
 
