@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Merge queue: GitHub re-runs the required checks on a temporary `merge_group`
+  # ref before merging. Without this trigger those checks never fire on the
+  # queued group, never report, and the entry sits in the queue until it times
+  # out. Every required gate here runs on merge_group — detect-changes returns
+  # recordings=true for non-PR events, so the recordings gate covers the queued
+  # group too (consistent with push-to-main always recording).
+  merge_group:
 
 # Cancel superseded runs: a new push to a PR aborts the older, now-pointless
 # run instead of letting both finish. Frees runners and shrinks the merge-race
