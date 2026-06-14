@@ -62,7 +62,7 @@ reference monitor that contains a *cooperative-but-careless* agent.
 
 > **Thesis discipline (audit-forced):** this is a **coordination/legibility**
 > claim, **not** a swarm-quality claim. The repo's own realism-check
-> (`docs/research/.../hive-mind-realism-check.md`) endorses single-writer
+> (`docs/research/2026-06-03-hive-mind-realism-check.md`) endorses single-writer
 > authority but *debunks* "swarms beat frontier models." Do not let "one writer
 > beats consensus" tip into "the swarm is therefore better."
 
