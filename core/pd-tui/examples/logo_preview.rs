@@ -1,12 +1,11 @@
 //! Preview the animated Port Daddy logo without a live terminal.
 //!
-//!   cargo run --example logo_preview          # ASCII dump of key frames
-//!   cargo run --example logo_preview -- live   # play it in your terminal
+//!   cargo run --example logo_preview     # ASCII dump of key frames
 //!
-//! The default mode renders a handful of key frames (sail, glint, wink,
-//! melt, sea, rise) to a headless `TestBackend` and prints the glyph grid,
-//! so you can eyeball the composition in CI logs or a code review. `live`
-//! plays the real animation in the alternate screen until you press a key.
+//! Renders a handful of key frames (sail, glint, wink, melt, sea, rise) to
+//! a headless `TestBackend` and prints the glyph grid, so you can eyeball
+//! the composition in CI logs or a code review. To watch the animation
+//! play live, run the splash itself: `cargo run --bin pd-vibe`.
 
 use pd_tui::logo::{AnimatedLogo, CYCLE};
 use ratatui::{backend::TestBackend, Terminal};
@@ -33,11 +32,6 @@ fn dump_frame(label: &str, frame: u64) {
 }
 
 fn main() {
-    if std::env::args().nth(1).as_deref() == Some("live") {
-        eprintln!("live preview not wired into the example — run `cargo run --bin pd-vibe`");
-        return;
-    }
-
     // Sample one frame from each narrative beat of the cycle.
     dump_frame("SAIL + glint", 20);
     dump_frame("WINK (the o closes)", 62);

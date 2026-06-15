@@ -12,8 +12,9 @@
 //!
 //! Everything routes through [`cell`], a pure function of
 //! `(frame, row, col)`, so the whole animation is unit-testable without
-//! a terminal. Colors are semantic [`Ink`] roles resolved against the
-//! active theme at render time.
+//! a terminal. Colors are emitted as symbolic [`Ink`] roles; the widget
+//! always resolves them against the *dark* palette (the splash is a fixed
+//! "harbor at first light" scene regardless of `PD_THEME`).
 
 use ratatui::{buffer::Buffer, layout::Rect, style::Color, widgets::Widget};
 
@@ -46,9 +47,13 @@ pub const LOGO: [&str; 19] = [
 /// Logo grid height in rows.
 pub const ROWS: usize = LOGO.len();
 
-/// Logo grid width in columns (longest row).
+/// Logo grid width in columns (longest row). Computed once and cached —
+/// `cell`/`seascape` call this on every cell of every frame, so we avoid
+/// re-scanning the rows with `chars().count()` each time.
 pub fn width() -> usize {
-    LOGO.iter().map(|r| r.chars().count()).max().unwrap_or(0)
+    use std::sync::OnceLock;
+    static WIDTH: OnceLock<usize> = OnceLock::new();
+    *WIDTH.get_or_init(|| LOGO.iter().map(|r| r.chars().count()).max().unwrap_or(0))
 }
 
 /// Total ticks in one animation cycle. At a 100ms tick this is a 24s loop.
