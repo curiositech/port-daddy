@@ -88,6 +88,38 @@ describe('mintGrant — fail closed when the secret store is unavailable', () =>
     const count = db.prepare('SELECT COUNT(*) AS n FROM macaroon_grants').get();
     expect(count.n).toBe(0);
   });
+
+  test('an INSERT failure rolls back the already-stored secrets (no orphaned keys)', () => {
+    const db = createTestDb();
+    // Counting secret store so we can assert every put() was matched by a del().
+    const map = new Map();
+    const puts = [];
+    const dels = [];
+    const secrets = {
+      put(a, v) {
+        puts.push(a);
+        map.set(a, v);
+        return true;
+      },
+      get(a) {
+        return map.get(a) ?? null;
+      },
+      del(a) {
+        dels.push(a);
+        return map.delete(a);
+      },
+    };
+    const store = createMacaroonStore(db, secrets);
+    // Force the INSERT to throw by removing the table out from under it.
+    db.prepare('DROP TABLE macaroon_grants').run();
+    expect(() =>
+      store.mintGrant({ repoId: 'a/b', session: 's', expiresMs: T + 1000, nowMs: T }),
+    ).toThrow();
+    // Both secrets were written, both were rolled back — nothing left behind.
+    expect(puts).toHaveLength(2);
+    expect(dels.sort()).toEqual(puts.sort());
+    expect(map.size).toBe(0);
+  });
 });
 
 describe('end-to-end through the store', () => {

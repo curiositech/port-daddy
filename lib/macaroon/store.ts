@@ -128,11 +128,12 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
   `);
   runDDL(`CREATE INDEX IF NOT EXISTS idx_macaroon_grants_session ON macaroon_grants(session)`);
 
-  // Positional `?` placeholders, NOT @named: under bun:sqlite (the compiled
-  // daemon's runtime via lib/sqlite-runtime.ts) @named object binding silently
-  // binds NULL even though it works in better-sqlite3 — a jest-green/bun-broken
-  // corruption trap. The repo standardizes on positional bindings
-  // (see lib/roadmap-items.ts:163-169).
+  // Positional `?` placeholders, NOT @named object binding: under bun:sqlite
+  // (the compiled daemon's runtime via lib/sqlite-runtime.ts) @named binding can
+  // silently bind NULL even though it works under better-sqlite3 in jest — a
+  // green-in-tests/broken-in-daemon trap. Some older modules predate this and
+  // still use @named; this module avoids it deliberately. See the bun:sqlite
+  // binding note in lib/roadmap-items.ts:163-169.
   const insertGrant = db.prepare(`
     INSERT INTO macaroon_grants
       (grant_id, repo, session, expires_ms, rent_caveat_id, created_at, revoked_at)
@@ -194,14 +195,23 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
         );
       }
 
-      insertGrant.run(
-        grantId,
-        opts.repoId,
-        opts.session,
-        opts.expiresMs,
-        rentCaveatId,
-        opts.nowMs,
-      );
+      try {
+        insertGrant.run(
+          grantId,
+          opts.repoId,
+          opts.session,
+          opts.expiresMs,
+          rentCaveatId,
+          opts.nowMs,
+        );
+      } catch (err) {
+        // The row write failed AFTER the secrets were stored (DB locked,
+        // readonly, full…). Roll the secrets back so we never leave orphaned
+        // keychain entries without a matching grant row, then rethrow.
+        secrets.del(rootAccount(grantId));
+        secrets.del(rentAccount(grantId));
+        throw err;
+      }
 
       return { grantId, macaroon, rentCaveatId };
     },
