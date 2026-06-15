@@ -84,6 +84,28 @@ assert_200() {
   echo "OK: GET $path -> 200"
 }
 
+# Assert a POST route returns an EXPECTED HTTP status (used for routes whose
+# happy path needs state we don't seed — a precise status still proves the
+# plugin is registered and reaches its store under the compiled binary).
+assert_post_status() {
+  local path="$1"
+  local expected="$2"
+  local body="${3:-}"
+  local code
+  if [ -n "$body" ]; then
+    code="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "$body" "$BASE$path")"
+  else
+    code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE$path")"
+  fi
+  if [ "$code" != "$expected" ]; then
+    echo "FAIL: POST $path returned HTTP $code (expected $expected)" >&2
+    echo "--- daemon log tail ---" >&2
+    tail -30 "$LOG" >&2 || true
+    return 1
+  fi
+  echo "OK: POST $path -> $expected"
+}
+
 # /roadmap/items is the route that 500'd with SQLITE_MISMATCH. /secrets is
 # another read-only hot route exercised for breadth. Both must be 200.
 fail=0
@@ -98,6 +120,13 @@ assert_200 "/secrets" || fail=1
 # regression in the exact runtime the daemon ships — a 404 means the plugin
 # is unregistered again; a 500 means the `config` self-init regressed.
 assert_200 "/relay/config" || fail=1
+# Agent Cockpit (Watch + Grab the Wheel, Phase 0). POST /agents/:id/interrupt
+# is the soft-steer signal; for an UNKNOWN agent it must return 404 — which
+# proves the plugin is registered AND its agents.get() store lookup runs under
+# the compiled bun:sqlite binary (a 404 here, not a 500 SQLITE_MISMATCH or a
+# 404-because-route-missing). The GET /agents/:id/stream SSE feed is held-open,
+# so it is regression-covered by tests/bun/agent-cockpit-stream.test.ts instead.
+assert_post_status "/agents/__smoke_unknown__/interrupt" "404" '{"reason":"smoke"}' || fail=1
 
 if [ "$fail" -ne 0 ]; then
   echo "Compiled-daemon smoke FAILED" >&2
