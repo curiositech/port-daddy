@@ -67,6 +67,29 @@ describe('mintGrant — keys in the secret store, metadata in SQLite', () => {
   });
 });
 
+describe('mintGrant — fail closed when the secret store is unavailable', () => {
+  test('a failing SecretStore aborts the mint and writes no orphaned row', () => {
+    const db = createTestDb();
+    // A secret store that rejects writes (e.g. keychain unavailable).
+    const failing = {
+      put: () => false,
+      get: () => null,
+      del: () => true,
+    };
+    const store = createMacaroonStore(db, failing);
+    expect(() =>
+      store.mintGrant({
+        repoId: 'a/b',
+        session: 's',
+        expiresMs: T + 1000,
+        nowMs: T,
+      }),
+    ).toThrow(/secret store unavailable/);
+    const count = db.prepare('SELECT COUNT(*) AS n FROM macaroon_grants').get();
+    expect(count.n).toBe(0);
+  });
+});
+
 describe('end-to-end through the store', () => {
   test('paid rent → discharge → verify authorizes the push', () => {
     const { store, minted } = setup();
