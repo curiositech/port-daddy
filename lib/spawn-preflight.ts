@@ -43,6 +43,12 @@ export interface SpawnPreflightAttempt {
   modelSource: 'agent' | 'tier' | 'env' | 'unset';
   warnings: string[];
   readinessStatus: BackendReadiness['status'];
+  /**
+   * Mirrors `BackendReadiness.launchableUnverified`: the backend is installed
+   * and usable but its auth could not be verified offline. Such an attempt is
+   * launchable, but the operator is warned that auth was not proven.
+   */
+  readinessLaunchableUnverified: boolean;
   readinessSummary: string;
   readinessNextStep?: string;
 }
@@ -140,6 +146,7 @@ export async function assessSpawnPreflight(
         modelSource: runtime.modelSource,
         warnings: runtime.warnings,
         readinessStatus: readiness.status,
+        readinessLaunchableUnverified: readiness.launchableUnverified === true,
         readinessSummary: readiness.summary,
         readinessNextStep: readiness.nextStep,
       };
@@ -173,7 +180,15 @@ export async function assessSpawnPreflight(
   if (!projectName) {
     blockedReasons.push('Semantic identity is required so spend can be attributed to a project budget.');
   }
-  const readyAttempts = dedupedAttempts.filter((attempt) => attempt.backend && attempt.readinessStatus === 'ready');
+  // An attempt is launchable if the daemon proved it ready, OR it is an
+  // installed local CLI backend whose auth merely cannot be verified offline
+  // (readinessLaunchableUnverified). The latter is gated upstream: a probed-
+  // and-degraded backend (e.g. ollama with its server down) and a telemetry-
+  // policy refusal both clear the flag, so they stay blocked here.
+  const readyAttempts = dedupedAttempts.filter(
+    (attempt) => attempt.backend
+      && (attempt.readinessStatus === 'ready' || attempt.readinessLaunchableUnverified),
+  );
 
   if (dedupedAttempts.length === 0 || dedupedAttempts.every((attempt) => !attempt.backend)) {
     blockedReasons.push('No backend resolved for this launch.');
@@ -198,8 +213,19 @@ export async function assessSpawnPreflight(
     blockedReasons.push(`Budget exceeded for ${budget.project} ($${budget.spentUsd.toFixed(2)} / $${budget.budgetUsdPerDay.toFixed(2)}).`);
   }
 
+  // Warn for every launchable-but-unverified attempt so the operator knows the
+  // launch will proceed on trust: if the CLI is not actually authenticated the
+  // spawn fails at runtime with the backend's own actionable error.
+  const unverifiedWarnings = readyAttempts
+    .filter((attempt) => attempt.readinessStatus !== 'ready' && attempt.readinessLaunchableUnverified)
+    .map(
+      (attempt) =>
+        `Backend ${attempt.backend}: auth could not be verified offline — launch will proceed, but will fail with an actionable error if the CLI is not authenticated.${attempt.readinessNextStep ? ` ${attempt.readinessNextStep.trim()}` : ''}`,
+    );
+
   const warnings = uniqueWarnings([
     ...dedupedAttempts.flatMap((attempt) => attempt.warnings),
+    ...unverifiedWarnings,
   ]);
 
   const localExecutionLikely = dedupedAttempts.some((attempt) => attempt.backend && LOCAL_EXECUTION_BACKENDS.has(attempt.backend));

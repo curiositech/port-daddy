@@ -226,6 +226,26 @@ describe('backend readiness', () => {
     const found = await assessBackendReadiness(backend);
     expect(found).toMatchObject({ backend, status: 'manual_check' });
     expect(found.nextStep).toContain(`PD_USE_CLI_BACKEND=${bin}`);
+    // Installed cli:* tube backend with unverifiable auth must be launchable.
+    expect(found.launchableUnverified).toBe(true);
+  });
+
+  test.each([
+    ['cli:claude-code', 'claude', 'PD_CLI_CLAUDE_CODE_BIN'],
+    ['cli:codex', 'codex', 'PD_CLI_CODEX_BIN'],
+  ])('%s is launchableUnverified when its binary is found, blocked when missing', async (backend, bin, envKey) => {
+    delete process.env[envKey];
+
+    mockSpawnSync.mockReturnValue({ status: 1 });
+    const missing = await assessBackendReadiness(backend);
+    expect(missing).toMatchObject({ backend, status: 'needs_setup' });
+    expect(missing.launchableUnverified).not.toBe(true);
+
+    mockSpawnSync.mockImplementation((command, args) => ({
+      status: command === 'which' && args[0] === bin ? 0 : 1,
+    }));
+    const found = await assessBackendReadiness(backend);
+    expect(found).toMatchObject({ backend, status: 'manual_check', launchableUnverified: true });
   });
 
   test('cli:gemini honors the PD_CLI_GEMINI_BIN binary override', async () => {

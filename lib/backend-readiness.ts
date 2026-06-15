@@ -8,6 +8,19 @@ import { CLOUDFLARE_BACKEND_SETUP_LINKS, type BackendSetupLink } from './backend
 export interface BackendReadiness {
   backend: string;
   status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
+  /**
+   * True when the daemon may attempt a spawn even though `status` is not
+   * `ready`. Set for installed local CLI backends whose auth genuinely cannot
+   * be verified offline (the `cli:*` tube backends): the binary is present,
+   * and a missing/expired token surfaces as a real non-zero-exit error at
+   * runtime — `lib/spawner/backends/cli-tube.ts` maps auth-failure stderr to an
+   * actionable message and enforces a kill-timeout, so there is no silent hang.
+   * Deliberately NOT set for probed-and-degraded `manual_check` states such as
+   * ollama with its server down, where a launch cannot succeed. The launch gate
+   * (`lib/spawn-preflight.ts`) treats `ready || launchableUnverified` as
+   * launchable; everything else stays blocked.
+   */
+  launchableUnverified?: boolean;
   summary: string;
   nextStep?: string;
   credentialKeys?: string[];
@@ -83,6 +96,9 @@ function applyTelemetryPolicy(
     status: 'needs_setup',
     summary,
     nextStep: nextStep || undefined,
+    // A telemetry-policy block must override the launchable-unverified opt-in:
+    // never let an installed CLI backend launch past a data-egress refusal.
+    launchableUnverified: false,
   };
 }
 
@@ -280,6 +296,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Claude Code CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `claude -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=claude-code forces all spawns through this CLI.',
         setupCommand: 'claude -p "hello"',
@@ -300,6 +317,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Codex CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `codex exec "hello"` once to confirm auth. PD_USE_CLI_BACKEND=codex forces all spawns through this CLI.',
         setupCommand: 'codex exec "hello"',
@@ -320,6 +338,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Gemini CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `gemini -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=gemini forces all spawns through this CLI.',
         setupCommand: 'gemini -p "hello"',
@@ -340,6 +359,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Groq CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `groq -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=groq forces all spawns through this CLI.',
         setupCommand: 'groq -p "hello"',
@@ -360,6 +380,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Grok CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `grok -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=grok forces all spawns through this CLI.',
         setupCommand: 'grok -p "hello"',
