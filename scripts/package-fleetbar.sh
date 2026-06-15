@@ -55,9 +55,15 @@ if [[ -z "$PD_VERSION" ]]; then
   PD_VERSION="$(grep -m1 '"version"' "$ROOT_DIR/package.json" | sed -E 's/.*"version" *: *"([^"]+)".*/\1/')"
 fi
 if [[ -n "$PD_VERSION" && -x /usr/libexec/PlistBuddy ]]; then
+  # CFBundleShortVersionString is the display/marketing string and tolerates a
+  # SemVer suffix (3.19.0-rc.1). CFBundleVersion must be numeric-only per
+  # Apple's bundle spec — a prerelease/build suffix there breaks notarization
+  # and Gatekeeper tooling — so strip everything from the first - or +.
+  PD_BUILD_VERSION="${PD_VERSION%%-*}"
+  PD_BUILD_VERSION="${PD_BUILD_VERSION%%+*}"
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PD_VERSION" "$APP_CONTENTS/Info.plist"
-  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $PD_VERSION" "$APP_CONTENTS/Info.plist"
-  echo "Stamped FleetBar bundle version $PD_VERSION"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $PD_BUILD_VERSION" "$APP_CONTENTS/Info.plist"
+  echo "Stamped FleetBar bundle version $PD_VERSION (CFBundleVersion $PD_BUILD_VERSION)"
 else
   echo "WARN: could not stamp FleetBar version (PlistBuddy or package.json version missing); app reports 'unknown'" >&2
 fi
