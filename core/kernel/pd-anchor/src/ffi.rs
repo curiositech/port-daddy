@@ -54,23 +54,25 @@ fn respond(ok: bool, reason: impl Into<String>) -> *mut c_char {
         reason: reason.into(),
     })
     .unwrap_or_else(|_| "{\"ok\":false,\"reason\":\"serialize error\"}".to_string());
-    match CString::new(body) {
-        Ok(c) => c.into_raw(),
-        Err(_) => std::ptr::null_mut(),
-    }
+    // Never null on an encodable response: an interior NUL in `body` (which our JSON
+    // never contains) falls back to a static error string that has none, so the
+    // documented contract "null is unreachable" actually holds.
+    CString::new(body)
+        .or_else(|_| CString::new("{\"ok\":false,\"reason\":\"response encoding error\"}"))
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
 }
 
 /// Verify a macaroon push grant. Input JSON:
 /// `{ macaroon, root_key_hex, discharges, ctx:{op,repo,branch,host,spend_usd,session,now_ms}, caveat_keys:{<id>:<hex>} }`.
 /// Output JSON: `{ ok, reason }`. Returns null only on a catastrophic allocation
 /// failure; every other path returns a `{ok:false,...}` JSON (fail closed).
-// SAFETY: this is a C ABI entry point — the caller (koffi) guarantees `req` is a
-// valid pointer to `len` bytes (or null, which we guard). C callers cannot express
-// Rust's `unsafe`, so we keep the fn safe-signatured and allow the lint, with the
-// contract documented here and the null/len guards enforced below.
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
+/// # Safety
+/// `req` must be null or a valid pointer to `len` readable bytes (the C-ABI
+/// contract koffi upholds). The null/len/utf8/parse guards below enforce the rest;
+/// the body never panics across the boundary (catch_unwind).
 #[no_mangle]
-pub extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize) -> *mut c_char {
+pub unsafe extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize) -> *mut c_char {
     let result = catch_unwind(|| {
         if req.is_null() || len == 0 || len > MAX_REQUEST_BYTES {
             return respond(false, "malformed request (null/empty/oversized)");
@@ -120,10 +122,11 @@ pub extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize) -> *mu
 
 /// Reclaim a string returned by this library. The caller MUST call this exactly
 /// once for every non-null pointer received.
-// SAFETY: `ptr` must be a pointer previously returned by this library (or null).
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
+/// # Safety
+/// `ptr` must be null or a pointer previously returned by this library and not
+/// yet freed; it must not be used again after this call.
 #[no_mangle]
-pub extern "C" fn pd_string_free(ptr: *mut c_char) {
+pub unsafe extern "C" fn pd_string_free(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe { drop(CString::from_raw(ptr)) };
     }
@@ -134,13 +137,13 @@ pub extern "C" fn pd_string_free(ptr: *mut c_char) {
 #[cfg(test)]
 fn verify_via_ffi(req_json: &str) -> String {
     let c = CString::new(req_json).unwrap();
-    let ptr = pd_macaroon_verify_json(c.as_ptr(), req_json.len());
+    let ptr = unsafe { pd_macaroon_verify_json(c.as_ptr(), req_json.len()) };
     assert!(!ptr.is_null());
     let out = unsafe { std::ffi::CStr::from_ptr(ptr) }
         .to_str()
         .unwrap()
         .to_string();
-    pd_string_free(ptr);
+    unsafe { pd_string_free(ptr) };
     out
 }
 
@@ -219,19 +222,19 @@ mod tests {
     fn ffi_malformed_input_fails_closed_not_panics() {
         for bad in ["", "not json", "{}", "{\"macaroon\":1}"] {
             let c = CString::new(bad).unwrap();
-            let ptr = pd_macaroon_verify_json(c.as_ptr(), bad.len());
+            let ptr = unsafe { pd_macaroon_verify_json(c.as_ptr(), bad.len()) };
             assert!(!ptr.is_null());
             let out = unsafe { std::ffi::CStr::from_ptr(ptr) }
                 .to_str()
                 .unwrap()
                 .to_string();
-            pd_string_free(ptr);
+            unsafe { pd_string_free(ptr) };
             let resp: serde_json::Value = serde_json::from_str(&out).unwrap();
             assert_eq!(resp["ok"], false, "input {bad:?} should fail closed");
         }
         // null pointer
-        let ptr = pd_macaroon_verify_json(std::ptr::null(), 0);
+        let ptr = unsafe { pd_macaroon_verify_json(std::ptr::null(), 0) };
         assert!(!ptr.is_null());
-        pd_string_free(ptr);
+        unsafe { pd_string_free(ptr) };
     }
 }
