@@ -1991,6 +1991,7 @@ _port_daddy() {
     'ph:alias for pheromone'
     # Agent Inbox
     'inbox:agent-to-agent direct messaging inbox'
+    'send:send a durable direct message to one agent'
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
