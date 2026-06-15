@@ -2,10 +2,10 @@
 
 > Status: **research / exploratory.** Not canon. A landing pad for the bolder
 > cross-cutting ideas generated alongside the four-paper rewrite
-> (`north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target**
+> (`docs/research/north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target**
 > for `erichowens/soma` and `curiositech/windags` once those repos are added to
 > the session scope. The "Open research items" list at the bottom is meant to be
-> promoted into `00-THE-LEDGER-open-problems.md` (research) and/or the Cartographer
+> promoted into `docs/research/north-star/00-THE-LEDGER-open-problems.md` (research) and/or the Cartographer
 > roadmap (`docs/ROADMAP.md`).
 
 ## The unifying frame: legibility is recursive
