@@ -1,20 +1,20 @@
 /**
  * Macaroon core crypto (ADR-0053 Phase 1).
  *
- * Standard Birgisson-et-al. construction over HMAC-SHA256, with third-party
- * caveat verification ids sealed under AES-256-GCM. The chain is:
+ * Standard Birgisson-et-al. construction over HMAC-SHA256. The chain is:
  *
  *   sig_0        = HMAC(rootKey, identifier)
  *   sig_{i+1}    = HMAC(sig_i, caveat_bytes_i)
  *
  * where for a first-party caveat `caveat_bytes = cid`, and for a third-party
- * caveat `caveat_bytes = vid || cid`. The third-party `vid` is the discharge
- * root key sealed under `sig_i`, so a verifier that can recompute `sig_i` (i.e.
- * holds the real root key and every prior caveat) can recover the discharge key
- * and check the discharge macaroon — but a holder cannot, so it cannot forge a
- * discharge.
+ * caveat `caveat_bytes = vid || cid`. The third-party `vid` is an HMAC COMMITMENT
+ * to the discharge key — `vid = HMAC(sig_i, caveat_key)` — binding it into the
+ * chain at that hop. The verifier already HOLDS the caveat key (from its store)
+ * and recomputes the commitment to confirm it; it does not recover the key from
+ * the vid. A holder cannot forge a discharge because it cannot recompute `sig_i`
+ * (it lacks the root key).
  *
- * Verification is **per-hop**: each discharge is checked against the key sealed
+ * Verification is **per-hop**: each discharge is checked against the key committed
  * at its own caveat, and bound to the root macaroon's final signature. The naive
  * "compare final signature to a root-derived value" verifier is unsound — proven
  * on branch `defense/anchor-attenuation-soundness` in ProVerif — which is why
@@ -129,10 +129,9 @@ export function addFirstPartyCaveat(m: Macaroon, predicate: string): Macaroon {
 
 /**
  * Append a third-party caveat. `caveatKey` becomes the root key of the discharge
- * macaroon the daemon/Relay will mint; `caveatId` is the (already-encrypted, by
- * the caller) opaque id that the discharge service decrypts to learn what to
- * attest. Returns a new macaroon. Only the root minter calls this — it needs
- * `caveatKey` in the clear to seal the vid.
+ * macaroon the daemon/Relay will mint; `caveatId` is the opaque id the discharge
+ * service resolves to learn what to attest. Returns a new macaroon. Only the root
+ * minter calls this — it needs `caveatKey` to compute the binding commitment.
  */
 export function addThirdPartyCaveat(
   m: Macaroon,
@@ -171,7 +170,8 @@ export interface VerifyResult {
 /**
  * Verify a macaroon. Recomputes the chained signature from `rootKey` hop by hop;
  * at each first-party caveat it calls `checkFirstParty(predicate)`; at each
- * third-party caveat it recovers the sealed discharge key, finds the matching
+ * third-party caveat it resolves the committed discharge key (via
+ * `resolveCaveatKey`), confirms the binding commitment, finds the matching
  * (by identifier) discharge macaroon, and verifies it recursively — requiring
  * the discharge's signature to equal the request-bound value. Finally the
  * recomputed root signature must equal the presented one.
