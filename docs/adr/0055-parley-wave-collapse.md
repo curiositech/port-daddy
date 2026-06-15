@@ -42,8 +42,13 @@ What we can build this from today, all shipped:
 
 The gap is purely compositional: nothing today *forces convergence* when two
 live agents hold divergent intents over one surface. Claims are advisory.
-Suggestions (where they exist at all — PR #322's `pd suggest` is Tender fleet
-ops, not agent overlap) are dismissible. The known failure is 2026-05-19:
+Suggestions (where they exist at all) are dismissible — and the one shipped
+suggestion surface, `fleet_suggestions` (PR #322, `lib/transcripts.ts`, drained
+by `pd suggest`), is a **Tender→operator** queue about *ship health*, not an
+**agent↔agent** channel about *contested work*. Parley needs its own table and
+its own state (`lib/parley.ts`); it is not an extension of `fleet_suggestions`.
+The two never share a row, though a future Tender could *raise* a parley the
+same way a detector does (trigger T2). The known failure is 2026-05-19:
 three agents on the same dispatch-coordination surface discovered each other
 by accident, after the duplicate work was done.
 
@@ -93,12 +98,27 @@ trigger ──> SUMMONED ──all parties respond──> CONVENED ──unanimo
 
 3. **Freeze (the superposition lock).** While a parley on surface *S* is
    open, the Arbiter holds an invariant: **no party may land a commit
-   touching *S***. Enforced where note-per-commit already is — the
+   touching *S***. Checked where note-per-commit already is — the
    Coordination Guard at commit time. The refusal message points to the
    parley channel and nothing else (per the no-advertised-bypass rule,
    `feedback_guardrails_never_advertise_bypass`). The freeze is scoped to
    *S* and to the parties — the rest of their work, and the rest of the
    fleet, is untouched.
+
+   **Honest scope of the freeze.** The commit-time guard is *in-band* —
+   inside the agent's own process — and ADR-0053 (out-of-band enforcement,
+   PR #366) is explicit that in-band enforcement is **advisory by
+   construction**: a determined agent escapes it with `PD_SHIM_OFF=1`, an
+   absolute `/usr/bin/git` path, or a direct libgit2 write. So the in-band
+   freeze stops a *cooperative* agent today; it does not bind a malicious
+   one. The freeze becomes structurally unbypassable only when the same
+   `(open parley on S) ⇒ refuse commit on S` predicate is also evaluated
+   **out-of-band at the push-broker** (ADR-0053's branch-protection +
+   App-push-broker layer). Parley's freeze is therefore specified as one
+   predicate checked in *both* places — degrading gracefully to advisory
+   in-band until #366 lands, and inheriting real teeth the moment it does.
+   The tooth that bites a bypasser *today* is rent (point 6 / the rent
+   tooth below), not freeze.
 
 4. **The dialogue.** Turns on `parley:<id>` carry ADR-0047 performatives
    (**FIPA ACL** — *the standard performative vocabulary: `propose`,
@@ -138,16 +158,26 @@ trigger ──> SUMMONED ──all parties respond──> CONVENED ──unanimo
 
 ### Why "forced" is real and not theater
 
-Three escalating teeth, each already shipped as a mechanism:
+Three escalating teeth, each already shipped as a mechanism — ordered by how
+hard they are to escape:
 
 1. **Attention** — the summons is in your SessionStart surface (you saw it).
-2. **Freeze** — the contested surface will not land while the parley is open
-   (you can't outrun it).
-3. **Rent** — silence is priced; ghosting costs the sandbox (you can't
-   ignore it).
+   Notice, not enforcement.
+2. **Freeze** — the contested surface will not land while the parley is open.
+   *In-band today = advisory* (a cooperative agent stops; a bypasser doesn't,
+   per ADR-0053); *unbypassable once the same predicate is checked out-of-band
+   at the push-broker* (#366).
+3. **Rent** — silence is priced; ghosting the parley costs the Coast Guard
+   sandbox. This is the tooth that binds even an agent who bypasses the
+   freeze, because the sandbox is granted at the OS layer (ADR-0050 ph0,
+   Seatbelt/Landlock) and rent is verified at discharge time outside the
+   agent's process (the discharge-macaroon protocol on `enforcement:dom-daddy`).
+   You can outrun an in-band check; you cannot outrun losing the box you run in.
 
 This is the same mechanism-design posture as ADR-0050 phase 7: don't ask
-nicely, price the dark lane. The Nash-equilibrium move becomes *talk*.
+nicely, price the dark lane. The Nash-equilibrium move becomes *talk* — and
+crucially it holds even against a non-cooperative agent, because the binding
+tooth (rent) lives below the agent, not inside it.
 
 ## Considered Options
 
@@ -166,7 +196,7 @@ nicely, price the dark lane. The Nash-equilibrium move becomes *talk*.
 | Phase | Roadmap slug | Status | Depends on | Description |
 |-------|--------------|--------|------------|-------------|
 | 0 | adr-0055-phase-0-parley-core | now | — | `lib/parley.ts` (table + state machine SUMMONED→CONVENED→COLLAPSED\|ESCALATED\|VOIDED), `routes/parley.ts`, `pd parley call/list/show/respond/resolve`, tube channel + inbox summons, manual trigger (T0). **Done when:** the operator can summon two live sessions and the parley reaches a recorded terminal state, end to end, with tests under the real runtime (bun:sqlite). |
-| 1 | adr-0055-phase-1-surface-freeze | next | 0 | Arbiter invariant + Coordination Guard check: an open parley on *S* refuses party commits touching *S*, refusal copy points only at the parley channel. **Done when:** a party's commit on the contested path is blocked with a summons pointer, and lifts on collapse. |
+| 1 | adr-0055-phase-1-surface-freeze | next | 0 | Arbiter invariant + Coordination Guard check: an open parley on *S* refuses party commits touching *S*, refusal copy points only at the parley channel. In-band only at this phase (advisory per ADR-0053); the out-of-band push-broker check is folded in when ADR-0053/#366 lands. **Done when:** a party's commit on the contested path is blocked with a summons pointer, and lifts on collapse. |
 | 2 | adr-0055-phase-2-rent-integration | next | 0 | `compulsion.ts` rent component: summons unanswered past TTL = arrears → the existing consequence chain. **Done when:** ghosting a parley measurably costs the sandbox in a CI-wired test. |
 | 3 | adr-0055-phase-3-claim-overlap-trigger | — | 0 | T1: claim-watcher auto-summons on intersecting claims, with debounce/dedup/cooldown. **Done when:** two sessions claiming the same file get summoned with zero operator action, and re-claims do not spam. |
 | 4 | adr-0055-phase-4-collapse-commitments | — | 0 | Outcome → ADR-0041 commitment with per-party obligations + deadlines, obligation-monitor watching adoption; Arbiter unfreeze keyed on commitment existence. **Done when:** a collapsed parley leaves a monitored commitment and an un-adopted obligation surfaces as a breach. |
