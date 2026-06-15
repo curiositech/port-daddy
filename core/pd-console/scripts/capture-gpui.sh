@@ -69,5 +69,6 @@ shoot sorties  sorties
 shoot dispatch dispatch
 shoot sessions sessions
 shoot health   health
+shoot lane     lane      # the live "watch + grab the wheel" surface
 
 echo "done → $OUT"
