@@ -36,9 +36,11 @@ export interface ActiveClaim {
   symbolPath: string | null;
 }
 
-/** A detected overlap between two distinct sessions on one file. Unordered: the
- *  pair (A,B) and (B,A) collapse to one record, with `a` the lexicographically
- *  smaller sessionId so the dedup key is stable across scans. */
+/** A detected overlap between two distinct sessions on one file. The *pair* is
+ *  unordered — (A,B) and (B,A) collapse to one ClaimOverlap with `a` the
+ *  lexicographically smaller sessionId, so the dedup key is stable across scans.
+ *  Note this still yields TWO suggestions per overlap — one delivered to each
+ *  agent (each sees the other as the counterpart); only the dedup key is shared. */
 export interface ClaimOverlap {
   filePath: string;
   a: ActiveClaim;
@@ -126,7 +128,14 @@ export interface RunOverlapScanDeps {
   suggestions: Suggestions;
   inbox: BrokerInbox;
   activityLog?: BrokerActivityLog;
+  /** Pending nudges older than this are expired (status='expired') at the start of
+   *  each scan, so a stale overlap that was never acted on can re-surface. Defaults
+   *  to DEFAULT_STALE_NUDGE_MS; pass 0/Infinity-ish to disable by sweeping nothing. */
+  staleNudgeMs?: number;
 }
+
+/** A pending nudge unacted for this long is swept to 'expired' before each scan. */
+export const DEFAULT_STALE_NUDGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export interface OverlapScanResult {
   overlaps: number;
@@ -153,6 +162,13 @@ function humanMessage(self: ActiveClaim, other: ActiveClaim, filePath: string): 
  */
 export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
   const { sessions, suggestions, inbox, activityLog } = deps;
+
+  // Sweep stale, never-acted nudges to 'expired' first, so an overlap that aged
+  // out can re-surface (an expired row no longer anchors the create() cooldown).
+  const staleMs = deps.staleNudgeMs ?? DEFAULT_STALE_NUDGE_MS;
+  const expired = suggestions.expireStale(staleMs);
+  if (expired > 0) activityLog?.log('suggestion.expired_sweep', { count: expired });
+
   const claimsRes = sessions.listAllActiveClaims();
   const claims = claimsRes.success ? claimsRes.claims : [];
   const overlaps = detectClaimOverlaps(claims);

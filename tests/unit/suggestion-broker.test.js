@@ -195,4 +195,20 @@ describe('runOverlapScan', () => {
     expect(res).toMatchObject({ overlaps: 0, surfaced: 0, delivered: 0 });
     expect(sent).toHaveLength(0);
   });
+
+  test('scan sweeps stale, never-acted nudges to expired (gives expireStale a real caller)', () => {
+    let clock = 1000;
+    const db2 = createTestDb();
+    try {
+      const s2 = createSuggestions(db2, { now: () => clock });
+      // surface a nudge, then let it age out unacted
+      s2.create({ agentId: 'agent-1', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'old' });
+      clock += 8 * 24 * 60 * 60 * 1000; // 8 days > 7-day default stale window
+      const res = runOverlapScan({ sessions: sessionsWith([]), suggestions: s2, inbox });
+      expect(res.overlaps).toBe(0);
+      expect(s2.list({ status: 'expired' })).toHaveLength(1);
+    } finally {
+      db2.close();
+    }
+  });
 });

@@ -152,4 +152,18 @@ describe('lifecycle', () => {
     expect(moved).toBe(1);
     expect(suggestions.list({ status: 'expired' })).toHaveLength(1);
   });
+
+  test('an expired suggestion no longer anchors the cooldown (overlap can re-surface)', () => {
+    expect(make().created).toBe(true);
+    clock += 48 * HOUR;
+    expect(suggestions.expireStale(24 * HOUR)).toBe(1);
+    // Same hash, but the prior row is expired — even though we are far past create,
+    // the point is that an expired row must not suppress a fresh surfacing.
+    const again = make();
+    expect(again.created).toBe(true);
+    // a *declined* row, by contrast, keeps anchoring (intended mute)
+    suggestions.decline(again.suggestion.id);
+    clock += HOUR;
+    expect(make().created).toBe(false);
+  });
 });
