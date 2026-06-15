@@ -11,12 +11,26 @@ BIN_DEST="$APP_DIR/Contents/MacOS/pd-console"
 echo "→ Building pd-console (release, GPU-native window)…"
 cd "$CRATE_DIR"
 # The window bin is gated behind the `gpui` feature (see Cargo.toml) — without it
-# the bin is skipped and target/release/pd-console won't exist.
+# the bin is skipped and the binary won't exist.
 cargo build --release --features gpui --bin pd-console
 
-echo "→ Installing to $APP_DIR…"
+# pd-console is a member of the core/ workspace, so the binary lands in the
+# workspace target dir (core/target/release), not core/pd-console/target. Honor
+# CARGO_TARGET_DIR if set, else try the workspace dir then the crate-local dir.
+BIN_SRC=""
+for cand in "${CARGO_TARGET_DIR:-}/release/pd-console" \
+            "$CRATE_DIR/../target/release/pd-console" \
+            "$CRATE_DIR/target/release/pd-console"; do
+    if [[ -n "$cand" && -f "$cand" ]]; then BIN_SRC="$cand"; break; fi
+done
+if [[ -z "$BIN_SRC" ]]; then
+    echo "✗ built binary not found (looked in workspace + crate target dirs)" >&2
+    exit 1
+fi
+
+echo "→ Installing to ${APP_DIR}… (from ${BIN_SRC})"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
-cp "target/release/pd-console" "$BIN_DEST"
+cp "$BIN_SRC" "$BIN_DEST"
 
 # Write Info.plist (idempotent)
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
