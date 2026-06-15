@@ -651,15 +651,21 @@ struct FleetPopover: View {
             )
 
         case let .daemonBehindApp(app, daemon):
+            // FleetBar can't run `brew` or kill a live daemon itself, so we hand
+            // the operator the exact command rather than a button that pretends
+            // to restart (startDaemon() no-ops when a daemon is already running).
             versionSkewCard(
                 icon: "exclamationmark.arrow.triangle.2.circlepath",
                 tint: Fleet.Color.active,
                 title: "Daemon is behind this app",
-                detail: "FleetBar is \(app) but the running daemon is \(daemon). Upgrade and restart Port Daddy so they match.",
+                detail: "FleetBar is \(app) but the running daemon is \(daemon). Upgrade Port Daddy, then restart the daemon, so they match.",
                 versionLine: "app \(app)  →  daemon \(daemon)",
-                primaryLabel: "Restart daemon",
-                primaryAction: { store.startDaemon() },
-                footnote: "Run `brew upgrade port-daddy`, then restart, to move the daemon forward."
+                primaryLabel: "Copy `brew upgrade port-daddy`",
+                primaryAction: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("brew upgrade port-daddy", forType: .string)
+                },
+                footnote: "Run the copied command in a terminal, then restart the daemon from the menu."
             )
         }
     }
