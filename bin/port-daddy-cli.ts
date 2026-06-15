@@ -607,6 +607,19 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
   return data?.sessionId ? data : null;
 }
 
+// Maps a command (or alias) to the `pd help <topic>` whose text documents it,
+// so `pd <command> --help` shows real help instead of falling through to the
+// global help. TOPIC_HELP is keyed by topic name (messaging, sessions, …), NOT
+// by command name, so `pd inbox --help` needs this indirection. Exported for
+// the help-topic-aliases unit test.
+export const HELP_TOPIC_ALIASES: Record<string, string> = {
+  // messaging family: durable directed (inbox/send) + ephemeral pub/sub
+  inbox: 'messaging', send: 'messaging', tube: 'messaging',
+  pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
+  sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
+  channels: 'messaging', wait: 'messaging',
+};
+
 /**
  * Build the compact main help output.
  * Shows context-aware next steps if an active session exists.
@@ -650,6 +663,8 @@ function buildHelp(): string {
     `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
     `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
     `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
+    `  ${G}pd send${Z} <agent> "msg"    ${tag('notify')} Send a durable direct message to one agent`,
+    `  ${G}pd inbox${Z}                 ${tag('silent')} Read direct messages sent to you`,
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
@@ -920,9 +935,19 @@ Examples:
   pd find 'myapp:*'                     # All stacks for myapp
   pd release 'myapp:*:*'               # Release all for project`,
 
-  messaging: `Pub/Sub Messaging \u2014 Real-time inter-agent communication
+  messaging: `Inter-agent messaging \u2014 durable direct messages + ephemeral pub/sub
 
-Commands:
+Direct durable messages (RELIABLE \u2014 survives the recipient being offline):
+  pd send <agent> <message>       Send a durable direct message to one agent
+  pd inbox [list|stats|read-all]  Read messages others sent you (default: list)
+
+Reliability:
+  The pub/sub below is an EPHEMERAL SSE stream \u2014 it times out and is only
+  received by a subscriber holding the stream open live. A turn-based agent
+  cannot hold a stream open, so for durable agent-to-agent handoffs prefer
+  \`pd send\`/\`pd inbox\` or \`pd note\` (both durable), NOT pub/sub.
+
+Pub/Sub (ephemeral, real-time) commands:
   pub <channel> <message>  Publish a message to a channel
     --sender <id>          Sender identifier
     --dir <path>           Resolve declared logical channels for this worktree
@@ -2269,7 +2294,7 @@ export async function main(): Promise<void> {
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
   if (options.help) {
-    const topicHelp = TOPIC_HELP[command as string];
+    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
     console.log(topicHelp || buildHelp());
     process.exit(0);
   }
@@ -2409,6 +2434,13 @@ export async function main(): Promise<void> {
       // Agent inbox (top-level shortcut)
       case 'inbox':
         await handleInbox(positional[0], positional.slice(1), options);
+        break;
+
+      // `pd send <agent> "msg"` — discoverable alias for the durable directed
+      // send (`pd inbox send …`). POSTs to /agents/:id/inbox; survives the
+      // recipient being offline, unlike ephemeral pub/sub.
+      case 'send':
+        await handleInbox('send', positional, options);
         break;
 
       // Tunnel

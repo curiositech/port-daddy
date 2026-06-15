@@ -199,7 +199,17 @@ run_read "diagnose"          diagnose    -- diagnose
 run_read "ideas"             ideas       -- ideas
 run_read "attention"         attention   -- attention --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
+run_read "send (usage)"      send        -- send
 run_read "hints"             hints       -- hints
+
+# --help routing regression (HELP_TOPIC_ALIASES): a messaging-family command must
+# resolve to the messaging TOPIC, not silently fall through to the global help.
+__help_out="$(cli inbox --help 2>&1 || true)"
+if printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
+  pass "inbox --help -> messaging topic (not global help)"
+else
+  fail "inbox --help -> messaging topic" "got: $(printf '%s' "$__help_out" | head -1)"
+fi
 run_read "compass"           compass     -- compass
 run_read "advise"            advise      -- advise
 run_read "preflight"         preflight   -- preflight
