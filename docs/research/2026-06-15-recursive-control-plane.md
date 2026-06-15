@@ -148,28 +148,132 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 - **RCP-1 — Convergence detector.** Semantic task-shape similarity for "another
   agent is doing a similar thing," without keyword matching. *(Hard; gates the
-  parley.)*
+  parley. Both source repos match at task-PLAN time; neither detects RUNTIME
+  overlap between active agents — the real gap.)*
+  - *1a (windags):* BM25 → cosine-RRF → cross-encoder → attribution-kNN cascade
+    (`core/skill-matcher.ts`), adapted from skill-matching to task-shape.
+  - *1b (windags):* run that cascade on live **agent outputs**, not task
+    descriptions, to catch two agents converging on the same claim. *(open)*
 - **RCP-2 — Parley trigger.** Cost-aware (Signal-Detection) threshold for when to
   break formation and convene; avoid MAS-overhead Goodhart.
+  - *2a (windags):* the four-layer-eval `P(fail) × waste > cost` formula reused
+    as the parley-vs-proceed decision.
+  - *2b (soma/survey):* the stigmergic **density threshold ρ\*** (phase transition
+    independent → synchronized) as a self-organization trigger.
 - **RCP-3 — Parley protocol.** Typed multi-party Contract-Net round over the
   existing performatives that outputs role allocation + commitments.
-- **RCP-4 — Attestable-but-not-inspectable learned memory.** Make the neural rung
-  of the shared-memory ladder carry attestation/bonding guarantees.
-- **RCP-5 — Cross-harbor shared outcome store.** The safe shared-memory rung:
-  attested witnessed-outcome memory keyed on non-forgeable identity, spanning
-  harbors / daemons / agent-types / durable roles.
-- **RCP-6 — Variation / inheritance operators.** Cross-over + mutation of roles /
-  skills / prompts / configs for the evolutionary track.
-- **RCP-7 — Ecosystem-stability analysis.** Does selection converge to healthy
-  diversity or collapse (monoculture / cartel)? Extends the §8.4.4 sims.
+  - *3a (windags):* **wave-by-wave reconvention** — parley scheduled at wave
+    boundaries when TENTATIVE nodes / premortem-risk exist, not ad-hoc.
+  - *3b (windags):* a **discourse-typed bus** — FIPA `act/respondingTo/relationship/thesis`
+    on every message (port-daddy's pub/sub is currently untyped).
+- **RCP-4 — Attestable-but-not-inspectable learned memory.** Make the learned rung
+  carry attestation/bonding guarantees.
+  - *4a (windags):* **Thompson posteriors (α/β)** as narrow verifiable trust
+    intervals — attestable without revealing method internals.
+  - *4b (soma):* keep soma's week-4 V(D)J "memory cells" as **attested signed
+    hashes**, never opaque weights — or digest-with-zoom breaks.
+- **RCP-5 — Cross-harbor shared outcome store.** Attested witnessed-outcome memory
+  keyed on non-forgeable identity.
+  - *5a (survey):* *Collaborative Memory* — two-tier private/shared stores with
+    **provable adherence to time-varying RBAC**.
+  - *5b (soma):* **sheaf restriction maps** on boundary simplices as the
+    cross-operator projection / bonds-boundary mechanism. *(unbuilt)*
+- **RCP-6 — Variation / inheritance operators.** For the evolutionary track.
+  - *6a (windags):* **method-level inheritance** — methods (decomposition patterns,
+    prompt templates) heritable across skill versions; skills ephemeral.
+  - *6b (windags):* **monster-barring** (Lakatos) — `NOT_FOR`-growth >
+    `WHEN_TO_USE`-growth per revision = a degeneracy/selection signal.
+- **RCP-7 — Ecosystem-stability analysis.** Convergence to healthy diversity vs.
+  collapse (monoculture / cartel). Extends the §8.4.4 sims.
+  - *7a (soma):* **anti-inflammatory resolution traces** (inverse-pheromone after a
+    fix) as immune-tolerance against computational autoimmunity.
 
-## Graft points (pending session access to the source repos)
+### New axes (not covered by 1–7)
 
-- **`erichowens/soma`** → *(to fill)* — expected: shared-memory / neural-memory
-  concepts (Concept 3) and possibly the evolutionary substrate (Concept 4).
-- **`curiositech/windags`** → *(to fill)* — expected: the workgroup / parley /
-  skills ideas (Concept 2) and the multi-agent coordination harness.
+> **Numbering note.** The soma and windags memos each independently proposed
+> "RCP-8/9" with *different* meanings. Reconciled here: source-specific mechanisms
+> became `Na` refinements above; only genuinely new axes get fresh numbers below.
 
-> Once both repos are in session scope, dispatch specialty agents to parse each,
-> extract the load-bearing concepts, and graft them into the matching section
-> above (and mint the corresponding RCP- items).
+- **RCP-8 — Sheaf-cohomology coordination-health telemetry.** `H¹(𝓕)` /
+  sheaf-Laplacian Dirichlet energy as a first-class legibility + debuggability
+  metric ("debug the sheaf, not the swarm"). **Triple convergence:** the survey
+  (game-sheaves: Nash = global sections, `H¹≠0` = unresolvable strategic
+  inconsistency), soma (`H*(K,𝓕)` diagnostics), and our Ledger (cross-harbor
+  settlement = an `H¹` gluing obstruction, PRV-12/13). One object, three roles:
+  a Paper 2 metric, a Paper 4 impossibility diagnostic, a debugger.
+- **RCP-9 — Provable action adjudicator.** Lean-Agent-style auto-formalization of
+  policy into axioms, adjudicating each action Proven/Refuted at µs latency — the
+  *provable* reference monitor the containment story (Paper 1, machine-side) needs.
+- **RCP-10 — Pre-federation halt gate.** A validity check (windags' Polya
+  principal-parts gate) that must pass *before* work decomposes or bonds are
+  written — a problem must be well-defined before it can be coordinated or traded.
+- **RCP-11 — Wide-market typed-trace goods.** soma's multi-commodity market over
+  typed traces (PHEROMONE / BELIEF / PREFERENCE / ANTIBODY / RESOLUTION) — an
+  economic primitive for Paper 4.
+- **RCP-12 — Coverage guarantee (epistemic scan).** soma's innate drive (fire with
+  P ∝ unseen/total; teleport to novel nodes) guaranteeing **no node is permanently
+  invisible** — a built legibility primitive (100% vs 50% coverage).
+- **RCP-13 — Inter-agent output contracts.** windags' `io-contract` frontmatter +
+  `ContractValidator`: runtime schema validation between agents before downstream
+  propagation — an attestation primitive port-daddy lacks.
+- **RCP-14 — Argumentative lineage.** windags' `SwarmTracer` epistemic-ancestry
+  spans (Toulmin claim/data/warrant) — digest-with-zoom for *reasoning provenance*,
+  and the structure RCP-8 / RCP-1b need to compare claims.
+
+---
+
+## Graft points
+
+### `erichowens/soma` — the substrate (the Medium)
+A cellular-sheaf stigmergy platform: agents coordinate by modifying a shared
+medium (typed pheromone traces over a dynamic simplicial complex) and selecting
+actions by **active-inference free-energy minimization** — no orchestrator, no
+message bus. **Weeks 1–2 shipped** (medium, stigmergic + active-inference agents,
+epistemic scan, 62 tests green); **weeks 3–4 scaffolded, unbuilt** (belief markets
+are an enum value with no auction; immune selection has no code).
+- **It *is* C1/C3 made concrete.** The Medium is the recursive control plane's
+  fabric; typed stalks `𝓕(σ) = P ⊕ B ⊕ Π ⊕ A` are the depth-ladder rungs;
+  restriction maps hint at the federation bonds-boundary (RCP-5b).
+- **It validates the survey's frontier triad by *building* it** (sheaves = *what*,
+  free-energy = *why*). Maps: Paper 1 = the Medium as distributed reference
+  monitor; Paper 2 = epistemic scan (RCP-12); Paper 3 = sheaf-position identity +
+  antibody memory; Paper 4 = restriction maps (unbuilt).
+- **Contributes:** RCP-8, RCP-11, RCP-12, RCP-7a, RCP-5b, RCP-4b.
+- **Watch:** keep week-4 learned memory attested-hash, not weights (RCP-4b); the
+  pitch overclaims markets/selection as shipped — weeks 1–2 alone are a complete
+  substrate story; separate the paper from the implementation claims.
+
+### `curiositech/windags` — the orchestration + evaluation + skill machinery
+A single-operator DAG orchestrator for Claude Code: decompose → match each
+subtask to a skill (4-stage retrieval) → inject a **4-branch prompt hypertree**
+(Identity / Context / Task / Protocol) → execute in parallel waves → score via a
+four-layer quality model. **DAG executor + retrieval + eval shipped (~1,350
+tests); learning loop (curator → crystallization → Knowledge Library) designed,
+not wired** (a 16-week gap).
+- **It *is* C2 + the per-turn suggestibility model.** The 4-branch hypertree is
+  literally "what each agent sees every turn"; FIPA `SwarmDiscourse` is typed
+  performatives; wave boundaries are natural parley schedules.
+- **It carries the C4 machinery:** Thompson-sampling @ method level = heritable
+  variation (RCP-6a); monster-barring = a Lakatosian selection signal (RCP-6b).
+- **Contributes:** RCP-1a/1b, RCP-2a, RCP-3a/3b, RCP-4a, RCP-6a/6b, RCP-10,
+  RCP-13, RCP-14.
+- **Watch:** RCP-1 is still open — windags matches task-shape at *plan* time, not
+  running-agent overlap at *run* time; no MAS-overhead model; single-operator (no
+  bonds).
+
+### Survey (`agenticswarmcoordination.md`) — the academic + empirical backbone
+External validation (single-writer is industry-converged: Cognition + Anthropic),
+the MAST failure data (79% of failures are coordination not intelligence;
+Incorrect Verification is the top predictor; the inspector pattern recovers
+96.4%), the formal apparatus (sheaves / free-energy / mean-field → RCP-8, RCP-2b,
+async belief-sync), and the honesty rail (multi-agent is a *precision instrument*,
+not a general upgrade — single-agent wins ~80% of workflows).
+
+## Skills worth porting (from windags)
+High-value first: **`next-move`** (5-agent meta-DAG: halt gate + retrieval +
+waves), **`agent-conversation-protocols`** (6 typed dialogue topologies → RCP-3b),
+**`coordination-topology-architect`** (1-operator → N-operator routing),
+**`multi-agent-coordination`** (worktree isolation + conflict heuristics),
+**`windags-premortem`** (risk-adjusted confidence → RCP-2), and the FIPA set
+(`fipa-00037` communicative acts, `fipa-00025` interaction protocols,
+`smith-1980-contract-net`) for the RCP-3 parley vocabulary.
