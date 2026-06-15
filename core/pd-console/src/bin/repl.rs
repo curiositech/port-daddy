@@ -23,6 +23,7 @@
 // (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
+#[path = "../lane_pane.rs"]      mod lane_pane;
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../peek_pane.rs"]      mod peek_pane;
@@ -37,6 +38,7 @@
 use agent::{AgentManager, Backend};
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
+use lane_pane::LanePane;
 use pane::PaneRegistry;
 use std::io::{self, Write};
 use std::time::Duration;
@@ -84,6 +86,7 @@ async fn main() -> Result<()> {
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
+    reg.register(Box::new(LanePane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -108,6 +111,27 @@ async fn main() -> Result<()> {
             reg.active = reg.panes.iter().position(|p| p.id() == "dispatch").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":lane" || line == ":interrupt" {
+            // The live Lane surface (headless rendering of one tick). `:lane`
+            // refreshes + renders; `:interrupt` additionally grabs the wheel —
+            // POST /agents/:id/interrupt on the watched agent (the closed loop).
+            reg.active = reg.panes.iter().position(|p| p.id() == "lane").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if line == ":interrupt" {
+                use pane::SurfaceAction;
+                match reg
+                    .mutate_active(mgr.daemon(), SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
+                    .await
+                {
+                    Ok(()) => ok(&style, "interrupt sent — watch the stream for control.interrupt"),
+                    Err(e) => err(&style, &format!("interrupt failed: {e}")),
+                }
             }
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));

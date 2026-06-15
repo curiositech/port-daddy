@@ -67,6 +67,135 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+// ── Live agent stream (GET /agents/:id/stream, SSE) ───────────────────────────
+//
+// The cockpit's "watch in real time" feed. The daemon (PR #404) opens an SSE
+// stream and emits, after a first `event: connected` frame, typed envelopes
+//   { v: 1, kind, agentId, body, ts }
+// where `kind` ∈ { agent.status, agent.tube, agent.transcript }. We parse those
+// envelopes off the raw byte stream and hand them to the UI on a channel.
+//
+// Parsing is deliberately tolerant (the util.rs house rule): an unknown `kind`
+// becomes `StreamKind::Other(..)` rather than a hard error, and a malformed
+// `data:` line is skipped, so a schema drift can never kill the live lane.
+
+/// What a stream envelope carries. Mirrors the daemon's `kind` discriminant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StreamKind {
+    /// `agent.status` — lifecycle/readiness transitions.
+    Status,
+    /// `agent.tube` — a message on the steering channel `agent:<id>` (this is
+    /// also where an operator's own `control.interrupt` reappears — the closed
+    /// loop).
+    Tube,
+    /// `agent.transcript` — streaming transcript text + tool-call deltas.
+    Transcript,
+    /// Any future/unknown kind, preserved verbatim so the UI can still show it.
+    Other(String),
+}
+
+impl StreamKind {
+    fn parse(s: &str) -> StreamKind {
+        match s {
+            "agent.status" => StreamKind::Status,
+            "agent.tube" => StreamKind::Tube,
+            "agent.transcript" => StreamKind::Transcript,
+            other => StreamKind::Other(other.to_string()),
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            StreamKind::Status => "agent.status",
+            StreamKind::Tube => "agent.tube",
+            StreamKind::Transcript => "agent.transcript",
+            StreamKind::Other(s) => s,
+        }
+    }
+}
+
+/// One typed frame off the live agent stream.
+#[derive(Debug, Clone)]
+pub struct StreamEnvelope {
+    pub v: u64,
+    pub kind: StreamKind,
+    pub agent_id: String,
+    /// The kind-specific payload, kept as a `Value` so the UI extracts fields
+    /// tolerantly (epoch-ms numbers, nulls, drift) instead of via strict serde.
+    pub body: serde_json::Value,
+    pub ts: i64,
+}
+
+impl StreamEnvelope {
+    /// Parse one envelope from a single SSE `data:` JSON object. Returns `None`
+    /// for the `connected` handshake frame (no `kind`) or any frame we can't
+    /// make sense of — the caller simply skips those.
+    pub fn from_value(v: &serde_json::Value) -> Option<StreamEnvelope> {
+        let kind = v.get("kind").and_then(|k| k.as_str())?;
+        Some(StreamEnvelope {
+            v: v.get("v").and_then(|n| n.as_u64()).unwrap_or(1),
+            kind: StreamKind::parse(kind),
+            agent_id: v
+                .get("agentId")
+                .and_then(|a| a.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            body: v.get("body").cloned().unwrap_or(serde_json::Value::Null),
+            ts: v.get("ts").and_then(|t| t.as_i64()).unwrap_or(0),
+        })
+    }
+}
+
+/// Incremental parser for an `text/event-stream` byte feed. SSE frames are
+/// separated by a blank line; within a frame, `data:` lines are concatenated
+/// and `:`-prefixed lines are comments (heartbeats). We only care about the
+/// data payload; the `event:` name is advisory because the envelope carries its
+/// own `kind`. Feed raw chunks in; pull out completed `data:` JSON strings.
+#[derive(Default)]
+pub struct SseParser {
+    /// Bytes received but not yet split into complete lines.
+    buf: String,
+    /// `data:` lines accumulated for the frame currently being assembled.
+    data: Vec<String>,
+}
+
+impl SseParser {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Feed a chunk of bytes; returns any `data:` payloads that completed
+    /// (one String of concatenated data per dispatched event).
+    pub fn feed(&mut self, chunk: &str) -> Vec<String> {
+        self.buf.push_str(chunk);
+        let mut out = Vec::new();
+        // Process every complete line (terminated by '\n') left in the buffer.
+        while let Some(nl) = self.buf.find('\n') {
+            let mut line: String = self.buf.drain(..=nl).collect();
+            // Trim the trailing '\n' and an optional '\r' (CRLF tolerance).
+            if line.ends_with('\n') {
+                line.pop();
+            }
+            if line.ends_with('\r') {
+                line.pop();
+            }
+            if line.is_empty() {
+                // Blank line dispatches the current event.
+                if !self.data.is_empty() {
+                    out.push(self.data.join("\n"));
+                    self.data.clear();
+                }
+            } else if let Some(rest) = line.strip_prefix("data:") {
+                // SSE spec: a single leading space after the colon is stripped.
+                self.data.push(rest.strip_prefix(' ').unwrap_or(rest).to_string());
+            }
+            // `event:`, `id:`, `:comment` (heartbeat) lines are ignored — the
+            // envelope's own `kind` is authoritative.
+        }
+        out
+    }
+}
+
 /// Thin client for the live daemon — discovers it the canonical way (PR #261):
 /// `PORT_DADDY_URL`, else the TCP port the running daemon wrote to
 /// `~/.port-daddy/daemon.port`. There is no hardcoded port fallback: the daemon
@@ -200,6 +329,87 @@ impl DaemonClient {
         }
         Ok((max, out))
     }
+
+    // ── Console-facing MUTATION verbs (the cockpit, not just polling) ─────────
+
+    /// Interrupt a running agent: `POST /agents/:id/interrupt` with an optional
+    /// reason. The daemon publishes `{kind:'control.interrupt'}` on channel
+    /// `agent:<id>`; that control message ALSO reappears on the live stream as an
+    /// `agent.tube` event — the closed loop, so the operator sees their signal
+    /// land. 404 if the agent is unknown (surfaced here as an error).
+    pub async fn interrupt(&self, agent_id: &str, reason: Option<&str>) -> Result<()> {
+        let body = match reason {
+            Some(r) => serde_json::json!({ "reason": r }),
+            None => serde_json::json!({}),
+        };
+        let resp = self
+            .http
+            .post(format!("{}/agents/{agent_id}/interrupt", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /agents/:id/interrupt")?;
+        // A 404 (unknown agent) or guard rejection must surface as an error, not
+        // be silently swallowed as a delivered interrupt.
+        ensure_success(resp, "interrupt").await?;
+        Ok(())
+    }
+
+    /// Open the live SSE feed `GET /agents/:id/stream` and yield parsed
+    /// `StreamEnvelope`s on an mpsc channel. Spawns a tokio task that owns the
+    /// HTTP body stream; it runs until the daemon closes the stream, the agent
+    /// ends, or every receiver is dropped. Returns the receiver immediately so
+    /// the GPUI foreground-drain loop can poll it the same way it drains pane
+    /// updates. Designed to be reconnected by the caller if the task ends.
+    pub fn subscribe_agent(&self, agent_id: &str) -> tokio::sync::mpsc::Receiver<StreamEnvelope> {
+        // A modest buffer: the UI drains every 500ms; bound memory if the agent
+        // is chatty and the consumer briefly stalls.
+        let (tx, rx) = tokio::sync::mpsc::channel::<StreamEnvelope>(256);
+        let url = format!("{}/agents/{agent_id}/stream", self.base);
+        let http = self.http.clone();
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            let resp = match http.get(&url).send().await {
+                Ok(r) => r,
+                Err(_) => return, // discovery/connection failure — caller reconnects
+            };
+            if !resp.status().is_success() {
+                return; // 404 unknown agent etc. — nothing to stream
+            }
+            let mut parser = SseParser::new();
+            let mut body = resp.bytes_stream();
+            while let Some(chunk) = body.next().await {
+                let bytes = match chunk {
+                    Ok(b) => b,
+                    Err(_) => break, // stream error — end the task, caller reconnects
+                };
+                // SSE is UTF-8; tolerate a split multibyte char across chunks by
+                // lossy-decoding (rare, and a single glyph is not worth dropping
+                // the whole feed for).
+                let text = String::from_utf8_lossy(&bytes);
+                for data in parser.feed(&text) {
+                    let val: serde_json::Value = match serde_json::from_str(&data) {
+                        Ok(v) => v,
+                        Err(_) => continue, // skip a malformed frame, keep streaming
+                    };
+                    if let Some(env) = StreamEnvelope::from_value(&val) {
+                        // Receiver dropped → stop streaming.
+                        if tx.send(env).await.is_err() {
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+        rx
+    }
+}
+
+/// Pull readable text from a stream-envelope `body` (or any payload value):
+/// a bare string, `{text:...}`, or `{content:...}`. Public so surfaces can fold
+/// `agent.tube` frames into a line without re-implementing the shape walk.
+pub fn body_text(body: &serde_json::Value) -> String {
+    extract_text(Some(body))
 }
 
 /// A payload may be a string, `{text:...}`, or `{content:...}` — pull readable text.
@@ -291,5 +501,103 @@ mod tests {
         assert_eq!(extract_text(Some(&serde_json::json!({ "text": "yo" }))), "yo");
         assert_eq!(extract_text(Some(&serde_json::json!({ "content": "c" }))), "c");
         assert_eq!(extract_text(None), "");
+    }
+
+    // ── Stream envelope parsing ───────────────────────────────────────────────
+
+    #[test]
+    fn stream_kind_round_trips_and_falls_back() {
+        assert_eq!(StreamKind::parse("agent.status"), StreamKind::Status);
+        assert_eq!(StreamKind::parse("agent.tube"), StreamKind::Tube);
+        assert_eq!(StreamKind::parse("agent.transcript"), StreamKind::Transcript);
+        assert_eq!(StreamKind::Status.as_str(), "agent.status");
+        // Unknown kinds are preserved, never dropped.
+        match StreamKind::parse("agent.future") {
+            StreamKind::Other(s) => assert_eq!(s, "agent.future"),
+            other => panic!("expected Other, got {other:?}"),
+        }
+        assert_eq!(StreamKind::parse("agent.future").as_str(), "agent.future");
+    }
+
+    #[test]
+    fn envelope_parses_typed_frame() {
+        let v = serde_json::json!({
+            "v": 1,
+            "kind": "agent.transcript",
+            "agentId": "agent-xyz",
+            "body": { "text": "compiling…" },
+            "ts": 1781561557841i64,
+        });
+        let env = StreamEnvelope::from_value(&v).expect("typed frame parses");
+        assert_eq!(env.v, 1);
+        assert_eq!(env.kind, StreamKind::Transcript);
+        assert_eq!(env.agent_id, "agent-xyz");
+        assert_eq!(env.ts, 1781561557841);
+        assert_eq!(env.body.get("text").and_then(|t| t.as_str()), Some("compiling…"));
+    }
+
+    #[test]
+    fn envelope_skips_connected_handshake_and_garbage() {
+        // The first `connected` frame has no `kind` → None (caller skips it).
+        assert!(StreamEnvelope::from_value(&serde_json::json!({ "channel": "agent:x" })).is_none());
+        // Tolerate missing optional fields rather than failing.
+        let env = StreamEnvelope::from_value(&serde_json::json!({ "kind": "agent.status" }))
+            .expect("kind-only frame still parses");
+        assert_eq!(env.v, 1); // defaulted
+        assert_eq!(env.ts, 0); // defaulted
+        assert!(env.agent_id.is_empty());
+    }
+
+    // ── SSE byte-stream parser ────────────────────────────────────────────────
+
+    #[test]
+    fn sse_parser_assembles_single_frame() {
+        let mut p = SseParser::new();
+        let out = p.feed("event: connected\ndata: {\"channel\":\"agent:x\"}\n\n");
+        assert_eq!(out, vec!["{\"channel\":\"agent:x\"}"]);
+    }
+
+    #[test]
+    fn sse_parser_handles_split_chunks() {
+        // A frame arriving in two TCP chunks must still assemble exactly once.
+        let mut p = SseParser::new();
+        assert!(p.feed("data: {\"kind\":\"agent.").is_empty());
+        let out = p.feed("status\"}\n\n");
+        assert_eq!(out, vec!["{\"kind\":\"agent.status\"}"]);
+    }
+
+    #[test]
+    fn sse_parser_ignores_heartbeats_and_handles_crlf() {
+        let mut p = SseParser::new();
+        // `:heartbeat` comment line + CRLF terminators must not emit a frame.
+        let out = p.feed(":heartbeat\r\n\r\n");
+        assert!(out.is_empty());
+        let out = p.feed("data: {\"kind\":\"agent.tube\"}\r\n\r\n");
+        assert_eq!(out, vec!["{\"kind\":\"agent.tube\"}"]);
+    }
+
+    #[test]
+    fn sse_parser_multiline_data_concatenated() {
+        let mut p = SseParser::new();
+        let out = p.feed("data: line1\ndata: line2\n\n");
+        assert_eq!(out, vec!["line1\nline2"]);
+    }
+
+    #[test]
+    fn sse_end_to_end_chunk_to_envelope() {
+        // The real pipeline: raw SSE bytes → data payloads → typed envelopes.
+        let mut p = SseParser::new();
+        let raw = "event: connected\ndata: {\"channel\":\"agent:a\"}\n\n\
+                   event: message\ndata: {\"v\":1,\"kind\":\"agent.tube\",\"agentId\":\"a\",\"body\":{\"text\":\"control.interrupt\"},\"ts\":5}\n\n";
+        let frames = p.feed(raw);
+        let envs: Vec<_> = frames
+            .iter()
+            .filter_map(|d| serde_json::from_str::<serde_json::Value>(d).ok())
+            .filter_map(|v| StreamEnvelope::from_value(&v))
+            .collect();
+        // The `connected` frame yields no envelope; the tube frame does.
+        assert_eq!(envs.len(), 1);
+        assert_eq!(envs[0].kind, StreamKind::Tube);
+        assert_eq!(envs[0].body.get("text").and_then(|t| t.as_str()), Some("control.interrupt"));
     }
 }

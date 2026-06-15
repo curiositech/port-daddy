@@ -18,6 +18,7 @@ mod dispatch_pane;
 mod fleet_pane;
 mod health_pane;
 mod inbox_pane;
+mod lane_pane;
 mod maritime;
 mod notes_pane;
 mod pane;
@@ -41,8 +42,9 @@ use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
+use lane_pane::LanePane;
 use notes_pane::NotesPane;
-use pane::{CoastGuardPane, Pane};
+use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
 use prs_pane::PrsPane;
 use roadmap_pane::RoadmapPane;
@@ -114,6 +116,10 @@ fn main() {
         .run(move |cx: &mut App| {
         let daemon_url = daemon_url.clone();
 
+        // Operator control plane: the Lane's Interrupt button (foreground) sends
+        // ControlMsg to the background thread that owns the surfaces + daemon.
+        let (control_tx, control_rx) = mpsc::channel::<app::ControlMsg>();
+
         let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
 
         let window = cx
@@ -130,8 +136,14 @@ fn main() {
                     ..Default::default()
                 },
                 |window, cx| {
+                    let control_tx = control_tx.clone();
                     let view = cx.new(|cx| {
-                        ConsoleView::new(daemon_url.clone(), initial_pane.clone(), cx)
+                        ConsoleView::with_control(
+                            daemon_url.clone(),
+                            initial_pane.clone(),
+                            Some(control_tx),
+                            cx,
+                        )
                     });
                     // Focus the view so keyboard nav (1-9, s/m/p/h/c/d) works
                     // immediately, without a click to grab focus first.
@@ -149,7 +161,7 @@ fn main() {
         // NAV order mirrors app::NAV:
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch
+        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane
         let (tx, rx) = mpsc::channel::<Vec<(usize, Vec<pane::Block>)>>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
@@ -181,9 +193,28 @@ fn main() {
                 let mut health     = HealthPane::new();        // 13
                 let mut coast      = CoastGuardPane::default();// 14
                 let mut dispatch   = DispatchQueuePane::new(); // 15
+                let mut lane       = LanePane::new();          // 16 — the LIVE one
+
+                // The Lane's live SSE stream. We (re)open it whenever the watched
+                // agent changes; envelopes are drained every loop into the lane,
+                // so the view updates at the 2s cadence with the freshest frames.
+                // (A finer cadence is a follow-up; this proves the live pipeline.)
+                let mut lane_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
 
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
+
+                    // Operator control: drain any Interrupt requests from the UI and
+                    // perform them against the agent the lane is watching.
+                    while let Ok(msg) = control_rx.try_recv() {
+                        match msg {
+                            app::ControlMsg::InterruptLane => {
+                                let _ = lane
+                                    .mutate(&client, SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
+                                    .await;
+                            }
+                        }
+                    }
 
                     // Refresh all in parallel-ish — sequential is fine at 2s cadence
                     let _ = fleet.refresh(&client).await;
@@ -202,6 +233,29 @@ fn main() {
                     let _ = health.refresh(&client).await;
                     let _ = coast.refresh(&client).await;
                     let _ = dispatch.refresh(&client).await;
+                    let _ = lane.refresh(&client).await;
+
+                    // (Re)subscribe the lane's live stream if its target changed.
+                    let want = lane.subscription();
+                    if let Some(pane::Subscription::Agent { agent_id }) = want {
+                        let reopen = match &lane_stream {
+                            Some((cur, _)) => cur != &agent_id,
+                            None => true,
+                        };
+                        if reopen {
+                            let rx = client.subscribe_agent(&agent_id);
+                            lane_stream = Some((agent_id, rx));
+                        }
+                    } else {
+                        lane_stream = None;
+                    }
+
+                    // Drain whatever the live stream delivered since last loop.
+                    if let Some((_, rx)) = lane_stream.as_mut() {
+                        while let Ok(env) = rx.try_recv() {
+                            lane.on_stream(&env);
+                        }
+                    }
 
                     let all = vec![
                         (0,  fleet.view()),
@@ -220,6 +274,7 @@ fn main() {
                         (13, health.view()),
                         (14, coast.view()),
                         (15, dispatch.view()),
+                        (16, lane.view()),
                     ];
 
                     if tx.send(all).is_err() {

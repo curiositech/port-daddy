@@ -19,6 +19,16 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::pane::{Block, Tone};
+use std::sync::mpsc;
+
+/// Operator control messages sent from the GPUI view (button clicks) back to the
+/// background refresh thread, which owns the surfaces and performs the daemon
+/// mutation. Keeps the foreground thread free of async/tokio.
+#[derive(Debug, Clone)]
+pub enum ControlMsg {
+    /// Grab the wheel: interrupt the agent the Lane is watching.
+    InterruptLane,
+}
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 
@@ -47,6 +57,7 @@ const NAV: &[NavItem] = &[
     NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
     NavItem { id: "coast",    label: "C.Guard",  icon: "icons/nav/coast.svg",    key: "c" },
     NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
+    NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/sorties.svg",  key: "l" },
 ];
 
 // ── Palette — pre-computed from DARK OKLCH theme ──────────────────────────────
@@ -221,10 +232,26 @@ pub struct ConsoleView {
     /// render (the old `cx.focus_handle()` in render) meant nothing stayed
     /// focused, so the keyboard nav never received key events.
     focus_handle: FocusHandle,
+    /// Channel to the background thread for operator mutations (Interrupt etc.).
+    /// `None` when running without a control plane (e.g. an isolated test view).
+    control_tx: Option<mpsc::Sender<ControlMsg>>,
+    /// Transient confirmation shown after a control action ("interrupt sent").
+    control_flash: Option<String>,
 }
 
 impl ConsoleView {
     pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
+        Self::with_control(daemon_url, initial_pane, None, cx)
+    }
+
+    /// Construct with a control channel so the Lane's Interrupt button can reach
+    /// the background thread that owns the surfaces.
+    pub fn with_control(
+        daemon_url: String,
+        initial_pane: Option<String>,
+        control_tx: Option<mpsc::Sender<ControlMsg>>,
+        cx: &mut Context<Self>,
+    ) -> Self {
         // Initialize one slot per NAV entry with a "connecting…" placeholder
         let pane_blocks = NAV.iter().map(|nav| {
             vec![
@@ -238,7 +265,14 @@ impl ConsoleView {
             .and_then(|id| NAV.iter().position(|n| n.id == id))
             .unwrap_or(0);
 
-        Self { active_nav, pane_blocks, daemon_url, focus_handle: cx.focus_handle() }
+        Self {
+            active_nav,
+            pane_blocks,
+            daemon_url,
+            focus_handle: cx.focus_handle(),
+            control_tx,
+            control_flash: None,
+        }
     }
 
     /// Push fresh data for all panes from the background refresh loop.
@@ -272,6 +306,9 @@ impl Render for ConsoleView {
         let daemon_url = self.daemon_url.clone();
         let active_nav_name = NAV.get(active).map(|n| n.label).unwrap_or("—");
         let active_nav_icon = NAV.get(active).map(|n| n.icon).unwrap_or("icons/nav/fleet.svg");
+        // The Lane is the only steerable surface so far — show its wheel bar.
+        let is_lane = NAV.get(active).map(|n| n.id == "lane").unwrap_or(false);
+        let control_flash = self.control_flash.clone();
 
         div()
             .key_context("console")
@@ -385,6 +422,53 @@ impl Render for ConsoleView {
                                     .flex_col()
                                     .children(blocks.into_iter().map(render_block))
                             )
+                            // ── Steering bar (Lane only) — "grab the wheel" ──
+                            .when(is_lane, |content| {
+                                content.child(
+                                    div()
+                                        .px(px(16.0))
+                                        .py(px(8.0))
+                                        .border_t_1()
+                                        .border_color(rgb(C_BORDER))
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(10.0))
+                                        // Interrupt button — POSTs /agents/:id/interrupt
+                                        // via the background thread; the control message
+                                        // returns on the stream (closed loop).
+                                        .child(
+                                            div()
+                                                .id("lane-interrupt")
+                                                .px(px(14.0))
+                                                .py(px(6.0))
+                                                .rounded(px(6.0))
+                                                .border_1()
+                                                .border_color(rgb(C_GATED))
+                                                .text_color(rgb(C_GATED))
+                                                .text_size(px(14.0))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .cursor_pointer()
+                                                .hover(|s| s.bg(rgb(C_RAISED)))
+                                                .child("◼ Interrupt")
+                                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                                    if let Some(tx) = &this.control_tx {
+                                                        let _ = tx.send(ControlMsg::InterruptLane);
+                                                        this.control_flash =
+                                                            Some("interrupt sent — watch the stream".into());
+                                                        cx.notify();
+                                                    }
+                                                })),
+                                        )
+                                        .when_some(control_flash, |bar, flash| {
+                                            bar.child(
+                                                div()
+                                                    .text_color(rgb(C_MUTED))
+                                                    .text_size(px(13.0))
+                                                    .child(flash),
+                                            )
+                                        }),
+                                )
+                            })
                     )
             )
             // ── Status bar ──
