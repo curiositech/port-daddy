@@ -256,7 +256,14 @@ export function createMacaroonStore(db: Database, secrets: SecretStore = keychai
       if (row.revokedAt !== null) return { authorized: false, reason: 'grant has been revoked' };
       const rootHex = secrets.get(rootAccount(grant.identifier));
       if (!rootHex) return { authorized: false, reason: 'grant key unavailable (revoked or evicted)' };
-      return verifyPushGrant(grant, Buffer.from(rootHex, 'hex'), discharges, ctx);
+      // The verifier holds the discharge key (HMAC-commitment model): resolve it
+      // from the store for this grant's rent caveat id.
+      const resolveCaveatKey = (caveatId: string): Buffer | null => {
+        if (caveatId !== row.rentCaveatId) return null;
+        const caveatHex = secrets.get(rentAccount(grant.identifier));
+        return caveatHex ? Buffer.from(caveatHex, 'hex') : null;
+      };
+      return verifyPushGrant(grant, Buffer.from(rootHex, 'hex'), discharges, ctx, resolveCaveatKey);
     },
 
     /**

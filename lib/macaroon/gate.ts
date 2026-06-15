@@ -38,7 +38,10 @@ export function verifyPushGrant(
   rootKey: Buffer,
   discharges: Macaroon[],
   ctx: RequestContext,
+  /** Resolve the discharge key for a third-party caveat id (the daemon holds
+   *  these in its store — the HMAC-commitment model). Omit for first-party-only. */
+  resolveCaveatKey: (caveatId: string) => Buffer | null = () => null,
 ): GateResult {
-  const res: VerifyResult = verify(grant, rootKey, discharges, makeChecker(ctx));
+  const res: VerifyResult = verify(grant, rootKey, discharges, makeChecker(ctx), resolveCaveatKey);
   return { authorized: res.ok, reason: res.reason };
 }

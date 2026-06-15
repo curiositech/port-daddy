@@ -11,10 +11,12 @@
  * by the shared test vectors (ADR-0054 Phase 6). New consumers should target the
  * kernel via the planned koffi FFI client, not import this directly.
  *
- * Known divergence to close (ADR-0054 Phase 6): the third-party caveat `vid` here
- * is AES-GCM-sealed; the canonical Rust impl uses an HMAC commitment. Until the
- * realignment lands, this module is NOT wire-compatible with the kernel for
- * third-party (rent-paid) caveats.
+ * Byte-parity status (ADR-0054 Phase 6): CLOSED. The third-party caveat `vid` here
+ * is now the same HMAC commitment (`HMAC(chain_sig, caveat_key)`) as the canonical
+ * Rust impl — no longer AES-GCM — and `verify()` takes a `resolveCaveatKey` resolver
+ * (the verifier holds the key), matching Rust. Parity is asserted both ways by the
+ * shared vectors in `tests/fixtures/macaroon-parity-vectors.json`
+ * (`tests/unit/macaroon-parity.test.js` ⇄ the Rust `parity_vectors` test).
  *
  * Public surface:
  *   - Core crypto: create / addFirstPartyCaveat / addThirdPartyCaveat /

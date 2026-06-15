@@ -56,7 +56,7 @@ function attemptPush(s, { facts, ctx, dischargeNowMs = T }) {
   });
   if (!d.ok) return { discharge: d, gate: null };
   const bound = prepareForRequest(s.macaroon, d.discharge);
-  const gate = verifyPushGrant(s.macaroon, s.rootKey, [bound], ctx);
+  const gate = verifyPushGrant(s.macaroon, s.rootKey, [bound], ctx, (id) => (id === s.rentCaveatId ? s.caveatKey : null));
   return { discharge: d, gate };
 }
 
@@ -109,7 +109,7 @@ describe('rent not paid — discharge is refused with a corrective reason', () =
 
   test('without a discharge the gate rejects (no rent, no push)', () => {
     const s = setup();
-    const gate = verifyPushGrant(s.macaroon, s.rootKey, [], pushCtx());
+    const gate = verifyPushGrant(s.macaroon, s.rootKey, [], pushCtx(), (id) => (id === s.rentCaveatId ? s.caveatKey : null));
     expect(gate.authorized).toBe(false);
     expect(gate.reason).toMatch(/no discharge macaroon/);
   });

@@ -20,18 +20,30 @@
  * on branch `defense/anchor-attenuation-soundness` in ProVerif — which is why
  * `verify()` recomputes the chain hop by hop rather than trusting any shortcut.
  *
- * Crypto primitives are Node's built-in `node:crypto` (HMAC-SHA256, AES-256-GCM,
- * SHA-256), matching `lib/note-encryption.ts` and `lib/coordination-crypto.ts`.
+ * Crypto primitives are Node's built-in `node:crypto` HMAC-SHA256 only.
+ *
+ * BYTE-PARITY: this TS module is a deprecated fallback whose construction is
+ * locked byte-for-byte to the canonical Rust impl (`core/kernel/pd-anchor`,
+ * ADR-0054 §"kernel-canonical"). The third-party caveat `vid` is an HMAC
+ * COMMITMENT — `vid = HMAC(chain_sig, caveat_key)` — NOT an AES-GCM seal: the
+ * verifier already holds the caveat key (from its store) and recomputes the
+ * commitment, so no AEAD is needed and the construction is deterministic and
+ * cross-language identical. Parity is asserted by the shared vectors in
+ * `tests/fixtures/macaroon-parity-vectors.json` (see `tests/unit/macaroon-parity.test.js`
+ * and the Rust `parity_vectors` test). Do NOT change the construction here without
+ * regenerating the vectors from Rust and keeping both suites green.
  */
 
-import { createHash, createHmac, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
+import { createHmac } from 'node:crypto';
 import type { Caveat, Macaroon, RequestContext } from './types.js';
 import { isThirdParty } from './types.js';
 
 const HMAC_ALGO = 'sha256';
-const ENC_ALGO = 'aes-256-gcm';
 /** Binding key for prepare-for-request: 32 zero bytes, per libmacaroons. */
 const BIND_KEY = Buffer.alloc(32, 0);
+/** Bound on discharge-chain recursion (matches Rust MAX_DISCHARGE_DEPTH). A depth
+ *  limit — not a visited-set — so sibling discharges don't false-trigger a cycle. */
+const MAX_DISCHARGE_DEPTH = 16;
 
 /** SHA-256 signatures are always 32 bytes → 64 hex chars. */
 const SIG_HEX_LEN = 64;
@@ -69,39 +81,13 @@ function hmac(key: Buffer, ...messages: Buffer[]): Buffer {
   return h.digest();
 }
 
-/** Derive a 32-byte AES key from a chain signature (the signature is already a
- *  32-byte HMAC output, but we hash it so the encryption key is domain-separated
- *  from the MAC value the verifier compares against). */
-function deriveEncKey(sig: Buffer): Buffer {
-  return createHash('sha256').update(Buffer.from('pd-macaroon-vid\0')).update(sig).digest();
-}
-
-/** Seal a discharge root key under the current chain signature → vid (hex). */
-function sealVid(sig: Buffer, caveatKey: Buffer): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv(ENC_ALGO, deriveEncKey(sig), iv);
-  const ct = Buffer.concat([cipher.update(caveatKey), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, ct]).toString('hex');
-}
-
-/** Recover a discharge root key from a vid (hex) using the current chain sig.
- *  Returns null if the vid is malformed or the GCM tag does not authenticate.
- *  Length is bounded and hex-validated fail-fast before any decode. */
-function openVid(sig: Buffer, vidHex: string): Buffer | null {
-  if (!isValidHex(vidHex) || vidHex.length > MAX_VID_HEX) return null;
-  const buf = Buffer.from(vidHex, 'hex');
-  if (buf.length < 12 + 16) return null;
-  const iv = buf.subarray(0, 12);
-  const tag = buf.subarray(12, 28);
-  const ct = buf.subarray(28);
-  try {
-    const decipher = createDecipheriv(ENC_ALGO, deriveEncKey(sig), iv);
-    decipher.setAuthTag(tag);
-    return Buffer.concat([decipher.update(ct), decipher.final()]);
-  } catch {
-    return null;
-  }
+/** The third-party verification id: an HMAC COMMITMENT to the discharge key,
+ *  binding it into the chain at this hop. `vid = HMAC(chain_sig, caveat_key)`.
+ *  Deterministic and cross-language identical with the canonical Rust impl. The
+ *  verifier recomputes this from the caveat key it already holds — it does not
+ *  recover the key from the vid. */
+function commitVid(sig: Buffer, caveatKey: Buffer): string {
+  return hmac(sig, caveatKey).toString('hex');
 }
 
 function caveatBytes(c: Caveat): Buffer {
@@ -155,7 +141,7 @@ export function addThirdPartyCaveat(
   location: string,
 ): Macaroon {
   const prevSig = Buffer.from(m.signature, 'hex');
-  const vid = sealVid(prevSig, caveatKey);
+  const vid = commitVid(prevSig, caveatKey);
   const cav: Caveat = { cid: caveatId, vid, cl: location };
   const sig = hmac(prevSig, caveatBytes(cav));
   return { ...m, caveats: [...m.caveats, cav], signature: sig.toString('hex') };
@@ -199,6 +185,10 @@ export function verify(
   rootKey: Buffer,
   discharges: Macaroon[],
   checkFirstParty: (predicate: string) => boolean,
+  /** Resolve the discharge key committed by a third-party caveat id. The verifier
+   *  holds these in its store (the HMAC-commitment model). Defaults to "no keys",
+   *  which is correct for first-party-only macaroons. */
+  resolveCaveatKey: (caveatId: string) => Buffer | null = () => null,
 ): VerifyResult {
   // Fail-fast on a malformed root signature before any allocation/decode — the
   // top-level macaroon is attacker-controlled input at the gate.
@@ -206,7 +196,7 @@ export function verify(
     return { ok: false, reason: 'malformed root signature' };
   }
   const rootBoundSig = Buffer.from(m.signature, 'hex');
-  return verifyInner(m, rootKey, discharges, checkFirstParty, rootBoundSig, new Set(), true);
+  return verifyInner(m, rootKey, discharges, checkFirstParty, resolveCaveatKey, rootBoundSig, 0, true);
 }
 
 function verifyInner(
@@ -214,10 +204,15 @@ function verifyInner(
   rootKey: Buffer,
   discharges: Macaroon[],
   checkFirstParty: (predicate: string) => boolean,
+  resolveCaveatKey: (caveatId: string) => Buffer | null,
   rootBoundSig: Buffer,
-  seen: Set<string>,
+  depth: number,
   isRoot: boolean,
 ): VerifyResult {
+  if (depth > MAX_DISCHARGE_DEPTH) {
+    return { ok: false, reason: 'discharge chain too deep (possible cycle)' };
+  }
+
   // Fail-closed runtime shape check: a macaroon may arrive from untrusted JSON
   // (a discharge presented at the gate). Never throw on malformed input —
   // return a clean refusal so a hostile payload can't crash the verifier.
@@ -229,22 +224,22 @@ function verifyInner(
     return { ok: false, reason: 'malformed macaroon structure' };
   }
 
-  // Loop guard: a discharge that references itself (or a cycle) must not recurse
-  // forever. Each macaroon is verified at most once per chain.
-  if (seen.has(m.identifier)) {
-    return { ok: false, reason: `discharge cycle detected at "${m.identifier}"` };
-  }
-  seen.add(m.identifier);
-
   let sig = hmac(rootKey, Buffer.from(m.identifier, 'utf8'));
   for (const c of m.caveats) {
     if (!isWellFormedCaveat(c)) {
       return { ok: false, reason: 'malformed caveat' };
     }
     if (isThirdParty(c)) {
-      const caveatKey = openVid(sig, c.vid as string);
+      // HMAC-commitment model: resolve the caveat key from the verifier's store,
+      // recompute the commitment, and confirm it matches the presented vid. The
+      // key is never recovered FROM the vid.
+      const caveatKey = resolveCaveatKey(c.cid);
       if (!caveatKey) {
-        return { ok: false, reason: `third-party caveat vid failed to open for "${c.cid}"` };
+        return { ok: false, reason: `no discharge key for caveat "${c.cid}"` };
+      }
+      const expectedVid = commitVid(sig, caveatKey);
+      if (!isValidHex(c.vid, 32) || !timingSafeEqualHex(Buffer.from(expectedVid, 'hex'), c.vid as string)) {
+        return { ok: false, reason: `third-party caveat key mismatch for "${c.cid}"` };
       }
       const discharge = discharges.find((d) => d.identifier === c.cid);
       if (!discharge) {
@@ -255,8 +250,9 @@ function verifyInner(
         caveatKey,
         discharges,
         checkFirstParty,
+        resolveCaveatKey,
         rootBoundSig,
-        seen,
+        depth + 1,
         false,
       );
       if (!sub.ok) return sub;
