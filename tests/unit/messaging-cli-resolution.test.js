@@ -1,5 +1,8 @@
 import { jest } from '@jest/globals';
 
+/** Strip ANSI color escapes so message-content assertions survive UI theming. */
+const stripAnsi = (s) => s.replace(/\[[0-9;]*m/g, '');
+
 const mockPdFetch = jest.fn();
 const mockResolveTarget = jest.fn(() => ({ host: '127.0.0.1', port: 9876 }));
 const mockHttpRequest = jest.fn();
@@ -82,8 +85,12 @@ describe('messaging CLI channel resolution', () => {
     expect(mockPdFetch.mock.calls[1][0]).toBe(
       'http://localhost:9876/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop'
     );
-    // Success message may include ANSI color codes; verify it was called.
+    // Success message colors only the channel; strip ANSI and confirm it
+    // actually reports the publish, so a regression in the message still fails.
     expect(mockUi.success).toHaveBeenCalled();
+    const successMsg = stripAnsi(String(mockUi.success.mock.calls[0][0]));
+    expect(successMsg).toContain('Published to');
+    expect(successMsg).toMatch(/\(id:/);
   });
 
   test('handlePub falls back to the raw channel when no declaration exists', async () => {
@@ -163,7 +170,10 @@ describe('messaging CLI channel resolution', () => {
     expect(mockHttpRequest.mock.calls[0][0]).toMatchObject({
       path: '/msg/br%3Arepo1234%3Aworka111%3Afeature-a-123abc%3Atauri%3Adesktop/subscribe',
     });
-    // Info message may include ANSI color codes; verify it was called.
+    // Info message colors only the channel; strip ANSI and confirm it reports
+    // the subscription target, so a regression in the message still fails.
     expect(mockUi.info).toHaveBeenCalled();
+    const infoMsg = stripAnsi(String(mockUi.info.mock.calls[0][0]));
+    expect(infoMsg).toContain('Subscribing to');
   });
 });

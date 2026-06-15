@@ -68,10 +68,28 @@ pub struct TubeMsg {
 }
 
 /// Thin client for the live daemon — discovers it the canonical way (PR #261):
-/// `PORT_DADDY_URL`, else the TCP port from `~/.port-daddy/daemon.port`, else 9876.
+/// `PORT_DADDY_URL`, else the TCP port the running daemon wrote to
+/// `~/.port-daddy/daemon.port`. There is no hardcoded port fallback: the daemon
+/// writes that file when it boots, so its absence means there is no daemon to
+/// talk to — fail loudly with the fix rather than guess a port.
 pub struct DaemonClient {
     base: String,
     http: reqwest::Client,
+}
+
+/// Funnel a daemon response through a status check. reqwest treats 4xx/5xx as
+/// `Ok`, so any call that cares whether the daemon accepted the request must
+/// pass through here before reading the body — otherwise a rejection reads as
+/// success. Returns the response on 2xx; an error with status + body otherwise
+/// (best-effort body read, since we are already on the error path).
+async fn ensure_success(resp: reqwest::Response, op: &str) -> Result<reqwest::Response> {
+    let status = resp.status();
+    if status.is_success() {
+        Ok(resp)
+    } else {
+        let body = resp.text().await.unwrap_or_default();
+        Err(anyhow!("{op} failed: HTTP {status}: {}", body.trim()))
+    }
 }
 
 impl DaemonClient {
@@ -83,7 +101,12 @@ impl DaemonClient {
                 .map(|h| h.join(".port-daddy/daemon.port"))
                 .and_then(|p| std::fs::read_to_string(p).ok())
                 .and_then(|s| s.trim().parse::<u16>().ok())
-                .unwrap_or(9876);
+                .ok_or_else(|| {
+                    anyhow!(
+                        "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, \
+                         or start the daemon (it writes ~/.port-daddy/daemon.port)"
+                    )
+                })?;
             format!("http://127.0.0.1:{port}")
         };
         Ok(Self { base, http: reqwest::Client::new() })
@@ -117,6 +140,9 @@ impl DaemonClient {
             .send()
             .await
             .context("POST /spawn")?;
+        // reqwest returns Ok on 4xx/5xx — check status before trusting the body,
+        // so a budget/validation rejection surfaces as an error, not a parse miss.
+        let resp = ensure_success(resp, "spawn").await?;
         let v: serde_json::Value = resp.json().await.context("spawn response")?;
         v.get("agentId")
             .and_then(|a| a.as_str())
@@ -127,26 +153,32 @@ impl DaemonClient {
     /// Post a turn up the tube.
     pub async fn tube_send(&self, channel: &str, text: &str, sender: &str) -> Result<()> {
         let body = serde_json::json!({ "payload": { "text": text }, "sender": sender });
-        self.http
+        let resp = self
+            .http
             .post(format!("{}/msg/{channel}", self.base))
             .json(&body)
             .send()
             .await
             .context("POST /msg/<channel>")?;
+        // A non-2xx (invalid channel, guard rejection, rate limit) must not be
+        // reported to the operator as a delivered message.
+        ensure_success(resp, "tube_send").await?;
         Ok(())
     }
 
     /// Pull replies after `cursor`. Returns (new_cursor, messages).
     pub async fn tube_poll(&self, channel: &str, cursor: u64) -> Result<(u64, Vec<TubeMsg>)> {
-        let v: serde_json::Value = self
+        let resp = self
             .http
             .get(format!("{}/msg/{channel}", self.base))
             .query(&[("after", cursor.to_string())])
             .send()
             .await
-            .context("GET /msg/<channel>")?
-            .json()
-            .await?;
+            .context("GET /msg/<channel>")?;
+        // Without this, a 4xx/5xx error body deserializes into a Value with no
+        // `messages` key and silently looks like "no new messages".
+        let resp = ensure_success(resp, "tube_poll").await?;
+        let v: serde_json::Value = resp.json().await?;
         let mut out = Vec::new();
         let mut max = cursor;
         if let Some(arr) = v.get("messages").and_then(|m| m.as_array()) {

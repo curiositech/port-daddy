@@ -32,9 +32,6 @@ const ALLOWED_FILES = new Set([
   'shared/daemon-discovery.ts',
   // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
   'apps/FleetBar/FleetBar/DaemonLocation.swift',
-  // Canonical Rust constant — DaemonClient::discover() resolves PORT_DADDY_URL, then
-  // ~/.port-daddy/daemon.port, then this last-resort fallback (can't import the TS module).
-  'core/pd-console/src/agent.rs',
   // Web dashboard config UI's intentional fallback constant when env discovery fails.
   'fleet-config-ui/src/api.ts',
   // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
