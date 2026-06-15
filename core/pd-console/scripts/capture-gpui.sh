@@ -6,10 +6,11 @@
 # runs this script (System Settings → Privacy & Security → Screen Recording).
 # A background/headless context (e.g. a CI runner or detached agent) is denied by
 # TCC and screencapture prints "could not create image from display" — run this
-# from a normal Terminal session that has the permission.
+# from a normal Terminal session that has the permission. (No Accessibility
+# permission needed: we open each pane via `--pane`, not injected keystrokes.)
 #
 # Usage:  core/pd-console/scripts/capture-gpui.sh [output-dir]
-# Output: window-<pane>.png for a representative set of panes + a short gif.
+# Output: window-<pane>.png for a representative set of panes, cropped to the app.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"          # core/pd-console
@@ -25,36 +26,48 @@ fi
 cleanup() { pkill -f "target/release/pd-console" 2>/dev/null || true; }
 trap cleanup EXIT
 
-cleanup; sleep 1
-"$BIN" >/dev/null 2>&1 &
-sleep 6   # window open + first 2s refresh + 500ms drain
-
-proc() { osascript -e 'tell application "System Events" to first process whose name contains "pd-console"'; }
-
-# Region of the window (position + size), so we crop to just the app.
-read -r X Y W H < <(osascript -e \
-  'tell application "System Events" to tell (first process whose name contains "pd-console") to get position & size of window 1' \
-  2>/dev/null | tr ',' ' ')
-echo "window region: $X $Y $W $H"
-
-shoot() { # $1 = pane key, $2 = filename label
-  osascript -e 'tell application "System Events" to set frontmost of (first process whose name contains "pd-console") to true' || true
-  if [[ -n "${1:-}" ]]; then
-    osascript -e "tell application \"System Events\" to keystroke \"$1\"" || true
-    sleep 2  # let the 500ms drain + 2s refresh settle on the new pane
-  fi
-  if [[ -n "${X:-}" ]]; then
-    screencapture -x -R"$X,$Y,$W,$H" "$OUT/window-$2.png"
-  else
-    screencapture -x "$OUT/window-$2.png"      # whole screen fallback
-  fi
-  echo "captured $2"
+# The pd-console window's CGWindowID via Quartz. `screencapture -l<id>` then
+# grabs that window's own backing store regardless of z-order — so a terminal
+# sitting in front of it can't occlude the shot (region-based -R can't do that).
+# Owner-name filtering needs no Screen Recording permission; capturing the image
+# does (run from a permitted Terminal).
+windowid() {
+  python3 - <<'PY' 2>/dev/null
+import Quartz
+ws = Quartz.CGWindowListCopyWindowInfo(
+    Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
+    Quartz.kCGNullWindowID)
+# Pick the largest pd-console window (skip any tiny helper surfaces).
+best = None
+for w in ws:
+    if str(w.get('kCGWindowOwnerName','')) == 'pd-console':
+        b = w['kCGWindowBounds']
+        area = int(b['Width']) * int(b['Height'])
+        if best is None or area > best[1]:
+            best = (int(w['kCGWindowNumber']), area)
+if best:
+    print(best[0])
+PY
 }
 
-shoot ""  fleet      # default pane (slot 0)
-shoot "3" sorties    # SortiePane multiplexer (slot 2)
-shoot "d" dispatch   # DispatchQueuePane review queue (slot 15)
-shoot "9" sessions   # SessionsPane (slot 8)
-shoot "h" health     # HealthPane (slot 13)
+shoot() { # $1 = pane id, $2 = filename label
+  cleanup; sleep 1
+  "$BIN" --pane "$1" >/dev/null 2>&1 &
+  sleep 5  # window open + first 2s refresh + 500ms drain
+  local id; id="$(windowid)" || true
+  if [[ "${id:-}" =~ ^[0-9]+$ ]]; then
+    screencapture -x -o -l"$id" "$OUT/window-$2.png"
+    echo "captured $2  (window id $id)"
+  else
+    screencapture -x "$OUT/window-$2.png"   # whole-screen fallback
+    echo "captured $2  (FULL SCREEN — window id not found)"
+  fi
+}
+
+shoot fleet    fleet
+shoot sorties  sorties
+shoot dispatch dispatch
+shoot sessions sessions
+shoot health   health
 
 echo "done → $OUT"

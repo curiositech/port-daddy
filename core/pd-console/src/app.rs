@@ -220,7 +220,7 @@ pub struct ConsoleView {
 }
 
 impl ConsoleView {
-    pub fn new(daemon_url: String) -> Self {
+    pub fn new(daemon_url: String, initial_pane: Option<String>) -> Self {
         // Initialize one slot per NAV entry with a "connecting…" placeholder
         let pane_blocks = NAV.iter().map(|nav| {
             vec![
@@ -229,7 +229,12 @@ impl ConsoleView {
             ]
         }).collect();
 
-        Self { active_nav: 0, pane_blocks, daemon_url }
+        // Open on the requested pane if its id matches a NAV entry, else Fleet.
+        let active_nav = initial_pane
+            .and_then(|id| NAV.iter().position(|n| n.id == id))
+            .unwrap_or(0);
+
+        Self { active_nav, pane_blocks, daemon_url }
     }
 
     /// Push fresh data for all panes from the background refresh loop.

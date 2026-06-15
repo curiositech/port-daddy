@@ -101,6 +101,14 @@ fn main() {
         .base()
         .to_string();
 
+    // `--pane <id>` opens directly on a pane (e.g. `pd-console --pane sorties`).
+    // Lets the screenshot tooling capture each pane without injecting keystrokes
+    // (which needs Accessibility permission). Unknown / absent → Fleet (slot 0).
+    let initial_pane = {
+        let args: Vec<String> = std::env::args().collect();
+        args.iter().position(|a| a == "--pane").and_then(|i| args.get(i + 1).cloned())
+    };
+
     Application::new()
         .with_assets(FsAssets::locate())
         .run(move |cx: &mut App| {
@@ -121,7 +129,7 @@ fn main() {
                     focus: true,
                     ..Default::default()
                 },
-                |_window, cx| cx.new(|_cx| ConsoleView::new(daemon_url.clone())),
+                |_window, cx| cx.new(|_cx| ConsoleView::new(daemon_url.clone(), initial_pane.clone())),
             )
             .expect("failed to open pd-console window");
 
