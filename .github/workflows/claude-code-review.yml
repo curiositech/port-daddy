@@ -9,6 +9,12 @@ on:
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+  # Merge queue: `claude-review` is a required check, so it must also report
+  # on merge_group heads or queued PRs hang forever. The substantive review
+  # already ran at PR time and a rebase does not change its verdict, so the
+  # merge_group path is a pass-through — the review steps below are gated to
+  # pull_request events.
+  merge_group:
 
 jobs:
   claude-review:
@@ -26,12 +32,18 @@ jobs:
       id-token: write
 
     steps:
+      - name: Merge-queue pass-through
+        if: github.event_name == 'merge_group'
+        run: echo "Review verdict carries over from the pull_request run; merge queue re-validates build and tests."
+
       - name: Checkout repository
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       - name: Run Claude Code Review
+        if: github.event_name == 'pull_request'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
@@ -41,4 +53,3 @@ jobs:
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-
