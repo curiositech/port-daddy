@@ -67,6 +67,61 @@ describe('mintGrant — keys in the secret store, metadata in SQLite', () => {
   });
 });
 
+describe('mintGrant — fail closed when the secret store is unavailable', () => {
+  test('a failing SecretStore aborts the mint and writes no orphaned row', () => {
+    const db = createTestDb();
+    // A secret store that rejects writes (e.g. keychain unavailable).
+    const failing = {
+      put: () => false,
+      get: () => null,
+      del: () => true,
+    };
+    const store = createMacaroonStore(db, failing);
+    expect(() =>
+      store.mintGrant({
+        repoId: 'a/b',
+        session: 's',
+        expiresMs: T + 1000,
+        nowMs: T,
+      }),
+    ).toThrow(/secret store unavailable/);
+    const count = db.prepare('SELECT COUNT(*) AS n FROM macaroon_grants').get();
+    expect(count.n).toBe(0);
+  });
+
+  test('an INSERT failure rolls back the already-stored secrets (no orphaned keys)', () => {
+    const db = createTestDb();
+    // Counting secret store so we can assert every put() was matched by a del().
+    const map = new Map();
+    const puts = [];
+    const dels = [];
+    const secrets = {
+      put(a, v) {
+        puts.push(a);
+        map.set(a, v);
+        return true;
+      },
+      get(a) {
+        return map.get(a) ?? null;
+      },
+      del(a) {
+        dels.push(a);
+        return map.delete(a);
+      },
+    };
+    const store = createMacaroonStore(db, secrets);
+    // Force the INSERT to throw by removing the table out from under it.
+    db.prepare('DROP TABLE macaroon_grants').run();
+    expect(() =>
+      store.mintGrant({ repoId: 'a/b', session: 's', expiresMs: T + 1000, nowMs: T }),
+    ).toThrow();
+    // Both secrets were written, both were rolled back — nothing left behind.
+    expect(puts).toHaveLength(2);
+    expect(dels.sort()).toEqual(puts.sort());
+    expect(map.size).toBe(0);
+  });
+});
+
 describe('end-to-end through the store', () => {
   test('paid rent → discharge → verify authorizes the push', () => {
     const { store, minted } = setup();
