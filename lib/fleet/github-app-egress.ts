@@ -17,8 +17,9 @@
  *
  * Dependency-injected by design: the caller supplies the App id + PEM (loaded
  * from the keychain, never an agent-readable env var) and may inject `fetchImpl`
- * + `nowMs` for testing. Nothing here reads `process.env` or the system clock,
- * so it is pure and deterministically testable.
+ * + `nowMs` for testing. Nothing here reads `process.env`. The JWT clock defaults
+ * to `Date.now()` when `nowMs` is omitted, but is fully injectable, so the
+ * signing logic is deterministically testable.
  */
 
 import { createSign } from 'node:crypto';
@@ -65,8 +66,8 @@ export interface ScopedPushToken {
  * repo. Back-dated `iat` absorbs laptop-vs-GitHub clock skew.
  */
 export function signAppJwt(creds: AppCredentials, nowMs: number): string {
-  if (!Number.isFinite(creds.appId)) {
-    throw new Error('github-app-egress: appId is not a number');
+  if (!Number.isInteger(creds.appId) || creds.appId <= 0) {
+    throw new Error('github-app-egress: appId must be a positive integer');
   }
   const nowSec = Math.floor(nowMs / 1000);
   const header = { alg: 'RS256', typ: 'JWT' };
@@ -94,8 +95,8 @@ export function signAppJwt(creds: AppCredentials, nowMs: number): string {
  * revoked installation fails loud rather than silently yielding no token.
  */
 export async function mintScopedPushToken(req: ScopedPushTokenRequest): Promise<ScopedPushToken> {
-  if (!Number.isFinite(req.installationId)) {
-    throw new Error('github-app-egress: installationId is not a number');
+  if (!Number.isInteger(req.installationId) || req.installationId <= 0) {
+    throw new Error('github-app-egress: installationId must be a positive integer');
   }
   if (!req.owner || !req.repo) {
     throw new Error('github-app-egress: owner and repo are required');
@@ -133,9 +134,13 @@ export async function mintScopedPushToken(req: ScopedPushTokenRequest): Promise<
   if (!data?.token || !data?.expires_at) {
     throw new Error('github-app-egress: mint response missing token/expires_at');
   }
+  const expiresAt = new Date(data.expires_at).getTime();
+  if (!Number.isFinite(expiresAt)) {
+    throw new Error(`github-app-egress: mint response has an unparseable expires_at: ${data.expires_at}`);
+  }
   return {
     token: data.token,
-    expiresAt: new Date(data.expires_at).getTime(),
+    expiresAt,
     owner: req.owner,
     repo: req.repo,
   };
