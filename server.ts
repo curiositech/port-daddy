@@ -55,6 +55,7 @@ import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
+import { createTranscripts } from './lib/transcripts.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
@@ -474,7 +475,16 @@ const costTracker = createCostTracker(db, {
   },
 });
 const contextTracker = createContextWindowTracker(db);
-const spawner = createSpawner({ costTracker, counters, bonds, harbors, enforceTelemetryPolicy: true });
+// Transcript recorder — backs `pd transcripts ...`, the dashboard panel, and
+// (critically) makes every spawn record its full conversation. The spawner is
+// constructed with enforceTranscriptPolicy:true, so wiring this is mandatory:
+// without it createSpawner throws rather than run agents whose work vanishes.
+const transcripts = createTranscripts(db);
+const spawner = createSpawner({
+  costTracker, counters, bonds, harbors, transcripts,
+  enforceTelemetryPolicy: true,
+  enforceTranscriptPolicy: true,
+});
 spawnerRef = spawner;
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
@@ -998,7 +1008,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
-    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,

@@ -34,7 +34,11 @@ import type Database from 'better-sqlite3';
 // Types
 // =============================================================================
 
-export type TranscriptRole = 'system' | 'user' | 'assistant' | 'tool';
+// 'thinking' carries an agent's reasoning steps (e.g. codex `reasoning`
+// items, Claude extended-thinking blocks). It is a first-class operator-facing
+// role: the whole point of full-depth capture is that HOW the agent reasoned
+// is visible, not just its final answer.
+export type TranscriptRole = 'system' | 'user' | 'assistant' | 'tool' | 'thinking';
 export type OutputType = 'pr-comment' | 'issue' | 'draft-pr' | 'commit' | 'noop' | 'message' | 'other';
 export type TranscriptStatus = 'running' | 'completed' | 'failed' | 'killed';
 
