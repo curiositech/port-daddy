@@ -37,6 +37,7 @@ function buildApp(claims = []) {
     },
   };
   app.register(suggestionsPlugin, { deps });
+  app.addHook('onClose', () => db.close());
   return { app, suggestions, sent, db };
 }
 

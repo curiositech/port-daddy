@@ -36,10 +36,11 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
 
   fastify.get('/suggestions', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, string>;
+    const parsedLimit = q.limit != null && q.limit !== '' ? Number(q.limit) : undefined;
     const items = suggestions.list({
       agentId: q.agentId || undefined,
       status: (q.status as SuggestionStatus) || undefined,
-      limit: q.limit ? Number(q.limit) : undefined,
+      limit: parsedLimit != null && Number.isFinite(parsedLimit) ? parsedLimit : undefined,
     });
     return { success: true, suggestions: items, count: items.length };
   });

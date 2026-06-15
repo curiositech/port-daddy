@@ -62,31 +62,48 @@ describe('cooldown', () => {
     expect(make().created).toBe(true);
   });
 
-  test('declining primes the cooldown from the decline time', () => {
+  test('declining re-anchors the cooldown to the decline time, not createdAt', () => {
     const first = make();
+    // Let the suggestion sit nearly the whole window, THEN decline. If the cooldown
+    // were anchored only to createdAt, advancing 3h here + 2h below (5h > 4h) would
+    // let the same hash re-surface. Anchoring to the decline keeps it quiet.
+    clock += 3 * HOUR;
     suggestions.decline(first.suggestion.id);
-    clock += HOUR;
+    clock += 2 * HOUR; // 5h since create, but only 2h since decline
     // a *different* hash is unaffected
     expect(make({ payloadHash: 'hash-2' }).created).toBe(true);
-    // same hash still cooling down
+    // same hash still cooling down because decline re-armed the 4h window
     expect(make().created).toBe(false);
+    // and it re-surfaces once 4h have passed since the decline
+    clock += 2 * HOUR + 1;
+    expect(make().created).toBe(true);
   });
 });
 
 describe('budget', () => {
   test('caps surfaced suggestions per agent per rolling hour', () => {
-    const s = createSuggestions(createTestDb(), { now: () => clock, policy: { hourlyBudget: 3 } });
-    for (let i = 0; i < 3; i++) {
-      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: { i }, payloadHash: `h${i}` }).created).toBe(true);
+    const budgetDb = createTestDb();
+    try {
+      const s = createSuggestions(budgetDb, { now: () => clock, policy: { hourlyBudget: 3 } });
+      for (let i = 0; i < 3; i++) {
+        expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: { i }, payloadHash: `h${i}` }).created).toBe(true);
+      }
+      const over = s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: { i: 4 }, payloadHash: 'h4' });
+      expect(over).toMatchObject({ created: false, reason: 'budget' });
+    } finally {
+      budgetDb.close();
     }
-    const over = s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: { i: 4 }, payloadHash: 'h4' });
-    expect(over).toMatchObject({ created: false, reason: 'budget' });
   });
 
   test('budget is per-agent, not global', () => {
-    const s = createSuggestions(createTestDb(), { now: () => clock, policy: { hourlyBudget: 1 } });
-    expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'x' }).created).toBe(true);
-    expect(s.create({ agentId: 'b', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'x' }).created).toBe(true);
+    const budgetDb = createTestDb();
+    try {
+      const s = createSuggestions(budgetDb, { now: () => clock, policy: { hourlyBudget: 1 } });
+      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'x' }).created).toBe(true);
+      expect(s.create({ agentId: 'b', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'x' }).created).toBe(true);
+    } finally {
+      budgetDb.close();
+    }
   });
 });
 

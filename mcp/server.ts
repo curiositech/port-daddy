@@ -572,13 +572,14 @@ const TOOLS = [
     name: 'list_nudges',
     description:
       '[Suggestions] List your pending suggestibility nudges — e.g. claim-overlap heads-up when another live session is on your surface. ' +
-      'Usage: list_nudges({agentId: "my-agent-id"})',
+      'Usage: list_nudges({agent_id: "my-agent-id"})',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        agentId: { type: 'string', description: 'Agent whose nudges to list' },
+        agent_id: { type: 'string', description: 'Agent whose nudges to list (required — scopes the result to you, never list all)' },
         status: { type: 'string', description: "Filter by status (default 'pending')" },
       },
+      required: ['agent_id'],
     },
   },
   {
@@ -3177,8 +3178,10 @@ async function handleTool(
     }
 
     case 'list_nudges': {
+      // agent_id is required by the tool schema — always scope to the caller so an
+      // agent can never enumerate every agent's nudges via an unfiltered list.
       const params = new URLSearchParams();
-      if (args.agentId) params.set('agentId', args.agentId as string);
+      params.set('agentId', args.agent_id as string);
       params.set('status', (args.status as string) || 'pending');
       res = await GET(`/suggestions?${params.toString()}`);
       break;

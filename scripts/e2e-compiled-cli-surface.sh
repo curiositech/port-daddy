@@ -198,6 +198,7 @@ run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
 run_read "ideas"             ideas       -- ideas
 run_read "attention"         attention   -- attention --agent surface:smoke:ci
+run_read "nudge"             nudge       -- nudge --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
 run_read "send (usage)"      send        -- send
 run_read "hints"             hints       -- hints
