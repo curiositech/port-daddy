@@ -83,6 +83,7 @@ them together (verified: no `Cargo.toml` at repo root or under `core/`):
 | `core/pd-bosun` | filesystem-heartbeat supervisor for the daemon | On `main`, `v0.1.0`, empty `[dependencies]` | The daemon (as a watchdog) | **Shadowed** — a shipped TS twin `lib/bosun-heartbeat.ts` does the live job today; the Rust crate is a stub |
 | `core/harbor-card-rs` | Ed25519 harbor-card issue/verify + capability attenuation, `crate-type = ["cdylib", "rlib"]` (i.e. an FFI library) | On `main`, `v0.1.0` | The TS daemon, via FFI | **Aspirational** — `lib/cap-attenuation-monitor.ts:11` states the FFI enforcer "depends on a Rust enforcer. When that binary is absent" it falls back to pure-TS enforcement. The fallback is what runs today |
 | `core/pd-console` | GPUI native shell (the operator-TUI seat of ADR-0046) | **Not on `main`** — open in **PR #306** and **PR #318** | The operator | **Unlanded** |
+| `core/kernel/*` (`pd-core`, `pd-eventlog`, `pd-anchor`, `pd-runtime`, `pd-compat`, `pd-mesh`, `pd-tui`) | The single-writer kernel workspace: domain state machine, append-only WAL eventlog, Ed25519 capability cards **+ the canonical macaroon discharge gate** (`pd-anchor::macaroon`, ADR-0053 Phase 1), job/context runtime, read-only TS→Rust import bridge | **On `main` — landed via PR #306 (2026-06-15), AFTER this ADR was accepted.** Supersedes the "no `core/kernel`" stance in Part 2 below. | The TS daemon (via FFI, planned) | **Canonical-impl landed, FFI pending** — `pd-anchor::macaroon` is the canonical macaroon implementation; the TS `lib/macaroon` is deprecated to a byte-parity fallback (the harbor-card-rs model), pending shared test vectors + a koffi FFI client |
 
 So the Rust surface is four crates at four different maturities: one standalone TUI
 binary, one stub shadowed by working TypeScript, one FFI library whose binary is not
@@ -249,6 +250,41 @@ shared-crate workspace ever becomes worth it (today it is not — three stubs do
 justify a `Cargo.toml` workspace), that is a future ADR with its own Implementation
 Matrix.
 
+#### Update (2026-06-15) — the kernel landed; the macaroon gate is kernel-canonical
+
+The paragraph above is **superseded by reality**: **`core/kernel/` landed on `main`
+via PR #306** three days after this ADR was accepted. It is a real
+`Cargo.toml` workspace — `pd-core` (work-transaction state machine), `pd-eventlog`
+(single-writer WAL append-only log), `pd-anchor` (Ed25519 capability cards), plus
+`pd-runtime`/`pd-compat`/`pd-mesh`/`pd-tui`. An independent adversarial review (logged
+on PR #390) found the crates real and tested — not the stubs this ADR assumed. The
+"three stubs do not justify a workspace" judgment was correct *when written*; the
+work-list grew, so the judgment changed. This is the honest-update discipline of
+ADR-0043, not a reversal in bad faith.
+
+One concrete convergence decision follows from the landing, and it is the reason for
+this update:
+
+**The macaroon discharge gate is kernel-canonical.** The capability primitive of
+ADR-0053 (a **macaroon** — Birgisson et al. 2014, a bearer credential whose authority
+only narrows) exists in two runtimes: a TypeScript library (`lib/macaroon`, PRs
+#384/#385) and a Rust module (`pd-anchor::macaroon`, ADR-0053 Step A). They are **not
+wire-compatible** — TS seals the third-party-caveat verification id with AES-GCM, Rust
+uses an HMAC commitment (no AEAD dependency, sound in the daemon-is-verifier-and-key-
+holder model). Two live verifiers of the same credential is the OP-3 dual-runtime
+hazard the *Single-Writer Kernel* whitepaper names (invariant I11).
+
+The resolution, mirroring **`harbor-card-rs`** exactly (this ADR's Phase 4): the
+**Rust `pd-anchor::macaroon` is the canonical implementation and the preferred runtime
+path via FFI**; the TS `lib/macaroon` is **deprecated to a byte-parity fallback** used
+only when the FFI dylib is absent (source installs, CI) — the same posture
+`cap-attenuation-monitor.ts` holds toward the harbor enforcer today. Parity is made
+enforceable, not aspirational, by **shared test vectors generated from the canonical
+Rust impl** that both test suites assert against; the TS third-party construction is
+realigned to the Rust HMAC commitment so the divergence closes. The koffi FFI client
+(`lib/arbiter.ts` is the working template) and the build wiring follow the
+`harbor-card-rs` precedent in Phase 4.
+
 ### Part 3 — The sync question, answered plainly
 
 **Is FleetBar in sync with the Rust surfaces? No — and they were never meant to be in
@@ -298,6 +334,7 @@ contract, not bolted onto one client.
 | 3 | adr-0054-phase-3-release-broadcast-note | now | adr-0054-phase-0-cadence-runbook | Make `pd note` release broadcast a step in the cut (and, if automatable, a `release.yml` job) |
 | 4 | adr-0054-phase-4-harbor-card-ffi-build | now | — | Wire `harbor-card-rs` FFI build into `build-single-binary.mjs` + CI so the Rust enforcer replaces the TS fallback |
 | 5 | adr-0054-phase-5-console-api-parity | now | adr-0046-operator-tui | Land `pd-console` (PRs #306/#318); enforce daemon-API parity with FleetBar (contract, not code) |
+| 6 | adr-0054-phase-6-macaroon-kernel-canonical | now | adr-0053-macaroon-discharge-gate | Make `pd-anchor::macaroon` the canonical macaroon implementation (PR #393 landed it). Generate shared test vectors from the Rust impl; realign the TS `lib/macaroon` third-party caveat to the Rust HMAC commitment + assert byte-parity against the vectors; deprecate `lib/macaroon` to the fallback role. Then a koffi FFI client (template: `lib/arbiter.ts`) + build wiring, mirroring Phase 4. |
 
 Slugs are the join key; keep them stable. Per ADR-0043, Cartographer owns syncing
 these rows to `roadmap_items` and `pd adr matrix 0054` renders live status.

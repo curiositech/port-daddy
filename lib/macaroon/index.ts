@@ -1,6 +1,21 @@
 /**
  * Macaroon library (ADR-0053 Phase 1 — the macaroon-discharge gate).
  *
+ * @deprecated NON-CANONICAL. The canonical macaroon implementation is the Rust
+ * kernel crate `core/kernel/pd-anchor` (`pd-anchor::macaroon`) — see ADR-0054
+ * §"Update (2026-06-15) — the macaroon gate is kernel-canonical". This TS module
+ * is retained as a byte-parity FALLBACK (used only when the FFI dylib is absent,
+ * the way `lib/cap-attenuation-monitor.ts` falls back for the harbor enforcer),
+ * NOT as a second authoritative implementation. Do NOT extend the construction
+ * here independently: any change must keep byte-parity with the Rust impl, proven
+ * by the shared test vectors (ADR-0054 Phase 6). New consumers should target the
+ * kernel via the planned koffi FFI client, not import this directly.
+ *
+ * Known divergence to close (ADR-0054 Phase 6): the third-party caveat `vid` here
+ * is AES-GCM-sealed; the canonical Rust impl uses an HMAC commitment. Until the
+ * realignment lands, this module is NOT wire-compatible with the kernel for
+ * third-party (rent-paid) caveats.
+ *
  * Public surface:
  *   - Core crypto: create / addFirstPartyCaveat / addThirdPartyCaveat /
  *     prepareForRequest / verify / serialize / deserialize  (macaroon.ts)
