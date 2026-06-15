@@ -165,7 +165,10 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
     }
 
     case 'cli:claude-code':
-    case 'cli:codex': {
+    case 'cli:codex':
+    case 'cli:gemini':
+    case 'cli:groq':
+    case 'cli:grok': {
       // CLI-tube backends route through the operator's local Claude
       // Code / Codex CLI. Auth + billing live in that CLI; this app
       // doesn't see per-token cost. We mark these as flat-rate
@@ -173,7 +176,7 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
       // assumption the operator pays for Claude Max / ChatGPT Pro.
       // Operators MUST still set a daily project budget; the kill-switch
       // monitors call count and per-spawn timeouts.
-      const effectiveModel = model?.trim() || (backend === 'cli:claude-code' ? 'claude-code' : 'codex');
+      const effectiveModel = model?.trim() || backend.slice('cli:'.length);
       return {
         backend,
         launchAllowed: true,

@@ -207,6 +207,41 @@ describe('backend readiness', () => {
     expect(readiness.summary).toContain('has no exact cost rate entry');
   });
 
+  test.each([
+    ['cli:gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
+    ['cli:groq', 'groq', 'PD_CLI_GROQ_BIN'],
+    ['cli:grok', 'grok', 'PD_CLI_GROK_BIN'],
+  ])('%s reports needs_setup when the binary is missing, manual_check when found', async (backend, bin, envKey) => {
+    delete process.env[envKey];
+
+    mockSpawnSync.mockReturnValue({ status: 1 });
+    const missing = await assessBackendReadiness(backend);
+    expect(mockSpawnSync).toHaveBeenCalledWith('which', [bin], expect.objectContaining({ encoding: 'utf-8' }));
+    expect(missing).toMatchObject({ backend, status: 'needs_setup' });
+    expect(missing.summary).toContain('not found');
+
+    mockSpawnSync.mockImplementation((command, args) => ({
+      status: command === 'which' && args[0] === bin ? 0 : 1,
+    }));
+    const found = await assessBackendReadiness(backend);
+    expect(found).toMatchObject({ backend, status: 'manual_check' });
+    expect(found.nextStep).toContain(`PD_USE_CLI_BACKEND=${bin}`);
+  });
+
+  test('cli:gemini honors the PD_CLI_GEMINI_BIN binary override', async () => {
+    process.env.PD_CLI_GEMINI_BIN = 'gemini-beta';
+    try {
+      mockSpawnSync.mockImplementation((command, args) => ({
+        status: command === 'which' && args[0] === 'gemini-beta' ? 0 : 1,
+      }));
+      const readiness = await assessBackendReadiness('cli:gemini');
+      expect(mockSpawnSync).toHaveBeenCalledWith('which', ['gemini-beta'], expect.anything());
+      expect(readiness.status).toBe('manual_check');
+    } finally {
+      delete process.env.PD_CLI_GEMINI_BIN;
+    }
+  });
+
   test('keeps ollama probe details while still blocking launch under telemetry policy', async () => {
     mockSpawnSync.mockImplementation((command, args) => ({
       status: command === 'which' && args[0] === 'ollama' ? 0 : 1,

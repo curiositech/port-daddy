@@ -38,10 +38,11 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { cliBinDirs } from '../../cli-bin-dirs.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CliTubeTool = 'claude-code' | 'codex';
+export type CliTubeTool = 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -113,6 +114,9 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
   'claude-code': 'claude',
   codex: 'codex',
+  gemini: 'gemini',
+  groq: 'groq',
+  grok: 'grok',
 };
 
 // Environment override key per tool — operators can swap the binary
@@ -120,6 +124,9 @@ const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
 const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
   'claude-code': 'PD_CLI_CLAUDE_CODE_BIN',
   codex: 'PD_CLI_CODEX_BIN',
+  gemini: 'PD_CLI_GEMINI_BIN',
+  groq: 'PD_CLI_GROQ_BIN',
+  grok: 'PD_CLI_GROK_BIN',
 };
 
 // Auth-error sentinels we surface verbatim so the operator sees
@@ -128,6 +135,9 @@ const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
 const AUTH_NEXT_STEP: Record<CliTubeTool, string> = {
   'claude-code': 'Run `claude setup-token` or `claude auth` to authenticate.',
   codex: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
+  gemini: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
+  groq: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
+  grok: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -180,6 +190,17 @@ export function buildArgs(
     return { args, stdin: null };
   }
 
+  if (cli === 'gemini' || cli === 'groq' || cli === 'grok') {
+    // All three agent CLIs share the claude-code-style headless surface:
+    // `-p <prompt>` runs one non-interactive turn and prints the response
+    // to stdout; `--model` overrides the model. (Gemini CLI, Groq Code
+    // CLI, and Grok CLI all follow this convention.)
+    const args = ['-p'];
+    if (model) args.push('--model', model);
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+
   throw new Error(`unknown cli tool: ${cli}`);
 }
 
@@ -198,8 +219,21 @@ export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
-  const env = { ...process.env, ...(opts.env || {}), OTEL_SDK_DISABLED: 'true' } as Record<string, string>;
-  const binary = env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
+  // only, never from per-spawn opts.env/spec.env — a caller-supplied env
+  // must not be able to redirect which executable runs.
+  const binary = process.env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Augment PATH with the same per-user install dirs backend-readiness
+  // checks, so a binary the readiness gate found is also findable at spawn
+  // time under launchd's bare PATH.
+  const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
+  const augmentedPath = [basePath, ...cliBinDirs()].filter(Boolean).join(':');
+  const env = {
+    ...process.env,
+    ...(opts.env || {}),
+    PATH: augmentedPath,
+    OTEL_SDK_DISABLED: 'true',
+  } as Record<string, string>;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
