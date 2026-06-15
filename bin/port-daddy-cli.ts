@@ -2101,7 +2101,7 @@ export async function main(): Promise<void> {
 
   if (!command || command === '--help' || command === '-h') {
     if (IS_TTY) {
-      ui.intro('Port Daddy — Your ports. My rules. Zero conflicts.');
+      ui.intro('Port Daddy — Run a tight harbor.');
     }
 
     // Launch hints — best-effort, skip if daemon not running (500ms timeout)
