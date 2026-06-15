@@ -43,6 +43,7 @@ jobs:
       pull-requests: read
     outputs:
       recordings: ${{ steps.filter.outputs.recordings }}
+      fleetbar: ${{ steps.filter.outputs.fleetbar }}
     steps:
       - id: filter
         env:
@@ -53,18 +54,28 @@ jobs:
         run: |
           if [ "$EVENT_NAME" != "pull_request" ]; then
             echo "recordings=true" >> "$GITHUB_OUTPUT"
+            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
-          # recordings rather than silently skipping a required gate.
+          # gated jobs rather than silently skipping a required gate.
           if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
             echo "recordings=true" >> "$GITHUB_OUTPUT"
+            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
             echo "recordings=true" >> "$GITHUB_OUTPUT"
           else
             echo "recordings=false" >> "$GITHUB_OUTPUT"
+          fi
+          # FleetBar (Swift menu bar app) only depends on its own sources and
+          # its packaging script. ci.yml changes re-run it so the gate itself
+          # can be edited under test.
+          if printf '%s\n' "$changed" | grep -qE '^(apps/FleetBar/|scripts/package-fleetbar\.sh$|\.github/workflows/ci\.yml$)'; then
+            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fleetbar=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -474,3 +485,33 @@ jobs:
 
       - name: cargo test
         run: cargo test
+
+  fleetbar:
+    # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
+    # CI before, so FleetPopoverTests rotted red on main unnoticed (the
+    # `backend` native surface from #218 was never added to its expected list).
+    # Now a required gate. swift is preinstalled on the macOS runner (release.yml
+    # already packages FleetBar there). Path-gated via detect-changes: a non-
+    # FleetBar PR skips this, and a skip satisfies the required check.
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.fleetbar == 'true'
+    defaults:
+      run:
+        working-directory: apps/FleetBar
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: apps/FleetBar/.build
+          key: spm-${{ runner.os }}-${{ hashFiles('apps/FleetBar/Package.resolved', 'apps/FleetBar/Package.swift') }}
+          restore-keys: |
+            spm-${{ runner.os }}-
+
+      - name: Build FleetBar
+        run: swift build
+
+      - name: Test FleetBar
+        run: swift test
