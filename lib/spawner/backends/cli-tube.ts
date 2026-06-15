@@ -35,8 +35,8 @@
 
 import { spawn as spawnChild, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinDirs } from '../../cli-bin-dirs.js';
 
@@ -85,6 +85,10 @@ export interface CliTubeResult {
   tube: string | null;
   /** Wall-clock duration of the CLI invocation in ms. */
   durationMs: number;
+  /** Unmodified stdout. For codex (`--json`) and claude-code (`stream-json`)
+   *  this is the JSONL event stream the caller parses into full-depth
+   *  transcript turns; `output` is the extracted final answer. */
+  rawStdout: string;
 }
 
 /**
@@ -162,11 +166,13 @@ export function buildArgs(
   model?: string,
 ): { args: string[]; stdin: string | null } {
   if (cli === 'claude-code') {
-    // `claude -p <prompt>` runs non-interactively and prints the
-    // response to stdout. We pass --output-format=text for stable
-    // parsing; JSON-streaming is reserved for future bidirectional
-    // tube wiring.
-    const args = ['-p', '--output-format=text'];
+    // `claude -p` runs non-interactively. `--output-format stream-json
+    // --verbose` emits one JSON object per line, including thinking /
+    // tool_use / tool_result blocks, so the spawner can record the FULL
+    // conversation (not just the final answer). The caller recovers the
+    // final answer from the terminal `result` line (extractClaudeCodeFinal).
+    // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
+    const args = ['-p', '--output-format', 'stream-json', '--verbose'];
     if (model) args.push('--model', model);
     args.push(prompt);
     return { args, stdin: null };
@@ -234,15 +240,25 @@ export async function spawnViaCliTube(
     PATH: augmentedPath,
     OTEL_SDK_DISABLED: 'true',
   } as Record<string, string>;
+  // claude-code manages its own OAuth (Claude Max). An ANTHROPIC_API_KEY in
+  // the environment overrides OAuth and breaks auth ("Invalid API key"), so
+  // strip it for this CLI — mirrors runClaudeCli's handling.
+  if (cli === 'claude-code') {
+    delete env.ANTHROPIC_API_KEY;
+  }
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
   // For codex, we use --output-last-message to capture a clean final
-  // payload (just like the spawner.ts codex backend already does).
+  // payload (just like the spawner.ts codex backend already does). Scratch
+  // goes under ~/.port-daddy (NOT the OS temp dir, which macOS purges on a
+  // timer and could yank the file out from under an in-flight run).
   let tempDir: string | null = null;
   let outputPath: string | undefined;
   if (cli === 'codex') {
-    tempDir = mkdtempSync(join(tmpdir(), `pd-cli-tube-codex-`));
+    const scratchRoot = join(homedir(), '.port-daddy', 'cli-tube-scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    tempDir = mkdtempSync(join(scratchRoot, 'codex-'));
     outputPath = join(tempDir, 'last-message.txt');
   }
 
@@ -352,6 +368,7 @@ export async function spawnViaCliTube(
     error,
     tube: tubeChannel,
     durationMs,
+    rawStdout,
   };
 }
 

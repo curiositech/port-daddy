@@ -23,6 +23,9 @@ import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
 import { parseCodexTranscript, type StructuredTurn } from './spawner/codex-transcript.js';
+import { parseClaudeCodeTranscript, extractClaudeCodeFinal } from './spawner/cli-claude-code-transcript.js';
+import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
+import { parseCloudflareTranscript } from './spawner/cloudflare-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
@@ -544,7 +547,14 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
     maxTokens: spec.maxTokens,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  // Full-depth capture: reconstruct thinking / functionCall / text turns from
+  // the raw Gemini response so the transcript shows HOW it answered.
+  if (result.ok && result.raw !== undefined) {
+    const turns = parseGeminiTranscript(result.raw);
+    if (turns.length > 0) adapted.transcript = turns;
+  }
+  return adapted;
 }
 
 async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -564,7 +574,14 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
     maxTokens: spec.maxTokens,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  // Full-depth capture: reconstruct reasoning / tool_calls / message turns
+  // from the raw Workers AI result.
+  if (result.ok && result.raw !== undefined) {
+    const turns = parseCloudflareTranscript(result.raw);
+    if (turns.length > 0) adapted.transcript = turns;
+  }
+  return adapted;
 }
 
 async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -602,9 +619,25 @@ async function runCliTube(
     model: spec.model,
     onChild: context?.onChildProcess,
   });
+
+  // Full-depth capture from the raw event stream. Both wrapped CLIs emit
+  // structured JSONL: codex → `--json` (reasoning/command/message items),
+  // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
+  if (cli === 'codex') {
+    return {
+      output: result.output,                          // final message (from --output-last-message)
+      error: result.error,
+      transcript: parseCodexTranscript(result.rawStdout || ''),
+    };
+  }
+  // claude-code: raw stdout is the stream-json; recover the final answer from
+  // the terminal `result` line (falling back to raw if absent), and parse the
+  // stream into thinking / tool / assistant turns.
+  const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
   return {
-    output: result.output,
+    output: finalAnswer ?? result.output,
     error: result.error,
+    transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
   };
 }
 
