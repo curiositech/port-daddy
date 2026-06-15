@@ -311,6 +311,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     briefing: ['briefing'],
     sugar: ['begin', 'done', 'whoami'],
     attention: ['attention'],
+    suggestions: ['nudge'],
     sitrep: ['sitrep'],
     advisor: ['advise', 'preflight', 'compass'],
     launch: ['hints'],

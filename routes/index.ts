@@ -30,6 +30,7 @@ import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
 import { sugarPlugin } from './sugar.js';
 import { attentionPlugin } from './attention.js';
+import { suggestionsPlugin } from './suggestions.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
@@ -141,6 +142,7 @@ export async function registerAllRoutes(
   await fastify.register(dnsPlugin, { deps } as any);
   await fastify.register(sugarPlugin, { deps } as any);
   await fastify.register(attentionPlugin, { deps } as any);
+  await fastify.register(suggestionsPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(attestPlugin, { deps } as any);
