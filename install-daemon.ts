@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url';
 import { homedir, platform } from 'os';
 import { getDaemonTcpUrl } from './shared/daemon-discovery.js';
 import { daemonBinaryName, resolveDaemonLaunchCommand, resolveDistributionRoot, type DaemonLaunchCommand } from './shared/daemon-binary.js';
+import { installTimeResolve } from './lib/backend-bin-resolver.js';
 
 const MODULE_DIR: string = dirname(fileURLToPath(import.meta.url));
 const __dirname: string = resolveDistributionRoot(MODULE_DIR);
@@ -537,6 +538,18 @@ function install(): void {
   if (daemon.args.length > 0) console.log(`  Args: ${daemon.args.join(' ')}`);
   if (daemon.mode === 'source') {
     console.log('  WARNING: source daemon fallback is development-only.');
+  }
+  console.log('');
+
+  // Discover and cache CLI backend binary paths using the installing user's
+  // full shell PATH. The resolved absolute paths are baked into the plist via
+  // daemon.pathDirs, so any user gets correct binary resolution regardless of
+  // how they installed their tools (nvm, pip --user, etc.).
+  console.log('Resolving CLI backend binaries...');
+  const { extraDirs } = installTimeResolve();
+  if (extraDirs.length > 0) {
+    console.log(`  Adding to daemon PATH: ${extraDirs.join(':')}`);
+    daemon = { ...daemon, pathDirs: [...(daemon.pathDirs ?? []), ...extraDirs] };
   }
   console.log('');
 

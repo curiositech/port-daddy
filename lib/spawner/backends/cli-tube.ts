@@ -38,6 +38,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { getCachedBinPath, type CliToolName } from '../../backend-bin-resolver.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -199,7 +200,12 @@ export async function spawnViaCliTube(
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
   const env = { ...process.env, ...(opts.env || {}), OTEL_SDK_DISABLED: 'true' } as Record<string, string>;
-  const binary = env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Prefer: (1) explicit env override, (2) install-time resolved absolute path,
+  // (3) bare name (relies on PATH — works in dev, fails under launchd).
+  const binary =
+    env[BINARY_ENV_OVERRIDE[cli]] ||
+    getCachedBinPath(cli as CliToolName) ||
+    DEFAULT_BINARIES[cli];
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
