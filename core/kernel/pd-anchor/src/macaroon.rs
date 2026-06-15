@@ -223,7 +223,6 @@ pub fn verify(
         Ok(s) => s,
         Err(_) => return fail("malformed root signature"),
     };
-    let mut seen: Vec<String> = Vec::new();
     verify_inner(
         macaroon,
         root_key,
@@ -231,10 +230,17 @@ pub fn verify(
         check_first_party,
         resolve_caveat_key,
         &root_bound_sig,
-        &mut seen,
+        0,
         true,
     )
 }
+
+/// Bound on discharge-chain recursion. Real chains are one level deep (a grant
+/// with a single third-party rent caveat); this is a backstop so a malicious or
+/// cyclic discharge set cannot drive unbounded recursion. A simple depth limit
+/// (not a visited-set) avoids false "cycle" rejections when a legitimate chain
+/// references the same discharge from sibling positions.
+const MAX_DISCHARGE_DEPTH: usize = 16;
 
 #[allow(clippy::too_many_arguments)]
 fn verify_inner(
@@ -244,18 +250,12 @@ fn verify_inner(
     check_first_party: &dyn Fn(&str) -> bool,
     resolve_caveat_key: &dyn Fn(&str) -> Option<Vec<u8>>,
     root_bound_sig: &[u8; 32],
-    seen: &mut Vec<String>,
+    depth: usize,
     is_root: bool,
 ) -> VerifyOutcome {
-    // Loop guard: a discharge referencing itself (or a cycle) must not recurse
-    // forever. Each macaroon is verified at most once per chain.
-    if seen.iter().any(|id| id == &macaroon.identifier) {
-        return fail(format!(
-            "discharge cycle detected at \"{}\"",
-            macaroon.identifier
-        ));
+    if depth > MAX_DISCHARGE_DEPTH {
+        return fail("discharge chain too deep (possible cycle)");
     }
-    seen.push(macaroon.identifier.clone());
 
     let presented = match macaroon.signature() {
         Ok(s) => s,
@@ -292,7 +292,7 @@ fn verify_inner(
                 check_first_party,
                 resolve_caveat_key,
                 root_bound_sig,
-                seen,
+                depth + 1,
                 false,
             );
             if !sub.ok {
@@ -370,7 +370,10 @@ pub struct RequestContext {
     pub spend_usd: Option<f64>,
     pub session: Option<String>,
     /// Verification clock (unix ms) — injected, never read from the system clock
-    /// inside the checker, so verification is deterministic and testable.
+    /// inside the checker, so verification is deterministic and testable. MUST be
+    /// set to a real time: `Default` leaves it 0, which the `expires` check
+    /// treats as "no clock" and fails closed (an expired grant is rejected, never
+    /// accidentally accepted).
     pub now_ms: i64,
 }
 
@@ -459,10 +462,17 @@ pub fn check_caveat(predicate: &str, ctx: &RequestContext) -> bool {
             (Some(s), Ok(ceiling)) => s <= ceiling,
             _ => false,
         },
-        ("expires", "=") => value
-            .parse::<i64>()
-            .map(|e| ctx.now_ms <= e)
-            .unwrap_or(false),
+        // Fail closed when the clock is unset: now_ms <= 0 (e.g. a caller who
+        // built RequestContext::default() and forgot to set it) makes every
+        // `expires` caveat fail, so an expired grant is rejected rather than
+        // accidentally accepted.
+        ("expires", "=") => {
+            ctx.now_ms > 0
+                && value
+                    .parse::<i64>()
+                    .map(|e| ctx.now_ms <= e)
+                    .unwrap_or(false)
+        }
         ("session", "=") => ctx.session.as_deref() == Some(value.as_str()),
         _ => false,
     }
@@ -791,5 +801,45 @@ mod tests {
         m.signature_hex = "zz".into();
         let res = verify(&m, ROOT, &[], &always, &no_key);
         assert!(!res.ok);
+    }
+    #[test]
+    fn two_third_party_caveats_both_discharge_no_false_cycle() {
+        // The old recursion guard (a never-popped "seen" set) would mis-flag the
+        // second discharge. A grant with TWO third-party caveats, each discharged,
+        // must verify.
+        let ckey_a = b"caveat-key-a-32-bytes-padding-pad";
+        let ckey_b = b"caveat-key-b-32-bytes-padding-pad";
+        let m = Macaroon::mint(ROOT, "g", "loc")
+            .add_third_party_caveat(ckey_a, "cav-a", RENT_LOCATION)
+            .unwrap()
+            .add_third_party_caveat(ckey_b, "cav-b", RENT_LOCATION)
+            .unwrap();
+        let da = m
+            .prepare_for_request(&Macaroon::mint(ckey_a, "cav-a", RENT_LOCATION))
+            .unwrap();
+        let db = m
+            .prepare_for_request(&Macaroon::mint(ckey_b, "cav-b", RENT_LOCATION))
+            .unwrap();
+        let resolve = |id: &str| match id {
+            "cav-a" => Some(ckey_a.to_vec()),
+            "cav-b" => Some(ckey_b.to_vec()),
+            _ => None,
+        };
+        assert!(verify(&m, ROOT, &[da, db], &always, &resolve).ok);
+    }
+
+    #[test]
+    fn expires_fails_closed_when_clock_unset() {
+        // RequestContext::default() leaves now_ms = 0. An `expires` caveat must
+        // then FAIL (fail-closed), so a forgotten clock never accepts an expired
+        // grant.
+        let unset = RequestContext::default();
+        assert!(!check_caveat(&expires_caveat(2_000_000), &unset));
+        // With a real clock before expiry it passes.
+        let clocked = RequestContext {
+            now_ms: 1_000_000,
+            ..Default::default()
+        };
+        assert!(check_caveat(&expires_caveat(2_000_000), &clocked));
     }
 }
