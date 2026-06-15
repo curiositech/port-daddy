@@ -90,8 +90,17 @@ export interface ResolveParleyInput {
   dissenters?: string[];
 }
 
+interface AgentInboxMin {
+  send(
+    agentId: string,
+    content: unknown,
+    options?: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary'; signal?: string },
+  ): { success: boolean; error?: string };
+}
+
 export interface ParleyDeps {
   tuples: TupleSpaceMin;
+  agentInbox?: AgentInboxMin;
   now?: () => number;
 }
 
@@ -101,6 +110,7 @@ const DEFAULT_ROUND_LIMIT = 3;
 const OUTCOME_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const TERMINAL: ReadonlySet<ParleyStatus> = new Set(['COLLAPSED', 'ESCALATED', 'VOIDED']);
+const BUDGETED_PERFORMATIVES: ReadonlySet<ParleyPerformative> = new Set(['propose', 'critique', 'revise', 'inform']);
 
 function uniqueNonEmpty(values: string[]): string[] {
   const seen = new Set<string>();
@@ -128,7 +138,7 @@ function isTerminal(status: ParleyStatus): boolean {
 }
 
 export function createParley(deps: ParleyDeps) {
-  const { tuples } = deps;
+  const { tuples, agentInbox } = deps;
   const now = deps.now ?? (() => Date.now());
 
   function call(input: CallParleyInput): ParleyRecord {
@@ -164,14 +174,34 @@ export function createParley(deps: ParleyDeps) {
     };
 
     tuples.out(['parley:opened', parleyId, parley], { harbor, writtenBy: calledBy });
+    const notificationFailures: string[] = [];
     for (const party of parties) {
-      tuples.out(['parley:summons', parleyId, party, {
+      const summons = {
         surface,
         reason,
         channel: parley.channel,
         calledBy,
+        responseDueAt: parley.responseDueAt,
+        roundLimit: parley.roundLimit,
         at: t,
-      }], { harbor, writtenBy: calledBy, ttlMs: ttlMs > 0 ? ttlMs : undefined });
+      };
+      tuples.out(['parley:summons', parleyId, party, summons], { harbor, writtenBy: calledBy, ttlMs: ttlMs > 0 ? ttlMs : undefined });
+      if (agentInbox) {
+        const result = agentInbox.send(party, {
+          kind: 'parley_summons',
+          parleyId,
+          ...summons,
+        }, {
+          from: calledBy,
+          type: 'parley_summons',
+          contentType: 'json',
+          signal: 'parley_summons',
+        });
+        if (!result.success) notificationFailures.push(`${party}: ${result.error ?? 'send failed'}`);
+      }
+    }
+    if (notificationFailures.length > 0) {
+      throw new Error(`parley.call: failed to notify parties: ${notificationFailures.join('; ')}`);
     }
     return parley;
   }
@@ -194,6 +224,30 @@ export function createParley(deps: ParleyDeps) {
     const rows = tuples.rd(['parley:outcome', parleyId, '*'], { harbor, limit: 1 });
     const data = rows[0]?.fields[2];
     return data && typeof data === 'object' ? data as ParleyOutcome : null;
+  }
+
+  function writeOutcome(parley: ParleyRecord, input: {
+    status: Extract<ParleyStatus, 'COLLAPSED' | 'ESCALATED' | 'VOIDED'>;
+    resolvedBy: string;
+    decision?: string | null;
+    reason?: string | null;
+    dissenters?: string[];
+  }): ParleyOutcome {
+    const outcome: ParleyOutcome = {
+      parleyId: parley.parleyId,
+      status: input.status,
+      decision: input.decision?.trim() || null,
+      reason: input.reason?.trim() || null,
+      resolvedBy: input.resolvedBy,
+      dissenters: uniqueNonEmpty(input.dissenters ?? []),
+      at: now(),
+    };
+    tuples.out(['parley:outcome', parley.parleyId, outcome], {
+      harbor: parley.harbor,
+      writtenBy: input.resolvedBy,
+      ttlMs: OUTCOME_TTL_MS,
+    });
+    return outcome;
   }
 
   function summarize(parley: ParleyRecord): ParleySummary {
@@ -264,6 +318,20 @@ export function createParley(deps: ParleyDeps) {
     if (!isPerformative(input.performative)) {
       throw new Error('parley.respond: performative must be propose/critique/revise/agree/refuse/inform');
     }
+    if (BUDGETED_PERFORMATIVES.has(input.performative)) {
+      const usedTurns = summary.turns.filter((turn) => (
+        turn.party === party && BUDGETED_PERFORMATIVES.has(turn.performative)
+      )).length;
+      if (usedTurns >= summary.parley.roundLimit) {
+        writeOutcome(summary.parley, {
+          status: 'ESCALATED',
+          resolvedBy: 'port-daddy:parley',
+          reason: `round limit exhausted for ${party}`,
+          dissenters: [party],
+        });
+        throw new Error(`parley.respond: round limit exhausted for ${party}; parley escalated`);
+      }
+    }
     const content = input.content?.trim();
     if (!content) throw new Error('parley.respond: content is required');
     const evidenceRefs = Array.isArray(input.evidenceRefs)
@@ -305,19 +373,12 @@ export function createParley(deps: ParleyDeps) {
     if (unknownDissenters.length > 0) {
       throw new Error(`parley.resolve: unknown dissenters: ${unknownDissenters.join(', ')}`);
     }
-    const outcome: ParleyOutcome = {
-      parleyId,
+    const outcome = writeOutcome(summary.parley, {
       status: input.status,
       decision,
-      reason: input.reason?.trim() || null,
       resolvedBy,
+      reason: input.reason?.trim() || null,
       dissenters,
-      at: now(),
-    };
-    tuples.out(['parley:outcome', parleyId, outcome], {
-      harbor: summary.parley.harbor,
-      writtenBy: resolvedBy,
-      ttlMs: OUTCOME_TTL_MS,
     });
     return outcome;
   }

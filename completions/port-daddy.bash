@@ -1904,19 +1904,19 @@ _port_daddy() {
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         call)
-          _pd_opts '--surface --with --reason --ttl --as --json --quiet'
+          _pd_opts '--surface --with --parties --reason --ttl-ms --round-limit --harbor --as --json --quiet'
           ;;
         respond)
-          _pd_opts '--id --parley --performative --text --as --json --quiet'
+          _pd_opts '--id --parley --performative --content --proposal --evidence --as --party --json --quiet'
           ;;
         resolve)
-          _pd_opts '--id --parley --status --decision --commitment --as --json --quiet'
+          _pd_opts '--id --parley --status --decision --reason --dissenters --as --json --quiet'
           ;;
         list|show)
-          _pd_opts '--id --parley --status --party --limit --json --quiet'
+          _pd_opts '--id --parley --status --harbor --limit --json --quiet'
           ;;
         fit)
-          _pd_opts '--type --value --agents --subtasks --contexts --criticality --exploration --shared-files --fits-in-one-context --json --quiet'
+          _pd_opts '--shape --reasoningShape --baseline --singleAgentBaseline --value --taskValueMultiplier --tokens --estimatedTokenMultiplier --independence --subtaskIndependence --contention --writeContention --writers --maxConcurrentWriters --verify --heterogeneous --fits-in-one-context --json --quiet'
           ;;
         *)
           if [[ "$cur" == -* ]]; then

@@ -46,6 +46,38 @@ describe('call', () => {
     expect(summons).toHaveLength(2);
   });
 
+  test('sends structured inbox summons when an inbox dependency is provided', () => {
+    const sent = [];
+    const withInbox = createParley({
+      tuples,
+      now: () => clock,
+      agentInbox: {
+        send(agentId, content, options) {
+          sent.push({ agentId, content, options });
+          return { success: true };
+        },
+      },
+    });
+
+    const p = withInbox.call({
+      surface: 'lib/dispatch.ts',
+      reason: 'two agents are changing dispatch semantics',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+      harbor: 'port-daddy',
+    });
+
+    expect(sent).toHaveLength(2);
+    expect(sent.map((m) => m.agentId)).toEqual(['agent-a', 'agent-b']);
+    expect(sent[0].options).toMatchObject({ from: 'operator', type: 'parley_summons', contentType: 'json' });
+    expect(sent[0].content).toMatchObject({
+      kind: 'parley_summons',
+      parleyId: p.parleyId,
+      surface: 'lib/dispatch.ts',
+      channel: `parley:${p.parleyId}`,
+    });
+  });
+
   test('requires at least two parties', () => {
     expect(() => parley.call({
       surface: 'x',
@@ -121,6 +153,57 @@ describe('respond and status', () => {
       performative: 'inform',
       content: 'hi',
     })).toThrow(/not summoned/);
+  });
+
+  test('roundLimit caps non-terminal turns and escalates when exhausted', () => {
+    const p = parley.call({
+      surface: 'x',
+      reason: 'y',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+      roundLimit: 1,
+    });
+    parley.respond({
+      parleyId: p.parleyId,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'first proposal',
+    });
+
+    expect(() => parley.respond({
+      parleyId: p.parleyId,
+      party: 'agent-a',
+      performative: 'critique',
+      content: 'extra critique',
+    })).toThrow(/round limit exhausted/);
+
+    const summary = parley.get(p.parleyId);
+    expect(summary.status).toBe('ESCALATED');
+    expect(summary.outcome.status).toBe('ESCALATED');
+    expect(summary.outcome.reason).toBe('round limit exhausted for agent-a');
+  });
+
+  test('roundLimit still allows terminal agreement after a proposal', () => {
+    const p = parley.call({
+      surface: 'x',
+      reason: 'y',
+      parties: ['agent-a', 'agent-b'],
+      calledBy: 'operator',
+      roundLimit: 1,
+    });
+    parley.respond({
+      parleyId: p.parleyId,
+      party: 'agent-a',
+      performative: 'propose',
+      content: 'first proposal',
+    });
+
+    expect(() => parley.respond({
+      parleyId: p.parleyId,
+      party: 'agent-a',
+      performative: 'agree',
+      content: 'I can live with this',
+    })).not.toThrow();
   });
 });
 

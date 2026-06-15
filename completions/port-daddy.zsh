@@ -1879,25 +1879,37 @@ _pd_cmd_parley() {
     '2:parley id or surface:' \
     '--surface[contested path, symbol, or surface]:surface:' \
     '--with[comma-separated parties]:parties:' \
-    '--reason[why the parley is being summoned]:text:' \
-    '--ttl[response TTL in milliseconds]:ms:' \
+    '--parties[comma-separated parties]:parties:' \
+    '--reason[parley reason or outcome reason]:text:' \
+    '--ttl-ms[response TTL in milliseconds]:ms:' \
+    '--round-limit[non-terminal turns per party before escalation]:count:' \
+    '--harbor[harbor scope]:harbor:' \
     '--id[parley id]:id:' \
     '--parley[parley id]:id:' \
     '--performative[turn performative]:(propose critique revise agree refuse inform)' \
-    '--text[turn text]:text:' \
+    '--content[turn content]:text:' \
+    '--proposal[proposal id]:proposal:' \
+    '--evidence[comma-separated evidence refs]:refs:' \
     '--status[outcome status]:(COLLAPSED ESCALATED VOIDED)' \
     '--decision[outcome decision]:text:' \
-    '--commitment[commitment reference]:ref:' \
-    '--party[filter by party]:party:' \
+    '--dissenters[comma-separated dissenters]:parties:' \
     '--limit[max rows]:limit:' \
-    '--type[task type for fit gate]:(implementation research review planning)' \
-    '--value[value level]:(low medium high)' \
-    '--agents[number of agents]:count:' \
-    '--subtasks[number of subtasks]:count:' \
-    '--contexts[number of context islands]:count:' \
-    '--criticality[task criticality]:(low medium high)' \
-    '--exploration[exploration level]:(low medium high)' \
-    '--shared-files[number of shared files]:count:' \
+    '--shape[reasoning shape]:(breadth_first depth_first mixed)' \
+    '--reasoningShape[reasoning shape]:(breadth_first depth_first mixed)' \
+    '--baseline[single-agent baseline cost]:number:' \
+    '--singleAgentBaseline[single-agent baseline cost]:number:' \
+    '--value[task value multiplier]:number:' \
+    '--taskValueMultiplier[task value multiplier]:number:' \
+    '--tokens[estimated token multiplier]:number:' \
+    '--estimatedTokenMultiplier[estimated token multiplier]:number:' \
+    '--independence[subtask independence]:(none partial high)' \
+    '--subtaskIndependence[subtask independence]:(none partial high)' \
+    '--contention[write contention]:(none low medium high)' \
+    '--writeContention[write contention]:(none low medium high)' \
+    '--writers[max concurrent writers]:count:' \
+    '--maxConcurrentWriters[max concurrent writers]:count:' \
+    '--verify[verification is available]' \
+    '--heterogeneous[heterogeneous agents are available]' \
     '--fits-in-one-context[task fits one model context]' \
     '--as[actor id]:agent id:' \
     '(-j --json)'{-j,--json}'[output JSON]' \

@@ -1839,6 +1839,13 @@
       "completions": [
         "parley"
       ],
+      "mcp": [
+        "call_parley",
+        "list_parleys",
+        "get_parley",
+        "respond_parley",
+        "resolve_parley"
+      ],
       "docs": {
         "readme": false,
         "sdk": false

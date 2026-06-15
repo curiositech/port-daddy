@@ -75,8 +75,8 @@ jobs:
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           files: |
-            dist/fleetbar/PortDaddy-FleetBar-macOS-*-dev.zip
-            dist/fleetbar/PortDaddy-FleetBar-macOS-*-dev.zip.sha256
+            dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip
+            dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip.sha256
             dist/fleetbar/fleetbar-preview-manifest.json
 
   publish-npm:

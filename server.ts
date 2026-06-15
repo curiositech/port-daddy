@@ -408,7 +408,6 @@ const semanticResolver = createSemanticResolver(db, {
 });
 const episodicMemory = createEpisodicMemory(db, { tuples, graphEdges, semanticResolver });
 const quorum = createQuorum({ tuples });
-const parley = createParley({ tuples });
 const feedback = createFeedback({ tuples });
 const roadmapItems = createRoadmapItems({ db, tuples });
 const roadmapPromote = createRoadmapPromote({ feedback, roadmapItems });
@@ -453,6 +452,7 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
     signal: (message as any).signal || 'report'
   });
 });
+const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
