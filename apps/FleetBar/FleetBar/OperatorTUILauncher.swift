@@ -30,8 +30,10 @@ enum OperatorTUILauncher {
                 return path
             }
         }
-        // Fall back to PATH lookup via `which`
-        if let pathResult = runShellCapture("/usr/bin/which pd-console"),
+        // Fall back to PATH lookup via `which`. runShellCapture takes the
+        // executable path plus separate args — passing "/usr/bin/which pd-console"
+        // as one path points at a nonexistent file and always fails.
+        if let pathResult = runShellCapture("/usr/bin/which", args: ["pd-console"]),
            !pathResult.isEmpty {
             return pathResult
         }

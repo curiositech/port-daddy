@@ -146,10 +146,13 @@ impl SortieEntry {
         }
     }
 
-    /// Short id (≤12 chars).
+    /// Short id (≤12 chars). Slices on a CHARACTER boundary, never a byte index:
+    /// `&s[..12]` panics when byte 12 lands inside a multi-byte UTF-8 codepoint.
     fn id_short(&self) -> &str {
-        let s = self.id.as_str();
-        if s.len() <= 12 { s } else { &s[..12] }
+        match self.id.char_indices().nth(12).map(|(i, _)| i) {
+            Some(end) => &self.id[..end],
+            None => self.id.as_str(),
+        }
     }
 }
 

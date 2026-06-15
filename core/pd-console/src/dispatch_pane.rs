@@ -3,12 +3,29 @@
 //! On `:dispatch` the pane refreshes against the daemon and emits render-agnostic
 //! `Block`s:  Header → KeyVal(pending count) → one Row per dispatch → Chip(summary).
 //!
-//! Fail-closed: when the daemon is unreachable the pane renders a single
-//! `Block::KeyVal("error", <message>)` and does NOT panic.
+//! Fail-closed: when the daemon is unreachable the pane renders a `Header`
+//! followed by a `Block::KeyVal("error", <message>)` (two blocks) and does NOT
+//! panic.
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
 use anyhow::Result;
+
+/// Byte offset of the `n`-th character boundary, or `None` if the string has
+/// `n` or fewer characters (render it whole). The returned index always falls
+/// on a UTF-8 boundary, so slicing `&s[..end]` never panics.
+fn char_boundary(s: &str, n: usize) -> Option<usize> {
+    s.char_indices().nth(n).map(|(i, _)| i)
+}
+
+/// Truncate to at most `n` characters (never a byte index — `&s[..n]` panics
+/// mid-codepoint). Returns the whole string when it is `n` chars or shorter.
+fn truncate_chars(s: &str, n: usize) -> String {
+    match char_boundary(s, n) {
+        Some(end) => s[..end].to_string(),
+        None => s.to_string(),
+    }
+}
 
 /// One dispatch entry as returned by `GET /dispatches?state=review_pending`.
 ///
@@ -110,11 +127,13 @@ impl Pane for DispatchQueuePane {
             blocks.push(Block::KeyVal("status".into(), "no dispatches awaiting review".into()));
         } else {
             for d in &self.dispatches {
-                let id_short = if d.id.len() > 8 { d.id[..8].to_string() } else { d.id.clone() };
-                let goal_trunc = if d.goal.len() > 50 {
-                    format!("{}…", &d.goal[..50])
-                } else {
-                    d.goal.clone()
+                // Truncate by CHARACTER, never byte index: `&s[..n]` panics when
+                // n lands inside a multi-byte UTF-8 codepoint (goals are arbitrary
+                // user text). char_indices gives a safe boundary.
+                let id_short = truncate_chars(&d.id, 8);
+                let goal_trunc = match char_boundary(&d.goal, 50) {
+                    Some(end) => format!("{}…", &d.goal[..end]),
+                    None => d.goal.clone(),
                 };
                 let cost_str = match d.cost_usd {
                     Some(c) => format!("${:.4}", c),
@@ -189,6 +208,36 @@ mod tests {
     /// Helper: build a DispatchQueuePane with pre-loaded data (no daemon needed).
     fn make_pane(dispatches: Vec<DispatchEntry>, count: u32) -> DispatchQueuePane {
         DispatchQueuePane { dispatches, count, last_error: None }
+    }
+
+    #[test]
+    fn truncation_is_utf8_safe_on_multibyte_goals() {
+        // 'é' is 2 bytes: a naive `&s[..50]` byte slice would land mid-codepoint
+        // and panic. char-based truncation must not.
+        let multibyte = "é".repeat(40); // 40 chars, 80 bytes
+        assert_eq!(truncate_chars(&multibyte, 8).chars().count(), 8);
+        // The returned boundary is always sliceable without panic.
+        if let Some(end) = char_boundary(&multibyte, 50) {
+            let _ = &multibyte[..end];
+        }
+        // Mixed-width content (CJK = 3 bytes) around the boundary, via view().
+        let goal = "日本語".repeat(30); // 90 chars, 270 bytes
+        let entry = DispatchEntry {
+            id: "日本語日本語".to_string(),
+            goal,
+            state: "review_pending".into(),
+            budget_usd: None,
+            cost_usd: None,
+            created_at: Some(1),
+        };
+        let pane = make_pane(vec![entry], 1);
+        let _ = pane.view(); // must not panic
+    }
+
+    #[test]
+    fn truncate_chars_returns_short_strings_whole() {
+        assert_eq!(truncate_chars("hi", 8), "hi");
+        assert_eq!(char_boundary("hi", 8), None);
     }
 
     #[test]
