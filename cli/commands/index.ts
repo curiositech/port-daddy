@@ -43,6 +43,7 @@ export * from './ideas.js';
 export * from './roadmap.js';
 export * from './commit.js';
 export * from './quorum.js';
+export * from './parley.js';
 export * from './feedback.js';
 export * from './sitrep.js';
 export * from './pheromone.js';

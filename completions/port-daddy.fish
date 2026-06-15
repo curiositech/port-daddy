@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
@@ -173,8 +173,9 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a graph -d 'Inspect semantic graph edges and stats'
     complete -c $prog -n __pd_needs_command -a memory -d 'Inspect episodic memory entries and stats'
     complete -c $prog -n __pd_needs_command -a ideas -d 'Search ideas, notes, tuples, and repo markdown'
-    complete -c $prog -n __pd_needs_command -a roadmap -d 'Show Cartographer-curated Next Cuts and dogfood feedback'
+    complete -c $prog -n __pd_needs_command -a roadmap -d 'Show and write the roadmap_items DB-of-record'
     complete -c $prog -n __pd_needs_command -a quorum -d 'Propose, vote, list, or inspect swarm proposals'
+    complete -c $prog -n __pd_needs_command -a parley -d 'Call, respond, resolve, list, show, or fit swarm parleys'
     complete -c $prog -n __pd_needs_command -a feedback -d 'Drop, list, show, or harvest structured agentic feedback'
     complete -c $prog -n __pd_needs_command -a commit -d 'Create a durable commitment (or close one against an oracle)'
     complete -c $prog -n __pd_needs_command -a obligations -d 'List commitments, or sweep for overdue ones with --overdue'
@@ -857,7 +858,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command secret secrets" -l json -d 'Output JSON'
 
     # roadmap
-    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote render pop release claims" -a "ack harvest promote render pop release claims" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims" -a "ack harvest promote upsert add touch render pop release claims" -d 'roadmap subcommand'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l write -d 'Write docs/ROADMAP.md to disk'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l rootDir -x -d 'Project directory whose docs/ROADMAP.md to update'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l status -x -a 'now backlog parked merge done all' -d 'Status filter'
@@ -869,6 +870,13 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from promote" -l status -x -a 'now backlog parked merge done' -d 'Roadmap item status'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from promote" -l as -x -d 'Promoter agent id'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from promote" -l harbor -x -d 'Harbor scope override'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add" -l summary -x -d 'Roadmap summary markdown'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add" -l status -x -a 'now backlog parked merge done' -d 'Roadmap item status'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add touch" -l note -x -d 'Roadmap receipt note'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add touch" -l receipt -x -d 'Roadmap receipt note'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add touch" -l as -x -d 'Actor id'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add touch" -l harbor -x -d 'Harbor scope'
+    complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from upsert add" -l dependencies -x -d 'Comma-separated dependency slugs'
     complete -c $prog -n "__pd_using_command roadmap" -l dir -r -d 'Project directory'
     complete -c $prog -n "__pd_using_command roadmap" -l root -r -d 'Project root'
     complete -c $prog -n "__pd_using_command roadmap" -l projectDir -r -d 'Project directory'
@@ -881,4 +889,28 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command roadmap" -l no-excerpts -d 'Hide current-work and Cartographer excerpts'
     complete -c $prog -n "__pd_using_command roadmap" -s j -l json -d 'JSON output'
     complete -c $prog -n "__pd_using_command roadmap" -s q -l quiet -d 'Agent-readable section:slug output'
+
+    # parley
+    complete -c $prog -n "__pd_using_command parley; and not __fish_seen_subcommand_from call respond resolve list show fit" -a "call respond resolve list show fit" -d 'parley subcommand'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l surface -x -d 'Contested path, symbol, or surface'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l with -x -d 'Comma-separated parties'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l reason -x -d 'Why the parley is being summoned'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from call" -l ttl -x -d 'Response TTL in milliseconds'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond" -l performative -x -a 'propose critique revise agree refuse inform' -d 'Turn performative'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond" -l text -x -d 'Turn text'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l status -x -a 'COLLAPSED ESCALATED VOIDED' -d 'Outcome status'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l decision -x -d 'Outcome decision'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from resolve" -l commitment -x -d 'Commitment reference'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond resolve show" -l id -x -d 'Parley id'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from respond resolve show" -l parley -x -d 'Parley id'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list show" -l party -x -d 'Party filter'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list" -l status -x -a 'SUMMONED CONVENED COLLAPSED ESCALATED VOIDED' -d 'Status filter'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from list" -l limit -x -d 'Max rows'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from fit" -l type -x -a 'implementation research review planning' -d 'Task type'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from fit" -l value -x -a 'low medium high' -d 'Value level'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from fit" -l agents -x -d 'Agent count'
+    complete -c $prog -n "__pd_using_command parley; and __fish_seen_subcommand_from fit" -l fits-in-one-context -d 'Task fits one model context'
+    complete -c $prog -n "__pd_using_command parley" -l as -x -d 'Actor id'
+    complete -c $prog -n "__pd_using_command parley" -s j -l json -d 'JSON output'
+    complete -c $prog -n "__pd_using_command parley" -s q -l quiet -d 'Machine-readable output'
 end

@@ -49,7 +49,7 @@ jobs:
       - name: Build binary
         run: |
           node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd
-          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy-manifest.json
+          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.19.0] - 2026-06-15
+
+### Added
+- Added the Parley coordination surface (`pd parley` plus daemon routes) for bounded multi-agent debate, votes, critiques, revisions, and durable outcomes.
+- Added swarm-fit scoring helpers and research-backed guidance for when Port Daddy should summon a swarm versus keep work single-agent.
+- Added roadmap item upsert/touch receipts so coordination-changing work can prove it updated the live roadmap DB.
+
+### Changed
+- Coordination Guard now treats swarm/parley/roadmap-sensitive changes as requiring a live roadmap receipt.
+- Release binary packaging now emits a long-name `port-daddy` binary alongside a `pd` launcher instead of compiling the Bun executable directly as `pd`.
+- Session list rows now include active file and note counts so `pd sessions --all-worktrees` can show real coordination state.
+- Documented `windags_skill_induct` as the new repo/user/global skill-ingestion tool while preserving `windags_skill_graft` for phase/task grafting.
+
 ## [3.18.0] - 2026-06-05
 
 This release makes the operator's machine **safe to run a swarm on** and the swarm

@@ -7,10 +7,13 @@
  * Called automatically by `npm version` via the postversion hook.
  * Updates version in:
  *   - .claude-plugin/plugin.json
+ *   - .gemini/extensions/port-daddy/gemini-extension.json
  *   - mcp-server.json
  *   - mcp/server.ts
  *   - server.ts (EMBEDDED_PACKAGE_VERSION — fallback used inside the bun bundle
  *     when __dirname-relative package.json read fails)
+ *   - website-v2/src/data/referenceCatalog.ts
+ *   - public/samples/manifest.json
  */
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -28,6 +31,13 @@ const plugin = JSON.parse(readFileSync(pluginPath, 'utf-8'));
 plugin.version = version;
 writeFileSync(pluginPath, JSON.stringify(plugin, null, 2) + '\n');
 console.log(`  ✓ .claude-plugin/plugin.json → ${version}`);
+
+// .gemini/extensions/port-daddy/gemini-extension.json
+const geminiExtensionPath = join(ROOT, '.gemini', 'extensions', 'port-daddy', 'gemini-extension.json');
+const geminiExtension = JSON.parse(readFileSync(geminiExtensionPath, 'utf-8'));
+geminiExtension.version = version;
+writeFileSync(geminiExtensionPath, JSON.stringify(geminiExtension, null, 2) + '\n');
+console.log(`  ✓ .gemini/extensions/port-daddy/gemini-extension.json → ${version}`);
 
 // mcp-server.json
 const mcpJsonPath = join(ROOT, 'mcp-server.json');
@@ -58,5 +68,23 @@ if (!embeddedVersionRe.test(serverContent)) {
 serverContent = serverContent.replace(embeddedVersionRe, `$1${version}$2`);
 writeFileSync(serverPath, serverContent);
 console.log(`  ✓ server.ts EMBEDDED_PACKAGE_VERSION → ${version}`);
+
+// website-v2/src/data/referenceCatalog.ts PORT_DADDY_VERSION
+const referenceCatalogPath = join(ROOT, 'website-v2', 'src', 'data', 'referenceCatalog.ts');
+const referenceVersionRe = /(export const PORT_DADDY_VERSION = ['"])[\w.\-+]+(['"])/;
+let referenceCatalogContent = readFileSync(referenceCatalogPath, 'utf-8');
+if (!referenceVersionRe.test(referenceCatalogContent)) {
+  throw new Error(`sync-version.ts: PORT_DADDY_VERSION literal not found in website-v2/src/data/referenceCatalog.ts.`);
+}
+referenceCatalogContent = referenceCatalogContent.replace(referenceVersionRe, `$1${version}$2`);
+writeFileSync(referenceCatalogPath, referenceCatalogContent);
+console.log(`  ✓ website-v2/src/data/referenceCatalog.ts PORT_DADDY_VERSION → ${version}`);
+
+// public/samples/manifest.json packageVersion
+const samplesManifestPath = join(ROOT, 'public', 'samples', 'manifest.json');
+const samplesManifest = JSON.parse(readFileSync(samplesManifestPath, 'utf-8'));
+samplesManifest.packageVersion = version;
+writeFileSync(samplesManifestPath, JSON.stringify(samplesManifest, null, 2) + '\n');
+console.log(`  ✓ public/samples/manifest.json packageVersion → ${version}`);
 
 console.log(`\nVersion ${version} synced to all surfaces.`);

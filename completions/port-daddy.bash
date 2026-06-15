@@ -141,6 +141,8 @@ _port_daddy() {
     roadmap
     # Quorum (swarm consensus primitive)
     quorum
+    # Parley (forced reconciliation primitive)
+    parley
     # Feedback (central agentic-feedback primitive)
     feedback
     # Durable commitments + obligation monitor (ADR-0041)
@@ -1878,6 +1880,12 @@ _port_daddy() {
         promote)
           _pd_opts '--from-feedback --feedbackId --id --slug --summary --status --as --agent --harbor --json --quiet'
           ;;
+        upsert|add)
+          _pd_opts '--summary --status --as --agent --by --note --receipt --harbor --project --dependencies --json --quiet'
+          ;;
+        touch)
+          _pd_opts '--note --receipt --as --agent --by --harbor --json --quiet'
+          ;;
         render)
           _pd_opts '--write --dir --root --rootDir --projectDir --status --harbor --project --limit --json --quiet'
           ;;
@@ -1885,7 +1893,36 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
           else
-            COMPREPLY=( $(compgen -W "ack harvest promote render pop release claims help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims help" -- "$cur") )
+          fi
+          ;;
+      esac
+      ;;
+
+    # parley call|respond|resolve|list|show|fit
+    parley)
+      local subcmd="${words[2]:-}"
+      case "$subcmd" in
+        call)
+          _pd_opts '--surface --with --reason --ttl --as --json --quiet'
+          ;;
+        respond)
+          _pd_opts '--id --parley --performative --text --as --json --quiet'
+          ;;
+        resolve)
+          _pd_opts '--id --parley --status --decision --commitment --as --json --quiet'
+          ;;
+        list|show)
+          _pd_opts '--id --parley --status --party --limit --json --quiet'
+          ;;
+        fit)
+          _pd_opts '--type --value --agents --subtasks --contexts --criticality --exploration --shared-files --fits-in-one-context --json --quiet'
+          ;;
+        *)
+          if [[ "$cur" == -* ]]; then
+            _pd_opts '--json --quiet'
+          else
+            COMPREPLY=( $(compgen -W "call respond resolve list show fit help" -- "$cur") )
           fi
           ;;
       esac

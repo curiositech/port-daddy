@@ -10,9 +10,12 @@
  *   2. mcp/server.ts         — MCP server version + instructions
  *   3. .claude-plugin/plugin.json — Claude plugin version
  *   4. mcp-server.json       — Static MCP discovery manifest
- *   5. skills/port-daddy-agent-skill/SKILL.md — Distributed agentic skill
- *   6. skills/.../references/ — API reference, SDK reference
- *   7. README.md             — npm README
+ *   5. .gemini/extensions/... — Gemini extension manifest
+ *   6. website-v2 reference catalog — public docs display version
+ *   7. public/samples/manifest.json — bundled sample package version
+ *   8. skills/port-daddy-agent-skill/SKILL.md — Distributed agentic skill
+ *   9. skills/.../references/ — API reference, SDK reference
+ *   10. README.md             — npm README
  *
  * Philosophy: Tests should YELL when you ship a version bump without updating
  * all surfaces. Better to fail CI than to ship stale docs.
@@ -48,6 +51,9 @@ let pkgVersion;
 let mcpServerSource;
 let pluginJson;
 let mcpManifest;
+let geminiExtension;
+let referenceCatalog;
+let publicSamplesManifest;
 let skillContent;
 let apiReference;
 let sdkReference;
@@ -60,6 +66,9 @@ beforeAll(() => {
   mcpServerSource = readFile('mcp/server.ts');
   pluginJson = readJSON('.claude-plugin/plugin.json');
   mcpManifest = readJSON('mcp-server.json');
+  geminiExtension = readJSON('.gemini/extensions/port-daddy/gemini-extension.json');
+  referenceCatalog = readFile('website-v2/src/data/referenceCatalog.ts');
+  publicSamplesManifest = readJSON('public/samples/manifest.json');
   skillContent = readFile('skills/port-daddy-agent-skill/SKILL.md');
   dashboardContent = readFile('public/index.html');
   apiReference = readFile('skills/port-daddy-agent-skill/references/api-reference.md');
@@ -92,6 +101,22 @@ describe('Version consistency', () => {
   it('mcp-server.json version matches package.json', () => {
     expect(mcpManifest).not.toBeNull();
     expect(mcpManifest.version).toBe(pkgVersion);
+  });
+
+  it('Gemini extension version matches package.json', () => {
+    expect(geminiExtension).not.toBeNull();
+    expect(geminiExtension.version).toBe(pkgVersion);
+  });
+
+  it('website reference catalog version matches package.json', () => {
+    const match = referenceCatalog.match(/PORT_DADDY_VERSION\s*=\s*['"](\d+\.\d+\.\d+)['"]/);
+    expect(match).not.toBeNull();
+    expect(match[1]).toBe(pkgVersion);
+  });
+
+  it('public sample manifest version matches package.json', () => {
+    expect(publicSamplesManifest).not.toBeNull();
+    expect(publicSamplesManifest.packageVersion).toBe(pkgVersion);
   });
 });
 

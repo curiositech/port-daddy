@@ -69,18 +69,37 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
     expect(buildScript).toContain('embeddedNativeCore');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
+    expect(buildScript).toContain('writePdLauncher');
+    expect(buildScript).toContain('launcherSource');
+    expect(buildScript).toContain("run('cc'");
+    expect(buildScript).toContain('execv(target, child_argv)');
+    expect(buildScript).toContain("basename(requestedOutfile) === 'pd'");
+    expect(buildScript).toContain("join(dirname(requestedOutfile), 'port-daddy')");
     expect(buildScript).toContain('target: target || null');
     expect(buildScript).toContain('/arbiter/status');
     expect(buildScript).toContain('embedded native Arbiter enforcer was not loaded cleanly');
+    expect(buildScript).toContain("['attention', '--agent', 'pd-single-binary-smoke-agent', '--json']");
+    expect(buildScript).toContain('single binary CLI smoke failed: pd attention did not return the expected summary');
     expect(buildScript).toContain('isolated-bin');
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
+    expect(buildScript).toContain('companionFiles');
+  });
+
+  test('compiled CLI relaunches short pd binary through sibling port-daddy before daemon work', () => {
+    const cli = readFileSync(join(process.cwd(), 'bin', 'port-daddy-cli.ts'), 'utf8');
+
+    expect(cli).toContain('function maybeRelaunchShortBinary()');
+    expect(cli).toContain("basename(execPath) === 'pd' || basename(argv0) === 'pd'");
+    expect(cli).toContain("join(dirname(execPath), 'port-daddy')");
+    expect(cli).toContain("PORT_DADDY_DISABLE_SHORT_REEXEC: '1'");
+    expect(cli).toContain('maybeRelaunchShortBinary();');
   });
 
   test('release workflow uses the single-binary builder instead of compiling the CLI shim directly', () => {
     const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
 
     expect(workflow).toContain('node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd');
-    expect(workflow).toContain('pd port-daddy-manifest.json');
+    expect(workflow).toContain('pd port-daddy port-daddy-manifest.json');
     expect(workflow).not.toContain('bin/port-daddy-cli.ts --outfile dist/pd');
   });
 });

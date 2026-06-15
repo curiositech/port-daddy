@@ -10,7 +10,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
@@ -109,6 +109,7 @@ import {
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
   handleQuorum,
+  handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
@@ -1195,15 +1196,23 @@ Examples:
   roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
 
 Commands:
-  roadmap                   Show Next Cuts, curated now items, live feedback, and dogfood feedback
+  roadmap                   Show roadmap_items DB-of-record entries
     --dir <path>            Project directory (defaults to cwd)
     --limit <n>             Limit rows per section (default: 8)
-    --feedback-status <s>   Live tuple feedback status: open|harvested|wontfix|all
-    --feedback-harbor <h>   Harbor scope for live tuple feedback
-    --feedback-limit <n>    Max live feedback rows to fetch
-    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
-    -q, --quiet             Print machine-readable section:slug lines
-    -j, --json              Output the raw Cartographer projection
+    --status <s>            now|backlog|parked|merge|done|all
+    --harbor <h>            Harbor scope
+    -q, --quiet             Print one slug per line
+    -j, --json              Output raw roadmap_items rows
+
+  roadmap upsert <slug>     Create/update a durable roadmap item receipt
+    --summary <md>          Roadmap summary markdown
+    --status <s>            now|backlog|parked|merge|done
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Receipt note attached to the item
+
+  roadmap touch <slug>      Append a roadmap receipt note to an existing item
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Why this slice touched the roadmap
 
   roadmap ack <feedbackId>  Harvest/ack live feedback through the feedback primitive
     --as <agentId>          Harvester id (default: operator-cli)
@@ -1211,8 +1220,10 @@ Commands:
 
 Examples:
   pd roadmap
-  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
+  pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
@@ -1300,7 +1311,7 @@ const ALL_COMMANDS: string[] = [
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
-  'quorum',
+  'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
@@ -1347,6 +1358,36 @@ function suggestCommand(input: string): string | undefined {
 }
 
 let autoStartAttempted: boolean = false;
+
+function maybeRelaunchShortBinary(): void {
+  if (process.env.PORT_DADDY_DISABLE_SHORT_REEXEC === '1') return;
+
+  const execPath = process.execPath || '';
+  const argv0 = process.argv[0] || '';
+  const invokedAsPd = basename(execPath) === 'pd' || basename(argv0) === 'pd';
+  if (!invokedAsPd) return;
+
+  const sibling = join(dirname(execPath), 'port-daddy');
+  if (sibling === execPath || !existsSync(sibling)) return;
+
+  const result = spawnSync(sibling, process.argv.slice(2), {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      PORT_DADDY_DISABLE_SHORT_REEXEC: '1',
+    },
+  });
+
+  if (result.error) {
+    ui.error(`Failed to relaunch sibling port-daddy binary: ${result.error.message}`);
+    process.exit(127);
+  }
+  if (result.signal) {
+    const signalNumber = result.signal === 'SIGINT' ? 2 : result.signal === 'SIGTERM' ? 15 : 1;
+    process.exit(128 + signalNumber);
+  }
+  process.exit(result.status ?? 0);
+}
 
 // =============================================================================
 // Direct-DB Mode — Tier 1 command execution without the daemon
@@ -2110,6 +2151,8 @@ async function executeDirectMode(
 }
 
 export async function main(): Promise<void> {
+  maybeRelaunchShortBinary();
+
   const rawArgs: string[] = process.argv.slice(2);
 
   // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
@@ -2967,6 +3010,10 @@ export async function main(): Promise<void> {
 
       case 'quorum':
         await handleQuorum(positional, options);
+        break;
+
+      case 'parley':
+        await handleParley(positional, options);
         break;
 
       case 'feedback':
