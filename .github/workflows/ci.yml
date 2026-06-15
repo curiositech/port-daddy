@@ -25,15 +25,63 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  # Decide whether website-terminal-recordings (the heaviest job, ~7 min)
+  # needs to run on this PR. It re-records terminal GIFs of the CLI, so only
+  # changes to the website, the CLI/daemon surface it demos, the build
+  # scripts, or this workflow can affect its output. Push-to-main always
+  # records (publish path). Uses the PR files API instead of a git diff so no
+  # checkout / fetch-depth gymnastics are needed.
+  detect-changes:
+    runs-on: ubuntu-latest
+    # Job-level grant so the files-API read works even if the repo/org
+    # default token permissions are restricted. This job needs nothing else
+    # (no checkout), and job-level permissions reset unlisted scopes to none.
+    permissions:
+      pull-requests: read
+    outputs:
+      recordings: ${{ steps.filter.outputs.recordings }}
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "recordings=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Fail safe: if the files API errors (outage, rate limit), run the
+          # recordings rather than silently skipping a required gate.
+          if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
+            echo "recordings=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
+            echo "recordings=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "recordings=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
   # node 20/24 compatibility matrix moved to `unit-tests-compat` which runs
   # post-merge on main — every PR previously paid for 4 extra full ~10-min
   # test runs (ubuntu+macos × node 20/24) that no required check gates on.
+  #
+  # The macOS leg lives in its own job (unit-tests-macos) so that the heavy
+  # downstream jobs (`needs: unit-tests`) start as soon as the ubuntu leg is
+  # green instead of also waiting out the macOS runner queue. Both legs are
+  # still required checks — branch protection requires the contexts
+  # "unit-tests (ubuntu-latest, 22)" and "unit-tests (macos-latest, 22)", so
+  # this job stays a 1-cell matrix and unit-tests-macos pins its display
+  # `name:` to the macOS context. Do NOT rename either without updating
+  # branch protection.
   unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         node-version: [22]
       fail-fast: false
 
@@ -44,6 +92,44 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run unit tests
+        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Test CLI tools
+        run: |
+          node bin/port-daddy-cli.js --help
+          node bin/port-daddy-cli.js version || true
+
+      - name: Test CLI subcommands
+        run: |
+          node bin/port-daddy-cli.js status || true
+          node bin/port-daddy-cli.js doctor || true
+          node bin/port-daddy-cli.js --version
+
+  # macOS node-22 leg. Same steps as unit-tests, but a separate job so macOS
+  # runner queue latency stays off the critical path of integration-tests and
+  # compiled-daemon-smoke. The display name is pinned to match the required
+  # status-check context "unit-tests (macos-latest, 22)" exactly — see the
+  # comment on unit-tests above.
+  unit-tests-macos:
+    name: unit-tests (macos-latest, 22)
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -299,7 +385,13 @@ jobs:
           if-no-files-found: warn
 
   website-terminal-recordings:
+    # Path-gated via detect-changes: skipped on PRs that can't affect the
+    # GIFs. "skipped" satisfies the required status check (branch protection
+    # treats job-level `if:` skips as passing), so this stays a required
+    # check without running on every PR.
     runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.recordings == 'true'
     steps:
       - uses: actions/checkout@v4
 

@@ -91,7 +91,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -789,13 +789,14 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
 }
 
 /**
- * `PD_USE_CLI_BACKEND` override. When set to `claude-code` or `codex`,
- * every spawn — regardless of `spec.backend` — routes through the
- * matching `cli:<tool>` backend. Empty / unset values disable the
- * override.
+ * `PD_USE_CLI_BACKEND` override. Accepted values: `claude-code` (or
+ * `claude`), `codex`, `gemini`, `groq`, `grok`. When set, every spawn —
+ * regardless of `spec.backend` — routes through the matching
+ * `cli:<tool>` backend. Empty / unset / unrecognized values disable the
+ * override (fail-closed: the original backend stays in place).
  *
- * This is the operator-level "I'm a Claude Max subscriber, use my
- * unmetered CLI for everything" knob. Documented in
+ * This is the operator-level "I already pay for a CLI subscription, use
+ * my unmetered CLI for everything" knob. Documented in
  * `docs/fleet/backend-costs.md`.
  */
 function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
@@ -803,6 +804,9 @@ function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
   if (!raw) return null;
   if (raw === 'claude-code' || raw === 'claude') return 'cli:claude-code';
   if (raw === 'codex') return 'cli:codex';
+  if (raw === 'gemini') return 'cli:gemini';
+  if (raw === 'groq') return 'cli:groq';
+  if (raw === 'grok') return 'cli:grok';
   // Unrecognized value — fail-closed: leave the original backend in
   // place rather than silently routing nowhere. The spawner's outer
   // error surface will report unknown backends if the value is bad.
@@ -901,6 +905,9 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   codex: 'gpt-5.4-mini',
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
+  'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
+  'cli:groq': 'groq-cli',            // local groq CLI manages its own model
+  'cli:grok': 'grok-cli',            // local grok CLI manages its own model
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
 };
@@ -1522,6 +1529,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
           case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
+          case 'cli:gemini':      result = await runCliTube(spec, 'gemini', childContext); break;
+          case 'cli:groq':        result = await runCliTube(spec, 'groq', childContext); break;
+          case 'cli:grok':        result = await runCliTube(spec, 'grok', childContext); break;
           case 'aider':     result = await runAider(spec, model, childContext); break;
           case 'custom':    result = await runCustom(spec, childContext); break;
           default:

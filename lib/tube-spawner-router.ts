@@ -76,6 +76,9 @@ const KNOWN_BACKENDS: ReadonlyArray<SpawnSpec['backend']> = [
   'groq',
   'cli:claude-code',
   'cli:codex',
+  'cli:gemini',
+  'cli:groq',
+  'cli:grok',
 ];
 
 const HARD_MAX_TIMEOUT_MS = 30 * 60 * 1000; // 30 min absolute ceiling
