@@ -101,6 +101,10 @@ struct FleetPopover: View {
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            if store.versionSkew.needsAttention {
+                versionSkewBanner(store.versionSkew)
+                Divider().opacity(0.5)
+            }
             if !budgetStore.pendingKills.isEmpty {
                 budgetPauseBanner
                 Divider().opacity(0.5)
@@ -623,6 +627,85 @@ struct FleetPopover: View {
     //
     // The harbor is empty. Lighthouse pulsing.
     // One icon, one line, one action.
+
+    /// Surfaces a version mismatch between the running FleetBar app and the
+    /// daemon. The app is a separately-downloaded `.app`; `brew upgrade
+    /// port-daddy` moves the daemon but never the menu bar app, so the two drift
+    /// and the operator needs a nudge plus the exact remediation.
+    @ViewBuilder
+    private func versionSkewBanner(_ skew: FleetVersionSkew) -> some View {
+        switch skew {
+        case .upToDate:
+            EmptyView()
+
+        case let .appBehindDaemon(app, daemon):
+            versionSkewCard(
+                icon: "arrow.down.circle.fill",
+                tint: Fleet.Color.warning,
+                title: "FleetBar is out of date",
+                detail: "This app is \(app); the daemon is already \(daemon). Download the latest FleetBar to match.",
+                versionLine: "app \(app)  →  daemon \(daemon)",
+                primaryLabel: "Download FleetBar \(daemon)",
+                primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
+                footnote: "Unsigned build — the download page lists the checksum to verify."
+            )
+
+        case let .daemonBehindApp(app, daemon):
+            versionSkewCard(
+                icon: "exclamationmark.arrow.triangle.2.circlepath",
+                tint: Fleet.Color.active,
+                title: "Daemon is behind this app",
+                detail: "FleetBar is \(app) but the running daemon is \(daemon). Upgrade and restart Port Daddy so they match.",
+                versionLine: "app \(app)  →  daemon \(daemon)",
+                primaryLabel: "Restart daemon",
+                primaryAction: { store.startDaemon() },
+                footnote: "Run `brew upgrade port-daddy`, then restart, to move the daemon forward."
+            )
+        }
+    }
+
+    private func versionSkewCard(
+        icon: String,
+        tint: Color,
+        title: String,
+        detail: String,
+        versionLine: String,
+        primaryLabel: String,
+        primaryAction: @escaping () -> Void,
+        footnote: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack(spacing: Fleet.Space.s) {
+                Image(systemName: icon)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Text(versionLine)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Fleet.Space.s) {
+                Button(action: primaryAction) {
+                    Text(primaryLabel)
+                        .font(.caption.weight(.medium))
+                }
+                .controlSize(.small)
+                .tint(tint)
+            }
+            Text(footnote)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Fleet.Space.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.10))
+    }
 
     private var budgetPauseBanner: some View {
         VStack(alignment: .leading, spacing: 8) {

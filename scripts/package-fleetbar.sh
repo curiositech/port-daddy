@@ -47,6 +47,21 @@ cp "$FLEETBAR_DIR/FleetBar-Info.plist" "$APP_CONTENTS/Info.plist"
 cp "$APP_ICON_SRC" "$APP_RESOURCES/FleetBarIcon.icns"
 chmod +x "$APP_MACOS/FleetBar"
 
+# Stamp the real version into the bundle so the running app can detect when it
+# has drifted behind the daemon (BuildInfo.swift reads CFBundleShortVersionString).
+# Source of truth is the repo's package.json; never the static placeholder plist.
+PD_VERSION="$(node -p "require('$ROOT_DIR/package.json').version" 2>/dev/null || true)"
+if [[ -z "$PD_VERSION" ]]; then
+  PD_VERSION="$(grep -m1 '"version"' "$ROOT_DIR/package.json" | sed -E 's/.*"version" *: *"([^"]+)".*/\1/')"
+fi
+if [[ -n "$PD_VERSION" && -x /usr/libexec/PlistBuddy ]]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PD_VERSION" "$APP_CONTENTS/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $PD_VERSION" "$APP_CONTENTS/Info.plist"
+  echo "Stamped FleetBar bundle version $PD_VERSION"
+else
+  echo "WARN: could not stamp FleetBar version (PlistBuddy or package.json version missing); app reports 'unknown'" >&2
+fi
+
 ZIP_PATH="$OUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH" "$ZIP_PATH.sha256"
 

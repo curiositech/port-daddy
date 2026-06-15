@@ -516,6 +516,16 @@ class FleetStore: ObservableObject {
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
     var projectsNeedingBudget: Int { projects.filter(\.needsBudget).count }
 
+    /// How the running FleetBar app compares to the daemon it is talking to.
+    /// Drives the staleness banner. `.upToDate` whenever the daemon is offline
+    /// or either version is unknown, so the banner only appears on a real, live
+    /// mismatch.
+    var versionSkew: FleetVersionSkew {
+        guard isDaemonRunning else { return .upToDate }
+        let daemonVersion = daemonStatus?.daemon?.version ?? daemonStatus?.version
+        return FleetVersion.evaluate(appVersion: FleetBarBuild.version, daemonVersion: daemonVersion)
+    }
+
     init(autoStart: Bool = true) {
         self.preferences = FleetBarPreferenceStore.load()
         self.baseURL = DaemonLocation.resolveBaseURL()
