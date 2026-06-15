@@ -217,10 +217,14 @@ pub struct ConsoleView {
     pub active_nav: usize,
     pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
+    /// Stable focus handle — created once and focused on open. Recreating it per
+    /// render (the old `cx.focus_handle()` in render) meant nothing stayed
+    /// focused, so the keyboard nav never received key events.
+    focus_handle: FocusHandle,
 }
 
 impl ConsoleView {
-    pub fn new(daemon_url: String, initial_pane: Option<String>) -> Self {
+    pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
         // Initialize one slot per NAV entry with a "connecting…" placeholder
         let pane_blocks = NAV.iter().map(|nav| {
             vec![
@@ -234,7 +238,7 @@ impl ConsoleView {
             .and_then(|id| NAV.iter().position(|n| n.id == id))
             .unwrap_or(0);
 
-        Self { active_nav, pane_blocks, daemon_url }
+        Self { active_nav, pane_blocks, daemon_url, focus_handle: cx.focus_handle() }
     }
 
     /// Push fresh data for all panes from the background refresh loop.
@@ -255,6 +259,12 @@ impl ConsoleView {
     }
 }
 
+impl Focusable for ConsoleView {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
+}
+
 impl Render for ConsoleView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let active = self.active_nav;
@@ -265,7 +275,7 @@ impl Render for ConsoleView {
 
         div()
             .key_context("console")
-            .track_focus(&cx.focus_handle())
+            .track_focus(&self.focus_handle)
             .size_full()
             .bg(rgb(C_BG))
             .flex()
@@ -312,15 +322,23 @@ impl Render for ConsoleView {
                                             .text_color(rgb(C_ACCENT))
                                     )
                             )
-                            // Nav items — no closures; key handler above drives nav
+                            // Nav items — clickable (sets active_nav) AND driven by
+                            // the key handler above. Each is an id'd interactive div
+                            // so the whole row is a hit target, not just decoration.
                             .children(
                                 NAV.iter().enumerate().map(|(i, item)| {
-                                    SidebarItem {
-                                        icon: item.icon,
-                                        label: item.label,
-                                        index: i,
-                                        active: i == active,
-                                    }
+                                    div()
+                                        .id(item.id)
+                                        .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                            this.active_nav = i;
+                                            cx.notify();
+                                        }))
+                                        .child(SidebarItem {
+                                            icon: item.icon,
+                                            label: item.label,
+                                            index: i,
+                                            active: i == active,
+                                        })
                                 })
                             )
                     )

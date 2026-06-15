@@ -129,7 +129,16 @@ fn main() {
                     focus: true,
                     ..Default::default()
                 },
-                |_window, cx| cx.new(|_cx| ConsoleView::new(daemon_url.clone(), initial_pane.clone())),
+                |window, cx| {
+                    let view = cx.new(|cx| {
+                        ConsoleView::new(daemon_url.clone(), initial_pane.clone(), cx)
+                    });
+                    // Focus the view so keyboard nav (1-9, s/m/p/h/c/d) works
+                    // immediately, without a click to grab focus first.
+                    let fh = view.read(cx).focus_handle(cx);
+                    window.focus(&fh);
+                    view
+                },
             )
             .expect("failed to open pd-console window");
 
