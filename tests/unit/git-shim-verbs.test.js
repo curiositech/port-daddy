@@ -15,7 +15,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { GIT_SHIM_CONTENT, SHIM_VERSION } from '../../cli/utils/git-shim.js';
 
-describe('git shim v3 destructive-verb coverage', () => {
+describe('git shim v4 destructive-verb coverage', () => {
   test('SHIM_VERSION is bumped to 4', () => {
     expect(SHIM_VERSION).toBe('4');
   });
