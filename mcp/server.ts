@@ -271,6 +271,10 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
     tools: ['commit', 'list_commitments', 'list_overdue_commitments'],
   },
+  'suggestions': {
+    description: 'Suggestibility nudges (ADR-0039) — list claim-overlap heads-up nudges and accept/decline them',
+    tools: ['list_nudges', 'respond_nudge'],
+  },
   'knowledge': {
     description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
     tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
@@ -561,6 +565,35 @@ const TOOLS = [
     description:
       '[Commitments] List commitments whose obligations are overdue. Usage: list_overdue_commitments()',
     inputSchema: { type: 'object' as const, properties: {} },
+  },
+
+  // ── Suggestibility nudges (ADR-0039) ─────────────────────────────────
+  {
+    name: 'list_nudges',
+    description:
+      '[Suggestions] List your pending suggestibility nudges — e.g. claim-overlap heads-up when another live session is on your surface. ' +
+      'Usage: list_nudges({agentId: "my-agent-id"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        agentId: { type: 'string', description: 'Agent whose nudges to list' },
+        status: { type: 'string', description: "Filter by status (default 'pending')" },
+      },
+    },
+  },
+  {
+    name: 'respond_nudge',
+    description:
+      '[Suggestions] Respond to a nudge: accept (you acted on it) or decline (not relevant — primes the cooldown so it stays quiet). ' +
+      'Usage: respond_nudge({id: 12, action: "accept"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'number', description: 'Nudge id' },
+        action: { type: 'string', description: "'accept' or 'decline' (default 'accept')" },
+      },
+      required: ['id'],
+    },
   },
 
   // ── Knowledge (semantic search + symbol index) ───────────────────────
@@ -3140,6 +3173,20 @@ async function handleTool(
 
     case 'list_commitments': {
       res = await GET('/commitments');
+      break;
+    }
+
+    case 'list_nudges': {
+      const params = new URLSearchParams();
+      if (args.agentId) params.set('agentId', args.agentId as string);
+      params.set('status', (args.status as string) || 'pending');
+      res = await GET(`/suggestions?${params.toString()}`);
+      break;
+    }
+
+    case 'respond_nudge': {
+      const action = args.action === 'decline' ? 'decline' : 'accept';
+      res = await POST(`/suggestions/${args.id}/${action}`, {});
       break;
     }
 

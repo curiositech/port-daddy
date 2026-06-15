@@ -25,6 +25,7 @@ export * from './periscope.js';
 export * from './coast-guard.js';
 export * from './sugar.js';
 export * from './attention.js';
+export * from './nudge.js';
 export * from './tutorial.js';
 export * from './inbox.js';
 export * from './spawn.js';

@@ -904,6 +904,29 @@
         "sdk": false
       }
     },
+    "suggestions": {
+      "description": "Suggestibility layer (ADR-0039): durable, dismissible coaching nudges for active agents. This slice ships the claim-overlap detector — when two distinct live sessions hold overlapping claims on one file, both agents get a `claim-overlap-headsup` delivered to their inbox (surfaced by `pd attention`). Deterministic and NLP-free; the semantic topic/prior-art classifier (Primitive 1) is the next slice. Named `pd nudge` to stay distinct from the Tender->operator `pd suggest` queue. The same overlap signal is parley's (ADR-0055) T1 trigger.",
+      "module": "lib/suggestions.ts",
+      "cli": [
+        "nudge"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /suggestions",
+        "POST /suggestions/scan",
+        "POST /suggestions/:param/accept",
+        "POST /suggestions/:param/decline",
+        "POST /suggestions/mute"
+      ],
+      "completions": [
+        "nudge"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "ADR-0039 first slice (claim-overlap-headsup only). Out of scope (next slices): the Haiku/embedding topical classifier (group-chat-proposal, prior-art-doc), the periodic/reactive auto-trigger (today scan is on-demand via `pd nudge scan`), and the per-kind mute CLI surface (route exists; CLI flag deferred)."
+    },
     "sugar": {
       "description": "Compound commands for common workflows (begin/done/whoami)",
       "cli": [

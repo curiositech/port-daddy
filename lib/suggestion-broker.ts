@@ -1,0 +1,223 @@
+/**
+ * Suggestion broker — the detection half of the suggestibility layer (ADR-0039 §Primitive 2).
+ *
+ * This slice ships exactly one detector: `claim-overlap-headsup`. When two *distinct*
+ * active sessions hold overlapping claims on the same file, both agents get a durable
+ * suggestion delivered to their inbox (surfaced by `pd attention`). This is the
+ * deterministic, NLP-free floor of the layer — no embeddings, no model call — and it
+ * is the exact signal that, on 2026-05-19, three agents on one dispatch-coordination
+ * surface discovered only by accident, after the duplicate work was done.
+ *
+ * It promotes the inline git-shim soft-claim warning (ADR-0037 §Layer 1) into a
+ * durable, queryable, dismissible record. The richer "same surface without a literal
+ * claim overlap" case needs the semantic classifier (Primitive 1) and lands next.
+ *
+ * The same overlap pairs this detector emits are what parley (ADR-0055) consumes as
+ * its T1 trigger — coaching here, compulsion there, one signal.
+ *
+ * Split into a pure detector (`detectClaimOverlaps`, trivially unit-testable) and an
+ * IO orchestrator (`runOverlapScan`, deps injected) so the matching logic is verified
+ * without a daemon.
+ */
+
+import type { Suggestions, SuggestionKind } from './suggestions.js';
+
+/** One active claim, as returned by `sessions.listAllActiveClaims().claims`. */
+export interface ActiveClaim {
+  filePath: string;
+  sessionId: string;
+  purpose: string;
+  agentId: string | null;
+  phase: string;
+  claimedAt: number;
+  startLine: number | null;
+  endLine: number | null;
+  symbol: string | null;
+  symbolPath: string | null;
+}
+
+/** A detected overlap between two distinct sessions on one file. Unordered: the
+ *  pair (A,B) and (B,A) collapse to one record, with `a` the lexicographically
+ *  smaller sessionId so the dedup key is stable across scans. */
+export interface ClaimOverlap {
+  filePath: string;
+  a: ActiveClaim;
+  b: ActiveClaim;
+}
+
+const OVERLAP_KIND: SuggestionKind = 'claim-overlap-headsup';
+
+/**
+ * Whether two line ranges overlap. A null range is a whole-file claim and overlaps
+ * everything — identical semantics to `rangesOverlap` in `lib/sessions.ts` (the
+ * canonical source; duplicated here as a 4-line pure fn to avoid widening that
+ * module's export surface).
+ */
+export function rangesOverlap(
+  startA: number | null,
+  endA: number | null,
+  startB: number | null,
+  endB: number | null,
+): boolean {
+  if (startA == null || endA == null || startB == null || endB == null) return true;
+  return startA <= endB && endA >= startB;
+}
+
+function claimsCollide(a: ActiveClaim, b: ActiveClaim): boolean {
+  // Symbol-path claims collide iff they name the same symbol.
+  if (a.symbolPath && b.symbolPath) return a.symbolPath === b.symbolPath;
+  // Otherwise fall back to line-range overlap (null = whole file = overlaps all).
+  return rangesOverlap(a.startLine, a.endLine, b.startLine, b.endLine);
+}
+
+/** Stable dedup key for the unordered session pair on a file. */
+export function overlapPayloadHash(o: ClaimOverlap): string {
+  return `claim-overlap:${o.filePath}:${o.a.sessionId}|${o.b.sessionId}`;
+}
+
+/**
+ * Pure detector. Given the full set of active claims, return every distinct-session
+ * overlap on a shared file. Deterministic and order-independent.
+ */
+export function detectClaimOverlaps(claims: ActiveClaim[]): ClaimOverlap[] {
+  const byFile = new Map<string, ActiveClaim[]>();
+  for (const c of claims) {
+    const arr = byFile.get(c.filePath);
+    if (arr) arr.push(c);
+    else byFile.set(c.filePath, [c]);
+  }
+
+  const out: ClaimOverlap[] = [];
+  for (const [filePath, fileClaims] of byFile) {
+    for (let i = 0; i < fileClaims.length; i++) {
+      for (let j = i + 1; j < fileClaims.length; j++) {
+        const x = fileClaims[i];
+        const y = fileClaims[j];
+        if (x.sessionId === y.sessionId) continue; // a session never overlaps itself
+        if (!claimsCollide(x, y)) continue;
+        const [a, b] = x.sessionId < y.sessionId ? [x, y] : [y, x];
+        out.push({ filePath, a, b });
+      }
+    }
+  }
+  return out;
+}
+
+/** Inbox surface this broker delivers through (subset of `lib/agent-inbox.ts`). */
+export interface BrokerInbox {
+  send(
+    agentId: string,
+    content: unknown,
+    options?: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary' },
+  ): { success: boolean; messageId?: number; error?: string };
+}
+
+/** Optional activity firehose for tuning telemetry (subset of `lib/activity.ts`). */
+export interface BrokerActivityLog {
+  log(type: string, detail?: Record<string, unknown>): unknown;
+}
+
+export interface SessionsClaimSource {
+  listAllActiveClaims(options?: Record<string, unknown>): { success: boolean; claims: ActiveClaim[]; count: number };
+}
+
+export interface RunOverlapScanDeps {
+  sessions: SessionsClaimSource;
+  suggestions: Suggestions;
+  inbox: BrokerInbox;
+  activityLog?: BrokerActivityLog;
+}
+
+export interface OverlapScanResult {
+  overlaps: number;
+  surfaced: number;
+  suppressed: number;
+  delivered: number;
+}
+
+function humanMessage(self: ActiveClaim, other: ActiveClaim, filePath: string): string {
+  const who = other.agentId ?? other.sessionId;
+  const what = other.purpose ? ` (${other.purpose})` : '';
+  return `Heads-up: ${who}${what} also holds a claim on ${filePath}. Consider coordinating before you both edit it — pd inbox send, a shared channel, or a parley.`;
+}
+
+/**
+ * Scan all active claims, detect cross-session overlaps, and surface a
+ * `claim-overlap-headsup` to BOTH parties — subject to the suggestions module's
+ * cooldown/budget/mute dampers. Re-running over a standing overlap is a no-op until
+ * the cooldown lapses. Suppressed surfacings are logged (not dropped) for tuning.
+ *
+ * Delivery is keyed by `agentId ?? sessionId` — the inbox key is an opaque string,
+ * and a session without a registered agentId still gets a queryable record and an
+ * inbox entry under its session id.
+ */
+export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
+  const { sessions, suggestions, inbox, activityLog } = deps;
+  const claimsRes = sessions.listAllActiveClaims();
+  const claims = claimsRes.success ? claimsRes.claims : [];
+  const overlaps = detectClaimOverlaps(claims);
+
+  let surfaced = 0;
+  let suppressed = 0;
+  let delivered = 0;
+
+  for (const o of overlaps) {
+    const payloadHash = overlapPayloadHash(o);
+    // Surface to each side, with that side as "you" and the other as "other".
+    for (const [self, other] of [
+      [o.a, o.b],
+      [o.b, o.a],
+    ] as [ActiveClaim, ActiveClaim][]) {
+      const deliveryKey = self.agentId ?? self.sessionId;
+      const payload = {
+        kind: OVERLAP_KIND,
+        filePath: o.filePath,
+        you: {
+          sessionId: self.sessionId,
+          agentId: self.agentId,
+          purpose: self.purpose,
+          range: { startLine: self.startLine, endLine: self.endLine, symbolPath: self.symbolPath },
+        },
+        other: {
+          sessionId: other.sessionId,
+          agentId: other.agentId,
+          purpose: other.purpose,
+          range: { startLine: other.startLine, endLine: other.endLine, symbolPath: other.symbolPath },
+        },
+        message: humanMessage(self, other, o.filePath),
+      };
+
+      const res = suggestions.create({
+        agentId: deliveryKey,
+        kind: OVERLAP_KIND,
+        payload,
+        payloadHash,
+      });
+
+      if (!res.created) {
+        suppressed++;
+        activityLog?.log('suggestion.suppressed', {
+          agentId: deliveryKey,
+          kind: OVERLAP_KIND,
+          reason: res.reason,
+          filePath: o.filePath,
+        });
+        continue;
+      }
+
+      surfaced++;
+      const sent = inbox.send(deliveryKey, payload, { from: 'suggestion-broker', type: 'suggestion' });
+      if (sent.success) delivered++;
+      activityLog?.log('suggestion.surfaced', {
+        agentId: deliveryKey,
+        kind: OVERLAP_KIND,
+        suggestionId: res.suggestion.id,
+        filePath: o.filePath,
+        otherSession: other.sessionId,
+        delivered: sent.success,
+      });
+    }
+  }
+
+  return { overlaps: overlaps.length, surfaced, suppressed, delivered };
+}

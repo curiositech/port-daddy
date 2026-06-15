@@ -81,6 +81,8 @@ import {
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
   handleAttention,
+  // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
+  handleNudge,
   // Tutorial
   handleLearn,
   // File claims
@@ -1281,7 +1283,7 @@ const ALL_COMMANDS: string[] = [
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
+  'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
   'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
@@ -2843,6 +2845,10 @@ export async function main(): Promise<void> {
 
       case 'attention':
         await handleAttention(options);
+        break;
+
+      case 'nudge':
+        await handleNudge(positional, options);
         break;
 
       case 'with-lock':
