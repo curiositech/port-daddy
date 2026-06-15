@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ChevronRight, MessageSquare, RefreshCw, Send } from 'lucide-react';
+import { getDaemonUrl } from '../api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,11 +33,9 @@ interface ChannelMessage {
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 function daemonBase(): string {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage?.getItem('pd.fleet-ui.daemon-url');
-    if (stored) return stored;
-  }
-  return 'http://127.0.0.1:9876';
+  // Single source of truth for the daemon URL: api.ts owns env discovery,
+  // the persisted choice, and the canonical fallback. Never re-derive it here.
+  return getDaemonUrl();
 }
 
 async function listChannels(limit = 50): Promise<ChannelSummary[]> {

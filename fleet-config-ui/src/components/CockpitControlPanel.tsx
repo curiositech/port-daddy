@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Compass, ExternalLink, RefreshCw } from 'lucide-react';
+import { getDaemonUrl } from '../api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,11 +42,9 @@ interface MissionIntake {
 // ─── API helper ───────────────────────────────────────────────────────────────
 
 function daemonBase(): string {
-  if (typeof window !== 'undefined') {
-    const stored = window.localStorage?.getItem('pd.fleet-ui.daemon-url');
-    if (stored) return stored;
-  }
-  return 'http://127.0.0.1:9876';
+  // Single source of truth for the daemon URL: api.ts owns env discovery,
+  // the persisted choice, and the canonical fallback. Never re-derive it here.
+  return getDaemonUrl();
 }
 
 async function fetchMissions(projectDir?: string): Promise<MissionIntake> {
