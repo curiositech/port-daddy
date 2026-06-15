@@ -278,7 +278,8 @@
     "inbox": {
       "description": "Agent inbox messaging",
       "cli": [
-        "inbox"
+        "inbox",
+        "send"
       ],
       "sdk": [
         "inboxSend",
@@ -297,7 +298,8 @@
         "PUT /agents/:param/inbox/read-all"
       ],
       "completions": [
-        "inbox"
+        "inbox",
+        "send"
       ],
       "docs": {
         "readme": true,

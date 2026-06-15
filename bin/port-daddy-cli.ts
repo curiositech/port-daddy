@@ -1278,7 +1278,7 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
