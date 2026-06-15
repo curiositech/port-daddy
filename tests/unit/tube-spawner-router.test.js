@@ -75,6 +75,18 @@ describe('buildSpawnSpec', () => {
     const r = buildSpawnSpec({ command: 'spawn', backend: 'ollama', task: 't', timeout: 9e9 }, policy);
     expect(r.spec.timeout).toBe(60000);
   });
+  it.each(['cli:gemini', 'cli:groq', 'cli:grok'])('accepts %s when the policy allows it', (backend) => {
+    const p = { enabled: true, allowedBackends: [backend] };
+    const r = buildSpawnSpec({ command: 'spawn', backend, task: 't' }, p);
+    expect('refusal' in r).toBe(false);
+    expect(r.spec.backend).toBe(backend);
+  });
+  it('still refuses a backend the spawner does not implement', () => {
+    const p = { enabled: true, allowedBackends: ['cli:bogus'] };
+    const r = buildSpawnSpec({ command: 'spawn', backend: 'cli:bogus', task: 't' }, p);
+    expect('refusal' in r).toBe(true);
+    expect(r.refusal).toMatch(/not a known spawner backend/);
+  });
   it('applies defaultBackend + defaultIdentity', () => {
     const p = { enabled: true, allowedBackends: ['ollama'], defaultBackend: 'ollama', defaultIdentity: 'pd:fleet:tube' };
     const r = buildSpawnSpec({ command: 'spawn', task: 't' }, p);
