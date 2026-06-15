@@ -1,38 +1,47 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Operator TUI Launcher
+// MARK: - Operator Console Launcher
 //
-// Launches pd-console (the Rust operator console) in a Terminal window.
+// Launches pd-console — the GPU-native operator console (ADR-0046). It opens its
+// OWN native window, so we launch it as a GUI app, not inside a terminal.
 //
-// Binary resolution order (first found wins):
-//   1. ~/.port-daddy/bin/pd-console          — installed via `pd install` or brew
-//   2. /usr/local/bin/pd-console             — brew install curiositech/tap/pd-console
-//   3. /opt/homebrew/bin/pd-console          — Apple Silicon homebrew prefix
-//   4. which pd-console (PATH resolution)    — any other PATH install
+// Resolution order (first found wins):
+//   App bundle (preferred — proper Dock presence + activation):
+//     1. ~/Applications/pd-console.app   — installed via core/pd-console/scripts/install-app.sh
+//     2. /Applications/pd-console.app
+//   Raw binary (fallback — still opens the window, launched detached):
+//     3. ~/.port-daddy/bin/pd-console
+//     4. /usr/local/bin/pd-console
+//     5. /opt/homebrew/bin/pd-console
+//     6. which pd-console (PATH)
 //
-// If no binary is found, the launcher surfaces an alert instead of silently
-// doing nothing. The binary must be pre-installed; FleetBar does not bundle it.
+// If nothing is found, the launcher surfaces an alert instead of doing nothing.
 
-enum OperatorTUILauncher {
+enum OperatorConsoleLauncher {
 
-    // MARK: - Binary discovery
+    // MARK: - Discovery
 
-    /// Returns the first pd-console binary that exists on disk.
+    /// First pd-console.app bundle that exists on disk.
+    static func resolvedAppPath() -> String? {
+        let candidates = [
+            NSString(string: "~/Applications/pd-console.app").expandingTildeInPath,
+            "/Applications/pd-console.app",
+        ]
+        return candidates.first { FileManager.default.fileExists(atPath: $0) }
+    }
+
+    /// First raw pd-console binary that exists on disk (fallback path).
     static func resolvedBinaryPath() -> String? {
         let candidates: [String] = [
             NSString(string: "~/.port-daddy/bin/pd-console").expandingTildeInPath,
             "/usr/local/bin/pd-console",
             "/opt/homebrew/bin/pd-console",
         ]
-        for path in candidates {
-            if FileManager.default.fileExists(atPath: path) {
-                return path
-            }
+        for path in candidates where FileManager.default.fileExists(atPath: path) {
+            return path
         }
-        // Fall back to PATH lookup via `which`. runShellCapture takes the
-        // executable path plus separate args — passing "/usr/bin/which pd-console"
-        // as one path points at a nonexistent file and always fails.
+        // PATH lookup via `which` (separate exe + arg; one combined string fails).
         if let pathResult = runShellCapture("/usr/bin/which", args: ["pd-console"]),
            !pathResult.isEmpty {
             return pathResult
@@ -40,56 +49,35 @@ enum OperatorTUILauncher {
         return nil
     }
 
+    /// True when pd-console can be launched somehow (app bundle or raw binary).
+    static func isInstalled() -> Bool {
+        resolvedAppPath() != nil || resolvedBinaryPath() != nil
+    }
+
     // MARK: - Launch
 
-    /// Opens pd-console in a new Terminal window (or a new tab in iTerm if
-    /// iTerm2 is the default terminal application).
-    ///
-    /// - Parameter binaryPath: The full path to the pd-console binary.
+    /// Opens the operator console window. Prefers the .app bundle (Dock + activation);
+    /// falls back to launching the raw binary detached (it opens its own window).
     @MainActor
-    static func launch(binaryPath: String) {
-        let escaped = binaryPath.replacingOccurrences(of: "\"", with: "\\\"")
-        let script: String
-        if isITermRunning() {
-            // iTerm2 variant: open a new window with the command.
-            script = """
-            tell application "iTerm"
-                activate
-                set newWindow to (create window with default profile)
-                tell current session of newWindow
-                    write text "\(escaped)"
-                end tell
-            end tell
-            """
-        } else {
-            // Terminal.app — the macOS system default.
-            script = """
-            tell application "Terminal"
-                activate
-                do script "\(escaped)"
-            end tell
-            """
+    static func launch() {
+        if let appPath = resolvedAppPath() {
+            let url = URL(fileURLWithPath: appPath)
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.openApplication(at: url, configuration: config)
+            return
         }
-        runAppleScript(script)
+        if let binaryPath = resolvedBinaryPath() {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: binaryPath)
+            // Detached: the console outlives this launch and FleetBar doesn't block.
+            try? task.run()
+        }
     }
 
     // MARK: - Private helpers
 
-    private static func isITermRunning() -> Bool {
-        NSWorkspace.shared.runningApplications.contains { app in
-            app.bundleIdentifier == "com.googlecode.iterm2"
-        }
-    }
-
-    private static func runAppleScript(_ source: String) {
-        guard let script = NSAppleScript(source: source) else { return }
-        var errorInfo: NSDictionary?
-        script.executeAndReturnError(&errorInfo)
-        // Errors are silently swallowed here; callers should validate the
-        // binary exists before calling launch().
-    }
-
-    /// Runs a shell command and returns stdout, trimming newlines.
+    /// Runs a shell command and returns the first stdout line, trimmed.
     private static func runShellCapture(_ command: String, args: [String] = []) -> String? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: command)
@@ -112,39 +100,35 @@ enum OperatorTUILauncher {
 
 // MARK: - SwiftUI integration
 
-/// A Button that resolves and launches pd-console.  Drop this anywhere in a
-/// View hierarchy; it carries its own alert for the "binary not found" case.
-struct LaunchOperatorTUIButton: View {
+/// A Button that launches the pd-console operator console window. Drop it anywhere
+/// in a View hierarchy; it carries its own "not installed" alert.
+struct LaunchOperatorConsoleButton: View {
     @State private var showingNotFoundAlert = false
-    @State private var resolvedPath: String? = nil
 
     var body: some View {
         Button {
-            let path = OperatorTUILauncher.resolvedBinaryPath()
-            guard let path else {
+            if OperatorConsoleLauncher.isInstalled() {
+                OperatorConsoleLauncher.launch()
+            } else {
                 showingNotFoundAlert = true
-                return
             }
-            resolvedPath = path
-            OperatorTUILauncher.launch(binaryPath: path)
         } label: {
-            Label("Launch Operator TUI", systemImage: "terminal")
+            Label("Open Operator Console", systemImage: "macwindow")
                 .font(.caption2.weight(.semibold))
         }
         .buttonStyle(.borderless)
         .foregroundStyle(Fleet.Color.active)
-        .help("Open pd-console (the operator REPL) in a terminal window")
+        .help("Open pd-console — the GPU-native operator console window")
         .alert("pd-console not found", isPresented: $showingNotFoundAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("""
-            pd-console was not found at any of the expected paths:
-            • ~/.port-daddy/bin/pd-console
-            • /usr/local/bin/pd-console
-            • /opt/homebrew/bin/pd-console
+            pd-console isn't installed yet. Build and install the app with:
 
-            Install it via: brew install curiositech/tap/port-daddy
-            or copy the binary to ~/.port-daddy/bin/pd-console
+            core/pd-console/scripts/install-app.sh
+
+            (installs ~/Applications/pd-console.app), or place the binary at
+            ~/.port-daddy/bin/pd-console.
             """)
         }
     }

@@ -916,7 +916,7 @@ struct FleetPopover: View {
             .help("Manage daemon secrets and credentials")
             .accessibilityLabel("Open secrets manager")
 
-            LaunchOperatorTUIButton()
+            LaunchOperatorConsoleButton()
                 .font(.caption2)
 
             Button {

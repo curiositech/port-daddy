@@ -8,9 +8,11 @@ CRATE_DIR="$(dirname "$SCRIPT_DIR")"
 APP_DIR="$HOME/Applications/pd-console.app"
 BIN_DEST="$APP_DIR/Contents/MacOS/pd-console"
 
-echo "→ Building pd-console (release)…"
+echo "→ Building pd-console (release, GPU-native window)…"
 cd "$CRATE_DIR"
-cargo build --release --bin pd-console
+# The window bin is gated behind the `gpui` feature (see Cargo.toml) — without it
+# the bin is skipped and target/release/pd-console won't exist.
+cargo build --release --features gpui --bin pd-console
 
 echo "→ Installing to $APP_DIR…"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
