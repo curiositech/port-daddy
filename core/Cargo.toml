@@ -13,8 +13,16 @@ members = [
   "kernel/pd-rs",
 ]
 
-# pd-tui (ratatui skeleton from worktree) intentionally omitted from root workspace
-# until merged with kernel/crates/pd-tui.
+# harbor-card-rs and pd-tui live inside core/ but are NOT members of this
+# workspace: harbor-card-rs is a standalone FFI cdylib that scripts/build-core.sh
+# compiles on its own (own target-dir), and pd-tui is the ratatui skeleton from
+# the worktree, intentionally omitted until merged with kernel/pd-tui. Without an
+# explicit exclude, cargo aborts building either one with "current package
+# believes it's in a workspace when it's not" (broke compiled-daemon-smoke).
+exclude = [
+  "harbor-card-rs",
+  "pd-tui",
+]
 
 [workspace.package]
 version = "0.1.0"
