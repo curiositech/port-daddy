@@ -187,6 +187,33 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
+### Visual artifacts for UI diffs (hard requirement — forever)
+
+Every PR that touches a **GPUI** surface (`core/pd-console` window), the
+**console** (any pd-console pane / renderer), or the **website / dashboard**
+(`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) MUST ship comprehensive
+visual artifacts in its Test Plan: **screenshots, a GIF, and a short screen
+recording** of the actual change. A green build proves it compiles, not that it
+renders correctly — the operator reviews these surfaces by looking at the
+artifacts, so a UI PR without them is incomplete and must not merge. Operator,
+2026-06-11: *"I demand all GPUI diffs and console and website diffs include
+comprehensive screenshot artifacts, GIFs and screen recording in the test plan.
+Forever."*
+
+- **TUI / pd-console panes**: record with `vhs` (tape committed under
+  `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
+- **GPUI native window**: `cargo build --release --features gpui --bin pd-console`,
+  launch it, and capture window stills + a recording with `screencapture`
+  (`core/pd-console/scripts/capture-gpui.sh` automates a representative pane set).
+  This needs macOS **Screen Recording** permission for the capturing process — a
+  headless/background host is denied by TCC (`screencapture` prints "could not
+  create image from display"); run the capture from a permitted Terminal.
+- **Website / dashboard**: headless Playwright (`headless=True`), dark + light
+  pairs, 100% and 200% zoom where layout matters. Read the PNGs back to confirm a
+  settled render (not a loading state) before attaching.
+- Embed artifacts in the PR body Test Plan (commit them and reference
+  `raw.githubusercontent.com/<repo>/<sha>/<path>` URLs so they survive the squash).
+
 ### Create / Update / Land mechanics
 
 The numbered flow above is the *review contract*. This subsection is the

@@ -200,6 +200,16 @@ calling a branch ready, inspect and close the full PR surface:
 - Do not leave a PR with "CI green except..." as an unresolved aside. Either
   make it green, file/assign the external blocker with evidence, or hand off the
   exact next action to an active Port Daddy session.
+- **UI diffs ship visual artifacts — forever.** A PR touching a GPUI surface
+  (`core/pd-console` window), the console (any pane/renderer), or the
+  website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) is
+  incomplete without screenshots + a GIF + a short screen recording of the real
+  change in its Test Plan. Green CI proves compilation, not rendering. TUI panes →
+  `vhs` (tape under `core/pd-console/docs/artifacts/`); GPUI window →
+  `cargo build --release --features gpui` then `core/pd-console/scripts/capture-gpui.sh`
+  (needs macOS Screen Recording permission — a headless host is TCC-denied);
+  website/dashboard → headless Playwright dark+light pairs. See AGENTS.md
+  § "Visual artifacts for UI diffs". Operator rule, 2026-06-11.
 
 ## PR Lifecycle (Create / Update / Land)
 
