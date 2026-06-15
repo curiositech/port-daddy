@@ -722,6 +722,38 @@ fleet:
       telos: "Stand the watch: read what nobody else reads, keep the deck log,
         escalate what the operator must see."
 
+    harbor-pilot:
+      # Repo-wide PR custody: arms merge-when-ready on non-draft PRs,
+      # DEMOTES (never closes) PRs whose entire diff already landed on
+      # main via other PRs (the #353 failure mode no GitHub setting
+      # catches), and flags conflicted PRs once.
+      #
+      # Naming: the harbor pilot boards any inbound vessel and guides
+      # it to berth. Distinct from lib/harbormaster.ts (ADR-0037),
+      # which owns merges of DISPATCHED agent work only and never
+      # touches operator-authored PRs. The pilot covers the rest of
+      # the harbor. GitHub's merge queue owns mechanical correctness
+      # (latest-main validation, serialization); the pilot owns the
+      # judgment calls the queue cannot make.
+      #
+      # Deterministic code body, not an LLM prompt — every rule is
+      # unit-tested in tests/unit/harbor-pilot.test.ts. Safety
+      # defaults: uncertainty never demotes; drafts are never
+      # touched; an operator re-readying a demoted PR (label still
+      # present) is an override the pilot never re-overrides.
+      handle: harbor-pilot
+      role: guides every open PR to berth; demotes ghosts, flags fouled anchors
+      mark: "◯"
+      schedule: "*/10 * * * *"
+      trigger: pull_request:opened
+      body: apps/github-app-fleet/bin/harbor-pilot.ts
+      backend: local
+      singleton: true
+      cooldown_ms: 300000
+      allowedTools: "Bash(gh*),Bash(pd note*)"
+      identity: "{project}:fleet:harbor-pilot"
+      telos: "No stale, superseded, or silently rotting PR ever reaches main."
+
   watchers:
     # Operator-facing watcher: when a HIGH finding lands, drop a
     # session note so the FleetBar app's `dock-master` badge
