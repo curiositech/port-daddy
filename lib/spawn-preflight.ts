@@ -193,9 +193,11 @@ export async function assessSpawnPreflight(
   if (dedupedAttempts.length === 0 || dedupedAttempts.every((attempt) => !attempt.backend)) {
     blockedReasons.push('No backend resolved for this launch.');
   } else if (readyAttempts.length === 0) {
-    // Surface each blocked attempt with its actual reason. Manual-check
-    // backends are intentionally not enough to power agents; the control plane
-    // should only launch runtimes the daemon can prove are setup and ready.
+    // Surface each blocked attempt with its actual reason. The control plane
+    // launches only runtimes it can prove ready OR installed-CLI backends whose
+    // auth is merely unverifiable offline (readinessLaunchableUnverified). A
+    // `manual_check` without that flag — probed-and-degraded (ollama down),
+    // telemetry-blocked, custom, or unknown — is intentionally not launchable.
     const detail = dedupedAttempts
       .map((a) => {
         const status = a.readinessStatus || 'unknown';
