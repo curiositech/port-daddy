@@ -33,6 +33,36 @@ const ENC_ALGO = 'aes-256-gcm';
 /** Binding key for prepare-for-request: 32 zero bytes, per libmacaroons. */
 const BIND_KEY = Buffer.alloc(32, 0);
 
+/** SHA-256 signatures are always 32 bytes → 64 hex chars. */
+const SIG_HEX_LEN = 64;
+/** Generous upper bound on a vid (a real vid is iv+tag+ct ≈ 120 hex chars).
+ *  Bounding the length fail-fast keeps a hostile macaroon from forcing a large
+ *  allocation / hex decode at the gate before authentication can reject it. */
+const MAX_VID_HEX = 1024;
+const HEX_RE = /^[0-9a-f]*$/i;
+
+/**
+ * Validate a hex string fail-fast: hex chars only, even length, and (optionally)
+ * an exact byte count. Returns false instead of throwing so every caller can
+ * fail closed. Used at the untrusted-input boundary (verify / deserialize).
+ */
+function isValidHex(s: unknown, exactBytes?: number): s is string {
+  if (typeof s !== 'string') return false;
+  if (s.length % 2 !== 0) return false;
+  if (exactBytes !== undefined && s.length !== exactBytes * 2) return false;
+  return HEX_RE.test(s);
+}
+
+/** Runtime shape check for a single caveat from untrusted JSON. */
+function isWellFormedCaveat(c: unknown): c is Caveat {
+  if (typeof c !== 'object' || c === null) return false;
+  const cav = c as Record<string, unknown>;
+  if (typeof cav.cid !== 'string') return false;
+  if (cav.vid !== undefined && typeof cav.vid !== 'string') return false;
+  if (cav.cl !== undefined && typeof cav.cl !== 'string') return false;
+  return true;
+}
+
 function hmac(key: Buffer, ...messages: Buffer[]): Buffer {
   const h = createHmac(HMAC_ALGO, key);
   for (const m of messages) h.update(m);
@@ -56,14 +86,11 @@ function sealVid(sig: Buffer, caveatKey: Buffer): string {
 }
 
 /** Recover a discharge root key from a vid (hex) using the current chain sig.
- *  Returns null if the vid is malformed or the GCM tag does not authenticate. */
+ *  Returns null if the vid is malformed or the GCM tag does not authenticate.
+ *  Length is bounded and hex-validated fail-fast before any decode. */
 function openVid(sig: Buffer, vidHex: string): Buffer | null {
-  let buf: Buffer;
-  try {
-    buf = Buffer.from(vidHex, 'hex');
-  } catch {
-    return null;
-  }
+  if (!isValidHex(vidHex) || vidHex.length > MAX_VID_HEX) return null;
+  const buf = Buffer.from(vidHex, 'hex');
   if (buf.length < 12 + 16) return null;
   const iv = buf.subarray(0, 12);
   const tag = buf.subarray(12, 28);
@@ -173,6 +200,11 @@ export function verify(
   discharges: Macaroon[],
   checkFirstParty: (predicate: string) => boolean,
 ): VerifyResult {
+  // Fail-fast on a malformed root signature before any allocation/decode — the
+  // top-level macaroon is attacker-controlled input at the gate.
+  if (!isValidHex(m.signature, 32)) {
+    return { ok: false, reason: 'malformed root signature' };
+  }
   const rootBoundSig = Buffer.from(m.signature, 'hex');
   return verifyInner(m, rootKey, discharges, checkFirstParty, rootBoundSig, new Set(), true);
 }
@@ -186,6 +218,17 @@ function verifyInner(
   seen: Set<string>,
   isRoot: boolean,
 ): VerifyResult {
+  // Fail-closed runtime shape check: a macaroon may arrive from untrusted JSON
+  // (a discharge presented at the gate). Never throw on malformed input —
+  // return a clean refusal so a hostile payload can't crash the verifier.
+  if (
+    typeof m.identifier !== 'string' ||
+    !Array.isArray(m.caveats) ||
+    !isValidHex(m.signature, 32)
+  ) {
+    return { ok: false, reason: 'malformed macaroon structure' };
+  }
+
   // Loop guard: a discharge that references itself (or a cycle) must not recurse
   // forever. Each macaroon is verified at most once per chain.
   if (seen.has(m.identifier)) {
@@ -195,6 +238,9 @@ function verifyInner(
 
   let sig = hmac(rootKey, Buffer.from(m.identifier, 'utf8'));
   for (const c of m.caveats) {
+    if (!isWellFormedCaveat(c)) {
+      return { ok: false, reason: 'malformed caveat' };
+    }
     if (isThirdParty(c)) {
       const caveatKey = openVid(sig, c.vid as string);
       if (!caveatKey) {
@@ -257,10 +303,18 @@ export function deserialize(s: string): Macaroon {
   if (
     typeof m?.location !== 'string' ||
     typeof m?.identifier !== 'string' ||
-    typeof m?.signature !== 'string' ||
+    !isValidHex(m?.signature, 32) ||
     !Array.isArray(m?.caveats)
   ) {
     throw new Error('malformed macaroon');
+  }
+  // Validate every caveat entry — deserialize is the public boundary for
+  // untrusted input, so a bad shape must throw here, not surface later in verify.
+  for (const c of m.caveats) {
+    if (!isWellFormedCaveat(c)) throw new Error('malformed macaroon');
+    if (c.vid !== undefined && (!isValidHex(c.vid) || c.vid.length > MAX_VID_HEX)) {
+      throw new Error('malformed macaroon');
+    }
   }
   return m;
 }

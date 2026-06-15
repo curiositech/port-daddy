@@ -141,6 +141,49 @@ describe('macaroon core — third-party caveats and discharge', () => {
   });
 });
 
+describe('macaroon core — fail-closed on malformed / hostile input', () => {
+  const root = randomBytes(32);
+
+  test('a non-hex or wrong-length root signature is rejected, never thrown', () => {
+    const m = create(root, 'g', 'loc');
+    expect(() => verify({ ...m, signature: 'zzzz' }, root, [], ALWAYS)).not.toThrow();
+    expect(verify({ ...m, signature: 'zzzz' }, root, [], ALWAYS).ok).toBe(false);
+    expect(verify({ ...m, signature: 'ab' }, root, [], ALWAYS).ok).toBe(false);
+    expect(verify({ ...m, signature: 'x'.repeat(64) }, root, [], ALWAYS).ok).toBe(false);
+  });
+
+  test('a malformed caveat object fails closed instead of crashing the gate', () => {
+    const m = addFirstPartyCaveat(create(root, 'g', 'loc'), 'op = push');
+    const bad = { ...m, caveats: [{ notcid: 1 }] };
+    expect(() => verify(bad, root, [], ALWAYS)).not.toThrow();
+    expect(verify(bad, root, [], ALWAYS).ok).toBe(false);
+  });
+
+  test('an oversized third-party vid is rejected without a large decode', () => {
+    const root2 = randomBytes(32);
+    const m = addThirdPartyCaveat(create(root2, 'g', 'loc'), randomBytes(32), 'cid', 'loc');
+    const bloated = {
+      ...m,
+      caveats: [{ ...m.caveats[0], vid: 'a'.repeat(100_000) }],
+    };
+    expect(() => verify(bloated, root2, [], ALWAYS)).not.toThrow();
+    expect(verify(bloated, root2, [], ALWAYS).ok).toBe(false);
+  });
+
+  test('deserialize rejects malformed caveat shapes', () => {
+    const sig = 'a'.repeat(64);
+    expect(() =>
+      deserialize(JSON.stringify({ location: 'l', identifier: 'i', signature: sig, caveats: [{ notcid: 1 }] })),
+    ).toThrow(/malformed/);
+    expect(() =>
+      deserialize(JSON.stringify({ location: 'l', identifier: 'i', signature: sig, caveats: [{ cid: 'x', vid: 'zz' }] })),
+    ).toThrow(/malformed/);
+    expect(() =>
+      deserialize(JSON.stringify({ location: 'l', identifier: 'i', signature: 'short', caveats: [] })),
+    ).toThrow(/malformed/);
+  });
+});
+
 describe('macaroon core — serialization', () => {
   test('serialize/deserialize round-trips and preserves verifiability', () => {
     const root = randomBytes(32);

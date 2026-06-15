@@ -167,12 +167,24 @@ export function narrows(existing: string[], candidate: string): boolean {
     } else if (cand.field === 'expires') {
       // A new expiry must be sooner-or-equal (you may shorten, never extend).
       if (Number(cand.value) > Number(prev.value)) return false;
+    } else if (cand.field === 'branch') {
+      // Branch is a glob, not an equality field. A candidate `branch = <g2>`
+      // narrows an existing `branch = <g1>` iff L(g2) ⊆ L(g1) — every branch the
+      // candidate allows is already allowed by the parent. Sound conservative
+      // test: the parent's regex (whose `*` → `.*` is maximally permissive)
+      // must match the candidate glob string. `feat/*` ⊇ `feat/x`, but
+      // `feat/*` ⊉ `*` (which is broader) and ⊉ `other/x`.
+      if (cand.op === '=' && prev.op === '=') {
+        if (!globToRegExp(prev.value).test(cand.value)) return false;
+      }
+      // deny↔deny (`branch != X`) and mixed allow/deny combinations only ever
+      // add restrictions; conjunctive evaluation at verify time is the real
+      // guarantee, so narrows() does not flag those.
     } else if (cand.op === '=' && prev.op === '=') {
       // Equality fields (op/repo/host/session): re-asserting the same value is
-      // fine; asserting a *different* value would create an unsatisfiable AND
-      // (which is not broadening — it's self-denial — so allow it, the chain is
-      // still sound), but a contradictory re-bind on `repo`/`session` is almost
-      // always a bug, so flag it.
+      // fine; a *different* value is a contradictory re-bind. It cannot broaden
+      // (the AND becomes unsatisfiable), but it is almost always a bug, so we
+      // flag it rather than silently accept it.
       if (cand.value !== prev.value) return false;
     }
   }

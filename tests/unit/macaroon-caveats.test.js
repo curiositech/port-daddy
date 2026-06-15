@@ -136,6 +136,16 @@ describe('narrows() — the CAP_ESCALATION attenuation monitor', () => {
     expect(narrows([], branchCaveat('feat/x'))).toBe(true);
   });
 
+  test('branch globs narrow by language-subset, not equality', () => {
+    // A more specific branch under the parent glob is valid attenuation.
+    expect(narrows([branchCaveat('feat/*')], branchCaveat('feat/x'))).toBe(true);
+    expect(narrows([branchCaveat('feat/*')], branchCaveat('feat/dom-*'))).toBe(true);
+    expect(narrows([branchCaveat('feat/x')], branchCaveat('feat/x'))).toBe(true);
+    // Broadening attempts: a wider glob, or a disjoint branch.
+    expect(narrows([branchCaveat('feat/*')], branchCaveat('*'))).toBe(false);
+    expect(narrows([branchCaveat('feat/*')], branchCaveat('other/x'))).toBe(false);
+  });
+
   test('re-binding an equality field to a different value is flagged', () => {
     expect(narrows([repoCaveat('a/b')], repoCaveat('a/b'))).toBe(true);
     expect(narrows([repoCaveat('a/b')], repoCaveat('a/c'))).toBe(false);
