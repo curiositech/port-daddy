@@ -1072,7 +1072,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     try {
       fn();
     } catch (err) {
-      const msg = `transcript recording failed (${label}): ${(err as Error).message}`;
+      // Coerce safely: a thrown non-Error (possible in JS) has no `.message`,
+      // which would render "undefined" in the banner.
+      const detail = err instanceof Error ? err.message : String(err);
+      const msg = `transcript recording failed (${label}): ${detail}`;
       if (enforceTranscriptPolicy) {
         console.error(
           `${ANSI_BANNER_RED} TRANSCRIPT RECORDING FAILED ${ANSI_RESET}\n` +
@@ -1812,16 +1815,24 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       // recordOrThrow already logged a red banner. Surface the failure on the
       // SpawnResult so the caller sees that recording — not the agent — broke.
       if (!error) {
-        error = (recordingErr as Error).message;
+        error = recordingErr instanceof Error ? recordingErr.message : String(recordingErr);
         status = 'failed';
         record.status = 'failed';
       }
     }
-    // Finalize is itself fail-loud (logs a banner on throw); swallow here so a
-    // broken finalize can't mask the status we already computed.
+    // Finalize. Under enforcement a finalize failure must NOT let the spawn
+    // report success — flip the result to failed and surface the error, then
+    // make a best-effort attempt to stamp the row 'failed' so it isn't stranded
+    // in 'running'. (In best-effort mode txFinalize swallows internally, so
+    // this catch never fires and behavior is unchanged.)
     try {
       txFinalize(transcriptId, status, completedAt, telemetry, error);
-    } catch { /* already logged loudly by recordOrThrow */ }
+    } catch (finalizeErr) {
+      if (!error) error = finalizeErr instanceof Error ? finalizeErr.message : String(finalizeErr);
+      status = 'failed';
+      record.status = 'failed';
+      try { txFinalize(transcriptId, 'failed', completedAt, telemetry, error); } catch { /* row may be unreachable; the SpawnResult already reports failed */ }
+    }
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the

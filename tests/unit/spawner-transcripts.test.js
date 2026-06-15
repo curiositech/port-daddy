@@ -195,6 +195,28 @@ describe('spawner ↔ transcripts integration', () => {
     expect(backendRan).toBe(false);
   });
 
+  it('marks the spawn failed when finalize throws (recording failure cannot report success)', async () => {
+    // The backend runs and turns record fine, but the final status-stamp write
+    // fails. Under enforcement that must surface as a failed spawn, not a
+    // silent `completed`.
+    const brokenFinalize = {
+      ...transcripts,
+      finalize() { throw new Error('disk full at finalize'); },
+    };
+    const spawner = createSpawner({
+      transcripts: brokenFinalize,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({ output: 'hi', error: null }),
+      },
+    });
+    const result = await spawner.spawn({ backend: 'claude', task: 'hi' });
+    expect(result.status).toBe('failed');
+    expect(result.error).toMatch(/recording failed|disk full/i);
+  });
+
   it('records codex-style structured turns (thinking + tool + assistant) as distinct messages', async () => {
     const spawner = createSpawner({
       transcripts,
