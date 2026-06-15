@@ -110,6 +110,9 @@
 \newtheorem{property}{Property}[section]
 \newtheorem{corollary}{Corollary}[section]
 
+\theoremstyle{plain}
+\newtheorem{conjecture}{Conjecture}[section]
+
 \theoremstyle{remark}
 \newtheorem*{remark}{Remark}
 
@@ -147,7 +150,7 @@
 \vspace{1cm}
 
 \begin{abstract}\noindent
-A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob runs the front end on his. Each operator has a working local harbor in the sense of Beam~A (Anchor Protocol) and Beam~B (Bonded Commons) --- capability tokens are pinned and attenuated, evidence is Merkle-chained, bonds are posted, and the Conservation invariant holds inside each machine. The problem is not internal. Alice's \texttt{db:write} card is gibberish to Bob's daemon, Bob's revocation gossip is invisible to Alice's mesh, and a bond Alice posted to cover a botched migration sits in her harbor's collateral pool while the migration lands in Bob's staging database. Two harbors, each individually trustworthy, jointly useless. This paper extends the Anchor Protocol's capability ceremony, the Bonded Commons' evidence trail and competitive-insurance market, and the daemon-as-correlation-device argument to settings where the sovereign is not single. We define an inter-harbor capability transfer protocol with explicit attenuation across the boundary; a federated revocation gossip layer with a named convergence bound and cross-witness equivocation detection; a settlement protocol in which a bond posted at one harbor clears against damage measured at another through a structurally bounded escrow; and an admission ceremony for new harbors to join an existing mesh without prior reputation. We are disciplined about which claims are mechanized, which are bounded against named threat windows, and which are honestly open. The point of the paper is to draw the new boundary cleanly so that the unsolved problems are visible rather than hidden.
+A demonstration is scheduled for 4pm. Alice runs the back end on her laptop; Bob runs the front end on his. Each operator has a working local harbor in the sense of Beam~A (Anchor Protocol) and Beam~B (Bonded Commons) --- capability tokens are pinned and attenuated, evidence is Merkle-chained, bonds are posted, and the Conservation invariant holds inside each machine. The problem is not internal. Alice's \texttt{db:write} card is gibberish to Bob's daemon, Bob's revocation gossip is invisible to Alice's mesh, and a bond Alice posted to cover a botched migration sits in her harbor's collateral pool while the migration lands in Bob's staging database. Two harbors, each individually trustworthy, jointly useless. This paper extends the Anchor Protocol's capability ceremony, the Bonded Commons' evidence trail and competitive-insurance market, and the daemon-as-correlation-device argument to settings where the sovereign is not single. We define an inter-harbor capability transfer protocol with explicit attenuation across the boundary; a federated revocation gossip layer with a named convergence bound and cross-witness equivocation detection; a settlement protocol in which a bond posted at one harbor clears against damage measured at another through a structurally bounded escrow (trusted-but-bounded; full trustless settlement is conjectured impossible --- see Conjecture~\ref{conj:fh-trustless}; the escrow mechanism is \Partial); and an admission ceremony for new harbors to join an existing mesh without prior reputation. We are disciplined about which claims are mechanized, which are bounded against named threat windows, and which are honestly open. The point of the paper is to draw the new boundary cleanly so that the unsolved problems are visible rather than hidden.
 \end{abstract}
 
 \vspace{0.5cm}
@@ -324,7 +327,7 @@ The federation is \emph{not} a consensus protocol. There is no global agreement 
 
 The federation is \emph{not} a hub-and-spoke topology with a privileged coordinator. The witness log is replicable; in practice a small set of mutually-witnessing log instances suffices, and any harbor can read from any of them. The hub-and-spoke failure mode --- one well-funded coordinator captures the federation by becoming everyone's only witness --- is a real risk we discuss in \S\ref{sec:fh-failure-modes}, and the structural pushback is gossip-based witness redundancy.
 
-The federation is \emph{not} a permissionless market in identities. New harbors enter through the admission ceremony of \S\ref{sec:fh-admission}, which requires either a pre-existing bond or an existing harbor sponsor. This is by design; the cost is that the federation is invitation-bounded, the benefit is that Sybil attacks against the federation~\cite{douceur2002sybil} cost the attacker as much per identity as honest entry does.
+The federation is \emph{not} a permissionless market in identities. New harbors enter through the admission ceremony of \S\ref{sec:fh-admission}, which requires either a pre-existing bond or an existing harbor sponsor. This is by design; the cost is that the federation is invitation-bounded, the benefit is that Sybil attacks against the federation~\cite{douceur2002sybil} cost the attacker as much per identity as honest entry does. \emph{Note: the out-of-scope attacks discussion (\S\ref{sec:fh-attacks-out}, the Sybil paragraph) names the cost-ratio bound as open work; this claim should be read as a design goal, not an established result.}
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Threat Model}\label{sec:fh-threat-model}
@@ -430,7 +433,7 @@ We are explicit that the ceremony does not close every threat in one step. Feder
 
 \subsection{Mechanization status}\label{sec:fh-xfer-mech}
 
-We have a draft ProVerif model of the four-message ceremony (Appendix~\ref{app:fh-proverif}), extending the Anchor Phase-3 model with a second signing key and an epoch-root binding. The current status of the cross-realm authenticity query is \Partial: the model checks, but the proof depends on an assumption about witness-log freshness that we are still tightening. We mark this honestly in Appendix~\ref{app:fh-mech} and treat the attenuation monotonicity claim (Lemma~\ref{lem:fh-att}) as proved under the same caveat.
+We have a draft ProVerif model of the four-message ceremony (Appendix~\ref{app:fh-proverif}), extending the Anchor Phase-3 model with a second signing key and an epoch-root binding. The current status of the cross-realm authenticity query is \Partial: the model checks, but the proof depends on an assumption about witness-log freshness that we are still tightening. We mark this honestly in Appendix~\ref{app:fh-mech} and treat the attenuation monotonicity claim (Lemma~\ref{lem:fh-att}) as \Partial\ under the same caveat --- a proof sketch pending full mechanization, not a closed result.
 
 % ═════════════════════════════════════════════════════════════════════════════
 \section{Federated Revocation}\label{sec:fh-revocation}
@@ -695,7 +698,9 @@ The full specification (which we omit for space; see Appendix~\ref{app:fh-tla}) 
 
 We are explicit about which claims live in which band (Figure~\ref{fig:fh-threat-bands}).
 
-\paragraph{Mechanized (sage).} Single-harbor capability authenticity (inherited from Anchor); cross-realm authenticity under the witness-log freshness assumption (draft, \Partial); attenuation monotonicity across the boundary (Lemma~\ref{lem:fh-att}, \Partial under same caveat); cross-harbor Conservation invariant (TLA+, model-checked at $|F| \le 4$).
+\paragraph{Mechanized (\Closed).} Only one claim in this paper is fully mechanized: single-harbor capability authenticity, inherited unchanged from Anchor (ProVerif, \Closed). Everything the Federated Harbor adds on top is at best \Partial. This row is the only \Closed entry in Appendix~\ref{app:fh-mech}, Table~\ref{tab:fh-status}, and the body must not claim more.
+
+\paragraph{Proof sketch, pending full mechanization (\Partial).} The three central federation claims are \Partial, matching Appendix~\ref{app:fh-mech}, Table~\ref{tab:fh-status} exactly: cross-realm authenticity (draft ProVerif model, sound only under an unmechanized witness-log freshness assumption); attenuation monotonicity across the boundary (Lemma~\ref{lem:fh-att}, \Partial under the same caveat); and the cross-harbor Conservation invariant (TLA+/Apalache, model-checked only at $|F| \le 4$ and leaning on a structural argument beyond that scale). None of these is a closed theorem; each is a proof sketch awaiting full mechanization.
 
 \paragraph{Bounded (amber).} Federated revocation convergence in expected $\Delta(1 + \ln m)$ time (Theorem~\ref{thm:fh-conv}); cross-witness equivocation detection in $O(\log m)$ rounds; bounded-escrow extractable value at most $\phi$ (Theorem~\ref{thm:fh-escrow-bound}, structural argument).
 
@@ -758,7 +763,13 @@ We do not know which is right. The proposal that scoped this paper~\cite{owens20
 
 \subsection{Trustless settlement for non-fungible bonds}\label{sec:fh-lim-trustless}
 
-HTLC-style atomic swaps~\cite{herlihy2018atomic} achieve trustless settlement for fungible assets with a shared hash preimage. The Federated Harbor's bonds are non-fungible (reputation-priced under competitive insurance) and may need a trusted-but-bounded escrow rather than a trustless one. We adopt the bounded-escrow design (\S\ref{sec:fh-settlement}) but conjecture --- without proof --- that fully trustless settlement is impossible for this asset class. A clean negative result would be a worthwhile separate paper.
+HTLC-style atomic swaps~\cite{herlihy2018atomic} achieve trustless settlement for fungible assets with a shared hash preimage. The Federated Harbor's bonds are non-fungible (reputation-priced under competitive insurance) and may need a trusted-but-bounded escrow rather than a trustless one. We adopt the bounded-escrow design (\S\ref{sec:fh-settlement}); the escrow mechanism is therefore \Partial, not closed.
+
+\begin{conjecture}[Trustless settlement impossible for non-fungible bonds]\label{conj:fh-trustless}
+Fully trustless settlement --- in the HTLC sense, with no trusted-but-bounded third party --- is impossible for non-fungible, reputation-priced bonds of the class used in the Federated Harbor.
+\end{conjecture}
+
+\noindent We state this without proof. A clean negative result would be a worthwhile separate paper.
 
 \subsection{Cartel formation across federations}\label{sec:fh-lim-cartel}
 
@@ -963,6 +974,8 @@ Cross-federation cartel-resistance bound & --- & \Open & --- \\
 \end{table}
 
 \paragraph{What this table means.} Every row in the \Partial\ band is committed to and on the active workplan. Every row in the \Open\ band is a research question we cannot resolve from the desk; the proposal~\cite{owens2026proposal} names collaborators whose contributions would be load-bearing. We err toward listing fewer items as closed rather than more, in the same posture as Anchor and Bonded.
+
+\paragraph{Maturity-vocabulary mapping.} The Beams (Anchor, Bonded, Federated Harbor) use the \Closed/\Partial/\Open\ vocabulary; the Floors (Single-Writer Kernel, Legible Swarm, From Spawn to Person, Harbor Economy) use Built/Designed/Vision. They map across the volume as: \Closed~$\approx$~Built, \Partial~$\approx$~Designed (or BuiltWeak), and \Open~$\approx$~Vision.
 
 \section{ProVerif Models (draft)}\label{app:fh-proverif}
 

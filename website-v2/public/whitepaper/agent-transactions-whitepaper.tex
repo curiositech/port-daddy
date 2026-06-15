@@ -296,7 +296,7 @@ In the Port Daddy implementation, the commons authority is a daemon running on \
 
 \subsection{The Daemon as Correlating Device}\label{sec:correlating-device}
 
-The daemon's role admits a precise game-theoretic name. Aumann~\cite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a randomized strategy profile in which a trusted third party draws a recommendation tuple $(r_1, \ldots, r_n)$ from a joint distribution $\mu$ over action profiles, privately reveals $r_i$ to player $i$, and each player's best response---given posterior beliefs about the other players' recommendations conditional on its own---is to play $r_i$. The construction is strictly more permissive than Nash: every Nash equilibrium is a correlated equilibrium where $\mu$ is a product of marginals, and the correlated set strictly contains it when $\mu$ has non-trivial correlation. The mechanism does not need a sword. The recommendations are obeyed because, given common knowledge of $\mu$ and each player's own draw, deviating is dominated.
+The daemon's role admits a precise game-theoretic name. Aumann~\cite{aumann1974subjectivity} introduced the \emph{correlated equilibrium}: a randomized strategy profile in which a trusted third party draws a recommendation tuple $(r_1, \ldots, r_n)$ from a joint distribution $\mu$ over action profiles, privately reveals $r_i$ to player $i$, and each player's best response---given posterior beliefs about the other players' recommendations conditional on its own---is to play $r_i$. The construction is strictly more permissive than Nash: every Nash equilibrium is a correlated equilibrium where $\mu$ is a product of marginals, and the correlated set strictly contains it when $\mu$ has non-trivial correlation. The mechanism does not need a sword. The recommendations are obeyed because, given common knowledge of $\mu$ and each player's own draw, deviating is dominated. \emph{To reconcile this with the coercive signals the daemon does ship (SIGTERM, bond-slash, session kill; \S\ref{sec:structural}): those signals are not in tension with the no-sword claim. By Theorem~8.1 of \emph{The Single-Writer Kernel} (Floor~1)~\cite{owens2026singlewriter}, a post-commit monitor cannot enforce a safety invariant---it can only detect and compensate. The coercive signals are therefore \emph{compensating responses} that fire \emph{after} a defection, not an ex-ante enforcement sword. The correlated-equilibrium claim holds for agents who follow the protocol; the compensating signals handle defectors after the fact. The two are complementary, and A5 (\S\ref{sec:youle:a5}) is why neither is dispensable: bonds alone are provably insufficient against an attacker whose fraud gain exceeds the deposit.}
 
 This is exactly the daemon's role. The commons authority observes the global claim graph---who wants which resource, who holds which capability, whose history shows what. On a contested file claim, the daemon does not adjudicate; it broadcasts a recommendation pair: \emph{Agent~$\alpha$, you may proceed on \texttt{auth.ts}; Agent~$\beta$, the surface is held, defer or coordinate.} The recommendations are drawn from a deterministic policy over the conflict graph (the pheromone-lineage primitive of \S\ref{sec:pheromones} furnishes the draw; the policy is public). Each agent receives only its own recommendation, but the distribution over recommendations and the dependence on the public conflict graph are common knowledge.
 
@@ -386,7 +386,7 @@ The choice between $I_1$ and $I_2$ is not a security decision---it is an economi
 
 \subsection{Runtime Invariant Enforcement}
 
-Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form.
+Structural prevention is enforced at two levels: \emph{statically} by the Anchor Protocol's ProVerif-verified token exchange (all three protocol phases verified in ProVerif 2.05~\cite{owens2026anchor}), and \emph{dynamically} by the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's event stream and checks every state transition against six formally derived invariants. These invariants map directly to the safety properties of the TLA$^{+}$ specification in Section~\ref{sec:tlaplus}: \texttt{NoteMonotonicity}, \texttt{EscrowInvariant}, and \texttt{LockOwnerValid} are compiled from the formal model into synchronous runtime checks. Violations are logged immutably and, in strict mode, trigger the salvage protocol---the sovereign's sword in code form. \emph{A reconciling note on what this `sword' can and cannot do: by Theorem~8.1 of \emph{The Single-Writer Kernel} (Floor~1)~\cite{owens2026singlewriter}, a post-commit monitor cannot enforce a safety property---it can only detect and compensate. The Arbiter's salvage signals (SIGTERM, bond-slash, session kill) are therefore \emph{compensating responses} that act \emph{after} a violation is observed; they do not enforce a safety invariant ex ante. Prevention proper is structural---boot gate, primary-key uniqueness (mutual exclusion), single-writer routing---and is what the correlated-equilibrium claim of \S\ref{sec:correlating-device} relies on. The two are complementary, not contradictory: the equilibrium governs agents who follow the protocol, and the compensating signals handle defectors after the fact.}
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Layer 2: Immutable Attribution}\label{sec:attribution}
@@ -658,7 +658,7 @@ This is how performance bonds work in construction. This is how futures markets 
 \pullquote{The Sybil attack is priced: 100 disposable identities means 100 bonds.}
 
 \begin{enumerate}
-  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The Sybil attack is priced: creating 100 disposable identities means posting 100 bonds. The cost of defection scales linearly with the number of attack identities.
+  \item \textbf{One-shot defectors} must post collateral \emph{before} receiving capabilities. The Sybil attack is priced: creating 100 disposable identities means posting 100 bonds. The cost of defection scales linearly with the number of attack identities. \emph{Note: A5 (\S\ref{sec:youle:a5}) proves that pure deposit deterrence alone is insufficient when fraud gains exceed the bond; the composite admission mechanism---per-identity onboarding cost and reputation gating (\S\ref{sec:youle:a5})---and bid-pattern detection (Anchor~Protocol Beam~A, \S6.4~\cite{owens2026anchor}) are the load-bearing defenses, not the bond alone.}
 
   \item \textbf{Misaligned principals} are exposed by the attribution chain. The agent may be ephemeral, but the principal who funded the Float Plan is permanently recorded. Liquidating the bond hurts the principal, not just the agent.
 
@@ -774,6 +774,8 @@ If $\pi(\mathcal{F}) < c$, breach is cheap: the bond is forfeit for less than th
 \end{proof}
 
 This is a floor, not a tight bound. It is observable from operations and trackable as a project health metric.
+
+\emph{Note: This result is argued as economic rationale; it is not formally proved or mechanized. Companion papers that invoke this as a `proven bound' should be read as citing an argued economic principle pending formal mechanization.}
 
 \subsubsection{Consequential-Scope Multiplier}\label{sec:scope-multiplier}
 
@@ -1305,7 +1307,7 @@ The infrastructure is running. The forest is building. The covenants are auditab
 \renewcommand{\arraystretch}{1.15}
 \begin{table}[H]
 \centering
-\caption{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial).}
+\caption{Verification status of load-bearing claims. ``Method'' is the formal technique; ``Result'' is its outcome; ``Artifact'' names the public bundle file. A claim with both a formal artifact \emph{and} a runtime conformance test is fully closed (\Closed); a claim with formal model but no deployed runtime is spec-only (\SpecOnly); a claim with empirical evidence but no formal mechanization is partial (\Partial). Mapping to the Floor papers' maturity vocabulary: \Closed~$\approx$~Built, \Partial~$\approx$~Designed/BuiltWeak, and \SpecOnly/open~$\approx$~Vision.}
 \label{tab:verification-status}
 \small
 \begin{tabular}{@{}p{52mm}p{30mm}p{32mm}p{30mm}@{}}
@@ -1473,6 +1475,11 @@ Joon~Sung Park, Joseph~C. O'Brien, Carrie~J. Cai, Meredith~Ringel Morris, Percy 
 Erich Owens.
 \newblock The Anchor Protocol: A Formally Verified Control Plane for Local Agent Swarms.
 \newblock Technical White Paper, Curiositech LLC, May 2026.
+
+\bibitem{owens2026singlewriter}
+Erich Owens.
+\newblock The Single-Writer Kernel: Mutual Exclusion and the Limits of Post-Commit Monitoring for Local Agent Swarms.
+\newblock Technical White Paper, Curiositech LLC, 2026.
 
 \bibitem{lamport2002specifying}
 Leslie Lamport.

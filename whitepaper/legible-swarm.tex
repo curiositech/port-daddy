@@ -193,7 +193,10 @@ A swarm of autonomous coding agents, left to coordinate itself, is
 actors fall into a war of all against all --- double-claimed files, pull requests
 no human can read, confident lies, footguns obvious only in hindsight. We argue
 that the operator rationally \emph{consents} to a coordinating authority --- a
-\emph{local} Leviathan running on one machine --- for exactly Hobbes' reason: the
+\emph{local} Leviathan running on one machine (one that rules by legibility and
+consent-signaling, not by post-commit enforcement of safety invariants --- see
+\emph{The Single-Writer Kernel}, Floor~1, Theorem~8.1: a post-commit monitor can
+only detect and compensate) --- for exactly Hobbes' reason: the
 alternative is worse. That authority governs the only way any sovereign governs a
 population it cannot personally inspect: by making the swarm
 \textbf{legible}~\cite{scott1998}. The central hazard is James~C.~Scott's warning
@@ -244,7 +247,7 @@ Figure~\ref{fig:stack-map} shows how they interlock.}
   {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE HARBOR VOLUME}\hfill\textcolor{hhebony!70}{four Floors (explain) $\times$ four Beams (prove)}}\\[5pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
   The volume is one building on two axes. Its \textbf{Floors} climb the vision --- Kernel, Legibility, Personhood, Economy --- and its \textbf{Beams} cross it with proof: identity and capability, conservation and bonding, federation.\\[5pt]
-  {\color{hhcobalt}\textbf{This paper: Floor~2 --- Legibility.}}~A coding-agent swarm is Hobbes' state of nature; consent to a local Leviathan --- and the digest-with-zoom loop that keeps it legible. \textsc{$\blacksquare$ built.}\\[6pt]
+  {\color{hhcobalt}\textbf{This paper: Floor~2 --- Legibility.}}~A coding-agent swarm is Hobbes' state of nature; consent to a local Leviathan --- and the digest-with-zoom loop that keeps it legible. Read-surfaces and the legibility substrate: {\color{hhteal}$\blacksquare$~built}. Authority / consented Leviathan (completionist gate, discovery router, attention queue): {\color{hhamber}$\square$~designed}.\\[6pt]
   {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
   {\footnotesize This is the flagship of the volume: the Kernel (Floor~1) is the substrate; Personhood (Floor~3) and the Economy (Floor~4) rest on the legibility primitives proved here. Any Floor can be opened first.}
 };
@@ -1151,6 +1154,10 @@ population, or, worse, act blind.
 scale. The write side has known fixes --- claims, locks, merge queues, and anomaly
 detection --- which mature coordination systems already provide. The read side has
 been left implicit, and it is where the next order of magnitude is won or lost.}
+
+\emph{Empirical validation} (measurement of agent-hours lost to discovery failure
+vs.\ write conflicts on a real fleet) is open work; the claim is supported by
+constructed scenarios and reasoning from first principles, not from data.
 
 The cure is the move every database made when table scans stopped scaling: build an
 \textbf{index}. A \emph{directory} is to agents what an index is to rows --- it pays a

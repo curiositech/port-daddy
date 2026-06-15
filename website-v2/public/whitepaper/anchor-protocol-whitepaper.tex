@@ -371,7 +371,7 @@ RESULT event(Accepted(b_2,harbor_id[],cap_1))
 
 \subsection{Runtime Enforcement: The Arbiter}
 
-Formal proofs guarantee protocol \emph{design} correctness. To enforce these guarantees at \emph{runtime}, Port Daddy deploys the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's activity log and checks every state transition against six formally derived invariants:
+Formal proofs guarantee protocol \emph{design} correctness. At \emph{runtime}, Port Daddy deploys the \textbf{Arbiter}---an ambient security agent that subscribes to the daemon's activity log and checks every state transition against six formally derived invariants:
 
 \begin{enumerate}
   \item \texttt{PID\_SQUATTING}: Detects when a process claims a port previously held by a different PID (the ``Ghost in the Harbor'').
@@ -384,6 +384,8 @@ Formal proofs guarantee protocol \emph{design} correctness. To enforce these gua
 
 Violations are logged to the activity trail and, in strict mode, trigger the ``man overboard'' salvage protocol. The Arbiter's API (\texttt{GET /arbiter/status}, \texttt{GET /arbiter/violations}) provides real-time visibility into the security state of the commons.
 
+\paragraph{Detect-and-compensate, not enforcement.} The Arbiter is a post-commit monitor: it observes the activity log \emph{after} a transition has been committed. By the impossibility result of \emph{The Single-Writer Kernel} (Floor~1, Theorem~8.1, after Schneider~2000), a post-commit monitor cannot \emph{enforce} a safety property; it can only detect a violation and compensate. The Arbiter's coercive signals --- SIGTERM, bond-slash, session kill, the ``man overboard'' salvage --- are therefore \emph{compensating responses}, not enforcement of a safety property. The daemon \emph{prevents} only at three points: the boot gate, the SQLite primary-key uniqueness constraint (mutual exclusion on the single-writer slot), and the single-writer routing convention. Everything downstream of the commit, including every Arbiter invariant above, is detect-and-compensate.
+
 \subsection{Implementation Verification}
 
 A secure protocol is useless if the implementation contains buffer overflows or timing leaks. We extracted the critical JWT parsing and cryptographic comparison logic into a verified core.
@@ -393,7 +395,7 @@ Using the \textbf{Kani} Rust Verifier~\cite{aws2022kani}, we performed bounded m
 \end{property}
 
 \begin{property}[Side-Channel Resistance]
-To prevent timing attacks where an adversary guesses signatures byte-by-byte~\cite{brumley2011remote}, we implemented a custom constant-time byte comparator. Kani formally verified that this comparator is branch-free regarding the contents of the secret arrays.
+To prevent timing attacks where an adversary guesses signatures byte-by-byte~\cite{brumley2011remote}, we implemented a custom constant-time byte comparator. Kani formally verified that this comparator is branch-free regarding the contents of the secret arrays.\footnote{Branch-freedom in source (confirmed by Kani) is necessary but not sufficient for constant-time execution on real hardware; the compiler and microarchitecture can reintroduce timing variation. The side-channel resistance claim is therefore \emph{partial} (see Appendix, Table~\ref{tab:anchor-status}): we document library trust rather than a side-channel proof.}
 \end{property}
 
 % ═════════════════════════════════════════════════════════════════════════════
@@ -496,6 +498,10 @@ function Harbor.VerifyChain(chain, pk_root):
     emit Accepted(agent_final, harbor, cap_final)
     return T
 \end{lstlisting}
+
+\par\vspace{4pt}\noindent\fbox{\parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax}{%
+\textbf{\color{maydayred}Warning:} Algorithm~\ref{alg:delegation} shows the \emph{unsound} final-vs-root verifier for exposition --- note that the in-loop subset check (\texttt{cap\_i not\_subseteq cap\_root}) compares each hop against \texttt{cap\_root}, not against the immediately preceding hop's grant. A secure implementation MUST check each hop's capabilities against the immediately preceding hop's grant (per-hop checking), not against the root capability. See \S\ref{sec:attn-soundness} (Appendix A.5.3) for the attack (\texttt{v6}) and the correct fix (\texttt{v7}).%
+}}\par\vspace{4pt}
 
 \textbf{Security Property:} The subset check on line 7 and line 22 ensures \emph{capability attenuation}---delegated capabilities can only be restricted, never expanded. This is the mechanized content of Theorem~\ref{thm:attn-sound} (\S\ref{sec:attn-soundness}): under an enriched model with a real capability order and an active insider escalation adversary, ProVerif proves no escalating delegation is ever accepted, and a negative control confirms the guard is load-bearing. Combined with Theorem~\ref{thm:injective}, this guarantees transitive trust.
 
@@ -833,6 +839,8 @@ Alan Demers, Dan Greene, Carl Hauser, Wes Irish, John Larson, Scott Shenker, How
 % ═════════════════════════════════════════════════════════════════════════════
 
 \section{Formal Verification Status}\label{app:mech}
+
+\paragraph{Maturity key.} This paper uses \Closed/\Partial/\Open\ for Beam~A status. The companion Floor papers (\emph{The Single-Writer Kernel}, \emph{The Legible Swarm}, \emph{From Spawn to Person}, \emph{The Harbor Economy}) use \textsc{Built}/\textsc{Designed}/\textsc{Vision} with equivalent meaning: Closed~$\approx$~Built, Partial~$\approx$~Designed (or BuiltWeak), Open~$\approx$~Vision.
 
 \paragraph{Artifact availability.} Every artifact named in Table~\ref{tab:anchor-status} is bundled at \url{https://portdaddy.dev/whitepaper/artifacts/}. The verified Rust core is the open-source \texttt{harbor-card-rs} crate; runtime components are deployed inside the Port Daddy daemon binary. The companion paper, \emph{The Bonded Commons}, carries the cross-paper status table; this appendix lists only the items that pertain specifically to the Anchor Protocol.
 

@@ -184,9 +184,12 @@ a daemon, a coordination protocol, a legible authority anyone would pay for toda
 and the continuity that turns an anonymous spawn into an accountable
 \emph{person}. This is the floor above all of them --- the only one whose
 participants are plural and mutually distrusting. We argue that the harbor economy
-is a \textbf{three-sided market}: operators sell labor and fleet-for-hire; agents
-and fleets are rentable assets; skills and tools are licensed --- all settling on
-one conserving bond ledger via float-plan escrow. We present the
+is a \textbf{three-sided market} (labor / capital-rental / IP-licensing): operators
+sell labor and fleet-for-hire; agents and fleets are rentable assets; skills and
+tools are licensed --- all settling on one conserving bond ledger via float-plan
+escrow. The third side (reputation-priced IP-licensing) requires the identity
+substrate from \emph{From Spawn to Person} (Floor~3), which is currently
+\designed{}; today's reference system is effectively two-sided. We present the
 \textbf{cross-harbor capability-transfer ceremony} and the federation that lets
 fleets on machines you do not own trade without a shared chain: a witness log, an
 escrow that provably cannot steal, and revocation gossip with a convergence bound.
@@ -330,7 +333,8 @@ reason the rest of the paper exists. We price everything in an abstract unit, th
 
 A solo operator running a swarm of coding agents needs three things --- legibility,
 accountability, and safety --- and needs \emph{no cryptography at all}, because she
-owns every machine in the harbor. That is the single-player wedge of Paper~1. The
+owns every machine in the harbor. That is the single-player wedge of \emph{The
+Single-Writer Kernel} (Floor~1). The
 instant two operators trade, the world changes. Alice's frigates touch your
 repository. You must now price work done by agents you did not spawn, owned by a
 principal you do not trust, using skills you cannot inspect. That is a
@@ -705,7 +709,7 @@ bond-farming works by spawning fresh \emph{agents} under one principal
 (\textbf{Douceur}'s Sybil attack~\cite{douceur2002}: \emph{free identities defeat
 any reputation or quorum system}). Defining the principal as a first-class economic
 entity is the cleanest Sybil fix; its cryptographic binding is the identity object
-specified in Paper~3 and consumed here.
+specified in \emph{From Spawn to Person} (Floor~3) and consumed here.
 
 % ═══════════════════════════════════════════════════════════════════════════════
 \section{Conservation as a functor (and where it is only lax)}\label{sec:conservation}
@@ -779,10 +783,12 @@ federation.
 
 The \emph{cross-harbor capability-transfer ceremony} is the market's identity-level
 hot path: how an authorization minted under Alice's harbor becomes usable, safely,
-inside Bob's. Paper~2 proves the cryptographic substrate (the hop-bound
-authorization chain, mechanically verified with a protocol model checker and a Rust
-verifier); this section is the ceremony that rides that substrate across a
-boundary.
+inside Bob's. \emph{The Anchor Protocol} (Beam~A) proves the cryptographic substrate
+(the hop-bound authorization chain, mechanically verified with a protocol model
+checker and a Rust verifier --- ProVerif-verified for single-hop chains up to
+depth~3; unbounded depth and cryptographic implementation are excluded from the
+machine check, see \emph{The Anchor Protocol}, Beam~A, Appendix~A.5.3); this section
+is the ceremony that rides that substrate across a boundary.
 
 \input{figures/fig-fh-xfer-ceremony}
 
@@ -834,12 +840,17 @@ attenuated and nowhere wider.
 \keyidea{Capability \emph{attenuation} is the safety property here: a transferred
 card can only \emph{narrow} authority --- $C_B' = \mathrm{att}_B(\mathrm{att}_A(C_A))$
 --- never widen it. This is the cross-boundary form of the attenuation-monotonicity
-that the hop-bound authorization chain guarantees within one harbor (Paper~2). It is
+that the hop-bound authorization chain guarantees within one harbor (\emph{The
+Anchor Protocol}, Beam~A). It is
 what makes ``rent my agent for an afternoon'' safe to say to a stranger.}
 
 \pitfall{Do not let the federation theorems borrow the substrate's ``formally
-verified'' halo. The hop-bound authorization chain is mechanized (a protocol model
-checker plus a Rust verifier, in Paper~2). The \emph{federation} theorems
+verified'' halo --- and note the substrate's own halo is itself bounded
+(ProVerif-verified for single-hop chains up to depth~3; unbounded depth and
+cryptographic implementation excluded from the machine check --- see \emph{The
+Anchor Protocol}, Beam~A, Appendix~A.5.3). The hop-bound authorization chain is
+mechanized (a protocol model checker plus a Rust verifier, in \emph{The Anchor
+Protocol}, Beam~A). The \emph{federation} theorems
 (convergence, bounded escrow) are pen-and-paper plus a TLA\textsuperscript{+}
 extension; they are \designed{}, not mechanized. Two different confidence levels,
 never blurred.}
@@ -936,14 +947,18 @@ honest-majority gossip}, and that is a cryptographic assumption, not a free lemm
 
 Detection-after-the-fact deters only if the slashed bond exceeds the value
 extractable during the detection window. This is the analogue of the
-\emph{cleanup lower bound} (the companion result that a cleanup bond must cover the
-worst-case cost of the damage it underwrites), and we state it as a target:
+\emph{cleanup lower bound} (the result that a cleanup bond must cover the
+worst-case cost of the damage it underwrites, argued as economic rationale in
+\emph{Bonded Commons}, Beam~B, Theorem~4.2; formal mechanization is open), and we
+state it as a target:
 
 \begin{conjecture}[Equivocation Lower Bound]\label{conj:eq-bound}\label{thm:fh-conv}
 The witness bond must dominate the maximum value spendable against a revoked-but-not-
 yet-converged capability across the \emph{worst-case} (not expected) detection
 window. Without it, a well-capitalized adversary can rationally equivocate, extract,
-and eat the slash. (\openmark{}; analogue of the proven cleanup lower bound.)
+and eat the slash. (\openmark{}; analogue of the cleanup lower bound argued as
+economic rationale in \emph{Bonded Commons}, Beam~B, Theorem~4.2; formal
+mechanization is open.)
 \end{conjecture}
 
 \input{figures/fig-fh-threat-bands}
@@ -1087,10 +1102,12 @@ transactions, replacing a static bond parameter with a market-discovered price -
 a possible \emph{fourth} side. But it may collide with the cleanup lower bound:
 
 \begin{proposition}[Underwriting reframes the bond as reserve adequacy]\label{prop:reserve}
-The cleanup lower bound requires bond $\ge$ worst-case cleanup cost $c$. A
-competitive insurance market prices to \emph{expected} loss, which sits below the
-worst case for any below-tail agent. Either underwriting violates the cleanup lower
-bound (the commons can leak in the tail), or the bound must be reframed as the
+The cleanup lower bound (argued as economic rationale in \emph{Bonded Commons},
+Beam~B, Theorem~4.2; formal mechanization is open) requires bond $\ge$ worst-case
+cleanup cost $c$. A competitive insurance market prices to \emph{expected} loss,
+which sits below the worst case for any below-tail agent. Either underwriting
+violates the cleanup lower bound (the commons can leak in the tail), or the bound
+must be reframed as the
 \emph{insurer's} capital-adequacy constraint (a reserve-requirement framing with
 tail reinsurance), not a per-transaction bond. The \emph{form} of the answer is
 determined; only the reserve formula is open.
@@ -1241,7 +1258,8 @@ Grading / IC signal & Folk theorems~\cite{aps1990} &
 % ═══════════════════════════════════════════════════════════════════════════════
 
 The harbor-master makes a swarm legible, accountable, and safe for one operator (the
-wedge of Paper~1). When operators sail out to trade, the \emph{same} ledger that
+wedge of \emph{The Single-Writer Kernel}, Floor~1). When operators sail out to trade,
+the \emph{same} ledger that
 kept one operator's swarm honest becomes the market that lets fleets who don't trust
 each other work together: three sides, one bond, hosted trust. We have not papered
 over the cost of that claim. The keystone identity primitive --- local

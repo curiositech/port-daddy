@@ -510,6 +510,11 @@ Let a write return success under the default WAL configuration.
 \end{itemize}
 \end{property}
 
+\noindent\emph{Empirical validation} (crash-injection under \texttt{kill~-9},
+a power-loss experiment confirming I1b rolls back, contention measurement) is open
+work; the durability split follows from the SQLite WAL documentation and Gray~\&~Reuter
+(1992), not from measurement.
+
 \paragraph{Worked dramatization: Alice crashes mid-write.}
 Alice is an agent editing a file. At $t_0$ she commits a claim on a port and a
 note recording her edit; the daemon returns success. At $t_0+5\,\mathrm{ms}$ her
@@ -722,7 +727,9 @@ names \emph{two different objects}, which we keep rigorously distinct:
 
 \begin{itemize}[leftmargin=1.4em]
   \item the \textbf{authorization chain} --- the \emph{cryptographic} object
-  (\Built, mechanically verified in a protocol-verification tool): a hop-bound,
+  (\Built; single-hop chains, depth-3 verified in ProVerif; unbounded depth and
+  cryptographic implementation are outside the machine check --- see The Anchor
+  Protocol (Beam~A), Appendix~A.5.3): a hop-bound,
   attenuation-monotonic, anti-replay and anti-splice chain of digital signatures
   that proves \emph{who authorized whom}. This is what cross-machine capability
   transfer in the economy layer rides on.
@@ -817,6 +824,15 @@ violation and trigger a compensating transition, but it cannot have prevented th
 state. Subscription to a post-commit log places every subscribed rule in this
 regime.\qed
 \end{proof}
+
+\begin{quote}
+\noindent\textbf{Volume-wide note.} Theorem~\ref{thm:schneider} governs all
+post-commit monitoring in this volume. Actions in companion papers labeled
+``Arbiter enforcement,'' ``bond-slash,'' ``SIGTERM,'' or ``session kill'' are
+\emph{compensating responses} under this theorem --- not enforcement of a safety
+invariant. The daemon prevents only via the boot gate, the uniqueness constraint
+(Theorem~\ref{thm:exclusion}), and single-writer routing.
+\end{quote}
 
 \paragraph{Worked dramatization: Bob attempts a forbidden action.}
 Bob is an agent under a policy that forbids editing files outside his assigned task
@@ -1318,8 +1334,11 @@ having a handle to an operation does not make the operation permitted. The
 cryptographic authorization chain is a hop-bound, attenuation-monotonic delegation
 chain of digital signatures over an elliptic-curve signature scheme
 \cite{bernstein2012high}, of the kind whose secrecy and integrity properties are
-mechanically checkable in protocol-verification tools~\cite{blanchet2016modeling};
-its full treatment belongs to the economy paper. The audit log's tamper-evidence is
+mechanically checkable in protocol-verification tools~\cite{blanchet2016modeling}
+(single-hop chains, depth-3 verified in ProVerif; unbounded depth and the
+cryptographic implementation are outside the machine check --- see The Anchor
+Protocol (Beam~A), Appendix~A.5.3);
+its full treatment belongs to The Anchor Protocol (Beam~A). The audit log's tamper-evidence is
 the digital-timestamping construction of Haber and
 Stornetta~\cite{haberstornetta1991}, built on Merkle's hash trees~\cite{merkle1987}
 --- a structure that famously predates, and is independent of, blockchains.
@@ -1457,7 +1476,7 @@ Commitments \& obligation & commitment, obligation-monitor modules & two of the 
 Memory \& recovery & session, episodic-memory, recovery modules & recovery passes notes only \\
 Audit log \& hash chain & activity-log, hash-chain modules & verification not yet on the read path \\
 Self-attestation & attestation, invariant-registry modules & boot gate + pre-flight + watchdog \\
-Authorization chain & delegation-chain module & mechanically verified \\
+Authorization chain & delegation-chain module & depth-3 verified in ProVerif; see The Anchor Protocol (Beam~A), App.~A.5.3 \\
 Runtime-parity shim & runtime-shim module & normalizes binding differences \\
 Identity (signing keys) & keychain, identity modules & gating not yet enforced \\
 \bottomrule
