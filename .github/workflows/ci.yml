@@ -44,6 +44,7 @@ jobs:
     outputs:
       recordings: ${{ steps.filter.outputs.recordings }}
       fleetbar: ${{ steps.filter.outputs.fleetbar }}
+      console: ${{ steps.filter.outputs.console }}
     steps:
       - id: filter
         env:
@@ -55,6 +56,7 @@ jobs:
           if [ "$EVENT_NAME" != "pull_request" ]; then
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
+            echo "console=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Fail safe: if the files API errors (outage, rate limit), run the
@@ -62,6 +64,7 @@ jobs:
           if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
             echo "recordings=true" >> "$GITHUB_OUTPUT"
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
+            echo "console=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
@@ -76,6 +79,14 @@ jobs:
             echo "fleetbar=true" >> "$GITHUB_OUTPUT"
           else
             echo "fleetbar=false" >> "$GITHUB_OUTPUT"
+          fi
+          # The GPUI window build (rust-console-gpui, macOS) only depends on the
+          # pd-console crate; ci.yml changes re-run it so the gate can be edited
+          # under test.
+          if printf '%s\n' "$changed" | grep -qE '^(core/pd-console/|\.github/workflows/ci\.yml$)'; then
+            echo "console=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "console=false" >> "$GITHUB_OUTPUT"
           fi
 
   # PR-blocking unit tests: only the node-22 legs (the required checks). The
@@ -485,6 +496,33 @@ jobs:
 
       - name: cargo test
         run: cargo test
+
+  rust-console-gpui:
+    # Build the GPU-native window (the deliverable). gpui is Metal/macOS-centric
+    # and won't compile on the ubuntu rust-console job, so the window lives behind
+    # the `gpui` feature and is built here on macOS. Path-gated to console changes
+    # via detect-changes; a skip satisfies the (non-required) gate. Operator call
+    # (#318): the native window is the point, so it gets a real CI build despite
+    # the macOS cost.
+    runs-on: macos-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.console == 'true'
+    defaults:
+      run:
+        working-directory: core/pd-console
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/pd-console
+
+      - name: cargo build --features gpui (GPU-native window)
+        run: cargo build --features gpui --bin pd-console
 
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in

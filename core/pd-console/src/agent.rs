@@ -112,6 +112,12 @@ impl DaemonClient {
         Ok(Self { base, http: reqwest::Client::new() })
     }
 
+    /// Construct a client against an already-resolved base URL (e.g. the value
+    /// `discover().base()` returned, handed to a background refresh thread).
+    pub fn new(base: String) -> Self {
+        Self { base: base.trim_end_matches('/').to_string(), http: reqwest::Client::new() }
+    }
+
     pub fn base(&self) -> &str {
         &self.base
     }
