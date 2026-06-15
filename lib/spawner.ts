@@ -12,15 +12,16 @@
 import { randomBytes } from 'node:crypto';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { readFileSync, existsSync, statSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync, statSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
-import type { Transcripts, TranscriptOutput } from './transcripts.js';
+import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
+import { parseCodexTranscript, type StructuredTurn } from './spawner/codex-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
@@ -185,6 +186,13 @@ interface SpawnerDeps {
   transcripts?: Transcripts;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
+  /** When true (the default), a backend MUST NOT run unless its full
+   *  conversation is being recorded: construction throws if no `transcripts`
+   *  module is wired, and a spawn fails loudly if its transcript can't be
+   *  opened or finalized. Set false ONLY in tests/evals that don't exercise
+   *  recording — the live daemon always enforces. Mirrors the telemetry
+   *  fail-closed posture: untracked work is not allowed to look like success. */
+  enforceTranscriptPolicy?: boolean;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
 }
 
@@ -424,6 +432,12 @@ interface BackendRunResult {
   childProcess?: ChildProcess | null;
   /** Coast Guard receipt for subprocess backends (sandbox + broker + cap). */
   coastGuardReceipt?: CoastGuardReceipt | null;
+  /** Ordered, role-tagged turns the backend extracted from its own event
+   *  stream (codex `--json` reasoning / command / message items). When
+   *  present, the spawner records these as the full conversation instead of a
+   *  single final-output blob, so thinking + tool calls land in the transcript.
+   *  Backends that only yield a final answer (simple API calls) leave it unset. */
+  transcript?: StructuredTurn[];
 }
 
 interface BackendRunContext {
@@ -661,9 +675,21 @@ function parseCodexError(raw: string): string | null {
   return null;
 }
 
+/**
+ * Scratch root for codex's `--output-last-message` file. NOT the OS temp dir:
+ * macOS purges `$TMPDIR`/`/tmp` on a timer and reboot, which can yank the file
+ * out from under an in-flight run. We root it under the durable `~/.port-daddy`
+ * tree (created on demand) and rmSync the per-run subdir in a finally block.
+ */
+function codexScratchRoot(): string {
+  const root = join(homedir(), '.port-daddy', 'codex-scratch');
+  mkdirSync(root, { recursive: true });
+  return root;
+}
+
 function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
-  const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
+  const tempDir = mkdtempSync(join(codexScratchRoot(), 'run-'));
   const outputPath = join(tempDir, 'last-message.txt');
   const env: Record<string, string | undefined> = {
     ...process.env,
@@ -700,12 +726,16 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
       const usage = parseCodexUsage(result.output || '');
       const structuredError = parseCodexError(result.output || '');
       const error = structuredError ? `Codex CLI failed: ${structuredError}` : result.error;
+      // Full-depth capture: turn the `--json` event stream into ordered
+      // reasoning / command / message turns. This is the whole reason codex
+      // runs with `--json` — previously the stream was parsed only for tokens.
+      const transcript = parseCodexTranscript(result.output || '');
       const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
       if (fileOutput) {
-        return { output: fileOutput, error, ...usage, coastGuardReceipt: result.coastGuardReceipt };
+        return { output: fileOutput, error, ...usage, transcript, coastGuardReceipt: result.coastGuardReceipt };
       }
       const sanitized = sanitizeCodexOutput(result.output || '');
-      return { output: sanitized, error, ...usage, coastGuardReceipt: result.coastGuardReceipt };
+      return { output: sanitized, error, ...usage, transcript, coastGuardReceipt: result.coastGuardReceipt };
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -962,22 +992,44 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     harbors,
     transcripts,
     enforceTelemetryPolicy = true,
+    enforceTranscriptPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
   } = deps;
 
   // ── Transcript helpers ──────────────────────────────────────────────────
-  // All transcript ops are best-effort: record/finalize failures must never
-  // block a spawn (the operator's spawn must succeed even if the recorder
-  // is misbehaving). Wrap every call.
+  // Fail-loud under enforcement (the daemon's posture): if recording throws,
+  // log a red banner and rethrow so the spawn is marked failed — untracked
+  // work must NOT look like success. When enforceTranscriptPolicy is false
+  // (tests/evals), failures are swallowed so the spawn path still exercises.
 
+  function recordOrThrow(label: string, fn: () => void): void {
+    try {
+      fn();
+    } catch (err) {
+      const msg = `transcript recording failed (${label}): ${(err as Error).message}`;
+      if (enforceTranscriptPolicy) {
+        console.error(
+          `${ANSI_BANNER_RED} TRANSCRIPT RECORDING FAILED ${ANSI_RESET}\n` +
+          `${ANSI_BOLD_RED}${msg}${ANSI_RESET}`,
+        );
+        throw new Error(msg);
+      }
+      // best-effort mode: swallow
+    }
+  }
+
+  /** Open the transcript row and record the opening system/user turns.
+   *  Returns the id, or null only when recording is disabled (no module +
+   *  not enforced). Throws under enforcement if the recorder is broken. */
   function txStart(spec: SpawnSpec, agentId: string, model: string, startedAt: number): string | null {
     if (!transcripts) return null;
-    try {
+    let id: string | null = null;
+    recordOrThrow('start', () => {
       const ship = spec.ship || `spawn:${spec.backend}`;
       const trigger = spec.trigger || 'manual';
       const projectName = getProjectName(spec.identity);
-      const id = transcripts.start({
+      id = transcripts.start({
         ship,
         spawned_agent_id: agentId,
         trigger,
@@ -991,43 +1043,58 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
       // Always record the initial prompt(s) as system + user messages.
       if (spec.systemPrompt) {
-        try {
-          transcripts.appendMessage(id, {
-            role: 'system',
-            content: spec.systemPrompt,
-            timestamp: startedAt,
-          });
-        } catch { /* swallow */ }
-      }
-      try {
         transcripts.appendMessage(id, {
-          role: 'user',
-          content: spec.task,
+          role: 'system',
+          content: spec.systemPrompt,
           timestamp: startedAt,
         });
-      } catch { /* swallow */ }
-      return id;
-    } catch {
-      return null;
-    }
+      }
+      transcripts.appendMessage(id, {
+        role: 'user',
+        content: spec.task,
+        timestamp: startedAt,
+      });
+    });
+    return id;
   }
 
   function txAssistant(transcriptId: string | null, content: string, ts: number): void {
     if (!transcripts || !transcriptId) return;
-    try {
+    recordOrThrow('assistant', () => {
       transcripts.appendMessage(transcriptId, {
         role: 'assistant',
         content,
         timestamp: ts,
       });
-    } catch { /* swallow */ }
+    });
+  }
+
+  /** Record the backend's full structured conversation (reasoning / tool
+   *  calls / messages) in order. This is the depth the operator asked for:
+   *  thinking turns, command executions with their output, and each assistant
+   *  message — not a single final blob. */
+  function txMessages(transcriptId: string | null, turns: StructuredTurn[], ts: number): void {
+    if (!transcripts || !transcriptId) return;
+    recordOrThrow('messages', () => {
+      for (const turn of turns) {
+        const message: TranscriptMessage = {
+          role: turn.role,
+          content: turn.content,
+          timestamp: ts,
+        };
+        if (turn.toolCalls && turn.toolCalls.length > 0) {
+          message.tool_calls = turn.toolCalls;
+        }
+        transcripts.appendMessage(transcriptId, message);
+      }
+    });
   }
 
   function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
     if (!transcripts || !transcriptId) return;
-    try {
+    recordOrThrow('output', () => {
       transcripts.appendOutput(transcriptId, output);
-    } catch { /* swallow */ }
+    });
   }
 
   function txFinalize(
@@ -1038,7 +1105,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     error: string | null,
   ): void {
     if (!transcripts || !transcriptId) return;
-    try {
+    recordOrThrow('finalize', () => {
       transcripts.finalize(transcriptId, {
         status,
         ended_at: endedAt,
@@ -1047,7 +1114,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         tokens_out: telemetry?.outputTokens ?? null,
         error,
       });
-    } catch { /* swallow */ }
+    });
   }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via
@@ -1058,6 +1125,20 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   if (!enforceTelemetryPolicy) {
     requireTelemetryBypassApproval(telemetryBypassApproval);
     warnTelemetryBypass(telemetryBypassApproval);
+  }
+
+  // Fail-closed transcript policy: a backend must not run unless its full
+  // conversation is recorded. Refuse to build a recording-blind spawner in the
+  // enforced (production) configuration. This is the construction-time twin of
+  // the per-spawn guard below — a misconfigured daemon fails LOUD at boot
+  // rather than silently running agents whose work vanishes.
+  if (enforceTranscriptPolicy && !transcripts) {
+    throw new Error([
+      `${ANSI_BANNER_RED} TRANSCRIPT RECORDING REQUIRED ${ANSI_RESET}`,
+      `${ANSI_BOLD_RED}A spawner was constructed with no transcripts module, but transcript recording is mandatory.${ANSI_RESET}`,
+      'Every backend run must record its full conversation (user/assistant/tool/thinking) to fleet_transcripts.',
+      'Wire deps.transcripts = createTranscripts(db). (Tests/evals that do not exercise recording may pass enforceTranscriptPolicy:false.)',
+    ].join('\n'));
   }
 
   /** Hard ceiling on concurrent running agents. Prevents fork bombs.
@@ -1307,8 +1388,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     agents.set(agentId, record);
 
     // Open a transcript row immediately so the live-tail surface (UI/SSE)
-    // sees the run before its (potentially long) LLM call returns.
-    const transcriptId = txStart(spec, agentId, model, startedAt);
+    // sees the run before its (potentially long) LLM call returns. Recording
+    // is a PRECONDITION of running the backend: if the row can't be opened
+    // under enforcement, we capture the failure and refuse to run (below)
+    // rather than executing an agent whose work would go unrecorded.
+    let transcriptId: string | null = null;
+    let transcriptStartError: string | null = null;
+    try {
+      transcriptId = txStart(spec, agentId, model, startedAt);
+    } catch (err) {
+      transcriptStartError = (err as Error).message;
+    }
 
     // Transition bond: escrowed → running. The markRunning call is what
     // cost-tracker's budget-guard hook looks at — bond must be 'running'
@@ -1363,8 +1453,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let error: string | null = null;
     let telemetry: SpawnTelemetry | null = null;
     let coastGuardReceipt: CoastGuardReceipt | null = null;
+    let structuredTurns: StructuredTurn[] | null = null;
 
     try {
+      // Recording is a precondition: if the transcript row could not be opened
+      // under enforcement, refuse to run the backend. An unrecorded agent run
+      // is exactly what this policy forbids — fail loud instead.
+      if (transcriptStartError) {
+        throw new Error(
+          `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
+        );
+      }
       const override = runnerOverrides[spec.backend];
       let result: BackendRunResult;
 
@@ -1414,6 +1513,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       coastGuardReceipt = result.coastGuardReceipt ?? null;
       output = result.output || null;
       error = result.error;
+      structuredTurns = result.transcript && result.transcript.length > 0 ? result.transcript : null;
 
       if (!error && enforceTelemetryPolicy) {
         const inputTokens = result.inputTokens;
@@ -1479,7 +1579,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output = null;
     }
     const completedAt = record.completedAt ?? Date.now();
-    const status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
+    let status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
 
     record.status = status;
     record.completedAt = completedAt;
@@ -1508,31 +1608,55 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     }
 
-    // Record assistant message + finalize transcript. Order matters: we
-    // append the assistant reply BEFORE finalize so the 'end' SSE event
-    // carries the full conversation.
-    if (output && !wasKilled) {
-      txAssistant(transcriptId, output, completedAt);
+    // Record the conversation + finalize transcript. Order matters: we append
+    // the turns BEFORE finalize so the 'end' SSE event carries the full
+    // conversation. Under enforcement a recording failure here is loud: it
+    // flips the spawn to 'failed' (untracked work must not look successful).
+    try {
+      if (structuredTurns && !wasKilled) {
+        // Full-depth path (codex): reasoning + tool calls + each message turn.
+        // The final agent_message is already the last structured turn, so we
+        // do NOT also append `output` — that would duplicate it.
+        txMessages(transcriptId, structuredTurns, completedAt);
+      } else if (output && !wasKilled) {
+        // Final-answer-only backends (API calls): one assistant turn.
+        txAssistant(transcriptId, output, completedAt);
+      }
+      if (error) {
+        // Record the error itself as a final turn so operators see why the run
+        // failed without having to cross-reference status.
+        txAssistant(transcriptId, `[error] ${error}`, completedAt);
+      }
+      // Outputs: minimal default — the spawner emits a 'message' output
+      // summarizing the result. Fleet ships can later call
+      // transcripts.appendOutput() directly to add pr-comment / draft-pr /
+      // commit artifacts.
+      if (!wasKilled && transcriptId) {
+        const turnCount = structuredTurns?.length ?? 0;
+        const summary = error
+          ? `failed: ${error.slice(0, 160)}`
+          : turnCount > 0
+            ? `${spec.backend}: ${turnCount} turns, ${(output || '').length} chars`
+            : `${spec.backend} returned ${(output || '').length} chars`;
+        txOutput(transcriptId, {
+          type: error ? 'noop' : 'message',
+          summary,
+        });
+      }
+    } catch (recordingErr) {
+      // recordOrThrow already logged a red banner. Surface the failure on the
+      // SpawnResult so the caller sees that recording — not the agent — broke.
+      if (!error) {
+        error = (recordingErr as Error).message;
+        status = 'failed';
+        record.status = 'failed';
+      }
     }
-    if (error) {
-      // Record the error itself as a final assistant turn so operators see
-      // why the run failed without having to cross-reference status.
-      txAssistant(transcriptId, `[error] ${error}`, completedAt);
-    }
-    // Outputs: minimal default — caller-driven via spec is not yet a thing,
-    // so the spawner emits a 'message' output summarizing the result. Fleet
-    // ships can later call transcripts.appendOutput() directly to add
-    // pr-comment / draft-pr / commit artifacts.
-    if (!wasKilled && transcriptId) {
-      const summary = error
-        ? `failed: ${error.slice(0, 160)}`
-        : `${spec.backend} returned ${(output || '').length} chars`;
-      txOutput(transcriptId, {
-        type: error ? 'noop' : 'message',
-        summary,
-      });
-    }
-    txFinalize(transcriptId, status, completedAt, telemetry, error);
+    // Finalize is itself fail-loud (logs a banner on throw); swallow here so a
+    // broken finalize can't mask the status we already computed.
+    try {
+      txFinalize(transcriptId, status, completedAt, telemetry, error);
+    } catch { /* already logged loudly by recordOrThrow */ }
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the

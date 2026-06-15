@@ -32,7 +32,7 @@ interface TranscriptRouteDeps {
   };
 }
 
-const VALID_ROLES = new Set(['system', 'user', 'assistant', 'tool']);
+const VALID_ROLES = new Set(['system', 'user', 'assistant', 'tool', 'thinking']);
 const VALID_OUTPUT_TYPES = new Set([
   'pr-comment', 'issue', 'draft-pr', 'commit', 'noop', 'message', 'other',
 ]);
