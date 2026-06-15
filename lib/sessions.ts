@@ -49,6 +49,7 @@ interface SessionRow {
   updated_at: number;
   completed_at: number | null;
   metadata: string | null;
+  is_durable?: number | null;
 }
 
 interface SessionFileRow {
@@ -96,6 +97,8 @@ interface StartOptions {
   project?: string | null;
   files?: string[];
   metadata?: Record<string, unknown> | null;
+  /** Durable sessions survive indefinitely without a live heartbeat process. */
+  durable?: boolean;
 }
 
 interface EndOptions {
@@ -247,6 +250,15 @@ export function createSessions(
     if (!hasWrappedKey) {
       db.prepare("ALTER TABLE sessions ADD COLUMN wrapped_session_key TEXT").run();
     }
+
+    // Migration: add is_durable flag (v3.19+)
+    // Durable sessions survive indefinitely without a live heartbeat process.
+    // The orphan reaper skips them; whoami returns active=true regardless of
+    // agent liveness. Only ended by pd done, worktree removal, or branch merge.
+    const hasDurable = columns.some(c => c.name === 'is_durable');
+    if (!hasDurable) {
+      db.prepare("ALTER TABLE sessions ADD COLUMN is_durable INTEGER NOT NULL DEFAULT 0").run();
+    }
   } catch {
     // Column already exists or table doesn't exist yet
   }
@@ -313,8 +325,8 @@ export function createSessions(
     // Sessions
     getById: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     insert: db.prepare(`
-      INSERT INTO sessions (id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, completed_at, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sessions (id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, completed_at, metadata, is_durable)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     updateStatus: db.prepare(`
       UPDATE sessions SET status = ?, updated_at = ?, completed_at = ? WHERE id = ?
@@ -379,11 +391,16 @@ export function createSessions(
     mostRecentActiveByAgentAndWorktree: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' AND agent_id = ? AND worktree_id = ? ORDER BY updated_at DESC LIMIT 1
     `),
+    // Abandoned durable sessions are suspended work contexts, not garbage —
+    // they must survive cleanup until pd done completes them. Completed
+    // durable sessions are fair game (pd done is final).
     cleanupOld: db.prepare(`
       DELETE FROM sessions WHERE status = ? AND updated_at < ?
+        AND NOT (is_durable = 1 AND status = 'abandoned')
     `),
     cleanupOldAny: db.prepare(`
       DELETE FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
+        AND NOT (is_durable = 1 AND status = 'abandoned')
     `),
     listOrphanedActive: db.prepare(hasAgentsTable ? `
         SELECT s.*
@@ -394,6 +411,7 @@ export function createSessions(
           AND s.agent_id != ''
           AND a.id IS NULL
           AND s.updated_at < ?
+          AND (s.is_durable IS NULL OR s.is_durable = 0)
         ORDER BY s.updated_at ASC
       ` : `
         SELECT *
@@ -640,6 +658,7 @@ export function createSessions(
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
       metadata: safeJsonParse(row.metadata),
+      durable: row.is_durable === 1,
     };
   }
 
@@ -867,6 +886,7 @@ export function createSessions(
       project = null,
       files = [],
       metadata = null,
+      durable = false,
     } = options;
 
     // Auto-detect worktree if not explicitly provided
@@ -910,7 +930,8 @@ export function createSessions(
         now,
         now,
         null,
-        metadata ? JSON.stringify(metadata) : null
+        metadata ? JSON.stringify(metadata) : null,
+        durable ? 1 : 0
       );
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -1931,6 +1952,20 @@ export function createSessions(
     };
   }
 
+  /**
+   * Flip an abandoned durable session back to active (called by whoami).
+   *
+   * Note: abandonment released the session's file claims, and resurrection
+   * does NOT restore them — the agent must re-claim files it still needs.
+   */
+  function resurrect(sessionId: string): void {
+    // Abandonment writes set phase='abandoned' and completed_at — reset both
+    // so the resurrected session is coherent (active, in progress, not done).
+    db.prepare(
+      "UPDATE sessions SET status = 'active', phase = 'in_progress', completed_at = NULL, updated_at = ? WHERE id = ? AND is_durable = 1 AND status = 'abandoned'"
+    ).run(Date.now(), sessionId);
+  }
+
   return {
     start,
     end,
@@ -1951,5 +1986,6 @@ export function createSessions(
     cleanup,
     abandonOrphanedActive,
     setActivityLog,
+    resurrect,
   };
 }

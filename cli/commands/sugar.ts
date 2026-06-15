@@ -72,6 +72,7 @@ export async function handleBegin(
   if (options.name) body.name = options.name;
   if (options.type) body.type = options.type;
   if (options.force) body.force = true;
+  if (options.durable) body.durable = true;
 
   // Collect files from --files option or remaining positional args
   const files: string[] = [];

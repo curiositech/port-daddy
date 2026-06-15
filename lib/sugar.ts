@@ -42,6 +42,8 @@ interface SessionsModule {
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
+  /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
+  resurrect?(sessionId: string): void;
 }
 
 interface ActivityLogModule {
@@ -77,6 +79,8 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
+  /** Create a durable session that survives without a live heartbeat process. */
+  durable?: boolean;
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -153,7 +157,7 @@ export function createSugar(deps: SugarDeps) {
    * Rolls back agent registration if session start fails.
    */
   function begin(options: BeginOptions) {
-    const { purpose, identity, type, files, force } = options;
+    const { purpose, identity, type, files, force, durable } = options;
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
@@ -378,6 +382,9 @@ export function createSugar(deps: SugarDeps) {
     }
     if (metadata && typeof metadata === 'object') {
       sessionOpts.metadata = metadata;
+    }
+    if (durable) {
+      sessionOpts.durable = true;
     }
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
@@ -644,7 +651,21 @@ export function createSugar(deps: SugarDeps) {
           };
         }
 
-        if (session.status === 'active') {
+        // Durable sessions remain "active" even if the daemon marked them abandoned
+        // because the agent process heartbeat stopped. They're work contexts, not
+        // process lifetimes — only pd done / worktree-removed / branch-merged ends them.
+        const isDurable = session.durable === true ||
+          session.is_durable === 1 || session.is_durable === true;
+        const isEffectivelyActive = session.status === 'active' ||
+          (isDurable && session.status === 'abandoned');
+
+        if (isEffectivelyActive) {
+          // For abandoned-but-durable sessions, resurrect to active in the DB
+          // so future checks don't require special-casing.
+          if (isDurable && session.status === 'abandoned') {
+            sessions.resurrect?.(explicitSessionId);
+          }
+
           const lookupAgentId = sessionAgentId || agentId;
           const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
           const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
@@ -693,6 +714,26 @@ export function createSugar(deps: SugarDeps) {
     const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
 
     if (sessionsList.length === 0) {
+      // Abandoned-but-durable sessions are still live work contexts: an
+      // abandonment write (e.g. zombie protocol) suspends them, it doesn't
+      // end them. Find the most recent one, resurrect it, and report active.
+      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true });
+      const abandonedList = (abandonedResult.sessions || []) as Array<Record<string, unknown>>;
+      const durableSession = abandonedList.find(s => s.durable === true);
+      if (durableSession) {
+        sessions.resurrect?.(durableSession.id as string);
+        const durableDetail = sessions.get(durableSession.id as string);
+        if (durableDetail.success && durableDetail.session) {
+          return buildWhoamiResponse(
+            durableDetail.session as Record<string, unknown>,
+            (durableDetail.notes as unknown[] | undefined) || [],
+            (durableDetail.files as Array<Record<string, unknown>> | undefined) || [],
+            agent,
+            agentId,
+          );
+        }
+      }
+
       return {
         success: true,
         active: false,
