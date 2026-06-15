@@ -52,6 +52,12 @@ export interface LLMCompletionResult {
   inputTokens?: number;
   outputTokens?: number;
   cachedInputTokens?: number;
+  /** Raw parsed provider response, surfaced for full-depth transcript
+   *  extraction (reasoning / tool calls / messages). Gemini: the parsed
+   *  generateContent object. Cloudflare: the parsed `result` object. The
+   *  flattened `text` field is kept for back-compat; `raw` is additive and
+   *  undefined when a backend has no richer structure to expose. */
+  raw?: unknown;
 }
 
 export type LLMAdapter = (req: LLMCompletionRequest) => Promise<LLMCompletionResult>;
@@ -121,6 +127,9 @@ export const cloudflareAdapter: LLMAdapter = async ({ prompt, model, maxTokens, 
       text,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
+      // Surface the parsed `result` object so the spawner can reconstruct
+      // reasoning / tool_calls / message turns for the transcript.
+      raw: result,
     };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
@@ -204,12 +213,21 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
     return { ok: false, error: `Invalid Gemini model id: ${JSON.stringify(model)}` };
   }
 
-  const body: Record<string, unknown> = {
-    contents: [{ parts: [{ text: prompt }] }],
+  // includeThoughts surfaces the model's reasoning summary as `thought:true`
+  // parts so the transcript can record a `thinking` turn — not just the final
+  // answer. Supported on the Gemini 2.5 models this backend targets; thinking
+  // tokens are already billed (folded into outputTokens below), so this adds
+  // visibility at no extra cost.
+  const generationConfig: Record<string, unknown> = {
+    thinkingConfig: { includeThoughts: true },
   };
   if (typeof maxTokens === 'number' && maxTokens > 0) {
-    body.generationConfig = { maxOutputTokens: maxTokens };
+    generationConfig.maxOutputTokens = maxTokens;
   }
+  const body: Record<string, unknown> = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig,
+  };
 
   try {
     const res = await fetch(
@@ -246,7 +264,9 @@ export const geminiAdapter: LLMAdapter = async ({ prompt, model, maxTokens, sign
     const outputTokens = usage.candidatesTokenCount === undefined && usage.thoughtsTokenCount === undefined
       ? undefined
       : candidateTokens + thoughtTokens;
-    return { ok: true, text, inputTokens, outputTokens };
+    // Surface the parsed response so the spawner can reconstruct
+    // thinking / functionCall / text turns for the transcript.
+    return { ok: true, text, inputTokens, outputTokens, raw: data };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }

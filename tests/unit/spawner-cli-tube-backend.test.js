@@ -59,10 +59,14 @@ beforeEach(() => {
 });
 
 describe('buildArgs', () => {
-  test('claude-code uses -p + --output-format=text', () => {
+  test('claude-code uses -p + stream-json --verbose (full-depth capture)', () => {
     const { args } = buildArgs('claude-code', 'hello');
     expect(args[0]).toBe('-p');
-    expect(args).toContain('--output-format=text');
+    // stream-json + verbose emits thinking/tool_use/text blocks as JSONL so
+    // the spawner can record the full conversation, not just the final answer.
+    expect(args).toContain('--output-format');
+    expect(args).toContain('stream-json');
+    expect(args).toContain('--verbose');
     expect(args[args.length - 1]).toBe('hello');
   });
 
