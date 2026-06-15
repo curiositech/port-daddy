@@ -1,0 +1,386 @@
+STATS:
+ features.manifest.json                             |  10 +-
+ fleet-config-ui/src/api.ts                         |  42 ++++++
+ .../src/components/CockpitMissionsPanel.tsx        | 165 +++++++++++++++++++--
+ fleet-config-ui/src/types.ts                       |  11 ++
+ lib/client.ts                                      |  78 ++++++++++
+ lib/cockpit-mission-state.ts                       | 150 +++++++++++++++++++
+ public/fleet-ui/assets/index-Cebs98TU.css          |   1 -
+ .../{index--KBxT-1F.js => index-DE-04o4c.js}       | 116 +++++++--------
+ public/fleet-ui/assets/index-Dt3CDioQ.css          |   1 +
+ public/fleet-ui/index.html                         |   4 +-
+ routes/cockpit.ts                                  | 152 ++++++++++++++++++-
+ server.ts                                          |   3 +
+ tests/unit/cockpit-mission-state.test.js           |  86 +++++++++++
+ tests/unit/cockpit-missions.test.js                | 154 +++++++++++++++++++
+ 14 files changed, 898 insertions(+), 75 deletions(-)
+
+---
+LAST COMMIT:
+8ae2447fec25147d18c75a982b5f6317780e181e
+Erich Owens <[redacted]>
+2026-05-18 22:33:41 -0700
+cockpit: persist per-mission operator state (dismiss/snooze)
+
+PR A of a two-PR set. Adds a `cockpit_mission_state` table and the routes,
+SDK helpers, and UI chips needed for an operator to dismiss or snooze
+individual mission cards. PR B will use the same table to track
+`planned_sortie_id` when `POST /plan` actually dispatches a sortie
+instead of just returning a proposal.
+
+Why
+---
+The cockpit panel re-derives missions from markdown on every load, so any
+operator decision ("not now", "look again tomorrow", "this is launched as
+sortie xyz") had nowhere durable to live. Reloading the panel reset the
+operator's curation back to the raw markdown view, which is the wrong
+default — a roadmap viewer should remember what you've already triaged.
+
+What ships
+----------
+- New `lib/cockpit-mission-state.ts` — `createCockpitMissionState(db)`
+  module exposing `get` / `listForProject` / `set` / `dismiss` / `snooze` /
+  `clear`. Keyed on `(project_dir, mission_id)`; upserts use COALESCE so
+  setting one field never accidentally clobbers another.
+- New SQLite table `cockpit_mission_state` (PK + index, self-initialised
+  by the module — mirrors how `sorties` / `feedback` install their own
+  schema).
+- 3 new routes in `routes/cockpit.ts`:
+    - `POST /cockpit/missions/:id/dismiss` (body `{notes?}`)
+    - `POST /cockpit/missions/:id/snooze`  (body `{until, notes?}`,
+      epoch-ms or ISO 8601; rejects past timestamps)
+    - `DELETE /cockpit/missions/:id/state?field={dismissed|snoozed|plannedSortie|all}`
+- Existing `GET /cockpit/missions` and `GET /cockpit/missions/:id` now
+  merge `state` into each card when the module dep is present. Backward-
+  compatible: missions without state get `state: null`.
+- SDK helpers: `pd.cockpitDismissMission(...)`, `cockpitSnoozeMission(...)`,
+  `cockpitClearMissionState(...)`. `CockpitMissionsResponse.intake` types
+  updated.
+- Fleet UI panel chips: each mission row gets `Dismiss` and `24h snooze`
+  buttons; dismissed/snoozed missions hide from the default view but a
+  `Show hidden N` filter brings them back. Dismissed rows render at 55%
+  opacity with a chip badge; restore button reverses everything.
+- `features.manifest.json` updated for parity.
+
+Validation
+----------
+- `npx tsc --noEmit` clean.
+- 508/508 unit tests pass across cockpit + parity suites (added 9 new
+  state-module tests + 7 new route tests).
+- `npm run build` in fleet-config-ui clean (935 kB → bundle includes the
+  new chip UI + 3 SDK helpers).
+
+Not in this PR
+--------------
+- `/plan` still returns a proposal only; PR B wires it to actually call
+  `spawner.spawn()` + claim mission files + write `planned_sortie_id`
+  back to the table this PR introduces.
+- Live SSE push for state mutations. The infrastructure exists
+  (`/fleet/events`, `/activity/subscribe`) — wiring is a small slice on
+  top of this; will be PR C.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/features.manifest.json b/features.manifest.json
+index 691ce838..f70faa54 100644
+--- a/features.manifest.json
++++ b/features.manifest.json
+@@ -976,12 +976,18 @@
+         "cockpit"
+       ],
+       "sdk": [
+-        "cockpitMissions"
++        "cockpitMissions",
++        "cockpitDismissMission",
++        "cockpitSnoozeMission",
++        "cockpitClearMissionState"
+       ],
+       "routes": [
+         "GET /cockpit/missions",
+         "GET /cockpit/missions/:param",
+-        "POST /cockpit/missions/:param/plan"
++        "POST /cockpit/missions/:param/plan",
++        "POST /cockpit/missions/:param/dismiss",
++        "POST /cockpit/missions/:param/snooze",
++        "DELETE /cockpit/missions/:param/state"
+       ],
+       "completions": [
+         "cockpit"
+diff --git a/fleet-config-ui/src/api.ts b/fleet-config-ui/src/api.ts
+index 81203445..82a73fec 100644
+--- a/fleet-config-ui/src/api.ts
++++ b/fleet-config-ui/src/api.ts
+@@ -41,6 +41,7 @@ import type {
+   UsageTelemetrySummary,
+   UsageTraceInput,
+   MissionIntake,
++  MissionState,
+ } from './types';
+ 
+ const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
+@@ -354,6 +355,47 @@ export async function fetchCockpitMissions(
+   return payload.intake;
+ }
+ 
++function buildMissionStateUrl(missionId: string, suffix: string, projectDir?: string): string {
++  const params = new URLSearchParams();
++  if (projectDir) params.set('projectDir', projectDir);
++  const qs = params.toString();
++  return `/cockpit/missions/${encodeURIComponent(missionId)}/${suffix}${qs ? `?${qs}` : ''}`;
++}
++
++export async function dismissCockpitMission(input: {
++  missionId: string;
++  projectDir?: string;
++  notes?: string;
++}): Promise<{ success: boolean; state: MissionState | null }> {
++  return post(buildMissionStateUrl(input.missionId, 'dismiss', input.projectDir), {
++    notes: input.notes,
++  });
++}
++
++export async function snoozeCockpitMission(input: {
++  missionId: string;
++  until: number | string;
++  projectDir?: string;
++  notes?: string;
++}): Promise<{ success: boolean; state: MissionState | null }> {
++  return post(buildMissionStateUrl(input.missionId, 'snooze', input.projectDir), {
++    until: input.until,
++    notes: input.notes,
++  });
++}
++
++export async function clearCockpitMissionState(input: {
++  missionId: string;
++  field?: 'dismissed' | 'snoozed' | 'plannedSortie' | 'all';
++  projectDir?: string;
++}): Promise<{ success: boolean; state: MissionState | null }> {
++  const params = new URLSearchParams();
++  if (input.projectDir) params.set('projectDir', input.projectDir);
++  if (input.field) params.set('field', input.field);
++  const qs = params.toString();
++  return del(`/cockpit/missions/${encodeURIComponent(input.missionId)}/state${qs ? `?${qs}` : ''}`);
++}
++
+ export async function fetchCoordinationGuard(projectDir: string): Promise<CoordinationGuardEnvelope> {
+   const params = new URLSearchParams({ projectDir });
+   return get(`/operator/coordination-guard?${params.toString()}`);
+diff --git a/fleet-config-ui/src/components/CockpitMissionsPanel.tsx b/fleet-config-ui/src/components/CockpitMissionsPanel.tsx
+index bfb23679..3ca1c006 100644
+--- a/fleet-config-ui/src/components/CockpitMissionsPanel.tsx
++++ b/fleet-config-ui/src/components/CockpitMissionsPanel.tsx
+@@ -1,7 +1,12 @@
+ import { useCallback, useEffect, useMemo, useState } from 'react';
+-import { AlertTriangle, Compass, FileText, RefreshCw } from 'lucide-react';
++import { AlertTriangle, Clock, Compass, FileText, RefreshCw, Undo2, X } from 'lucide-react';
+ 
+-import { fetchCockpitMissions } from '../api';
++import {
++  clearCockpitMissionState,
++  dismissCockpitMission,
++  fetchCockpitMissions,
++  snoozeCockpitMission,
++} from '../api';
+ import type { MissionCard, MissionIntake, MissionStatus } from '../types';
+ 
+ const FILTERS: ReadonlyArray<{ id: 'all' | MissionStatus; label: string }> = [
+@@ -57,15 +62,69 @@ function StatusBadge({ status }: { status: MissionStatus }) {
+   );
+ }
+ 
+-function MissionRow({ mission }: { mission: MissionCard }) {
++interface MissionRowProps {
++  mission: MissionCard;
++  projectDir?: string;
++  onMutated: () => void;
++}
++
++function formatSnoozeUntil(ts: number): string {
++  const diffMs = ts - Date.now();
++  if (diffMs <= 0) return 'expired';
++  const hours = Math.round(diffMs / 3600000);
++  if (hours < 24) return `${hours}h`;
++  const days = Math.round(hours / 24);
++  return `${days}d`;
++}
++
++function MissionRow({ mission, projectDir, onMutated }: MissionRowProps) {
+   const [open, setOpen] = useState(false);
++  const [pending, setPending] = useState<null | 'dismiss' | 'snooze' | 'restore'>(null);
+   const fileChips = mission.files.slice(0, 4);
+   const overflowFiles = Math.max(0, mission.files.length - fileChips.length);
+ 
++  const isDismissed = !!mission.state?.dismissedAt;
++  const isSnoozed = !!mission.state?.snoozedUntil && mission.state.snoozedUntil > Date.now();
++
++  const handleDismiss = async () => {
++    setPending('dismiss');
++    try {
++      await dismissCockpitMission({ missionId: mission.id, projectDir });
++      onMutated();
++    } finally {
++      setPending(null);
++    }
++  };
++
++  const handleSnooze = async (hours: number) => {
++    setPending('snooze');
++    try {
++      const until = Date.now() + hours * 3600000;
++      await snoozeCockpitMission({ missionId: mission.id, until, projectDir });
++      onMutated();
++    } finally {
++      setPending(null);
++    }
++  };
++
++  const handleRestore = async () => {
++    setPending('restore');
++    try {
++      await clearCockpitMissionState({ missionId: mission.id, projectDir, field: 'all' });
++      onMutated();
++    } finally {
++      setPending(null);
++    }
++  };
++
+   return (
+     <div
+       className="rounded-md border px-3 py-2"
+-      style={{ backgroundColor: 'var(--pd-bg)', borderColor: 'var(--pd-border)' }}
++      style={{
++        backgroundColor: 'var(--pd-bg)',
++        borderColor: 'var(--pd-border)',
++        opacity: isDismissed ? 0.55 : 1,
++      }}
+     >
+       <div className="flex items-start justify-between gap-3">
+         <div className="min-w-0">
+@@ -80,9 +139,62 @@ function MissionRow({ mission }: { mission: MissionCard }) {
+               {mission.summary}
+             </div>
+           )}
++          {(isDismissed || isSnoozed) && (
++            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--pd-dim)' }}>
++              {isDismissed && (
++                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold uppercase tracking-wide" style={{ borderColor: 'var(--pd-border)' }}>
++                  <X size={11} /> Dismissed
++                </span>
++              )}
++              {isSnoozed && mission.state?.snoozedUntil && (
++                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold uppercase tracking-wide" style={{ borderColor: 'var(--pd-border)' }}>
++                  <Clock size={11} /> Snoozed {formatSnoozeUntil(mission.state.snoozedUntil)}
++                </span>
++              )}
++              {mission.state?.notes && <span className="italic">— {mission.state.notes}</span>}
++            </div>
++          )}
+         </div>
+-        <div className="flex shrink-0 items-center gap-2">
++        <div className="flex shrink-0 flex-col items-end gap-2">
+           <StatusBadge status={mission.status} />
++          <div className="flex items-center gap-1">
++            {!isDismissed && !isSnoozed && (
++              <>
++                <button
++                  type="button"
++                  onClick={handleDismiss}
++                  disabled={pending !== null}
++                  title="Dismiss mission (persists)"
++                  className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-sm font-semibold disabled:cursor-not-allowed"
++                  style={{ borderColor: 'var(--pd-border)', color: 'var(--pd-muted)', backgroundColor: 'var(--pd-bg)', opacity: pending ? 0.6 : 1 }}
++                >
++                  <X size={12} /> Dismiss
++                </button>
++                <button
++                  type="button"
++                  onClick={() => handleSnooze(24)}
++                  disabled={pending !== null}
++                  title="Snooze for 24h"
++                  className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-sm font-semibold disabled:cursor-not-allowed"
++                  style={{ borderColor: 'var(--pd-border)', color: 'var(--pd-muted)', backgroundColor: 'var(--pd-bg)', opacity: pending ? 0.6 : 1 }}
++                >
++                  <Clock size={12} /> 24h
++                </button>
++              </>
++            )}
++            {(isDismissed || isSnoozed) && (
++              <button
++                type="button"
++                onClick={handleRestore}
++                disabled={pending !== null}
++                title="Restore (clear all persisted state for this mission)"
++                className="inline-flex h-7 items-center gap-1 rounded-md border px-2 text-sm font-semibold disabled:cursor-not-allowed"
++                style={{ borderColor: 'var(--pd-border)', color: 'var(--pd-accent)', backgroundColor: 'var(--pd-bg)', opacity: pending ? 0.6 : 1 }}
++              >
++                <Undo2 size={12} /> Restore
++              </button>
++            )}
++          </div>
+         </div>
+       </div>
+       <div
+@@ -149,6 +261,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
+   const [loading, setLoading] = useState(false);
+   const [error, setError] = useState<string | null>(null);
+   const [filter, setFilter] = useState<'all' | MissionStatus>('all');
++  const [showHidden, setShowHidden] = useState(false);
+ 
+   const reload = useCallback(async () => {
+     setLoading(true);
+@@ -167,11 +280,22 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
+     void reload();
+   }, [reload]);
+ 
++  const isHidden = (m: MissionCard): boolean => {
++    if (m.state?.dismissedAt) return true;
++    if (m.state?.snoozedUntil && m.state.snoozedUntil > Date.now()) return true;
++    return false;
++  };
++
+   const visible = useMemo(() => {
+     if (!intake) return [];
+-    if (filter === 'all') return intake.missions;
+-    return intake.missions.filter((m) => m.status === filter);
+-  }, [intake, filter]);
++    const byStatus = filter === 'all' ? intake.missions : intake.missions.filter((m) => m.status === filter);
++    return showHidden ? byStatus : byStatus.filter((m) => !isHidden(m));
++  }, [intake, filter, showHidden]);
++
++  const hiddenCount = useMemo(() => {
++    if (!intake) return 0;
++    return intake.missions.filter(isHidden).length;
++  }, [intake]);
+ 
+   const counts = useMemo(() => {
+     if (!intake) return new Map<string, number>();
+@@ -217,7 +341,7 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
+         </button>
+       </header>
+ 
+-      <div className="mt-3 flex flex-wrap gap-1">
++      <div className="mt-3 flex flex-wrap items-center gap-1">
+         {FILTERS.map((f) => {
+           const count = counts.get(f.id) ?? 0;
+           const active = filter === f.id;
+@@ -238,6 +362,22 @@ export default function CockpitMissionsPanel({ projectDir }: CockpitMissionsPane
+             </button>
+           );
+         })}
++        {hiddenCount > 0 && (
++          <button
++            type="button"
++            onClick={() => setShowHidden((v) => !v)}
++            className="ml-2 rounded-full px-2 py-0.5 text-sm font-semibold"
++            style={{
++              color: showHidden ? 'var(--pd-accent)' : 'var(--pd-muted)',
++              border: `1px solid ${showHidden ? 'var(--pd-accent)' : 'var(--pd-border)'}`,
++              backgroundColor: showHidden ? 'var(--pd-accent-surface)' : 'var(--pd-bg)',
++            }}
++            title="Toggle visibility of dismissed and snoozed missions"
++          >
++            {showHidden ? 'Hide hidden' : 'Show hidden'}{' '}
+
+... [993 more lines truncated]

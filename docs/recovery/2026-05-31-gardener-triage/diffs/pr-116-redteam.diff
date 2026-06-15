@@ -1,0 +1,334 @@
+STATS:
+ website-v2/src/components/site/SiteHeader.tsx |   1 +
+ website-v2/src/main.tsx                       |   3 +
+ website-v2/src/pages/landscape/index.test.tsx |  92 ++++
+ website-v2/src/pages/landscape/index.tsx      | 579 ++++++++++++++++++++++++++
+ website-v2/src/pages/whitepaper/index.tsx     |  52 ++-
+ 5 files changed, 709 insertions(+), 18 deletions(-)
+
+---
+LAST COMMIT:
+74ce89a868247011ca3f04c2f4fde06b7851614a
+Erich Owens <[redacted]>
+2026-05-19 06:59:28 -0700
+feat(landscape): multi-agent comparison page positioning PD as coordination layer
+
+New /landscape page with three screens:
+- Comparison table (Port Daddy, Cursor 2.0, Claude Code Task, ccswarm,
+  WinDAGs) with a "Composes with PD?" column and the "none of these are
+  competitors" honest-framing footnote.
+- Four-layer architecture diagram (Isolation / Communication / Coordination
+  / Integration) rendered as an inline themable layer stack; PD lives at
+  the coordination layer.
+- Sixty-second walkthrough of two agents (claude:auth-rewrite,
+  codex:auth-tests) touching the same repo with claim conflict + salvage.
+
+Routing wired into main.tsx, nav link added to SiteHeader overflow menu,
+and a sibling cross-link tile added beside "Read the review history" on
+the whitepaper page. Smoke test covers hero, table, four layers, identities.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/website-v2/src/components/site/SiteHeader.tsx b/website-v2/src/components/site/SiteHeader.tsx
+index d21b2cbb..80e7b48c 100644
+--- a/website-v2/src/components/site/SiteHeader.tsx
++++ b/website-v2/src/components/site/SiteHeader.tsx
+@@ -35,6 +35,7 @@ const OVERFLOW_NAV_ITEMS = [
+   { label: "Examples", href: "/examples", end: false },
+   { label: "Tutorials", href: "/tutorials", end: false },
+   { label: "Templates", href: "/agents/templates", end: true },
++  { label: "Landscape", href: "/landscape", end: false },
+   { label: "Blog", href: "/blog", end: false },
+   { label: "Papers", href: "/whitepaper", end: false },
+ ] satisfies readonly NavItem[];
+diff --git a/website-v2/src/main.tsx b/website-v2/src/main.tsx
+index 4071f724..c231dfa0 100644
+--- a/website-v2/src/main.tsx
++++ b/website-v2/src/main.tsx
+@@ -26,6 +26,7 @@ const McpPage = lazy(() => import('@/pages/MCPPage'))
+ const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
+ const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
+ const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
++const LandscapePage = lazy(() => import('@/pages/landscape'))
+ const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
+ const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
+ const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPreviewPage')
+@@ -230,6 +231,8 @@ createRoot(document.getElementById('root')!).render(
+               <Route path="/whitepaper" element={<WhitepaperPage />} />
+               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
+               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
++
++              <Route path="/landscape" element={<LandscapePage />} />
+             </Route>
+ 
+             <Route path="/docs" element={<DocsLayout />}>
+diff --git a/website-v2/src/pages/landscape/index.test.tsx b/website-v2/src/pages/landscape/index.test.tsx
+new file mode 100644
+index 00000000..75428bd0
+--- /dev/null
++++ b/website-v2/src/pages/landscape/index.test.tsx
+@@ -0,0 +1,92 @@
++// @vitest-environment jsdom
++import { cleanup, render, screen, within } from '@testing-library/react'
++import { afterEach, describe, expect, test } from 'vitest'
++import { MemoryRouter } from 'react-router-dom'
++import LandscapePage from './index'
++
++afterEach(() => {
++  cleanup()
++})
++
++describe('Landscape page', () => {
++  test('renders the hero title positioning PD as the layer underneath', () => {
++    render(
++      <MemoryRouter>
++        <LandscapePage />
++      </MemoryRouter>,
++    )
++    expect(
++      screen.getByRole('heading', {
++        level: 1,
++        name: /not a rival\.\s*it is the layer underneath/i,
++      }),
++    ).toBeTruthy()
++  })
++
++  test('comparison table has all five tools and a "Composes with PD?" column', () => {
++    render(
++      <MemoryRouter>
++        <LandscapePage />
++      </MemoryRouter>,
++    )
++    const table = screen.getByTestId('landscape-comparison')
++    expect(table).toBeTruthy()
++    const tableContent = table.textContent ?? ''
++    expect(tableContent).toContain('Port Daddy')
++    expect(tableContent).toContain('Cursor 2.0')
++    expect(tableContent).toContain('Claude Code Task')
++    expect(tableContent).toContain('ccswarm')
++    expect(tableContent).toContain('WinDAGs')
++    expect(tableContent).toMatch(/Composes with PD\?/i)
++    // Honest-comparison footnote
++    expect(tableContent).toMatch(/None of these are competitors/i)
++  })
++
++  test('renders all four architecture layers, with Port Daddy on the coordination layer', () => {
++    render(
++      <MemoryRouter>
++        <LandscapePage />
++      </MemoryRouter>,
++    )
++    const isolation = screen.getByTestId('landscape-layer-isolation')
++    const communication = screen.getByTestId('landscape-layer-communication')
++    const coordination = screen.getByTestId('landscape-layer-coordination')
++    const integration = screen.getByTestId('landscape-layer-integration')
++    expect(isolation).toBeTruthy()
++    expect(communication).toBeTruthy()
++    expect(coordination).toBeTruthy()
++    expect(integration).toBeTruthy()
++    expect(within(coordination).getByText(/Port Daddy lives here/i)).toBeTruthy()
++  })
++
++  test('walkthrough section uses the canonical semantic identities', () => {
++    render(
++      <MemoryRouter>
++        <LandscapePage />
++      </MemoryRouter>,
++    )
++    const walkthrough = screen.getByTestId('landscape-walkthrough')
++    const text = walkthrough.textContent ?? ''
++    expect(text).toContain('claude:auth-rewrite')
++    expect(text).toContain('codex:auth-tests')
++    expect(text).toMatch(/pd salvage/)
++    expect(text).toMatch(/CONFLICT/)
++  })
++
++  test('exposes the three section headings', () => {
++    render(
++      <MemoryRouter>
++        <LandscapePage />
++      </MemoryRouter>,
++    )
++    expect(
++      screen.getByRole('heading', { level: 2, name: /Five tools, five different jobs/i }),
++    ).toBeTruthy()
++    expect(
++      screen.getByRole('heading', { level: 2, name: /Four layers/i }),
++    ).toBeTruthy()
++    expect(
++      screen.getByRole('heading', { level: 2, name: /Two agents on the same repo/i }),
++    ).toBeTruthy()
++  })
++})
+diff --git a/website-v2/src/pages/landscape/index.tsx b/website-v2/src/pages/landscape/index.tsx
+new file mode 100644
+index 00000000..1523aa5d
+--- /dev/null
++++ b/website-v2/src/pages/landscape/index.tsx
+@@ -0,0 +1,579 @@
++import { motion } from 'framer-motion'
++import { Link } from 'react-router-dom'
++import { ArrowRight, Layers, Network, Workflow, GitBranch } from 'lucide-react'
++import { Footer } from '@/components/layout/Footer'
++import {
++  BracketLabel,
++  PageContainer,
++  PanelBody,
++  PanelEyebrow,
++  PanelTitle,
++} from '@/components/site/primitives'
++import { CodeBlock } from '@/components/ui/CodeBlock'
++
++type ComparisonRow = {
++  tool: string
++  isolation: string
++  coordination: string
++  agents: string
++  guarantees: string
++  composesWithPd: string
++  pdSelf?: boolean
++}
++
++const COMPARISON_ROWS: readonly ComparisonRow[] = [
++  {
++    tool: 'Port Daddy',
++    isolation: 'File claims, sessions',
++    coordination: 'DB-backed advisory + Merkle audit',
++    agents: 'Unbounded (local)',
++    guarantees: 'ProVerif + TLA+ + Kani',
++    composesWithPd: '— (is the coordination layer)',
++    pdSelf: true,
++  },
++  {
++    tool: 'Cursor 2.0',
++    isolation: 'Git worktrees per agent',
++    coordination: 'Background agents, conflict detection',
++    agents: '8',
++    guarantees: 'None',
++    composesWithPd: 'Yes — PD claims under Cursor worktrees',
++  },
++  {
++    tool: 'Claude Code Task',
++    isolation: 'Isolated context per sub-agent',
++    coordination: 'Parent/child results summarized',
++    agents: 'Unbounded',
++    guarantees: 'None',
++    composesWithPd: 'Yes — PD coordinates parents AND children',
++  },
++  {
++    tool: 'ccswarm',
++    isolation: 'Git worktrees + Claude CLI',
++    coordination: 'Template scaffolding, coordinator agent',
++    agents: 'Configurable',
++    guarantees: 'None',
++    composesWithPd: 'Yes — PD sits beside the coordinator',
++  },
++  {
++    tool: 'WinDAGs',
++    isolation: 'ProcessExecutor / WorktreeExecutor',
++    coordination: 'Wave-based (parallel inside wave, serial across)',
++    agents: 'Per wave',
++    guarantees: 'DAG validation only',
++    composesWithPd: 'Yes — PD claims at task granularity within waves',
++  },
++]
++
++type LayerSpec = {
++  id: string
++  label: string
++  role: string
++  occupants: string
++  tone: 'paper' | 'primary' | 'accent'
++  icon: typeof Layers
++  isPd?: boolean
++}
++
++const ARCHITECTURE_LAYERS: readonly LayerSpec[] = [
++  {
++    id: '04',
++    label: 'Integration',
++    role: 'Where the work lands.',
++    occupants: 'Merge queues. Test suites. CI. Production.',
++    tone: 'paper',
++    icon: GitBranch,
++  },
++  {
++    id: '03',
++    label: 'Coordination',
++    role: 'Who can do what, when, and what already happened.',
++    occupants: 'Port Daddy. File claims, sessions, locks, notes, salvage, Merkle audit.',
++    tone: 'primary',
++    icon: Layers,
++    isPd: true,
++  },
++  {
++    id: '02',
++    label: 'Communication',
++    role: 'How agents tell each other things.',
++    occupants: 'Pub/sub channels. Inbox messages. Pheromone trails. Session notes.',
++    tone: 'accent',
++    icon: Network,
++  },
++  {
++    id: '01',
++    label: 'Isolation',
++    role: 'Where each agent does its work without stomping the others.',
++    occupants: 'Git worktrees. Container sandboxes. Docker. Cursor backgrounds. WinDAGs executors.',
++    tone: 'paper',
++    icon: Workflow,
++  },
++]
++
++const WALKTHROUGH_BLOCK = `# Agent A — refactor the middleware
++$ pd begin "refactor auth middleware" --identity claude:auth-rewrite
++$ pd session files claim src/auth/middleware.ts
++  Claimed 1 file. No conflicts.
++$ pd note "Starting with token-refresh race. See line 142."
++
++# Agent B — meanwhile, in another terminal
++$ pd begin "extend test coverage" --identity codex:auth-tests
++$ pd session files claim src/auth/middleware.ts
++  CONFLICT: src/auth/middleware.ts claimed by claude:auth-rewrite
++  Holder session: session-claude-auth-rewrite-7b3a
++
++# Agent B sees the conflict, claims something it can own
++$ pd session files claim src/auth/middleware.test.ts
++  Claimed 1 file. No conflicts.
++
++# Agent A's process dies (kernel OOM, rebase timeout, who knows)
++$ pd salvage --project myrepo
++  1 orphan session for myrepo:
++    claude:auth-rewrite — "Starting with token-refresh race. See line 142."
++    Last note 4m ago. 1 file claim held.
++
++# Agent B picks up the salvage, inherits the note, releases the claim
++$ pd salvage claim session-claude-auth-rewrite-7b3a
++  Claimed. 1 file lock released. Session notes attached to your session.`
++
++function layerToneClasses(tone: LayerSpec['tone']): {
++  surface: string
++  border: string
++  title: string
++  body: string
++  badge: string
++  rule: string
++} {
++  switch (tone) {
++    case 'primary':
++      return {
++        surface: 'bg-[var(--brand-primary)]',
++        border: 'border-[var(--border-strong)]',
++        title: 'text-[var(--brand-primary-foreground)]',
++        body: 'text-[color:var(--brand-primary-foreground-muted)]',
++        badge: 'text-[var(--brand-primary-foreground)] border-[color:var(--brand-primary-foreground-subtle)]',
++        rule: 'bg-[color:var(--brand-primary-foreground-subtle)]',
++      }
++    case 'accent':
++      return {
++        surface: 'bg-[var(--brand-accent)]',
++        border: 'border-[var(--border-strong)]',
++        title: 'text-[var(--brand-accent-foreground)]',
++        body: 'text-[color:var(--brand-accent-foreground-muted)]',
+
+... [489 more lines truncated]

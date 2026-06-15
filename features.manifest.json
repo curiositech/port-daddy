@@ -1057,7 +1057,12 @@
       "routes": [
         "GET /cockpit/missions",
         "GET /cockpit/missions/:param",
-        "POST /cockpit/missions/:param/plan"
+        "POST /cockpit/missions/:param/plan",
+        "GET /cockpit/triage/runs",
+        "GET /cockpit/triage/items",
+        "GET /cockpit/triage/diff/:param/:param",
+        "GET /cockpit/triage/decisions",
+        "POST /cockpit/triage/decisions"
       ],
       "completions": [
         "cockpit"
@@ -1975,7 +1980,11 @@
       "sdk": [],
       "routes": [
         "POST /dispatches",
-        "GET /dispatches"
+        "GET /dispatches",
+        "GET /dispatches/:id",
+        "POST /dispatches/:id/accept",
+        "POST /dispatches/:id/reject",
+        "POST /dispatches/:id/cancel"
       ],
       "completions": [
         "dispatch",
@@ -2076,7 +2085,8 @@
       "cli": [],
       "sdk": [],
       "routes": [
-        "GET /harvest/related"
+        "GET /harvest/related",
+        "POST /harvest/session/:id"
       ],
       "mcp": [
         "harvest_session",
@@ -2093,6 +2103,7 @@
       "routes": [
         "GET /custodian/status",
         "GET /custodian/approvals",
+        "POST /custodian/approvals/:id",
         "GET /custodian/permissions"
       ],
       "mcp": [

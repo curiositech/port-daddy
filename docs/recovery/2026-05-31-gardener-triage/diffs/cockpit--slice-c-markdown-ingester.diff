@@ -1,0 +1,40 @@
+STATS:
+
+---
+LAST COMMIT:
+d1617726992236a6060123969d8d8272b6c56d83
+Erich Owens <[redacted]>
+2026-05-19 01:27:32 -0700
+feat(roadmap): pd roadmap promote + /roadmap/* routes (slice B/2 of DB-of-record)
+
+Slice B/2 wires the atomic feedback→roadmap_items linkage (lib/roadmap-promote.ts from slice B/1, 16ee354f) into HTTP + CLI + manifest so cartographer (and humans) can promote without editing docs/ROADMAP.md prose by regex.
+
+Routes (new routes/roadmap.ts plugin, mounted when both roadmapItems and roadmapPromote deps are present):
+- POST /roadmap/items            upsert
+- GET  /roadmap/items            list (filter by status/harbor)
+- GET  /roadmap/items/:slug      get
+- POST /roadmap/items/:slug/status   update status (audit-trailed)
+- POST /roadmap/items/:slug/touch    refresh last_touched_at
+- POST /roadmap/promote          atomic feedback→item linkage
+
+CLI: 'pd roadmap promote <feedbackId> [--slug s] [--summary md] [--status now|backlog|parked|merge|done] [--as agentId] [--harbor h]'. Falls back to active session agent id when --as omitted, and to feedback.suggested/summary when --summary omitted.
+
+Wiring:
+- server.ts: createRoadmapItems({tuples}) + createRoadmapPromote({feedback, roadmapItems}) added to dep graph, passed to registerAllRoutes.
+- routes/index.ts: mounts roadmapPlugin conditionally on dep presence.
+- features.manifest.json: roadmap feature now declares all 6 routes (was empty placeholder).
+- bash/zsh/fish completions: 'promote' subcommand + --from-feedback/--slug/--summary/--status/--as/--harbor flag completions.
+
+Parity tests:
+- bijective-parity: ROUTE_TO_CLI_MAP gets 'roadmap' → ['roadmap'] entry (parity check expected at least one CLI entry per route module).
+- mcp-parity: MCP_EXEMPT_FEATURES gets 'roadmap' added with reasoning (v1 CLI is the entry point; MCP wrapper deferred until cartographer fleet agent calls it directly via tool-use rather than shell).
+
+197/5730 unit tests passing, typecheck clean.
+
+Coordinated via pd: agent-adr-0034-link-claims-to-sessions held cli/commands/roadmap.ts while shipping PR #97 (claim→session linkage). Sent them an inbox message about the upcoming promote subcommand; rebased after their PR landed (4a18c217), 'promote' and 'claim-link' subcommands now coexist cleanly in the same handler.
+
+Next: slice C — pd roadmap render (markdown projection from tuple stream) + cartographer fleet prompt rewrite to call /roadmap/promote instead of editing docs/ROADMAP.md directly.
+
+
+---
+DIFF (first 300 lines):

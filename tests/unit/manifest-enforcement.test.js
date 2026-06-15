@@ -48,7 +48,13 @@ function extractServerRoutes() {
   const routesDir = join(ROOT, 'routes');
   const routes = [];
 
-  const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
+  // Tolerate an optional Fastify TypeScript generic between the method and the
+  // call, e.g. `fastify.get<{ Params: { id: string } }>('/path', ...)`. Without
+  // this the extractor silently drops every generic-form route (dispatches.ts,
+  // custodian.ts, harvest.ts, cockpit.ts), so a manifested generic route reads
+  // as a ghost. The generic is balanced-brace-free at this depth, so `<[^(]*>`
+  // (lazy, stopping before the opening paren) is sufficient.
+  const routePattern = /\.(get|post|put|delete|patch)\s*(?:<[^(]*>)?\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
   // routes/test-hooks.ts mounts only when NODE_ENV=test (see
   // routes/test-hooks.ts + routes/index.ts). Intentionally absent from
