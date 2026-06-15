@@ -221,9 +221,12 @@ paper depends only on a \textbf{local non-forgeable identity} (an identity root
 that holds within a single trusted operator) and hands the companion market paper
 the unbuilt \textbf{cross-operator attestation} (binding identities across
 operators who do not trust each other) as a named dependency rather than
-assuming it. We prove that a non-forgeable identity is \emph{necessary} for any
-sanction-respecting reputation, and bound the cost a whitewashing attacker must
-pay.
+assuming it. We prove the necessity of non-forgeable identity (Theorem~\ref{thm:necessity})
+for any sanction-respecting reputation, and \emph{sketch} a cost bound for
+whitewashing attackers under an unproven schedule-existence assumption
+(Theorem~\ref{thm:whitewash-cost}, proof sketch); the grading-oracle
+termination on which the central incentive-compatibility argument rests
+remains a conjecture (Conjecture~\ref{conj:contract}).
 \end{abstract}
 
 \vspace{0.5cm}
@@ -235,9 +238,9 @@ compatibility, witnessed outcomes
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 40 minutes end-to-end; the
 Reader's Map below offers shorter routes. The companion papers \emph{The Legible
-Swarm} (Paper~1, L2) and \emph{The Anchor Protocol} (Paper~2, L0--L1) supply the
+Swarm} (Floor~2) and \emph{The Anchor Protocol} (Beam~A) supply the
 legibility surfaces and the cryptographic identity ceremony this paper builds on;
-\emph{The Harbor Economy} (Paper~4, L3) consumes this paper's reputation
+\emph{The Harbor Economy} (Floor~4) consumes this paper's reputation
 substrate as the third side of its market. Any of the four can be opened first;
 this one is the hinge.}
 
@@ -339,7 +342,7 @@ Markets price \emph{reputations}, and a reputation is a claim about a thing that
 contractor can shed its history by re-incorporating under a new name every Monday,
 the claim is worthless and so is the market. The agent labor market the Harbor
 Volume is building --- operators renting each other's fleets, skills licensed
-across machines, work settled against bonds (Paper~4) --- is impossible until a
+across machines, work settled against bonds (The Harbor Economy, Floor~4) --- is impossible until a
 spawn can become a \textbf{person}: a thing with a track record that survives the
 process that built it and the operator who first ran it. Throughout this paper we
 follow two operators by name --- \textbf{Alice} and \textbf{Bob}, the same pair the
@@ -358,7 +361,7 @@ daemon (L0) and the protocol (L1) give an agent a way to \emph{act} and to
 the wedge to the market is the thing this paper builds: \textbf{continuity}, and
 the reputation it makes possible.
 
-% --- FIGURE 1: the L0->L3 stack map, placing Paper 3 ---
+% --- FIGURE 1: the L0->L3 stack map, placing Floor 3 (From Spawn to Person) ---
 \input{figures/fig-stp-stack-map}
 
 \subsection{What this paper claims, and what it refuses to claim}
@@ -376,7 +379,7 @@ Daddy's reality stops along it:
 \;\to\;
 \text{reputation}
 \;\to\;
-\underbrace{\text{a tradeable asset}}_{\text{Paper 4}}.
+\underbrace{\text{a tradeable asset}}_{\text{Floor~4}}.
 \]
 Read left-to-right it is a roadmap; read right-to-left it is a stack of
 impossibility claims --- each arrow asserts that the right-hand thing
@@ -719,7 +722,7 @@ set $+$ last-$N$ transcript turns\}. It is unbuilt.}
 
 \paragraph{Co-ownership note (with the formal-core paper).}
 The \emph{kernel mechanism} of a checkpoint-with-teeth --- the content-addressed
-execution snapshot --- is owned by the formal-core paper of this volume (Paper~2),
+execution snapshot --- is owned by the formal-core paper of this volume (The Anchor Protocol, Beam~A),
 which treats it as a low-level primitive. \emph{This} paper owns the argument for
 \emph{why it is the foundation of personhood and reputation}. The two papers state
 the same canonical sentence (next).
@@ -765,7 +768,7 @@ reader should consult first.
 \textit{Trace.} (2) An agent claims a file, makes a commit, and dies. Walk the
 three organs: what does each retain, and what is \emph{lost} that a strong
 checkpoint would have kept? \\
-$\star$ \textit{Open.} (4) When an LLM agent dies mid-thought, what is recoverable
+$\star$ \textit{Open.} (3) When an LLM agent dies mid-thought, what is recoverable
 and what is fundamentally lost? Propose a taxonomy of agent-death by what survives
 (record / claims / execution state / latent ``intent''). This is the hard half of
 the checkpoint-with-teeth problem.
@@ -1057,8 +1060,8 @@ We catalog the estimators not because they are hard but because choosing the
   computes a global trust vector as the principal eigenvector of the
   local-trust matrix --- the reputation-systems analogue of PageRank, and the
   canonical answer to ``aggregate peer opinions while resisting collusive
-  cliques.'' It is the right tool for the \emph{federated} reputation Paper~4
-  needs (trust that travels across harbors), and it is \emph{not} a bandit.
+  cliques.'' It is the right tool for the \emph{federated} reputation The Harbor
+  Economy (Floor~4) needs (trust that travels across harbors), and it is \emph{not} a bandit.
   \item \textbf{Marketplace feedback signal $\to$ feedback systems.}
   Resnick--Zeckhauser~\cite{resnick2006value} measured a ${\sim}8\%$ reputation
   price premium on eBay; Tadelis~\cite{tadelis2016} frames feedback systems as the
@@ -1347,7 +1350,7 @@ grade land, and what slashes the judge? \\
 \textit{Trace.} (3) Design the witnessed event for skill-helpfulness. What fields
 does it need so that a buyer can verify ``this skill helped'' without trusting the
 skill's author? \\
-$\star$ \textit{Open.} (5) If you publish the 3-vector and buyers weight it, do
+$\star$ \textit{Open.} (4) If you publish the 3-vector and buyers weight it, do
 agents Goodhart the most-weighted axis? If you publish a scalar, you have recreated
 the bandit framing the substrate argument rejects. What is the right disclosure
 form for vector reputation?
@@ -1424,10 +1427,10 @@ is conditional on an honest oracle --- and say which.}
 derives the grade'' does not, by itself, close it. \\
 \textit{Trace.} (2) Walk Option~A: a judge grades dishonestly, a re-audit
 overturns it. Follow the bond flow and the reputation update for the judge. \\
-$\star$ \textit{Open.} (4) Prove or refute Conjecture~\ref{conj:contract}. If the
+$\star$ \textit{Open.} (3) Prove or refute Conjecture~\ref{conj:contract}. If the
 re-audit probability $\rho$ is too low, the tower is not contractive --- find the
 critical $\rho^\star$ as a function of bond size and bribe ceiling. \\
-$\star$ \textit{Open.} (10) Arbitration capacity: human oracles are scarce. Design
+$\star$ \textit{Open.} (4) Arbitration capacity: human oracles are scarce. Design
 a market for bonded, rated, slashable arbiters and argue whether it converges to
 honest rulings or to rubber-stamping under load.
 \end{exercises}
@@ -1531,18 +1534,18 @@ delete (mutate) on the outcome ledger? \\
 \textit{Trace.} (2) A judge is later found to have colluded on five settled
 outcomes. Walk the tombstone for one of them: what is appended, what propagates,
 and what bounds the window the poisoned reputation was spendable? \\
-$\star$ \textit{Open.} (8) Reputation-claim revocation with an append-only,
+$\star$ \textit{Open.} (3) Reputation-claim revocation with an append-only,
 bounded-memory ledger across $N$ harbors: how do you prove the correction
 converged and bound the spendable window, without violating append-only? This is
-the cross-harbor analogue of capability revocation (Paper~4).
+the cross-harbor analogue of capability revocation (The Harbor Economy, Floor~4).
 \end{exercises}
 
 % ═════════════════════════════════════════════════════════════════════════════
-\section{What this paper hands the market (Paper 4)}\label{sec:handoff}
+\section{What this paper hands the market (The Harbor Economy, Floor~4)}\label{sec:handoff}
 % ═════════════════════════════════════════════════════════════════════════════
 
 This paper is the bridge; its output is a precise hand-off to \emph{The Harbor
-Economy} (Paper~4). We summarize what is delivered, what is borrowed, and what is
+Economy} (Floor~4). We summarize what is delivered, what is borrowed, and what is
 explicitly owed.
 
 \begin{table}[H]
