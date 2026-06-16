@@ -202,6 +202,10 @@ run_read "nudge"             nudge       -- nudge --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
 run_read "send (usage)"      send        -- send
 run_read "hints"             hints       -- hints
+# ADR-0084 Daemon Berths: `pd use <tier>` emits a shell snippet (read-only, no
+# daemon mutation); `pd dev list` probes berths read-only. Both exit 0 + print.
+run_ok   "use stable"        use         -- use stable
+run_ok   "dev list"          dev         -- dev list
 
 # --help routing regression (HELP_TOPIC_ALIASES): a messaging-family command must
 # resolve to the messaging TOPIC, not silently fall through to the global help.
@@ -352,7 +356,7 @@ covered listen;    skip "listen"    "alias of sub — blocking subscriber"
 covered wait;      skip "wait"      "blocks until a matching message arrives"
 covered mcp;       skip "mcp"       "boots a stdio MCP server that blocks reading stdin"
 covered dashboard; skip "dashboard" "web form opens a browser via 'open'; TUI form is interactive (tsx) — both unsafe in CI"
-covered dev;       skip "dev"       "spawns an isolated dev daemon via tsx (mutating, needs node_modules)"
+covered dev;       skip "dev"       "ADR-0084 berths: 'dev list' is read-tested above; 'dev up/down' build+launch/stop a real berth (mutating)"
 covered setup;     skip "setup"     "interactive onboarding; writes .portdaddyrc — covered indirectly by scan/init paths"
 covered init;      skip "init"      "writes project config to cwd; covered by the scan read instead"
 covered learn;     skip "learn"     "requires an interactive TTY; refuses in CI by design"
