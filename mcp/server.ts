@@ -277,7 +277,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'knowledge': {
     description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
+    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
@@ -659,6 +659,22 @@ const TOOLS = [
         directory: { type: 'string', description: 'Directory to scan' },
         glob: { type: 'string', description: 'Glob filter (optional)' },
       },
+    },
+  },
+  {
+    name: 'blast_radius',
+    description:
+      '[Knowledge] Reverse-dependency closure of a symbol — everything that breaks if you change it, ' +
+      'plus a ready-to-reserve claim set (modify the target, read everything downstream). ' +
+      'Usage: blast_radius({file: "lib/server.ts", symbol: "createRoutes", depth: 3})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file: { type: 'string', description: 'File containing the symbol' },
+        symbol: { type: 'string', description: 'Symbol path, e.g. "createRoutes" or "UserService.authenticate"' },
+        depth: { type: 'number', description: 'Max dependency hops (1-6, default 3)' },
+      },
+      required: ['file', 'symbol'],
     },
   },
 
@@ -3228,6 +3244,15 @@ async function handleTool(
 
     case 'symbol_stats': {
       res = await GET('/symbols/stats');
+      break;
+    }
+
+    case 'blast_radius': {
+      const params = new URLSearchParams();
+      params.set('file', args.file as string);
+      params.set('symbol', args.symbol as string);
+      if (args.depth != null) params.set('depth', String(args.depth));
+      res = await GET(`/symbols/blast-radius?${params.toString()}`);
       break;
     }
 

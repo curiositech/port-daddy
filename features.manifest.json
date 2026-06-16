@@ -1456,6 +1456,7 @@
         "GET /symbols/stats",
         "GET /symbols",
         "GET /symbols/file/*",
+        "GET /symbols/blast-radius",
         "GET /dependencies",
         "POST /conflicts/predict"
       ],

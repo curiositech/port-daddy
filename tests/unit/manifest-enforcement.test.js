@@ -532,6 +532,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'find_symbols': 'symbols',
       'symbol_stats': 'symbols',
       'predict_conflicts': 'symbols',
+      'blast_radius': 'symbols',
       'claim_port': 'claim',
       'release_port': 'release',
       'list_services': 'services',
