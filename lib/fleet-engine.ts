@@ -10,6 +10,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
+import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
@@ -357,7 +358,23 @@ export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'mo
   const explicitModelTier = parseModelTier(agent.modelTier);
   const backend = explicitBackend || defaults.backend || null;
   const tierModel = backend && explicitModelTier ? resolveTierModel(backend, explicitModelTier) : undefined;
-  const model = explicitModel || tierModel || defaults.model;
+  let model = explicitModel || tierModel || defaults.model;
+
+  // A local-CLI backend with no real model resolves its model to the backend's
+  // own bare name ("cli:claude-code" → "claude-code"). That placeholder has no
+  // cost-rate entry, so pricing falls back to an estimate and the exact-telemetry
+  // gate blocks the launch — and the CLI itself rejects it ("model not
+  // supported"). Substitute the rate-backed operator default so the CLI
+  // invocation and the cost calculation agree on a real, priceable model.
+  const CLI_MODEL_PLACEHOLDERS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  if (backend && (!model || CLI_MODEL_PLACEHOLDERS.has(model))) {
+    if (backend === 'cli:claude-code' || backend === 'claude-cli' || backend === 'claude') {
+      model = DEFAULT_OPERATOR_CLAUDE_MODEL;
+    } else if (backend === 'cli:codex' || backend === 'codex') {
+      model = DEFAULT_OPERATOR_CODEX_MODEL;
+    }
+  }
+
   const warnings: string[] = [];
 
   if (!backend) {

@@ -229,3 +229,54 @@ export function extractClaudeCodeFinal(raw: string): string | null {
   }
   return final;
 }
+
+/** Exact token counts the Claude Code CLI reports on its terminal `result`
+ * line. With `--output-format stream-json` the raw stdout is JSONL whose final
+ * `{"type":"result",…,"usage":{…}}` event carries `input_tokens`,
+ * `output_tokens`, and the cache counters — the same numbers the legacy
+ * `--output-format json` path parses. The cli-tube backend previously dropped
+ * these (it only recovered the text), so every `cli:claude-code` spawn returned
+ * no token counts and fail-closed the exact-telemetry gate. Returns `{}` when no
+ * usage is present (caller then estimates). Never throws. */
+export function extractClaudeCodeUsage(raw: string): {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+} {
+  if (!raw) return {};
+  let usage: { inputTokens?: number; outputTokens?: number; cachedInputTokens?: number } = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    let event: {
+      type?: unknown;
+      usage?: {
+        input_tokens?: unknown;
+        output_tokens?: unknown;
+        cache_read_input_tokens?: unknown;
+        cache_creation_input_tokens?: unknown;
+      };
+    };
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    // Take the last result line's usage (matches extractClaudeCodeFinal).
+    if (event.type === 'result' && event.usage) {
+      const u = event.usage;
+      const inTok = typeof u.input_tokens === 'number' ? u.input_tokens : undefined;
+      const outTok = typeof u.output_tokens === 'number' ? u.output_tokens : undefined;
+      // Cache creation is freshly-written (billed) input; fold it into the
+      // input count so a heavily-cached call doesn't report ~0 input tokens.
+      const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+      const cacheRead = typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : undefined;
+      usage = {
+        inputTokens: inTok != null ? inTok + cacheCreate : undefined,
+        outputTokens: outTok,
+        ...(cacheRead != null ? { cachedInputTokens: cacheRead } : {}),
+      };
+    }
+  }
+  return usage;
+}
