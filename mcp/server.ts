@@ -164,7 +164,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'sessions': {
     description: 'Detailed session management (start, end, phases, file claims)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
+    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file'],
   },
   'notes': {
     description: 'Add and list session notes',
@@ -1031,6 +1031,36 @@ const TOOLS = [
         force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
       required: ['session_id'],
+    },
+  },
+  {
+    name: 'claim_symbols',
+    description:
+      '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
+      'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
+      'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
+      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: { type: 'string', description: 'Session ID' },
+        claims: {
+          type: 'array',
+          description: 'Symbol claims to declare',
+          items: {
+            type: 'object',
+            properties: {
+              filePath: { type: 'string', description: 'File containing the symbol' },
+              symbolPath: { type: 'string', description: 'Canonical symbol path, e.g. "UserService.authenticate"' },
+              type: { type: 'string', description: "'modify' (default) or 'read'" },
+            },
+            required: ['filePath', 'symbolPath'],
+          },
+        },
+        auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
+        radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
+      },
+      required: ['session_id', 'claims'],
     },
   },
   {
@@ -3428,6 +3458,15 @@ async function handleTool(
         files: args.paths ?? [],
         regions: args.regions,
         force: args.force,
+      });
+      break;
+    }
+
+    case 'claim_symbols': {
+      res = await POST(`/sessions/${args.session_id}/symbols`, {
+        claims: args.claims ?? [],
+        autoDeriveRadius: args.auto_derive_radius,
+        radiusDepth: args.radius_depth,
       });
       break;
     }

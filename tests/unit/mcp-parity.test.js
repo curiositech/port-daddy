@@ -78,6 +78,7 @@ const TOOL_FEATURE_MAP = {
   'list_sessions': 'sessions',
   'list_notes': 'notes',
   'claim_files': 'sessions',
+  'claim_symbols': 'sessions',
 
   // Locks
   'acquire_lock': 'locks',

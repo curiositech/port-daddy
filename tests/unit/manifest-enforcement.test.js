@@ -544,6 +544,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_sessions': 'sessions',
       'list_notes': 'notes',
       'claim_files': 'sessions',
+      'claim_symbols': 'sessions',
       'acquire_lock': 'locks',
       'release_lock': 'locks',
       'list_locks': 'locks',

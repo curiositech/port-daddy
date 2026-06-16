@@ -76,6 +76,7 @@ import { createFleetDaemon } from './lib/fleet-daemon.js';
 import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
+import { createSymbolClaims } from './lib/symbol-claims.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
@@ -434,6 +435,14 @@ const sessions = createSessions(db, noteEncryption, {
   requireAgentForFileClaims: true,
 });
 sessions.setActivityLog(activityLog);
+
+const symbolClaims = createSymbolClaims(db, {
+  symbolIndex,
+  agentForSession: (sessionId: string) => {
+    const r = sessions.get(sessionId) as { session?: { agentId?: string | null } } | undefined;
+    return r?.session?.agentId ?? null;
+  },
+});
 
 const agentInbox = createAgentInbox(db, (agentId, message) => {
   messaging.publish(`inbox:${agentId}`, {
@@ -1049,7 +1058,7 @@ await registerAllRoutes(
     db, logger, metrics, config,
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
