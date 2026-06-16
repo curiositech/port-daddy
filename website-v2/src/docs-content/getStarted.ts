@@ -164,7 +164,7 @@ export const getStartedSection: DocsContentSection = {
         {
           type: 'command',
           title: 'Start the session',
-          command: 'pd begin --identity myapp:api --purpose "Building the auth layer"',
+          command: 'pd begin --identity myapp:api --purpose "Building the auth layer" --lifecycle durable',
           notes: [
             'Use `--identity` and `--purpose` explicitly in docs examples.',
             'This is the recommended way to start coordinated work in the current CLI docs.',

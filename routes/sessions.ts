@@ -28,6 +28,7 @@ interface SessionsRouteDeps {
       files?: string[];
       metadata?: Record<string, unknown> | null;
       worktreeId?: string | null;
+      durable?: boolean;
     }): Record<string, unknown>;
     end(sessionId: string, options?: {
       note?: string;
@@ -83,6 +84,14 @@ interface SessionsRouteDeps {
   activityLog: {
     log?(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
   };
+}
+
+type SessionLifecycle = 'durable' | 'ephemeral';
+
+function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
 }
 
 /**
@@ -297,6 +306,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         worktree,
         requireLinkedWorktree,
         allowMainWorktree,
+        lifecycle: rawLifecycle,
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
@@ -343,6 +353,16 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         return worktreePolicy;
       }
 
+      const lifecycle = rawLifecycle === undefined ? null : parseSessionLifecycle(rawLifecycle);
+      if (rawLifecycle !== undefined && !lifecycle) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'lifecycle must be "durable" or "ephemeral" when provided',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
       const mergedMetadata = mergeSessionWorktreeMetadata(metadata, worktreePolicy.worktree, {
         requireLinkedWorktree,
         allowMainWorktree,
@@ -353,6 +373,7 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         files,
         metadata: mergedMetadata,
         worktreeId: worktreePolicy.worktree?.id,
+        durable: lifecycle === 'durable',
       });
 
       if (!result.success) {

@@ -23,7 +23,7 @@ Enter
 Sleep 2s
 
 # 2. Begin a session
-Type "pd begin 'Building the auth module' --identity myapp:backend"
+Type "pd begin 'Building the auth module' --identity myapp:backend --lifecycle durable"
 Enter
 Sleep 2s
 

@@ -51,7 +51,7 @@ const SECTIONS: DocSection[] = [
     icon: History,
     tone: 'primary',
     commands: [
-      { cmd: 'pd begin <purpose>', desc: 'Start a new session with agent registration and port assignment.', example: 'pd begin "Refactor auth module" --identity myapp:api' },
+      { cmd: 'pd begin <purpose>', desc: 'Start a new durable work session with agent registration and port assignment.', example: 'pd begin "Refactor auth module" --identity myapp:api --lifecycle durable' },
       { cmd: 'pd note <message>', desc: 'Log an immutable progress note to the current session.', example: 'pd note "JWT middleware extracted, tests green"' },
       { cmd: 'pd done <summary>', desc: 'Complete the session, release resources, and archive notes.', example: 'pd done "Auth refactor complete with 100% test coverage"' }
     ]

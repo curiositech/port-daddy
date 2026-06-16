@@ -47,7 +47,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
   - `pd status`
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter
-  - `pd begin --identity <project>:<task>`
+  - `pd begin --identity <project>:<task> --lifecycle durable`
 - If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
   - leave a `pd note` describing scope and intended files
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
@@ -247,7 +247,7 @@ The numbered flow above is the *review contract*. This subsection is the
 - **Create.** Branch in a linked Git worktree off `origin/main` under
   `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
   carries the operator's WIP). Then `pd begin "<purpose>" --identity
-  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
+  port-daddy:<type>:<slug> --lifecycle durable` → a scope `pd note` → `pd session files add
   <files>` *before* editing → edit → `pd guard check --staged` → commit
   (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
   create` → `pd done`.

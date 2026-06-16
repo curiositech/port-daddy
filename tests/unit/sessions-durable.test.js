@@ -1,5 +1,5 @@
 /**
- * Durable Session Mode Tests (pd begin --durable)
+ * Durable Session Mode Tests (lifecycle: durable)
  *
  * Durable sessions are work contexts, not process lifetimes. They survive
  * without a live heartbeat: the orphan reaper skips them, whoami reports

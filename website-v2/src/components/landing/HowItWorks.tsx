@@ -19,7 +19,7 @@ const STEPS: Step[] = [
     description:
       'Summon a session. Port Daddy assigns a stable port and semantic identity, checking for orphaned work from previous swarms.',
     code: [
-      '$ pd begin "Analyzing data" --identity swarm:analyst',
+      '$ pd begin "Analyzing data" --identity swarm:analyst --lifecycle durable',
       '  Agent agent-7f3a ready',
       '  Session started · port 3102 · identity swarm:analyst',
       '  Salvage: No dead agents detected',

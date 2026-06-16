@@ -219,7 +219,7 @@ export const PRODUCT_FEATURES = [
     title: 'Enforced coordination',
     description: 'Sessions, notes, file claims, locks, tuples, inboxes, activity, salvage, and Coordination Guard make repo work attributable before code reaches a commit.',
     category: 'coordination',
-    cli: 'pd begin "purpose"',
+    cli: 'pd begin "purpose" --lifecycle durable',
     href: '/tutorials/multi-agent',
     image: {
       src: '/img/generated/coordination-guard.webp',
@@ -672,7 +672,7 @@ export const COLD_START_STEPS = [
     id: 'operate',
     title: 'Operate from the Fleet view',
     description: 'Start the fleet, inspect agents, run a sortie, read activity, tune YAML, and watch resources from the same console the Mac app embeds.',
-    command: 'pd fleet up\npd begin "first coordinated change"',
+    command: 'pd fleet up\npd begin "first coordinated change" --lifecycle durable',
     appSurface: 'Flow, Agents, Sorties, Resources, and Activity stay connected by project identity.',
   },
 ] satisfies ColdStartStep[];

@@ -653,7 +653,7 @@ function buildHelp(): string {
   lines.push(
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
@@ -733,7 +733,7 @@ Commands:
   session start <purpose>    Start a new session
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
-    --durable                Session survives without a live heartbeat; never abandoned by the orphan reaper
+    --lifecycle <mode>       Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --files <paths...>       Claim files at session start
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
@@ -773,7 +773,7 @@ Commands:
   feedback summary           Counts by severity + surface
 
 Examples:
-  pd session start "Building auth module" --agent agent-42
+  pd session start "Building auth module" --agent agent-42 --lifecycle durable
   pd note "Finished login endpoint" --type progress
   pd notes --limit 10
   pd feedback "tests dropped from 1638 to 1620 — investigate" --severity high
@@ -1046,6 +1046,7 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
+    --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
@@ -1066,7 +1067,7 @@ Aliases:
   d                        Alias for "down"
 
 Examples:
-  pd begin "Building auth module"
+  pd begin "Building auth module" --lifecycle durable
   pd note "Login endpoint done"
   pd done "Auth module complete"
   pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
@@ -1741,7 +1742,13 @@ async function executeDirectMode(
         case 'start': {
           const purpose = rest[0];
           if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> [--agent AGENT_ID] [--force]');
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
+            process.exit(1);
+          }
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
             process.exit(1);
           }
 
@@ -1752,6 +1759,7 @@ async function executeDirectMode(
             : current?.agentId || `cli-${process.pid}`;
           if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
+          startOpts.durable = lifecycle === 'durable';
 
           // Collect files: --files may appear as a single string (one occurrence)
           // or an array (repeated --files flags). Positional tail also accepted.

@@ -798,9 +798,10 @@ const ENDPOINTS: Endpoint[] = [
     description: 'Register agent + start session atomically. The recommended way to start work.',
     curl: `$ curl -X POST ${BASE}/sugar/begin \\
   -H "Content-Type: application/json" \\
-  -d '{"purpose": "Building auth", "identity": "myapp:api", "files": ["src/auth.ts"]}'`,
+  -d '{"purpose": "Building auth", "lifecycle": "durable", "identity": "myapp:api", "files": ["src/auth.ts"]}'`,
     requestBody: `{
   "purpose": "Building auth",
+  "lifecycle": "durable",
   "identity": "myapp:api",
   "agentId": "agent-1",
   "type": "cli",
@@ -812,6 +813,7 @@ const ENDPOINTS: Endpoint[] = [
   "success": true,
   "agentId": "agent-1",
   "sessionId": "sess_abc123",
+  "lifecycle": "durable",
   "salvageHint": { "count": 0 }
 }`,
   },

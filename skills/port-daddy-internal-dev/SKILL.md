@@ -393,7 +393,7 @@ Update mechanics:
 ```bash
 git worktree add ../port-daddy-internal-skill-$(date +%s) origin/main
 cd ../port-daddy-internal-skill-*
-pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update
+pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update --lifecycle durable
 $EDITOR skills/port-daddy-internal-dev/SKILL.md   # or references/<file>.md
 git add skills/port-daddy-internal-dev/<paths>
 git status --porcelain                             # must be clean of foreign files
@@ -459,7 +459,7 @@ git worktree add ../port-daddy-$(date +%s)-$WORK_SLUG origin/main
 cd ../port-daddy-$(date +%s)-$WORK_SLUG
 
 # 3. Identity and scope
-pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG
+pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG --lifecycle durable
 pd note "Scope: <surfaces>. Assumptions: <truth>. Validation: <commands + tests>."
 pd session files add <path>...
 
@@ -529,7 +529,7 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 **Slice:** Add `pd_swarm_status` MCP tool that returns aggregate fleet health.
 
 1. Worktree: `git worktree add ../port-daddy-$(date +%s)-mcp-swarm-status origin/main && cd $_`.
-2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status`.
+2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status --lifecycle durable`.
 3. Implement in `mcp/server.ts` (new tool registration).
 4. Implement the underlying lib in `lib/swarm-status.ts` if not present.
 5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert.

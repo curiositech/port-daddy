@@ -29,6 +29,7 @@ function sleep(ms: number): Promise<void> {
 async function runMigration(agentName: string): Promise<string> {
   const pd = new PortDaddy({ agentId: agentName, timeout: 10000 });
   const begin = await pd.begin('Run example migrations', {
+    lifecycle: 'durable',
     identity: `examples:migrations:${agentName.split(':').pop()}`,
     metadata: { example: 'migration-guard' },
   });

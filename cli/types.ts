@@ -23,6 +23,7 @@ export interface CLIOptions {
 
   // Session flags
   type?: string;
+  lifecycle?: string;
 
   // Lock flags
   owner?: string;

@@ -1633,6 +1633,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      lifecycle: 'ephemeral',
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
