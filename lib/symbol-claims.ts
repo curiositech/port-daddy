@@ -19,8 +19,9 @@
 
 import type Database from 'better-sqlite3';
 import { computeBlastRadius } from './blast-radius.js';
+import { isContractChanging, type ClaimType } from './symbol-conflict-matrix.js';
 
-export type SymbolClaimType = 'read' | 'modify';
+export type SymbolClaimType = ClaimType;
 
 export interface SymbolClaimInput {
   filePath: string;
@@ -150,31 +151,24 @@ export function createSymbolClaims(db: Database.Database, deps: SymbolClaimsDeps
   };
 
   /** Collapse to one claim per (file,symbol); `modify` wins over `read`, explicit over auto. */
+  /** Higher precedence wins when one (file,symbol) is claimed several ways: an EXPLICIT
+   *  claim beats an auto-derived one; a contract-changing type (modify/delete/rename)
+   *  beats an add, which beats a read. */
+  function precedence(c: { type: SymbolClaimType; autoDerived: boolean }): number {
+    const explicitBonus = c.autoDerived ? 0 : 10;
+    const typeRank = isContractChanging(c.type) ? 3 : c.type === 'read' ? 1 : 2;
+    return explicitBonus + typeRank;
+  }
+
   function dedupe(
     inputs: Array<SymbolClaimInput & { autoDerived?: boolean; derivedFrom?: string | null }>,
   ): Array<SymbolClaimInput & { autoDerived: boolean; derivedFrom: string | null }> {
     const byKey = new Map<string, SymbolClaimInput & { autoDerived: boolean; derivedFrom: string | null }>();
     for (const c of inputs) {
       const k = keyOf(c);
-      const existing = byKey.get(k);
       const next = { ...c, autoDerived: c.autoDerived ?? false, derivedFrom: c.derivedFrom ?? null };
-      if (!existing) {
-        byKey.set(k, next);
-        continue;
-      }
-      // modify dominates read; an explicit claim dominates an auto-derived one.
-      const upgradeType = existing.type === 'read' && next.type === 'modify';
-      const upgradeExplicit = existing.autoDerived && !next.autoDerived;
-      if (upgradeType || upgradeExplicit) {
-        byKey.set(k, {
-          ...next,
-          type: existing.type === 'modify' || next.type === 'modify' ? 'modify' : 'read',
-          autoDerived: existing.autoDerived && next.autoDerived,
-        });
-      } else if (existing.type === 'modify' && next.type === 'read') {
-        // keep existing modify, but if existing was auto and next explicit, mark explicit
-        if (existing.autoDerived && !next.autoDerived) existing.autoDerived = false;
-      }
+      const existing = byKey.get(k);
+      if (!existing || precedence(next) > precedence(existing)) byKey.set(k, next);
     }
     return [...byKey.values()];
   }
@@ -207,7 +201,10 @@ export function createSymbolClaims(db: Database.Database, deps: SymbolClaimsDeps
       ];
       if (autoDeriveRadius) {
         for (const c of inputClaims) {
-          if (c.type !== 'modify') continue;
+          // Contract-changing claims (modify/delete/rename) break their callers, so
+          // reserve `read` over the blast radius. A rename's radius is its reference
+          // sites — exactly the "implicit read-claim on every reference" the skill names.
+          if (!isContractChanging(c.type)) continue;
           const radius = computeBlastRadius(deps.symbolIndex, { filePath: c.filePath, symbolPath: c.symbolPath }, depth);
           for (const n of radius) {
             expanded.push({ filePath: n.filePath, symbolPath: n.symbolPath, type: 'read', autoDerived: true, derivedFrom: keyOf(c) });

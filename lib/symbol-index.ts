@@ -19,6 +19,7 @@ import { join, extname, resolve } from 'path';
 import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
+import { matrixConflict, isContractChanging, type ClaimType } from './symbol-conflict-matrix.js';
 
 // =============================================================================
 // Types
@@ -69,7 +70,8 @@ export interface ParseResult {
 export interface SymbolClaim {
   filePath: string;
   symbolPath: string;
-  type: 'read' | 'modify';
+  /** read | modify | add-sibling | add-child | delete | rename (see symbol-conflict-matrix). */
+  type: ClaimType;
 }
 
 export interface ConflictPrediction {
@@ -1229,72 +1231,45 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
 
     for (const a of claimsA) {
       for (const b of claimsB) {
-        // 1. Direct conflict: same symbol, at least one modify
-        if (
-          a.filePath === b.filePath &&
-          a.symbolPath === b.symbolPath &&
-          (a.type === 'modify' || b.type === 'modify')
-        ) {
-          conflicts.push({
-            type: 'direct',
-            severity: 'blocking',
-            confidence: 1.0,
-            a,
-            b,
-          });
+        // 1. Direct conflict: same symbol — severity from the claim-type matrix
+        //    (modify×modify=blocking, modify×read=warning, add-sibling×add-sibling=safe,
+        //    delete/rename×anything=blocking, …). 'safe' pairs produce no conflict.
+        if (a.filePath === b.filePath && a.symbolPath === b.symbolPath) {
+          const severity = matrixConflict(a.type, b.type);
+          if (severity !== 'safe') {
+            conflicts.push({ type: 'direct', severity, confidence: 1.0, a, b });
+          }
           continue;
         }
 
-        // 2. Dependency conflict: A modifies X, B reads/uses X (or vice versa)
-        if (a.type === 'modify' && b.type === 'read') {
+        // 2. Dependency conflict: A changes a contract (modify/delete/rename), B reads/uses
+        //    the changed symbol (or vice versa). add-sibling/add-child don't change contracts.
+        if (isContractChanging(a.type) && b.type === 'read') {
           if (isDependencyOf(b, a, allDepsFrom)) {
-            conflicts.push({
-              type: 'dependency',
-              severity: 'warning',
-              confidence: 0.8,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'dependency', severity: 'warning', confidence: 0.8, a, b });
           }
         }
-        if (b.type === 'modify' && a.type === 'read') {
+        if (isContractChanging(b.type) && a.type === 'read') {
           if (isDependencyOf(a, b, allDepsFrom)) {
-            conflicts.push({
-              type: 'dependency',
-              severity: 'warning',
-              confidence: 0.8,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'dependency', severity: 'warning', confidence: 0.8, a, b });
           }
         }
 
-        // 3. Signature conflict: A modifies a function, B calls that function
-        if (a.type === 'modify' && hasSignature(a)) {
+        // 3. Signature conflict: A changes the contract of a function, B calls that function.
+        //    A delete/rename of a called function breaks every caller, same as a signature change.
+        if (isContractChanging(a.type) && hasSignature(a)) {
           if (callsSymbol(b, a, allDepsFrom)) {
-            conflicts.push({
-              type: 'signature',
-              severity: 'blocking',
-              confidence: 0.9,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'signature', severity: 'blocking', confidence: 0.9, a, b });
           }
         }
-        if (b.type === 'modify' && hasSignature(b)) {
+        if (isContractChanging(b.type) && hasSignature(b)) {
           if (callsSymbol(a, b, allDepsFrom)) {
-            conflicts.push({
-              type: 'signature',
-              severity: 'blocking',
-              confidence: 0.9,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'signature', severity: 'blocking', confidence: 0.9, a, b });
           }
         }
 
         // 4. Transitive conflicts (up to depth 3)
-        if (a.type === 'modify' || b.type === 'modify') {
+        if (isContractChanging(a.type) || isContractChanging(b.type)) {
           const transitives = findTransitiveConflicts(a, b, 3, allDepsFrom);
           for (const t of transitives) {
             conflicts.push({

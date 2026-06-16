@@ -20,6 +20,7 @@ import {
   evaluateSessionWorktreePolicy,
   mergeSessionWorktreeMetadata,
 } from '../lib/worktree-policy.js';
+import { coerceClaimType, type ClaimType } from '../lib/symbol-conflict-matrix.js';
 
 interface SessionsRouteDeps {
   sessions: {
@@ -87,7 +88,7 @@ interface SessionsRouteDeps {
   symbolClaims?: {
     claim(
       sessionId: string,
-      claims: Array<{ filePath: string; symbolPath: string; type: 'read' | 'modify' }>,
+      claims: Array<{ filePath: string; symbolPath: string; type: ClaimType }>,
       options?: { autoDeriveRadius?: boolean; radiusDepth?: number },
     ): { claimed: unknown[]; autoDerived: unknown[]; conflicts: unknown[] };
     list(sessionId: string): unknown[];
@@ -768,13 +769,14 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
     const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
     const body = (request.body ?? {}) as { claims?: unknown; autoDeriveRadius?: boolean; radiusDepth?: number };
     const raw = Array.isArray(body.claims) ? body.claims : [];
-    const claims: Array<{ filePath: string; symbolPath: string; type: 'read' | 'modify' }> = [];
+    const claims: Array<{ filePath: string; symbolPath: string; type: ClaimType }> = [];
     for (const c of raw as any[]) {
       if (!c || typeof c.filePath !== 'string' || typeof c.symbolPath !== 'string') {
         reply.code(400);
         return { success: false, error: 'each claim needs filePath and symbolPath', code: 'VALIDATION_ERROR' };
       }
-      claims.push({ filePath: c.filePath, symbolPath: c.symbolPath, type: c.type === 'read' ? 'read' : 'modify' });
+      // read | modify | add-sibling | add-child | delete | rename (unknown → modify)
+      claims.push({ filePath: c.filePath, symbolPath: c.symbolPath, type: coerceClaimType(c.type) });
     }
     if (!claims.length) {
       reply.code(400);

@@ -43,6 +43,24 @@ describe('auto-claim loop', () => {
     expect(res.autoDerived.every((c) => c.derivedFrom === 'lib/server.ts::createRoutes')).toBe(true);
   });
 
+  test('rename and delete also auto-reserve their blast radius (contract-changing)', () => {
+    for (const type of ['rename', 'delete']) {
+      const c = createSymbolClaims(createTestDb(), { symbolIndex: makeSymbolIndex(), now: () => clock });
+      const res = c.claim('s1', [{ filePath: 'lib/server.ts', symbolPath: 'createRoutes', type }]);
+      expect(res.autoDerived.map((x) => x.symbolPath).sort()).toEqual(['healthCheck', 'main', 'registerRoutes']);
+      expect(c.list('s1').find((x) => x.symbolPath === 'createRoutes').type).toBe(type);
+    }
+  });
+
+  test('add-sibling / add-child / read do NOT auto-reserve a radius (no contract change)', () => {
+    for (const type of ['add-sibling', 'add-child', 'read']) {
+      const c = createSymbolClaims(createTestDb(), { symbolIndex: makeSymbolIndex(), now: () => clock });
+      const res = c.claim('s1', [{ filePath: 'lib/server.ts', symbolPath: 'createRoutes', type }]);
+      expect(res.autoDerived).toHaveLength(0);
+      expect(c.list('s1').map((x) => x.symbolPath)).toEqual(['createRoutes']);
+    }
+  });
+
   test('autoDeriveRadius:false records only the explicit claim', () => {
     const claims = createSymbolClaims(db, { symbolIndex: makeSymbolIndex(), now: () => clock });
     claims.claim('s1', [{ filePath: 'lib/server.ts', symbolPath: 'createRoutes', type: 'modify' }], { autoDeriveRadius: false });
