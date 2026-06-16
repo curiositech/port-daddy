@@ -146,6 +146,11 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
 | **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
 
+### In-flight status ledgers
+
+- Claim-tree / claim-forest implementation truth lives in `docs/implementation-status/coordination-substrate.md`. Update it when an idea moves between named, designed, visualized, runtime-write, runtime-read, and live-daemon states.
+- Do not land write-only coordination tables. Every new coordination substrate needs at least one product read path and a focused test proving the read still works when the old compatibility source is absent.
+
 Contributor gotchas specific to these:
 
 - **Dispatch is dry-run by default.** `pd dispatch run <id>` prints the plan;
