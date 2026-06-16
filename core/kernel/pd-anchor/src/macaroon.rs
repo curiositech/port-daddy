@@ -21,8 +21,20 @@
 //! in its store) and recomputes the commitment to bind it into the chain. This
 //! needs only HMAC-SHA256, no AEAD. Verification is **per-hop** (each discharge
 //! checked against the key committed at its own caveat, then bound to the root
-//! macaroon's signature) — the naive final-vs-root verifier is unsound, proven in
-//! ProVerif on `defense/anchor-attenuation-soundness`.
+//! macaroon's signature) rather than a naive final-vs-root comparison.
+//!
+//! Proof status (honest, per the 2026-06-15 red-team round): the **per-hop
+//! discipline** is the macaroon analogue of the card result on
+//! `defense/anchor-attenuation-soundness` (`analyses/harbor_card_v6→v7.pv`, where
+//! the naive final-vs-root verifier is shown unsound for Ed25519 capability cards
+//! — a *different* construction). The **discharge construction this module ships**
+//! — the HMAC-commitment `vid`, the discharge macaroon, and the request-binding
+//! `HMAC(BIND0, root_sig || discharge_sig)` — is modelled and machine-checked in
+//! `analyses/macaroon_discharge_v1.pv`: Q1 (no authorization without a daemon-issued
+//! discharge bound to *that* grant; forgery and cross-grant transfer both fail) is
+//! `true` under an active attacker. Residual gap (`defense:proofs`): the per-hop-vs-
+//! naive *regression* for macaroons (Q2) is not yet mechanized — see that model's
+//! header.
 //!
 //! Honest scope: this makes the gate **unforgeable** and the audit a verifiable
 //! transcript. It does **not** confine a malicious same-UID holder, who can copy

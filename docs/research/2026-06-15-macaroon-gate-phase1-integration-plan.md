@@ -14,10 +14,13 @@ The gate is being built bottom-up. Two layers are done:
    (Birgisson et al., 2014 — a bearer credential whose authority can only ever
    *narrow*, never broaden, because each caveat folds into a chained HMAC) with
    the Appendix A first-party grammar and one third-party "rent-paid for session
-   S" caveat. Verification is **per-hop** (proven necessary on
-   `defense/anchor-attenuation-soundness` in **ProVerif** — an automated
-   cryptographic-protocol verifier — where the naive final-vs-root verifier was
-   shown unsound). 46 tests.
+   S" caveat. Verification is **per-hop**. The discharge construction's
+   unforgeability + request-binding is machine-checked in
+   `analyses/macaroon_discharge_v1.pv` (**ProVerif** — an automated cryptographic-
+   protocol verifier — Q1 `true`); the analogous "naive final-vs-root is unsound"
+   result on the Ed25519 *card* construction lives on
+   `defense/anchor-attenuation-soundness`. (Residual gap: the per-hop-vs-naive
+   regression for the macaroon chain, Q2, is not yet mechanized.) 46 tests.
 
 2. **The daemon-side store** — `lib/macaroon/store.ts` (PR **#385**). Mints
    grants, keeps their root + caveat keys in the **OS keychain**

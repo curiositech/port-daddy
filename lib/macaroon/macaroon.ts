@@ -15,10 +15,18 @@
  * (it lacks the root key).
  *
  * Verification is **per-hop**: each discharge is checked against the key committed
- * at its own caveat, and bound to the root macaroon's final signature. The naive
- * "compare final signature to a root-derived value" verifier is unsound — proven
- * on branch `defense/anchor-attenuation-soundness` in ProVerif — which is why
- * `verify()` recomputes the chain hop by hop rather than trusting any shortcut.
+ * at its own caveat, and bound to the root macaroon's final signature, rather than
+ * a naive "compare final signature to a root-derived value" shortcut — which is why
+ * `verify()` recomputes the chain hop by hop.
+ *
+ * Proof status (honest, per the 2026-06-15 red-team round): the per-hop *discipline*
+ * mirrors the card result on `defense/anchor-attenuation-soundness`
+ * (`analyses/harbor_card_v6→v7.pv` — the naive verifier shown unsound for Ed25519
+ * capability cards, a different construction). The discharge construction THIS module
+ * ships (HMAC-commitment vid + discharge macaroon + request-binding) is machine-checked
+ * in `analyses/macaroon_discharge_v1.pv`: Q1 (no authorization without a daemon-issued
+ * discharge bound to that grant) is `true` under an active attacker. The per-hop-vs-
+ * naive regression for macaroons (Q2) is the named residual gap.
  *
  * Crypto primitives are Node's built-in `node:crypto` HMAC-SHA256 only.
  *
