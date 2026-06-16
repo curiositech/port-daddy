@@ -125,8 +125,12 @@ export function checkCaveat(predicate: string, ctx: RequestContext): boolean {
       return Number.isFinite(ceiling) && ctx.spendUsd <= ceiling;
     }
     case 'expires': {
+      // Fail closed when the clock is unset: nowMs <= 0 (e.g. a caller who built
+      // the context without a real clock) makes every `expires` caveat fail, so
+      // an expired grant is rejected rather than accidentally accepted. Matches
+      // the canonical Rust check_caveat (ADR-0054 byte-parity).
       const exp = Number(c.value);
-      return Number.isFinite(exp) && ctx.nowMs <= exp;
+      return ctx.nowMs > 0 && Number.isFinite(exp) && ctx.nowMs <= exp;
     }
     case 'session':
       return ctx.session !== undefined && ctx.session === c.value;
