@@ -840,9 +840,12 @@ Authentication + injective agreement, all three phases (\S\ref{sec:algorithms}) 
 Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \texttt{algconfusion.pv} \\
 Delegation chain replay (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \texttt{chain-replay.pv} \\
 Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \texttt{github\_ingress\_origin\_auth.pv} \\
+Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $A$ cannot publish into $B$; \texttt{HARBOR\_MISMATCH} conformance & \texttt{github\_ingress\_tenant\_isolation.pv} \\
 \midrule
 Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ gate strictly narrows acceptance; gossip bound reproduced from~\cite{demers1987epidemic} & runtime test \\
 Constant-time signature comparison & audited library (\texttt{subtle::ConstantTimeEq}) & \Partial\ no side-channel proof; library trust documented & --- \\
+Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partial\ secrecy TRUE under pinned key; seal not yet implemented & \texttt{github\_ingress\_hpke\_secrecy.pv} \\
 \midrule
 Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy analysis~\cite{demers1987epidemic} & --- \\
 \bottomrule
@@ -850,6 +853,8 @@ Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy 
 \end{table}
 
 \paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+
+\paragraph{GitHub-App relay ingress.} The webhook-dispatch surface (GitHub $\to$ untrusted relay $\to$ daemon) is modeled with the relay as the Dolev-Yao attacker, in three relay-agnostic properties, each paired with a negative control (\texttt{*\_vuln.pv}) that exhibits the attack once the mitigation is removed---so a \emph{true} result is non-vacuous. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the forwarder's transport credential is attacker-held; the control omits the daemon-side HMAC re-verification and the property fails (forged dispatch). This is \emph{non-injective} agreement (origin), not replay-freedom: a captured genuine $(\textit{payload},\textit{mac})$ may be re-delivered, so replay-freedom requires \texttt{X-GitHub-Delivery} de-duplication and is listed \Open. (ii)~\emph{Payload secrecy}: under HPKE to the daemon's \emph{pinned} X25519 key the relay never learns plaintext; the control sources the key from the relay and the secrecy property collapses to a key-substitution MITM---hence out-of-band key pinning is a requirement, not a recommendation. The seal is specified but not yet implemented, so this row is \Partial. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$ because harbor binding is checked against authoritative membership; the control trusts the card's self-declared issuer and crosses the tenant boundary. Honesty rider: HMAC-SHA256 gives origin authentication to a shared-key holder (EUF-CMA), not third-party non-repudiation; HPKE base mode is assumed IND-CCA2.
 
 \pullquote{We err toward listing fewer items as closed rather than more.}
 
