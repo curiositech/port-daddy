@@ -11,6 +11,15 @@
 
 import * as ed from '@noble/ed25519';
 import { sha256 } from '@noble/hashes/sha256';
+import { sha512 } from '@noble/hashes/sha512';
+
+// Wire @noble/ed25519's SYNCHRONOUS hash. signAsync/verifyAsync use WebCrypto's
+// async SHA-512, but the sync getPublicKey() (used by pubKeyFromPrivKey, which
+// every handshake/publish/exchange calls to derive the relay's own fingerprint)
+// needs ed.etc.sha512Sync set or it throws "hashes.sha512Sync not set". Nothing
+// else wired it, so the sync path threw on every publish — undetected until the
+// handlePublish tests. Set it once at module load.
+ed.etc.sha512Sync = (...m: Uint8Array[]) => sha512(ed.etc.concatBytes(...m));
 
 export const ZERO_HASH = '0'.repeat(64);
 
