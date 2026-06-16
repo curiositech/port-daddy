@@ -249,9 +249,10 @@ script cannot judge them, and pretending it can is solutionism).
 - **Adversarial review happened and every HIGH finding is *addressed*** — fixed
   or contested-with-reason, not merely opened. Verdict on record.
 - **Genuinely green, not racing review.** Required checks pass on their own
-  merits; **never `--admin` over red** (pd has no `gh` shim to block this — it is
-  a hard rule + the harness classifier, not a mechanical gate, so it is on you);
-  let Copilot post before merging non-trivial code.
+  merits; **never `--admin` over red** (Port Daddy wraps `git` but deliberately
+  not `gh`, so nothing mechanically blocks this — it is a hard rule + the harness
+  classifier, not a gate, so it is on you); let Copilot post before merging
+  non-trivial code.
 
 ### Visual artifacts for UI diffs (hard requirement — forever)
 

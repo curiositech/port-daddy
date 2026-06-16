@@ -50,11 +50,15 @@ const REPO_PATH_RE = new RegExp(
   `^(?:${TOP_DIRS.join('|')})\\/[^\\s\\\`*<>]+\\.[A-Za-z0-9]+$`,
 )
 
+// Deliberately PRECISE markers. Broad prose words like "planned"/"future" are
+// excluded: they appear in normal ADR sentences ("planned in ADR-X, see `lib/foo.ts`")
+// and would mask a genuinely-broken path on the same line. Authors marking a real
+// proposed-but-unbuilt path use one of these specific phrases or `<!-- cite-exempt -->`.
 const PROPOSAL_MARKERS = [
   'proposed', 'not yet shipped', 'not-yet-shipped', 'designed-not-built',
   'designed but not built', 'will land', 'when it lands', 'to be built',
-  'does not exist', 'doesn’t exist', "doesn't exist", 'planned', 'future',
-  'cite-exempt', 'not built', 'unbuilt', 'salvage diff',
+  'doesn’t exist yet', "doesn't exist yet", 'cite-exempt', 'not built yet',
+  'unbuilt', 'salvage diff',
 ]
 
 function changedMarkdown() {
@@ -102,7 +106,7 @@ function checkFile(relFile, violations) {
   let inFence = false
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
-    if (/^\s*```/.test(line)) { inFence = !inFence; continue }
+    if (/^\s*(?:```|~~~)/.test(line)) { inFence = !inFence; continue }
     if (inFence) continue
     if (hasProposalMarker(line)) continue
 
