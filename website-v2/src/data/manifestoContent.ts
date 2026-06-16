@@ -76,7 +76,7 @@ export interface PrimitiveSpec {
 export const technologyPrimitives: PrimitiveSpec[] = [
   {
     name: 'Single-writer claims',
-    does: 'One agent holds a file at a time. The second one waits instead of stomping the first.',
+    does: 'An agent announces it holds a file, so a second one sees the claim and can wait instead of silently stomping the first.',
     command: 'pd session files add src/auth.ts',
     source: 'lib/claims.ts',
     docHref: '/docs/concepts/claim-tree',

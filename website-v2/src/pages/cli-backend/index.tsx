@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import {
-  BracketLabel,
   BracketLink,
   CommandBlock,
   DocsHero,
@@ -16,9 +15,8 @@ import {
 } from '@/components/site/primitives'
 
 /**
- * /cli-backend — the operator's pitch for using Claude Max / ChatGPT Pro
- * subscriptions as the fleet's execution backend. Voice: cathedral build,
- * cream-blueprint imagery, real numbers, honest fine print.
+ * /cli-backend — the pitch for running the agent fleet on a Claude Max or
+ * ChatGPT Pro subscription you already pay for, with no extra metered API bill.
  */
 export default function CliBackendPage() {
   return (
@@ -26,37 +24,36 @@ export default function CliBackendPage() {
       {/* Hero */}
       <PageContainer width="wide">
         <DocsHero
-          eyebrow="The shape of the deal"
-          title="Your AI subscription, but it pays for itself by running the fleet."
-          titleClassName="!max-w-[22ch]"
-          summary="Already pay $20/month for ChatGPT Pro? $200 for Claude Max? Port Daddy treats those CLIs as first-class execution backends. The same fleet of background agents that lints, reviews, summarizes, and ships rides on the license you already bought, at zero marginal cost per spawn."
+          eyebrow="Run agents on your subscription"
+          title="Your AI subscription already pays for the fleet."
+          titleClassName="!max-w-[20ch]"
+          summary="You already pay $20 a month for ChatGPT Pro, or $200 for Claude Max. Port Daddy runs your background agents on that same login. Every agent that reviews pull requests, lints commits, and drafts release notes uses the seat you already bought. No extra API bill arrives at the end of the month."
           paragraphs={[
             <>
-              Most agent platforms hand you the bill twice — once for the chat seat you use as a
-              person, again for the API tokens the agents burn at night. That feels backwards. The
-              license is already paid. The model is already there. The CLI is already on your
-              <code>PATH</code>. Port Daddy just hands the local fleet the same handle you reach
-              for, and lets it work in the slack hours between your interactive turns.
+              Most agent tools charge you twice. Once for the seat you type into as a person. Again
+              for the API tokens your agents spend overnight. The seat is already paid for. The
+              model is already running. The <code>claude</code> command is already on your{' '}
+              <code>PATH</code>. Port Daddy hands the fleet that same command and lets it work in
+              the quiet hours between your own turns.
             </>,
             <>
-              Setup is two minutes — install <code>pd</code>, make sure <code>claude</code> or{' '}
+              Setup takes about two minutes: install the daemon, confirm <code>claude</code> or{' '}
               <code>codex</code> is logged in, set one environment variable, start the fleet. The
-              honest fine print is at the bottom of this page; the math is in the middle. Read in
-              any order — the punchline doesn&apos;t move.
+              math is in the middle of this page. The honest limits are at the bottom. Read them in
+              any order.
             </>,
           ]}
           aside={
             <SurfacePanel>
               <div className="space-y-[var(--panel-gap)]">
-                <BracketLabel>Two-minute setup</BracketLabel>
                 <CommandBlock
-                  title="brew install pd"
-                  command={`# 1. Daemon + CLI\nbrew install curiositech/tap/port-daddy\n\n# 2. Make sure your subscription CLI is logged in\nclaude --version       # or: codex --version\n\n# 3. Tell the fleet to ride your subscription\nexport PD_USE_CLI_BACKEND=claude-cli\npd fleet up`}
-                  hideLabel
+                  title="Set up the fleet"
+                  command={`# 1. Install the daemon and CLI\nbrew install curiositech/tap/port-daddy\n\n# 2. Confirm your subscription CLI is logged in\nclaude --version       # or: codex --version\n\n# 3. Point the fleet at your subscription\nexport PD_USE_CLI_BACKEND=claude-cli\npd fleet up`}
+                  label="Two-minute setup"
                 />
                 <PanelBody size="compact" tone="default">
-                  That is the whole setup. The fleet now drafts PR reviews, lints commits, and
-                  drafts release notes against the same model you have open in the editor.
+                  That is the whole setup. The fleet now drafts pull-request reviews, lints commits,
+                  and writes release notes using the same model you have open in your editor.
                 </PanelBody>
               </div>
             </SurfacePanel>
@@ -73,9 +70,9 @@ export default function CliBackendPage() {
             className="block w-full"
             loading="lazy"
           />
-          <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
-            One license, fanned out to the whole fleet. The lines are <code>pd spawn</code>; the
-            ships are background agents that already exist in <code>pd-fleet.yml</code>.
+          <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+            One login, shared across the whole fleet. The lines are each a <code>pd spawn</code>;
+            the ships are the background agents already listed in your <code>pd-fleet.yml</code>.
           </figcaption>
         </figure>
       </PageContainer>
@@ -86,27 +83,25 @@ export default function CliBackendPage() {
           <SwissGrid className="items-start gap-y-[var(--space-7)]">
             <SwissGridItem span="narrow">
               <div className="sticky top-28 space-y-[var(--space-4)]">
-                <BracketLabel>How it works</BracketLabel>
                 <SectionIntro
-                  eyebrow="The wrapper, not a wrapper"
-                  title="pd-tube wraps the CLI you already use."
-                  description="The Port Daddy spawner is a small piece of plumbing that knows how to start a local CLI process, hand it a prompt, capture its reply, and meter the cost — same shape, whether the binary is claude-code, codex, aider, or a custom shell command."
+                  eyebrow="How it works"
+                  title="Port Daddy starts the same CLI you do."
+                  description="The spawner is a small piece of plumbing. It starts a local CLI process, hands it a prompt, captures the reply, and records the cost. The shape is the same whether the command is claude, codex, aider, or a shell script you wrote yourself."
                   titleAs="h2"
                 />
-                <div className="space-y-[var(--space-3)] text-[var(--text-muted)]">
+                <div className="space-y-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                   <p>
-                    When you run <code>pd spawn --backend claude-cli</code>, the daemon shells out
-                    to <code>claude</code> on your <code>PATH</code>, threads stdin and stdout
-                    through the pd-tube envelope, posts the transcript to the session record, and
-                    returns. The CLI itself believes it&apos;s having a single conversation with a
-                    well-behaved caller. You believe you have a tireless coworker. Both are true.
+                    Run <code>pd spawn --backend claude-cli</code> and the daemon calls{' '}
+                    <code>claude</code> on your <code>PATH</code>, passes the prompt in on stdin,
+                    reads the reply off stdout, saves the transcript to the session record, and
+                    exits. The CLI sees one ordinary conversation. You get an agent that works while
+                    you are away.
                   </p>
                   <p>
-                    The spawner picks the cheapest available backend by default — if{' '}
-                    <code>PD_USE_CLI_BACKEND</code> is set and the binary is on <code>PATH</code>,
-                    the marginal cost is zero, so it wins. Everything else (Cloudflare Workers AI,
-                    Anthropic API direct, the local Ollama you forgot you installed) lives as a
-                    fallback rung.
+                    Claude Code and Codex plug in directly. Cloudflare Workers AI and the direct
+                    Anthropic API are fallbacks. When <code>PD_USE_CLI_BACKEND</code> is set and the
+                    command is on your <code>PATH</code>, the spawner uses it first, because it adds
+                    nothing to your bill.
                   </p>
                 </div>
                 <div className="pt-[var(--space-2)]">
@@ -125,43 +120,43 @@ export default function CliBackendPage() {
                   className="block w-full"
                   loading="lazy"
                 />
-                <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
-                  pd-tube is a cross-section. The CLI you already have is the process inside.
+                <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  A cutaway of one spawn. The CLI you already have is the process running inside.
                 </figcaption>
               </figure>
 
               <div className="grid gap-[var(--space-4)] md:grid-cols-2">
-                <DocsNoteCard label="Step 1" title="The spawner starts the CLI">
+                <DocsNoteCard label="Step 1" title="It starts your CLI">
                   <PanelBody size="compact" tone="default" className="max-w-none">
-                    Port Daddy invokes <code>claude --print &quot;…&quot;</code> (or{' '}
-                    <code>codex exec …</code>) as a subprocess of the daemon, in the project
-                    directory, under the agent&apos;s identity, with a tight wall-clock budget.
+                    Port Daddy runs <code>claude --print &quot;…&quot;</code> (or{' '}
+                    <code>codex exec …</code>) as a child process of the daemon, in your project
+                    directory, under the agent&apos;s identity, with a time limit.
                   </PanelBody>
                 </DocsNoteCard>
-                <DocsNoteCard label="Step 2" title="pd-tube envelopes the I/O">
+                <DocsNoteCard label="Step 2" title="It captures the work">
                   <PanelBody size="compact" tone="default" className="max-w-none">
-                    stdin is the prompt, stdout is the reply, stderr feeds the activity log.
-                    Every byte is captured into the session transcript, so the work is auditable
-                    even after the process exits.
+                    The prompt goes in on stdin. The reply comes back on stdout. Errors feed the
+                    activity log. Everything is saved to the session transcript, so you can read
+                    back the work after the process exits.
                   </PanelBody>
                 </DocsNoteCard>
-                <DocsNoteCard label="Step 3" title="The cost is metered">
+                <DocsNoteCard label="Step 3" title="It records the cost">
                   <PanelBody size="compact" tone="default" className="max-w-none">
-                    For subscription CLIs, marginal cost is <code>$0.00</code> — the model is
-                    already paid for. Per-spawn telemetry still records wall-clock and tokens, so
-                    you can audit the rate ceiling without inflating your bill.
+                    On a subscription CLI the cost of each spawn is <code>$0.00</code>, because the
+                    model is already paid for. Port Daddy still logs the wall-clock time and token
+                    count, so you can watch the pace without watching a bill grow.
                   </PanelBody>
                 </DocsNoteCard>
-                <DocsNoteCard label="Step 4" title="The reply lands in the session">
+                <DocsNoteCard label="Step 4" title="It lands in your timeline">
                   <PanelBody size="compact" tone="default" className="max-w-none">
-                    The transcript, return code, and any tool calls land in the session record.{' '}
+                    The transcript, exit code, and any tool calls land in the session record.{' '}
                     <Link
                       to="/docs/features/timeline"
                       className="underline decoration-[var(--border-strong)] decoration-2 underline-offset-4"
                     >
                       pd timeline
                     </Link>{' '}
-                    treats it like any other ship-run — no special case for CLI backends.
+                    shows it like any other agent run. A subscription backend is not a special case.
                   </PanelBody>
                 </DocsNoteCard>
               </div>
@@ -174,9 +169,9 @@ export default function CliBackendPage() {
       <section className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--space-7)] lg:py-[var(--space-8)]">
         <PageContainer width="wide">
           <SectionIntro
-            eyebrow="The math, honestly"
-            title="Same workload, three bills."
-            description="A modest fleet — gardener, qa, spider, spark — handling about 100 PR reviews and roughly 600 short summaries a month. The work is the same. Only the meter changes."
+            eyebrow="The math"
+            title="Same work, three bills."
+            description="Picture a small fleet — gardener, qa, spider, spark — handling about 100 pull-request reviews and 600 short summaries a month. The work does not change. Only what you pay for it does."
             titleAs="h2"
           />
 
@@ -203,59 +198,59 @@ export default function CliBackendPage() {
                 <tbody className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-primary)]">
                   <tr className="border-b border-[var(--border-default)]">
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">
-                      <div className="font-semibold text-[var(--brand-primary)]">CLI subscription</div>
-                      <div className="text-[var(--text-muted)]">Claude Max or ChatGPT Pro</div>
+                      <div className="font-semibold text-[var(--brand-primary)]">Your subscription</div>
+                      <div className="text-[var(--text-secondary)]">Claude Max or ChatGPT Pro</div>
                     </td>
-                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">$20–$200 / mo (already paid)</td>
+                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">$20–$200 / mo, already paid</td>
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top font-semibold">$0.00</td>
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top font-semibold text-[var(--brand-primary)]">
-                      $0 over what you already pay
+                      Nothing on top of your seat
                     </td>
                   </tr>
                   <tr className="border-b border-[var(--border-default)]">
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">
                       <div className="font-semibold">Cloudflare Workers AI</div>
-                      <div className="text-[var(--text-muted)]">Qwen3 30B on @cf</div>
+                      <div className="text-[var(--text-secondary)]">Qwen3 30B, a fallback</div>
                     </td>
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">$0</td>
-                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">~$0.005 / spawn</td>
-                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">~$15 / mo at this workload</td>
+                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">about $0.005 / spawn</td>
+                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">about $15 / mo</td>
                   </tr>
                   <tr>
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">
                       <div className="font-semibold">Anthropic API direct</div>
-                      <div className="text-[var(--text-muted)]">Sonnet 4.7 via SDK</div>
+                      <div className="text-[var(--text-secondary)]">Sonnet via SDK, a fallback</div>
                     </td>
                     <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">$0</td>
-                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">~$0.04 / spawn</td>
-                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">~$120 / mo at this workload</td>
+                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">about $0.04 / spawn</td>
+                    <td className="px-[var(--space-3)] py-[var(--space-3)] align-top">about $120 / mo</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <DocsNoteCard label="Worked example" title="100 PR reviews this month">
+            <DocsNoteCard label="A worked example" title="100 reviews in a month">
               <PanelBody size="compact" tone="default" className="max-w-none">
-                A medium-sized OSS repo lands roughly 100 PRs / month. Each review is a single
-                spawn of the qa ship — 3–5 minute wall-clock, modest token count.
+                A mid-sized open-source repo gets about 100 pull requests a month. Each review is
+                one spawn of the qa agent: three to five minutes, a modest number of tokens.
               </PanelBody>
               <ul className="grid gap-[var(--space-2)] pt-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                 <li>
-                  <strong className="text-[var(--brand-primary)]">CLI subscription:</strong> $0 on
-                  top of your $200/mo Max seat. You were already paying for the seat.
+                  <strong className="text-[var(--brand-primary)]">Your subscription:</strong> $0 on
+                  top of the $200/mo Max seat you already pay for.
                 </li>
                 <li>
-                  <strong>Cloudflare Workers AI:</strong> ~$0.50 in inference. Honest cheapest
-                  no-strings option.
+                  <strong>Cloudflare Workers AI:</strong> about $0.50 in inference. The cheapest
+                  option if you do not have a subscription.
                 </li>
                 <li>
-                  <strong>Anthropic API direct:</strong> ~$4.00. Same model the seat unlocks, but
-                  metered.
+                  <strong>Anthropic API direct:</strong> about $4.00. The same model the seat gives
+                  you, but billed per call.
                 </li>
               </ul>
               <PanelBody size="compact" tone="default" className="max-w-none">
-                If you already use Claude Max for your editor and chat work, the second column is
-                pure savings — you would have paid the seat anyway.
+                If you already use Claude Max in your editor, the first row costs you nothing extra.
+                You were going to pay for the seat anyway.
               </PanelBody>
             </DocsNoteCard>
           </div>
@@ -267,9 +262,9 @@ export default function CliBackendPage() {
               className="block w-full"
               loading="lazy"
             />
-            <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
-              Same fleet workload, three bills. Effective per-spawn cost ÷ usage gives you the
-              real number — the seat you already paid for divides to zero.
+            <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+              The same fleet, three bills. The seat you already pay for adds nothing per spawn, so
+              its bar barely registers.
             </figcaption>
           </figure>
         </PageContainer>
@@ -280,8 +275,8 @@ export default function CliBackendPage() {
         <PageContainer width="wide">
           <SectionIntro
             eyebrow="The setup"
-            title="Three commands. Two minutes. Done."
-            description="There is no plugin to install, no marketplace dance, no API key to rotate. If the CLI is on your PATH and the daemon is up, the fleet can ride it."
+            title="Three commands, about two minutes."
+            description="There is no plugin to install and no API key to rotate. If your CLI is on your PATH and the daemon is running, the fleet can use it."
             titleAs="h2"
           />
           <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-3">
@@ -291,22 +286,22 @@ export default function CliBackendPage() {
               label="One time"
               description={
                 <>
-                  Daemon, CLI, and MCP server in a single Homebrew formula. Auto-starts via{' '}
-                  <code>launchd</code>; <code>pd status</code> confirms.
+                  Daemon, CLI, and MCP server in one Homebrew formula. It starts on its own through{' '}
+                  <code>launchd</code>. Run <code>pd status</code> to confirm it is up.
                 </>
               }
             />
             <CommandBlock
-              title="2. Verify the CLI"
+              title="2. Check your CLI"
               command={`claude --version   # for Claude Max\ncodex --version    # for ChatGPT Pro`}
               label="One time"
-              description="Whichever CLI you use as a person, that's the one the fleet will reach for. If --version returns a number, you're already done — the binary is on PATH and logged in."
+              description="The CLI you use as a person is the one the fleet will use. If --version prints a number, you are done: the command is on your PATH and logged in."
             />
             <CommandBlock
-              title="3. Tell the fleet to ride it"
+              title="3. Point the fleet at it"
               command={`export PD_USE_CLI_BACKEND=claude-cli\n# or PD_USE_CLI_BACKEND=codex\npd fleet up`}
               label="Per project"
-              description="Set the env var in your shell rc, or add the backend to pd-fleet.yml under each ship. Spawn telemetry will start showing $0.00 marginal in the cost ledger."
+              description="Set the variable in your shell startup file, or name the backend per agent in pd-fleet.yml. The cost ledger will start showing $0.00 for each spawn."
               tone="blue"
             />
           </div>
@@ -318,25 +313,25 @@ export default function CliBackendPage() {
         <PageContainer width="wide">
           <SectionIntro
             eyebrow="Is this for you?"
-            title="Use it if. Skip it if."
-            description="The CLI-backend pitch is sharp but narrow. If you already pay for the seat, the math is unbeatable. If you don't, Cloudflare Workers AI is genuinely cheap and the right default. There is no shame in picking the second column."
+            title="When to use it. When to skip it."
+            description="This setup is a strong fit, but a narrow one. If you already pay for a seat, the math is hard to beat. If you don't, Cloudflare Workers AI is cheap and a fine default. Picking that instead is a reasonable call."
             titleAs="h2"
           />
           <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] md:grid-cols-2">
-            <DocsNoteCard label="Use this if" title="You already pay for Max or Pro" tone="blue">
+            <DocsNoteCard label="Use it if" title="You already pay for Max or Pro" tone="blue">
               <ul className="grid gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[color:var(--brand-primary-foreground-muted)]">
-                <li>You use <code>claude</code> or <code>codex</code> as your daily driver in the editor.</li>
-                <li>You want background agents that draft, review, and summarize without showing up on a separate invoice.</li>
-                <li>You care about per-spawn auditability — the transcripts live in the same session timeline as your interactive work.</li>
-                <li>You can tolerate brief slowdowns in your interactive CLI when the fleet is busy (see fine print).</li>
+                <li>You use <code>claude</code> or <code>codex</code> in your editor every day.</li>
+                <li>You want background agents to draft, review, and summarize without a second invoice arriving.</li>
+                <li>You want every spawn on record. The transcripts sit in the same timeline as the work you do by hand.</li>
+                <li>You can live with your own CLI slowing down for a moment when the fleet is busy. See the limits below.</li>
               </ul>
             </DocsNoteCard>
-            <DocsNoteCard label="Skip this if" title="No subscription, no problem">
+            <DocsNoteCard label="Skip it if" title="No subscription, no problem">
               <ul className="grid gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                <li>You don&apos;t have Max or Pro and don&apos;t want one — Cloudflare Workers AI on Qwen3 is the honest cheap default.</li>
-                <li>You need agents to run on a machine without your interactive login — a CI box, a remote build node, a fleet of cattle.</li>
-                <li>You need strict per-call metering for billing or chargeback — subscription seats blur per-call cost on purpose.</li>
-                <li>You need a model the subscription doesn&apos;t expose (Gemini, a fine-tune, a vision-heavy workload) — API-direct is the right call.</li>
+                <li>You do not have Max or Pro and do not want one. Cloudflare Workers AI on Qwen3 is the cheap default.</li>
+                <li>You need agents on a machine without your login: a CI box, a remote build node, a server you do not sit at.</li>
+                <li>You need an exact cost for every call, for billing or chargeback. A subscription seat does not break the cost down that way.</li>
+                <li>You need a model the subscription does not offer, like Gemini, a fine-tune, or a vision-heavy job. Use the direct API.</li>
               </ul>
             </DocsNoteCard>
           </div>
@@ -349,51 +344,48 @@ export default function CliBackendPage() {
           <SwissGrid>
             <SwissGridItem span="narrow">
               <div className="sticky top-28 space-y-[var(--space-3)]">
-                <BracketLabel>The honest fine print</BracketLabel>
+                <PanelEyebrow>The honest limits</PanelEyebrow>
                 <PanelTitle as="h2" size="display">
-                  No magic, no laundering.
+                  What to expect.
                 </PanelTitle>
                 <PanelBody className="max-w-[34rem]">
-                  Subscription terms exist for a reason. Anthropic and OpenAI both meter usage at
-                  the hour level under the hood, and there are perfectly reasonable failure modes
-                  when a fleet eats too much of the budget. Here is what to expect.
+                  Subscription terms exist for a reason. Anthropic and OpenAI both meter usage by
+                  the hour underneath, and a fleet that runs too hot will run into those limits.
+                  Here is what that looks like, and the dial that keeps it tame.
                 </PanelBody>
               </div>
             </SwissGridItem>
             <SwissGridItem span="wide" className="space-y-[var(--space-4)]">
-              <DocsNoteCard label="Rate ceilings" title="Subscriptions have hourly soft limits">
+              <DocsNoteCard label="Rate limits" title="Subscriptions cap you by the hour">
                 <PanelBody size="compact" tone="default" className="max-w-none">
-                  Both Claude Max and ChatGPT Pro enforce per-hour rate budgets that are generous
-                  for a human but tight for a swarm. If your fleet eats too much in a short
-                  window, the CLI will tell you to slow down — the same way it would for a
-                  caffeinated programmer.
+                  Claude Max and ChatGPT Pro both set an hourly usage budget. It is generous for one
+                  person and tight for a fleet. If the agents use too much in a short window, the
+                  CLI asks you to wait, the same way it would for a fast-typing human.
                 </PanelBody>
               </DocsNoteCard>
-              <DocsNoteCard label="Your interactive turn pays" title="The fleet competes with you">
+              <DocsNoteCard label="Shared budget" title="The fleet shares your seat">
                 <PanelBody size="compact" tone="default" className="max-w-none">
-                  While the fleet is running against your seat, your own interactive Claude Code
-                  or Codex calls share the same budget. Most of the time you won&apos;t notice;
-                  occasionally you&apos;ll see the &quot;please wait a minute&quot; banner when
-                  the spider and the gardener both fire at the wrong moment. Set per-ship daily
-                  caps to keep your interactive work fast.
+                  While the fleet runs on your seat, your own Claude Code or Codex calls draw from
+                  the same budget. Most of the time you will not notice. Now and then you will see a
+                  wait-a-moment banner when two agents fire at once. A daily cap per agent keeps your
+                  own work fast.
                 </PanelBody>
               </DocsNoteCard>
-              <DocsNoteCard label="Configurable caps" title="The dial you actually want">
+              <DocsNoteCard label="Caps" title="The dial you want">
                 <PanelBody size="compact" tone="default" className="max-w-none">
-                  Every ship in <code>pd-fleet.yml</code> takes a <code>budget_usd_per_day</code>{' '}
-                  and a <code>max_spawns_per_hour</code>. For subscription backends the dollar
-                  cap maps to a tokens-per-day estimate; the spawn-rate cap is the real lever.
-                  Start low (3 spawns/hour for the qa ship), watch the cost ledger, raise as you
-                  trust it.
+                  Each agent in <code>pd-fleet.yml</code> takes a <code>budget_usd_per_day</code> and
+                  a <code>max_spawns_per_hour</code>. On a subscription the dollar cap maps to a
+                  token estimate; the spawn-rate cap is the real lever. Start low, around three
+                  spawns an hour for the qa agent, watch the ledger, and raise it as you trust it.
                 </PanelBody>
               </DocsNoteCard>
-              <DocsNoteCard label="Terms of service" title="Read the agreement you signed">
+              <DocsNoteCard label="Terms" title="Read the agreement you signed">
                 <PanelBody size="compact" tone="default" className="max-w-none">
-                  Anthropic and OpenAI both permit programmatic use of their CLIs from the
-                  account holder&apos;s machine. They do not permit reselling the inference or
-                  fan-out across accounts you don&apos;t own. Port Daddy is the first kind — your
-                  agents, your machine, your seat. If you&apos;re running a business on top of
-                  this, read the actual terms before you scale; we can&apos;t do that for you.
+                  Anthropic and OpenAI both allow programmatic use of their CLIs from the account
+                  holder&apos;s own machine. Neither allows reselling the inference or spreading it
+                  across accounts you do not own. Port Daddy stays on the first side of that line:
+                  your agents, your machine, your seat. If you build a business on top of this, read
+                  the current terms yourself before you scale.
                 </PanelBody>
               </DocsNoteCard>
             </SwissGridItem>
@@ -412,8 +404,8 @@ export default function CliBackendPage() {
               Three commands. Your subscription does the rest.
             </PanelTitle>
             <PanelBody tone="primary" className="mx-auto max-w-[44rem]">
-              If you already pay for Claude Max or ChatGPT Pro, the fleet is the smallest
-              possible upgrade — same model, same login, more hours of work per day.
+              If you already pay for Claude Max or ChatGPT Pro, this is the smallest change you can
+              make: same model, same login, more hours of work in a day.
             </PanelBody>
             <div className="mx-auto max-w-[44rem]">
               <CommandBlock

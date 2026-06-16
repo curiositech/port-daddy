@@ -24,7 +24,7 @@ const REFERENCE_LINKS = [
   { label: 'SDK reference', href: '/docs/sdk' },
   { label: 'MCP tools', href: '/docs/mcp' },
   { label: 'REST API', href: '/docs/api' },
-  { label: 'Whitepaper', href: '/whitepaper' },
+  { label: 'Library', href: '/library' },
 ] as const
 
 export function SiteFooter() {

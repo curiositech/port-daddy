@@ -136,7 +136,7 @@ const FIX_DIAGRAM = `sequenceDiagram
     PD-->>B: held — wait
     A->>PD: release (work saved)
     PD-->>B: granted
-    Note over A,B: One writer at a time. Nothing is lost.`
+    Note over A,B: One writer at a time — the overwrite is visible and recoverable, not silent.`
 
 // How the seven papers relate: the four explainers form one dependency ladder
 // (market rests on trust rests on reputation rests on memory rests on the
@@ -275,7 +275,7 @@ function MathSection() {
           { t: 'Budget-balanced', d: 'The mechanism neither prints money nor quietly skims it.' },
         ].map((c) => (
           <div key={c.t} className="bg-[var(--surface-raised)] p-[var(--space-5)]">
-            <h3 className="font-display text-[length:var(--text-base)] font-black uppercase tracking-[0.06em] text-[var(--text-primary)]">
+            <h3 className="font-display text-[length:var(--text-base)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
               {c.t}
             </h3>
             <p className="mt-[var(--space-2)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">{c.d}</p>

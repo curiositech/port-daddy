@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Footer } from '@/components/layout/Footer'
 import { ArrowRight, Terminal, Shield, Radio, History, Anchor, Users } from 'lucide-react'
@@ -25,28 +24,25 @@ export function AboutPage() {
         className="py-24 px-6 sm:px-8 lg:px-10 border-b border-[var(--border-subtle)] bg-[var(--surface-raised)] relative overflow-hidden"
       >
         <motion.div className="max-w-3xl mx-auto relative z-10 flex flex-col items-center text-center gap-5">
-          <Badge
-            variant="teal"
-            className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.25em]"
-          >
+          <p className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] m-0">
             What is Port Daddy?
-          </Badge>
+          </p>
 
           <motion.h1
             className="text-5xl sm:text-7xl font-black tracking-tight font-display leading-[0.95] text-[var(--text-primary)]"
             {...fadeUp}
           >
-            The control plane under <br />
-            <span className="text-[var(--brand-primary)]">serious coding-agent work.</span>
+            Shared memory for a room <br />
+            <span className="text-[var(--brand-primary)]">full of coding agents.</span>
           </motion.h1>
 
           <motion.p
             className="text-xl sm:text-2xl leading-relaxed text-[var(--text-secondary)] max-w-2xl"
             {...fadeUp}
           >
-            Port Daddy is a local app and daemon that gives AI coding agents shared state:
-            sessions, notes, file ownership, channels, readiness, budgets, and recoverable
-            handoffs that survive the terminal that created them.
+            Port Daddy is a local app and daemon that gives AI coding agents one place to record
+            what they are doing: sessions, notes, who owns which files, messages between agents,
+            readiness checks, budgets, and handoffs that outlive the terminal that started them.
           </motion.p>
         </motion.div>
       </motion.section>
@@ -91,9 +87,9 @@ export function AboutPage() {
                 no trustworthy account of what changed, what was tested, or what must be preserved.
               </p>
               <p>
-                These are not edge cases. They are the default behavior of multi-agent coding without
-                a coordination substrate. Port Daddy exists to make the state visible enough for
-                agents and humans to control.
+                These are not edge cases. They are the normal result of running several coding
+                agents in one repo with no shared memory. Port Daddy exists to make that state
+                visible — so agents and humans can see what happened and pick the work back up.
               </p>
             </div>
           </motion.section>
@@ -116,16 +112,17 @@ export function AboutPage() {
                 all point back to the same durable state instead of inventing parallel stories.
               </p>
               <p>
-                The foundation is named work. Sessions give an agent a purpose and lifecycle. Notes
-                preserve decisions and evidence. File and region claims expose intended edits. Locks
-                protect scarce resources. Channels, inboxes, and tuples let agents exchange signals
-                without making the human relay every message.
+                The foundation is named work. Sessions give an agent a purpose and a lifecycle.
+                Notes preserve decisions and evidence. File and region claims announce which edits
+                an agent intends to make. Locks guard scarce resources. Channels, inboxes, and
+                shared facts let agents pass signals to each other without making the human relay
+                every message.
               </p>
               <p>
-                Around that substrate, the product adds operator surfaces: backend readiness before
-                launch, resource pressure before spawning more work, guard checks before commit,
-                salvage when agents disappear, and a Mac app that shows the current project without
-                asking the user to remember which terminal tab is authoritative.
+                On top of that shared memory sit the operator views: backend readiness before you
+                launch, resource pressure before you spawn more work, guard checks before a commit,
+                salvage when an agent disappears, and a Mac app that shows the current project so
+                you do not have to remember which terminal tab is the real one.
               </p>
             </div>
           </motion.section>
@@ -157,9 +154,10 @@ export function AboutPage() {
               <p>
                 <strong>Agent B (Cursor)</strong> starts up and
                 runs <code>pd begin --identity myapp:frontend --purpose "Build React UI"</code>. Port
-                Daddy registers it against the same project state. When it approaches the API route
-                surface, the existing claim is visible before a write happens, so the agent can narrow
-                scope or ask for a handoff instead of silently colliding.
+                Daddy registers it against the same project state. When it gets near the API routes,
+                Agent A's claim is right there to read. The claim does not lock the file — it is a
+                posted intent — but now the collision is visible, so Agent B can narrow its scope or
+                ask for a handoff instead of finding out from a merge conflict later.
               </p>
               <p>
                 Agent A finishes the API and publishes a message: <code>pd pub myapp:events
@@ -183,15 +181,15 @@ export function AboutPage() {
                 <Radio className="text-[var(--brand-primary)]" size={24} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight m-0 text-[var(--text-primary)]">
-                Core Concepts, In Evaluation Order
+                The Core Pieces, In Order
               </h2>
             </div>
 
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
-                <strong>Project identity</strong> is the root of the control plane. Every session,
-                claim, channel, inbox, and fleet signal needs to attach to the actual checkout and
-                project, not just a display name that can collide across worktrees.
+                <strong>Project identity</strong> is the root. Every session, claim, channel, inbox,
+                and fleet signal attaches to the actual checkout and project, not just a display
+                name that can collide across worktrees.
               </p>
               <p>
                 <strong>Sessions and notes</strong> are the recoverable memory. When an agent starts
@@ -230,20 +228,20 @@ export function AboutPage() {
             <div className="space-y-4 text-lg leading-relaxed text-[var(--text-secondary)]">
               <p>
                 The model is not the whole product. Serious coding-agent systems also need a local
-                operating layer that answers basic control questions: who owns this work, what did it
-                touch, what can it spend, which backend is actually ready, and what evidence survives
-                when the process dies?
+                layer that answers basic questions: who owns this work, what did it touch, what can
+                it spend, which backend is actually ready, and what evidence survives when the
+                process dies?
               </p>
               <p>
-                Port Daddy is valuable because it is intentionally below the scheduler. It can serve
-                a hand-written terminal workflow, a FleetBar button, an MCP client, a Codex CLI task,
-                a Claude Code session, or a local model loop without requiring those runtimes to agree
-                on one orchestration framework.
+                Port Daddy sits underneath whatever you already run. It works with a hand-typed
+                terminal workflow, a FleetBar button, an MCP client, a Codex CLI task, a Claude Code
+                session, or a local model loop. None of them have to agree on one orchestration
+                framework first.
               </p>
               <p>
-                That is the acquisition-relevant point: the substrate is not another chat UI. It is
-                the local truth layer that makes coding agents inspectable, recoverable, and safer to
-                launch in real repositories.
+                Port Daddy is not another chat window. It is the local record of what your agents
+                are doing — the thing that makes their work easy to inspect, recover, and launch in
+                a repo you actually care about.
               </p>
             </div>
           </motion.section>
