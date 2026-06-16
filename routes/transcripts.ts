@@ -283,4 +283,20 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
       return { success: false, error: 'internal server error' };
     }
   });
+
+  // Retention backfill — durably re-archive every transcript in the DB to the
+  // JSONL archive (ADR-0058), so "log ALL transcripts" covers history, not just
+  // runs since the archive was enabled. Run once after first enabling retention.
+  fastify.post('/transcripts/archive/backfill', async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) return notWired(reply);
+    try {
+      const result = transcripts.backfillArchive();
+      return { success: true, ...result };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('transcripts_backfill_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: 'internal server error' };
+    }
+  });
 };
