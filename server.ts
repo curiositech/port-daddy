@@ -108,6 +108,7 @@ import { registerAllRoutes } from './routes/index.js';
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
+import { resolveDaemonBerthIdentity, type DaemonBerthIdentity } from './shared/daemon-berths.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -183,6 +184,35 @@ const STARTED_AT: number = Date.now();
 // canonical pd path. Later drift checks compare this baseline to whatever
 // `command -v pd` currently resolves to. See lib/binary-drift-detector.ts.
 const RUNNING_BINARY_SNAPSHOT = snapshotRunningBinary();
+
+/**
+ * Derive a git/build snapshot for this daemon's berth identity (ADR-0084),
+ * once at boot. Best-effort: a compiled binary outside a git checkout (the
+ * stable brew berth) simply reports nulls, which is correct — it was cut from a
+ * release, not a live branch. `PD_DAEMON_SOURCE_DIR` points at the source tree
+ * a dev/codebase berth was built from; we read git from there when present.
+ */
+function snapshotDaemonGit(sourceDir: string | null): { branch: string | null; rev: string | null; builtAt: string | null } {
+  const cwd = sourceDir || __dirname;
+  const git = (cargs: string[]): string | null => {
+    try {
+      const { spawnSync } = require('node:child_process') as typeof import('node:child_process');
+      const r = spawnSync('git', cargs, { cwd, encoding: 'utf-8', timeout: 2000 });
+      if (r.status === 0 && typeof r.stdout === 'string') {
+        const out = r.stdout.trim();
+        return out.length > 0 ? out : null;
+      }
+    } catch {
+      // git absent or not a checkout — fall through to null.
+    }
+    return null;
+  };
+  return {
+    branch: git(['rev-parse', '--abbrev-ref', 'HEAD']),
+    rev: git(['rev-parse', '--short', 'HEAD']),
+    builtAt: new Date(STARTED_AT).toISOString(),
+  };
+}
 
 // =============================================================================
 // LOGGING (identical to server.ts)
@@ -283,6 +313,16 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
+
+// Berth identity (ADR-0084): self-report which berth this daemon is. Defaults
+// to the stable, canonical berth when PD_DAEMON_* env is unset, so the existing
+// brew daemon transparently reports as `stable` with no launch change.
+const DAEMON_BERTH: DaemonBerthIdentity = resolveDaemonBerthIdentity({
+  env: process.env,
+  port: PORT,
+  gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
+});
+
 import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
@@ -1020,6 +1060,7 @@ await registerAllRoutes(
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
+    daemonBerth: DAEMON_BERTH,
     cleanupStale, getSystemPorts,
     // Relay (ADR-0049) connection status. The daemon does not yet start the
     // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly

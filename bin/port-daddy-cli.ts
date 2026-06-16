@@ -147,6 +147,10 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+// Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
+import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
+import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
+import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
@@ -1287,7 +1291,7 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
@@ -2098,7 +2102,28 @@ async function executeDirectMode(
 }
 
 export async function main(): Promise<void> {
-  const args: string[] = process.argv.slice(2);
+  const rawArgs: string[] = process.argv.slice(2);
+
+  // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
+  // subcommand (`pd --daemon dev status`). Extract it up front so `command` is
+  // the real verb, then stash the target for the resolver below. Supports both
+  // `--daemon dev` and `--daemon=dev`. (It is also tolerated mid-args by the
+  // normal option parser, which sets options.daemon for the post-parse resolver.)
+  let preDaemonTarget: string | undefined;
+  const args: string[] = [];
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--daemon' && i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
+      preDaemonTarget = rawArgs[i + 1];
+      i++;
+      continue;
+    }
+    if (a.startsWith('--daemon=')) {
+      preDaemonTarget = a.slice('--daemon='.length);
+      continue;
+    }
+    args.push(a);
+  }
   const command: string | undefined = args[0];
 
   if (!command || command === '--help' || command === '-h') {
@@ -2267,6 +2292,27 @@ export async function main(): Promise<void> {
       }
     } else {
       positional.push(arg);
+    }
+  }
+
+  // --daemon <tier|label|url>: GLOBAL targeting flag (ADR-0084). Resolves to a
+  // daemon URL via the fixed berth lanes (stable→canonical, dev-latest→DEV_LATEST_PORT)
+  // + the dev-berth registry, then overrides PORT_DADDY_URL for THIS command only by mutating the
+  // process env before dispatch. pdFetch reads PORT_DADDY_URL live (and clearing
+  // PORT_DADDY_SOCK forces it off the canonical socket onto the chosen berth).
+  // Precedence: --daemon flag wins over PORT_DADDY_URL / `pd use` env.
+  const daemonTarget = preDaemonTarget ?? (options.daemon ? String(options.daemon) : undefined);
+  if (daemonTarget && command !== 'use' && command !== 'dev') {
+    const targetArg = daemonTarget;
+    const resolved = resolveBerthTargetUrl(targetArg, readDevDaemonRegistry());
+    if (!resolved) {
+      console.error(`--daemon: unknown target "${targetArg}". Known: stable, dev, dev-latest, a label from \`pd dev list\`, or a URL.`);
+      process.exit(1);
+    }
+    process.env.PORT_DADDY_URL = resolved.url;
+    delete process.env.PORT_DADDY_SOCK;
+    if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
+      process.env.PD_ACTIVE_DAEMON = resolved.label;
     }
   }
 
@@ -2510,142 +2556,18 @@ export async function main(): Promise<void> {
         await handleDaemon('uninstall', options);
         break;
 
-      case 'dev': {
-        const devSubcmd = positional[0] || 'start';
-        const { mkdirSync: devMkdir, existsSync: devExists, readFileSync: devRead, writeFileSync: devWrite, unlinkSync: devUnlink } = await import('node:fs');
-        const { tmpdir: devTmpdir } = await import('node:os');
-        const { spawn: devSpawnFn } = await import('node:child_process');
-
-        const devDir = join(devTmpdir(), 'port-daddy-dev');
-        const devStateFile = join(devDir, 'dev-state.json');
-        const devServerPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'server.ts');
-        const devTsxPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', 'tsx');
-
-        if (devSubcmd === 'start') {
-          devMkdir(devDir, { recursive: true });
-
-          // Check if already running
-          if (devExists(devStateFile)) {
-            try {
-              const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-              process.kill(st.pid, 0);
-              ui.warn(`Dev daemon already running (PID ${st.pid}, port ${st.port})`);
-              ui.info(`  PD_URL=http://localhost:${st.port}`);
-              ui.info(`  pd dev stop   — to stop it`);
-              process.exit(0);
-            } catch {
-              try { devUnlink(devStateFile); } catch {}
-            }
-          }
-
-          const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
-
-          ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
-          ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
-          ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
-
-          const child = devSpawnFn(devTsxPath, [devServerPath], {
-            env: {
-              ...process.env,
-              PORT_DADDY_PREFIX: devDir,
-              PORT_DADDY_PORT: String(devPort),
-              NODE_ENV: 'development',
-            },
-            stdio: ['ignore', 'pipe', 'pipe'],
-            detached: true,
-          });
-          child.unref();
-
-          // Wait for health check
-          let devReady = false;
-          const devDeadline = Date.now() + 15000;
-          while (Date.now() < devDeadline) {
-            try {
-              const res = await fetch(`http://localhost:${devPort}/health`);
-              if (res.ok) { devReady = true; break; }
-            } catch { /* not ready yet */ }
-            await new Promise(r => setTimeout(r, 200));
-          }
-
-          if (!devReady) {
-            ui.error(`Dev daemon failed to start within 15s`);
-            child.kill();
-            process.exit(1);
-          }
-
-          devWrite(devStateFile, JSON.stringify({
-            pid: child.pid,
-            port: devPort,
-            prefix: devDir,
-            startedAt: new Date().toISOString(),
-            cwd: process.cwd(),
-          }));
-
-          // Fetch version to confirm
-          try {
-            const vRes = await fetch(`http://localhost:${devPort}/version`);
-            const vData = await vRes.json() as any;
-            ui.success(`Dev daemon v${vData.version} running (PID ${child.pid})`);
-          } catch {
-            ui.success(`Dev daemon running (PID ${child.pid})`);
-          }
-
-          ui.info('');
-          ui.info(`  Test commands:`);
-          ui.info(`    PD_URL=http://localhost:${devPort} pd status`);
-          ui.info(`    curl http://localhost:${devPort}/arbiter/status`);
-          ui.info(`    curl http://localhost:${devPort}/version`);
-          ui.info('');
-          ui.info(`  Stop: pd dev stop`);
-
-        } else if (devSubcmd === 'stop') {
-          if (!devExists(devStateFile)) {
-            ui.warn('No dev daemon running');
-            process.exit(0);
-          }
-          const okDev = await requireConfirmation({
-            summary: 'Dev stop will SIGTERM the isolated dev daemon. Its in-memory DB is preserved in the prefix dir but live connections drop.',
-            args: options as Record<string, unknown>,
-          });
-          if (!okDev) process.exit(DESTRUCTIVE_EXIT_CODE);
-          try {
-            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-            process.kill(st.pid, 'SIGTERM');
-            devUnlink(devStateFile);
-            ui.success(`Dev daemon stopped (was PID ${st.pid})`);
-          } catch {
-            ui.warn(`Dev daemon not running (stale state cleaned up)`);
-            try { devUnlink(devStateFile); } catch {}
-          }
-
-        } else if (devSubcmd === 'status') {
-          if (!devExists(devStateFile)) {
-            ui.info('No dev daemon running');
-            process.exit(0);
-          }
-          try {
-            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-            process.kill(st.pid, 0);
-            const res = await fetch(`http://localhost:${st.port}/version`);
-            const ver = await res.json() as any;
-            ui.success(`Dev daemon running`);
-            ui.info(`  PID: ${st.pid}`);
-            ui.info(`  Port: ${st.port}`);
-            ui.info(`  Version: ${ver.version}`);
-            ui.info(`  Prefix: ${st.prefix}`);
-            ui.info(`  Started: ${st.startedAt}`);
-          } catch {
-            ui.warn('Dev daemon not running (stale state cleaned up)');
-            try { devUnlink(devStateFile); } catch {}
-          }
-
-        } else {
-          ui.error(`Unknown: pd dev ${devSubcmd}`);
-          ui.info('Usage: pd dev start | stop | status');
-          process.exit(1);
-        }
+      case 'dev':
+        // ADR-0084 Daemon Berths: pd dev up/down/list (+ back-compat
+        // start/stop/status). Builds the daemon BINARY (never tsx) and runs
+        // tiered, colour-coded berths beside the canonical stable daemon.
+        await handleDevBerth(positional, options);
         break;
-      }
+
+      case 'use':
+        // ADR-0084: per-shell targeting. Emits a shell snippet to eval:
+        //   eval "$(pd use dev)"  → exports PORT_DADDY_URL + PD_ACTIVE_DAEMON.
+        await handleUse(positional, options);
+        break;
 
       case 'ci-gate':
         await ciGateCheck();

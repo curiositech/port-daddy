@@ -104,7 +104,7 @@ set -l __pd_commands \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'daemon' 'ci-gate' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'mcp' \
     'setup' 'init' \
     'version' 'help'
 
@@ -432,7 +432,10 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a status -d 'Show daemon status'
     complete -c $prog -n __pd_needs_command -a install -d 'Install as system service'
     complete -c $prog -n __pd_needs_command -a uninstall -d 'Uninstall system service'
-    complete -c $prog -n __pd_needs_command -a dev -d 'Start daemon in foreground'
+    complete -c $prog -n __pd_needs_command -a dev -d 'Daemon berths: up/down/list (ADR-0055)'
+    complete -c $prog -n __pd_needs_command -a use -d 'Target this shell at a daemon berth (eval "$(pd use dev)")'
+    complete -c $prog -n '__pd_is_cmd dev' -a 'up down list' -d 'Berth lifecycle'
+    complete -c $prog -n '__pd_is_cmd use' -a 'stable dev dev-latest' -d 'Berth target'
     complete -c $prog -n __pd_needs_command -a daemon -d 'Daemon lifecycle subcommands (status, log, doctor)'
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'

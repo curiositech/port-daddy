@@ -45,6 +45,7 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0051](0051-marketplace-protocol.md) | The Marketplace Protocol — Encrypted-Capability Trade Across Operators | Proposed | 2026-06 |
 | [0052](0052-trajectory-export-and-rl-loop.md) | Trajectory Export and the Coordination RL Loop | Proposed | 2026-06 |
 | [0053](0053-out-of-band-enforcement.md) | Out-of-Band Enforcement — Making Port Daddy Compulsory, Not Bypassable | Proposed | 2026-06 |
+| [0084](0084-daemon-berths.md) | Daemon Berths — tiered, colour-coded, side-by-side daemons | Accepted | 2026-06 |
 
 ## How to Read These
 
