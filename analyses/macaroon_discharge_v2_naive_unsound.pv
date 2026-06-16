@@ -9,9 +9,11 @@
  * → _v7_multihop_fixed.pv), where a verifier that compares the final signature to a
  * root-derived value — without per-hop discipline — was shown unsound for Ed25519
  * capability CARDS. Here we show the analogous break for the MACAROON discharge
- * construction: a verifier that accepts a well-formed discharge WITHOUT checking the
- * `prepare_for_request` binding `HMAC(BIND0, grant_sig || discharge_sig)` is unsound
- * under cross-grant replay.
+ * construction: a verifier whose request-binding check OMITS the grant signature —
+ * it checks `HMAC(BIND0, discharge_sig)` instead of the correct
+ * `HMAC(BIND0, grant_sig || discharge_sig)` — is unsound under cross-grant replay.
+ * (The discharge is still daemon-issued and unforgeable; the bug is solely that the
+ * binding fails to tie it to a specific grant.)
  *
  * THREAT: a single third-party caveat ("the daemon attests rent-paid for session S")
  * is referenced by MORE THAN ONE grant — realistic, because one live session backs
@@ -24,11 +26,13 @@
  *
  * HMAC is modelled exactly as in v1: a public one-way keyed PRF, no destructor.
  *
- * EXPECTED: Q2 is FALSE (attack found) — the naive relay AUTHORIZES the HIGH grant
- * although the daemon only ever issued a discharge bound to the LOW grant. This is
- * the regression that justifies the per-hop binding check in verify(); the CORRECT
- * relay (v1, RelayPerHop) rejects exactly this trace because the binding ties the
- * discharge to the LOW signature, not the HIGH one.
+ * EXPECTED: Q2 is FALSE (attack found) — the attacker replays the daemon's published
+ * LOW discharge (it cannot forge `hmac(BIND0, d1)` without the private caveat_key)
+ * and the naive relay AUTHORIZES the HIGH grant, although the daemon only ever issued
+ * a discharge for LOW. This is the regression that justifies binding the grant
+ * signature into the request-binding; the CORRECT relay (v1, RelayPerHop) rejects
+ * exactly this trace because its binding `hmac(BIND0, (g_sig, d1))` ties the discharge
+ * to the LOW signature, which does not match HIGH's.
  *)
 
 free c: channel.
@@ -55,7 +59,12 @@ free caveat_key: bitstring [private].   (* SHARED across both grants *)
 event DaemonIssuesDischarge(bitstring).      (* daemon mints a discharge bound to this grant_sig *)
 event RelayAuthorizesNaive(bitstring).       (* the NAIVE relay authorizes a push for this grant_sig *)
 
-(* Daemon mints the LOW grant AND issues a discharge bound to it. *)
+(* Daemon mints the LOW grant AND issues a discharge for it. THE MODELLED BUG: the
+   discharge binding is `hmac(BIND0, d1)` — it commits to the discharge signature but
+   OMITS the grant signature `s2`. (The correct v1 construction binds
+   `hmac(BIND0, (s2, d1))`, tying the discharge to THIS grant.) The attacker cannot
+   forge this value: it is keyed (through d1) by the private `caveat_key`, so the only
+   way to obtain it is to replay this published, daemon-issued discharge. *)
 let DaemonLowWithDischarge() =
     let s0 = hmac(root_key_low, grant_id_low) in
     let s1 = hmac(s0, deny_low) in
@@ -64,9 +73,9 @@ let DaemonLowWithDischarge() =
     out(c, (deny_low, vid, rent_cid, s2));            (* public LOW grant macaroon *)
     let d0 = hmac(caveat_key, rent_cid) in
     let d1 = hmac(d0, expires_cav) in
-    let bound = hmac(BIND0, (s2, d1)) in               (* discharge bound to the LOW grant *)
+    let bound = hmac(BIND0, d1) in                    (* BUG: binding omits the grant sig s2 *)
     event DaemonIssuesDischarge(s2);
-    out(c, (rent_cid, expires_cav, bound)).            (* public bound discharge (for LOW only) *)
+    out(c, (rent_cid, expires_cav, bound)).            (* public discharge issued for LOW *)
 
 (* Daemon mints the HIGH grant as a public bearer macaroon, but NEVER discharges it
    (the rent check denied it). No DaemonIssuesDischarge event fires for HIGH. *)
@@ -91,8 +100,11 @@ let NaiveRelayHigh() =
     if s2 = g_sig then                                (* chain integrity *)
     let d0 = hmac(caveat_key, d_cid) in
     let d1 = hmac(d0, d_cav) in
-    (* NAIVE: discharge well-formedness only — NO `d_bound = hmac(BIND0,(g_sig,d1))`. *)
-    if d_bound = d_bound then
+    (* NAIVE binding check: confirms the presented discharge is a genuine daemon-issued
+       discharge for the rent caveat (d_bound = hmac(BIND0, d1), unforgeable without
+       caveat_key) — but does NOT tie it to THIS grant's signature g_sig. The correct
+       v1 verifier checks `d_bound = hmac(BIND0, (g_sig, d1))`. Omitting g_sig is the bug. *)
+    if d_bound = hmac(BIND0, d1) then
         event RelayAuthorizesNaive(g_sig);
         out(c, PUSH_OK).
 
