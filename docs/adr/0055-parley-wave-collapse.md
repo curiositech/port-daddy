@@ -217,3 +217,103 @@ tooth (rent) lives below the agent, not inside it.
 - N-party parleys (3+) are supported by the same unanimity rule; if live
   experience shows convergence stalls at N≥3, escalation budgets can tighten
   with party count rather than weakening unanimity.
+
+## Addendum (2026-06-16): Identity, Continuity & the Dormant-Party Problem
+
+This addendum applies the **identity → continuity → reputation** design
+discipline to parley after a substrate audit. The body above assumed three
+properties the substrate does **not** yet provide: that parties stay live to
+exchange turns, that a party can be *driven* to take a turn, and that a dead
+party can be replaced. None hold today. This section records the honest
+verdict so `lib/parley.ts` is built on what exists, not on what the prose
+implied.
+
+The discipline's through-line: *memory + checkpoint → continuity → a person
+(not a spawn) → outcomes closed against an oracle → reputation → a market*.
+A parley is a conversation **between persons over time**, so every link in
+that chain is load-bearing for it. Graded against current `origin/main`:
+
+| Link | Substrate (verified) | Verdict for parley |
+|---|---|---|
+| **Non-forgeable identity** (ADR-0040) | Proposed, unbuilt. Identity is a **self-asserted string**; no daemon-minted id bound to a credential. | **Broken.** A defector respawns clean (*whitewashing*, Friedman & Resnick 2001; *Sybil-reset*, Douceur 2002). Rent/bond penalties bite **per-process only** — no durable punishment across respawns. |
+| **Continuity-of-record** (episodic memory `lib/episodic-memory.ts`, notes, the dormant-not-dead model `lib/session-liveness.ts`) | Shipped and genuinely good — a session is a *durable work context*; no live process means **dormant**, not dead. | **Holds.** The parley **transcript** (turns as immutable notes) survives every process death. |
+| **Continuity-of-state** (checkpoint) | Absent. Resurrection (`lib/resurrection.ts`) forwards **notes to a successor**, not execution/belief state. | **Broken — and must be labelled.** A party that "resumes" a parley is a **successor reconstructing intent from the transcript, not the same person**. This is psychological *connectedness*, not *continuity* (Parfit 1984). Do **not** sell it as checkpointing. |
+| **Outcome closed against an oracle** (ADR-0041, `lib/commitments.ts`) | Shipped. `close()` refuses without a non-empty `closed_by_oracle_ref` (a merged SHA / released claim / passing test). | **Holds — the one strong link.** The parley *collapse* closes against an oracle, not against "we agreed." |
+| **Reputation** (estimator) | Absent. Bonds escrow (`lib/bonds.ts`) exists but keys on the **forgeable** id. | **Cannot be trustworthy yet.** No reputation without continuity; none without non-forgeable identity. Parley cooperation/defection **must not** feed a durable reputation until ADR-0040. |
+
+### What this means, decision by decision
+
+- **Liveness (the dormant-party problem).** Parley state is durable; parley
+  *progress* is not. Tube is **poll-based, no server-push, no blocking**
+  (`lib/tube.ts`), and agents are **fire-and-forget** with no mid-run prompt
+  injection — they only see messages when they poll `pd attention` (wired at
+  SessionStart, not mid-task). Therefore parley turns are **deadline-driven,
+  asynchronous, and dormant-safe**: each party has a turn-TTL; a missed
+  deadline advances the protocol (escalate/void) rather than blocking on a
+  live reply. A real-time request/response negotiation is **not** what to
+  build — that substrate does not exist.
+
+- **Replacement.** There is **no auto-spawn** anywhere (`lib/resurrection.ts`
+  only watches/queues/emits; nothing respawns). A death mid-parley therefore
+  routes to the **operator attention queue** with the full transcript — a
+  human collapses the wave. An auto-respawn *listener* (a Tender that claims a
+  dormant parley party and spawns a successor) is genuinely new work and is
+  **explicitly deferred**, not assumed.
+
+- **Defection.** "Won't some defect?" — yes, and without ADR-0040 the rent
+  tooth only prices silence *within one process lifetime*. The stopgap is the
+  discipline's **newcomer floor**: a fresh self-asserted id may *work* fully
+  but its economic *ceiling* (bond size it can stake, parleys it can bind
+  others to) is capped until a clean-exit history accrues. This prices churn
+  without waiting on ADR-0040, and is honest about being a stopgap.
+
+- **Goodhart on the collapse.** An agent can `agree` then betray the agreed
+  outcome. Defence is already shipped: the collapse is an **oracle-closed
+  commitment** (ADR-0041), and a **sampled adversarial auditor** re-opens a
+  random + risk-weighted fraction of collapsed parleys and re-checks that the
+  superseded intents actually stood down (claims released / branches demoted).
+  An audit-failed fake must cost **more** than honest non-agreement.
+
+### Lifecycle visibility (a first-class requirement, buildable now)
+
+Per the operator's explicit ask — *everything reading agent lifecycle/status
+must show a parley is happening*. This is cleanly buildable on shipped
+surfaces: `session.phase` is an extensible enum read by `pd sessions`,
+`pd whoami`, `pd sitrep`. Parley adds a `parley` phase (carrying the parley id
+and counterpart session ids) plus `activity.ts` `PARLEY_*` event types, so the
+state propagates to those surfaces, the activity firehose, and the cockpit
+lane. A party in an open parley reads as such *everywhere*, including to the
+operator deciding whether to intervene. This lands as part of phase 0, not
+later.
+
+### Revised build order (honest about the gated links)
+
+- **Phase 0 (buildable now, leans only on shipped links):** `lib/parley.ts`
+  state on `session.phase`; turns as notes (continuity-of-record);
+  **deadline-driven, dormant-safe** closure; manual trigger; lifecycle
+  visibility above; **every failure mode routes to operator escalation** with
+  the transcript (the safety net that makes parley useful before auto-spawn or
+  ADR-0040 exist).
+- **Phase 0.5 (prerequisite spike):** a lightweight **mid-run turn-poll** in
+  the agent harness (extend the SessionStart attention hook to poll
+  `parley:<id>` while a parley is open). Without this, no agent takes a turn —
+  this is the real unknown, prove it first.
+- **Phase 4 (already in matrix):** collapse → ADR-0041 commitment — **promote
+  in priority**, since oracle-closure is the strong link and should anchor the
+  design early.
+- **Gated on ADR-0040 (defer explicitly, do not fake):** persistent
+  cross-respawn accountability, bond sizing that survives whitewashing, and
+  any reputation effect of parley conduct. Until 0040, parley's teeth are
+  rent + the newcomer floor + operator escalation — real, but per-lifetime.
+- **Gated on a real checkpoint (defer explicitly):** same-person resume of a
+  parley turn. Until then, a resumed party is a labelled **successor**.
+
+### Honest-ceiling caveat
+
+Parley, fully built, proves **delivery of a reconciled outcome against an
+oracle on a clock the parties did not set**. It does **not** prove the
+reconciliation was *wise*, nor that the surviving intent was the *better* one —
+only that the contested surface did not land in two incompatible states. And
+until ADR-0040, it cannot prove the *same person* is accountable across the
+conversation's life. Those are the boundaries; the design must not overclaim
+past them.
