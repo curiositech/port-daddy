@@ -326,6 +326,43 @@ describe('claim forest store', () => {
     });
   });
 
+  it('drains legacy backfill batches so active rows past the first limit stay visible', () => {
+    const sessions = createSessions(db);
+    const started = sessions.start('large legacy backlog', {
+      agentId: 'agent-a',
+      project: 'port-daddy',
+      worktreeId: 'wt-a',
+    });
+    expect(started.success).toBe(true);
+
+    db.prepare(`
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at
+      )
+      VALUES (?, ?, NULL, NULL, NULL, NULL, ?, ?)
+    `).run(started.id, 'lib/released-a.ts', 1000, 1100);
+    db.prepare(`
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at
+      )
+      VALUES (?, ?, NULL, NULL, NULL, NULL, ?, ?)
+    `).run(started.id, 'lib/released-b.ts', 1200, 1300);
+    db.prepare(`
+      INSERT INTO session_files (
+        session_id, file_path, start_line, end_line, symbol, symbol_path, claimed_at, released_at
+      )
+      VALUES (?, ?, NULL, NULL, NULL, NULL, ?, NULL)
+    `).run(started.id, 'lib/still-active.ts', 1400);
+
+    const forest = createClaimForest(db);
+    expect(forest.backfillFromSessionFiles(2)).toBe(3);
+    expect(forest.backfillFromSessionFiles(2)).toBe(0);
+
+    expect(forest.getActiveClaimsForFile('lib/still-active.ts')).toHaveLength(1);
+    expect(forest.getActiveClaimsForFile('lib/released-a.ts')).toHaveLength(0);
+    expect(forest.listClaimsForSession(started.id, { includeReleased: true })).toHaveLength(3);
+  });
+
   it('backfills released legacy rows as released, not as active resurrected claims', () => {
     const sessions = createSessions(db);
     const started = sessions.start('released legacy claim', { agentId: 'agent-a', project: 'port-daddy', worktreeId: 'wt-a' });

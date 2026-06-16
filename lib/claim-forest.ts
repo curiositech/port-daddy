@@ -422,7 +422,7 @@ export function createClaimForest(db: Database.Database) {
       JOIN sessions s ON s.id = sf.session_id
       LEFT JOIN claim_forest_claims c ON c.legacy_session_file_id = sf.id
       WHERE c.id IS NULL
-      ORDER BY sf.id ASC
+      ORDER BY CASE WHEN sf.released_at IS NULL THEN 0 ELSE 1 END ASC, sf.id ASC
       LIMIT ?
     `),
   };
@@ -630,19 +630,28 @@ export function createClaimForest(db: Database.Database) {
   }
 
   function backfillFromSessionFiles(limit = 10_000) {
-    const rows = stmts.legacyRowsMissingForest.all(limit) as LegacySessionFileRow[];
-    for (const row of rows) {
-      claim(sessionAddressForLegacy(row), {
-        sessionId: row.session_id,
-        agentId: row.agent_id,
-        claimedAt: row.claimed_at,
-        releasedAt: row.released_at,
-        observedBy: 'session_files.backfill',
-        confidence: 1,
-        legacySessionFileId: row.id,
-      });
+    const batchSize = Math.max(1, Math.floor(limit));
+    let backfilled = 0;
+
+    while (true) {
+      const rows = stmts.legacyRowsMissingForest.all(batchSize) as LegacySessionFileRow[];
+      if (rows.length === 0) return backfilled;
+
+      for (const row of rows) {
+        claim(sessionAddressForLegacy(row), {
+          sessionId: row.session_id,
+          agentId: row.agent_id,
+          claimedAt: row.claimed_at,
+          releasedAt: row.released_at,
+          observedBy: 'session_files.backfill',
+          confidence: 1,
+          legacySessionFileId: row.id,
+        });
+      }
+
+      backfilled += rows.length;
+      if (rows.length < batchSize) return backfilled;
     }
-    return rows.length;
   }
 
   function addressForSessionClaim(session: SessionContext, fields: {
