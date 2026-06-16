@@ -29,16 +29,16 @@ const META_MONO_CLASS =
 
 const TRACKS = [
   {
-    label: 'Harbor first',
-    detail: 'Create the project boundary, then install, join, and verify the local control plane before agents act.',
+    label: 'Set up the project',
+    detail: 'Create the project boundary, then install Port Daddy, join a session, and check the local app is running before any agent acts.',
   },
   {
-    label: 'Agent work loops',
-    detail: 'Sessions, notes, file claims, inboxes, channels, and phase-aware handoffs inside the boundary.',
+    label: 'How agents work together',
+    detail: 'Sessions, notes, file claims, inboxes, and channels — how one agent leaves a trail the next can read inside the same project.',
   },
   {
-    label: 'Automation paths',
-    detail: 'Spawned agents, watchers, pipelines, fleets, resource checks, launch gates, and recovery.',
+    label: 'Run things on their own',
+    detail: 'Background agents, watchers, pipelines, fleets, resource checks, launch gates, and recovery after a crash.',
   },
 ]
 
@@ -53,15 +53,15 @@ export function TutorialsPage() {
         <PageContainer width="wide">
           <div className="grid gap-[var(--space-8)] lg:grid-cols-[minmax(0,0.95fr)_minmax(18rem,0.45fr)] lg:items-end">
             <div className="space-y-[var(--space-6)]">
-              <PanelEyebrow>Operator training</PanelEyebrow>
-              <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                Learn the control plane like an operator.
+              <PanelEyebrow>Tutorials</PanelEyebrow>
+              <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
+                Run a fleet of coding agents and keep track of them.
               </PanelTitle>
               <PanelBody size="default" className="max-w-[42rem] text-[length:var(--text-lg)]">
-                These tutorials are for engineers evaluating real coding-agent infrastructure.
-                Start with a project boundary, then learn how agents leave notes, claim files,
-                publish events, launch jobs, inspect runtime state, and recover work without
-                losing accountability.
+                These lessons are for engineers trying out coding agents on a real repo.
+                You start by setting up a project, then learn how agents leave notes, claim
+                files, signal each other, launch jobs, check what is running, and recover work
+                after something stops. Every step is a command you can run and a signal you can see.
               </PanelBody>
             </div>
 
@@ -69,7 +69,7 @@ export function TutorialsPage() {
               <div className="grid grid-cols-3 gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-4)]">
                 {[
                   { value: TUTORIALS_DATA.length.toString().padStart(2, '0'), label: 'lessons' },
-                  { value: '05', label: 'min start' },
+                  { value: '05', label: 'min to first run' },
                   { value: '03', label: 'tracks' },
                 ].map((stat) => (
                   <div key={stat.label} className="space-y-[var(--space-1)]">
@@ -93,7 +93,7 @@ export function TutorialsPage() {
                       <div className={`${META_TEXT_CLASS} text-[var(--text-primary)]`}>
                         {track.label}
                       </div>
-                      <p className="mt-[var(--space-1)] text-sm leading-relaxed text-[var(--text-secondary)]">
+                      <p className="mt-[var(--space-1)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                         {track.detail}
                       </p>
                     </div>
@@ -169,20 +169,20 @@ export function TutorialsPage() {
           <section className="mt-[var(--space-8)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-6)] lg:p-[var(--space-7)]">
             <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.7fr)_minmax(16rem,0.3fr)] lg:items-end">
               <div className="space-y-[var(--space-4)]">
-                <PanelEyebrow>Product-truth curriculum</PanelEyebrow>
-                <PanelTitle as="h2" size="section" className="max-w-[12ch]">
-                  Learn the live system, not demo folklore.
+                <PanelEyebrow>Written against the real product</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[16ch]">
+                  Every lesson matches what the tool does today.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[44rem]">
-                  Lessons are written against the current harbor-first product model and
-                  call out roadmap-only behavior directly. The goal is operational
-                  fluency: commands you can run, signals you can inspect, and recovery
-                  paths you can trust during real agent work.
+                  Commands are the ones that ship now, not a demo script. Where a feature is
+                  still on the roadmap, the lesson says so. The aim is that you can run each
+                  command, see the signal it produces, and know how to recover when an agent
+                  stops mid-task.
                 </PanelBody>
               </div>
 
               <div className="grid gap-[var(--space-3)]">
-                {['Current command names', 'Visible runtime evidence', 'Explicit roadmap boundaries'].map((item) => (
+                {['Real command names', 'Signals you can see', 'Roadmap items called out'].map((item) => (
                   <div
                     key={item}
                     className={`border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-4)] py-[var(--space-3)] ${META_TEXT_CLASS} text-[var(--text-primary)]`}

@@ -3,32 +3,35 @@ import { blogPosts, deprecatedBlogPosts, type BlogPost } from '@/data/blogData'
 import { Activity, ArrowUpRight, Calendar, CheckCircle2, Cpu, GitBranch, NotebookText, ShieldCheck, Terminal } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 
+const metaClass =
+  'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]'
+
 const focusLanes = [
   {
     icon: Activity,
-    title: 'Control-plane truth',
-    body: 'FleetBar, Fleet Control Center, project identity, launch state, and runtime provenance — the things you want to see before any agent presses go.',
+    title: 'See what each agent is doing',
+    body: 'FleetBar and the Fleet Control Center show every running agent, which project it claimed, and where its work lives — before anyone presses go.',
   },
   {
     icon: ShieldCheck,
-    title: 'Fail-closed launches',
-    body: 'Backend readiness, exact telemetry, model rates, budget ceilings, and a blocked state that says no in plain English.',
+    title: 'Stop a launch that is not ready',
+    body: 'A launch checks the backend, the model rates, and the budget ceiling first. If something is off, it says no in plain English instead of starting anyway.',
   },
   {
     icon: GitBranch,
-    title: 'Recoverable agent work',
-    body: 'Session notes, file claims, stale work, roadmap drift, and enough evidence that a different model can pick up where the last one left off.',
+    title: 'Pick up where an agent left off',
+    body: 'Session notes, file claims, and a record of stale work leave enough of a trail that a different agent can resume the thread.',
   },
   {
     icon: Terminal,
-    title: 'Local integration loops',
-    body: 'PD Tube, guard checks, daemon provenance, and the small command surfaces that let ordinary tools reach the live agent in your terminal.',
+    title: 'Reach the live agent from your terminal',
+    body: 'PD Tube, guard checks, and a few small commands let ordinary tools talk to the agent running in your shell right now.',
   },
 ]
 
 function DateStamp({ date }: { date: string }) {
   return (
-    <time dateTime={date} className="inline-flex items-center gap-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+    <time dateTime={date} className={`inline-flex items-center gap-[var(--space-2)] ${metaClass} text-[var(--text-muted)]`}>
       <Calendar size={13} aria-hidden="true" />
       {date}
     </time>
@@ -37,7 +40,7 @@ function DateStamp({ date }: { date: string }) {
 
 function Tag({ children }: { children: string }) {
   return (
-    <span className="border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-secondary)]">
+    <span className={`border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] ${metaClass} text-[var(--text-secondary)]`}>
       {children}
     </span>
   )
@@ -85,7 +88,7 @@ function FeaturedArticle({ post }: { post: BlogPost }) {
             to={`/blog/${post.slug}`}
             className="inline-flex w-fit items-center gap-2 border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-4 py-3 text-[var(--text-inverse)] no-underline transition-colors hover:bg-[var(--brand-primary)]"
           >
-            <span className="font-mono text-[length:var(--type-meta-size,14px)] font-bold uppercase tracking-[0.16em]">Read article</span>
+            <span className={metaClass}>Read article</span>
             <ArrowUpRight size={16} aria-hidden="true" />
           </Link>
         </div>
@@ -102,7 +105,7 @@ function ArticleRow({ post, index }: { post: BlogPost; index: number }) {
       </Link>
       <div className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+          <span className={`${metaClass} text-[var(--text-muted)]`}>
             {String(index + 2).padStart(2, '0')}
           </span>
           <DateStamp date={post.date} />
@@ -111,7 +114,7 @@ function ArticleRow({ post, index }: { post: BlogPost; index: number }) {
           <h3 className="max-w-2xl text-2xl font-black leading-tight tracking-normal text-[var(--text-primary)] group-hover:text-[var(--brand-primary)]">
             {post.title}
           </h3>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
+          <p className="mt-3 max-w-3xl text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-secondary)]">
             {post.excerpt}
           </p>
         </Link>
@@ -131,35 +134,33 @@ export function BlogPage() {
       <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-14 sm:px-6 sm:py-20 lg:px-10 lg:py-24">
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-7">
-            <div className="mb-5 flex flex-wrap gap-2">
-              <Tag>Port Daddy Blog</Tag>
-              <Tag>Field notes from a coordinator</Tag>
-              <Tag>Current as of 2026-05-06</Tag>
+            <div className={`mb-5 ${metaClass} text-[var(--text-muted)]`}>
+              Port Daddy field notes
             </div>
             <h1 className="max-w-[14ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
               Notes from coordinating agents that didn't want to be coordinated.
             </h1>
             <p className="mt-6 max-w-2xl text-2xl font-black leading-tight tracking-normal text-[var(--text-primary)] sm:text-3xl">
-              Four agents in a repo will eventually clobber each other. This is the field log of what broke, what got fixed, and what a control plane actually has to make true.
+              Four agents in one repo will eventually overwrite each other's work. This is the running log of what broke, what we fixed, and what the app has to keep true to stop it.
             </p>
           </div>
 
           <div className="grid gap-6 lg:col-span-5 lg:self-end">
             <p className="max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-              For AI engineers evaluating Port Daddy as infrastructure. Shared state, file ownership, launch gates, PD Tube, recovery maps, daemon provenance, coordination policy — the unglamorous parts that turn a clever demo into something you can leave running on a Tuesday.
+              Written for engineers deciding whether to run Port Daddy day to day. Shared memory, file ownership, launch checks, PD Tube, recovery trails, daemon provenance — the unglamorous parts that turn a clever demo into something you can leave running on a Tuesday.
             </p>
             <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
               <div className="border-r-2 border-[var(--border-strong)] p-4">
                 <div className="font-mono text-3xl font-black leading-none">{blogPosts.length}</div>
-                <div className="mt-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">In rotation</div>
+                <div className={`mt-2 ${metaClass} text-[var(--text-muted)]`}>In rotation</div>
               </div>
               <div className="border-r-2 border-[var(--border-strong)] p-4">
                 <div className="font-mono text-3xl font-black leading-none">{deprecatedBlogPosts.length}</div>
-                <div className="mt-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Retired</div>
+                <div className={`mt-2 ${metaClass} text-[var(--text-muted)]`}>Retired</div>
               </div>
               <div className="p-4">
                 <div className="font-mono text-3xl font-black leading-none">0</div>
-                <div className="mt-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">Pretending to be published</div>
+                <div className={`mt-2 ${metaClass} text-[var(--text-muted)]`}>Future-dated</div>
               </div>
             </div>
           </div>
@@ -169,7 +170,7 @@ export function BlogPage() {
       <main id="main-content" className="px-4 py-12 sm:px-6 sm:py-16 lg:px-10">
         <div className="mx-auto max-w-7xl space-y-14">
           <section aria-labelledby="focus-lanes" className="grid gap-4 border-b-2 border-[var(--border-strong)] pb-10 sm:grid-cols-2 lg:grid-cols-4">
-            <h2 id="focus-lanes" className="sr-only">Blog focus lanes</h2>
+            <h2 id="focus-lanes" className="sr-only">What these posts cover</h2>
             {focusLanes.map((lane) => {
               const Icon = lane.icon
               return (
@@ -178,7 +179,7 @@ export function BlogPage() {
                     <Icon size={18} aria-hidden="true" />
                   </div>
                   <h3 className="text-base font-black tracking-normal text-[var(--text-primary)]">{lane.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">{lane.body}</p>
+                  <p className="mt-3 text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-secondary)]">{lane.body}</p>
                 </div>
               )
             })}
@@ -189,7 +190,7 @@ export function BlogPage() {
           <section aria-labelledby="article-index" className="space-y-0">
             <div className="mb-3 flex items-end justify-between gap-4">
               <div>
-                <div className="mb-2 flex items-center gap-2 font-mono text-[length:var(--type-meta-size,14px)] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                <div className={`mb-2 flex items-center gap-2 ${metaClass} text-[var(--text-muted)]`}>
                   <NotebookText size={14} aria-hidden="true" />
                   The rest of the rotation
                 </div>
@@ -207,17 +208,17 @@ export function BlogPage() {
                 <CheckCircle2 size={18} aria-hidden="true" />
               </div>
               <h2 id="retired-threads" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Retired threads</h2>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
-                Old drafts, future-dated speculation, and visually off-brief pieces are no longer in the index. The slugs still resolve, though — they just redirect to whatever the current honest version is.
+              <p className="mt-3 text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-secondary)]">
+                Old drafts, future-dated guesses, and off-brief pieces are out of the index. The old links still work — they redirect to the current honest version.
               </p>
             </div>
             <div className="divide-y-2 divide-[var(--border-strong)] border-2 border-[var(--border-strong)]">
               {deprecatedBlogPosts.slice(0, 6).map((post) => (
                 <div key={post.slug} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)]">
-                  <div className="font-mono text-[length:var(--type-meta-size,14px)] font-bold uppercase tracking-[0.14em] text-[var(--text-primary)]">
+                  <div className={`${metaClass} text-[var(--text-primary)]`}>
                     {post.retiredLabel}
                   </div>
-                  <div className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                  <div className="text-[length:var(--type-panel-body-compact-size)] leading-relaxed text-[var(--text-secondary)]">
                     {post.reason}
                     <Link to={`/blog/${post.replacementSlug}`} className="ml-2 inline-flex items-center gap-1 font-semibold text-[var(--brand-primary)]">
                       Replacement <ArrowUpRight size={13} aria-hidden="true" />
