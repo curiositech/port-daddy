@@ -165,6 +165,19 @@ export function buildArgs(
   outputPath?: string,
   model?: string,
 ): { args: string[]; stdin: string | null } {
+  // A model equal to the backend/CLI's own name is a placeholder that leaked
+  // from default resolution (backend "cli:claude-code" → model "claude-code").
+  // The CLIs reject it with "model not supported". Map the placeholder to a real
+  // per-CLI default so spawns get EXACT, billable telemetry instead of an
+  // estimate (which the cost gate then rejects); for CLIs without a known good
+  // default, drop `--model` so the CLI uses its authenticated account's default.
+  const PLACEHOLDER_MODELS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
+    'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
+  };
+  const isPlaceholder = !model || PLACEHOLDER_MODELS.has(model);
+  const effModel = isPlaceholder ? CLI_DEFAULT_MODEL[cli] : model;
+
   if (cli === 'claude-code') {
     // `claude -p` runs non-interactively. `--output-format stream-json
     // --verbose` emits one JSON object per line, including thinking /
@@ -173,7 +186,7 @@ export function buildArgs(
     // final answer from the terminal `result` line (extractClaudeCodeFinal).
     // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
     const args = ['-p', '--output-format', 'stream-json', '--verbose'];
-    if (model) args.push('--model', model);
+    if (effModel) args.push('--model', effModel);
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -191,7 +204,7 @@ export function buildArgs(
       '--json',
     ];
     if (outputPath) args.push('--output-last-message', outputPath);
-    if (model) args.push('--model', model);
+    if (effModel) args.push('--model', effModel);
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -202,7 +215,7 @@ export function buildArgs(
     // to stdout; `--model` overrides the model. (Gemini CLI, Groq Code
     // CLI, and Grok CLI all follow this convention.)
     const args = ['-p'];
-    if (model) args.push('--model', model);
+    if (effModel) args.push('--model', effModel);
     args.push(prompt);
     return { args, stdin: null };
   }

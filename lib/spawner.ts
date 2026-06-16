@@ -23,7 +23,7 @@ import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
 import { parseCodexTranscript, type StructuredTurn } from './spawner/codex-transcript.js';
-import { parseClaudeCodeTranscript, extractClaudeCodeFinal } from './spawner/cli-claude-code-transcript.js';
+import { parseClaudeCodeTranscript, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
 import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
 import { parseCloudflareTranscript } from './spawner/cloudflare-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
@@ -624,20 +624,53 @@ async function runCliTube(
   // structured JSONL: codex → `--json` (reasoning/command/message items),
   // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
   if (cli === 'codex') {
+    // Codex `--json` emits a terminal `turn.completed` carrying exact usage.
+    // The tube path previously dropped it (only the legacy runCodexCli parsed
+    // it), so every `cli:codex` spawn returned no tokens and fail-closed the
+    // exact-telemetry gate. Recover it here; estimate only when truly absent.
+    const cu = parseCodexUsage(result.rawStdout || result.output || '');
+    const codexExact = typeof cu.inputTokens === 'number' && cu.inputTokens > 0
+      && typeof cu.outputTokens === 'number' && cu.outputTokens > 0;
     return {
       output: result.output,                          // final message (from --output-last-message)
       error: result.error,
       transcript: parseCodexTranscript(result.rawStdout || ''),
+      ...(codexExact
+        ? {
+            inputTokens: cu.inputTokens,
+            outputTokens: cu.outputTokens,
+            ...(typeof cu.cachedInputTokens === 'number' ? { cachedInputTokens: cu.cachedInputTokens } : {}),
+          }
+        : {
+            inputTokens: estimateTokensFromText(spec.task),
+            outputTokens: estimateTokensFromText(result.output || ''),
+            estimatedTelemetry: true,
+          }),
     };
   }
   // claude-code: raw stdout is the stream-json; recover the final answer from
-  // the terminal `result` line (falling back to raw if absent), and parse the
-  // stream into thinking / tool / assistant turns.
+  // the terminal `result` line (falling back to raw if absent), parse the stream
+  // into thinking / tool / assistant turns, and recover the exact token usage the
+  // CLI reported on that same `result` line (previously dropped → fail-closed).
   const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
+  const ccu = extractClaudeCodeUsage(result.rawStdout || '');
+  const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
+    && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
   return {
     output: finalAnswer ?? result.output,
     error: result.error,
     transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+    ...(ccExact
+      ? {
+          inputTokens: ccu.inputTokens,
+          outputTokens: ccu.outputTokens,
+          ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
+        }
+      : {
+          inputTokens: estimateTokensFromText(spec.task),
+          outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
+          estimatedTelemetry: true,
+        }),
   };
 }
 
