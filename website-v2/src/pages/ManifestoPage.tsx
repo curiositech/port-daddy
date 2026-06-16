@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { ArrowLeft, FileText, ShieldCheck, BookOpen, Stamp } from 'lucide-react'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { Mermaid } from '@/components/ui/Mermaid'
+import { ScopeLadder } from '@/components/library/ScopeLadder'
 import { GiscusComments } from '@/components/blog/GiscusComments'
 import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
@@ -191,6 +192,30 @@ function CollisionDiagram() {
           </div>
           <Mermaid chart={FIX_DIAGRAM} />
         </div>
+      </div>
+    </section>
+  )
+}
+
+function ScopeSection() {
+  return (
+    <section aria-labelledby="scope-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+      <SectionEyebrow>The small idea and the big idea</SectionEyebrow>
+      <h2
+        id="scope-heading"
+        className="mt-[var(--space-3)] font-display text-[length:var(--text-2xl)] font-black leading-tight text-[var(--text-primary)]"
+      >
+        One tool, a widening scope
+      </h2>
+      <p className="mt-[var(--space-2)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+        The file race above is the small idea — keep one logbook inside one repo.
+        The big idea is what that same logbook becomes as the scope widens: the
+        whole machine made legible, fleets that co-work across the network, and a
+        market for agent labor. The left two work today; the right two are where
+        it is heading.
+      </p>
+      <div className="mt-[var(--space-6)]">
+        <ScopeLadder />
       </div>
     </section>
   )
@@ -500,6 +525,7 @@ export function ManifestoPage() {
         {/* Designed technical band: the diagram, the technology, the math, the
             papers. Placed after the prose so the markdown footnotes stay intact. */}
         <CollisionDiagram />
+        <ScopeSection />
         <TechnologySection />
         <MathSection />
         <PapersSection />

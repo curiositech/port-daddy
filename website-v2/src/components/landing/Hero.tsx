@@ -27,16 +27,16 @@ export function Hero() {
               eyebrow="For AI engineering teams"
               title={
                 <>
-                  A local control plane for{' '}
+                  A harbor-master for your{' '}
                   <span className="text-[var(--brand-primary)]">
                     coding agents.
                   </span>
                 </>
               }
-              description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
+              description="Run ten agents on one repo without losing track. Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local models a shared-state substrate — sessions, claims, notes, channels, readiness, budgets, and salvage records that outlive the terminal that created them."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[14ch]"
+              titleClassName="max-w-[15ch]"
               bodyClassName="max-w-[34rem]"
             />
 

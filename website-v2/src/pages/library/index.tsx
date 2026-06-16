@@ -3,6 +3,10 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { BadgeCheck, BookOpen, Compass, Download } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
+import { NestingDiagram } from '@/components/library/NestingDiagram'
+import { ReadingDag } from '@/components/library/ReadingDag'
+import { SpineChain } from '@/components/library/SpineChain'
+import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import {
   PageContainer,
   PanelBody,
@@ -385,6 +389,29 @@ export default function LibraryPage() {
                 </PanelBody>
               </div>
               <NestedLayerMap onSelect={openChapter} />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── ADR-0048 figures — the architecture, drawn (PR #312) ── */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]">
+          <PageContainer width="wide">
+            <div className="space-y-[var(--space-3)]">
+              <PanelEyebrow>The architecture, drawn</PanelEyebrow>
+              <PanelTitle as="h2" size="section" className="max-w-[18ch]">
+                Four layers, seven chapters, one bond ledger.
+              </PanelTitle>
+              <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                The same shape from four angles — the nested layers (L0&ndash;L3), the spine that threads the
+                seven chapters, the reading order as a dependency graph, and Chapter IV&rsquo;s three-sided market
+                settling into one conserving bond ledger.
+              </PanelBody>
+            </div>
+            <div className="mt-[var(--space-5)] grid gap-[var(--space-6)]">
+              <NestingDiagram />
+              <SpineChain />
+              <ReadingDag />
+              <ThreeSidedMarket />
             </div>
           </PageContainer>
         </section>

@@ -19,15 +19,28 @@ real coordination problem. They have 90 seconds before they bounce. Every
 sentence on the site has to earn its place by either (a) showing them their
 problem solved or (b) getting out of the way so the next sentence can.
 
+**This site does double duty: it sells the tool AND it is Erich's portfolio.**
+An engineering manager evaluating him as a hire will read these pages. So the
+copy carries two jobs at once — convert the developer, and impress the EM. The
+EM is reading for taste, judgment, and rigor: does this person write with
+precision, sequence an argument, admit what isn't built yet, and avoid filler?
+Every page should read like it was written by the strongest engineer the EM has
+interviewed this year. Suave, specific, unpadded, a little dangerous. Never
+padded, never hedged, never AI-shaped (see § Anti-AI-tells — non-negotiable).
+
 ## The reader
 
-Senior engineers, indie devs, and tech leads who:
+Two readers, one page:
 
-- Run AI coding agents (Claude Code, Cursor, Codex, Aider, fleets of them).
-- Already lost work to a `git reset --hard` collision, or have been told it
-  could happen.
-- Are skeptical of new tools but pragmatic about adopting ones that work.
-- Read code-as-doc. They will check `git log` before they trust a tagline.
+- **The developer** — senior engineers, indie devs, tech leads who run AI coding
+  agents (Claude Code, Cursor, Codex, Aider, fleets of them); have lost work to a
+  `git reset --hard` collision or been warned they will; skeptical of new tools,
+  pragmatic about adopting ones that work; read code-as-doc and check `git log`
+  before trusting a tagline.
+- **The hiring manager** — reading the same words to judge the author. They notice
+  an honest "not built yet," a precise ETA, a named trade-off, a sentence that
+  couldn't have come from a model. Win the developer and you win the EM; the
+  qualities that convert are the same qualities that impress.
 
 Write for them. Not for Curiositech, not for the agent generating the page,
 not for an investor deck.
@@ -115,6 +128,58 @@ specific defensible reason:
 - "It's that simple" — it usually isn't, and saying so is condescending.
 - Exclamation points outside of code blocks. The design carries emphasis;
   punctuation doesn't have to.
+
+## Anti-AI-tells (the hiring-surface bar)
+
+This site is a portfolio. An engineering manager will read it and form a view of
+the person who built it. Copy that pattern-matches to a language model says *the
+author didn't care enough to write it themselves* — the worst possible signal.
+Every one of these is a tell a sharp reader clocks in under a second. None of
+them ship.
+
+**1. The decorative rule-of-three.** A trailing triad of nouns under a heading
+(`claims · sessions · locks`), or the `"No X. No Y. Just Z."` cadence, or any
+three-parallel-clause flourish there for rhythm instead of meaning. This is the
+single most common tell. Two real specifics or five real specifics are fine; a
+*decorative three* is the giveaway. If three things are genuinely what the reader
+needs, keep them — but break the surrounding rhythm so the page doesn't
+templatize. (Erich caught this one directly: "reads as AI trope.")
+
+**2. The antithesis reflex.** "Not just a tool, but a platform." "It's not X,
+it's Y." Delete on sight.
+
+**3. More than one adjective on a noun.** "A powerful, comprehensive, seamless
+CLI." Cut to one adjective or zero. A number or a file path does more work than
+any adjective: "40 commands," not "comprehensive."
+
+**4. Buzzword verbs:** delve, leverage, foster, ignite, empower, unleash, unlock,
+underscore, streamline, harness, demystify, navigate, elevate, supercharge,
+revolutionize, transform. Say the literal verb instead — claims, holds, refuses,
+records, routes.
+
+**5. Dead metaphors:** tapestry, landscape, beacon, realm, symphony, journey,
+"navigate the complexities of," "the [X] landscape." `roadmap` only as the
+literal product noun, never as metaphor.
+
+**6. Transitional fluff:** furthermore, moreover, additionally, "it's worth
+noting," "in conclusion," "at the end of the day," "the bottom line."
+
+**7. Hedge-aspiration:** "aims to," "designed to," "seeks to." Sounds unsure.
+State what it does.
+
+**8. Vague-future mood words for time.** "horizon," "on the horizon," "soon,"
+"in the future," "coming soon." **Give an ETA or a build-state, never a mood.**
+Shipped / in progress / specified-not-built / Q3 2026. A reader evaluating you
+trusts a date and distrusts a vibe. (Erich: "Give ETAs, not horizon.")
+
+**9. Low burstiness.** Paragraphs shaped like perfect rectangles — every sentence
+15–20 words, all subject-verb-object. Vary the length on purpose. A long
+explanatory sentence, then a three-word punch. Six even sentences in a row is a
+model writing; the unevenness is what reads as a person.
+
+**Detection before commit:** grep the diff for the buzzword lists above and for
+` · ` triads sitting under headings. Any decorative triad or buzzword on a
+marketing surface is a defect, same as a contrast failure or a tiny font.
 
 ## The seven rewriting moves
 
