@@ -335,6 +335,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     commitments: ['commit', 'obligations'],
     secrets: ['secret', 'secrets'],
     quorum: ['quorum'],
+    parley: ['parley'],
     feedback: ['feedback'],
     bonds: ['bond'],
     wallets: ['wallet'],

@@ -1,206 +1,285 @@
-# 0055. Parley — Forced Reconciliation (Wave Collapse) for Overlapping Agents
+# 0055. Parley - Forced Reconciliation And Swarm Coordination Receipts
 
 ## Status
 
-Proposed — 2026-06-12
+Accepted for Phase 0 - 2026-06-15
 
 Numbering note: 0051 is claimed by PR #316 (marketplace protocol), 0053 by
-PR #366 (out-of-band enforcement), 0054 by PR #368 (release cadence). 0055 is
-the lowest free number at time of writing.
+PR #366 (out-of-band enforcement), and 0054 by PR #368 (release cadence). 0055
+is the lowest free number at time of writing.
 
 ## Context
 
-The operator's ask, verbatim (2026-06-12):
+The operator's June 12 parley ask was direct:
 
 > I want a real parley. I want agents working on similar things to be forced
 > to message or subscribe to a chat or SOMETHING. Or maybe when unspider sees
 > redundancy or contradiction, we force them to parley to reconcile a single
 > outcome? Wave collapse?
 
-This is the *enforcement* half of the suggestibility programme. The detection
-half is already designed: the **Spider** (ADR-0031 — *the cartographer's
-surface→feature crawler*), the **unSpider** (ADR-0032 — *the
-contradiction-finder that walks the same index looking for claims that cannot
-all be true*), and the **suggestibility layer** (ADR-0039 — *a periodic
-topical classifier that notices two live agents working the same surface and
-proposes a group chat*). All three are unimplemented. ADR-0039 is explicitly
-*coaching*: it proposes, it never compels. The operator is now asking for the
-stronger thing — when the substrate sees redundancy or contradiction between
-live agents, conversation stops being optional.
+The June 15 follow-up raised the broader coordination problem: Port Daddy has
+many primitives, but a tool cannot claim serious swarm coordination while
+overlap detection, reconciliation, roadmap truth, skill selection, and incentive
+design remain foreign to the product.
 
-What we can build this from today, all shipped:
+The shipped substrate is strong enough to build on:
 
-| Primitive | Where | Role in a parley |
+| Primitive | Source | Role in parley |
 |---|---|---|
-| Actor inbox + attention | `lib/agent-inbox.ts`, `lib/attention.ts` | Delivering the summons |
-| Tube channels | `lib/tube.ts` | The parley venue |
-| Performative envelope | `lib/ipc-types.ts`, `lib/ipc-frame.ts` (ADR-0047) | Typed `propose`/`agree`/`refuse` turns |
-| File claims + claim-watcher | `lib/sessions.ts`, `lib/claim-watcher.ts` | The shipped overlap signal (trigger v1) |
-| Arbiter | `lib/arbiter.ts` (ADR-0045) | Making "ship the contested surface" unreachable |
-| Coast Guard rent | `lib/coast-guard/compulsion.ts` (ADR-0050 ph7) | Pricing silence: ghost the parley, lose the sandbox |
-| Durable commitments + monitor | `lib/commitments.ts`, `lib/obligation-monitor.ts` (ADR-0041) | Recording the collapsed outcome and watching adoption |
+| **Port Daddy sessions** | `lib/sessions.ts` | Durable agent work records, active ownership, file claims, and notes. |
+| **Actor inbox and attention** | `lib/agent-inbox.ts`, `lib/attention.ts` | Durable summons delivery. |
+| **Tube channels** | `lib/tube.ts` | Shared parley venue. |
+| **Performative envelope** | `lib/ipc-types.ts`, `lib/ipc-frame.ts` | Typed `propose`, `agree`, `refuse`, and `inform` turns. |
+| **File claims and claim watcher** | `lib/sessions.ts`, `lib/claim-watcher.ts` | The shipped overlap signal for trigger v1. |
+| **Tuple space** | `lib/tuples.ts` | Linda-style shared coordination facts for parley records. |
+| **Arbiter** | `lib/arbiter.ts` | Making "ship the contested surface" unreachable once freeze is wired. |
+| **Coast Guard rent** | `lib/coast-guard/compulsion.ts` | Pricing silence and abandoned obligations. |
+| **Durable commitments** | `lib/commitments.ts`, `lib/obligation-monitor.ts` | Recording collapsed outcomes and watching adoption. |
+| **roadmap_items** | `lib/roadmap-items.ts` | Durable roadmap truth; markdown is only a projection. |
+| **Coordination Guard** | `cli/commands/guard.ts` | Commit-time enforcement for session, claim, note, and roadmap-receipt discipline. |
 
-The gap is purely compositional: nothing today *forces convergence* when two
-live agents hold divergent intents over one surface. Claims are advisory.
-Suggestions (where they exist at all) are dismissible — and the one shipped
-suggestion surface, `fleet_suggestions` (PR #322, `lib/transcripts.ts`, drained
-by `pd suggest`), is a **Tender→operator** queue about *ship health*, not an
-**agent↔agent** channel about *contested work*. Parley needs its own table and
-its own state (`lib/parley.ts`); it is not an extension of `fleet_suggestions`.
-The two never share a row, though a future Tender could *raise* a parley the
-same way a detector does (trigger T2). The known failure is 2026-05-19:
-three agents on the same dispatch-coordination surface discovered each other
-by accident, after the duplicate work was done.
+The gap was compositional: nothing forced convergence when two live agents held
+divergent intents over one scarce surface. Claims were advisory. Suggestions
+were dismissible. Chat memory was not a durable protocol.
 
-### The wave-collapse framing, taken seriously
+First-use external terms:
 
-Two agents claiming one surface is a **superposition**: the repo holds two
-incompatible futures at once. That is fine — and often *desirable* (parallel
-prototyping is a stated project value) — right up until one of them tries to
-**publish**. Publication is the measurement. The design rule that falls out:
-
-**Divergence is free. Publication requires collapse.** We never block agents
-from *thinking* differently on the same surface; we block the contested
-surface from *landing* until the parties have reconciled to a single recorded
-outcome.
+- **FIPA ACL** (Foundation for Intelligent Physical Agents, 2002; Bellifemine,
+  Caire, and Greenwood, 2007) is a performative vocabulary for agent messages
+  such as `propose`, `inform`, `agree`, and `refuse`.
+- **Contract Net** (Smith, 1980) is a classic multi-agent task-allocation
+  protocol: announce a task, collect bids, award work.
+- **Goodhart's law** (Goodhart, 1975) is the warning that a metric becomes
+  unreliable once optimized directly.
+- **Agent Skills** ([Agent Skills specification, 2026](https://agentskills.io/specification);
+  Anthropic, 2025) are portable folders containing `SKILL.md` plus optional
+  scripts, references, assets, and templates that an agent loads on demand.
+- **Progressive disclosure** ([Agent Skills overview, 2026](https://agentskills.io/))
+  is the loading discipline where the agent first sees only skill metadata,
+  then the full `SKILL.md`, then referenced resources only when needed.
+- **Semantic supply-chain risk** ([Saha, Faghih, and Feizi, 2026](https://arxiv.org/abs/2605.11418))
+  is the risk that natural-language skill metadata and instructions manipulate
+  discovery, selection, governance, or execution.
 
 ## Decision
 
-A **parley** is a typed, terminating, enforced dialogue between the live
-sessions whose intents conflict over a named surface. It composes the shipped
-primitives above and adds one new module.
+Port Daddy adopts **parley** (`lib/parley.ts`) as the Phase-0 forced
+reconciliation primitive. A parley is a tuple-backed, terminating dialogue over
+a contested surface.
+
+```text
+trigger -> SUMMONED -> CONVENED -> COLLAPSED
+              |            |
+              |            +-> ESCALATED
+              +--------------> VOIDED
+```
+
+The rule is:
+
+**Divergence is cheap. Publication requires collapse.**
+
+Read-only councils, skeptical reviewers, and exploratory labs may disagree. But
+once live intents touch the same scarce surface, the system must leave a parley
+record or a roadmap receipt instead of relying on transcript memory.
+
+### Phase-0 Implementation
+
+Phase 0 intentionally ships a small, honest core:
+
+- `lib/swarm-coordination.ts` provides pure `evaluateSwarmFit()` and
+  `tallyCouncilVotes()` reducers so swarm admission can be tested without the
+  daemon.
+- `lib/parley.ts` records parleys in tuple space with `parley:opened`,
+  `parley:summons`, `parley:turn`, and `parley:outcome` tuples.
+- `routes/parley.ts` exposes `POST /parley/call`,
+  `POST /parley/respond`, `POST /parley/resolve`, `GET /parley`, and
+  `GET /parley/:id`.
+- `cli/commands/parley.ts` exposes `pd parley fit`, `call`, `respond`,
+  `resolve`, `list`, and `show`.
+- `cli/commands/roadmap.ts` adds `pd roadmap upsert` and `pd roadmap touch`,
+  because a requirement that cannot be satisfied from the CLI is theater.
+- `routes/roadmap.ts` accepts structured roadmap receipt notes so the daemon,
+  not a markdown file, can be the source of truth.
+- `cli/commands/guard.ts` treats coordination architecture changes as
+  roadmap-bound: a commit touching parley, roadmap, ADR, research, skill, or
+  coordination-manifest surfaces requires a recent `roadmap_items` receipt from
+  the active agent.
 
 ### Lifecycle
 
+1. **Trigger.** Pluggable sources, ordered by what can ship first:
+   - T0 operator: `pd parley call --surface <path|symbol> --with <session...> --reason <text>`.
+   - T1 claim overlap: `lib/claim-watcher.ts` observes two active sessions
+     claiming intersecting file regions, then auto-summons with debounce,
+     dedupe by `(surface, party-set)`, and cooldown.
+   - T2 detectors: contradiction and topical-match detectors emit the same
+     trigger event with evidence attached.
+
+2. **Summons.** The daemon creates the parley row, a dedicated channel
+   `parley:<id>`, and an inbox summons for each party. `pd attention` surfaces
+   it. A summons is not a suggestion; from that moment the party owes a
+   response.
+
+3. **Freeze.** While a parley on surface `S` is open, the future Arbiter and
+   guard integration hold this predicate: no party may publish work touching
+   `S`. Phase 0 records the protocol object and roadmap receipt. Phase 1 wires
+   the commit-time freeze.
+
+4. **Dialogue.** Turns carry FIPA-style performatives. Each party proposes an
+   intended outcome, can critique or revise during a bounded round budget, and
+   must end in `agree` or `refuse`.
+
+5. **Collapse.** Unanimous `agree` among live parties writes a durable
+   commitment: winning intent, superseded intents, party obligations, and
+   deadline. The future obligation monitor watches adoption.
+
+6. **Non-happy paths.** Silence past TTL becomes rent arrears, round exhaustion
+   or refusal escalates with transcript, and dead sessions void into salvage.
+   Every parley terminates in one of `COLLAPSED`, `ESCALATED`, or `VOIDED`.
+
+### Why "Forced" Is Not Theater
+
+The enforcement stack has three teeth:
+
+1. Attention: the summons appears in the session's attention surface.
+2. Freeze: the contested surface cannot be published while the parley is open.
+   In-band guard checks are advisory until the same predicate is evaluated by
+   the out-of-band push broker from ADR-0053.
+3. Rent: silence is priced through Coast Guard consequences, so ghosting the
+   parley costs the sandbox even if an agent tries to bypass an in-process
+   check.
+
+This is the mechanism-design posture Port Daddy should use elsewhere: make the
+cooperative path cheaper than the dark lane.
+
+## Roadmap Discipline
+
+The roadmap is durable state, not a wish list. A coordination change that adds a
+new protocol, guard, agent handoff behavior, skill surface, or release boundary
+must update `roadmap_items`. `docs/ROADMAP.md` may render or explain that state,
+but it is not the authoritative queue.
+
+The live Phase-0 roadmap row is `swarm-coordination-parley`. Future phases use
+these slugs:
+
+| Phase | Roadmap slug | Status | Description |
+|---|---|---|---|
+| 0 | `swarm-coordination-parley` | now | Fit gate, council tally, tuple-backed parley, CLI/API, manifest/completions, and guard-enforced roadmap receipts. |
+| 1 | `parley-surface-freeze` | backlog | Guard refuses party commits on a contested surface while an open parley exists. |
+| 2 | `parley-rent-integration` | backlog | Silence past parley TTL becomes Coast Guard rent arrears. |
+| 3 | `parley-claim-overlap-trigger` | backlog | Claim overlap auto-summons a parley with debounce and cooldown. |
+| 4 | `parley-collapse-commitments` | backlog | A collapsed parley writes durable per-party commitments and unblocks only after commitment creation. |
+| 5 | `parley-detector-triggers` | backlog | Contradiction and topical detectors emit parley triggers with their finding attached. |
+
+## WinDAGs Skill Graft
+
+Each phase carries a WinDAGs skill graft. Before opening implementation work for
+that phase, the agent must load the named skill files or call
+`windags_skill_graft` for the phase task, then apply the phase gates below.
+
+| Phase | Primary graft | Support graft | Required output |
+|---|---|---|---|
+| 0 | `multi-agent-coordination` | `build-verification-expert` | Fit/tally/parley tests, route/CLI tests, typecheck, parity/build checks, and a `roadmap_items` receipt. |
+| 1 | `dag-scope-enforcer` | `multi-agent-coordination` | Guard tests for exact path, absolute path, symlink, symbol/region, non-party, collapsed parley, and stale parley cases. |
+| 2 | `normative-bdi-agents` | `dag-scope-enforcer` | Rent/arrears tests showing TTL expiry creates a measurable breach and refusal/escalation terminates the debt. |
+| 3 | `multi-agent-coordination` | `dag-parallel-executor` | Claim-overlap trigger tests covering no-overlap, exact overlap, region overlap, duplicate claims, cooldown, and abandoned-session cleanup. |
+| 4 | `normative-bdi-agents` | `dag-feedback-synthesizer` | Commitment rows per party, obligation-monitor coverage, adoption breach events, and transcript-to-commitment traceability. |
+| 5 | `agentic-skill-discovery` | `dag-feedback-synthesizer` | Detector evidence schema, false-positive evaluation, confidence thresholds, and operator-visible feedback for rejected triggers. |
+
+## Incentive And Mechanism Graft
+
+The game-theory and mechanism-design skills add constraints that parley cannot
+skip:
+
+- `game-theoretic-agent-incentives`: advisory claims are cheap talk in a
+  one-shot game. Truthful claims need observable history, persistent identity,
+  correlated daemon recommendations, or credible sanctions.
+- `mechanism-design-for-agent-labor`: reputation is a discount on collateral,
+  not a substitute for it. For high-risk coordination, bonds, rent, or escrow
+  must be priced by scope, duration, criticality, and agent history.
+- `nisan-et-al-2007-algorithmic-game-theory` and
+  `shoham-leyton-brown-2009-mas-foundations`: existence of an equilibrium is
+  not enough; Port Daddy needs computable mechanisms and explicit impossibility
+  trade-offs.
+- `ostrom-commons-governance`: sanctions must be graduated, conflict
+  resolution must be cheap, and local project rules should nest inside global
+  Port Daddy rules.
+
+## Skill Evolution Check
+
+The June 15, 2026 ecosystem check changes the graft design:
+
+- Anthropic's engineering writeup defines skills as folders of instructions,
+  scripts, and resources, with progressive disclosure from metadata to
+  `SKILL.md` to referenced files, and notes that code can be bundled for
+  deterministic operations ([Anthropic, 2025](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)).
+- The open Agent Skills spec standardizes `SKILL.md`, optional `scripts/`,
+  `references/`, and `assets/`, recommends keeping core instructions small, and
+  says clients may expose project, user, organization, and built-in scopes
+  ([Agent Skills spec](https://agentskills.io/specification);
+  [client implementation guide](https://agentskills.io/client-implementation/adding-skills-support)).
+- **Skilldex** ([Saha and Hemanth, 2026](https://arxiv.org/abs/2604.16911))
+  adds package-manager semantics: hierarchical scopes, conformance scoring, a
+  metadata registry, and skillsets that bundle related skills.
+- **SkillOps** ([Pu, Song, and Zhao, 2026](https://arxiv.org/abs/2605.13716))
+  treats skill libraries as maintained ecosystems with typed skill contracts and
+  a hierarchical skill graph.
+- **SkCC** ([Ouyang et al., 2026](https://arxiv.org/abs/2605.03353)) compiles
+  skills through a typed intermediate representation so the same skill
+  semantics can target different agent frameworks and enforce security checks.
+- Skill-security research shows `SKILL.md` is operational text, not passive
+  documentation: metadata-only attacks can manipulate discovery, selection, and
+  governance ([Saha, Faghih, and Feizi, 2026](https://arxiv.org/abs/2605.11418)).
+- Skill-comprehension research argues specs should expose operational basis,
+  output contract, boundary disclosure, and examples ([Wen, 2026](https://arxiv.org/abs/2605.19362)).
+
+Therefore Port Daddy should assume skills are a software supply chain:
+discoverable, scoped, versioned, bundled, validated, compiled, and attacked.
+
+`windags_skill_graft` keeps its existing job: attach existing WinDAGs skills to
+a task, node, or implementation phase.
+
+Port Daddy names a new proposed tool, **`windags_skill_induct`**, for the
+different job: discover global skills, user skills, organization/shared
+bundles, and repo-local skills, then produce provenance-preserving WinDAGs skill
+cards and a curated activation plan.
+
+The target pipeline is:
+
+```text
+prompt
+  -> meta-skill/router
+  -> candidate skills
+  -> selected skills
+  -> selected references/scripts/templates/assets
+  -> bounded excerpts or full resources
+  -> execution with unloaded-resource ledger
 ```
-trigger ──> SUMMONED ──all parties respond──> CONVENED ──unanimous agree──> COLLAPSED
-               │                                  │
-               │ TTL expiry / party dead          │ round budget / TTL exhausted
-               ▼                                  ▼
-            VOIDED (salvage path)             ESCALATED (operator attention queue)
-```
 
-1. **Trigger.** Pluggable sources, ordered by what ships today:
-   - **T0 — operator:** `pd parley call --surface <path|symbol> --with <session...> --reason <text>`.
-   - **T1 — claim overlap:** `lib/claim-watcher.ts` observes two active
-     sessions claiming intersecting file regions → auto-summon (debounced,
-     deduped by `(surface, party-set)`, with a cooldown so re-claims don't
-     re-summon).
-   - **T2 — detectors (later):** unSpider contradiction findings (ADR-0032)
-     and suggestibility topical matches (ADR-0039) emit the same trigger
-     event. The parley is the *consumer* those ADRs were missing.
+`windags_skill_induct` should enrich inducted skills with invocation criteria,
+NOT-for boundaries, IO contracts, resource indexes, provenance, trust tier,
+compatibility metadata, eval prompts, security notes, compact presentation
+digests, and per-reference excerpt budgets.
 
-2. **Summons.** The daemon creates the parley row and a dedicated tube
-   channel `parley:<id>`, force-subscribes each party, and posts a summons to
-   each party's inbox. `pd attention` (already wired into SessionStart)
-   surfaces it. A summons is not a suggestion: from this moment the party is
-   **in arrears** with the Coast Guard rent evaluator until it responds.
+The core data model is:
 
-3. **Freeze (the superposition lock).** While a parley on surface *S* is
-   open, the Arbiter holds an invariant: **no party may land a commit
-   touching *S***. Checked where note-per-commit already is — the
-   Coordination Guard at commit time. The refusal message points to the
-   parley channel and nothing else (per the no-advertised-bypass rule,
-   `feedback_guardrails_never_advertise_bypass`). The freeze is scoped to
-   *S* and to the parties — the rest of their work, and the rest of the
-   fleet, is untouched.
+- **RawSkillArtifact**: immutable source evidence, digest, license, owner,
+  path/URI, and trust tier.
+- **SkillCard**: normalized activation rules, IO contracts, resource indexes,
+  provenance, evals, security notes, and parent/child meta-skill edges.
+- **ActivationPlan**: the current task's selected skills, selected resources,
+  excerpt budgets, missing contracts, unloaded resources, and near-miss
+  exclusions.
 
-   **Honest scope of the freeze.** The commit-time guard is *in-band* —
-   inside the agent's own process — and ADR-0053 (out-of-band enforcement,
-   PR #366) is explicit that in-band enforcement is **advisory by
-   construction**: a determined agent escapes it with `PD_SHIM_OFF=1`, an
-   absolute `/usr/bin/git` path, or a direct libgit2 write. So the in-band
-   freeze stops a *cooperative* agent today; it does not bind a malicious
-   one. The freeze becomes structurally unbypassable only when the same
-   `(open parley on S) ⇒ refuse commit on S` predicate is also evaluated
-   **out-of-band at the push-broker** (ADR-0053's branch-protection +
-   App-push-broker layer). Parley's freeze is therefore specified as one
-   predicate checked in *both* places — degrading gracefully to advisory
-   in-band until #366 lands, and inheriting real teeth the moment it does.
-   The tooth that bites a bypasser *today* is rent (point 6 / the rent
-   tooth below), not freeze.
+## Alternatives Considered
 
-4. **The dialogue.** Turns on `parley:<id>` carry ADR-0047 performatives
-   (**FIPA ACL** — *the standard performative vocabulary: `propose`,
-   `agree`, `refuse`, `cfp`, `failure`, `cancel`*; Bellifemine et al. 2007).
-   Minimal protocol, deliberately smaller than Contract Net (**Smith 1980** —
-   *announce → bid → award*), because the task is reconciliation, not
-   dispatch:
-   - Each party must `propose` its intended outcome within the response TTL.
-   - Bounded critique/revise rounds (default 3).
-   - **Termination is unanimous `agree` among live parties** on exactly one
-     proposal. Majority voting is wrong here: the outcome must be *adopted*
-     by every party, and an outvoted agent that doesn't believe the outcome
-     will Goodhart it. A party that cannot agree says `refuse` with reasons —
-     which fast-forwards to escalation, never to deadlock.
-
-5. **Collapse.** The agreed outcome is written as a **durable commitment**
-   (ADR-0041, `lib/commitments.ts`): the winning intent, the superseded
-   intents, the per-party obligations (rebase onto the winner / down-scope a
-   claim / abandon a branch — *demote, never delete*, per
-   `feedback_never_delete_demote_instead`), and a deadline.
-   `lib/obligation-monitor.ts` watches adoption. The Arbiter lifts the freeze
-   on *S* only once the commitment exists. Every turn was already an
-   immutable note — the parley is its own audit log.
-
-6. **Non-happy paths, all terminating:**
-   - **Silence** past the response TTL → rent breach → the standard ADR-0050
-     ph7 consequence chain (blocked commits, then reclaim eligibility). You
-     cannot ghost a parley and keep the sandbox.
-   - **Round/time budget exhausted or `refuse`** → **ESCALATED**: lands in
-     the operator Attention Queue (ADR-0046) with the full transcript and
-     each side's last proposal. Human collapses the wave. The freeze holds.
-   - **Party dies** (session TTL, salvage) → **VOIDED**: surviving party is
-     released, the dead party's intent enters the normal salvage path.
-
-   This satisfies ADR-0047's own demand: termination logic, not hope. Every
-   parley provably ends in one of {COLLAPSED, ESCALATED, VOIDED}.
-
-### Why "forced" is real and not theater
-
-Three escalating teeth, each already shipped as a mechanism — ordered by how
-hard they are to escape:
-
-1. **Attention** — the summons is in your SessionStart surface (you saw it).
-   Notice, not enforcement.
-2. **Freeze** — the contested surface will not land while the parley is open.
-   *In-band today = advisory* (a cooperative agent stops; a bypasser doesn't,
-   per ADR-0053); *unbypassable once the same predicate is checked out-of-band
-   at the push-broker* (#366).
-3. **Rent** — silence is priced; ghosting the parley costs the Coast Guard
-   sandbox. This is the tooth that binds even an agent who bypasses the
-   freeze, because the sandbox is granted at the OS layer (ADR-0050 ph0,
-   Seatbelt/Landlock) and rent is verified at discharge time outside the
-   agent's process (the discharge-macaroon protocol on `enforcement:dom-daddy`).
-   You can outrun an in-band check; you cannot outrun losing the box you run in.
-
-This is the same mechanism-design posture as ADR-0050 phase 7: don't ask
-nicely, price the dark lane. The Nash-equilibrium move becomes *talk* — and
-crucially it holds even against a non-cooperative agent, because the binding
-tooth (rent) lives below the agent, not inside it.
-
-## Considered Options
-
-- **A. Advisory suggestions only** (ADR-0039 as written). Rejected as the
-  *complete* answer: coaching has no teeth; the 2026-05-19 triple-overlap
-  happened with all of today's advisory surfaces theoretically available.
-  ADR-0039 remains valuable as a *trigger source* (T2).
-- **B. Hard exclusion** — first claim wins, later claimants blocked outright.
-  Rejected: kills parallel prototyping (a stated project value), and is
-  simply wrong for *contradictions*, where neither side should silently win.
-- **C. (chosen) Parley** — divergence stays free; publication requires
-  collapse; the conversation is summoned, typed, bounded, and priced.
-
-## Implementation Matrix (the build DAG)
-
-| Phase | Roadmap slug | Status | Depends on | Description |
-|-------|--------------|--------|------------|-------------|
-| 0 | adr-0055-phase-0-parley-core | now | — | `lib/parley.ts` (table + state machine SUMMONED→CONVENED→COLLAPSED\|ESCALATED\|VOIDED), `routes/parley.ts`, `pd parley call/list/show/respond/resolve`, tube channel + inbox summons, manual trigger (T0). **Done when:** the operator can summon two live sessions and the parley reaches a recorded terminal state, end to end, with tests under the real runtime (bun:sqlite). |
-| 1 | adr-0055-phase-1-surface-freeze | next | 0 | Arbiter invariant + Coordination Guard check: an open parley on *S* refuses party commits touching *S*, refusal copy points only at the parley channel. In-band only at this phase (advisory per ADR-0053); the out-of-band push-broker check is folded in when ADR-0053/#366 lands. **Done when:** a party's commit on the contested path is blocked with a summons pointer, and lifts on collapse. |
-| 2 | adr-0055-phase-2-rent-integration | next | 0 | `compulsion.ts` rent component: summons unanswered past TTL = arrears → the existing consequence chain. **Done when:** ghosting a parley measurably costs the sandbox in a CI-wired test. |
-| 3 | adr-0055-phase-3-claim-overlap-trigger | — | 0 | T1: claim-watcher auto-summons on intersecting claims, with debounce/dedup/cooldown. **Done when:** two sessions claiming the same file get summoned with zero operator action, and re-claims do not spam. |
-| 4 | adr-0055-phase-4-collapse-commitments | — | 0 | Outcome → ADR-0041 commitment with per-party obligations + deadlines, obligation-monitor watching adoption; Arbiter unfreeze keyed on commitment existence. **Done when:** a collapsed parley leaves a monitored commitment and an un-adopted obligation surfaces as a breach. |
-| 5 | adr-0055-phase-5-detector-triggers | backlog | 3, ADR-0032, ADR-0039 | T2: unSpider contradictions and topical-classifier matches emit parley triggers through the same pipeline. **Done when:** a detected contradiction between two live sessions opens a parley with the finding attached as the opening exhibit. |
+- Advisory suggestions only. Rejected as incomplete: useful for nudging, but
+  not enough when two agents can land incompatible futures.
+- First-claim-wins exclusion. Rejected because it kills useful parallel
+  thinking and makes the first claimant accidentally authoritative.
+- Majority vote. Rejected for contested implementation surfaces. A losing writer
+  still has to adopt the outcome; unresolved refusal must escalate instead of
+  being outvoted.
 
 ## Consequences
 
@@ -208,6 +287,20 @@ tooth (rent) lives below the agent, not inside it.
   defined, enforced downstream instead of a dismissible toast.
 - ADR-0047 gets its first end-to-end *protocol pattern* in production: a
   bounded, typed dialogue with real termination.
+- Port Daddy coordination is no longer only notes plus claims. It has a first
+  protocol object for overlap reconciliation.
+- The first implementation does not yet freeze commits on contested surfaces.
+  That is a later guard integration once open-parley surface matching is wired.
+- Roadmap discipline is enforceable through the daemon and guard. A stale
+  installed daemon that cannot persist receipts is now visible as a product
+  fault, not an excuse to skip the roadmap.
+- Meta-skills are allowed as category routers, not as junk drawers. A meta-skill
+  must produce bounded candidate sets, confidence, redirects, missing-capability
+  gaps, and the next resources to load.
+- A WinDAGs graft used in another repo may call `windags_skill_induct` before
+  selection, but induction is not grafting. Induction imports and normalizes
+  candidate skill artifacts; grafting selects and applies already-normalized
+  skills.
 - The freeze adds a new way for a commit to be refused. Scoping it to
   (surface × parties × open parley) keeps the blast radius minimal, but the
   guard copy must be excellent — a confused agent in a frozen lane is the

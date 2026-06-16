@@ -88,6 +88,7 @@ import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
+import { createParley } from './lib/parley.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
@@ -164,7 +165,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.18.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.19.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -451,6 +452,7 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
     signal: (message as any).signal || 'report'
   });
 });
+const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -1063,7 +1065,7 @@ await registerAllRoutes(
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
-    quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,

@@ -241,6 +241,7 @@ run_read "changelog"         changelog    -- changelog
 run_read "shipwright (usage)" shipwright  -- shipwright
 run_read "pheromone list"    pheromone    -- pheromone list
 run_read "quorum list"       quorum       -- quorum list
+run_read "parley list"       parley       -- parley list
 run_read "obligations"       obligations  -- obligations
 run_read "who-owns"          who-owns     -- who-owns README.md
 run_read "guard status"      guard        -- guard status

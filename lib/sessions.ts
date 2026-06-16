@@ -530,6 +530,9 @@ export function createSessions(
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC
     `),
+    countActiveFilesBySession: db.prepare(`
+      SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL
+    `),
     getRecentNotes: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
@@ -649,6 +652,8 @@ export function createSessions(
   }
 
   function formatSession(row: SessionRow) {
+    const fileCount = (stmts.countActiveFilesBySession.get(row.id) as { count: number }).count;
+    const noteCount = (stmts.countNotesBySession.get(row.id) as { count: number }).count;
     return {
       id: row.id,
       purpose: row.purpose,
@@ -657,6 +662,8 @@ export function createSessions(
       agentId: row.agent_id,
       worktreeId: row.worktree_id,
       identityProject: row.identity_project,
+      fileCount,
+      noteCount,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
