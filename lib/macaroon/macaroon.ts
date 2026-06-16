@@ -26,7 +26,10 @@
  * ships (HMAC-commitment vid + discharge macaroon + request-binding) is machine-checked
  * in `analyses/macaroon_discharge_v1.pv`: Q1 (no authorization without a daemon-issued
  * discharge bound to that grant) is `true` under an active attacker. The per-hop-vs-
- * naive regression for macaroons (Q2) is the named residual gap.
+ * naive regression (Q2) is in `analyses/macaroon_discharge_v2_naive_unsound.pv`: the
+ * naive verifier (skips the binding check) is `false` (attack found) under cross-grant
+ * replay — justifying this per-hop binding. Residual gap: first-party caveat soundness
+ * + MAX_DISCHARGE_DEPTH.
  *
  * Crypto primitives are Node's built-in `node:crypto` HMAC-SHA256 only.
  *

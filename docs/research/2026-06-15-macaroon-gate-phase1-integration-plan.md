@@ -19,8 +19,9 @@ The gate is being built bottom-up. Two layers are done:
    `analyses/macaroon_discharge_v1.pv` (**ProVerif** — an automated cryptographic-
    protocol verifier — Q1 `true`); the analogous "naive final-vs-root is unsound"
    result on the Ed25519 *card* construction lives on
-   `defense/anchor-attenuation-soundness`. (Residual gap: the per-hop-vs-naive
-   regression for the macaroon chain, Q2, is not yet mechanized.) 46 tests.
+   `defense/anchor-attenuation-soundness`. The per-hop-vs-naive regression (Q2) is
+   `analyses/macaroon_discharge_v2_naive_unsound.pv` (the naive verifier is unsound
+   under cross-grant replay). 46 tests.
 
 2. **The daemon-side store** — `lib/macaroon/store.ts` (PR **#385**). Mints
    grants, keeps their root + caveat keys in the **OS keychain**

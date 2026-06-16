@@ -63,12 +63,30 @@ that exact grant signature. The attacker cannot (a) forge a discharge without
 it to A's signature). This is the load-bearing soundness property of the shipped
 construction, now machine-checked.
 
-## Residual gap (next white-hat obligation → `defense:proofs`)
+## What the white-hat round closed (Q2)
 
-- **Q2 — the per-hop-vs-naive regression for macaroons.** The card proof's
-  v6→v7 ("naive final-vs-root verifier is unsound") has no macaroon analogue yet.
-  A model of a verifier that checks the final signature without per-hop discharge
-  verification, shown unsound, would directly justify the code's per-hop loop.
+The `defense:proofs` obligation named below as "Q2" was answered **in the same
+exchange** by the `whitehat-defense` / `proof-completer` persona:
+`analyses/macaroon_discharge_v2_naive_unsound.pv` (new) models a verifier that
+accepts a well-formed discharge **without** checking the `prepare_for_request`
+binding, with two grants (LOW, HIGH) that **share** the rent caveat key (the
+realistic case — one live session backs every grant minted under it). The daemon
+discharges only LOW; the attacker replays LOW's discharge against the public HIGH
+grant.
+
+```
+query event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)).
+RESULT  ... is false.   (* attack reconstructed *)
+```
+
+The naive relay **authorizes** the HIGH grant although the daemon never discharged
+it. This is the macaroon analogue of the card v6→v7 result and **directly justifies
+the per-hop binding check** the correct verifier (v1) performs — v1's `RelayPerHop`
+rejects exactly this trace because the binding ties the discharge to LOW's signature,
+not HIGH's.
+
+## Residual gap (remaining → `defense:proofs`)
+
 - **First-party caveat soundness** (a push to `main` is never authorized despite
   a valid discharge) — structurally similar to the card `is_subset` result but
   not yet modelled for the macaroon chain.
@@ -76,9 +94,12 @@ construction, now machine-checked.
 
 ## Disposition
 
-- `proof:landed` — macaroon_discharge_v1.pv (Q1 TRUE). Re-runnable:
-  `~/.opam/pd-proverif/bin/proverif analyses/macaroon_discharge_v1.pv`.
+- `proof:landed` — macaroon_discharge_v1.pv (Q1 TRUE) +
+  macaroon_discharge_v2_naive_unsound.pv (Q2 FALSE, attack found). Re-runnable:
+  `~/.opam/pd-proverif/bin/proverif analyses/macaroon_discharge_v1.pv` and the v2
+  file.
 - The cited claims in ADR-0053 + `pd-anchor::macaroon` + `lib/macaroon` are
   corrected in this round (see the accompanying diff): they now cite the card
   proof for the per-hop *discipline*, `macaroon_discharge_v1.pv` for the discharge
-  unforgeability/binding, and name the residual gap honestly.
+  unforgeability/binding (Q1), `macaroon_discharge_v2_naive_unsound.pv` for the
+  per-hop-vs-naive regression (Q2), and name the remaining residual gap honestly.

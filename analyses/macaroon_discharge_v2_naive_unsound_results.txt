@@ -1,0 +1,141 @@
+Process 0 (that is, the initial process):
+(
+    {1}!
+    {2}let s0: bitstring = hmac(root_key_low,grant_id_low) in
+    {3}let s1: bitstring = hmac(s0,deny_low) in
+    {4}let vid: bitstring = hmac(s1,caveat_key) in
+    {5}let s2: bitstring = hmac(s1,(vid,rent_cid)) in
+    {6}out(c, (deny_low,vid,rent_cid,s2));
+    {7}let d0: bitstring = hmac(caveat_key,rent_cid) in
+    {8}let d1: bitstring = hmac(d0,expires_cav) in
+    {9}let bound: bitstring = hmac(BIND0,(s2,d1)) in
+    {10}event DaemonIssuesDischarge(s2);
+    {11}out(c, (rent_cid,expires_cav,bound))
+) | (
+    {12}!
+    {13}let s0_1: bitstring = hmac(root_key_high,grant_id_high) in
+    {14}let s1_1: bitstring = hmac(s0_1,deny_high) in
+    {15}let vid_1: bitstring = hmac(s1_1,caveat_key) in
+    {16}let s2_1: bitstring = hmac(s1_1,(vid_1,rent_cid)) in
+    {17}out(c, (deny_high,vid_1,rent_cid,s2_1))
+) | (
+    {18}!
+    {19}in(c, (g_deny: bitstring,g_vid: bitstring,g_cid: bitstring,g_sig: bitstring,d_cid: bitstring,d_cav: bitstring,d_bound: bitstring));
+    {20}let s0_2: bitstring = hmac(root_key_high,grant_id_high) in
+    {21}let s1_2: bitstring = hmac(s0_2,g_deny) in
+    {22}if (g_vid = hmac(s1_2,caveat_key)) then
+    {23}let s2_2: bitstring = hmac(s1_2,(g_vid,g_cid)) in
+    {24}if (s2_2 = g_sig) then
+    {25}let d0_1: bitstring = hmac(caveat_key,d_cid) in
+    {26}let d1_1: bitstring = hmac(d0_1,d_cav) in
+    {27}if (d_bound = d_bound) then
+    {28}event RelayAuthorizesNaive(g_sig);
+    {29}out(c, PUSH_OK)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+(
+    {1}!
+    {2}let s0: bitstring = hmac(root_key_low,grant_id_low) in
+    {3}let s1: bitstring = hmac(s0,deny_low) in
+    {4}let vid: bitstring = hmac(s1,caveat_key) in
+    {5}let s2: bitstring = hmac(s1,(vid,rent_cid)) in
+    {6}out(c, (deny_low,vid,rent_cid,s2));
+    {10}event DaemonIssuesDischarge(s2);
+    {7}let d0: bitstring = hmac(caveat_key,rent_cid) in
+    {8}let d1: bitstring = hmac(d0,expires_cav) in
+    {9}let bound: bitstring = hmac(BIND0,(s2,d1)) in
+    {11}out(c, (rent_cid,expires_cav,bound))
+) | (
+    {12}!
+    {13}let s0_1: bitstring = hmac(root_key_high,grant_id_high) in
+    {14}let s1_1: bitstring = hmac(s0_1,deny_high) in
+    {15}let vid_1: bitstring = hmac(s1_1,caveat_key) in
+    {16}let s2_1: bitstring = hmac(s1_1,(vid_1,rent_cid)) in
+    {17}out(c, (deny_high,vid_1,rent_cid,s2_1))
+) | (
+    {18}!
+    {19}in(c, (g_deny: bitstring,g_vid: bitstring,g_cid: bitstring,g_sig: bitstring,d_cid: bitstring,d_cav: bitstring,d_bound: bitstring));
+    {20}let s0_2: bitstring = hmac(root_key_high,grant_id_high) in
+    {21}let s1_2: bitstring = hmac(s0_2,g_deny) in
+    {22}if (g_vid = hmac(s1_2,caveat_key)) then
+    {23}let s2_2: bitstring = hmac(s1_2,(g_vid,g_cid)) in
+    {24}if (s2_2 = g_sig) then
+    {27}if (d_bound = d_bound) then
+    {28}event RelayAuthorizesNaive(g_sig);
+    {29}out(c, PUSH_OK)
+)
+
+-- Query event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s))
+goal reachable: event(RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid))))
+
+Derivation:
+
+1. The attacker has some term d_bound_1.
+attacker(d_bound_1).
+
+2. The attacker has some term d_cav_1.
+attacker(d_cav_1).
+
+3. The attacker has some term d_cid_1.
+attacker(d_cid_1).
+
+4. The message (deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid))) may be sent to the attacker at output {17}.
+attacker((deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)))).
+
+5. By 4, the attacker may know (deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid))).
+Using the function 4-proj-4-tuple the attacker may obtain hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)).
+attacker(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid))).
+
+6. Using the function rent_cid the attacker may obtain rent_cid.
+attacker(rent_cid).
+
+7. By 4, the attacker may know (deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid))).
+Using the function 2-proj-4-tuple the attacker may obtain hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]).
+attacker(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[])).
+
+8. Using the function deny_high the attacker may obtain deny_high.
+attacker(deny_high).
+
+9. By 8, the attacker may know deny_high.
+By 7, the attacker may know hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]).
+By 6, the attacker may know rent_cid.
+By 5, the attacker may know hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)).
+By 3, the attacker may know d_cid_1.
+By 2, the attacker may know d_cav_1.
+By 1, the attacker may know d_bound_1.
+Using the function 7-tuple the attacker may obtain (deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)),d_cid_1,d_cav_1,d_bound_1).
+attacker((deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)),d_cid_1,d_cav_1,d_bound_1)).
+
+10. The message (deny_high,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid,hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)),d_cid_1,d_cav_1,d_bound_1) that the attacker may have by 9 may be received at input {19}.
+So event RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid))) may be executed at {28}.
+event(RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)))).
+
+11. By 10, event(RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)))).
+The goal is reached, represented in the following fact:
+event(RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high[],grant_id_high),deny_high),caveat_key[]),rent_cid)))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, (~M,~M_1,~M_2,~M_3)) with ~M = deny_high, ~M_1 = hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),caveat_key), ~M_2 = rent_cid, ~M_3 = hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),caveat_key),rent_cid)) at {17} in copy a
+
+in(c, (deny_high,~M_1,rent_cid,~M_3,a_1,a_2,a_3)) with ~M_1 = hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),caveat_key), ~M_3 = hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),caveat_key),rent_cid)) at {19} in copy a_4
+
+event RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),caveat_key),rent_cid))) at {28} in copy a_4 (goal)
+
+The event RelayAuthorizesNaive(hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),(hmac(hmac(hmac(root_key_high,grant_id_high),deny_high),caveat_key),rent_cid))) is executed at {28} in copy a_4.
+A trace has been found.
+RESULT event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(RelayAuthorizesNaive(s)) ==> event(DaemonIssuesDischarge(s)) is false.
+
+--------------------------------------------------------------
+

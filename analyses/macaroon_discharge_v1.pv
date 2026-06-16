@@ -24,12 +24,12 @@
  * HMAC-commitment vid + request-binding makes the discharge unforgeable and
  * non-transferable. This model encodes ONLY the correct per-hop verifier and Q1.
  *
- * RESIDUAL GAP (defense:proofs, not modeled here): Q2 — a naive verifier that
- * skips the request-binding check should be shown unsound under cross-grant
- * replay (the macaroon analogue of the card result on harbor_card_v6→v7.pv).
- * That regression is the next white-hat obligation; it is named honestly in the
- * accompanying audit (docs/shipwright/proof-audit-macaroon-discharge.md) rather
- * than asserted as already proven.
+ * COMPANION (Q2, the per-hop-vs-naive regression): macaroon_discharge_v2_naive_unsound.pv
+ * models a verifier that skips the request-binding check and shows it UNSOUND under
+ * cross-grant replay (the macaroon analogue of the card result on harbor_card_v6→v7.pv).
+ * Q2 is `false` (attack reconstructed) — that is what justifies the binding check this
+ * (v1) correct verifier performs. Residual gap now narrows to first-party caveat
+ * soundness + the MAX_DISCHARGE_DEPTH bound (see the audit doc).
  *)
 
 free c: channel.

@@ -32,9 +32,11 @@
 //! `HMAC(BIND0, root_sig || discharge_sig)` — is modelled and machine-checked in
 //! `analyses/macaroon_discharge_v1.pv`: Q1 (no authorization without a daemon-issued
 //! discharge bound to *that* grant; forgery and cross-grant transfer both fail) is
-//! `true` under an active attacker. Residual gap (`defense:proofs`): the per-hop-vs-
-//! naive *regression* for macaroons (Q2) is not yet mechanized — see that model's
-//! header.
+//! `true` under an active attacker. The per-hop-vs-naive *regression* (Q2) is in
+//! `analyses/macaroon_discharge_v2_naive_unsound.pv`: a verifier that skips the
+//! request-binding check is `false` (attack found) under cross-grant replay — that
+//! is what justifies the binding check here. Residual gap (`defense:proofs`):
+//! first-party caveat soundness + the MAX_DISCHARGE_DEPTH bound are not yet modelled.
 //!
 //! Honest scope: this makes the gate **unforgeable** and the audit a verifiable
 //! transcript. It does **not** confine a malicious same-UID holder, who can copy

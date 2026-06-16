@@ -128,8 +128,9 @@ three things the imperative gate does not:
    machine-checked: `analyses/macaroon_discharge_v1.pv` proves the discharge
    construction unforgeable + request-bound (Q1 `true`), and the card branch
    `defense/anchor-attenuation-soundness` proves the analogous naive-verifier-is-
-   unsound result for Ed25519 cards. (Residual gap: the per-hop-vs-naive *regression*
-   for macaroons, Q2, is not yet mechanized — see the model header.)
+   unsound result for Ed25519 cards. The per-hop-vs-naive *regression* for macaroons
+   (Q2) is `analyses/macaroon_discharge_v2_naive_unsound.pv` — the naive verifier is
+   `false` (attack found) under cross-grant replay, justifying the binding check.
 3. **It splits Layer 1 into two independently-shippable halves** (see the matrix):
    the crypto **gate** — the daemon/Relay refuses to push without a valid
    rent-paid discharge — lands **before** the egress **confinement** (the GitHub
@@ -540,8 +541,10 @@ daemon attested rent-paid for `session`. Discharge protocol:
    discharge construction's unforgeability + request-binding (Q1) is **proven in
    ProVerif** in `analyses/macaroon_discharge_v1.pv`; the analogous per-hop-vs-naive
    result on the Ed25519 *card* construction lives on
-   `defense/anchor-attenuation-soundness`. Residual gap: the per-hop-vs-naive
-   regression for the macaroon chain (Q2) is not yet mechanized.
+   `defense/anchor-attenuation-soundness`. The per-hop-vs-naive regression for the
+   macaroon chain (Q2) is proven in `analyses/macaroon_discharge_v2_naive_unsound.pv`
+   (the naive verifier is unsound under cross-grant replay). Residual gap: first-party
+   caveat soundness + the MAX_DISCHARGE_DEPTH bound.
 
 ### A.4 TTL, renewal, and revocation
 
@@ -595,8 +598,9 @@ so the schema is never mistaken for the vault.
   (**per-hop** attenuation **proven in ProVerif** for the Ed25519 *card*
   construction — the naive final-vs-root verifier was unsound). The macaroon
   discharge construction itself is separately proven in
-  `analyses/macaroon_discharge_v1.pv` (Q1 unforgeability + request-binding `true`;
-  the per-hop-vs-naive Q2 regression for macaroons is the named residual gap).
+  `analyses/macaroon_discharge_v1.pv` (Q1 unforgeability + request-binding `true`) and
+  `analyses/macaroon_discharge_v2_naive_unsound.pv` (Q2: the naive verifier is unsound
+  under cross-grant replay, `false`/attack-found).
   `verify-claim-signaling-tla` (TLA+ claim-signaling
   model); `paper/identity-reputation` (the *From Spawn to Person* reputation
   estimator — the home of the Phase 2-rep semantic-good-faith layer);
