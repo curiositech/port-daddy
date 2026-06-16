@@ -86,8 +86,21 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
+/**
+ * How a request authenticated.
+ *   - `hmac-direct`: GitHub posted straight here; the `X-Hub-Signature-256`
+ *     HMAC over the raw body already proves GitHub origin.
+ *   - `bearer`: a forwarder (the receiver Worker / relay) presented the shared
+ *     forward token. This proves the forwarder is trusted to TRANSPORT events —
+ *     it does NOT prove the events came from GitHub. Origin must be
+ *     re-established separately (see `verifyForwardedOrigin`).
+ *   - `unauth`: dev-only bypass.
+ */
+type AuthMethod = 'hmac-direct' | 'bearer' | 'unauth';
+
 interface AuthResult {
   ok: boolean;
+  method?: AuthMethod;
   reason?: string;
 }
 
@@ -96,34 +109,79 @@ function authenticate(request: RawBodyRequest): AuthResult {
   const webhookSecret = process.env.PD_GITHUB_WEBHOOK_SECRET?.trim();
   const allowUnauth = process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH === '1';
 
-  // Bearer token (receiver-forwarded path).
-  if (forwardToken) {
-    const header = request.headers['authorization'];
-    if (typeof header === 'string' && header.startsWith('Bearer ')) {
-      if (safeEqual(header.slice('Bearer '.length).trim(), forwardToken)) {
-        return { ok: true };
-      }
-    }
-  }
-
-  // HMAC signature (direct GitHub webhook path).
+  // HMAC signature (direct GitHub webhook path) — strongest, proves origin.
+  // Checked first so a request that carries a valid GitHub signature is
+  // recognized as origin-proven even if it also carries a bearer token.
   if (webhookSecret) {
     const sig = request.headers['x-hub-signature-256'];
     if (typeof sig === 'string' && sig.startsWith('sha256=')) {
       const raw = request.rawBody ?? '';
       const expected = 'sha256=' + createHmac('sha256', webhookSecret).update(raw).digest('hex');
       if (safeEqual(sig, expected)) {
-        return { ok: true };
+        return { ok: true, method: 'hmac-direct' };
       }
     }
   }
 
-  if (allowUnauth) return { ok: true };
+  // Bearer token (receiver-forwarded path). Transport-only: origin is
+  // re-verified downstream from the carried envelope signature.
+  if (forwardToken) {
+    const header = request.headers['authorization'];
+    if (typeof header === 'string' && header.startsWith('Bearer ')) {
+      if (safeEqual(header.slice('Bearer '.length).trim(), forwardToken)) {
+        return { ok: true, method: 'bearer' };
+      }
+    }
+  }
+
+  if (allowUnauth) return { ok: true, method: 'unauth' };
 
   if (!forwardToken && !webhookSecret) {
     return { ok: false, reason: 'no webhook auth configured (set PD_GITHUB_FORWARD_TOKEN or PD_GITHUB_WEBHOOK_SECRET)' };
   }
   return { ok: false, reason: 'invalid webhook credentials' };
+}
+
+type OriginResult =
+  | { verified: true; method: 'hmac-direct' | 'forwarded-hmac' }
+  | { verified: false; reason: string };
+
+/**
+ * Re-establish that a forwarded webhook genuinely originated at GitHub.
+ *
+ * A trusted forwarder (the receiver Worker / relay) authenticates with the
+ * shared forward token, but that token only proves "this forwarder is allowed
+ * to deliver events" — NOT "GitHub sent this event". Without this check, anyone
+ * who obtains the forward token (or a relay publish capability) could forge
+ * `push` / `pull_request` envelopes and trigger fleet ships on attacker-chosen
+ * payloads — RCE-by-webhook. We close that by having the forwarder carry the
+ * exact bytes GitHub signed (`raw_payload`) plus GitHub's `signature`, and
+ * re-verifying the HMAC here against our own `PD_GITHUB_WEBHOOK_SECRET`.
+ *
+ * Returns verified:true only when a real GitHub signature checks out. The
+ * forwarder's token can never substitute for it.
+ */
+function verifyForwardedOrigin(request: FastifyRequest): OriginResult {
+  const webhookSecret = process.env.PD_GITHUB_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    return { verified: false, reason: 'PD_GITHUB_WEBHOOK_SECRET not set; cannot re-verify GitHub origin' };
+  }
+
+  const body = (request.body && typeof request.body === 'object' ? request.body : {}) as Record<string, unknown>;
+  const rawPayload = body.raw_payload;
+  const signature = body.signature;
+  if (typeof rawPayload !== 'string' || typeof signature !== 'string') {
+    return { verified: false, reason: 'forwarded envelope missing raw_payload/signature for origin re-verification' };
+  }
+  if (!signature.startsWith('sha256=')) {
+    return { verified: false, reason: 'forwarded signature not a sha256= HMAC' };
+  }
+
+  const expected = 'sha256=' + createHmac('sha256', webhookSecret).update(rawPayload).digest('hex');
+  if (!safeEqual(signature, expected)) {
+    return { verified: false, reason: 'forwarded GitHub origin HMAC mismatch' };
+  }
+  return { verified: true, method: 'forwarded-hmac' };
 }
 
 interface NormalizedWebhook {
@@ -236,6 +294,37 @@ export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteD
     if (!auth.ok) {
       reply.code(401);
       return { error: auth.reason ?? 'unauthorized' };
+    }
+
+    // Re-establish GitHub origin. Direct HMAC posts are already origin-proven by
+    // authenticate(). For forwarded (bearer) requests, re-verify GitHub's HMAC
+    // over the carried raw bytes so a leaked forward token / relay capability
+    // cannot forge fleet-triggering events.
+    const requireOrigin = process.env.PD_GITHUB_REQUIRE_ORIGIN_HMAC === '1';
+    let originProven = auth.method === 'hmac-direct';
+    if (auth.method === 'bearer') {
+      const origin = verifyForwardedOrigin(request);
+      if (!origin.verified) {
+        // A carried-but-WRONG signature is always an attack/misconfig — reject
+        // outright. A missing signature is rejected only in strict mode (so
+        // not-yet-upgraded receivers keep working until the operator opts in).
+        const carriedSignature = typeof (request.body as Record<string, unknown> | undefined)?.signature === 'string';
+        if (carriedSignature || requireOrigin) {
+          metrics.errors++;
+          logger.error('github_webhook_origin_unverified', { reason: origin.reason });
+          reply.code(401);
+          return { error: `forwarded webhook failed GitHub origin verification: ${origin.reason}` };
+        }
+      } else {
+        originProven = true;
+      }
+    }
+
+    if (requireOrigin && !originProven) {
+      metrics.errors++;
+      logger.error('github_webhook_origin_required_but_unproven', { auth_method: auth.method });
+      reply.code(401);
+      return { error: 'GitHub origin could not be verified (PD_GITHUB_REQUIRE_ORIGIN_HMAC=1)' };
     }
 
     let hook: NormalizedWebhook | null;
