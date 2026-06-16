@@ -20,6 +20,9 @@ import {
 
 const ALWAYS = () => true;
 const NEVER = () => false;
+/** Resolver for third-party caveats (HMAC-commitment model): the verifier holds
+ *  the caveat key, keyed by caveat id. */
+const keyFor = (caveatKey, caveatId) => (id) => (id === caveatId ? caveatKey : null);
 
 describe('macaroon core — minting and first-party caveats', () => {
   test('a freshly minted macaroon verifies under its root key', () => {
@@ -94,12 +97,12 @@ describe('macaroon core — third-party caveats and discharge', () => {
     const { root, caveatKey, caveatId, m } = mintWithThirdParty();
     const discharge = create(caveatKey, caveatId, 'pd://daemon/rent');
     const bound = prepareForRequest(m, discharge);
-    expect(verify(m, root, [bound], ALWAYS).ok).toBe(true);
+    expect(verify(m, root, [bound], ALWAYS, keyFor(caveatKey, caveatId)).ok).toBe(true);
   });
 
   test('fails when the discharge is missing entirely', () => {
-    const { root, m } = mintWithThirdParty();
-    const res = verify(m, root, [], ALWAYS);
+    const { root, caveatKey, caveatId, m } = mintWithThirdParty();
+    const res = verify(m, root, [], ALWAYS, keyFor(caveatKey, caveatId));
     expect(res.ok).toBe(false);
     expect(res.reason).toMatch(/no discharge macaroon/);
   });
@@ -107,16 +110,16 @@ describe('macaroon core — third-party caveats and discharge', () => {
   test('fails when the discharge is present but not bound to this request', () => {
     const { root, caveatKey, caveatId, m } = mintWithThirdParty();
     const unbound = create(caveatKey, caveatId, 'pd://daemon/rent');
-    const res = verify(m, root, [unbound], ALWAYS);
+    const res = verify(m, root, [unbound], ALWAYS, keyFor(caveatKey, caveatId));
     expect(res.ok).toBe(false);
     expect(res.reason).toMatch(/signature mismatch/);
   });
 
   test('fails when the discharge is signed with the wrong caveat key', () => {
-    const { root, caveatId, m } = mintWithThirdParty();
+    const { root, caveatKey, caveatId, m } = mintWithThirdParty();
     const wrong = create(randomBytes(32), caveatId, 'pd://daemon/rent');
     const bound = prepareForRequest(m, wrong);
-    expect(verify(m, root, [bound], ALWAYS).ok).toBe(false);
+    expect(verify(m, root, [bound], ALWAYS, keyFor(caveatKey, caveatId)).ok).toBe(false);
   });
 
   test('a discharge bound to a different root macaroon does not transfer', () => {
@@ -124,7 +127,7 @@ describe('macaroon core — third-party caveats and discharge', () => {
     const b = mintWithThirdParty();
     // Discharge minted for A, bound to A, presented against B.
     const dischargeA = prepareForRequest(a.m, create(a.caveatKey, a.caveatId, 'pd://daemon/rent'));
-    expect(verify(b.m, b.root, [dischargeA], ALWAYS).ok).toBe(false);
+    expect(verify(b.m, b.root, [dischargeA], ALWAYS, keyFor(b.caveatKey, b.caveatId)).ok).toBe(false);
   });
 
   test('first-party caveats on the discharge are also enforced', () => {
@@ -135,7 +138,7 @@ describe('macaroon core — third-party caveats and discharge', () => {
       'discharge-expires = 123',
     );
     const bound = prepareForRequest(m, discharge);
-    const res = verify(m, root, [bound], (p) => p === 'op = push');
+    const res = verify(m, root, [bound], (p) => p === 'op = push', keyFor(caveatKey, caveatId));
     expect(res.ok).toBe(false);
     expect(res.reason).toContain('discharge-expires');
   });
