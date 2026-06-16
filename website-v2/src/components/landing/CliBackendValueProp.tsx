@@ -32,7 +32,7 @@ export function CliBackendValueProp() {
               <strong className="text-[var(--text-primary)]">
                 Every agent in the fleet runs on that one seat — no metered API bill.
               </strong>{' '}
-              Same login, same model, just more hours of work per day. Switching a backend
+              Same login, same model. More hours of work per day. Switching a backend
               on is one environment variable.
             </PanelBody>
             <div className="grid gap-[var(--space-3)] sm:grid-cols-3">

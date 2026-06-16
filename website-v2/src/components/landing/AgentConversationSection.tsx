@@ -76,7 +76,7 @@ export function AgentConversationSection() {
             <div className="sticky top-28 space-y-[var(--space-5)]">
               <SectionIntro
                 eyebrow="Shared memory"
-                title="Coordination is just shared memory agents can read."
+                title="Coordination is shared memory agents can read."
                 description="A scheduler decides what runs next. Port Daddy is the shared memory the running agents read from and write to: notes they leave each other, who is editing which file, warnings they send directly, a small store of facts they can look up, and the records left behind by a crashed agent. It holds up across different models, different terminals, and crashes."
                 titleAs="h2"
                 titleSize="display"
