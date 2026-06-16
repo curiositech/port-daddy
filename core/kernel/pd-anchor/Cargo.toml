@@ -8,6 +8,11 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 
+# rlib for in-Rust use + tests; cdylib for the C ABI the TS daemon loads via koffi
+# (ADR-0054 — the kernel is the canonical macaroon impl). Mirrors harbor-card-rs.
+[lib]
+crate-type = ["rlib", "cdylib"]
+
 [dependencies]
 ed25519-dalek.workspace = true
 hex.workspace = true
