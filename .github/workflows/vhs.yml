@@ -53,6 +53,7 @@ jobs:
         run: node bin/port-daddy-cli.js stop || true
 
       - name: Commit changes
+        if: github.ref == 'refs/heads/main'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: update VHS demos [skip ci]"
