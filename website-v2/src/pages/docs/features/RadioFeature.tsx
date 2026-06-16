@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,16 +7,13 @@ export default function RadioFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Core</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Swarm Radio
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Real-time pub/sub messaging between agents via named channels. Fire-and-forget
-          publishing with SSE subscriptions means agents react to events, not poll for them.
+          Real-time messages between agents over named channels. One agent publishes to a channel
+          and any agent listening on it reacts right away, instead of repeatedly checking for
+          updates. This is a publish/subscribe (pub/sub) setup.
         </p>
       </div>
 
@@ -81,17 +77,17 @@ $ pd watch build-status --exec './run-tests.sh'`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">build-status</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Build pipeline events</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">compile, lint, test results</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">compile, lint, test results</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">deploy:staging</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Deployment notifications</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">started, succeeded, rolled back</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">started, succeeded, rolled back</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">agent:sync</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Agent coordination</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">task claims, handoffs, done signals</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">task claims, handoffs, done signals</p>
           </div>
         </div>
       </div>

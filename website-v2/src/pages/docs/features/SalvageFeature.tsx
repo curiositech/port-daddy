@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,10 +7,6 @@ export default function SalvageFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Resilience</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Agent Salvage
         </h1>
