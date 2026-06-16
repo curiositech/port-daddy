@@ -250,6 +250,33 @@ calling a branch ready, inspect and close the full PR surface:
   website/dashboard → headless Playwright dark+light pairs. See AGENTS.md
   § "Visual artifacts for UI diffs". Operator rule, 2026-06-11.
 
+## Post-Merge Deployment Truth
+
+Merged is not deployed. A Port Daddy PR on `main` is only source truth; the
+operator's stable daemon is the Homebrew binary described in
+[`docs/operations/daemon-and-supervision.md`](../../docs/operations/daemon-and-supervision.md).
+If a merged change should be live on `:9876`, do not say "deployed" until the
+release path in [`docs/RELEASING.md`](../../docs/RELEASING.md) has advanced.
+
+Use these names precisely in notes, PR comments, and handoffs:
+
+| State | Evidence |
+|---|---|
+| **Merged** | PR state is `MERGED`; `origin/main` contains the merge commit. |
+| **Released** | `vX.Y.Z` tag and GitHub Release exist; release workflow attached the expected binaries/FleetBar artifact. |
+| **Tap rolled** | `curiositech/homebrew-tap` formula references the new version and asset sha256. |
+| **Upgraded** | `brew update && brew upgrade port-daddy` completed on this machine. |
+| **Live** | `brew services restart port-daddy` ran, then `pd status` or `port-daddy status` reports the new version from the stable daemon. |
+
+If `package.json` / `VERSION` say `3.19.0` but `pd status` says `3.18.0`,
+that is expected after a merge and unacceptable after a claimed deployment.
+Either cut the release, dispatch or repair the tap roll, run the local upgrade
+and restart, or leave a `pd note` naming the exact state boundary you stopped
+at. For release work, also apply the WinDAGs graft for
+`rust-app-distribution` plus `github-actions-pipeline-builder`: verify artifact
+architectures, package-manager hashes, release workflow status, and failure
+logs before touching the operator runtime.
+
 ## PR Lifecycle (Create / Update / Land)
 
 The Finish Line Discipline above is the *review contract*; this is the
