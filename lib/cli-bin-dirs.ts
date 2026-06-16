@@ -16,7 +16,10 @@
  */
 
 import { join } from 'node:path';
-import { readdirSync } from 'node:fs';
+// Namespace import (not a named `readdirSync`) so test suites that partially
+// mock node:fs don't fail at ESM bind time on a missing named export — the
+// property is read at call time, inside the try/catch below.
+import * as nodeFs from 'node:fs';
 
 /**
  * Node version-manager bin dirs. npm-global CLIs (codex, grok, …) install into
@@ -30,7 +33,7 @@ function nodeVersionManagerBinDirs(home: string): string[] {
   // nvm: ~/.nvm/versions/node/<ver>/bin  (newest first so the active-ish wins)
   try {
     const root = join(home, '.nvm', 'versions', 'node');
-    for (const ver of readdirSync(root).sort().reverse()) {
+    for (const ver of nodeFs.readdirSync(root).sort().reverse()) {
       dirs.push(join(root, ver, 'bin'));
     }
   } catch { /* no nvm */ }
