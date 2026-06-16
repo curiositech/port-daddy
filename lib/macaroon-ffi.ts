@@ -146,12 +146,22 @@ export function verifyPushGrantPreferKernel(args: VerifyPushGrantArgs): GateResu
         k.free(ptr);
       }
     }
-    // A null pointer is a catastrophic kernel failure — fall through to the TS
-    // fallback rather than fail the push on an infrastructure glitch.
+    // A null pointer is a catastrophic kernel failure (vs. a clean dylib-absent,
+    // handled by the loader returning null). Falling back to the byte-parity TS
+    // impl is SAFE (same verdict), but it's a real failure the operator should
+    // see — emit a signal rather than degrade silently.
+    console.error(
+      '[macaroon-ffi] kernel dylib loaded but pd_macaroon_verify_json returned null; ' +
+        'falling back to the TS verifier. This is an infrastructure fault, not a clean absence.',
+    );
   }
+  // Validate the hex before decoding so a malformed caveat key resolves to null
+  // (→ "no discharge key", fail-closed) exactly like the Rust path's filter_map,
+  // rather than yielding a wrong-length Buffer.
   const resolveCaveatKey = (caveatId: string): Buffer | null => {
     const hex = args.caveatKeys[caveatId];
-    return hex ? Buffer.from(hex, 'hex') : null;
+    if (!hex || hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) return null;
+    return Buffer.from(hex, 'hex');
   };
   return verifyPushGrant(
     args.grant,
