@@ -755,7 +755,7 @@ fleet:
       telos: "No stale, superseded, or silently rotting PR ever reaches main."
 
     steward:
-      # The single approver (ADR-0051). One agent responsible for every
+      # The single approver (ADR-0056). One agent responsible for every
       # open PR from open to merged, and for what gets built next when
       # the queue is dry. The JUDGMENT layer above the mechanical
       # custody: harbor-pilot arms/demotes by rule, officer-of-the-watch
@@ -788,8 +788,8 @@ fleet:
       prompt: |
         Read fleet/ships/steward.md end to end before doing anything
         else. That is your full behavior contract — the lifecycle, the
-        hard guardrails, and the output contract. Re-read ADR-0051
-        (docs/adr/0051-the-steward-single-approver.md); it is your
+        hard guardrails, and the output contract. Re-read ADR-0056
+        (docs/adr/0056-the-steward-single-approver.md); it is your
         charter.
 
         You are the Steward: the one agent responsible for every open
