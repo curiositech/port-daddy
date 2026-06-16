@@ -382,7 +382,9 @@
         "PUT /sessions/:param",
         "DELETE /sessions/:param",
         "POST /sessions/:param/files",
-        "DELETE /sessions/:param/files"
+        "DELETE /sessions/:param/files",
+        "POST /sessions/:param/symbols",
+        "GET /sessions/:param/symbols"
       ],
       "completions": [
         "session",

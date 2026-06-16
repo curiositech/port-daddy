@@ -83,6 +83,15 @@ interface SessionsRouteDeps {
   activityLog: {
     log?(type: string, opts: { details: string; metadata: Record<string, unknown> }): void;
   };
+  symbolClaims?: {
+    claim(
+      sessionId: string,
+      claims: Array<{ filePath: string; symbolPath: string; type: 'read' | 'modify' }>,
+      options?: { autoDeriveRadius?: boolean; radiusDepth?: number },
+    ): { claimed: unknown[]; autoDerived: unknown[]; conflicts: unknown[] };
+    list(sessionId: string): unknown[];
+    release(sessionId: string): number;
+  };
 }
 
 /**
@@ -98,7 +107,7 @@ interface SessionsRouteDeps {
 // =============================================================================
 export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = async (fastify, opts) => {
   const { deps } = opts;
-  const { sessions, metrics, logger, activityLog } = deps;
+  const { sessions, metrics, logger, activityLog, symbolClaims } = deps;
 
   const errorStatus = (result: Record<string, unknown>) => {
     switch (result.code) {
@@ -453,6 +462,11 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
         result = sessions.end(sessionId, { note, status });
       }
 
+      // Symbol claims release with the session (advisory reservations are session-scoped).
+      if (result.success && symbolClaims) {
+        try { symbolClaims.release(sessionId); } catch { /* best-effort */ }
+      }
+
       if (!result.success) {
         reply.code(404);
         return { ...result, code: 'SESSION_NOT_FOUND' };
@@ -719,6 +733,56 @@ export const sessionsPlugin: FastifyPluginAsync<{ deps: SessionsRouteDeps }> = a
       reply.code(500);
       return { error: 'internal server error' };
     }
+  });
+
+  // POST /sessions/:id/symbols — declare symbol-level claims; a `modify` auto-reserves
+  // its blast radius (read-claims on every downstream caller). Returns predicted
+  // conflicts with other active sessions (advisory — never blocks).
+  fastify.post('/sessions/:id/symbols', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!symbolClaims) {
+      reply.code(501);
+      return { success: false, error: 'symbol claims not available' };
+    }
+    const sessionIdParam = (request.params as any).id;
+    const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+    const body = (request.body ?? {}) as { claims?: unknown; autoDeriveRadius?: boolean; radiusDepth?: number };
+    const raw = Array.isArray(body.claims) ? body.claims : [];
+    const claims: Array<{ filePath: string; symbolPath: string; type: 'read' | 'modify' }> = [];
+    for (const c of raw as any[]) {
+      if (!c || typeof c.filePath !== 'string' || typeof c.symbolPath !== 'string') {
+        reply.code(400);
+        return { success: false, error: 'each claim needs filePath and symbolPath', code: 'VALIDATION_ERROR' };
+      }
+      claims.push({ filePath: c.filePath, symbolPath: c.symbolPath, type: c.type === 'read' ? 'read' : 'modify' });
+    }
+    if (!claims.length) {
+      reply.code(400);
+      return { success: false, error: 'claims must be a non-empty array', code: 'VALIDATION_ERROR' };
+    }
+    try {
+      const result = symbolClaims.claim(sessionId, claims, {
+        autoDeriveRadius: body.autoDeriveRadius,
+        radiusDepth: typeof body.radiusDepth === 'number' ? body.radiusDepth : undefined,
+      });
+      return { success: true, ...result };
+    } catch (error) {
+      metrics.errors++;
+      logger.error('session_symbol_claim_error', { error: (error as Error).message });
+      reply.code(500);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // GET /sessions/:id/symbols — list a session's active symbol claims.
+  fastify.get('/sessions/:id/symbols', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!symbolClaims) {
+      reply.code(501);
+      return { success: false, error: 'symbol claims not available' };
+    }
+    const sessionIdParam = (request.params as any).id;
+    const sessionId = typeof sessionIdParam === 'string' ? sessionIdParam : sessionIdParam[0];
+    const items = symbolClaims.list(sessionId);
+    return { success: true, claims: items, count: items.length };
   });
 
   // DELETE /sessions/:id/files - Release files from a session
