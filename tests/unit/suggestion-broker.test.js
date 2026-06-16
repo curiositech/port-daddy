@@ -124,6 +124,49 @@ describe('runOverlapScan', () => {
     return { listAllActiveClaims: () => ({ success: true, claims, count: claims.length }) };
   }
 
+  // S5 fix: severity drives confidence so the priority tier fires for the
+  // overlaps that matter. A whole-file (null-range) collision is high-severity.
+  test('a whole-file overlap is surfaced at PRIORITY confidence (>= 0.95)', () => {
+    runOverlapScan({
+      sessions: sessionsWith([
+        claim('s1', 'lib/x.ts', { agentId: 'agent-1' }),
+        claim('s2', 'lib/x.ts', { agentId: 'agent-2' }),
+      ]),
+      suggestions,
+      inbox,
+    });
+    const surfaced = suggestions.list({ agentId: 'agent-1' });
+    expect(surfaced).toHaveLength(1);
+    expect(surfaced[0].confidence).toBeGreaterThanOrEqual(0.95);
+  });
+
+  test('a partial line-range overlap is surfaced at NORMAL confidence (< 0.95)', () => {
+    runOverlapScan({
+      sessions: sessionsWith([
+        claim('s1', 'lib/x.ts', { agentId: 'agent-1', startLine: 1, endLine: 8 }),
+        claim('s2', 'lib/x.ts', { agentId: 'agent-2', startLine: 6, endLine: 12 }),
+      ]),
+      suggestions,
+      inbox,
+    });
+    const surfaced = suggestions.list({ agentId: 'agent-1' });
+    expect(surfaced).toHaveLength(1);
+    expect(surfaced[0].confidence).toBeLessThan(0.95);
+  });
+
+  test('the delivered payload carries a wire-format version (schema-drift defense)', () => {
+    runOverlapScan({
+      sessions: sessionsWith([
+        claim('s1', 'lib/x.ts', { agentId: 'agent-1' }),
+        claim('s2', 'lib/x.ts', { agentId: 'agent-2' }),
+      ]),
+      suggestions,
+      inbox,
+    });
+    expect(sent[0].content.v).toBe(1);
+    expect(suggestions.list({ agentId: 'agent-1' })[0].payload.v).toBe(1);
+  });
+
   test('surfaces and delivers a heads-up to BOTH parties of an overlap', () => {
     const res = runOverlapScan({
       sessions: sessionsWith([

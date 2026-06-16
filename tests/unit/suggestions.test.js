@@ -105,6 +105,44 @@ describe('budget', () => {
       budgetDb.close();
     }
   });
+
+  // Red-team smell S5: importance-blind rate-limiting let a flood of trivial
+  // overlaps starve a critical one. A priority (high-confidence) suggestion must
+  // bypass the normal cap.
+  test('a PRIORITY suggestion bypasses an exhausted normal budget (S5)', () => {
+    const budgetDb = createTestDb();
+    try {
+      const s = createSuggestions(budgetDb, {
+        now: () => clock,
+        policy: { hourlyBudget: 3, priorityConfidence: 0.95, priorityHourlyBudget: 24 },
+      });
+      // flood the normal budget with trivial (low-confidence) overlaps
+      for (let i = 0; i < 3; i++) {
+        expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: { i }, payloadHash: `t${i}`, confidence: 0.9 }).created).toBe(true);
+      }
+      // a 4th normal one is now suppressed
+      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 't4', confidence: 0.9 })).toMatchObject({ created: false, reason: 'budget' });
+      // but a CRITICAL (high-confidence) overlap still surfaces
+      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'crit', confidence: 0.97 }).created).toBe(true);
+    } finally {
+      budgetDb.close();
+    }
+  });
+
+  test('PRIORITY suggestions still respect their own higher ceiling (no unbounded spam)', () => {
+    const budgetDb = createTestDb();
+    try {
+      const s = createSuggestions(budgetDb, {
+        now: () => clock,
+        policy: { hourlyBudget: 3, priorityConfidence: 0.95, priorityHourlyBudget: 2 },
+      });
+      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'p1', confidence: 0.97 }).created).toBe(true);
+      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'p2', confidence: 0.97 }).created).toBe(true);
+      expect(s.create({ agentId: 'a', kind: 'claim-overlap-headsup', payload: {}, payloadHash: 'p3', confidence: 0.97 })).toMatchObject({ created: false, reason: 'budget' });
+    } finally {
+      budgetDb.close();
+    }
+  });
 });
 
 describe('mute', () => {

@@ -50,6 +50,19 @@ export interface ClaimOverlap {
 const OVERLAP_KIND: SuggestionKind = 'claim-overlap-headsup';
 
 /**
+ * Wire-format version of the nudge payload. This object crosses boundaries
+ * (broker → agent inbox → `pd nudge` CLI → `list_nudges` MCP tool) and, per the
+ * parley continuity model, may be read after the producing process is gone — so
+ * it needs an explicit version to survive schema drift.
+ *
+ * Compatibility policy: consumers MUST ignore unknown fields and tolerate a
+ * missing `v` (treat absent as 1, the pre-versioning shape). Bump only on a
+ * BREAKING change (a removed/retyped field); additive fields do not bump. The
+ * producer always stamps the current version; the reader adapts.
+ */
+export const SUGGESTION_PAYLOAD_VERSION = 1 as const;
+
+/**
  * Whether two line ranges overlap. A null range is a whole-file claim and overlaps
  * everything — identical semantics to `rangesOverlap` in `lib/sessions.ts` (the
  * canonical source; duplicated here as a 4-line pure fn to avoid widening that
@@ -70,6 +83,20 @@ function claimsCollide(a: ActiveClaim, b: ActiveClaim): boolean {
   if (a.symbolPath && b.symbolPath) return a.symbolPath === b.symbolPath;
   // Otherwise fall back to line-range overlap (null = whole file = overlaps all).
   return rangesOverlap(a.startLine, a.endLine, b.startLine, b.endLine);
+}
+
+/** Confidence by overlap severity, so the suggestions module's PRIORITY tier
+ *  (S5 fix) actually fires for the overlaps that matter. A same-symbol or
+ *  whole-file collision is high-severity (a guaranteed edit conflict); a partial
+ *  line-range overlap is ordinary. The threshold (0.95) lives in the suggestions
+ *  policy — keep HIGH at/above it and NORMAL below. */
+const SEVERITY_CONFIDENCE_HIGH = 0.97;
+const SEVERITY_CONFIDENCE_NORMAL = 0.9;
+function overlapSeverityConfidence(a: ActiveClaim, b: ActiveClaim): number {
+  if (a.symbolPath && b.symbolPath && a.symbolPath === b.symbolPath) return SEVERITY_CONFIDENCE_HIGH;
+  const wholeFile =
+    a.startLine == null || a.endLine == null || b.startLine == null || b.endLine == null;
+  return wholeFile ? SEVERITY_CONFIDENCE_HIGH : SEVERITY_CONFIDENCE_NORMAL;
 }
 
 /** Stable dedup key for the unordered session pair on a file. */
@@ -186,6 +213,7 @@ export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
     ] as [ActiveClaim, ActiveClaim][]) {
       const deliveryKey = self.agentId ?? self.sessionId;
       const payload = {
+        v: SUGGESTION_PAYLOAD_VERSION,
         kind: OVERLAP_KIND,
         filePath: o.filePath,
         you: {
@@ -208,6 +236,7 @@ export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
         kind: OVERLAP_KIND,
         payload,
         payloadHash,
+        confidence: overlapSeverityConfidence(self, other),
       });
 
       if (!res.created) {
