@@ -252,6 +252,10 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/docs" element={<DocsLayout />}>
               <Route index element={<DocsOverview />} />
               <Route path="quickstart" element={<QuickStart />} />
+              {/* Forwarding redirect: "Get started" links historically pointed at
+                  /docs/get-started, which had no route and fell through to the docs
+                  index. Canonical entry point is /docs/quickstart. */}
+              <Route path="get-started" element={<Navigate to="/docs/quickstart" replace />} />
               <Route path="guides/prompting-agents" element={<PromptingAgents />} />
               <Route path="guides/templates" element={<TemplatesGuide />} />
               <Route path="guides/protocol" element={<ProtocolGuide />} />

@@ -25,22 +25,23 @@ type NavItem = {
 };
 
 const PRIMARY_NAV_ITEMS = [
+  { label: "Get started", href: "/docs/quickstart", end: true },
   { label: "Agents", href: "/agents", end: true },
-  { label: "Tube", href: "/pd-tube", end: false },
-  { label: "Skill + MCP", href: "/mcp", end: true },
-  { label: "Library", href: "/library", end: false, featured: true },
+  { label: "pd tube", href: "/pd-tube", end: false },
+  { label: "Skills + MCP", href: "/mcp", end: true },
   { label: "Docs", href: "/docs", end: false },
+  { label: "Manifesto", href: "/manifesto", end: true, featured: true },
 ] satisfies readonly NavItem[];
 
 const OVERFLOW_NAV_ITEMS = [
-  { label: "Mac Preview", href: "/mac-preview", end: false, badge: "New" },
-  { label: "CLI Backend", href: "/cli-backend", end: true, badge: "$0" },
+  { label: "Mac app", href: "/mac-preview", end: false },
+  { label: "Run agents on your subscription", href: "/cli-backend", end: true },
   { label: "Examples", href: "/examples", end: false },
   { label: "Tutorials", href: "/tutorials", end: false },
   { label: "Templates", href: "/agents/templates", end: true },
+  { label: "Library", href: "/library", end: false },
   { label: "Landscape", href: "/landscape", end: false },
   { label: "Blog", href: "/blog", end: false },
-  { label: "Manifesto", href: "/manifesto", end: true },
   { label: "Papers", href: "/whitepaper", end: false },
 ] satisfies readonly NavItem[];
 
@@ -59,7 +60,7 @@ function navItemClass(
 
   return [
     displayClass,
-    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:0.76rem] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]",
+    "shrink-0 items-center gap-[var(--space-2)] border-2 px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]",
     featuredDesktop
       ? "border-[var(--border-strong)] bg-[var(--text-primary)] text-[var(--surface-base)] hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
       : isActive
@@ -109,11 +110,6 @@ function PrimaryNavItem({
       }
     >
       <span>{item.label}</span>
-      {item.badge ? (
-        <span className="border border-current px-[var(--space-1)] py-[1px] text-[0.62rem] leading-none tracking-[0.08em]">
-          {item.badge}
-        </span>
-      ) : null}
     </NavLink>
   );
 }
@@ -124,7 +120,7 @@ function OverflowNavMenu() {
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:0.76rem] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]"
+          className="inline-flex shrink-0 items-center gap-[var(--space-2)] border-2 border-transparent px-[var(--space-2)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)] xl:px-[var(--space-3)]"
         >
           More
           <ChevronDown size={14} aria-hidden="true" />
@@ -211,11 +207,6 @@ function CompressedNavMenu() {
                   }
                 >
                   <span>{item.label}</span>
-                  {item.badge ? (
-                    <span className="border border-current px-[var(--space-1)] py-[1px] text-[length:var(--type-meta-size)] leading-none tracking-[var(--tracking-meta)]">
-                      {item.badge}
-                    </span>
-                  ) : null}
                 </NavLink>
               </Popover.Close>
             ))}
