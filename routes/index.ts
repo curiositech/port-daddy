@@ -17,6 +17,7 @@ import { servicesPlugin } from './services.js';
 import { messagingPlugin } from './messaging.js';
 import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
+import { agentCockpitPlugin } from './agent-cockpit.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
@@ -105,6 +106,14 @@ export async function registerAllRoutes(
   await fastify.register(messagingPlugin, { deps } as any);
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
+
+  // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
+  // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
+  // Registers AFTER agentsPlugin so its specific /agents/:id/stream path is
+  // matched alongside the generic /agents/:id. transcripts is optional in deps;
+  // the plugin self-degrades to status+tube sources when it's absent.
+  await fastify.register(agentCockpitPlugin, { deps } as any);
+
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(githubWebhookPlugin, { deps } as any);

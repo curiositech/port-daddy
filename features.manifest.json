@@ -211,6 +211,21 @@
         "sdk": true
       }
     },
+    "agent_cockpit": {
+      "description": "Watch + Grab the Wheel (Phase 0) — additive console surface for one agent/sortie. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe — pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /agents/:param/stream",
+        "POST /agents/:param/interrupt"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "routes/agent-cockpit.ts. CLI surface is `pd agent stream <id>` (tails the merged SSE feed) and `pd agent interrupt <id> [--reason]` (publishes the soft control.interrupt), handled inside cli/commands/agents.ts handleAgent as subcommands of the existing `agent` top-level command (owned by the `agents` feature, so not re-listed here to avoid a cross-feature duplicate CLI entry). These are real first-class agent consumers, not an MCP-exempt cop-out for the CLI; bijective-parity maps route category `agentcockpit` -> [`agent`]. Bash/zsh/fish completions list `interrupt`/`stream` under the agent subcommand. Steering channel is deterministically agent:<id>, derivable by both the console (stream subscriber) and a cooperating agent loop. SSE idioms mirror routes/messaging.ts + routes/transcripts.ts (hijack, event: connected, 30s :heartbeat, fail-closed cleanup, per-IP SSE limits). transcripts source is optional and self-degrades when the dep is absent."
+    },
     "actors": {
       "description": "Durable maritime actor directory",
       "cli": [
