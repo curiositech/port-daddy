@@ -464,9 +464,11 @@ function toResolutionOverride(row: SemanticOverrideRow): SemanticResolutionOverr
  * Compute cosine similarity for normalized vectors.
  *
  * The embedder already returns normalized vectors, so cosine similarity reduces
- * to a dot product here.
+ * to a dot product here. Exported so other reusers of the local embedder (e.g.
+ * the LLM semantic response cache, lib/llm-call.ts) share the exact same metric
+ * instead of reinventing it.
  */
-function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length === 0 || a.length !== b.length) return 0;
   let total = 0;
   for (let i = 0; i < a.length; i += 1) {
@@ -511,6 +513,35 @@ function extractVector(result: EmbeddingPipelineResult | unknown): number[] {
     return flattenUnknownArray(result.tolist());
   }
   return flattenUnknownArray(result);
+}
+
+/** A minimal local embedder: text → normalized vectors, no DB, no remote service. */
+export interface LocalEmbedder {
+  modelId: string;
+  embed(texts: string[]): Promise<number[][]>;
+}
+
+/**
+ * Public, standalone local embedder — the same `Xenova/all-MiniLM-L6-v2`
+ * pipeline the semantic resolver uses, but without needing a DB or the full
+ * resolver. Reusers (e.g. the LLM semantic response cache, lib/llm-call.ts) get
+ * the operator's existing local embedding model instead of standing up a new
+ * embedding service or an external vector DB. Lazy: the model loads on first
+ * `embed()`.
+ */
+export function createLocalEmbedder(
+  options: { cacheDir?: string; modelId?: string } = {},
+): LocalEmbedder {
+  const cacheDir = options.cacheDir ?? join(process.cwd(), '.cache', 'transformers');
+  const modelId = options.modelId ?? DEFAULT_SEMANTIC_MODEL_ID;
+  let inner: { modelId: string; embed(texts: string[]): Promise<number[][]> } | null = null;
+  return {
+    modelId,
+    async embed(texts: string[]): Promise<number[][]> {
+      if (!inner) inner = await createDefaultEmbedder(cacheDir, modelId);
+      return inner.embed(texts);
+    },
+  };
 }
 
 /**
