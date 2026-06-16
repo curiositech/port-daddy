@@ -212,6 +212,48 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
+### Ship checklist — killer items only (DO-CONFIRM)
+
+The procedure above is the *manual*. This is the *cognitive net*: the few
+omissions that actually cause harm here, confirmed at each irreversible point.
+It is not a replacement for judgment — it catches the predictable lapses that
+slip through under momentum. **Add nothing routine.** If agents here already do
+a step reliably (worktree, `pd begin`, commit hygiene), it does not belong on
+this list. Each item below is here because it was actually missed in a real
+session. `[M]` = a machine enforces this; the rest are human DO-CONFIRM (a
+script cannot judge them, and pretending it can is solutionism).
+
+**Before you commit:**
+- **Citations are real.** `[M, partial]` Every cited repo path / file / proof
+  exists and says what you claim — "a path that no longer exists is a caught
+  lie." `scripts/check-doc-citations.mjs` (CI job `doc-citation-guard`)
+  mechanically verifies backtick'd repo paths + relative links in *changed*
+  docs. It canNOT verify that a *command/concept* you name (e.g. a `pd` verb) is
+  actually shipped vs. designed-not-built — that stays your DO-CONFIRM.
+- **Agent-neutral.** No single-harness assumption on a cross-agent surface. LLM
+  steps route through `resolveLLMBackend` (`lib/llm-backend-resolver.ts`);
+  memory/coordination lives in PD primitives, never a harness freebie like
+  Claude Code's gitignored `.remember/`. (Caught the hard way: a design doc that
+  mapped a PD pillar onto `.remember/`.)
+- **Coordinated.** `[M]` Files claimed and `pd guard check --staged` passes
+  (Coordination Guard enforces this at commit).
+
+**Before you push / open the PR:**
+- **The gate is real, not theater.** The test/CI that "passes" actually *builds
+  and exercises the code you changed*. A green check on a job that never ran
+  your workspace is not coverage — that is exactly how the macaroon parity gate
+  sat untested for weeks (its workspace was never built in CI).
+- **Rebased on latest `origin/main`.**
+
+**Before you merge (the no-return point):**
+- **Adversarial review happened and every HIGH finding is *addressed*** — fixed
+  or contested-with-reason, not merely opened. Verdict on record.
+- **Genuinely green, not racing review.** Required checks pass on their own
+  merits; **never `--admin` over red** (Port Daddy wraps `git` but deliberately
+  not `gh`, so nothing mechanically blocks this — it is a hard rule + the harness
+  classifier, not a gate, so it is on you); let Copilot post before merging
+  non-trivial code.
+
 ### Visual artifacts for UI diffs (hard requirement — forever)
 
 Every PR that touches a **GPUI** surface (`core/pd-console` window), the
