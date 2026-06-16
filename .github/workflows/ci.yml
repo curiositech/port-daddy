@@ -28,6 +28,25 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  doc-citation-guard:
+    # The machine-checkable half of the ship checklist's "citations are real" killer
+    # item (AGENTS.md § Pull Request Operating Procedure). Verifies that backtick'd
+    # repo paths + relative markdown links in the docs THIS PR changed resolve to real
+    # files. Scoped to changed docs (not the whole legacy) so it gates what you touch.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch base branch for the changed-files diff
+        run: git fetch --no-tags --depth=200 origin main:refs/remotes/origin/main || true
+      - name: Doc-citation guard (cited repo paths in changed docs must exist)
+        run: node scripts/check-doc-citations.mjs
+
   # Decide whether website-terminal-recordings (the heaviest job, ~7 min)
   # needs to run on this PR. It re-records terminal GIFs of the CLI, so only
   # changes to the website, the CLI/daemon surface it demos, the build

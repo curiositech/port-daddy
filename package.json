@@ -34,6 +34,7 @@
     "export:public": "tsx scripts/export-public-repo.ts",
     "check:public-export": "tsx scripts/export-public-repo.ts --check",
     "diagnose:node-builtin-imports": "node scripts/check-builtin-named-imports.mjs",
+    "check:doc-citations": "node scripts/check-doc-citations.mjs",
     "parity": "tsx scripts/check-parity.ts",
     "preversion": "npm run parity && npm test -- --no-coverage",
     "postversion": "tsx scripts/sync-version.ts && git add .claude-plugin/plugin.json .gemini/extensions/port-daddy/gemini-extension.json mcp-server.json mcp/server.ts server.ts website-v2/src/data/referenceCatalog.ts public/samples/manifest.json && git commit --amend --no-edit",
