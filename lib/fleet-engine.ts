@@ -265,7 +265,7 @@ const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.y
 const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
 
 // API-backed backends derive their low/mid/high tiers from the declarative
-// registry (config/model-registry.json) via resolveModel — NO hardcoded model
+// registry (lib/model-registry-data.ts) via resolveModel — NO hardcoded model
 // IDs here (operator directive 2026-06-15; see lib/model-registry.ts + ADR-0057).
 // The map shape is preserved for back-compat with routes/fleet.ts importers.
 const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;

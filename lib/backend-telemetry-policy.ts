@@ -10,7 +10,7 @@ export interface BackendTelemetryPolicy {
 }
 
 // Operator-default models are the registry's `cheap` tier per backend — resolved
-// at load time, NOT hardcoded. Change the IDs in config/model-registry.json; the
+// at load time, NOT hardcoded. Change the IDs in lib/model-registry-data.ts; the
 // names below stay stable for back-compat with importers.
 export const DEFAULT_OPERATOR_CLAUDE_MODEL = resolveModel({ backend: 'claude', capability: 'cheap' });
 export const DEFAULT_OPERATOR_CODEX_MODEL = resolveModel({ backend: 'codex', capability: 'cheap' });

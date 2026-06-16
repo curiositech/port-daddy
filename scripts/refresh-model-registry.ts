@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * refresh-model-registry — keep config/model-registry.json current per build.
+ * refresh-model-registry — keep lib/model-registry-data.ts current per build.
  *
  * Model IDs churn (ADR-0057). This script is the "refreshed every version build"
  * half of the declarative-registry directive: it asks each provider what models
@@ -25,21 +25,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { MODEL_REGISTRY_DATA } from '../lib/model-registry-data.js';
 
-const REGISTRY_PATH = join(
+const DATA_PATH = join(
   dirname(fileURLToPath(import.meta.url)),
   '..',
-  'config',
-  'model-registry.json',
+  'lib',
+  'model-registry-data.ts',
 );
-
-interface Registry {
-  generatedAt: string;
-  generatedBy: string;
-  source: string;
-  backends: Record<string, Record<string, string>>;
-  [k: string]: unknown;
-}
 
 /** Provider model-list fetchers. Return null when unqueryable (no key / no endpoint). */
 const PROVIDERS: Record<string, () => Promise<string[] | null>> = {
@@ -82,7 +75,6 @@ function isPresent(id: string, live: string[]): boolean {
 
 async function main() {
   const write = process.argv.includes('--write');
-  const reg = JSON.parse(readFileSync(REGISTRY_PATH, 'utf8')) as Registry;
 
   const liveByProvider: Record<string, string[] | null> = {};
   for (const [provider, fetcher] of Object.entries(PROVIDERS)) {
@@ -96,7 +88,7 @@ async function main() {
 
   const drift: string[] = [];
   const manual: string[] = [];
-  for (const [backend, table] of Object.entries(reg.backends)) {
+  for (const [backend, table] of Object.entries(MODEL_REGISTRY_DATA.backends)) {
     const provider = BACKEND_PROVIDER[backend];
     const live = provider ? liveByProvider[provider] : undefined;
     for (const [capability, id] of Object.entries(table)) {
@@ -122,18 +114,24 @@ async function main() {
   if (drift.length) {
     console.error('\n✗ DRIFT — registry maps to model IDs that no longer exist:');
     for (const d of drift) console.error(`  - ${d}`);
-    console.error('\nUpdate config/model-registry.json to a live ID for each, then re-run.');
+    console.error('\nUpdate lib/model-registry-data.ts to a live ID for each, then re-run.');
     process.exit(1);
   }
 
   console.log('\n✓ No drift: every auto-checkable registry ID is still live.');
 
   if (write) {
+    // Restamp provenance in the TS data module (string-replace the two lines —
+    // we do NOT auto-rewrite IDs; that stays a reviewed change).
     const today = new Date().toISOString().slice(0, 10);
-    reg.generatedAt = today;
-    reg.generatedBy = `refresh-model-registry.ts --write on ${today}`;
-    writeFileSync(REGISTRY_PATH, JSON.stringify(reg, null, 2) + '\n');
-    console.log(`Restamped generatedAt=${today}.`);
+    let src = readFileSync(DATA_PATH, 'utf8');
+    src = src.replace(/generatedAt: '[^']*'/, `generatedAt: '${today}'`);
+    src = src.replace(
+      /generatedBy: '[^']*'/,
+      `generatedBy: 'refresh-model-registry.ts --write on ${today}'`,
+    );
+    writeFileSync(DATA_PATH, src);
+    console.log(`Restamped generatedAt=${today} in lib/model-registry-data.ts.`);
   }
 }
 

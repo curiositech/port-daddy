@@ -1,7 +1,7 @@
 // tests/unit/model-registry.test.js
 //
 // The declarative model registry (ADR-0057): code declares (backend, capability)
-// and resolveModel() splices the concrete ID from config/model-registry.json.
+// and resolveModel() splices the concrete ID from lib/model-registry-data.ts.
 
 import { describe, test, expect } from '@jest/globals';
 

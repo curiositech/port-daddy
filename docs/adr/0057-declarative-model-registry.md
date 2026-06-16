@@ -37,7 +37,7 @@ through one resolver.**
 
 Three pieces:
 
-1. **`config/model-registry.json`** — the single data file mapping
+1. **`lib/model-registry-data.ts`** — the single data file mapping
    `backend → capability → concrete model ID`. Capabilities are a small fixed
    vocabulary: `cheap`, `balanced`, `high`, `max-thinking`, `code`. The file carries
    provenance (`generatedAt`, `source`) so a stale registry is visible. It is the
@@ -53,7 +53,7 @@ Three pieces:
 
 3. **`scripts/refresh-model-registry.ts`** — the per-build populator. It queries
    provider `/models` endpoints (Anthropic, OpenAI) where a key is available, ranks
-   them into the capability tiers, and rewrites the JSON with a fresh `generatedAt`.
+   them into the capability tiers, and rewrites the data module with a fresh `generatedAt`.
    Where a provider can't be auto-queried it preserves the prior values and reports
    what needs manual review. This is the "refreshed every version build" half of the
    directive — the registry is kept current out-of-band, like rotating a secret.
@@ -71,7 +71,7 @@ on its first run.
 
 - `lib/backend-telemetry-policy.ts` — the six `DEFAULT_OPERATOR_*` constants now
   resolve from the registry's `cheap` tier. The exported names stay stable for
-  importers; the IDs move into the JSON. Behavior is byte-identical (cheap == the
+  importers; the IDs move into the data module. Behavior is byte-identical (cheap == the
   prior operator defaults).
 - `lib/fleet-engine.ts` — `BUILTIN_MODEL_TIERS` is derived from the registry for the
   API-backed backends (claude, codex, gemini, openai, groq, cloudflare, aider). Only
@@ -93,7 +93,7 @@ resolved model.
 
 ## Consequences
 
-- **Positive.** One place to change a model ID. A model rename is a one-line JSON
+- **Positive.** One place to change a model ID. A model rename is a one-line data-module
   edit (or an automatic refresh), not a 135-file sweep. New code physically cannot
   hardcode an ID without tripping CI. Capability descriptors (`cheap`/`max-thinking`)
   are more honest intent than a version-stamped string a reader can't evaluate.

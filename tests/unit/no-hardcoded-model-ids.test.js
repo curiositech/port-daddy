@@ -7,7 +7,7 @@
  *   config must declare INTENT — a backend + a capability (`cheap` / `high` /
  *   `max-thinking`) — and resolve the concrete ID through
  *   `resolveModel()` (lib/model-registry.ts), which reads the one data file
- *   `config/model-registry.json` (refreshed per build). Never hardcode an ID in
+ *   `lib/model-registry-data.ts` (refreshed per build). Never hardcode an ID in
  *   business logic.
  *
  * A literal model ID anywhere under lib/ routes/ cli/ mcp/ — outside the
@@ -28,7 +28,8 @@ const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 
 // Files allowed to contain literal model IDs. Each MUST say why.
 const ALLOWED_FILES = new Set([
-  // The registry source + resolver themselves.
+  // The registry data + resolver themselves — the ONE home for concrete IDs.
+  'lib/model-registry-data.ts',
   'lib/model-registry.ts',
   // Pricing table — rates are keyed by model ID by definition.
   'lib/cost-tracker.ts',
@@ -132,7 +133,7 @@ describe('no-hardcoded-model-ids', () => {
           `Declare intent and resolve at the last second instead:\n` +
           `  import { resolveModel } from './model-registry.js';\n` +
           `  const model = resolveModel({ backend, capability: 'cheap' });\n` +
-          `Concrete IDs live ONLY in config/model-registry.json (refreshed per build).\n` +
+          `Concrete IDs live ONLY in lib/model-registry-data.ts (refreshed per build).\n` +
           `If this file legitimately enumerates IDs (pricing, catalog, validation),\n` +
           `add it to ALLOWED_FILES in this test with a one-line reason.`,
         );
