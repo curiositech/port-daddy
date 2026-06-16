@@ -72,6 +72,20 @@ function claimsCollide(a: ActiveClaim, b: ActiveClaim): boolean {
   return rangesOverlap(a.startLine, a.endLine, b.startLine, b.endLine);
 }
 
+/** Confidence by overlap severity, so the suggestions module's PRIORITY tier
+ *  (S5 fix) actually fires for the overlaps that matter. A same-symbol or
+ *  whole-file collision is high-severity (a guaranteed edit conflict); a partial
+ *  line-range overlap is ordinary. The threshold (0.95) lives in the suggestions
+ *  policy — keep HIGH at/above it and NORMAL below. */
+const SEVERITY_CONFIDENCE_HIGH = 0.97;
+const SEVERITY_CONFIDENCE_NORMAL = 0.9;
+function overlapSeverityConfidence(a: ActiveClaim, b: ActiveClaim): number {
+  if (a.symbolPath && b.symbolPath && a.symbolPath === b.symbolPath) return SEVERITY_CONFIDENCE_HIGH;
+  const wholeFile =
+    a.startLine == null || a.endLine == null || b.startLine == null || b.endLine == null;
+  return wholeFile ? SEVERITY_CONFIDENCE_HIGH : SEVERITY_CONFIDENCE_NORMAL;
+}
+
 /** Stable dedup key for the unordered session pair on a file. */
 export function overlapPayloadHash(o: ClaimOverlap): string {
   return `claim-overlap:${o.filePath}:${o.a.sessionId}|${o.b.sessionId}`;
@@ -208,6 +222,7 @@ export function runOverlapScan(deps: RunOverlapScanDeps): OverlapScanResult {
         kind: OVERLAP_KIND,
         payload,
         payloadHash,
+        confidence: overlapSeverityConfidence(self, other),
       });
 
       if (!res.created) {
