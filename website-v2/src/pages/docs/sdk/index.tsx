@@ -124,6 +124,7 @@ const pd = new PortDaddy()
 
 const { port } = await pd.claim('myapp:api:main')
 await pd.begin('Building API preview', {
+  lifecycle: 'durable',
   identity: 'myapp:api:main',
   files: ['src/server.ts']
 })

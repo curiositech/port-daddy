@@ -59,7 +59,7 @@ export function MultiAgentOrchestration() {
             Before modifying files, claim them. Claims are advisory — they warn
             other agents about conflicts without hard-locking anything.
           </motion.p>
-          <CodeBlock copyable={false} language="bash">{`$ pd begin --identity myapp:refactor --purpose "Refactor auth middleware"
+          <CodeBlock copyable={false} language="bash">{`$ pd begin --identity myapp:refactor --purpose "Refactor auth middleware" --lifecycle durable
 $ pd session files claim src/middleware/*.ts src/routes/auth.ts
   Claimed 12 files. No conflicts.
 
@@ -149,7 +149,7 @@ $ pd notes --session session-a1b2c3d4
             Every multi-agent workflow follows the same four steps:
           </motion.p>
           <CodeBlock copyable={false} language="bash">{`# 1. Start a session and claim files
-$ pd begin --identity myapp:auth --purpose "Fix token validation"
+$ pd begin --identity myapp:auth --purpose "Fix token validation" --lifecycle durable
 $ pd session files claim src/auth/*.ts
 
 # 2. Do the work, writing notes

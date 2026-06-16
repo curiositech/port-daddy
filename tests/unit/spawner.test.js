@@ -1039,6 +1039,7 @@ describe('PD coordination', () => {
     expect(beginCalls.length).toBe(1);
     const body = JSON.parse(beginCalls[0][1].body);
     expect(body.identity).toBe('myapp:api:main');
+    expect(body.lifecycle).toBe('ephemeral');
   });
 
   test('calls /sugar/done on successful completion', async () => {

@@ -43,7 +43,7 @@ const STEPS = [
     number: '04',
     title: 'Begin an Agent Session',
     description: 'Register as an agent and start tracking your work.',
-    code: '$ pd begin "Initial setup" --identity myapp:coder',
+    code: '$ pd begin "Initial setup" --identity myapp:coder --lifecycle durable',
     output: 'Session started: session-b2e4\nAgent registered: myapp:coder',
     verifyCommand: '$ pd whoami',
     verifyOutput: 'Agent:   agent-7f3a\nSession: session-b2e4\nIdentity: myapp:coder',

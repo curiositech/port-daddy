@@ -1,5 +1,5 @@
 /**
- * Durable Session Mode Tests (pd begin --durable)
+ * Durable Session Mode Tests (lifecycle: durable)
  *
  * Durable sessions are work contexts, not process lifetimes. They survive
  * without a live heartbeat: the orphan reaper skips them, whoami reports
@@ -190,16 +190,16 @@ describe('Durable Sessions', () => {
   // ===========================================================================
 
   describe('sugar integration', () => {
-    it('begin({ durable: true }) creates a durable session', () => {
-      const result = sugar.begin({ purpose: 'Long-running build', durable: true });
+    it("begin({ lifecycle: 'durable' }) creates a durable session", () => {
+      const result = sugar.begin({ purpose: 'Long-running build', lifecycle: 'durable' });
       expect(result.success).toBe(true);
 
       const row = db.prepare('SELECT is_durable FROM sessions WHERE id = ?').get(result.sessionId);
       expect(row.is_durable).toBe(1);
     });
 
-    it('begin without durable stays non-durable', () => {
-      const result = sugar.begin({ purpose: 'Quick fix' });
+    it("begin({ lifecycle: 'ephemeral' }) stays non-durable", () => {
+      const result = sugar.begin({ purpose: 'Quick fix', lifecycle: 'ephemeral' });
       expect(result.success).toBe(true);
 
       const row = db.prepare('SELECT is_durable FROM sessions WHERE id = ?').get(result.sessionId);
@@ -207,7 +207,7 @@ describe('Durable Sessions', () => {
     });
 
     it('whoami reports an abandoned durable session as active and resurrects it', () => {
-      const begun = sugar.begin({ purpose: 'Long-running build', durable: true });
+      const begun = sugar.begin({ purpose: 'Long-running build', lifecycle: 'durable' });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
 
       const who = sugar.whoami({ sessionId: begun.sessionId });
@@ -220,7 +220,7 @@ describe('Durable Sessions', () => {
     });
 
     it('whoami by agentId (no explicit sessionId) finds and resurrects an abandoned durable session', () => {
-      const begun = sugar.begin({ purpose: 'Long-running build', durable: true });
+      const begun = sugar.begin({ purpose: 'Long-running build', lifecycle: 'durable' });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
 
       const who = sugar.whoami({ agentId: begun.agentId });
@@ -232,7 +232,7 @@ describe('Durable Sessions', () => {
     });
 
     it('whoami by agentId still reports inactive for an abandoned non-durable session', () => {
-      const begun = sugar.begin({ purpose: 'Quick fix' });
+      const begun = sugar.begin({ purpose: 'Quick fix', lifecycle: 'ephemeral' });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
 
       const who = sugar.whoami({ agentId: begun.agentId });
@@ -243,7 +243,7 @@ describe('Durable Sessions', () => {
     });
 
     it('whoami still reports an abandoned non-durable session as inactive', () => {
-      const begun = sugar.begin({ purpose: 'Quick fix' });
+      const begun = sugar.begin({ purpose: 'Quick fix', lifecycle: 'ephemeral' });
       db.prepare("UPDATE sessions SET status = 'abandoned' WHERE id = ?").run(begun.sessionId);
 
       const who = sugar.whoami({ sessionId: begun.sessionId });

@@ -29,7 +29,7 @@ While individual agents are brilliant, **coordination** is the bottleneck. Port 
 
 ```bash
 # Start working (registers agent + claims port + starts session)
-pd begin "Building the auth layer" --identity myapp:api
+pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
 
 # Log progress, coordinate with other agents
 pd note "JWT validation passing all tests"

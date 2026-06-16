@@ -352,6 +352,7 @@ async function handleRoadmapPop(args: string[], options: CLIOptions): Promise<vo
     const beginOptions: CLIOptions = { ...options };
     const identity = readOption(options, 'identity') ?? defaultClaimedBy(options);
     if (identity) beginOptions.identity = identity;
+    if (!beginOptions.lifecycle) beginOptions.lifecycle = 'durable';
     try {
       await handleBegin(purpose, [], beginOptions);
     } catch (err) {

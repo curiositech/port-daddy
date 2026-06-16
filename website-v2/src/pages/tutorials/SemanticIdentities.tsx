@@ -243,7 +243,7 @@ pd find 'myapp:*:feature-*'
               },
               {
                 label: "Sessions",
-                example: "pd begin --identity myapp:api",
+                example: 'pd begin "Investigate API drift" --identity myapp:api --lifecycle durable',
                 desc: "Work sessions tied to what you're building",
               },
               {

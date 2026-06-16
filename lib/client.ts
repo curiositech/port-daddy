@@ -2253,6 +2253,7 @@ class PortDaddy {
    */
   async startSession(options: {
     purpose: string;
+    lifecycle?: 'durable' | 'ephemeral';
     agentId?: string;
     files?: string[];
     force?: boolean;
@@ -2261,9 +2262,17 @@ class PortDaddy {
     requireLinkedWorktree?: boolean;
     allowMainWorktree?: boolean;
   }): Promise<SessionResponse> {
+    if (options.lifecycle !== undefined && options.lifecycle !== 'durable' && options.lifecycle !== 'ephemeral') {
+      throw new Error('startSession lifecycle must be "durable" or "ephemeral" when provided');
+    }
+    let ipcOptions: Record<string, unknown> = options;
+    if (options.lifecycle) {
+      const { lifecycle, ...rest } = options;
+      ipcOptions = { ...rest, durable: lifecycle === 'durable' };
+    }
     const ipcResult = await this._requestViaIpc<SessionResponse>(
       IpcAction.SESSION_START,
-      options,
+      ipcOptions,
     );
     if (ipcResult) {
       if (ipcResult.success === false) {
@@ -2602,11 +2611,15 @@ class PortDaddy {
    * @example
    * const pd = new PortDaddy({ agentId: 'my-agent' });
    * const { sessionId } = await pd.begin('Building auth system', {
+   *   lifecycle: 'durable',
    *   identity: 'myapp:api:auth',
    *   files: ['src/auth.ts', 'src/middleware.ts'],
    * });
    */
-  async begin(purpose: string, options: BeginSugarOptions = {}): Promise<BeginSugarResponse> {
+  async begin(purpose: string, options: BeginSugarOptions): Promise<BeginSugarResponse> {
+    if (!options || (options.lifecycle !== 'durable' && options.lifecycle !== 'ephemeral')) {
+      throw new Error('PortDaddy.begin requires options.lifecycle to be "durable" or "ephemeral"');
+    }
     const body: Record<string, unknown> = { purpose };
     if (this.agentId) body.agentId = this.agentId;
     if (options.agentId) body.agentId = options.agentId;
@@ -2619,6 +2632,7 @@ class PortDaddy {
     if (options.worktree) body.worktree = options.worktree;
     if (options.requireLinkedWorktree) body.requireLinkedWorktree = true;
     if (options.allowMainWorktree) body.allowMainWorktree = true;
+    body.lifecycle = options.lifecycle;
 
     const result = await this._request('POST', '/sugar/begin', body) as BeginSugarResponse;
 
@@ -3689,6 +3703,7 @@ interface DnsResolverStatusResponse {
 // =============================================================================
 
 interface BeginSugarOptions {
+  lifecycle: 'durable' | 'ephemeral';
   agentId?: string;
   name?: string;
   identity?: string;
@@ -3709,6 +3724,7 @@ interface BeginSugarResponse {
   sessionId: string;
   identity: string | null;
   purpose: string;
+  lifecycle: 'durable' | 'ephemeral';
   agentRegistered: boolean;
   sessionStarted: boolean;
   fileClaims?: string[];

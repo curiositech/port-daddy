@@ -187,6 +187,7 @@ async function lesson3Session(): Promise<void> {
       body: JSON.stringify({
         purpose,
         identity: 'tutorial:learn:interactive',
+        lifecycle: 'durable',
       }),
     });
     const data = await res.json();
@@ -201,12 +202,12 @@ async function lesson3Session(): Promise<void> {
       process.stderr.write(`    Purpose: ${purpose}\n`);
 
       process.stderr.write(`\n  You just ran the equivalent of:\n`);
-      process.stderr.write(`    ${ANSI.fgCyan}pd begin "${purpose}" --identity tutorial:learn:interactive${ANSI.reset}\n`);
+      process.stderr.write(`    ${ANSI.fgCyan}pd begin "${purpose}" --identity tutorial:learn:interactive --lifecycle durable${ANSI.reset}\n`);
       process.stderr.write(`\n  All four syntaxes work:\n`);
-      process.stderr.write(`    ${ANSI.fgCyan}pd begin "${purpose}"${ANSI.reset}              ${ANSI.dim}# positional${ANSI.reset}\n`);
-      process.stderr.write(`    ${ANSI.fgCyan}pd begin --purpose "${purpose}"${ANSI.reset}    ${ANSI.dim}# named flag${ANSI.reset}\n`);
-      process.stderr.write(`    ${ANSI.fgCyan}pd begin -P "${purpose}"${ANSI.reset}           ${ANSI.dim}# short flag${ANSI.reset}\n`);
-      process.stderr.write(`    ${ANSI.fgCyan}pd begin${ANSI.reset}                           ${ANSI.dim}# interactive${ANSI.reset}\n`);
+      process.stderr.write(`    ${ANSI.fgCyan}pd begin "${purpose}" --lifecycle durable${ANSI.reset}              ${ANSI.dim}# positional${ANSI.reset}\n`);
+      process.stderr.write(`    ${ANSI.fgCyan}pd begin --purpose "${purpose}" --lifecycle durable${ANSI.reset}    ${ANSI.dim}# named flag${ANSI.reset}\n`);
+      process.stderr.write(`    ${ANSI.fgCyan}pd begin -P "${purpose}" --lifecycle durable${ANSI.reset}           ${ANSI.dim}# short flag${ANSI.reset}\n`);
+      process.stderr.write(`    ${ANSI.fgCyan}pd begin${ANSI.reset}                                             ${ANSI.dim}# interactive${ANSI.reset}\n`);
     } else {
       ui.warn(`Could not start session: ${data.error || 'unknown error'}`);
     }
@@ -657,7 +658,7 @@ async function summary(): Promise<void> {
   box([
     `${ANSI.bold}Quick Reference${ANSI.reset}`,
     '',
-    `${ANSI.fgCyan}pd begin "task"${ANSI.reset}    Start working (register + session)`,
+    `${ANSI.fgCyan}pd begin "task" --lifecycle durable${ANSI.reset}    Start working (register + session)`,
     `${ANSI.fgCyan}pd n "update"${ANSI.reset}      Leave a note`,
     `${ANSI.fgCyan}pd done "note"${ANSI.reset}     Finish up (end session + unregister)`,
     `${ANSI.fgCyan}pd whoami${ANSI.reset}          Show current context`,

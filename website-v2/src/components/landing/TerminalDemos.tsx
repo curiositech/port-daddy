@@ -12,7 +12,7 @@ const DEMOS = [
     gif: '/gifs/quickstart.gif',
     caption: 'A real recording of a Port Daddy quickstart: commands appear with daemon output, not as a naked checklist.',
     code: `# Start working on a project
-$ pd begin "Building the photo upload API" --identity photoapp:api
+$ pd begin "Building the photo upload API" --identity photoapp:api --lifecycle durable
   Agent agent-a7f3 ready
   Session started · port 9201 · identity photoapp:api
 
@@ -38,14 +38,14 @@ $ pd done "Upload API complete with tests"
     gif: '/gifs/agents/coordination.gif',
     caption: 'A real coordination recording with visible terminal responses for claims, notes, and guard state.',
     code: `# Agent 1: Backend developer
-$ pd begin "REST API for auth" --identity myapp:api
+$ pd begin "REST API for auth" --identity myapp:api --lifecycle durable
   Agent agent-c3d1 ready
 
 $ pd claim myapp:api
   Port 9201 claimed · identity myapp:api
 
 # Agent 2: Frontend developer
-$ pd begin "React login page" --identity myapp:web
+$ pd begin "React login page" --identity myapp:web --lifecycle durable
   Agent agent-e5f2 ready
 
 $ pd claim myapp:web

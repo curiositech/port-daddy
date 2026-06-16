@@ -296,7 +296,7 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 
 # begin -> whoami(active) -> note -> notes -> done
 # (--allow-main-worktree: CI runs on the main worktree)
-run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
+run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):

@@ -57,7 +57,7 @@ pd harbor show my-app:main
             project harbor.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`pd begin "Add password reset flow" --identity my-app:codex:auth
+            {`pd begin "Add password reset flow" --identity my-app:codex:auth --lifecycle durable
 pd harbor enter my-app:main
 pd note "Reset email template is implemented; API handler remains."
 # Expected result: the session, note, and agent identity are attached to my-app:main.`}

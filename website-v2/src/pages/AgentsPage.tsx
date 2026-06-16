@@ -365,7 +365,7 @@ pd note "CI repair evidence: command, failure, patch, validation"`,
     label: 'Kernel agent',
     path: 'templates/always-on-dispatcher/README.md',
     body: 'A long-lived dispatcher pattern for routing build, security, and performance events to the right handler while leaving an audit trail in session notes.',
-    command: `pd begin --identity dispatcher:kernel
+    command: `pd begin --identity dispatcher:kernel --lifecycle durable
 pd watch build:failed --exec "pd agent 'inspect build failure and leave a note'"
 pd notes --limit 10`,
     tags: ['Dispatcher', 'SSE', 'Audit'],
@@ -525,7 +525,7 @@ open "http://127.0.0.1:$port/fleet-ui/?surface=flow"
     gif: '/gifs/agents/coordination.gif',
     alt: 'Fleet Control Center showing Coordination Guard in enforce mode beside fleet actions and budget controls',
     codeLabel: 'Guard loop',
-    code: `pd begin "patch the route timeout"
+    code: `pd begin "patch the route timeout" --lifecycle durable
 pd note "Scope: routes/fleet.ts; validation: focused route tests plus typecheck"
 pd session files add routes/fleet.ts
 pd guard status
@@ -808,7 +808,7 @@ python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py
 # The operating loop it teaches agents:
 pd status
 pd briefing
-pd begin "finish the bounded slice"
+pd begin "finish the bounded slice" --lifecycle durable
 pd note "Scope, files, assumptions, validation plan"
 pd session files add website-v2/src/pages/AgentsPage.tsx
 pd guard check --staged`,
@@ -1178,7 +1178,7 @@ pd done "Recovered, validated, and closed the abandoned work"`,
     gif: '/gifs/agents/coordination.gif',
     alt: 'Generated image of a coordination guard protecting file claims and critical sections',
     codeLabel: 'Edit discipline',
-    code: `pd begin "fix fleet route timeout"
+    code: `pd begin "fix fleet route timeout" --lifecycle durable
 pd advise routes/fleet.ts --task "patch timeout handling without touching spawn policy"
 pd note "Scope: routes/fleet.ts only; validation: focused route tests plus typecheck"
 pd session files add routes/fleet.ts
