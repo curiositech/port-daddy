@@ -154,6 +154,19 @@ describe('runOverlapScan', () => {
     expect(surfaced[0].confidence).toBeLessThan(0.95);
   });
 
+  test('the delivered payload carries a wire-format version (schema-drift defense)', () => {
+    runOverlapScan({
+      sessions: sessionsWith([
+        claim('s1', 'lib/x.ts', { agentId: 'agent-1' }),
+        claim('s2', 'lib/x.ts', { agentId: 'agent-2' }),
+      ]),
+      suggestions,
+      inbox,
+    });
+    expect(sent[0].content.v).toBe(1);
+    expect(suggestions.list({ agentId: 'agent-1' })[0].payload.v).toBe(1);
+  });
+
   test('surfaces and delivers a heads-up to BOTH parties of an overlap', () => {
     const res = runOverlapScan({
       sessions: sessionsWith([
