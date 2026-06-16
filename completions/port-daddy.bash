@@ -571,7 +571,7 @@ _port_daddy() {
     #                         [--maxServices N] [--maxLocks N]
     # -----------------------------------------------------------------------
     agent)
-      local agent_subcommands='register heartbeat unregister'
+      local agent_subcommands='register heartbeat unregister interrupt stream'
       # Find which subcommand (if any) has been typed after "agent".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -636,6 +636,26 @@ _port_daddy() {
               COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
               ;;
             *) _pd_opts '--agent' ;;
+          esac
+          ;;
+        interrupt|stream)
+          # interrupt <agent-id> [--reason TEXT] ; stream <agent-id>
+          case "$prev" in
+            interrupt|stream|--agent)
+              local aids; aids="$(_pd_agent_ids)"
+              # shellcheck disable=SC2207
+              COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
+              ;;
+            --reason)
+              COMPREPLY=()  # Free-form string
+              ;;
+            *)
+              if [[ "$subcmd" == "interrupt" ]]; then
+                _pd_opts '--reason --agent'
+              else
+                _pd_opts '--agent'
+              fi
+              ;;
           esac
           ;;
         *)

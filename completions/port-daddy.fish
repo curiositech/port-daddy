@@ -561,7 +561,9 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command unlock" -x -a '(__pd_lock_names)'
 
     # agent subcommands
-    complete -c $prog -n "__pd_using_command agent" -x -a 'register heartbeat unregister'
+    complete -c $prog -n "__pd_using_command agent" -x -a 'register heartbeat unregister interrupt stream'
+    complete -c $prog -n "__pd_using_command agent; and __fish_seen_subcommand_from interrupt stream" -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command agent; and __fish_seen_subcommand_from interrupt" -l reason -d 'Why the agent is being interrupted' -x
 
     # agents
     complete -c $prog -n "__pd_using_command agents" -l active -d 'Show only active agents'

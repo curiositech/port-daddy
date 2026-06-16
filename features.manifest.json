@@ -224,7 +224,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "routes/agent-cockpit.ts. Steering channel is deterministically agent:<id>, derivable by both the console (stream subscriber) and a cooperating agent loop. SSE idioms mirror routes/messaging.ts + routes/transcripts.ts (hijack, event: connected, 30s :heartbeat, fail-closed cleanup, per-IP SSE limits). transcripts source is optional and self-degrades when the dep is absent."
+      "_note": "routes/agent-cockpit.ts. CLI surface is `pd agent stream <id>` (tails the merged SSE feed) and `pd agent interrupt <id> [--reason]` (publishes the soft control.interrupt), handled inside cli/commands/agents.ts handleAgent as subcommands of the existing `agent` top-level command (owned by the `agents` feature, so not re-listed here to avoid a cross-feature duplicate CLI entry). These are real first-class agent consumers, not an MCP-exempt cop-out for the CLI; bijective-parity maps route category `agentcockpit` -> [`agent`]. Bash/zsh/fish completions list `interrupt`/`stream` under the agent subcommand. Steering channel is deterministically agent:<id>, derivable by both the console (stream subscriber) and a cooperating agent loop. SSE idioms mirror routes/messaging.ts + routes/transcripts.ts (hijack, event: connected, 30s :heartbeat, fail-closed cleanup, per-IP SSE limits). transcripts source is optional and self-degrades when the dep is absent."
     },
     "actors": {
       "description": "Durable maritime actor directory",

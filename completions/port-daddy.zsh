@@ -405,6 +405,8 @@ _pd_cmd_agent() {
     'register:register a new agent'
     'heartbeat:send a heartbeat for an agent'
     'unregister:unregister an agent'
+    'interrupt:soft-interrupt an agent (publishes control on agent:<id>)'
+    'stream:tail the merged SSE feed (status/tube/transcript)'
   )
 
   local state subcmd
@@ -437,6 +439,21 @@ _pd_cmd_agent() {
             '(-q --quiet)'{-q,--quiet}'[suppress output]'
           ;;
         heartbeat|unregister)
+          _arguments \
+            '--agent[agent ID]:agent ID:_pd_complete_agents' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:agent ID:_pd_complete_agents'
+          ;;
+        interrupt)
+          _arguments \
+            '--reason[why the agent is being interrupted]:reason:' \
+            '--agent[agent ID]:agent ID:_pd_complete_agents' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
+            '1:agent ID:_pd_complete_agents'
+          ;;
+        stream)
           _arguments \
             '--agent[agent ID]:agent ID:_pd_complete_agents' \
             '(-j --json)'{-j,--json}'[JSON output]' \
