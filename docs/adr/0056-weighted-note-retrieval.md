@@ -71,7 +71,8 @@ weighted blend.
 
 ### 3. Weighted ranking in the recall surfaces
 
-`pd briefing` / `pd sitrep` / `pd whois` rank candidate memories by
+the shipped recall surfaces — `pd briefing` / `pd sitrep`, plus `pd whois` when it lands
+(ADR-0030, designed-not-built) — rank candidate memories by
 
 ```
 score = α·recency_decay(age) + β·importance_norm + γ·relevance(query)
@@ -106,7 +107,7 @@ Cartographer-owned; phases promote to `roadmap_items` at `now` when picked up.
 | 1 | weighted-retrieval-schema | — | additive `importance` migration on `session_notes` + `episodic_memory`; backfill defaults to neutral |
 | 2 | memory-importance-scorer | 1 | write-time scorer via `resolveLLMBackend({actor:'memory-importance'})`, content-hash cache, comparative prompt, fail-open to neutral; unit tests under the real runtime |
 | 3 | relevance-rank | — (parallel) | query↔memory similarity reusing `semantic-resolver` + the ADR-0039 embedding path; BM25/embedding only, no keyword lists |
-| 4 | weighted-recall-surfaces | 2, 3 | `score = α·recency + β·importance + γ·relevance` in `lib/briefing.ts` / `routes/sitrep.ts` / `whois`; 3–8 window; config-tunable weights; MCP parity (a routed recall surface gets a real MCP tool) |
+| 4 | weighted-recall-surfaces | 2, 3 | `score = α·recency + β·importance + γ·relevance` in the shipped surfaces `lib/briefing.ts` / `routes/sitrep.ts` (and `pd whois` when ADR-0030 lands); 3–8 window; config-tunable weights; MCP parity (a routed recall surface gets a real MCP tool) |
 | 5 | recall-tuning-knobs | 4 | expose `α/β/γ` + decay in daemon config + FleetBar; document the Park decision-tree mapping |
 
 Reflection (Park's fourth pillar — importance-sum-triggered synthesis written back as

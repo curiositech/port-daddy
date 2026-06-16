@@ -29,7 +29,7 @@ is specified in ADR-0056. This doc is the why.
 
 This audit exists partly to correct a bias. An earlier draft mapped Park's **reflection**
 pillar onto `.remember/` — which is **Claude Code's** harness-local memory mechanism
-(`now.md`/`today-*.md`/`recent.md`), **gitignored** (`.gitignore:49`) and shipped by
+(`now.md`/`today-*.md`/`recent.md`), **gitignored** (the `.remember/` entry in `.gitignore`) and shipped by
 *no* part of Port Daddy. Codex, Gemini, and Aider agents get nothing from it. Anchoring a
 PD pillar on it would hand Claude a reflection capability the other backends silently
 lack — the inequity the product exists to refuse.
@@ -46,7 +46,7 @@ hard-coded Claude/Haiku call).
 | Park pillar | Port Daddy primitive (source) | Retrieval model today | Verdict |
 |---|---|---|---|
 | **Memory stream** — append-only, timestamped observations | immutable session notes (`lib/sessions.ts`, `session_notes` table) + activity log + **episodic memory** (`lib/episodic-memory.ts`, `episodic_memory` table) | n/a (storage) | ✅ **strong** — already append-only, already stamps `agentId`/`identityProject` |
-| **Retrieval** — *recency · importance · relevance* | `pd briefing` (`lib/briefing.ts`), `pd attention` (`cli/commands/attention.ts`), `pd sitrep`, `pd whois`/`/actors` | **recency only** (`created_at DESC` + time-window + tag/scope filter) | ⚠️ **the gap** — no importance field, no relevance rank |
+| **Retrieval** — *recency · importance · relevance* | `pd briefing` (`lib/briefing.ts`), `pd attention` (`cli/commands/attention.ts`), `pd sitrep` (`routes/sitrep.ts`); the `/actors` projection (`routes/actors.ts`); `pd whois` is designed-not-built (ADR-0030) | **recency only** (`created_at DESC` + time-window + tag/scope filter) | ⚠️ **the gap** — no importance field, no relevance rank |
 | **Reflection** — importance-triggered synthesis of higher-order insights, written back as high-importance memories | episode promotion (`lib/episodic-memory.ts`'s `remember()`); status synthesis (`.cartographer/status.md`) | promote/compress only | ◐ **partial** — promotes and compresses; does **not** synthesise insights on an importance trigger |
 | **Planning / replan-on-conflict** | roadmap (`lib/roadmap-items.ts`, `roadmap_items` table) + claims/locks; the surface-overlap conflict detector (`lib/surface-overlap.ts`) | status-rank + recency | ✅ **decent** — though "continue vs. replan a claimed task when `origin/main` moves" isn't yet governed by a conflict-severity rule |
 
@@ -130,7 +130,8 @@ Add the two missing retrieval signals, in PD, backend-neutrally:
    embedding path the suggestibility layer (ADR-0039) already needs. **No keyword lists** —
    embeddings or BM25 only (house rule).
 
-Then `pd briefing` / `pd sitrep` / `pd whois` rank by Park's blend
+Then the shipped recall surfaces — `pd briefing` / `pd sitrep` (and `pd whois` when it
+lands, ADR-0030) — rank by Park's blend
 `score = α·recency + β·importance + γ·relevance` and return Park's quality-gate window of
 **3–8** memories, not "the last N." Weights live in config so they are tunable per the
 decision trees in the `park-2023-generative-agents` skill (raise importance weight if
