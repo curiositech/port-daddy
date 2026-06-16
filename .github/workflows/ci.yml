@@ -524,6 +524,37 @@ jobs:
       - name: cargo build --features gpui (GPU-native window)
         run: cargo build --features gpui --bin pd-console
 
+  rust-kernel:
+    # Verify the core/kernel workspace (pd-anchor — the CANONICAL macaroon discharge
+    # gate per ADR-0054 — plus pd-core/pd-eventlog/pd-mesh/pd-runtime/pd-compat/pd-tui)
+    # compiles and all unit tests pass, INCLUDING tests/parity_vectors.rs. That parity
+    # test is the Rust half of the ADR-0054 I11 cross-runtime gate: it asserts the
+    # canonical Rust impl reproduces tests/fixtures/macaroon-parity-vectors.json, the
+    # same fixture the TS suite asserts. Before this job the workspace was never built
+    # in CI, so the parity gate could only ever fail locally — the gate was theater.
+    # Always-run (not path-gated) so a parity divergence can never be silently skipped.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/kernel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/kernel
+
+      - name: cargo check
+        run: cargo check --workspace
+
+      - name: cargo test (incl. macaroon parity vectors)
+        run: cargo test --workspace
+
   fleetbar:
     # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
     # CI before, so FleetPopoverTests rotted red on main unnoticed (the
