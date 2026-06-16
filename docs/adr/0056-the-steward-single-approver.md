@@ -14,9 +14,10 @@ it." The work is scattered across surfaces that do not see each other:
   `tautology-sniffer.md`, `test-author.md`, `tenderfoot.md`) each post one
   comment and stop. None of them respond to the operator, drive a PR to green,
   or decide to merge. They are *finders*, not an *approver*.
-- **The Harbormaster** (`lib/harbormaster.ts`, fleet ship `harbormaster`) merges
-  a single dispatch *after the operator accepts it* (`dispatch:accepted`). It is
-  a merge-executor for one accepted unit of work — not a roadmap-aware gate over
+- **The Harbormaster** (`lib/harbormaster.ts`; the fleet snippet
+  `fleet/harbormaster.yml` is not yet merged into `pd-fleet.yml`) merges a single
+  dispatch *after the operator accepts it* (`dispatch:accepted`). It is a
+  merge-executor for one accepted unit of work — not a roadmap-aware gate over
   every open PR.
 - **The Harbor-Pilot** (`apps/github-app-fleet/bin/harbor-pilot.ts`, fleet ship
   `harbor-pilot`) is *mechanical* PR custody: a deterministic, unit-tested body
@@ -110,10 +111,12 @@ fleet. The Steward is defined as much by what it must **not** do:
 ### Why one agent, not the existing N ships
 
 A single approver fixes at the chokepoint what the per-ship model fights
-everywhere: cross-PR conflicts are visible to one reader who holds them all; bot
-comments get answered because someone owns answering them; landing happens because
-landing is somebody's job; the roadmap stays load-bearing because the same agent
-that ships also picks what's next. This is the `project_single_approver_agent`
+everywhere. The clearest case is the cross-PR conflict: when one reader holds
+every open PR, a diff that collides with in-flight work on another branch is
+visible *before* it lands, instead of surfacing later as a regression nobody saw
+coming (the #20→#57 detour). Bot comments get answered, PRs get landed, and the
+roadmap stays connected to what ships — because each is now somebody's explicit
+job rather than a gap between ships. This is the `project_single_approver_agent`
 vision made operational.
 
 The Steward is the **judgment layer**, and it sits *above* the mechanical custody

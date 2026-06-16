@@ -83,9 +83,19 @@ evenness, cite lines/ADRs (`user_voice_website`).
 - It is **not** a production-site PR (those wait for operator "ship it").
 - The branch is current with `origin/main` (update-branch, then merge).
 
-Then: `gh pr merge <N> --squash --auto` (the merge queue owns the strategy;
-arm auto-merge rather than forcing). Drop the Claude-coauthor trailer
-(`feedback_no_claude_coauthor`).
+**Do NOT arm `--auto` on a non-trivial code PR** (`feedback_auto_merge_races_copilot_review`).
+`--auto` fires the instant required checks go green — and Copilot's inline review
+is NOT a required check, so arming it early lands a green-but-unreviewed PR (this
+shipped two findings to main on #385). The merge step is two-phase:
+
+- **Code PRs** (anything likely to draw a Copilot review): wait for the Copilot
+  pass AND green checks AND zero unaddressed inline comments
+  (`gh api repos/{owner}/{repo}/pulls/<N>/reviews | jq '.[]|select(.user.login=="Copilot")'`),
+  then `gh pr merge <N> --squash` — **without** `--auto`.
+- **Docs-only / trivial PRs:** `gh pr merge <N> --squash --auto` is fine.
+
+Either way the merge queue owns the strategy; arm/merge rather than forcing, and
+drop the Claude-coauthor trailer (`feedback_no_claude_coauthor`).
 
 ### 5. Surface what you can't land
 A real red check you can't root-cause-fix, a production-site PR, a roadmap

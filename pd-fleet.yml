@@ -777,13 +777,16 @@ fleet:
       fallbacks:
         - backend: cli:codex
         - backend: anthropic
-          model: claude-sonnet-4-6
+          model: claude-sonnet-4-5-20251001
         - backend: openai
           model: gpt-5
       cooldown_ms: 600000
       dedupe_window_ms: 600000
       singleton: true
       timeout: 1800000
+      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
+      # "Daily budget: $4.00" line in fleet/ships/steward.md).
+      daily_cap_usd: 4
       allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
       prompt: |
         Read fleet/ships/steward.md end to end before doing anything
@@ -808,9 +811,13 @@ fleet:
            comments unaddressed.
         4. LAND only when ALL hold: every required check genuinely green,
            verdict=LAND, all bot comments addressed, NOT a production-site
-           PR, branch current with origin/main. Then `gh pr merge <N>
-           --squash --auto`. NEVER --admin/--no-verify over a real red
-           check — fix the root cause or SURFACE it.
+           PR, branch current with origin/main. Merge is TWO-PHASE
+           (feedback_auto_merge_races_copilot_review): for a non-trivial
+           CODE PR, wait for the Copilot review pass + zero unaddressed
+           inline comments, THEN `gh pr merge <N> --squash` (NO --auto:
+           --auto fires before Copilot reviews and lands unreviewed).
+           Docs-only/trivial PRs may use --auto. NEVER --admin/--no-verify
+           over a real red check — fix the root cause or SURFACE it.
         5. SURFACE what you can't land (real red you can't fix,
            production-site PR, roadmap conflict, unanswerable ambiguity)
            to the dashboard issue as an operator decision.
@@ -985,13 +992,14 @@ fleet:
         webhook receiver (forthcoming) OR manual `pd pub` for
         testing."
       external_producer: github-webhook-bridge
-      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer ]
+      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer, steward ]
 
     pull_request:synchronize:
       description: "GitHub PR head updated. Same payload as :opened.
-        Drives code-reviewer's edit-in-place re-review."
+        Drives code-reviewer's edit-in-place re-review and the Steward's
+        re-survey (so it reacts to head updates between scheduled ticks)."
       external_producer: github-webhook-bridge
-      consumers: [ code-reviewer ]
+      consumers: [ code-reviewer, steward ]
 
     pull_request:merged:
       description: "GitHub PR merged to main. Payload: { prNumber,
