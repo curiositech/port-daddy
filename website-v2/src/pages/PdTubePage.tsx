@@ -131,6 +131,19 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
               </SwissGridItem>
 
               <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+                  <img
+                    src="/img/generated/tube-multiplex/multiscreen-fanout.png"
+                    alt="Blueprint diagram: one POST to /msg/standup:demo fans out to three tiled console screens, each running pd tube on a distinct --as name (alice, bob, carol), while a FleetBar menu-bar panel shows the channel with 3 listeners."
+                    className="block w-full"
+                    loading="lazy"
+                  />
+                  <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--text-base)] text-[var(--text-muted)]">
+                    One <code>POST</code> reaches three screens at once. FleetBar shows the same
+                    channel and who is listening.
+                  </figcaption>
+                </figure>
+
                 <SurfacePanel className="overflow-hidden">
                   <PanelEyebrow className="mb-[var(--space-2)]">Three listeners, one broadcast</PanelEyebrow>
                   <PanelTitle as="h3" className="mb-[var(--space-4)]">
