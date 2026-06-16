@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from '@jest/globals';
 
-const { parseCodexTranscript } = await import('../../lib/spawner/codex-transcript.js');
+const { parseCodexTranscript, mapCodexStreamLine } = await import('../../lib/spawner/codex-transcript.js');
 
 // Real capture: trivial "say pong" run (no tools).
 const SIMPLE_STREAM = [
@@ -88,5 +88,58 @@ describe('parseCodexTranscript', () => {
       '{"type":"turn.completed","usage":{}}',
     ].join('\n');
     expect(parseCodexTranscript(stream)).toEqual([]);
+  });
+});
+
+// ── Per-line mapper (live streaming path) ────────────────────────────────────
+// mapCodexStreamLine is what lib/spawner.ts onStreamLine calls per stdout line
+// to emit transcript deltas mid-run. Codex carries no cross-line transcript
+// state (only item.completed events are consumed, each self-contained), so the
+// mapper is loss-free vs. the batch parser.
+describe('mapCodexStreamLine (per-line live mapper)', () => {
+  it('maps a reasoning item to a thinking turn', () => {
+    const line = '{"type":"item.completed","item":{"id":"i1","type":"reasoning","text":"thinking hard"}}';
+    const turns = mapCodexStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('thinking');
+    expect(turns[0].content).toBe('thinking hard');
+  });
+
+  it('maps an agent_message item to an assistant turn', () => {
+    const line = '{"type":"item.completed","item":{"id":"i2","type":"agent_message","text":"done"}}';
+    const turns = mapCodexStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('assistant');
+    expect(turns[0].content).toBe('done');
+  });
+
+  it('maps a command_execution item to a tool turn with command + result', () => {
+    const line =
+      '{"type":"item.completed","item":{"id":"i3","type":"command_execution","command":"ls","aggregated_output":"a\\nb","exit_code":0,"status":"completed"}}';
+    const turns = mapCodexStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('tool');
+    expect(turns[0].content).toBe('$ ls');
+    expect(turns[0].toolCalls?.[0]).toEqual({
+      name: 'shell',
+      args: { command: 'ls' },
+      result: { output: 'a\nb', exit_code: 0, status: 'completed' },
+    });
+  });
+
+  it('captures an unknown item kind as a labelled tool turn (never drops)', () => {
+    const line = '{"type":"item.completed","item":{"id":"i4","type":"web_search","query":"q"}}';
+    const turns = mapCodexStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].content).toBe('[codex:web_search]');
+    expect(turns[0].toolCalls?.[0].name).toBe('web_search');
+  });
+
+  it('returns [] for non-item.completed / non-JSON lines (never throws)', () => {
+    expect(mapCodexStreamLine('{"type":"turn.started"}')).toEqual([]);
+    expect(mapCodexStreamLine('{"type":"item.started","item":{"type":"reasoning"}}')).toEqual([]);
+    expect(mapCodexStreamLine('not json')).toEqual([]);
+    expect(mapCodexStreamLine('{ broken')).toEqual([]);
+    expect(mapCodexStreamLine('')).toEqual([]);
   });
 });
