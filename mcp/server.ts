@@ -1052,7 +1052,7 @@ const TOOLS = [
             properties: {
               filePath: { type: 'string', description: 'File containing the symbol' },
               symbolPath: { type: 'string', description: 'Canonical symbol path, e.g. "UserService.authenticate"' },
-              type: { type: 'string', description: "'modify' (default) or 'read'" },
+              type: { type: 'string', description: "read | modify | add-sibling | add-child | delete | rename (default modify; rename/delete auto-reserve the blast radius)" },
             },
             required: ['filePath', 'symbolPath'],
           },
