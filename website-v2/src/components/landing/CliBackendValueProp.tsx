@@ -1,7 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
-  BracketLabel,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -25,19 +24,16 @@ export function CliBackendValueProp() {
       <PageContainer width="wide">
         <SurfacePanel className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <div className="space-y-[var(--space-5)]">
-            <BracketLabel>The fleet wallet</BracketLabel>
             <PanelTitle as="h2" size="display" className="max-w-[18ch]">
-              Your AI subscription, but better.
+              Your AI subscription already pays for the fleet.
             </PanelTitle>
             <PanelBody className="max-w-[44rem]">
-              Bring your Claude Max or ChatGPT Pro. The fleet rides for free.{' '}
+              Bring your Claude Max or ChatGPT Pro login.{' '}
               <strong className="text-[var(--text-primary)]">
-                Your $20/month ChatGPT Pro or $200/month Claude Max subscription powers the entire
-                fleet at zero marginal cost.
+                Every agent in the fleet runs on that one seat — no metered API bill.
               </strong>{' '}
-              Same login, same model, more hours of work per day — the difference between a
-              tireless coworker and a metered API connection turns out to be one environment
-              variable.
+              Same login, same model, just more hours of work per day. Switching a backend
+              on is one environment variable.
             </PanelBody>
             <div className="grid gap-[var(--space-3)] sm:grid-cols-3">
               <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
@@ -64,7 +60,7 @@ export function CliBackendValueProp() {
                   claude-cli · codex
                 </p>
                 <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                  first-class — Cloudflare and API direct are the fallback rungs
+                  first-class; Cloudflare and direct API are fallbacks
                 </p>
               </div>
             </div>

@@ -27,16 +27,16 @@ export function Hero() {
               eyebrow="For AI engineering teams"
               title={
                 <>
-                  A local control plane for{' '}
+                  Run a fleet of coding agents{' '}
                   <span className="text-[var(--brand-primary)]">
-                    coding agents.
+                    without losing track.
                   </span>
                 </>
               }
-              description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
+              description="Point Claude Code, Codex, and Cursor at the same project and they step on each other — two agents edit one file, a crash takes its work with it, and you find out too late. Port Daddy keeps the record: every agent can see who is working where, read what the others learned, and pick up tasks that died mid-run. Nothing happens silently."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[14ch]"
+              titleClassName="max-w-[18ch]"
               bodyClassName="max-w-[34rem]"
             />
 
@@ -51,8 +51,8 @@ export function Hero() {
                     Already pay for Claude Max or ChatGPT Pro?
                   </span>
                   <p className="font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary-foreground)]">
-                    <strong>The fleet rides on your subscription at $0 marginal cost.</strong>{' '}
-                    Claude Code and Codex as first-class backends — setup takes two minutes.
+                    <strong>Your whole fleet runs on that one subscription.</strong>{' '}
+                    No metered API bill — Claude Code and Codex plug in as backends, and setup takes two minutes.
                   </p>
                 </div>
                 <ArrowRight
@@ -63,39 +63,18 @@ export function Hero() {
               </div>
             </Link>
 
-            {/* Feature pills */}
-            <div className="flex max-w-[34rem] flex-wrap gap-2">
-              {[
-                'Shared state substrate',
-                'Visible ownership',
-                'Fail-closed launches',
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-[var(--radius-sm)] px-3 py-1 text-[length:var(--type-meta-size)] font-semibold"
-                  style={{
-                    background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-
             <div className="flex flex-wrap items-center gap-[var(--space-3)]">
               <Button asChild variant="primary" size="lg">
                 <Link to="/mac-preview#download">
                   <Download size={16} />
-                  Evaluate Mac preview
+                  Get the Mac app
                   <ArrowRight size={16} />
                 </Link>
               </Button>
               <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <Link to="/docs/">
                   <Terminal size={16} />
-                  Technical Docs
+                  Read the docs
                 </Link>
               </Button>
             </div>

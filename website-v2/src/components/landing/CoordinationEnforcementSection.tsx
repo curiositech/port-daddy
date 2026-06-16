@@ -14,22 +14,22 @@ import {
 const outcomes = [
   {
     title: 'Every change has an owner',
-    detail: 'Agents claim intended files or symbols, then leave notes that tie edits back to a session the operator can inspect.',
+    detail: 'Agents claim the files they are about to edit, then leave notes that link each change back to a session you can open and inspect.',
     icon: NotebookTabs,
   },
   {
-    title: 'Humans steer from the app',
-    detail: 'FleetBar and Fleet Control Center show project state, readiness, agents, resources, and recovery without making the operator parse terminal scrollback.',
+    title: 'You steer from the app',
+    detail: 'FleetBar and the Fleet Control Center show project state, what is ready to run, live agents, and recovery — so you never have to scroll back through terminal output to find out.',
     icon: MonitorCheck,
   },
   {
-    title: 'Terminal proof includes output',
-    detail: 'Command surfaces show the invocation and the daemon response, because serious evaluators need proof of behavior, not input-only demos.',
+    title: 'Demos show the output, not just the input',
+    detail: 'Every example shows the command and the daemon’s actual response — proof of what happens, not just what you type.',
     icon: GitCommit,
   },
   {
-    title: 'Recovery keeps the context',
-    detail: 'If an agent dies, salvage preserves purpose, notes, claimed files, and handoff evidence for the next agent.',
+    title: 'A crash keeps its context',
+    detail: 'If an agent dies mid-task, its purpose, notes, claimed files, and handoff are kept so the next agent can finish the job.',
     icon: FileCheck2,
   },
 ] as const
@@ -49,7 +49,7 @@ function GuardControlMock() {
           <MonitorCog size={17} className="text-[var(--brand-primary)]" />
           <PanelEyebrow>FleetBar control</PanelEyebrow>
         </div>
-        <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[12px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
+        <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary-foreground)]">
           Guard on
         </span>
       </div>
@@ -59,7 +59,7 @@ function GuardControlMock() {
           Coordination Guard
         </PanelTitle>
         <PanelBody size="compact" className="max-w-none">
-          Humans do not need to remember the shell ceremony. FleetBar shows the guard state, lets an operator switch from observe to enforce, checks staged files, and points agents at the files that need claims.
+          You don’t have to memorize shell commands. FleetBar shows the guard state, switches it from observe to enforce, checks staged files, and points agents at the files that still need a claim.
         </PanelBody>
       </div>
 
@@ -84,13 +84,13 @@ function GuardControlMock() {
         {[
           ['Active session', 'website:landing-reconcile'],
           ['Claim coverage', '7 landing files covered'],
-          ['Commit posture', 'fail closed on mismatch'],
+          ['Commit posture', 'blocks on mismatch'],
         ].map(([label, value]) => (
           <div key={label} className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0">
             <span className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
               {label}
             </span>
-            <span className="text-right font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+            <span className="text-right font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
               {value}
             </span>
           </div>
@@ -117,12 +117,12 @@ export function CoordinationEnforcementSection() {
         <SwissGrid className="items-start">
           <SwissGridItem span="narrow">
             <SectionIntro
-              eyebrow="Operator control"
-              title="Agents automate terminals. Operators need the control plane."
-              description="Port Daddy gives each repo a coordination contract that both agents and humans can inspect. The app is where operators evaluate readiness, claims, live agents, resources, handoffs, and recovery before they let more automation run."
+              eyebrow="Your control panel"
+              title="Agents work in the terminal. You stay in control from the app."
+              description="Every project gets a shared rulebook that agents and humans can both read. The app shows you what is ready to run, who is editing what, which agents are live, and what needs recovering — before you let more automation loose."
               titleAs="h2"
               titleSize="display"
-              titleClassName="max-w-[13ch]"
+              titleClassName="max-w-[16ch]"
               bodyClassName="max-w-[44rem]"
             />
             <div className="mt-[var(--space-5)] flex flex-wrap gap-[var(--space-3)]">

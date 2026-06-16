@@ -1,10 +1,8 @@
 import type { ReactNode } from 'react'
 import { MessageSquareText, RadioTower, ShieldCheck, Waypoints, type LucideIcon } from 'lucide-react'
 import {
-  BracketLabel,
   PageContainer,
   PanelBody,
-  PanelEyebrow,
   PanelTitle,
   SectionIntro,
   SurfacePanel,
@@ -15,58 +13,57 @@ import { RoleTerm } from '@/components/site/RoleTerm'
 
 type AgentSignal = {
   id: string
-  label: string
   title: string
   icon: LucideIcon
   description: ReactNode
-  appEvidence: string
+  inApp: string
 }
 
 const AGENT_SIGNALS: AgentSignal[] = [
   {
     id: 'notes',
-    label: '01',
-    title: 'Notes become recoverable memory',
+    title: 'Notes the next agent can read',
     icon: MessageSquareText,
-    description: 'Session notes keep intent, evidence, tests, remaining risk, and the last truthful handoff outside the model context window that produced them.',
-    appEvidence: 'A new agent can resume from the note trail without asking the human to reconstruct state.',
+    description:
+      'When an agent stops, it writes down what it was doing, what it proved, and what is left. The note stays after the agent and its chat history are gone.',
+    inApp: 'A new agent reads the note trail and picks up where the last one stopped. You do not have to re-explain the work.',
   },
   {
     id: 'claims',
-    label: '02',
-    title: 'Claims make ownership explicit',
+    title: 'Who is editing what, in the open',
     icon: ShieldCheck,
-    description: 'File and region claims turn parallel editing into visible intent. Agents can see who is already near a surface, narrow scope, or escalate before edits collide.',
-    appEvidence: 'Touched files and owners appear before another agent starts writing.',
+    description:
+      'Before an agent edits a file, it claims the file so others can see it. When two agents reach for the same file, the second one notices and backs off instead of overwriting the first.',
+    inApp: 'You can see which files each agent has claimed before anyone starts writing.',
   },
   {
     id: 'radio',
-    label: '03',
-    title: 'Channels carry machine-readable signals',
+    title: 'Agents warn each other directly',
     icon: RadioTower,
-    description: 'Scoped channels carry test failures, contention, readiness gaps, and drift warnings without turning the human into the message bus.',
-    appEvidence: 'Warnings land in Activity, channels, and actor inboxes with project scope attached.',
+    description:
+      'Agents post short messages other agents can act on: a test broke, two of us want the same file, this is not ready yet. The warnings go to the other agents, not to you.',
+    inApp: 'Warnings show up in the activity feed, tagged with the project they came from.',
   },
   {
     id: 'actors',
-    label: '04',
-    title: 'Actors keep responsibility addressable',
+    title: 'Named roles that keep an inbox',
     icon: Waypoints,
     description: (
       <>
         <span className="block">
-          Durable actors are named responsibility holders with inboxes. Agents can ask them for
-          decisions, warnings, or ground truth after the original shell session exits.
+          Some duties outlive any single agent. Port Daddy keeps a few standing roles, each with its
+          own inbox and history. An agent can ask a role a question and get an answer even after the
+          agent that set things up has exited.
         </span>
         <span className="mt-[var(--space-2)] block">
-          <RoleTerm role="coxswain" tooltipAlign="end">Coxswain</RoleTerm>: claims and locks.{' '}
-          <RoleTerm role="lookout">Lookout</RoleTerm>: docs and product truth.{' '}
-          <RoleTerm role="navigator">Navigator</RoleTerm>: roadmap and recovery truth.{' '}
-          <RoleTerm role="quartermaster">Quartermaster</RoleTerm>: budgets and backend pressure.
+          Who owns the files (<RoleTerm role="coxswain" tooltipAlign="end">Coxswain</RoleTerm>) · who keeps the docs honest
+          (<RoleTerm role="lookout">Lookout</RoleTerm>) · who tracks the roadmap and recovery
+          (<RoleTerm role="navigator">Navigator</RoleTerm>) · who watches the budget
+          (<RoleTerm role="quartermaster">Quartermaster</RoleTerm>).
         </span>
       </>
     ),
-    appEvidence: 'Durable actor inboxes keep ownership visible after a process exits.',
+    inApp: 'These roles keep their inbox and history even when no agent is currently attached to them.',
   },
 ]
 
@@ -78,17 +75,16 @@ export function AgentConversationSection() {
           <SwissGridItem span="narrow">
             <div className="sticky top-28 space-y-[var(--space-5)]">
               <SectionIntro
-                eyebrow="Shared-state substrate"
-                title="Coordination is state agents can read."
-                description="Schedulers decide what runs. Port Daddy gives the running agents a durable coordination plane: notes, claims, scoped channels, actor inboxes, tuple-backed facts, and salvage records that make work inspectable across models, terminals, and crashes."
+                eyebrow="Shared memory"
+                title="Coordination is just shared memory agents can read."
+                description="A scheduler decides what runs next. Port Daddy is the shared memory the running agents read from and write to: notes they leave each other, who is editing which file, warnings they send directly, a small store of facts they can look up, and the records left behind by a crashed agent. It holds up across different models, different terminals, and crashes."
                 titleAs="h2"
                 titleSize="display"
-                titleClassName="max-w-[12ch]"
+                titleClassName="max-w-[16ch]"
               />
               <SurfacePanel tone="blue" padding="compact" elevation="quiet">
-                <PanelEyebrow tone="primary">Why AI tooling teams care</PanelEyebrow>
-                <PanelBody tone="primary" size="compact" className="mt-[var(--space-2)] max-w-none">
-                  Agent quality improves when the environment can prove ownership, state, budget, and recovery instead of relying on prompt discipline alone.
+                <PanelBody tone="primary" size="compact" className="max-w-none">
+                  Agents do better work when the workspace can show ownership, state, budget, and what a crashed agent left behind, instead of hoping every prompt remembers to.
                 </PanelBody>
               </SurfacePanel>
             </div>
@@ -104,15 +100,12 @@ export function AgentConversationSection() {
                     className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)] md:grid-cols-[4rem_minmax(0,1fr)]"
                   >
                     <div className="flex items-center justify-between gap-[var(--space-3)] md:block">
-                      <span className="font-mono text-[length:var(--type-panel-title-nav-size)] font-black text-[var(--brand-primary)]">
-                        {signal.label}
-                      </span>
-                      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] md:mt-[var(--space-3)]">
+                      <span className="inline-flex h-10 w-10 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)]">
                         <Icon size={18} />
                       </span>
                     </div>
                     <div className="grid gap-[var(--space-3)]">
-                      <PanelTitle as="h3" size="card" className="max-w-[17ch]">
+                      <PanelTitle as="h3" size="card" className="max-w-[24ch]">
                         {signal.title}
                       </PanelTitle>
                       <PanelBody className="max-w-[42rem]">
@@ -120,10 +113,10 @@ export function AgentConversationSection() {
                       </PanelBody>
                     </div>
                     <div className="grid min-w-0 gap-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] md:col-start-2">
-                      <BracketLabel>App evidence</BracketLabel>
-                      <div className="block min-w-0 border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-panel-body-compact-size)] font-bold leading-[var(--leading-body-compact)] text-[var(--brand-primary)]">
-                        {signal.appEvidence}
-                      </div>
+                      <PanelBody size="compact" className="max-w-[42rem] text-[var(--text-secondary)]">
+                        <span className="font-semibold text-[var(--text-primary)]">In the app: </span>
+                        {signal.inApp}
+                      </PanelBody>
                     </div>
                   </article>
                 )

@@ -2,7 +2,6 @@ import { ArrowRight, MessageSquareDashed, Radio, Reply } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  BracketLabel,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -31,35 +30,34 @@ export function TubeShowcase() {
         <SwissGrid className="items-start gap-y-[var(--space-7)]">
           <SwissGridItem span="narrow">
             <div className="sticky top-28 space-y-[var(--space-5)]">
-              <BracketLabel>The flagship primitive</BracketLabel>
               <SectionIntro
                 eyebrow="pd tube"
                 title="One command. The agent answers."
-                description="`pd tube` is the zero-protocol event bus your local agent was missing. A button, test runner, editor, hook, or webhook publishes JSON. The agent on the other end of the channel does the work and replies — both jobs in a single shell call."
+                description="One command turns any button, hook, or webhook into a message your local agent answers. Something sends JSON. The agent reads it, does the work, and replies. All in one shell call."
                 titleAs="h2"
               />
-              <div className="space-y-[var(--space-3)] text-[var(--text-muted)]">
-                <p>
-                  No SDK. No MCP server. No websocket dance. The publisher is plain{' '}
-                  <code>fetch()</code>; the agent runs <code>pd tube</code> in a loop. The substrate is
-                  the same SQLite-backed channel system Port Daddy already ships.
-                </p>
-                <p>
-                  Every <code>pd tube</code> invocation returns. That is what unlocks the agent loop:
-                  the tool yields, the model decides what to reply, the next call posts the answer{' '}
-                  <em>and</em> blocks for the next event.
-                </p>
+              <div className="space-y-[var(--space-3)]">
+                <PanelBody>
+                  There is no SDK and no server to run. The sender uses plain <code>fetch()</code>.
+                  The agent runs <code>pd tube</code> and waits. It runs on the same SQLite channels
+                  Port Daddy already ships.
+                </PanelBody>
+                <PanelBody>
+                  Each <code>pd tube</code> call ends on its own. That is what makes the loop work:
+                  the agent gets the message, decides what to say, and the next call posts the answer
+                  and waits for the next message.
+                </PanelBody>
               </div>
               <div className="flex flex-wrap gap-[var(--space-3)] pt-[var(--space-2)]">
                 <Link
                   to="/tutorials/pd-tube"
-                  className="inline-flex items-center gap-2 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--surface-raised)]"
+                  className="inline-flex items-center gap-2 border-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-base)] font-medium text-[var(--text-primary)] transition hover:bg-[var(--surface-raised)]"
                 >
                   Walk the tutorial <ArrowRight size={16} />
                 </Link>
                 <Link
                   to="/blog/pd-tube-event-reply-loop"
-                  className="inline-flex items-center gap-2 border-2 border-transparent px-4 py-2 text-sm font-medium text-[var(--text-muted)] underline decoration-[var(--border-strong)] decoration-2 underline-offset-4 hover:text-[var(--text-primary)]"
+                  className="inline-flex items-center gap-2 border-2 border-transparent px-[var(--space-4)] py-[var(--space-2)] text-[length:var(--text-base)] font-medium text-[var(--text-muted)] underline decoration-[var(--border-strong)] decoration-2 underline-offset-4 hover:text-[var(--text-primary)]"
                 >
                   Read the post
                 </Link>
@@ -71,12 +69,12 @@ export function TubeShowcase() {
             <SurfacePanel className="overflow-hidden">
               <PanelEyebrow className="mb-[var(--space-2)]">Real terminal output</PanelEyebrow>
               <PanelTitle as="h3" className="mb-[var(--space-4)]">
-                The crank-handle prose block
+                The block pd tube prints
               </PanelTitle>
               <PanelBody className="mb-[var(--space-4)] max-w-[52ch]">
-                When an event arrives, <code>pd tube</code> emits a single block telling the agent
-                what happened and exactly how to answer. The agent reads it, does the work, then
-                runs the suggested command. That is the whole protocol.
+                When a message arrives, <code>pd tube</code> prints one block: what happened, and the
+                exact command to send a reply. The agent reads it, does the work, and runs that
+                command. That is the whole thing.
               </PanelBody>
               <CodeBlock language="bash" filename="agent terminal" copyable={false}>
                 {`$ pd tube ui:clicks
@@ -104,7 +102,7 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
                 className="block w-full"
                 loading="lazy"
               />
-              <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-sm text-[var(--text-muted)]">
+              <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
                 Recorded from the live daemon with <code>asciinema</code> and rendered with{' '}
                 <code>agg</code>. Source: <code>examples/pd-tube/demo.sh</code>.
               </figcaption>
@@ -113,27 +111,26 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
             <div className="grid gap-[var(--space-4)] md:grid-cols-3">
               <BehaviorCard
                 icon={Radio}
-                title="Block, then return"
-                body="Default mode blocks until the next event arrives, prints the prose, exits. The agent's bash tool yields; the model takes the next turn."
+                title="Wait, then return"
+                body="By default the command waits for the next message, prints it, and exits. The agent's turn ends, and the model picks up what to do next."
               />
               <BehaviorCard
                 icon={Reply}
-                title="Inline --reply"
+                title="Reply in one call"
                 body={
                   <>
-                    <code>pd tube ch --reply &quot;done&quot;</code> auto-correlates to the most
-                    recent event from someone else, posts the reply, then keeps listening. One
-                    command, both jobs.
+                    <code>pd tube ch --reply &quot;done&quot;</code> replies to the most recent
+                    message automatically, then keeps listening. One command does both.
                   </>
                 }
               />
               <BehaviorCard
                 icon={MessageSquareDashed}
-                title="Plain HTTP publisher"
+                title="Send over plain HTTP"
                 body={
                   <>
-                    Any process that can <code>POST</code> JSON to{' '}
-                    <code>/msg/&lt;channel&gt;</code> can summon the agent. No SDK required.
+                    Anything that can <code>POST</code> JSON to <code>/msg/&lt;channel&gt;</code> can
+                    reach the agent. No SDK needed.
                   </>
                 }
               />
@@ -154,9 +151,9 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
             CoordinationEnforcementSection and AgentConversationSection.
           */}
           <SectionIntro
-            eyebrow="What this unlocks"
-            title="Publishers that already exist on every dev machine."
-            description="The same primitive turns each of these into a real agent integration with no new infrastructure. The agent that's already running is the backend."
+            eyebrow="Where messages come from"
+            title="Senders that already exist on every dev machine."
+            description="The same command connects each of these to your agent with nothing new to install. The agent already running on your machine is the backend."
             titleAs="h3"
             titleSize="card"
           />
@@ -164,32 +161,32 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
             <UnlockCard
               channel="editor:explain"
               title="VS Code lens"
-              body="Selection + shortcut publishes range + file. Inline answer rendered as a CodeLens. ~300 LOC extension."
+              body="Select code, hit a shortcut, and the extension sends the selection and file. The answer shows up inline. About 300 lines of extension code."
             />
             <UnlockCard
               channel="test:failed"
               title="Jest / pytest reporter"
-              body="On first failure, publish stack + diff since last green. The session you already have open picks it up and proposes a fix."
+              body="On the first failure, send the stack trace and the diff since the last passing run. The agent you already have open reads it and proposes a fix."
             />
             <UnlockCard
               channel="chat:mention"
               title="Slack / Linear bridge"
-              body="Inbound webhook → POST → tube. Your workstation becomes the bot backend, with full repo context and your live branch."
+              body="A webhook posts to the channel. Your machine becomes the bot, answering with full knowledge of the repo and your current branch."
             />
             <UnlockCard
               channel="git:committed"
               title="Git hook"
-              body="post-commit publishes the diff and message. The agent runs lint, regenerates docs, or drafts a release note while you keep typing."
+              body="A post-commit hook sends the diff and the message. The agent runs the linter, updates docs, or drafts a release note while you keep typing."
             />
             <UnlockCard
               channel="ui:clicks"
               title="Browser button"
-              body="Plain HTML page hits /msg/ui:clicks. The agent runs tests, redeploys staging, or summarizes the latest PR — without opening a chat panel."
+              body="A plain HTML page posts to /msg/ui:clicks. The agent runs the tests, redeploys staging, or summarizes the latest pull request. No chat panel."
             />
             <UnlockCard
               channel="notebook:exception"
               title="Jupyter cell hook"
-              body="On exception, publish traceback + cell source. The agent debugs against the real repo state and replies inline."
+              body="When a cell raises, send the traceback and the cell's code. The agent debugs against the real state of the repo and replies inline."
             />
           </div>
         </div>
@@ -209,16 +206,13 @@ function BehaviorCard({
 }) {
   return (
     <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-      <div className="mb-[var(--space-2)] flex items-center gap-2 text-[var(--brand-primary)]">
+      <div className="mb-[var(--space-2)] flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
         <Icon size={18} />
-        <span className="text-[length:var(--type-meta-size)] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-          Behavior
-        </span>
       </div>
-      <PanelTitle as="h4" className="mb-[var(--space-2)] text-base">
+      <PanelTitle as="h4" size="nav" className="mb-[var(--space-2)]">
         {title}
       </PanelTitle>
-      <PanelBody className="text-sm">{body}</PanelBody>
+      <PanelBody size="compact">{body}</PanelBody>
     </div>
   )
 }
@@ -234,19 +228,13 @@ function UnlockCard({
 }) {
   return (
     <div className="flex h-full flex-col gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)]">
-      {/*
-        text-xs (12px) on a code element reading a channel name is
-        prose-rank text, not an eyebrow — fails the user-level
-        14px-minimum rule (CLAUDE.md). Stepped up to text-sm (14px).
-        Flagged by skeptical-reviewer on PR #168.
-      */}
-      <code className="self-start border border-[var(--border-strong)] bg-[var(--surface-inset)] px-2 py-0.5 text-sm">
+      <code className="self-start border border-[var(--border-strong)] bg-[var(--surface-inset)] px-[var(--space-2)] py-[var(--space-1)] text-[length:var(--type-meta-size)]">
         {channel}
       </code>
-      <PanelTitle as="h4" className="text-base">
+      <PanelTitle as="h4" size="nav">
         {title}
       </PanelTitle>
-      <PanelBody className="text-sm">{body}</PanelBody>
+      <PanelBody size="compact">{body}</PanelBody>
     </div>
   )
 }
