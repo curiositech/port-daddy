@@ -128,8 +128,73 @@ assert_200 "/relay/config" || fail=1
 # so it is regression-covered by tests/bun/agent-cockpit-stream.test.ts instead.
 assert_post_status "/agents/__smoke_unknown__/interrupt" "404" '{"reason":"smoke"}' || fail=1
 
+# Daemon Berths (ADR-0084): the compiled binary must self-report its berth
+# identity on /health and /whoami. Booted with NO PD_DAEMON_* env above, so it
+# must default to the STABLE, CANONICAL berth — verifying the brew daemon
+# transparently reports as `stable` with no launch change. We grep the JSON
+# (jq is not guaranteed on the runner) for the canonical default markers.
+assert_200 "/whoami" || fail=1
+echo "Checking default berth identity (must be stable + canonical)…"
+HEALTH_JSON="$(curl -s "$BASE/health")"
+if ! printf '%s' "$HEALTH_JSON" | grep -q '"tier":"stable"'; then
+  echo "FAIL: /health daemon.tier is not \"stable\" by default" >&2
+  printf '%s\n' "$HEALTH_JSON" >&2
+  fail=1
+else
+  echo "OK: /health reports default berth tier=stable"
+fi
+if ! printf '%s' "$HEALTH_JSON" | grep -q '"canonical":true'; then
+  echo "FAIL: /health daemon.canonical is not true by default" >&2
+  fail=1
+else
+  echo "OK: /health reports default berth canonical=true"
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "Compiled-daemon smoke FAILED" >&2
   exit 1
 fi
+
+# Second boot: with PD_DAEMON_TIER=dev-latest the SAME binary must report the
+# non-canonical dev-latest berth (proving env-driven berth identity works end to
+# end in the real bun runtime, not just in jest).
+echo "Re-booting with PD_DAEMON_TIER=dev-latest to verify env-driven berth identity…"
+kill "$DAEMON_PID" 2>/dev/null || true
+wait "$DAEMON_PID" 2>/dev/null || true
+PORT2="$((PORT + 10))"
+PORT_DADDY_PORT="$PORT2" \
+PORT_DADDY_DB="$SCRATCH/registry2.db" \
+PORT_DADDY_PREFIX="$SCRATCH/p2" \
+PORT_DADDY_NO_FLEET=1 \
+PORT_DADDY_NO_FLEETBAR=1 \
+PORT_DADDY_SILENT=1 \
+PD_DAEMON_TIER=dev-latest \
+PD_DAEMON_LABEL=ci-dev-latest \
+"$BIN" > "$SCRATCH/daemon2.log" 2>&1 &
+DAEMON_PID=$!
+BASE2="http://127.0.0.1:$PORT2"
+ready2=0
+for _ in $(seq 1 40); do
+  if curl -fsS -o /dev/null "$BASE2/health" 2>/dev/null; then ready2=1; break; fi
+  if ! kill -0 "$DAEMON_PID" 2>/dev/null; then break; fi
+  sleep 0.5
+done
+if [ "$ready2" -ne 1 ]; then
+  echo "FAIL: dev-latest berth did not become healthy" >&2
+  cat "$SCRATCH/daemon2.log" >&2 || true
+  exit 1
+fi
+WHOAMI_JSON="$(curl -s "$BASE2/whoami")"
+if ! printf '%s' "$WHOAMI_JSON" | grep -q '"tier":"dev-latest"'; then
+  echo "FAIL: PD_DAEMON_TIER=dev-latest not honored on /whoami" >&2
+  printf '%s\n' "$WHOAMI_JSON" >&2
+  exit 1
+fi
+if ! printf '%s' "$WHOAMI_JSON" | grep -q '"canonical":false'; then
+  echo "FAIL: dev-latest berth should report canonical=false" >&2
+  printf '%s\n' "$WHOAMI_JSON" >&2
+  exit 1
+fi
+echo "OK: env-driven berth identity verified (dev-latest, canonical=false)"
+
 echo "Compiled-daemon smoke PASSED"

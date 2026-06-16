@@ -52,13 +52,68 @@ and `KeepAlive` resurrects it stale after any manual kill. `pd doctor` *detects*
 ("Code hash: Mismatch → run restart") but **nothing acts on it**. Detection without enforcement —
 the same gap the obligation-monitor work (ADR-0041) is about.
 
-## How to (re)deploy current code to the live daemon — the ONLY correct way
+## Dev/test the canonical way — spin a Daemon Berth (ADR-0084)
+
+**As of ADR-0084 you no longer stop the brew daemon to test.** The "stop the
+supervisor → swap → restore" dance below is superseded for development by **Daemon
+Berths**: tiered, side-by-side daemons that run *next to* the stable one on their own
+ports. Never swap the stable daemon to test — spin a dev berth.
+
+| Berth | Built from | Port | Colour | Command |
+|---|---|---|---|---|
+| **stable** (canonical) | brew release | `:9876` | amber | (already running, supervised) |
+| **dev-latest** | `origin/main` HEAD | `:9886` | blue | `pd dev up --from main` |
+| **codebase** | your worktree/branch | claimed | purple | `pd dev up --from <branch> --label <name>` |
+
+```sh
+# spin the bleeding-edge berth (origin/main) on :9886
+pd dev up --from main
+
+# spin a berth from YOUR branch on a claimed port
+pd dev up --from feat/my-thing --label my-thing
+
+# see every berth (stable + each dev berth)
+pd dev list
+
+# point THIS shell at a berth (per-shell; never global)
+eval "$(pd use dev)"          # → PORT_DADDY_URL=http://127.0.0.1:9886 + a prompt marker
+pd status                      # now hits the dev-latest berth
+eval "$(pd use stable)"        # reset to :9876
+
+# OR target one command without changing the shell
+pd --daemon dev status
+pd --daemon my-thing roadmap items
+
+# stop a berth (never touches the brew/stable daemon)
+pd dev down my-thing           # or: pd dev down --all
+```
+
+`pd dev up` builds the daemon **binary** via `scripts/build-daemon-binary.mjs` (never
+`tsx`), launches it detached with its berth identity env, smokes `/health`, and records
+it in `~/.port-daddy/dev-daemons.json`. Each berth gets an isolated runtime dir / DB /
+socket under `~/.port-daddy/instances/<label>/`. Binding `:9876` is refused.
+
+Because `pd use` exports `PORT_DADDY_URL`, every consumer that resolves the daemon
+through it follows the berth automatically — the CLI, MCP, the SDK, **and the Rust
+console** (`core/pd-console/src/agent.rs` `DaemonClient::discover` honours
+`PORT_DADDY_URL`). Point a shell at a dev berth, launch the console from it, and the
+cockpit drives that berth.
+
+The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. With
+no `PD_DAEMON_*` env it reports `tier=stable, canonical=true` — so the brew daemon is
+the stable berth with no launch change.
+
+## How to (re)deploy current code to the live STABLE daemon
+
+This is the **release** path (advancing the stable berth), distinct from dev berths
+above. Cutting the stable release ("RC cut") is a deliberate manual act (a future
+`pd release cut`, ADR-0084 Phase 3).
 
 1. **Never just `kill` it** — `homebrew.mxcl.port-daddy` KeepAlive resurrects it stale. Stand the
    supervisor down first.
 2. **Live runtime is the brew install**, so currency comes from a release:
    - bump `curiositech/homebrew-tap` `Formula/port-daddy.rb` to the new version → `brew upgrade port-daddy` → `brew services restart port-daddy`.
-3. **Dev/test a repo build instead:** `brew services stop port-daddy` (stops the resurrector) → run the
+3. **(Legacy dev path — prefer a dev berth above):** `brew services stop port-daddy` (stops the resurrector) → run the
    repo daemon (`npm run build:daemon:dist` then start) → `brew services start port-daddy` to restore.
 4. The post-build smoke in `scripts/build-daemon-binary.mjs` boots the binary on a scratch port and
    curls `/health`; it **fails on socket contention** if the live daemon still holds `:9876` — stop the
@@ -68,6 +123,9 @@ the same gap the obligation-monitor work (ADR-0041) is about.
 
 1. **One `pd` install** — decide brew-canonical vs repo-canonical; `pd install` must NOT create a
    second daemon launchd job alongside the brew service.
+   - **Partly delivered (ADR-0084, Daemon Berths).** Dev/test no longer swaps the brew daemon: spin
+     a side-by-side dev berth (`pd dev up`) and target it per-shell (`pd use`) or per-command
+     (`pd --daemon`). The brew daemon remains the single canonical *stable* install on `:9876`.
 2. **`pd redeploy`** — a supervisor-aware command that stands the supervisor down, rebuilds/upgrades,
    restarts, verifies `/health` + a route, restores supervision.
 3. **Code-hash drift → restart trigger** — make bosun (or doctor) treat stale-code as restart-worthy,

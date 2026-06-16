@@ -180,7 +180,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   install: 'notify',                // installs launchd plist; not destructive on its own
   uninstall: 'destructive',
   guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
-  dev: 'approval',                  // refined: `dev stop` is destructive
+  dev: 'approval',                  // refined: `dev down` stops a berth (destructive); see SUBCOMMAND_TIERS
+  use: 'silent',                    // emits a shell snippet to eval; read-only, no daemon mutation (ADR-0084)
   daemon: 'silent',                 // refined: subcommands vary
 
   restore: 'destructive',           // overwrites the live registry DB from a snapshot
@@ -294,8 +295,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'guard shim-uninstall': 'destructive',
   'guard help': 'silent',
 
-  // dev subcommands
-  'dev start': 'approval',
+  // dev (berths) subcommands (ADR-0084). up = build+launch a berth (notify);
+  // down = stop a berth (destructive); list = read-only.
+  'dev up': 'notify',
+  'dev down': 'destructive',
+  'dev list': 'silent',
+  // back-compat aliases for the legacy verbs
+  'dev start': 'notify',
   'dev stop': 'destructive',
   'dev status': 'silent',
 

@@ -713,7 +713,7 @@
       }
     },
     "daemon": {
-      "description": "Daemon lifecycle (CLI-only)",
+      "description": "Daemon lifecycle + berths (CLI-only)",
       "cli": [
         "start",
         "stop",
@@ -721,11 +721,14 @@
         "install",
         "uninstall",
         "dev",
+        "use",
         "mcp",
         "daemon"
       ],
       "sdk": [],
-      "routes": [],
+      "routes": [
+        "GET /whoami"
+      ],
       "completions": [
         "start",
         "stop",
@@ -733,6 +736,7 @@
         "install",
         "uninstall",
         "dev",
+        "use",
         "mcp",
         "daemon"
       ],
@@ -740,7 +744,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "Daemon management is CLI-only"
+      "_note": "Daemon management is CLI-only. `pd dev up/down/list` runs tiered berths (ADR-0084); `pd use`/`pd --daemon` target a berth; GET /whoami reports the daemon's berth identity."
     },
     "diagnostics": {
       "description": "Environment diagnostics (CLI-only)",
@@ -920,7 +924,7 @@
       }
     },
     "suggestions": {
-      "description": "Suggestibility layer (ADR-0039): durable, dismissible coaching nudges for active agents. This slice ships the claim-overlap detector — when two distinct live sessions hold overlapping claims on one file, both agents get a `claim-overlap-headsup` delivered to their inbox (surfaced by `pd attention`). Deterministic and NLP-free; the semantic topic/prior-art classifier (Primitive 1) is the next slice. Named `pd nudge` to stay distinct from the Tender->operator `pd suggest` queue. The same overlap signal is parley's (ADR-0055) T1 trigger.",
+      "description": "Suggestibility layer (ADR-0039): durable, dismissible coaching nudges for active agents. This slice ships the claim-overlap detector — when two distinct live sessions hold overlapping claims on one file, both agents get a `claim-overlap-headsup` delivered to their inbox (surfaced by `pd attention`). Deterministic and NLP-free; the semantic topic/prior-art classifier (Primitive 1) is the next slice. Named `pd nudge` to stay distinct from the Tender->operator `pd suggest` queue. The same overlap signal is parley's (ADR-0084) T1 trigger.",
       "module": "lib/suggestions.ts",
       "cli": [
         "nudge"

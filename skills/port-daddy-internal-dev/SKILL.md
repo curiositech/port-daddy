@@ -73,6 +73,40 @@ flowchart TD
     cli & api & mcp & ui & dist & actor & ledger --> ship[Reconcile + guard + tag + push]
 ```
 
+## Daemon Berths — test your change without disturbing `:9876` (ADR-0084)
+
+When you contribute to this repo and need to dogfood a daemon change, **do not stop
+the brew daemon and run yours on `:9876`.** Spin a side-by-side **berth** — a tiered,
+colour-coded daemon on its own port — and target it per-shell. The brew daemon stays
+up, supervised, the whole time.
+
+```sh
+# build + launch a berth from YOUR branch on a claimed port (purple, codebase tier)
+pd dev up --from "$(git branch --show-current)" --label my-feature
+
+# or the bleeding-edge berth from origin/main on :9886 (blue, dev-latest tier)
+pd dev up --from main
+
+pd dev list                       # stable (probed on :9876) + every dev berth
+
+# point THIS shell at your berth — the CLI, MCP, SDK, AND the Rust console follow
+eval "$(pd use my-feature)"       # exports PORT_DADDY_URL + PD_ACTIVE_DAEMON marker
+pd status                          # now hits your berth
+pd --daemon my-feature roadmap items   # or target one command without changing the shell
+
+eval "$(pd use stable)"           # reset the shell to :9876
+pd dev down my-feature            # stop your berth (never touches the brew daemon)
+```
+
+Rules: `pd dev up` builds the **binary** (`scripts/build-daemon-binary.mjs`), never
+`tsx`; binding `:9876` is refused; a dev berth is never the implicit default — it is
+opt-in per shell and marked via `PD_ACTIVE_DAEMON`. The daemon self-reports its berth
+on `GET /health` (`.daemon`) and `GET /whoami` (env unset → `tier=stable,
+canonical=true`). This **replaces** the old "`brew services stop port-daddy` → run
+repo daemon → restore" dance for development. Full model:
+`docs/adr/0084-daemon-berths.md`; the dev/test runbook lives in
+`docs/operations/daemon-and-supervision.md`.
+
 ## Internal Actor Embodiments
 
 The five actor roles in the public skill are *concepts*. In this repo,

@@ -129,6 +129,31 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
+## Daemon Berths (ADR-0084) — never swap the stable daemon to test
+
+To dogfood a code change, **do not stop the brew daemon and run yours in its place.**
+Spin a side-by-side **berth** instead. Three tiered, colour-coded daemons run at once:
+
+| Berth | Built from | Port | Colour |
+|---|---|---|---|
+| **stable** (canonical) | brew release | `:9876` | amber |
+| **dev-latest** | `origin/main` HEAD | `:9886` | blue |
+| **codebase** | your worktree/branch | a `port-daddy claim`-ed port | purple |
+
+```sh
+pd dev up --from main                       # dev-latest berth on :9886
+pd dev up --from <branch> --label my-thing  # codebase berth on a claimed port
+pd dev list                                 # stable + every dev berth
+eval "$(pd use dev)"                         # point THIS shell at dev-latest (per-shell, never global)
+pd --daemon my-thing roadmap items          # target ONE command at a berth
+pd dev down my-thing                         # stop a berth (never the brew/stable daemon); --all stops all
+```
+
+- `pd dev up` builds the daemon **binary** (`scripts/build-daemon-binary.mjs`), never `tsx`. Binding `:9876` is refused.
+- `pd use` exports `PORT_DADDY_URL` + a `PD_ACTIVE_DAEMON` marker — the CLI, MCP, SDK, and the Rust console (`core/pd-console/src/agent.rs` honours `PORT_DADDY_URL`) all follow the chosen berth. `pd use stable` resets to `:9876`.
+- The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. No `PD_DAEMON_*` env → `tier=stable, canonical=true` (the brew daemon, unchanged).
+- A dev berth must never become the *implicit* default — targeting is opt-in, per shell, and visibly marked. Full model: [`docs/adr/0084-daemon-berths.md`](docs/adr/0084-daemon-berths.md).
+
 ## Pull Request Operating Procedure
 
 **This lifecycle is autonomous — never gated on operator confirmation.**
