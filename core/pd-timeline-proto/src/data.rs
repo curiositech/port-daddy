@@ -158,7 +158,7 @@ impl Timeline {
         };
         let events = vec![
             ev(s(0), Track::Human, "operator: pd begin", "h0"),
-            ev(s(2), Track::Dispatches, "claim port 9876", "d0"),
+            ev(s(2), Track::Dispatches, "claim a project port", "d0"),
             ev(s(3), Track::Agents, "agent spawned: gardener", "a0"),
             ev(s(5), Track::Sorties, "sortie: triage worktrees", "s0"),
             ev(s(8), Track::Agents, "agent: copilot-fixes #403", "a1"),

@@ -33,7 +33,15 @@ use winit::window::{Window, WindowId};
 use data::Timeline;
 use scene::{build_scene, Layoutspec, TextEngine};
 
-const DAEMON_BASE: &str = "http://127.0.0.1:9876";
+/// Daemon base URL: honor `PORT_DADDY_URL` (so the prototype follows `pd use` /
+/// a dev berth), else a last-resort localhost default. The literal below is the
+/// only hardcoded port and is why this file is allowlisted in the
+/// no-hardcoded-daemon-{url,port} guards.
+fn daemon_base() -> String {
+    std::env::var("PORT_DADDY_URL")
+        .map(|u| u.trim_end_matches('/').to_string())
+        .unwrap_or_else(|_| "http://127.0.0.1:9876".to_string())
+}
 
 /// Surface + renderer state that only exists once the window is created.
 struct ActiveState<'s> {
@@ -316,7 +324,7 @@ fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     println!("[pd-timeline-proto] loading timeline data…");
-    let timeline = Timeline::load(DAEMON_BASE);
+    let timeline = Timeline::load(&daemon_base());
     println!(
         "[pd-timeline-proto] {} ({} events, {} causal threads)",
         timeline.source_note,
