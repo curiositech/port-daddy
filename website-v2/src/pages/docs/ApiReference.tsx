@@ -20,34 +20,18 @@ interface Endpoint {
 
 /* ── Method badge colors ────────────────────────────────────── */
 
-const METHOD_STYLES: Record<HttpMethod, React.CSSProperties> = {
-  GET: {
-    background: 'color-mix(in srgb, var(--brand-secondary) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-secondary)',
-  },
-  POST: {
-    background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--status-success)',
-  },
-  PUT: {
-    background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-accent)',
-  },
-  DELETE: {
-    background: 'color-mix(in srgb, var(--brand-primary) 15%, var(--surface-base))',
-    boxShadow: 'var(--shadow-pressed)',
-    color: 'var(--brand-primary)',
-  },
+const METHOD_COLOR: Record<HttpMethod, string> = {
+  GET: 'var(--brand-secondary)',
+  POST: 'var(--status-success)',
+  PUT: 'var(--brand-accent)',
+  DELETE: 'var(--brand-primary)',
 }
 
 function MethodBadge({ method }: { method: HttpMethod }) {
   return (
     <span
-      className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono shrink-0"
-      style={METHOD_STYLES[method]}
+      className="inline-flex items-center justify-center rounded-full bg-[var(--surface-raised)] px-2.5 py-0.5 font-mono text-[length:var(--type-meta-size)] font-bold uppercase tracking-wider shrink-0 shadow-[var(--shadow-pressed)]"
+      style={{ color: METHOD_COLOR[method] }}
     >
       {method}
     </span>
@@ -1048,7 +1032,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
           {endpoint.curl && (
             <div>
               <div
-                className="text-xs font-medium uppercase tracking-wide mb-2"
+                className="text-[length:var(--type-meta-size)] font-semibold uppercase tracking-wide mb-2"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Example
@@ -1059,7 +1043,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
           {endpoint.requestBody && (
             <div>
               <div
-                className="text-xs font-medium uppercase tracking-wide mb-2"
+                className="text-[length:var(--type-meta-size)] font-semibold uppercase tracking-wide mb-2"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Request Body
@@ -1070,7 +1054,7 @@ function EndpointCard({ endpoint }: { endpoint: Endpoint }) {
           {endpoint.responseBody && (
             <div>
               <div
-                className="text-xs font-medium uppercase tracking-wide mb-2"
+                className="text-[length:var(--type-meta-size)] font-semibold uppercase tracking-wide mb-2"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Response
@@ -1123,7 +1107,7 @@ export default function ApiReference() {
           className="text-xl leading-relaxed"
           style={{ color: 'var(--text-secondary)' }}
         >
-          Complete HTTP API for the Port Daddy daemon running on{' '}
+          The full HTTP API for the Port Daddy background service running on{' '}
           <code style={{ color: 'var(--brand-primary)' }}>localhost:9876</code>.
           Every endpoint is available without authentication on the local machine.
         </p>

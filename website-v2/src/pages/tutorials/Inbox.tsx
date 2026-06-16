@@ -65,7 +65,7 @@ export function Inbox() {
                 <figure className="m-0 space-y-[var(--space-2)]">
                   <img
                     src="/img/tutorial-human-layer-control-center.png"
-                    alt="Real Fleet Control Center operator entrance from the local Port Daddy daemon, showing budget envelope, readiness, project queue, and next actions."
+                    alt="Real Fleet Control Center operator entrance from the local Port Daddy daemon, showing budget limits, what's ready to run, the project queue, and next actions."
                     className="block w-full border-2 border-[var(--border-strong)]"
                     loading="lazy"
                   />
@@ -78,7 +78,7 @@ export function Inbox() {
                 <figure className="m-0 space-y-[var(--space-2)]">
                   <img
                     src="/img/app-screens/fleet-flow-light.png"
-                    alt="Real Fleet Flow console view showing project and agent activity inside Port Daddy's control plane."
+                    alt="Real Fleet Flow console view showing project and agent activity inside the Port Daddy app."
                     className="block w-full border-2 border-[var(--border-strong)]"
                     loading="lazy"
                   />
@@ -221,8 +221,8 @@ SUCCESS: published to release:staging`}
           <h2 className="m-0">5. Extend The Pattern</h2>
           <p>
             This same split works for review requests, salvage recovery,
-            operator escalation, and CI handoffs. A human or control-plane
-            surface decides who owns the work. The named agent receives it in a
+            operator escalation, and CI handoffs. A human or another tool
+            decides who owns the work. The named agent receives it in a
             durable lane.
           </p>
           <Surface depth="raised" radius="none" padding="lg">

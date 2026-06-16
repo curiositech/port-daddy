@@ -30,7 +30,7 @@ const PRIMARY_NAV_ITEMS = [
   { label: "pd tube", href: "/pd-tube", end: false },
   { label: "Skills + MCP", href: "/mcp", end: true },
   { label: "Docs", href: "/docs", end: false },
-  { label: "Manifesto", href: "/manifesto", end: true, featured: true },
+  { label: "Manifesto", href: "/manifesto", end: true },
 ] satisfies readonly NavItem[];
 
 const OVERFLOW_NAV_ITEMS = [
@@ -260,7 +260,10 @@ export function SiteHeader() {
             <OverflowNavMenu />
           </nav>
 
-          <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)]">
+          {/* Pin controls to the last column. Below 2xl the primary nav is
+              display:none, so without an explicit column it auto-places into the
+              empty middle track and the controls float mid-bar. */}
+          <div className="flex min-w-0 items-center justify-end gap-[var(--space-2)] lg:col-start-3">
             <CompressedNavMenu />
 
             <div className="hidden min-w-[14rem] max-w-[19rem] flex-1 2xl:block">

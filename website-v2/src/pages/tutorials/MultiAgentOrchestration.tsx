@@ -67,7 +67,7 @@ $ pd session files claim src/middleware/*.ts src/routes/auth.ts
 $ pd session files claim src/middleware/auth.ts
   CONFLICT: src/middleware/auth.ts claimed by agent 'myapp:refactor'
   Holder session: session-a1b2c3d4`}</CodeBlock>
-          <motion.p className="text-[length:var(--type-panel-body-compact-size)]" style={{ color: "var(--text-muted)" }}>
+          <motion.p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-muted)]">
             Claims are released when the session ends (<code>pd done</code>) or
             when the agent crashes and enters the salvage queue.
           </motion.p>
@@ -163,7 +163,7 @@ $ pd pub myapp:events "auth-fix-complete"
 # 4. End session (releases claims, preserves notes)
 $ pd done
 # Expected result: claims release, the completion event is on myapp:events, and the note trail remains queryable.`}</CodeBlock>
-          <motion.p className="text-[length:var(--type-panel-body-compact-size)]" style={{ color: "var(--text-muted)" }}>
+          <motion.p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-muted)]">
             <strong>Claim, Work, Signal, Done.</strong> Every agent follows this
             lifecycle. Port Daddy handles conflict detection, crash recovery,
             and the audit trail.
@@ -173,14 +173,11 @@ $ pd done
         {/* What's Next */}
         <section className="space-y-3">
           <motion.h2 className="m-0">What&apos;s Next</motion.h2>
-          <motion.ul
-            className="space-y-2"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <motion.ul className="space-y-2 text-[var(--text-secondary)]">
             <motion.li>
               <a
                 href="/tutorials/fleet"
-                style={{ color: "var(--brand-primary)" }}
+                className="text-[var(--brand-primary)]"
               >
                 Fleet Agents
               </a>{" "}
@@ -189,7 +186,7 @@ $ pd done
             <motion.li>
               <a
                 href="/tutorials/session-phases"
-                style={{ color: "var(--brand-primary)" }}
+                className="text-[var(--brand-primary)]"
               >
                 Session Phases
               </a>{" "}
@@ -198,7 +195,7 @@ $ pd done
             <motion.li>
               <a
                 href="/tutorials/pheromone"
-                style={{ color: "var(--brand-primary)" }}
+                className="text-[var(--brand-primary)]"
               >
                 Pheromone Trails
               </a>{" "}
