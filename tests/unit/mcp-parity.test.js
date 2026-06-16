@@ -62,6 +62,7 @@ const TOOL_FEATURE_MAP = {
   'find_symbols': 'symbols',
   'symbol_stats': 'symbols',
   'predict_conflicts': 'symbols',
+  'blast_radius': 'symbols',
 
   // Port management
   'claim_port': 'claim',
