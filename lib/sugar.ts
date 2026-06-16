@@ -79,8 +79,8 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
-  /** Create a durable session that survives without a live heartbeat process. */
-  durable?: boolean;
+  /** Session retention behavior. Durable survives without a live heartbeat process. */
+  lifecycle?: 'durable' | 'ephemeral';
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -163,11 +163,21 @@ export function createSugar(deps: SugarDeps) {
    * Rolls back agent registration if session start fails.
    */
   function begin(options: BeginOptions) {
-    const { purpose, identity, type, files, force, durable } = options;
+    const { purpose, identity, type, files, force } = options;
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
     }
+
+    const lifecycle = options.lifecycle;
+    if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+      return {
+        success: false,
+        error: 'lifecycle is required and must be "durable" or "ephemeral"',
+        code: 'SESSION_LIFECYCLE_REQUIRED',
+      };
+    }
+    const durable = lifecycle === 'durable';
 
     const worktreePolicy = evaluateSessionWorktreePolicy({
       worktree: options.worktree,
@@ -415,7 +425,7 @@ export function createSugar(deps: SugarDeps) {
       name,
       identity: identity || null,
       purpose: purpose.trim(),
-      lifecycle: durable === true ? 'durable' : 'ephemeral',
+      lifecycle,
       agentRegistered: true,
       sessionStarted: true,
     };
@@ -444,7 +454,7 @@ export function createSugar(deps: SugarDeps) {
         sessionId: sessionResult.id as string,
         identity: identity || null,
         identityProject: identityProject || undefined,
-        lifecycle: durable === true ? 'durable' : 'ephemeral',
+        lifecycle,
       } as unknown as Record<string, unknown>,
     });
 

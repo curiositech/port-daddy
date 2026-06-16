@@ -88,7 +88,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         requireLinkedWorktree,
         allowMainWorktree,
         bypassCrowdedGate,
-        durable: lifecycle === 'durable',
+        lifecycle,
       });
 
       if (!result.success) {
