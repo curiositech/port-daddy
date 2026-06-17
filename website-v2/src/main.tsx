@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { HashScroll } from '@/components/layout/HashScroll'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { TypeThemeSwitcher } from '@/components/layout/TypeThemeSwitcher'
 import { RouteFallback } from '@/components/layout/RouteFallback'
 import { LegacyExampleRedirect } from '@/components/routing/LegacyExampleRedirect'
 import './index.css'
@@ -189,6 +190,7 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <DocumentMeta />
         <HashScroll />
+        <TypeThemeSwitcher />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<MainLayout />}>
