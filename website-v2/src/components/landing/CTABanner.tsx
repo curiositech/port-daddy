@@ -27,7 +27,7 @@ const START_PATHS = [
   {
     label: 'Before you commit',
     title: 'Check the work first',
-    detail: 'The guard blocks a commit when staged files have not been claimed by an active session, so two agents cannot quietly overwrite each other.',
+    detail: 'The guard fails closed at the commit: it blocks any commit whose staged files are not claimed by an active session. The commit is the one hard gate — file claims before it are advisory.',
     icon: ShieldCheck,
   },
 ] as const

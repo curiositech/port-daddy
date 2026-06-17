@@ -11,9 +11,10 @@ export default function SalvageFeature() {
           Agent Salvage
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          When an agent dies mid-task, its work context is preserved in the resurrection queue.
-          Another agent can claim the dead agent's sessions, notes, and file claims to continue
-          exactly where it left off.
+          When an agent dies mid-task, its work context survives in the salvage queue — this is
+          recovery after let-it-crash, not a guarantee of clean resumption. Another agent claims
+          the dead agent's sessions, notes, and file claims, then resumes from the last note instead
+          of starting cold. In-flight state is not restored; the notes are the handoff.
         </p>
       </div>
 
@@ -44,9 +45,10 @@ export default function SalvageFeature() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Agents register with an identity and send periodic heartbeats. When heartbeats stop,
-          the daemon marks the agent as stale (10 min), then dead (20 min). Dead agents with
-          active sessions enter the resurrection queue, where another agent can claim their work.
+          Agents register with an identity and send periodic heartbeats — a liveness signal. When
+          heartbeats stop, the daemon applies a timeout ladder: stale at 10 min, dead at 20 min.
+          Dead agents with active sessions enter the salvage queue, where another agent can claim
+          the surviving notes and file claims and carry on.
         </p>
 
         <DocsCodeBlock

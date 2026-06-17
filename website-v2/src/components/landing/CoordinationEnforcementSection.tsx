@@ -13,8 +13,8 @@ import {
 
 const outcomes = [
   {
-    title: 'Every change has an owner',
-    detail: 'Agents claim the files they are about to edit, then leave notes that link each change back to a session you can open and inspect.',
+    title: 'Every change traces back to a session',
+    detail: 'Agents claim the files they are about to edit and leave append-only notes, so each change links to a session you can open and inspect. Claims are advisory; the commit guard is what turns “should be claimed” into a hard block.',
     icon: NotebookTabs,
   },
   {
@@ -29,7 +29,7 @@ const outcomes = [
   },
   {
     title: 'A crash keeps its context',
-    detail: 'If an agent dies mid-task, its purpose, notes, claimed files, and handoff are kept so the next agent can finish the job.',
+    detail: 'Let it crash, then recover: when an agent dies mid-task, its purpose, notes, claimed files, and handoff survive in the salvage queue, so the next agent resumes from the last note instead of starting blind.',
     icon: FileCheck2,
   },
 ] as const

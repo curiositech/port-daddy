@@ -107,7 +107,7 @@ const MAGIC_TOOLS: MagicTool[] = [
     icon: Users,
     tone: 'paper',
     description:
-      'Returns who is working right now, which files they have claimed, and which sessions died mid-task. An agent checks this before it touches a file two others are already in.',
+      'Returns who is working right now, which files they have claimed, and which sessions died mid-task. An agent reads this before editing so a crowded file is a visible signal to route elsewhere — it surfaces the conflict, it does not lock the file.',
     example: `const state = await swarm_awareness({ project: "myapp" })
 
 // active: qa, cartographer
@@ -136,7 +136,7 @@ const MAGIC_TOOLS: MagicTool[] = [
     icon: Bot,
     tone: 'blue',
     description:
-      'Starts a single agent in the background with a name, a job, and a dollar ceiling it cannot exceed. It checks in on a heartbeat, so a stall shows up instead of going quiet.',
+      'Starts a single agent in the background with a name, a job, and a dollar ceiling it cannot exceed — a per-agent bulkhead, so one runaway agent cannot drain the whole budget. It checks in on a heartbeat, so a stall surfaces instead of going quiet.',
     example: `await spawn_agent({
   backend: "codex",
   model_tier: "low",

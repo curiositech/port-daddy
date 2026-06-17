@@ -13,9 +13,10 @@ export default function ArbiterFeature() {
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
           A rule checker for agent swarms. The Arbiter watches the activity log and checks
           every change against a set of rules. When a rule is broken it records the violation
-          and announces it over pub/sub. In strict mode, a serious violation can stop the
-          responsible agent and hand its work to another. That stop is a real boundary, not
-          just a warning.
+          and announces it over pub/sub. In strict mode, a serious violation fails closed for that
+          agent: it stops the responsible agent and hands its work to salvage. That stop is a real
+          boundary, not just a warning — but it is the only Arbiter action that blocks; everything
+          else logs and alerts.
         </p>
       </div>
 
