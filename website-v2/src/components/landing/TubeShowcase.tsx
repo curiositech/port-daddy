@@ -96,15 +96,19 @@ listening. Use --raw / --json for machine output. Ctrl+C to exit.
             </SurfacePanel>
 
             <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-              <img
-                src="/demos/pd-tube/pd-tube-real-output.gif"
-                alt="Animated terminal recording showing pd tube receiving an event, posting a reply, and reading both records back from channel history"
+              <video
+                src="/demos/pd-tube/mission-control.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
                 className="block w-full"
-                loading="lazy"
+                aria-label="Screen recording: clicking buttons on a plain web page wakes a local agent that does real work and replies in the page, all over one Port Daddy channel"
               />
               <figcaption className="border-t-2 border-[var(--border-strong)] px-[var(--space-4)] py-[var(--space-3)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                Recorded from the live daemon with <code>asciinema</code> and rendered with{' '}
-                <code>agg</code>. Source: <code>examples/pd-tube/demo.sh</code>.
+                A real web page firing a real agent. Each button is a plain <code>fetch()</code> to{' '}
+                <code>ui:clicks</code>; an agent on <code>pd tube ui:clicks</code> does the work and
+                replies — round-trip in ~3s. Page: <code>examples/pd-tube/mission-control.html</code>.
               </figcaption>
             </figure>
 
