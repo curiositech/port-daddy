@@ -19,6 +19,17 @@ export interface DeprecatedBlogPost {
 
 export const blogPostMetas: BlogPostMeta[] = [
   {
+    id: 'the-macaroon-gate',
+    slug: 'the-macaroon-gate',
+    title: 'Your Coding Agent Has Your Push Token',
+    date: '2026-06-16',
+    author: 'Erich Owens',
+    excerpt: 'You hand an agent your repo and it has the real push token — nothing structural stops it pinning main at 3am. A stern wrapper does not help; if the agent holds the capability, the restraint is advice. The fix is a macaroon: a credential the agent can narrow but never widen, whose push is gated on a daemon-issued discharge that only exists while coordination rent is paid. And we did not assert it was sound — ProVerif checked it, found the attack the request-binding stops, and proved the gate holds against an active attacker.',
+    tags: ['Security', 'Formal Methods', 'Macaroons', 'Capabilities', 'Coordination', 'ProVerif'],
+    heroImage: '/img/generated/macaroon-gate/hero.png',
+    heroAlt: 'A flat blueprint night scene: a coding-agent robot at a desk under a 3:00 clock holds up a brass key tagged PUSH TOKEN; to its right a turnstile stamped RENT PAID? blocks the way to a fortified vault door labelled main, with a small tag reading no discharge — no push.',
+  },
+  {
     id: 'pd-tube-multi-subscriber',
     slug: 'pd-tube-multi-subscriber',
     title: 'One Send, Every Listener: pd tube Goes Multi-Subscriber',
