@@ -104,6 +104,53 @@ describe('lib/tube envelope', () => {
     expect(objRow.envelope).toBe(false);
     expect(objRow.body).toBe('{"foo":"bar"}');
   });
+
+  // ADR-0047 Phase 0 — typed performative envelope round-trip.
+  test('buildEnvelope carries performative + conversationId + delegationChain', () => {
+    const env = buildEnvelope('do it', 7, {
+      performative: 'request',
+      conversationId: 'conv-1',
+      delegationChain: ['a', 'b'],
+    });
+    expect(env).toEqual({
+      v: 1, kind: TUBE_ENVELOPE_KIND, body: 'do it', inReplyTo: 7,
+      performative: 'request', conversationId: 'conv-1', delegationChain: ['a', 'b'],
+    });
+  });
+
+  test('a performative envelope ROUND-TRIPS through build → decode (Phase 0 done-condition)', () => {
+    const env = buildEnvelope('refactor auth', undefined, {
+      performative: 'propose', conversationId: 'conv-42', delegationChain: ['steward', 'worker'],
+    });
+    const decoded = decodeMessage({ id: 9, sender: 'steward', createdAt: 1, payload: env });
+    expect(decoded).toMatchObject({
+      body: 'refactor auth', envelope: true,
+      performative: 'propose', conversationId: 'conv-42', delegationChain: ['steward', 'worker'],
+    });
+  });
+
+  test('round-trips through the stringified-payload path too', () => {
+    const env = buildEnvelope('mayday', undefined, { performative: 'distress', conversationId: 'c9' });
+    const decoded = decodeMessage({ id: 10, sender: 'x', createdAt: 1, payload: JSON.stringify(env) });
+    expect(decoded).toMatchObject({ performative: 'distress', conversationId: 'c9', envelope: true });
+  });
+
+  test('legacy envelopes without conversation meta decode unchanged (back-compat)', () => {
+    const decoded = decodeMessage({ id: 1, sender: 's', createdAt: 1, payload: buildEnvelope('hi', 3) });
+    expect(decoded).toMatchObject({ body: 'hi', inReplyTo: 3, envelope: true });
+    expect(decoded.performative).toBeUndefined();
+    expect(decoded.conversationId).toBeUndefined();
+    expect(decoded.delegationChain).toBeUndefined();
+  });
+
+  test('an unknown performative is dropped, not surfaced as a bad value', () => {
+    const decoded = decodeMessage({
+      id: 1, sender: 's', createdAt: 1,
+      payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'x', performative: 'bogus-act' },
+    });
+    expect(decoded.envelope).toBe(true);
+    expect(decoded.performative).toBeUndefined();
+  });
 });
 
 describe('lib/tube history store', () => {
