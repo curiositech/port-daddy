@@ -74,6 +74,9 @@ jobs:
         with:
           bun-version: 1.2.21
 
+      - name: Install dependencies
+        run: bun install
+
       - name: Package FleetBar app
         run: |
           scripts/package-fleetbar.sh dist/fleetbar
