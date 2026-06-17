@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 /**
  * Type-theme switcher — a feel-out tool for the site's type system.
  *
- * Default (no attribute on <html>) is Recursive, self-hosted in
- * tokens.source.css. Every alternate swaps the three font-role variables
+ * Default (no attribute on <html>) is Radnika — the live site's current
+ * type system, unchanged. Every alternate (including Recursive, self-hosted
+ * in tokens.source.css) is opt-in and swaps the three font-role variables
  * via html[data-type-theme="..."] blocks in tokens.source.css; this
  * component only sets the attribute, lazily injects the alternate's
  * webfont stylesheet the first time it is selected, and persists the
@@ -22,14 +23,14 @@ interface TypeTheme {
 const THEMES: TypeTheme[] = [
   {
     id: null,
-    label: 'Recursive',
-    detail: 'one variable font, sans-to-mono on a single axis',
+    label: 'Radnika',
+    detail: 'the current default',
     links: [],
   },
   {
-    id: 'radnika',
-    label: 'Radnika',
-    detail: 'the previous system',
+    id: 'recursive',
+    label: 'Recursive',
+    detail: 'one variable font, sans-to-mono on a single axis',
     links: [],
   },
   {
