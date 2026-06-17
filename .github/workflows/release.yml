@@ -95,6 +95,9 @@ jobs:
               --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
               --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"
             export PORT_DADDY_NOTARY_PROFILE=pd-notary
+            # tell notarytool to read the profile from the temp keychain, not the
+            # default login keychain (which may not exist on a clean runner)
+            export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
           else
             echo "::warning::notary secrets absent — signing only, not notarizing."
             export PORT_DADDY_SKIP_NOTARIZE=1
@@ -102,6 +105,7 @@ jobs:
           node scripts/sign-and-notarize.mjs dist/port-daddy
           node scripts/sign-and-notarize.mjs dist/pd
           codesign --verify --strict --verbose=2 dist/port-daddy
+          codesign --verify --strict --verbose=2 dist/pd
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
           security delete-keychain "$KEYCHAIN" || true
 
