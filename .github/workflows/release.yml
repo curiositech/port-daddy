@@ -66,6 +66,14 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
+      # package-fleetbar.sh bundles the CLI payload via scripts/build-single-binary.mjs,
+      # which shells out to bun. Keep this job aligned with build-binaries and
+      # publish-npm so recovery reruns do not fail after the Swift build succeeds.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.21
+
       - name: Package FleetBar app
         run: |
           scripts/package-fleetbar.sh dist/fleetbar
