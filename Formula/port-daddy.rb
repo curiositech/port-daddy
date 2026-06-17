@@ -20,15 +20,20 @@ class PortDaddy < Formula
   def post_install
     # Refresh the cross-tool skill symlink union after every install/upgrade so
     # Codex, Claude, Gemini, and editor runtimes follow the current Windags and
-    # workgroup skill sources without a manual copy step. Only the skill step
-    # runs - daemon, MCP, FleetBar, and project init each have their own
-    # lifecycle and should not be touched silently on every brew upgrade.
+    # workgroup skill sources without a manual copy step. Daemon, MCP, FleetBar,
+    # and project init each have their own lifecycle and are skipped here.
+    #
+    # This setup call ALSO pre-downloads the local embedding model
+    # (Xenova/all-MiniLM-L6-v2, ~27 MB) on first install so semantic operations
+    # work offline-first (ADR-0061). It is idempotent (skips if already cached, so
+    # upgrades are instant) and best-effort (an offline install never fails — the
+    # runtime fetches lazily later). Pass --no-prefetch to skip.
     return if ENV["HOME"].nil? || ENV["HOME"].empty?
 
     pd = opt_bin/"pd"
     return unless pd.exist?
 
-    ohai "Refreshing Port Daddy cross-tool skill symlinks"
+    ohai "Refreshing Port Daddy skill symlinks + pre-downloading embedding model"
     system pd.to_s, "setup", "--no-daemon", "--no-mcp", "--no-fleetbar", "--no-init"
   end
 
