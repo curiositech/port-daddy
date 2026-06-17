@@ -21,10 +21,10 @@ export function Hero() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-5)]"
+            className="space-y-[var(--space-6)]"
           >
             <SectionIntro
-              eyebrow="For AI engineering teams"
+              eyebrow="Fleet coordination for coding agents"
               title={
                 <>
                   Run a fleet of coding agents{' '}
@@ -37,46 +37,34 @@ export function Hero() {
               titleAs="h1"
               titleSize="hero"
               titleClassName="max-w-[18ch]"
-              bodyClassName="max-w-[34rem]"
+              bodyClassName="max-w-[44rem]"
             />
 
-            {/* CLI-backend pitch — the operator's load-bearing line. */}
-            <Link
-              to="/cli-backend"
-              className="group block max-w-[34rem] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] no-underline transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
-            >
-              <div className="flex items-start justify-between gap-[var(--space-3)]">
-                <div className="space-y-[var(--space-2)]">
-                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] group-hover:text-[color:var(--brand-primary-foreground-muted)]">
-                    Already pay for Claude Max or ChatGPT Pro?
-                  </span>
-                  <p className="font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary-foreground)]">
-                    <strong>Your whole fleet runs on that one subscription.</strong>{' '}
-                    No metered API bill — Claude Code and Codex plug in as backends, and setup takes two minutes.
-                  </p>
-                </div>
-                <ArrowRight
-                  size={18}
-                  aria-hidden="true"
-                  className="mt-1 shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand-primary-foreground)]"
-                />
+            {/* One CTA group: primary action, then the load-bearing BYO-subscription
+                line as a quiet link beneath it (the full pitch is the next section). */}
+            <div className="space-y-[var(--space-3)]">
+              <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+                <Button asChild variant="primary" size="lg">
+                  <Link to="/mac-preview#download">
+                    <Download size={16} />
+                    Get the Mac app
+                    <ArrowRight size={16} />
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                  <Link to="/docs/">
+                    <Terminal size={16} />
+                    Read the docs
+                  </Link>
+                </Button>
               </div>
-            </Link>
-
-            <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-              <Button asChild variant="primary" size="lg">
-                <Link to="/mac-preview#download">
-                  <Download size={16} />
-                  Get the Mac app
-                  <ArrowRight size={16} />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                <Link to="/docs/">
-                  <Terminal size={16} />
-                  Read the docs
-                </Link>
-              </Button>
+              <Link
+                to="/cli-backend"
+                className="group inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+              >
+                Already pay for Claude Max or ChatGPT Pro? The fleet runs on it.
+                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
           </motion.div>
 
@@ -87,17 +75,6 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
-              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-              <img
-                alt=""
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover"
-                src="/img/generated/agent-runtime-map.jpg"
-              />
-            </picture>
             <div className="relative z-10">
               <LiveGloryVideo />
             </div>
