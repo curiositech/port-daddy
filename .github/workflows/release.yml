@@ -49,7 +49,64 @@ jobs:
       - name: Build binary
         run: |
           node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd
-          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
+
+      # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
+      # Developer ID, reusing scripts/sign-and-notarize.mjs — the same proven path
+      # FleetBar uses (ADR-0057 phase dist-ci-signing-secrets; closes ADR-0028's
+      # "daemon ships unsigned" gap). Locally verified 2026-06-17: the shipped
+      # adhoc-signed `pd` re-signs to a valid hardened-runtime Developer ID binary.
+      #
+      # Required repo secrets (set once by the operator; until then this step
+      # no-ops and the binary ships adhoc as before — the build never breaks):
+      #   APPLE_CERT_P12_BASE64   base64 of the Developer ID Application .p12
+      #   APPLE_CERT_PASSWORD     the .p12 export password
+      # Optional — when present, the binary is also NOTARIZED + stapled; absent,
+      # it is signed only (still a Gatekeeper improvement over adhoc):
+      #   APPLE_NOTARY_KEY_P8_BASE64  base64 of the App Store Connect API .p8 key
+      #   APPLE_NOTARY_KEY_ID         the API key id
+      #   APPLE_NOTARY_KEY_ISSUER     the API key issuer uuid
+      - name: Sign macOS binary (Developer ID)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERT_P12_BASE64:-}" ]; then
+            echo "::warning::APPLE_CERT_P12_BASE64 not set — shipping adhoc-signed (unsigned) daemon. Add the Developer ID secrets to sign."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
+          KCPASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KCPASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+          if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
+            echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+            xcrun notarytool store-credentials pd-notary \
+              --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+              --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"
+            export PORT_DADDY_NOTARY_PROFILE=pd-notary
+          else
+            echo "::warning::notary secrets absent — signing only, not notarizing."
+            export PORT_DADDY_SKIP_NOTARIZE=1
+          fi
+          node scripts/sign-and-notarize.mjs dist/port-daddy
+          node scripts/sign-and-notarize.mjs dist/pd
+          codesign --verify --strict --verbose=2 dist/port-daddy
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
+          security delete-keychain "$KEYCHAIN" || true
+
+      - name: Package binary
+        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
