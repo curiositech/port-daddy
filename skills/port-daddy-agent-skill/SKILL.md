@@ -188,7 +188,19 @@ you explicitly hand it off in Port Daddy notes.
   deferred / contested-because.
 - Run or spawn an adversarial reviewer for non-trivial changes. Ask for a
   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict and fix high-confidence
-  findings before merge.
+  findings before merge. The reviewer must also post a machine-readable PR
+  comment or PR review tied to the current head SHA:
+
+```text
+Adversarial Review
+Reviewer: feature-dev:code-reviewer
+Head-SHA: <40-hex PR head sha>
+Verdict: SHIP
+```
+
+  The `adversarial-review` commit status stays red for stale SHAs,
+  self-authored artifacts, `SHIP-AFTER-FIX`, `DO-NOT-SHIP`, and generic bot
+  review statuses that do not include this artifact.
 - "CI green" includes GitHub checks and attached external deploy/status checks.
   If a red check is truly external, inspect the linked logs and document the
   owner/root cause in both the PR and a `pd note`; otherwise fix the branch.
@@ -383,7 +395,7 @@ Do not pre-load the whole bundle.
 | You want a worked walkthrough that mirrors your situation | `examples/INDEX.md` |
 | You are about to fork or rejoin a sub-agent (parent→child, not peer) | `subagent-fork/INDEX.md` |
 | You are spawning a fleet persona or editing `pd-fleet.yml` | `agents/INDEX.md` |
-| You need to start an agent with verified-fresh local truth (JSON-routable prologue) | `scripts/prologue/INDEX.md` |
+| You need to start an agent with verified-fresh local truth (JSON-routable prologue) | `skills/port-daddy-agent-skill/scripts/prologue/INDEX.md` |
 | You need a visual model of the loop, lifecycle, handoff, or fanout | `diagrams/INDEX.md` |
 | You need a deeper procedural reference (theory, recovery, CLI/API/SDK, multi-agent recipes, .portdaddyrc, session lifecycle) | `references/INDEX.md` |
 | You need a machine-readable contract (semantic identity, fleet schema, tuple/note/pheromone/salvage shape, MCP catalog) | `schemas/INDEX.md` |
@@ -395,12 +407,12 @@ skill-hygiene validator (see Self-Check).
 
 Loose top-level scripts beside the prologue:
 
-- `scripts/preflight.sh` — pre-edit gate: daemon up, no mid-rebase, claims sane.
-- `scripts/agent-handshake.sh` — emit a handoff envelope on session close.
-- `scripts/emit_agent_handoff.py` — typed handoff emitter; pairs with `templates/handoff.md`.
-- `scripts/fleet-validate.sh` — validate a `pd-fleet.yml` against `schemas/pd-fleet.schema.json`.
-- `scripts/salvage-triage.sh` — surface dead-agent intent worth claiming.
-- `scripts/session-resume.sh` — resume a salvaged session with original purpose.
+- `skills/port-daddy-agent-skill/scripts/preflight.sh` — pre-edit gate: daemon up, no mid-rebase, claims sane.
+- `skills/port-daddy-agent-skill/scripts/agent-handshake.sh` — emit a handoff envelope on session close.
+- `skills/port-daddy-agent-skill/scripts/emit_agent_handoff.py` — typed handoff emitter; pairs with `templates/handoff.md`.
+- `skills/port-daddy-agent-skill/scripts/fleet-validate.sh` — validate a `pd-fleet.yml` against `schemas/pd-fleet.schema.json`.
+- `skills/port-daddy-agent-skill/scripts/salvage-triage.sh` — surface dead-agent intent worth claiming.
+- `skills/port-daddy-agent-skill/scripts/session-resume.sh` — resume a salvaged session with original purpose.
 
 ## Output Contracts
 

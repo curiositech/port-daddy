@@ -178,7 +178,17 @@ flow is:
    worried about, and SPECIFIC hunting prompts ("could this leak X? does
    this handle symlinks? what about Windows path separators?"). Demand a
    verdict prefix: `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP`. Cap word count so
-   you get signal, not a wall of text.
+   you get signal, not a wall of text. Post the final verdict as a PR comment
+   or PR review in the machine-readable artifact shape below; generic Copilot
+   comments and the `Claude Code Review` status do not satisfy the Port Daddy
+   adversarial-review contract.
+
+   ```text
+   Adversarial Review
+   Reviewer: feature-dev:code-reviewer
+   Head-SHA: <40-hex PR head sha>
+   Verdict: SHIP
+   ```
 3. **Address every HIGH-confidence finding** as a fixup commit on the
    branch. Don't squash until merge. Each fixup commit message names the
    finding it addresses so the audit trail survives.
@@ -196,7 +206,11 @@ flow is:
    inspect the linked logs, name the external owner/root cause in a PR
    comment, and leave a `pd note`; otherwise fix the repo branch.
 7. **Re-spawn the reviewer** (or a fresh one) if the change set is
-   non-trivial. Don't ship with a stale verdict.
+   non-trivial or the PR head SHA changed after the review. Don't ship with a
+   stale verdict. The `adversarial-review` commit status is red until a
+   non-author artifact for the current head SHA says `Verdict: SHIP`;
+   `SHIP-AFTER-FIX`, `DO-NOT-SHIP`, self-authored artifacts, and stale-SHA
+   artifacts are intentionally blocking.
 8. **`pd note` the result + `pd done`** before merge. The PD audit trail
    is part of the ship contract — a merge without it is not durable.
 9. **Merge in the right order.** When PRs stack (e.g. a doctor PR bases on
@@ -246,8 +260,12 @@ script cannot judge them, and pretending it can is solutionism).
 - **Rebased on latest `origin/main`.**
 
 **Before you merge (the no-return point):**
-- **Adversarial review happened and every HIGH finding is *addressed*** — fixed
-  or contested-with-reason, not merely opened. Verdict on record.
+- **Adversarial review happened and every HIGH finding is *addressed*.** `[M]`
+  `scripts/check-adversarial-review.mjs` plus the
+  `.github/workflows/adversarial-review-gate.yml` workflow keep the
+  `adversarial-review` commit status red until a non-author PR comment/review
+  contains the required current-head `Verdict: SHIP` artifact. Findings are
+  fixed or contested-with-reason, not merely opened.
 - **Genuinely green, not racing review.** Required checks pass on their own
   merits; **never `--admin` over red** (Port Daddy wraps `git` but deliberately
   not `gh`, so nothing mechanically blocks this — it is a hard rule + the harness
