@@ -352,4 +352,4 @@ For `pd tube` cockpit pane, the overlay pattern is recommended — user presses 
 - `cargo check` must pass
 - `cargo test --bin pd-console-repl` with `RUST_MIN_STACK=16777216` (GPUI proc-macros overflow Linux rustc stack)
 - No `9876` or `http://127.0.0.1:9876` literals in `core/` source (except `agent.rs` allowlist)
-- Brand colors: no `#CC3D2E` (cinnabar) anywhere in tracked files
+- Brand colors: no retired Harbor Heritage cinnabar red anywhere in tracked files (see website-v2/docs/design/BRAND.md)
