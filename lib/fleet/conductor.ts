@@ -316,6 +316,14 @@ export function createConductor(deps: ConductorDeps) {
   const isMainCheckout = deps.isMainCheckout ?? defaultIsMainCheckout;
   const mintWorktree = deps.mintWorktree ?? ((_l, intent) => intent.workdir);
 
+  // Launches halted while their `spawner.spawn` is still pending: we do not yet
+  // hold the agentId (the spawner returns it only on resolution), so we cannot
+  // SIGTERM mid-flight. We record the intent-to-kill here; the moment the spawn
+  // resolves and the body's agentId is known, the run path honors the pending
+  // kill — SIGTERM→SIGKILL the just-born body — so HALT stays total even against
+  // a launch caught between admission and a live agentId (ADR-0060 I7).
+  const pendingKills = new Set<string>();
+
   db.exec(SCHEMA_SQL);
 
   const insertStmt = db.prepare(`
@@ -366,6 +374,29 @@ export function createConductor(deps: ConductorDeps) {
 
   function lineageScope(rootId: string): BreakerScope {
     return `root:${rootId}`;
+  }
+
+  /**
+   * Refund every `running` bond escrowed for `agentId`, BEFORE its body is
+   * killed. Mirrors routes/panic.ts: refunding first makes the spawner's
+   * kill-path slash a no-op, so operator halt ALWAYS REFUNDS and never slashes.
+   */
+  function refundBondsForAgent(agentId: string | null | undefined): void {
+    if (!bonds || !agentId) return;
+    try {
+      const running = bonds.listBonds({ state: 'running', limit: 1000 });
+      for (const b of running) {
+        if (b.agentId === agentId) {
+          try {
+            bonds.refund(b.id);
+          } catch {
+            /* refund failure never blocks the halt */
+          }
+        }
+      }
+    } catch {
+      /* listing failure never blocks the halt */
+    }
   }
 
   /** Bond resolution: per-spawn `bondUsd` wins; else fall back to the ceiling-derived default. */
@@ -638,6 +669,37 @@ export function createConductor(deps: ConductorDeps) {
       return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: null };
     }
 
+    // ── Halt-while-pending honor ───────────────────────────────────────────────
+    // If an operator HALT landed while this spawn was still in flight, we now —
+    // and only now — hold the body's agentId. Honor the pending kill: SIGTERM→
+    // SIGKILL the body, refund (never slash) its bond, release the reservation,
+    // and leave the launch in `halted` (already set by halt()) for salvage.
+    if (pendingKills.has(admitted.id)) {
+      pendingKills.delete(admitted.id);
+      refundBondsForAgent(spawnResult.agentId);
+      try {
+        spawner.kill(spawnResult.agentId);
+      } catch {
+        /* kill is best-effort; the worktree + transcript are preserved to salvage */
+      }
+      if (reserved > 0) {
+        breaker.release(lineageScope(admitted.rootId), reserved);
+        breaker.release(GLOBAL_SCOPE, reserved);
+      }
+      // Record the body's agentId on the (already-halted) row for inspection.
+      setStateStmt.run({
+        id: admitted.id,
+        state: 'halted',
+        agentId: spawnResult.agentId,
+        costUsd: null,
+        resultArtifact: null,
+        errorMessage: null,
+        refusedReason: null,
+        settledAt: now(),
+      });
+      return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: spawnResult };
+    }
+
     // ── Settle ────────────────────────────────────────────────────────────────
     const success = spawnResult.status === 'completed';
     // Realized cost is carried on the spawn telemetry when present; the spawner
@@ -695,8 +757,8 @@ export function createConductor(deps: ConductorDeps) {
       forceOpen(GLOBAL_SCOPE);
     }
 
-    const running = selectRunningStmt.all() as LaunchRow[];
-    const targets = running
+    const runningRows = selectRunningStmt.all() as LaunchRow[];
+    const targets = runningRows
       .map(rowToLaunch)
       .filter((l) => (scope.rootId ? l.rootId === scope.rootId : true));
 
@@ -704,32 +766,21 @@ export function createConductor(deps: ConductorDeps) {
     // agents we're about to halt BEFORE killing them. spawner.kill() slashes the
     // bond as its cleanup step by default; refunding first makes that slash a
     // no-op, so operator halt ALWAYS REFUNDS and never slashes.
-    const haltAgentIds = new Set(targets.map((l) => l.agentId).filter((a): a is string => !!a));
-    if (bonds && haltAgentIds.size > 0) {
-      try {
-        const running = bonds.listBonds({ state: 'running', limit: 1000 });
-        for (const b of running) {
-          if (haltAgentIds.has(b.agentId)) {
-            try {
-              bonds.refund(b.id);
-            } catch {
-              /* refund failure never blocks the halt */
-            }
-          }
-        }
-      } catch {
-        /* listing failure never blocks the halt */
-      }
-    }
-
     const haltedIds: string[] = [];
     for (const l of targets) {
       if (l.agentId) {
+        // The body's agentId is already known → refund-then-kill synchronously.
+        refundBondsForAgent(l.agentId);
         try {
           spawner.kill(l.agentId);
         } catch {
           /* kill is best-effort; the worktree+transcript are preserved to salvage */
         }
+      } else {
+        // The spawn is still in flight; we do not hold the agentId yet. Record an
+        // intent-to-kill — the run path honors it the instant the spawn resolves
+        // (refund-then-SIGTERM the just-born body), so HALT stays total (I7).
+        pendingKills.add(l.id);
       }
       // Release any outstanding reservation back to the scope.
       if (l.bondUsd) {
