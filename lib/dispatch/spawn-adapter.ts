@@ -29,6 +29,19 @@
  * WORKTREE ROOT: must resolve under ~/coding/tmp (or ~/.port-daddy). The runner's
  * DISPATCH_WORKTREE_ROOT is already set to ~/coding/tmp, verified below at
  * construction time. Never /tmp — macOS purges /tmp on a timer.
+ *
+ * TODO(ADR-0060 — Conductor fold-in, DEFERRED): this adapter is the FOURTH spawn
+ * surface and is NOT yet routed through `conductor.launch`. Unlike the sortie POST
+ * and the reactive orchestrator (both rerouted), dispatch does not call
+ * `spawner.spawn` — it drives a raw Coast-Guard-wrapped `execFile` (below) plus a
+ * worktree-mint + draft-PR lifecycle. Folding it in requires the Conductor to grow
+ * the `worktree:'create'` branch (mint the off-main branch, open the draft PR,
+ * carry the PR URL as resultArtifact) so the dispatch lifecycle becomes the
+ * Conductor's `worktree:'create', mergePolicy:'review'` intent. That is a larger
+ * change than the sortie/orchestrator reroute and is intentionally deferred to a
+ * follow-up PR. Until then, dispatch remains a separate launcher and the
+ * "Conductor is the ONLY caller of spawner.spawn" property holds for the sortie +
+ * orchestrator surfaces only. This is called out honestly in the Conductor PR.
  */
 
 import { execFileSync, execFile } from 'node:child_process';
