@@ -747,15 +747,13 @@ export function createConductor(deps: ConductorDeps) {
    */
   function halt(scope: { rootId?: string } = {}): { halted: string[] } {
     // Open the breaker scope first → admission stops immediately (I7 atomicity).
-    if (scope.rootId) {
-      breaker.registerScope(lineageScope(scope.rootId), null);
-      // Force-open via a manual trip surrogate: reserve an impossible amount is
-      // wrong; instead mark open directly through close()/state isn't enough — so
-      // we use a dedicated path: record the halt as an operator action.
-      forceOpen(lineageScope(scope.rootId));
-    } else {
-      forceOpen(GLOBAL_SCOPE);
-    }
+    // CRITICAL: use the breaker's operator-trip, which flips `open` WITHOUT
+    // touching the scope's ceiling/realized/reserved accounting. A later resume
+    // (close) restores the scope to exactly its pre-halt budget cap. The old
+    // approach (`registerScope(scope, null)` then trip) erased the lineage cap
+    // permanently — replacing a real budget with "unbounded" on resume.
+    const target = scope.rootId ? lineageScope(scope.rootId) : GLOBAL_SCOPE;
+    breaker.forceOpen(target, 'operator-halt', 'pause');
 
     const runningRows = selectRunningStmt.all() as LaunchRow[];
     const targets = runningRows
@@ -794,20 +792,16 @@ export function createConductor(deps: ConductorDeps) {
     return { halted: haltedIds };
   }
 
-  // We need a way to force a scope OPEN without a budget/error event (operator
-  // halt + pause). The breaker exposes reserve/recordOutcome/close; to open
-  // directly we register a zero ceiling and reserve a token, which trips the
-  // budget breaker deterministically. This keeps the breaker's public surface
-  // minimal while giving the Conductor an operator-driven open.
-  function forceOpen(scope: BreakerScope): void {
-    breaker.registerScope(scope, 0);
-    breaker.reserve(scope, 1); // exceeds the 0 ceiling → trips → OPEN
-  }
-
-  /** Soft pause: stop admitting in a scope; leave running agents alive. */
+  /**
+   * Soft pause: stop admitting in a scope; leave running agents alive. Uses the
+   * breaker's operator-trip so the scope's ceiling/realized/reserved accounting
+   * is preserved — a later resume restores the exact pre-pause budget cap and
+   * does NOT brick the fleet with a zeroed ceiling.
+   */
   function pause(scope: { rootId?: string } = {}): void {
-    forceOpen(scope.rootId ? lineageScope(scope.rootId) : GLOBAL_SCOPE);
-    emit('fleet:state', { paused: scope.rootId ? lineageScope(scope.rootId) : GLOBAL_SCOPE });
+    const target = scope.rootId ? lineageScope(scope.rootId) : GLOBAL_SCOPE;
+    breaker.forceOpen(target, 'operator-pause', 'pause');
+    emit('fleet:state', { paused: target });
   }
 
   /** Resume a paused/halted scope (operator). */

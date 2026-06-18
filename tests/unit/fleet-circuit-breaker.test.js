@@ -184,4 +184,54 @@ describe('scope semantics', () => {
     const open = b.openScopes();
     expect(open.map((s) => s.scope)).toContain('root:a');
   });
+
+  // ── forceOpen: operator trip MUST NOT corrupt the ceiling (Attack 3 fix) ──
+  describe('forceOpen (operator trip) preserves budget accounting', () => {
+    test('forceOpen flips open WITHOUT mutating the ceiling, realized, or reserved', () => {
+      const b = makeBreaker();
+      b.registerScope('root:a', 10);
+      b.reserve('root:a', 4); // $4 reserved against a $10 ceiling
+      b.forceOpen('root:a', 'operator-pause', 'pause');
+      expect(b.isOpen('root:a')).toBe(true);
+      expect(b.state('root:a').reason).toBe('operator-pause');
+      // The ceiling and reserved amount are untouched: after resume $6 still fits
+      // (4+6 = 10 exactly), $0.01 more does not — proves the $10 ceiling survived.
+      b.close('root:a');
+      expect(b.reserve('root:a', 6)).toBe(true);
+      expect(b.reserve('root:a', 0.01)).toBe(false);
+    });
+
+    test('GLOBAL forceOpen does NOT zero the global ceiling (no brick-on-resume)', () => {
+      const b = makeBreaker();
+      b.registerScope(GLOBAL_SCOPE, 100);
+      b.forceOpen(GLOBAL_SCOPE, 'operator-pause', 'pause');
+      expect(b.isOpen(GLOBAL_SCOPE)).toBe(true);
+      b.close(GLOBAL_SCOPE);
+      // After resume the global ceiling is still $100 — a $50 bond reserves fine,
+      // which would be IMPOSSIBLE if forceOpen had set the ceiling to 0.
+      expect(b.reserve(GLOBAL_SCOPE, 50)).toBe(true);
+      expect(b.isOpen(GLOBAL_SCOPE)).toBe(false);
+    });
+
+    test('lineage forceOpen does NOT erase the lineage cap (resume keeps the budget)', () => {
+      const b = makeBreaker();
+      b.registerScope('root:x', 5);
+      b.reserve('root:x', 2);
+      b.forceOpen('root:x', 'operator-halt', 'pause');
+      b.close('root:x'); // resume
+      // The $5 cap survives: 2 (still reserved) + 3 fits; +0.01 does not.
+      expect(b.reserve('root:x', 3)).toBe(true);
+      expect(b.reserve('root:x', 0.01)).toBe(false);
+    });
+
+    test('forceOpen on an already-open scope keeps the original trip reason', () => {
+      const b = makeBreaker();
+      b.registerScope('root:a', 1);
+      b.reserve('root:a', 1);
+      expect(b.reserve('root:a', 1)).toBe(false); // budget trip first
+      expect(b.state('root:a').reason).toBe('lineage-budget');
+      b.forceOpen('root:a', 'operator-pause', 'pause'); // operator trips an already-open scope
+      expect(b.state('root:a').reason).toBe('lineage-budget'); // first cause wins
+    });
+  });
 });
