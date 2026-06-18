@@ -65,6 +65,7 @@ import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
+import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
@@ -548,11 +549,17 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
+// Durable forensics journal — every Arbiter security event is written, in full,
+// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
+// so it survives the 7-day activity_log prune. Default on; opt out with
+// PD_FORENSICS_ARCHIVE=off. (ADR-0060.)
+const forensicsSink =
+  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
 const arbiter = createArbiter(
-  { activityLog, agents, sessions, locks, resurrection, bonds },
+  { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
   { strictMode: arbiterStrictMode }
 );
-console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode})`);
+console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode}, forensicsJournal=${forensicsSink ? 'on' : 'off'})`);
 const pheromones = createPheromoneManager(db);
 pheromones.start();
 
