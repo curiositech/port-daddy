@@ -1,355 +1,174 @@
 ---
 name: gpui-rust-console
-version: 0.1.0
+version: 0.2.0
 description: >
-  Build beautiful, production-quality native macOS console apps with GPUI 0.2.x
-  (Zed's GPU-accelerated Rust UI). Covers rendering patterns, layout, scrollable
-  lists, keyboard nav, tooltips, animations, async threading, and the specific
-  idioms needed for pd-console.
+  Build and extend pd-console — Port Daddy's GPU-native macOS operator console (GPUI
+  0.2.x, Zed's Rust UI). Covers the render-agnostic Block/Pane(Surface) contract, the
+  two-thread reqwest↔smol refresh pipeline, Taffy flexbox layout, uniform_list virtual
+  scroll, focus + keyboard nav, the OKLCH theme and ICS maritime flag badges, GPUI's
+  missing text-input, and the real feature-gated cargo/CI gate. Use when adding panes,
+  visual polish, or debugging GPUI rendering/layout/focus in core/pd-console. NOT for the
+  TypeScript daemon, generic Rust toolchain/borrow-checker help (use rust-with-claude-code),
+  or non-pd GPUI apps with a different theme/architecture.
 author: port-daddy
-tags: [gpui, rust, ui, native, macos, console]
-pairs-with:
-  - daemon-development
-  - git-best-practices
+license: Apache-2.0
+tags: [gpui, rust, ui, native, macos, console, oklch, maritime, port-daddy]
+metadata:
+  category: Native UI & Rendering
+  argument-hint: '[task: add-pane|layout|scroll|theme|maritime|text-input|verify]'
+  pairs-with: [rust-with-claude-code, daemon-development, git-best-practices]
 ---
 
-# GPUI Rust Console Skill
+# gpui-rust-console
 
-## When to invoke
+Authoritative skill for `core/pd-console` (crate `pd-console` v0.2.0, ADR-0046): a
+GPU-native standalone macOS operator console built on GPUI 0.2.2, plus a headless ratatui
+REPL that renders the *same* panes. The defining idea: **a pane emits render-agnostic
+`Block`s; two renderers paint them.** One pane, two faces — which is why every pane is
+unit-tested on cheap Linux runners while the Metal window builds only on macOS.
 
-Use this skill when:
-- Building or extending `core/pd-console/` (GPUI-based native macOS operator console)
-- Adding panes, panels, interactive elements, or visual polish to a GPUI app
-- Debugging GPUI rendering, layout, focus, or event-handling issues
-- Choosing between GPUI architecture patterns (Entity vs struct, uniform_list vs list, etc.)
+## When to Use
 
----
+✅ **Use for**:
+- Adding or extending a pane/surface in `core/pd-console/`
+- GPUI layout (Taffy flexbox), scroll (`uniform_list`/`list`), focus, keyboard nav
+- The OKLCH theme (`theme.rs`) and ICS maritime flag badges (`maritime.rs`)
+- Debugging the reqwest↔smol two-thread refresh pipeline or `cx.notify()` storms
+- Designing text input where GPUI ships no widget (the `pd tube` cockpit)
+- Getting the feature-gated `cargo`/CI gate right
 
-## Core Architecture: pd-console
+❌ **NOT for**:
+- The TypeScript daemon, routes, or `agent.rs` HTTP wiring beyond consuming it
+- Generic Rust (borrow checker, async, FFI, testing idioms) → `rust-with-claude-code`
+- A non-pd GPUI app — the theme, the 17-pane model, and the daemon contract are specific
+- Generic macOS app packaging / notarization → `rust-app-distribution`
 
-```
-main.rs          — Application entry, FsAssets, window + two-thread refresh pipeline
-app.rs           — ConsoleView (Render impl), NAV items, palette constants, block renderer
-agent.rs         — DaemonClient (HTTP via reqwest/tokio), discover() resolver
-fleet_pane.rs    — Fleet data + Pane impl
-maritime.rs      — ICS flag colors + FlagBadge
-theme.rs         — OKLCH theme constants
-pane.rs          — Block enum + Pane trait
-dispatch_pane.rs — Dispatch panel
-```
+## The Model in One Diagram
 
-**Threading model:** reqwest/tokio CANNOT run in GPUI's smol executor. Pattern:
-
-```rust
-// Producer: std thread + tokio mini-runtime
-let (tx, rx) = mpsc::channel::<Vec<Block>>();
-std::thread::spawn(move || {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all().build().expect("tokio rt");
-    rt.block_on(async move {
-        let client = DaemonClient::new(url);
-        loop {
-            tokio::time::sleep(Duration::from_secs(2)).await;
-            if tx.send(data).is_err() { break; }
-        }
-    });
-});
-
-// Consumer: GPUI foreground executor (smol, safe on main thread)
-let bg = cx.background_executor().clone();
-let async_cx = cx.to_async();
-cx.foreground_executor().spawn(async move {
-    loop {
-        bg.timer(Duration::from_millis(500)).await;
-        while let Ok(blocks) = rx.try_recv() {
-            let _ = async_cx.update(|app| {
-                let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                    view.update_fleet(blocks.clone());
-                    cx.notify();
-                });
-            });
-        }
-    }
-}).detach();
+```mermaid
+flowchart TD
+  D["DaemonClient (reqwest)"] -->|"GET /route per pane"| PR
+  subgraph PR["Producer: std::thread + current-thread tokio (2s loop)"]
+    R["pane.refresh(&client).await"] --> V["pane.view() → Vec&lt;Block&gt;"]
+  end
+  PR -->|"std::sync::mpsc: Vec&lt;(nav_idx, Vec&lt;Block&gt;)&gt;"| CO
+  subgraph CO["Consumer: GPUI foreground (smol, main thread, 500ms)"]
+    U["window.update → view.update_panes"] --> N["cx.notify()"]
+  end
+  N --> PAINT["ConsoleView::render: Block → GPUI element (Tone resolved to OKLCH)"]
+  CO -.->|"control_tx: ControlMsg::InterruptLane"| PR
 ```
 
----
+reqwest needs tokio; GPUI runs smol; they **cannot** share an executor. The producer owns
+the daemon + all 17 panes and `mpsc`s `Block`s to the consumer; control flows back on a
+second channel. Use channels, never `Arc<Mutex<State>>` (it blocks the renderer — the #1
+GPUI perf bug). Full detail: `references/console-architecture.md`.
 
-## Render vs RenderOnce
+## Task Branches
 
-- `Render` (mutable): stateful views with lifecycle, holds `cx.focus_handle()`, responds to events. Most panes.
-- `RenderOnce` (immutable): pure presentation, called once per render cycle. `SidebarItem`, row cells, chips.
+| Branch | Do | Load |
+|--------|----|------|
+| `add-pane` | New surface end to end | `examples/add-a-pane.md`, `templates/new_pane.rs.tmpl`, `templates/pane_tests.rs.tmpl` |
+| `layout` | Taffy flexbox, three-panel skeleton | `references/render-and-layout.md` |
+| `scroll` | `uniform_list` vs `list`, bounded parents | `references/render-and-layout.md` |
+| `theme` | Add/preview an OKLCH tone | `references/maritime-flags.md`, `examples/preview-theme.md`, `scripts/oklch_to_srgb.py` |
+| `maritime` | ICS flag mapping / badge | `references/maritime-flags.md`, `scripts/flag_resolve.py` |
+| `text-input` | Cockpit chat / command entry | `references/text-input.md` |
+| `verify` | Run the real CI gate locally | `references/build-and-ci.md`, `scripts/verify_console.py` |
 
-```rust
-#[derive(IntoElement)]
-struct SidebarItem { active: bool, label: &'static str, glyph: &'static str }
+## The Contracts You Must Not Break
 
-impl RenderOnce for SidebarItem {
-    fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
-        div()
-            .px(px(10.0)).py(px(6.0)).rounded(px(6.0)).cursor_pointer()
-            .when(self.active, |s| s.bg(rgb(C_RAISED)).border_l_2().border_color(rgb(C_ACCENT)))
-            .hover(|s| s.bg(rgb(C_RAISED)))
-            .child(div().text_size(px(16.0)).child(self.glyph))
-            .child(div().text_color(rgb(if self.active { C_INK } else { C_MUTED })).text_size(px(11.0)).child(self.label))
-    }
-}
+- **Panes are render-agnostic.** Emit `Block`s with a `Tone` (meaning), never a color. The
+  renderer resolves `Tone → theme OKLCH → rgb(u32)` in one place (`pane.rs::Tone::color`).
+- **`trait Pane` is object-safe** (`Box<dyn Pane>` registry). `refresh` is a hand-rolled
+  boxed future (no `#[async_trait]`); `mutate`/`subscription`/`on_stream` have defaults so
+  read-only panes need zero changes. `SurfaceAction` is an enum, never a generic.
+- **`view()` is sync and IO-free.** All fetching is in `refresh()` on the producer thread.
+  A failed fetch is recorded in `last_error` and rendered as an error state — never
+  propagated (one bad route must not blank the console).
+- **`cx.notify()` only on real state change.** Never mutate `self` inside `render`.
+
+## Anti-Patterns
+
+### Sharing state with `Arc<Mutex<T>>` across the two threads
+**Novice**: "Wrap the pane state in `Arc<Mutex>` so both threads can touch it."
+**Expert**: The producer *owns* the panes; it `mpsc`s `Vec<Block>` snapshots to the
+consumer. A mutex under refresh contention stalls the GPUI render loop — visible jank.
+**Detection**: any `Mutex` / `RwLock` reachable from a pane; reqwest called off the
+producer thread.
+
+### Hardcoding a hex in a pane
+**Novice**: `div().bg(rgb(0xe3b56d))` inside a pane's view.
+**Expert**: Emit `Block::Chip { tone: Tone::Accent }`. The amber lives once in
+`theme.rs` (`DARK.accent`, which `oklch_to_srgb.py` confirms is `e3b56d`). Color resolves
+at paint time so retheme/light-mode is free; an inline hex also trips the brand-color guard.
+**Detection**: `rgb(0x…)` literals in `*_pane.rs`.
+
+### `RUST_MIN_STACK` for the "gpui stack overflow"
+**Novice**: "GPUI macros overflow the stack — set `RUST_MIN_STACK=16777216`."
+**Expert**: The error is a **compile-time recursion limit**, fixed by
+`#![recursion_limit = "512"]` at the top of `main.rs`. `RUST_MIN_STACK` resizes a *runtime*
+thread stack and does nothing for a compile error. CI sets neither — it runs plain
+`cargo check` + `cargo test` with gpui feature-gated off on Linux.
+**Timeline**: this corrected an earlier draft of this very skill; see `references/build-and-ci.md`.
+
+### Expecting a built-in text input
+**Novice**: "Use GPUI's text field for the cockpit."
+**Expert**: GPUI 0.2.x ships **no** text-input widget. Use the full-screen entry overlay
+pattern (state on the view, not the busy stream pane) or build an `Element` (~300 LOC).
+**Detection**: searching the API for `text_input()`; cursor state bolted onto the Lane pane.
+
+## Quality Gates
+
+```
+□ Pane emits Block+Tone only — zero rgb(0x…) in the pane
+□ view() is sync and IO-free; refresh() records errors, never propagates
+□ trait stays object-safe (boxed future; enum actions; no generics on dyn methods)
+□ New pane proves 3 states (empty/error/populated) — templates/pane_tests.rs.tmpl
+□ NAV index (app.rs) == producer slot index (main.rs)
+□ Theme change is OKLCH in theme.rs, never inline hex; previewed via oklch_to_srgb.py
+□ Maritime change keeps flag_resolve.py --selftest green (HITL→Foxtrot, mayday→Juliett)
+□ python3 scripts/verify_console.py run --crate core/pd-console  → cargo check + test ok
+□ python3 scripts/validate_skill.py  → 0 errors
+□ No retired cinnabar hex / no daemon-URL literal outside agent.rs
 ```
 
----
+## Reference Files
 
-## Layout System (Taffy flexbox)
+| File | Consult When |
+|------|--------------|
+| `references/console-architecture.md` | Two-thread pipeline, Block/Pane(Surface) contract, registry, FsAssets, window bootstrap |
+| `references/render-and-layout.md` | Render vs RenderOnce, Taffy flexbox, `uniform_list`/`list`, focus, keyboard, notify discipline, perf anti-patterns |
+| `references/maritime-flags.md` | ICS flag mapping + badge colors, the OKLCH theme and `to_srgb8()`, Tone→color resolution |
+| `references/build-and-ci.md` | The feature-gate, the real `cargo`/CI jobs, `recursion_limit` vs `RUST_MIN_STACK`, brand/URL guards |
+| `references/text-input.md` | GPUI has no input widget — defer / overlay / build-an-Element decision tree |
 
-| Method | CSS equiv |
-|--------|-----------|
-| `.flex()` / `.flex_1()` | flex container; flex-grow: 1 |
-| `.flex_col()` | flex-direction: column |
-| `.gap(px(8.0))` | gap: 8px |
-| `.overflow_hidden()` | clip children; REQUIRED for scrollable panes |
-| `.overflow_y_scroll()` | enable vertical scroll + scrollbar |
-| `.w(px(96.0))`, `.h(px(24.0))` | fixed dimensions |
-| `.size_full()` | width: 100%; height: 100% |
-| `.border_l_2()`, `.border_b_1()` | border sides |
+## Scripts
 
-**Three-panel layout skeleton (sidebar + divider + main):**
+| Script | Purpose |
+|--------|---------|
+| `scripts/_envelope.py` | Shared stdin/stdout script-io envelope (imported by the others) |
+| `scripts/oklch_to_srgb.py` | Faithful port of `theme.rs::to_srgb8`; preview an OKLCH token's hex (`oklch.to_srgb`) |
+| `scripts/flag_resolve.py` | Faithful port of `maritime.rs`; resolve agent-state → ICS flag + meanings (`flag.resolve`) |
+| `scripts/verify_console.py` | Run the real CI gate locally: `cargo check`+`test` (+`--features gpui` on macOS) |
+| `scripts/validate_skill.py` | Skill self-check: frontmatter, refs, schema, no phantom citations, script selftests |
 
-```rust
-div().flex().flex_1().overflow_hidden()
-    // Sidebar
-    .child(div().w(px(96.0)).h_full().bg(rgb(C_PANEL)).flex().flex_col()
-        .children(nav_items))
-    // Divider
-    .child(div().w(px(1.0)).bg(rgb(C_BORDER)))
-    // Main (header + scrollable body)
-    .child(div().flex_1().flex().flex_col()
-        .child(div().px(px(16.0)).py(px(10.0)).border_b_1().border_color(rgb(C_BORDER))
-            .child("Pane Header"))
-        .child(div().flex_1().overflow_hidden().child(content)))
-```
+## Schemas
 
----
+| File | Used By |
+|------|---------|
+| `schemas/script-io.schema.json` | The Request/Response envelope every script wraps stdin/stdout against |
 
-## Scrollable Lists
+## Templates
 
-**UniformList** (same-height rows — use for agent/fleet tables):
+| Template | Output |
+|----------|--------|
+| `templates/new_pane.rs.tmpl` | A read-only `Pane` skeleton (error/empty/populated states, boxed-future refresh) |
+| `templates/pane_tests.rs.tmpl` | The three-state pane test suite (sync, no tokio, Linux-CI-safe) |
 
-```rust
-use gpui::uniform_list;
+## Examples
 
-uniform_list(
-    cx,                 // &mut Context<Self>
-    "agents-list",      // unique id string
-    self.agents.len(),
-    |this, range, _, cx| {
-        this.agents[range.clone()]
-            .iter()
-            .map(|a| render_agent_row(a))
-            .collect()
-    },
-)
-.track_scroll(&self.scroll_handle)  // optional: programmatic scroll
-```
-
-**List** (variable heights — use when mixing headers, gaps, chips):
-
-```rust
-use gpui::{list, ListState};
-
-let state = ListState::new(items.len(), ListAlignment::Top, px(16.0), {
-    let items = items.clone();
-    move |ix, _, _| items[ix].render().into_any_element()
-});
-list(state).size_full()
-```
-
----
-
-## Hover, Focus, Active States
-
-```rust
-div()
-    .hover(|s| s.bg(rgb(C_RAISED)).cursor_pointer())
-    .active(|s| s.bg(rgb(C_ENGAGED)))
-    .focus(|s| s.border_l_2().border_color(rgb(C_ACCENT)))
-
-// Conditional styling
-.when(is_selected, |s| s.bg(rgb(C_RAISED)).text_color(rgb(C_ACCENT)))
-.when(!is_selected, |s| s.text_color(rgb(C_INK2)))
-```
-
-**FocusHandle** (for keyboard-focusable views):
-
-```rust
-pub struct MyPane {
-    focus_handle: FocusHandle,
-}
-impl MyPane {
-    pub fn new(cx: &mut Context<Self>) -> Self {
-        Self { focus_handle: cx.focus_handle() }
-    }
-}
-impl Render for MyPane {
-    fn render(&mut self, _, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .track_focus(&self.focus_handle)
-            .key_context("my-pane")
-            .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-                // handle keys
-                cx.notify();
-            }))
-    }
-}
-```
-
----
-
-## Keyboard Navigation
-
-```rust
-.on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-    match ev.keystroke.key.as_str() {
-        "ArrowDown" => this.selected = (this.selected + 1).min(this.items.len() - 1),
-        "ArrowUp"   => this.selected = this.selected.saturating_sub(1),
-        "Enter"     => this.activate_selected(),
-        "Escape"    => this.dismiss(),
-        _           => return,
-    }
-    cx.notify();
-}))
-```
-
-**Key strings:** `"ArrowUp"`, `"ArrowDown"`, `"Enter"`, `"Escape"`, `"Tab"`, `"Backspace"`, `"0"`–`"9"`, `"a"`–`"z"`, `"cmd-s"`, `"ctrl-shift-p"`, `"shift-ArrowUp"`
-
----
-
-## Tooltips
-
-```rust
-div()
-    .tooltip(|_, _| {
-        div()
-            .bg(rgb(0x2a2825))
-            .text_color(rgb(0xd4cfc7))
-            .px(px(8.0)).py(px(4.0))
-            .rounded(px(4.0))
-            .text_size(px(13.0))
-            .child("ICS Kilo — desire to communicate")
-            .into_any_view()
-    })
-```
-
----
-
-## Animations
-
-```rust
-use gpui::Animation;
-use std::time::Duration;
-
-div()
-    .with_animation(
-        "fade-in",
-        Animation::new(Duration::from_millis(200)),
-        |el, delta| el.opacity(delta),  // delta: 0.0 → 1.0
-    )
-```
-
-**Easing:** `linear`, `quadratic`, `ease_in_out`, `ease_out_quint`, `bounce(easing)`
-
----
-
-## Asset Loading (SVG icons)
-
-```rust
-struct FsAssets { base: std::path::PathBuf }
-impl FsAssets {
-    fn locate() -> Self {
-        Self { base: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets") }
-    }
-}
-impl AssetSource for FsAssets {
-    fn load(&self, path: &str) -> Result<Option<Cow<'static, [u8]>>> {
-        match std::fs::read(self.base.join(path)) {
-            Ok(b) => Ok(Some(Cow::Owned(b))),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.into()),
-        }
-    }
-    fn list(&self, path: &str) -> Result<Vec<SharedString>> {
-        Ok(std::fs::read_dir(self.base.join(path))
-            .map(|rd| rd.filter_map(|e| e.ok().and_then(|e| e.file_name().into_string().ok()).map(SharedString::from)).collect())
-            .unwrap_or_default())
-    }
-}
-
-// Usage in main():
-Application::new().with_assets(FsAssets::locate()).run(|cx| {
-    // ...
-    svg().path("icons/pd-glyph.svg").w(px(32.0)).h(px(32.0)).text_color(rgb(C_ACCENT))
-});
-```
-
----
-
-## pd-console Palette (OKLCH dark theme)
-
-```rust
-const C_BG:     u32 = 0x1a1917;  // deep charcoal
-const C_PANEL:  u32 = 0x1f1e1b;
-const C_RAISED: u32 = 0x252420;  // hover surface
-const C_INK:    u32 = 0xf2f0eb;  // primary text
-const C_INK2:   u32 = 0xd4cfc7;  // secondary text
-const C_MUTED:  u32 = 0xa09a90;  // metadata
-const C_ACCENT: u32 = 0xe3b56d;  // amber — active/header
-const C_ENGAGED:u32 = 0x6b8fd4;  // blue — running agents
-const C_GATED:  u32 = 0xd4736b;  // warm red — blocked/error
-const C_LANDED: u32 = 0x6bd4a0;  // green — done/healthy
-const C_BORDER: u32 = 0x2e2c28;  // dividers
-```
-
-Typography: `"General Sans"` for UI chrome, `"IBM Plex Mono"` for code/values.
-
----
-
-## Performance Anti-patterns
-
-| Anti-pattern | Fix |
-|---|---|
-| `cx.notify()` every frame | Only call on meaningful state change |
-| Cloning `Vec<T>` in render | Use `Rc<T>` or lazy views |
-| `Entity<T>` for pure display | Use `RenderOnce` struct instead |
-| Rendering 1000+ items flat | Use `uniform_list` (virtual scroll) |
-| `overflow_scroll` without height constraint | Always wrap in bounded parent |
-| Hardcoded colors inline | Pre-compute palette as `const u32` |
-
----
-
-## Guard: No Hardcoded Port/URL
-
-`core/` paths are enforced by `tests/unit/no-hardcoded-daemon-url.test.js` and `no-hardcoded-daemon-port.test.js`.
-
-- `9876` may only appear in `agent.rs` (the Rust resolver, allowlisted)
-- `http://127.0.0.1:9876` same
-- Doc comments (ASCII art, JSDoc examples) with the literal WILL be caught — use `<resolved-url>` placeholder instead
-- `tui-mocks.html` and similar design docs in `docs/` are scanned via the merge commit — fix cinnabar before it lands in main
-
----
-
-## Text Input (No Built-in Widget)
-
-GPUI 0.2.x does NOT ship a text input widget. Options:
-
-1. **Build minimal input (~300 LOC):** implement `Element` trait, track cursor/selection as byte indices, use `TextLayout` for glyph measurement, handle `KeyDownEvent` + `MouseDownEvent`
-2. **Command palette overlay:** stateless display pane + full-screen text-entry overlay when `/` pressed
-3. **Defer:** for v1 console, use keyboard-only nav with no text input required
-
-For `pd tube` cockpit pane, the overlay pattern is recommended — user presses Enter to open input, types, Enter to send.
-
----
-
-## CI Requirements
-
-- `cargo check` must pass
-- `cargo test --bin pd-console-repl` with `RUST_MIN_STACK=16777216` (GPUI proc-macros overflow Linux rustc stack)
-- No `9876` or `http://127.0.0.1:9876` literals in `core/` source (except `agent.rs` allowlist)
-- Brand colors: no retired Harbor Heritage cinnabar red anywhere in tracked files (see website-v2/docs/design/BRAND.md)
+| Example | Walks Through |
+|---------|---------------|
+| `examples/add-a-pane.md` | Adding a "Voyages" pane end to end with real `main.rs`/`app.rs` cites |
+| `examples/preview-theme.md` | Designing a new OKLCH status tone and seeing its hex before touching Rust |
