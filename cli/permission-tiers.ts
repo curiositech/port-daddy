@@ -92,6 +92,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   spawned: 'silent',
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
   quorum: 'silent',
+  parley: 'approval',       // summons/resolves other agents; read-only forms refined below
   tuple: 'silent',
   pheromone: 'silent',
   ph: 'silent',
@@ -253,6 +254,25 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox send': 'approval',
   'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
+
+  // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
+  'parley list': 'silent',
+  'parley show': 'silent',
+  'parley fit': 'silent',
+  'parley call': 'approval',
+  'parley respond': 'approval',
+  'parley resolve': 'approval',
+
+  // roadmap: default/list/show are reads; upsert/touch/promote mutate the roadmap DB-of-record
+  'roadmap upsert': 'notify',
+  'roadmap add': 'notify',
+  'roadmap touch': 'notify',
+  'roadmap promote': 'notify',
+  'roadmap ack': 'notify',
+  'roadmap harvest': 'notify',
+  'roadmap render': 'notify',
+  'roadmap import': 'notify',
+  'roadmap import-markdown': 'notify',
 
   // harbor subcommands
   'harbor create': 'notify',

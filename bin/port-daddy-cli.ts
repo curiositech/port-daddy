@@ -10,7 +10,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
@@ -109,6 +109,7 @@ import {
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
   handleQuorum,
+  handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
@@ -653,7 +654,7 @@ function buildHelp(): string {
   lines.push(
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
@@ -733,7 +734,7 @@ Commands:
   session start <purpose>    Start a new session
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
-    --durable                Session survives without a live heartbeat; never abandoned by the orphan reaper
+    --lifecycle <mode>       Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --files <paths...>       Claim files at session start
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
@@ -773,7 +774,7 @@ Commands:
   feedback summary           Counts by severity + surface
 
 Examples:
-  pd session start "Building auth module" --agent agent-42
+  pd session start "Building auth module" --agent agent-42 --lifecycle durable
   pd note "Finished login endpoint" --type progress
   pd notes --limit 10
   pd feedback "tests dropped from 1638 to 1620 — investigate" --severity high
@@ -1046,6 +1047,7 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
+    --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
@@ -1066,7 +1068,7 @@ Aliases:
   d                        Alias for "down"
 
 Examples:
-  pd begin "Building auth module"
+  pd begin "Building auth module" --lifecycle durable
   pd note "Login endpoint done"
   pd done "Auth module complete"
   pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
@@ -1194,15 +1196,23 @@ Examples:
   roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
 
 Commands:
-  roadmap                   Show Next Cuts, curated now items, live feedback, and dogfood feedback
+  roadmap                   Show roadmap_items DB-of-record entries
     --dir <path>            Project directory (defaults to cwd)
     --limit <n>             Limit rows per section (default: 8)
-    --feedback-status <s>   Live tuple feedback status: open|harvested|wontfix|all
-    --feedback-harbor <h>   Harbor scope for live tuple feedback
-    --feedback-limit <n>    Max live feedback rows to fetch
-    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
-    -q, --quiet             Print machine-readable section:slug lines
-    -j, --json              Output the raw Cartographer projection
+    --status <s>            now|backlog|parked|merge|done|all
+    --harbor <h>            Harbor scope
+    -q, --quiet             Print one slug per line
+    -j, --json              Output raw roadmap_items rows
+
+  roadmap upsert <slug>     Create/update a durable roadmap item receipt
+    --summary <md>          Roadmap summary markdown
+    --status <s>            now|backlog|parked|merge|done
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Receipt note attached to the item
+
+  roadmap touch <slug>      Append a roadmap receipt note to an existing item
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Why this slice touched the roadmap
 
   roadmap ack <feedbackId>  Harvest/ack live feedback through the feedback primitive
     --as <agentId>          Harvester id (default: operator-cli)
@@ -1210,8 +1220,10 @@ Commands:
 
 Examples:
   pd roadmap
-  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
+  pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
@@ -1299,7 +1311,7 @@ const ALL_COMMANDS: string[] = [
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
-  'quorum',
+  'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
@@ -1346,6 +1358,36 @@ function suggestCommand(input: string): string | undefined {
 }
 
 let autoStartAttempted: boolean = false;
+
+function maybeRelaunchShortBinary(): void {
+  if (process.env.PORT_DADDY_DISABLE_SHORT_REEXEC === '1') return;
+
+  const execPath = process.execPath || '';
+  const argv0 = process.argv[0] || '';
+  const invokedAsPd = basename(execPath) === 'pd' || basename(argv0) === 'pd';
+  if (!invokedAsPd) return;
+
+  const sibling = join(dirname(execPath), 'port-daddy');
+  if (sibling === execPath || !existsSync(sibling)) return;
+
+  const result = spawnSync(sibling, process.argv.slice(2), {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      PORT_DADDY_DISABLE_SHORT_REEXEC: '1',
+    },
+  });
+
+  if (result.error) {
+    ui.error(`Failed to relaunch sibling port-daddy binary: ${result.error.message}`);
+    process.exit(127);
+  }
+  if (result.signal) {
+    const signalNumber = result.signal === 'SIGINT' ? 2 : result.signal === 'SIGTERM' ? 15 : 1;
+    process.exit(128 + signalNumber);
+  }
+  process.exit(result.status ?? 0);
+}
 
 // =============================================================================
 // Direct-DB Mode — Tier 1 command execution without the daemon
@@ -1741,7 +1783,13 @@ async function executeDirectMode(
         case 'start': {
           const purpose = rest[0];
           if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> [--agent AGENT_ID] [--force]');
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
+            process.exit(1);
+          }
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
             process.exit(1);
           }
 
@@ -1752,6 +1800,7 @@ async function executeDirectMode(
             : current?.agentId || `cli-${process.pid}`;
           if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
+          startOpts.durable = lifecycle === 'durable';
 
           // Collect files: --files may appear as a single string (one occurrence)
           // or an array (repeated --files flags). Positional tail also accepted.
@@ -2102,6 +2151,8 @@ async function executeDirectMode(
 }
 
 export async function main(): Promise<void> {
+  maybeRelaunchShortBinary();
+
   const rawArgs: string[] = process.argv.slice(2);
 
   // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
@@ -2959,6 +3010,10 @@ export async function main(): Promise<void> {
 
       case 'quorum':
         await handleQuorum(positional, options);
+        break;
+
+      case 'parley':
+        await handleParley(positional, options);
         break;
 
       case 'feedback':

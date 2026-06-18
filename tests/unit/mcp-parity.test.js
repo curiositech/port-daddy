@@ -56,12 +56,20 @@ const TOOL_FEATURE_MAP = {
   'list_nudges': 'suggestions',
   'respond_nudge': 'suggestions',
 
+  // Parley (ADR-0055)
+  'call_parley': 'parley',
+  'list_parleys': 'parley',
+  'get_parley': 'parley',
+  'respond_parley': 'parley',
+  'resolve_parley': 'parley',
+
   // Knowledge: semantic search + symbol index — #199
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',
   'symbol_stats': 'symbols',
   'predict_conflicts': 'symbols',
+  'blast_radius': 'symbols',
 
   // Port management
   'claim_port': 'claim',
@@ -77,6 +85,7 @@ const TOOL_FEATURE_MAP = {
   'list_sessions': 'sessions',
   'list_notes': 'notes',
   'claim_files': 'sessions',
+  'claim_symbols': 'sessions',
 
   // Locks
   'acquire_lock': 'locks',
@@ -756,7 +765,7 @@ describe('MCP tiered tool loading', () => {
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
-    'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'knowledge',
+    'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
     'context', 'harvest', 'custodian',
   ];
 

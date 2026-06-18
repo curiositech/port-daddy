@@ -76,6 +76,7 @@ import { createFleetDaemon } from './lib/fleet-daemon.js';
 import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
+import { createSymbolClaims } from './lib/symbol-claims.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
@@ -87,6 +88,7 @@ import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
+import { createParley } from './lib/parley.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
@@ -163,7 +165,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.18.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.19.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -435,6 +437,14 @@ const sessions = createSessions(db, noteEncryption, {
 });
 sessions.setActivityLog(activityLog);
 
+const symbolClaims = createSymbolClaims(db, {
+  symbolIndex,
+  agentForSession: (sessionId: string) => {
+    const r = sessions.get(sessionId) as { session?: { agentId?: string | null } } | undefined;
+    return r?.session?.agentId ?? null;
+  },
+});
+
 const agentInbox = createAgentInbox(db, (agentId, message) => {
   messaging.publish(`inbox:${agentId}`, {
     ...message,
@@ -442,6 +452,7 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
     signal: (message as any).signal || 'report'
   });
 });
+const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -1049,12 +1060,12 @@ await registerAllRoutes(
     db, logger, metrics, config,
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
-    quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
     commitments, obligationMonitor, suggestions,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,

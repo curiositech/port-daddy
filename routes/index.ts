@@ -63,6 +63,7 @@ import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
+import { parleyPlugin } from './parley.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
@@ -247,6 +248,11 @@ export async function registerAllRoutes(
   // Only mounts if a quorum dep was constructed (depends on tuple space).
   if ((deps as any).quorum) {
     await fastify.register(quorumPlugin, { deps } as any);
+  }
+
+  // Parley — manual forced-reconciliation core for contested agent work.
+  if ((deps as any).parley) {
+    await fastify.register(parleyPlugin, { deps } as any);
   }
 
   // Feedback — central agentic-feedback primitive (tuple-backed).

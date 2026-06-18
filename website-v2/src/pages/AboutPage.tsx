@@ -146,14 +146,14 @@ export function AboutPage() {
               </p>
               <p>
                 <strong>Agent A (Claude Code)</strong> starts up and
-                runs <code>pd begin --identity myapp:api --purpose "Build REST endpoints"</code>.
+                runs <code>pd begin --identity myapp:api --purpose "Build REST endpoints" --lifecycle durable</code>.
                 Port Daddy registers it as an active agent, starts a session, and returns a session
                 ID. The agent claims the routes and middleware it intends to touch, then leaves a
                 note that states the invariant another model must preserve.
               </p>
               <p>
                 <strong>Agent B (Cursor)</strong> starts up and
-                runs <code>pd begin --identity myapp:frontend --purpose "Build React UI"</code>. Port
+                runs <code>pd begin --identity myapp:frontend --purpose "Build React UI" --lifecycle durable</code>. Port
                 Daddy registers it against the same project state. When it gets near the API routes,
                 Agent A's claim is right there to read. The claim does not lock the file — it is a
                 posted intent — but now the collision is visible, so Agent B can narrow its scope or

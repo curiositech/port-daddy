@@ -51,7 +51,7 @@ export default function SessionsFeature() {
 
         <DocsCodeBlock
           code={`# Begin a session
-$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh"
+$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh" --lifecycle durable
 
 # Add notes as you work (immutable, append-only)
 $ pd note "Added refresh token endpoint at /api/auth/refresh"
@@ -106,7 +106,7 @@ Session s-a1b2c3 completed (3 notes, 1 file claim)`}
             <code className="font-mono text-[var(--brand-primary)]">pd begin</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Start a new session with an identity and purpose. Returns a session ID for subsequent commands.</p>
             <DocsCodeBlock
-              code={`$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh"`}
+              code={`$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh" --lifecycle durable`}
               output={`Session s-a1b2c3 started`}
             />
           </div>

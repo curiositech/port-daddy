@@ -30,7 +30,7 @@ export const referenceSection: DocsContentSection = {
           type: 'command',
           title: 'Daily loop plus newer specialist surfaces',
           command:
-            'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
+            'pd status\npd briefing\npd begin "Fix auth bug" --identity myapp:api --lifecycle durable\npd note "JWT validation passing"\npd tube ui:clicks\npd guard check --staged\npd actor lookout --message "release-surface drift fixed"\npd done "Docs updated"',
           notes: [
             'The everyday loop remains first-class.',
             '`pd tube`, actor mailboxes, guard, roadmap, ideas, wallet, bond, and feedback commands now appear in the CLI reference instead of being source-only knowledge.',
@@ -84,7 +84,7 @@ export const referenceSection: DocsContentSection = {
           type: 'command',
           title: 'Canonical import and first calls',
           command:
-            "import { PortDaddy } from 'port-daddy/client'\n\nconst pd = new PortDaddy()\nawait pd.claim('myapp:api:main')\nawait pd.begin('Build API preview', { identity: 'myapp:api:main' })\nawait pd.note('Preview server claimed')\nawait pd.done('Preview ready')",
+            "import { PortDaddy } from 'port-daddy/client'\n\nconst pd = new PortDaddy()\nawait pd.claim('myapp:api:main')\nawait pd.begin('Build API preview', { lifecycle: 'durable', identity: 'myapp:api:main' })\nawait pd.note('Preview server claimed')\nawait pd.done('Preview ready')",
         },
         {
           type: 'checklist',

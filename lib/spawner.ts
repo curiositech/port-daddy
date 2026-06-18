@@ -27,6 +27,7 @@ import { parseClaudeCodeTranscript, extractClaudeCodeFinal, extractClaudeCodeUsa
 import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
 import { parseCloudflareTranscript } from './spawner/cloudflare-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { resolveModel } from './model-registry.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
@@ -991,14 +992,14 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
 // =============================================================================
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
-  ollama: 'llama3.1:8b',
-  claude: 'claude-haiku-4-5-20251001',
+  ollama: 'llama3.1:8b',  // local ollama model name, not an API id
+  claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
-  gemini: 'gemini-2.5-flash',  // gemini-2.0-flash was shut down 2026-06-01
-  cloudflare: '@cf/zai-org/glm-4.7-flash',
+  gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),
+  cloudflare: resolveModel({ backend: 'cloudflare', capability: 'cheap' }),
   openai: DEFAULT_OPENAI_MODEL,
   groq: DEFAULT_GROQ_MODEL,
-  codex: 'gpt-5.4-mini',
+  codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
   'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
@@ -1633,6 +1634,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      lifecycle: 'ephemeral',
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 

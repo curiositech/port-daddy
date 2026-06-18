@@ -231,7 +231,7 @@ export async function handleInit(options: Record<string, unknown>): Promise<void
     console.log('    pd fleet init       # create agent fleet');
   }
   console.log('    pd fleet up         # start background agents');
-  console.log('    pd begin            # start a coordination session');
+  console.log('    pd begin "your task" --lifecycle durable  # start a coordination session');
   console.log('    git commit          # fleet agents trigger automatically');
   console.log('');
 }

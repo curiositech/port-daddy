@@ -111,13 +111,13 @@ const ARCHITECTURE_LAYERS: readonly LayerSpec[] = [
 ]
 
 const WALKTHROUGH_BLOCK = `# Agent A — refactor the middleware
-$ pd begin "refactor auth middleware" --identity claude:auth-rewrite
+$ pd begin "refactor auth middleware" --identity claude:auth-rewrite --lifecycle durable
 $ pd session files claim src/auth/middleware.ts
   Claimed 1 file. No conflicts.
 $ pd note "Starting with token-refresh race. See line 142."
 
 # Agent B — meanwhile, in another terminal
-$ pd begin "extend test coverage" --identity codex:auth-tests
+$ pd begin "extend test coverage" --identity codex:auth-tests --lifecycle durable
 $ pd session files claim src/auth/middleware.ts
   CONFLICT: src/auth/middleware.ts claimed by claude:auth-rewrite
   Holder session: session-claude-auth-rewrite-7b3a

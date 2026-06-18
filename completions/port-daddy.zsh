@@ -1846,7 +1846,7 @@ _pd_cmd_secret() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest promote render pop release claims)' \
+    '1:subcommand:(ack harvest promote upsert add touch render pop release claims)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
@@ -1860,6 +1860,9 @@ _pd_cmd_roadmap() {
     '--from-feedback[feedback id to promote]:feedback id:' \
     '--slug[override roadmap slug for promote]:slug:' \
     '--summary[markdown summary for promoted item]:text:' \
+    '--note[roadmap receipt note]:text:' \
+    '--receipt[roadmap receipt note]:text:' \
+    '--dependencies[comma-separated dependency slugs]:slugs:' \
     '--status[roadmap item status]:(now backlog parked merge done)' \
     '--harbor[harbor scope override]:harbor:' \
     '--write[render: write docs/ROADMAP.md to disk]' \
@@ -1868,6 +1871,49 @@ _pd_cmd_roadmap() {
     '--no-excerpts[hide current-work and Cartographer excerpts]' \
     '(-j --json)'{-j,--json}'[output JSON]' \
     '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'
+}
+
+_pd_cmd_parley() {
+  _arguments \
+    '1:subcommand:(call respond resolve list show fit)' \
+    '2:parley id or surface:' \
+    '--surface[contested path, symbol, or surface]:surface:' \
+    '--with[comma-separated parties]:parties:' \
+    '--parties[comma-separated parties]:parties:' \
+    '--reason[parley reason or outcome reason]:text:' \
+    '--ttl-ms[response TTL in milliseconds]:ms:' \
+    '--round-limit[non-terminal turns per party before escalation]:count:' \
+    '--harbor[harbor scope]:harbor:' \
+    '--id[parley id]:id:' \
+    '--parley[parley id]:id:' \
+    '--performative[turn performative]:(propose critique revise agree refuse inform)' \
+    '--content[turn content]:text:' \
+    '--proposal[proposal id]:proposal:' \
+    '--evidence[comma-separated evidence refs]:refs:' \
+    '--status[outcome status]:(COLLAPSED ESCALATED VOIDED)' \
+    '--decision[outcome decision]:text:' \
+    '--dissenters[comma-separated dissenters]:parties:' \
+    '--limit[max rows]:limit:' \
+    '--shape[reasoning shape]:(breadth_first depth_first mixed)' \
+    '--reasoningShape[reasoning shape]:(breadth_first depth_first mixed)' \
+    '--baseline[single-agent baseline cost]:number:' \
+    '--singleAgentBaseline[single-agent baseline cost]:number:' \
+    '--value[task value multiplier]:number:' \
+    '--taskValueMultiplier[task value multiplier]:number:' \
+    '--tokens[estimated token multiplier]:number:' \
+    '--estimatedTokenMultiplier[estimated token multiplier]:number:' \
+    '--independence[subtask independence]:(none partial high)' \
+    '--subtaskIndependence[subtask independence]:(none partial high)' \
+    '--contention[write contention]:(none low medium high)' \
+    '--writeContention[write contention]:(none low medium high)' \
+    '--writers[max concurrent writers]:count:' \
+    '--maxConcurrentWriters[max concurrent writers]:count:' \
+    '--verify[verification is available]' \
+    '--heterogeneous[heterogeneous agents are available]' \
+    '--fits-in-one-context[task fits one model context]' \
+    '--as[actor id]:agent id:' \
+    '(-j --json)'{-j,--json}'[output JSON]' \
+    '(-q --quiet)'{-q,--quiet}'[machine-readable output]'
 }
 
 _pd_cmd_inbox() {
@@ -2047,9 +2093,11 @@ _port_daddy() {
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
     # Cartographer roadmap projection
-    'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
+    'roadmap:show and write the roadmap_items DB-of-record'
     # Quorum (swarm consensus primitive)
     'quorum:propose, vote, list, or inspect swarm proposals'
+    # Parley (forced reconciliation primitive)
+    'parley:call, respond, resolve, list, show, or fit swarm parleys'
     # Feedback (central agentic-feedback primitive)
     'feedback:drop, list, show, or harvest structured agentic feedback'
     # Durable commitments + obligation monitor (ADR-0041)
@@ -2207,6 +2255,7 @@ _port_daddy() {
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;
+        parley)                 _pd_cmd_parley ;;
         secret|secrets)         _pd_cmd_secret ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;

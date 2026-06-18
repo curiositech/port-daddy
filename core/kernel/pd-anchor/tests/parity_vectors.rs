@@ -25,6 +25,20 @@ fn first_party_matches_canonical_vector() {
 }
 
 #[test]
+fn all_caveat_types_match_canonical_vector() {
+    // Locks the chain encoding of EVERY first-party caveat kind (op/repo/branch-
+    // glob/host/spend_usd/expires/session) — the red-team coverage gap.
+    let v = vectors();
+    let root = v["root_key_utf8"].as_str().unwrap().as_bytes();
+    let ac = &v["all_caveat_types"];
+    let mut m = Macaroon::mint(root, ac["identifier"].as_str().unwrap(), ac["location"].as_str().unwrap());
+    for c in ac["caveats"].as_array().unwrap() {
+        m = m.add_first_party_caveat(c.as_str().unwrap()).unwrap();
+    }
+    assert_eq!(m.signature_hex, ac["expected_signature_hex"].as_str().unwrap());
+}
+
+#[test]
 fn third_party_grant_and_discharge_match_canonical_vector() {
     let v = vectors();
     let root = v["root_key_utf8"].as_str().unwrap().as_bytes();

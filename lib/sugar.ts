@@ -79,8 +79,8 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
-  /** Create a durable session that survives without a live heartbeat process. */
-  durable?: boolean;
+  /** Session retention behavior. Durable survives without a live heartbeat process. */
+  lifecycle?: 'durable' | 'ephemeral';
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -108,6 +108,12 @@ interface DoneOptions {
 interface WhoamiOptions {
   agentId?: string;
   sessionId?: string;
+}
+
+function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'ephemeral' {
+  return session.durable === true || session.is_durable === 1 || session.is_durable === true
+    ? 'durable'
+    : 'ephemeral';
 }
 
 // =============================================================================
@@ -157,11 +163,21 @@ export function createSugar(deps: SugarDeps) {
    * Rolls back agent registration if session start fails.
    */
   function begin(options: BeginOptions) {
-    const { purpose, identity, type, files, force, durable } = options;
+    const { purpose, identity, type, files, force } = options;
 
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
     }
+
+    const lifecycle = options.lifecycle;
+    if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+      return {
+        success: false,
+        error: 'lifecycle is required and must be "durable" or "ephemeral"',
+        code: 'SESSION_LIFECYCLE_REQUIRED',
+      };
+    }
+    const durable = lifecycle === 'durable';
 
     const worktreePolicy = evaluateSessionWorktreePolicy({
       worktree: options.worktree,
@@ -228,43 +244,44 @@ export function createSugar(deps: SugarDeps) {
         });
         const decision = decideBeginResume(liveness);
         if (decision.action === 'resume') {
-        const resumedSessionId: string = match.id;
-        const resumedAgentId: string = match.agentId;
-        const displayName =
-          (typeof match.agentName === 'string' && match.agentName)
-          || (typeof match.name === 'string' && match.name)
-          || identity
-          || 'Port Daddy Agent';
-        const resumed: Record<string, unknown> = {
-          success: true,
-          resumed: true,
-          agentId: resumedAgentId,
-          sessionId: resumedSessionId,
-          agentName: displayName,
-          sessionName: displayName,
-          name: displayName,
-          identity: identity || null,
-          purpose: purpose.trim(),
-          agentRegistered: false,
-          sessionStarted: false,
-        };
-        if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
-        if (files && files.length > 0) {
-          const claim = sessions.claimFiles(resumedSessionId, files, { agentId: resumedAgentId }) as Record<string, unknown>;
-          if (claim && typeof claim === 'object') {
-            if ('claimed' in claim) resumed.fileClaims = claim.claimed;
-            if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
+          const resumedSessionId: string = match.id;
+          const resumedAgentId: string = match.agentId;
+          const displayName =
+            (typeof match.agentName === 'string' && match.agentName)
+            || (typeof match.name === 'string' && match.name)
+            || identity
+            || 'Port Daddy Agent';
+          const resumed: Record<string, unknown> = {
+            success: true,
+            resumed: true,
+            agentId: resumedAgentId,
+            sessionId: resumedSessionId,
+            agentName: displayName,
+            sessionName: displayName,
+            name: displayName,
+            identity: identity || null,
+            purpose: purpose.trim(),
+            lifecycle: lifecycleForSession(match),
+            agentRegistered: false,
+            sessionStarted: false,
+          };
+          if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
+          if (files && files.length > 0) {
+            const claim = sessions.claimFiles(resumedSessionId, files, { agentId: resumedAgentId }) as Record<string, unknown>;
+            if (claim && typeof claim === 'object') {
+              if ('claimed' in claim) resumed.fileClaims = claim.claimed;
+              if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
+            }
           }
-        }
-        if (decision.warn === 'driven-elsewhere') {
-          resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
-        }
-        activityLog.log('sugar_begin', {
-          agentId: resumedAgentId,
-          details: 'sugar_begin_resumed',
-          metadata: { sessionId: resumedSessionId, identity: identity || null },
-        });
-        return resumed;
+          if (decision.warn === 'driven-elsewhere') {
+            resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
+          }
+          activityLog.log('sugar_begin', {
+            agentId: resumedAgentId,
+            details: 'sugar_begin_resumed',
+            metadata: { sessionId: resumedSessionId, identity: identity || null },
+          });
+          return resumed;
         }
         // decision.action === 'create' falls through to start a fresh session.
       }
@@ -408,6 +425,7 @@ export function createSugar(deps: SugarDeps) {
       name,
       identity: identity || null,
       purpose: purpose.trim(),
+      lifecycle,
       agentRegistered: true,
       sessionStarted: true,
     };
@@ -436,6 +454,7 @@ export function createSugar(deps: SugarDeps) {
         sessionId: sessionResult.id as string,
         identity: identity || null,
         identityProject: identityProject || undefined,
+        lifecycle,
       } as unknown as Record<string, unknown>,
     });
 

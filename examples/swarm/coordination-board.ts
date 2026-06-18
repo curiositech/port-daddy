@@ -64,6 +64,7 @@ async function startAgent(role: Role): Promise<ManagedAgent> {
   const agentId = `${harbor}:${role.id}`;
   const pd = new PortDaddy({ agentId, timeout: 10000 });
   const begin = await pd.begin(role.purpose, {
+    lifecycle: 'durable',
     identity: `examples:${role.id}:${harbor}`,
     metadata: { example: 'swarm-coordination-board', harbor, intendedFiles: role.files },
   });

@@ -164,7 +164,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'sessions': {
     description: 'Detailed session management (start, end, phases, file claims)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
+    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file'],
   },
   'notes': {
     description: 'Add and list session notes',
@@ -275,9 +275,13 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Suggestibility nudges (ADR-0039) — list claim-overlap heads-up nudges and accept/decline them',
     tools: ['list_nudges', 'respond_nudge'],
   },
+  'parley': {
+    description: 'Forced reconciliation for overlapping agents — summon, inspect, respond to, and resolve bounded parleys',
+    tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
+  },
   'knowledge': {
     description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
+    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
   },
   'context': {
     description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
@@ -597,6 +601,87 @@ const TOOLS = [
     },
   },
 
+  // ── Parley (ADR-0055 forced reconciliation) ─────────────────────────
+  {
+    name: 'call_parley',
+    description:
+      '[Parley] Summon a bounded reconciliation dialogue for overlapping agents. ' +
+      'Usage: call_parley({surface: "lib/foo.ts", reason: "overlap", parties: ["agent-a", "agent-b"], calledBy: "agent-a"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        surface: { type: 'string', description: 'Contested path, symbol, or surface' },
+        reason: { type: 'string', description: 'Why the parley is being summoned' },
+        parties: { type: 'array', items: { type: 'string' }, description: 'Summoned party agent/session ids' },
+        calledBy: { type: 'string', description: 'Agent/session id summoning the parley' },
+        trigger: { type: 'string', description: 'operator, claim_overlap, detector, or swarm_fit (optional)' },
+        harbor: { type: 'string', description: 'Harbor scope (optional)' },
+        ttlMs: { type: 'number', description: 'Response TTL in milliseconds (optional)' },
+        roundLimit: { type: 'number', description: 'Non-terminal turns per party before escalation (optional)' },
+      },
+      required: ['surface', 'reason', 'parties', 'calledBy'],
+    },
+  },
+  {
+    name: 'list_parleys',
+    description:
+      '[Parley] List active or historical parleys, optionally filtered by status or harbor. Usage: list_parleys({status: "SUMMONED"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        status: { type: 'string', description: 'SUMMONED, CONVENED, COLLAPSED, ESCALATED, or VOIDED (optional)' },
+        harbor: { type: 'string', description: 'Harbor scope (optional)' },
+        limit: { type: 'number', description: 'Max rows (optional)' },
+      },
+    },
+  },
+  {
+    name: 'get_parley',
+    description:
+      '[Parley] Fetch a parley summary, including turns, missing parties, and outcome. Usage: get_parley({id: "..."})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Parley id' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'respond_parley',
+    description:
+      '[Parley] Record a performative turn in a parley. Usage: respond_parley({id: "...", party: "agent-a", performative: "propose", content: "..."})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Parley id' },
+        party: { type: 'string', description: 'Summoned party responding' },
+        performative: { type: 'string', description: 'propose, critique, revise, agree, refuse, or inform' },
+        content: { type: 'string', description: 'Turn content' },
+        proposalId: { type: 'string', description: 'Proposal id (optional)' },
+        evidenceRefs: { type: 'array', items: { type: 'string' }, description: 'Evidence refs (optional)' },
+      },
+      required: ['id', 'party', 'performative', 'content'],
+    },
+  },
+  {
+    name: 'resolve_parley',
+    description:
+      '[Parley] Resolve a parley to COLLAPSED, ESCALATED, or VOIDED. Usage: resolve_parley({id: "...", status: "COLLAPSED", resolvedBy: "operator", decision: "..."})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        id: { type: 'string', description: 'Parley id' },
+        status: { type: 'string', description: 'COLLAPSED, ESCALATED, or VOIDED' },
+        resolvedBy: { type: 'string', description: 'Agent/operator resolving the parley' },
+        decision: { type: 'string', description: 'Decision text, required for COLLAPSED' },
+        reason: { type: 'string', description: 'Resolution reason (optional)' },
+        dissenters: { type: 'array', items: { type: 'string' }, description: 'Dissenting parties (optional)' },
+      },
+      required: ['id', 'status', 'resolvedBy'],
+    },
+  },
+
   // ── Knowledge (semantic search + symbol index) ───────────────────────
   {
     name: 'semantic_search',
@@ -659,6 +744,22 @@ const TOOLS = [
         directory: { type: 'string', description: 'Directory to scan' },
         glob: { type: 'string', description: 'Glob filter (optional)' },
       },
+    },
+  },
+  {
+    name: 'blast_radius',
+    description:
+      '[Knowledge] Reverse-dependency closure of a symbol — everything that breaks if you change it, ' +
+      'plus a ready-to-reserve claim set (modify the target, read everything downstream). ' +
+      'Usage: blast_radius({file: "lib/server.ts", symbol: "createRoutes", depth: 3})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        file: { type: 'string', description: 'File containing the symbol' },
+        symbol: { type: 'string', description: 'Symbol path, e.g. "createRoutes" or "UserService.authenticate"' },
+        depth: { type: 'number', description: 'Max dependency hops (1-6, default 3)' },
+      },
+      required: ['file', 'symbol'],
     },
   },
 
@@ -1015,6 +1116,36 @@ const TOOLS = [
         force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
       required: ['session_id'],
+    },
+  },
+  {
+    name: 'claim_symbols',
+    description:
+      '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
+      'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
+      'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
+      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: { type: 'string', description: 'Session ID' },
+        claims: {
+          type: 'array',
+          description: 'Symbol claims to declare',
+          items: {
+            type: 'object',
+            properties: {
+              filePath: { type: 'string', description: 'File containing the symbol' },
+              symbolPath: { type: 'string', description: 'Canonical symbol path, e.g. "UserService.authenticate"' },
+              type: { type: 'string', description: "read | modify | add-sibling | add-child | delete | rename (default modify; rename/delete auto-reserve the blast radius)" },
+            },
+            required: ['filePath', 'symbolPath'],
+          },
+        },
+        auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
+        radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
+      },
+      required: ['session_id', 'claims'],
     },
   },
   {
@@ -3193,6 +3324,63 @@ async function handleTool(
       break;
     }
 
+    // ── Parley (ADR-0055 forced reconciliation) ─────────────────────
+    case 'call_parley': {
+      const body: Record<string, unknown> = {
+        surface: args.surface,
+        reason: args.reason,
+        parties: args.parties,
+        calledBy: args.calledBy,
+      };
+      if (args.trigger !== undefined) body.trigger = args.trigger;
+      if (args.harbor !== undefined) body.harbor = args.harbor;
+      if (args.ttlMs !== undefined) body.ttlMs = args.ttlMs;
+      if (args.roundLimit !== undefined) body.roundLimit = args.roundLimit;
+      res = await POST('/parley/call', body);
+      break;
+    }
+
+    case 'list_parleys': {
+      const params = new URLSearchParams();
+      if (args.status) params.set('status', args.status as string);
+      if (args.harbor) params.set('harbor', args.harbor as string);
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/parley${qs}`);
+      break;
+    }
+
+    case 'get_parley': {
+      res = await GET(`/parley/${encodeURIComponent(args.id as string)}`);
+      break;
+    }
+
+    case 'respond_parley': {
+      const body: Record<string, unknown> = {
+        parleyId: args.id,
+        party: args.party,
+        performative: args.performative,
+        content: args.content,
+      };
+      if (args.proposalId !== undefined) body.proposalId = args.proposalId;
+      if (args.evidenceRefs !== undefined) body.evidenceRefs = args.evidenceRefs;
+      res = await POST('/parley/respond', body);
+      break;
+    }
+
+    case 'resolve_parley': {
+      const body: Record<string, unknown> = {
+        parleyId: args.id,
+        status: args.status,
+        resolvedBy: args.resolvedBy,
+      };
+      if (args.decision !== undefined) body.decision = args.decision;
+      if (args.reason !== undefined) body.reason = args.reason;
+      if (args.dissenters !== undefined) body.dissenters = args.dissenters;
+      res = await POST('/parley/resolve', body);
+      break;
+    }
+
     case 'list_overdue_commitments': {
       res = await GET('/commitments/overdue');
       break;
@@ -3228,6 +3416,15 @@ async function handleTool(
 
     case 'symbol_stats': {
       res = await GET('/symbols/stats');
+      break;
+    }
+
+    case 'blast_radius': {
+      const params = new URLSearchParams();
+      params.set('file', args.file as string);
+      params.set('symbol', args.symbol as string);
+      if (args.depth != null) params.set('depth', String(args.depth));
+      res = await GET(`/symbols/blast-radius?${params.toString()}`);
       break;
     }
 
@@ -3403,6 +3600,15 @@ async function handleTool(
         files: args.paths ?? [],
         regions: args.regions,
         force: args.force,
+      });
+      break;
+    }
+
+    case 'claim_symbols': {
+      res = await POST(`/sessions/${args.session_id}/symbols`, {
+        claims: args.claims ?? [],
+        autoDeriveRadius: args.auto_derive_radius,
+        radiusDepth: args.radius_depth,
       });
       break;
     }
@@ -4501,7 +4707,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.18.0',
+    version: '3.19.0',
   },
   {
     capabilities: {

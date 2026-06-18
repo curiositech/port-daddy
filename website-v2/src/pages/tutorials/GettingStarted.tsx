@@ -88,7 +88,7 @@ SUCCESS: Briefing generated: .portdaddy/briefing.md`}
           <CodeBlock copyable={false} language="bash">
             {`pd harbor create my-app:main
 
-pd begin "Bootstrap auth service" --identity my-app:api
+pd begin "Bootstrap auth service" --identity my-app:api --lifecycle durable
 pd harbor enter my-app:main
 pd whoami
 # Expected result: the active agent identity is my-app:api inside harbor my-app:main.`}

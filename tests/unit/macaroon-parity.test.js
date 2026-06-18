@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { create, addFirstPartyCaveat, prepareForRequest, verify } from '../../lib/macaroon/macaroon.js';
 import { mintPushGrant, dischargeRentPaid } from '../../lib/macaroon/discharge.js';
-import { makeChecker } from '../../lib/macaroon/caveats.js';
+import { makeChecker, checkCaveat } from '../../lib/macaroon/caveats.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const V = JSON.parse(readFileSync(join(here, '../fixtures/macaroon-parity-vectors.json'), 'utf8'));
@@ -34,6 +34,38 @@ describe('macaroon byte-parity with the canonical Rust impl', () => {
     let m = create(rootKey, fp.identifier, fp.location);
     for (const c of fp.caveats) m = addFirstPartyCaveat(m, c);
     expect(m.signature).toBe(fp.expected_signature_hex);
+  });
+
+  test('all caveat types reproduce the canonical signature (host/spend/glob/session)', () => {
+    const ac = V.all_caveat_types;
+    let m = create(rootKey, ac.identifier, ac.location);
+    for (const c of ac.caveats) m = addFirstPartyCaveat(m, c);
+    expect(m.signature).toBe(ac.expected_signature_hex);
+  });
+
+  test('caveat grammar EVALUATION matches the Rust semantics for every type', () => {
+    // The chain signature parity (above) locks the ENCODING; this locks the
+    // EVALUATION of each predicate, the red-team coverage gap. Expected results
+    // are the canonical Rust check_caveat behavior.
+    const ctx = (over) => ({ nowMs: 1_500_000, ...over });
+    // glob branch (the two-pointer matcher must agree)
+    expect(checkCaveat('branch = feat/dom-daddy-*', ctx({ branch: 'feat/dom-daddy-x' }))).toBe(true);
+    expect(checkCaveat('branch = feat/dom-daddy-*', ctx({ branch: 'feat/other' }))).toBe(false);
+    expect(checkCaveat('branch != main', ctx({ branch: 'main' }))).toBe(false);
+    expect(checkCaveat('branch != main', ctx({ branch: 'feat/x' }))).toBe(true);
+    // host
+    expect(checkCaveat('host = api.anthropic.com', ctx({ host: 'api.anthropic.com' }))).toBe(true);
+    expect(checkCaveat('host = api.anthropic.com', ctx({ host: 'evil.com' }))).toBe(false);
+    expect(checkCaveat('host = api.anthropic.com', ctx({}))).toBe(false); // absent → fail-closed
+    // spend_usd (inclusive ceiling)
+    expect(checkCaveat('spend_usd <= 2.50', ctx({ spendUsd: 2.5 }))).toBe(true);
+    expect(checkCaveat('spend_usd <= 2.50', ctx({ spendUsd: 2.51 }))).toBe(false);
+    // expires fail-closed on an unset clock (now_ms <= 0)
+    expect(checkCaveat('expires = 2000000', { nowMs: 0, branch: undefined })).toBe(false);
+    expect(checkCaveat('expires = 2000000', ctx({}))).toBe(true);
+    // session
+    expect(checkCaveat('session = session-canon', ctx({ session: 'session-canon' }))).toBe(true);
+    expect(checkCaveat('session = session-canon', ctx({ session: 'other' }))).toBe(false);
   });
 
   test('third-party push grant reproduces the canonical signature + vid', () => {

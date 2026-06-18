@@ -58,7 +58,7 @@ Here is a minimal loop for a software engineer who wants help on a route handler
 
 <!-- terminal -->
 ```bash
-$ pd begin "Tighten billing route error handling" --identity web:billing
+$ pd begin "Tighten billing route error handling" --identity web:billing --lifecycle durable
 $ pd session files add apps/web/src/routes/billing.ts
 $ pd note "Intent: preserve API shape, add retry-safe validation, run route tests."
 $ pd agent "Review the billing route for idempotency and missing test cases" --backend codex --model-tier low

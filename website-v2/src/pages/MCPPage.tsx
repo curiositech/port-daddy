@@ -625,7 +625,7 @@ export default function McpPage() {
                     code={`pd install
 pd mcp install
 python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
-pd begin --identity myapp:agent --purpose "coordinate through Skills + MCP"`}
+pd begin --identity myapp:agent --purpose "coordinate through Skills + MCP" --lifecycle durable`}
                     language="cli"
                     label="Setup"
                   />

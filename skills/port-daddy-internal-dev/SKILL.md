@@ -146,6 +146,11 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
 | **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
 
+### In-flight status ledgers
+
+- Claim-tree / claim-forest implementation truth lives in `docs/implementation-status/coordination-substrate.md`. Update it when an idea moves between named, designed, visualized, runtime-write, runtime-read, and live-daemon states.
+- Do not land write-only coordination tables. Every new coordination substrate needs at least one product read path and a focused test proving the read still works when the old compatibility source is absent.
+
 Contributor gotchas specific to these:
 
 - **Dispatch is dry-run by default.** `pd dispatch run <id>` prints the plan;
@@ -244,6 +249,33 @@ calling a branch ready, inspect and close the full PR surface:
   (needs macOS Screen Recording permission — a headless host is TCC-denied);
   website/dashboard → headless Playwright dark+light pairs. See AGENTS.md
   § "Visual artifacts for UI diffs". Operator rule, 2026-06-11.
+
+## Post-Merge Deployment Truth
+
+Merged is not deployed. A Port Daddy PR on `main` is only source truth; the
+operator's stable daemon is the Homebrew binary described in
+[`docs/operations/daemon-and-supervision.md`](../../docs/operations/daemon-and-supervision.md).
+If a merged change should be live on `:9876`, do not say "deployed" until the
+release path in [`docs/RELEASING.md`](../../docs/RELEASING.md) has advanced.
+
+Use these names precisely in notes, PR comments, and handoffs:
+
+| State | Evidence |
+|---|---|
+| **Merged** | PR state is `MERGED`; `origin/main` contains the merge commit. |
+| **Released** | `vX.Y.Z` tag and GitHub Release exist; release workflow attached the expected binaries/FleetBar artifact. |
+| **Tap rolled** | `curiositech/homebrew-tap` formula references the new version and asset sha256. |
+| **Upgraded** | `brew update && brew upgrade port-daddy` completed on this machine. |
+| **Live** | `brew services restart port-daddy` ran, then `pd status` or `port-daddy status` reports the new version from the stable daemon. |
+
+If `package.json` / `VERSION` say `3.19.0` but `pd status` says `3.18.0`,
+that is expected after a merge and unacceptable after a claimed deployment.
+Either cut the release, dispatch or repair the tap roll, run the local upgrade
+and restart, or leave a `pd note` naming the exact state boundary you stopped
+at. For release work, also apply the WinDAGs graft for
+`rust-app-distribution` plus `github-actions-pipeline-builder`: verify artifact
+architectures, package-manager hashes, release workflow status, and failure
+logs before touching the operator runtime.
 
 ## PR Lifecycle (Create / Update / Land)
 
@@ -393,7 +425,7 @@ Update mechanics:
 ```bash
 git worktree add ../port-daddy-internal-skill-$(date +%s) origin/main
 cd ../port-daddy-internal-skill-*
-pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update
+pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update --lifecycle durable
 $EDITOR skills/port-daddy-internal-dev/SKILL.md   # or references/<file>.md
 git add skills/port-daddy-internal-dev/<paths>
 git status --porcelain                             # must be clean of foreign files
@@ -459,7 +491,7 @@ git worktree add ../port-daddy-$(date +%s)-$WORK_SLUG origin/main
 cd ../port-daddy-$(date +%s)-$WORK_SLUG
 
 # 3. Identity and scope
-pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG
+pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG --lifecycle durable
 pd note "Scope: <surfaces>. Assumptions: <truth>. Validation: <commands + tests>."
 pd session files add <path>...
 
@@ -529,7 +561,7 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 **Slice:** Add `pd_swarm_status` MCP tool that returns aggregate fleet health.
 
 1. Worktree: `git worktree add ../port-daddy-$(date +%s)-mcp-swarm-status origin/main && cd $_`.
-2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status`.
+2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status --lifecycle durable`.
 3. Implement in `mcp/server.ts` (new tool registration).
 4. Implement the underlying lib in `lib/swarm-status.ts` if not present.
 5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert.

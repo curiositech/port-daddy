@@ -167,6 +167,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
       identity,
       agentId: options.agent,
       type: 'pd-agent',
+      lifecycle: 'ephemeral',
     }),
   });
   const beginData = await beginRes.json();

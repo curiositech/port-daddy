@@ -21,15 +21,17 @@ A bump must update **every file** the build, MCP, and plugin metadata read from.
 | `mcp-server.json` (`version`) | `sync-version.ts` | MCP manifest published to consumers |
 | `.claude-plugin/plugin.json` (`version`) | `sync-version.ts` | Claude plugin metadata |
 | `.gemini/extensions/port-daddy/gemini-extension.json` (`version`) | `sync-version.ts` | Gemini CLI extension manifest |
-| `mcp/server.ts` (`version: '...'` literal at the `Server()` constructor) | **manual** | Gated by `tests/unit/distribution-freshness.test.js` |
-| `website-v2/src/data/referenceCatalog.ts` (`PORT_DADDY_VERSION`) | **manual** | Display constant for `/reference` pages |
+| `mcp/server.ts` (`version: '...'` literal at the `Server()` constructor) | `sync-version.ts` | Gated by `tests/unit/distribution-freshness.test.js` |
+| `server.ts` (`EMBEDDED_PACKAGE_VERSION`) | `sync-version.ts` | Binary fallback version when package.json is unavailable in the Bun bundle |
+| `website-v2/src/data/referenceCatalog.ts` (`PORT_DADDY_VERSION`) | `sync-version.ts` | Display constant for `/reference` pages |
+| `public/samples/manifest.json` (`packageVersion`) | `sync-version.ts` | Bundled sample manifest version |
 | `CHANGELOG.md` | manual | Rename `[Unreleased]` → `[<version>] - YYYY-MM-DD`, prepend a fresh `[Unreleased]` |
 
 ### Known gaps in `sync-version.ts`
 
-`scripts/sync-version.ts` currently only touches the JSON surfaces. The two TypeScript constants (`mcp/server.ts`, `referenceCatalog.ts`) must be bumped by hand. `tests/unit/distribution-freshness.test.js` catches a missed `mcp/server.ts` — the website constant is invisible to CI and goes stale silently.
+`scripts/sync-version.ts` now touches the plugin/MCP/Gemini JSON surfaces, the MCP/server TypeScript constants, the website reference constant, and the public samples manifest. `tests/unit/distribution-freshness.test.js` gates those surfaces against `package.json`.
 
-Fixing `sync-version.ts` to cover both is a small, welcome follow-up.
+The remaining manual surface is `CHANGELOG.md`: pick the version section and release date deliberately so humans can read what changed.
 
 ## A release without a version bump is a release bug
 

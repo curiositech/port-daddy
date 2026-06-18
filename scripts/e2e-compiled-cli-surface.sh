@@ -241,6 +241,7 @@ run_read "changelog"         changelog    -- changelog
 run_read "shipwright (usage)" shipwright  -- shipwright
 run_read "pheromone list"    pheromone    -- pheromone list
 run_read "quorum list"       quorum       -- quorum list
+run_read "parley list"       parley       -- parley list
 run_read "obligations"       obligations  -- obligations
 run_read "who-owns"          who-owns     -- who-owns README.md
 run_read "guard status"      guard        -- guard status
@@ -296,7 +297,7 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 
 # begin -> whoami(active) -> note -> notes -> done
 # (--allow-main-worktree: CI runs on the main worktree)
-run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
+run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):

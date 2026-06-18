@@ -247,7 +247,7 @@ If you want to be the first project running on bonded coordination instead of vi
 ```bash
 brew install curiositech/tap/port-daddy
 pd setup
-pd begin --identity myproject:demo
+pd begin "Run bond-pricing demo" --identity myproject:demo --lifecycle durable
 ```
 
 Then read the [Bonded Commons whitepaper](/whitepaper) and tell us where it's wrong. Comments below; the open question is which projects are willing to dual-pipe with us when the insurer-agent prototype lands.

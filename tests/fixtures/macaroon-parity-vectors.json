@@ -24,5 +24,20 @@
     "discharge_now_ms": 1000000,
     "discharge_ttl_ms": 1200000,
     "expected_signature_hex": "02ff9a87663d860de32173dd8602d56eb0d84a9091bf33581ca692d98cca405e"
+  },
+  "all_caveat_types": {
+    "_comment": "Exercises EVERY first-party caveat kind (op/repo/branch-glob/host/spend_usd/expires/session) so the chain encoding of each is parity-locked — closes the red-team coverage gap.",
+    "identifier": "grant-all-caveats",
+    "location": "pd://daemon/curiositech/port-daddy",
+    "caveats": [
+      "op = push",
+      "repo = curiositech/port-daddy",
+      "branch = feat/dom-daddy-*",
+      "host = api.anthropic.com",
+      "spend_usd <= 2.50",
+      "expires = 2000000",
+      "session = session-canon"
+    ],
+    "expected_signature_hex": "9efaec05fde2f8b8067621348041dd57d8ae8206ae6ea3d5fb5939ce41dd4a4b"
   }
 }

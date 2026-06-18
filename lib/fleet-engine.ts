@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
+import { resolveModel } from './model-registry.js';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
@@ -262,26 +263,35 @@ function getTemplateVars(projectDir: string, projectName?: string, includeGitVar
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
 const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
-export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
-  claude: {
-    low: 'claude-haiku-4-5-20251001',
-    mid: 'claude-sonnet-4-5-20250929',
-    high: 'claude-opus-4-1-20250805',
-  },
+
+// API-backed backends derive their low/mid/high tiers from the declarative
+// registry (lib/model-registry-data.ts) via resolveModel — NO hardcoded model
+// IDs here (operator directive 2026-06-15; see lib/model-registry.ts + ADR-0057).
+// The map shape is preserved for back-compat with routes/fleet.ts importers.
+const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;
+
+// Genuinely-special forms the registry does NOT govern: claude-cli takes the
+// CLI's short aliases (`--model sonnet`), ollama takes LOCAL model names, custom
+// is a placeholder triple. These are stable CLI/local identifiers, not churning
+// API model IDs, so they stay literal (and are allowlisted in the
+// no-hardcoded-model-ids guard).
+const SPECIAL_FORM_MODEL_TIERS: Record<string, Record<FleetModelTier, string>> = {
   'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
-  // gemini-2.0-flash was shut down 2026-06-01; low tier uses 2.5-flash-lite.
-  gemini: { low: 'gemini-2.5-flash-lite', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
-  openai: { low: 'gpt-5-nano', mid: 'gpt-5-mini', high: 'gpt-5' },
-  groq: { low: 'llama-3.1-8b-instant', mid: 'llama-3.3-70b-versatile', high: 'openai/gpt-oss-120b' },
-  cloudflare: {
-    low: '@cf/zai-org/glm-4.7-flash',
-    mid: '@cf/openai/gpt-oss-120b',
-    high: '@cf/moonshotai/kimi-k2.6',
-  },
   ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
-  aider: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
   custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
+};
+
+function tierMapFromRegistry(backend: string): Record<FleetModelTier, string> {
+  return {
+    low: resolveModel({ backend, tier: 'low' }),
+    mid: resolveModel({ backend, tier: 'mid' }),
+    high: resolveModel({ backend, tier: 'high' }),
+  };
+}
+
+export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+  ...Object.fromEntries(REGISTRY_TIER_BACKENDS.map((b) => [b, tierMapFromRegistry(b)])),
+  ...SPECIAL_FORM_MODEL_TIERS,
 };
 
 function cleanEnvValue(value: string | undefined): string | undefined {
