@@ -219,6 +219,22 @@ export interface ConductorDeps {
    * launches are bounded by their parent's caps, never by this list.
    */
   rootCapabilityCeiling?: string[];
+  /**
+   * Default per-subtree lineage ceiling (USD) stamped on a ROOT launch when the
+   * intent omits `lineageCeilingUsd`. This ARMS I4 on the live sortie/orchestrator
+   * paths (which don't set a ceiling), bounding each tree's total spend. Null /
+   * absent = unbounded (legacy). The reservation floor (`defaultBondUsd`) is what
+   * makes the breaker actually accrue against this ceiling.
+   */
+  defaultLineageCeilingUsd?: number | null;
+  /**
+   * Reservation floor (USD) used when an intent omits `bondUsd`. Returned by
+   * `effectiveBond` so the breaker RESERVES a non-zero amount per launch — arming
+   * I4/I5 on the live paths. This is a BREAKER reservation only; it is NOT
+   * forwarded to the spawner spec (the spawner prices its own escrow), so the
+   * observable spawn stays byte-identical. Default 0 (legacy: reserve nothing).
+   */
+  defaultBondUsd?: number;
 }
 
 export interface LaunchResult {
@@ -354,6 +370,8 @@ export function createConductor(deps: ConductorDeps) {
   const isMainCheckout = deps.isMainCheckout ?? defaultIsMainCheckout;
   const mintWorktree = deps.mintWorktree ?? ((_l, intent) => intent.workdir);
   const rootCapabilityCeiling = deps.rootCapabilityCeiling ?? null;
+  const defaultLineageCeilingUsd = deps.defaultLineageCeilingUsd ?? null;
+  const defaultBondUsd = deps.defaultBondUsd != null && deps.defaultBondUsd > 0 ? deps.defaultBondUsd : 0;
 
   // Launches halted while their `spawner.spawn` is still pending: we do not yet
   // hold the agentId (the spawner returns it only on resolution), so we cannot
@@ -438,12 +456,18 @@ export function createConductor(deps: ConductorDeps) {
     }
   }
 
-  /** Bond resolution: per-spawn `bondUsd` wins; else fall back to the ceiling-derived default. */
+  /**
+   * Bond resolution for the BREAKER RESERVATION (not the spawner escrow): a
+   * per-spawn `bondUsd` wins; else fall back to the configured `defaultBondUsd`
+   * floor so the breaker reserves a non-zero amount on every launch (arming
+   * I4/I5 on the live sortie/orchestrator paths). A 0 floor preserves the legacy
+   * "reserve nothing, let the spawner price it" behavior.
+   */
   function effectiveBond(intent: LaunchIntent): number {
     if (intent.bondUsd != null && Number.isFinite(intent.bondUsd) && intent.bondUsd > 0) {
       return intent.bondUsd;
     }
-    return 0; // 0 = let the spawner price it scope-proportionally; reserve nothing extra
+    return defaultBondUsd;
   }
 
   /**
@@ -486,6 +510,9 @@ export function createConductor(deps: ConductorDeps) {
         // beyond policy.
         parentId = 'operator';
         resolvedRootId = intent.rootId ?? id;
+        // ARM I4: a root that omits its own ceiling gets the operator's default
+        // per-subtree ceiling, so the live sortie/orchestrator paths are bounded.
+        lineageCeiling = intent.lineageCeilingUsd ?? defaultLineageCeilingUsd;
         if (rootCapabilityCeiling) {
           effectiveCaps = declaredCaps.filter((c) => rootCapabilityCeiling.includes(c));
         }
