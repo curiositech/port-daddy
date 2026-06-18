@@ -39,6 +39,17 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:f
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { cliBinDirs } from '../../cli-bin-dirs.js';
+import { extractClaudeCodeFinal } from '../cli-claude-code-transcript.js';
+
+/**
+ * Max length of the `output` we publish on the tube. The daemon's `/msg` body
+ * limit is ~10KB; the FULL claude-code stream-json transcript blows past it, so
+ * a naive publish of the raw stream 413s and the operator sees an EMPTY channel
+ * (silent best-effort failure). The tube is a transparency SUMMARY, not the
+ * transcript of record (that's captured separately in fleet_transcripts), so we
+ * publish the final answer, truncated to fit comfortably under the body limit.
+ */
+const TUBE_OUTPUT_MAX_CHARS = 8000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +85,17 @@ export interface CliTubeOptions {
   tubeClient?: TubeClientLike;
   /** Optional sender label for tube publishes. */
   tubeSender?: string;
+  /**
+   * Run the CLI fully autonomously (no interactive permission prompts). For
+   * claude-code this adds `--dangerously-skip-permissions`; codex is already
+   * autonomous via `--full-auto --sandbox workspace-write`. REQUIRED for
+   * unattended work that must edit/commit files (e.g. `pd dispatch`), since a
+   * `-p` run cannot answer a permission prompt and would otherwise refuse the
+   * edit and produce nothing. Default false (read-only-safe, e.g. analysis
+   * sorties). Caller is responsible for blast-radius (dispatch runs in an
+   * isolated worktree).
+   */
+  autonomous?: boolean;
   /** Hook for tests / observers to capture the underlying ChildProcess. */
   onChild?: (child: ChildProcess) => void;
 }
@@ -164,6 +186,7 @@ export function buildArgs(
   prompt: string,
   outputPath?: string,
   model?: string,
+  autonomous?: boolean,
 ): { args: string[]; stdin: string | null } {
   // A model equal to the backend/CLI's own name is a placeholder that leaked
   // from default resolution (backend "cli:claude-code" → model "claude-code").
@@ -186,6 +209,11 @@ export function buildArgs(
     // final answer from the terminal `result` line (extractClaudeCodeFinal).
     // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
     const args = ['-p', '--output-format', 'stream-json', '--verbose'];
+    // Unattended autonomous mode (e.g. dispatch): `-p` cannot answer a permission
+    // prompt, so without this flag claude refuses every edit and the run produces
+    // nothing committable. Blast-radius is the caller's responsibility (dispatch
+    // runs in an isolated worktree).
+    if (autonomous) args.push('--dangerously-skip-permissions');
     if (effModel) args.push('--model', effModel);
     args.push(prompt);
     return { args, stdin: null };
@@ -275,7 +303,7 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model);
+  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.autonomous);
 
   const startedAt = Date.now();
 
@@ -358,6 +386,17 @@ export async function spawnViaCliTube(
   // see what came out. Failures here never block the spawn — tube
   // publish is best-effort transparency.
   if (tubeChannel && opts.tubeClient) {
+    // For claude-code, `cleanOutput` is the RAW stream-json (tens of KB) — far
+    // over the daemon's ~10KB body limit, which 413s the publish and leaves the
+    // operator's `pd tube` channel EMPTY. Publish the FINAL ANSWER instead (what
+    // an observer actually wants), and cap it so a long answer still fits.
+    const finalForTube = cli === 'claude-code'
+      ? (extractClaudeCodeFinal(rawStdout) ?? cleanOutput)
+      : cleanOutput;
+    const truncated = finalForTube.length > TUBE_OUTPUT_MAX_CHARS;
+    const tubeOutput = truncated
+      ? finalForTube.slice(0, TUBE_OUTPUT_MAX_CHARS) + `\n…[truncated ${finalForTube.length - TUBE_OUTPUT_MAX_CHARS} chars]`
+      : finalForTube;
     try {
       await opts.tubeClient.publish(
         tubeChannel,
@@ -366,7 +405,8 @@ export async function spawnViaCliTube(
           kind: 'cli-tube.result',
           cli,
           ok: error === null,
-          output: cleanOutput,
+          output: tubeOutput,
+          truncated,
           error,
           durationMs,
         },

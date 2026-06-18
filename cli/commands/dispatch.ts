@@ -38,6 +38,7 @@ import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
 import { handleReview } from './review.js';
+import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
 
 function usage(): never {
   console.error('Usage: pd dispatch <subcommand> [args]');
@@ -47,8 +48,9 @@ function usage(): never {
   console.error('  queue                   List proposed dispatches');
   console.error('  list                    List dispatches (default: all)');
   console.error('  show <id>               Show one dispatch in detail');
-  console.error('  run <id>                Run a specific dispatch (default --dry-run)');
-  console.error('  run --next              Run the next proposed dispatch (default --dry-run)');
+  console.error('  run <id>                Queue a dispatch for daemon-side execution (returns immediately)');
+  console.error('  run --next              Queue the next proposed dispatch for the daemon');
+  console.error('  status <id>             Show live state of a dispatch (daemon-driven progress)');
   console.error('  review <id>             Alias for `pd review` (see `pd review --help`)');
   console.error('  cancel <id> [--reason]  Cancel a non-terminal dispatch');
   console.error('  help                    Show this help');
@@ -65,7 +67,9 @@ function usage(): never {
   console.error('  --state <state>           Filter list by state | open | terminal | awaiting_review | all');
   console.error('  --limit <n>               Limit list results');
   console.error('  --auto-claim              propose: skip proposed step, go straight to claimed');
-  console.error('  --really-run              run: actually spawn (default is dry-run -- prints plan only)');
+  console.error('  --foreground              run: run synchronously in THIS process (legacy; blocks up to 6h)');
+  console.error('  --really-run              run --foreground: actually spawn (else prints plan only)');
+  console.error('  --dry-run                 run: just print the plan, do not queue or spawn');
   console.error('  --reason <text>           cancel: record a reason');
   console.error('  -j, --json                JSON output');
   console.error('  -q, --quiet               Quiet output');
@@ -286,94 +290,153 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
     return;
   }
 
+  // -- status (live daemon-driven progress) -----------------------------
+  if (subcommand === 'status') {
+    const id = args[1];
+    if (!id) {
+      ui.error('pd dispatch status requires a dispatch id');
+      usage();
+    }
+    // Prefer the daemon (it holds the live row + worker status); fall back to the
+    // local DB if the daemon is unreachable.
+    let d = queue.get(id);
+    let worker: Record<string, unknown> | null = null;
+    if (await isDaemonRunning()) {
+      try {
+        const res = await pdFetch(`/dispatches/${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && (json as any).dispatch) d = (json as any).dispatch as Dispatch;
+        }
+        const wres = await pdFetch('/dispatches/worker/status');
+        if (wres.ok) {
+          const wjson = await wres.json();
+          worker = (wjson as any).worker ?? null;
+        }
+      } catch { /* fall back to local row */ }
+    }
+    if (!d) {
+      ui.error(`Dispatch ${id} not found`);
+      process.exit(1);
+    }
+    if (isJson(options)) {
+      console.log(JSON.stringify({ dispatch: d, worker }, null, 2));
+      return;
+    }
+    printDispatchDetail(d);
+    if (worker) {
+      console.log('');
+      console.log(`  daemon worker:  running=${worker.running} inFlight=${worker.inFlight}/${worker.maxConcurrency}`);
+    }
+    return;
+  }
+
   // -- run --------------------------------------------------------------
   if (subcommand === 'run') {
-    const dryRun = !options['really-run'] && !options.reallyRun;
     const rest = args.slice(1);
     const wantsNext = rest.includes('--next') || !!options.next;
-    if (wantsNext) {
+    const dryRun = !!options['dry-run'] || !!options.dryRun;
+    // --foreground (or the legacy --really-run) keeps the OLD behavior: run the
+    // spawn synchronously in THIS CLI process, blocking up to the timeout. The
+    // DEFAULT is now daemon-driven (enqueue-and-return) so the operator can
+    // queue overnight work and walk away.
+    const foreground = !!options.foreground || !!options['really-run'] || !!options.reallyRun;
+
+    // ---- dry-run: print the plan only, never queue or spawn ----
+    if (dryRun) {
+      if (wantsNext) {
+        const result = await runNext(queue, { dryRun: true, backend: parseBackend(options.backend) });
+        if (!result) {
+          if (isJson(options)) console.log(JSON.stringify({ plan: null, message: 'queue is empty' }, null, 2));
+          else console.log('No proposed dispatches to run.');
+          return;
+        }
+        if (isJson(options)) { console.log(JSON.stringify({ plan: result.plan }, null, 2)); return; }
+        printPlan(result.plan, true);
+        return;
+      }
+      const id = rest.find((a) => !a.startsWith('--'));
+      if (!id) { ui.error('pd dispatch run requires a dispatch id or --next'); usage(); }
+      const d = queue.get(id);
+      if (!d) { ui.error(`Dispatch ${id} not found`); process.exit(1); }
+      const plan = planRunFor(d, { backend: parseBackend(options.backend) });
+      if (isJson(options)) { console.log(JSON.stringify({ plan, dryRun: true }, null, 2)); return; }
+      printPlan(plan, true);
+      return;
+    }
+
+    // ---- foreground (legacy synchronous): run in THIS process ----
+    if (foreground) {
       const result = await runNext(queue, {
-        dryRun,
+        dryRun: false,
         backend: parseBackend(options.backend),
-        spawnAdapter: dryRun ? undefined : defaultSpawnAdapter,
+        spawnAdapter: defaultSpawnAdapter,
       });
       if (!result) {
-        if (isJson(options)) {
-          console.log(JSON.stringify({ plan: null, message: 'queue is empty' }, null, 2));
-        } else {
-          console.log('No proposed dispatches to run.');
-        }
-        return;
+        ui.error('No proposed dispatches to run (queue empty or dispatch cancelled).');
+        process.exit(1);
       }
       if (isJson(options)) {
         console.log(JSON.stringify({ plan: result.plan, result: result.result ?? null }, null, 2));
         return;
       }
-      printPlan(result.plan, dryRun);
+      printPlan(result.plan, false);
       if (result.result) {
+        const r = result.result;
         console.log('');
-        console.log(`Result: ${result.result.state}`);
-        if (result.result.errorMessage) console.log(`  error: ${result.result.errorMessage}`);
-        if (result.result.costUsd != null) console.log(`  cost:  $${result.result.costUsd.toFixed(2)}`);
-        if (result.result.resultArtifact) console.log(`  artifact: ${result.result.resultArtifact}`);
-      }
-      return;
-    }
-    const id = rest.find((a) => !a.startsWith('--'));
-    if (!id) {
-      ui.error('pd dispatch run requires a dispatch id or --next');
-      usage();
-    }
-    const d = queue.get(id);
-    if (!d) {
-      ui.error(`Dispatch ${id} not found`);
-      process.exit(1);
-    }
-    const plan = planRunFor(d, {
-      backend: parseBackend(options.backend),
-    });
-    if (isJson(options)) {
-      console.log(JSON.stringify({ plan, dryRun }, null, 2));
-      return;
-    }
-    printPlan(plan, dryRun);
-    if (!dryRun) {
-      // Really-run path for a specific dispatch ID: use runNext-equivalent
-      // semantics but for the targeted dispatch.
-      if (d.state !== 'proposed') {
-        ui.error(`Dispatch ${id} is in state '${d.state}'; only 'proposed' dispatches can be run.`);
-        process.exit(1);
-      }
-      console.log('');
-      console.log('Running dispatch (this may take a while)...');
-      let runResult;
-      try {
-        runResult = await runNext(queue, {
-          dryRun: false,
-          backend: parseBackend(options.backend),
-          spawnAdapter: defaultSpawnAdapter,
-        });
-      } catch (err) {
-        ui.error(`Dispatch run failed: ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
-      }
-      if (!runResult) {
-        ui.error('Queue was empty when run was attempted (dispatch may have been cancelled).');
-        process.exit(1);
-      }
-      console.log('');
-      if (runResult.result) {
-        const r = runResult.result;
-        if (r.state === 'settled') {
-          ui.success(`Dispatch complete.`);
-        } else {
-          ui.warn(`Dispatch ended with state: ${r.state}`);
-        }
+        if (r.state === 'settled') ui.success('Dispatch complete.');
+        else ui.warn(`Dispatch ended with state: ${r.state}`);
         if (r.errorMessage) console.log(`  error:    ${r.errorMessage}`);
         if (r.costUsd != null) console.log(`  cost:     $${r.costUsd.toFixed(2)}`);
         if (r.resultArtifact) console.log(`  PR:       ${r.resultArtifact}`);
       }
+      return;
     }
+
+    // ---- DEFAULT: daemon-driven enqueue-and-return ----
+    if (!(await isDaemonRunning())) {
+      ui.error(
+        'Daemon not reachable. Start it (`port-daddy start`) so it can run dispatches ' +
+        'detached, or use `pd dispatch run <id> --foreground` to run synchronously here.',
+      );
+      process.exit(1);
+    }
+
+    // Resolve the target dispatch id (explicit id, or oldest proposed for --next).
+    let targetId: string | undefined = rest.find((a) => !a.startsWith('--'));
+    if (wantsNext && !targetId) {
+      const next = queue.list({ state: 'proposed', limit: 1 })[0];
+      if (!next) {
+        if (isJson(options)) console.log(JSON.stringify({ queued: false, message: 'queue is empty' }, null, 2));
+        else console.log('No proposed dispatches to run.');
+        return;
+      }
+      targetId = next.id;
+    }
+    if (!targetId) { ui.error('pd dispatch run requires a dispatch id or --next'); usage(); }
+
+    let res;
+    try {
+      res = await pdFetch(`/dispatches/${encodeURIComponent(targetId)}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+    } catch (err) {
+      ui.error(`Failed to queue dispatch on daemon: ${err instanceof Error ? err.message : String(err)}`);
+      process.exit(1);
+    }
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !(json as any).ok) {
+      ui.error(`Daemon rejected the run request: ${(json as any).error ?? `HTTP ${res.status}`}`);
+      process.exit(1);
+    }
+    if (isJson(options)) { console.log(JSON.stringify(json, null, 2)); return; }
+    const dispatch = (json as any).dispatch as Dispatch | undefined;
+    ui.success(`Queued dispatch ${targetId.slice(0, 8)} for daemon-side execution.`);
+    if (dispatch) console.log(`  state:    ${dispatch.state}`);
+    console.log('  The daemon runs it detached from this CLI — you can close the terminal.');
+    console.log(`  Watch progress:  pd dispatch status ${targetId.slice(0, 8)}`);
     return;
   }
 

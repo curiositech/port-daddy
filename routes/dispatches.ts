@@ -29,9 +29,26 @@ import type {
   ListDispatchesOptions,
 } from '../lib/dispatch/queue.js';
 
+interface DispatchWorkerHandle {
+  getStatus(): {
+    running: boolean;
+    inFlight: number;
+    maxConcurrency: number;
+    pollIntervalMs: number;
+    startedAt: number | null;
+    totalClaimed: number;
+    totalSettled: number;
+    totalFailed: number;
+  };
+  /** Kick an immediate poll so a just-proposed dispatch starts without waiting a full interval. */
+  poll(): Promise<number>;
+}
+
 interface DispatchesRouteDeps {
   deps: {
     dispatchQueue: DispatchQueue;
+    /** Daemon-side worker that drains the queue. Absent when PD_DISPATCH_WORKER=false. */
+    dispatchWorker?: DispatchWorkerHandle | null;
   };
 }
 
@@ -39,7 +56,7 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
   fastify,
   { deps },
 ) => {
-  const { dispatchQueue } = deps;
+  const { dispatchQueue, dispatchWorker } = deps;
 
   // POST /dispatches — propose
   fastify.post(
@@ -57,6 +74,9 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
           baseBranch: body.baseBranch ?? 'main',
           targetActorId: body.targetActorId,
           reviewerActorId: body.reviewerActorId,
+          backend: body.backend,
+          budgetUsd: body.budgetUsd,
+          timeoutMs: body.timeoutMs,
         });
         return reply.code(201).send({ ok: true, dispatch });
       } catch (err) {
@@ -142,6 +162,63 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
           error: err instanceof Error ? err.message : String(err),
         });
       }
+    },
+  );
+
+  // GET /dispatches/worker/status — is the daemon-side worker draining the queue?
+  // Mounted before the /:id routes so 'worker' isn't swallowed by /:id.
+  fastify.get('/dispatches/worker/status', async (_req, reply) => {
+    if (!dispatchWorker) {
+      return reply.send({ ok: true, worker: { running: false, enabled: false } });
+    }
+    return reply.send({ ok: true, worker: { enabled: true, ...dispatchWorker.getStatus() } });
+  });
+
+  // POST /dispatches/:id/run — enqueue-and-return. This is the daemon-driven
+  // default for `pd dispatch run <id>`: the dispatch is already `proposed` (or
+  // gets reset to it), so the daemon worker will claim and run it server-side,
+  // DETACHED from the CLI. We nudge an immediate poll so it starts promptly, then
+  // return — we do NOT hold the request open for the (possibly hours-long) run.
+  fastify.post<{ Params: { id: string } }>(
+    '/dispatches/:id/run',
+    async (req, reply) => {
+      const dispatch = dispatchQueue.get(req.params.id);
+      if (!dispatch) {
+        return reply.code(404).send({ ok: false, error: `dispatch ${req.params.id} not found` });
+      }
+      if (!dispatchWorker) {
+        return reply.code(503).send({
+          ok: false,
+          error:
+            'dispatch worker is disabled (PD_DISPATCH_WORKER=false); ' +
+            'run with `pd dispatch run <id> --foreground` or enable the worker',
+          dispatch,
+        });
+      }
+      // Only `proposed` dispatches are claimable. If already running/terminal,
+      // report honestly rather than pretending we queued it.
+      if (dispatch.state !== 'proposed') {
+        return reply.code(409).send({
+          ok: false,
+          error: `dispatch is in state '${dispatch.state}'; only 'proposed' dispatches can be (re)queued`,
+          dispatch,
+        });
+      }
+      // Nudge the worker to pick it up now rather than on the next interval.
+      let launched = 0;
+      try {
+        launched = await dispatchWorker.poll();
+      } catch { /* worker self-contains errors; status route still reflects truth */ }
+      const after = dispatchQueue.get(req.params.id) ?? dispatch;
+      return reply.send({
+        ok: true,
+        queued: true,
+        launchedThisTick: launched,
+        dispatch: after,
+        message:
+          'Dispatch queued for daemon-side execution. It runs detached from this CLI; ' +
+          'poll `pd dispatch show <id>` or `pd dispatch status <id>` for progress.',
+      });
     },
   );
 

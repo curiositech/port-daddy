@@ -8,10 +8,11 @@
  *      dispatched agent never touches the operator's main checkout. Branch name
  *      is `dispatch/<slug>-<idShort>` (already derived by runner.ts).
  *
- *   2. lib/spawner.ts runConfinedChild path — spawn the configured backend
- *      (cli:claude-code or cli:codex) via the existing Coast Guard wrapper
- *      (wrapWithSandbox + scrubRawSecretsFromEnv + EgressMeter) so every
- *      dispatch is blast-radius-bounded by default.
+ *   2. cli-tube backend (spawnViaCliTube) — drive the operator's LOCAL
+ *      `claude`/`codex` (unmetered Claude Max = $0 marginal), publish the
+ *      exchange on a tube channel (`dispatch:<id>`) for live `pd tube`, and
+ *      capture exact cost from the stream-json via the SAME extractor the
+ *      sortie path uses. Blast-radius: isolated worktree + codex self-sandbox.
  *
  *   3. gh pr create --draft — once the agent exits, push the branch and open a
  *      draft PR. PR body carries the intent, the worktree path (transcript
@@ -41,9 +42,16 @@ import {
   type SpawnAdapter,
   type SpawnAdapterInput,
   type SpawnAdapterResult,
+  type DispatchCostFn,
+  type DispatchBackend,
   DISPATCH_WORKTREE_ROOT,
 } from './runner.js';
-import { wrapWithSandbox, defaultCrownJewels, scrubRawSecretsFromEnv } from '../coast-guard.js';
+import {
+  spawnViaCliTube,
+  type CliTubeTool,
+  type TubeClientLike,
+} from '../spawner/backends/cli-tube.js';
+import { extractClaudeCodeUsage } from '../spawner/cli-claude-code-transcript.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -120,6 +128,31 @@ export async function gitWorktreeAdd(
       /* offline or no remote — branch from the local tracking ref */
     }
   }
+  // A previous run (e.g. one the daemon was mid-flight on when it was killed)
+  // may have already CREATED the branch even though its worktree directory was
+  // reaped. `git worktree add -b <branch>` fails hard in that case ("a branch
+  // named '<branch>' already exists"), which would strand a recovered dispatch
+  // on every retry. Detect the existing branch and, if present, attach the
+  // worktree to it (no `-b`) so crash recovery is genuinely idempotent.
+  let branchExists = false;
+  try {
+    await execFileAsync('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`]);
+    branchExists = true;
+  } catch {
+    branchExists = false;
+  }
+  if (branchExists) {
+    // Re-attach the worktree to the existing branch and reset it to the fresh
+    // base ref so the dispatched agent still starts from up-to-date code rather
+    // than the abandoned mid-crash state.
+    await execFileAsync('git', ['worktree', 'add', '--force', worktreePath, branch]);
+    try {
+      await execFileAsync('git', ['-C', worktreePath, 'reset', '--hard', baseRef]);
+    } catch {
+      /* base ref unreachable (offline) — keep the existing branch tip */
+    }
+    return;
+  }
   // git worktree add <path> -b <branch> <baseRef>
   // Run from the repo root (process.cwd() when running as the pd CLI).
   await execFileAsync('git', [
@@ -163,6 +196,35 @@ function disableGuardInWorktree(worktreePath: string): void {
 
 async function gitPushBranch(worktreePath: string, branch: string): Promise<void> {
   await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch]);
+}
+
+/**
+ * Reap a dispatch worktree once the run reaches a terminal state. The branch is
+ * already pushed (or the run failed with nothing to keep), so the on-disk
+ * worktree is disposable. `git worktree remove --force` detaches it from the
+ * repo's worktree list AND deletes the directory; a follow-up `git worktree
+ * prune` cleans any dangling administrative entry. Best-effort: a reap failure
+ * must never flip a settled dispatch back to failed, so callers swallow errors.
+ *
+ * Honest scoping: we reap from the MAIN repo (process.cwd at daemon start),
+ * because `git worktree remove` must run from a checkout that knows about the
+ * worktree, not from inside the worktree being removed.
+ */
+export async function reapWorktree(worktreePath: string): Promise<void> {
+  if (!existsSync(worktreePath)) return;
+  try {
+    await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath]);
+  } catch {
+    // The worktree may have uncommitted state git refuses to remove, or it was
+    // created outside the current repo. Fall back to a raw rm + prune so the
+    // disk doesn't accumulate stranded dispatch dirs overnight.
+    try {
+      execFileSync('rm', ['-rf', worktreePath]);
+    } catch { /* give up — surfaced via logs, not a dispatch failure */ }
+  }
+  try {
+    await execFileAsync('git', ['worktree', 'prune']);
+  } catch { /* prune is housekeeping; non-fatal */ }
 }
 
 // ── gh pr create (draft) ─────────────────────────────────────────────────────
@@ -209,112 +271,108 @@ export async function openDraftPr(params: {
   return prUrl;
 }
 
-// ── Confined agent runner ─────────────────────────────────────────────────────
+// ── cli-tube agent runner ──────────────────────────────────────────────────────
 //
-// Wraps the backend CLI (claude or codex) with the Coast Guard sandbox
-// (wrapWithSandbox + scrubRawSecretsFromEnv). We don't start the full
-// EgressMeter here — that lives inside lib/spawner.ts's runConfinedChild path.
-// For dispatch, the primary blast-radius protections are:
-//   (a) filesystem isolation (worktree, not main checkout)
-//   (b) Seatbelt/Landlock confinement (crown jewels denied)
-//   (c) raw secret scrub from the child env
-// The per-agent egress cap is a Phase 2 concern for dispatch (the CLI tools
-// manage their own auth and billing on the operator's subscription).
+// Dispatch now drives the operator's LOCAL `claude` / `codex` through the
+// shared cli-tube backend (`spawnViaCliTube`) — the SAME path `pd sortie` uses.
+// Why this matters:
+//   (a) Claude Max ($200/mo flat) → routing through the local `claude` CLI is
+//       $0 marginal per dispatch. That unmetered-local-CLI economics IS the
+//       product's pitch; spawning `claude` raw here bypassed it.
+//   (b) cli-tube PUBLISHES the exchange on a tube channel, so the operator can
+//       watch the dispatch live with `pd tube dispatch:<id>`.
+//   (c) Cost comes from the cli-tube stream-json `rawStdout` via the SAME
+//       `extractClaudeCodeUsage` the sortie path uses — no parallel parser.
+//
+// Blast-radius: codex self-sandboxes (`--sandbox workspace-write`, which
+// cli-tube's buildArgs already passes) and the dispatch runs inside an isolated
+// git worktree under ~/coding/tmp, so the agent never touches the operator's
+// main checkout. (The previous Coast Guard seatbelt double-wrap is dropped: it
+// nested two sandbox-exec profiles around codex and silently blocked all file
+// writes; cli-tube does not re-wrap, matching the sortie backend.)
 
-async function runAgentInWorktree(params: {
+export interface CliTubeRunResult {
+  /** Final answer (claude) / last message (codex). */
+  output: string;
+  /** The unmodified stream-json / JSONL — what cost extraction parses. */
+  rawStdout: string;
+  exitCode: number;
+  error: string | null;
+  /** Channel the exchange was published on (null when no tube client). */
+  tube: string | null;
+}
+
+export async function runAgentViaCliTube(params: {
+  cli: CliTubeTool;
+  goal: string;
   worktreePath: string;
-  command: string;
-  args: string[];
+  model?: string;
   env: Record<string, string | undefined>;
   timeoutMs: number;
-}): Promise<{ output: string; error: string | null }> {
-  // Backend-aware confinement. `codex` self-sandboxes via `--sandbox
-  // workspace-write` (which on macOS is itself a `sandbox-exec` profile);
-  // wrapping it a SECOND time in the Coast Guard seatbelt nests two
-  // sandbox-exec profiles and silently prevents codex from performing ANY
-  // file writes — the dispatched agent runs, exits 0, but produces nothing to
-  // commit. The runner's own rationale already states codex relies on its own
-  // sandbox for blast-radius. So: confine only backends that DON'T self-sandbox
-  // (claude, which has no built-in OS confinement). Worktree isolation + secret
-  // scrub still bound codex either way.
-  const selfSandboxing = params.command === 'codex';
-  const jewels = defaultCrownJewels();
-  const wrap = selfSandboxing
-    ? { cmd: params.command, args: params.args, confined: false, mechanism: 'codex-sandbox' as const, cleanup: [] as string[] }
-    : wrapWithSandbox(params.command, params.args, jewels, params.worktreePath);
-  const broker = scrubRawSecretsFromEnv(params.env);
-
-  return new Promise((res) => {
-    let settled = false;
-    let timedOut = false;
-
-    const child = execFile(
-      wrap.cmd,
-      wrap.args,
-      {
-        cwd: params.worktreePath,
-        env: broker.env as NodeJS.ProcessEnv,
-        // codex --json can emit a large transcript; the 1 MB execFile default
-        // would abort a long run with ERR_CHILD_PROCESS_STDIO_MAXBUFFER.
-        maxBuffer: 64 * 1024 * 1024,
-        // No timeout in execFile opts — we manage it explicitly below for
-        // cleaner error messages and SIGKILL escalation.
-      },
-    );
-
-    // Close the child's stdin immediately. The backends run non-interactively
-    // (`codex exec <goal>` / `claude -p <goal>` take the prompt as an argv), but
-    // both inspect stdin and BLOCK reading from it when it is an open pipe —
-    // codex prints "Reading additional input from stdin..." and waits forever,
-    // which manifested as the dispatch timing out after the full budget with
-    // zero output. An EOF on stdin lets them proceed on the argv prompt alone.
-    child.stdin?.end();
-
-    const stdout: string[] = [];
-    const stderr: string[] = [];
-
-    child.stdout?.on('data', (d: Buffer) => stdout.push(d.toString()));
-    child.stderr?.on('data', (d: Buffer) => stderr.push(d.toString()));
-
-    const timeoutId = setTimeout(() => {
-      if (settled) return;
-      timedOut = true;
-      try { process.kill(-child.pid!, 'SIGTERM'); } catch { /* already gone */ }
-      try { child.kill('SIGTERM'); } catch { /* already gone */ }
-      const forceKill = setTimeout(() => {
-        try { process.kill(-child.pid!, 'SIGKILL'); } catch {}
-        try { child.kill('SIGKILL'); } catch {}
-      }, 5_000);
-      forceKill.unref?.();
-    }, params.timeoutMs);
-    timeoutId.unref?.();
-
-    child.on('close', (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      // Clean up Coast Guard temp files (e.g. seatbelt profile).
-      for (const f of wrap.cleanup) {
-        try { execFileSync('rm', ['-rf', f]); } catch {}
-      }
-      const out = stdout.join('');
-      const err = stderr.join('');
-      if (timedOut) {
-        res({ output: out, error: `Agent timed out after ${Math.round(params.timeoutMs / 60000)} min${err ? `: ${err.slice(0, 200)}` : ''}` });
-      } else if (code !== 0) {
-        res({ output: out, error: err || `${params.command} exited with code ${code}` });
-      } else {
-        res({ output: out + (err ? `\nstderr: ${err}` : ''), error: null });
-      }
-    });
-
-    child.on('error', (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      res({ output: '', error: `Failed to start ${params.command}: ${err.message}` });
-    });
+  tube: string;
+  tubeClient?: TubeClientLike;
+  tubeSender: string;
+}): Promise<CliTubeRunResult> {
+  const result = await spawnViaCliTube({
+    cli: params.cli,
+    prompt: params.goal,
+    cwd: params.worktreePath,
+    model: params.model,
+    timeoutMs: params.timeoutMs,
+    env: params.env,
+    // Dispatch is unattended-autonomous by design: the agent must edit + commit
+    // without an interactive prompt. The isolated worktree is the blast-radius
+    // bound (codex also self-sandboxes). This restores the autonomy the legacy
+    // raw spawn had via `--dangerously-skip-permissions`.
+    autonomous: true,
+    tube: params.tube,
+    // Publishing is best-effort inside spawnViaCliTube (it swallows publish
+    // errors), so a dead/absent tube never fails a dispatch. When tubeClient is
+    // undefined, the wrapper simply doesn't publish.
+    tubeClient: params.tubeClient,
+    tubeSender: params.tubeSender,
   });
+  return {
+    output: result.output,
+    rawStdout: result.rawStdout,
+    exitCode: result.exitCode,
+    error: result.error,
+    tube: result.tube,
+  };
+}
+
+/**
+ * Price a dispatch run from its captured cli-tube output. For claude-code we
+ * pull EXACT token usage out of the stream-json (`extractClaudeCodeUsage`) — the
+ * same extraction the sortie path uses — and hand it to the injected `costFn`
+ * (built on the daemon's shared rate table). Returns undefined when usage is
+ * absent or no costFn is wired (caller records null), never a fabricated number.
+ */
+export function computeDispatchCostUsd(params: {
+  backend: DispatchBackend;
+  model?: string;
+  rawStdout: string;
+  costFn?: DispatchCostFn;
+}): number | undefined {
+  if (!params.costFn) return undefined;
+  if (params.backend === 'cli:claude-code') {
+    const usage = extractClaudeCodeUsage(params.rawStdout);
+    if (usage.inputTokens === undefined && usage.outputTokens === undefined) {
+      return undefined;
+    }
+    return params.costFn({
+      backend: params.backend,
+      model: params.model,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cachedInputTokens: usage.cachedInputTokens,
+    });
+  }
+  // codex: exact-usage parsing (parseCodexUsage) lives in the monolithic
+  // lib/spawner.ts and isn't cleanly importable here without dragging the whole
+  // module. Record null for codex until that parser is extracted — honest over
+  // a fabricated estimate. (claude-code is dispatch's primary, $0-marginal path.)
+  return undefined;
 }
 
 // ── The adapter factory ───────────────────────────────────────────────────────
@@ -322,16 +380,22 @@ async function runAgentInWorktree(params: {
 export interface SpawnAdapterOptions {
   /**
    * Injectable spawn function for unit tests. When provided, no real subprocess
-   * is started; the function receives the same (command, args, cwd, env, timeoutMs)
-   * the real adapter would use.
+   * (and no real cli-tube spawn) is started; the function receives the resolved
+   * cli-tube invocation the real adapter would run and returns a CliTubeRunResult
+   * (output + rawStdout for cost extraction + tube channel + exit/error). Tests
+   * use it to drive cost/tube/PR paths without spawning `claude`/`codex`.
    */
   spawnFn?: (params: {
-    command: string;
-    args: string[];
-    cwd: string;
+    cli: CliTubeTool;
+    goal: string;
+    worktreePath: string;
+    model?: string;
     env: Record<string, string | undefined>;
     timeoutMs: number;
-  }) => Promise<{ output: string; error: string | null }>;
+    tube: string;
+    tubeClient?: TubeClientLike;
+    tubeSender: string;
+  }) => Promise<CliTubeRunResult>;
 
   /**
    * Injectable git-worktree creation function for unit tests.
@@ -353,9 +417,10 @@ export interface SpawnAdapterOptions {
 }
 
 /**
- * Build a SpawnAdapter. Compose worktree isolation, Coast Guard confinement,
- * and draft PR creation so `pd dispatch run --really-run` actually builds the
- * intent and opens a draft PR.
+ * Build a SpawnAdapter. Compose worktree isolation, a cli-tube spawn of the
+ * operator's local claude/codex (with tube publishing + exact-usage cost), and
+ * draft PR creation so `pd dispatch run --really-run` actually builds the intent
+ * and opens a draft PR.
  *
  * All three injectable functions default to the real implementations but can
  * be replaced in unit tests to avoid network/filesystem/subprocess side effects.
@@ -363,20 +428,12 @@ export interface SpawnAdapterOptions {
 export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter {
   const _worktreeAdd = opts.worktreeAddFn ?? gitWorktreeAdd;
   const _openPr = opts.openPrFn ?? openDraftPr;
-  const _spawn = opts.spawnFn ?? (
-    (params) => runAgentInWorktree({
-      worktreePath: params.cwd,
-      command: params.command,
-      args: params.args,
-      env: params.env,
-      timeoutMs: params.timeoutMs,
-    })
-  );
+  const _spawn = opts.spawnFn ?? runAgentViaCliTube;
 
   return async function spawnAdapterImpl(
     input: SpawnAdapterInput,
   ): Promise<SpawnAdapterResult> {
-    const { plan, queue } = input;
+    const { plan, queue, tubeClient, costFn } = input;
     const dispatch = plan.dispatch;
 
     // ── 0. Verify CLI binaries are on PATH (loud-fail, not silent no-op) ──────
@@ -410,31 +467,60 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
       return { state: 'failed', errorMessage: msg };
     }
 
-    // ── 3. Spawn the agent in the worktree (Coast Guard-wrapped) ─────────────
+    // ── 3. Spawn the agent in the worktree via cli-tube ──────────────────────
+    // Drives the operator's LOCAL `claude`/`codex` (unmetered Claude Max = $0
+    // marginal) AND publishes the exchange on a tube channel for live `pd tube`.
     const agentEnv: Record<string, string | undefined> = {
       ...process.env,
       ...plan.env,
       PD_DISPATCH_WORKTREE: plan.worktreePath,
     };
+    const cli: CliTubeTool = plan.backend === 'cli:claude-code' ? 'claude-code' : 'codex';
+    // Stable, operator-discoverable channel: `dispatch:<id>` — the operator
+    // already knows the dispatch id, so they can `pd tube dispatch:<id>` without
+    // hunting for a random cli:<tool>:<uuid> channel.
+    const tubeChannel = `dispatch:${dispatch.id}`;
 
     let agentError: string | null = null;
+    let agentOutput = '';
+    let agentRawStdout = '';
+    let publishedTube: string | null = null;
     const spawnStart = Date.now();
 
     try {
       const result = await _spawn({
-        command: plan.command,
-        args: plan.args,
-        cwd: plan.worktreePath,
+        cli,
+        goal: dispatch.goal,
+        worktreePath: plan.worktreePath,
+        model: plan.model,
         env: agentEnv,
         timeoutMs: plan.timeoutMs,
+        tube: tubeChannel,
+        tubeClient,
+        tubeSender: `dispatch:${dispatch.id}`,
       });
       agentError = result.error;
+      agentOutput = result.output;
+      agentRawStdout = result.rawStdout;
+      publishedTube = result.tube;
     } catch (err) {
       agentError = (err as Error).message;
     }
 
     const durationMs = Date.now() - spawnStart;
-    void durationMs; // available for future cost tracking
+    void publishedTube;
+    // Real cost capture: pull EXACT token usage from the cli-tube stream-json
+    // (`extractClaudeCodeUsage`) — the SAME path the sortie spawner uses — and
+    // price it through the daemon's shared rate table (`costFn`). Null when the
+    // run reported no usage or no costFn is wired (CLI foreground). No parallel
+    // parser, no fabricated number.
+    const costUsd = computeDispatchCostUsd({
+      backend: plan.backend,
+      model: plan.model,
+      rawStdout: agentRawStdout,
+      costFn,
+    });
+    void durationMs;
 
     // ── 4. Push branch and open draft PR ─────────────────────────────────────
     // We attempt even if the agent returned an error, since partial commits
@@ -486,24 +572,28 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
         id: dispatch.id,
         state: 'settled',
         resultArtifact: prUrl,
+        costUsd: costUsd ?? null,
         errorMessage: combinedError,
       });
       return {
         state: 'settled',
         resultArtifact: prUrl,
+        costUsd,
         errorMessage: combinedError,
       };
     }
 
-    // No PR: agent produced nothing committable, or push/open failed.
+    // No PR: agent produced nothing committable, or push/open failed. The agent
+    // still ran and spent money, so record whatever cost it reported.
     const finalError =
       combinedError ??
       `Agent ran but produced no committable output and no PR was opened.`;
 
-    queue.settle({ id: dispatch.id, state: 'failed', errorMessage: finalError });
+    queue.settle({ id: dispatch.id, state: 'failed', costUsd: costUsd ?? null, errorMessage: finalError });
     return {
       state: 'failed',
       errorMessage: finalError,
+      costUsd,
       resultArtifact: null,
     };
   };

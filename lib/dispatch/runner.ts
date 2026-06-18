@@ -30,6 +30,22 @@ import { homedir } from 'node:os';
 
 import type { Dispatch, DispatchQueue } from './queue.js';
 import { deriveBranchName } from './queue.js';
+import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
+
+/**
+ * Compute a run's USD cost from the exact token usage the backend reported.
+ * Injected from the daemon (built on the cost tracker's rate table) so dispatch
+ * uses the SAME pricing path as every other spawn — no parallel parser. When no
+ * cost function is wired (e.g. the CLI foreground path with no daemon), the
+ * adapter records `costUsd: null` rather than inventing a number.
+ */
+export type DispatchCostFn = (params: {
+  backend: DispatchBackend;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+}) => number | undefined;
 
 export const DEFAULT_BUDGET_USD = 5;
 export const DEFAULT_TIMEOUT_MS = 3 * 60 * 60 * 1000; // 3 hours
@@ -57,6 +73,13 @@ export interface RunnerPlan {
   /** Command + args. Pass to spawnChild WITHOUT a shell. */
   command: string;
   args: string[];
+  /**
+   * Optional model override forwarded to the cli-tube spawn (`--model`). Absent
+   * → the CLI uses its authenticated account's default (claude-code → `sonnet`
+   * via cli-tube buildArgs). Set by RunnerOptions.model (e.g. a cheap
+   * `claude-haiku-4-5` for trivial dispatches).
+   */
+  model?: string;
   /** Environment overrides for the spawn. */
   env: Record<string, string>;
   /** Effective timeout for the spawn. */
@@ -76,15 +99,37 @@ export interface RunnerOptions {
   dryRun?: boolean;
   /** Backend override. Falls back to the dispatch's stored backend, then to DEFAULT_BACKEND. */
   backend?: DispatchBackend;
+  /**
+   * Model override forwarded to the cli-tube spawn (`--model`). Absent → the CLI
+   * default. Use to pin a cheap model (e.g. `claude-haiku-4-5`) for trivial work.
+   */
+  model?: string;
   /** Override the remote whose base-branch the worktree branches from. Default: 'origin'. */
   remote?: string;
   /** Spawn adapter -- a thin wrapper around pd sortie / pd spawn. */
   spawnAdapter?: SpawnAdapter;
+  /**
+   * Optional tube client. When provided, the dispatch's claude/codex exchange
+   * is published on a tube channel so the operator can watch it live with
+   * `pd tube dispatch:<id>`. Best-effort: a publish failure never fails the
+   * dispatch. Absent on the CLI foreground path (no daemon) — the run still
+   * happens, just without tube transparency.
+   */
+  tubeClient?: TubeClientLike;
+  /**
+   * Optional cost function. Converts the backend's exact token usage into USD
+   * via the daemon's shared rate table (cost tracker). Absent → costUsd null.
+   */
+  costFn?: DispatchCostFn;
 }
 
 export interface SpawnAdapterInput {
   plan: RunnerPlan;
   queue: DispatchQueue;
+  /** Forwarded from RunnerOptions so the adapter can publish on a tube. */
+  tubeClient?: TubeClientLike;
+  /** Forwarded from RunnerOptions so the adapter prices the run. */
+  costFn?: DispatchCostFn;
 }
 
 export interface SpawnAdapterResult {
@@ -124,6 +169,13 @@ export function buildSpawnArgv(
   model?: string,
 ): { command: string; args: string[] } {
   if (backend === 'cli:claude-code') {
+    // NOTE: this argv is the LEGACY raw-spawn shape and is retained only for the
+    // `command`/`args` fields on the plan (provenance / dry-run display). The
+    // real spawn now goes through `spawnViaCliTube`, which builds its OWN argv
+    // (`--output-format stream-json --verbose`) so the run publishes on a tube
+    // channel AND yields exact token usage via `extractClaudeCodeUsage`. We
+    // deliberately do NOT add `--output-format json` here anymore — cost no
+    // longer comes from a one-off `total_cost_usd` parse on this argv.
     const args = ['--dangerously-skip-permissions', '-p', goal];
     if (model) args.push('--model', model);
     return { command: 'claude', args };
@@ -161,7 +213,8 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
   const worktreePath = deriveWorktreePath(dispatch.id);
   const timeoutMs = clampTimeout(dispatch.timeoutMs);
   const budgetUsd = clampBudget(dispatch.budgetUsd);
-  const { command, args } = buildSpawnArgv(backend, worktreePath, dispatch.goal);
+  const model = opts.model;
+  const { command, args } = buildSpawnArgv(backend, worktreePath, dispatch.goal, model);
 
   const rationale: string[] = [];
   rationale.push(`backend = ${backend}`);
@@ -190,6 +243,7 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
     baseRef,
     command,
     args,
+    model,
     env: {
       PD_DISPATCH_ID: dispatch.id,
       PD_DISPATCH_SLUG: dispatch.slug,
@@ -240,10 +294,45 @@ export async function runNext(
   if (!claimed) {
     return null;
   }
+  return runClaimedDispatch(queue, claimed, opts);
+}
+
+/**
+ * Run a dispatch that has ALREADY been claimed (state === 'claimed'), invoking
+ * the spawn adapter and closing the lifecycle. Pure-ish: deterministic given
+ * the dispatch + adapter.
+ *
+ * This is the seam the daemon-side worker uses: the worker claims work
+ * atomically via `queue.nextProposed(...)` (so two workers never grab the same
+ * row), then hands the claimed dispatch here to actually run it. `runNext`
+ * delegates to this after its own claim so both paths share one code path.
+ *
+ * Requires `opts.spawnAdapter`. Settles the dispatch to the adapter's terminal
+ * state (or `failed` on adapter exception) if the adapter did not already.
+ */
+export async function runClaimedDispatch(
+  queue: DispatchQueue,
+  claimed: Dispatch,
+  opts: RunnerOptions = {},
+): Promise<{ plan: RunnerPlan; result: SpawnAdapterResult }> {
+  if (!opts.spawnAdapter) {
+    throw new Error('runClaimedDispatch: requires a spawnAdapter');
+  }
+  if (claimed.state !== 'claimed') {
+    throw new Error(
+      `runClaimedDispatch: dispatch ${claimed.id} must be 'claimed', got '${claimed.state}'`,
+    );
+  }
+  const plan = planRunFor(claimed, opts);
   const planWithClaimed: RunnerPlan = { ...plan, dispatch: claimed };
   let result: SpawnAdapterResult;
   try {
-    result = await opts.spawnAdapter({ plan: planWithClaimed, queue });
+    result = await opts.spawnAdapter({
+      plan: planWithClaimed,
+      queue,
+      tubeClient: opts.tubeClient,
+      costFn: opts.costFn,
+    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     queue.settle({ id: claimed.id, state: 'failed', errorMessage });

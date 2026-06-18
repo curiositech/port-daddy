@@ -77,6 +77,19 @@ describe('buildArgs', () => {
     expect(args[idx + 1]).toBe('sonnet');
   });
 
+  test('claude-code is NOT autonomous by default (no skip-permissions)', () => {
+    const { args } = buildArgs('claude-code', 'hi');
+    expect(args).not.toContain('--dangerously-skip-permissions');
+  });
+
+  test('claude-code adds --dangerously-skip-permissions when autonomous', () => {
+    // Unattended dispatch needs this — a `-p` run cannot answer a permission
+    // prompt, so without it claude refuses edits and produces nothing.
+    const { args } = buildArgs('claude-code', 'hi', undefined, 'claude-haiku-4-5', true);
+    expect(args).toContain('--dangerously-skip-permissions');
+    expect(args[args.length - 1]).toBe('hi');
+  });
+
   test('codex uses exec + workspace-write sandbox', () => {
     const { args } = buildArgs('codex', 'hello');
     expect(args[0]).toBe('exec');
@@ -213,6 +226,39 @@ describe('spawnViaCliTube — tube publishing', () => {
     expect(payload.output).toBe('Cool result');
     expect(opts.sender).toBe('unit-test');
     expect(res.output).toBe('Cool result');
+  });
+
+  test('claude-code publishes the FINAL ANSWER, not the raw stream-json', async () => {
+    // Real claude `--output-format stream-json` stdout is JSONL whose terminal
+    // `result` line carries the answer. Publishing the raw stream blows the
+    // daemon's ~10KB /msg body limit; we must publish the extracted final answer.
+    const streamJson = [
+      '{"type":"assistant","message":{"content":[{"type":"text","text":"working..."}]}}',
+      '{"type":"result","subtype":"success","result":"the final answer","usage":{"input_tokens":5,"output_tokens":3}}',
+    ].join('\n');
+    const publish = jest.fn(async () => ({ ok: true, id: 1 }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: streamJson, exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code', prompt: 'hi', tube: 'cli:test:final', tubeClient: { publish },
+    });
+    const [, payload] = publish.mock.calls[0];
+    expect(payload.output).toBe('the final answer');
+    expect(payload.output).not.toContain('"type":"result"'); // not the raw stream
+  });
+
+  test('claude-code truncates an oversized answer to fit under the body limit', async () => {
+    const huge = 'A'.repeat(20000);
+    const streamJson = `{"type":"result","subtype":"success","result":${JSON.stringify(huge)}}`;
+    const publish = jest.fn(async () => ({ ok: true, id: 1 }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: streamJson, exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code', prompt: 'hi', tube: 'cli:test:big', tubeClient: { publish },
+    });
+    const [, payload] = publish.mock.calls[0];
+    expect(payload.truncated).toBe(true);
+    // Comfortably under the daemon's 10KB /msg body limit.
+    expect(JSON.stringify(payload).length).toBeLessThan(10000);
+    expect(payload.output).toContain('truncated');
   });
 
   test('does NOT publish when tube: null', async () => {

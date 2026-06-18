@@ -48,7 +48,7 @@ function makeAdapter(overrides = {}) {
   const spawnFn = jest.fn(async (params) => {
     calls.spawn.push(params);
     if (overrides.spawnFn) return overrides.spawnFn(params);
-    return { output: 'agent output', error: null };
+    return { output: 'agent output', rawStdout: '', exitCode: 0, error: null, tube: params.tube };
   });
 
   const openPrFn = jest.fn(async (params) => {
@@ -159,9 +159,9 @@ describe('createSpawnAdapter — worktree path', () => {
   });
 });
 
-// ── createSpawnAdapter — spawn argv ─────────────────────────────────────────
+// ── createSpawnAdapter — cli-tube invocation shape ──────────────────────────
 
-describe('createSpawnAdapter — spawn argv', () => {
+describe('createSpawnAdapter — cli-tube invocation', () => {
   let db, queue;
   beforeEach(() => {
     db = createTestDb();
@@ -169,7 +169,7 @@ describe('createSpawnAdapter — spawn argv', () => {
   });
   afterEach(() => { db.close(); });
 
-  test('spawnFn receives the correct command + args for cli:codex (default)', async () => {
+  test('spawnFn receives cli=codex + goal + cwd for cli:codex (default backend)', async () => {
     const dispatch = queue.propose({ goal: 'write unit tests for the spawner' });
     const plan = planRunFor(dispatch);
     const { adapter, calls } = makeAdapter();
@@ -178,25 +178,35 @@ describe('createSpawnAdapter — spawn argv', () => {
 
     expect(calls.spawn).toHaveLength(1);
     const spawnCall = calls.spawn[0];
-    expect(spawnCall.command).toBe(plan.command);
-    expect(spawnCall.args).toEqual(plan.args);
-    expect(spawnCall.cwd).toBe(plan.worktreePath);
+    // cli-tube spawn: tool is derived from the backend, goal is the prompt.
+    expect(spawnCall.cli).toBe('codex');
+    expect(spawnCall.goal).toBe(dispatch.goal);
+    expect(spawnCall.worktreePath).toBe(plan.worktreePath);
     expect(spawnCall.timeoutMs).toBe(plan.timeoutMs);
   });
 
-  test('spawnFn receives the correct command + args for cli:claude-code', async () => {
+  test('spawnFn receives cli=claude-code for the cli:claude-code backend', async () => {
     const dispatch = queue.propose({ goal: 'refactor the config module', backend: 'cli:claude-code' });
     const plan = planRunFor(dispatch);
+    const { adapter, calls } = makeAdapter();
+
+    await runNext(queue, { dryRun: false, spawnAdapter: adapter, backend: 'cli:claude-code' });
+
+    const spawnCall = calls.spawn[0];
+    expect(spawnCall.cli).toBe('claude-code');
+    expect(spawnCall.goal).toBe(dispatch.goal);
+    expect(spawnCall.worktreePath).toBe(plan.worktreePath);
+  });
+
+  test('spawnFn publishes on the dispatch:<id> tube channel', async () => {
+    const dispatch = queue.propose({ goal: 'clean up stale tests' });
     const { adapter, calls } = makeAdapter();
 
     await runNext(queue, { dryRun: false, spawnAdapter: adapter });
 
     const spawnCall = calls.spawn[0];
-    expect(spawnCall.command).toBe('claude');
-    expect(spawnCall.args).toContain('--dangerously-skip-permissions');
-    expect(spawnCall.args).toContain('-p');
-    expect(spawnCall.args).toContain(dispatch.goal);
-    expect(spawnCall.cwd).toBe(plan.worktreePath);
+    expect(spawnCall.tube).toBe(`dispatch:${dispatch.id}`);
+    expect(spawnCall.tubeSender).toBe(`dispatch:${dispatch.id}`);
   });
 
   test('spawnFn env includes PD_DISPATCH_ID from plan.env', async () => {
@@ -209,6 +219,81 @@ describe('createSpawnAdapter — spawn argv', () => {
     expect(env.PD_DISPATCH_ID).toBe(dispatch.id);
     expect(env.PD_DISPATCH_BRANCH).toBeTruthy();
     expect(env.PD_DISPATCH_WORKTREE).toBeTruthy();
+  });
+
+  test('tubeClient is threaded from runner options into the spawn', async () => {
+    const dispatch = queue.propose({ goal: 'wire tube transparency' });
+    const published = [];
+    const tubeClient = {
+      publish: async (channel, payload, opts) => {
+        published.push({ channel, payload, opts });
+        return { ok: true, id: published.length };
+      },
+    };
+    const { adapter, calls } = makeAdapter();
+
+    await runNext(queue, { dryRun: false, spawnAdapter: adapter, tubeClient });
+
+    // The injected spawnFn receives the same tubeClient the runner was given.
+    expect(calls.spawn[0].tubeClient).toBe(tubeClient);
+  });
+});
+
+// ── createSpawnAdapter — cost from cli-tube stream-json ──────────────────────
+
+describe('createSpawnAdapter — cost extraction', () => {
+  let db, queue;
+  beforeEach(() => {
+    db = createTestDb();
+    queue = makeQueue(db);
+  });
+  afterEach(() => { db.close(); });
+
+  test('costUsd comes from extractClaudeCodeUsage(rawStdout) via the injected costFn', async () => {
+    const dispatch = queue.propose({ goal: 'price me', backend: 'cli:claude-code' });
+    // A minimal stream-json terminal result line carrying usage — exactly what
+    // the real claude CLI emits and what extractClaudeCodeUsage parses.
+    const rawStdout = JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      result: 'done',
+      usage: { input_tokens: 1000, output_tokens: 500, cache_read_input_tokens: 0 },
+    });
+    const costFnCalls = [];
+    const costFn = (p) => {
+      costFnCalls.push(p);
+      // pretend rate: $1/Mtok in, $2/Mtok out → 0.001 + 0.001 = 0.002
+      return (p.inputTokens / 1e6) * 1 + (p.outputTokens / 1e6) * 2;
+    };
+    const { adapter } = makeAdapter({
+      spawnFn: async (params) => ({ output: 'done', rawStdout, exitCode: 0, error: null, tube: params.tube }),
+    });
+
+    const result = await runNext(queue, {
+      dryRun: false, spawnAdapter: adapter, backend: 'cli:claude-code', costFn,
+    });
+
+    // costFn was called with the EXACT token usage extracted from rawStdout.
+    expect(costFnCalls).toHaveLength(1);
+    expect(costFnCalls[0].inputTokens).toBe(1000);
+    expect(costFnCalls[0].outputTokens).toBe(500);
+    expect(result.result.costUsd).toBeCloseTo(0.002, 6);
+    expect(queue.get(dispatch.id).costUsd).toBeCloseTo(0.002, 6);
+  });
+
+  test('costUsd is null when no costFn is wired (CLI foreground path)', async () => {
+    const dispatch = queue.propose({ goal: 'no cost fn', backend: 'cli:claude-code' });
+    const rawStdout = JSON.stringify({
+      type: 'result', subtype: 'success', result: 'done',
+      usage: { input_tokens: 10, output_tokens: 5 },
+    });
+    const { adapter } = makeAdapter({
+      spawnFn: async (params) => ({ output: 'done', rawStdout, exitCode: 0, error: null, tube: params.tube }),
+    });
+
+    await runNext(queue, { dryRun: false, spawnAdapter: adapter, backend: 'cli:claude-code' });
+
+    expect(queue.get(dispatch.id).costUsd).toBeNull();
   });
 });
 
@@ -309,7 +394,7 @@ describe('createSpawnAdapter — state machine', () => {
   test('agent error + PR opened → settled (partial work is still reviewable)', async () => {
     const dispatch = queue.propose({ goal: 'prototype the new config loader' });
     const { adapter } = makeAdapter({
-      spawnFn: async () => ({ output: 'partial output', error: 'agent exited with code 1' }),
+      spawnFn: async (params) => ({ output: 'partial output', rawStdout: '', exitCode: 1, error: 'agent exited with code 1', tube: params.tube }),
       openPrFn: async () => 'https://github.com/curiositech/port-daddy/pull/77',
     });
 
@@ -326,7 +411,7 @@ describe('createSpawnAdapter — state machine', () => {
   test('agent error + no PR → dispatch settled as failed', async () => {
     const dispatch = queue.propose({ goal: 'update the CI config' });
     const { adapter } = makeAdapter({
-      spawnFn: async () => ({ output: '', error: 'agent failed' }),
+      spawnFn: async (params) => ({ output: '', rawStdout: '', exitCode: 1, error: 'agent failed', tube: params.tube }),
       openPrFn: async () => { throw new Error('gh pr create: nothing to push'); },
     });
 

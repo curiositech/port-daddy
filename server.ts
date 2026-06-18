@@ -60,6 +60,7 @@ import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
 import { createHarborTokens } from './lib/harbor-tokens.js';
+import { createWhois } from './lib/whois.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
@@ -81,6 +82,8 @@ import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
+import { createDispatchQueue } from './lib/dispatch/queue.js';
+import { createDispatchWorker } from './lib/dispatch/worker.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
@@ -485,6 +488,16 @@ const attention = createAttention({ db, inbox: agentInbox, messaging });
 const harborTokens = createHarborTokens(db);
 await harborTokens.initDaemonIdentity();
 const harbors = createHarbors(db, { harborTokens });
+
+// Whois — semantic phonebook over harbor capabilities + agent heartbeats.
+// Backfill existing capabilities on boot, and embed new ones as they arrive
+// via the harbor capability listener (write path).
+const whois = createWhois(db, { resolver: semanticResolver, logger });
+whois.backfill().catch(() => {});
+harbors.setCapabilityListener((agentId, harborName, phrases) => {
+  whois.registerCapabilities(agentId, harborName, phrases).catch(() => {});
+});
+
 const sorties = createSorties(db, { episodicMemory });
 
 // Bond escrow + budget guard — FleetControl hardening. Built BEFORE
@@ -575,6 +588,77 @@ const custodian = CUSTODIAN_ENABLED
     })
   : null;
 if (custodian) custodian.start();
+
+// Dispatch queue + daemon-side worker — the autonomous "queue goals, walk away
+// overnight" path. Before this, `pd dispatch run` ran the spawn synchronously in
+// the FOREGROUND CLI process; nothing server-side drained the queue, so an
+// interrupted CLI stranded the dispatch `in_progress` forever. The worker is a
+// background poll loop (mirrors the Knowledge Custodian / fleet runner pattern)
+// that claims `proposed` dispatches and runs them via the real spawn adapter,
+// fully detached from any terminal. It also recovers dispatches stranded by a
+// previous daemon on start. Disable with PD_DISPATCH_WORKER=false.
+const dispatchQueue = createDispatchQueue({ db });
+const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
+const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
+const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
+  ? Math.min(_dispatchConcurrency, 5)
+  : 2;
+const _dispatchPollMs = parseInt(process.env.PD_DISPATCH_POLL_MS ?? '5000', 10);
+const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 500
+  ? _dispatchPollMs
+  : 5000;
+// Optional model pin for dispatch work (cli-tube `--model`). Absent → the CLI's
+// authenticated default (claude-code → `sonnet`). Operators set a cheap model
+// (e.g. `claude-haiku-4-5`) for routine/trivial dispatches.
+const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
+// Tube transparency: build a TubeClientLike from the daemon's messaging layer
+// so every dispatch publishes its claude/codex exchange on `dispatch:<id>`.
+// `messaging.publish` is sync and returns `{ success, id, error }`; the cli-tube
+// backend wants an async `{ ok, id?, error? }`, so adapt the shape here.
+const dispatchTubeClient = {
+  publish: async (
+    channel: string,
+    payload: unknown,
+    opts?: { sender?: string },
+  ): Promise<{ ok: boolean; id?: number; error?: string }> => {
+    const res = messaging.publish(channel, payload, { sender: opts?.sender });
+    return res.success
+      ? { ok: true, id: res.id }
+      : { ok: false, error: res.error };
+  },
+};
+// Cost: price each dispatch from the cli-tube stream-json's EXACT token usage
+// via the cost tracker's shared rate table — the SAME path every other spawn
+// uses. No parallel parser.
+const dispatchCostFn = (params: {
+  backend: 'cli:claude-code' | 'cli:codex';
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+}): number | undefined => {
+  if (params.inputTokens === undefined && params.outputTokens === undefined) return undefined;
+  const { costUsd } = costTracker.computeCost(
+    params.backend,
+    params.model ?? 'sonnet',
+    params.inputTokens,
+    params.outputTokens,
+    params.cachedInputTokens,
+  );
+  return costUsd;
+};
+const dispatchWorker = DISPATCH_WORKER_ENABLED
+  ? createDispatchWorker({
+      queue: dispatchQueue,
+      logger,
+      maxConcurrency: DISPATCH_CONCURRENCY,
+      pollIntervalMs: DISPATCH_POLL_MS,
+      model: DISPATCH_MODEL,
+      tubeClient: dispatchTubeClient,
+      costFn: dispatchCostFn,
+    })
+  : null;
+if (dispatchWorker) dispatchWorker.start();
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
@@ -1061,7 +1145,8 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, whois, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    dispatchQueue, dispatchWorker,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
@@ -1186,6 +1271,10 @@ function shutdown(signal: string): void {
   try { bosunHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
+  // Stop the dispatch worker's poll loop. In-flight dispatches keep running on
+  // their own promises until their backend exits; the next daemon start will
+  // recover any that were mid-run (recoverStranded) — never strands them.
+  try { dispatchWorker?.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
