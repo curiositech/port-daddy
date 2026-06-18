@@ -64,8 +64,9 @@ fire-and-forget sink pattern, and keeps the journal completely decoupled from th
   hot loop. Modest disk growth under `~/.port-daddy/forensics/`.
 - **Reversible.** `PD_FORENSICS_ARCHIVE=off` disables it; the files are plain JSONL.
 - **Follow-up (tracked, not silent).** `lib/forensics-archive.ts` and
-  `lib/transcript-archive.ts` (ADR-0058) are the same append-only-JSONL shape; once
-  both are on main, extract a shared `lib/jsonl-archive.ts` primitive. A retention/
+  `lib/transcript-archive.ts` (ADR-0058 — not yet shipped to main, in PR #433) are
+  the same append-only-JSONL shape; once both are on main, extract a shared
+  `lib/jsonl-archive.ts` primitive (proposed, not yet shipped). A retention/
   rotation policy for the forensics files (the bias is deliberately "keep everything")
   is a separate follow-up.
 
