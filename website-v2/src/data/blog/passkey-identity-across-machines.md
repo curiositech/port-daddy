@@ -99,7 +99,7 @@ await pdAuth.confirmPairing({ token: pairingToken, accept: true })
 
 There is no shared secret transmitted. The pairing token authorizes a specific rewrap, the new device contributes its passkey-bound public key, and the existing device gates the rewrap with a final confirmation signed by its own passkey.
 
-![Identity surface in the FleetBar shipwright control](/img/app-screens/shipwright-control-light.png)
+![Identity surface in the FleetBar shipwright control](/img/app-screens/shipwright-control-light.webp)
 
 ## Recovery and Its Honest Limits
 

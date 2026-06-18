@@ -64,7 +64,7 @@ export function Inbox() {
               <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
                 <figure className="m-0 space-y-[var(--space-2)]">
                   <img
-                    src="/img/tutorial-human-layer-control-center.png"
+                    src="/img/tutorial-human-layer-control-center.webp"
                     alt="Real Fleet Control Center operator entrance from the local Port Daddy daemon, showing budget limits, what's ready to run, the project queue, and next actions."
                     className="block w-full border-2 border-[var(--border-strong)]"
                     loading="lazy"
@@ -77,7 +77,7 @@ export function Inbox() {
 
                 <figure className="m-0 space-y-[var(--space-2)]">
                   <img
-                    src="/img/app-screens/fleet-flow-light.png"
+                    src="/img/app-screens/fleet-flow-light.webp"
                     alt="Real Fleet Flow console view showing project and agent activity inside the Port Daddy app."
                     className="block w-full border-2 border-[var(--border-strong)]"
                     loading="lazy"

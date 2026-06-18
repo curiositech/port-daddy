@@ -224,7 +224,7 @@ export default function LibraryPage() {
 
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
                 <img
-                  src="/img/manifesto/seven-papers.png"
+                  src="/img/manifesto/seven-papers.webp"
                   alt="A drafting wall pinned with seven blueprint plates: a back row of three stamped with wax seals labelled “three prove,” and a front row of four tugboat schematics labelled “four explain,” with a small robot studying them."
                   className="block aspect-[16/9] w-full object-cover"
                   loading="eager"

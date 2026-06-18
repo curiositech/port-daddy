@@ -116,7 +116,7 @@ The control plane should surface enough information to make stale bundles obviou
 
 That is boring metadata until it saves an hour.
 
-![FleetBar top bar and embedded control plane context](/media/landing-live-glory/topbar-crop.png)
+![FleetBar top bar and embedded control plane context](/media/landing-live-glory/topbar-crop.webp)
 
 ## Clients Should Carry Provenance Too
 

@@ -63,7 +63,7 @@ The launch path should be able to produce a record like this:
 
 That record is not just for finance. It is operational evidence. It tells the next agent, the human, and the control plane why the launch was allowed.
 
-![Resources panel showing local launch and budget state](/media/landing-live-glory/live-resources-light.png)
+![Resources panel showing local launch and budget state](/media/landing-live-glory/live-resources-light.webp)
 
 ## The Ledger Has To Be Queryable
 

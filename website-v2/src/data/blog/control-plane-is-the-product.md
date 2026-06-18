@@ -4,7 +4,7 @@ Most agent tools still present themselves as either a chat box, a hosted runner,
 
 Port Daddy starts from a different premise: the hard part is not generating text. The hard part is operating a set of agents around a real repo without losing ownership, runtime truth, spend control, or the human's ability to intervene. The control plane is not decoration around the product. The control plane is the product.
 
-![Fleet Control Center showing project flow and live agent work](/media/landing-live-glory/live-flow-light.png)
+![Fleet Control Center showing project flow and live agent work](/media/landing-live-glory/live-flow-light.webp)
 
 The usual agent stack treats orchestration as something hidden behind the tool. You press a button, a remote process runs, and maybe a transcript arrives later. Port Daddy makes the orchestration itself inspectable: which project is active, which files are claimed, which agents are live, which events fired, which backend is ready, which launch was blocked, and what evidence exists for the next person or agent to resume.
 
@@ -75,7 +75,7 @@ This is not ceremony. Each command creates operational state:
 
 Most tools optimize only the fourth step: "start an agent." Port Daddy cares about the steps around it, because those are where real teams lose time.
 
-![Fleet Control Center showing active agent lanes](/media/landing-live-glory/live-agents-panel-light.png)
+![Fleet Control Center showing active agent lanes](/media/landing-live-glory/live-agents-panel-light.webp)
 
 ## Why Local Matters
 
@@ -99,7 +99,7 @@ That local posture also changes trust. A developer can see the launch gate befor
 
 FleetBar should not be thought of as a pretty wrapper around CLI commands. The native app is the fast path into the same operational truth.
 
-![FleetBar native shell with the local control plane](/img/app-screens/fleetbar-native-shell-light.png)
+![FleetBar native shell with the local control plane](/img/app-screens/fleetbar-native-shell-light.webp)
 
 The useful native surface is not "spawn agent." It is:
 

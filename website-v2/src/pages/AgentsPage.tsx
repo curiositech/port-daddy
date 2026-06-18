@@ -223,7 +223,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'every 10 min',
     work: 'Reports clean or dirty git status so the rest of the fleet knows the ground truth.',
     runtime: 'custom shell',
-    image: '/img/agents/health-monitor.png',
+    image: '/img/agents/health-monitor.webp',
     magic: 'It turns "is the repo clean?" into a shared signal instead of a repeated question.',
     icon: GitBranch,
   },
@@ -233,7 +233,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'git:committed',
     work: 'Reviews the commit and hunts for real bugs, weak tests, missing negative paths, and coverage theater.',
     runtime: 'Ollama',
-    image: '/img/agents/qa.png',
+    image: '/img/agents/qa.webp',
     magic: 'It reacts to commits, but it also knows when to back off through cooldown and singleton rules.',
     icon: CheckCircle2,
   },
@@ -243,7 +243,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'git:committed',
     work: 'Adds meaningful tests for low-coverage paths and proves they fail against no-op code.',
     runtime: 'Codex mini',
-    image: '/img/agents/session-reaper.png',
+    image: '/img/agents/session-reaper.webp',
     magic: 'It treats tests as product evidence, not percentage theater.',
     icon: FileCheck2,
   },
@@ -253,7 +253,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'promotion gate',
     work: 'Syncs README, docs, SDK, OpenAPI, website, and the Port Daddy skill after a candidate is release-ready.',
     runtime: 'Ollama',
-    image: '/img/agents/documentarian.png',
+    image: '/img/agents/documentarian.webp',
     magic: 'It wakes at the release moment, when docs drift is easiest to catch.',
     icon: FileText,
   },
@@ -263,7 +263,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'git:committed',
     work: 'Removes needless complexity without changing behavior, then verifies the patch.',
     runtime: 'Codex mini',
-    image: '/img/agents/dep-watcher.png',
+    image: '/img/agents/dep-watcher.webp',
     magic: 'It keeps the repo from accumulating cleverness after every feature lands.',
     icon: Wrench,
   },
@@ -273,7 +273,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'every 30 min',
     work: 'Updates roadmap state, harvests dogfood feedback, and marks what is built, blocked, or drifting.',
     runtime: 'Codex mini',
-    image: '/img/agents/cartographer.png',
+    image: '/img/agents/cartographer.webp',
     magic: 'It keeps the map honest even when several agents are shipping in parallel.',
     icon: Compass,
   },
@@ -283,7 +283,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'every 30 min',
     work: 'Proposes one concrete improvement only after deduping against the idea trove.',
     runtime: 'Ollama',
-    image: '/img/agents/spark.png',
+    image: '/img/agents/spark.webp',
     magic: 'It makes ideation durable enough to dedupe instead of becoming chat exhaust.',
     icon: Sparkles,
   },
@@ -293,7 +293,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'spark:idea + 2h',
     work: 'Finds non-obvious connections between existing features and emits scoped implementation sketches.',
     runtime: 'Ollama',
-    image: '/img/agents/spider.png',
+    image: '/img/agents/spider.webp',
     magic: 'It combines existing primitives into new capabilities instead of inventing from blank paper.',
     icon: Lightbulb,
   },
@@ -407,28 +407,28 @@ pd pub secure:message '{"to":"qa","topic":"review-ready"}'`,
 ]
 
 const FLOW_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/fleet-flow-light.png',
-  dark: '/img/app-screens/fleet-flow.png',
+  light: '/img/app-screens/fleet-flow-light.webp',
+  dark: '/img/app-screens/fleet-flow.webp',
 }
 
 const RESOURCES_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/resources-light.png',
-  dark: '/img/app-screens/resources.png',
+  light: '/img/app-screens/resources-light.webp',
+  dark: '/img/app-screens/resources.webp',
 }
 
 const FLEETBAR_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/fleetbar-native-shell-light.png',
-  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+  light: '/img/app-screens/fleetbar-native-shell-light.webp',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
 }
 
 const SHIPWRIGHT_CONTROL_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/shipwright-control-light.png',
-  dark: '/img/app-screens/shipwright-control-dark.png',
+  light: '/img/app-screens/shipwright-control-light.webp',
+  dark: '/img/app-screens/shipwright-control-dark.webp',
 }
 
 const SORTIES_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/sorties-light.png',
-  dark: '/img/app-screens/sorties-dark.png',
+  light: '/img/app-screens/sorties-light.webp',
+  dark: '/img/app-screens/sorties-dark.webp',
 }
 
 const AGENT_SECTIONS: AgentSection[] = [

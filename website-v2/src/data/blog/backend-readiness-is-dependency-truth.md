@@ -34,7 +34,7 @@ Port Daddy's backend readiness model should be multi-dimensional:
 | Telemetry | launch path returns exact usage | backend returns text only |
 | Policy | repo allows this kind of launch | daily budget exhausted |
 
-![Resources screen showing readiness and launch context](/img/app-screens/resources-light.png)
+![Resources screen showing readiness and launch context](/img/app-screens/resources-light.webp)
 
 This is not paperwork. It prevents three common classes of failed launch: missing runtime dependency, silent spend ambiguity, and wrong-model execution.
 
@@ -107,7 +107,7 @@ $ pd fleet models --json
 
 The UI should not translate that into a vague red dot. It should show the failed check and the fix.
 
-![Live resources panel showing backend state](/media/landing-live-glory/live-resources-light.png)
+![Live resources panel showing backend state](/media/landing-live-glory/live-resources-light.webp)
 
 ## Readiness Belongs To The Daemon Runtime
 

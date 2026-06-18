@@ -65,7 +65,7 @@ export default function CliBackendPage() {
       <PageContainer width="wide">
         <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
           <img
-            src="/img/generated/cli-backend-hero.png"
+            src="/img/generated/cli-backend-hero.webp"
             alt="Blueprint diagram of a single AI subscription card distributing cobalt-blue pipelines down to seven small sailing ships, each labeled with a fleet agent name: gardener, qa, spider, tenderfoot, cartographer, spark, augur."
             className="block w-full"
             loading="lazy"
@@ -115,7 +115,7 @@ export default function CliBackendPage() {
             <SwissGridItem span="wide" className="space-y-[var(--space-5)]">
               <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
                 <img
-                  src="/img/generated/cli-backend-howitworks.png"
+                  src="/img/generated/cli-backend-howitworks.webp"
                   alt="Cutaway blueprint of a labeled pd-tube pipe with a claude-code CLI process running inside it; the spawner connects to it on the left, the reply emits on the right."
                   className="block w-full"
                   loading="lazy"
@@ -257,7 +257,7 @@ export default function CliBackendPage() {
 
           <figure className="mt-[var(--space-6)] overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
             <img
-              src="/img/generated/cli-backend-math.png"
+              src="/img/generated/cli-backend-math.webp"
               alt="Blueprint-style bar chart comparing effective per-spawn cost across CLI subscription (smallest bar), Cloudflare Workers AI (medium), and Anthropic API direct (largest)."
               className="block w-full"
               loading="lazy"

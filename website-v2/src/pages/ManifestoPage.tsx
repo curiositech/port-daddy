@@ -21,8 +21,8 @@ import { findWhitePaperById } from '@/data/whitePapers'
 
 // Figures that should float so prose wraps around them, and the side they go on.
 const WRAP_FIGURES: Record<string, 'right' | 'left'> = {
-  '/img/manifesto/collision.png': 'right',
-  '/img/manifesto/legibility-zoom.png': 'left',
+  '/img/manifesto/collision.webp': 'right',
+  '/img/manifesto/legibility-zoom.webp': 'left',
 }
 
 interface MarkdownCodeElementProps {

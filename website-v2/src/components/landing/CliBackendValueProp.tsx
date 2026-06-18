@@ -77,7 +77,7 @@ export function CliBackendValueProp() {
 
           <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
             <img
-              src="/img/generated/cli-backend-hero.png"
+              src="/img/generated/cli-backend-hero.webp"
               alt="Blueprint illustration of a single AI subscription card distributing pipelines to a fleet of small sailing ships, each labeled with a Port Daddy fleet agent name."
               className="block h-full w-full object-cover"
               loading="lazy"

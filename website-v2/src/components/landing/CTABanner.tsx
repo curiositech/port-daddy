@@ -104,9 +104,9 @@ export function CTABanner() {
               <PanelEyebrow>What you see in FleetBar</PanelEyebrow>
             </div>
             <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-              <source srcSet="/img/app-screens/fleetbar-native-shell-dark.png" media="(prefers-color-scheme: dark)" />
+              <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
               <img
-                src="/img/app-screens/fleetbar-native-shell-light.png"
+                src="/img/app-screens/fleetbar-native-shell-light.webp"
                 alt="FleetBar macOS shell showing the Fleet Control Center"
                 className="aspect-[4/3] w-full object-cover object-left-top"
                 loading="lazy"

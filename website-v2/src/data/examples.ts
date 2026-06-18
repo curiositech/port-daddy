@@ -136,7 +136,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     visual: EXAMPLE_VISUALS['pd-tube-button-to-agent'],
     uiScreenshots: [
       {
-        src: '/img/examples/pd-tube-button-to-agent-ui.png',
+        src: '/img/examples/pd-tube-button-to-agent-ui.webp',
         alt: 'Screenshot of the PD Tube button-to-agent HTML demo with daemon URL, three action buttons, and the waiting tube command.',
         title: 'The local button publisher.',
         caption:
@@ -329,7 +329,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     visual: EXAMPLE_VISUALS['editor-lightbulb-to-agent'],
     uiScreenshots: [
       {
-        src: '/img/examples/editor-lightbulb-to-agent-ui.png',
+        src: '/img/examples/editor-lightbulb-to-agent-ui.webp',
         alt: 'Screenshot of the editor lightbulb HTML demo with daemon URL, file path, range, selected code, and an ask-agent button.',
         title: 'The extension-shaped publisher.',
         caption:

@@ -133,7 +133,7 @@ $ pd tube ui:clicks --reply "Deployed to staging."`}
               <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
                   <img
-                    src="/img/generated/tube-multiplex/multiscreen-fanout.png"
+                    src="/img/generated/tube-multiplex/multiscreen-fanout.webp"
                     alt="Blueprint diagram: one POST to /msg/standup:demo fans out to three tiled console screens, each running pd tube on a distinct --as name (alice, bob, carol), while a FleetBar menu-bar panel shows the channel with 3 listeners."
                     className="block w-full"
                     loading="lazy"

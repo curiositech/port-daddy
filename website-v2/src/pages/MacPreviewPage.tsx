@@ -61,9 +61,9 @@ export function MacPreviewPage() {
                     </PanelBody>
                   </div>
                   <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.png" media="(prefers-color-scheme: dark)" />
+                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
                     <img
-                      src="/img/app-screens/fleetbar-native-shell-light.png"
+                      src="/img/app-screens/fleetbar-native-shell-light.webp"
                       alt="FleetBar native Mac window showing the Fleet Control Center"
                       className="aspect-[16/10] w-full object-cover"
                       loading="eager"

@@ -6,7 +6,7 @@ Agent-assisted work adds more surfaces. Now there are background runs, handoffs,
 
 Port Daddy's map work is about one thing: make the current state legible enough that the next human or agent can act without archaeology.
 
-![Roadmap and recovery projection in the control plane](/media/landing-live-glory/live-roadmap-light.png)
+![Roadmap and recovery projection in the control plane](/media/landing-live-glory/live-roadmap-light.webp)
 
 ## Why Roadmaps Drift
 
@@ -43,7 +43,7 @@ flowchart LR
 
 A useful map is not a perfect database. It is a current-enough explanation of where work stands and why.
 
-![Flow graph view showing connected work state](/media/landing-live-glory/live-flow-graph-light.png)
+![Flow graph view showing connected work state](/media/landing-live-glory/live-flow-graph-light.webp)
 
 ## How The Projection Gets Built
 
