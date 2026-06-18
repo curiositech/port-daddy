@@ -14,15 +14,18 @@ import {
   Database,
   FileCheck2,
   FileLock2,
+  FilePlus2,
   FileText,
   GitBranch,
   Hammer,
   Lightbulb,
   Map,
   Route,
+  ScanSearch,
   ShieldCheck,
   Sparkles,
   Terminal,
+  UserPlus,
   Wallet,
   Wrench,
   type LucideIcon,
@@ -220,82 +223,142 @@ const FLEET_AGENTS: FleetAgent[] = [
   {
     name: 'gardener',
     roleKey: 'gardener',
-    wakes: 'every 10 min',
-    work: 'Reports clean or dirty git status so the rest of the fleet knows the ground truth.',
-    runtime: 'custom shell',
+    wakes: 'git:committed',
+    work: 'After every commit, audits the worktree for anything that looks abandoned, suspicious, or committed by accident, and opens a GitHub issue when it finds something real.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen3',
     image: '/img/agents/health-monitor.webp',
-    magic: 'It turns "is the repo clean?" into a shared signal instead of a repeated question.',
+    magic: 'It keeps the worktree\'s cleanliness visible to you, so a cold open of the repo never hides a stray binary or stale stash.',
     icon: GitBranch,
   },
   {
     name: 'qa',
     roleKey: 'qa',
-    wakes: 'git:committed',
-    work: 'Reviews the commit and hunts for real bugs, weak tests, missing negative paths, and coverage theater.',
-    runtime: 'Ollama',
+    wakes: 'pull_request:opened',
+    work: 'Reads every changed file in the PR, names the inputs that would break each change, and audits the tests for tautologies, mock echoes, and missing failure paths.',
+    runtime: 'cli:claude-code, then codex, then OpenAI gpt-5-mini',
     image: '/img/agents/qa.webp',
-    magic: 'It reacts to commits, but it also knows when to back off through cooldown and singleton rules.',
+    magic: 'It exists to find the bug the PR would otherwise merge, and stays silent when there isn\'t one.',
     icon: CheckCircle2,
   },
   {
     name: 'test-hunter',
     roleKey: 'test-hunter',
     wakes: 'git:committed',
-    work: 'Adds meaningful tests for low-coverage paths and proves they fail against no-op code.',
-    runtime: 'Codex mini',
+    work: 'Runs the suite with coverage and opens a coverage-gap issue for each touched module that left a real branch untested. It does not write the tests itself.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen-coder',
     image: '/img/agents/session-reaper.webp',
-    magic: 'It treats tests as product evidence, not percentage theater.',
+    magic: 'It turns coverage gaps into specific, deduped GitHub issues instead of a guilt-inducing percentage.',
     icon: FileCheck2,
   },
   {
     name: 'documentarian',
     roleKey: 'documentarian',
-    wakes: 'promotion gate',
-    work: 'Syncs README, docs, SDK, OpenAPI, website, and the Port Daddy skill after a candidate is release-ready.',
-    runtime: 'Ollama',
+    wakes: 'promotion:release-surfaces',
+    work: 'When a build passes the test gate, it checks every release surface, README, docs, SDK, OpenAPI, website, and the Port Daddy skill, against the code and opens a draft PR for the drift it can fix.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen-coder',
     image: '/img/agents/documentarian.webp',
-    magic: 'It wakes at the release moment, when docs drift is easiest to catch.',
+    magic: 'It wakes at the release moment, the one time docs drift is both easiest to spot and most expensive to miss, and keeps every surface honest against runtime truth.',
     icon: FileText,
   },
   {
     name: 'simplifier',
     roleKey: 'simplifier',
-    wakes: 'git:committed',
-    work: 'Removes needless complexity without changing behavior, then verifies the patch.',
-    runtime: 'Codex mini',
+    wakes: 'git:committed (paused)',
+    work: 'Reviews recent changes for needless complexity and proposes a behavior-preserving cleanup as a draft PR. Paused until you ask for a pass on a specific surface.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen-coder',
     image: '/img/agents/dep-watcher.webp',
-    magic: 'It keeps the repo from accumulating cleverness after every feature lands.',
+    magic: 'It removes complexity without changing behavior, but stays off by default because without a scope it just reads the whole tree and burns tokens.',
     icon: Wrench,
   },
   {
     name: 'cartographer',
     roleKey: 'cartographer',
     wakes: 'every 30 min',
-    work: 'Updates roadmap state, harvests dogfood feedback, and marks what is built, blocked, or drifting.',
-    runtime: 'Codex mini',
+    work: 'Reads the roadmap, recovery docs, dogfood feedback, and recent commits, then updates what is built, blocked, or drifting and writes a snapshot to a side branch.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen3',
     image: '/img/agents/cartographer.webp',
-    magic: 'It keeps the map honest even when several agents are shipping in parallel.',
+    magic: 'It keeps the roadmap, the recovery queue, and the live work map aligned even when several agents are shipping at once, and it never rewrites your roadmap\'s voice.',
     icon: Compass,
   },
   {
     name: 'spark',
     roleKey: 'spark',
-    wakes: 'every 30 min',
-    work: 'Proposes one concrete improvement only after deduping against the idea trove.',
-    runtime: 'Ollama',
+    wakes: 'git:committed (paused)',
+    work: 'Proposes one novel, buildable improvement with traceable lineage, deduped against the idea trove. Paused while execution, not ideation, is the bottleneck.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare kimi-k2',
     image: '/img/agents/spark.webp',
-    magic: 'It makes ideation durable enough to dedupe instead of becoming chat exhaust.',
+    magic: 'It makes ideas durable enough to dedupe instead of evaporating into chat, and it is the one ship that writes to files for other agents rather than to GitHub.',
     icon: Sparkles,
   },
   {
     name: 'spider',
     roleKey: 'spider',
-    wakes: 'spark:idea + 2h',
-    work: 'Finds non-obvious connections between existing features and emits scoped implementation sketches.',
-    runtime: 'Ollama',
+    wakes: 'spark:idea, every 2h',
+    work: 'Reads the manifest, roadmap, code headers, and recent ideas, then writes one to three syllogisms connecting features no one has noticed belong together.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen3',
     image: '/img/agents/spider.webp',
-    magic: 'It combines existing primitives into new capabilities instead of inventing from blank paper.',
+    magic: 'It finds surprising feature connections without inventing novelty, feeding the cartographer instead of the operator.',
     icon: Lightbulb,
+  },
+  {
+    name: 'code-reviewer',
+    roleKey: 'code-reviewer',
+    wakes: 'pull_request:opened',
+    image: '/img/agents/code-reviewer.webp',
+    work: 'Reads the PR diff against your stated priors and the ADRs governing the changed files, then posts one severity-ranked comment, editing it in place on re-review.',
+    runtime: 'cli:claude-code, then codex, then anthropic haiku (soft), OpenAI gpt-5-mini, or Cloudflare qwen-coder',
+    magic: 'It catches the bugs the diff would otherwise ship and cites the ADR or line that proves it, and "looks good" is silence, not a comment.',
+    icon: Code2,
+  },
+  {
+    name: 'red-team',
+    roleKey: 'red-team',
+    wakes: 'pull_request:opened',
+    image: '/img/agents/red-team.webp',
+    work: 'On PRs that touch auth, capabilities, secrets, bonds, or crypto, it constructs real attacks: capability escalation, replay, race, cost overrun, auth bypass.',
+    runtime: 'cli:claude-code, then codex, then anthropic sonnet (soft), OpenAI gpt-5, or Cloudflare qwen3',
+    magic: 'It tries to break the diff and comments only when an attack actually lands. Silence means it could not.',
+    icon: ShieldCheck,
+  },
+  {
+    name: 'test-author',
+    roleKey: 'test-author',
+    wakes: 'pull_request:opened',
+    image: '/img/agents/test-author.webp',
+    work: 'When test-hunter has flagged a gap for this PR, it writes real tests in a worktree, runs them green, and opens a draft sibling PR linked back to the original.',
+    runtime: 'cli:claude-code, then codex, then anthropic haiku (soft), OpenAI gpt-5-mini, or Cloudflare qwen-coder',
+    magic: 'It authors tests for coverage gaps as draft siblings you can accept or reject, never tautologies, because the tautology-sniffer would catch those.',
+    icon: FilePlus2,
+  },
+  {
+    name: 'tautology-sniffer',
+    roleKey: 'tautology-sniffer',
+    wakes: 'pull_request:opened',
+    image: '/img/agents/tautology-sniffer.webp',
+    work: 'On PRs that touch test files, it scores each test on a tautology axis, mocks everything, asserts the mock\'s own return, no fixture anchor, and flags the worst with rewrites.',
+    runtime: 'cli:claude-code, then codex, then OpenAI gpt-5-mini, or Cloudflare qwen-coder',
+    magic: 'It surfaces tests that pin the implementation to its own assumptions, the kind that pass no matter how broken the code is.',
+    icon: ScanSearch,
+  },
+  {
+    name: 'tenderfoot',
+    roleKey: 'tenderfoot',
+    wakes: 'pull_request:merged, Mondays 8am',
+    image: '/img/agents/tenderfoot.webp',
+    work: 'Walks the repo as a brand-new developer: reads the README, follows every code example, compares manifest claims to the binary, and files an issue wherever the docs lie.',
+    runtime: 'cli:claude-code, then codex, then anthropic haiku (soft), OpenAI gpt-5-mini, or Cloudflare qwen3',
+    magic: 'It catches drift between what we tell new operators and what the binary actually does, and dedupes hard so it does not refile the same gripe every Monday.',
+    icon: BookOpen,
+  },
+  {
+    name: 'developer-onboarding-sentinel',
+    roleKey: 'developer-onboarding-sentinel',
+    wakes: 'schedule: daily',
+    image: '/img/agents/onboarding-sentinel.webp',
+    work: 'Once a day it adopts a different developer persona and OS, then tries to install and use Port Daddy from scratch on a real public repo, filing issues for every install failure.',
+    runtime: 'cli:claude-code, then codex, then Cloudflare qwen3',
+    magic: 'It owns one question, can any developer on any machine install Port Daddy in under five minutes, and rotates personas so the answer stays honest beyond the author\'s laptop.',
+    icon: UserPlus,
   },
 ]
 
@@ -1431,9 +1494,10 @@ function AgentHero() {
                 hidden behind a button.
               </PanelBody>
               <PanelBody className="max-w-[40rem]">
-                The cards below are real agents from Port Daddy's own fleet. Every one says when it
-                wakes, which model runs it, how much it can spend, and what it leaves behind if it
-                crashes. None of it happens silently.
+                The cards below are the agents in Port Daddy's own pd-fleet.yml right now. Every one
+                says when it wakes, which backend it prefers, and what it does when it finds
+                something, usually a GitHub issue or an edited-in-place PR comment, never a silent
+                change. Most of them sit quiet until a commit lands or a pull request opens.
               </PanelBody>
               <PanelBody className="max-w-[40rem]">
                 Start with Flow to see everything at once. Reach for Coordination Guard when a
@@ -1533,9 +1597,11 @@ function AgentGrid() {
               Click an agent to read its YAML.
             </PanelTitle>
             <PanelBody>
-              These are examples, not a checklist. A new repo might want qa and documentarian but
-              skip spark, spider, and cartographer. Shipwright, the helper that picks agents for a
-              new repo, sorts that out for you.
+              This is Port Daddy's own fleet, not a checklist for yours. The review ships,
+              code-reviewer, red-team, qa, test-author, and tautology-sniffer, wake on pull requests;
+              gardener and test-hunter wake on commits; cartographer and the onboarding sentinel run
+              on a clock. A new repo rarely wants all of them on day one. Shipwright, the helper that
+              picks agents for a new repo, sorts that out for you.
             </PanelBody>
           </SwissGridItem>
           <SwissGridItem span="body">

@@ -116,6 +116,42 @@ const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
     short: 'Finds connections between features.',
     detail: 'Combines existing capabilities into new scoped implementation ideas, with provenance.',
   },
+  'code-reviewer': {
+    name: 'Code Reviewer',
+    category: 'Fleet template',
+    short: 'Reviews PR diffs against priors and ADRs.',
+    detail: 'Reads the diff, your operator priors, and the governing ADRs, then posts one severity-ranked comment, edited in place. "Looks good" is silence.',
+  },
+  'red-team': {
+    name: 'Red Team',
+    category: 'Fleet template',
+    short: 'Attacks security-sensitive diffs.',
+    detail: 'Fires only on diffs touching auth, capabilities, secrets, bonds, or crypto. Constructs real attacks and comments only when one lands.',
+  },
+  'test-author': {
+    name: 'Test Author',
+    category: 'Fleet template',
+    short: 'Writes tests for flagged coverage gaps.',
+    detail: 'When test-hunter flags a gap for a PR, it writes real tests in a worktree, runs them green, and opens a draft sibling PR. Never tautologies.',
+  },
+  'tautology-sniffer': {
+    name: 'Tautology Sniffer',
+    category: 'Fleet template',
+    short: 'Catches tests that prove nothing.',
+    detail: 'Scores tests on a tautology axis and flags the ones that pin the implementation to its own assumptions, the kind that pass no matter how broken the code is.',
+  },
+  tenderfoot: {
+    name: 'Tenderfoot',
+    category: 'Fleet template',
+    short: 'Reads the repo as a first-time developer.',
+    detail: 'Follows the README and examples as a brand-new dev, then files an issue wherever the docs lie or the binary contradicts them. Dedupes hard.',
+  },
+  'developer-onboarding-sentinel': {
+    name: 'Developer Onboarding Sentinel',
+    category: 'Fleet watcher',
+    short: 'Tests install realism daily.',
+    detail: 'Rotates through developer personas and operating systems, tries to install Port Daddy from scratch on real public repos, and files issues for every failure.',
+  },
   sortie: {
     name: 'Sortie',
     category: 'One-off mission',
