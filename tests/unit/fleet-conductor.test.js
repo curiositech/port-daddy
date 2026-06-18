@@ -280,6 +280,72 @@ describe('I3 DEPTH_CAPPED (Conductor-stamped, unforgeable)', () => {
     expect(d1.launch.depth).toBe(1);
     expect(d1.launch.rootId).toBe(root.launch.id);
   });
+
+  // ── Attack 2 / white-hat HIGH #2: parentId/rootId forgery ──────────────────
+  describe('lineage binding: an agent cannot mint a root (re-parent spoof closed)', () => {
+    test("ALLOWS: source:'operator' mints a fresh root (depth 0, fresh rootId)", async () => {
+      const { conductor } = makeConductor();
+      const root = await conductor.launch({ ...ROOT_INTENT, lineageCeilingUsd: 100 });
+      expect(root.admitted).toBe(true);
+      expect(root.launch.depth).toBe(0);
+      expect(root.launch.parentId).toBe('operator');
+      expect(root.launch.rootId).toBe(root.launch.id);
+    });
+
+    test("REFUSES: source:'agent' with parentId:'operator' (forged root) is rejected", async () => {
+      const { conductor, spawner } = makeConductor({ maxDepth: 3 });
+      // An agent already at some depth tries to RESET to depth 0 by claiming the
+      // operator as its parent — the classic re-parenting spoof that would escape
+      // the depth cap, the lineage budget, and capability narrowing all at once.
+      const before = spawner.spawn.mock.calls.length;
+      const forged = await conductor.launch({
+        goal: 'forged-root', backend: 'claude', source: 'agent',
+        parentId: 'operator', capabilities: ['*'], lineageCeilingUsd: 999999,
+      });
+      expect(forged.admitted).toBe(false);
+      expect(forged.refusedReason).toMatch(/LINEAGE_BINDING|may not mint a root/);
+      expect(spawner.spawn.mock.calls.length).toBe(before); // never spawned
+    });
+
+    test("REFUSES: source:'agent' with NO parentId (defaults to operator) is rejected", async () => {
+      const { conductor } = makeConductor();
+      const forged = await conductor.launch({
+        goal: 'orphan-agent', backend: 'claude', source: 'agent',
+        // no parentId at all — would have minted a root under the old code
+        capabilities: ['*'], lineageCeilingUsd: 999999,
+      });
+      expect(forged.admitted).toBe(false);
+      expect(forged.refusedReason).toMatch(/LINEAGE_BINDING|may not mint a root/);
+    });
+
+    test("REFUSES: source:'agent' naming a bogus (non-existent) parent is rejected", async () => {
+      const { conductor } = makeConductor();
+      const forged = await conductor.launch({
+        goal: 'bogus-parent', backend: 'claude', source: 'agent',
+        parentId: 'no-such-launch', capabilities: ['read'],
+      });
+      expect(forged.admitted).toBe(false);
+      expect(forged.refusedReason).toMatch(/not found/);
+    });
+
+    test('an agent child cannot widen the lineage ceiling via a supplied lineageCeilingUsd', async () => {
+      const { conductor, breaker } = makeConductor();
+      const root = await conductor.launch({ ...ROOT_INTENT, bondUsd: 1, lineageCeilingUsd: 5 });
+      // The agent tries to claim a $1000 lineage ceiling — but the child inherits
+      // the root's $5 cap; its own field is ignored.
+      const child = await conductor.launch({
+        goal: 'greedy', backend: 'claude', source: 'agent', parentId: root.launch.id,
+        bondUsd: 1, lineageCeilingUsd: 1000,
+      });
+      expect(child.admitted).toBe(true);
+      expect(child.launch.lineageCeilingUsd).toBe(5); // inherited, NOT 1000
+      // The $5 cap is registered on the breaker scope and still binds the subtree:
+      // an over-$5 reserve is refused (would be ALLOWED if the agent's $1000 had
+      // widened the cap or made it unbounded).
+      const scope = `root:${root.launch.id}`;
+      expect(breaker.reserve(scope, 6)).toBe(false); // 6 > 5 → refused
+    });
+  });
 });
 
 // ─── I4 — LINEAGE_BUDGET_CONSERVED (incl. concurrent TOCTOU at the Conductor) ──
@@ -323,6 +389,22 @@ describe('I4 LINEAGE_BUDGET_CONSERVED', () => {
     const child = await conductor.launch({ goal: 'c', backend: 'claude', source: 'agent', parentId: root.launch.id, bondUsd: 1 });
     // Child did not supply lineageCeilingUsd; it inherits the root's $5.
     expect(child.launch.lineageCeilingUsd).toBe(5);
+  });
+
+  // ── readCost floor: a launch that reports NO cost still accrues its bond ─────
+  test('a settled launch with no telemetry charges its reserved bond to the budget (no $0 evasion)', async () => {
+    // Spawner returns completed but NO telemetry.costUsd. Under the old readCost,
+    // realizedUsd would be $0 forever and the budget breaker would never accrue —
+    // the runaway-evasion vector. The floor charges the reserved bond instead.
+    const { conductor, breaker } = makeConductor({ spawner: makeSpawner({ status: 'completed' /* no telemetry */ }) });
+    const root = await conductor.launch({ ...ROOT_INTENT, bondUsd: 4, mergePolicy: 'never', lineageCeilingUsd: 10 });
+    expect(root.admitted).toBe(true);
+    // The $4 bond was booked as realized cost on the scope even with no telemetry:
+    // scope realized is now $4, so only $6 of the $10 ceiling remains — a $7
+    // reserve is refused, a $6 reserve fits.
+    const scope = `root:${root.launch.id}`;
+    expect(breaker.reserve(scope, 7)).toBe(false); // 4 realized + 7 = 11 > 10
+    expect(root.launch.costUsd).toBe(4); // recorded on the row
   });
 });
 
@@ -392,6 +474,57 @@ describe('I6 CAPABILITY_SCOPED (capabilities only narrow downward)', () => {
     expect(child.refusedReason).toMatch(/CAPABILITY_SCOPED/);
     expect(child.refusedReason).toMatch(/write/);
     expect(spawner.spawn.mock.calls.length).toBe(before);
+  });
+
+  // ── Attack: capability DOWNGRADE escalation (white-hat HIGH #1) ─────────────
+  test('a child with capabilities:[] INHERITS the parent caps, not the full-tier default', async () => {
+    const { conductor, spawner } = makeConductor();
+    const root = await conductor.launch({ ...ROOT_INTENT, capabilities: ['read'], lineageCeilingUsd: 100 });
+    const child = await conductor.launch({
+      goal: 'empty-caps',
+      backend: 'claude',
+      source: 'agent',
+      parentId: root.launch.id,
+      capabilities: [], // EMPTY — must inherit ['read'], not silently widen to full
+    });
+    expect(child.admitted).toBe(true);
+    // Stamped caps = parent caps, NOT [].
+    expect(child.launch.capabilities).toEqual(['read']);
+    // And the spawn spec FORWARDS the inherited caps (so the spawner cannot
+    // default an unset cap set to the full tier).
+    const spec = spawner.spawn.mock.calls[spawner.spawn.mock.calls.length - 1][0];
+    expect(spec.capabilities).toEqual(['read']);
+  });
+
+  test('a child with absent capabilities (undefined) also inherits the parent caps', async () => {
+    const { conductor, spawner } = makeConductor();
+    const root = await conductor.launch({ ...ROOT_INTENT, capabilities: ['read', 'net'], lineageCeilingUsd: 100 });
+    const child = await conductor.launch({
+      goal: 'absent-caps', backend: 'claude', source: 'agent', parentId: root.launch.id,
+      // no capabilities field at all
+    });
+    expect(child.admitted).toBe(true);
+    expect(child.launch.capabilities).toEqual(['read', 'net']);
+    const spec = spawner.spawn.mock.calls[spawner.spawn.mock.calls.length - 1][0];
+    expect(spec.capabilities).toEqual(['read', 'net']);
+  });
+
+  test('rootCapabilityCeiling bounds a root’s declared caps (over-ceiling caps dropped)', async () => {
+    // Build a conductor with an operator root-cap ceiling: only read/write permitted.
+    const Database = (await import('better-sqlite3')).default;
+    const { createConductor } = await import('../../lib/fleet/conductor.js');
+    const db = new Database(':memory:');
+    const spawner = makeSpawner();
+    const conductorCeiled = createConductor({
+      db, spawner, isMainCheckout: () => false,
+      rootCapabilityCeiling: ['read', 'write'],
+    });
+    const root = await conductorCeiled.launch({
+      ...ROOT_INTENT, capabilities: ['read', 'write', '*'], lineageCeilingUsd: 100,
+    });
+    expect(root.admitted).toBe(true);
+    // '*' (full-tier amplifier) is dropped — only the ceiling-permitted caps remain.
+    expect(root.launch.capabilities).toEqual(['read', 'write']);
   });
 });
 
