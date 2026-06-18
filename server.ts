@@ -559,6 +559,29 @@ spawnerRef = spawner;
 // a single chokepoint owning the bond/lineage/breaker/halt envelope. The
 // conductor rebuilds the byte-identical spawn spec (golden-tested), so behavior
 // at the spawner boundary is unchanged.
+// Fleet cost-safety config (ADR-0060). These ARM the conductor's budget gates on
+// the LIVE sortie/orchestrator paths. Without them the breaker governs nothing:
+// no global ceiling, no per-launch reservation → I4/I5 admit everything. All are
+// env-overridable; the defaults are deliberately conservative so the daemon is
+// "safe to walk away" out of the box.
+function parsePositiveFloat(raw: string | undefined, fallback: number): number {
+  const n = raw != null ? Number.parseFloat(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const n = raw != null ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+// $0 / 'off' / 'none' / 'unbounded' disables the global ceiling (explicit opt-out).
+const _rawGlobalCeiling = process.env.PD_FLEET_GLOBAL_CEILING_USD?.trim().toLowerCase();
+const FLEET_GLOBAL_CEILING_USD: number | null =
+  _rawGlobalCeiling === 'off' || _rawGlobalCeiling === 'none' || _rawGlobalCeiling === 'unbounded' || _rawGlobalCeiling === '0'
+    ? null
+    : parsePositiveFloat(process.env.PD_FLEET_GLOBAL_CEILING_USD, 25);
+const FLEET_LINEAGE_CEILING_USD = parsePositiveFloat(process.env.PD_FLEET_LINEAGE_CEILING_USD, 5);
+const FLEET_DEFAULT_BOND_USD = parsePositiveFloat(process.env.PD_FLEET_DEFAULT_BOND_USD, 0.01);
+const FLEET_MAX_DEPTH = parsePositiveInt(process.env.PD_FLEET_MAX_DEPTH, 3);
+
 const conductor = createConductor({
   db,
   // The real Spawner / bonds satisfy the Conductor's minimal duck-typed
@@ -569,7 +592,21 @@ const conductor = createConductor({
   spawner: spawner as unknown as Parameters<typeof createConductor>[0]['spawner'],
   bonds: bonds as unknown as Parameters<typeof createConductor>[0]['bonds'],
   broadcast: (channel: string, event: unknown) => messaging.publish(channel, event),
+  maxDepth: FLEET_MAX_DEPTH,
+  // ARM I4 on the live paths: every root launch without its own ceiling gets this
+  // per-subtree cap, and every launch without a bond reserves this floor — so the
+  // breaker actually accrues committed spend instead of reserving $0.
+  defaultLineageCeilingUsd: FLEET_LINEAGE_CEILING_USD,
+  defaultBondUsd: FLEET_DEFAULT_BOND_USD,
 });
+// ARM I5: register the GLOBAL ceiling so aggregate fleet spend is bounded. Without
+// this the global breaker has a null ceiling = unbounded and never trips.
+conductor.setGlobalCeiling(FLEET_GLOBAL_CEILING_USD);
+if (FLEET_GLOBAL_CEILING_USD == null) {
+  console.error('[Conductor] WARNING: PD_FLEET_GLOBAL_CEILING_USD disabled — aggregate fleet spend is UNBOUNDED.');
+} else {
+  console.error(`[Conductor] Fleet cost gates ARMED: global=$${FLEET_GLOBAL_CEILING_USD}, lineage=$${FLEET_LINEAGE_CEILING_USD}, bond floor=$${FLEET_DEFAULT_BOND_USD}, maxDepth=${FLEET_MAX_DEPTH}.`);
+}
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {

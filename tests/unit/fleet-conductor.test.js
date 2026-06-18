@@ -110,6 +110,9 @@ function makeConductor(over = {}) {
     // Default: nothing is a main checkout unless a test injects otherwise.
     isMainCheckout: over.isMainCheckout ?? (() => false),
     mintWorktree: over.mintWorktree,
+    rootCapabilityCeiling: over.rootCapabilityCeiling,
+    defaultLineageCeilingUsd: over.defaultLineageCeilingUsd,
+    defaultBondUsd: over.defaultBondUsd,
   });
   return { db, spawner, breaker, broadcasts, conductor, advance: (ms) => (clock += ms) };
 }
@@ -807,5 +810,88 @@ describe('input validation', () => {
   test('launch without a backend throws', async () => {
     const { conductor } = makeConductor();
     await expect(conductor.launch({ goal: 'g', source: 'operator' })).rejects.toThrow(/backend/);
+  });
+});
+
+// ─── Cost-gate ARMING on the live path (red-team Attack 1 / PM gap #2) ────────
+//
+// These tests FAIL without the production arming: they prove that a conductor
+// configured the way server.ts configures it (global ceiling + default lineage
+// ceiling + default bond floor) actually RESERVES and bounds spend on a
+// live-shaped sortie/orchestrator launch that carries NO bondUsd and NO
+// lineageCeilingUsd — exactly the shape routes/sorties.ts + lib/orchestrator.ts
+// produce. Strip the arming and the breaker governs nothing.
+
+describe('cost gates ARMED on the live (no-bond) path', () => {
+  // A live sortie/orchestrator intent: no bondUsd, no lineageCeilingUsd.
+  const LIVE_SORTIE_INTENT = {
+    goal: 'review the PR',
+    task: 'review the PR',
+    backend: 'claude',
+    source: 'sortie',
+    worktree: 'inherit',
+    mergePolicy: 'never',
+  };
+
+  test('a server-armed conductor stamps the default lineage ceiling on a bondless sortie root', async () => {
+    const { conductor } = makeConductor({
+      defaultLineageCeilingUsd: 5,
+      defaultBondUsd: 0.01,
+    });
+    const res = await conductor.launch({ ...LIVE_SORTIE_INTENT });
+    expect(res.admitted).toBe(true);
+    // The root inherited the operator default ceiling even though the intent set none.
+    expect(res.launch.lineageCeilingUsd).toBe(5);
+    // The bond floor was reserved (booked as cost) — NOT $0.
+    expect(res.launch.bondUsd).toBe(0.01);
+  });
+
+  test('a bondless live launch RESERVES the bond floor against the lineage scope (not $0)', async () => {
+    const { spawner, releaseAll } = makePendingSpawner();
+    const { conductor, broadcasts, breaker } = makeConductor({
+      spawner,
+      defaultLineageCeilingUsd: 5,
+      defaultBondUsd: 1, // a visible floor for the assertion
+    });
+    const p = conductor.launch({ ...LIVE_SORTIE_INTENT });
+    await tick();
+    const rootId = lastAdmittedId(broadcasts);
+    const scope = `root:${rootId}`;
+    // $1 is held in-flight against the $5 lineage ceiling: only $4 more fits.
+    expect(breaker.reserve(scope, 4)).toBe(true);   // 1 + 4 = 5 exactly
+    breaker.release(scope, 4);
+    expect(breaker.reserve(scope, 4.5)).toBe(false); // 1 + 4.5 = 5.5 > 5 → refused
+    releaseAll();
+    await p.catch(() => {});
+  });
+
+  test('the GLOBAL breaker is armed and bounds aggregate spend across independent roots', async () => {
+    const { spawner, releaseAll } = makePendingSpawner();
+    const { conductor } = makeConductor({
+      spawner,
+      defaultLineageCeilingUsd: 100,
+      defaultBondUsd: 2,
+    });
+    conductor.setGlobalCeiling(3); // total fleet spend capped at $3
+    // First bondless root reserves $2 globally (in-flight, holds the reservation).
+    const aP = conductor.launch({ ...LIVE_SORTIE_INTENT, goal: 'a' });
+    await tick();
+    // Second bondless root would push global to $4 > $3 → refused by the GLOBAL gate.
+    const over = await conductor.launch({ ...LIVE_SORTIE_INTENT, goal: 'b', source: 'orchestrator' });
+    expect(over.admitted).toBe(false);
+    expect(over.refusedReason).toMatch(/GLOBAL_BREAKER|global budget/);
+    releaseAll();
+    await aP.catch(() => {});
+  });
+
+  test('WITHOUT arming (defaults $0), the legacy reserve-nothing behavior is preserved', async () => {
+    // Defensive: the unarmed conductor (no defaultBondUsd / ceiling) must still
+    // behave exactly as before — reserve nothing, unbounded. This guards against
+    // the arming changing the default (test-harness) path.
+    const { conductor } = makeConductor();
+    const res = await conductor.launch({ ...LIVE_SORTIE_INTENT });
+    expect(res.admitted).toBe(true);
+    expect(res.launch.lineageCeilingUsd).toBeNull(); // unbounded by default
+    expect(res.launch.bondUsd).toBeNull();           // reserve nothing by default
   });
 });
