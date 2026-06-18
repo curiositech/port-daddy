@@ -214,6 +214,16 @@ fn main() {
                                     .mutate(&client, SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
                                     .await;
                             }
+                            // Kick off a new top-level agent on the live daemon.
+                            app::ControlMsg::Spawn { backend, prompt } => {
+                                if let Some(b) = agent::Backend::parse(&backend) {
+                                    let _ = client.spawn(b, &prompt, "operator").await;
+                                }
+                            }
+                            // Send a turn to the cartographer over its tube channel.
+                            app::ControlMsg::Cartographer { text } => {
+                                let _ = client.tube_send("cartographer", &text, "operator").await;
+                            }
                         }
                     }
 

@@ -29,6 +29,35 @@ use std::sync::mpsc;
 pub enum ControlMsg {
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
+    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt.
+    Spawn { backend: String, prompt: String },
+    /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
+    Cartographer { text: String },
+}
+
+/// Which command line is open at the bottom of the console.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CmdKind {
+    /// Kick off a new job. Buffer is `[backend] <prompt>`.
+    Spawn,
+    /// Talk to the cartographer. Buffer is the message.
+    Cartographer,
+}
+
+impl CmdKind {
+    fn prompt(&self) -> &'static str {
+        match self {
+            CmdKind::Spawn => "spawn",
+            CmdKind::Cartographer => "cartographer",
+        }
+    }
+}
+
+/// An open command line: a prompt kind plus the text typed so far.
+#[derive(Debug, Clone)]
+pub struct CommandLine {
+    kind: CmdKind,
+    buffer: String,
 }
 
 // ── Nav items ────────────────────────────────────────────────────────────────
@@ -236,6 +265,10 @@ pub struct ConsoleView {
     /// multiplexer command (split / close / focus / swap-surface) rather than
     /// passing through. Disarms after one command. tmux muscle-memory.
     leader_armed: bool,
+    /// An open command line (kick-off-job / talk-to-cartographer). `Some` means
+    /// keystrokes type into the buffer instead of acting as commands; Enter
+    /// submits, Escape cancels.
+    command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
     /// Stable focus handle — created once and focused on open. Recreating it per
@@ -273,6 +306,7 @@ impl ConsoleView {
         Self {
             workspace: Self::default_workspace(initial_pane.as_deref()),
             leader_armed: false,
+            command: None,
             pane_blocks,
             daemon_url,
             focus_handle: cx.focus_handle(),
@@ -337,6 +371,9 @@ impl ConsoleView {
             // Resize the focused pane.
             "=" | "+" => { self.workspace.resize(0.15); }
             "_" => { self.workspace.resize(-0.15); }
+            // Open command lines.
+            "n" => self.command = Some(CommandLine { kind: CmdKind::Spawn, buffer: String::new() }),
+            "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
             // Any nav key swaps the focused pane's surface — "hop context".
             other => {
                 if let Some(item) = NAV.iter().find(|n| n.key == other) {
@@ -345,6 +382,64 @@ impl ConsoleView {
             }
         }
         cx.notify();
+    }
+
+    /// Feed one keystroke into the open command line. `key` is the gpui key name
+    /// (for enter/escape/backspace/space); `typed` is the actual character for
+    /// printable input (case-preserving via `keystroke.key_char`).
+    fn handle_command_key(&mut self, key: &str, typed: Option<&str>, cx: &mut Context<Self>) {
+        match key {
+            "enter" => {
+                if let Some(cmd) = self.command.take() {
+                    self.submit_command(cmd);
+                }
+            }
+            "escape" => self.command = None,
+            "backspace" => {
+                if let Some(cmd) = self.command.as_mut() {
+                    cmd.buffer.pop();
+                }
+            }
+            "space" => {
+                if let Some(cmd) = self.command.as_mut() {
+                    cmd.buffer.push(' ');
+                }
+            }
+            _ => {
+                // Only accept genuine printable characters; ignore bare modifiers,
+                // arrows, function keys, etc. (their key_char is None).
+                if let Some(ch) = typed {
+                    if let Some(cmd) = self.command.as_mut() {
+                        cmd.buffer.push_str(ch);
+                    }
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    /// Dispatch a submitted command to the background thread (which owns the
+    /// daemon client and performs the POST).
+    fn submit_command(&mut self, cmd: CommandLine) {
+        let text = cmd.buffer.trim().to_string();
+        if text.is_empty() {
+            return;
+        }
+        let Some(tx) = &self.control_tx else { return };
+        match cmd.kind {
+            CmdKind::Spawn => {
+                let (backend, prompt) = split_backend(&text);
+                let _ = tx.send(ControlMsg::Spawn {
+                    backend: backend.clone(),
+                    prompt,
+                });
+                self.control_flash = Some(format!("spawning a {backend} agent…"));
+            }
+            CmdKind::Cartographer => {
+                let _ = tx.send(ControlMsg::Cartographer { text });
+                self.control_flash = Some("sent to cartographer — watch the lane".into());
+            }
+        }
     }
 
     /// Push fresh data for all panes from the background refresh loop.
@@ -496,6 +591,21 @@ impl ConsoleView {
     }
 }
 
+/// Split a spawn command into `(backend, prompt)`. If the first whitespace
+/// token is a known backend it is consumed as the backend; otherwise the whole
+/// string is the prompt and the backend defaults to `claude-cli`.
+fn split_backend(text: &str) -> (String, String) {
+    const BACKENDS: &[&str] = &[
+        "ollama", "claude", "claude-cli", "gemini", "cloudflare", "codex", "aider", "custom",
+    ];
+    if let Some((first, rest)) = text.split_once(char::is_whitespace) {
+        if BACKENDS.contains(&first) && !rest.trim().is_empty() {
+            return (first.to_string(), rest.trim().to_string());
+        }
+    }
+    ("claude-cli".to_string(), text.to_string())
+}
+
 /// Map an existing nav id to the richest matching surface (semantic where one
 /// exists, generic `Panel` otherwise).
 fn surface_for_nav_id(nav: &str) -> SurfaceKind {
@@ -535,6 +645,8 @@ impl Render for ConsoleView {
         let daemon_url = self.daemon_url.clone();
         let focused = self.workspace.focused();
         let armed = self.leader_armed;
+        let command = self.command.clone();
+        let lit = armed || command.is_some();
         let pane_count = self.workspace.pane_count();
         // Clone the tree shape so we can render it while `cx` is borrowed for
         // the key/click listeners below.
@@ -553,8 +665,12 @@ impl Render for ConsoleView {
             // multiplexer command (split / close / focus / swap-surface).
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _window, cx| {
                 let key = ev.keystroke.key.clone();
+                let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
-                if this.leader_armed {
+                if this.command.is_some() {
+                    // A command line is open: type into it.
+                    this.handle_command_key(key.as_str(), key_char.as_deref(), cx);
+                } else if this.leader_armed {
                     this.leader_armed = false;
                     this.leader_command(key.as_str(), ctrl, cx);
                 } else if ctrl && key == "a" {
@@ -572,16 +688,43 @@ impl Render for ConsoleView {
                     .flex()
                     .items_center()
                     .gap(px(12.0))
-                    .bg(rgb(if armed { C_RAISED } else { C_PANEL }))
+                    .bg(rgb(if lit { C_RAISED } else { C_PANEL }))
                     .border_t_1()
-                    .border_color(rgb(if armed { C_ACCENT } else { C_BORDER }))
-                    .child(if armed {
+                    .border_color(rgb(if lit { C_ACCENT } else { C_BORDER }))
+                    .child(if let Some(cmd) = command.as_ref() {
+                        // Open command line — type, Enter submits, Esc cancels.
+                        div()
+                            .flex()
+                            .gap(px(8.0))
+                            .items_center()
+                            .child(
+                                div()
+                                    .text_color(rgb(C_ACCENT))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(format!("{}", cmd.kind.prompt())),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_color(rgb(C_INK))
+                                    .text_size(px(14.0))
+                                    .font_family("IBM Plex Mono")
+                                    .child(format!("› {}▏", cmd.buffer)),
+                            )
+                            .child(
+                                div()
+                                    .text_color(rgb(C_MUTED))
+                                    .text_size(px(13.0))
+                                    .child("⏎ send · esc cancel"),
+                            )
+                    } else if armed {
                         div()
                             .text_color(rgb(C_ACCENT))
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split  · - vsplit  · x close  · o next  · =/_ resize  · [1-9 s m p h c d l] surface",
+                                "PREFIX  |  | split · - vsplit · x close · o next · =/_ resize · n new-job · t cartographer · [1-9 s m p h c d l] surface",
                             )
                     } else {
                         div()
@@ -589,7 +732,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
                             .child(format!(
-                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A for commands  ·  pd-console v0.3.0"
+                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → n new-job · t cartographer · | split  ·  pd-console v0.3.0"
                             ))
                     }),
             )
