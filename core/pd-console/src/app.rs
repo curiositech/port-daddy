@@ -60,6 +60,15 @@ pub struct CommandLine {
     buffer: String,
 }
 
+/// One named tab — an independent pane tree, plus an optional zoomed (maximized)
+/// pane that fills the tab while set.
+#[derive(Debug, Clone)]
+struct Tab {
+    name: String,
+    workspace: Workspace,
+    zoomed: Option<PaneId>,
+}
+
 // ── Nav items ────────────────────────────────────────────────────────────────
 
 #[allow(dead_code)] // label/icon retained for the title-bar + future surface picker
@@ -257,10 +266,10 @@ impl RenderOnce for SidebarItem {
 // ── Main console view ─────────────────────────────────────────────────────────
 
 pub struct ConsoleView {
-    /// The pane tree — the tmux-style spatial multiplexer. Replaces the old
-    /// single `active_nav` selection: the window is now a tree of panes, each
-    /// showing a surface, with one focused. See `crate::mux`.
-    workspace: Workspace,
+    /// Named tabs — each an independent pane tree (like tmux windows). The
+    /// active tab's workspace is what renders.
+    tabs: Vec<Tab>,
+    active_tab: usize,
     /// True after the leader key (Ctrl-A) is pressed; the next keystroke is a
     /// multiplexer command (split / close / focus / swap-surface) rather than
     /// passing through. Disarms after one command. tmux muscle-memory.
@@ -304,7 +313,12 @@ impl ConsoleView {
         }).collect();
 
         Self {
-            workspace: Self::default_workspace(initial_pane.as_deref()),
+            tabs: vec![Tab {
+                name: "main".into(),
+                workspace: Self::default_workspace(initial_pane.as_deref()),
+                zoomed: None,
+            }],
+            active_tab: 0,
             leader_armed: false,
             command: None,
             pane_blocks,
@@ -331,6 +345,46 @@ impl ConsoleView {
         ws
     }
 
+    // ── Active-tab accessors ─────────────────────────────────────────────────
+    fn ws(&self) -> &Workspace {
+        &self.tabs[self.active_tab].workspace
+    }
+    fn ws_mut(&mut self) -> &mut Workspace {
+        &mut self.tabs[self.active_tab].workspace
+    }
+    fn zoomed(&self) -> Option<PaneId> {
+        self.tabs[self.active_tab].zoomed
+    }
+    /// Toggle maximize on a pane within the active tab.
+    fn toggle_zoom(&mut self, id: PaneId) {
+        let t = &mut self.tabs[self.active_tab];
+        t.zoomed = if t.zoomed == Some(id) { None } else { Some(id) };
+    }
+    /// Open a fresh tab and focus it.
+    fn new_tab(&mut self) {
+        let n = self.tabs.len() + 1;
+        self.tabs.push(Tab {
+            name: format!("tab {n}"),
+            workspace: Workspace::new(SurfaceKind::Fleet),
+            zoomed: None,
+        });
+        self.active_tab = self.tabs.len() - 1;
+    }
+    /// Close a tab (never the last one); keep the active index valid.
+    fn close_tab(&mut self, idx: usize) {
+        if self.tabs.len() <= 1 || idx >= self.tabs.len() {
+            return;
+        }
+        self.tabs.remove(idx);
+        if self.active_tab >= self.tabs.len() {
+            self.active_tab = self.tabs.len() - 1;
+        }
+    }
+    fn switch_tab(&mut self, delta: isize) {
+        let n = self.tabs.len() as isize;
+        self.active_tab = (((self.active_tab as isize + delta) % n + n) % n) as usize;
+    }
+
     /// Map a surface to the blocks the background refresh thread has fetched
     /// for it. Existing live panels resolve through `pane_blocks`; surfaces
     /// without a backing fetcher yet render an honest placeholder.
@@ -354,30 +408,36 @@ impl ConsoleView {
         match key {
             // Splits duplicate the focused surface (tmux behaviour); swap after.
             "|" | "\\" => {
-                let s = self.workspace.focused_surface().clone();
-                self.workspace.split(Dir::Row, s);
+                let s = self.ws_mut().focused_surface().clone();
+                self.ws_mut().split(Dir::Row, s);
             }
             "-" => {
-                let s = self.workspace.focused_surface().clone();
-                self.workspace.split(Dir::Col, s);
+                let s = self.ws_mut().focused_surface().clone();
+                self.ws_mut().split(Dir::Col, s);
             }
             "x" => {
-                self.workspace.close();
+                self.ws_mut().close();
             }
-            "o" | "tab" => self.workspace.focus_next(),
-            "O" => self.workspace.focus_prev(),
+            "o" | "tab" => self.ws_mut().focus_next(),
+            "O" => self.ws_mut().focus_prev(),
             // Double-prefix (Ctrl-A Ctrl-A) cycles focus — fast tmux idiom.
-            "a" if ctrl => self.workspace.focus_next(),
+            "a" if ctrl => self.ws_mut().focus_next(),
             // Resize the focused pane.
-            "=" | "+" => { self.workspace.resize(0.15); }
-            "_" => { self.workspace.resize(-0.15); }
+            "=" | "+" => { self.ws_mut().resize(0.15); }
+            "_" => { self.ws_mut().resize(-0.15); }
+            // Maximize / restore the focused pane.
+            "z" => { let id = self.ws().focused(); self.toggle_zoom(id); }
+            // Tabs (tmux windows): w = new, [ / ] = prev / next.
+            "w" => self.new_tab(),
+            "]" => self.switch_tab(1),
+            "[" => self.switch_tab(-1),
             // Open command lines.
             "n" => self.command = Some(CommandLine { kind: CmdKind::Spawn, buffer: String::new() }),
             "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
             // Any nav key swaps the focused pane's surface — "hop context".
             other => {
                 if let Some(item) = NAV.iter().find(|n| n.key == other) {
-                    self.workspace.swap_surface(surface_for_nav_id(item.id));
+                    self.ws_mut().swap_surface(surface_for_nav_id(item.id));
                 }
             }
         }
@@ -498,6 +558,9 @@ impl ConsoleView {
 
         div()
             .id(SharedString::from(format!("pane-{id}")))
+            // Hover group: the title-bar controls reveal only when this pane is
+            // hovered (macOS window-control feel).
+            .group("pane")
             .flex()
             .flex_col()
             .size_full()
@@ -506,17 +569,17 @@ impl ConsoleView {
             .border_color(rgb(border))
             .bg(rgb(C_PANEL))
             .on_click(cx.listener(move |this, _ev, _window, cx| {
-                this.workspace.focus(id);
+                this.ws_mut().focus(id);
                 cx.notify();
             }))
-            // Title bar
+            // Title bar: focus dot · label · spacer · hover controls
             .child(
                 div()
                     .flex()
                     .items_center()
                     .gap(px(6.0))
                     .px(px(10.0))
-                    .py(px(5.0))
+                    .py(px(4.0))
                     .bg(rgb(if is_focused { C_RAISED } else { C_PANEL }))
                     .border_b_1()
                     .border_color(rgb(C_BORDER))
@@ -532,6 +595,21 @@ impl ConsoleView {
                             .text_size(px(14.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(label),
+                    )
+                    // Spacer pushes the controls to the right edge.
+                    .child(div().flex_1())
+                    // Hover controls — invisible until the pane is hovered.
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(2.0))
+                            .opacity(0.0)
+                            .group_hover("pane", |s| s.opacity(1.0))
+                            .child(pane_ctrl(id, "vsplit", "│", C_MUTED, cx))
+                            .child(pane_ctrl(id, "hsplit", "─", C_MUTED, cx))
+                            .child(pane_ctrl(id, "zoom", "□", C_MUTED, cx))
+                            .child(pane_ctrl(id, "close", "✕", C_GATED, cx)),
                     ),
             )
             // Surface body
@@ -606,6 +684,49 @@ fn split_backend(text: &str) -> (String, String) {
     ("claude-cli".to_string(), text.to_string())
 }
 
+/// One macOS-style pane control (split / zoom / close). Targets a specific pane
+/// `id` (it focuses that pane first, so a click acts where the cursor is, not on
+/// whatever was focused before).
+fn pane_ctrl(
+    id: PaneId,
+    kind: &'static str,
+    glyph: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    div()
+        .id(SharedString::from(format!("ctrl-{kind}-{id}")))
+        .px(px(5.0))
+        .py(px(1.0))
+        .rounded(px(4.0))
+        .text_size(px(13.0))
+        .text_color(rgb(color))
+        .cursor_pointer()
+        .hover(|s| s.bg(rgb(C_RAISED)))
+        .child(glyph)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            match kind {
+                "vsplit" => {
+                    this.ws_mut().focus(id);
+                    let s = this.ws_mut().focused_surface().clone();
+                    this.ws_mut().split(Dir::Row, s);
+                }
+                "hsplit" => {
+                    this.ws_mut().focus(id);
+                    let s = this.ws_mut().focused_surface().clone();
+                    this.ws_mut().split(Dir::Col, s);
+                }
+                "zoom" => this.toggle_zoom(id),
+                "close" => {
+                    this.ws_mut().focus(id);
+                    this.ws_mut().close();
+                }
+                _ => {}
+            }
+            cx.notify();
+        }))
+}
+
 /// Map an existing nav id to the richest matching surface (semantic where one
 /// exists, generic `Panel` otherwise).
 fn surface_for_nav_id(nav: &str) -> SurfaceKind {
@@ -643,15 +764,27 @@ impl Focusable for ConsoleView {
 impl Render for ConsoleView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let daemon_url = self.daemon_url.clone();
-        let focused = self.workspace.focused();
+        let focused = self.ws().focused();
         let armed = self.leader_armed;
         let command = self.command.clone();
         let lit = armed || command.is_some();
-        let pane_count = self.workspace.pane_count();
-        // Clone the tree shape so we can render it while `cx` is borrowed for
-        // the key/click listeners below.
-        let root = self.workspace.root.clone();
-        let tree = self.render_node(&root, focused, cx);
+        let pane_count = self.ws().pane_count();
+        let zoomed = self.zoomed();
+        // Tab bar data (index, name, is-active).
+        let tabs: Vec<(usize, String, bool)> = self
+            .tabs
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (i, t.name.clone(), i == self.active_tab))
+            .collect();
+        // Body: a single maximized pane, or the full tree.
+        let body: AnyElement = match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
+            Some((zid, surf)) => self.render_leaf(zid, &surf, true, cx),
+            None => {
+                let root = self.ws().root.clone();
+                self.render_node(&root, focused, cx)
+            }
+        };
 
         div()
             .key_context("console")
@@ -678,8 +811,54 @@ impl Render for ConsoleView {
                     cx.notify();
                 }
             }))
-            // The pane tree fills the window — this is the multiplexer.
-            .child(div().flex_1().overflow_hidden().child(tree))
+            // ── Tab bar (named workspaces, like tmux windows) ──
+            .child(
+                div()
+                    .h(px(28.0))
+                    .px(px(6.0))
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0))
+                    .bg(rgb(C_PANEL))
+                    .border_b_1()
+                    .border_color(rgb(C_BORDER))
+                    .children(tabs.into_iter().map(|(i, name, active)| {
+                        div()
+                            .id(SharedString::from(format!("tab-{i}")))
+                            .px(px(10.0))
+                            .py(px(3.0))
+                            .rounded(px(5.0))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(rgb(if active { C_ACCENT } else { C_MUTED }))
+                            .when(active, |s| s.bg(rgb(C_RAISED)))
+                            .cursor_pointer()
+                            .hover(|s| s.bg(rgb(C_RAISED)))
+                            .child(name)
+                            .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                this.active_tab = i;
+                                cx.notify();
+                            }))
+                    }))
+                    .child(
+                        div()
+                            .id("tab-new")
+                            .px(px(8.0))
+                            .py(px(3.0))
+                            .rounded(px(5.0))
+                            .text_size(px(15.0))
+                            .text_color(rgb(C_MUTED))
+                            .cursor_pointer()
+                            .hover(|s| s.bg(rgb(C_RAISED)).text_color(rgb(C_ACCENT)))
+                            .child("+")
+                            .on_click(cx.listener(|this, _ev, _window, cx| {
+                                this.new_tab();
+                                cx.notify();
+                            })),
+                    ),
+            )
+            // The pane tree (or a maximized pane) fills the window.
+            .child(div().flex_1().overflow_hidden().child(body))
             // ── Command / status bar ──
             .child(
                 div()
@@ -724,7 +903,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · o next · =/_ resize · n new-job · t cartographer · [1-9 s m p h c d l] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · [1-9…] surface",
                             )
                     } else {
                         div()

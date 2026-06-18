@@ -166,6 +166,11 @@ impl Workspace {
             .expect("focused pane must always exist")
     }
 
+    /// The surface shown in a specific pane, if it exists (used by zoom/maximize).
+    pub fn surface_at(&self, id: PaneId) -> Option<&SurfaceKind> {
+        self.root.find_surface(id)
+    }
+
     /// Split the focused pane along `dir`, placing `surface` in the new pane and
     /// moving focus to it. If the focused pane already sits inside a split of
     /// the same orientation, the new pane is appended as a sibling (an even
