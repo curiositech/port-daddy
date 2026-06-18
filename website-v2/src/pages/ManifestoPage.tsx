@@ -459,6 +459,36 @@ export function ManifestoPage() {
   // cleaned output and ignore the code-block directive map.
   const { cleaned } = useMemo(() => extractDirectives(manifestoContent), [])
 
+  // Interleave the designed diagram sections into the prose at the points the
+  // narrative introduces them, instead of dumping all five after the article.
+  // Safe to split: the manifesto uses no markdown footnotes.
+  const segments = useMemo(() => {
+    const anchors: { at: string; node: ReactNode }[] = [
+      { at: '## Agents are becoming economic actors', node: <CollisionDiagram /> },
+      { at: '## Now the part that sounds insane', node: <TechnologySection /> },
+      { at: '## The honest caveat is the entire load-bearing beam', node: <ScopeSection /> },
+      { at: '## Earn the big claim', node: <MathSection /> },
+      { at: '# If another agent reaches for that file', node: <PapersSection /> },
+    ]
+    const out: { md?: string; node?: ReactNode }[] = []
+    const missed: ReactNode[] = []
+    let rest = cleaned
+    for (const a of anchors) {
+      const idx = rest.indexOf('\n' + a.at)
+      if (idx === -1) {
+        missed.push(a.node)
+        continue
+      }
+      out.push({ md: rest.slice(0, idx + 1) })
+      out.push({ node: a.node })
+      rest = rest.slice(idx + 1)
+    }
+    out.push({ md: rest })
+    // Never drop a diagram: if an anchor's heading moved, append it at the end.
+    for (const n of missed) out.push({ node: n })
+    return out
+  }, [cleaned])
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -509,26 +539,26 @@ export function ManifestoPage() {
       {/* Tufte two-column on lg+: prose left, sidenote gutter right — the same
           reading model as the field log. */}
       <motion.main id="main-content" className="relative flex-1 px-6 py-12 sm:px-8 lg:px-10 lg:py-16">
-        <div className="mx-auto w-full max-w-[80ch] lg:max-w-[calc(80ch+22ch)] lg:grid lg:grid-cols-[minmax(0,80ch)_minmax(0,18ch)] lg:gap-x-[4ch]">
-          <motion.article
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="blog-article blog-article--tufte lg:col-start-1 lg:col-end-2"
-          >
-            <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
-              {cleaned}
-            </ReactMarkdown>
-          </motion.article>
-        </div>
-
-        {/* Designed technical band: the diagram, the technology, the math, the
-            papers. Placed after the prose so the markdown footnotes stay intact. */}
-        <CollisionDiagram />
-        <ScopeSection />
-        <TechnologySection />
-        <MathSection />
-        <PapersSection />
+        {/* Prose with the designed diagram sections interleaved at the points
+            the narrative introduces them. */}
+        {segments.map((seg, i) =>
+          seg.md !== undefined ? (
+            <div
+              key={`md-${i}`}
+              className="mx-auto w-full max-w-[80ch] lg:max-w-[calc(80ch+22ch)] lg:grid lg:grid-cols-[minmax(0,80ch)_minmax(0,18ch)] lg:gap-x-[4ch]"
+            >
+              <article className="blog-article blog-article--tufte lg:col-start-1 lg:col-end-2">
+                <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                  {seg.md}
+                </ReactMarkdown>
+              </article>
+            </div>
+          ) : (
+            <div key={`sec-${i}`} className="contents">
+              {seg.node}
+            </div>
+          ),
+        )}
 
         <div className="mx-auto mt-16 w-full max-w-[80ch]">
           <GiscusComments term="manifesto" />

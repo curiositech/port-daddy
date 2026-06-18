@@ -86,12 +86,12 @@ export function ThreeSidedMarket() {
           ))}
 
           {/* Escrow */}
-          <g transform="translate(212, 196)">
-            <rect width="176" height="44" rx="6" fill="var(--brand-accent)" stroke="var(--border-strong)" strokeWidth="2" />
-            <text x="88" y="20" textAnchor="middle" fill="var(--brand-accent-foreground)" style={{ font: '800 14px var(--font-sans)', letterSpacing: '0.04em' }}>
+          <g transform="translate(176, 196)">
+            <rect width="248" height="44" rx="6" fill="var(--brand-accent)" stroke="var(--border-strong)" strokeWidth="2" />
+            <text x="124" y="20" textAnchor="middle" fill="var(--brand-accent-foreground)" style={{ font: '800 14px var(--font-sans)', letterSpacing: '0.04em' }}>
               FLOAT-PLAN ESCROW
             </text>
-            <text x="88" y="36" textAnchor="middle" fill="var(--brand-accent-foreground)" style={{ font: '500 13px var(--font-sans)' }}>
+            <text x="124" y="36" textAnchor="middle" fill="var(--brand-accent-foreground)" style={{ font: '500 13px var(--font-sans)' }}>
               pays out or refuses — cannot redirect
             </text>
           </g>
@@ -100,7 +100,7 @@ export function ThreeSidedMarket() {
           <g transform="translate(40, 264)">
             <rect width="520" height="40" rx="6" fill="var(--surface-strong)" stroke="var(--border-strong)" strokeWidth="2" />
             <text x="260" y="25" textAnchor="middle" fill="var(--text-primary)" style={{ font: '800 14px var(--font-sans)', letterSpacing: '0.04em' }}>
-              ONE CONSERVING BOND LEDGER — value moves, never appears or vanishes
+              ONE CONSERVING BOND LEDGER — value moves, never vanishes
             </text>
           </g>
           {/* escrow → ledger tick */}
