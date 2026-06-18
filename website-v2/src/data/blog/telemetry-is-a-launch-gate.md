@@ -1,12 +1,10 @@
 # Telemetry Is a Launch Gate
 
-Agent platforms love launch buttons. Launch buttons are easy. The hard part is proving that a launch should have been allowed.
+You press Launch. A spinner turns. Somewhere a model you did not choose starts reading your repo, burning tokens at a rate you cannot name, against a budget nobody set, writing a cost that lands in no ledger. The run finishes, green and cheerful. You will find out what it cost at the end of the month, the way you find out about a leaking pipe — by the water bill.
 
-If a tool cannot say which model ran, how many tokens it used, what rate was applied, which budget policy accepted it, and where the cost was recorded, it is not operating a fleet. It is hoping the bill is fine.
+That spinner is the whole problem in one image. Agent platforms love launch buttons because launch buttons are easy. The hard part is the sentence that should come before the button ever lights up: *proving that this launch should have been allowed.* If a tool cannot say which model ran, how many tokens it used, what rate was applied, which budget policy accepted it, and where the cost was recorded, it is not operating a fleet. It is hoping the bill is fine. So Port Daddy moves telemetry to the front: it is a launch gate, not an afterthought.
 
-Port Daddy treats telemetry as a launch gate, not an afterthought.
-
-![Telemetry gate diagram for agent launches](/img/generated/blog-telemetry-launch-gate.jpg)
+![A launch button wired in series with five gates — exact token count, known model rate, persisted cost record, budget ceiling, human-bypass metadata — any open gate keeps the button dark](/img/generated/blog-telemetry-launch-gate.jpg)
 
 ## Why Spend Control Is A Product Feature
 
@@ -63,7 +61,7 @@ The launch path should be able to produce a record like this:
 
 That record is not just for finance. It is operational evidence. It tells the next agent, the human, and the control plane why the launch was allowed.
 
-![Resources panel showing local launch and budget state](/media/landing-live-glory/live-resources-light.webp)
+![The Resources panel reading back a real launch record — model, exact token usage, applied rate, and remaining daily budget — the operational evidence that explains why the run was allowed](/media/landing-live-glory/live-resources-light.webp)
 
 ## The Ledger Has To Be Queryable
 
@@ -191,6 +189,7 @@ A launch form that hides telemetry status teaches users to ignore it. Port Daddy
 
 That is not a worse user experience. It is a better one. The operator knows what to fix.
 
+<!-- figure: The launch decision walked as a chain — backend, dependency, usage, pricing, budget — where a run only proceeds when every link reports exact data, which is why readiness has to be visible at the point of action. -->
 ```mermaid
 flowchart TD
   Backend["selected backend"] --> Dependency["dependency check"]

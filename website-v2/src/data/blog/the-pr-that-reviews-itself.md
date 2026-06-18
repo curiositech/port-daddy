@@ -29,6 +29,7 @@ A repo is the same kind of room. You wrote the PR. CI is the bench clerk. Withou
 
 The GitHub fleet is six paid critics. They do not replace your human reviewers. They get to the easy findings first, so the humans can spend their attention on the genuinely hard calls.
 
+<!-- figure: One `git push` fans out to six opinionated critics — code-reviewer, red-team, tautology-sniffer, test-author, tenderfoot, and augur — each producing its own kind of finding, all funneling back to the one operator at the bottom; the fan-out is the whole shape of it. -->
 ```mermaid
 flowchart LR
   Push["git push"] --> Open["Open PR"]
@@ -185,7 +186,7 @@ A recent PR in this repo added a salvageable-sessions count to a briefing endpoi
 
 The count was structurally always zero.
 
-The new code computed the count from an in-memory map that the live daemon never populated, because the daemon writes salvageable sessions to a separate table in SQLite and the in-memory map was a vestigial cache from an earlier iteration. The tests passed because *they used the same in-memory map* — every fixture in the test suite seeded the map directly, asserted the count, and tore the map down. The test author had not lied. They had simply tested the only thing they had wired up.
+The new code computed the count from an in-memory map that the live daemon never populated, because the daemon writes salvageable sessions to a separate table in SQLite and the in-memory map was a vestigial cache from an earlier iteration. The tests passed because *they used the same in-memory map* — every fixture in the test suite seeded the map directly, asserted the count, and tore the map down. The test author had not lied. They had tested the only thing they had wired up.
 
 <!-- sidenote: 8 -->
 > This is the textbook tautology. The test pinned the function's behavior to a data structure (`in-memory map → count`) that the production daemon did not use. Production reality lived in a SQLite table containing, at the time of the bug's discovery, **181 salvageable agent sessions** — none of which the new endpoint ever saw.
@@ -241,6 +242,7 @@ The arithmetic that matters is on step 6. *Most* of what a senior engineer used 
 
 A paid critic that you can't fire is a hostage situation. The fleet is built so it never becomes one.
 
+<!-- figure: The triage loop that keeps the operator in charge — every finding can be merged, fixed, or dismissed with a one-line reason, and a dismissal feeds back into the ship's priors so false positives get rarer on the operator's own schedule, not a vendor's. -->
 ```mermaid
 flowchart TB
   PR["Opened PR"] --> Fleet["Fleet posts findings"]

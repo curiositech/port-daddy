@@ -41,6 +41,7 @@ The diagnostic that cracked it: running both listeners with **`--no-history`** m
 
 The cursor was keyed by **channel**. One file per channel. And that's the whole bug in one sentence: *two listeners on the same channel shared one bookmark.*
 
+<!-- figure: A shared per-channel cursor turns a broadcast into a race — alice reads the bookmark, advances it to 7, and bob asks for "messages after 7" and hears nothing. First poll wins, the rest get an empty mailbox. -->
 ```mermaid
 sequenceDiagram
   participant A as alice --tail
@@ -55,7 +56,6 @@ sequenceDiagram
   B->>D: getMessages after=7 → []
   Note over B: bob sees nothing.<br/>alice already moved the bookmark.
 ```
-<!-- figure: A shared per-channel cursor turns a broadcast into a race — first poll wins, the rest get an empty result. -->
 
 Whoever polled first advanced the shared bookmark; everyone else asked the daemon for "messages after 7," and the daemon — correctly, honestly — said *there are none*. A broadcast channel had quietly become a work queue with exactly one winner. No error. No warning. Just a silent single-consumer pretending to be a bus.
 
@@ -77,6 +77,7 @@ The cursor is the right idea. Sharing it across distinct listeners is the wrong 
 pd tube standup:demo --tail --as you
 ```
 
+<!-- figure: The same exchange with per-listener cursors — alice and bob each hold their own bookmark, both advance to 7 independently, and both print message 7. Same channel, two readers, no race. -->
 ```mermaid
 sequenceDiagram
   participant A as alice (cursor::alice)
@@ -86,7 +87,6 @@ sequenceDiagram
   D-->>B: getMessages after=6 → [7]
   Note over A,B: independent bookmarks.<br/>both advance to 7. both print.
 ```
-<!-- figure: Per-listener cursors: distinct identities keep independent bookmarks, so every listener receives every message. -->
 
 That's the entire fix. Two consequences fall straight out of it, and they're the part I actually like:
 

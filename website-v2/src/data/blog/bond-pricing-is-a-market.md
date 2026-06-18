@@ -64,6 +64,7 @@ A daily budget is a guess at "what's the worst this agent can spend on tokens." 
 
 The Bonded Commons paper makes the cleanup cost a first-class thing. Call it `c` — the average human-plus-compute cost of recovering from one breach. Every project has its own `c`, and a healthy project tracks it the same way it tracks build time or deploy duration.
 
+<!-- figure: The same agent job priced two ways — today's flat $5/day cap that leaves cleanup cost unanswered, versus tomorrow's bond built up from the cleanup floor, scope multiplier, and reputation discount; the right column is the whole argument. -->
 ```mermaid
 flowchart LR
   Agent["AI agent starts a job"] --> Today
@@ -157,6 +158,7 @@ Over time, advisors who price well charge for their proposals. Advisors who pric
 
 The most ambitious move in v2 is in §8.4, contributed by **Thomas Youle** (Indiana University, Business Economics & Public Policy). Instead of the commons authority picking a bond size, allow a market of *insurer agents* to bid on underwriting each transaction.
 
+<!-- figure: How an insurer-agent auction runs against the bond ledger — the principal solicits quotes, picks one, and the daemon settles the bond three ways depending on whether breach stays inside the insurer's ceiling; this is the market discovering the price the authority used to guess. -->
 ```mermaid
 sequenceDiagram
   participant Pr as Principal

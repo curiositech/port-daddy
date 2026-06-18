@@ -19,6 +19,7 @@ Both are useful. Neither is ideal when you are building local developer workflow
 
 PD Tube keeps the loop small and inspectable.
 
+<!-- figure: The whole event-reply loop on one channel — a local UI POSTs an event, the agent blocks on `pd tube`, does real work in the repo, and replies with the same command, while the browser polls the channel and reads the threaded answer back; no hosted queue anywhere in the path. -->
 ```mermaid
 sequenceDiagram
   participant UI as Local UI
@@ -121,7 +122,7 @@ That shape is boring in the best way. It means simple local tools can build usef
 
 A prototype page exposes a button that asks an agent to inspect the current route, run an accessibility check, or explain a failing state.
 
-![Button-to-agent workflow recording](/demos/pd-tube/pd-tube-real-output.gif)
+![Screen recording of a prototype page where clicking a button publishes a ui:clicks event, the terminal agent picks it up and inspects the route, and the threaded reply renders back next to the button that asked](/demos/pd-tube/pd-tube-real-output.gif)
 
 ### 2. Failing Test To Agent
 
@@ -142,7 +143,7 @@ publishTubeEvent({
 
 A VS Code lens publishes a selected range and asks for a structured explanation on `editor:explain`. The agent answers with citations to local code and suggested commands.
 
-![Editor lightbulb example UI](/img/examples/editor-lightbulb-to-agent-ui.webp)
+![A VS Code lightbulb lens over a selected code range, publishing the selection on editor:explain so the agent can answer with citations to local code and suggested commands](/img/examples/editor-lightbulb-to-agent-ui.webp)
 
 ### 4. Webhook To Local Agent
 

@@ -292,8 +292,8 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/blog',
-    'Blog',
-    'Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
+    'The Harbor Log',
+    'The running log of coordinating agents that did not want to be coordinated: what broke, what we fixed, and what the daemon has to keep true. Shared state, file ownership, launch checks, PD Tube, recovery trails, and daemon provenance, written for the engineer deciding whether to leave it running on a Tuesday.',
     { section: 'blog' },
   ),
   metadata(

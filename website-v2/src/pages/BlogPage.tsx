@@ -135,7 +135,7 @@ export function BlogPage() {
         <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-7">
             <div className={`mb-5 ${metaClass} text-[var(--text-muted)]`}>
-              Port Daddy field notes
+              The Harbor Log
             </div>
             <h1 className="max-w-[14ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
               Notes from coordinating agents that didn't want to be coordinated.
@@ -147,7 +147,7 @@ export function BlogPage() {
 
           <div className="grid gap-6 lg:col-span-5 lg:self-end">
             <p className="max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-              Written for engineers deciding whether to run Port Daddy day to day. Shared memory, file ownership, launch checks, PD Tube, recovery trails, daemon provenance — the unglamorous parts that turn a clever demo into something you can leave running on a Tuesday.
+              A ship's log kept at harbor. Each entry starts with something that broke — two agents reaching for the same file, a push that should never have landed, a green test suite hiding a real bug — and works out loud toward the fix. Shared memory, file ownership, launch checks, PD Tube, recovery trails, daemon provenance: the unglamorous parts that turn a clever demo into something you can leave running on a Tuesday.
             </p>
             <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
               <div className="border-r-2 border-[var(--border-strong)] p-4">
@@ -192,9 +192,9 @@ export function BlogPage() {
               <div>
                 <div className={`mb-2 flex items-center gap-2 ${metaClass} text-[var(--text-muted)]`}>
                   <NotebookText size={14} aria-hidden="true" />
-                  The rest of the rotation
+                  Earlier entries
                 </div>
-                <h2 id="article-index" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">Everything else worth reading</h2>
+                <h2 id="article-index" className="text-2xl font-black tracking-normal text-[var(--text-primary)]">The rest of the log</h2>
               </div>
               <Cpu className="hidden text-[var(--text-muted)] sm:block" size={24} aria-hidden="true" />
             </div>
