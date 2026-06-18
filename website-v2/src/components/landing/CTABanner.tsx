@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, FileDown, FileText, Github, MonitorCheck, ShieldCheck, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import {
   PageContainer,
   PanelBody,
@@ -113,9 +114,17 @@ export function CTABanner() {
             </picture>
             <PanelBody size="compact" className="max-w-none">
               FleetBar shows whether the background service is running, which project you are on,
-              the agents at work, what they have claimed, and where spending stands. The install
-              command lives in the docs. This is what you get after it runs.
+              the agents at work, what they have claimed, and where spending stands. Install it,
+              then this is what you get.
             </PanelBody>
+            <div className="grid gap-[var(--space-2)]">
+              <CodeBlock language="bash" showHeaderLabel={false}>
+                {`brew install curiositech/tap/port-daddy`}
+              </CodeBlock>
+              <CodeBlock language="bash" showHeaderLabel={false}>
+                {`npm install -g port-daddy`}
+              </CodeBlock>
+            </div>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
               {[
                 ['Open', 'the Fleet Control Center'],

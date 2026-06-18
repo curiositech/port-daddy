@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
@@ -40,9 +41,15 @@ export function Hero() {
               bodyClassName="max-w-[44rem]"
             />
 
-            {/* One CTA group: primary action, then the load-bearing BYO-subscription
-                line as a quiet link beneath it (the full pitch is the next section). */}
+            {/* Co-primary actions: install in one line, or take the Mac app.
+                The load-bearing BYO-subscription line sits beneath as a quiet
+                link (the full pitch is the next section). */}
             <div className="space-y-[var(--space-3)]">
+              <div className="max-w-[26rem]">
+                <CodeBlock language="bash" showHeaderLabel={false}>
+                  {`brew install curiositech/tap/port-daddy`}
+                </CodeBlock>
+              </div>
               <div className="flex flex-wrap items-center gap-[var(--space-3)]">
                 <Button asChild variant="primary" size="lg">
                   <Link to="/mac-preview#download">
