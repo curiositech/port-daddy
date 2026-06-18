@@ -16,8 +16,9 @@ const publicDir = resolve(websiteRoot, 'public')
 const outputDir = resolve(publicDir, 'img/og')
 const tempDir = resolve(websiteRoot, '.tmp-og')
 const rendererPath = resolve(scriptDir, 'render-og-cards.py')
-const logoPath = resolve(publicDir, 'apple-touch-icon.png')
-const backgroundPath = resolve(publicDir, 'img/generated/control-plane-og.jpg')
+// Warm Swiss redesign: the rasterized Port Daddy brand mark (from public/pd_logo.svg),
+// cached under scripts/og-fonts/. The flat cream design no longer uses a dark background.
+const logoPath = resolve(scriptDir, 'og-fonts/pd_logo_mark.png')
 
 function preferredRouteForImages() {
   const routes = new Map()
@@ -49,7 +50,7 @@ function findPython() {
   throw new Error('Could not find a Python interpreter with Pillow installed. Set PYTHON_BIN to one before running generate:og.')
 }
 
-for (const requiredPath of [rendererPath, logoPath, backgroundPath]) {
+for (const requiredPath of [rendererPath, logoPath]) {
   if (!existsSync(requiredPath)) throw new Error(`Missing OG generation input: ${requiredPath}`)
 }
 
@@ -74,7 +75,6 @@ await writeFile(
     publicDir,
     outputDir,
     logoPath,
-    backgroundPath,
     routes: manifest,
   }, null, 2)}\n`,
 )
