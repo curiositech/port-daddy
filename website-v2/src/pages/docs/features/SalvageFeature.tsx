@@ -46,20 +46,22 @@ export default function SalvageFeature() {
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
           Agents register with an identity and send periodic heartbeats — a liveness signal. When
-          heartbeats stop, the daemon applies a timeout ladder: stale at 10 min, dead at 20 min.
-          Dead agents with active sessions enter the salvage queue, where another agent can claim
-          the surviving notes and file claims and carry on.
+          heartbeats stop, the daemon applies a status-aware timeout ladder — short for a starting
+          or draining agent, longer for one mid-task — then marks it dead. Dead agents with active
+          sessions enter the salvage queue, where another agent can claim the surviving notes and
+          file claims and carry on.
         </p>
 
         <DocsCodeBlock
           code={`# Agent registers on startup
 $ pd agent register --identity myapp:api:auth --purpose "Building JWT refresh"
 
-# Agent sends heartbeats every 5 minutes (automated by SDK)
+# Agent sends heartbeats on an interval (automated by SDK)
 $ pd agent heartbeat --agent agent-abc123
 
 # Agent dies... heartbeats stop...
-# After 20 minutes, the daemon adds it to the salvage queue
+# Once it misses heartbeats past the dead threshold, the daemon
+# adds it to the salvage queue
 
 # New agent checks the salvage queue
 $ pd salvage --project myapp
