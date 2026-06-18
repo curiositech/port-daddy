@@ -752,3 +752,32 @@ pre code {
 .pulse-active {
   animation: pulse-active 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* ─── pd-tube wire animations ─────────────────────────────────────────────────
+   One-shot pulses for the TubeWire primitive. These travel along a 28px wire.
+   They never loop (forwards, single run). The global reduced-motion block above
+   collapses their duration, and TubeWire.tsx additionally renders a static dot
+   instead of an animated one when prefers-reduced-motion is set. */
+@keyframes tube-travel {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 1; transform: translateX(18px); }
+}
+@keyframes tube-travel-back {
+  0% { opacity: 1; transform: translateX(18px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes tube-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tube-pulse-go {
+  left: 0;
+  animation: tube-travel 0.55s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+.tube-pulse-back {
+  right: 0;
+  animation: tube-travel-back 0.55s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+.tube-card-rise {
+  animation: tube-rise 0.25s ease-out;
+}

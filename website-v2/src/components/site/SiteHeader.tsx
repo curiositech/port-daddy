@@ -34,6 +34,7 @@ const PRIMARY_NAV_ITEMS = [
 ] satisfies readonly NavItem[];
 
 const OVERFLOW_NAV_ITEMS = [
+  { label: "Tube playground", href: "/pd-tube/playground", end: true },
   { label: "Mac app", href: "/mac-preview", end: false },
   { label: "Run agents on your subscription", href: "/cli-backend", end: true },
   { label: "Examples", href: "/examples", end: false },

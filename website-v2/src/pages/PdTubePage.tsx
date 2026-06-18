@@ -44,10 +44,13 @@ export function PdTubePage() {
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
-                      <Link to="/docs/cli/tube">
-                        Read the CLI reference
+                      <Link to="/pd-tube/playground">
+                        Open the playground
                         <ArrowRight size={16} />
                       </Link>
+                    </Button>
+                    <Button asChild variant="secondary" size="lg">
+                      <Link to="/docs/cli/tube">Read the CLI reference</Link>
                     </Button>
                     <Button asChild variant="secondary" size="lg">
                       <Link to="/tutorials/pd-tube">Walk the tutorial</Link>
