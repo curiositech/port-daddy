@@ -148,6 +148,7 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+import { handleWhois } from '../cli/commands/whois.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
 import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
@@ -1310,7 +1311,7 @@ const ALL_COMMANDS: string[] = [
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
-  'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+  'harbor', 'harbors', 'whois', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
   'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
@@ -2939,6 +2940,11 @@ export async function main(): Promise<void> {
 
       case 'harbors':
         await handleHarbors(positional, options);
+        break;
+
+      // Semantic phonebook / skill router
+      case 'whois':
+        await handleWhois(positional, options);
         break;
 
       // Tutorial
