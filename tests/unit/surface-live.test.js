@@ -64,7 +64,7 @@ describe('runLiveSurfaceScan', () => {
       };
       const symbolIndex = {
         async parseFile() {},
-        getSymbols: (f) => symbolsByFile[f] ?? [],
+        getSymbols: (f) => symbolsByFile[Object.keys(symbolsByFile).find((k) => f.endsWith(k))] ?? [],
         predictConflicts: (a, b) => (a.length && b.length ? [{ type: 'signature', severity: 'blocking', confidence: 0.9, a: a[0], b: b[0] }] : []),
       };
 

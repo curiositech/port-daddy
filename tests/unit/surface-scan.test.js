@@ -65,7 +65,7 @@ describe('runSurfaceScan', () => {
   function makeSymbolIndex(predict) {
     return {
       async parseFile() {},
-      getSymbols: (f) => symbolsByFile[f] ?? [],
+      getSymbols: (f) => symbolsByFile[Object.keys(symbolsByFile).find((k) => f.endsWith(k))] ?? [],
       predictConflicts: predict,
     };
   }
@@ -99,6 +99,29 @@ describe('runSurfaceScan', () => {
     expect(toA.yourSymbol).toContain('createRoutes');
     expect(toA.theirSymbol).toContain('registerRoutes');
     expect(toA.v).toBe(1);
+  });
+
+  test('parses each diff file against the session WORKTREE path, not the daemon cwd (path fix)', async () => {
+    // spy: record the paths parseFile/getSymbols are called with
+    const parsedPaths = [];
+    const gotPaths = [];
+    const spyIndex = {
+      async parseFile(p) { parsedPaths.push(p); },
+      getSymbols: (p) => { gotPaths.push(p); return symbolsByFile['lib/server.ts'] ?? []; },
+      predictConflicts: () => [],
+    };
+    await runSurfaceScan({
+      sessions: [{ sessionId: 's1', agentId: 'a1', purpose: 'p', worktreePath: '/wt/a' }],
+      getDiff: () => diffA, // touches lib/server.ts
+      symbolIndex: spyIndex,
+      suggestions,
+      inbox,
+    });
+    // the diff's relative `lib/server.ts` must be resolved under the worktree root
+    expect(parsedPaths).toContain('/wt/a/lib/server.ts');
+    expect(gotPaths).toContain('/wt/a/lib/server.ts');
+    // and NOT the bare relative path (which would resolve against the daemon cwd)
+    expect(parsedPaths).not.toContain('lib/server.ts');
   });
 
   test('a blocking conflict surfaces at PRIORITY confidence (routes past the trivial budget)', async () => {
