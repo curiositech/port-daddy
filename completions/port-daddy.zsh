@@ -732,6 +732,11 @@ _pd_cmd_fleet() {
     'run:run a specific agent from pd-fleet.yml once'
     'panic:SIGTERM every running fleet agent (confirmation required)'
     'unpanic:disarm a previous panic state'
+    'halt:total stop a conductor scope — SIGKILL + refund bonds (ADR-0060)'
+    'pause:soft stop a conductor scope — stop admitting, leave agents alive'
+    'resume:reopen a halted/paused conductor scope'
+    'inspect:render a conductor lineage tree for a rootId'
+    'tree:render a conductor lineage tree for a rootId'
     'validate:parse pd-fleet.yml and check topology'
     'prompt:one-line fleet status (for shell prompts)'
     'log:show fleet log'
@@ -770,6 +775,24 @@ _pd_cmd_fleet() {
             '--reason[reason for disarming panic (required)]:reason:' \
             '(-j --json)'{-j,--json}'[JSON output]' \
             '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        halt)
+          _arguments \
+            '--root[target one lineage subtree (default: whole fleet)]:rootId:' \
+            '--yes[skip interactive confirmation]' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        pause|resume)
+          _arguments \
+            '--root[target one lineage subtree (default: whole fleet)]:rootId:' \
+            '(-j --json)'{-j,--json}'[JSON output]' \
+            '(-q --quiet)'{-q,--quiet}'[minimal output]'
+          ;;
+        inspect|tree)
+          _arguments \
+            '--root[lineage root id]:rootId:' \
+            '(-j --json)'{-j,--json}'[JSON output]'
           ;;
       esac
       ;;

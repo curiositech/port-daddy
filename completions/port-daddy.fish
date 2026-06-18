@@ -328,6 +328,15 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from panic" -l yes -d 'Skip interactive YES confirmation'
     complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from unpanic" -l reason -x -d 'Reason for disarming panic (required)'
 
+    # fleet conductor control (ADR-0060)
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'halt' -d 'Total stop a conductor scope — SIGKILL + refund bonds'
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'pause' -d 'Soft stop a conductor scope — stop admitting, leave agents alive'
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'resume' -d 'Reopen a halted/paused conductor scope'
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'inspect' -d 'Render a conductor lineage tree for a rootId'
+    complete -c $prog -n "__pd_using_command fleet" -x -a 'tree' -d 'Render a conductor lineage tree for a rootId'
+    complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from halt pause resume inspect tree" -l root -x -d 'Target one lineage subtree (rootId)'
+    complete -c $prog -n "__pd_using_command fleet; and __fish_seen_subcommand_from halt" -l yes -d 'Skip interactive confirmation'
+
     # pd say flags
     complete -c $prog -n "__pd_using_command say" -l pin -d 'Also write a tuple to the fleet harbor'
     complete -c $prog -n "__pd_using_command say" -l heat -x -d 'Also spray pheromone on a file (<path>[=0..1])'
