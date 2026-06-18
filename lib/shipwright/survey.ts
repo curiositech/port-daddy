@@ -16,7 +16,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { createHash } from 'node:crypto';
 import { detectStack } from '../detect.js';
 import type { LLMClient } from '../llm-call.js';
 
@@ -561,15 +560,7 @@ async function callIntentLLM(opts: {
     .replace('{claudeMd}', opts.claudeMdHead || '(absent)')
     .replace('{agentsMd}', opts.agentsMdHead || '(absent)');
 
-  // The survey prompt is a deterministic function of the project inputs, so it's
-  // a textbook cacheable request-shape call (ADR-0059). A cacheKey enrolls it in
-  // the shared client's exact-match cache; near-identical projects also hit the
-  // semantic tier when the injected client has an embedder. Inert (no-op) if the
-  // client wasn't built with caching, so this is safe regardless of wiring.
-  const cacheKey = `shipwright-survey:${createHash('sha256')
-    .update(`${opts.model ?? ''}\n${prompt}`)
-    .digest('hex')}`;
-  const result = await opts.client.complete({ prompt, model: opts.model, maxTokens: 600, cacheKey });
+  const result = await opts.client.complete({ prompt, model: opts.model, maxTokens: 600 });
   if (!result.ok || !result.text) return null;
 
   const trimmed = result.text.trim();

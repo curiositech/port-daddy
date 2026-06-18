@@ -57,8 +57,7 @@ Replace the scripted investigation with actual agent work:
 # Register your agent
 pd begin --agent my-agent \
   --identity myproject:api:hotfix \
-  --purpose "Investigating auth regression" \
-  --lifecycle durable
+  --purpose "Investigating auth regression"
 
 # Add findings as you investigate
 pd note "Found the issue in auth.ts:142 - missing null check"

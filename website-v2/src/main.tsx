@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/lib/theme'
 import { DocumentMeta } from '@/components/layout/DocumentMeta'
 import { HashScroll } from '@/components/layout/HashScroll'
 import { MainLayout } from '@/components/layout/MainLayout'
+import { TypeThemeSwitcher } from '@/components/layout/TypeThemeSwitcher'
 import { RouteFallback } from '@/components/layout/RouteFallback'
 import { LegacyExampleRedirect } from '@/components/routing/LegacyExampleRedirect'
 import './index.css'
@@ -24,7 +25,6 @@ const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPa
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const McpPage = lazy(() => import('@/pages/MCPPage'))
 const LibraryPage = lazy(() => import('@/pages/library'))
-const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
@@ -190,6 +190,7 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <DocumentMeta />
         <HashScroll />
+        <TypeThemeSwitcher />
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route element={<MainLayout />}>
@@ -239,7 +240,11 @@ createRoot(document.getElementById('root')!).render(
 
               <Route path="/manifesto" element={<ManifestoPage />} />
               <Route path="/library" element={<LibraryPage />} />
-              <Route path="/whitepaper" element={<WhitepaperPage />} />
+              {/* /whitepaper now forwards to the Library (the canonical home for
+                  the papers). The URL is preserved as a forwarding link because
+                  it was shared externally. Deep links to individual papers below
+                  still resolve. */}
+              <Route path="/whitepaper" element={<Navigate to="/library" replace />} />
               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
               <Route path="/whitepaper/how-we-prove-game-theory" element={<WhitepaperHowWeProvePage />} />
               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
@@ -252,6 +257,10 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/docs" element={<DocsLayout />}>
               <Route index element={<DocsOverview />} />
               <Route path="quickstart" element={<QuickStart />} />
+              {/* Forwarding redirect: "Get started" links historically pointed at
+                  /docs/get-started, which had no route and fell through to the docs
+                  index. Canonical entry point is /docs/quickstart. */}
+              <Route path="get-started" element={<Navigate to="/docs/quickstart" replace />} />
               <Route path="guides/prompting-agents" element={<PromptingAgents />} />
               <Route path="guides/templates" element={<TemplatesGuide />} />
               <Route path="guides/protocol" element={<ProtocolGuide />} />

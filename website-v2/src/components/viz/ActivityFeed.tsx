@@ -51,10 +51,10 @@ function ActivityItem({ activity, isNote }: { activity: ActivityItemModel; isNot
       </motion.div>
       <motion.div className="flex-1 min-w-0 font-sans">
         <motion.div className="flex items-center justify-between gap-2 mb-0.5 font-sans">
-          <motion.span className={`text-[length:var(--type-meta-size,14px)] font-black uppercase tracking-wider font-sans ${isNote ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}`}>
+          <motion.span className={`text-[10px] font-black uppercase tracking-wider font-sans ${isNote ? 'text-[var(--brand-accent)]' : 'text-[var(--text-muted)]'}`}>
             {'source' in activity && activity.source === 'note' ? `Note` : type}
           </motion.span>
-          <motion.span className="text-[length:var(--type-meta-size,14px)] font-mono text-[var(--text-muted)] shrink-0 opacity-40">
+          <motion.span className="text-[10px] font-mono text-[var(--text-muted)] shrink-0 opacity-40">
             {time}
           </motion.span>
         </motion.div>
@@ -103,13 +103,13 @@ export function ActivityFeed() {
         <motion.div className="flex bg-[var(--surface-base)] p-1 rounded-lg border border-[var(--border-subtle)] font-sans">
           <motion.button 
             onClick={() => setMode('live')}
-            className={`px-3 py-1 rounded-md text-[length:var(--type-meta-size,14px)] font-black uppercase transition-all font-sans ${mode === 'live' ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'live' ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
           >
             Live
           </motion.button>
           <motion.button 
             onClick={() => setMode('history')}
-            className={`px-3 py-1 rounded-md text-[length:var(--type-meta-size,14px)] font-black uppercase transition-all font-sans ${mode === 'history' ? 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all font-sans ${mode === 'history' ? 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
           >
             History
           </motion.button>
@@ -137,7 +137,7 @@ export function ActivityFeed() {
           {displayItems.length === 0 && (
             <motion.div className="py-20 text-center opacity-30 font-sans">
               <Search size={32} className="mx-auto mb-4" />
-              <motion.p className="text-[length:var(--type-meta-size,14px)] font-black uppercase tracking-widest font-sans">{emptyStateLabel}</motion.p>
+              <motion.p className="text-[10px] font-black uppercase tracking-widest font-sans">{emptyStateLabel}</motion.p>
             </motion.div>
           )}
         </motion.div>

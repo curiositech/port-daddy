@@ -22,7 +22,6 @@ import {
 import { Footer } from '@/components/layout/Footer'
 import { ALL_CATEGORIES, MCP_DEFAULT_TOOL_TOTAL, MCP_TOOL_TOTAL } from '@/data/mcp'
 import {
-  BracketLabel,
   BracketLink,
   DocsCodeBlock,
   PageContainer,
@@ -70,29 +69,29 @@ interface ChannelSurface {
 
 const PROOF_METRICS: ProofMetric[] = [
   { value: `${MCP_TOOL_TOTAL}`, label: 'MCP functions registered by the server', tone: 'blue' },
-  { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'default tools before discovery', tone: 'accent' },
-  { value: '1', label: 'local daemon for shared state', tone: 'paper' },
+  { value: `${MCP_DEFAULT_TOOL_TOTAL}`, label: 'loaded by default, the rest on request', tone: 'accent' },
+  { value: '1', label: 'local app holding the shared state', tone: 'paper' },
 ]
 
 const PROCEDURAL_KNOWLEDGE_URL = 'https://windags.ai/blog/why-declarative-knowledge-isnt-enough'
 
 const RUNTIME_BACKENDS: RuntimeBackend[] = [
-  { name: 'Codex', tier: 'low / mid / high', surface: 'codex exec backend' },
-  { name: 'Claude SDK', tier: 'haiku / sonnet / opus', surface: 'exact telemetry path' },
-  { name: 'Claude CLI', tier: 'haiku / sonnet / opus', surface: 'local CLI auth' },
-  { name: 'Gemini', tier: 'flash / flash / pro', surface: 'Google SDK path' },
-  { name: 'Ollama', tier: 'local small / medium / large', surface: 'offline backend' },
-  { name: 'Aider', tier: 'mini / standard / high', surface: 'Aider-managed edits' },
+  { name: 'Codex', tier: 'low / mid / high', surface: 'runs through codex exec' },
+  { name: 'Claude SDK', tier: 'haiku / sonnet / opus', surface: 'reports token usage per run' },
+  { name: 'Claude CLI', tier: 'haiku / sonnet / opus', surface: 'uses your local CLI login' },
+  { name: 'Gemini', tier: 'flash / flash / pro', surface: 'runs through the Google SDK' },
+  { name: 'Ollama', tier: 'small / medium / large', surface: 'runs offline, on your machine' },
+  { name: 'Aider', tier: 'mini / standard / high', surface: 'lets Aider make the edits' },
 ]
 
 const MAGIC_TOOLS: MagicTool[] = [
   {
     name: 'fleet_init',
-    tagline: 'Create a coordinated project fleet in one call.',
+    tagline: 'fleet_init — stand up a group of agents in one call.',
     icon: Cpu,
     tone: 'blue',
     description:
-      'Creates the fleet config, installs the scoped commit hook, and starts background agents through the Port Daddy daemon.',
+      'Writes the fleet config, installs a commit hook scoped to this project, and starts the background agents. One call, and the group is running and tracked.',
     example: `await fleet_init({
   project: "myapp",
   agents: ["qa", "documentarian", "cartographer"]
@@ -104,11 +103,11 @@ const MAGIC_TOOLS: MagicTool[] = [
   },
   {
     name: 'swarm_awareness',
-    tagline: 'Ask who is active before an agent edits.',
+    tagline: 'swarm_awareness — ask who else is active before editing.',
     icon: Users,
     tone: 'paper',
     description:
-      'Returns active agents, sessions, file claims, and salvage candidates so MCP clients can coordinate before touching files.',
+      'Returns who is working right now, which files they have claimed, and which sessions died mid-task. An agent reads this before editing so a crowded file is a visible signal to route elsewhere — it surfaces the conflict, it does not lock the file.',
     example: `const state = await swarm_awareness({ project: "myapp" })
 
 // active: qa, cartographer
@@ -117,11 +116,11 @@ const MAGIC_TOOLS: MagicTool[] = [
   },
   {
     name: 'catch_me_up',
-    tagline: 'Rebuild context from durable activity.',
+    tagline: 'catch_me_up — read what happened while you were gone.',
     icon: Activity,
     tone: 'accent',
     description:
-      'Summarizes notes, session activity, fleet events, commits, and salvage context since a timestamp or last handoff.',
+      'Summarizes the notes, commits, and agent activity since a point in time. An agent starting fresh, or a person back from lunch, gets the same short briefing.',
     example: `const briefing = await catch_me_up({
   since: "1h",
   project: "myapp"
@@ -133,11 +132,11 @@ const MAGIC_TOOLS: MagicTool[] = [
   },
   {
     name: 'spawn_agent',
-    tagline: 'Launch background work with budget and identity.',
+    tagline: 'spawn_agent — start one background agent with a spending cap.',
     icon: Bot,
     tone: 'blue',
     description:
-      'Starts a backend agent with session registration, heartbeat, model tier, budget ceiling, notes, and salvage behavior.',
+      'Starts a single agent in the background with a name, a job, and a dollar ceiling it cannot exceed — a per-agent bulkhead, so one runaway agent cannot drain the whole budget. It checks in on a heartbeat, so a stall surfaces instead of going quiet.',
     example: `await spawn_agent({
   backend: "codex",
   model_tier: "low",
@@ -148,11 +147,11 @@ const MAGIC_TOOLS: MagicTool[] = [
   },
   {
     name: 'file_heat',
-    tagline: 'See contention before it becomes a conflict.',
+    tagline: 'file_heat — see which files are crowded right now.',
     icon: GitBranch,
     tone: 'paper',
     description:
-      'Combines active claims and coordination signals into a file heat map for safer routing and review decisions.',
+      'Scores each file by how many agents are working in or near it. A high score is a hint to route the next agent elsewhere, before two edits collide.',
     example: `const heat = await file_heat({ project: "myapp" })
 
 // src/auth/middleware.ts  0.87
@@ -161,11 +160,11 @@ const MAGIC_TOOLS: MagicTool[] = [
   },
   {
     name: 'fleet_status',
-    tagline: 'Inspect health without reading logs.',
+    tagline: 'fleet_status — check the whole group without opening logs.',
     icon: Search,
     tone: 'accent',
     description:
-      'Returns fleet agent state, recent notes, trigger channels, last run timestamps, and respawn counters.',
+      'Returns each agent in the group, what it last did, when it last ran, and how many times it has restarted. The state you would otherwise piece together from log files.',
     example: `const status = await fleet_status({ harbor: "myapp:fleet" })
 
 // qa: running, last commit 4m ago
@@ -183,7 +182,7 @@ const CHANNEL_SURFACES: ChannelSurface[] = [
     code: `pd watch git:committed
 pd pub git:committed '{"sha":"abc123"}'
 pd watch git:committed --exec './fleet/qa.sh'`,
-    note: 'The shell path is best for hooks, local scripts, and recovery flows you want to inspect later.',
+    note: 'Reach for the shell in git hooks and local scripts. The commands are plain text, so you can read back later what fired and when.',
   },
   {
     id: 'mcp',
@@ -196,7 +195,7 @@ await publish_message({
   channel: "git:committed",
   content: JSON.stringify({ sha: "abc123" })
 })`,
-    note: 'The MCP path lets model clients chain coordination without shell parsing.',
+    note: 'An AI client calls MCP directly, so it can subscribe and publish without shelling out and parsing text.',
   },
   {
     id: 'sdk',
@@ -210,7 +209,7 @@ const pd = new PortDaddy()
 for await (const msg of pd.subscribe("git:committed")) {
   console.log(msg.content)
 }`,
-    note: 'The SDK path fits typed app integrations and long-running tools.',
+    note: 'The SDK fits typed apps and long-running tools that want an async stream instead of polling.',
   },
   {
     id: 'api',
@@ -222,7 +221,7 @@ curl http://localhost:9876/msg/git:committed/poll
 curl -X POST http://localhost:9876/msg/git:committed \\
   -H 'Content-Type: application/json' \\
   -d '{"content":{"sha":"abc123"}}'`,
-    note: 'The REST/SSE path keeps non-TypeScript tools connected to the same Port Daddy state.',
+    note: 'Plain HTTP keeps tools in any language — Python, Go, a shell one-liner — on the same Port Daddy state.',
   },
 ]
 
@@ -457,9 +456,9 @@ function ChannelTabs() {
       <div id={`mcp-channel-panel-${surface.id}`} role="tabpanel" aria-labelledby={`mcp-channel-tab-${surface.id}`} className="min-w-0">
         <SurfacePanel className="space-y-[var(--panel-gap)]">
           <div className="space-y-[var(--space-2)]">
-            <BracketLabel>{surface.label}</BracketLabel>
+            <PanelEyebrow>{surface.label}</PanelEyebrow>
             <PanelTitle as="h3" size="card">
-              One channel, many clients.
+              One channel, reached four ways.
             </PanelTitle>
             <PanelBody size="compact" className="max-w-[42rem]">
               {surface.note}
@@ -474,10 +473,10 @@ function ChannelTabs() {
 
 function LifecycleDiagram() {
   const steps = [
-    ['heartbeat gap', 'Detect stale body lease'],
-    ['salvage', 'Preserve notes and claims'],
-    ['budget check', 'Respect run ceiling'],
-    ['respawn', 'Launch same identity'],
+    ['missed check-in', 'The agent stops sending heartbeats'],
+    ['salvage', 'Its notes and file claims are kept'],
+    ['budget check', 'Restart only if money is left'],
+    ['respawn', 'Same identity comes back up'],
   ] as const
 
   return (
@@ -542,7 +541,7 @@ function DiscoverGrid() {
                 <code
                   id={tool}
                   key={tool}
-                  className="scroll-mt-24 border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[0.72rem] text-[var(--text-secondary)]"
+                  className="scroll-mt-[calc(var(--space-10)+var(--space-6))] border border-[var(--border-subtle)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-mono text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]"
                 >
                   {tool}
                 </code>
@@ -579,16 +578,16 @@ export default function McpPage() {
           >
             <SwissGrid className="items-start">
               <SwissGridItem span="wide" className="space-y-[var(--space-6)]">
-                <BracketLabel>Skill + MCP</BracketLabel>
+                <PanelEyebrow>Skills + MCP</PanelEyebrow>
                 <div className="space-y-[var(--space-5)]">
-                  <PanelTitle as="h1" size="hero" className="max-w-[12ch]">
-                    The manual and the tool socket for serious agent coordination.
+                  <PanelTitle as="h1" size="hero" className="max-w-[16ch]">
+                    Run a fleet of coding agents without losing track.
                   </PanelTitle>
                   <PanelBody className="max-w-[48rem]">
-                    The Port Daddy agent skill teaches agents how to work together. The MCP server gives them the tools to do it: sessions, ports, claims, locks, notes, pub/sub, salvage, fleets, and tuple space wired through the same local daemon and console.
+                    Two parts work together. The Port Daddy agent skill teaches an AI agent how to work alongside others. The MCP server gives it the tools to do so: claim a file, leave a note, take a lock, ask who else is active. Both run through one local app on your machine.
                   </PanelBody>
                   <PanelBody className="max-w-[48rem]">
-                    Think of it as the instruction manual plus the control cable. The skill explains when to publish intent, claim a file, lock a critical section, inspect FleetBar, or leave a schema-shaped handoff. MCP makes those moves callable from Claude, Cursor, Windsurf, Codex-adjacent tools, and any client that speaks the protocol.
+                    The skill is the instruction manual. The MCP server is the set of controls. Any tool that speaks MCP — Claude, Cursor, Windsurf, Codex — can pick up the controls and read from the same shared memory. Nothing happens silently.
                   </PanelBody>
                 </div>
                 <div className="flex flex-wrap gap-[var(--space-3)]">
@@ -608,7 +607,7 @@ export default function McpPage() {
                       <source srcSet="/img/generated/control-plane-og.webp" type="image/webp" />
                       <img
                         src="/img/generated/control-plane-og.jpg"
-                        alt="Generated Swiss-modern diagram of an MCP-connected local control plane with agent nodes, locks, ports, and recovery paths"
+                        alt="Diagram of agents connected through one local app, sharing file claims, locks, ports, and recovery paths"
                         className="block aspect-[16/9] w-full object-cover"
                       />
                     </picture>
@@ -619,14 +618,14 @@ export default function McpPage() {
                       pd mcp install
                     </PanelTitle>
                     <PanelBody tone="primary" className="max-w-none">
-                      One local daemon. MCP-compatible clients. Durable session truth.
+                      One local app. Any MCP client connects. Sessions are written down, so they survive a crash.
                     </PanelBody>
                   </div>
                   <DocsCodeBlock
                     code={`pd install
 pd mcp install
 python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
-pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP" --lifecycle durable`}
+pd begin --identity myapp:agent --purpose "coordinate through Skills + MCP"`}
                     language="cli"
                     label="Setup"
                   />
@@ -642,23 +641,21 @@ pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP" --lif
               <SwissGridItem span="rail">
                 <SectionIntro
                   eyebrow="Agent skill"
-                  title="The instruction manual is now first-class."
-                  description="The skill is not hidden under the agent catalog. It is the operating manual for Port Daddy-aware agents, distributed with the binaries and mirrored into the tool-specific skill directories that agents actually read."
+                  title="The instruction manual, written for agents."
+                  description="The skill ships with the Port Daddy binaries and copies itself into the folders each tool reads from. So an agent in Claude, Cursor, or Codex starts with the same playbook for working next to other agents."
                   titleSize="display"
                 />
               </SwissGridItem>
               <SwissGridItem span="body" className="space-y-[var(--panel-gap)]">
                 <div className="grid gap-[var(--panel-gap)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
                   <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
-                    <BracketLabel tone="primary" surface="blue">
-                      What ships
-                    </BracketLabel>
+                    <PanelEyebrow tone="primary">What ships</PanelEyebrow>
                     <PanelTitle as="h2" size="card" tone="primary">
-                      A procedural field manual, not a thin prompt.
+                      A step-by-step manual, not a one-line hint.
                     </PanelTitle>
                     <PanelBody tone="primary" className="max-w-none">
-                      Procedural knowledge is the repeatable operating know-how an agent uses under pressure, not
-                      just facts about a tool. WinDAGs lays out the distinction in{' '}
+                      The skill teaches what to do, not just what exists: when to claim a file, when to take a lock,
+                      when to leave a note for the next agent. WinDAGs explains the difference in{' '}
                       <a
                         href={PROCEDURAL_KNOWLEDGE_URL}
                         target="_blank"
@@ -684,12 +681,12 @@ pd begin --identity myapp:agent --purpose "coordinate through Skill + MCP" --lif
                   </SurfacePanel>
 
                   <SurfacePanel className="space-y-[var(--panel-gap)]">
-                    <BracketLabel>Install surfaces</BracketLabel>
+                    <PanelEyebrow>Install surfaces</PanelEyebrow>
                     <PanelTitle as="h2" size="card">
-                      One doctrine, every agent runner.
+                      Same manual, every agent tool.
                     </PanelTitle>
                     <PanelBody className="max-w-none">
-                      Port Daddy packages the source skill and mirrors it into the local skill locations so agents do not drift by client. The MCP server then exposes the same coordination primitives to those clients at runtime.
+                      Port Daddy copies one source skill into the folder each tool reads from, so no two clients drift apart. At runtime, the MCP server hands those same clients the tools the manual describes.
                     </PanelBody>
                     <div className="grid gap-[var(--space-2)]">
                       {SKILL_INSTALL_SURFACES.map(([label, body]) => (
@@ -708,7 +705,7 @@ pd mcp install
 python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
 bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`}
                       language="cli"
-                      label="Skill + MCP readiness"
+                      label="Skills + MCP readiness"
                     />
                   </SurfacePanel>
                 </div>
@@ -729,9 +726,9 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
           <SwissGrid>
             <SwissGridItem span="rail">
               <SectionIntro
-                eyebrow="High-level MCP tools"
-                title="Useful calls that carry Port Daddy context."
-                description="The MCP tools are not a loose bag of shell wrappers. The important calls preserve identity, budget, files, session notes, and recovery semantics."
+                eyebrow="Core MCP tools"
+                title="A handful of calls do most of the coordinating."
+                description="These are not thin wrappers around shell commands. Each call carries who the agent is, what it is allowed to spend, which files it holds, and what to keep if it dies."
                 titleSize="display"
               />
             </SwissGridItem>
@@ -751,9 +748,9 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
           <SwissGrid>
             <SwissGridItem span="rail">
               <SectionIntro
-                eyebrow="Pub/Sub radio"
-                title="A channel is the same channel everywhere."
-                description="CLI hooks, MCP clients, SDK integrations, and REST/SSE consumers publish into the same scoped channel model. That keeps background fleets and interactive agents synchronized."
+                eyebrow="Pub/sub channels"
+                title="One channel, reached four ways."
+                description="A git hook, an AI client, a typed app, and a curl command can all publish to and read from the same channel. So a background agent and the agent you are talking to see the same events."
                 titleSize="display"
               />
             </SwissGridItem>
@@ -770,8 +767,8 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
             <SwissGridItem span="wide" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
               eyebrow="Fleet recovery"
-              title="Respawn is a policy, not a hope."
-              description="Fleet agents can restart after crashes, but the important behavior is recoverability: the daemon keeps session notes, salvage state, channel scope, and budget checks visible."
+              title="When an agent dies, its work is still on the table."
+              description="A crashed agent can restart on its own. What matters more is what survives the crash: its notes, its unfinished work, and its spending limit all stay visible, so a restart picks up where it stopped instead of starting blind."
               titleSize="display"
             />
             <LifecycleDiagram />
@@ -813,9 +810,9 @@ bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh`
           <SwissGrid className="items-start">
             <SwissGridItem span="half" className="space-y-[var(--section-intro-gap)]">
             <SectionIntro
-              eyebrow="Tuple space"
-              title="Shared memory for parallel agents."
-              description="Agents write structured facts into a harbor-scoped tuple space. Other agents read by pattern, take work items, and coordinate without scraping prose."
+              eyebrow="Shared memory"
+              title="A scratchpad agents read and write by pattern."
+              description="One agent writes a fact, like a finding or a pending task. Another reads it back by matching a pattern, or claims a work item so no one else picks it up. They coordinate through structured entries instead of re-reading each other's prose."
               titleSize="display"
             />
             <div className="grid gap-[var(--space-3)] sm:grid-cols-3">
@@ -866,8 +863,8 @@ const task = await tuple_in({
             <SwissGridItem span="wide">
               <SectionIntro
                 eyebrow="Tool discovery"
-                title="Small default toolset, full system on demand."
-                description="Agents should not start every turn with an overwhelming tool list. The default set stays tight, then specialized categories unlock only when the task needs them."
+                title="A short default list. The rest on request."
+                description={`Every turn an agent reads its tool list costs tokens, so a wall of ${MCP_TOOL_TOTAL} tools would slow every call. It starts with ${MCP_DEFAULT_TOOL_TOTAL} essentials and asks for a specialized group only when a task needs one.`}
                 titleSize="display"
               />
             </SwissGridItem>
@@ -881,12 +878,12 @@ const task = await tuple_in({
 
         <SectionBand tone="sunken">
           <PageContainer className="space-y-[var(--space-6)] text-center">
-            <PanelEyebrow>Start coordinated</PanelEyebrow>
-            <PanelTitle as="h2" size="display" className="mx-auto max-w-[14ch]">
-              Give the next MCP client a real coordination path.
+            <PanelEyebrow>Get started</PanelEyebrow>
+            <PanelTitle as="h2" size="display" className="mx-auto max-w-[18ch]">
+              Point your MCP client at one shared source of truth.
             </PanelTitle>
             <PanelBody className="mx-auto max-w-[44rem]">
-              Install the daemon, wire the MCP server, start a session, and let agents use the same coordination features as the CLI and dashboard.
+              Install the app, connect the MCP server, and start a session. Your agents then share the same files, locks, and notes you already see in the CLI and the dashboard.
             </PanelBody>
             <div className="flex flex-wrap justify-center gap-[var(--space-3)]">
               <Link

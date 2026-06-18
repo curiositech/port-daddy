@@ -665,180 +665,6 @@ fleet:
       identity: "{project}:fleet:tenderfoot"
       telos: "Catch drift between what we tell new operators and what the binary does."
 
-    officer-of-the-watch:
-      # The project's avatar — the one ship SOLELY RESPONSIBLE for
-      # reading the logs and traffic nobody else reads. Born from the
-      # 2026-06-10 incident: "File not found: ollama/qwen2.5-coder"
-      # errors flooded MESSAGE TRAFFIC for weeks with no agent
-      # noticing, because no agent owned the question.
-      #
-      # Maritime watch system: six four-hour watches a day. Each
-      # watch covers the gap since the previous deck-log entry (a
-      # missed watch widens the next window — no blind spots). Every
-      # watch ends with a mandatory deck-log note, ALL QUIET included:
-      # a silent watch officer is indistinguishable from a dead one.
-      #
-      # Sole-responsibility contract, state surfaces, escalation
-      # tiers, and known gaps: fleet/ships/officer-of-the-watch.md.
-      # General pattern: the `solely-responsible-agent` skill.
-      schedule: "0 */4 * * *"
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
-      cooldown_ms: 3600000
-      dedupe_window_ms: 10800000
-      singleton: true
-      allowedTools: "Read,Grep,Glob,Bash(pd*),Bash(gh*),Bash(curl*),Bash(git
-        log*),Bash(tail*)"
-      prompt: |
-        Read fleet/ships/officer-of-the-watch.md end to end before
-        doing anything else. That is your full behavior contract —
-        the sole-responsibility constitution, the watch procedure,
-        the escalation tiers, and the deck-log format.
-
-        Short form, in case the contract is unreachable:
-        1. RELIEVE THE WATCH: read the latest `watch-log:` note via
-           `pd notes`; its timestamp starts your coverage window
-           (first watch ever: cover 24h and say so).
-        2. SWEEP: pd notes, channel messages, /activity,
-           /fleet/transcripts, daemon log tail, your own open
-           `watch:finding` issues.
-        3. ANALYZE by error class, never by occurrence. "Would Erich
-           want to know?" is the bar. 347 identical errors = ONE
-           finding with a count.
-        4. ESCALATE per tier: log-only → GitHub issue (label
-           watch:finding, dedupe by title) → issue tagging
-           @erichowens + warning note. Close your own resolved
-           issues.
-        5. WRITE THE DECK LOG — always, even ALL QUIET:
-           pd note "watch-log: <ts> | window <a>..<b> | swept: ... |
-           anomalies: ... | escalations: ... | handover: ..."
-
-        You report; you do not repair. The watch officer never
-        leaves the bridge to patch the engine.
-      identity: "{project}:fleet:officer-of-the-watch"
-      telos: "Stand the watch: read what nobody else reads, keep the deck log,
-        escalate what the operator must see."
-
-    harbor-pilot:
-      # Repo-wide PR custody: arms merge-when-ready on non-draft PRs,
-      # DEMOTES (never closes) PRs whose entire diff already landed on
-      # main via other PRs (the #353 failure mode no GitHub setting
-      # catches), and flags conflicted PRs once.
-      #
-      # Naming: the harbor pilot boards any inbound vessel and guides
-      # it to berth. Distinct from lib/harbormaster.ts (ADR-0037),
-      # which owns merges of DISPATCHED agent work only and never
-      # touches operator-authored PRs. The pilot covers the rest of
-      # the harbor. GitHub's merge queue owns mechanical correctness
-      # (latest-main validation, serialization); the pilot owns the
-      # judgment calls the queue cannot make.
-      #
-      # Deterministic code body, not an LLM prompt — every rule is
-      # unit-tested in tests/unit/harbor-pilot.test.ts. Safety
-      # defaults: uncertainty never demotes; drafts are never
-      # touched; an operator re-readying a demoted PR (label still
-      # present) is an override the pilot never re-overrides.
-      handle: harbor-pilot
-      role: guides every open PR to berth; demotes ghosts, flags fouled anchors
-      mark: "◯"
-      schedule: "*/10 * * * *"
-      trigger: pull_request:opened
-      body: apps/github-app-fleet/bin/harbor-pilot.ts
-      backend: local
-      singleton: true
-      cooldown_ms: 300000
-      allowedTools: "Bash(gh*),Bash(pd note*)"
-      identity: "{project}:fleet:harbor-pilot"
-      telos: "No stale, superseded, or silently rotting PR ever reaches main."
-
-    steward:
-      # The single approver (ADR-0056). One agent responsible for every
-      # open PR from open to merged, and for what gets built next when
-      # the queue is dry. The JUDGMENT layer above the mechanical
-      # custody: harbor-pilot arms/demotes by rule, officer-of-the-watch
-      # reads logs — the Steward reads the diff, conducts the
-      # adversarial review (code-reviewer/red-team/tautology-sniffer),
-      # answers the bots (Copilot/claude-review), decides LAND /
-      # NEEDS-WORK / SURFACE, lands genuinely-green non-production PRs,
-      # and advances ONE background improvement per drained tick.
-      #
-      # Full behavior contract + the hard guardrails (never --admin over
-      # red, production-site PRs need operator "ship it", push-only
-      # sub-agents, continuous PD coordination): fleet/ships/steward.md.
-      #
-      # Sonnet is a soft preference — landing decisions want a capable
-      # model, but the Steward never blocks on one being available.
-      schedule: "*/20 * * * *"
-      trigger: pull_request:opened
-      backend: cli:claude-code
-      fallbacks:
-        - backend: cli:codex
-        - backend: anthropic
-          model: claude-sonnet-4-5-20251001
-        - backend: openai
-          model: gpt-5
-      cooldown_ms: 600000
-      dedupe_window_ms: 600000
-      singleton: true
-      timeout: 1800000
-      # $4/day sub-cap under the fleet's $8.50 ceiling (matches the
-      # "Daily budget: $4.00" line in fleet/ships/steward.md).
-      daily_cap_usd: 4
-      allowedTools: "Read,Grep,Glob,Bash(gh*),Bash(pd*),Bash(git*),Bash(curl*)"
-      prompt: |
-        Read fleet/ships/steward.md end to end before doing anything
-        else. That is your full behavior contract — the lifecycle, the
-        hard guardrails, and the output contract. Re-read ADR-0056
-        (docs/adr/0056-the-steward-single-approver.md); it is your
-        charter.
-
-        You are the Steward: the one agent responsible for every open
-        PR from open to merged, and for what gets built next when the
-        queue is dry. The Cartographer surfaces; you ship.
-
-        Each tick:
-        1. SURVEY every open non-draft PR (gh pr list) + the live fleet
-           (pd sessions/notes/claims). Review with conflict awareness.
-        2. For each PR: read the diff + checks + existing review
-           comments. Conduct the review ships (code-reviewer always;
-           red-team on the security surface; tautology-sniffer on
-           prose). Fold into one verdict: LAND / NEEDS-WORK / SURFACE.
-        3. RESPOND to every Copilot/claude-review comment — fix+reply or
-           dismiss-with-reason vs origin/main. Never merge with bot
-           comments unaddressed.
-        4. LAND only when ALL hold: every required check genuinely green,
-           verdict=LAND, all bot comments addressed, NOT a production-site
-           PR, branch current with origin/main. Merge is TWO-PHASE
-           (feedback_auto_merge_races_copilot_review): for a non-trivial
-           CODE PR, wait for the Copilot review pass + zero unaddressed
-           inline comments, THEN `gh pr merge <N> --squash` (NO --auto:
-           --auto fires before Copilot reviews and lands unreviewed).
-           Docs-only/trivial PRs may use --auto. NEVER --admin/--no-verify
-           over a real red check — fix the root cause or SURFACE it.
-        5. SURFACE what you can't land (real red you can't fix,
-           production-site PR, roadmap conflict, unanswerable ambiguity)
-           to the dashboard issue as an operator decision.
-        6. IMPROVE only when the queue is drained: advance exactly ONE
-           small, cited, reversible roadmap step (pd roadmap pop, or one
-           draft PR). Sub-agents you spawn are worktree-isolated AND
-           push-only.
-
-        Output: ONE rolling dashboard issue (title "Steward log", label
-        pd-fleet:steward-log), edited in place — sections Landed /
-        Needs operator decision / In review / Background improvement.
-        Plus per-comment PR replies in the operator's voice. Drop any
-        Claude-coauthor trailer from commits.
-
-        Coordinate through Port Daddy continuously: pd begin, claim
-        before edit, re-read live state each tick. Never destructive-git
-        on the main checkout. Never write to /tmp (use ~/coding/tmp/).
-      identity: "{project}:fleet:steward"
-      telos: "Be the one agent responsible for every open PR open-to-merged, and
-        for the next improvement when the queue is dry — review IS the gate."
-
   watchers:
     # Operator-facing watcher: when a HIGH finding lands, drop a
     # session note so the FleetBar app's `dock-master` badge
@@ -992,14 +818,13 @@ fleet:
         webhook receiver (forthcoming) OR manual `pd pub` for
         testing."
       external_producer: github-webhook-bridge
-      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer, steward ]
+      consumers: [ code-reviewer, red-team, qa, test-author, tautology-sniffer ]
 
     pull_request:synchronize:
       description: "GitHub PR head updated. Same payload as :opened.
-        Drives code-reviewer's edit-in-place re-review and the Steward's
-        re-survey (so it reacts to head updates between scheduled ticks)."
+        Drives code-reviewer's edit-in-place re-review."
       external_producer: github-webhook-bridge
-      consumers: [ code-reviewer, steward ]
+      consumers: [ code-reviewer ]
 
     pull_request:merged:
       description: "GitHub PR merged to main. Payload: { prNumber,

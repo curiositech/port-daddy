@@ -1,4 +1,4 @@
-# ⚓ Port Daddy (v3.13.0)
+# ⚓ Port Daddy (v3.18.0)
 
 <p align="center">
   <img src="website-v2/public/img/hero-portdaddy.png" alt="Port Daddy — the harbormaster for your AI agents" width="600">
@@ -29,7 +29,7 @@ While individual agents are brilliant, **coordination** is the bottleneck. Port 
 
 ```bash
 # Start working (registers agent + claims port + starts session)
-pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
+pd begin "Building the auth layer" --identity myapp:api
 
 # Log progress, coordinate with other agents
 pd note "JWT validation passing all tests"

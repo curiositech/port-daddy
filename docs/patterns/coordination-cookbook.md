@@ -81,7 +81,7 @@ agent + tool-using subagents" you've ever written.
 
 ```bash
 # Coordinator
-pd begin "ship v4.2" --identity claude:lead --lifecycle durable --files docs/ROADMAP.md
+pd begin "ship v4.2" --identity claude:lead --files docs/ROADMAP.md
 pd spawn --backend claude-cli --identity claude:auth-rewrite \
   --purpose "rewrite token refresh" --budget 2.50 \
   -- "Refactor refreshToken() in lib/auth.ts. Acceptance: tests pass, no Date.now()."
@@ -118,7 +118,7 @@ activity log.
 
 ```bash
 # Coordinator
-pd begin "shard jest run across 12 packages" --identity claude:test-runner --lifecycle durable
+pd begin "shard jest run across 12 packages" --identity claude:test-runner
 
 for pkg in apps/* packages/*; do
   pd spawn --backend claude-cli --identity claude:shard-$(basename $pkg) \
@@ -149,7 +149,7 @@ distributed work where any agent is allowed to grab any unit of work, and the
 
 ```bash
 # Every peer registers and subscribes — symmetric
-pd begin "harvest stale TODOs" --identity codex:harvest-${SHARD} --lifecycle durable
+pd begin "harvest stale TODOs" --identity codex:harvest-${SHARD}
 pd watch coord:harvest --exec ./peer-tick.sh --max-concurrent 1 &
 # inside peer-tick.sh: try to claim a TODO via the tuple space
 #   pd tuple in '["todo","pending","*"]' --limit 1 --harbor harvest
@@ -192,7 +192,7 @@ for f in $(rg -l 'TODO\(stale\)' --type-add 'src:*.{ts,tsx}' -tsrc); do
 done
 
 # Each peer (run on three workstations)
-pd begin "harvest" --identity codex:peer-$HOSTNAME --lifecycle durable
+pd begin "harvest" --identity codex:peer-$HOSTNAME
 while true; do
   claimed=$(pd tuple in '["todo","pending","*"]' --harbor harvest --limit 1 -j)
   [ "$(echo $claimed | jq '.taken | length')" = "0" ] && break
@@ -218,7 +218,7 @@ ChatDev's "Designer → Coder → Tester" really runs when each layer can fan ou
 
 ```bash
 # Depth-0 lead
-pd begin "v5 platform migration" --identity claude:platform-lead --lifecycle durable
+pd begin "v5 platform migration" --identity claude:platform-lead
 
 # Depth-1 sub-leads spawn from inside the lead
 pd spawn --backend claude-cli --identity claude:sublead-frontend \
@@ -261,7 +261,7 @@ queue surfaces the dead sub-lead so a human can replace it.
 
 ```bash
 # L0
-pd begin "v5 sweep" --identity claude:l0-lead --lifecycle durable
+pd begin "v5 sweep" --identity claude:l0-lead
 pd note "Decomposition: 3 sub-leads, ~20 packages each" --type plan
 
 # L1 — FE sub-lead (spawned by L0)
@@ -353,7 +353,7 @@ search, redundant-execution-with-vote.
 
 ```bash
 # Fan out
-pd begin "audit all 47 routes" --identity claude:audit-lead --lifecycle durable
+pd begin "audit all 47 routes" --identity claude:audit-lead
 pd channels ensure audit:results --scope repo
 
 for route in $(rg -l '/api/v[0-9]+/' --type ts | sort -u); do
@@ -397,7 +397,7 @@ all|majority|first|N`) — the gather logic is yours to write. See gaps below.
 clean approval."**
 
 ```bash
-pd begin "first-clean PR review" --identity claude:review-lead --lifecycle durable
+pd begin "first-clean PR review" --identity claude:review-lead
 pd channels ensure review:verdict --scope branch
 
 for r in claude codex gemini; do
@@ -463,7 +463,7 @@ project manager pattern.
 
 ```bash
 # Supervisor
-pd begin "schedule release" --identity claude:supervisor --lifecycle durable
+pd begin "schedule release" --identity claude:supervisor
 
 # Direct dispatch via actor mailbox (durable, addressable)
 pd actor cartographer --message "Re-run cartographer scan over apps/marketing for the v4.2 promote."
@@ -500,7 +500,7 @@ supervisor takes over via `pd salvage claim`.
 
 ```bash
 # Author opens session
-pd begin "feature: TOTP login" --identity claude:author-totp --lifecycle durable \
+pd begin "feature: TOTP login" --identity claude:author-totp \
   --files apps/auth/totp.ts apps/auth/totp.test.ts
 
 # Author signals "ready for review"
@@ -509,7 +509,7 @@ pd say "TOTP login ready for review on branch feat-totp" \
   --kind review-request
 
 # Reviewer claims
-pd begin "review feat-totp" --identity codex:reviewer-totp --lifecycle durable
+pd begin "review feat-totp" --identity codex:reviewer-totp
 pd note --type acceptance \
   "Acceptance: TOTP window=30s, secret length=160 bits, test covers replay" \
   --session $(pd whoami -q | cut -d: -f2)
@@ -542,7 +542,7 @@ is rigid: argue → rebut → judge → record.
 
 ```bash
 # Convening agent
-pd begin "decide: rewrite vs patch the auth module" --identity claude:moderator --lifecycle durable
+pd begin "decide: rewrite vs patch the auth module" --identity claude:moderator
 pd channels ensure debate:auth --scope branch
 
 pd spawn --backend claude-cli --identity claude:advocate-rewrite \
@@ -588,7 +588,7 @@ runs out before they can dominate, and have the judge explicitly score
 **Worked example — "Should we adopt React Server Components in apps/marketing?"**
 
 ```bash
-pd begin "RSC adoption decision" --identity claude:moderator --lifecycle durable
+pd begin "RSC adoption decision" --identity claude:moderator
 pd channels ensure debate:rsc --scope repo
 
 pd spawn --backend claude --identity claude:pro-rsc --budget 2.00 \
@@ -620,7 +620,7 @@ asymmetric roles and they're cooperating, not opposing.
 **PD command sequence.**
 
 ```bash
-pd begin "draft v4.2 announcement" --identity claude:author --lifecycle durable
+pd begin "draft v4.2 announcement" --identity claude:author
 pd channels ensure refine:announce --scope branch
 
 # Author posts draft N
@@ -663,7 +663,7 @@ too — when the critic's `--budget` runs out, it's done arguing.
 **Worked example — "Draft the v4.2 release blog post."**
 
 ```bash
-pd begin "v4.2 release blog" --identity claude:blog-author --lifecycle durable --files content/blog/v4.2.md
+pd begin "v4.2 release blog" --identity claude:blog-author --files content/blog/v4.2.md
 
 # Spawn critic — long-running loop
 pd spawn --backend codex --identity codex:blog-critic --budget 2.00 \

@@ -45,7 +45,7 @@ Sleep 2s
 Type "# Continue where they left off"
 Enter
 Sleep 800ms
-Type `pd begin "Continuing auth refactor from Alice" --identity myapp:auth --lifecycle durable`
+Type `pd begin "Continuing auth refactor from Alice" --identity myapp:auth`
 Enter
 Sleep 2s
 

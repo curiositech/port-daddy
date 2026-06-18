@@ -1,20 +1,12 @@
 import { jest } from '@jest/globals';
 
-const { createSpawner: createSpawnerBase } = await import('../../lib/spawner.js');
+const { createSpawner } = await import('../../lib/spawner.js');
 
 const TEST_TELEMETRY_BYPASS = {
   humanConfirmed: true,
   confirmedBy: 'jest',
   reason: 'Explicit telemetry bypass test coverage',
 };
-
-// This suite exercises the TELEMETRY policy, not the transcript policy. Default
-// transcript enforcement off so construction doesn't require a transcripts
-// module (a test can still opt in via deps.enforceTranscriptPolicy). Telemetry
-// enforcement is left at its real default so these assertions are unaffected.
-function createSpawner(deps = {}) {
-  return createSpawnerBase({ enforceTranscriptPolicy: false, ...deps });
-}
 
 describe('spawner telemetry enforcement', () => {
   const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;

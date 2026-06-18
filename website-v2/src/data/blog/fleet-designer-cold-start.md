@@ -6,7 +6,7 @@ That sounds less glamorous, but it is the difference between a useful developer 
 
 Port Daddy's cold-start philosophy is simple: inspect first, propose second, launch last.
 
-![Fleet designer and control plane view](/img/app-screens/shipwright-control-light.png)
+![Fleet designer and control plane view](/img/app-screens/shipwright-control-light.webp)
 
 ## The Wrong First Run
 
@@ -106,7 +106,7 @@ Most tools ask whether an API key exists. Port Daddy needs more than that.
 | Usage telemetry | A launch should prove tokens and cost. |
 | Project policy | Some repos require claims, tests, or human gates before mutation. |
 
-![Resources and readiness surface](/media/landing-live-glory/live-resources-light.png)
+![Resources and readiness surface](/media/landing-live-glory/live-resources-light.webp)
 
 That readiness surface is where Port Daddy starts to feel different from a typical agent launcher. A blocked launch is not a failure of the demo. It is the system refusing to lie.
 
@@ -202,7 +202,7 @@ In a Port Daddy cold start, the human should be able to review the actual operat
 - how it reports failure;
 - how to stop it.
 
-![Focused fleet proposal surface](/media/landing-live-glory/live-shipwright-focus-light.png)
+![Focused fleet proposal surface](/media/landing-live-glory/live-shipwright-focus-light.webp)
 
 A first-run flow is successful when the user feels more in control after enabling automation, not less.
 

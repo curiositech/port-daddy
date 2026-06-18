@@ -21,14 +21,15 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 % LEFT: the org chart (roles)
-\node[lbl,anchor=south west,font=\bfseries\footnotesize] at (-1.4,4.2) {ROLE = \{obligation, capability, authority\}};
+\node[lbl] at (1.4,4.4) {ROLE = \{obligation, capability, authority\}};
 \node[role] (nav) at (0,3) {navigator\\{\scriptsize plan \& route}};
 \node[role,below=4mm of nav] (cart) {cartographer\\{\scriptsize map the repo}};
 \node[role,below=4mm of cart] (look) {lookout\\{\scriptsize watch for risk}};
-
+\node[font=\itshape\footnotesize,text=hhink,below=4mm of look,align=center]
+  (orgnote) {an org-chart entry\\any spawn can fill\\\textbf{(reputation-free)}};
 
 % RIGHT: the person (a continuity thread walking through role-instances)
-\node[lbl,anchor=south west,font=\bfseries\footnotesize] at (6.0,4.2) {PERSON = a role instance \emph{+ continuity}};
+\node[lbl] at (9.2,4.4) {PERSON = a role instance \emph{+ continuity}};
 \node[inst] (i1) at (6.6,3) {$a$};
 \node[inst,right=14mm of i1] (i2) {$a$};
 \node[inst,right=14mm of i2] (i3) {$a$};
@@ -47,9 +48,14 @@
       font=\scriptsize,text=hhink] {--loss};
 \node[draw=hhink,fill=hhpaper,rounded corners=1pt,below=5mm of i4,
       font=\scriptsize] {+win};
+\node[font=\itshape\footnotesize,text=hhink,below=12mm of i2,
+      align=center,anchor=north]
+  {one non-forgeable identity $a$, a \emph{witnessed history} accruing\\
+   along the thread --- \textbf{this} is what reputation attaches to};
+
 % The mapping arrow: a person fills roles over time
-\draw[arr,draw=hhink,dashed] (look.east) to[bend right=12]
-  node[midway,below,font=\scriptsize,text=hhink] {fills, over time} (i1.south west);
+\draw[arr,draw=hhink,dashed] (orgnote.east) to[bend right=10]
+  node[midway,above,font=\scriptsize,text=hhink] {fills, over time} (i1.south west);
 \end{tikzpicture}}
 \caption{\textbf{Role vs.\ person.} A \emph{role} (left) is an org-chart entry ---
 obligations, capabilities, authority --- fillable by any spawn and carrying no

@@ -164,7 +164,7 @@ export function DocsSidebar() {
               >
                 {surface.title}
               </BracketNavLink>
-              <p className="px-[var(--space-2)] text-[0.875rem] leading-snug text-[var(--text-quiet)]">
+              <p className="px-[var(--space-2)] text-[length:var(--type-meta-size)] leading-snug text-[var(--text-quiet)]">
                 {surface.description}
               </p>
             </div>
@@ -192,7 +192,7 @@ export function DocsSidebar() {
               >
                 {surface.title}
               </BracketNavLink>
-              <p className="px-[var(--space-2)] text-[0.875rem] leading-snug text-[var(--text-quiet)]">
+              <p className="px-[var(--space-2)] text-[length:var(--type-meta-size)] leading-snug text-[var(--text-quiet)]">
                 {surface.description}
               </p>
               {surface.featured ? (

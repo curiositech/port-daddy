@@ -103,13 +103,13 @@ await pd.removeSession(session.id);
 
 Sugar methods combine multiple coordination steps into single atomic calls. Use these instead of the individual `register`, `startSession`, `endSession`, and `unregister` methods for the standard agent lifecycle.
 
-### `pd.begin(purpose, options)`
+### `pd.begin(options)`
 
 Register an agent and start a session in one call. Writes slot-scoped local context under `.portdaddy/contexts/<slot>.json` and updates `.portdaddy/current.json` as a compatibility pointer for the most recent local context.
 
 ```javascript
-const { agentId, sessionId } = await pd.begin('Implementing user auth', {
-  lifecycle: 'durable',
+const { agentId, sessionId } = await pd.begin({
+  purpose: 'Implementing user auth',
   identity: 'myapp:backend:feature-auth',
   type: 'claude',
   files: ['src/auth/*', 'src/middleware/auth.ts'],
@@ -224,8 +224,8 @@ import { PortDaddy } from 'port-daddy/client';
 const pd = new PortDaddy();
 
 // Begin — one call replaces register + startSession + startHeartbeat
-const { agentId, sessionId, salvageHint } = await pd.begin('Implementing user auth', {
-  lifecycle: 'durable',
+const { agentId, sessionId, salvageHint } = await pd.begin({
+  purpose: 'Implementing user auth',
   identity: 'myapp:backend:feature-auth',
   files: ['src/auth/*'],
 });

@@ -1,5 +1,4 @@
 import attentionFirstCommandContent from './blog/attention-is-the-first-command.md?raw';
-import macaroonGateContent from './blog/the-macaroon-gate.md?raw';
 import backendReadinessContent from './blog/backend-readiness-is-dependency-truth.md?raw';
 import bondPricingContent from './blog/bond-pricing-is-a-market.md?raw';
 import controlPlaneContent from './blog/control-plane-is-the-product.md?raw';
@@ -24,7 +23,6 @@ export interface BlogPost extends BlogPostMeta {
 
 const contentBySlug: Record<string, string> = {
   'attention-is-the-first-command': attentionFirstCommandContent,
-  'the-macaroon-gate': macaroonGateContent,
   'backend-readiness-is-dependency-truth': backendReadinessContent,
   'bond-pricing-is-a-market': bondPricingContent,
   'control-plane-is-the-product': controlPlaneContent,

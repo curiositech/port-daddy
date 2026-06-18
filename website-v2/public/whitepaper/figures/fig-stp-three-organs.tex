@@ -14,7 +14,7 @@
 \begin{tikzpicture}[
   font=\small,
   organ/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=6pt,
-                minimum width=46mm,minimum height=26mm,align=left,text width=42mm,anchor=north},
+                minimum width=46mm,minimum height=40mm,align=left,text width=42mm,anchor=north},
   hdr/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
               minimum width=46mm,align=center,font=\bfseries\footnotesize,anchor=south},
   tag/.style={font=\bfseries\footnotesize,anchor=north},
@@ -22,24 +22,29 @@
 % Organ 1 — memory — BUILT (teal)
 \node[hdr] (h1) at (0,0) {1. MEMORY};
 \node[organ,fill=hhsand!30] (o1) at (h1.south) {%
-  \footnotesize \emph{What happened.}\\[2pt]
-  Typed episodes, promoted out of transient history by an episodic-memory
-  component.};
+  \footnotesize \emph{What happened.} Typed episodes (title, summary, source ref,
+  scope), promoted out of transient history.\\[3pt]
+  {\scriptsize an episodic-memory component}\\[2pt]
+  {\scriptsize cf.\ Generative Agents (Park 2023):\\recency$\times$importance$\times$relevance.}};
 \node[tag,text=hhink,below=1mm of o1] {implemented};
 
 % Organ 2 — checkpoint — BUILT-WEAK (amber)
 \node[hdr,right=14mm of h1] (h2) {2. CHECKPOINT};
 \node[organ,fill=hhsand!30] (o2) at (h2.south) {%
-  \footnotesize \emph{Restorable state} --- enough to \emph{resume}.\\[2pt]
-  Today the restart organ forwards \textbf{a summary, not state}.};
+  \footnotesize \emph{Restorable state} --- enough to \emph{resume}.\\[3pt]
+  Today: the restart organ forwards \textbf{a summary, not state}.
+  Checkpoint-of-\emph{record}, not -of-\emph{execution}.\\[2pt]
+  {\scriptsize a heartbeat-staleness restart organ}\\[2pt]
+  {\scriptsize ``with teeth'' = \VISION.}};
 \node[tag,text=hhink,below=1mm of o2] {partial};
 
 % Organ 3 — outcome ledger — DESIGNED (blue)
 \node[hdr,right=14mm of h2] (h3) {3. OUTCOME LEDGER};
 \node[organ,fill=hhsand!30,draw=hhink] (o3) at (h3.south) {%
-  \footnotesize \emph{Witnessed delivery.}\\[2pt]
-  Append-only, daemon-witnessed; closes only against an \textbf{oracle} the agent
-  cannot author.};
+  \footnotesize \emph{Witnessed delivery.} Append-only, daemon-witnessed.
+  A commitment closes only against an \textbf{oracle} the agent cannot author.\\[3pt]
+  {\scriptsize a durable-commitment ledger}\\[2pt]
+  {\scriptsize \textbf{reputation keys on THIS organ.}}};
 \node[tag,text=hhink,below=1mm of o3] {\textsc{specified}};
 
 % Arrows of dependence
@@ -55,12 +60,9 @@
 \draw[->,>=Latex,very thick,draw=hhcobalt] (o3.south) -- (rep.north);
 \end{tikzpicture}}
 \caption{\textbf{The three continuity organs, honestly labelled.} Memory (\BUILT)
-records what happened --- typed episodes scored by
-recency$\times$importance$\times$relevance, after Generative Agents (Park 2023);
-checkpoint (\BUILTWEAK) is meant to restore execution state but today passes only
-notes (checkpoint-of-\emph{record}, not -of-\emph{execution}; ``with teeth'' is
-\VISION); the witnessed-outcome ledger (\DESIGNED) is the transitive Parfitian
-chain --- and the organ reputation keys on. The volume's canonical seam sentence is
-exactly this picture in prose.}
+records what happened; checkpoint (\BUILTWEAK) is meant to restore execution state
+but today passes only notes; the witnessed-outcome ledger (\DESIGNED) is the
+transitive Parfitian chain --- and the organ reputation keys on. The volume's
+canonical seam sentence is exactly this picture in prose.}
 \label{fig:organs}
 \end{figure}

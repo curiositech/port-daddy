@@ -34,8 +34,8 @@ trap cleanup EXIT
 echo "Agent inbox example"
 echo "-------------------"
 
-ALICE_SESSION="$(pd begin "Inbox demo sender" --agent "$ALICE" --identity examples:inbox:alice --lifecycle durable -j | session_id_from_json)"
-BOB_SESSION="$(pd begin "Inbox demo receiver" --agent "$BOB" --identity examples:inbox:bob --lifecycle durable -j | session_id_from_json)"
+ALICE_SESSION="$(pd begin "Inbox demo sender" --agent "$ALICE" --identity examples:inbox:alice -j | session_id_from_json)"
+BOB_SESSION="$(pd begin "Inbox demo receiver" --agent "$BOB" --identity examples:inbox:bob -j | session_id_from_json)"
 
 echo "Alice sends Bob a handoff:"
 pd inbox send "$BOB" "Schema migration ready for review" --agent "$ALICE"

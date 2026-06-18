@@ -6,8 +6,8 @@ import { Surface } from "@/components/ui/Surface";
 export function GettingStarted() {
   return (
     <TutorialLayout
-      title="Install the Local Control Plane"
-      description="Install the daemon, open FleetBar, join the project harbor, and verify the control plane before asking agents to work."
+      title="Install and Verify the Daemon"
+      description="Install the daemon, open FleetBar, join the project harbor, and confirm it is running before asking agents to work."
       number={2}
       total={21}
       level="Beginner"
@@ -19,8 +19,8 @@ export function GettingStarted() {
         <section className="space-y-[var(--space-6)]">
           <h2 className="m-0">What you are installing</h2>
           <p>
-            Port Daddy is a local control plane for agent coordination. The
-            daemon keeps the shared facts that separate tools otherwise lose:
+            Port Daddy is a local coordination layer for agents. The daemon
+            keeps the shared facts that separate tools otherwise lose:
             sessions, notes, claims, locks, channels, services, spawned jobs,
             and recovery state.
           </p>
@@ -60,7 +60,7 @@ npm link`}
           <h2 className="m-0">2. Start the daemon and verify it</h2>
           <p>
             Before you launch agents or start background automation, confirm the
-            control plane is actually alive.
+            daemon is actually running.
           </p>
           <CodeBlock copyable={false} language="bash">
             {`pd start
@@ -88,7 +88,7 @@ SUCCESS: Briefing generated: .portdaddy/briefing.md`}
           <CodeBlock copyable={false} language="bash">
             {`pd harbor create my-app:main
 
-pd begin "Bootstrap auth service" --identity my-app:api --lifecycle durable
+pd begin "Bootstrap auth service" --identity my-app:api
 pd harbor enter my-app:main
 pd whoami
 # Expected result: the active agent identity is my-app:api inside harbor my-app:main.`}

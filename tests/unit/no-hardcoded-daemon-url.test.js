@@ -31,8 +31,6 @@ const REPO_ROOT = resolve(import.meta.dirname, '..', '..');
 const ALLOWED_FILES = new Set([
   // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
   'apps/FleetBar/FleetBar/DaemonLocation.swift',
-  // pd-timeline-proto R&D window: PORT_DADDY_URL-first, localhost fallback only.
-  'core/pd-timeline-proto/src/main.rs',
   // Canonical Node helpers — these define the resolver everyone else uses.
   'shared/daemon-discovery.ts',
   'shared/paths.ts',

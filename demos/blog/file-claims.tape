@@ -29,7 +29,7 @@ Sleep 500ms
 Type "# Agent begins work on auth module"
 Enter
 Sleep 800ms
-Type `pd begin "Auth refactor" --identity myapp:auth --lifecycle durable`
+Type `pd begin "Auth refactor" --identity myapp:auth`
 Enter
 Sleep 2s
 

@@ -69,7 +69,7 @@ agent loop for repo work on this machine.
 pd status
 pd briefing
 pd salvage --project <project> --limit 20
-pd begin "<bounded task>" --identity <project>:<agent> --lifecycle durable
+pd begin "<bounded task>" --identity <project>:<agent>
 pd whoami
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
@@ -230,7 +230,7 @@ High-frequency commands:
 ```bash
 pd status
 pd briefing
-pd begin "<purpose>" --identity <project>:<agent> --lifecycle durable
+pd begin "<purpose>" --identity <project>:<agent>
 pd note "Scope: <files>"
 pd session files add <path>
 pd add --dry-run -A
@@ -296,7 +296,7 @@ Run the loop in order. Skip only when the task is truly trivial.
 pd status
 pd briefing
 pd salvage --project <project> --limit 20
-pd begin "<bounded task>" --lifecycle durable
+pd begin "<bounded task>"
 pd advise <likely-path> --task "<plain-language task>"
 pd note "Scope: <files>. Assumptions: <truth>. Validation: <commands>."
 pd session files add <path>
@@ -427,7 +427,7 @@ pd briefing                              # what's happening across the fleet
 pd salvage --project <project>           # recover dead-agent intent
 
 # Sessions & coordination
-pd begin "<task>" --identity <project>:<stack>:<context> --lifecycle durable
+pd begin "<task>" --identity <project>:<stack>:<context>
 pd note "Scope: ..."                     # durable progress evidence
 pd session files add <path>              # claim a file region
 pd done "<outcome>"                      # close + leave result note
@@ -449,115 +449,6 @@ See `references/api-reference.md` for the full HTTP surface and
 `begin_session`, `end_session_full`, `whoami`, `claim_port`, `release_port`,
 `acquire_lock`, `add_note`, `pd_discover` are the equivalents agents use
 through the MCP protocol.
-
-## Recently Shipped Surfaces
-
-These landed on `main` in the last few weeks. The shipped Homebrew `pd`
-binary **lags `main`** — verify a command exists in the installed CLI
-(`pd <verb> --help`) before you depend on it, and rebuild the daemon if
-you are dogfooding a route that just landed in source.
-
-### Relay — cross-machine pub/sub (ADR-0049)
-
-The **relay** (`docs/adr/0049-relay-architecture.md`) is a zero-trust event
-fabric — a **zero-trust** (no component is implicitly believed; every message
-carries its own proof) Cloudflare Worker (`apps/relay/`) that federates Port
-Daddy channels across machines. The daemon holds an outbound SSE connection
-(`lib/relay-client.ts`); routes live in `routes/relay.ts`.
-
-```bash
-pd relay url <https://relay.portdaddy.dev>   # set the relay URL (persisted to daemon config)
-pd relay url --clear                          # disable relay
-pd relay status                               # connection, session, last handshake, channels
-pd relay exchange --oidc-token <t>            # OIDC → PD card (CI; reads $ACTIONS_ID_TOKEN)
-```
-
-MCP equivalent: `relay_status()` (read-only) tells an agent whether
-cross-machine pub/sub is live before it relies on a remote channel.
-
-### Dispatch — autonomous feature-dev queue (ADR-0035)
-
-**Dispatch** (`cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`) is the
-operator queue for autonomous feature work: drop a sentence-shaped goal, a
-worker runs it in an **isolated git worktree** under `~/coding/tmp/port-daddy-dispatch-<id>`
-(never `/tmp`), then opens a **draft PR** via `lib/dispatch/spawn-adapter.ts`.
-The operator accepts or rejects through `pd review`.
-
-```bash
-pd dispatch propose "<goal text>"     # queue a goal (state=proposed)
-pd dispatch queue                     # list proposed dispatches
-pd dispatch list                      # list dispatches (filter with --state)
-pd dispatch show <id>                 # one dispatch in detail
-pd dispatch run <id>                  # DRY-RUN by default — prints the plan
-pd dispatch run <id> --really-run     # actually spawn the worker + open the draft PR
-pd dispatch cancel <id> --reason "<why>"
-```
-
-`run` defaults to dry-run; you must pass `--really-run` to spawn. Default
-backend is `cli:codex` (override with `--backend cli:claude-code`); per-dispatch
-`--budget` (default 5 USD, max 25) and `--timeout` (default 3h, max 6h) cap
-blast radius. `pd nightshift` is a **deprecated alias** kept for one minor
-version — the verb is `pd dispatch` (renamed in PR #143). Design notes:
-`docs/proposals/pd-nightshift.md`.
-
-### Coast Guard — OS-sandbox confinement + compulsion rent (ADR-0050)
-
-The **Coast Guard** (`lib/coast-guard.ts`, `docs/adr/0050-coast-guard.md`)
-confines every spawned subprocess in an OS sandbox (macOS Seatbelt via
-`sandbox-exec`; bubblewrap/Landlock on Linux) so a stray `cat .env.local`
-yields nothing — managed secrets are scrubbed from the child env and the
-sandbox denies `.env`/`.env.local`. It is wired into `lib/spawner.ts` as the
-default for every subprocess backend (opt-out, never advertised). A hard
-egress request/byte cap returns `402 Spend Cap Exceeded`.
-
-The keystone is **compulsion rent** (`lib/coast-guard/compulsion.ts`):
-coordination is the price of the sandbox. An un-noted commit blocks the next
-commit (`requireNotePerCommit`, default on), and a sandbox that drifts far
-behind its base and goes silent past the grace window becomes reclaim-eligible —
-reclaim can **never** touch the operator's live main checkout
-(`isReclaimableSandbox`). You see your own confinement with:
-
-```bash
-pd coast-guard status          # alias: pd cg — sandbox mechanism, secret broker, egress cap, protected dirs
-```
-
-### Attest — honest self-report (ADR-0045)
-
-```bash
-pd attest          # loud-fail invariants: exits NON-ZERO when any CRITICAL invariant fails
-pd attest --json   # the merged server + client report
-```
-
-`pd attest` (`cli/commands/attest.ts`, `lib/attest.ts`) merges the daemon-side
-report (`GET /attest` — integrity, schema, perms) with CLI-only checks
-(CLI↔daemon version match). It applies the honest-green rule — a green exit
-means every CRITICAL invariant actually holds — so it is safe to put in a boot
-gate or CI. No subcommands.
-
-### Tube — conversational pipe over channels
-
-**Tube** (`cli/commands/tube.ts`) is a relay-independent, multi-subscriber pipe
-for agent↔agent back-and-forth. Every subscriber receives every message;
-distinct `--as` identities are distinct subscribers. Prefer a persistent tube
-channel over point-to-point inboxes when two agents need a real conversation —
-it persists and delivers to all subscribers.
-
-```bash
-pd tube <channel>                       # listen (default; blocks for the next event)
-pd tube <channel> --send "<body>"       # post a top-level message
-pd tube <channel> --reply "<body>"      # inline reply, auto-correlated, keep listening
-pd tube <channel> --once                # one poll-pass, then exit
-```
-
-### Design-stage ADRs (NOT shipped — do not depend on)
-
-These are accepted-design or in-flight ADRs. Reference them for direction;
-do not document their verbs as if they ship today: **marketplace** (ADR-0051),
-**trajectory export + RL loop** (ADR-0052), and **out-of-band enforcement /
-"DOM DADDY"** (ADR-0053, in-flight) which moves enforcement out of in-band
-git-hook shims to branch-protection / cred-broker layers. A release-cadence +
-Rust-surface ADR (ADR-0054) is being written in parallel; once it lands it is
-the canonical answer to "is this feature in my installed `pd`?"
 
 ## Self-Check
 

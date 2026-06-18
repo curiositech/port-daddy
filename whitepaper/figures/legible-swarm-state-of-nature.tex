@@ -1,9 +1,6 @@
 % Figure 2 — the state-of-nature -> consented-Leviathan transition.
 % Left: ungoverned swarm (war of all against all). Right: the consented local
 % Leviathan rendering the swarm legible. The arrow is the covenant.
-% Design: one title line per panel; the failure/cure vocabularies live in the
-% caption, not under the panels. Agent E orbits the daemon like the others —
-% nothing crowds the titles.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -14,7 +11,7 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{0.9\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
   agent/.style={draw=hhebony,thick,circle,fill=hhpaper,minimum size=9mm,
@@ -29,7 +26,9 @@
 
 % ─── LEFT: state of nature ───────────────────────────────────────────────
 \begin{scope}[shift={(0,0)}]
-  \node[font=\bfseries] at (2.2,3.2) {State of nature};
+  \node[font=\bfseries] at (2.2,3.4) {State of nature};
+  \node[font=\itshape\footnotesize,text=hhink] at (2.2,2.95)
+    {war of all against all};
   \node[agent] (a1) at (0.4,1.8) {A};
   \node[agent] (a2) at (3.9,2.0) {B};
   \node[agent] (a3) at (0.9,-0.3) {C};
@@ -39,36 +38,42 @@
   \draw[collide] (a1)--(a5); \draw[collide] (a2)--(a5);
   \draw[collide] (a3)--(a5); \draw[collide] (a4)--(a5);
   \draw[collide] (a1)--(a3); \draw[collide] (a2)--(a4);
+  \node[font=\footnotesize,text=hhink,align=center] at (2.2,-1.4)
+    {double-claims $\cdot$ illegible PRs\\confident lies $\cdot$ footguns};
 \end{scope}
 
 % ─── COVENANT arrow ──────────────────────────────────────────────────────
 \draw[-{Latex[length=3mm]},very thick,hhink] (4.9,0.8) -- (6.7,0.8)
-  node[midway,above,font=\bfseries\footnotesize,text=hhink]{covenant};
+  node[midway,above,font=\bfseries\footnotesize,text=hhink]{covenant}
+  node[midway,below,font=\itshape\scriptsize,text=hhink]{among subjects};
 
 % ─── RIGHT: consented local Leviathan ────────────────────────────────────
 \begin{scope}[shift={(8.0,0)}]
-  \node[font=\bfseries] at (2.2,3.2) {Consented \emph{local} Leviathan};
+  \node[font=\bfseries] at (2.2,3.4) {Consented \emph{local} Leviathan};
+  \node[font=\itshape\footnotesize,text=hhink] at (2.2,2.95)
+    {legible, accountable, safe};
   \node[daemon] (d) at (2.2,0.8) {daemon\\(L0)};
-  \node[agent] (b1) at (0.3,2.1) {A};
-  \node[agent] (b2) at (4.1,2.1) {B};
-  \node[agent] (b3) at (0.3,-0.5) {C};
-  \node[agent] (b4) at (4.1,-0.5) {D};
-  \node[agent] (b5) at (2.2,-1.1) {E};
+  \node[agent] (b1) at (0.3,1.9) {A};
+  \node[agent] (b2) at (4.1,1.9) {B};
+  \node[agent] (b3) at (0.3,-0.3) {C};
+  \node[agent] (b4) at (4.1,-0.3) {D};
+  \node[agent] (b5) at (2.2,2.4) {E};
   \draw[legible] (b1)--(d); \draw[legible] (b2)--(d);
   \draw[legible] (b3)--(d); \draw[legible] (b4)--(d); \draw[legible] (b5)--(d);
+  \node[font=\footnotesize,text=hhink,align=center] at (2.2,-1.4)
+    {claims $\cdot$ Arbiter $\cdot$ digest-with-zoom\\consent grant $\cdot$ override};
 \end{scope}
 
 \end{tikzpicture}%
 }
 \caption{The transition this paper argues for. \emph{Left}: an ungoverned swarm is
 Hobbes' state of nature --- rational agents colliding because none can trust the
-others (\S\ref{sec:taxonomy}): double-claims, illegible PRs, confident lies,
-footguns. \emph{Right}: the operator institutes a rule of the road and consents (a
-covenant \emph{among the subject agents}, enforced by the daemon, not a bargain with
-it) to a \emph{local} Leviathan that renders the swarm legible --- claims, the
-Arbiter, digest-with-zoom, consent grants, the override. The arrow is the covenant;
-the right-hand spokes are legibility, not chains. Empirically, LLM societies
-traverse this arrow on their own~\cite{dai2024}; Port Daddy's wager is to build the
-destination \emph{deliberately and legibly}.}
+others (\S\ref{sec:taxonomy}). \emph{Right}: the operator institutes a rule of the
+road and consents (a covenant \emph{among the subject agents}, enforced by the
+daemon, not a bargain with it) to a \emph{local} Leviathan that renders the swarm
+legible. The arrow is the covenant; the right-hand spokes are legibility, not
+chains. Empirically, LLM societies traverse this arrow on their
+own~\cite{dai2024}; Port Daddy's wager is to build the destination
+\emph{deliberately and legibly}.}
 \label{fig:state-of-nature}
 \end{figure}

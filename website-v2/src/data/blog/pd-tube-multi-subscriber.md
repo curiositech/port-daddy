@@ -6,7 +6,7 @@ The third listener got nothing. Neither did the second, sometimes. Whichever ter
 
 This post is about that bug — why a "broadcast" channel was quietly behaving like a vending machine, and the one-line-of-cursor-logic fix that turned it into an actual fan-out. It shipped in **Port Daddy v3.16.2**.
 
-![One broadcast node fanning out over cobalt wires to four identical listener terminals, each showing the same messages and each holding its own little bookmark card](/img/generated/tube-multiplex/hero.png)
+![One broadcast node fanning out over cobalt wires to four identical listener terminals, each showing the same messages and each holding its own little bookmark card](/img/generated/tube-multiplex/hero.webp)
 
 <!-- sidenote: what's pd tube? -->
 **`pd tube`** is Port Daddy's local event-reply channel (`lib/tube.ts`). A producer posts a structured message to a named channel; a listener subscribes from the terminal with one command, does work, and replies — and the command *returns* instead of holding the terminal hostage. If you've never seen it, start with [PD Tube Turns UI Events Into Agent Work](/blog/pd-tube-event-reply-loop).
@@ -59,7 +59,7 @@ sequenceDiagram
 
 Whoever polled first advanced the shared bookmark; everyone else asked the daemon for "messages after 7," and the daemon — correctly, honestly — said *there are none*. A broadcast channel had quietly become a work queue with exactly one winner. No error. No warning. Just a silent single-consumer pretending to be a bus.
 
-![Diptych: on the left three listeners fight over one shared bookmark and two get an empty mailbox; on the right each listener holds its own bookmark and all three read the same message tape](/img/generated/tube-multiplex/cursor-fanout.png)
+![Diptych: on the left three listeners fight over one shared bookmark and two get an empty mailbox; on the right each listener holds its own bookmark and all three read the same message tape](/img/generated/tube-multiplex/cursor-fanout.webp)
 
 <!-- sidenote: queue vs bus -->
 A **work queue** delivers each message to *one* consumer (that's the point — don't do the job twice). A **bus** delivers each message to *every* subscriber. Tube was sold as a bus and implemented, accidentally, as a queue. The two are a config flag apart — and that flag was the cursor's filename.

@@ -1,7 +1,5 @@
 % Figure 10 — the context-degradation cascade as a ladder; break any rung and the
-% cascade stops. Each rung paired with its cure.
-% Design: the two morals ("failures compound", "break any rung") live in the
-% caption, not under the columns.
+% cascade stops. Each rung tagged with its cure.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -38,15 +36,19 @@
 
 \draw[ce] (r1) -- (c1); \draw[ce] (r2) -- (c2);
 \draw[ce] (r3) -- (c3); \draw[ce] (r4) -- (c4);
+
+\node[font=\itshape\footnotesize,text=hhink] at (0,-1.1)
+  {the failures compound --- hence ``cascade''};
+\node[font=\itshape\footnotesize,text=hhink] at (7.8,-1.1)
+  {break \emph{any} rung and the cascade stops};
 \end{tikzpicture}%
 }
 \caption{The context-degradation cascade (\S\ref{sec:cascade}): rot makes you
 compact, naive compaction loses the middle, recursion fabricates, and the
-operator-facing digest over-flattens what's left --- the failures compound, hence
-``cascade.'' Each rung (cobalt) has a cure (teal), and breaking \emph{any} rung
-stops the cascade; the load-bearing cure is \emph{compact-from-artifacts} (rung~3),
-which a system with durable, addressable state (claims, notes, episodes) makes
-cheap. Cost and legibility share this surface: when compaction fails, the bill
-\emph{and} the truth degrade together.}
+operator-facing digest over-flattens what's left. Each rung (cobalt) has a cure
+(teal); the load-bearing one is \emph{compact-from-artifacts} (rung~3), which a
+system with durable, addressable state (claims, notes, episodes) makes cheap. Cost and
+legibility share this surface: when compaction fails, the bill \emph{and} the truth
+degrade together.}
 \label{fig:cascade}
 \end{figure}

@@ -56,7 +56,7 @@ export function TreemapViz() {
   return (
     <div ref={containerRef} className="space-y-3">
       {/* Breadcrumb (zoom trail) */}
-      <div className="flex flex-wrap items-center gap-1 font-mono text-[14px]">
+      <div className="flex flex-wrap items-center gap-1 font-mono text-[13px]">
         {breadcrumb.map((b, i) => (
           <span key={b.data.id} className="flex items-center gap-1">
             <button

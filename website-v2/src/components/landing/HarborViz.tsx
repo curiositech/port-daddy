@@ -199,7 +199,7 @@ export function HarborViz() {
 
       {/* Legend */}
       <motion.div
-        className="absolute bottom-2 right-2 text-[12px] font-mono flex flex-col gap-1"
+        className="absolute bottom-2 right-2 text-xs font-mono flex flex-col gap-1"
         style={{ color: 'var(--text-muted)' }}
       >
         <motion.div className="flex items-center gap-1.5">

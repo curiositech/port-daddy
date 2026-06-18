@@ -964,28 +964,6 @@ describe('IPC fast paths', () => {
     expect(result.id).toBe('session-123');
   });
 
-  test('startSession maps lifecycle enum to durable flag for IPC', async () => {
-    pd._requestViaIpc = jest.fn().mockResolvedValue({
-      success: true,
-      id: 'session-123',
-      purpose: 'Ship it',
-      status: 'active',
-      createdAt: 1,
-      updatedAt: 1,
-    });
-
-    await pd.startSession({ purpose: 'Ship it', lifecycle: 'durable' });
-
-    expect(pd._requestViaIpc).toHaveBeenCalledWith(
-      'session.start',
-      {
-        purpose: 'Ship it',
-        durable: true,
-      },
-    );
-    expect(receivedRequests).toHaveLength(0);
-  });
-
   test('startSession IPC file conflict preserves HTTP semantics', async () => {
     pd._requestViaIpc = jest.fn().mockResolvedValue({
       success: false,

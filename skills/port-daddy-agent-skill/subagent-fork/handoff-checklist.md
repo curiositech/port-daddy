@@ -88,7 +88,7 @@ skills/port-daddy-agent-skill/scripts/prologue/pd-context.sh
 #    - Otherwise: continue.
 
 # 3. Begin its own session.
-pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable
+pd begin "<task slug>" --identity port-daddy:subagent:<task>
 
 # 4. Claim the partition.
 pd session files claim <each-partition-file>

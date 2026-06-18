@@ -22,10 +22,10 @@
 \node[font=\bfseries,anchor=west] at (-0.3,3.2)
   {Self-asserted id (\texttt{project:stack:context}) --- both attacks are free:};
 \node[box,fill=hhsand!30] (bad1) at (0,1.8) {agent ``X''\\(bad record)};
-\node[box,fill=hhsand!30,right=34mm of bad1] (bad2) {agent ``X'\,'\\(fresh, clean)};
+\node[box,fill=hhsand!30,right=18mm of bad1] (bad2) {agent ``X'\,'\\(fresh, clean)};
 \draw[bad] (bad1) -- node[midway,above,font=\scriptsize,text=hhink]
   {respawn = \textbf{whitewash}} (bad2);
-\node[box,fill=hhsand!30,right=32mm of bad2] (syb)
+\node[box,fill=hhsand!30,right=22mm of bad2] (syb)
   {1000 $\times$ ``X$_i$''\\(forged quorum)};
 \draw[bad] (bad2) -- node[midway,above,font=\scriptsize,text=hhink]
   {replicate = \textbf{Sybil}} (syb);
@@ -39,16 +39,19 @@
 \node[box,fill=hhpaper,right=12mm of cred] (princ) {principal\\(owns the fleet,\\posts bonds)};
 \draw[good] (daemon) -- (cred);
 \draw[good] (cred) -- (princ);
-
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,below=10mm of cred,
+      align=left,text width=120mm,inner sep=5pt,font=\footnotesize] (note)
+  {\textbf{Newcomer policy = a shape, not a scalar.} A fresh id may have full
+   \emph{work} ability but a reduced \emph{economic ceiling} until it earns a
+   witnessed history (Friedman--Resnick). Identity churn then costs \emph{more}
+   than a clean record is worth, and a sanction \emph{survives} a respawn.};
 \end{tikzpicture}}
 \caption{\textbf{The non-forgeable root forecloses the two classic attacks.} With
 self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted,
 non-forgeable identity bound to a non-re-pickable credential and a principal
 (bottom) makes both costly: churn costs more than a clean record
 (Thm.~\ref{thm:whitewash-cost}), and sanctions survive respawns
-(Thm.~\ref{thm:necessity}). The newcomer policy is a shape, not a scalar: a fresh
-id may have full \emph{work} ability but a reduced \emph{economic ceiling} until
-it earns a witnessed history (Friedman--Resnick). This is the one genuinely
-architectural piece of the program.}
+(Thm.~\ref{thm:necessity}). This is the one genuinely architectural piece of the
+program.}
 \label{fig:sybil}
 \end{figure}

@@ -1,6 +1,5 @@
 % Figure 5 — the authority half: the organs by which the Leviathan rules.
-% Design: one bold name + one italic line per organ; engineering detail lives
-% in the caption and Appendix A.
+% Each organ tagged with its honest label.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhebony}{HTML}{121212}
 \providecolor{hhink}{HTML}{1B1712}
@@ -15,26 +14,27 @@
 \begin{tikzpicture}[
   font=\small,
   organ/.style={draw=hhebony,thick,rounded corners=3pt,minimum width=40mm,
-                minimum height=14mm,align=center,inner sep=4pt,
-                font=\footnotesize,text width=36mm,fill=hhsand!30},
+                minimum height=18mm,align=center,inner sep=4pt,
+                font=\footnotesize,text width=36mm,fill=hhpaper},
+  lbl/.style={font=\bfseries\scriptsize},
   hub/.style={draw=hhebony,very thick,circle,fill=hhsand!30,minimum size=20mm,
               align=center,font=\bfseries\footnotesize},
   e/.style={-{Latex[length=2mm]},thick,hhink},
 ]
 \node[hub] (auth) at (0,0) {the\\authority\\(daemon)};
 
-\node[organ] (road) at (-5.4,3.0)
-  {\textbf{Roadmap-as-truth}\\\emph{what the authority answers to}};
-\node[organ] (rev) at (0,3.6)
-  {\textbf{Adversarial review}\\\emph{conflict-free quality organ}};
-\node[organ] (done) at (5.4,3.0)
-  {\textbf{Completionist completion}\\\emph{verifier-gated ``done''}};
-\node[organ] (land) at (-5.4,-3.0)
-  {\textbf{Thoughtful landing}\\\emph{conflict-aware merge order}};
-\node[organ] (guard) at (0,-3.6)
-  {\textbf{Footgun guards}\\\emph{prevent, or detect \& compensate}};
-\node[organ] (esc) at (5.4,-3.0)
-  {\textbf{Escalation to human}\\\emph{typed, prioritized interrupt}};
+\node[organ,fill=hhsand!30] (road) at (-5.4,3.0)
+  {\textbf{Roadmap-as-truth}\\\emph{the artifact the}\\\emph{authority answers to}};
+\node[organ,fill=hhsand!30] (rev) at (0,3.6)
+  {\textbf{Adversarial review}\\\emph{conflict-free}\\\emph{quality organ}};
+\node[organ,fill=hhsand!30] (done) at (5.4,3.0)
+  {\textbf{Completionist completion}\\\emph{verifier-gated;}\\\emph{no asserted ``done''}};
+\node[organ,fill=hhsand!30] (land) at (-5.4,-3.0)
+  {\textbf{Thoughtful landing}\\\emph{merge order,}\\\emph{conflict-aware}};
+\node[organ,fill=hhsand!30] (guard) at (0,-3.6)
+  {\textbf{Footgun guards}\\\emph{prevent (constraint) /}\\\emph{detect-\&-compensate}};
+\node[organ,fill=hhsand!30] (esc) at (5.4,-3.0)
+  {\textbf{Escalation to human}\\\emph{typed, prioritized}\\\emph{interrupt}};
 
 \draw[e] (auth)--(road); \draw[e] (auth)--(rev); \draw[e] (auth)--(done);
 \draw[e] (auth)--(land); \draw[e] (auth)--(guard); \draw[e] (auth)--(esc);

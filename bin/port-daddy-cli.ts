@@ -10,7 +10,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
@@ -72,7 +72,6 @@ import {
   handleDaemon, handleDaemonCommand, handleDev, runDaemonInProcess,
   // Benchmarking
   handleBench,
-  handleBenchmark,
   // Setup
   handleSetup,
   // DNS, Briefing, Integration
@@ -81,8 +80,6 @@ import {
   handleBegin, handleDone, handleWhoami, handleWithLock,
   // Attention (inbox + subscribed channels — see docs/RELEASING.md for hook wiring)
   handleAttention,
-  // Nudge (suggestibility layer — claim-overlap heads-up, ADR-0039)
-  handleNudge,
   // Tutorial
   handleLearn,
   // File claims
@@ -109,7 +106,6 @@ import {
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
   handleQuorum,
-  handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
@@ -148,10 +144,6 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
-// Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
-import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
-import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
-import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
@@ -196,7 +188,7 @@ const TIER_2_COMMANDS: Set<string> = new Set([
   'channels', 'webhook', 'webhooks', 'tunnel', 'dns', 'inbox',
   'advise', 'preflight', 'compass', 'guard',
   'metrics', 'health', 'dashboard',
-  'bench', 'benchmark', 'demo', 'tuple', 'sortie', 'roadmap',
+  'bench', 'demo', 'tuple', 'sortie', 'roadmap',
   'secret', 'secrets'
 ]);
 
@@ -614,19 +606,6 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
   return data?.sessionId ? data : null;
 }
 
-// Maps a command (or alias) to the `pd help <topic>` whose text documents it,
-// so `pd <command> --help` shows real help instead of falling through to the
-// global help. TOPIC_HELP is keyed by topic name (messaging, sessions, …), NOT
-// by command name, so `pd inbox --help` needs this indirection. Exported for
-// the help-topic-aliases unit test.
-export const HELP_TOPIC_ALIASES: Record<string, string> = {
-  // messaging family: durable directed (inbox/send) + ephemeral pub/sub
-  inbox: 'messaging', send: 'messaging', tube: 'messaging',
-  pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
-  sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
-  channels: 'messaging', wait: 'messaging',
-};
-
 /**
  * Build the compact main help output.
  * Shows context-aware next steps if an active session exists.
@@ -654,7 +633,7 @@ function buildHelp(): string {
   lines.push(
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
@@ -670,8 +649,6 @@ function buildHelp(): string {
     `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
     `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
     `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
-    `  ${G}pd send${Z} <agent> "msg"    ${tag('notify')} Send a durable direct message to one agent`,
-    `  ${G}pd inbox${Z}                 ${tag('silent')} Read direct messages sent to you`,
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
@@ -734,7 +711,6 @@ Commands:
   session start <purpose>    Start a new session
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
-    --lifecycle <mode>       Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --files <paths...>       Claim files at session start
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
@@ -774,7 +750,7 @@ Commands:
   feedback summary           Counts by severity + surface
 
 Examples:
-  pd session start "Building auth module" --agent agent-42 --lifecycle durable
+  pd session start "Building auth module" --agent agent-42
   pd note "Finished login endpoint" --type progress
   pd notes --limit 10
   pd feedback "tests dropped from 1638 to 1620 — investigate" --severity high
@@ -943,19 +919,9 @@ Examples:
   pd find 'myapp:*'                     # All stacks for myapp
   pd release 'myapp:*:*'               # Release all for project`,
 
-  messaging: `Inter-agent messaging \u2014 durable direct messages + ephemeral pub/sub
+  messaging: `Pub/Sub Messaging \u2014 Real-time inter-agent communication
 
-Direct durable messages (RELIABLE \u2014 survives the recipient being offline):
-  pd send <agent> <message>       Send a durable direct message to one agent
-  pd inbox [list|stats|read-all]  Read messages others sent you (default: list)
-
-Reliability:
-  The pub/sub below is an EPHEMERAL SSE stream \u2014 it times out and is only
-  received by a subscriber holding the stream open live. A turn-based agent
-  cannot hold a stream open, so for durable agent-to-agent handoffs prefer
-  \`pd send\`/\`pd inbox\` or \`pd note\` (both durable), NOT pub/sub.
-
-Pub/Sub (ephemeral, real-time) commands:
+Commands:
   pub <channel> <message>  Publish a message to a channel
     --sender <id>          Sender identifier
     --dir <path>           Resolve declared logical channels for this worktree
@@ -1047,7 +1013,6 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
-    --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
@@ -1068,7 +1033,7 @@ Aliases:
   d                        Alias for "down"
 
 Examples:
-  pd begin "Building auth module" --lifecycle durable
+  pd begin "Building auth module"
   pd note "Login endpoint done"
   pd done "Auth module complete"
   pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
@@ -1196,23 +1161,15 @@ Examples:
   roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
 
 Commands:
-  roadmap                   Show roadmap_items DB-of-record entries
+  roadmap                   Show Next Cuts, curated now items, live feedback, and dogfood feedback
     --dir <path>            Project directory (defaults to cwd)
     --limit <n>             Limit rows per section (default: 8)
-    --status <s>            now|backlog|parked|merge|done|all
-    --harbor <h>            Harbor scope
-    -q, --quiet             Print one slug per line
-    -j, --json              Output raw roadmap_items rows
-
-  roadmap upsert <slug>     Create/update a durable roadmap item receipt
-    --summary <md>          Roadmap summary markdown
-    --status <s>            now|backlog|parked|merge|done
-    --as <agentId>          Actor recorded on the receipt
-    --note <text>           Receipt note attached to the item
-
-  roadmap touch <slug>      Append a roadmap receipt note to an existing item
-    --as <agentId>          Actor recorded on the receipt
-    --note <text>           Why this slice touched the roadmap
+    --feedback-status <s>   Live tuple feedback status: open|harvested|wontfix|all
+    --feedback-harbor <h>   Harbor scope for live tuple feedback
+    --feedback-limit <n>    Max live feedback rows to fetch
+    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
+    -q, --quiet             Print machine-readable section:slug lines
+    -j, --json              Output the raw Cartographer projection
 
   roadmap ack <feedbackId>  Harvest/ack live feedback through the feedback primitive
     --as <agentId>          Harvester id (default: operator-cli)
@@ -1220,10 +1177,8 @@ Commands:
 
 Examples:
   pd roadmap
-  pd roadmap --limit 3 --status now
+  pd roadmap --limit 3 --no-excerpts
   pd roadmap --dir /Users/you/coding/port-daddy --json
-  pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
-  pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
@@ -1297,21 +1252,21 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
-  'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
+  'begin', 'done', 'whoami', 'attention', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate',
-  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+  'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
-  'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
+  'spawn', 'spawned', 'watch', 'transcripts', 'transcript',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
-  'quorum', 'parley',
+  'quorum',
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
@@ -1358,36 +1313,6 @@ function suggestCommand(input: string): string | undefined {
 }
 
 let autoStartAttempted: boolean = false;
-
-function maybeRelaunchShortBinary(): void {
-  if (process.env.PORT_DADDY_DISABLE_SHORT_REEXEC === '1') return;
-
-  const execPath = process.execPath || '';
-  const argv0 = process.argv[0] || '';
-  const invokedAsPd = basename(execPath) === 'pd' || basename(argv0) === 'pd';
-  if (!invokedAsPd) return;
-
-  const sibling = join(dirname(execPath), 'port-daddy');
-  if (sibling === execPath || !existsSync(sibling)) return;
-
-  const result = spawnSync(sibling, process.argv.slice(2), {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      PORT_DADDY_DISABLE_SHORT_REEXEC: '1',
-    },
-  });
-
-  if (result.error) {
-    ui.error(`Failed to relaunch sibling port-daddy binary: ${result.error.message}`);
-    process.exit(127);
-  }
-  if (result.signal) {
-    const signalNumber = result.signal === 'SIGINT' ? 2 : result.signal === 'SIGTERM' ? 15 : 1;
-    process.exit(128 + signalNumber);
-  }
-  process.exit(result.status ?? 0);
-}
 
 // =============================================================================
 // Direct-DB Mode — Tier 1 command execution without the daemon
@@ -1783,13 +1708,7 @@ async function executeDirectMode(
         case 'start': {
           const purpose = rest[0];
           if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
-            process.exit(1);
-          }
-
-          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
-          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
-            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
+            console.error('Usage: port-daddy session start <purpose> [--agent AGENT_ID] [--force]');
             process.exit(1);
           }
 
@@ -1800,7 +1719,6 @@ async function executeDirectMode(
             : current?.agentId || `cli-${process.pid}`;
           if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
-          startOpts.durable = lifecycle === 'durable';
 
           // Collect files: --files may appear as a single string (one occurrence)
           // or an array (repeated --files flags). Positional tail also accepted.
@@ -2151,35 +2069,12 @@ async function executeDirectMode(
 }
 
 export async function main(): Promise<void> {
-  maybeRelaunchShortBinary();
-
-  const rawArgs: string[] = process.argv.slice(2);
-
-  // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
-  // subcommand (`pd --daemon dev status`). Extract it up front so `command` is
-  // the real verb, then stash the target for the resolver below. Supports both
-  // `--daemon dev` and `--daemon=dev`. (It is also tolerated mid-args by the
-  // normal option parser, which sets options.daemon for the post-parse resolver.)
-  let preDaemonTarget: string | undefined;
-  const args: string[] = [];
-  for (let i = 0; i < rawArgs.length; i++) {
-    const a = rawArgs[i];
-    if (a === '--daemon' && i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
-      preDaemonTarget = rawArgs[i + 1];
-      i++;
-      continue;
-    }
-    if (a.startsWith('--daemon=')) {
-      preDaemonTarget = a.slice('--daemon='.length);
-      continue;
-    }
-    args.push(a);
-  }
+  const args: string[] = process.argv.slice(2);
   const command: string | undefined = args[0];
 
   if (!command || command === '--help' || command === '-h') {
     if (IS_TTY) {
-      ui.intro('Port Daddy — Run a tight harbor.');
+      ui.intro('Port Daddy — Your ports. My rules. Zero conflicts.');
     }
 
     // Launch hints — best-effort, skip if daemon not running (500ms timeout)
@@ -2346,27 +2241,6 @@ export async function main(): Promise<void> {
     }
   }
 
-  // --daemon <tier|label|url>: GLOBAL targeting flag (ADR-0084). Resolves to a
-  // daemon URL via the fixed berth lanes (stable→canonical, dev-latest→DEV_LATEST_PORT)
-  // + the dev-berth registry, then overrides PORT_DADDY_URL for THIS command only by mutating the
-  // process env before dispatch. pdFetch reads PORT_DADDY_URL live (and clearing
-  // PORT_DADDY_SOCK forces it off the canonical socket onto the chosen berth).
-  // Precedence: --daemon flag wins over PORT_DADDY_URL / `pd use` env.
-  const daemonTarget = preDaemonTarget ?? (options.daemon ? String(options.daemon) : undefined);
-  if (daemonTarget && command !== 'use' && command !== 'dev') {
-    const targetArg = daemonTarget;
-    const resolved = resolveBerthTargetUrl(targetArg, readDevDaemonRegistry());
-    if (!resolved) {
-      console.error(`--daemon: unknown target "${targetArg}". Known: stable, dev, dev-latest, a label from \`pd dev list\`, or a URL.`);
-      process.exit(1);
-    }
-    process.env.PORT_DADDY_URL = resolved.url;
-    delete process.env.PORT_DADDY_SOCK;
-    if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
-      process.env.PD_ACTIVE_DAEMON = resolved.label;
-    }
-  }
-
   // --direct flag: skip daemon, go straight to direct-DB mode
   if (options.direct) {
     if (TIER_2_COMMANDS.has(command)) {
@@ -2394,7 +2268,7 @@ export async function main(): Promise<void> {
   // demos (website-terminal-recordings reviewer flags /ERROR:/). Falls back to
   // the global help for commands without a dedicated topic.
   if (options.help) {
-    const topicHelp = TOPIC_HELP[command as string] ?? TOPIC_HELP[HELP_TOPIC_ALIASES[command as string]];
+    const topicHelp = TOPIC_HELP[command as string];
     console.log(topicHelp || buildHelp());
     process.exit(0);
   }
@@ -2536,13 +2410,6 @@ export async function main(): Promise<void> {
         await handleInbox(positional[0], positional.slice(1), options);
         break;
 
-      // `pd send <agent> "msg"` — discoverable alias for the durable directed
-      // send (`pd inbox send …`). POSTs to /agents/:id/inbox; survives the
-      // recipient being offline, unlike ephemeral pub/sub.
-      case 'send':
-        await handleInbox('send', positional, options);
-        break;
-
       // Tunnel
       case 'tunnel':
         await handleTunnel(positional[0], positional.slice(1), options);
@@ -2607,18 +2474,142 @@ export async function main(): Promise<void> {
         await handleDaemon('uninstall', options);
         break;
 
-      case 'dev':
-        // ADR-0084 Daemon Berths: pd dev up/down/list (+ back-compat
-        // start/stop/status). Builds the daemon BINARY (never tsx) and runs
-        // tiered, colour-coded berths beside the canonical stable daemon.
-        await handleDevBerth(positional, options);
-        break;
+      case 'dev': {
+        const devSubcmd = positional[0] || 'start';
+        const { mkdirSync: devMkdir, existsSync: devExists, readFileSync: devRead, writeFileSync: devWrite, unlinkSync: devUnlink } = await import('node:fs');
+        const { tmpdir: devTmpdir } = await import('node:os');
+        const { spawn: devSpawnFn } = await import('node:child_process');
 
-      case 'use':
-        // ADR-0084: per-shell targeting. Emits a shell snippet to eval:
-        //   eval "$(pd use dev)"  → exports PORT_DADDY_URL + PD_ACTIVE_DAEMON.
-        await handleUse(positional, options);
+        const devDir = join(devTmpdir(), 'port-daddy-dev');
+        const devStateFile = join(devDir, 'dev-state.json');
+        const devServerPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'server.ts');
+        const devTsxPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', 'tsx');
+
+        if (devSubcmd === 'start') {
+          devMkdir(devDir, { recursive: true });
+
+          // Check if already running
+          if (devExists(devStateFile)) {
+            try {
+              const st = JSON.parse(devRead(devStateFile, 'utf-8'));
+              process.kill(st.pid, 0);
+              ui.warn(`Dev daemon already running (PID ${st.pid}, port ${st.port})`);
+              ui.info(`  PD_URL=http://localhost:${st.port}`);
+              ui.info(`  pd dev stop   — to stop it`);
+              process.exit(0);
+            } catch {
+              try { devUnlink(devStateFile); } catch {}
+            }
+          }
+
+          const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
+
+          ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
+          ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
+          ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
+
+          const child = devSpawnFn(devTsxPath, [devServerPath], {
+            env: {
+              ...process.env,
+              PORT_DADDY_PREFIX: devDir,
+              PORT_DADDY_PORT: String(devPort),
+              NODE_ENV: 'development',
+            },
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: true,
+          });
+          child.unref();
+
+          // Wait for health check
+          let devReady = false;
+          const devDeadline = Date.now() + 15000;
+          while (Date.now() < devDeadline) {
+            try {
+              const res = await fetch(`http://localhost:${devPort}/health`);
+              if (res.ok) { devReady = true; break; }
+            } catch { /* not ready yet */ }
+            await new Promise(r => setTimeout(r, 200));
+          }
+
+          if (!devReady) {
+            ui.error(`Dev daemon failed to start within 15s`);
+            child.kill();
+            process.exit(1);
+          }
+
+          devWrite(devStateFile, JSON.stringify({
+            pid: child.pid,
+            port: devPort,
+            prefix: devDir,
+            startedAt: new Date().toISOString(),
+            cwd: process.cwd(),
+          }));
+
+          // Fetch version to confirm
+          try {
+            const vRes = await fetch(`http://localhost:${devPort}/version`);
+            const vData = await vRes.json() as any;
+            ui.success(`Dev daemon v${vData.version} running (PID ${child.pid})`);
+          } catch {
+            ui.success(`Dev daemon running (PID ${child.pid})`);
+          }
+
+          ui.info('');
+          ui.info(`  Test commands:`);
+          ui.info(`    PD_URL=http://localhost:${devPort} pd status`);
+          ui.info(`    curl http://localhost:${devPort}/arbiter/status`);
+          ui.info(`    curl http://localhost:${devPort}/version`);
+          ui.info('');
+          ui.info(`  Stop: pd dev stop`);
+
+        } else if (devSubcmd === 'stop') {
+          if (!devExists(devStateFile)) {
+            ui.warn('No dev daemon running');
+            process.exit(0);
+          }
+          const okDev = await requireConfirmation({
+            summary: 'Dev stop will SIGTERM the isolated dev daemon. Its in-memory DB is preserved in the prefix dir but live connections drop.',
+            args: options as Record<string, unknown>,
+          });
+          if (!okDev) process.exit(DESTRUCTIVE_EXIT_CODE);
+          try {
+            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
+            process.kill(st.pid, 'SIGTERM');
+            devUnlink(devStateFile);
+            ui.success(`Dev daemon stopped (was PID ${st.pid})`);
+          } catch {
+            ui.warn(`Dev daemon not running (stale state cleaned up)`);
+            try { devUnlink(devStateFile); } catch {}
+          }
+
+        } else if (devSubcmd === 'status') {
+          if (!devExists(devStateFile)) {
+            ui.info('No dev daemon running');
+            process.exit(0);
+          }
+          try {
+            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
+            process.kill(st.pid, 0);
+            const res = await fetch(`http://localhost:${st.port}/version`);
+            const ver = await res.json() as any;
+            ui.success(`Dev daemon running`);
+            ui.info(`  PID: ${st.pid}`);
+            ui.info(`  Port: ${st.port}`);
+            ui.info(`  Version: ${ver.version}`);
+            ui.info(`  Prefix: ${st.prefix}`);
+            ui.info(`  Started: ${st.startedAt}`);
+          } catch {
+            ui.warn('Dev daemon not running (stale state cleaned up)');
+            try { devUnlink(devStateFile); } catch {}
+          }
+
+        } else {
+          ui.error(`Unknown: pd dev ${devSubcmd}`);
+          ui.info('Usage: pd dev start | stop | status');
+          process.exit(1);
+        }
         break;
+      }
 
       case 'ci-gate':
         await ciGateCheck();
@@ -2631,10 +2622,6 @@ export async function main(): Promise<void> {
 
       case 'bench':
         await handleBench(positional);
-        break;
-
-      case 'benchmark':
-        await handleBenchmark(positional);
         break;
 
       case 'demo':
@@ -2821,10 +2808,6 @@ export async function main(): Promise<void> {
         await handleAttention(options);
         break;
 
-      case 'nudge':
-        await handleNudge(positional, options);
-        break;
-
       case 'with-lock':
         await handleWithLock(positional[0], positional.slice(1), options);
         break;
@@ -2871,53 +2854,6 @@ export async function main(): Promise<void> {
       case 'transcript':
         await handleTranscripts(positional, options);
         break;
-
-      // Relay — cloud relay configuration and status (ADR-0049)
-      case 'relay': {
-        const sub = positional[0];
-        if (sub === 'url') {
-          const url = positional[1];
-          if (options.clear || options.c) {
-            const res = await pdFetch('/relay/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay_url: null }) });
-            if (!res.ok) { console.error('Error clearing relay URL'); process.exit(1); }
-            console.log('✓ Relay disabled (relay_url cleared)');
-          } else if (url) {
-            try { const p = new URL(url); if (!['https:', 'http:'].includes(p.protocol)) throw new Error('URL must use https: or http:'); }
-            catch (e) { console.error(`Error: ${e instanceof Error ? e.message : String(e)}`); process.exit(1); }
-            const res = await pdFetch('/relay/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relay_url: url }) });
-            if (!res.ok) { console.error('Error setting relay URL'); process.exit(1); }
-            console.log(`✓ Relay URL set: ${url}`);
-          } else {
-            const res = await pdFetch('/relay/config');
-            const data = await res.json() as { relay_url?: string | null };
-            if (!data.relay_url) console.log('relay_url: (not set — relay federation disabled)');
-            else console.log(`relay_url: ${data.relay_url}`);
-          }
-        } else if (sub === 'status') {
-          const res = await pdFetch('/relay/status');
-          const data = await res.json() as { relay_url?: string | null; connected?: boolean; session_id?: string | null; last_handshake?: number | null; accepted_channels?: string[]; relay_version?: string | null };
-          if (!data.relay_url) { console.log('Relay: disabled (no relay_url configured)\n  Set with: pd relay url <https://relay.portdaddy.dev>'); break; }
-          console.log(`Relay: ${data.relay_url}\nStatus: ${data.connected ? '✓ connected' : '✗ disconnected'}`);
-          if (data.session_id) console.log(`Session: ${data.session_id}`);
-          if (data.last_handshake) console.log(`Last handshake: ${Math.floor(Date.now() / 1000 - data.last_handshake)}s ago`);
-          if ((data.accepted_channels ?? []).length > 0) { console.log(`Subscribed channels (${data.accepted_channels!.length}):`); for (const ch of data.accepted_channels!) console.log(`  - ${ch}`); }
-          if (data.relay_version) console.log(`Relay version: ${data.relay_version}`);
-        } else if (sub === 'exchange') {
-          const token = (options['oidc-token'] as string | undefined) ?? process.env['ACTIONS_ID_TOKEN'];
-          if (!token) { console.error('Error: --oidc-token or $ACTIONS_ID_TOKEN required'); process.exit(1); }
-          let cap: unknown[];
-          try { cap = options.cap ? JSON.parse(options.cap as string) : [{ op: 'pub', channel: '*' }]; }
-          catch { console.error('Error: --cap must be valid JSON array'); process.exit(1); cap = []; }
-          const res = await pdFetch('/relay/exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ oidc_token: token, cap }) });
-          const data = await res.json() as { card: string; exp: number };
-          if (options.out) { fsWriteFileSync(options.out as string, data.card, 'utf8'); console.log(`✓ Card written to ${options.out} (exp: ${new Date(data.exp * 1000).toISOString()})`); }
-          else console.log(data.card);
-        } else {
-          console.error('Usage: pd relay <url|status|exchange> [args]');
-          process.exit(1);
-        }
-        break;
-      }
 
       // Harbors — named permission namespaces
       case 'harbor': {
@@ -3010,10 +2946,6 @@ export async function main(): Promise<void> {
 
       case 'quorum':
         await handleQuorum(positional, options);
-        break;
-
-      case 'parley':
-        await handleParley(positional, options);
         break;
 
       case 'feedback':

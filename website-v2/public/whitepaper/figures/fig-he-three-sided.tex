@@ -25,17 +25,21 @@
 
 % ─── The three sides across the top ────────────────────────────────────
 \node[side] (labor) at (-62mm,30mm)
-  {\textbf{Side 1 — Labor}\\\footnotesize operator-for-hire};
+  {\textbf{Side 1 — Labor}\\\footnotesize operator-for-hire\\
+   \scriptsize margin $=$ bounty $-\,\Sigma$ slashed sub-bonds $-$ fee};
 \node[side] (capital) at (0,38mm)
-  {\textbf{Side 2 — Capital}\\\footnotesize agent / fleet as rentable asset};
+  {\textbf{Side 2 — Capital}\\\footnotesize agent / fleet as rentable asset\\
+   \scriptsize renter holds the runtime jail; owner bears reputation};
 \node[side] (ip) at (62mm,30mm)
-  {\textbf{Side 3 — IP}\\\footnotesize skill / tool licensed};
+  {\textbf{Side 3 — IP}\\\footnotesize skill / tool licensed\\
+   \scriptsize metered $+$ clawback; paid only on green settlement};
 
 % ─── The single escrow at the centre ───────────────────────────────────
 \node[escrow] (esc) at (0,-6mm)
   {\textbf{ONE FLOAT-PLAN ESCROW}\\[2pt]
    \footnotesize daemon: serialized txn, sign $\{\textit{anchor},\,\textit{plan hash}\}$\\[2pt]
-   \scriptsize\textbf{invariant:} $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$};
+   \scriptsize\textbf{invariant:} $\text{wallet}+\text{escrow}+\text{commons}=\text{supply}$\\
+   \scriptsize\textbf{(implemented \& property-tested)}};
 
 % all three sides settle through the same object
 \draw[flow] (labor.south)   to[out=-90,in=150] (esc.west);
@@ -57,6 +61,15 @@
 \node[draw=hhcobalt,thick,dashed,rounded corners=3pt,inner sep=3pt,
       fit=(labor)(capital)(ip)] {};
 
+% ─── The honesty rider ─────────────────────────────────────────────────
+\node[draw=hhcobalt,line width=1.2pt,fill=hhsand!30,rounded corners=2pt,
+      inner sep=5pt,text width=120mm,align=center,below=4mm of settle,
+      font=\bfseries\footnotesize]
+  {Three-sided \emph{by design}; two-sided until reputation ships.
+   Sides 2 and 3 exist \emph{iff} identity is durable.\\[2pt]
+   \normalfont\scriptsize Isomorphic at the conservation object (one escrow);
+   \emph{non}-isomorphic at the identity object (three different ``what reputation
+   keys on''). The shared structure is real only at conservation.};
 
 \end{tikzpicture}%
 }
@@ -66,14 +79,10 @@ that all settle on a \emph{single} float-plan escrow, so conservation holds
 globally without a second ledger. This is the categorical heart of the design: the
 three sides are isomorphic at the conservation object (the escrow) and
 \textbf{non-isomorphic at the identity object} (each side keys reputation on a
-different entity, the dashed band). Calling it ``one structure, three decorations''
+different entity, dashed red). Calling it ``one structure, three decorations''
 without that qualifier is a decorative-analogy failure. The rider is mandatory: the
 market is three-sided by design and two-sided
 in shipped reality, because sides 2 and 3 presuppose a non-forgeable, durable
-identity (\S\ref{sec:keystone}). The economics per side: labor's margin is
-bounty $-$ slashed sub-bonds $-$ fee; capital's renter holds the runtime jail while
-the owner bears reputation; IP is metered with clawback, paid only on green
-settlement. The escrow and its conservation invariant are implemented and
-property-tested.}
+identity (\S\ref{sec:keystone}).}
 \label{fig:he-three-sided}
 \end{figure}

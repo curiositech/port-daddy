@@ -30,20 +30,20 @@ function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilit
             <Anchor style={{ color: 'var(--brand-primary)' }} size={28} />
           </Surface>
           <motion.div className="flex flex-col items-start">
-            <motion.span className="text-[12px] font-black uppercase tracking-[0.2em] opacity-80" style={{ color: 'var(--text-muted)' }}>Namespace</motion.span>
+            <motion.span className="text-[11px] font-black uppercase tracking-[0.2em] opacity-80" style={{ color: 'var(--text-muted)' }}>Namespace</motion.span>
             <motion.span className="text-2xl font-display font-black" style={{ color: 'var(--text-primary)' }}>{name}</motion.span>
           </motion.div>
         </motion.div>
 
         <motion.div className="space-y-4">
-          <motion.span className="text-[12px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block text-left" style={{ color: 'var(--text-muted)' }}>Signed Capabilities <span className="normal-case tracking-normal opacity-60">(advisory in v3)</span></motion.span>
+          <motion.span className="text-[11px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block text-left" style={{ color: 'var(--text-muted)' }}>Signed Capabilities <span className="normal-case tracking-normal opacity-60">(advisory in v3)</span></motion.span>
           <motion.div className="flex flex-wrap gap-2">
             {capabilities.map((cap, i) => {
               const config = CAPABILITIES.find(c => c.cap === cap) || CAPABILITIES[0]
               return (
                 <span
                   key={i}
-                  className="px-4 py-2 rounded-[var(--radius-lg)] text-[12px] font-black uppercase tracking-widest"
+                  className="px-4 py-2 rounded-[var(--radius-lg)] text-[11px] font-black uppercase tracking-widest"
                   style={{
                     background: 'var(--surface-sunken)',
                     boxShadow: 'var(--shadow-inset)',
@@ -60,9 +60,9 @@ function HarborCard({ name, capabilities, delay = 0 }: { name: string; capabilit
         <motion.div className="mt-10 pt-8 flex items-center justify-between" style={{ borderTop: '1px solid var(--border-subtle)' }}>
            <motion.div className="flex items-center gap-2">
               <Key size={14} style={{ color: 'var(--brand-accent)' }} />
-              <motion.span className="text-[12px] font-mono font-bold opacity-80" style={{ color: 'var(--text-muted)' }}>HMAC-SHA256</motion.span>
+              <motion.span className="text-[11px] font-mono font-bold opacity-80" style={{ color: 'var(--text-muted)' }}>HMAC-SHA256</motion.span>
            </motion.div>
-           <Badge variant="teal" className="px-3 py-1 text-[12px] font-black uppercase tracking-widest">Valid</Badge>
+           <Badge variant="teal" className="px-3 py-1 text-[11px] font-black uppercase tracking-widest">Valid</Badge>
         </motion.div>
       </Surface>
     </motion.div>
@@ -88,7 +88,7 @@ export function HarborsSection() {
           className="space-y-8 mb-16 flex flex-col items-center"
         >
           <div className="flex flex-col items-center gap-6">
-             <Badge variant="teal" className="px-6 py-2 text-[12px] font-black uppercase tracking-[0.25em]">Security Architecture</Badge>
+             <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-[0.25em]">Security Architecture</Badge>
              <motion.h2 className="text-4xl sm:text-6xl font-bold font-display tracking-tight leading-[0.9] m-0" style={{ color: 'var(--text-primary)' }}>
                Cryptographic <br />
                <motion.span style={{ color: 'var(--brand-primary)' }}>Harbors.</motion.span>
@@ -153,7 +153,7 @@ export function HarborsSection() {
              viewport={{ once: true }}
            >
               <Activity size={16} style={{ color: 'var(--brand-primary)' }} />
-              <motion.span className="text-[12px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>HMAC Webhook Signing: Active</motion.span>
+              <motion.span className="text-[11px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>HMAC Webhook Signing: Active</motion.span>
            </motion.div>
         </motion.div>
       </motion.div>

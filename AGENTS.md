@@ -2,20 +2,6 @@
 
 Project-specific shibboleths for proficient Port Daddy work. If you learn a new one that materially changes how to operate this repo, add it here immediately.
 
-## Recently Shipped Surfaces (verify before you depend on them)
-
-These landed on `main` in the last few weeks. The installed Homebrew `pd` binary **lags `main`** — a feature being in source does not mean it is in the operator's `pd`. Run `pd <verb> --help` to confirm, and rebuild + relaunch the daemon when dogfooding a just-landed route. Canonical docs are cited; read them, do not paraphrase from memory.
-
-- **Relay — cross-machine pub/sub** (`docs/adr/0049-relay-architecture.md`). Zero-trust event fabric: a Cloudflare Worker (`apps/relay/`) federates channels across machines; the daemon holds an outbound SSE connection (`lib/relay-client.ts`), routes in `routes/relay.ts`. CLI: `pd relay url <url> | --clear`, `pd relay status`, `pd relay exchange --oidc-token <t>` (CI OIDC → PD card). MCP: `relay_status()` (read-only).
-- **Dispatch — autonomous feature-dev queue** (ADR-0035; `cli/commands/dispatch.ts`, `lib/dispatch/runner.ts`, `lib/dispatch/spawn-adapter.ts`, `docs/proposals/pd-nightshift.md`). `pd dispatch propose|queue|list|show|run|cancel`. `run` is **dry-run by default**; `--really-run` spawns a backend (default `cli:codex`) in an isolated worktree under `~/coding/tmp/port-daddy-dispatch-<id>` and opens a **draft PR**. Per-dispatch `--budget` (default 5 USD, max 25) and `--timeout` (default 3h, max 6h). `pd nightshift` is a **deprecated alias** for one minor version — `pd dispatch` is the verb.
-- **Coast Guard — OS-sandbox confinement + compulsion rent** (`docs/adr/0050-coast-guard.md`; `lib/coast-guard.ts`, `lib/coast-guard/compulsion.ts`). Every spawned subprocess is confined (Seatbelt on macOS, bubblewrap/Landlock on Linux), managed secrets scrubbed from the child env, hard egress cap (`402 Spend Cap Exceeded`); wired into `lib/spawner.ts` as the default. The compulsion: an un-noted commit blocks the next commit (`requireNotePerCommit`); a silent, drifted sandbox becomes reclaim-eligible but reclaim never touches the live main checkout. Read path: `pd coast-guard status` (alias `pd cg`).
-- **Attest — honest self-report** (ADR-0045; `cli/commands/attest.ts`, `lib/attest.ts`). `pd attest` exits NON-ZERO when any CRITICAL invariant fails (safe for boot/CI gates); `pd attest --json` for the merged report. No subcommands.
-- **Tube — conversational pipe over channels** (`cli/commands/tube.ts`). Multi-subscriber, relay-independent. `pd tube <channel>` listens; `--send`, `--reply`, `--once`. Prefer a persistent tube channel over point-to-point inboxes for agent↔agent back-and-forth — see `## Architecture truths` below.
-- **Rust surfaces** (in `core/`): `core/pd-tui` (ratatui), `core/pd-bosun`, `core/harbor-card-rs` are separate crates on `main` — there is **no single landed "rust kernel"**. `core/pd-console` (the GPUI conversation-multiplexer) is **unlanded** (PRs #306/#318). Reconcile against `## Architecture truths` before scaffolding any new Rust shell.
-- **Design-stage / in-flight (do NOT document as shipped):** marketplace (ADR-0051), trajectory export + RL loop (ADR-0052), out-of-band enforcement / "DOM DADDY" (ADR-0053, in-flight PR #366), and a release-cadence + Rust-surface-alignment ADR (ADR-0054, being written in parallel — the canonical answer to "is this in my installed `pd`?" once it lands). These are not on every branch; reference by number, do not invent their verbs.
-
-The PR review gate is **backend-agnostic**: any Port Daddy fleet agent — any backend, not specifically Claude — acting adversarial, skeptical, and PM-minded. Respond to every Copilot / bot review comment; create tests where you can. See `## Pull Request Operating Procedure`.
-
 ## Operator vs Agent — know which surface you are
 
 The CLI is for agents and emergencies. **The operator does not run `pd` commands, does not edit `.env.local` files, does not run `launchctl kickstart`, does not tail logs.** That work is yours.
@@ -47,7 +33,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
   - `pd status`
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter
-  - `pd begin --identity <project>:<task> --lifecycle durable`
+  - `pd begin --identity <project>:<task>`
 - If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
   - leave a `pd note` describing scope and intended files
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
@@ -129,41 +115,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
-## Daemon Berths (ADR-0084) — never swap the stable daemon to test
-
-To dogfood a code change, **do not stop the brew daemon and run yours in its place.**
-Spin a side-by-side **berth** instead. Three tiered, colour-coded daemons run at once:
-
-| Berth | Built from | Port | Colour |
-|---|---|---|---|
-| **stable** (canonical) | brew release | `:9876` | amber |
-| **dev-latest** | `origin/main` HEAD | `:9886` | blue |
-| **codebase** | your worktree/branch | a `port-daddy claim`-ed port | purple |
-
-```sh
-pd dev up --from main                       # dev-latest berth on :9886
-pd dev up --from <branch> --label my-thing  # codebase berth on a claimed port
-pd dev list                                 # stable + every dev berth
-eval "$(pd use dev)"                         # point THIS shell at dev-latest (per-shell, never global)
-pd --daemon my-thing roadmap items          # target ONE command at a berth
-pd dev down my-thing                         # stop a berth (never the brew/stable daemon); --all stops all
-```
-
-- `pd dev up` builds the daemon **binary** (`scripts/build-daemon-binary.mjs`), never `tsx`. Binding `:9876` is refused.
-- `pd use` exports `PORT_DADDY_URL` + a `PD_ACTIVE_DAEMON` marker — the CLI, MCP, SDK, and the Rust console (`core/pd-console/src/agent.rs` honours `PORT_DADDY_URL`) all follow the chosen berth. `pd use stable` resets to `:9876`.
-- The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. No `PD_DAEMON_*` env → `tier=stable, canonical=true` (the brew daemon, unchanged).
-- A dev berth must never become the *implicit* default — targeting is opt-in, per shell, and visibly marked. Full model: [`docs/adr/0084-daemon-berths.md`](docs/adr/0084-daemon-berths.md).
-
 ## Pull Request Operating Procedure
-
-**This lifecycle is autonomous — never gated on operator confirmation.**
-Once you open a PR, you drive it all the way to merge without pausing to
-ask "should I push?" or "should I merge?". Solicit bot reviews, run the
-adversarial agent review, respond to every comment, add unit tests wired
-into CI, get CI green the right way, and merge. The only legitimate pause
-is a real red you cannot fix unilaterally (missing secrets, infra outage).
-Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
-every Claude this?" — don't be the Claude that has to be told.
 
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
@@ -212,75 +164,6 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
-### Ship checklist — killer items only (DO-CONFIRM)
-
-The procedure above is the *manual*. This is the *cognitive net*: the few
-omissions that actually cause harm here, confirmed at each irreversible point.
-It is not a replacement for judgment — it catches the predictable lapses that
-slip through under momentum. **Add nothing routine.** If agents here already do
-a step reliably (worktree, `pd begin`, commit hygiene), it does not belong on
-this list. Each item below is here because it was actually missed in a real
-session. `[M]` = a machine enforces this; the rest are human DO-CONFIRM (a
-script cannot judge them, and pretending it can is solutionism).
-
-**Before you commit:**
-- **Citations are real.** `[M, partial]` Every cited repo path / file / proof
-  exists and says what you claim — "a path that no longer exists is a caught
-  lie." `scripts/check-doc-citations.mjs` (CI job `doc-citation-guard`)
-  mechanically verifies backtick'd repo paths + relative links in *changed*
-  docs. It canNOT verify that a *command/concept* you name (e.g. a `pd` verb) is
-  actually shipped vs. designed-not-built — that stays your DO-CONFIRM.
-- **Agent-neutral.** No single-harness assumption on a cross-agent surface. LLM
-  steps route through `resolveLLMBackend` (`lib/llm-backend-resolver.ts`);
-  memory/coordination lives in PD primitives, never a harness freebie like
-  Claude Code's gitignored `.remember/`. (Caught the hard way: a design doc that
-  mapped a PD pillar onto `.remember/`.)
-- **Coordinated.** `[M]` Files claimed and `pd guard check --staged` passes
-  (Coordination Guard enforces this at commit).
-
-**Before you push / open the PR:**
-- **The gate is real, not theater.** The test/CI that "passes" actually *builds
-  and exercises the code you changed*. A green check on a job that never ran
-  your workspace is not coverage — that is exactly how the macaroon parity gate
-  sat untested for weeks (its workspace was never built in CI).
-- **Rebased on latest `origin/main`.**
-
-**Before you merge (the no-return point):**
-- **Adversarial review happened and every HIGH finding is *addressed*** — fixed
-  or contested-with-reason, not merely opened. Verdict on record.
-- **Genuinely green, not racing review.** Required checks pass on their own
-  merits; **never `--admin` over red** (Port Daddy wraps `git` but deliberately
-  not `gh`, so nothing mechanically blocks this — it is a hard rule + the harness
-  classifier, not a gate, so it is on you); let Copilot post before merging
-  non-trivial code.
-
-### Visual artifacts for UI diffs (hard requirement — forever)
-
-Every PR that touches a **GPUI** surface (`core/pd-console` window), the
-**console** (any pd-console pane / renderer), or the **website / dashboard**
-(`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) MUST ship comprehensive
-visual artifacts in its Test Plan: **screenshots, a GIF, and a short screen
-recording** of the actual change. A green build proves it compiles, not that it
-renders correctly — the operator reviews these surfaces by looking at the
-artifacts, so a UI PR without them is incomplete and must not merge. Operator,
-2026-06-11: *"I demand all GPUI diffs and console and website diffs include
-comprehensive screenshot artifacts, GIFs and screen recording in the test plan.
-Forever."*
-
-- **TUI / pd-console panes**: record with `vhs` (tape committed under
-  `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
-- **GPUI native window**: `cargo build --release --features gpui --bin pd-console`,
-  launch it, and capture window stills + a recording with `screencapture`
-  (`core/pd-console/scripts/capture-gpui.sh` automates a representative pane set).
-  This needs macOS **Screen Recording** permission for the capturing process — a
-  headless/background host is denied by TCC (`screencapture` prints "could not
-  create image from display"); run the capture from a permitted Terminal.
-- **Website / dashboard**: headless Playwright (`headless=True`), dark + light
-  pairs, 100% and 200% zoom where layout matters. Read the PNGs back to confirm a
-  settled render (not a loading state) before attaching.
-- Embed artifacts in the PR body Test Plan (commit them and reference
-  `raw.githubusercontent.com/<repo>/<sha>/<path>` URLs so they survive the squash).
-
 ### Create / Update / Land mechanics
 
 The numbered flow above is the *review contract*. This subsection is the
@@ -289,7 +172,7 @@ The numbered flow above is the *review contract*. This subsection is the
 - **Create.** Branch in a linked Git worktree off `origin/main` under
   `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
   carries the operator's WIP). Then `pd begin "<purpose>" --identity
-  port-daddy:<type>:<slug> --lifecycle durable` → a scope `pd note` → `pd session files add
+  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
   <files>` *before* editing → edit → `pd guard check --staged` → commit
   (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
   create` → `pd done`.
@@ -501,11 +384,9 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
   the durable bus / suggestibility signal), **pd-runtime** (queue/scheduler = voyages),
   **pd-core** (deterministic kernel transitions), **pd-tui/pd-rs** (the console).
   **Do NOT scaffold yet-another Rust UI/daemon without reconciling here first** — the
-  TS repo's `core/pd-tui` (ratatui, landed), the unlanded `core/pd-console` (the
-  on-bus, backend-agnostic, OKLCH conversation-multiplexer engine — PRs #306/#318),
-  and kernel-rs's `pd-tui` are converging and must not fork into 3–4 rival shells.
-  On `main` today `core/` holds only `pd-tui`, `pd-bosun`, and `harbor-card-rs` —
-  there is no single landed "rust kernel," only separate crates.
+  TS repo's `core/pd-tui` (ratatui), `core/pd-console` (the on-bus, backend-agnostic,
+  OKLCH conversation-multiplexer engine), and kernel-rs's `pd-tui` are converging and
+  must not fork into 3–4 rival shells.
 - **Coordinate over DURABLE ids/channels, never `cli-<pid>`.** `cli-<pid>` is ephemeral
   (new per CLI invocation) — two agents using it can never reach each other and there
   is no delivery receipt. `pd inbox`/`pd agents` now resolve `readCurrentContext().agentId`

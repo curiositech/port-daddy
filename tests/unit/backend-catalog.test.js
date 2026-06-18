@@ -69,43 +69,6 @@ describe('backend-catalog', () => {
     expect(getBackendCatalogEntry('definitely-not-a-backend')).toBeUndefined();
   });
 
-  test('includes the cli:gemini / cli:groq / cli:grok tube backends', () => {
-    for (const id of ['cli:gemini', 'cli:groq', 'cli:grok']) {
-      expect(KNOWN_BACKEND_IDS.has(id)).toBe(true);
-      const entry = getBackendCatalogEntry(id);
-      expect(entry).toBeDefined();
-      expect(entry.costModel).toBe('subscription');
-      expect(entry.models.length).toBeGreaterThan(0);
-    }
-    expect(getBackendCatalogEntry('cli:gemini').pdUseCliBackendValue).toBe('gemini');
-    expect(getBackendCatalogEntry('cli:groq').pdUseCliBackendValue).toBe('groq');
-    expect(getBackendCatalogEntry('cli:grok').pdUseCliBackendValue).toBe('grok');
-  });
-
-  test('detectForcedCliBackend maps gemini/groq/grok to cli:* ids', () => {
-    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'gemini' })).toBe('cli:gemini');
-    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'GROQ' })).toBe('cli:groq');
-    expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'grok' })).toBe('cli:grok');
-  });
-
-  test('claude SDK ladder uses current undated model ids', () => {
-    const claude = getBackendCatalogEntry('claude');
-    expect(claude.models).toEqual([
-      'claude-haiku-4-5',
-      'claude-sonnet-4-6',
-      'claude-opus-4-8',
-    ]);
-  });
-
-  test('cli:claude-code model list uses current undated model ids', () => {
-    const claudeCode = getBackendCatalogEntry('cli:claude-code');
-    expect(claudeCode.models).toEqual([
-      'claude-sonnet-4-6',
-      'claude-opus-4-8',
-      'claude-haiku-4-5',
-    ]);
-  });
-
   test('OpenAI metered backend has openai id and metered framing', () => {
     const openai = getBackendCatalogEntry('openai');
     expect(openai).toBeDefined();

@@ -25,7 +25,6 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { CostTracker } from '../lib/cost-tracker.js';
-import { resolveModel } from '../lib/model-registry.js';
 
 interface TestHooksDeps {
   costTracker: CostTracker;
@@ -70,9 +69,7 @@ export const testHooksPlugin: FastifyPluginAsync<{ deps: TestHooksDeps }> = asyn
     }
     const body = (request.body as Record<string, unknown>) || {};
     const backend = typeof body.backend === 'string' ? body.backend : 'claude-cli';
-    const model = typeof body.model === 'string'
-      ? body.model
-      : resolveModel({ backend, capability: 'balanced' });
+    const model = typeof body.model === 'string' ? body.model : 'claude-sonnet-4-5';
     const projectName = typeof body.projectName === 'string' ? body.projectName : null;
     const spawnId = typeof body.spawnId === 'string' ? body.spawnId : null;
     const inputTokens = typeof body.inputTokens === 'number' ? body.inputTokens : 0;

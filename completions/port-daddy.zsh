@@ -405,8 +405,6 @@ _pd_cmd_agent() {
     'register:register a new agent'
     'heartbeat:send a heartbeat for an agent'
     'unregister:unregister an agent'
-    'interrupt:soft-interrupt an agent (publishes control on agent:<id>)'
-    'stream:tail the merged SSE feed (status/tube/transcript)'
   )
 
   local state subcmd
@@ -439,21 +437,6 @@ _pd_cmd_agent() {
             '(-q --quiet)'{-q,--quiet}'[suppress output]'
           ;;
         heartbeat|unregister)
-          _arguments \
-            '--agent[agent ID]:agent ID:_pd_complete_agents' \
-            '(-j --json)'{-j,--json}'[JSON output]' \
-            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
-            '1:agent ID:_pd_complete_agents'
-          ;;
-        interrupt)
-          _arguments \
-            '--reason[why the agent is being interrupted]:reason:' \
-            '--agent[agent ID]:agent ID:_pd_complete_agents' \
-            '(-j --json)'{-j,--json}'[JSON output]' \
-            '(-q --quiet)'{-q,--quiet}'[suppress output]' \
-            '1:agent ID:_pd_complete_agents'
-          ;;
-        stream)
           _arguments \
             '--agent[agent ID]:agent ID:_pd_complete_agents' \
             '(-j --json)'{-j,--json}'[JSON output]' \
@@ -676,28 +659,6 @@ _pd_cmd_bench() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]'
-}
-
-_pd_cmd_benchmark() {
-  local -a benchmark_subcmds
-  benchmark_subcmds=(
-    'run:run the diversity experiment (built-in sampler or --tasks file)'
-    'list-models:list available benchmark model ids'
-    'list-conditions:list fleet condition presets'
-    'report:re-render a saved results JSON'
-  )
-
-  local state
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[show help]' \
-    '1:subcommand:->subcommand' \
-    && return
-
-  case "$state" in
-    subcommand)
-      _describe 'benchmark subcommand' benchmark_subcmds
-      ;;
-  esac
 }
 
 _pd_cmd_demo() {
@@ -1846,7 +1807,7 @@ _pd_cmd_secret() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest promote upsert add touch render pop release claims)' \
+    '1:subcommand:(ack harvest promote render pop release claims)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \
@@ -1860,9 +1821,6 @@ _pd_cmd_roadmap() {
     '--from-feedback[feedback id to promote]:feedback id:' \
     '--slug[override roadmap slug for promote]:slug:' \
     '--summary[markdown summary for promoted item]:text:' \
-    '--note[roadmap receipt note]:text:' \
-    '--receipt[roadmap receipt note]:text:' \
-    '--dependencies[comma-separated dependency slugs]:slugs:' \
     '--status[roadmap item status]:(now backlog parked merge done)' \
     '--harbor[harbor scope override]:harbor:' \
     '--write[render: write docs/ROADMAP.md to disk]' \
@@ -1871,49 +1829,6 @@ _pd_cmd_roadmap() {
     '--no-excerpts[hide current-work and Cartographer excerpts]' \
     '(-j --json)'{-j,--json}'[output JSON]' \
     '(-q --quiet)'{-q,--quiet}'[agent-readable section:slug output]'
-}
-
-_pd_cmd_parley() {
-  _arguments \
-    '1:subcommand:(call respond resolve list show fit)' \
-    '2:parley id or surface:' \
-    '--surface[contested path, symbol, or surface]:surface:' \
-    '--with[comma-separated parties]:parties:' \
-    '--parties[comma-separated parties]:parties:' \
-    '--reason[parley reason or outcome reason]:text:' \
-    '--ttl-ms[response TTL in milliseconds]:ms:' \
-    '--round-limit[non-terminal turns per party before escalation]:count:' \
-    '--harbor[harbor scope]:harbor:' \
-    '--id[parley id]:id:' \
-    '--parley[parley id]:id:' \
-    '--performative[turn performative]:(propose critique revise agree refuse inform)' \
-    '--content[turn content]:text:' \
-    '--proposal[proposal id]:proposal:' \
-    '--evidence[comma-separated evidence refs]:refs:' \
-    '--status[outcome status]:(COLLAPSED ESCALATED VOIDED)' \
-    '--decision[outcome decision]:text:' \
-    '--dissenters[comma-separated dissenters]:parties:' \
-    '--limit[max rows]:limit:' \
-    '--shape[reasoning shape]:(breadth_first depth_first mixed)' \
-    '--reasoningShape[reasoning shape]:(breadth_first depth_first mixed)' \
-    '--baseline[single-agent baseline cost]:number:' \
-    '--singleAgentBaseline[single-agent baseline cost]:number:' \
-    '--value[task value multiplier]:number:' \
-    '--taskValueMultiplier[task value multiplier]:number:' \
-    '--tokens[estimated token multiplier]:number:' \
-    '--estimatedTokenMultiplier[estimated token multiplier]:number:' \
-    '--independence[subtask independence]:(none partial high)' \
-    '--subtaskIndependence[subtask independence]:(none partial high)' \
-    '--contention[write contention]:(none low medium high)' \
-    '--writeContention[write contention]:(none low medium high)' \
-    '--writers[max concurrent writers]:count:' \
-    '--maxConcurrentWriters[max concurrent writers]:count:' \
-    '--verify[verification is available]' \
-    '--heterogeneous[heterogeneous agents are available]' \
-    '--fits-in-one-context[task fits one model context]' \
-    '--as[actor id]:agent id:' \
-    '(-j --json)'{-j,--json}'[output JSON]' \
-    '(-q --quiet)'{-q,--quiet}'[machine-readable output]'
 }
 
 _pd_cmd_inbox() {
@@ -2026,7 +1941,6 @@ _port_daddy() {
     'whoami:show current agent/session context'
     'w:show current context (alias for whoami)'
     'attention:read inbox + subscribed channels in one call (run first thing every session)'
-    'nudge:suggestibility nudges — claim-overlap heads-up (list/accept/decline/scan)'
     'with-lock:run a command while holding a lock'
     'n:add a quick note (alias for note)'
     'u:start all services (alias for up)'
@@ -2055,7 +1969,6 @@ _port_daddy() {
     'ph:alias for pheromone'
     # Agent Inbox
     'inbox:agent-to-agent direct messaging inbox'
-    'send:send a durable direct message to one agent'
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
@@ -2078,8 +1991,6 @@ _port_daddy() {
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
-    # Cloud relay — zero-trust event fabric (ADR-0049)
-    'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     'harbormaster:harbormaster body — start/stop/status/queue (ADR-0037)'
     'hm:alias for harbormaster'
@@ -2093,11 +2004,9 @@ _port_daddy() {
     'memory:inspect episodic memory entries and stats'
     'ideas:search the canonical ideas trove and local residue'
     # Cartographer roadmap projection
-    'roadmap:show and write the roadmap_items DB-of-record'
+    'roadmap:show Cartographer-curated Next Cuts, ideas, and dogfood feedback'
     # Quorum (swarm consensus primitive)
     'quorum:propose, vote, list, or inspect swarm proposals'
-    # Parley (forced reconciliation primitive)
-    'parley:call, respond, resolve, list, show, or fit swarm parleys'
     # Feedback (central agentic-feedback primitive)
     'feedback:drop, list, show, or harvest structured agentic feedback'
     # Durable commitments + obligation monitor (ADR-0041)
@@ -2117,11 +2026,9 @@ _port_daddy() {
     'down:stop all services started by up'
     # Benchmarking, Demos & Fleet
     'bench:run performance benchmarks'
-    'benchmark:multi-backend LLM diversity experiment runner'
     'demo:interactive demos of Port Daddy features'
     'fleet:manage background agent fleet (gardener, QA, docs, research)'
     'backend:list/use/cost — fleet backend route, framing, and spend'
-    'relay:manage cloud relay URL, status, and OIDC token exchange'
     # Project (+ aliases)
     'scan:deep-scan project for frameworks and register with daemon'
     's:deep-scan project (alias for scan)'
@@ -2137,8 +2044,7 @@ _port_daddy() {
     'status:show daemon status'
     'install:install daemon as a system service'
     'uninstall:uninstall the system service'
-    'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
-    'use:target this shell at a daemon berth (eval "$(pd use dev)")'
+    'dev:start daemon in development mode (foreground)'
     'ci-gate:exit non-zero if daemon is running stale code'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
     'daemon:daemon lifecycle subcommands (status, log, doctor)'
@@ -2203,7 +2109,6 @@ _port_daddy() {
         up)                 _pd_cmd_up ;;
         down)               _pd_cmd_down ;;
         bench)              _pd_cmd_bench ;;
-        benchmark)          _pd_cmd_benchmark ;;
         demo)               _pd_cmd_demo ;;
         fleet)              _pd_cmd_fleet ;;
         s|scan)             _pd_cmd_scan ;;
@@ -2255,7 +2160,6 @@ _port_daddy() {
         memory)                 _pd_cmd_memory ;;
         ideas)                  _pd_cmd_ideas ;;
         roadmap)                _pd_cmd_roadmap ;;
-        parley)                 _pd_cmd_parley ;;
         secret|secrets)         _pd_cmd_secret ;;
         mcp)                _arguments '1:subcommand:(start install)' ;;
         version|help)       ;;

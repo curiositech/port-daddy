@@ -97,16 +97,14 @@ describe('buildSpawnArgv', () => {
     expect(args[args.indexOf('-p') + 1]).toBe('do the thing');
   });
 
-  test('codex backend uses --sandbox workspace-write (no deprecated --full-auto)', () => {
+  test('codex backend uses --full-auto + --sandbox workspace-write', () => {
     const { command, args } = buildSpawnArgv(
       'cli:codex',
       '/scratch/x',
       'do the thing',
     );
     expect(command).toBe('codex');
-    // --full-auto is deprecated in recent codex in favor of --sandbox; we must
-    // not pass it (it pollutes the transcript with a deprecation warning).
-    expect(args).not.toContain('--full-auto');
+    expect(args).toContain('--full-auto');
     expect(args.indexOf('--sandbox')).toBeGreaterThanOrEqual(0);
     expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
     expect(args).toContain('/scratch/x');

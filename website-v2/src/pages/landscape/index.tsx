@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Layers, Network, Workflow, GitBranch } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import {
-  BracketLabel,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -28,7 +27,7 @@ const COMPARISON_ROWS: readonly ComparisonRow[] = [
     coordination: 'DB-backed advisory + Merkle audit',
     agents: 'Unbounded (local)',
     guarantees: 'ProVerif + TLA+ + Kani',
-    composesWithPd: '— (is the coordination layer)',
+    composesWithPd: '— (it is the coordination layer)',
     pdSelf: true,
   },
   {
@@ -37,7 +36,7 @@ const COMPARISON_ROWS: readonly ComparisonRow[] = [
     coordination: 'Background agents, conflict detection',
     agents: '8',
     guarantees: 'None',
-    composesWithPd: 'Yes — PD claims under Cursor worktrees',
+    composesWithPd: 'Yes — claims files inside Cursor worktrees',
   },
   {
     tool: 'Claude Code Task',
@@ -45,7 +44,7 @@ const COMPARISON_ROWS: readonly ComparisonRow[] = [
     coordination: 'Parent/child results summarized',
     agents: 'Unbounded',
     guarantees: 'None',
-    composesWithPd: 'Yes — PD coordinates parents AND children',
+    composesWithPd: 'Yes — coordinates parent and child agents alike',
   },
   {
     tool: 'ccswarm',
@@ -53,7 +52,7 @@ const COMPARISON_ROWS: readonly ComparisonRow[] = [
     coordination: 'Template scaffolding, coordinator agent',
     agents: 'Configurable',
     guarantees: 'None',
-    composesWithPd: 'Yes — PD sits beside the coordinator',
+    composesWithPd: 'Yes — sits beside the coordinator agent',
   },
   {
     tool: 'WinDAGs',
@@ -61,7 +60,7 @@ const COMPARISON_ROWS: readonly ComparisonRow[] = [
     coordination: 'Wave-based (parallel inside wave, serial across)',
     agents: 'Per wave',
     guarantees: 'DAG validation only',
-    composesWithPd: 'Yes — PD claims at task granularity within waves',
+    composesWithPd: 'Yes — claims files per task inside each wave',
   },
 ]
 
@@ -112,13 +111,13 @@ const ARCHITECTURE_LAYERS: readonly LayerSpec[] = [
 ]
 
 const WALKTHROUGH_BLOCK = `# Agent A — refactor the middleware
-$ pd begin "refactor auth middleware" --identity claude:auth-rewrite --lifecycle durable
+$ pd begin "refactor auth middleware" --identity claude:auth-rewrite
 $ pd session files claim src/auth/middleware.ts
   Claimed 1 file. No conflicts.
 $ pd note "Starting with token-refresh race. See line 142."
 
 # Agent B — meanwhile, in another terminal
-$ pd begin "extend test coverage" --identity codex:auth-tests --lifecycle durable
+$ pd begin "extend test coverage" --identity codex:auth-tests
 $ pd session files claim src/auth/middleware.ts
   CONFLICT: src/auth/middleware.ts claimed by claude:auth-rewrite
   Holder session: session-claude-auth-rewrite-7b3a
@@ -142,7 +141,6 @@ function layerToneClasses(tone: LayerSpec['tone']): {
   border: string
   title: string
   body: string
-  badge: string
   rule: string
 } {
   switch (tone) {
@@ -152,7 +150,6 @@ function layerToneClasses(tone: LayerSpec['tone']): {
         border: 'border-[var(--border-strong)]',
         title: 'text-[var(--brand-primary-foreground)]',
         body: 'text-[color:var(--brand-primary-foreground-muted)]',
-        badge: 'text-[var(--brand-primary-foreground)] border-[color:var(--brand-primary-foreground-subtle)]',
         rule: 'bg-[color:var(--brand-primary-foreground-subtle)]',
       }
     case 'accent':
@@ -161,7 +158,6 @@ function layerToneClasses(tone: LayerSpec['tone']): {
         border: 'border-[var(--border-strong)]',
         title: 'text-[var(--brand-accent-foreground)]',
         body: 'text-[color:var(--brand-accent-foreground-muted)]',
-        badge: 'text-[var(--brand-accent-foreground)] border-[color:var(--brand-accent-foreground-muted)]',
         rule: 'bg-[color:var(--brand-accent-foreground-muted)]',
       }
     default:
@@ -170,7 +166,6 @@ function layerToneClasses(tone: LayerSpec['tone']): {
         border: 'border-[var(--border-strong)]',
         title: 'text-[var(--text-primary)]',
         body: 'text-[var(--text-secondary)]',
-        badge: 'text-[var(--text-primary)] border-[var(--border-default)]',
         rule: 'bg-[var(--border-default)]',
       }
   }
@@ -189,26 +184,23 @@ export default function LandscapePage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.62fr)_minmax(0,0.38fr)] lg:items-start">
               <div className="space-y-[var(--space-5)]">
-                <BracketLabel>Where Port Daddy fits</BracketLabel>
+                <PanelEyebrow>Where Port Daddy fits</PanelEyebrow>
                 <PanelTitle as="h1" size="hero" className="max-w-[18ch]">
                   Port Daddy is not a rival. It is the layer underneath.
                 </PanelTitle>
                 <PanelBody size="default" className="max-w-[60ch] text-[length:var(--text-lg)]">
-                  Cursor 2.0, Claude Code Task, ccswarm, and WinDAGs all
-                  solve <em>isolation</em>: how to keep eight agents from
-                  scribbling over each other's working trees. Port Daddy
-                  solves the next problem over — <em>coordination</em>: who
-                  is doing what, what already happened, and what to do when
-                  an agent's process dies mid-refactor. The two problems
-                  compose. Pick whichever isolation primitive you like; PD
-                  sits beneath it.
+                  Cursor, Claude Code Task, ccswarm, and WinDAGs each solve one
+                  problem: how to keep several agents from editing the same files
+                  at once. Port Daddy solves the next problem over. It keeps the
+                  record — who is doing what, what already happened, and what to do
+                  when an agent dies in the middle of a job. The two fit together.
+                  Use whichever of those tools you like; Port Daddy sits under it.
                 </PanelBody>
                 <p className="max-w-[60ch] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  This page is three things in one screen each: a side-by-side
-                  comparison table, a four-layer architecture diagram showing
-                  where the coordination layer goes, and a sixty-second
-                  walkthrough of two agents touching the same repo at the
-                  same time.
+                  This page has three parts. A table comparing the tools side by
+                  side. A diagram of the four layers, showing where the record-keeping
+                  layer goes. And a short transcript of two agents working on the same
+                  repo at once.
                 </p>
               </div>
 
@@ -219,11 +211,9 @@ export default function LandscapePage() {
                     None of these are competitors.
                   </p>
                   <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                    Port Daddy is the coordination layer underneath
-                    whichever isolation primitive you already use. We mean
-                    that literally — the comparison table below has a
-                    "composes with PD?" column, and the answer is "yes" for
-                    every row except our own.
+                    Port Daddy runs under whichever of these tools you already
+                    use. The table below has a "works with Port Daddy?" column,
+                    and the answer is yes for every row except our own.
                   </p>
                 </div>
                 <ol className="mt-[var(--space-4)] grid gap-[var(--space-3)]">
@@ -254,15 +244,14 @@ export default function LandscapePage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)]">
               <div className="space-y-[var(--space-4)]">
-                <BracketLabel>01 / Comparison</BracketLabel>
+                <PanelEyebrow>01 / Comparison</PanelEyebrow>
                 <PanelTitle as="h2" size="section" className="max-w-[15ch]">
-                  Five tools, five different jobs, one shared coordination layer.
+                  Five tools, five different jobs, one shared layer.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch]">
-                  Each row is a real multi-agent system in active use. The
-                  point of the table is not to declare a winner — it is to
-                  show which column each project plays in and where Port
-                  Daddy fits underneath.
+                  Each row is a real multi-agent tool people use today. The table
+                  is not picking a winner. It shows what each tool is for, and
+                  where Port Daddy fits under it.
                 </PanelBody>
               </div>
 
@@ -273,9 +262,9 @@ export default function LandscapePage() {
                     className="w-full min-w-[58rem] border-collapse text-left font-sans"
                   >
                     <caption className="sr-only">
-                      Multi-agent tools compared by isolation primitive, coordination primitive,
-                      maximum supported agents, formal guarantees, and whether each composes with
-                      Port Daddy.
+                      Multi-agent tools compared by how they isolate work, how they coordinate,
+                      how many agents they support, what formal guarantees they hold, and whether
+                      each works with Port Daddy.
                     </caption>
                     <thead>
                       <tr className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-strong)]">
@@ -285,7 +274,7 @@ export default function LandscapePage() {
                           'Coordination',
                           'Max agents',
                           'Formal guarantees',
-                          'Composes with PD?',
+                          'Works with Port Daddy?',
                         ].map((heading) => (
                           <th
                             key={heading}
@@ -346,11 +335,10 @@ export default function LandscapePage() {
                           <strong className="font-black text-[var(--text-primary)]">
                             None of these are competitors.
                           </strong>{' '}
-                          Port Daddy is the coordination layer underneath whichever
-                          isolation primitive you already use. The other rows
-                          solve "how do agents not stomp each other's working trees."
-                          PD solves "who is doing what, what already happened, and
-                          what to do when one of them dies."
+                          Port Daddy runs under whichever of these tools you already
+                          use. The other rows answer "how do agents avoid editing the
+                          same files." Port Daddy answers "who is doing what, what
+                          already happened, and what to do when one of them dies."
                         </td>
                       </tr>
                     </tfoot>
@@ -372,22 +360,20 @@ export default function LandscapePage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)]">
               <div className="space-y-[var(--space-4)]">
-                <BracketLabel>02 / Architecture</BracketLabel>
+                <PanelEyebrow>02 / Architecture</PanelEyebrow>
                 <PanelTitle as="h2" size="section" className="max-w-[15ch]">
                   Four layers. Coordination sits between isolation and integration.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch]">
-                  This is the mental model the multi-agent-coordination
-                  skill uses internally. Every working agent system has
-                  these four layers, even if the names differ. Where they
-                  blur together is where the bugs live.
+                  Every working agent setup has these four layers, even when the
+                  names differ. The bugs tend to live where two layers blur
+                  together.
                 </PanelBody>
                 <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  Read it bottom-up if you are building a system: pick
-                  isolation first, then communication, then add Port Daddy
-                  for coordination, then connect to integration. Read it
-                  top-down if you are debugging one: most "agents fighting
-                  each other" symptoms are missing layer-3 (coordination).
+                  Building a system? Read it bottom-up: pick isolation first, then
+                  communication, then add Port Daddy for coordination, then connect
+                  to integration. Debugging one? Read it top-down: most "agents
+                  fighting each other" trouble is a missing coordination layer.
                 </p>
               </div>
 
@@ -424,15 +410,7 @@ export default function LandscapePage() {
                         </span>
                       </div>
                       <div className="space-y-[var(--space-2)] p-[var(--space-4)]">
-                        <div className="flex items-center gap-[var(--space-2)]">
-                          <span
-                            className={[
-                              'inline-flex border-2 px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]',
-                              t.badge,
-                            ].join(' ')}
-                          >
-                            Layer {layer.id}
-                          </span>
+                        <div className="flex flex-wrap items-baseline gap-x-[var(--space-3)] gap-y-[var(--space-1)]">
                           <span
                             className={[
                               'font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] tracking-[var(--tracking-display-nav)]',
@@ -444,8 +422,8 @@ export default function LandscapePage() {
                           {layer.isPd ? (
                             <span
                               className={[
-                                'inline-flex border-2 px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]',
-                                t.badge,
+                                'font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)]',
+                                t.title,
                               ].join(' ')}
                             >
                               Port Daddy lives here
@@ -495,14 +473,14 @@ export default function LandscapePage() {
           <PageContainer width="wide">
             <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.32fr)_minmax(0,0.68fr)]">
               <div className="space-y-[var(--space-4)]">
-                <BracketLabel>03 / Sixty seconds</BracketLabel>
+                <PanelEyebrow>03 / Sixty seconds</PanelEyebrow>
                 <PanelTitle as="h2" size="section" className="max-w-[15ch]">
                   Two agents on the same repo, narrated.
                 </PanelTitle>
                 <PanelBody className="max-w-[44ch]">
-                  This is the canonical thing Port Daddy is built for:
-                  two agents touching the same working tree, with one of
-                  them dying before it finishes. Read it as a transcript.
+                  This is the case Port Daddy is built for: two agents working on
+                  the same files, with one of them dying before it finishes. Read
+                  it as a transcript.
                 </PanelBody>
                 <ul className="grid gap-[var(--space-3)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
                   <li>

@@ -86,20 +86,17 @@ pause
 agent_say "$AGENT_A" "$CYAN" "Registering as incident lead..."
 SESSION_A="$(pd begin --agent "$AGENT_A" \
   --identity "${PROJECT}:backend:incident-lead" \
-  --purpose "Investigate auth 500 errors - lead" \
-  --lifecycle durable -j | session_id_from_json)"
+  --purpose "Investigate auth 500 errors - lead" -j | session_id_from_json)"
 
 agent_say "$AGENT_B" "$YELLOW" "Registering as database investigator..."
 SESSION_B="$(pd begin --agent "$AGENT_B" \
   --identity "${PROJECT}:database:investigator" \
-  --purpose "Check database connections and query logs" \
-  --lifecycle durable -j | session_id_from_json)"
+  --purpose "Check database connections and query logs" -j | session_id_from_json)"
 
 agent_say "$AGENT_C" "$GREEN" "Registering as log analyst..."
 SESSION_C="$(pd begin --agent "$AGENT_C" \
   --identity "${PROJECT}:logs:analyst" \
-  --purpose "Analyze error logs and stack traces" \
-  --lifecycle durable -j | session_id_from_json)"
+  --purpose "Analyze error logs and stack traces" -j | session_id_from_json)"
 
 pause
 echo ""

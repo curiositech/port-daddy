@@ -164,7 +164,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'sessions': {
     description: 'Detailed session management (start, end, phases, file claims)',
-    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'claim_symbols', 'release_files', 'list_file_claims', 'who_owns_file'],
+    tools: ['start_session', 'end_session', 'get_session', 'delete_session', 'list_sessions', 'set_session_phase', 'claim_files', 'release_files', 'list_file_claims', 'who_owns_file'],
   },
   'notes': {
     description: 'Add and list session notes',
@@ -271,29 +271,9 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
     description: 'Durable commitments + obligation monitor (ADR-0041) — make a commitment, list yours, and see what is overdue',
     tools: ['commit', 'list_commitments', 'list_overdue_commitments'],
   },
-  'suggestions': {
-    description: 'Suggestibility nudges (ADR-0039) — list claim-overlap heads-up nudges and accept/decline them',
-    tools: ['list_nudges', 'respond_nudge'],
-  },
-  'parley': {
-    description: 'Forced reconciliation for overlapping agents — summon, inspect, respond to, and resolve bounded parleys',
-    tools: ['call_parley', 'list_parleys', 'get_parley', 'respond_parley', 'resolve_parley'],
-  },
   'knowledge': {
     description: 'Semantic search + symbol index — search the embedding store, resolve identities, find symbols, and predict file/symbol conflicts before claiming',
-    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts', 'blast_radius'],
-  },
-  'context': {
-    description: 'Context economics — per-agent token budget health, swarm COGS overview, and per-sortie task ledger',
-    tools: ['get_context_budget', 'get_context_overview', 'get_task_ledger'],
-  },
-  'harvest': {
-    description: 'Session harvest + related work search — promote session notes to durable episodic memory, find similar past work',
-    tools: ['harvest_session', 'find_related_work'],
-  },
-  'custodian': {
-    description: 'Knowledge Custodian — daemon-resident compaction loop status, pending HITL approvals, operator permission patterns',
-    tools: ['custodian_status', 'list_pending_approvals', 'resolve_approval'],
+    tools: ['semantic_search', 'semantic_resolve', 'find_symbols', 'symbol_stats', 'predict_conflicts'],
   },
 };
 
@@ -571,117 +551,6 @@ const TOOLS = [
     inputSchema: { type: 'object' as const, properties: {} },
   },
 
-  // ── Suggestibility nudges (ADR-0039) ─────────────────────────────────
-  {
-    name: 'list_nudges',
-    description:
-      '[Suggestions] List your pending suggestibility nudges — e.g. claim-overlap heads-up when another live session is on your surface. ' +
-      'Usage: list_nudges({agent_id: "my-agent-id"})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        agent_id: { type: 'string', description: 'Agent whose nudges to list (required — scopes the result to you, never list all)' },
-        status: { type: 'string', description: "Filter by status (default 'pending')" },
-      },
-      required: ['agent_id'],
-    },
-  },
-  {
-    name: 'respond_nudge',
-    description:
-      '[Suggestions] Respond to a nudge: accept (you acted on it) or decline (not relevant — primes the cooldown so it stays quiet). ' +
-      'Usage: respond_nudge({id: 12, action: "accept"})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        id: { type: 'number', description: 'Nudge id' },
-        action: { type: 'string', description: "'accept' or 'decline' (default 'accept')" },
-      },
-      required: ['id'],
-    },
-  },
-
-  // ── Parley (ADR-0055 forced reconciliation) ─────────────────────────
-  {
-    name: 'call_parley',
-    description:
-      '[Parley] Summon a bounded reconciliation dialogue for overlapping agents. ' +
-      'Usage: call_parley({surface: "lib/foo.ts", reason: "overlap", parties: ["agent-a", "agent-b"], calledBy: "agent-a"})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        surface: { type: 'string', description: 'Contested path, symbol, or surface' },
-        reason: { type: 'string', description: 'Why the parley is being summoned' },
-        parties: { type: 'array', items: { type: 'string' }, description: 'Summoned party agent/session ids' },
-        calledBy: { type: 'string', description: 'Agent/session id summoning the parley' },
-        trigger: { type: 'string', description: 'operator, claim_overlap, detector, or swarm_fit (optional)' },
-        harbor: { type: 'string', description: 'Harbor scope (optional)' },
-        ttlMs: { type: 'number', description: 'Response TTL in milliseconds (optional)' },
-        roundLimit: { type: 'number', description: 'Non-terminal turns per party before escalation (optional)' },
-      },
-      required: ['surface', 'reason', 'parties', 'calledBy'],
-    },
-  },
-  {
-    name: 'list_parleys',
-    description:
-      '[Parley] List active or historical parleys, optionally filtered by status or harbor. Usage: list_parleys({status: "SUMMONED"})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        status: { type: 'string', description: 'SUMMONED, CONVENED, COLLAPSED, ESCALATED, or VOIDED (optional)' },
-        harbor: { type: 'string', description: 'Harbor scope (optional)' },
-        limit: { type: 'number', description: 'Max rows (optional)' },
-      },
-    },
-  },
-  {
-    name: 'get_parley',
-    description:
-      '[Parley] Fetch a parley summary, including turns, missing parties, and outcome. Usage: get_parley({id: "..."})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        id: { type: 'string', description: 'Parley id' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'respond_parley',
-    description:
-      '[Parley] Record a performative turn in a parley. Usage: respond_parley({id: "...", party: "agent-a", performative: "propose", content: "..."})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        id: { type: 'string', description: 'Parley id' },
-        party: { type: 'string', description: 'Summoned party responding' },
-        performative: { type: 'string', description: 'propose, critique, revise, agree, refuse, or inform' },
-        content: { type: 'string', description: 'Turn content' },
-        proposalId: { type: 'string', description: 'Proposal id (optional)' },
-        evidenceRefs: { type: 'array', items: { type: 'string' }, description: 'Evidence refs (optional)' },
-      },
-      required: ['id', 'party', 'performative', 'content'],
-    },
-  },
-  {
-    name: 'resolve_parley',
-    description:
-      '[Parley] Resolve a parley to COLLAPSED, ESCALATED, or VOIDED. Usage: resolve_parley({id: "...", status: "COLLAPSED", resolvedBy: "operator", decision: "..."})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        id: { type: 'string', description: 'Parley id' },
-        status: { type: 'string', description: 'COLLAPSED, ESCALATED, or VOIDED' },
-        resolvedBy: { type: 'string', description: 'Agent/operator resolving the parley' },
-        decision: { type: 'string', description: 'Decision text, required for COLLAPSED' },
-        reason: { type: 'string', description: 'Resolution reason (optional)' },
-        dissenters: { type: 'array', items: { type: 'string' }, description: 'Dissenting parties (optional)' },
-      },
-      required: ['id', 'status', 'resolvedBy'],
-    },
-  },
-
   // ── Knowledge (semantic search + symbol index) ───────────────────────
   {
     name: 'semantic_search',
@@ -744,22 +613,6 @@ const TOOLS = [
         directory: { type: 'string', description: 'Directory to scan' },
         glob: { type: 'string', description: 'Glob filter (optional)' },
       },
-    },
-  },
-  {
-    name: 'blast_radius',
-    description:
-      '[Knowledge] Reverse-dependency closure of a symbol — everything that breaks if you change it, ' +
-      'plus a ready-to-reserve claim set (modify the target, read everything downstream). ' +
-      'Usage: blast_radius({file: "lib/server.ts", symbol: "createRoutes", depth: 3})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        file: { type: 'string', description: 'File containing the symbol' },
-        symbol: { type: 'string', description: 'Symbol path, e.g. "createRoutes" or "UserService.authenticate"' },
-        depth: { type: 'number', description: 'Max dependency hops (1-6, default 3)' },
-      },
-      required: ['file', 'symbol'],
     },
   },
 
@@ -1116,36 +969,6 @@ const TOOLS = [
         force: { type: 'boolean', description: 'Claim despite conflicts' },
       },
       required: ['session_id'],
-    },
-  },
-  {
-    name: 'claim_symbols',
-    description:
-      '[Standard] Declare symbol-level claims for the active session. A `modify` claim AUTO-RESERVES its ' +
-      'blast radius (read-claims on every downstream caller), so a contract change holds its callers stable. ' +
-      'Returns predicted conflicts (direct/dependency/signature/transitive) with other active sessions — advisory, never blocks. ' +
-      'Usage: claim_symbols({session_id, claims: [{filePath: "lib/server.ts", symbolPath: "createRoutes", type: "modify"}]})',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        session_id: { type: 'string', description: 'Session ID' },
-        claims: {
-          type: 'array',
-          description: 'Symbol claims to declare',
-          items: {
-            type: 'object',
-            properties: {
-              filePath: { type: 'string', description: 'File containing the symbol' },
-              symbolPath: { type: 'string', description: 'Canonical symbol path, e.g. "UserService.authenticate"' },
-              type: { type: 'string', description: "read | modify | add-sibling | add-child | delete | rename (default modify; rename/delete auto-reserve the blast radius)" },
-            },
-            required: ['filePath', 'symbolPath'],
-          },
-        },
-        auto_derive_radius: { type: 'boolean', description: 'Auto-reserve each modify\'s blast radius (default true)' },
-        radius_depth: { type: 'number', description: 'How far the auto-reservation reaches (default 3)' },
-      },
-      required: ['session_id', 'claims'],
     },
   },
   {
@@ -2986,146 +2809,6 @@ const TOOLS = [
       },
     },
   },
-
-  // ── Context Economics ───────────────────────────────────────────────────
-  {
-    name: 'get_context_budget',
-    description:
-      '[Context] Get effective context window health for the calling agent. ' +
-      'Returns tokensUsed, effectiveMax, usedPct, pressureLevel (ok/warn/critical), and remaining. ' +
-      'Call this to check whether you are approaching context pressure before starting expensive work.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        agent_id: {
-          type: 'string',
-          description: 'Agent ID to check (defaults to calling agent)',
-        },
-      },
-    },
-  },
-  {
-    name: 'get_context_overview',
-    description:
-      '[Context] Get swarm-wide context health summary. ' +
-      'Returns all agents with their context pressure, daily cost, and pending approvals. ' +
-      'Includes swarm daily cost and custodian status.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        project_filter: {
-          type: 'string',
-          description: 'Optional project prefix to filter agents (e.g. "port-daddy")',
-        },
-      },
-    },
-  },
-  {
-    name: 'get_task_ledger',
-    description:
-      '[Context] Get per-sortie COGS ledger rows for cost attribution. ' +
-      'Returns token counts, cost, and landed work (pr/commit/episode) per sortie. ' +
-      'Use for debugging cost overruns or verifying that sorties landed durable work.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        agent_id: {
-          type: 'string',
-          description: 'Filter to a specific agent ID',
-        },
-        since: {
-          type: 'string',
-          description: 'ISO timestamp — only rows after this date',
-        },
-        limit: {
-          type: 'number',
-          description: 'Max rows to return (default 50)',
-        },
-      },
-    },
-  },
-  {
-    name: 'harvest_session',
-    description:
-      '[Context] Promote all notes from a session into durable episodic memory. ' +
-      'Call this before a session ends to ensure notes survive session cleanup. ' +
-      'Idempotent — safe to call multiple times. Returns episode IDs created.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        session_id: {
-          type: 'string',
-          description: 'Session ID to harvest notes from',
-        },
-      },
-      required: ['session_id'],
-    },
-  },
-  {
-    name: 'find_related_work',
-    description:
-      '[Context] Search episodic memory for similar past work by purpose/description. ' +
-      'Use before starting a task to avoid duplicating completed work. ' +
-      'Returns episode stubs with IDs and retrieval commands.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        purpose: {
-          type: 'string',
-          description: 'Description of the work you are about to start',
-        },
-        limit: {
-          type: 'number',
-          description: 'Max results to return (default 5)',
-        },
-      },
-      required: ['purpose'],
-    },
-  },
-  {
-    name: 'custodian_status',
-    description:
-      '[Custodian] Get status of the Knowledge Custodian daemon loop — running state, duty timestamps, ' +
-      'episodes harvested today, pending HITL approval count.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'list_pending_approvals',
-    description:
-      '[Custodian] List operator permission patterns that have been suggested for auto-approval ' +
-      '(3+ consecutive approvals of same kind/project). Each item includes a human-readable message ' +
-      'for the operator to approve or deny.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'resolve_approval',
-    description:
-      '[Custodian] Accept or deny a meta-permission candidate. Accepting flips the policy to "auto" ' +
-      'so future operations of that kind are approved without asking.',
-    inputSchema: {
-      type: 'object' as const,
-      properties: {
-        pattern_id: {
-          type: 'number',
-          description: 'ID of the permission pattern to resolve',
-        },
-        decision: {
-          type: 'string',
-          enum: ['approved', 'denied'],
-          description: '"approved" to flip policy to auto, "denied" to reset and keep asking',
-        },
-      },
-      required: ['pattern_id', 'decision'],
-    },
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -3308,79 +2991,6 @@ async function handleTool(
       break;
     }
 
-    case 'list_nudges': {
-      // agent_id is required by the tool schema — always scope to the caller so an
-      // agent can never enumerate every agent's nudges via an unfiltered list.
-      const params = new URLSearchParams();
-      params.set('agentId', args.agent_id as string);
-      params.set('status', (args.status as string) || 'pending');
-      res = await GET(`/suggestions?${params.toString()}`);
-      break;
-    }
-
-    case 'respond_nudge': {
-      const action = args.action === 'decline' ? 'decline' : 'accept';
-      res = await POST(`/suggestions/${args.id}/${action}`, {});
-      break;
-    }
-
-    // ── Parley (ADR-0055 forced reconciliation) ─────────────────────
-    case 'call_parley': {
-      const body: Record<string, unknown> = {
-        surface: args.surface,
-        reason: args.reason,
-        parties: args.parties,
-        calledBy: args.calledBy,
-      };
-      if (args.trigger !== undefined) body.trigger = args.trigger;
-      if (args.harbor !== undefined) body.harbor = args.harbor;
-      if (args.ttlMs !== undefined) body.ttlMs = args.ttlMs;
-      if (args.roundLimit !== undefined) body.roundLimit = args.roundLimit;
-      res = await POST('/parley/call', body);
-      break;
-    }
-
-    case 'list_parleys': {
-      const params = new URLSearchParams();
-      if (args.status) params.set('status', args.status as string);
-      if (args.harbor) params.set('harbor', args.harbor as string);
-      if (args.limit !== undefined) params.set('limit', String(args.limit));
-      const qs = params.toString() ? `?${params.toString()}` : '';
-      res = await GET(`/parley${qs}`);
-      break;
-    }
-
-    case 'get_parley': {
-      res = await GET(`/parley/${encodeURIComponent(args.id as string)}`);
-      break;
-    }
-
-    case 'respond_parley': {
-      const body: Record<string, unknown> = {
-        parleyId: args.id,
-        party: args.party,
-        performative: args.performative,
-        content: args.content,
-      };
-      if (args.proposalId !== undefined) body.proposalId = args.proposalId;
-      if (args.evidenceRefs !== undefined) body.evidenceRefs = args.evidenceRefs;
-      res = await POST('/parley/respond', body);
-      break;
-    }
-
-    case 'resolve_parley': {
-      const body: Record<string, unknown> = {
-        parleyId: args.id,
-        status: args.status,
-        resolvedBy: args.resolvedBy,
-      };
-      if (args.decision !== undefined) body.decision = args.decision;
-      if (args.reason !== undefined) body.reason = args.reason;
-      if (args.dissenters !== undefined) body.dissenters = args.dissenters;
-      res = await POST('/parley/resolve', body);
-      break;
-    }
-
     case 'list_overdue_commitments': {
       res = await GET('/commitments/overdue');
       break;
@@ -3416,15 +3026,6 @@ async function handleTool(
 
     case 'symbol_stats': {
       res = await GET('/symbols/stats');
-      break;
-    }
-
-    case 'blast_radius': {
-      const params = new URLSearchParams();
-      params.set('file', args.file as string);
-      params.set('symbol', args.symbol as string);
-      if (args.depth != null) params.set('depth', String(args.depth));
-      res = await GET(`/symbols/blast-radius?${params.toString()}`);
       break;
     }
 
@@ -3600,15 +3201,6 @@ async function handleTool(
         files: args.paths ?? [],
         regions: args.regions,
         force: args.force,
-      });
-      break;
-    }
-
-    case 'claim_symbols': {
-      res = await POST(`/sessions/${args.session_id}/symbols`, {
-        claims: args.claims ?? [],
-        autoDeriveRadius: args.auto_derive_radius,
-        radiusDepth: args.radius_depth,
       });
       break;
     }
@@ -4388,21 +3980,6 @@ async function handleTool(
       const purpose = args.purpose as string | undefined;
       const files = Array.isArray(args.files) ? args.files as string[] : undefined;
       const workdir = args.workdir as string | undefined;
-      // workdir flows into the Coast Guard OS-sandbox profile as a `(subpath
-      // "<workdir>")` literal (lib/coast-guard.ts). A quote/backslash/newline/NUL
-      // is an SBPL-injection vector (#339); a relative path is ambiguous against
-      // the daemon cwd. Reject here too (defense-in-depth with routes/spawn.ts).
-      if (workdir !== undefined && workdir !== null) {
-        if (typeof workdir !== 'string' || !workdir.trim()) {
-          throw new Error('spawn_agent: workdir must be a non-empty string');
-        }
-        if (/["\\\n\r\0]/.test(workdir)) {
-          throw new Error('spawn_agent: workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.');
-        }
-        if (!workdir.startsWith('/')) {
-          throw new Error('spawn_agent: workdir must be an absolute path (start with "/").');
-        }
-      }
       const timeout = args.timeout as number | undefined;
       const allowedTools = args.allowed_tools as string | undefined;
       const body: Record<string, unknown> = { backend, task, budgetUsd };
@@ -4629,70 +4206,6 @@ async function handleTool(
       }, null, 2);
     }
 
-    case 'harvest_session': {
-      res = await POST(`/harvest/session/${encodeURIComponent(args.session_id as string)}`, {});
-      break;
-    }
-
-    case 'find_related_work': {
-      const params = new URLSearchParams({ purpose: args.purpose as string });
-      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
-      res = await GET(`/harvest/related?${params.toString()}`);
-      break;
-    }
-
-    case 'get_context_budget': {
-      const agentId = args.agent_id as string | undefined;
-      res = await GET(`/context/overview`);
-      if (!agentId) {
-        // No agent_id: return swarm summary (all agents)
-        break;
-      }
-      if (res.data?.agents) {
-        const agent = (res.data.agents as Array<Record<string, unknown>>).find(a => a.agentId === agentId);
-        if (!agent) {
-          res = { status: 404, data: { error: 'No context health data for this agent. Send context_window_used_pct on heartbeat to populate.' } };
-        } else {
-          res = { status: 200, data: agent.contextHealth as Record<string, unknown> };
-        }
-      }
-      break;
-    }
-
-    case 'get_context_overview': {
-      const projectFilter = args.project_filter as string | undefined;
-      const projectQs = projectFilter ? '?project=' + encodeURIComponent(projectFilter) : '';
-      res = await GET('/context/overview' + projectQs);
-      break;
-    }
-
-    case 'get_task_ledger': {
-      const params = new URLSearchParams();
-      if (args.agent_id) params.set('agentId', args.agent_id as string);
-      if (args.since) params.set('since', args.since as string);
-      if (typeof args.limit === 'number') params.set('limit', String(args.limit));
-      const qs = params.toString() ? `?${params.toString()}` : '';
-      res = await GET(`/context/task-ledger${qs}`);
-      break;
-    }
-
-    case 'custodian_status': {
-      res = await GET('/custodian/status');
-      break;
-    }
-
-    case 'list_pending_approvals': {
-      res = await GET('/custodian/approvals');
-      break;
-    }
-
-    case 'resolve_approval': {
-      const patternId = args.pattern_id as number;
-      const decision = args.decision as 'approved' | 'denied';
-      res = await POST(`/custodian/approvals/${patternId}`, { decision });
-      break;
-    }
-
     default:
       throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
   }
@@ -4707,7 +4220,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.19.1',
+    version: '3.18.0',
   },
   {
     capabilities: {

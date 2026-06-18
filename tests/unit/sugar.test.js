@@ -59,7 +59,7 @@ describe('sugar.begin', () => {
   test('happy path — registers agent + starts session', () => {
     const { sugar, agents, sessions } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Implement sugar commands',
       identity: 'port-daddy:cli:sugar',
     });
@@ -92,7 +92,7 @@ describe('sugar.begin', () => {
   test('auto-generates agent ID when not provided', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Test auto-ID' });
+    const result = sugar.begin({ purpose: 'Test auto-ID' });
 
     expect(result.success).toBe(true);
     expect(result.agentId).toMatch(/^agent-test-auto-id-[a-f0-9]{8}$/);
@@ -104,7 +104,7 @@ describe('sugar.begin', () => {
   test('stores a readable agent name while keeping the technical ID', () => {
     const { sugar, agents } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Fix checkout auth regression',
       identity: 'shop:api:auth',
       name: 'Auth Repair Lead',
@@ -123,7 +123,7 @@ describe('sugar.begin', () => {
   test('uses provided agent ID', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Test explicit ID',
       agentId: 'my-custom-agent',
     });
@@ -135,7 +135,7 @@ describe('sugar.begin', () => {
   test('claims files during begin', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Working on sugar',
       files: ['lib/sugar.ts', 'routes/sugar.ts'],
     });
@@ -147,7 +147,7 @@ describe('sugar.begin', () => {
   test('rejects required worktree sessions without worktree context', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Main checkout work',
       requireLinkedWorktree: true,
     });
@@ -160,7 +160,7 @@ describe('sugar.begin', () => {
   test('rejects main-worktree sessions unless explicitly allowed', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Main checkout work',
       requireLinkedWorktree: true,
       worktree: {
@@ -187,7 +187,7 @@ describe('sugar.begin', () => {
     };
 
     // First solo session on main with explicit allow — fine (no one else here).
-    const first = sugar.begin({ lifecycle: 'ephemeral',
+    const first = sugar.begin({
       purpose: 'Solo on main',
       requireLinkedWorktree: true,
       allowMainWorktree: true,
@@ -196,7 +196,7 @@ describe('sugar.begin', () => {
     expect(first.success).toBe(true);
 
     // Second agent arrives. --allow-main-worktree no longer saves them.
-    const second = sugar.begin({ lifecycle: 'ephemeral',
+    const second = sugar.begin({
       purpose: 'Second agent piling onto main',
       requireLinkedWorktree: true,
       allowMainWorktree: true,
@@ -221,7 +221,7 @@ describe('sugar.begin', () => {
       isMain: true,
     };
 
-    const first = sugar.begin({ lifecycle: 'ephemeral',
+    const first = sugar.begin({
       purpose: 'CI session 1',
       requireLinkedWorktree: true,
       allowMainWorktree: true,
@@ -233,7 +233,7 @@ describe('sugar.begin', () => {
     // Second CI/single-user session would normally be refused, but the
     // bypass flag (env-sourced allow) skips the gate so existing CI
     // suites keep working.
-    const second = sugar.begin({ lifecycle: 'ephemeral',
+    const second = sugar.begin({
       purpose: 'CI session 2',
       requireLinkedWorktree: true,
       allowMainWorktree: true,
@@ -253,7 +253,7 @@ describe('sugar.begin', () => {
       isMain: true,
     };
 
-    const first = sugar.begin({ lifecycle: 'ephemeral',
+    const first = sugar.begin({
       purpose: 'Solo on main',
       requireLinkedWorktree: true,
       allowMainWorktree: true,
@@ -273,7 +273,7 @@ describe('sugar.begin', () => {
     // to take over the main worktree. Without this guarantee the gate
     // would degrade into "main is permanently poisoned by any past
     // session", breaking the solo-developer path.
-    const second = sugar.begin({ lifecycle: 'ephemeral',
+    const second = sugar.begin({
       purpose: 'New solo agent after handoff',
       requireLinkedWorktree: true,
       allowMainWorktree: true,
@@ -292,7 +292,7 @@ describe('sugar.begin', () => {
       isMain: false,
     };
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Linked worktree work',
       identity: 'port-daddy:runtime:worktrees',
       metadata: { source: 'unit-test' },
@@ -324,14 +324,14 @@ describe('sugar.begin', () => {
     const { sugar, sessions } = setup();
 
     // First agent claims a file
-    const first = sugar.begin({ lifecycle: 'ephemeral',
+    const first = sugar.begin({
       purpose: 'First agent',
       files: ['lib/sugar.ts'],
     });
     expect(first.success).toBe(true);
 
     // Second agent begins with same file — should succeed with conflicts
-    const second = sugar.begin({ lifecycle: 'ephemeral',
+    const second = sugar.begin({
       purpose: 'Second agent',
       files: ['lib/sugar.ts'],
       force: true,
@@ -360,7 +360,7 @@ describe('sugar.begin', () => {
 
     const sugar = createSugar({ agents, sessions: failSessions, activityLog });
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Should fail and rollback',
       agentId: 'rollback-test',
     });
@@ -385,7 +385,7 @@ describe('sugar.begin', () => {
     db.prepare("UPDATE agents SET last_heartbeat = ? WHERE id = ?")
       .run(Date.now() - 300000, 'dead-agent-1');
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'New work',
       identity: 'port-daddy:cli:new',
     });
@@ -397,24 +397,15 @@ describe('sugar.begin', () => {
   test('requires purpose', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral' });
+    const result = sugar.begin({});
     expect(result.success).toBe(false);
     expect(result.error).toContain('purpose');
-  });
-
-  test('requires explicit lifecycle', () => {
-    const { sugar } = setup();
-
-    const result = sugar.begin({ purpose: 'Test' });
-    expect(result.success).toBe(false);
-    expect(result.code).toBe('SESSION_LIFECYCLE_REQUIRED');
-    expect(result.error).toContain('lifecycle');
   });
 
   test('validates identity if provided', () => {
     const { sugar } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'Test',
       identity: 'invalid identity with spaces',
     });
@@ -425,7 +416,7 @@ describe('sugar.begin', () => {
   test('passes type option through to agent registration', () => {
     const { sugar, agents } = setup();
 
-    const result = sugar.begin({ lifecycle: 'ephemeral',
+    const result = sugar.begin({
       purpose: 'MCP agent',
       agentId: 'mcp-test',
       type: 'mcp',
@@ -446,7 +437,7 @@ describe('sugar.done', () => {
     const { sugar, agents, sessions } = setup();
 
     // Begin first
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Will be done soon',
       agentId: 'done-test',
     });
@@ -478,7 +469,7 @@ describe('sugar.done', () => {
   test('adds final note when provided', () => {
     const { sugar, sessions } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Note test',
       agentId: 'note-test',
     });
@@ -503,7 +494,7 @@ describe('sugar.done', () => {
   test('supports abandoned status', () => {
     const { sugar, sessions } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Will abandon',
       agentId: 'abandon-test',
     });
@@ -524,7 +515,7 @@ describe('sugar.done', () => {
   test('finds active session by agentId when sessionId not provided', () => {
     const { sugar } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Find me by agent',
       agentId: 'find-test',
     });
@@ -547,7 +538,7 @@ describe('sugar.done', () => {
   test('returns note count', () => {
     const { sugar, sessions } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Counting notes',
       agentId: 'count-test',
     });
@@ -569,7 +560,7 @@ describe('sugar.done', () => {
   test('rejects ending another agent session when both agentId and sessionId are explicit', () => {
     const { sugar } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Owned by agent a',
       agentId: 'agent-a',
     });
@@ -635,7 +626,7 @@ describe('pd done origin rule', () => {
   test('refuses pd done when branch is ahead of origin (no push performed)', () => {
     const { sugar, sessions } = setup({ gitOriginChecker: aheadChecker(3) });
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Branch ahead case', agentId: 'ahead-agent' });
+    const begin = sugar.begin({ purpose: 'Branch ahead case', agentId: 'ahead-agent' });
 
     const result = sugar.done({
       agentId: 'ahead-agent',
@@ -663,7 +654,7 @@ describe('pd done origin rule', () => {
   test('refuses pd done when branch has no upstream', () => {
     const { sugar } = setup({ gitOriginChecker: noUpstreamChecker() });
 
-    sugar.begin({ lifecycle: 'ephemeral', purpose: 'No upstream case', agentId: 'no-upstream-agent' });
+    sugar.begin({ purpose: 'No upstream case', agentId: 'no-upstream-agent' });
 
     const result = sugar.done({
       agentId: 'no-upstream-agent',
@@ -681,7 +672,7 @@ describe('pd done origin rule', () => {
     const checker = spyingChecker();
     const { sugar, sessions } = setup({ gitOriginChecker: checker });
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Missing sentinel case', agentId: 'no-sentinel-agent' });
+    const begin = sugar.begin({ purpose: 'Missing sentinel case', agentId: 'no-sentinel-agent' });
 
     // Note A: empty note (none provided)
     const r1 = sugar.done({ agentId: 'no-sentinel-agent', sessionId: begin.sessionId });
@@ -712,7 +703,7 @@ describe('pd done origin rule', () => {
   test('succeeds with a valid PR URL note + clean origin', () => {
     const { sugar, sessions } = setup({ gitOriginChecker: spyingChecker() });
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Happy origin case', agentId: 'happy-agent' });
+    const begin = sugar.begin({ purpose: 'Happy origin case', agentId: 'happy-agent' });
 
     const result = sugar.done({
       agentId: 'happy-agent',
@@ -724,7 +715,7 @@ describe('pd done origin rule', () => {
     expect(result.sessionStatus).toBe('completed');
 
     // Each accepted sentinel form should also work.
-    const b2 = sugar.begin({ lifecycle: 'ephemeral', purpose: 'no-pr-yet case', agentId: 'no-pr-agent' });
+    const b2 = sugar.begin({ purpose: 'no-pr-yet case', agentId: 'no-pr-agent' });
     const r2 = sugar.done({
       agentId: 'no-pr-agent',
       sessionId: b2.sessionId,
@@ -732,7 +723,7 @@ describe('pd done origin rule', () => {
     });
     expect(r2.success).toBe(true);
 
-    const b3 = sugar.begin({ lifecycle: 'ephemeral', purpose: 'not-applicable case', agentId: 'na-agent' });
+    const b3 = sugar.begin({ purpose: 'not-applicable case', agentId: 'na-agent' });
     const r3 = sugar.done({
       agentId: 'na-agent',
       sessionId: b3.sessionId,
@@ -748,7 +739,7 @@ describe('pd done origin rule', () => {
   test('--skip-origin-check works only with a reason; stamps [OPERATOR-OVERRIDE]', () => {
     const { sugar, sessions } = setup({ gitOriginChecker: aheadChecker(5) });
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Override case', agentId: 'override-agent' });
+    const begin = sugar.begin({ purpose: 'Override case', agentId: 'override-agent' });
 
     // Without --reason: refusal.
     const noReason = sugar.done({
@@ -791,7 +782,7 @@ describe('sugar.whoami', () => {
   test('returns active context for registered agent', () => {
     const { sugar } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'I am here',
       agentId: 'who-test',
       identity: 'myproject:api:main',
@@ -820,7 +811,7 @@ describe('sugar.whoami', () => {
   test('falls back to an explicit active session when the agent row was reaped', () => {
     const { sugar, agents } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Recover from stale agent',
       agentId: 'stale-agent-test',
       identity: 'myproject:api:main',
@@ -844,7 +835,7 @@ describe('sugar.whoami', () => {
   test('returns file claims in context', () => {
     const { sugar } = setup();
 
-    sugar.begin({ lifecycle: 'ephemeral',
+    sugar.begin({
       purpose: 'With files',
       agentId: 'files-test',
       files: ['src/main.ts', 'src/utils.ts'],
@@ -859,7 +850,7 @@ describe('sugar.whoami', () => {
   test('returns note count', () => {
     const { sugar, sessions } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Notes count',
       agentId: 'notecount-test',
     });
@@ -876,7 +867,7 @@ describe('sugar.whoami', () => {
   test('returns duration for active session', () => {
     const { sugar } = setup();
 
-    sugar.begin({ lifecycle: 'ephemeral',
+    sugar.begin({
       purpose: 'Duration test',
       agentId: 'duration-test',
     });
@@ -892,7 +883,7 @@ describe('sugar.whoami', () => {
   test('returns phase for active session', () => {
     const { sugar, sessions } = setup();
 
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Phase test',
       agentId: 'phase-test',
     });
@@ -915,7 +906,7 @@ describe('sugar lifecycle', () => {
     const { sugar, sessions } = setup();
 
     // 1. Begin
-    const begin = sugar.begin({ lifecycle: 'ephemeral',
+    const begin = sugar.begin({
       purpose: 'Full lifecycle test',
       agentId: 'lifecycle-test',
       identity: 'myapp:api:feature',
@@ -948,8 +939,8 @@ describe('sugar lifecycle', () => {
   test('multiple agents can begin/done independently', () => {
     const { sugar } = setup();
 
-    const a1 = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Agent 1', agentId: 'a1' });
-    const a2 = sugar.begin({ lifecycle: 'ephemeral', purpose: 'Agent 2', agentId: 'a2' });
+    const a1 = sugar.begin({ purpose: 'Agent 1', agentId: 'a1' });
+    const a2 = sugar.begin({ purpose: 'Agent 2', agentId: 'a2' });
 
     expect(a1.success).toBe(true);
     expect(a2.success).toBe(true);

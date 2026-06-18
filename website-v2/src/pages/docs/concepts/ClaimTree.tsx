@@ -85,13 +85,13 @@ export default function ClaimTree() {
             the AST tree is code structure inside each file. The claim tree{' '}
             <strong className="text-[var(--text-primary)]">joins them at the file</strong>{' '}
             — every file node has children from its AST when symbol-index data is
-            available. Hover the filesystem's <code className="font-mono text-[14px]">auth.ts</code>{' '}
+            available. Hover the filesystem's <code className="font-mono text-[13px]">auth.ts</code>{' '}
             to see the join animate.
           </p>
           <TwoTreesViz />
           <p className="text-sm text-[var(--text-muted)]">
             You don't need to think about AST when you{' '}
-            <code className="rounded bg-[var(--surface-raised)] px-1 py-0.5 font-mono text-[14px]">pd add lib/auth.ts</code>.
+            <code className="rounded bg-[var(--surface-raised)] px-1 py-0.5 font-mono text-[13px]">pd add lib/auth.ts</code>.
             The tree degrades gracefully to file granularity. But when symbol data is available,
             you can claim a specific function instead of the whole file — and let someone else
             claim a different function in the same file without conflict.
@@ -131,7 +131,7 @@ export default function ClaimTree() {
             Line numbers are the wrong frame of reference for code. Add an import at the top of a file
             and every line shifts. Two agents that <em className="text-[var(--text-primary)]">should</em> be
             coordinating end up with overlapping line ranges that no longer touch the same code. The
-            AST-anchored model treats <code className="font-mono text-[14px]">AuthService.signToken</code>{' '}
+            AST-anchored model treats <code className="font-mono text-[13px]">AuthService.signToken</code>{' '}
             as the stable identity.
           </div>
         </section>
@@ -274,7 +274,7 @@ function NodeKindRow({ icon: Icon, kind, example, stability, stabilityTone, desc
         <div className="text-xs text-[var(--text-muted)]">{desc}</div>
       </td>
       <td className="px-4 py-3 align-top">
-        <code className="font-mono text-[14px] text-[var(--text-secondary)]">{example}</code>
+        <code className="font-mono text-[13px] text-[var(--text-secondary)]">{example}</code>
       </td>
       <td className="px-4 py-3 align-top">
         <span className={`inline-block border-2 px-2 py-0.5 text-xs font-semibold ${tone}`}>{stability}</span>
@@ -327,7 +327,7 @@ function AnnotatedTreeMock() {
   // sketch of the web console's eventual sidebar shape.
   return (
     <div className="grid gap-3 border border-[var(--border-soft)] md:grid-cols-[280px_1fr]">
-      <div className="border-r border-[var(--border-soft)] bg-[var(--surface-raised)] p-3 font-mono text-[14px] space-y-1">
+      <div className="border-r border-[var(--border-soft)] bg-[var(--surface-raised)] p-3 font-mono text-[13px] space-y-1">
         <div>▾ lib/</div>
         <div className="pl-3 text-[var(--text-primary)]">▾ auth.ts <span className="text-[var(--warning)]">⚠ MED</span></div>
         <div className="pl-6">◆ AuthService.signToken <span className="text-[oklch(0.62_0.18_282)]">● gardener X</span></div>
@@ -343,14 +343,14 @@ function AnnotatedTreeMock() {
           <div className="flex gap-2 border border-[var(--border-soft)] p-2">
             <span className="mt-1 h-3 w-3 shrink-0 bg-[oklch(0.62_0.18_282)]" />
             <div>
-              <div className="font-mono text-[14px] text-[var(--text-primary)]">AuthService.signToken</div>
+              <div className="font-mono text-[13px] text-[var(--text-primary)]">AuthService.signToken</div>
               <div className="text-xs text-[var(--text-muted)]">gardener · 28m · "Refactor signing to RS256"</div>
             </div>
           </div>
           <div className="flex gap-2 border border-[var(--border-soft)] p-2">
             <span className="mt-1 h-3 w-3 shrink-0 bg-[oklch(0.66_0.20_35)]" />
             <div>
-              <div className="font-mono text-[14px] text-[var(--text-primary)]">AuthService.refreshToken</div>
+              <div className="font-mono text-[13px] text-[var(--text-primary)]">AuthService.refreshToken</div>
               <div className="text-xs text-[var(--text-muted)]">you · active NOW · "New refresh implementation"</div>
             </div>
           </div>

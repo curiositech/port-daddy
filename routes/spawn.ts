@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex']);
 
 
 // ==========================================================================
@@ -78,7 +78,6 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         timeout,
         allowedTools,
         maxTokens,
-        permissionMode,
         budgetUsd: rawBudgetUsd,
       } = request.body as any;
 
@@ -122,36 +121,6 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         };
       }
 
-      // workdir is interpolated into the Coast Guard's OS-sandbox profile
-      // (lib/coast-guard.ts buildSeatbeltProfile → `(subpath "<workdir>")`). A
-      // quote/backslash/newline/NUL in it is an SBPL-injection vector (#339), so
-      // reject it at the boundary — same posture as `task`'s metachar check.
-      // We also require an absolute path: the sandbox confines an absolute root,
-      // and a relative workdir is ambiguous against the daemon's cwd.
-      if (workdir !== undefined && workdir !== null) {
-        if (typeof workdir !== 'string' || !workdir.trim()) {
-          reply.code(400); return {
-            success: false,
-            error: 'workdir must be a non-empty string',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-        if (/["\\\n\r\0]/.test(workdir)) {
-          reply.code(400); return {
-            success: false,
-            error: 'workdir contains an illegal character (quote, backslash, newline, or NUL). Provide a plain absolute path.',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-        if (!workdir.startsWith('/')) {
-          reply.code(400); return {
-            success: false,
-            error: 'workdir must be an absolute path (start with "/").',
-            code: 'VALIDATION_ERROR',
-          };
-        }
-      }
-
       const parsedBudgetUsd = typeof rawBudgetUsd === 'number'
         ? rawBudgetUsd
         : typeof rawBudgetUsd === 'string' && rawBudgetUsd.trim()
@@ -193,12 +162,6 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
       if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
-      // File-edit permission mode for the cli:claude-code backend. Only the three
-      // CLI-recognised modes are accepted; anything else is ignored (the spawner
-      // forwards it verbatim as --permission-mode, so the boundary validates it).
-      if (permissionMode === 'default' || permissionMode === 'acceptEdits' || permissionMode === 'bypassPermissions') {
-        spec.permissionMode = permissionMode;
-      }
 
       logger.info('spawn_start', {
         backend,

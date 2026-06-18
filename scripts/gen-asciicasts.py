@@ -122,8 +122,8 @@ def cast_quickstart():
     c = CastWriter(title='Port Daddy — Quick Start')
 
     c.show_comment('Start working on a project')
-    c.type_command('pd begin "Building the photo upload API" --identity photoapp:api --lifecycle durable')
-    output = run_cmd('pd begin "Building the photo upload API" --identity photoapp:api --lifecycle durable')
+    c.type_command('pd begin "Building the photo upload API" --identity photoapp:api')
+    output = run_cmd('pd begin "Building the photo upload API" --identity photoapp:api')
     c.show_output(output)
     c.pause(1.0)
 
@@ -176,8 +176,8 @@ def cast_coordination():
     c = CastWriter(title='Port Daddy — Multi-Agent Coordination')
 
     c.show_comment('Agent 1: Backend API developer')
-    c.type_command('pd begin "REST API for user auth" --identity myapp:api --agent backend-dev --lifecycle durable')
-    output = run_cmd('pd begin "REST API for user auth" --identity myapp:api --agent backend-dev --lifecycle durable')
+    c.type_command('pd begin "REST API for user auth" --identity myapp:api --agent backend-dev')
+    output = run_cmd('pd begin "REST API for user auth" --identity myapp:api --agent backend-dev')
     c.show_output(output)
     c.pause(0.8)
 
@@ -187,8 +187,8 @@ def cast_coordination():
     c.pause(0.6)
 
     c.show_comment('Agent 2: Frontend developer (separate terminal)')
-    c.type_command('pd begin "React login page" --identity myapp:web --agent frontend-dev --lifecycle durable')
-    output = run_cmd('pd begin "React login page" --identity myapp:web --agent frontend-dev --lifecycle durable')
+    c.type_command('pd begin "React login page" --identity myapp:web --agent frontend-dev')
+    output = run_cmd('pd begin "React login page" --identity myapp:web --agent frontend-dev')
     c.show_output(output)
     c.pause(0.8)
 

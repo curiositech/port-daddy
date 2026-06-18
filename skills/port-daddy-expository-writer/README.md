@@ -45,8 +45,7 @@ Workflow inside a PD session:
 
 ```bash
 pd begin --identity port-daddy:claude:expository-draft \
-  --lifecycle durable \
-  --files docs/concepts/<piece>.md
+         --files docs/concepts/<piece>.md
 pd note "Loading port-daddy-expository-writer for <topic>. Voice tells targeted: <list>. Verifiers: <list>."
 # ... draft ...
 scripts/audit-voice.sh docs/concepts/<piece>.md

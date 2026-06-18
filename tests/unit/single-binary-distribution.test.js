@@ -69,70 +69,18 @@ describe('single binary distribution path', () => {
     expect(buildScript).toContain('embedded in the executable through a generated asset table');
     expect(buildScript).toContain('embeddedNativeCore');
     expect(buildScript).toContain('smokeSelfHostedDaemon');
-    expect(buildScript).toContain('writePdLauncher');
-    expect(buildScript).toContain('launcherSource');
-    expect(buildScript).toContain("run('cc'");
-    expect(buildScript).toContain('execv(target, child_argv)');
-    expect(buildScript).toContain("basename(requestedOutfile) === 'pd'");
-    expect(buildScript).toContain("join(dirname(requestedOutfile), 'port-daddy')");
     expect(buildScript).toContain('target: target || null');
     expect(buildScript).toContain('/arbiter/status');
     expect(buildScript).toContain('embedded native Arbiter enforcer was not loaded cleanly');
-    expect(buildScript).toContain("['attention', '--agent', 'pd-single-binary-smoke-agent', '--json']");
-    expect(buildScript).toContain('single binary CLI smoke failed: pd attention did not return the expected summary');
     expect(buildScript).toContain('isolated-bin');
     expect(buildScript).toContain('copyFileSync(outfile, isolatedOutfile)');
-    expect(buildScript).toContain('companionFiles');
-  });
-
-  test('compiled CLI relaunches short pd binary through sibling port-daddy before daemon work', () => {
-    const cli = readFileSync(join(process.cwd(), 'bin', 'port-daddy-cli.ts'), 'utf8');
-
-    expect(cli).toContain('function maybeRelaunchShortBinary()');
-    expect(cli).toContain("basename(execPath) === 'pd' || basename(argv0) === 'pd'");
-    expect(cli).toContain("join(dirname(execPath), 'port-daddy')");
-    expect(cli).toContain("PORT_DADDY_DISABLE_SHORT_REEXEC: '1'");
-    expect(cli).toContain('maybeRelaunchShortBinary();');
   });
 
   test('release workflow uses the single-binary builder instead of compiling the CLI shim directly', () => {
     const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
 
     expect(workflow).toContain('node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd');
-    expect(workflow).toContain('pd port-daddy port-daddy-manifest.json');
+    expect(workflow).toContain('pd port-daddy-manifest.json');
     expect(workflow).not.toContain('bin/port-daddy-cli.ts --outfile dist/pd');
-  });
-
-  test('FleetBar packages the same Port Daddy payload with embedded Rust core proof', () => {
-    const localPackager = readFileSync(join(process.cwd(), 'scripts', 'package-fleetbar.sh'), 'utf8');
-    const previewPackager = readFileSync(join(process.cwd(), 'scripts', 'package-fleetbar-preview.sh'), 'utf8');
-    const workflow = readFileSync(join(process.cwd(), '.github', 'workflows', 'release.yml'), 'utf8');
-
-    for (const script of [localPackager, previewPackager]) {
-      expect(script).toContain('Contents/Resources/PortDaddy');
-      expect(script).toContain('scripts/build-single-binary.mjs');
-      expect(script).toContain('--outfile="$payload_dir/pd"');
-      expect(script).toContain('port-daddy-manifest.json');
-      expect(script).toContain('manifest.embeddedNativeCore?.status !== "embedded"');
-      expect(script).toContain('manifest.smoke?.daemon?.arbiter?.enforcerLoaded !== true');
-      expect(script).toContain('bundledPortDaddy');
-      expect(script).toContain('signature: manifest.signature ?? null');
-    }
-
-    expect(localPackager).toContain('OUT_DIR_INPUT=');
-    expect(localPackager).toContain('OUT_DIR="$ROOT_DIR/$OUT_DIR_INPUT"');
-    expect(previewPackager).toContain('PORT_DADDY_ENTITLEMENTS="$REPO_ROOT/scripts/entitlements/port-daddy.plist"');
-    expect(previewPackager).toContain('Signing bundled Port Daddy payload with Developer ID');
-    expect(previewPackager).toContain('--entitlements "$PORT_DADDY_ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$PORT_DADDY_PAYLOAD_DIR/port-daddy"');
-    expect(previewPackager).toContain('Signing bundled Port Daddy payload with ad-hoc identity.');
-    expect(previewPackager).toContain('--entitlements "$PORT_DADDY_ENTITLEMENTS" --sign - "$PORT_DADDY_PAYLOAD_DIR/port-daddy"');
-    expect(previewPackager).toContain('refresh_port_daddy_payload_manifest');
-    expect(previewPackager).toContain('manifest.sha256 = sha256(binaryPath)');
-    expect(previewPackager).toContain('manifest.launcherSha256 = sha256(launcherPath)');
-    expect(previewPackager).toContain('refresh_port_daddy_payload_manifest "$PORT_DADDY_PAYLOAD_DIR" "developer-id"');
-    expect(previewPackager).toContain('refresh_port_daddy_payload_manifest "$PORT_DADDY_PAYLOAD_DIR" "ad-hoc"');
-    expect(workflow).toContain('scripts/package-fleetbar.sh dist/fleetbar');
-    expect(workflow).toContain('dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip');
-    expect(workflow).not.toContain('PortDaddy-FleetBar-macOS-*-dev.zip');
   });
 });

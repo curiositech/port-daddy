@@ -10,7 +10,6 @@ final class FleetPopoverTests: XCTestCase {
             FleetControlSurface.allCases.map(\.rawValue),
             [
                 "flow",
-                "backend",
                 "roadmap",
                 "nightshift",
                 "agents",
@@ -28,7 +27,6 @@ final class FleetPopoverTests: XCTestCase {
             FleetControlSurface.allCases.map(\.title),
             [
                 "Flow",
-                "Backend",
                 "Roadmap",
                 "Nightshift",
                 "Agents",
@@ -45,16 +43,14 @@ final class FleetPopoverTests: XCTestCase {
     }
 
     /// Native surfaces render via SwiftUI inside FleetBar; web surfaces are
-    /// loaded through the embedded `/fleet-ui/` webview. Nightshift and Backend
-    /// are fully native — the loop must work even when the web bundle is stale
-    /// or offline. Everything else is web. Pinning the exact native set catches
-    /// an accidental opt-in (or opt-out) when surfaces are added.
-    func testNativeSurfacesAreBackendAndNightshift() {
+    /// loaded through the embedded `/fleet-ui/` webview. Nightshift is the
+    /// first operator-facing surface to go fully native — the loop must work
+    /// even when the web bundle is stale or offline.
+    func testNightshiftIsNativeAndOtherSurfacesAreWeb() {
         let nativeRaws = FleetControlSurface.allCases.filter(\.isNative).map(\.rawValue)
-        XCTAssertEqual(nativeRaws, ["backend", "nightshift"])
+        XCTAssertEqual(nativeRaws, ["nightshift"])
 
-        let nativeSet: Set<FleetControlSurface> = [.backend, .nightshift]
-        for surface in FleetControlSurface.allCases where !nativeSet.contains(surface) {
+        for surface in FleetControlSurface.allCases where surface != .nightshift {
             XCTAssertFalse(surface.isNative, "Expected \(surface.rawValue) to be a web surface")
         }
     }

@@ -23,7 +23,7 @@ import { homedir } from 'node:os';
 
 export const SHIM_BIN_DIR = join(homedir(), '.port-daddy', 'bin');
 export const SHIM_GIT_PATH = join(SHIM_BIN_DIR, 'git');
-export const SHIM_VERSION = '4';
+export const SHIM_VERSION = '3';
 
 export const GIT_SHIM_CONTENT = `#!/usr/bin/env bash
 # Port Daddy git shim v${SHIM_VERSION}
@@ -252,8 +252,8 @@ if [ -n "$verb" ]; then
   if command -v pd >/dev/null 2>&1; then
     if ! pd guard check --git-verb "$verb" --hook >/dev/null 2>&1; then
       echo "pd-shim: $verb refused by Port Daddy coordination guard." >&2
-      echo "pd-shim: coordinate first — 'pd begin', claim the files, then retry." >&2
       echo "pd-shim: see 'pd guard status' for current mode." >&2
+      echo "pd-shim: bypass once with PD_SHIM_OFF=1 git $*." >&2
       exit 1
     fi
   fi

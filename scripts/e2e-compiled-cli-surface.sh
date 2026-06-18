@@ -192,29 +192,13 @@ run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
 run_read "coast-guard status" coast-guard -- coast-guard status
-run_read "relay status"      relay       -- relay status
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
 run_read "ideas"             ideas       -- ideas
 run_read "attention"         attention   -- attention --agent surface:smoke:ci
-run_read "nudge"             nudge       -- nudge --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
-run_read "send (usage)"      send        -- send
 run_read "hints"             hints       -- hints
-# ADR-0084 Daemon Berths: `pd use <tier>` emits a shell snippet (read-only, no
-# daemon mutation); `pd dev list` probes berths read-only. Both exit 0 + print.
-run_ok   "use stable"        use         -- use stable
-run_ok   "dev list"          dev         -- dev list
-
-# --help routing regression (HELP_TOPIC_ALIASES): a messaging-family command must
-# resolve to the messaging TOPIC, not silently fall through to the global help.
-__help_out="$(cli inbox --help 2>&1 || true)"
-if printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
-  pass "inbox --help -> messaging topic (not global help)"
-else
-  fail "inbox --help -> messaging topic" "got: $(printf '%s' "$__help_out" | head -1)"
-fi
 run_read "compass"           compass     -- compass
 run_read "advise"            advise      -- advise
 run_read "preflight"         preflight   -- preflight
@@ -241,7 +225,6 @@ run_read "changelog"         changelog    -- changelog
 run_read "shipwright (usage)" shipwright  -- shipwright
 run_read "pheromone list"    pheromone    -- pheromone list
 run_read "quorum list"       quorum       -- quorum list
-run_read "parley list"       parley       -- parley list
 run_read "obligations"       obligations  -- obligations
 run_read "who-owns"          who-owns     -- who-owns README.md
 run_read "guard status"      guard        -- guard status
@@ -250,7 +233,6 @@ run_read "sortie list"       sortie       -- sortie list
 run_read "agent (usage)"     agent        -- agent
 run_read "commit (usage)"    commit       -- commit
 run_read "bench"             bench        -- bench
-run_read "benchmark (list)"  benchmark    -- benchmark list-conditions
 run_read "demo (usage)"      demo         -- demo
 run_read "with-lock (usage)" with-lock    -- with-lock
 run_read "salvage"           salvage      -- salvage
@@ -271,14 +253,6 @@ run_read "harbormaster status" harbormaster -- harbormaster status
 run_read "hm status"         hm           -- hm status
 run_read "review (usage)"    review       -- review
 run_read "dispatch (usage)"  dispatch     -- dispatch
-# Relay status (ADR-0049). `relay status` is a pure GET /relay/status read; the
-# mutating subforms (relay url <value>, relay exchange) are NOT run. Against the
-# scratch daemon relay is unconfigured, so it prints the "disabled" banner. If
-# the relay route is not mounted it exits non-zero WITH an error line — same
-# shape as attest/doctor above, which run_read treats as a PASS because it still
-# proves the compiled relay module loaded and ran (the dead-binary failure mode
-# is exit-non-zero with EMPTY output).
-run_read "relay status"      relay        -- relay status
 
 echo
 echo "=== MUTATING round-trips (safe against the scratch daemon) ======"
@@ -297,7 +271,7 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 
 # begin -> whoami(active) -> note -> notes -> done
 # (--allow-main-worktree: CI runs on the main worktree)
-run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
+run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
@@ -357,7 +331,7 @@ covered listen;    skip "listen"    "alias of sub — blocking subscriber"
 covered wait;      skip "wait"      "blocks until a matching message arrives"
 covered mcp;       skip "mcp"       "boots a stdio MCP server that blocks reading stdin"
 covered dashboard; skip "dashboard" "web form opens a browser via 'open'; TUI form is interactive (tsx) — both unsafe in CI"
-covered dev;       skip "dev"       "ADR-0084 berths: 'dev list' is read-tested above; 'dev up/down' build+launch/stop a real berth (mutating)"
+covered dev;       skip "dev"       "spawns an isolated dev daemon via tsx (mutating, needs node_modules)"
 covered setup;     skip "setup"     "interactive onboarding; writes .portdaddyrc — covered indirectly by scan/init paths"
 covered init;      skip "init"      "writes project config to cwd; covered by the scan read instead"
 covered learn;     skip "learn"     "requires an interactive TTY; refuses in CI by design"

@@ -238,20 +238,22 @@ describe('Agent Liveness & Readiness', () => {
       expect(resurrection.getDeadThreshold('starting')).toBe(15 * 60 * 1000);
     });
 
-    it('should use 20 min dead threshold for "ready" agents', () => {
-      expect(resurrection.getDeadThreshold('ready')).toBe(20 * 60 * 1000);
+    // Reconciled with lib/agents.ts (single source of truth): ready/busy/default
+    // use a 4h dead threshold so background agents survive long jobs.
+    it('should use 4h dead threshold for "ready" agents', () => {
+      expect(resurrection.getDeadThreshold('ready')).toBe(4 * 60 * 60 * 1000);
     });
 
-    it('should use 30 min dead threshold for "busy" agents', () => {
-      expect(resurrection.getDeadThreshold('busy')).toBe(30 * 60 * 1000);
+    it('should use 4h dead threshold for "busy" agents', () => {
+      expect(resurrection.getDeadThreshold('busy')).toBe(4 * 60 * 60 * 1000);
     });
 
     it('should use 5 min dead threshold for "draining" agents', () => {
       expect(resurrection.getDeadThreshold('draining')).toBe(5 * 60 * 1000);
     });
 
-    it('should use 20 min dead threshold for unknown status', () => {
-      expect(resurrection.getDeadThreshold(undefined)).toBe(20 * 60 * 1000);
+    it('should use 4h dead threshold for unknown status', () => {
+      expect(resurrection.getDeadThreshold(undefined)).toBe(4 * 60 * 60 * 1000);
     });
 
     it('stale threshold should be 60% of dead threshold', () => {
@@ -265,25 +267,25 @@ describe('Agent Liveness & Readiness', () => {
     it('should use adaptive threshold when checking agent status', () => {
       const now = Date.now();
 
-      // A busy agent with heartbeat 25 min ago should be stale (not dead)
-      // because busy dead threshold is 30 min
+      // A draining agent with heartbeat 6 min ago should be dead
+      // because draining dead threshold is 5 min.
       const result = resurrection.check({
-        id: 'busy-agent',
-        name: 'Busy Agent',
-        lastHeartbeat: now - 25 * 60 * 1000,
-        status: 'busy',
+        id: 'draining-agent',
+        name: 'Draining Agent',
+        lastHeartbeat: now - 6 * 60 * 1000,
+        status: 'draining',
       });
-      expect(result.status).toBe('stale');
+      expect(result.status).toBe('dead');
 
-      // Same timing (25 min) for a ready agent should be dead
-      // because ready dead threshold is 20 min
+      // Same timing (6 min) for a ready agent should be healthy
+      // because ready dead threshold is 4h (and stale threshold is 2.4h).
       const result2 = resurrection.check({
         id: 'ready-agent',
         name: 'Ready Agent',
-        lastHeartbeat: now - 25 * 60 * 1000,
+        lastHeartbeat: now - 6 * 60 * 1000,
         status: 'ready',
       });
-      expect(result2.status).toBe('dead');
+      expect(result2.status).toBe('healthy');
     });
 
     it('should treat draining agents as dead quickly', () => {
@@ -322,9 +324,10 @@ describe('Agent Liveness & Readiness', () => {
     it('should show stale liveness for old heartbeat', () => {
       agents.register('agent-1', { status: 'ready' });
 
-      // Backdate past stale threshold (60% of 4h = 2.4h). Use 2.5h.
+      // Stale threshold = dead threshold * 0.6. ready dead = 4h → stale at 2.4h = 144 min.
+      // Backdate past the stale threshold (150 min > 144 min).
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 2.5 * 60 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 150 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('stale');
@@ -333,9 +336,9 @@ describe('Agent Liveness & Readiness', () => {
     it('should show dead liveness for very old heartbeat', () => {
       agents.register('agent-1', { status: 'ready' });
 
-      // Backdate past dead threshold (4h for ready). Use 5h.
+      // ready dead threshold = 4h. Backdate past 4h (250 min > 240 min).
       db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?')
-        .run(Date.now() - 5 * 60 * 60 * 1000, 'agent-1');
+        .run(Date.now() - 250 * 60 * 1000, 'agent-1');
 
       const result = agents.get('agent-1');
       expect(result.agent.healthAssessment.liveness).toBe('dead');
@@ -345,9 +348,9 @@ describe('Agent Liveness & Readiness', () => {
       agents.register('agent-1', { status: 'busy' });
       const result = agents.get('agent-1');
 
-      // Just registered, so graceRemaining ≈ full dead threshold for busy (4h)
+      // busy dead threshold = 4h (14 400 000 ms). Just registered → graceRemaining ≈ 4h.
       expect(result.agent.healthAssessment.graceRemaining).toBeGreaterThan(239 * 60 * 1000);
-      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(4 * 60 * 60 * 1000);
+      expect(result.agent.healthAssessment.graceRemaining).toBeLessThanOrEqual(240 * 60 * 1000);
     });
   });
 

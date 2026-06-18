@@ -68,7 +68,7 @@ export function BlueprintsSection() {
                 <div className="flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-[var(--success)]" />
-                    <span className="text-[length:var(--type-meta-size)] font-medium text-[var(--text-muted)]">Ready to Spawn</span>
+                    <span className="text-xs font-medium text-[var(--text-muted)]">Ready to Spawn</span>
                   </div>
                   <span className="text-sm font-medium text-[var(--brand-primary)] group-hover:gap-3 transition-all flex items-center gap-2">
                     Inspect

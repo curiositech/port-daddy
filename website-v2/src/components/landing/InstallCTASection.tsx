@@ -1,273 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import { Copy, Check, Terminal, Package, Zap, Code } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Github, MessagesSquare, Terminal } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CodeBlock } from '@/components/ui/CodeBlock'
+import {
+  PageContainer,
+  PanelBody,
+  PanelEyebrow,
+  PanelTitle,
+  SurfacePanel,
+} from '@/components/site/primitives'
 
-interface Tab {
-  id: string;
-  label: string;
-  command: string;
-  description: string;
-  icon: React.ReactNode;
-}
+const GITHUB_URL = 'https://github.com/curiositech/port-daddy'
+const DISCUSSIONS_URL = 'https://github.com/curiositech/port-daddy/discussions'
 
-const tabs: Tab[] = [
-  {
-    id: 'pd-init',
-    label: 'pd init',
-    command: 'pd init',
-    description: 'Initialize a new project with our flagship CLI tool',
-    icon: <Zap className="w-4 h-4" />,
-  },
-  {
-    id: 'homebrew',
-    label: 'Homebrew',
-    command: 'brew install port-daddy',
-    description: 'Install via Homebrew package manager for macOS',
-    icon: <Package className="w-4 h-4" />,
-  },
-  {
-    id: 'mcp',
-    label: 'MCP',
-    command: 'pd mcp install',
-    description: 'Configure supported MCP clients from the installed Port Daddy CLI',
-    icon: <Terminal className="w-4 h-4" />,
-  },
-  {
-    id: 'npx',
-    label: 'npx',
-    command: 'npx port-daddy init',
-    description: 'Run directly with npx without installation',
-    icon: <Code className="w-4 h-4" />,
-  },
-];
-
-const TypewriterText: React.FC<{ text: string; speed?: number }> = ({ text, speed = 50 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  useEffect(() => {
-    if (currentIndex < text.length) {
-      const timeout = setTimeout(() => {
-        setCurrentIndex((prev) => prev + 1);
-      }, speed);
-      return () => clearTimeout(timeout);
-    }
-  }, [currentIndex, text, speed]);
-
-  return <span>{text.slice(0, currentIndex)}</span>;
-};
-
-const InstallCTASection: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('pd-init');
-  const [copied, setCopied] = useState(false);
-
-  const activeTabData = tabs.find((tab) => tab.id === activeTab) || tabs[0];
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(activeTabData.command);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
+/**
+ * Click-to-copy install block. Homebrew is the primary path (the daemon + CLI
+ * ship as a tap); npm is the secondary path for Node-first setups. Both run the
+ * same backend. Open source, free — no tiers, no urgency.
+ */
+export function InstallCTASection() {
   return (
-    <div
-      className="w-full min-h-screen flex items-center justify-center p-6"
-      style={{
-        backgroundColor: 'var(--surface-elevated, #1E1B18)',
-      }}
-    >
-      <style>{`
-        :root {
-          --brand-primary: #4A9D9E;
-          --surface-elevated: #1E1B18;
-          --text-primary: #D4C5A9;
-          --text-secondary: #9A8F7A;
-          --border-subtle: #3A3530;
-          --accent-red: #BF2F2F;
-        }
-      `}</style>
+    <section className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] py-[var(--space-8)] lg:py-[var(--section-space-y)]">
+      <PageContainer width="wide">
+        <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,0.8fr)] lg:items-start">
+          <div className="grid content-start gap-[var(--space-4)]">
+            <PanelEyebrow>Install in one line</PanelEyebrow>
+            <PanelTitle as="h2" size="display" className="max-w-[18ch]">
+              Copy a command, run your fleet.
+            </PanelTitle>
+            <PanelBody className="max-w-[46rem]">
+              Port Daddy is open source and free. Install the daemon and CLI with
+              Homebrew, point your agents at the project, and the coordination
+              record is live. The Mac app reads the same backend if you prefer a
+              window over a terminal.
+            </PanelBody>
 
-      <div className="w-full max-w-4xl">
-        <div className="text-center mb-12">
-          <h2
-            className="text-4xl md:text-5xl font-bold mb-4"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            Get Started in Seconds
-          </h2>
-          <p
-            className="text-lg md:text-xl"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Choose your preferred installation method
-          </p>
-        </div>
+            <div className="mt-[var(--space-2)] grid gap-[var(--space-2)]">
+              <PanelEyebrow>Homebrew</PanelEyebrow>
+              <CodeBlock language="bash" showHeaderLabel={false}>
+                {`brew install curiositech/tap/port-daddy`}
+              </CodeBlock>
+            </div>
 
-        <Card
-          className="border-2 overflow-hidden"
-          style={{
-            backgroundColor: 'var(--surface-elevated)',
-            borderColor: 'var(--border-subtle)',
-          }}
-        >
-          {/* Tabs */}
-          <div
-            className="flex flex-wrap border-b-2"
-            style={{ borderColor: 'var(--border-subtle)' }}
-          >
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className="flex items-center gap-2 px-6 py-4 font-semibold transition-all duration-200 relative"
-                style={{
-                  color:
-                    activeTab === tab.id
-                      ? tab.id === 'pd-init'
-                        ? 'var(--accent-red)'
-                        : 'var(--brand-primary)'
-                      : 'var(--text-secondary)',
-                  backgroundColor:
-                    activeTab === tab.id
-                      ? 'rgba(74, 157, 158, 0.1)'
-                      : 'transparent',
-                }}
+            <div className="grid gap-[var(--space-2)]">
+              <PanelEyebrow>npm</PanelEyebrow>
+              <CodeBlock language="bash" showHeaderLabel={false}>
+                {`npm install -g port-daddy`}
+              </CodeBlock>
+            </div>
+
+            <p className="text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+              Then run <code className="font-mono text-[var(--brand-primary)]">pd setup</code> to point it at a project.{' '}
+              <Link
+                to="/docs/quickstart"
+                className="font-semibold text-[var(--brand-primary)] underline-offset-2 hover:underline"
               >
-                {tab.icon}
-                <span>{tab.label}</span>
-                {activeTab === tab.id && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-0.5"
-                    style={{
-                      backgroundColor:
-                        tab.id === 'pd-init'
-                          ? 'var(--accent-red)'
-                          : 'var(--brand-primary)',
-                    }}
-                  />
-                )}
-              </button>
-            ))}
+                Read the quickstart
+              </Link>
+              .
+            </p>
           </div>
 
-          {/* Content */}
-          <div className="p-8">
-            {/* Terminal Block */}
-            <div
-              className="rounded-lg border-2 mb-6 overflow-hidden"
-              style={{
-                backgroundColor: '#0D0C0B',
-                borderColor: 'var(--border-subtle)',
-              }}
-            >
-              <div
-                className="flex items-center justify-between px-4 py-3 border-b-2"
-                style={{ borderColor: 'var(--border-subtle)' }}
-              >
-                <div className="flex items-center gap-2">
-                  <Terminal
-                    className="w-4 h-4"
-                    style={{ color: 'var(--brand-primary)' }}
-                  />
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    Terminal
+          <SurfacePanel elevation="quiet" padding="compact" className="grid content-start gap-[var(--space-4)]">
+            <div className="flex items-center gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+              <Terminal size={17} className="text-[var(--brand-primary)]" />
+              <PanelEyebrow>After it installs</PanelEyebrow>
+            </div>
+            <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+              {[
+                ['pd status', 'see which agents are working where'],
+                ['pd briefing', 'read what the others learned'],
+                ['pd guard install', 'block commits that skip a claim'],
+              ].map(([cmd, what]) => (
+                <div
+                  key={cmd}
+                  className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-[var(--space-2)] last:border-b-0 last:pb-0"
+                >
+                  <code className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)]">
+                    {cmd}
+                  </code>
+                  <span className="text-right text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                    {what}
                   </span>
                 </div>
-                <Button
-                  onClick={handleCopy}
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-3"
-                  style={{
-                    color: copied ? 'var(--brand-primary)' : 'var(--text-secondary)',
-                  }}
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-4 h-4 mr-2" /> Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 mr-2" /> Copy
-                    </>
-                  )}
-                </Button>
-              </div>
-              <div className="px-6 py-6">
-                <code
-                  className="text-lg md:text-xl font-mono"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  <span style={{ color: 'var(--brand-primary)' }}>$ </span>
-                  <TypewriterText key={activeTabData.command} text={activeTabData.command} speed={50} />
-                </code>
-              </div>
+              ))}
             </div>
-
-            {/* Description */}
-            <div className="flex items-start gap-3">
-              <div
-                className="p-2 rounded-lg mt-1"
-                style={{
-                  backgroundColor: 'rgba(74, 157, 158, 0.1)',
-                  color:
-                    activeTab === 'pd-init'
-                      ? 'var(--accent-red)'
-                      : 'var(--brand-primary)',
-                }}
+            <div className="flex flex-wrap gap-[var(--space-3)]">
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
               >
-                {activeTabData.icon}
-              </div>
-              <div className="flex-1">
-                <p
-                  className="text-base md:text-lg leading-relaxed"
-                  style={{ color: 'var(--text-primary)' }}
-                >
-                  {activeTabData.description}
-                </p>
-                {activeTab === 'pd-init' && (
-                  <div
-                    className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full text-sm font-medium"
-                    style={{
-                      backgroundColor: 'rgba(191, 47, 47, 0.15)',
-                      color: 'var(--accent-red)',
-                    }}
-                  >
-                    <Zap className="w-3.5 h-3.5" /> Recommended
-                  </div>
-                )}
-              </div>
+                <Github size={15} />
+                Source on GitHub
+              </a>
+              <a
+                href={DISCUSSIONS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+              >
+                <MessagesSquare size={15} />
+                Ask in Discussions
+              </a>
             </div>
-          </div>
-        </Card>
-
-        {/* Additional Info */}
-        <div className="text-center mt-8">
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Need help? Check out our{' '}
-            <a
-              href="#"
-              className="font-semibold hover:underline"
-              style={{ color: 'var(--brand-primary)' }}
-            >
-              documentation
-            </a>{' '}
-            or{' '}
-            <a
-              href="#"
-              className="font-semibold hover:underline"
-              style={{ color: 'var(--brand-primary)' }}
-            >
-              join our community
-            </a>
-          </p>
+          </SurfacePanel>
         </div>
-      </div>
-    </div>
-  );
-};
+      </PageContainer>
+    </section>
+  )
+}
 
-export default InstallCTASection;
+export default InstallCTASection

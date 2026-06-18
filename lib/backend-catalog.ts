@@ -52,11 +52,10 @@ export interface BackendCatalogEntry {
   tagline?: string;
   /**
    * If non-null, the env var the operator would set to force this backend
-   * for every spawn regardless of pd-fleet.yml. The CLI-tube backends
-   * (`cli:claude-code`, `cli:codex`, `cli:gemini`, `cli:groq`, `cli:grok`)
-   * honor this (via PD_USE_CLI_BACKEND).
+   * for every spawn regardless of pd-fleet.yml. Today only
+   * `cli:claude-code` and `cli:codex` honor this (via PD_USE_CLI_BACKEND).
    */
-  pdUseCliBackendValue?: 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
+  pdUseCliBackendValue?: 'claude-code' | 'codex';
   /**
    * Show this prominently in the picker. Used to rank "free via subscription"
    * options ahead of metered ones in the FleetBar/dashboard picker.
@@ -73,7 +72,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     framing: 'FREE — your Claude Max subscription',
     description: "Drives your local `claude` binary as a child process. Auth and billing flow through your Claude Max ($200/mo) or Claude Pro ($20/mo) subscription. $0 marginal cost per spawn.",
     tagline: '$200/mo Claude Max powers the entire fleet at $0 marginal',
-    models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5'],
+    models: ['claude-sonnet-4-5', 'claude-opus-4-1', 'claude-haiku-4-5'],
     pdUseCliBackendValue: 'claude-code',
     recommended: true,
   },
@@ -87,36 +86,6 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     models: ['gpt-5', 'gpt-5-codex'],
     pdUseCliBackendValue: 'codex',
     recommended: true,
-  },
-  {
-    id: 'cli:gemini',
-    name: 'Gemini CLI',
-    costModel: 'subscription',
-    framing: 'FREE tier — your Google account',
-    description: "Drives your local `gemini` binary as a child process. Auth and billing flow through your Google account (generous free tier) or Gemini Code Assist subscription.",
-    tagline: 'Google-account Gemini CLI free tier powers spawns at $0 marginal',
-    models: ['gemini-2.5-flash', 'gemini-2.5-pro'],
-    pdUseCliBackendValue: 'gemini',
-  },
-  {
-    id: 'cli:groq',
-    name: 'Groq Code CLI',
-    costModel: 'subscription',
-    framing: 'Rides your Groq account',
-    description: "Drives your local `groq` binary as a child process. Auth and billing flow through your Groq account; the CLI manages its own key.",
-    tagline: 'Groq LPU speed through your existing groq CLI login',
-    models: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b'],
-    pdUseCliBackendValue: 'groq',
-  },
-  {
-    id: 'cli:grok',
-    name: 'Grok CLI',
-    costModel: 'subscription',
-    framing: 'Rides your xAI / SuperGrok subscription',
-    description: "Drives your local `grok` binary as a child process. Auth and billing flow through your xAI account or SuperGrok subscription.",
-    tagline: 'SuperGrok subscription powers spawns at $0 marginal',
-    models: ['grok-4', 'grok-code-fast-1'],
-    pdUseCliBackendValue: 'grok',
   },
 
   // ──── Metered (pay per token) ───────────────────────────────────────────
@@ -134,7 +103,7 @@ export const BACKEND_CATALOG: readonly BackendCatalogEntry[] = [
     costModel: 'metered',
     framing: 'Metered API — pennies per spawn',
     description: 'Direct Anthropic API via @anthropic-ai/sdk. Requires ANTHROPIC_API_KEY.',
-    models: ['claude-haiku-4-5', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+    models: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'],
   },
   {
     id: 'gemini',
@@ -249,8 +218,5 @@ export function detectForcedCliBackend(env: NodeJS.ProcessEnv = process.env): st
   const normalized = raw.trim().toLowerCase();
   if (normalized === 'claude-code' || normalized === 'claude') return 'cli:claude-code';
   if (normalized === 'codex') return 'cli:codex';
-  if (normalized === 'gemini') return 'cli:gemini';
-  if (normalized === 'groq') return 'cli:groq';
-  if (normalized === 'grok') return 'cli:grok';
   return null;
 }

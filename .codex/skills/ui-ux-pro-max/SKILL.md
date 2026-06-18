@@ -1,6 +1,16 @@
 ---
 name: ui-ux-pro-max
 description: UI/UX design intelligence with searchable database
+metadata:
+  io-contract:
+    kind: deliverable
+    produces:
+      - kind: design-system
+        description: Product-specific design-system recommendation with style, palette, typography, layout, and UX rationale
+        format: markdown
+      - kind: design-search-results
+        description: Search results from the bundled UI/UX database and recommended next actions
+        format: markdown|json
 ---
 # ui-ux-pro-max
 
@@ -120,6 +130,9 @@ Available stacks: `html-tailwind`, `react`, `nextjs`, `vue`, `svelte`, `swiftui`
 ---
 
 ## Search Reference
+
+- `scripts/core.py` — BM25 search engine over the bundled UI/UX datasets. **Read when** debugging domain search behavior or extending searchable data columns.
+- `scripts/design_system.py` — Aggregates UI/UX search results into a project design system with reasoning rules. **Read when** changing design-system generation or persistence behavior.
 
 ### Available Domains
 

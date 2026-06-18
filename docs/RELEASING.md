@@ -24,7 +24,6 @@ cd ../pd-release-3.15.0
 
 # B. PD session
 pd begin --identity port-daddy:release-3.15.0 \
-  --lifecycle durable \
   --purpose "Cut 3.15.0: <one-line headline>"
 pd note "Scope: version surfaces + CHANGELOG. Validation: binary builds + distribution-freshness test."
 pd session files add package.json package-lock.json mcp-server.json \
@@ -152,7 +151,7 @@ git worktree add ../pd-feat-foo -b feat/foo origin/main
 cd ../pd-feat-foo
 
 # B. Session + scope note + claims
-pd begin --identity port-daddy:feat-foo --purpose "Add <feature>" --lifecycle durable
+pd begin --identity port-daddy:feat-foo --purpose "Add <feature>"
 pd note "Scope: <files>. Approach: <plan>. Validation: <commands>."
 pd session files add <files...>
 
@@ -208,7 +207,7 @@ Not decoration — these primitives matter:
 
 | Signal | When to use it |
 |---|---|
-| `pd begin --identity port-daddy:<work> --lifecycle durable` | Always. Session is the atomic unit of "who's editing what". |
+| `pd begin --identity port-daddy:<work>` | Always. Session is the atomic unit of "who's editing what". |
 | `pd session files add <path>` | Before any edit. Advisory, but visible to other agents via `pd sessions --all-worktrees`. |
 | `pd lock release-publish` | **Only for §1 step J** (`publish.yml` dispatch). Brew formula is shared state; two agents racing here = duplicate PRs to the tap. Hold the lock until the tap PR merges. |
 | `pd note "..."` | Scope notes, milestones, blockers. Use `pd say --pin` for cross-session truths (`"3.15.0 binaries published"`). |

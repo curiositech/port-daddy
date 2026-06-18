@@ -1,7 +1,4 @@
 % Fig 1 — the L0->L3 stack map, placing Paper 3 (the bridge). Harbor Volume idiom.
-% Design: one bold title + small-caps whom per rung, one italic content line with
-% an honest-state tag; Paper 3 is a cobalt bracket spanning the L2->L3 gap.
-% The through-line chain lives in the caption.
 \providecolor{hhsand}{HTML}{E9DCC4}
 \providecolor{hhsanddeep}{HTML}{D8C7A6}
 \providecolor{hhebony}{HTML}{121212}
@@ -13,46 +10,62 @@
 
 \begin{figure}[H]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.97\textwidth}{!}{%
 \begin{tikzpicture}[
   font=\small,
-  rung/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=7pt,
-               minimum width=132mm,minimum height=15mm,align=left,text width=124mm},
+  rung/.style={draw=hhebony,thick,rounded corners=3pt,inner sep=6pt,
+               minimum width=128mm,minimum height=14mm,align=left,text width=124mm},
   paper/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
                 font=\footnotesize,align=center,text width=22mm},
+  whom/.style={font=\itshape\footnotesize,text=hhink,anchor=west},
 ]
 % The four rungs, L0 bottom -> L3 top
 \node[rung,fill=hhsand!30] (l0) at (0,0)
-  {{\bfseries L0 --- Daemon (kernel)}\hfill{\footnotesize\textsc{for the machine}}\\[2pt]
-   \textit{always-on local SQLite truth: ports, claims, sessions, tube, memory}\hfill{\footnotesize\textsc{built}}};
-\node[rung,fill=hhsand!30,above=5mm of l0] (l1)
-  {{\bfseries L1 --- Coordination protocol}\hfill{\footnotesize\textsc{for the agents}}\\[2pt]
-   \textit{typed conversation, commitments, delegation, Arbiter}\hfill{\footnotesize\textsc{designed}}};
-\node[rung,fill=hhsand!30,above=5mm of l1] (l2)
-  {{\bfseries L2 --- Legibility \& authority (the wedge)}\hfill{\footnotesize\textsc{for the operator}}\\[2pt]
-   \textit{digest-with-zoom, roadmap-as-truth, adversarial review, the console}\hfill{\footnotesize\textsc{built}}};
-\node[rung,fill=hhsand!30,above=5mm of l2] (l3)
-  {{\bfseries L3 --- Economy \& federation}\hfill{\footnotesize\textsc{for the market}}\\[2pt]
-   \textit{anchor, escrow, reputation, federation, the labor/skill market}\hfill{\footnotesize\textsc{whitepaper'd}}};
+  {\textbf{L0 --- Daemon (kernel).}\enspace always-on local SQLite truth:
+   ports, claims, sessions, tube, commitments, Arbiter, memory\hfill\textbf{BUILT}};
+\node[rung,fill=hhsand!30,above=4mm of l0] (l1)
+  {\textbf{L1 --- Coordination protocol.}\enspace typed conversation, commitments,
+   delegation, Arbiter --- the rules of the road\hfill\textbf{DESIGNED}};
+\node[rung,fill=hhsand!30,above=4mm of l1] (l2)
+  {\textbf{L2 --- Legibility \& authority (the wedge).}\enspace digest-with-zoom,
+   roadmap-as-truth, adversarial review, the console\hfill\textit{the wedge}};
+\node[rung,fill=hhsand!30,above=4mm of l2] (l3)
+  {\textbf{L3 --- Economy \& federation.}\enspace anchor, escrow, reputation,
+   harbor federation, the labor/skill/agent market\hfill\textit{whitepaper'd}};
 
-% Paper 3 = the bridge from L2 to L3: a cobalt bracket spanning the gap
-\draw[hhcobalt,very thick] ([xshift=-4mm]l2.north west) -- ([xshift=-7mm]l2.north west)
-  -- ([xshift=-7mm]l3.south west) -- ([xshift=-4mm]l3.south west);
-\node[paper,draw=hhcobalt,very thick,anchor=east,align=center]
-  at ([xshift=-9mm]$(l2.north west)!0.5!(l3.south west)$)
-  {\textbf{Paper 3}\\\emph{From Spawn to Person}\\\textit{the bridge}};
+% Whom labels
+\node[whom,right=2mm of l0.east] {the \textbf{machine}};
+\node[whom,right=2mm of l1.east] {the \textbf{agents}};
+\node[whom,right=2mm of l2.east] {the \textbf{operator}};
+\node[whom,right=2mm of l3.east] {operators (\textbf{the market})};
 
-% companion papers, left column
-\node[paper,anchor=east] at ([xshift=-9mm]l0.west) {Paper 2\\\emph{Anchor} (L0--L1)};
-\node[paper,anchor=east] at ([xshift=-9mm]l2.west) {Paper 1\\\emph{Legible Swarm}};
-\node[paper,anchor=east] at ([xshift=-9mm]l3.west) {Paper 4\\\emph{Harbor Economy}};
+% The bridge marker between L2 and L3
+\node[draw=hhcobalt,very thick,fill=hhsand!30,rounded corners=3pt,
+      left=10mm of l2.west,anchor=east,align=center,text width=30mm,
+      font=\bfseries\footnotesize] (bridge)
+  {Paper 3\\\emph{From Spawn}\\\emph{to Person}\\[2pt]
+   {\normalfont\itshape the bridge}};
+\draw[hhcobalt,very thick,->,>=Latex,decorate,
+      decoration={snake,amplitude=0.5pt,segment length=4mm}]
+      (bridge.north) .. controls +(0,8mm) and +(-30mm,0) .. (l3.west);
+\draw[hhcobalt,very thick,->,>=Latex] (l2.west) -- (bridge.east);
+
+% Through-line label down the right side
+\node[font=\bfseries\footnotesize,text=hhink,anchor=west,align=left]
+   at ($(l3.east)+(40mm,-14mm)$)
+  {\rotatebox{0}{memory $\to$ checkpoint $\to$ \emph{continuity}}\\
+   \rotatebox{0}{$\to$ a \emph{person} $\to$ outcomes}\\
+   \rotatebox{0}{$\to$ \emph{reputation} $\to$ the market}};
+
+% Other papers placed
+\node[paper,below left=2mm and 0mm of l0.south west,anchor=north east] {Paper 2\\\emph{Anchor}\\(L0--L1)};
+\node[paper,below=10mm of l2.south,anchor=north] {Paper 1\\\emph{Legible Swarm}\\(L2 wedge)};
+\node[paper,above right=2mm and 0mm of l3.north east,anchor=south west] {Paper 4\\\emph{Harbor Economy}\\(L3 market)};
 \end{tikzpicture}}
 \caption{\textbf{The Harbor Volume stack, and where this paper sits.} Each rung is
 for a different \emph{whom}; the honest state of each is labelled. This paper is the
 \emph{bridge} from L2 (a legible \emph{person} doing work) to L3 (a tradeable
-\emph{reputation}) --- the through-line memory $\to$ checkpoint $\to$
-\emph{continuity} $\to$ a \emph{person} $\to$ outcomes $\to$ \emph{reputation} $\to$
-the market. Paper~2 supplies the cryptographic identity below; Paper~4 consumes the
-reputation substrate above.}
+\emph{reputation}). Paper~2 supplies the cryptographic identity below; Paper~4
+consumes the reputation substrate above.}
 \label{fig:stack}
 \end{figure}

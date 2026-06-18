@@ -55,7 +55,6 @@ import { createTunnel } from './lib/tunnel.js';
 import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
-import { createTranscripts } from './lib/transcripts.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
@@ -65,7 +64,6 @@ import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
-import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
@@ -77,23 +75,17 @@ import { createFleetDaemon } from './lib/fleet-daemon.js';
 import { createRepoRegistry } from './lib/github-repo-registry.js';
 import { createOrchestratorRegistry } from './lib/orchestrator-plugins.js';
 import { createSymbolIndex } from './lib/symbol-index.js';
-import { createSymbolClaims } from './lib/symbol-claims.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
-import { createContextWindowTracker } from './lib/context-window-tracker.js';
-import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
-import { createOperatorPermissions } from './lib/operator-permissions.js';
 import { createCounters } from './lib/counters.js';
 import { createMetricsRegistry } from './lib/metrics-registry.js';
 import { createBonds } from './lib/bonds.js';
 import { createBudgetGuard } from './lib/budget-guard.js';
 import { createBudgetPause } from './lib/budget-pause.js';
 import { createQuorum } from './lib/quorum.js';
-import { createParley } from './lib/parley.js';
 import { createFeedback } from './lib/feedback.js';
 import { createRoadmapItems } from './lib/roadmap-items.js';
 import { createCommitments } from './lib/commitments.js';
-import { createSuggestions } from './lib/suggestions.js';
 import { createObligationMonitor } from './lib/obligation-monitor.js';
 import { createRoadmapPromote } from './lib/roadmap-promote.js';
 import { createRoadmapPop } from './lib/roadmap-pop.js';
@@ -111,7 +103,6 @@ import { registerAllRoutes } from './routes/index.js';
 // Shared utilities
 import { getSystemPorts, startSystemPortsRefresh } from './shared/port-utils.js';
 import { LOOPBACK_TCP_HOST, DEFAULT_DAEMON_PORT } from './shared/daemon-discovery.js';
-import { resolveDaemonBerthIdentity, type DaemonBerthIdentity } from './shared/daemon-berths.js';
 import { calculateRuntimeCodeHash } from './shared/code-hash.js';
 import { snapshotRunningBinary, detectDrift, type BinaryDriftSnapshot } from './lib/binary-drift-detector.js';
 import { resolveDistributionRoot } from './shared/daemon-binary.js';
@@ -166,7 +157,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.19.1';
+const EMBEDDED_PACKAGE_VERSION: string = '3.18.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -187,35 +178,6 @@ const STARTED_AT: number = Date.now();
 // canonical pd path. Later drift checks compare this baseline to whatever
 // `command -v pd` currently resolves to. See lib/binary-drift-detector.ts.
 const RUNNING_BINARY_SNAPSHOT = snapshotRunningBinary();
-
-/**
- * Derive a git/build snapshot for this daemon's berth identity (ADR-0084),
- * once at boot. Best-effort: a compiled binary outside a git checkout (the
- * stable brew berth) simply reports nulls, which is correct — it was cut from a
- * release, not a live branch. `PD_DAEMON_SOURCE_DIR` points at the source tree
- * a dev/codebase berth was built from; we read git from there when present.
- */
-function snapshotDaemonGit(sourceDir: string | null): { branch: string | null; rev: string | null; builtAt: string | null } {
-  const cwd = sourceDir || __dirname;
-  const git = (cargs: string[]): string | null => {
-    try {
-      const { spawnSync } = require('node:child_process') as typeof import('node:child_process');
-      const r = spawnSync('git', cargs, { cwd, encoding: 'utf-8', timeout: 2000 });
-      if (r.status === 0 && typeof r.stdout === 'string') {
-        const out = r.stdout.trim();
-        return out.length > 0 ? out : null;
-      }
-    } catch {
-      // git absent or not a checkout — fall through to null.
-    }
-    return null;
-  };
-  return {
-    branch: git(['rev-parse', '--abbrev-ref', 'HEAD']),
-    rev: git(['rev-parse', '--short', 'HEAD']),
-    builtAt: new Date(STARTED_AT).toISOString(),
-  };
-}
 
 // =============================================================================
 // LOGGING (identical to server.ts)
@@ -316,16 +278,6 @@ const IS_DEV_MODE: boolean = !!PREFIX;
 
 const DB_PATH: string = resolveDbPath(PREFIX ? join(PREFIX, 'port-daddy.db') : undefined);
 const PORT: number = parseInt(process.env.PORT_DADDY_PORT as string, 10) || (IS_DEV_MODE ? 9877 : config.service.port);
-
-// Berth identity (ADR-0084): self-report which berth this daemon is. Defaults
-// to the stable, canonical berth when PD_DAEMON_* env is unset, so the existing
-// brew daemon transparently reports as `stable` with no launch change.
-const DAEMON_BERTH: DaemonBerthIdentity = resolveDaemonBerthIdentity({
-  env: process.env,
-  port: PORT,
-  gitSnapshot: snapshotDaemonGit(process.env.PD_DAEMON_SOURCE_DIR?.trim() || null),
-});
-
 import { DEFAULT_SOCK, DEFAULT_IPC, DEFAULT_PID_FILE, DEFAULT_PORT_FILE } from './shared/paths.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || (PREFIX ? join(PREFIX, 'port-daddy.sock') : DEFAULT_SOCK);
 const DISABLE_TCP: boolean = process.env.PORT_DADDY_NO_TCP === '1';
@@ -425,7 +377,6 @@ const activityLog = createActivityLog(db);
 // watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
 // no Arbiter/Rust FFI dependency, so it cannot silently degrade to a stub).
 const commitments = createCommitments(db);
-const suggestions = createSuggestions(db);
 const obligationMonitor = createObligationMonitor(db, { activityLog });
 const webhooks = createWebhooks(db);
 const projects = createProjects(db);
@@ -438,14 +389,6 @@ const sessions = createSessions(db, noteEncryption, {
 });
 sessions.setActivityLog(activityLog);
 
-const symbolClaims = createSymbolClaims(db, {
-  symbolIndex,
-  agentForSession: (sessionId: string) => {
-    const r = sessions.get(sessionId) as { session?: { agentId?: string | null } } | undefined;
-    return r?.session?.agentId ?? null;
-  },
-});
-
 const agentInbox = createAgentInbox(db, (agentId, message) => {
   messaging.publish(`inbox:${agentId}`, {
     ...message,
@@ -453,7 +396,6 @@ const agentInbox = createAgentInbox(db, (agentId, message) => {
     signal: (message as any).signal || 'report'
   });
 });
-const parley = createParley({ tuples, agentInbox });
 // Mid-claim hash watcher — snapshots claimed files when their content
 // hash changes mid-claim and DMs the claim-holder. Reactive, not
 // preventive — but turns silent steamrolls into recoverable events.
@@ -528,17 +470,7 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
-const contextTracker = createContextWindowTracker(db);
-// Transcript recorder — backs `pd transcripts ...`, the dashboard panel, and
-// (critically) makes every spawn record its full conversation. The spawner is
-// constructed with enforceTranscriptPolicy:true, so wiring this is mandatory:
-// without it createSpawner throws rather than run agents whose work vanishes.
-const transcripts = createTranscripts(db);
-const spawner = createSpawner({
-  costTracker, counters, bonds, harbors, transcripts,
-  enforceTelemetryPolicy: true,
-  enforceTranscriptPolicy: true,
-});
+const spawner = createSpawner({ costTracker, counters, bonds, harbors, enforceTelemetryPolicy: true });
 spawnerRef = spawner;
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
@@ -549,39 +481,13 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
-// Durable forensics journal — every Arbiter security event is written, in full,
-// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
-// so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0060.)
-const forensicsSink =
-  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
 const arbiter = createArbiter(
-  { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
+  { activityLog, agents, sessions, locks, resurrection, bonds },
   { strictMode: arbiterStrictMode }
 );
-console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode}, forensicsJournal=${forensicsSink ? 'on' : 'off'})`);
+console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode})`);
 const pheromones = createPheromoneManager(db);
 pheromones.start();
-
-// Phase 3 — Knowledge Custodian (daemon-resident compaction engine caretaker)
-const operatorPermissions = createOperatorPermissions(db);
-const CUSTODIAN_ENABLED = process.env.PD_CUSTODIAN_ENABLED !== 'false';
-const _parsedPollMs = parseInt(process.env.PD_CUSTODIAN_POLL_MS ?? '60000', 10);
-const CUSTODIAN_POLL_MS = Number.isFinite(_parsedPollMs) && _parsedPollMs >= 5000 ? _parsedPollMs : 60_000;
-const custodian = CUSTODIAN_ENABLED
-  ? createKnowledgeCustodian({
-      db,
-      logger,
-      episodicMemory: episodicMemory as any,
-      messaging: messaging as any,
-      resurrection: resurrection as any,
-      contextTracker: contextTracker as any,
-      operatorPermissions,
-      blobs: blobs as any,
-      pollIntervalMs: CUSTODIAN_POLL_MS,
-    })
-  : null;
-if (custodian) custodian.start();
 
 // Phase 1 — Semantic Graph modules (orchestrator plugins, symbol index, merge queue)
 const orchestratorRegistry = createOrchestratorRegistry(db, { activityLog });
@@ -1067,31 +973,16 @@ await registerAllRoutes(
     db, logger, metrics, config,
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
-    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention,
+    harbors, sorties, orchestrator, correlationEngine, spawner, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
-    contextTracker,
-    custodian, operatorPermissions,
-    quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
-    commitments, obligationMonitor, suggestions,
+    quorum, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,
+    commitments, obligationMonitor,
     bonds, budgetGuard, budgetPause,
     arbiter, bosunHeartbeat,
     VERSION, CODE_HASH, STARTED_AT, __dirname, repoRoot: REPO_ROOT,
     runningBinarySnapshot: RUNNING_BINARY_SNAPSHOT,
-    daemonBerth: DAEMON_BERTH,
     cleanupStale, getSystemPorts,
-    // Relay (ADR-0049) connection status. The daemon does not yet start the
-    // outbound RelayConnectionManager (lib/relay-client.ts), so this honestly
-    // reports "not connected" — `pd relay status` shows disconnected even when
-    // a relay_url is configured. When the SSE manager is wired, replace this
-    // with the manager's live status getter.
-    getRelayStatus: () => ({
-      connected: false,
-      session_id: null,
-      last_handshake: null as number | null,
-      accepted_channels: [] as string[],
-      relay_version: null as string | null,
-    }),
   },
   arbiter,
   { pheromones, sessions, db },

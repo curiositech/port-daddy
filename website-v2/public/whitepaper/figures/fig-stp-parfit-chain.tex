@@ -33,14 +33,24 @@
 \node[font=\scriptsize\itshape,text=hhink] at (4,-1.95)
   {does \emph{not} directly remember (Reid's objection)};
 
-
+% The Parfitian repair: an overlapping chain is transitive => continuous.
+% Placed lower so a clear horizontal band separates the dashed arc from the box;
+% the two continuity arrows drop straight from the outer boxes' bottom corners.
+\node[draw=hhink,very thick,fill=hhsand!30,rounded corners=3pt,
+      below=26mm of o,align=left,text width=110mm,inner sep=7pt,
+      font=\footnotesize] (fix)
+  {\textbf{Parfit's repair.} \emph{Connectedness} (direct memory link) is
+   \textbf{not} transitive. \emph{Continuity} --- the overlapping \emph{chain} of
+   links --- \textbf{is} transitive, and it is what survives. Reputation must
+   accumulate across arbitrarily many incarnations, so it can only attach to the
+   transitive thing: the \textbf{witnessed-outcome ledger}, not the memory stream.};
+\draw[conn,very thick] (b.south west) to[bend right=12] (fix.north west);
+\draw[conn,very thick] (g.south east) to[bend left=12] (fix.north east);
 \end{tikzpicture}}
 \caption{\textbf{Continuity vs.\ connectedness.} Direct memory connectedness
-(the solid top arcs) overlaps but is not transitive --- the general need not
-remember being the boy (Reid's objection, the dashed arc). Parfit's repair:
-\emph{continuity}, the overlapping \emph{chain} of links, \textbf{is} transitive,
-and it is what survives. Reputation must accumulate across arbitrarily many
-incarnations, so it can only attach to the transitive thing --- the
-\textbf{witnessed-outcome ledger}, not the memory stream.}
+(green, top) overlaps but is not transitive --- the general need not remember being
+the boy. Parfitian \emph{continuity}, the overlapping chain, is transitive and is
+the identity-bearing relation. The engineering corollary: build the transitive
+\emph{outcome ledger}, because that is the organ reputation can key on.}
 \label{fig:parfit}
 \end{figure}

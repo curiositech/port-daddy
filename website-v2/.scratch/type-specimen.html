@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Port Daddy blog — type + color specimen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Recursive:wght@400;500;700;900&family=Geist:wght@400;500;700;900&family=Geist+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;600;800&family=Inter+Tight:wght@600;800&family=IBM+Plex+Mono:wght@400;600&family=JetBrains+Mono:wght@400;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e7e5e1; font-family: Inter, system-ui, sans-serif; color: #16140f; }
+  .page-head { padding: 40px 48px 8px; }
+  .page-head h1 { font: 800 28px/1.1 Inter, sans-serif; margin: 0 0 6px; }
+  .page-head p { font: 400 15px/1.5 Inter, sans-serif; margin: 0; color: #57534e; max-width: 70ch; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; padding: 28px 48px 64px; }
+
+  /* ---- card shell ---- */
+  .card { background: var(--paper); color: var(--ink); border: 1px solid #cfcbc4; box-shadow: 0 1px 0 #cfcbc4; overflow: hidden; }
+  .card .label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; background: #1a1814; color: #f4f1ec; font: 700 13px/1.2 "JetBrains Mono", monospace; letter-spacing: 0.02em; }
+  .card .label .dir { color: var(--accent); }
+  .card .label .fonts { font-weight: 400; color: #b9b3a9; font-size: 12px; }
+  .swatches { display: flex; gap: 0; height: 10px; }
+  .swatches span { flex: 1; }
+
+  .post { padding: 36px 40px 40px; }
+  .eyebrow { font: 700 12px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); display:flex; gap:10px; align-items:center;}
+  .eyebrow .tick { width: 18px; height: 2px; background: var(--accent); display:inline-block;}
+  h2.title { font: var(--title-weight) var(--title-size)/0.98 var(--display); letter-spacing: -0.02em; margin: 18px 0 0; max-width: 16ch; color: var(--ink); }
+  .byline { display:flex; align-items:center; gap:10px; margin: 18px 0 0; font: 500 13px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;}
+  .byline .dot { width:4px;height:4px;border-radius:9999px;background:var(--muted);}
+  .lede { font: var(--lede-weight) 19px/1.5 var(--body); color: var(--ink); margin: 22px 0 0; max-width: 60ch; }
+  .body { font: 400 17px/1.62 var(--body); color: var(--read); margin: 16px 0 0; max-width: 64ch; }
+  .body code { font: 500 0.92em var(--mono); background: var(--codebg); padding: 1px 6px; border:1px solid var(--hair); }
+  pre { font: 400 14px/1.55 var(--mono); background: var(--prebg); color: var(--preink); padding: 16px 18px; margin: 22px 0 0; overflow:auto; border-left: 3px solid var(--accent); }
+  pre .c { color: var(--accent); }
+  .tags { display:flex; flex-wrap:wrap; gap:8px; margin: 24px 0 0; }
+  .tag { font: 700 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border:1px solid var(--hair); padding: 7px 10px; }
+  .cta { display:inline-flex; align-items:center; gap:10px; margin: 26px 0 0; padding: 13px 20px; background: var(--accent); color: var(--ctaink); font: 700 13px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; text-decoration:none; }
+  .hr { height:1px; background: var(--hair); margin: 28px 0 0; border:0; }
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>Port Daddy blog — type &amp; color specimen</h1>
+    <p>Four Swiss-minimal directions on the same post. Body never below 16px; eyebrows 12px bold/uppercase/tracked. One accent each. Pick a winner (font pairing + accent) and I'll evolve it into the global tokens and rebuild the blog around it.</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- A: RECURSIVE (lead) -->
+    <div class="card" style="
+      --paper:#faf8f4; --ink:#15130f; --read:#3a352d; --muted:#8a8378; --accent:#e8482b;
+      --display:'Recursive',sans-serif; --body:'Recursive',sans-serif; --mono:'JetBrains Mono',monospace;
+      --title-size:46px; --title-weight:900; --lede-weight:500;
+      --hair:#e2ddd4; --codebg:#f0ece4; --prebg:#1c1a16; --preink:#e9e4da; --ctaink:#fff;">
+      <div class="label"><span><span class="dir">A · RECURSIVE</span> &nbsp;recommended</span><span class="fonts">Recursive + JetBrains Mono</span></div>
+      <div class="swatches"><span style="background:#15130f"></span><span style="background:#faf8f4"></span><span style="background:#e8482b"></span><span style="background:#3a352d"></span></div>
+      <div class="post">
+        <div class="eyebrow"><span class="tick"></span> Field Log · 2026-05-17</div>
+        <h2 class="title">The CLI Is For The Robots</h2>
+        <div class="byline">Erich Owens <span class="dot"></span> 6 min read</div>
+        <p class="lede">I edited an .env.local today. Wrong one. The fleet sat there 401'ing for an hour while I felt productive.</p>
+        <p class="body">That is a product failure, not a user error. The operator does not run <code>pd</code> commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the terminal.</p>
+        <pre><span class="c">$</span> pd begin --identity website:blog
+<span class="c">$</span> pd guard check --staged</pre>
+        <div class="tags"><span class="tag">Operator UX</span><span class="tag">FleetBar</span><span class="tag">Doctrine</span></div>
+        <a class="cta" href="#">Read article →</a>
+      </div>
+    </div>
+
+    <!-- B: GEIST -->
+    <div class="card" style="
+      --paper:#ffffff; --ink:#0a0a0a; --read:#3d3d3d; --muted:#8f8f8f; --accent:#0b63f6;
+      --display:'Geist',sans-serif; --body:'Geist',sans-serif; --mono:'Geist Mono',monospace;
+      --title-size:44px; --title-weight:800; --lede-weight:500;
+      --hair:#ececec; --codebg:#f5f5f5; --prebg:#0a0a0a; --preink:#ededed; --ctaink:#fff;">
+      <div class="label"><span><span class="dir">B · GEIST</span></span><span class="fonts">Geist + Geist Mono</span></div>
+      <div class="swatches"><span style="background:#0a0a0a"></span><span style="background:#ffffff"></span><span style="background:#0b63f6"></span><span style="background:#3d3d3d"></span></div>
+      <div class="post">
+        <div class="eyebrow"><span class="tick"></span> Field Log · 2026-05-17</div>
+        <h2 class="title">The CLI Is For The Robots</h2>
+        <div class="byline">Erich Owens <span class="dot"></span> 6 min read</div>
+        <p class="lede">I edited an .env.local today. Wrong one. The fleet sat there 401'ing for an hour while I felt productive.</p>
+        <p class="body">That is a product failure, not a user error. The operator does not run <code>pd</code> commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the terminal.</p>
+        <pre><span class="c">$</span> pd begin --identity website:blog
+<span class="c">$</span> pd guard check --staged</pre>
+        <div class="tags"><span class="tag">Operator UX</span><span class="tag">FleetBar</span><span class="tag">Doctrine</span></div>
+        <a class="cta" href="#">Read article →</a>
+      </div>
+    </div>
+
+    <!-- C: EDITORIAL SERIF -->
+    <div class="card" style="
+      --paper:#fbfaf7; --ink:#1c1a16; --read:#403a31; --muted:#938b7e; --accent:#9a3412;
+      --display:'Space Grotesk',sans-serif; --body:'Source Serif 4',Georgia,serif; --mono:'IBM Plex Mono',monospace;
+      --title-size:42px; --title-weight:700; --lede-weight:400;
+      --hair:#e8e2d8; --codebg:#f1ece2; --prebg:#221f1a; --preink:#ece6db; --ctaink:#fff;">
+      <div class="label"><span><span class="dir">C · EDITORIAL</span></span><span class="fonts">Space Grotesk + Source Serif</span></div>
+      <div class="swatches"><span style="background:#1c1a16"></span><span style="background:#fbfaf7"></span><span style="background:#9a3412"></span><span style="background:#403a31"></span></div>
+      <div class="post">
+        <div class="eyebrow"><span class="tick"></span> Field Log · 2026-05-17</div>
+        <h2 class="title">The CLI Is For The Robots</h2>
+        <div class="byline">Erich Owens <span class="dot"></span> 6 min read</div>
+        <p class="lede">I edited an .env.local today. Wrong one. The fleet sat there 401'ing for an hour while I felt productive.</p>
+        <p class="body">That is a product failure, not a user error. The operator does not run <code>pd</code> commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the terminal.</p>
+        <pre><span class="c">$</span> pd begin --identity website:blog
+<span class="c">$</span> pd guard check --staged</pre>
+        <div class="tags"><span class="tag">Operator UX</span><span class="tag">FleetBar</span><span class="tag">Doctrine</span></div>
+        <a class="cta" href="#">Read article →</a>
+      </div>
+    </div>
+
+    <!-- D: SWISS NEUTRAL -->
+    <div class="card" style="
+      --paper:#f7f6f4; --ink:#111111; --read:#393939; --muted:#8c8c8c; --accent:#1f1f1f;
+      --display:'Inter Tight',sans-serif; --body:'Inter',sans-serif; --mono:'IBM Plex Mono',monospace;
+      --title-size:44px; --title-weight:800; --lede-weight:600;
+      --hair:#e6e4e0; --codebg:#eeece8; --prebg:#111111; --preink:#ededed; --ctaink:#fff;">
+      <div class="label"><span><span class="dir">D · SWISS NEUTRAL</span></span><span class="fonts">Inter Tight + Inter</span></div>
+      <div class="swatches"><span style="background:#111111"></span><span style="background:#f7f6f4"></span><span style="background:#c2410c"></span><span style="background:#393939"></span></div>
+      <div class="post">
+        <div class="eyebrow" style="--accent:#c2410c"><span class="tick" style="background:#c2410c"></span> Field Log · 2026-05-17</div>
+        <h2 class="title">The CLI Is For The Robots</h2>
+        <div class="byline">Erich Owens <span class="dot"></span> 6 min read</div>
+        <p class="lede">I edited an .env.local today. Wrong one. The fleet sat there 401'ing for an hour while I felt productive.</p>
+        <p class="body">That is a product failure, not a user error. The operator does not run <code>pd</code> commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the terminal.</p>
+        <pre style="--accent:#c2410c"><span class="c" style="color:#c2410c">$</span> pd begin --identity website:blog
+<span class="c" style="color:#c2410c">$</span> pd guard check --staged</pre>
+        <div class="tags"><span class="tag">Operator UX</span><span class="tag">FleetBar</span><span class="tag">Doctrine</span></div>
+        <a class="cta" href="#" style="background:#c2410c">Read article →</a>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

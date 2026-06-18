@@ -91,7 +91,6 @@ jobs:
           BEGIN_JSON="$(pd begin "$PURPOSE" \
             --agent "$AGENT_ID" \
             --identity "$IDENTITY" \
-            --lifecycle durable \
             --json)"
           SESSION_ID="$(node -e "console.log(JSON.parse(process.argv[1]).sessionId)" "$BEGIN_JSON")"
 

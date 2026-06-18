@@ -17,11 +17,9 @@ import { servicesPlugin } from './services.js';
 import { messagingPlugin } from './messaging.js';
 import { locksPlugin } from './locks.js';
 import { agentsPlugin } from './agents.js';
-import { agentCockpitPlugin } from './agent-cockpit.js';
 import { activityPlugin } from './activity.js';
 import { webhooksPlugin } from './webhooks.js';
 import { githubWebhookPlugin } from './github-webhook.js';
-import { relayPlugin } from './relay.js';
 import { configPlugin } from './config.js';
 import { projectsPlugin } from './projects.js';
 import { sessionsPlugin } from './sessions.js';
@@ -31,7 +29,6 @@ import { tunnelPlugin } from './tunnel.js';
 import { dnsPlugin } from './dns.js';
 import { sugarPlugin } from './sugar.js';
 import { attentionPlugin } from './attention.js';
-import { suggestionsPlugin } from './suggestions.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
@@ -63,7 +60,6 @@ import { panicPlugin } from './panic.js';
 import { budgetPlugin } from './budget.js';
 import { advisorPlugin } from './advisor.js';
 import { quorumPlugin } from './quorum.js';
-import { parleyPlugin } from './parley.js';
 import { resourcesPlugin } from './resources.js';
 import { feedbackPlugin } from './feedback.js';
 import { roadmapPlugin } from './roadmap.js';
@@ -76,9 +72,6 @@ import { popperPlugin } from './popper.js';
 import { dispatchesPlugin } from './dispatches.js';
 import { setupPlugin } from './setup.js';
 import { secretsPlugin } from './secrets.js';
-import { contextRoutes as contextPlugin } from './context.js';
-import { harvestPlugin } from './harvest.js';
-import { custodianPlugin } from './custodian.js';
 
 type AnyDeps = Record<string, unknown>;
 
@@ -107,42 +100,9 @@ export async function registerAllRoutes(
   await fastify.register(messagingPlugin, { deps } as any);
   await fastify.register(locksPlugin, { deps } as any);
   await fastify.register(agentsPlugin, { deps } as any);
-
-  // Agent Cockpit — "Watch + Grab the Wheel" Phase 0. Additive: GET
-  // /agents/:id/stream (merged SSE) + POST /agents/:id/interrupt (soft steer).
-  // Registers AFTER agentsPlugin so its specific /agents/:id/stream path is
-  // matched alongside the generic /agents/:id. transcripts is optional in deps;
-  // the plugin self-degrades to status+tube sources when it's absent.
-  await fastify.register(agentCockpitPlugin, { deps } as any);
-
   await fastify.register(activityPlugin, { deps } as any);
   await fastify.register(webhooksPlugin, { deps } as any);
   await fastify.register(githubWebhookPlugin, { deps } as any);
-
-  // Relay — daemon-side federation management (ADR-0049). Was SHIPPED-DEAD:
-  // routes/relay.ts defined GET/POST /relay/config, /relay/status and
-  // POST /relay/exchange but the plugin was never registered, so the
-  // `pd relay` CLI 404'd against a live daemon. Mutating routes are
-  // loopback-guarded + SSRF-validated inside the plugin (see routes/relay.ts).
-  // getRelayStatus is supplied by server.ts; it honestly reports
-  // "not connected" because the outbound SSE connection manager is not yet
-  // started in the daemon.
-  await fastify.register(relayPlugin, {
-    deps: {
-      db: (deps as any).db,
-      logger: (deps as any).logger,
-      getRelayStatus:
-        (deps as { getRelayStatus?: () => unknown }).getRelayStatus ??
-        (() => ({
-          connected: false,
-          session_id: null,
-          last_handshake: null,
-          accepted_channels: [],
-          relay_version: null,
-        })),
-    },
-  } as any);
-
   await fastify.register(configPlugin, { deps } as any);
   await fastify.register(projectsPlugin, { deps } as any);
   await fastify.register(sessionsPlugin, { deps } as any);
@@ -152,7 +112,6 @@ export async function registerAllRoutes(
   await fastify.register(dnsPlugin, { deps } as any);
   await fastify.register(sugarPlugin, { deps } as any);
   await fastify.register(attentionPlugin, { deps } as any);
-  await fastify.register(suggestionsPlugin, { deps } as any);
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(attestPlugin, { deps } as any);
@@ -250,11 +209,6 @@ export async function registerAllRoutes(
     await fastify.register(quorumPlugin, { deps } as any);
   }
 
-  // Parley — manual forced-reconciliation core for contested agent work.
-  if ((deps as any).parley) {
-    await fastify.register(parleyPlugin, { deps } as any);
-  }
-
   // Feedback — central agentic-feedback primitive (tuple-backed).
   // Mounts when the feedback dep is present (depends on tuple space).
   if ((deps as any).feedback) {
@@ -310,25 +264,5 @@ export async function registerAllRoutes(
   // accept/reject/cancel buttons. Requires `dispatchQueue` in deps.
   if ((deps as { dispatchQueue?: unknown }).dispatchQueue) {
     await fastify.register(dispatchesPlugin, { deps } as any);
-  }
-
-  // Context health overview — mounts when contextTracker dep is present.
-  if ((deps as { contextTracker?: unknown }).contextTracker) {
-    await fastify.register(contextPlugin, { deps } as any);
-  }
-
-  // Session harvest — mounts when episodicMemory dep is present (already gated above for memoryPlugin).
-  if ((deps as { episodicMemory?: unknown }).episodicMemory) {
-    await fastify.register(harvestPlugin, { deps } as any);
-  }
-
-  // Knowledge Custodian — mounts when custodian + operatorPermissions are present.
-  if ((deps as { custodian?: unknown }).custodian && (deps as { operatorPermissions?: unknown }).operatorPermissions) {
-    await fastify.register(custodianPlugin, {
-      deps: {
-        custodian: (deps as any).custodian,
-        operatorPermissions: (deps as any).operatorPermissions,
-      },
-    });
   }
 }

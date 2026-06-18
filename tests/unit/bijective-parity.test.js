@@ -297,10 +297,6 @@ describe('Test Group 3: API -> CLI Parity', () => {
     locks: ['lock', 'unlock', 'locks'],
     agents: ['agent', 'agents'],
     actors: ['actor', 'actors'],
-    // agentcockpit: "Watch + Grab the Wheel" SSE stream + soft interrupt
-    // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
-    // `pd agent stream <id>` + `pd agent interrupt <id> [--reason]`.
-    agentcockpit: ['agent'],
     health: ['health'],
     activity: ['log', 'activity'],
     webhooks: ['webhook'],
@@ -315,7 +311,6 @@ describe('Test Group 3: API -> CLI Parity', () => {
     briefing: ['briefing'],
     sugar: ['begin', 'done', 'whoami'],
     attention: ['attention'],
-    suggestions: ['nudge'],
     sitrep: ['sitrep'],
     advisor: ['advise', 'preflight', 'compass'],
     launch: ['hints'],
@@ -335,7 +330,6 @@ describe('Test Group 3: API -> CLI Parity', () => {
     commitments: ['commit', 'obligations'],
     secrets: ['secret', 'secrets'],
     quorum: ['quorum'],
-    parley: ['parley'],
     feedback: ['feedback'],
     bonds: ['bond'],
     wallets: ['wallet'],
@@ -356,22 +350,13 @@ describe('Test Group 3: API -> CLI Parity', () => {
     // accept/reject/cancel). `pd dispatch` and the nightshift/review/morning
     // commands drive it from the CLI.
     dispatches: ['dispatch', 'nightshift', 'review', 'morning'],
-    // relay: daemon-side cloud-relay management (ADR-0049). routes/relay.ts is
-    // now registered in routes/index.ts (relayPlugin) — it was previously
-    // shipped-dead (never registered), which is why this category did not
-    // appear here before. `pd relay <url|status|exchange>` is its CLI surface.
-    relay: ['relay'],
   };
 
   // API-only routes that have no CLI equivalent (accessed via curl or SDK).
   // githubwebhook: inbound GitHub webhook receiver (POST /webhooks/github),
   // driven by the receiver Worker / GitHub, not by a `pd` command — API-only by
   // design. See routes/github-webhook.ts.
-  // context: agent context-window health + task ledger (ADR-0048 P1/P3) — MCP+HTTP only, no pd CLI command.
-  // harvest: session note→episode promotion (ADR-0048 P2/P3) — MCP+HTTP only.
-  // custodian: knowledge custodian status + approval resolution (ADR-0048 P3) — MCP+HTTP only.
-  // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];

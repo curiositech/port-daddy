@@ -8,7 +8,6 @@ import {
   evaluateGuardFacts,
   extractClaimPaths,
   filterClaimsToRepo,
-  fileNeedsRoadmapReceipt,
   localGuardConfigPath,
   mergePostCommitHook,
   mergePreCommitHook,
@@ -245,106 +244,6 @@ describe('Coordination Guard', () => {
     test('normalizeGuardConfig defaults requireNotePerCommit to true', () => {
       expect(normalizeGuardConfig({}).requireNotePerCommit).toBe(true);
       expect(normalizeGuardConfig({ requireNotePerCommit: false }).requireNotePerCommit).toBe(false);
-    });
-  });
-
-  describe('the roadmap compulsion — coordination changes must touch roadmap_items', () => {
-    const owned = {
-      config: { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' },
-      active: true,
-      agentId: 'agent-self',
-      sessionId: 'session-self',
-      ownersByFile: {},
-      atCommitTime: true,
-      nowMs: 10_000,
-    };
-
-    test('classifies coordination architecture surfaces as roadmap-bound', () => {
-      expect(fileNeedsRoadmapReceipt('lib/swarm-coordination.ts')).toBe(true);
-      expect(fileNeedsRoadmapReceipt('routes/parley.ts')).toBe(true);
-      expect(fileNeedsRoadmapReceipt('docs/adr/0055-parley-wave-collapse.md')).toBe(true);
-      expect(fileNeedsRoadmapReceipt('src/plain-widget.ts')).toBe(false);
-    });
-
-    test('blocks coordination changes without a recent roadmap receipt', () => {
-      const result = evaluateGuardFacts({
-        ...owned,
-        files: ['lib/swarm-coordination.ts'],
-        ownersByFile: {
-          'lib/swarm-coordination.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
-        },
-        roadmapReceipts: [],
-      });
-
-      expect(result.shouldBlock).toBe(true);
-      expect(result.violations.map(v => v.code)).toContain('roadmap-receipt-missing');
-    });
-
-    test('passes when this agent recently touched roadmap_items', () => {
-      const result = evaluateGuardFacts({
-        ...owned,
-        files: ['lib/swarm-coordination.ts'],
-        ownersByFile: {
-          'lib/swarm-coordination.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
-        },
-        roadmapReceipts: [{
-          slug: 'swarm-coordination',
-          lastTouchedAt: 9_500,
-          promotedByAgentId: 'agent-self',
-          notes: [],
-        }],
-      });
-
-      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
-      expect(result.passed).toBe(true);
-    });
-
-    test('passes when this agent left a recent roadmap note receipt', () => {
-      const result = evaluateGuardFacts({
-        ...owned,
-        files: ['routes/parley.ts'],
-        ownersByFile: {
-          'routes/parley.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
-        },
-        roadmapReceipts: [{
-          slug: 'parley',
-          lastTouchedAt: 1,
-          promotedByAgentId: 'agent-other',
-          notes: [{ at: 9_900, by: 'agent-self', text: 'phase 0 parley' }],
-        }],
-      });
-
-      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
-      expect(result.passed).toBe(true);
-    });
-
-    test('does not require roadmap receipts for non-commit advisory checks', () => {
-      const result = evaluateGuardFacts({
-        ...owned,
-        atCommitTime: false,
-        files: ['lib/swarm-coordination.ts'],
-        ownersByFile: {
-          'lib/swarm-coordination.ts': [{ agentId: 'agent-self', sessionId: 'session-self' }],
-        },
-      });
-
-      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
-      expect(result.passed).toBe(true);
-    });
-
-    test('requireRoadmapForCoordinationChanges:false opts out', () => {
-      const result = evaluateGuardFacts({
-        ...owned,
-        config: { ...owned.config, requireRoadmapForCoordinationChanges: false },
-        files: ['docs/adr/0055-parley-wave-collapse.md'],
-        ownersByFile: {
-          'docs/adr/0055-parley-wave-collapse.md': [{ agentId: 'agent-self', sessionId: 'session-self' }],
-        },
-        roadmapReceipts: [],
-      });
-
-      expect(result.violations.map(v => v.code)).not.toContain('roadmap-receipt-missing');
-      expect(result.passed).toBe(true);
     });
   });
 

@@ -18,7 +18,6 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { ActivityType, type createActivityLog } from './activity.js';
-import type { ForensicsSink } from './forensics-archive.js';
 import type { createAgents } from './agents.js';
 import type { createSessions } from './sessions.js';
 import type { createLocks } from './locks.js';
@@ -200,13 +199,6 @@ export interface ArbiterDeps {
   locks: ReturnType<typeof createLocks>;
   resurrection?: ReturnType<typeof createResurrection>;
   bonds?: Bonds;
-  /**
-   * Durable forensics sink (lib/forensics-archive.ts). When set, every recorded
-   * violation is ALSO written to an append-only journal outside the live DB, so
-   * security events survive the 7-day activity_log prune. Fire-and-forget — a sink
-   * failure never blocks violation recording (it reports loudly itself).
-   */
-  forensicsSink?: ForensicsSink;
 }
 
 // ─── Rules ──────────────────────────────────────────────────────────────────
@@ -326,7 +318,7 @@ export function createArbiter(
   deps: ArbiterDeps,
   config: ArbiterConfig = { strictMode: false }
 ) {
-  const { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink } = deps;
+  const { activityLog, agents, sessions, locks, resurrection, bonds } = deps;
   const violations: Violation[] = [];
   const startedAt = Date.now();
   let nextViolationId = 1;
@@ -593,18 +585,6 @@ export function createArbiter(
     };
 
     violations.push(violation);
-
-    // Durably retain the security event OUTSIDE the live DB before anything else —
-    // activity_log (below) is pruned after 7 days, so this journal is the only copy
-    // that survives a late-discovered incident. Fire-and-forget; the sink reports
-    // its own failures loudly and never throws.
-    if (forensicsSink) {
-      try {
-        forensicsSink.record(violation);
-      } catch {
-        // sink owns loud failure reporting; never propagate into the hot path
-      }
-    }
 
     // Always log to activity
     activityLog.log('security.violation', {

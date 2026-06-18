@@ -10,7 +10,7 @@ Set Height 800
 Set Padding 40
 Set Theme "Catppuccin Macchiato"
 
-Type "pd begin 'Exploring the Harbor' --identity gemini:orchestrator --lifecycle durable"
+Type "pd begin 'Exploring the Harbor' --identity gemini:orchestrator"
 Sleep 500ms
 Enter
 

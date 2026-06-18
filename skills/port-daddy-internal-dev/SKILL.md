@@ -73,40 +73,6 @@ flowchart TD
     cli & api & mcp & ui & dist & actor & ledger --> ship[Reconcile + guard + tag + push]
 ```
 
-## Daemon Berths — test your change without disturbing `:9876` (ADR-0084)
-
-When you contribute to this repo and need to dogfood a daemon change, **do not stop
-the brew daemon and run yours on `:9876`.** Spin a side-by-side **berth** — a tiered,
-colour-coded daemon on its own port — and target it per-shell. The brew daemon stays
-up, supervised, the whole time.
-
-```sh
-# build + launch a berth from YOUR branch on a claimed port (purple, codebase tier)
-pd dev up --from "$(git branch --show-current)" --label my-feature
-
-# or the bleeding-edge berth from origin/main on :9886 (blue, dev-latest tier)
-pd dev up --from main
-
-pd dev list                       # stable (probed on :9876) + every dev berth
-
-# point THIS shell at your berth — the CLI, MCP, SDK, AND the Rust console follow
-eval "$(pd use my-feature)"       # exports PORT_DADDY_URL + PD_ACTIVE_DAEMON marker
-pd status                          # now hits your berth
-pd --daemon my-feature roadmap items   # or target one command without changing the shell
-
-eval "$(pd use stable)"           # reset the shell to :9876
-pd dev down my-feature            # stop your berth (never touches the brew daemon)
-```
-
-Rules: `pd dev up` builds the **binary** (`scripts/build-daemon-binary.mjs`), never
-`tsx`; binding `:9876` is refused; a dev berth is never the implicit default — it is
-opt-in per shell and marked via `PD_ACTIVE_DAEMON`. The daemon self-reports its berth
-on `GET /health` (`.daemon`) and `GET /whoami` (env unset → `tier=stable,
-canonical=true`). This **replaces** the old "`brew services stop port-daddy` → run
-repo daemon → restore" dance for development. Full model:
-`docs/adr/0084-daemon-berths.md`; the dev/test runbook lives in
-`docs/operations/daemon-and-supervision.md`.
-
 ## Internal Actor Embodiments
 
 The five actor roles in the public skill are *concepts*. In this repo,
@@ -129,64 +95,6 @@ fleet. Lives at `lib/shipwright/{archetypes.ts, skill-index.ts, survey.ts}`
 and `routes/shipwright.ts`. Tests under `tests/unit/shipwright-*.test.js`.
 Don't expose Shipwright in the public skill — it's a port-daddy-internal
 abstraction.
-
-## Recently Shipped Surfaces — contributor module map
-
-These landed on `main` in the last few weeks. When you touch one, you own
-its full mirror set (Release-Surface Drift, below). Each is a release
-surface: CLI help, manifest, MCP catalog, and skill docs must move with the
-code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md`
-§ *Recently Shipped Surfaces* — keep the two in sync.
-
-| Surface | ADR | Edit these together |
-|---|---|---|
-| **Relay** — cross-machine pub/sub | `docs/adr/0049-relay-architecture.md` | Worker `apps/relay/` (D1 schema `apps/relay/schema.sql`, `wrangler.toml`) · daemon routes `routes/relay.ts` · outbound SSE `lib/relay-client.ts` · CLI `cli/commands/relay.ts` · MCP `relay_status` in `mcp/server.ts` |
-| **Dispatch** — autonomous feature-dev queue | ADR-0035 | `cli/commands/dispatch.ts` (+ deprecated alias `cli/commands/nightshift.ts`) · `lib/dispatch/{runner,spawn-adapter,queue,state-machine}.ts` · `routes/dispatches.ts` · `pd review` · `docs/proposals/pd-nightshift.md` |
-| **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) |
-| **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
-| **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
-
-### In-flight status ledgers
-
-- Claim-tree / claim-forest implementation truth lives in `docs/implementation-status/coordination-substrate.md`. Update it when an idea moves between named, designed, visualized, runtime-write, runtime-read, and live-daemon states.
-- Do not land write-only coordination tables. Every new coordination substrate needs at least one product read path and a focused test proving the read still works when the old compatibility source is absent.
-
-Contributor gotchas specific to these:
-
-- **Dispatch is dry-run by default.** `pd dispatch run <id>` prints the plan;
-  only `--really-run` spawns. The worktree root is `~/coding/tmp/port-daddy-dispatch-<id>`
-  (never `os.tmpdir()` / `/tmp`). If you change the spawn path, keep it under
-  the scratch root — the Coast Guard reclaim gate (`isReclaimableSandbox`)
-  assumes disposable sandboxes live there and the operator's main checkout
-  does not.
-- **`pd nightshift` must keep delegating.** The alias rewrites legacy flags
-  (`--auto-queue` → `--auto-claim`, `--status` → `--state`) before calling
-  `handleDispatch`. If you add a dispatch flag, check the alias still maps it.
-- **Coast Guard is opt-out and never advertised.** It is the default for
-  every subprocess backend in `lib/spawner.ts`; the agent-facing refusal must
-  never name the opt-out (same rule as the guard bypass — guardrails do not
-  advertise their bypass).
-- **`pd attest` is a loud-fail gate.** Adding an invariant means it can flip
-  CI/boot gates red. New CRITICAL invariants go in `lib/attest-invariants.ts`
-  with a test; mark non-blocking checks as such so a green exit keeps meaning
-  "every CRITICAL invariant holds."
-- **Manifest bijection.** `features.manifest.json` is the parity source of
-  truth (`npm run parity`). The `dispatch`/`relay`/`attest`/`operator_coast_guard`
-  feature rows carry `_note` fields explaining intentionally-omitted routes
-  (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
-  those notes accurate when you add or remove a route.
-
-### Rust surfaces — three crates, no single kernel (be honest)
-
-`core/` holds three separate crates on `main`: `core/pd-tui` (ratatui),
-`core/pd-bosun`, and `core/harbor-card-rs`. There is **no single landed
-"rust kernel."** `core/pd-console` (the GPUI conversation-multiplexer) is
-**unlanded** — PRs #306/#318. A sibling WIP build `~/coding/port-daddy-kernel-rs`
-maps the product spine (pd-anchor / pd-mesh / pd-eventlog / pd-runtime /
-pd-core) but is not this repo. **Do not scaffold a fourth Rust shell** without
-reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +
-Rust-surface-alignment ADR (ADR-0054) is being written in parallel; cite it by
-number until it lands.
 
 ## Release-Surface Drift (the contributor's prime directive)
 
@@ -239,43 +147,6 @@ calling a branch ready, inspect and close the full PR surface:
 - Do not leave a PR with "CI green except..." as an unresolved aside. Either
   make it green, file/assign the external blocker with evidence, or hand off the
   exact next action to an active Port Daddy session.
-- **UI diffs ship visual artifacts — forever.** A PR touching a GPUI surface
-  (`core/pd-console` window), the console (any pane/renderer), or the
-  website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) is
-  incomplete without screenshots + a GIF + a short screen recording of the real
-  change in its Test Plan. Green CI proves compilation, not rendering. TUI panes →
-  `vhs` (tape under `core/pd-console/docs/artifacts/`); GPUI window →
-  `cargo build --release --features gpui` then `core/pd-console/scripts/capture-gpui.sh`
-  (needs macOS Screen Recording permission — a headless host is TCC-denied);
-  website/dashboard → headless Playwright dark+light pairs. See AGENTS.md
-  § "Visual artifacts for UI diffs". Operator rule, 2026-06-11.
-
-## Post-Merge Deployment Truth
-
-Merged is not deployed. A Port Daddy PR on `main` is only source truth; the
-operator's stable daemon is the Homebrew binary described in
-[`docs/operations/daemon-and-supervision.md`](../../docs/operations/daemon-and-supervision.md).
-If a merged change should be live on `:9876`, do not say "deployed" until the
-release path in [`docs/RELEASING.md`](../../docs/RELEASING.md) has advanced.
-
-Use these names precisely in notes, PR comments, and handoffs:
-
-| State | Evidence |
-|---|---|
-| **Merged** | PR state is `MERGED`; `origin/main` contains the merge commit. |
-| **Released** | `vX.Y.Z` tag and GitHub Release exist; release workflow attached the expected binaries/FleetBar artifact. |
-| **Tap rolled** | `curiositech/homebrew-tap` formula references the new version and asset sha256. |
-| **Upgraded** | `brew update && brew upgrade port-daddy` completed on this machine. |
-| **Live** | `brew services restart port-daddy` ran, then `pd status` or `port-daddy status` reports the new version from the stable daemon. |
-
-If `package.json` / `VERSION` say `3.19.0` but `pd status` says `3.18.0`,
-that is expected after a merge and unacceptable after a claimed deployment.
-Either cut the release, dispatch or repair the tap roll, run the local upgrade
-and restart, or leave a `pd note` naming the exact state boundary you stopped
-at. For release work, also apply the WinDAGs graft for
-`rust-app-distribution` plus `github-actions-pipeline-builder`: verify artifact
-architectures, package-manager hashes, release workflow status, and failure
-logs before touching the operator runtime.
 
 ## PR Lifecycle (Create / Update / Land)
 
@@ -425,7 +296,7 @@ Update mechanics:
 ```bash
 git worktree add ../port-daddy-internal-skill-$(date +%s) origin/main
 cd ../port-daddy-internal-skill-*
-pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update --lifecycle durable
+pd begin "Update port-daddy-internal-dev: <what>" --identity port-daddy:contrib:internal-skill-update
 $EDITOR skills/port-daddy-internal-dev/SKILL.md   # or references/<file>.md
 git add skills/port-daddy-internal-dev/<paths>
 git status --porcelain                             # must be clean of foreign files
@@ -491,7 +362,7 @@ git worktree add ../port-daddy-$(date +%s)-$WORK_SLUG origin/main
 cd ../port-daddy-$(date +%s)-$WORK_SLUG
 
 # 3. Identity and scope
-pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG --lifecycle durable
+pd begin "<bounded slice>" --identity port-daddy:contrib:$WORK_SLUG
 pd note "Scope: <surfaces>. Assumptions: <truth>. Validation: <commands + tests>."
 pd session files add <path>...
 
@@ -561,7 +432,7 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 **Slice:** Add `pd_swarm_status` MCP tool that returns aggregate fleet health.
 
 1. Worktree: `git worktree add ../port-daddy-$(date +%s)-mcp-swarm-status origin/main && cd $_`.
-2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status --lifecycle durable`.
+2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status`.
 3. Implement in `mcp/server.ts` (new tool registration).
 4. Implement the underlying lib in `lib/swarm-status.ts` if not present.
 5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert.

@@ -13,7 +13,7 @@ export function SemanticIdentities() {
       total={21}
       level="Beginner"
       readTime="8 min read"
-      prev={{ title: "Install the Local Control Plane", href: "/tutorials/getting-started" }}
+      prev={{ title: "Install and Verify the Daemon", href: "/tutorials/getting-started" }}
       next={{
         title: "Multi-Agent Orchestration",
         href: "/tutorials/multi-agent",
@@ -168,8 +168,8 @@ pd claim myapp:api:feature-auth   # Same stack, different branch
           </motion.div>
 
           <motion.p>
-            Here&apos;s where identities become powerful. Because they&apos;re
-            structured, you can query across them with wildcards:
+            This is where the structure earns its keep. Because identities have
+            a fixed shape, you can query across them with wildcards:
           </motion.p>
 
           <CodeBlock copyable={false} language="bash">{`# Find everything in myapp
@@ -243,7 +243,7 @@ pd find 'myapp:*:feature-*'
               },
               {
                 label: "Sessions",
-                example: 'pd begin "Investigate API drift" --identity myapp:api --lifecycle durable',
+                example: "pd begin --identity myapp:api",
                 desc: "Work sessions tied to what you're building",
               },
               {

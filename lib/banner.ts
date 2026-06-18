@@ -42,7 +42,7 @@ export const BANNER_COMPACT = `${ANSI.fgCyan}${ANSI.bold}PORT DADDY${ANSI.reset}
 /**
  * Tagline shown under the banner
  */
-export const TAGLINE = `${ANSI.fgGray}Run a tight harbor.${ANSI.reset}`;
+export const TAGLINE = `${ANSI.fgGray}Your ports. My rules. Zero conflicts.${ANSI.reset}`;
 
 /**
  * Ship wheel decoration

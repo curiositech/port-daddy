@@ -11,7 +11,6 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { SymbolIndex, SymbolClaim } from '../lib/symbol-index.js';
-import { computeBlastRadius, blastRadiusToReadClaims } from '../lib/blast-radius.js';
 
 interface SymbolsRouteDeps {
   symbolIndex: SymbolIndex;
@@ -24,41 +23,6 @@ interface SymbolsRouteDeps {
 
 export const symbolsPlugin: FastifyPluginAsync<{ deps: SymbolsRouteDeps }> = async (fastify, opts) => {
   const { symbolIndex, metrics, logger } = opts.deps;
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // GET /symbols/blast-radius — reverse-dependency closure of a symbol
-  //   ?file=lib/server.ts&symbol=createRoutes&depth=3
-  // Returns who breaks if you change it, + a ready-to-reserve claim set
-  // (modify the target, read everything downstream).
-  // ─────────────────────────────────────────────────────────────────────────
-  fastify.get('/symbols/blast-radius', async (request: FastifyRequest, reply: FastifyReply) => {
-    const q = (request.query ?? {}) as Record<string, string>;
-    const filePath = q.file;
-    const symbolPath = q.symbol;
-    if (!filePath || !symbolPath) {
-      reply.code(400);
-      return { success: false, error: 'file and symbol query params are required' };
-    }
-    const parsedDepth = q.depth != null && q.depth !== '' ? Number(q.depth) : 3;
-    const depth = Number.isFinite(parsedDepth) ? Math.max(1, Math.min(parsedDepth, 6)) : 3;
-    try {
-      const target = { filePath, symbolPath };
-      const radius = computeBlastRadius(symbolIndex, target, depth);
-      return {
-        success: true,
-        target,
-        depth,
-        count: radius.length,
-        radius,
-        claims: blastRadiusToReadClaims(target, radius),
-      };
-    } catch (error) {
-      metrics.errors++;
-      logger.error('symbols_blast_radius_error', { error: (error as Error).message });
-      reply.code(500);
-      return { success: false, error: (error as Error).message };
-    }
-  });
 
   // ─────────────────────────────────────────────────────────────────────────
   // POST /symbols/parse — Parse file(s) and store symbols

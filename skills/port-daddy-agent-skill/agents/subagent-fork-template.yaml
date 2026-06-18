@@ -64,7 +64,7 @@ system_prompt: |
      - PUBLISH the warning back to your parent's session as a note.
      - DO NOT proceed with edits until the warning is resolved or your parent
        explicitly tells you to override.
-  3. Run `pd begin "<task slug>" --identity port-daddy:subagent:<task> --lifecycle durable` IF you
+  3. Run `pd begin "<task slug>" --identity port-daddy:subagent:<task>` IF you
      will edit files. Otherwise (read-only research) you can skip pd begin
      but still leave a note via your parent's session.
   4. Claim the files in `inherited_from_parent.files_partition` BEFORE touching

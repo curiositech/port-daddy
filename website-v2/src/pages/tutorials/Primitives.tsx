@@ -29,7 +29,7 @@ const workflowSteps = [
     icon: RadioTower,
     body: "Sessions, notes, scoped channels, actor inboxes, claims, tuples, locks, and salvage records are how agents communicate across separate tools and crashes.",
     command:
-      'pd begin "first coordinated change" --lifecycle durable\npd note "handoff ready"\npd salvage --project my-app',
+      'pd begin "first coordinated change"\npd note "handoff ready"\npd salvage --project my-app',
   },
 ] as const;
 

@@ -46,13 +46,13 @@ export const manifestoContent: string = (() => {
  * the visible <figcaption> and keeps the long alt text on the <img> for AT.
  */
 export const manifestoCaptions: Record<string, string> = {
-  '/img/manifesto/hero-harbor.png':
+  '/img/manifesto/hero-harbor.webp':
     'The fix is structural, not behavioural: give every agent its own berth and one office that hands them out.',
-  '/img/manifesto/collision.png':
+  '/img/manifesto/collision.webp':
     'The lost-write collision. Two agents read the same file, both save, the second erases the first — and the result still looks finished.',
-  '/img/manifesto/legibility-zoom.png':
+  '/img/manifesto/legibility-zoom.webp':
     'Legibility is one picture you can zoom into: a calm summary up top, the exact change, test, and line one click down.',
-  '/img/manifesto/seven-papers.png':
+  '/img/manifesto/seven-papers.webp':
     'Seven papers: four explain the system in prose, three hand the safety claims to a proof-checker.',
 }
 
@@ -76,7 +76,7 @@ export interface PrimitiveSpec {
 export const technologyPrimitives: PrimitiveSpec[] = [
   {
     name: 'Single-writer claims',
-    does: 'One agent holds a file at a time. The second one waits instead of stomping the first.',
+    does: 'An agent announces it holds a file, so a second one sees the claim and can wait instead of silently stomping the first.',
     command: 'pd session files add src/auth.ts',
     source: 'lib/claims.ts',
     docHref: '/docs/concepts/claim-tree',

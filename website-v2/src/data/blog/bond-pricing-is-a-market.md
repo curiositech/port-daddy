@@ -1,6 +1,6 @@
 # Bond Pricing Is a Market, Not a Constant
 
-![A motionless AI agent locked into a server rack, chains on the filing cabinets, papers frozen in mid-air — the immortal worker that cannot be fired](/img/generated/bond-pricing/bond-pricing-hero.png)
+![A motionless AI agent locked into a server rack, chains on the filing cabinets, papers frozen in mid-air — the immortal worker that cannot be fired](/img/generated/bond-pricing/bond-pricing-hero.webp)
 
 **TL;DR.** Daily budgets stop your AI agents from spending money they don't have. They don't stop them from doing damage. The [Bonded Commons whitepaper](/whitepaper) v2 replaces the static budget with a real market for agent insurance — where the cost of a job is priced against the cost of cleaning it up, and an insurer eats the loss when the agent goes rogue. This post is the product walkthrough.
 
@@ -26,7 +26,7 @@ The Bonded Commons paper calls the thing it can lose its **bond** — a stake th
 
 ## A rogues' gallery, or: how agents really break things
 
-![Four AI robot villains in a 2x2 gallery — the Hoarder, the Slow Walker, the Nuker, and the Quitter](/img/generated/bond-pricing/bond-pricing-villains.png)
+![Four AI robot villains in a 2x2 gallery — the Hoarder, the Slow Walker, the Nuker, and the Quitter](/img/generated/bond-pricing/bond-pricing-villains.webp)
 
 Forget "overspending" for a minute. Here are the four ways an agent damages a project that a daily budget does not catch.
 
@@ -247,7 +247,7 @@ If you want to be the first project running on bonded coordination instead of vi
 ```bash
 brew install curiositech/tap/port-daddy
 pd setup
-pd begin "Run bond-pricing demo" --identity myproject:demo --lifecycle durable
+pd begin --identity myproject:demo
 ```
 
 Then read the [Bonded Commons whitepaper](/whitepaper) and tell us where it's wrong. Comments below; the open question is which projects are willing to dual-pipe with us when the insurer-agent prototype lands.

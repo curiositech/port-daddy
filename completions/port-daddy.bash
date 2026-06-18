@@ -102,19 +102,17 @@ _port_daddy() {
     # File Claims & Integration
     files add who-owns integration
     # Sugar (compound commands)
-    begin b done whoami w attention nudge with-lock n u d learn tutorial
+    begin b done whoami w attention with-lock n u d learn tutorial
     # Briefing & History
     briefing history
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
     # Agent Inbox
-    inbox send
+    inbox
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
     # Fleet ship-run transcripts
     transcripts transcript
-    # Cloud relay — zero-trust event fabric (ADR-0049)
-    relay
     # Dispatch (renamed from nightshift per ADR-0035) + review + morning
     dispatch nightshift review morning
     # Operator loop · SIGHT stage — raise the periscope (state + next cut)
@@ -141,8 +139,6 @@ _port_daddy() {
     roadmap
     # Quorum (swarm consensus primitive)
     quorum
-    # Parley (forced reconciliation primitive)
-    parley
     # Feedback (central agentic-feedback primitive)
     feedback
     # Durable commitments + obligation monitor (ADR-0041)
@@ -152,13 +148,13 @@ _port_daddy() {
     # Orchestration
     up down
     # Benchmarking, Demos & Fleet
-    bench benchmark demo fleet backend relay
+    bench demo fleet backend
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
     setup init
     # Daemon lifecycle
-    start stop restart install uninstall dev use daemon ci-gate mcp
+    start stop restart install uninstall dev daemon ci-gate mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -573,7 +569,7 @@ _port_daddy() {
     #                         [--maxServices N] [--maxLocks N]
     # -----------------------------------------------------------------------
     agent)
-      local agent_subcommands='register heartbeat unregister interrupt stream'
+      local agent_subcommands='register heartbeat unregister'
       # Find which subcommand (if any) has been typed after "agent".
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
@@ -638,26 +634,6 @@ _port_daddy() {
               COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
               ;;
             *) _pd_opts '--agent' ;;
-          esac
-          ;;
-        interrupt|stream)
-          # interrupt <agent-id> [--reason TEXT] ; stream <agent-id>
-          case "$prev" in
-            interrupt|stream|--agent)
-              local aids; aids="$(_pd_agent_ids)"
-              # shellcheck disable=SC2207
-              COMPREPLY=( $(compgen -W "$aids" -- "$cur") )
-              ;;
-            --reason)
-              COMPREPLY=()  # Free-form string
-              ;;
-            *)
-              if [[ "$subcmd" == "interrupt" ]]; then
-                _pd_opts '--reason --agent'
-              else
-                _pd_opts '--agent'
-              fi
-              ;;
           esac
           ;;
         *)
@@ -1075,23 +1051,6 @@ _port_daddy() {
     # -----------------------------------------------------------------------
     bench)
       _pd_opts ''
-      ;;
-
-    # -----------------------------------------------------------------------
-    # benchmark <subcommand>  (multi-backend LLM diversity experiment runner)
-    # Subcommands: run, list-models, list-conditions, report
-    # -----------------------------------------------------------------------
-    benchmark)
-      local benchmark_subcmds="run list-models list-conditions report"
-      case "$prev" in
-        benchmark)
-          # shellcheck disable=SC2207
-          COMPREPLY=( $(compgen -W "$benchmark_subcmds" -- "$cur") )
-          ;;
-        *)
-          _pd_opts ''
-          ;;
-      esac
       ;;
 
     # -----------------------------------------------------------------------
@@ -1880,12 +1839,6 @@ _port_daddy() {
         promote)
           _pd_opts '--from-feedback --feedbackId --id --slug --summary --status --as --agent --harbor --json --quiet'
           ;;
-        upsert|add)
-          _pd_opts '--summary --status --as --agent --by --note --receipt --harbor --project --dependencies --json --quiet'
-          ;;
-        touch)
-          _pd_opts '--note --receipt --as --agent --by --harbor --json --quiet'
-          ;;
         render)
           _pd_opts '--write --dir --root --rootDir --projectDir --status --harbor --project --limit --json --quiet'
           ;;
@@ -1893,36 +1846,7 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
           else
-            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims help" -- "$cur") )
-          fi
-          ;;
-      esac
-      ;;
-
-    # parley call|respond|resolve|list|show|fit
-    parley)
-      local subcmd="${words[2]:-}"
-      case "$subcmd" in
-        call)
-          _pd_opts '--surface --with --parties --reason --ttl-ms --round-limit --harbor --as --json --quiet'
-          ;;
-        respond)
-          _pd_opts '--id --parley --performative --content --proposal --evidence --as --party --json --quiet'
-          ;;
-        resolve)
-          _pd_opts '--id --parley --status --decision --reason --dissenters --as --json --quiet'
-          ;;
-        list|show)
-          _pd_opts '--id --parley --status --harbor --limit --json --quiet'
-          ;;
-        fit)
-          _pd_opts '--shape --reasoningShape --baseline --singleAgentBaseline --value --taskValueMultiplier --tokens --estimatedTokenMultiplier --independence --subtaskIndependence --contention --writeContention --writers --maxConcurrentWriters --verify --heterogeneous --fits-in-one-context --json --quiet'
-          ;;
-        *)
-          if [[ "$cur" == -* ]]; then
-            _pd_opts '--json --quiet'
-          else
-            COMPREPLY=( $(compgen -W "call respond resolve list show fit help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "ack harvest promote render pop release claims help" -- "$cur") )
           fi
           ;;
       esac

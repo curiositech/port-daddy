@@ -9,14 +9,9 @@
   </defs>
   <style>
     :root {
-      /* core identity */
       --cobalt: #2076FE;
       --seafoam: #20DEB0;
       --amber: #FFB505;
-      /* expanded information palette — the telemetry channels */
-      --violet: #9D7BFF;
-      --magenta: #FF6EC7;
-      --mayday: #FF5A5F;
       --bg-dark: #070B12;
       --radar-grid: #121A28;
     }
@@ -31,9 +26,8 @@
     <line x1="55" y1="55" x2="245" y2="245" stroke-dasharray="2 6" />
     <line x1="55" y1="245" x2="245" y2="55" stroke-dasharray="2 6" />
   </g>
-  <!-- bearing ring + compass ticks = seafoam (confirmed bearings) -->
   <g>
-    <circle cx="150" cy="150" r="130" fill="none" stroke="var(--seafoam)" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="150" cy="150" r="125" fill="none" stroke="var(--seafoam)" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.7"/>
     <path d="M 145 25 L 155 25" stroke="var(--seafoam)" stroke-width="3" fill="none" />
     <path d="M 145 275 L 155 275" stroke="var(--seafoam)" stroke-width="3" fill="none" />
     <path d="M 25 145 L 25 155" stroke="var(--seafoam)" stroke-width="3" fill="none" />
@@ -43,23 +37,16 @@
     <line x1="25" y1="150" x2="45" y2="150" stroke="var(--seafoam)" stroke-width="2" stroke-linecap="round" />
     <line x1="275" y1="150" x2="255" y2="150" stroke="var(--seafoam)" stroke-width="2" stroke-linecap="round" />
   </g>
-  <!-- telemetry shells = the expanded information channels (violet · magenta · amber · cobalt + a mayday tick) -->
   <g>
-    <circle cx="150" cy="150" r="120" fill="none" stroke="var(--violet)" stroke-width="2" stroke-dasharray="36 10 6 10" opacity="0.85"/>
-    <circle cx="150" cy="150" r="112" fill="none" stroke="var(--magenta)" stroke-width="1.5" stroke-dasharray="3 6" opacity="0.7"/>
-    <circle cx="150" cy="150" r="104" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="40 10 5 10" opacity="0.8"/>
-    <circle cx="150" cy="150" r="96" fill="none" stroke="var(--cobalt)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.6"/>
-    <!-- a single mayday alarm pip on the outer shell -->
-    <circle cx="244" cy="150" r="3.5" fill="var(--mayday)"/>
+    <circle cx="150" cy="150" r="105" fill="none" stroke="var(--amber)" stroke-width="2" stroke-dasharray="40 10 5 10" opacity="0.8"/>
+    <circle cx="150" cy="150" r="115" fill="none" stroke="var(--cobalt)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.6"/>
   </g>
-  <!-- helm corner arcs = cobalt -->
   <g stroke="var(--cobalt)" stroke-width="2" fill="none">
     <path d="M 213 87 A 90 90 0 0 0 187 68" />
     <path d="M 87 87 A 90 90 0 0 1 113 68" />
     <path d="M 213 213 A 90 90 0 0 1 187 232" />
     <path d="M 87 213 A 90 90 0 0 0 113 232" />
   </g>
-  <!-- the pd monogram = core identity, unchanged: cobalt p · seafoam d · amber intersection -->
   <g>
     <g stroke="var(--cobalt)" stroke-width="14" stroke-linecap="butt" fill="none">
       <line x1="110" y1="110" x2="110" y2="210" />

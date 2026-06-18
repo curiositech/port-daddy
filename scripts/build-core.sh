@@ -32,15 +32,3 @@ fi
 cp "$TARGET_DIR/release/libharbor_card_rs.$LIB_EXT" "$DIST_DIR/"
 
 echo "✅ Build complete: $DIST_DIR/libharbor_card_rs.$LIB_EXT"
-
-# Kernel macaroon FFI cdylib (pd-anchor) — the canonical macaroon verifier the TS
-# daemon prefers over the byte-parity TS fallback (ADR-0054). Built from the core/
-# cargo workspace and copied next to libharbor so the koffi loader
-# (lib/macaroon-ffi.ts, sharing lib/arbiter.ts's dist/core candidate path) finds
-# it. Its absence is non-fatal: the daemon falls back to the TS impl.
-echo "🦀 Building Port Daddy macaroon kernel (pd-anchor cdylib)..."
-WS_TARGET="${PORT_DADDY_WORKSPACE_TARGET_DIR:-${TARGET_DIR%/}-ws}"
-cargo build --manifest-path "$ROOT_DIR/core/Cargo.toml" -p pd-anchor --release --target-dir "$WS_TARGET" -j 1
-cp "$WS_TARGET/release/libpd_anchor.$LIB_EXT" "$DIST_DIR/"
-
-echo "✅ Build complete: $DIST_DIR/libpd_anchor.$LIB_EXT"

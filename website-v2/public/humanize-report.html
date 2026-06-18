@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Humanize review</title>
+<style>
+  /* Deliberately not the AI default look: no Inter/Geist, no indigo. */
+  :root { --ink:#1a1714; --paper:#faf7f2; --rule:#d8d0c2; --accent:#8a3324;
+           --high:#8a3324; --medium:#9a6a00; --low:#4a5d49; }
+  html { font-size: 16px; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: var(--paper);
+         color: var(--ink); margin: 0; padding: 3rem 4vw; line-height: 1.55; }
+  h1 { font-size: 2rem; font-weight: normal; margin: 0 0 .25rem; }
+  .kicker { font-family: Menlo, monospace; font-size: .875rem; font-weight: 700;
+            letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .summary { font-size: 1rem; margin: .75rem 0 2rem; }
+  table { width: 100%; border-collapse: collapse; background: #fff;
+          border: 1px solid var(--rule); font-size: .9375rem; }
+  th { font-family: Menlo, monospace; font-size: .8125rem; text-transform: uppercase;
+       letter-spacing: .08em; text-align: left; padding: .6rem .7rem;
+       border-bottom: 2px solid var(--ink); }
+  td { padding: .65rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  td.num { font-family: Menlo, monospace; color: #777; }
+  .sev { font-family: Menlo, monospace; font-size: .8125rem; font-weight: 700;
+         text-transform: uppercase; }
+  tr.sev-high .sev { color: var(--high); }
+  tr.sev-medium .sev { color: var(--medium); }
+  tr.sev-low .sev { color: var(--low); }
+  td.ism { font-family: Menlo, monospace; font-size: .875rem; white-space: nowrap; }
+  .dialect { color: #8a8378; font-size: .8125rem; margin-top: .15rem; }
+  td.loc { font-family: Menlo, monospace; font-size: .875rem; white-space: nowrap; }
+  del { background: #f6e3df; text-decoration-color: var(--high); display: inline-block;
+        padding: .05rem .2rem; }
+  ins { background: #e7eee4; text-decoration: none; display: block; margin-top: .4rem;
+        padding: .3rem .45rem; border-left: 3px solid var(--low); }
+  .why { font-size: .875rem; color: #564f45; margin-top: .35rem; }
+  footer { margin-top: 2rem; font-family: Menlo, monospace; font-size: .875rem; color: #8a8378; }
+</style></head><body>
+<div class="kicker">make_copy_and_media_human · line-item fix plan</div>
+<h1>Humanize review</h1>
+<p class="summary"><strong>6</strong> findings —
+  1 high, 2 medium, 3 low.
+  Struck text is the AI-ism as found; the inset block is the proposed fix.</p>
+<table>
+  <thead><tr><th>#</th><th>Sev</th><th>Ism</th><th>Where</th><th>Finding → fix</th></tr></thead>
+  <tbody>
+      <tr class="sev-high">
+        <td class="num">1</td>
+        <td><span class="sev">high</span></td>
+        <td class="ism">negation-contrast<div class="dialect">claude · judge</div></td>
+        <td class="loc">HowItWorks.tsx:145</td>
+        <td class="body"><del>Port Daddy doesn&#x27;t just manage ports—it manages resilience.</del>
+          <div class="why">The &#x27;doesn&#x27;t just X — it Y&#x27; reveal is the signature LLM negation-contrast, and &#x27;manages resilience&#x27; makes an abstraction the object of a concrete verb. A person states what it does and shows it. (Also a tight, unspaced em-dash.)</div>
+          <ins>Ports are the easy part. When a critical background agent dies, Port Daddy holds its state, file claims, and notes in an escrow harbor until a replacement takes over.</ins></td>
+      </tr>
+      <tr class="sev-medium">
+        <td class="num">2</td>
+        <td><span class="sev">medium</span></td>
+        <td class="ism">minimizer-just<div class="dialect">generic-llm · judge</div></td>
+        <td class="loc">AgentConversationSection.tsx:79</td>
+        <td class="body"><del>Coordination is just shared memory agents can read.</del>
+          <div class="why">&#x27;X is just Y&#x27; is a rhetorical minimizer that hedges the claim it makes. Drop the &#x27;just&#x27; and the sentence asserts the same thing with more confidence.</div>
+          <ins>Coordination is shared memory agents can read.</ins></td>
+      </tr>
+      <tr class="sev-medium">
+        <td class="num">3</td>
+        <td><span class="sev">medium</span></td>
+        <td class="ism">minimizer-just<div class="dialect">generic-llm · judge</div></td>
+        <td class="loc">CliBackendValueProp.tsx:35</td>
+        <td class="body"><del>Same login, same model, just more hours of work per day.</del>
+          <div class="why">The trailing &#x27;just more hours&#x27; minimizes the one number that matters. Split it into a flat statement so the payoff lands.</div>
+          <ins>Same login, same model. More hours of work per day.</ins></td>
+      </tr>
+      <tr class="sev-low">
+        <td class="num">4</td>
+        <td><span class="sev">low</span></td>
+        <td class="ism">negation-contrast<div class="dialect">claude · judge</div></td>
+        <td class="loc">CoordinationEnforcementSection.tsx:27</td>
+        <td class="body"><del>proof of what happens, not just what you type.</del>
+          <div class="why">&#x27;not just X&#x27; is the mild end of the negation-contrast family. The contrast (output vs input-only demos) is real, so this is a taste call — name the daemon directly instead.</div>
+          <ins>the command and the daemon&#x27;s response, so you see what actually happens.</ins></td>
+      </tr>
+      <tr class="sev-low">
+        <td class="num">5</td>
+        <td><span class="sev">low</span></td>
+        <td class="ism">colon-triad<div class="dialect">claude · judge</div></td>
+        <td class="loc">Hero.tsx:36</td>
+        <td class="body"><del>Port Daddy keeps the record: every agent can see who is working where, read what the others learned, and pick up tasks that died mid-run.</del>
+          <div class="why">A colon introducing a three-clause parallel list is a mild Claude cadence. Clause lengths vary here, so it reads human enough to keep — flagged for awareness, not a required fix.</div>
+          <ins>Port Daddy keeps the record. Every agent sees who is working where, reads what the others learned, and can pick up a task that died mid-run.</ins></td>
+      </tr>
+      <tr class="sev-low">
+        <td class="num">6</td>
+        <td><span class="sev">low</span></td>
+        <td class="ism">negation-contrast<div class="dialect">claude · judge</div></td>
+        <td class="loc">MCPPage.tsx:657</td>
+        <td class="body"><del>The skill teaches what to do, not just what exists</del>
+          <div class="why">Another &#x27;not just X&#x27; contrast. Defensible (procedural vs declarative knowledge), kept as a taste call.</div>
+          <ins>The skill teaches what to do, not only which tools exist</ins></td>
+      </tr></tbody>
+</table>
+<footer>generated 2026-06-16 08:48Z · structural layer is
+measurable signals only; phrase-level tropes come from the model judge pass.</footer>
+</body></html>

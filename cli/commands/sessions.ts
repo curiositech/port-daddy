@@ -39,13 +39,6 @@ type FileRegion = {
   symbol?: string;
   symbolPath?: string;
 };
-type SessionLifecycle = 'durable' | 'ephemeral';
-
-function parseSessionLifecycle(value: unknown): SessionLifecycle | null {
-  if (typeof value !== 'string') return null;
-  const normalized = value.trim().toLowerCase();
-  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
-}
 
 function createSessionClient(options: CLIOptions): PortDaddy {
   const current = readCurrentContext();
@@ -260,26 +253,8 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
       console.error('Purpose is required');
       process.exit(1);
     }
-    if (!options.lifecycle) {
-      const lifecycle = await promptSelect({
-        label: 'Session lifecycle?',
-        choices: [
-          { value: 'durable', label: 'Durable work context' },
-          { value: 'ephemeral', label: 'Heartbeat-bound process session' },
-        ],
-        default: 'durable',
-      });
-      if (lifecycle) options.lifecycle = lifecycle;
-    }
   } else if (!purpose) {
-    console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
-    process.exit(1);
-  }
-
-  const lifecycle = parseSessionLifecycle(options.lifecycle);
-  if (!lifecycle) {
-    ui.error('session start requires --lifecycle durable|ephemeral');
-    console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
+    console.error('Usage: port-daddy session start <purpose> [--purpose "text"] [-P "text"]');
     process.exit(1);
   }
 
@@ -287,7 +262,6 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   const body: Record<string, unknown> = { purpose };
   if (pd.agentId) body.agentId = pd.agentId;
   if (options.force) body.force = true;
-  body.lifecycle = lifecycle;
 
   // Collect files from --files option or remaining positional args
   const files: string[] = [];
@@ -325,7 +299,6 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
       files?: string[];
       force?: boolean;
       metadata?: Record<string, unknown>;
-      lifecycle?: SessionLifecycle;
     });
   } catch (error) {
     const errorBody = getErrorBody(error);
@@ -350,7 +323,6 @@ async function sessionStart(rest: string[], options: CLIOptions): Promise<void> 
   } else {
     ui.success(`Started session: ${sessionId}`);
     console.log(`  Purpose: ${purpose}`);
-    console.log(`  Lifecycle: ${lifecycle}`);
     if (files.length > 0) {
       console.log(`  Files claimed: ${files.length}`);
     }
@@ -704,13 +676,7 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
     case 'start': {
       const purpose = rest[0];
       if (!purpose) {
-        console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--files file1 file2...]');
-        process.exit(1);
-      }
-
-      const lifecycle = parseSessionLifecycle(options.lifecycle);
-      if (!lifecycle) {
-        console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--files file1 file2...]');
+        console.error('Usage: port-daddy session start <purpose> [--files file1 file2...]');
         process.exit(1);
       }
 
@@ -726,8 +692,7 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
 
       const result = sessions.start(purpose, {
         agentId: options.agent as string,
-        files: files.length > 0 ? files : undefined,
-        durable: lifecycle === 'durable',
+        files: files.length > 0 ? files : undefined
       });
 
       if (!result.success) {
@@ -741,7 +706,6 @@ function handleSessionDirect(subcommand: string, rest: string[], options: CLIOpt
         console.log(result.id);
       } else {
         ui.success(`Started session: ${result.id}`);
-        console.log(`  Lifecycle: ${lifecycle}`);
       }
       break;
     }

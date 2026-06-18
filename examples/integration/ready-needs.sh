@@ -24,9 +24,9 @@ trap cleanup EXIT
 echo "Integration signals"
 echo "-------------------"
 
-SESSION_A="$(pd session start "Build API endpoints" --agent "$AGENT_A" --lifecycle durable -q)"
+SESSION_A="$(pd session start "Build API endpoints" --agent "$AGENT_A" -q)"
 
-SESSION_B="$(pd session start "Build frontend against API" --agent "$AGENT_B" --lifecycle durable -q)"
+SESSION_B="$(pd session start "Build frontend against API" --agent "$AGENT_B" -q)"
 
 echo "Frontend declares a need:"
 pd note "Waiting for API routes and response shape" --session "$SESSION_B" --type blocker -q

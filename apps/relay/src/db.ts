@@ -268,7 +268,6 @@ export async function revokeByIssuer(
     const rows = await db.prepare(
       `SELECT daemon_fingerprint, proof_metadata FROM identities
        WHERE proof_method = 'oidc'
-       ORDER BY daemon_fingerprint ASC
        LIMIT ? OFFSET ?`
     ).bind(REVOKE_PAGE_SIZE, offset).all<{ daemon_fingerprint: string; proof_metadata: string }>();
 

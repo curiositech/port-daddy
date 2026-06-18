@@ -37,7 +37,7 @@ Provenance: originally Codex branch `codex/tui-fleetbar-design-wip-20260518`
    state, it must read real daemon state (`GET /spawn`, `/health`, `/roadmap/items`,
    `/msg/:channel`), not mock data. Transparently hollow is fine; fake-working is not.
 5. **Scratch only under `~/coding/tmp/`, never `/tmp`.** Worktrees too.
-6. Coordinate via Port Daddy: `pd begin --identity port-daddy:tui:fleetbar --lifecycle durable`,
+6. Coordinate via Port Daddy: `pd begin --identity port-daddy:tui:fleetbar`,
    claim `core/pd-tui/**` + `docs/design/**`, leave notes. Don't claim daemon files.
 
 ## Your deliverables (in order)

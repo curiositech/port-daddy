@@ -22,11 +22,6 @@ const KNOWN_PATH_PREFIXES = [
   '.spider/',
 ];
 
-// A dot anywhere in the basename is not enough: model ids like
-// `ollama/qwen2.5-coder` carry version dots without being files. Require a
-// trailing extension shape — final dot followed by a letter-led short suffix.
-const TRAILING_FILE_EXTENSION = /\.[A-Za-z][A-Za-z0-9]{0,9}$/;
-
 /**
  * Decide whether a slash-delimited token looks like a real repo path instead of
  * prose such as `FleetBar/control-plane` or `Center/Fleet`.
@@ -37,10 +32,6 @@ const TRAILING_FILE_EXTENSION = /\.[A-Za-z][A-Za-z0-9]{0,9}$/;
  *
  * Example:
  * - input: `FleetBar/control-plane`
- * - output: `false`
- *
- * Example:
- * - input: `ollama/qwen2.5-coder`
  * - output: `false`
  */
 function looksLikeRepoPath(candidate: string): boolean {
@@ -59,7 +50,7 @@ function looksLikeRepoPath(candidate: string): boolean {
   if (parts.length < 2) return false;
 
   const basename = parts[parts.length - 1] ?? '';
-  return TRAILING_FILE_EXTENSION.test(basename);
+  return basename.includes('.');
 }
 
 /**

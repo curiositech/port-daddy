@@ -27,16 +27,6 @@ describe('backend telemetry policy', () => {
     }));
   });
 
-  test.each(['cli:gemini', 'cli:groq', 'cli:grok'])('%s is flat-rate subscription — launch allowed without per-token telemetry', (backend) => {
-    const policy = assessBackendTelemetryPolicy(backend);
-    expect(policy).toEqual(expect.objectContaining({
-      backend,
-      launchAllowed: true,
-      effectiveModel: backend.slice('cli:'.length),
-    }));
-    expect(policy.summary).toContain('flat-rate');
-  });
-
   test('allows Codex when the model has an exact rate entry', () => {
     expect(
       assessBackendTelemetryPolicy('codex', 'gpt-5.4-mini')

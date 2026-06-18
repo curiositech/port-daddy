@@ -8,6 +8,7 @@ import { AgentConversationSection } from '@/components/landing/AgentConversation
 import { AgenticSocialProofSection } from '@/components/landing/AgenticSocialProofSection'
 import { Features } from '@/components/landing/Features'
 import { TerminalDemos } from '@/components/landing/TerminalDemos'
+import { InstallCTASection } from '@/components/landing/InstallCTASection'
 import { CTABanner } from '@/components/landing/CTABanner'
 import { Footer } from '@/components/layout/Footer'
 
@@ -42,6 +43,7 @@ export default function App() {
         <TubeMultiplexSection />
         <AgenticSocialProofSection />
         <Features />
+        <InstallCTASection />
       </main>
 
       <CTABanner />

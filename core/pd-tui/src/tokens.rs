@@ -99,7 +99,7 @@ pub mod dark {
         fn bg_inverse(&self) -> Color { Color::Rgb(245, 245, 240) }
         fn bg_brand(&self) -> Color { Color::Rgb(255, 219, 51) }
         fn bg_brand_soft(&self) -> Color { Color::Rgb(253, 230, 138) }
-        fn bg_danger(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn bg_danger(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn bg_success(&self) -> Color { Color::Rgb(21, 128, 61) }
         fn bg_warning(&self) -> Color { Color::Rgb(245, 158, 11) }
         fn text_heading(&self) -> Color { Color::Rgb(245, 245, 240) }
@@ -122,8 +122,8 @@ pub mod dark {
         fn state_awaiting_human_border(&self) -> Color { Color::Rgb(146, 64, 14) }
         fn state_burning_cash_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
         fn state_burning_cash_fg(&self) -> Color { Color::Rgb(245, 245, 240) }
-        fn state_burning_cash_border(&self) -> Color { Color::Rgb(191, 47, 47) }
-        fn state_conflict_bg(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn state_burning_cash_border(&self) -> Color { Color::Rgb(204, 61, 46) }
+        fn state_conflict_bg(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn state_conflict_fg(&self) -> Color { Color::Rgb(245, 245, 240) }
         fn state_conflict_border(&self) -> Color { Color::Rgb(255, 144, 129) }
         fn state_blocked_bg(&self) -> Color { Color::Rgb(43, 39, 36) }
@@ -137,7 +137,7 @@ pub mod dark {
         fn state_idle_border(&self) -> Color { Color::Rgb(80, 75, 70) }
         fn severity_securite_bg(&self) -> Color { Color::Rgb(139, 90, 26) }
         fn severity_securite_fg(&self) -> Color { Color::Rgb(253, 230, 138) }
-        fn severity_pan_pan_bg(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn severity_pan_pan_bg(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn severity_pan_pan_fg(&self) -> Color { Color::Rgb(255, 255, 255) }
         fn severity_mayday_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
         fn severity_mayday_fg(&self) -> Color { Color::Rgb(255, 255, 255) }
@@ -160,7 +160,7 @@ pub mod dark {
         fn term_info(&self) -> Color { Color::Rgb(127, 196, 255) }
         fn term_bg(&self) -> Color { Color::Rgb(30, 27, 24) }
         fn term_fg(&self) -> Color { Color::Rgb(245, 245, 240) }
-        fn ics_flag_red(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn ics_flag_red(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn ics_flag_blue(&self) -> Color { Color::Rgb(30, 58, 138) }
         fn ics_flag_yellow(&self) -> Color { Color::Rgb(237, 197, 49) }
         fn ics_flag_white(&self) -> Color { Color::Rgb(250, 250, 245) }
@@ -179,7 +179,7 @@ pub mod light {
         fn bg_inverse(&self) -> Color { Color::Rgb(30, 27, 24) }
         fn bg_brand(&self) -> Color { Color::Rgb(255, 219, 51) }
         fn bg_brand_soft(&self) -> Color { Color::Rgb(253, 230, 138) }
-        fn bg_danger(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn bg_danger(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn bg_success(&self) -> Color { Color::Rgb(220, 252, 231) }
         fn bg_warning(&self) -> Color { Color::Rgb(254, 243, 199) }
         fn text_heading(&self) -> Color { Color::Rgb(30, 27, 24) }
@@ -192,7 +192,7 @@ pub mod light {
         fn text_link(&self) -> Color { Color::Rgb(139, 22, 34) }
         fn border_default(&self) -> Color { Color::Rgb(30, 27, 24) }
         fn border_muted(&self) -> Color { Color::Rgb(212, 197, 169) }
-        fn border_emphasis(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn border_emphasis(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn shadow_color(&self) -> Color { Color::Rgb(30, 27, 24) }
         fn state_claim_active_bg(&self) -> Color { Color::Rgb(220, 252, 231) }
         fn state_claim_active_fg(&self) -> Color { Color::Rgb(21, 128, 61) }
@@ -201,11 +201,11 @@ pub mod light {
         fn state_awaiting_human_fg(&self) -> Color { Color::Rgb(146, 64, 14) }
         fn state_awaiting_human_border(&self) -> Color { Color::Rgb(245, 158, 11) }
         fn state_burning_cash_bg(&self) -> Color { Color::Rgb(254, 202, 202) }
-        fn state_burning_cash_fg(&self) -> Color { Color::Rgb(191, 47, 47) }
-        fn state_burning_cash_border(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn state_burning_cash_fg(&self) -> Color { Color::Rgb(204, 61, 46) }
+        fn state_burning_cash_border(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn state_conflict_bg(&self) -> Color { Color::Rgb(254, 202, 202) }
         fn state_conflict_fg(&self) -> Color { Color::Rgb(139, 22, 34) }
-        fn state_conflict_border(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn state_conflict_border(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn state_blocked_bg(&self) -> Color { Color::Rgb(255, 249, 224) }
         fn state_blocked_fg(&self) -> Color { Color::Rgb(63, 61, 56) }
         fn state_blocked_border(&self) -> Color { Color::Rgb(212, 197, 169) }
@@ -217,7 +217,7 @@ pub mod light {
         fn state_idle_border(&self) -> Color { Color::Rgb(209, 209, 199) }
         fn severity_securite_bg(&self) -> Color { Color::Rgb(139, 90, 26) }
         fn severity_securite_fg(&self) -> Color { Color::Rgb(253, 230, 138) }
-        fn severity_pan_pan_bg(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn severity_pan_pan_bg(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn severity_pan_pan_fg(&self) -> Color { Color::Rgb(255, 255, 255) }
         fn severity_mayday_bg(&self) -> Color { Color::Rgb(139, 22, 34) }
         fn severity_mayday_fg(&self) -> Color { Color::Rgb(255, 255, 255) }
@@ -231,7 +231,7 @@ pub mod light {
         fn perf_accept_proposal_bg(&self) -> Color { Color::Rgb(67, 56, 202) }
         fn perf_subscribe_bg(&self) -> Color { Color::Rgb(15, 118, 110) }
         fn perf_query_ref_bg(&self) -> Color { Color::Rgb(127, 196, 255) }
-        fn term_prompt(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn term_prompt(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn term_cmd(&self) -> Color { Color::Rgb(30, 27, 24) }
         fn term_ok(&self) -> Color { Color::Rgb(21, 128, 61) }
         fn term_warn(&self) -> Color { Color::Rgb(146, 64, 14) }
@@ -240,7 +240,7 @@ pub mod light {
         fn term_info(&self) -> Color { Color::Rgb(3, 105, 161) }
         fn term_bg(&self) -> Color { Color::Rgb(245, 245, 240) }
         fn term_fg(&self) -> Color { Color::Rgb(30, 27, 24) }
-        fn ics_flag_red(&self) -> Color { Color::Rgb(191, 47, 47) }
+        fn ics_flag_red(&self) -> Color { Color::Rgb(204, 61, 46) }
         fn ics_flag_blue(&self) -> Color { Color::Rgb(30, 58, 138) }
         fn ics_flag_yellow(&self) -> Color { Color::Rgb(237, 197, 49) }
         fn ics_flag_white(&self) -> Color { Color::Rgb(250, 250, 245) }
@@ -262,7 +262,7 @@ pub mod primitive {
     pub const EBONY: Color = Color::Rgb(30, 27, 24);
     pub const EBONY_DEEP: Color = Color::Rgb(16, 14, 12);
     pub const EBONY_SOFT: Color = Color::Rgb(43, 39, 36);
-    pub const DANGER: Color = Color::Rgb(191, 47, 47);
+    pub const CINNABAR: Color = Color::Rgb(204, 61, 46);
     pub const CINNABAR_LIT: Color = Color::Rgb(255, 144, 129);
     pub const CINNABAR_DIM: Color = Color::Rgb(139, 22, 34);
     pub const TAN: Color = Color::Rgb(139, 90, 26);

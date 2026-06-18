@@ -182,7 +182,7 @@ pd agent register --agent session-123 \
   --purpose "implementing OAuth login flow"
 
 # Start a session
-pd session start --purpose "OAuth implementation" --agent session-123 --lifecycle durable
+pd session start --purpose "OAuth implementation" --agent session-123
 
 # Claim files (prevents other agents from editing them)
 pd session files claim session-123 \

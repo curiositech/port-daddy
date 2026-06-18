@@ -5,16 +5,6 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # Merge queue: GitHub builds a temporary branch (latest main + queued PRs)
-  # and requires every required check to report on it before merging.
-  merge_group:
-
-# Cancel superseded runs: a new push to a PR aborts the older, now-pointless
-# run instead of letting both finish. Frees runners and shrinks the merge-race
-# window. main runs use a per-SHA group so post-merge runs never cancel.
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   brand-color-guard:
@@ -28,187 +18,12 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
-  doc-citation-guard:
-    # The machine-checkable half of the ship checklist's "citations are real" killer
-    # item (AGENTS.md § Pull Request Operating Procedure). Verifies that backtick'd
-    # repo paths + relative markdown links in the docs THIS PR changed resolve to real
-    # files. Scoped to changed docs (not the whole legacy) so it gates what you touch.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Ensure origin/main ref for the changed-files diff
-        # fetch-depth: 0 already fetched full history; this just guarantees the
-        # refs/remotes/origin/main ref points at the true tip. No `|| true` — a real
-        # fetch failure should be loud, not silently diff against a stale base.
-        run: git fetch --no-tags origin main:refs/remotes/origin/main
-      - name: Doc-citation guard (cited repo paths in changed docs must exist)
-        run: node scripts/check-doc-citations.mjs
-
-  # Decide whether website-terminal-recordings (the heaviest job, ~7 min)
-  # needs to run on this PR. It re-records terminal GIFs of the CLI, so only
-  # changes to the website, the CLI/daemon surface it demos, the build
-  # scripts, or this workflow can affect its output. Push-to-main always
-  # records (publish path). Uses the PR files API instead of a git diff so no
-  # checkout / fetch-depth gymnastics are needed.
-  detect-changes:
-    runs-on: ubuntu-latest
-    # Job-level grant so the files-API read works even if the repo/org
-    # default token permissions are restricted. This job needs nothing else
-    # (no checkout), and job-level permissions reset unlisted scopes to none.
-    permissions:
-      pull-requests: read
-    outputs:
-      recordings: ${{ steps.filter.outputs.recordings }}
-      fleetbar: ${{ steps.filter.outputs.fleetbar }}
-      console: ${{ steps.filter.outputs.console }}
-    steps:
-      - id: filter
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          if [ "$EVENT_NAME" != "pull_request" ]; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Fail safe: if the files API errors (outage, rate limit), run the
-          # gated jobs rather than silently skipping a required gate.
-          if ! changed="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}/files" --paginate --jq '.[].filename')"; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-            echo "console=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if printf '%s\n' "$changed" | grep -qE '^(website-v2/|bin/|cli/|lib/|scripts/|server\.ts$|package(-lock)?\.json$|\.github/workflows/ci\.yml$)'; then
-            echo "recordings=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "recordings=false" >> "$GITHUB_OUTPUT"
-          fi
-          # FleetBar (Swift menu bar app) only depends on its own sources and
-          # its packaging script. ci.yml changes re-run it so the gate itself
-          # can be edited under test.
-          if printf '%s\n' "$changed" | grep -qE '^(apps/FleetBar/|scripts/package-fleetbar\.sh$|\.github/workflows/ci\.yml$)'; then
-            echo "fleetbar=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "fleetbar=false" >> "$GITHUB_OUTPUT"
-          fi
-          # The GPUI window build (rust-console-gpui, macOS) only depends on the
-          # pd-console crate; ci.yml changes re-run it so the gate can be edited
-          # under test.
-          if printf '%s\n' "$changed" | grep -qE '^(core/pd-console/|\.github/workflows/ci\.yml$)'; then
-            echo "console=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "console=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  # PR-blocking unit tests: only the node-22 legs (the required checks). The
-  # node 20/24 compatibility matrix moved to `unit-tests-compat` which runs
-  # post-merge on main — every PR previously paid for 4 extra full ~10-min
-  # test runs (ubuntu+macos × node 20/24) that no required check gates on.
-  #
-  # The macOS leg lives in its own job (unit-tests-macos) so that the heavy
-  # downstream jobs (`needs: unit-tests`) start as soon as the ubuntu leg is
-  # green instead of also waiting out the macOS runner queue. Both legs are
-  # still required checks — branch protection requires the contexts
-  # "unit-tests (ubuntu-latest, 22)" and "unit-tests (macos-latest, 22)", so
-  # this job stays a 1-cell matrix and unit-tests-macos pins its display
-  # `name:` to the macOS context. Do NOT rename either without updating
-  # branch protection.
   unit-tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        node-version: [22]
-      fail-fast: false
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Run unit tests
-        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
-
-      - name: Test CLI tools
-        run: |
-          node bin/port-daddy-cli.js --help
-          node bin/port-daddy-cli.js version || true
-
-      - name: Test CLI subcommands
-        run: |
-          node bin/port-daddy-cli.js status || true
-          node bin/port-daddy-cli.js doctor || true
-          node bin/port-daddy-cli.js --version
-
-  # macOS node-22 leg. Same steps as unit-tests, but a separate job so macOS
-  # runner queue latency stays off the critical path of integration-tests and
-  # compiled-daemon-smoke. The display name is pinned to match the required
-  # status-check context "unit-tests (macos-latest, 22)" exactly — see the
-  # comment on unit-tests above.
-  unit-tests-macos:
-    name: unit-tests (macos-latest, 22)
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Run unit tests
-        run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
-
-      - name: Test CLI tools
-        run: |
-          node bin/port-daddy-cli.js --help
-          node bin/port-daddy-cli.js version || true
-
-      - name: Test CLI subcommands
-        run: |
-          node bin/port-daddy-cli.js status || true
-          node bin/port-daddy-cli.js doctor || true
-          node bin/port-daddy-cli.js --version
-
-  # Node 20/24 compatibility: full coverage, but only post-merge on main so it
-  # never blocks (or slows) a PR. If a Node-version regression lands, it shows
-  # red on main immediately and is caught before release.
-  unit-tests-compat:
-    if: github.event_name == 'push'
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
         os: [ubuntu-latest, macos-latest]
-        node-version: [20, 24]
+        node-version: [20, 22, 24]
       fail-fast: false
 
     steps:
@@ -228,6 +43,17 @@ jobs:
 
       - name: Run unit tests
         run: node --experimental-vm-modules node_modules/jest/bin/jest.js --selectProjects unit
+
+      - name: Test CLI tools
+        run: |
+          node bin/port-daddy-cli.js --help
+          node bin/port-daddy-cli.js version || true
+
+      - name: Test CLI subcommands
+        run: |
+          node bin/port-daddy-cli.js status || true
+          node bin/port-daddy-cli.js doctor || true
+          node bin/port-daddy-cli.js --version
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -366,39 +192,6 @@ jobs:
           test -f .claude-plugin/plugin.json && echo "plugin.json exists" || exit 1
           node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))" && echo "plugin.json is valid JSON" || exit 1
 
-  fleet-ui:
-    # Builds + type-checks + tests the Control Center (fleet-config-ui). This is
-    # the gate that keeps the NeedsYou force-zoom invariant (legibility F3) from
-    # rotting: a P0/irreversible attention item must not be dismissable until the
-    # operator has expanded it. The fleet-config-ui has its own tsconfig graph and
-    # vitest suite — root jest never compiles or runs it, so without this job a
-    # regression in the gate (or any TS break in the UI) would ship green.
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: fleet-config-ui
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: fleet-config-ui/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check (tsc -b — app + node + test projects)
-        run: npm run typecheck
-
-      - name: Component tests (vitest — force-zoom gate)
-        run: npm test
-
-      - name: Production build (vite)
-        run: npm run build
-
   skill-hygiene:
     # Audit every skill bundle for drift on every PR. Fails the build if any
     # bundle has orphaned docs, broken links, INDEX drift, or a missing INDEX
@@ -432,13 +225,7 @@ jobs:
           if-no-files-found: warn
 
   website-terminal-recordings:
-    # Path-gated via detect-changes: skipped on PRs that can't affect the
-    # GIFs. "skipped" satisfies the required status check (branch protection
-    # treats job-level `if:` skips as passing), so this stays a required
-    # check without running on every PR.
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.recordings == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -457,19 +244,10 @@ jobs:
           bun-version: 1.2.21
 
       - name: Install recorder tools
-        # agg is a Rust binary; `cargo install --git` recompiled it from source
-        # on every run (several minutes). Pull the pinned prebuilt linux release
-        # instead — seconds, not minutes. Bump AGG_VERSION to upgrade.
-        env:
-          AGG_VERSION: v1.9.0
         run: |
           python3 -m pip install --user asciinema
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          mkdir -p "$HOME/.local/bin"
-          curl -fsSL -o "$HOME/.local/bin/agg" \
-            "https://github.com/asciinema/agg/releases/download/${AGG_VERSION}/agg-x86_64-unknown-linux-gnu"
-          chmod +x "$HOME/.local/bin/agg"
-          "$HOME/.local/bin/agg" --version
+          cargo install --locked --git https://github.com/asciinema/agg
 
       - name: Build daemon binary
         run: npm run build:daemon:dist
@@ -480,7 +258,7 @@ jobs:
           # CI runs on the main worktree by design (no linked worktrees in
           # actions/checkout). Pass --allow-main-worktree so the worktree
           # policy added in 47840169 doesn't refuse the integration session.
-          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --lifecycle durable --allow-main-worktree
+          node bin/port-daddy-cli.js begin --identity ci:website:gifs --purpose "Regenerate website terminal GIFs" --allow-main-worktree
 
       - name: Regenerate website terminal GIFs
         working-directory: website-v2
@@ -493,116 +271,3 @@ jobs:
       - name: Stop daemon
         if: always()
         run: node bin/port-daddy-cli.js stop || true
-
-  rust-console:
-    # Verify the pd-console Rust crate (core/pd-console) compiles and all unit
-    # tests pass. Additions-only right now; no binary artefact is published.
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: core/pd-console
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust build artefacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: core/pd-console
-
-      - name: cargo check
-        run: cargo check
-
-      - name: cargo test
-        run: cargo test
-
-  rust-console-gpui:
-    # Build the GPU-native window (the deliverable). gpui is Metal/macOS-centric
-    # and won't compile on the ubuntu rust-console job, so the window lives behind
-    # the `gpui` feature and is built here on macOS. Path-gated to console changes
-    # via detect-changes; a skip satisfies the (non-required) gate. Operator call
-    # (#318): the native window is the point, so it gets a real CI build despite
-    # the macOS cost.
-    runs-on: macos-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.console == 'true'
-    defaults:
-      run:
-        working-directory: core/pd-console
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust build artefacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: core/pd-console
-
-      - name: cargo build --features gpui (GPU-native window)
-        run: cargo build --features gpui --bin pd-console
-
-  rust-kernel:
-    # Verify the core/kernel workspace (pd-anchor — the CANONICAL macaroon discharge
-    # gate per ADR-0054 — plus pd-core/pd-eventlog/pd-mesh/pd-runtime/pd-compat/pd-tui)
-    # compiles and all unit tests pass, INCLUDING tests/parity_vectors.rs. That parity
-    # test is the Rust half of the ADR-0054 I11 cross-runtime gate: it asserts the
-    # canonical Rust impl reproduces tests/fixtures/macaroon-parity-vectors.json, the
-    # same fixture the TS suite asserts. Before this job the workspace was never built
-    # in CI, so the parity gate could only ever fail locally — the gate was theater.
-    # Always-run (not path-gated) so a parity divergence can never be silently skipped.
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: core/kernel
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust build artefacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: core/kernel
-
-      - name: cargo check
-        run: cargo check --workspace
-
-      - name: cargo test (incl. macaroon parity vectors)
-        run: cargo test --workspace
-
-  fleetbar:
-    # Build + unit-test the FleetBar Swift menu bar app. Its tests never ran in
-    # CI before, so FleetPopoverTests rotted red on main unnoticed (the
-    # `backend` native surface from #218 was never added to its expected list).
-    # Now a required gate. swift is preinstalled on the macOS runner (release.yml
-    # already packages FleetBar there). Path-gated via detect-changes: a non-
-    # FleetBar PR skips this, and a skip satisfies the required check.
-    runs-on: macos-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.fleetbar == 'true'
-    defaults:
-      run:
-        working-directory: apps/FleetBar
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Cache SwiftPM
-        uses: actions/cache@v4
-        with:
-          path: apps/FleetBar/.build
-          key: spm-${{ runner.os }}-${{ hashFiles('apps/FleetBar/Package.resolved', 'apps/FleetBar/Package.swift') }}
-          restore-keys: |
-            spm-${{ runner.os }}-
-
-      - name: Build FleetBar
-        run: swift build
-
-      - name: Test FleetBar
-        run: swift test

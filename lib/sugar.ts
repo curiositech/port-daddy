@@ -42,8 +42,6 @@ interface SessionsModule {
   get(id: string): Record<string, unknown>;
   getNotes(id?: string | null, options?: Record<string, unknown>): Record<string, unknown>;
   claimFiles(sessionId: string, filePaths: string[], options?: Record<string, unknown>): Record<string, unknown>;
-  /** Flip an abandoned durable session back to active. Optional: older deps may not provide it. */
-  resurrect?(sessionId: string): void;
 }
 
 interface ActivityLogModule {
@@ -79,8 +77,6 @@ interface BeginOptions {
   worktree?: SessionWorktreeContext;
   requireLinkedWorktree?: boolean;
   allowMainWorktree?: boolean;
-  /** Session retention behavior. Durable survives without a live heartbeat process. */
-  lifecycle?: 'durable' | 'ephemeral';
   /**
    * Skip the crowded-main-worktree collision check. Set by the CLI when
    * allowMainWorktree was triggered by the long-standing env var
@@ -108,12 +104,6 @@ interface DoneOptions {
 interface WhoamiOptions {
   agentId?: string;
   sessionId?: string;
-}
-
-function lifecycleForSession(session: Record<string, unknown>): 'durable' | 'ephemeral' {
-  return session.durable === true || session.is_durable === 1 || session.is_durable === true
-    ? 'durable'
-    : 'ephemeral';
 }
 
 // =============================================================================
@@ -168,16 +158,6 @@ export function createSugar(deps: SugarDeps) {
     if (!purpose || typeof purpose !== 'string' || !purpose.trim()) {
       return { success: false, error: 'purpose is required' };
     }
-
-    const lifecycle = options.lifecycle;
-    if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
-      return {
-        success: false,
-        error: 'lifecycle is required and must be "durable" or "ephemeral"',
-        code: 'SESSION_LIFECYCLE_REQUIRED',
-      };
-    }
-    const durable = lifecycle === 'durable';
 
     const worktreePolicy = evaluateSessionWorktreePolicy({
       worktree: options.worktree,
@@ -244,44 +224,43 @@ export function createSugar(deps: SugarDeps) {
         });
         const decision = decideBeginResume(liveness);
         if (decision.action === 'resume') {
-          const resumedSessionId: string = match.id;
-          const resumedAgentId: string = match.agentId;
-          const displayName =
-            (typeof match.agentName === 'string' && match.agentName)
-            || (typeof match.name === 'string' && match.name)
-            || identity
-            || 'Port Daddy Agent';
-          const resumed: Record<string, unknown> = {
-            success: true,
-            resumed: true,
-            agentId: resumedAgentId,
-            sessionId: resumedSessionId,
-            agentName: displayName,
-            sessionName: displayName,
-            name: displayName,
-            identity: identity || null,
-            purpose: purpose.trim(),
-            lifecycle: lifecycleForSession(match),
-            agentRegistered: false,
-            sessionStarted: false,
-          };
-          if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
-          if (files && files.length > 0) {
-            const claim = sessions.claimFiles(resumedSessionId, files, { agentId: resumedAgentId }) as Record<string, unknown>;
-            if (claim && typeof claim === 'object') {
-              if ('claimed' in claim) resumed.fileClaims = claim.claimed;
-              if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
-            }
+        const resumedSessionId: string = match.id;
+        const resumedAgentId: string = match.agentId;
+        const displayName =
+          (typeof match.agentName === 'string' && match.agentName)
+          || (typeof match.name === 'string' && match.name)
+          || identity
+          || 'Port Daddy Agent';
+        const resumed: Record<string, unknown> = {
+          success: true,
+          resumed: true,
+          agentId: resumedAgentId,
+          sessionId: resumedSessionId,
+          agentName: displayName,
+          sessionName: displayName,
+          name: displayName,
+          identity: identity || null,
+          purpose: purpose.trim(),
+          agentRegistered: false,
+          sessionStarted: false,
+        };
+        if (worktreePolicy.worktree) resumed.worktree = worktreePolicy.worktree;
+        if (files && files.length > 0) {
+          const claim = sessions.claimFiles(resumedSessionId, files, { agentId: resumedAgentId }) as Record<string, unknown>;
+          if (claim && typeof claim === 'object') {
+            if ('claimed' in claim) resumed.fileClaims = claim.claimed;
+            if (Array.isArray(claim.conflicts) && claim.conflicts.length > 0) resumed.fileConflicts = claim.conflicts;
           }
-          if (decision.warn === 'driven-elsewhere') {
-            resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
-          }
-          activityLog.log('sugar_begin', {
-            agentId: resumedAgentId,
-            details: 'sugar_begin_resumed',
-            metadata: { sessionId: resumedSessionId, identity: identity || null },
-          });
-          return resumed;
+        }
+        if (decision.warn === 'driven-elsewhere') {
+          resumed.warn = 'Another live process is already driving this session; attaching anyway (worktree isolation is the real guard).';
+        }
+        activityLog.log('sugar_begin', {
+          agentId: resumedAgentId,
+          details: 'sugar_begin_resumed',
+          metadata: { sessionId: resumedSessionId, identity: identity || null },
+        });
+        return resumed;
         }
         // decision.action === 'create' falls through to start a fresh session.
       }
@@ -400,9 +379,6 @@ export function createSugar(deps: SugarDeps) {
     if (metadata && typeof metadata === 'object') {
       sessionOpts.metadata = metadata;
     }
-    if (durable) {
-      sessionOpts.durable = true;
-    }
 
     const sessionResult = sessions.start(purpose.trim(), sessionOpts);
     if (!sessionResult.success) {
@@ -425,7 +401,6 @@ export function createSugar(deps: SugarDeps) {
       name,
       identity: identity || null,
       purpose: purpose.trim(),
-      lifecycle,
       agentRegistered: true,
       sessionStarted: true,
     };
@@ -454,7 +429,6 @@ export function createSugar(deps: SugarDeps) {
         sessionId: sessionResult.id as string,
         identity: identity || null,
         identityProject: identityProject || undefined,
-        lifecycle,
       } as unknown as Record<string, unknown>,
     });
 
@@ -670,21 +644,7 @@ export function createSugar(deps: SugarDeps) {
           };
         }
 
-        // Durable sessions remain "active" even if the daemon marked them abandoned
-        // because the agent process heartbeat stopped. They're work contexts, not
-        // process lifetimes — only pd done / worktree-removed / branch-merged ends them.
-        const isDurable = session.durable === true ||
-          session.is_durable === 1 || session.is_durable === true;
-        const isEffectivelyActive = session.status === 'active' ||
-          (isDurable && session.status === 'abandoned');
-
-        if (isEffectivelyActive) {
-          // For abandoned-but-durable sessions, resurrect to active in the DB
-          // so future checks don't require special-casing.
-          if (isDurable && session.status === 'abandoned') {
-            sessions.resurrect?.(explicitSessionId);
-          }
-
+        if (session.status === 'active') {
           const lookupAgentId = sessionAgentId || agentId;
           const agentResult = lookupAgentId ? agents.get(lookupAgentId) : { success: false };
           const agent = agentResult.success ? agentResult.agent as Record<string, unknown> : null;
@@ -733,26 +693,6 @@ export function createSugar(deps: SugarDeps) {
     const sessionsList = (listResult.sessions || []) as Array<Record<string, unknown>>;
 
     if (sessionsList.length === 0) {
-      // Abandoned-but-durable sessions are still live work contexts: an
-      // abandonment write (e.g. zombie protocol) suspends them, it doesn't
-      // end them. Find the most recent one, resurrect it, and report active.
-      const abandonedResult = sessions.list({ agentId, status: 'abandoned', allWorktrees: true });
-      const abandonedList = (abandonedResult.sessions || []) as Array<Record<string, unknown>>;
-      const durableSession = abandonedList.find(s => s.durable === true);
-      if (durableSession) {
-        sessions.resurrect?.(durableSession.id as string);
-        const durableDetail = sessions.get(durableSession.id as string);
-        if (durableDetail.success && durableDetail.session) {
-          return buildWhoamiResponse(
-            durableDetail.session as Record<string, unknown>,
-            (durableDetail.notes as unknown[] | undefined) || [],
-            (durableDetail.files as Array<Record<string, unknown>> | undefined) || [],
-            agent,
-            agentId,
-          );
-        }
-      }
-
       return {
         success: true,
         active: false,

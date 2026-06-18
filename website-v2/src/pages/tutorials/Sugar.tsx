@@ -66,7 +66,6 @@ export function Sugar() {
           <CodeBlock copyable={false} language="bash">
             {`pd begin "Review flaky auth tests" \\
   --identity my-app:test-hunter \\
-  --lifecycle durable \\
   --files tests/auth/login.test.ts
 SUCCESS: Agent Review flaky auth tests ready and tests/auth/login.test.ts claimed.`}
           </CodeBlock>

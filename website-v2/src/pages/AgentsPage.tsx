@@ -30,7 +30,6 @@ import {
 import fleetYaml from '../../../pd-fleet.yml?raw'
 import { Button } from '@/components/ui/Button'
 import {
-  BracketLabel,
   BracketLink,
   DocsCodeBlock,
   PageContainer,
@@ -91,7 +90,6 @@ type TemplatePack = {
   path: string
   body: string
   command: string
-  tags: string[]
   icon: LucideIcon
 }
 
@@ -130,30 +128,30 @@ type AgentSection = {
 
 const CONCEPTS: Concept[] = [
   {
-    label: 'YAML',
-    title: 'The agent contract',
-    body: 'Fleet agents are declared in pd-fleet.yml. The file says who wakes, why they wake, what backend they use, and which channels connect them.',
+    label: 'The file',
+    title: 'Agents are declared in pd-fleet.yml',
+    body: 'Fleet agents live in one file you can read. It says who wakes, why they wake, which model backend they use, and which channels connect them.',
     icon: Code2,
     tone: 'blue',
   },
   {
     label: 'Shipwright',
-    title: 'The picker for new repos',
-    body: 'Shipwright surveys a repo and helps choose the few agents that are actually useful, instead of dumping every possible role into a new project.',
+    title: 'Picks which agents a new repo needs',
+    body: 'Shipwright is the helper that surveys a repo and suggests the few agents worth running, instead of dumping every possible role into a new project.',
     icon: Hammer,
     tone: 'accent',
   },
   {
-    label: 'Actor',
-    title: 'Stable identity',
-    body: 'A durable role can have an inbox, history, notes, and ownership even when no model process is currently attached.',
+    label: 'The role',
+    title: 'A named job with an inbox of its own',
+    body: 'A role keeps its inbox, history, notes, and ownership even when no agent is attached to it. Port Daddy calls this an actor.',
     icon: Boxes,
     tone: 'paper',
   },
   {
-    label: 'Body',
-    title: 'Temporary runtime',
-    body: 'A Claude, Codex, Ollama, Gemini, Aider, or custom process is just the current body for an actor. The body can crash without erasing the work.',
+    label: 'The process',
+    title: 'The agent running the role right now',
+    body: 'A Claude, Codex, Ollama, Gemini, or Aider process is just the current body doing the role. It can crash without erasing the work.',
     icon: Activity,
     tone: 'paper',
   },
@@ -163,57 +161,57 @@ const ACTOR_ROLES: ActorRole[] = [
   {
     name: 'Shipwright',
     roleKey: 'shipwright',
-    label: 'Fleet architect',
-    body: 'Surveys a repo, proposes a starter fleet, rehearses cost and trigger behavior, then points the operator toward Flow, Agents, Resources, and YAML.',
+    label: 'Picks agents for new repos',
+    body: 'Surveys a repo, proposes a starter fleet, rehearses what it would cost and when each agent wakes, then points you at Flow, Agents, Resources, and the YAML.',
     icon: Hammer,
   },
   {
-    name: 'Navigator / Cartographer',
+    name: 'Navigator',
     roleKey: 'navigator',
-    label: 'Roadmap truth',
-    body: 'Keeps roadmap, recovery, current work, and product direction aligned with what actually shipped.',
+    label: 'Keeps the roadmap honest',
+    body: 'Keeps the roadmap, the recovery list, and current work lined up with what actually shipped.',
     icon: Map,
   },
   {
     name: 'Coxswain',
     roleKey: 'coxswain',
-    label: 'Claims and locks',
-    body: 'Watches file claims, symbol ownership, locks, stale assets, and coordination friction before agents collide.',
+    label: 'Watches who owns what',
+    body: 'Watches file claims, who owns which code, active locks, and stale work, so you see contention before two agents collide.',
     icon: FileLock2,
   },
   {
-    name: 'Lookout / Documentarian',
+    name: 'Lookout',
     roleKey: 'lookout',
-    label: 'Product truth',
-    body: 'Finds drift across docs, OpenAPI, CLI help, skills, website copy, and the live control plane.',
+    label: 'Catches docs that drifted',
+    body: 'Finds where docs, API specs, CLI help, skills, and website copy no longer match the running product.',
     icon: BookOpen,
   },
   {
     name: 'Quartermaster',
     roleKey: 'quartermaster',
-    label: 'Budgets and backends',
-    body: 'Owns spend ceilings, model tiers, backend readiness, spawn pressure, and resource policy.',
+    label: 'Owns spend and backends',
+    body: 'Owns spend caps, model choices, whether each backend is ready, and how much the fleet is allowed to launch.',
     icon: Wallet,
   },
   {
-    name: 'Signalman / QA',
+    name: 'Signalman',
     roleKey: 'signalman',
-    label: 'Evidence and validation',
-    body: 'Tracks tests, validation proof, teardown warnings, and whether findings are actionable.',
+    label: 'Checks the evidence',
+    body: 'Tracks tests, validation proof, leftover cleanup, and whether a finding is something you can actually act on.',
     icon: FileCheck2,
   },
   {
     name: 'Harbormaster',
     roleKey: 'harbormaster',
-    label: 'Runtime truth',
-    body: 'Checks promotion readiness, daemon freshness, stable checkout cleanliness, and live provenance.',
+    label: 'Guards what ships',
+    body: 'Checks whether a build is ready to promote, whether the running daemon is current, and whether the release checkout is clean.',
     icon: ShieldCheck,
   },
   {
     name: 'Sounder',
     roleKey: 'sounder',
-    label: 'Memory and tuples',
-    body: 'Maintains tuple-first coordination, graph edges, episodic memory, and semantic joins.',
+    label: 'Keeps the shared memory',
+    body: 'Maintains the shared memory the fleet reads from: the facts agents post, how they connect, and what each agent remembers.',
     icon: Database,
   },
 ]
@@ -225,7 +223,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'every 10 min',
     work: 'Reports clean or dirty git status so the rest of the fleet knows the ground truth.',
     runtime: 'custom shell',
-    image: '/img/agents/health-monitor.png',
+    image: '/img/agents/health-monitor.webp',
     magic: 'It turns "is the repo clean?" into a shared signal instead of a repeated question.',
     icon: GitBranch,
   },
@@ -235,7 +233,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'git:committed',
     work: 'Reviews the commit and hunts for real bugs, weak tests, missing negative paths, and coverage theater.',
     runtime: 'Ollama',
-    image: '/img/agents/qa.png',
+    image: '/img/agents/qa.webp',
     magic: 'It reacts to commits, but it also knows when to back off through cooldown and singleton rules.',
     icon: CheckCircle2,
   },
@@ -245,7 +243,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'git:committed',
     work: 'Adds meaningful tests for low-coverage paths and proves they fail against no-op code.',
     runtime: 'Codex mini',
-    image: '/img/agents/session-reaper.png',
+    image: '/img/agents/session-reaper.webp',
     magic: 'It treats tests as product evidence, not percentage theater.',
     icon: FileCheck2,
   },
@@ -255,7 +253,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'promotion gate',
     work: 'Syncs README, docs, SDK, OpenAPI, website, and the Port Daddy skill after a candidate is release-ready.',
     runtime: 'Ollama',
-    image: '/img/agents/documentarian.png',
+    image: '/img/agents/documentarian.webp',
     magic: 'It wakes at the release moment, when docs drift is easiest to catch.',
     icon: FileText,
   },
@@ -265,7 +263,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'git:committed',
     work: 'Removes needless complexity without changing behavior, then verifies the patch.',
     runtime: 'Codex mini',
-    image: '/img/agents/dep-watcher.png',
+    image: '/img/agents/dep-watcher.webp',
     magic: 'It keeps the repo from accumulating cleverness after every feature lands.',
     icon: Wrench,
   },
@@ -275,7 +273,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'every 30 min',
     work: 'Updates roadmap state, harvests dogfood feedback, and marks what is built, blocked, or drifting.',
     runtime: 'Codex mini',
-    image: '/img/agents/cartographer.png',
+    image: '/img/agents/cartographer.webp',
     magic: 'It keeps the map honest even when several agents are shipping in parallel.',
     icon: Compass,
   },
@@ -285,7 +283,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'every 30 min',
     work: 'Proposes one concrete improvement only after deduping against the idea trove.',
     runtime: 'Ollama',
-    image: '/img/agents/spark.png',
+    image: '/img/agents/spark.webp',
     magic: 'It makes ideation durable enough to dedupe instead of becoming chat exhaust.',
     icon: Sparkles,
   },
@@ -295,7 +293,7 @@ const FLEET_AGENTS: FleetAgent[] = [
     wakes: 'spark:idea + 2h',
     work: 'Finds non-obvious connections between existing features and emits scoped implementation sketches.',
     runtime: 'Ollama',
-    image: '/img/agents/spider.png',
+    image: '/img/agents/spider.webp',
     magic: 'It combines existing primitives into new capabilities instead of inventing from blank paper.',
     icon: Lightbulb,
   },
@@ -305,22 +303,22 @@ const ONE_OFFS: OneOff[] = [
   {
     title: 'Sortie',
     roleKey: 'sortie',
-    label: 'Tracked mission',
-    body: 'Best when you have one explicit goal, a budget ceiling, and want status, logs, result, and residual risk tied to one mission id.',
+    label: 'A tracked mission',
+    body: 'One clear goal with a spending cap. You get status, logs, the result, and any leftover risk, all tied to a single mission id you can look up later.',
     command: 'pd sortie run "Investigate flaky auth tests" --backend codex --budget 2',
     icon: Route,
   },
   {
     title: 'pd agent',
-    label: 'Ad hoc delegation',
-    body: 'Best when you want Port Daddy to open a scoped session, launch one worker, and close the loop without adding a recurring fleet member.',
+    label: 'Hand off one task',
+    body: 'Port Daddy opens a tracked session, runs one agent, and closes it out. Nothing stays running afterward.',
     command: 'pd agent "Review this branch for launch blockers"',
     icon: Terminal,
   },
   {
     title: 'pd spawn',
-    label: 'Low-level launch',
-    body: 'Best when you need exact backend, model, tools, timeout, identity, or harbor control and want to own the coordination wrapper yourself.',
+    label: 'Set every detail by hand',
+    body: 'For when you need to pick the exact backend, model, tools, and timeout yourself, and handle the coordination around it on your own.',
     command: 'pd spawn --backend codex --model gpt-5.4-mini -- "Inspect src/auth"',
     icon: Code2,
   },
@@ -335,7 +333,6 @@ const TEMPLATE_PACKS: TemplatePack[] = [
     command: `cp templates/pd-fleet-starter.yml pd-fleet.yml
 pd fleet validate
 pd fleet up`,
-    tags: ['Fleet YAML', 'QA', 'Docs'],
     icon: GitBranch,
   },
   {
@@ -346,7 +343,6 @@ pd fleet up`,
     command: `cp templates/pd-fleet-always-on.yml pd-fleet.yml
 pd fleet validate
 pd fleet status`,
-    tags: ['Always-on', 'Budgets', 'Cooldown'],
     icon: Activity,
   },
   {
@@ -357,7 +353,6 @@ pd fleet status`,
     command: `pd watch code:changed --exec "npm test"
 pd spawn --backend codex --model gpt-5.4-mini -- "diagnose the failing test"
 pd note "CI repair evidence: command, failure, patch, validation"`,
-    tags: ['CI', 'Tests', 'Repair'],
     icon: FileCheck2,
   },
   {
@@ -365,10 +360,9 @@ pd note "CI repair evidence: command, failure, patch, validation"`,
     label: 'Kernel agent',
     path: 'templates/always-on-dispatcher/README.md',
     body: 'A long-lived dispatcher pattern for routing build, security, and performance events to the right handler while leaving an audit trail in session notes.',
-    command: `pd begin --identity dispatcher:kernel --lifecycle durable
+    command: `pd begin --identity dispatcher:kernel
 pd watch build:failed --exec "pd agent 'inspect build failure and leave a note'"
 pd notes --limit 10`,
-    tags: ['Dispatcher', 'SSE', 'Audit'],
     icon: Route,
   },
   {
@@ -379,7 +373,6 @@ pd notes --limit 10`,
     command: `pd pub incident:raised '{"severity":"critical","service":"api"}'
 pd lock acquire production-change
 pd note "Ops decision: investigated, mitigated, validation pending"`,
-    tags: ['Ops', 'Locks', 'Incidents'],
     icon: ShieldCheck,
   },
   {
@@ -390,7 +383,6 @@ pd note "Ops decision: investigated, mitigated, validation pending"`,
     command: `pd harbor create shared-dev
 pd harbor discover
 pd tunnel expose web 5173`,
-    tags: ['Harbors', 'Tunnels', 'DNS'],
     icon: Compass,
   },
   {
@@ -401,7 +393,6 @@ pd tunnel expose web 5173`,
     command: `pd pub research:start '{"topic":"port-daddy agent coordination"}'
 pd lock acquire research-cache
 pd note "Research synthesis: sources, open questions, next build"`,
-    tags: ['Research', 'Locks', 'Synthesis'],
     icon: Lightbulb,
   },
   {
@@ -411,44 +402,43 @@ pd note "Research synthesis: sources, open questions, next build"`,
     body: 'A TypeScript example for secure local message exchange when the thing you are building needs agent-to-agent transport as a real primitive, not a hand-waved chat log.',
     command: `tsx templates/encrypted-messenger/messenger.ts
 pd pub secure:message '{"to":"qa","topic":"review-ready"}'`,
-    tags: ['Messaging', 'Crypto', 'TypeScript'],
     icon: Database,
   },
 ]
 
 const FLOW_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/fleet-flow-light.png',
-  dark: '/img/app-screens/fleet-flow.png',
+  light: '/img/app-screens/fleet-flow-light.webp',
+  dark: '/img/app-screens/fleet-flow.webp',
 }
 
 const RESOURCES_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/resources-light.png',
-  dark: '/img/app-screens/resources.png',
+  light: '/img/app-screens/resources-light.webp',
+  dark: '/img/app-screens/resources.webp',
 }
 
 const FLEETBAR_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/fleetbar-native-shell-light.png',
-  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+  light: '/img/app-screens/fleetbar-native-shell-light.webp',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
 }
 
 const SHIPWRIGHT_CONTROL_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/shipwright-control-light.png',
-  dark: '/img/app-screens/shipwright-control-dark.png',
+  light: '/img/app-screens/shipwright-control-light.webp',
+  dark: '/img/app-screens/shipwright-control-dark.webp',
 }
 
 const SORTIES_SCREENSHOT: ThemedImage = {
-  light: '/img/app-screens/sorties-light.png',
-  dark: '/img/app-screens/sorties-dark.png',
+  light: '/img/app-screens/sorties-light.webp',
+  dark: '/img/app-screens/sorties-dark.webp',
 }
 
 const AGENT_SECTIONS: AgentSection[] = [
   {
     slug: 'flow',
     nav: 'Flow',
-    title: 'Flow is the living map of what the fleet is doing.',
+    title: 'Flow shows what every agent is doing, on one screen.',
     eyebrow: 'Fleet Control Center',
     summary:
-      'Flow turns a repo full of agents into one inspectable cockpit: triggers, publishes, agent relationships, budget, guard state, signal value, launch roster, and live chronology on the same screen.',
+      'When a repo has several agents running, Flow puts them on one screen: who woke who, what each is spending, whether the commit guard is on, and what just happened. You read it instead of stitching together ten terminal windows.',
     image: FLOW_SCREENSHOT,
     gif: '/gifs/agents/event-triggers.gif',
     alt: 'Fleet Control Center Flow view showing the flow map, coordination guard, budget, agents, and live chronology',
@@ -462,16 +452,16 @@ open "http://127.0.0.1:$port/fleet-ui/?surface=flow"
 # In FleetBar, open the project and choose Flow.
 # The view should show the topology before you launch more work.`,
     theory: [
-      'Flow is the answer to the question the terminal is bad at: what is actually happening across this repo right now? It puts the graph, the launch controls, budget posture, guard state, agent roster, and recent chronology next to each other so the operator does not have to assemble truth from ten command outputs.',
-      'The cool part is that Flow is not just a pretty map. It is an operator cockpit. The left side shows the relationship graph: who publishes, who triggers, which channels connect the fleet, and whether topology looks clean. The right side shows the consequences: stop fleet, refresh, open Agents, inspect YAML, check guard state, adjust the daily cap, and read the live history of sessions, notes, events, and file movement.',
-      'That makes Flow the safest first screen before adding more automation. If the graph is tangled, the budget is zero, guard is not installed, or live chronology is noisy, you can see it before another model process starts spending money or touching files.',
-      'Use Flow when a repo feels alive and slightly too alive. It gives the whole fleet a shape: channels are no longer invisible strings, recurring agents are no longer background folklore, and recent movement stops being a pile of disconnected logs.',
+      'A terminal is bad at one question: what is happening across this repo right now? Flow answers it. The graph, the launch controls, the budget, the guard state, the agent list, and the recent history sit next to each other, so you read one screen instead of ten command outputs.',
+      'The left side is a map of relationships: who wakes who, which events flow between agents, and whether the wiring looks tangled. The right side is the controls: stop the fleet, open Agents, read the YAML, check the commit guard, change the daily spending cap, and scroll the history of sessions, notes, events, and files that moved.',
+      'That makes Flow the screen to check before you add more automation. If the map is tangled, the budget is zero, the guard is off, or the history is noisy, you can see it before another agent starts spending money or editing files.',
+      'Use Flow when a repo feels busy in a way you cannot quite track. It gives the fleet a shape: events stop being invisible, recurring agents stop being guesswork, and recent activity stops being a pile of scattered logs.',
     ],
     bullets: [
-      'Flow connects topology and operator controls instead of hiding them on separate pages.',
-      'The graph shows trigger and publish relationships, while the cockpit shows budget, guard, signal value, and launch roster.',
-      'Live chronology keeps sessions, notes, events, and file movement visible while the graph explains why agents woke up.',
-      'It is the right place to pause the fleet, inspect YAML, jump to Agents, and decide whether more work should launch.',
+      'The map and the controls live on the same screen, not on separate pages.',
+      'The map shows which events connect agents; the panel shows budget, guard state, and what is ready to run.',
+      'A running history keeps sessions, notes, events, and file changes visible while the map explains why each agent woke up.',
+      'It is where you pause the fleet, read the YAML, jump to Agents, and decide whether more work should start.',
     ],
     screenshots: [
       {
@@ -510,7 +500,7 @@ open "http://127.0.0.1:$port/fleet-ui/?surface=flow"
       { label: 'Fleet CLI', href: '/docs/cli/fleet', body: 'Validate, run, pause, and inspect the fleet that appears in Flow.' },
       { label: 'pd pub', href: '/docs/cli/pub', body: 'Publish the events that become visible edges and activity.' },
       { label: 'pd watch', href: '/docs/cli/watch', body: 'Subscribe to project-scoped events without creating wakeup storms.' },
-      { label: 'Channels feature', href: '/docs/features/radio', body: 'Understand the pub/sub substrate behind the Flow graph.' },
+      { label: 'Channels feature', href: '/docs/features/radio', body: 'See the publish/subscribe layer behind the Flow map.' },
       { label: 'Time travel', href: '/tutorials/time-travel', body: 'Reconstruct what happened from the same chronology Flow summarizes.' },
     ],
   },
@@ -525,7 +515,7 @@ open "http://127.0.0.1:$port/fleet-ui/?surface=flow"
     gif: '/gifs/agents/coordination.gif',
     alt: 'Fleet Control Center showing Coordination Guard in enforce mode beside fleet actions and budget controls',
     codeLabel: 'Guard loop',
-    code: `pd begin "patch the route timeout" --lifecycle durable
+    code: `pd begin "patch the route timeout"
 pd note "Scope: routes/fleet.ts; validation: focused route tests plus typecheck"
 pd session files add routes/fleet.ts
 pd guard status
@@ -587,10 +577,10 @@ pd guard check --staged`,
   {
     slug: 'smart-resources',
     nav: 'Smart Resources',
-    title: 'Smart resource management keeps the fleet from outrunning the Mac.',
+    title: 'Resources keeps the fleet from outrunning your Mac.',
     eyebrow: 'Resource governance',
     summary:
-      'The Resources surface measures memory, disk, local AI processes, ports, spend, backend readiness, and fleet pressure before Port Daddy asks the operator to raise launch caps.',
+      'The Resources screen tracks memory, disk, ports, local model processes, and spend. Before Port Daddy asks to run more agents at once, it checks that the machine, the budget, and the backends can take it.',
     image: RESOURCES_SCREENSHOT,
     gif: '/gifs/agents/daemon-runtime.gif',
     alt: 'Fleet Control Center Resources view showing fleet pressure, memory, disk, networking, local AI, and spend',
@@ -604,10 +594,10 @@ pd fleet run qa
 
 # Raise caps only after Resources says the machine, budget, and backends can handle it.`,
     theory: [
-      'Smart resource management is the difference between a useful fleet and a laptop-shaped space heater. Port Daddy is measuring the things agents actually consume: backend readiness, exact model cost posture, local AI processes, memory, disk, ports, streams, daemon overhead, and the daily cap the operator set for this project.',
-      'The important move is advisory first. Resources can say "this computer looks comfortable enough to ask for more" without silently increasing the fleet cap. That preserves operator control while still giving the agent system a real picture of headroom.',
-      'This matters because agent coordination is not only file coordination. Two agents can avoid editing the same file and still overload the machine, burn budget, or wake more work than the repo can absorb. Resource pressure is coordination pressure.',
-      'In practice, Resources gives Quartermaster a product surface. Launchable agents, suggested cap, backend processes, 24-hour spend, memory free, disk space, daemon overhead, and port pressure all become visible facts that a human and an agent can discuss before expanding the fleet.',
+      'A fleet that ignores the machine turns a laptop into a space heater. Resources tracks what agents actually use: which backends are working, what each model costs, local model processes, memory, disk, ports, and the daily spending cap you set for this project.',
+      'It suggests, it does not act. Resources can say "this machine looks like it could handle more" without raising the limit on its own. You stay in control, and the agents get an honest read on how much room is left.',
+      'This matters because staying out of each other\'s files is not the whole story. Two agents can edit different files and still overload the machine, burn the budget, or kick off more work than the repo can absorb. Strain on the machine is its own kind of collision.',
+      'In practice this is what the Quartermaster role watches: how many agents can run, the suggested cap, the last day of spend, free memory, disk space, and port pressure, all in one place you and an agent can look at before adding more.',
     ],
     bullets: [
       'Resources reports fleet pressure before raising launch caps.',
@@ -659,10 +649,10 @@ pd fleet run qa
   {
     slug: 'yaml-and-shipwright',
     nav: 'YAML + Shipwright',
-    title: 'Agents start as YAML, then Shipwright helps choose the right set.',
-    eyebrow: 'Definition layer',
+    title: 'Agents start as a file. Shipwright helps you choose which ones.',
+    eyebrow: 'How agents are defined',
     summary:
-      'The file is the contract. Shipwright is the guided way to create it for a new repo without installing every possible agent.',
+      'pd-fleet.yml is the file that defines your agents. Shipwright is the helper that reads a new repo and suggests the few agents worth running, so you do not install every possible role on day one.',
     image: '/img/generated/shipwright-proposal.webp',
     gif: '/gifs/agents/yaml-and-shipwright.gif',
     alt: 'Generated image of a Shipwright planning surface turning repo signals into a starter fleet',
@@ -696,7 +686,7 @@ pd fleet up
         title: 'Native shell',
         href: '/mac-preview#download',
         image: FLEETBAR_SCREENSHOT,
-        body: 'FleetBar is the Mac entry point for opening the real control plane instead of a reduced shadow dashboard.',
+        body: 'FleetBar is the Mac menu-bar entry point that opens the full app, not a stripped-down dashboard.',
       },
     ],
     builds: [
@@ -799,7 +789,7 @@ pd note "Template adopted: starter fleet; validation: pd fleet validate + pd fle
       'This is the reusable operating manual for agents driving Port Daddy: start from live truth, publish intent, claim the right surface, coordinate through shared primitives, and leave enough evidence that the next agent can continue without folklore.',
     image: '/img/generated/control-plane-og.webp',
     gif: '/gifs/agents/coordination.gif',
-    alt: 'Generated image of Port Daddy coordination primitives around a local control plane',
+    alt: 'Generated image of Port Daddy coordination primitives around the local app',
     codeLabel: 'Install and use the skill',
     code: `# The skill ships in the Port Daddy package beside the pd binary.
 ls skills/port-daddy-agent-skill
@@ -808,13 +798,13 @@ python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py
 # The operating loop it teaches agents:
 pd status
 pd briefing
-pd begin "finish the bounded slice" --lifecycle durable
+pd begin "finish the bounded slice"
 pd note "Scope, files, assumptions, validation plan"
 pd session files add website-v2/src/pages/AgentsPage.tsx
 pd guard check --staged`,
     theory: [
       'Most agent failures are not model failures. They are coordination failures: stale runtime assumptions, invisible edit intent, ambiguous ownership, missing validation, or a handoff that reads like a vibe instead of an audit trail. The Port Daddy agent skill turns those hazards into a repeatable loop.',
-      'The sexy part is that the skill is not just a prompt. It is a field manual with references, diagrams, schemas, scripts, templates, examples, and UI metadata. An agent can load the lean SKILL.md, then pull deeper procedural guidance only when the task asks for salvage, file claims, FleetBar diagnosis, or release-surface sync.',
+      'The skill is more than a prompt. It is a field manual with references, diagrams, schemas, scripts, templates, and examples. An agent loads the short SKILL.md first, then pulls the deeper guidance only when the task calls for it, like recovering dead work, claiming files, or checking the running daemon.',
       'Treat it as the instruction manual for agents doing multi-agent coordination. It teaches the difference between a durable actor and a temporary model body, between notes and channels, between claims and locks, and between process success and operator-visible proof.',
     ],
     bullets: [
@@ -987,7 +977,7 @@ pd notes --limit 10`,
   {
     slug: 'daemon-runtime',
     nav: 'Daemon runtime',
-    title: 'The launchd daemon is the local substrate under every agent.',
+    title: 'One background process holds the shared state every agent reads.',
     eyebrow: 'Runtime',
     summary:
       'Agents coordinate through the same local daemon that serves Fleet Control Center and FleetBar.',
@@ -1003,13 +993,13 @@ launchctl print gui/501/com.portdaddy.daemon
 
 # If source changed runtime routes, rebuild and relaunch before trusting browser proof.`,
     theory: [
-      'Runtime truth is not the same as source truth. A route can exist in the checkout while FleetBar is still talking to an older promoted daemon, and a CLI shim can point at a different install root than the process serving the console.',
-      'The daemon is the substrate that makes coordination real. It owns sessions, locks, tuples, channels, ports, fleet state, and the evidence surfaces the operator can inspect when a model process disappears.',
+      'What the code says and what is running are two different things. A route can exist in your checkout while FleetBar still talks to an older installed daemon, and the pd command can point at a different install than the process serving the app.',
+      'That background process is where coordination actually lives. It holds the sessions, locks, shared facts, channels, ports, and fleet state, plus the record an agent leaves behind when its process disappears.',
     ],
     bullets: [
-      'The daemon owns ports, sessions, locks, inboxes, tuples, channels, and fleet state.',
-      'FleetBar and the browser control plane should show the same daemon truth.',
-      'Promotion matters because a green checkout is not automatically the installed runtime.',
+      'One process owns ports, sessions, locks, inboxes, shared facts, channels, and fleet state.',
+      'FleetBar and the browser app should be reading from that same process.',
+      'A clean checkout is not automatically the version that is installed and running.',
     ],
     screenshots: [
       {
@@ -1170,15 +1160,15 @@ pd done "Recovered, validated, and closed the abandoned work"`,
   {
     slug: 'coordination',
     nav: 'Coordination',
-    title: 'Multiple agents avoid stepping on each other by publishing intent before edits.',
+    title: 'Agents announce what they are about to touch, so overlap is visible early.',
     eyebrow: 'Claims, locks, guard',
     summary:
-      'Port Daddy uses sessions, notes, file claims, locks, guard checks, and inconsistency channels to make collisions visible.',
+      'An agent announces the files it plans to edit before it edits them. Claims are advisory, so they do not block anyone; they make overlap visible early enough to route around. Locks are the exception, reserved for things that cannot be merged.',
     image: '/img/generated/coordination-guard.webp',
     gif: '/gifs/agents/coordination.gif',
     alt: 'Generated image of a coordination guard protecting file claims and critical sections',
     codeLabel: 'Edit discipline',
-    code: `pd begin "fix fleet route timeout" --lifecycle durable
+    code: `pd begin "fix fleet route timeout"
 pd advise routes/fleet.ts --task "patch timeout handling without touching spawn policy"
 pd note "Scope: routes/fleet.ts only; validation: focused route tests plus typecheck"
 pd session files add routes/fleet.ts
@@ -1356,7 +1346,7 @@ function YamlCodeBlock({ code, label }: { code: string; label: string }) {
   return (
     <div className="min-w-0 space-y-[var(--space-2)]">
       <div className="flex items-center justify-between gap-[var(--panel-gap-tight)]">
-        <BracketLabel>{label}</BracketLabel>
+        <PanelEyebrow>{label}</PanelEyebrow>
         <Button
           type="button"
           variant="secondary"
@@ -1371,7 +1361,7 @@ function YamlCodeBlock({ code, label }: { code: string; label: string }) {
       <pre
         tabIndex={0}
         aria-label={`${label} YAML`}
-        className="m-0 max-h-[32rem] min-w-0 overflow-auto border-2 border-[var(--border-strong)] bg-[var(--code-bg)] px-[var(--space-4)] py-[var(--space-4)] font-mono text-[14px] leading-[1.6] text-[var(--code-text)]"
+        className="m-0 max-h-[32rem] min-w-0 overflow-auto border-2 border-[var(--border-strong)] bg-[var(--code-bg)] px-[var(--space-4)] py-[var(--space-4)] font-mono text-[length:var(--type-meta-size)] leading-[1.6] text-[var(--code-text)]"
       >
         {code.split('\n').map((line, index) => (
           <div key={`${index}-${line.slice(0, 16)}`}>{highlightYamlLine(line)}</div>
@@ -1429,25 +1419,26 @@ function AgentHero() {
       <PageContainer width="wide">
         <SwissGrid className="items-center gap-y-[var(--space-7)]">
           <SwissGridItem span="narrow" className="space-y-[var(--space-6)]">
-            <BracketLabel>Agents</BracketLabel>
+            <PanelEyebrow>Agents</PanelEyebrow>
             <div className="space-y-[var(--space-4)]">
-              <PanelTitle as="h1" size="hero" className="max-w-[11ch]">
-                YAML-defined agents, not mystery automation.
+              <PanelTitle as="h1" size="hero" className="max-w-[14ch]">
+                Run a fleet of coding agents without losing track.
               </PanelTitle>
               <PanelBody className="max-w-[40rem]">
-                Port Daddy agents are declared in YAML, run through the local daemon, and leave
-                inspectable evidence. Shipwright helps a new repo choose the agents it actually
-                needs, then writes a starter fleet you can review and commit.
+                You have more than one coding agent running on your machine. Port Daddy keeps the
+                record so you can see who is working where, read what the others learned, and pick
+                up tasks that died mid-run. Each agent is described in a file you can read, not
+                hidden behind a button.
               </PanelBody>
               <PanelBody className="max-w-[40rem]">
-                The cards below are examples from Port Daddy's own fleet. The magic is that each
-                role has a trigger, backend, budget posture, communication channel, and salvage
-                path instead of being just another tab of chat.
+                The cards below are real agents from Port Daddy's own fleet. Every one says when it
+                wakes, which model runs it, how much it can spend, and what it leaves behind if it
+                crashes. None of it happens silently.
               </PanelBody>
               <PanelBody className="max-w-[40rem]">
-                Start with Flow when you want the full cockpit, Coordination Guard when the commit
-                needs proof, and Smart Resources when the machine, budget, or backend roster might
-                be the real bottleneck.
+                Start with Flow to see everything at once. Reach for Coordination Guard when a
+                commit needs proof of who touched what. Open Smart Resources when the machine,
+                the budget, or a model backend is the thing slowing you down.
               </PanelBody>
             </div>
             <div className="flex flex-wrap gap-[var(--space-3)]">
@@ -1490,10 +1481,15 @@ function ConceptStrip() {
     <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
       <PageContainer width="wide">
         <div className="mb-[var(--space-6)] max-w-[50rem] space-y-[var(--space-3)]">
-          <BracketLabel>Twenty-second model</BracketLabel>
+          <PanelEyebrow>The whole idea in four parts</PanelEyebrow>
           <PanelTitle as="h2" size="display">
-            Four words explain the system.
+            How an agent fleet fits together.
           </PanelTitle>
+          <PanelBody>
+            Read these four cards and the rest of the page makes sense. A file declares each agent,
+            a helper picks which ones a repo needs, the role outlives the process running it, and a
+            crashed process does not erase the work.
+          </PanelBody>
         </div>
         <div className="grid gap-[var(--panel-gap)] md:grid-cols-2 xl:grid-cols-4">
           {CONCEPTS.map((concept) => {
@@ -1502,9 +1498,9 @@ function ConceptStrip() {
             return (
               <SurfacePanel key={concept.label} tone={concept.tone} className="space-y-[var(--panel-gap)]">
                 <div className="flex items-center justify-between gap-[var(--panel-gap)]">
-                  <BracketLabel tone={panelTone} surface={concept.tone}>
+                  <PanelEyebrow tone={panelTone}>
                     {concept.label}
-                  </BracketLabel>
+                  </PanelEyebrow>
                   <Icon className="h-[var(--space-5)] w-[var(--space-5)]" strokeWidth={2.25} />
                 </div>
                 <PanelTitle as="h3" size="nav" tone={panelTone}>
@@ -1532,13 +1528,14 @@ function AgentGrid() {
       <PageContainer width="wide">
         <SwissGrid className="gap-y-[var(--space-6)]">
           <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
-            <BracketLabel>Example fleet</BracketLabel>
+            <PanelEyebrow>Example fleet</PanelEyebrow>
             <PanelTitle as="h2" size="display">
-              Click an agent to see the exact YAML.
+              Click an agent to read its YAML.
             </PanelTitle>
             <PanelBody>
-              These are examples, not a mandate. A new repo might need QA and Documentarian,
-              but not Spark, Spider, or Cartographer. Shipwright helps choose.
+              These are examples, not a checklist. A new repo might want qa and documentarian but
+              skip spark, spider, and cartographer. Shipwright, the helper that picks agents for a
+              new repo, sorts that out for you.
             </PanelBody>
           </SwissGridItem>
           <SwissGridItem span="body">
@@ -1611,13 +1608,14 @@ function PlatformActors() {
       <PageContainer width="wide">
         <SwissGrid className="gap-y-[var(--space-6)]">
           <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
-            <BracketLabel>Platform actors</BracketLabel>
+            <PanelEyebrow>Standing roles</PanelEyebrow>
             <PanelTitle as="h2" size="display">
-              Some agents are roles, not templates.
+              Some agents are standing roles, not one-off jobs.
             </PanelTitle>
             <PanelBody>
-              These durable actors give the system addresses for roadmap truth, coordination,
-              runtime provenance, docs drift, spend, and salvage.
+              Each of these is a named role with its own inbox, kept around even when no agent is
+              attached. You always have an address to ask for the roadmap, the claims and locks,
+              the docs that drifted, the spend, or work to recover.
             </PanelBody>
           </SwissGridItem>
           <SwissGridItem span="body">
@@ -1652,13 +1650,13 @@ function OneOffs() {
       <PageContainer width="wide">
         <SwissGrid className="gap-y-[var(--space-6)]">
           <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
-            <BracketLabel>One-offs</BracketLabel>
+            <PanelEyebrow>One-offs</PanelEyebrow>
             <PanelTitle as="h2" size="display">
-              Missions are separate from recurring work.
+              A single task with a finish line.
             </PanelTitle>
             <PanelBody>
-              Use these when the task has a finish line. Promote the pattern into YAML only
-              after it proves useful enough to repeat.
+              Use these when you want one job done, not a standing agent. If you find yourself
+              running the same one over and over, move it into pd-fleet.yml so it wakes on its own.
             </PanelBody>
           </SwissGridItem>
           <SwissGridItem span="body">
@@ -1677,7 +1675,7 @@ function OneOffs() {
                   <PanelBody size="compact" className="max-w-none">
                     {item.body}
                   </PanelBody>
-                  <div className="block min-w-0 whitespace-pre-wrap break-words border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[11px] font-semibold leading-relaxed text-[var(--brand-primary)] [overflow-wrap:anywhere]">
+                  <div className="block min-w-0 whitespace-pre-wrap break-words border border-[var(--border-default)] bg-[color:var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] font-semibold leading-relaxed text-[var(--brand-primary)] [overflow-wrap:anywhere]">
                     {item.command}
                   </div>
                 </SurfacePanel>
@@ -1743,7 +1741,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
           <div className="space-y-[var(--space-6)]">
               <div className="grid gap-[var(--panel-gap)] xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
                 <SurfacePanel className="space-y-[var(--space-4)]">
-                  <BracketLabel>{section.eyebrow}</BracketLabel>
+                  <PanelEyebrow>{section.eyebrow}</PanelEyebrow>
                   <PanelTitle as="h1" size="hero" className="max-w-[13ch]">
                     {section.title}
                   </PanelTitle>
@@ -1769,9 +1767,9 @@ function SectionDetail({ section }: { section: AgentSection }) {
                 </SurfacePanel>
 
                 <SurfacePanel tone="blue" className="space-y-[var(--panel-gap)]">
-                  <BracketLabel tone="primary" surface="blue">
-                    What to understand
-                  </BracketLabel>
+                  <PanelEyebrow tone="primary">
+                    The short version
+                  </PanelEyebrow>
                   <div className="grid gap-[var(--space-3)]">
                     {section.bullets.map((bullet) => (
                       <div key={bullet} className="flex gap-[var(--space-2)]">
@@ -1787,9 +1785,9 @@ function SectionDetail({ section }: { section: AgentSection }) {
 
               <div className="grid gap-[var(--panel-gap)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.72fr)]">
                 <SurfacePanel elevation="quiet" className="space-y-[var(--panel-gap)]">
-                  <BracketLabel>Theory</BracketLabel>
+                  <PanelEyebrow>Why it works this way</PanelEyebrow>
                   <PanelTitle as="h2" size="card">
-                    Why this page exists
+                    The reasoning behind it
                   </PanelTitle>
                   <div className="space-y-[var(--space-3)]">
                     {(section.theory ?? []).map((paragraph) => (
@@ -1801,11 +1799,11 @@ function SectionDetail({ section }: { section: AgentSection }) {
                 </SurfacePanel>
 
                 <SurfacePanel tone="accent" className="space-y-[var(--panel-gap)]">
-                  <BracketLabel tone="accent" surface="accent">
+                  <PanelEyebrow tone="accent">
                     Build now
-                  </BracketLabel>
+                  </PanelEyebrow>
                   <PanelTitle as="h2" size="card" tone="accent">
-                    Concrete examples
+                    Try it on something real
                   </PanelTitle>
                   <div className="grid gap-[var(--space-2)]">
                     {(section.builds ?? []).map((example) => (
@@ -1833,13 +1831,13 @@ function SectionDetail({ section }: { section: AgentSection }) {
               {section.templatePacks?.length ? (
                 <section id="template-packs" className="space-y-[var(--space-4)]">
                   <div className="max-w-[56rem] space-y-[var(--space-2)]">
-                    <BracketLabel>Current template packs</BracketLabel>
+                    <PanelEyebrow>Template packs</PanelEyebrow>
                     <PanelTitle as="h2" size="card">
-                      Checked-in patterns you can build from today.
+                      Starting points you can copy today.
                     </PanelTitle>
                     <PanelBody>
-                      These entries mirror the files that exist in the repo now. They are examples of agent
-                      coordination surfaces, not a separate top-level product area.
+                      Each pack is a real file in the repo. Copy it, validate it, and keep only the
+                      agents your project needs. These are starting points, not a separate product.
                     </PanelBody>
                   </div>
                   <div className="grid gap-[var(--panel-gap)] md:grid-cols-2">
@@ -1857,27 +1855,16 @@ function SectionDetail({ section }: { section: AgentSection }) {
                         <PanelBody size="compact" className="max-w-none">
                           {pack.body}
                         </PanelBody>
-                        <div className="flex flex-wrap gap-[var(--space-2)]">
-                          {pack.tags.map((tag) => (
-                            <span
-                              key={`${pack.path}-${tag}`}
-                              className="border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[0.68rem] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
                         <div className="border-2 border-[var(--border-default)] bg-[var(--surface-base)] p-[var(--space-3)]">
                           <PanelEyebrow>Path</PanelEyebrow>
-                          <code className="mt-[var(--space-1)] block break-words font-mono text-[12px] font-semibold text-[var(--brand-primary)]">
+                          <code className="mt-[var(--space-1)] block break-words font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)]">
                             {pack.path}
                           </code>
                         </div>
                         <div
                           role="textbox"
                           aria-label={`${pack.title} command example`}
-                          className="m-0 min-w-0 overflow-auto whitespace-pre-wrap border-2 border-[var(--border-default)] p-[var(--space-3)] font-mono text-[12px] leading-relaxed"
-                          style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
+                          className="m-0 min-w-0 overflow-auto whitespace-pre-wrap border-2 border-[var(--border-default)] bg-[var(--code-bg)] p-[var(--space-3)] font-mono text-[length:var(--type-meta-size)] leading-relaxed text-[var(--code-text)]"
                         >
                           <span>{pack.command}</span>
                         </div>
@@ -1889,9 +1876,9 @@ function SectionDetail({ section }: { section: AgentSection }) {
 
               <section className="space-y-[var(--space-4)]">
                 <div className="space-y-[var(--space-2)]">
-                  <BracketLabel>FleetBar and console</BracketLabel>
+                  <PanelEyebrow>FleetBar and console</PanelEyebrow>
                   <PanelTitle as="h2" size="card">
-                    Where to look in the product
+                    Where to find this in the app
                   </PanelTitle>
                 </div>
                 <div className="grid gap-[var(--panel-gap)] md:grid-cols-2">
@@ -1923,9 +1910,9 @@ function SectionDetail({ section }: { section: AgentSection }) {
               <SurfacePanel elevation="quiet" className="space-y-[var(--panel-gap)]">
                 <div className="flex flex-wrap items-end justify-between gap-[var(--space-3)]">
                   <div className="space-y-[var(--space-2)]">
-                    <BracketLabel>Read next in docs</BracketLabel>
+                    <PanelEyebrow>Read next in docs</PanelEyebrow>
                     <PanelTitle as="h2" size="card">
-                      The documentation is the authoritative reference.
+                      The docs are the full reference.
                     </PanelTitle>
                   </div>
                   <BracketLink to="/docs/reference" tone="accent">

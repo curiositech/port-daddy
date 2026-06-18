@@ -215,15 +215,10 @@ describe('Route Parity (manifest → source)', () => {
           .replace(/\//g, '\\/');        // / → \/
 
         // Check that the method+path appears in route source
-        // Route files use: router.get('/path', ...) or app.post('/path', ...),
-        // and Fastify also allows a generic between the method and the call:
-        // fastify.get<{ Params: {...} }>('/path', ...). Tolerate the optional
-        // `<...>` so generic-form routes (e.g. /cockpit/triage/diff/:a/:b) are
-        // found; the path regex already collapses :param names to [^/]+, so a
-        // source path of :runId/:safeName still matches the manifest's :param.
+        // Route files use: router.get('/path', ...) or app.post('/path', ...)
         const quote = "['\"\\x60]"; // match single, double, or backtick
         const routePattern = new RegExp(
-          '\\.' + method.toLowerCase() + '\\s*(?:<[^(]*>)?\\s*\\(\\s*' + quote + '/?' + pathRegex.replace(/^\\\//, '') + quote,
+          '\\.' + method.toLowerCase() + '\\s*\\(\\s*' + quote + '/?' + pathRegex.replace(/^\\\//, '') + quote,
           'i'
         );
 

@@ -1074,20 +1074,6 @@ describe('Sessions Module', () => {
       expect(result.sessions[0].notes).toHaveLength(2);
     });
 
-    it('should include active file and note counts in list rows', () => {
-      const started = sessions.start('Counted session', {
-        files: ['src/a.ts', 'src/b.ts'],
-      });
-      sessions.addNote(started.id, 'First note');
-      sessions.addNote(started.id, 'Second note');
-
-      const result = sessions.list({ status: 'active' });
-      const row = result.sessions.find((session) => session.id === started.id);
-
-      expect(row.fileCount).toBe(2);
-      expect(row.noteCount).toBe(2);
-    });
-
     it('should not include notes by default', () => {
       const started = sessions.start('Work item');
       sessions.addNote(started.id, 'Note 1');

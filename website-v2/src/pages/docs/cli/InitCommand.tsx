@@ -41,7 +41,7 @@ export default function InitCommand() {
 
   Next steps:
     pd fleet up         # start background agents
-    pd begin "Initial setup" --lifecycle durable
+    pd begin            # start a coordination session
     git commit          # fleet agents trigger automatically`,
         },
         {
@@ -59,7 +59,7 @@ export default function InitCommand() {
   Next steps:
     pd fleet init       # create agent fleet
     pd fleet up         # start background agents
-    pd begin "Initial setup" --lifecycle durable
+    pd begin            # start a coordination session
     git commit          # fleet agents trigger automatically`,
         },
         {
@@ -82,7 +82,7 @@ export default function InitCommand() {
   Next steps:
     pd fleet init       # create agent fleet
     pd fleet up         # start background agents
-    pd begin "Initial setup" --lifecycle durable
+    pd begin            # start a coordination session
     git commit          # fleet agents trigger automatically`,
         },
       ]}

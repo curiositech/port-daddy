@@ -99,11 +99,10 @@ export const CLI_COMMANDS: CliCommand[] = [
     cmd: 'pd begin',
     description: 'Start a session and register as an agent in one command. Writes slot-scoped local context under .portdaddy/contexts/ and updates .portdaddy/current.json as a compatibility pointer. The recommended way to start any coordinated work.',
     flags: [
-      '--lifecycle <mode> Required: durable or ephemeral',
       '--identity <id>    Semantic identity for this agent (project:stack:context)',
       '--purpose <text>   What this agent is working on',
     ],
-    example: 'pd begin --identity myapp:api --purpose "Fix auth bug" --lifecycle durable',
+    example: 'pd begin --identity myapp:api --purpose "Fix auth bug"',
     output: '[pd] Session abc123 started · Agent myapp:api registered\n[pd] 2 dead agents in myapp:* — run: pd salvage --project myapp',
   },
   {

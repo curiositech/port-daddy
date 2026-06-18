@@ -6,7 +6,7 @@ That is PD Tube.
 
 PD Tube is Port Daddy's local event-reply loop for developer tools. A button, test reporter, browser prototype, editor helper, or webhook adapter publishes a structured event. An agent subscribes in the terminal with a single command, inspects the repo, does real work, and replies — with the same single command.
 
-![PD Tube browser example with a local button asking an agent for help](/img/examples/pd-tube-button-to-agent-ui.png)
+![PD Tube browser example with a local button asking an agent for help](/img/examples/pd-tube-button-to-agent-ui.webp)
 
 ## Why This Exists
 
@@ -142,7 +142,7 @@ publishTubeEvent({
 
 A VS Code lens publishes a selected range and asks for a structured explanation on `editor:explain`. The agent answers with citations to local code and suggested commands.
 
-![Editor lightbulb example UI](/img/examples/editor-lightbulb-to-agent-ui.png)
+![Editor lightbulb example UI](/img/examples/editor-lightbulb-to-agent-ui.webp)
 
 ### 4. Webhook To Local Agent
 

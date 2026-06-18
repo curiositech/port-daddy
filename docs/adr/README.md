@@ -40,12 +40,6 @@ ADRs follow the [MADR format](https://adr.github.io/madr/) (Markdown Architectur
 | [0046](0046-operator-tui.md) | The Operator TUI — Conversation Multiplexer | Accepted | 2026-06 |
 | [0047](0047-conversation-protocol.md) | The Port Daddy Conversation Protocol | Accepted | 2026-06 |
 | [0048](0048-what-port-daddy-is.md) | What Port Daddy Is — the North Star | Accepted | 2026-06 |
-| [0049](0049-relay-architecture.md) | Relay v0 Architecture | Accepted | 2026-06 |
-| [0050](0050-coast-guard.md) | The Coast Guard — Agentic Safety on the Operator's Machine | Accepted | 2026-06 |
-| [0051](0051-marketplace-protocol.md) | The Marketplace Protocol — Encrypted-Capability Trade Across Operators | Proposed | 2026-06 |
-| [0052](0052-trajectory-export-and-rl-loop.md) | Trajectory Export and the Coordination RL Loop | Proposed | 2026-06 |
-| [0053](0053-out-of-band-enforcement.md) | Out-of-Band Enforcement — Making Port Daddy Compulsory, Not Bypassable | Proposed | 2026-06 |
-| [0084](0084-daemon-berths.md) | Daemon Berths — tiered, colour-coded, side-by-side daemons | Accepted | 2026-06 |
 
 ## How to Read These
 

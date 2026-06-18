@@ -382,6 +382,6 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     console.log('    pd fleet up');
   }
   console.log('    pd fleet status');
-  console.log('    pd begin "your next task" --lifecycle durable');
+  console.log('    pd begin "your next task"');
   console.log('');
 }

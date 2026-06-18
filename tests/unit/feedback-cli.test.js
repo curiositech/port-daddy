@@ -189,8 +189,7 @@ describe('pd feedback bare form', () => {
     pdFetch.mockResolvedValueOnce(jsonResponse({ error: 'invalid slug' }, false));
 
     await expect(handleFeedback(['something'], {})).rejects.toThrow('process.exit(1)');
-    // ui.error routes through p.log.error (prompts lib) in TTY environments,
-    // not console.error — assert the process exited rather than the log sink.
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('invalid slug'));
   });
 
   test('severity shortcut --high maps to severity:high', async () => {

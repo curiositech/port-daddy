@@ -18,6 +18,8 @@
   arr/.style={->,>=Latex,thick,draw=hhink},
 ]
 % the append-only ledger
+\node[font=\bfseries,anchor=west] at (-0.3,2.2)
+  {Append-only outcome ledger (never mutate in place):};
 \node[row,fill=hhsand!30] (e1) at (0,0.8) {outcome $o_1$\\{\scriptsize honest}};
 \node[row,fill=hhsand!30,right=5mm of e1] (e2) {outcome $o_2$\\{\scriptsize honest}};
 \node[row,fill=hhsand!30,right=5mm of e2] (e3) {outcome $o_3$\\{\scriptsize \textcolor{hhcobalt}{fraudulent}}};
@@ -26,21 +28,26 @@
 \draw[arr] (e1)--(e2); \draw[arr] (e2)--(e3); \draw[arr] (e3)--(e4); \draw[arr] (e4)--(t);
 
 % tombstone points back at o3
-\draw[->,>=Latex,thick,draw=hhcobalt,dashed]
-  (t.north) .. controls ($(t.north)+(0,9mm)$) and ($(e3.north)+(0,9mm)$) .. (e3.north)
-  node[pos=0.5,above=7mm,font=\scriptsize,text=hhink] {compensates (saga)};
+\draw[->,>=Latex,thick,draw=hhcobalt,dashed] (t.north) to[bend left=30]
+  node[midway,above,font=\scriptsize,text=hhink] {compensates (saga)} (e3.north);
 
-
+% propagation across harbors
+\node[draw=hhink,thick,fill=hhsand!30,rounded corners=2pt,below=12mm of e2,
+      anchor=north,text width=140mm,align=left,inner sep=5pt,font=\footnotesize] (note)
+  {\textbf{Property.} Reputation is \emph{monotone in honest outcomes}
+   ($o_1,o_2,o_4$ never silently erased) but \emph{individually revocable}: the
+   fraudulent $o_3$ is nullified by an appended \textbf{tombstone}, which
+   \emph{propagates} across harbors bounded by the revocation-convergence window
+   (Paper~4). The poisoned point was spendable only during that window.\\[3pt]
+   \textbf{Bounded memory} (Liu--Skrzypacz) is a \emph{tunable parameter}, not a
+   virtue: $\infty$-memory is rarely optimal --- it freezes types and removes the
+   incentive to keep performing.};
 \end{tikzpicture}}
-\caption{\textbf{Tombstone revocation on an append-only ledger} (never mutate in
-place). A fraudulent outcome is not deleted (that would break append-only and
-auditability); it is nullified by an appended \emph{tombstone} --- a saga-style
-compensating entry --- which propagates across harbors bounded by the
-revocation-convergence window (Paper~4); the poisoned point was spendable only
-during that window. ``Reputation never ends'' is corrected to: monotone in
-\emph{honest} outcomes (they are never silently erased), individually revocable via
-tombstone, with bounded memory (Liu--Skrzypacz) as a tunable parameter rather than a
-virtue --- $\infty$-memory freezes types and removes the incentive to keep
-performing.}
+\caption{\textbf{Tombstone revocation on an append-only ledger.} A fraudulent
+outcome is not deleted (that would break append-only and auditability); it is
+nullified by an appended \emph{tombstone} --- a saga-style compensating entry ---
+which propagates across harbors. ``Reputation never ends'' is corrected to:
+monotone in \emph{honest} outcomes, individually revocable via tombstone, with
+bounded memory as a design parameter.}
 \label{fig:tombstone}
 \end{figure}

@@ -40,9 +40,7 @@
       "Bash(wc:*)",
       "Bash(chmod:*)",
       "Bash(mkdir:*)",
-      "Bash(rm:*)",
-      "mcp__github__pull_request_read",
-      "mcp__github__actions_list"
+      "Bash(rm:*)"
     ]
   },
   "hooks": {

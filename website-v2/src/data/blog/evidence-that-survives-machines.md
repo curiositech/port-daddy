@@ -127,7 +127,7 @@ So an agent that sprays a hint, later realizes the hint was wrong, and revokes i
 
 This matters for the product in a very practical way: notes and tuples can become richer without becoming dangerous. Today, the rule is "notes are immutable --- once written, they cannot be edited or deleted." That rule is correct for audit but blunt for coordination. With the mutable-signal ledger, the public record is *"this note was deposited; this revocation was deposited; the current view is the diff."* You get retraction without rewriting history.
 
-![Cross-machine verification surface in FleetBar](/img/app-screens/shipwright-harbor-light.png)
+![Cross-machine verification surface in FleetBar](/img/app-screens/shipwright-harbor-light.webp)
 
 ## What This Lets the Product Do
 

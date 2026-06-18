@@ -38,7 +38,9 @@
 \node[harbor] (HA) at (0,0) {%
   \textbf{Harbor $A$}\\[2pt]
   \footnotesize Alice's laptop\\
-  \footnotesize signing key $\mathit{sk}_A$};
+  \footnotesize signing key $\mathit{sk}_A$\\[3pt]
+  \begin{tikzpicture}[overlay,remember picture]
+  \end{tikzpicture}};
 \node[agentdot] at ($(HA.south west)+(8mm,7mm)$) {};
 \node[agentdot] at ($(HA.south)+(0,7mm)$) {};
 \node[agentdot] at ($(HA.south east)+(-8mm,7mm)$) {};
@@ -89,7 +91,7 @@ correlation device — each harbor publishes its epoch root, and any third party
 can audit for equivocation. The escrow below is structurally bounded (it can
 refuse to clear, but it cannot redirect funds or equivocate about its
 decisions). The amber arrow between the harbors is the cross-harbor capability
-transfer ceremony of \S\ref{sec:fh-xfer}; the dashed teal line is the
+transfer ceremony of \S\ref{sec:fh-xfer}; the dashed sage line is the
 federated revocation gossip of \S\ref{sec:fh-revocation}. The diagram is
 deliberately small: every primitive in the paper attaches to one of these four
 elements.}

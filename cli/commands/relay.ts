@@ -143,4 +143,3 @@ export async function handleRelay(
   console.log('  pd relay status                               connection status');
   console.log('  pd relay exchange --oidc-token <t>            OIDC → PD card (CI)');
   process.exit(1);
-}

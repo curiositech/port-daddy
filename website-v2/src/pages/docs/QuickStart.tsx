@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import {
   BracketLabel,
@@ -43,7 +42,7 @@ const STEPS = [
     number: '04',
     title: 'Begin an Agent Session',
     description: 'Register as an agent and start tracking your work.',
-    code: '$ pd begin "Initial setup" --identity myapp:coder --lifecycle durable',
+    code: '$ pd begin "Initial setup" --identity myapp:coder',
     output: 'Session started: session-b2e4\nAgent registered: myapp:coder',
     verifyCommand: '$ pd whoami',
     verifyOutput: 'Agent:   agent-7f3a\nSession: session-b2e4\nIdentity: myapp:coder',
@@ -54,11 +53,10 @@ export default function QuickStart() {
   return (
     <div className="space-y-[var(--space-7)]">
       <div className="space-y-[var(--space-4)]">
-        <Badge variant="teal">Quick Start</Badge>
         <SectionIntro
           eyebrow="First run"
           title="Get Port Daddy running in four checked commands."
-          description="Install the CLI, start the daemon, claim a deterministic service port, and register an agent session. Each command includes the output you should expect before moving on."
+          description="Install the CLI, start the background service, claim a stable port for a service, and register an agent session. Each command shows the output you should expect before moving on."
           titleAs="h1"
           titleSize="section"
           titleClassName="max-w-[16ch]"

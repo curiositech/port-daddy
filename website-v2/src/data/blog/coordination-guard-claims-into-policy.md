@@ -88,7 +88,7 @@ We had a guard. We had notes. We had claims. It still failed.
 This code will fail, to borrow the old blog-post rhythm.
 
 ```bash
-$ pd begin "repair blog nav" --identity website:nav --lifecycle durable
+$ pd begin "repair blog nav" --identity website:nav
 session: session-website-nav
 
 $ pd note "Only touching SiteHeader and MacPreviewPage."

@@ -52,24 +52,12 @@ const TOOL_FEATURE_MAP = {
   'list_commitments': 'commitments',
   'list_overdue_commitments': 'commitments',
 
-  // Suggestibility nudges (ADR-0039)
-  'list_nudges': 'suggestions',
-  'respond_nudge': 'suggestions',
-
-  // Parley (ADR-0055)
-  'call_parley': 'parley',
-  'list_parleys': 'parley',
-  'get_parley': 'parley',
-  'respond_parley': 'parley',
-  'resolve_parley': 'parley',
-
   // Knowledge: semantic search + symbol index — #199
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',
   'symbol_stats': 'symbols',
   'predict_conflicts': 'symbols',
-  'blast_radius': 'symbols',
 
   // Port management
   'claim_port': 'claim',
@@ -85,7 +73,6 @@ const TOOL_FEATURE_MAP = {
   'list_sessions': 'sessions',
   'list_notes': 'notes',
   'claim_files': 'sessions',
-  'claim_symbols': 'sessions',
 
   // Locks
   'acquire_lock': 'locks',
@@ -273,20 +260,6 @@ const TOOL_FEATURE_MAP = {
   'drop_feedback': 'feedback',
   'list_feedback': 'feedback',
   'feedback_summary': 'feedback',
-
-  // Context Health (ADR-0048 P1/P3)
-  'get_context_budget': 'context_health',
-  'get_context_overview': 'context_health',
-  'get_task_ledger': 'context_health',
-
-  // Harvest (ADR-0048 P2/P3)
-  'harvest_session': 'harvest',
-  'find_related_work': 'harvest',
-
-  // Custodian (ADR-0048 P3)
-  'custodian_status': 'custodian',
-  'list_pending_approvals': 'custodian',
-  'resolve_approval': 'custodian',
 };
 
 /**
@@ -316,8 +289,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'recovery',       // PR #65 magic-link account recovery. API-only single-use token issue/consume consumed by out-of-band recovery flows (proofs/bonded/recovery/magic-link.pv). Intentionally NO MCP surface — an agent must not be able to mint or consume account-recovery tokens.
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
-  'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
-  'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
+  'relay',          // ADR-0049 cloud relay. Operator-configures the relay URL (`pd relay url`); the daemon then speaks directly to the relay Worker over SSE. No agent-facing MCP surface needed — agents are relay consumers via pub/sub channels, not relay managers.
 ]);
 
 // ============================================================================
@@ -601,20 +573,6 @@ describe('Manifest features --> MCP tools (routed features need MCP coverage)', 
 // 3. MCP --> Routes: Every MCP API call references a real server route
 // ============================================================================
 
-/**
- * Routes that use TypeScript generics in Fastify (`fastify.post<{Params}>()`)
- * cannot be detected by the simple regex route extractor — the `<{Params}>` type
- * argument confuses the `.post(` pattern matcher. These routes ARE real and DO exist
- * in the server; they are just invisible to the static extractor.
- *
- * Convention: add a `_note` to features.manifest.json explaining the omission.
- * Mirroring that convention here avoids false ghost-call failures.
- */
-const KNOWN_GENERIC_ROUTES = new Set([
-  'POST /harvest/session/:param',   // routes/harvest.ts — Fastify generic syntax
-  'POST /custodian/approvals/:param', // routes/custodian.ts — Fastify generic syntax
-]);
-
 describe('MCP tool API calls --> Server routes (no ghost API calls)', () => {
   it('should extract API calls from MCP handleTool function', () => {
     expect(mcpApiCalls.length).toBeGreaterThan(10);
@@ -626,10 +584,6 @@ describe('MCP tool API calls --> Server routes (no ghost API calls)', () => {
     for (const call of mcpApiCalls) {
       // Skip paths that are just :param (result of template-only paths)
       if (call.path === ':param' || call.path === '') continue;
-
-      // Skip routes known to use TypeScript generics (invisible to the regex extractor)
-      const callKey = `${call.method} ${call.path}`;
-      if (KNOWN_GENERIC_ROUTES.has(callKey)) continue;
 
       const matchesRoute = serverRoutes.some(sr =>
         sr.method === call.method && pathsMatch(sr.path, call.path)
@@ -765,8 +719,7 @@ describe('MCP tiered tool loading', () => {
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
-    'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
-    'context', 'harvest', 'custodian',
+    'harbors', 'signals', 'roadmap', 'commitments', 'knowledge',
   ];
 
   it('ESSENTIAL_TOOL_NAMES in server matches expected set', () => {

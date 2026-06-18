@@ -48,13 +48,7 @@ function extractServerRoutes() {
   const routesDir = join(ROOT, 'routes');
   const routes = [];
 
-  // Tolerate an optional Fastify TypeScript generic between the method and the
-  // call, e.g. `fastify.get<{ Params: { id: string } }>('/path', ...)`. Without
-  // this the extractor silently drops every generic-form route (dispatches.ts,
-  // custodian.ts, harvest.ts, cockpit.ts), so a manifested generic route reads
-  // as a ghost. The generic is balanced-brace-free at this depth, so `<[^(]*>`
-  // (lazy, stopping before the opening paren) is sufficient.
-  const routePattern = /\.(get|post|put|delete|patch)\s*(?:<[^(]*>)?\s*\(\s*['"`]([^'"`]+)['"`]/gi;
+  const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
   // routes/test-hooks.ts mounts only when NODE_ENV=test (see
   // routes/test-hooks.ts + routes/index.ts). Intentionally absent from
@@ -522,22 +516,14 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'roadmap_list': 'roadmap',
       'roadmap_get': 'roadmap',
       'roadmap_promote': 'roadmap',
-      'call_parley': 'parley',
-      'list_parleys': 'parley',
-      'get_parley': 'parley',
-      'respond_parley': 'parley',
-      'resolve_parley': 'parley',
       'commit': 'commitments',
       'list_commitments': 'commitments',
       'list_overdue_commitments': 'commitments',
-      'list_nudges': 'suggestions',
-      'respond_nudge': 'suggestions',
       'semantic_search': 'semantic',
       'semantic_resolve': 'semantic',
       'find_symbols': 'symbols',
       'symbol_stats': 'symbols',
       'predict_conflicts': 'symbols',
-      'blast_radius': 'symbols',
       'claim_port': 'claim',
       'release_port': 'release',
       'list_services': 'services',
@@ -549,7 +535,6 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_sessions': 'sessions',
       'list_notes': 'notes',
       'claim_files': 'sessions',
-      'claim_symbols': 'sessions',
       'acquire_lock': 'locks',
       'release_lock': 'locks',
       'list_locks': 'locks',
@@ -723,20 +708,6 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'drop_feedback': 'feedback',
       'list_feedback': 'feedback',
       'feedback_summary': 'feedback',
-
-      // Context Health (ADR-0048 P1/P3)
-      'get_context_budget': 'context_health',
-      'get_context_overview': 'context_health',
-      'get_task_ledger': 'context_health',
-
-      // Harvest (ADR-0048 P2/P3)
-      'harvest_session': 'harvest',
-      'find_related_work': 'harvest',
-
-      // Custodian (ADR-0048 P3)
-      'custodian_status': 'custodian',
-      'list_pending_approvals': 'custodian',
-      'resolve_approval': 'custodian',
     };
 
     const unmapped = [];

@@ -29,19 +29,6 @@ describe('backend readiness', () => {
   const originalGeminiKey = process.env.GEMINI_API_KEY;
   const originalCfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const originalCfApiToken = process.env.CLOUDFLARE_API_TOKEN;
-  // The cli:* readiness tests `delete process.env.PD_CLI_*_BIN`; capture and
-  // restore them around the suite so a developer with these set locally gets a
-  // hermetic run and no state leaks into later tests.
-  const CLI_BIN_ENV_KEYS = [
-    'PD_CLI_CLAUDE_CODE_BIN',
-    'PD_CLI_CODEX_BIN',
-    'PD_CLI_GEMINI_BIN',
-    'PD_CLI_GROQ_BIN',
-    'PD_CLI_GROK_BIN',
-  ];
-  const originalCliBins = Object.fromEntries(
-    CLI_BIN_ENV_KEYS.map((key) => [key, process.env[key]]),
-  );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +37,6 @@ describe('backend readiness', () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.CLOUDFLARE_ACCOUNT_ID;
     delete process.env.CLOUDFLARE_API_TOKEN;
-    for (const key of CLI_BIN_ENV_KEYS) delete process.env[key];
     global.fetch = jest.fn(async () => {
       throw new Error('offline');
     });
@@ -68,11 +54,6 @@ describe('backend readiness', () => {
 
     if (originalCfApiToken === undefined) delete process.env.CLOUDFLARE_API_TOKEN;
     else process.env.CLOUDFLARE_API_TOKEN = originalCfApiToken;
-
-    for (const key of CLI_BIN_ENV_KEYS) {
-      if (originalCliBins[key] === undefined) delete process.env[key];
-      else process.env[key] = originalCliBins[key];
-    }
   });
 
   test('reports Claude SDK backend as ready when ANTHROPIC_API_KEY is present and the model has an exact rate', async () => {
@@ -224,61 +205,6 @@ describe('backend readiness', () => {
     });
     expect(readiness.summary).toContain('Codex CLI binary found');
     expect(readiness.summary).toContain('has no exact cost rate entry');
-  });
-
-  test.each([
-    ['cli:gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
-    ['cli:groq', 'groq', 'PD_CLI_GROQ_BIN'],
-    ['cli:grok', 'grok', 'PD_CLI_GROK_BIN'],
-  ])('%s reports needs_setup when the binary is missing, manual_check when found', async (backend, bin, envKey) => {
-    delete process.env[envKey];
-
-    mockSpawnSync.mockReturnValue({ status: 1 });
-    const missing = await assessBackendReadiness(backend);
-    expect(mockSpawnSync).toHaveBeenCalledWith('which', [bin], expect.objectContaining({ encoding: 'utf-8' }));
-    expect(missing).toMatchObject({ backend, status: 'needs_setup' });
-    expect(missing.summary).toContain('not found');
-
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === bin ? 0 : 1,
-    }));
-    const found = await assessBackendReadiness(backend);
-    expect(found).toMatchObject({ backend, status: 'manual_check' });
-    expect(found.nextStep).toContain(`PD_USE_CLI_BACKEND=${bin}`);
-    // Installed cli:* tube backend with unverifiable auth must be launchable.
-    expect(found.launchableUnverified).toBe(true);
-  });
-
-  test.each([
-    ['cli:claude-code', 'claude', 'PD_CLI_CLAUDE_CODE_BIN'],
-    ['cli:codex', 'codex', 'PD_CLI_CODEX_BIN'],
-  ])('%s is launchableUnverified when its binary is found, blocked when missing', async (backend, bin, envKey) => {
-    delete process.env[envKey];
-
-    mockSpawnSync.mockReturnValue({ status: 1 });
-    const missing = await assessBackendReadiness(backend);
-    expect(missing).toMatchObject({ backend, status: 'needs_setup' });
-    expect(missing.launchableUnverified).not.toBe(true);
-
-    mockSpawnSync.mockImplementation((command, args) => ({
-      status: command === 'which' && args[0] === bin ? 0 : 1,
-    }));
-    const found = await assessBackendReadiness(backend);
-    expect(found).toMatchObject({ backend, status: 'manual_check', launchableUnverified: true });
-  });
-
-  test('cli:gemini honors the PD_CLI_GEMINI_BIN binary override', async () => {
-    process.env.PD_CLI_GEMINI_BIN = 'gemini-beta';
-    try {
-      mockSpawnSync.mockImplementation((command, args) => ({
-        status: command === 'which' && args[0] === 'gemini-beta' ? 0 : 1,
-      }));
-      const readiness = await assessBackendReadiness('cli:gemini');
-      expect(mockSpawnSync).toHaveBeenCalledWith('which', ['gemini-beta'], expect.anything());
-      expect(readiness.status).toBe('manual_check');
-    } finally {
-      delete process.env.PD_CLI_GEMINI_BIN;
-    }
   });
 
   test('keeps ollama probe details while still blocking launch under telemetry policy', async () => {

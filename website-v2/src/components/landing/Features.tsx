@@ -57,7 +57,7 @@ function FeatureArt({
           loading="lazy"
         />
       ) : null}
-      <div className="absolute bottom-0 left-0 border-r-2 border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+      <div className="absolute bottom-0 left-0 border-r-2 border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[10px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
         {feature.status}
       </div>
     </div>
@@ -209,10 +209,10 @@ function FeatureCard({
 
         <div className="relative flex h-full flex-col gap-[var(--space-4)]">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-            <span className="font-mono text-[12px] font-black uppercase tracking-[0.22em] text-[var(--text-primary)]">
+            <span className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-primary)]">
               {String(index + 1).padStart(2, '0')}
             </span>
-            <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-3)] font-sans text-[12px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
+            <span className="border-l-2 border-[var(--border-strong)] pl-[var(--space-3)] font-sans text-[10px] font-black uppercase tracking-[0.22em] text-[var(--text-secondary)]">
               {feature.category}
             </span>
           </div>

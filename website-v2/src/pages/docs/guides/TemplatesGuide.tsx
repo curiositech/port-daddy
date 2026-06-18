@@ -13,7 +13,7 @@ const TEMPLATES = [
   {
     name: 'Single helper',
     summary: 'One agent, one session, one narrow scope.',
-    command: `pd begin "Investigate one failing route" --identity myrepo:helper:route --lifecycle durable
+    command: `pd begin "Investigate one failing route" --identity myrepo:helper:route
 pd note "Scope: routes/auth.ts and tests/auth.test.ts"
 pd session files add routes/auth.ts tests/auth.test.ts`,
     output: `Session started: session-helper-route

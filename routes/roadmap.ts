@@ -61,12 +61,6 @@ interface StatusBody {
   harbor?: unknown;
 }
 
-interface RoadmapNoteBody {
-  at?: unknown;
-  by?: unknown;
-  text?: unknown;
-}
-
 function asString(v: unknown): string | undefined {
   if (typeof v !== 'string') return undefined;
   const trimmed = v.trim();
@@ -92,21 +86,6 @@ function asStringArray(v: unknown): string[] | undefined {
   const out: string[] = [];
   for (const item of v) {
     if (typeof item === 'string' && item.trim()) out.push(item.trim());
-  }
-  return out;
-}
-
-function asRoadmapNotes(v: unknown): Array<{ at: number; by: string; text: string }> | undefined {
-  if (!Array.isArray(v)) return undefined;
-  const out: Array<{ at: number; by: string; text: string }> = [];
-  for (const item of v) {
-    if (!item || typeof item !== 'object') continue;
-    const note = item as RoadmapNoteBody;
-    const by = asString(note.by);
-    const text = asString(note.text);
-    const at = asNumber(note.at);
-    if (!by || !text || at === undefined) continue;
-    out.push({ at, by, text });
   }
   return out;
 }
@@ -141,8 +120,6 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
     if (promotedAt !== undefined) input.promotedAt = promotedAt;
     const dependencies = asStringArray(body.dependencies);
     if (dependencies) input.dependencies = dependencies;
-    const notes = asRoadmapNotes(body.notes);
-    if (notes) input.notes = notes;
     const harbor = asString(body.harbor);
     if (harbor) input.harbor = harbor;
     const project = asString(body.project);
