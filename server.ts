@@ -63,6 +63,7 @@ import { createHarborTokens } from './lib/harbor-tokens.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
+import { createConductor } from './lib/fleet/conductor.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
@@ -539,6 +540,24 @@ const spawner = createSpawner({
   enforceTranscriptPolicy: true,
 });
 spawnerRef = spawner;
+
+// The Daemon Fleet Conductor (ADR-0060) — the ONE spawn primitive. Every surface
+// that used to call `spawner.spawn` directly (the sortie POST, the reactive
+// orchestrator) now routes through `conductor.launch(intent)`, so the daemon has
+// a single chokepoint owning the bond/lineage/breaker/halt envelope. The
+// conductor rebuilds the byte-identical spawn spec (golden-tested), so behavior
+// at the spawner boundary is unchanged.
+const conductor = createConductor({
+  db,
+  // The real Spawner / bonds satisfy the Conductor's minimal duck-typed
+  // interfaces at runtime; the casts bridge a nominal seam only (the real
+  // spawn spec requires backend+task and the real bonds' `state` is the
+  // BondState enum, vs the Conductor's structural `Record`/`string`). Shapes
+  // are verified by the fleet-conductor golden + gate tests.
+  spawner: spawner as unknown as Parameters<typeof createConductor>[0]['spawner'],
+  bonds: bonds as unknown as Parameters<typeof createConductor>[0]['bonds'],
+  broadcast: (channel: string, event: unknown) => messaging.publish(channel, event),
+});
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {
@@ -598,7 +617,7 @@ const bosunHeartbeat = createBosunHeartbeat({
   logger,
 });
 
-const orchestrator = createReactiveOrchestrator(db, messaging, spawner);
+const orchestrator = createReactiveOrchestrator(db, messaging, spawner, conductor);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
 // Fleet daemon — always-on fleet subsystem (multi-project)
@@ -1061,7 +1080,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
