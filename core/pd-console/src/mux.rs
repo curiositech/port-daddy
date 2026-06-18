@@ -47,6 +47,11 @@ pub enum SurfaceKind {
     Sessions,
     /// The dispatch queue (the approval gate).
     Dispatch,
+    /// Any existing console panel addressed by its nav id (fleet, cockpit,
+    /// claims, peek, adrs, activity, inbox, suggest, memory, prs, coast, …).
+    /// This is the bridge to the live data the shell already fetches: every
+    /// pane the old static console had is summonable into any split.
+    Panel { nav: String },
 }
 
 impl SurfaceKind {
@@ -63,6 +68,7 @@ impl SurfaceKind {
             SurfaceKind::Fleet => "fleet".into(),
             SurfaceKind::Sessions => "sessions".into(),
             SurfaceKind::Dispatch => "dispatch".into(),
+            SurfaceKind::Panel { nav } => nav.clone(),
         }
     }
 }

@@ -18,6 +18,7 @@
 use gpui::prelude::*;
 use gpui::*;
 
+use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
 use std::sync::mpsc;
 
@@ -32,6 +33,7 @@ pub enum ControlMsg {
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)] // label/icon retained for the title-bar + future surface picker
 struct NavItem {
     id: &'static str,
     label: &'static str,
@@ -177,6 +179,7 @@ fn render_block(block: Block) -> impl IntoElement {
 
 // ── Sidebar nav item (clickable) ──────────────────────────────────────────────
 
+#[allow(dead_code)] // retained for the slice-3 surface picker; tree shell no longer uses the fixed sidebar
 #[derive(IntoElement)]
 struct SidebarItem {
     icon: &'static str,
@@ -225,7 +228,14 @@ impl RenderOnce for SidebarItem {
 // ── Main console view ─────────────────────────────────────────────────────────
 
 pub struct ConsoleView {
-    pub active_nav: usize,
+    /// The pane tree — the tmux-style spatial multiplexer. Replaces the old
+    /// single `active_nav` selection: the window is now a tree of panes, each
+    /// showing a surface, with one focused. See `crate::mux`.
+    workspace: Workspace,
+    /// True after the leader key (Ctrl-A) is pressed; the next keystroke is a
+    /// multiplexer command (split / close / focus / swap-surface) rather than
+    /// passing through. Disarms after one command. tmux muscle-memory.
+    leader_armed: bool,
     pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
     /// Stable focus handle — created once and focused on open. Recreating it per
@@ -260,19 +270,81 @@ impl ConsoleView {
             ]
         }).collect();
 
-        // Open on the requested pane if its id matches a NAV entry, else Fleet.
-        let active_nav = initial_pane
-            .and_then(|id| NAV.iter().position(|n| n.id == id))
-            .unwrap_or(0);
-
         Self {
-            active_nav,
+            workspace: Self::default_workspace(initial_pane.as_deref()),
+            leader_armed: false,
             pane_blocks,
             daemon_url,
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
         }
+    }
+
+    /// The opening layout: a fleet overview beside a stacked agent-lane /
+    /// roadmap column — proof of multiplex on first launch. `initial` (if a
+    /// known nav id) becomes the focused pane's surface.
+    fn default_workspace(initial: Option<&str>) -> Workspace {
+        let mut ws = Workspace::new(SurfaceKind::Fleet);
+        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
+        ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
+        ws.focus(1); // start on the fleet pane (first leaf id)
+        if let Some(nav) = initial {
+            if NAV.iter().any(|n| n.id == nav) {
+                ws.swap_surface(surface_for_nav_id(nav));
+            }
+        }
+        ws
+    }
+
+    /// Map a surface to the blocks the background refresh thread has fetched
+    /// for it. Existing live panels resolve through `pane_blocks`; surfaces
+    /// without a backing fetcher yet render an honest placeholder.
+    fn blocks_for_surface(&self, surface: &SurfaceKind) -> Vec<Block> {
+        match nav_id_for_surface(surface) {
+            Some(nav_id) => NAV
+                .iter()
+                .position(|n| n.id == nav_id)
+                .and_then(|i| self.pane_blocks.get(i).cloned())
+                .unwrap_or_default(),
+            None => vec![
+                Block::Header(surface.label()),
+                Block::KeyVal("status".into(), "live wiring lands in slice 3".into()),
+            ],
+        }
+    }
+
+    /// Handle one multiplexer command after the leader key. Disarming is done
+    /// by the caller.
+    fn leader_command(&mut self, key: &str, ctrl: bool, cx: &mut Context<Self>) {
+        match key {
+            // Splits duplicate the focused surface (tmux behaviour); swap after.
+            "|" | "\\" => {
+                let s = self.workspace.focused_surface().clone();
+                self.workspace.split(Dir::Row, s);
+            }
+            "-" => {
+                let s = self.workspace.focused_surface().clone();
+                self.workspace.split(Dir::Col, s);
+            }
+            "x" => {
+                self.workspace.close();
+            }
+            "o" | "tab" => self.workspace.focus_next(),
+            "O" => self.workspace.focus_prev(),
+            // Double-prefix (Ctrl-A Ctrl-A) cycles focus — fast tmux idiom.
+            "a" if ctrl => self.workspace.focus_next(),
+            // Resize the focused pane.
+            "=" | "+" => { self.workspace.resize(0.15); }
+            "_" => { self.workspace.resize(-0.15); }
+            // Any nav key swaps the focused pane's surface — "hop context".
+            other => {
+                if let Some(item) = NAV.iter().find(|n| n.key == other) {
+                    self.workspace.swap_surface(surface_for_nav_id(item.id));
+                }
+            }
+        }
+        cx.notify();
     }
 
     /// Push fresh data for all panes from the background refresh loop.
@@ -285,11 +357,170 @@ impl ConsoleView {
         }
     }
 
-    fn blocks_for_active(&self) -> Vec<Block> {
-        self.pane_blocks
-            .get(self.active_nav)
-            .cloned()
-            .unwrap_or_default()
+    /// Recursively render the pane tree. Splits become weighted flex
+    /// containers (so `resize` is visible); leaves render their surface.
+    fn render_node(&self, node: &Node, focused: PaneId, cx: &mut Context<Self>) -> AnyElement {
+        match node {
+            Node::Split { dir, children } => {
+                let total: f32 = children.iter().map(|c| c.weight).sum::<f32>().max(0.0001);
+                let mut container = div().flex().size_full().overflow_hidden();
+                container = match dir {
+                    Dir::Row => container.flex_row(),
+                    Dir::Col => container.flex_col(),
+                };
+                for child in children {
+                    let frac = child.weight / total;
+                    container = container.child(
+                        div()
+                            .flex_basis(relative(frac))
+                            .flex_grow()
+                            .flex_shrink()
+                            .overflow_hidden()
+                            .child(self.render_node(&child.node, focused, cx)),
+                    );
+                }
+                container.into_any_element()
+            }
+            Node::Leaf { id, surface } => self.render_leaf(*id, surface, *id == focused, cx),
+        }
+    }
+
+    /// Render one leaf: a bordered pane with a title bar (focus-highlighted) and
+    /// its surface blocks. A focused agent transcript also gets the steering bar.
+    fn render_leaf(
+        &self,
+        id: PaneId,
+        surface: &SurfaceKind,
+        is_focused: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let label = surface.label();
+        let blocks = self.blocks_for_surface(surface);
+        let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
+        let border = if is_focused { C_ACCENT } else { C_BORDER };
+        let title_color = if is_focused { C_ACCENT } else { C_MUTED };
+        let control_flash = self.control_flash.clone();
+
+        div()
+            .id(SharedString::from(format!("pane-{id}")))
+            .flex()
+            .flex_col()
+            .size_full()
+            .overflow_hidden()
+            .border_1()
+            .border_color(rgb(border))
+            .bg(rgb(C_PANEL))
+            .on_click(cx.listener(move |this, _ev, _window, cx| {
+                this.workspace.focus(id);
+                cx.notify();
+            }))
+            // Title bar
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(6.0))
+                    .px(px(10.0))
+                    .py(px(5.0))
+                    .bg(rgb(if is_focused { C_RAISED } else { C_PANEL }))
+                    .border_b_1()
+                    .border_color(rgb(C_BORDER))
+                    .child(
+                        div()
+                            .text_color(rgb(if is_focused { C_ACCENT } else { C_BORDER }))
+                            .text_size(px(13.0))
+                            .child(if is_focused { "●" } else { "○" }),
+                    )
+                    .child(
+                        div()
+                            .text_color(rgb(title_color))
+                            .text_size(px(14.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(label),
+                    ),
+            )
+            // Surface body
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_hidden()
+                    .flex()
+                    .flex_col()
+                    .children(blocks.into_iter().map(render_block)),
+            )
+            // Steering bar — only the focused agent transcript grabs the wheel.
+            .when(is_agent && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(6.0))
+                        .border_t_1()
+                        .border_color(rgb(C_BORDER))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("interrupt-{id}")))
+                                .px(px(12.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(C_GATED))
+                                .text_color(rgb(C_GATED))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| s.bg(rgb(C_RAISED)))
+                                .child("◼ Interrupt")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    if let Some(tx) = &this.control_tx {
+                                        let _ = tx.send(ControlMsg::InterruptLane);
+                                        this.control_flash =
+                                            Some("interrupt sent — watch the stream".into());
+                                        cx.notify();
+                                    }
+                                })),
+                        )
+                        .when_some(control_flash, |bar, flash| {
+                            bar.child(
+                                div()
+                                    .text_color(rgb(C_MUTED))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
+            .into_any_element()
+    }
+}
+
+/// Map an existing nav id to the richest matching surface (semantic where one
+/// exists, generic `Panel` otherwise).
+fn surface_for_nav_id(nav: &str) -> SurfaceKind {
+    match nav {
+        "lane" => SurfaceKind::AgentTranscript { agent_id: None },
+        "roadmap" => SurfaceKind::Roadmap,
+        "health" => SurfaceKind::DaemonHealth,
+        "fleet" => SurfaceKind::Fleet,
+        "sessions" => SurfaceKind::Sessions,
+        "dispatch" => SurfaceKind::Dispatch,
+        other => SurfaceKind::Panel { nav: other.to_string() },
+    }
+}
+
+/// Inverse: which nav id (if any) backs this surface's live data.
+fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
+    match surface {
+        SurfaceKind::AgentTranscript { .. } => Some("lane"),
+        SurfaceKind::Roadmap => Some("roadmap"),
+        SurfaceKind::DaemonHealth => Some("health"),
+        SurfaceKind::Fleet => Some("fleet"),
+        SurfaceKind::Sessions => Some("sessions"),
+        SurfaceKind::Dispatch => Some("dispatch"),
+        SurfaceKind::Panel { nav } => Some(nav.as_str()),
+        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } => None,
     }
 }
 
@@ -301,14 +532,14 @@ impl Focusable for ConsoleView {
 
 impl Render for ConsoleView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let active = self.active_nav;
-        let blocks = self.blocks_for_active();
         let daemon_url = self.daemon_url.clone();
-        let active_nav_name = NAV.get(active).map(|n| n.label).unwrap_or("—");
-        let active_nav_icon = NAV.get(active).map(|n| n.icon).unwrap_or("icons/nav/fleet.svg");
-        // The Lane is the only steerable surface so far — show its wheel bar.
-        let is_lane = NAV.get(active).map(|n| n.id == "lane").unwrap_or(false);
-        let control_flash = self.control_flash.clone();
+        let focused = self.workspace.focused();
+        let armed = self.leader_armed;
+        let pane_count = self.workspace.pane_count();
+        // Clone the tree shape so we can render it while `cx` is borrowed for
+        // the key/click listeners below.
+        let root = self.workspace.root.clone();
+        let tree = self.render_node(&root, focused, cx);
 
         div()
             .key_context("console")
@@ -318,184 +549,49 @@ impl Render for ConsoleView {
             .flex()
             .flex_col()
             .font_family("General Sans")
+            // Leader-key dispatcher: Ctrl-A arms; the next keystroke is a
+            // multiplexer command (split / close / focus / swap-surface).
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _window, cx| {
-                let idx = NAV.iter().position(|n| n.key == ev.keystroke.key.as_str());
-                if let Some(i) = idx {
-                    this.active_nav = i;
+                let key = ev.keystroke.key.clone();
+                let ctrl = ev.keystroke.modifiers.control;
+                if this.leader_armed {
+                    this.leader_armed = false;
+                    this.leader_command(key.as_str(), ctrl, cx);
+                } else if ctrl && key == "a" {
+                    this.leader_armed = true;
                     cx.notify();
                 }
             }))
-            // Body
+            // The pane tree fills the window — this is the multiplexer.
+            .child(div().flex_1().overflow_hidden().child(tree))
+            // ── Command / status bar ──
             .child(
                 div()
-                    .flex()
-                    .flex_1()
-                    .overflow_hidden()
-                    // ── Sidebar ──
-                    .child(
-                        div()
-                            .w(px(96.0))
-                            .h_full()
-                            .bg(rgb(C_PANEL))
-                            .flex()
-                            .flex_col()
-                            .py(px(8.0))
-                            // Logo — SVG glyph (animated monogram + radar ring)
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .px(px(8.0))
-                                    .py(px(10.0))
-                                    .mb(px(2.0))
-                                    .border_b_1()
-                                    .border_color(rgb(C_BORDER))
-                                    .child(
-                                        svg()
-                                            .path("icons/pd-glyph.svg")
-                                            .w(px(32.0))
-                                            .h(px(32.0))
-                                            .text_color(rgb(C_ACCENT))
-                                    )
-                            )
-                            // Nav items — clickable (sets active_nav) AND driven by
-                            // the key handler above. Each is an id'd interactive div
-                            // so the whole row is a hit target, not just decoration.
-                            .children(
-                                NAV.iter().enumerate().map(|(i, item)| {
-                                    div()
-                                        .id(item.id)
-                                        .on_click(cx.listener(move |this, _ev, _window, cx| {
-                                            this.active_nav = i;
-                                            cx.notify();
-                                        }))
-                                        .child(SidebarItem {
-                                            icon: item.icon,
-                                            label: item.label,
-                                            index: i,
-                                            active: i == active,
-                                        })
-                                })
-                            )
-                    )
-                    // ── Divider ──
-                    .child(div().w(px(1.0)).bg(rgb(C_BORDER)))
-                    // ── Main content ──
-                    .child(
-                        div()
-                            .flex_1()
-                            .flex()
-                            .flex_col()
-                            .overflow_hidden()
-                            // Pane header
-                            .child(
-                                div()
-                                    .px(px(16.0))
-                                    .py(px(10.0))
-                                    .border_b_1()
-                                    .border_color(rgb(C_BORDER))
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(10.0))
-                                    .child(
-                                        svg()
-                                            .path(active_nav_icon)
-                                            .w(px(16.0))
-                                            .h(px(16.0))
-                                            .text_color(rgb(C_ACCENT))
-                                    )
-                                    .child(
-                                        div()
-                                            .text_color(rgb(C_INK))
-                                            .text_size(px(15.0))
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .child(active_nav_name)
-                                    )
-                            )
-                            // Pane blocks
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .overflow_hidden()
-                                    .flex()
-                                    .flex_col()
-                                    .children(blocks.into_iter().map(render_block))
-                            )
-                            // ── Steering bar (Lane only) — "grab the wheel" ──
-                            .when(is_lane, |content| {
-                                content.child(
-                                    div()
-                                        .px(px(16.0))
-                                        .py(px(8.0))
-                                        .border_t_1()
-                                        .border_color(rgb(C_BORDER))
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(10.0))
-                                        // Interrupt button — POSTs /agents/:id/interrupt
-                                        // via the background thread; the control message
-                                        // returns on the stream (closed loop).
-                                        .child(
-                                            div()
-                                                .id("lane-interrupt")
-                                                .px(px(14.0))
-                                                .py(px(6.0))
-                                                .rounded(px(6.0))
-                                                .border_1()
-                                                .border_color(rgb(C_GATED))
-                                                .text_color(rgb(C_GATED))
-                                                .text_size(px(14.0))
-                                                .font_weight(FontWeight::SEMIBOLD)
-                                                .cursor_pointer()
-                                                .hover(|s| s.bg(rgb(C_RAISED)))
-                                                .child("◼ Interrupt")
-                                                .on_click(cx.listener(|this, _ev, _window, cx| {
-                                                    if let Some(tx) = &this.control_tx {
-                                                        let _ = tx.send(ControlMsg::InterruptLane);
-                                                        this.control_flash =
-                                                            Some("interrupt sent — watch the stream".into());
-                                                        cx.notify();
-                                                    }
-                                                })),
-                                        )
-                                        .when_some(control_flash, |bar, flash| {
-                                            bar.child(
-                                                div()
-                                                    .text_color(rgb(C_MUTED))
-                                                    .text_size(px(13.0))
-                                                    .child(flash),
-                                            )
-                                        }),
-                                )
-                            })
-                    )
-            )
-            // ── Status bar ──
-            .child(
-                div()
-                    .h(px(24.0))
-                    .px(px(16.0))
+                    .h(px(26.0))
+                    .px(px(12.0))
                     .flex()
                     .items_center()
                     .gap(px(12.0))
-                    .bg(rgb(C_PANEL))
+                    .bg(rgb(if armed { C_RAISED } else { C_PANEL }))
                     .border_t_1()
-                    .border_color(rgb(C_BORDER))
-                    .child(
+                    .border_color(rgb(if armed { C_ACCENT } else { C_BORDER }))
+                    .child(if armed {
+                        div()
+                            .text_color(rgb(C_ACCENT))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(
+                                "PREFIX  |  | split  · - vsplit  · x close  · o next  · =/_ resize  · [1-9 s m p h c d l] surface",
+                            )
+                    } else {
                         div()
                             .text_color(rgb(C_MUTED))
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
-                            .child(format!("daemon  {daemon_url}"))
-                    )
-                    .child(div().text_color(rgb(C_MUTED)).text_size(px(13.0)).child("·"))
-                    .child(
-                        div()
-                            .text_color(rgb(C_MUTED))
-                            .text_size(px(13.0))
-                            .child("pd-console v0.2.0")
-                    )
+                            .child(format!(
+                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A for commands  ·  pd-console v0.3.0"
+                            ))
+                    }),
             )
     }
 }

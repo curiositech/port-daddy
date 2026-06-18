@@ -20,6 +20,7 @@ mod health_pane;
 mod inbox_pane;
 mod lane_pane;
 mod maritime;
+mod mux;
 mod notes_pane;
 mod pane;
 mod peek_pane;
