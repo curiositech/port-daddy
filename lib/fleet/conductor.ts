@@ -24,9 +24,12 @@
  *                                   off-main worktree; `worktree:'inherit'` must
  *                                   not point at a main checkout.
  *   I3 DEPTH_CAPPED              — depth > PD_FLEET_MAX_DEPTH is refused. Depth is
- *                                   Conductor-stamped from the proposer's lineage;
- *                                   an agent can't forge it (it never holds the
- *                                   spawner — it sends a REQUEST performative).
+ *                                   Conductor-stamped from the DURABLE parent row,
+ *                                   never from the intent. An `agent` source can
+ *                                   NEVER mint a root (parentId:'operator'/absent
+ *                                   is rejected) — it MUST name a real, existing,
+ *                                   non-terminal parent, so it cannot reset its
+ *                                   depth/rootId/ceiling by re-parenting.
  *   I4 LINEAGE_BUDGET_CONSERVED  — the subtree under one rootId shares one
  *                                   ceiling; a child's bond is RESERVED against it
  *                                   *before* admission, in the same txn, so a
@@ -35,6 +38,11 @@
  *   I5 GLOBAL_BREAKER            — no admission while the global breaker is open.
  *   I6 CAPABILITY_SCOPED         — a child's cap[] must be a subset of its
  *                                   parent's cap[] (capabilities only narrow).
+ *                                   Empty/absent child caps INHERIT the parent's
+ *                                   effective caps — they never fall through to
+ *                                   the spawner's full-tier default. Root caps are
+ *                                   bounded by an operator ceiling (rootCapability-
+ *                                   Ceiling) when configured.
  *   I7 HALT_IS_TOTAL            — operator halt on a scope transitions every
  *                                   running launch to `halted` and refuses every
  *                                   proposed one. Operator halt ALWAYS REFUNDS,
@@ -204,6 +212,13 @@ export interface ConductorDeps {
    * (Phase-1 behavior) — real worktree minting wires in via this hook.
    */
   mintWorktree?: (launch: Launch, intent: LaunchIntent) => string | undefined;
+  /**
+   * Operator-set ceiling on the capabilities a ROOT launch may declare (I6 for
+   * roots). A root's effective caps are intersected with this list. Empty/absent
+   * = no ceiling (roots may declare any caps — the legacy behavior). Non-root
+   * launches are bounded by their parent's caps, never by this list.
+   */
+  rootCapabilityCeiling?: string[];
 }
 
 export interface LaunchResult {
@@ -306,6 +321,29 @@ function rowToLaunch(row: LaunchRow): Launch {
 
 const DEFAULT_MAX_DEPTH = 3;
 
+/**
+ * Sources entitled to mint a ROOT launch (depth 0, fresh rootId, self-chosen
+ * ceiling/caps). These are the daemon's own operator-initiated surfaces — the
+ * operator typing a command, a sortie POST, an orchestrator rule firing,
+ * dispatch, the fleet engine, nightshift. They are NOT attacker-influenced: the
+ * intent is constructed daemon-side, not by a running agent.
+ *
+ * `agent` is the ONE excluded source: it is the recursion surface where a
+ * running (potentially adversarial) body proposes a sub-launch. An `agent`
+ * proposer can NEVER mint a root — it MUST name a real, existing, non-terminal
+ * parent, and its depth/rootId/parentCaps/lineageCeiling are derived from that
+ * durable parent row, never from the agent-supplied intent. This is the trust
+ * boundary that makes I3/I4/I6 un-forgeable (white-hat HIGH #2, red-team #2).
+ */
+const ROOT_MINTING_SOURCES: ReadonlySet<LaunchSource> = new Set<LaunchSource>([
+  'operator',
+  'sortie',
+  'fleet',
+  'orchestrator',
+  'nightshift',
+  'dispatch',
+]);
+
 export function createConductor(deps: ConductorDeps) {
   const { db, spawner } = deps;
   const bonds = deps.bonds;
@@ -315,6 +353,7 @@ export function createConductor(deps: ConductorDeps) {
   const breaker = deps.breaker ?? createFleetCircuitBreaker({ now });
   const isMainCheckout = deps.isMainCheckout ?? defaultIsMainCheckout;
   const mintWorktree = deps.mintWorktree ?? ((_l, intent) => intent.workdir);
+  const rootCapabilityCeiling = deps.rootCapabilityCeiling ?? null;
 
   // Launches halted while their `spawner.spawn` is still pending: we do not yet
   // hold the agentId (the spawner returns it only on resolution), so we cannot
@@ -416,54 +455,102 @@ export function createConductor(deps: ConductorDeps) {
   function admit(intent: LaunchIntent): { launch: Launch; reserved: number } {
     const at = now();
     const id = randomUUID();
-    const rootId = intent.rootId ?? id; // a launch with no root IS its own root
-    const parentId = intent.parentId ?? 'operator';
-    const capabilities = intent.capabilities ?? [];
+    const declaredCaps = intent.capabilities ?? [];
     const bond = effectiveBond(intent);
 
     const tx = db.transaction((): { launch: Launch; reserved: number } => {
-      // Compute depth from the (durable) parent row. Operator/root = depth 0.
+      // ── Roothood is SOURCE-gated (I3/I6/I4 anti-forgery) ───────────────────
+      // Only `source:'operator'` may mint a ROOT: depth 0, fresh rootId, self-
+      // chosen ceiling and caps. EVERY non-operator source (agent/sortie/
+      // orchestrator/dispatch/fleet/nightshift) MUST name a real, existing,
+      // non-terminal parent — depth/rootId/parentCaps/lineageCeiling are derived
+      // from THAT parent row, never from caller-supplied intent fields. This
+      // closes the `parentId:'operator'` (or absent-parent) re-parenting spoof:
+      // an agent can no longer mint a fresh depth-0 root with its own ceiling and
+      // arbitrary caps to escape the depth cap, the lineage budget, and cap
+      // narrowing (white-hat HIGH #2 / red-team Attack 2).
+      const mayMintRoot = ROOT_MINTING_SOURCES.has(intent.source);
+      const claimsRoot = intent.parentId == null || intent.parentId === 'operator';
+
       let depth = 0;
       let parentCaps: string[] | null = null;
-      let resolvedRootId = rootId;
+      let resolvedRootId = intent.rootId ?? id;
+      let parentId: string = 'operator';
       let lineageCeiling = intent.lineageCeilingUsd ?? null;
-      if (parentId !== 'operator') {
-        const parentRow = selectByIdStmt.get(parentId);
+      // Effective caps: mutated below to enforce inheritance + root ceiling.
+      let effectiveCaps = declaredCaps;
+
+      if (mayMintRoot && claimsRoot) {
+        // Root-minting source minting a root. Bound the declared caps by the
+        // operator ceiling (if configured) so even a root cannot free-declare
+        // beyond policy.
+        parentId = 'operator';
+        resolvedRootId = intent.rootId ?? id;
+        if (rootCapabilityCeiling) {
+          effectiveCaps = declaredCaps.filter((c) => rootCapabilityCeiling.includes(c));
+        }
+      } else {
+        // Non-root admission: a real parent MUST be named and resolvable. An
+        // `agent` source may NEVER claim roothood; a root-minting source may
+        // still launch a child by naming a real parentId.
+        if (claimsRoot) {
+          // A non-root-minting source (agent) tried to mint a root, or named
+          // 'operator'/no parent — forged/absent parent. Reject.
+          return refuse(id, resolvedRootId, intent.parentId ?? 'operator', 0, intent, effectiveCaps, bond,
+            `source '${intent.source}' may not mint a root; a real parent launch id is required (LINEAGE_BINDING)`, at);
+        }
+        const namedParentId = intent.parentId!;
+        const parentRow = selectByIdStmt.get(namedParentId);
         if (!parentRow) {
-          return refuse(id, resolvedRootId, parentId, 0, intent, capabilities, bond,
-            `parent launch '${parentId}' not found`, at);
+          return refuse(id, resolvedRootId, namedParentId, 0, intent, effectiveCaps, bond,
+            `parent launch '${namedParentId}' not found`, at);
         }
         const parent = rowToLaunch(parentRow);
         // I7 — a child of a halted/terminal parent may not spawn.
         if (parent.state === 'halted') {
-          return refuse(id, parent.rootId, parentId, parent.depth + 1, intent, capabilities, bond,
-            `parent launch '${parentId}' is halted (HALT_IS_TOTAL)`, at);
+          return refuse(id, parent.rootId, namedParentId, parent.depth + 1, intent, effectiveCaps, bond,
+            `parent launch '${namedParentId}' is halted (HALT_IS_TOTAL)`, at);
         }
         if (LAUNCH_TERMINAL_STATES.includes(parent.state)) {
-          return refuse(id, parent.rootId, parentId, parent.depth + 1, intent, capabilities, bond,
-            `parent launch '${parentId}' is terminal (${parent.state})`, at);
+          return refuse(id, parent.rootId, namedParentId, parent.depth + 1, intent, effectiveCaps, bond,
+            `parent launch '${namedParentId}' is terminal (${parent.state})`, at);
         }
+        // Lineage is DERIVED from the durable parent, never from the intent.
+        parentId = namedParentId;
         depth = parent.depth + 1;
         parentCaps = parent.capabilities;
         resolvedRootId = parent.rootId;
-        // A child inherits the lineage ceiling already established at the root.
-        lineageCeiling = parent.lineageCeilingUsd ?? lineageCeiling;
+        // A child inherits the lineage ceiling established at the root (ignore any
+        // caller-supplied lineageCeilingUsd — it cannot widen the subtree budget).
+        lineageCeiling = parent.lineageCeilingUsd ?? null;
       }
 
       // I3 — DEPTH_CAPPED.
       if (depth > maxDepth) {
-        return refuse(id, resolvedRootId, parentId, depth, intent, capabilities, bond,
+        return refuse(id, resolvedRootId, parentId, depth, intent, effectiveCaps, bond,
           `depth ${depth} exceeds cap ${maxDepth} (DEPTH_CAPPED)`, at);
       }
 
-      // I6 — CAPABILITY_SCOPED: a child's caps must be a subset of its parent's.
+      // I6 — CAPABILITY_SCOPED. A child's caps must be a subset of its parent's,
+      // and empty/absent child caps INHERIT the parent's effective caps — they do
+      // NOT fall through to the spawner's full-tier default. This closes the
+      // capability-DOWNGRADE escalation: declaring `capabilities:[]` from a
+      // read-only parent no longer silently widens the child to full write+spawn
+      // (white-hat HIGH #1).
       if (parentCaps) {
-        const widened = capabilities.filter((c) => !parentCaps!.includes(c));
-        if (widened.length > 0) {
-          return refuse(id, resolvedRootId, parentId, depth, intent, capabilities, bond,
-            `capabilities widen beyond parent [${widened.join(', ')}] (CAPABILITY_SCOPED)`, at);
+        if (declaredCaps.length === 0) {
+          // Inherit the parent's effective caps verbatim.
+          effectiveCaps = parentCaps;
+        } else {
+          const widened = declaredCaps.filter((c) => !parentCaps!.includes(c));
+          if (widened.length > 0) {
+            return refuse(id, resolvedRootId, parentId, depth, intent, declaredCaps, bond,
+              `capabilities widen beyond parent [${widened.join(', ')}] (CAPABILITY_SCOPED)`, at);
+          }
+          effectiveCaps = declaredCaps;
         }
       }
+      const capabilities = effectiveCaps;
 
       // Register the lineage scope ceiling once (idempotent) so the breaker can
       // reserve against it. The global scope is registered by the caller.
@@ -563,7 +650,11 @@ export function createConductor(deps: ConductorDeps) {
    * builds the spec; the golden test pins these fields so the merged path stays
    * byte-identical to what the legacy sortie/orchestrator callsites produced.
    */
-  function intentToSpawnSpec(intent: LaunchIntent, workdir: string | undefined): Record<string, unknown> {
+  function intentToSpawnSpec(
+    intent: LaunchIntent,
+    workdir: string | undefined,
+    effectiveCaps?: string[],
+  ): Record<string, unknown> {
     const spec: Record<string, unknown> = {
       backend: intent.backend,
       task: intent.task ?? intent.goal,
@@ -578,8 +669,14 @@ export function createConductor(deps: ConductorDeps) {
     if (intent.maxTokens != null) spec.maxTokens = intent.maxTokens;
     if (intent.bondUsd != null) spec.bondUsd = intent.bondUsd;
     if (intent.harborName != null) spec.harborName = intent.harborName;
-    if (intent.capabilities != null && intent.capabilities.length > 0) {
-      spec.capabilities = intent.capabilities;
+    // ALWAYS forward the ADMITTED launch's effective caps (inherited / floored /
+    // ceiling-bounded), not the raw intent caps. A child that declared `[]` and
+    // inherited `['read']` must spawn with `['read']`, never the spawner's
+    // full-tier default (white-hat HIGH #1). Falls back to the raw intent caps
+    // for the golden/pure path that calls this without an admitted launch.
+    const caps = effectiveCaps ?? intent.capabilities;
+    if (caps != null && caps.length > 0) {
+      spec.capabilities = caps;
     }
     if (intent.allowSharedCheckout != null) spec.allowSharedCheckout = intent.allowSharedCheckout;
     return spec;
@@ -650,7 +747,9 @@ export function createConductor(deps: ConductorDeps) {
 
     // ── Run ──────────────────────────────────────────────────────────────────
     setState(admitted.id, 'running');
-    const spec = intentToSpawnSpec(intent, workdir);
+    // Forward the ADMITTED launch's effective caps (inherited/floored/bounded),
+    // not the raw intent caps — see intentToSpawnSpec.
+    const spec = intentToSpawnSpec(intent, workdir, admitted.capabilities);
     let spawnResult: Awaited<ReturnType<ConductorSpawner['spawn']>>;
     try {
       spawnResult = await spawner.spawn(spec);
@@ -702,10 +801,14 @@ export function createConductor(deps: ConductorDeps) {
 
     // ── Settle ────────────────────────────────────────────────────────────────
     const success = spawnResult.status === 'completed';
-    // Realized cost is carried on the spawn telemetry when present; the spawner
-    // already booked bond refund/slash on its terminal path, so the Conductor's
-    // ledger only mirrors the outcome for breaker accounting.
-    const realizedUsd = readCost(spawnResult);
+    // Realized cost is carried on the spawn telemetry when present. CRITICAL: if
+    // the spawner reports NO cost (telemetry absent / late), we floor the realized
+    // amount at the bond we reserved for this launch, so the lineage/global budget
+    // breaker still accrues committed spend. Otherwise a child that reports cost
+    // late-or-never would forever read $0 and a runaway could evade the budget
+    // breaker entirely (red-team Attack 1 / readCost-returns-0). The bond is the
+    // honest lower bound on what this launch committed.
+    const realizedUsd = readCost(spawnResult, reserved);
     const disposition = breaker.recordOutcome(lineageScope(admitted.rootId), {
       success,
       realizedUsd,
@@ -838,10 +941,12 @@ export type Conductor = ReturnType<typeof createConductor>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-function readCost(spawnResult: Record<string, unknown>): number {
+function readCost(spawnResult: Record<string, unknown>, reservedFloorUsd = 0): number {
   const t = spawnResult.telemetry as { costUsd?: number } | null | undefined;
   if (t && typeof t.costUsd === 'number' && Number.isFinite(t.costUsd)) return t.costUsd;
-  return 0;
+  // No reported cost → charge at least the reserved bond so the budget breaker
+  // accrues committed spend rather than reading $0 forever (breaker-evasion fix).
+  return reservedFloorUsd > 0 && Number.isFinite(reservedFloorUsd) ? reservedFloorUsd : 0;
 }
 
 /**
