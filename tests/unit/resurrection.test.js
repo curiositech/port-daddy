@@ -29,12 +29,15 @@ describe('Resurrection Module', () => {
   // THRESHOLD EXPOSURE
   // ======================================================================
   describe('Thresholds', () => {
-    it('should expose stale threshold (12 minutes for default/ready status)', () => {
-      expect(resurrection.thresholds.stale).toBe(Math.round(20 * 60 * 1000 * 0.6));
+    // Reconciled with lib/agents.ts (single source of truth): default/ready
+    // status uses a 4h dead threshold so background Claude Code agents survive
+    // long jobs. stale = 0.6 × dead = 2.4h.
+    it('should expose stale threshold (2.4h for default/ready status)', () => {
+      expect(resurrection.thresholds.stale).toBe(Math.round(4 * 60 * 60 * 1000 * 0.6));
     });
 
-    it('should expose dead threshold (20 minutes)', () => {
-      expect(resurrection.thresholds.dead).toBe(20 * 60 * 1000);
+    it('should expose dead threshold (4h)', () => {
+      expect(resurrection.thresholds.dead).toBe(4 * 60 * 60 * 1000);
     });
   });
 
@@ -56,7 +59,7 @@ describe('Resurrection Module', () => {
       const result = resurrection.check({
         id: 'agent-1',
         name: 'Agent One',
-        lastHeartbeat: Date.now() - (13 * 60 * 1000), // 13 minutes ago (stale threshold for ready = 12 min)
+        lastHeartbeat: Date.now() - (150 * 60 * 1000), // 150 min ago (stale threshold for ready = 144 min)
       });
 
       expect(result.status).toBe('stale');
@@ -67,7 +70,7 @@ describe('Resurrection Module', () => {
       const result = resurrection.check({
         id: 'agent-1',
         name: 'Agent One',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000), // 21 minutes ago
+        lastHeartbeat: Date.now() - (300 * 60 * 1000), // 5h ago (past 4h dead threshold)
       });
 
       expect(result.status).toBe('dead');
@@ -75,29 +78,29 @@ describe('Resurrection Module', () => {
     });
 
     it('should promote stale agent to dead when heartbeat worsens', () => {
-      // First check — stale (13 min > 12 min stale threshold for default/ready)
+      // First check — stale (150 min > 144 min stale threshold for default/ready)
       resurrection.check({
         id: 'agent-1',
         name: 'Agent One',
-        lastHeartbeat: Date.now() - (13 * 60 * 1000),
+        lastHeartbeat: Date.now() - (150 * 60 * 1000),
       });
 
       // Second check — dead (heartbeat even older)
       const result = resurrection.check({
         id: 'agent-1',
         name: 'Agent One',
-        lastHeartbeat: Date.now() - (25 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       expect(result.status).toBe('dead');
     });
 
     it('should remove agent from queue when heartbeat recovers', () => {
-      // First: make it stale (13 min > 12 min stale threshold)
+      // First: make it stale (150 min > 144 min stale threshold)
       resurrection.check({
         id: 'agent-1',
         name: 'Agent One',
-        lastHeartbeat: Date.now() - (13 * 60 * 1000),
+        lastHeartbeat: Date.now() - (150 * 60 * 1000),
       });
 
       // Then: heartbeat recovers
@@ -120,7 +123,7 @@ describe('Resurrection Module', () => {
         name: 'Agent One',
         purpose: 'Building auth module',
         sessionId: 'session-abc',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -136,7 +139,7 @@ describe('Resurrection Module', () => {
         identityProject: 'myapp',
         identityStack: 'api',
         identityContext: 'auth',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending({ project: 'myapp' });
@@ -151,7 +154,7 @@ describe('Resurrection Module', () => {
         id: 'agent-1',
         name: 'Agent One',
         notes: ['Started task', 'Got stuck on auth'],
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -175,7 +178,7 @@ describe('Resurrection Module', () => {
         name: 'Agent One',
         sessionId: 'session-abc',
         notes: [JSON.stringify({ iv: 'i', ct: 'ciphertext', tag: 't' })],
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -197,7 +200,7 @@ describe('Resurrection Module', () => {
         name: 'Agent One',
         sessionId: 'session-missing',
         notes: ['fallback salvage note'],
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -218,7 +221,7 @@ describe('Resurrection Module', () => {
         identityProject: opts.project || null,
         identityStack: opts.stack || null,
         identityContext: opts.context || null,
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
     }
 
@@ -263,7 +266,7 @@ describe('Resurrection Module', () => {
       resurrection.check({
         id: 'stale-agent',
         name: 'Stale',
-        lastHeartbeat: Date.now() - (13 * 60 * 1000), // 13 min (past 12 min stale threshold)
+        lastHeartbeat: Date.now() - (150 * 60 * 1000), // 150 min (past 144 min stale threshold)
       });
 
       const result = resurrection.pending();
@@ -299,7 +302,7 @@ describe('Resurrection Module', () => {
         name: opts.name || id,
         identityProject: opts.project || null,
         identityStack: opts.stack || null,
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
     }
 
@@ -357,15 +360,15 @@ describe('Resurrection Module', () => {
     it('should count pending agents in a project', () => {
       resurrection.check({
         id: 'a1', name: 'A1', identityProject: 'myapp',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.check({
         id: 'a2', name: 'A2', identityProject: 'myapp',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.check({
         id: 'a3', name: 'A3', identityProject: 'other',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       expect(resurrection.countByProject('myapp')).toBe(2);
@@ -375,7 +378,7 @@ describe('Resurrection Module', () => {
     it('should not count agents that have been claimed (resurrecting)', () => {
       resurrection.check({
         id: 'a1', name: 'A1', identityProject: 'myapp',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.claim('a1');
 
@@ -394,7 +397,7 @@ describe('Resurrection Module', () => {
         purpose: opts.purpose || 'test purpose',
         sessionId: opts.sessionId || 'sess-1',
         notes: opts.notes || ['note 1'],
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
     }
 
@@ -459,7 +462,7 @@ describe('Resurrection Module', () => {
         purpose: 'recover encrypted notes',
         sessionId: 'session-encrypted',
         notes: [encryptedFallback],
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const result = resurrection.claim('dead-agent');
@@ -476,7 +479,7 @@ describe('Resurrection Module', () => {
     it('should remove agent from queue on completion', () => {
       resurrection.check({
         id: 'old-agent', name: 'Old',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.claim('old-agent');
 
@@ -501,7 +504,7 @@ describe('Resurrection Module', () => {
     it('should return agent to pending status after abandonment', () => {
       resurrection.check({
         id: 'dead-agent', name: 'Dead',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.claim('dead-agent');
 
@@ -517,7 +520,7 @@ describe('Resurrection Module', () => {
     it('should allow re-claiming after abandonment', () => {
       resurrection.check({
         id: 'dead-agent', name: 'Dead',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.claim('dead-agent');
       resurrection.abandon('dead-agent');
@@ -534,7 +537,7 @@ describe('Resurrection Module', () => {
     it('should remove agent from queue', () => {
       resurrection.check({
         id: 'dead-agent', name: 'Dead',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const result = resurrection.dismiss('dead-agent');
@@ -558,7 +561,7 @@ describe('Resurrection Module', () => {
       // Manually insert an old entry using check with backdated detected_at
       resurrection.check({
         id: 'old-agent', name: 'Old',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       // Backdate the detected_at in the database
@@ -572,7 +575,7 @@ describe('Resurrection Module', () => {
     it('should not remove recent entries', () => {
       resurrection.check({
         id: 'recent-agent', name: 'Recent',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const result = resurrection.cleanup();
@@ -590,7 +593,7 @@ describe('Resurrection Module', () => {
 
       resurrection.check({
         id: 'dead-1', name: 'Dead Agent',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       expect(handler).toHaveBeenCalledTimes(1);
@@ -603,7 +606,7 @@ describe('Resurrection Module', () => {
 
       resurrection.check({
         id: 'stale-1', name: 'Stale Agent',
-        lastHeartbeat: Date.now() - (13 * 60 * 1000),
+        lastHeartbeat: Date.now() - (150 * 60 * 1000),
       });
 
       expect(handler).toHaveBeenCalledTimes(1);
@@ -616,7 +619,7 @@ describe('Resurrection Module', () => {
 
       resurrection.check({
         id: 'dead-1', name: 'Dead',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.claim('dead-1');
 
@@ -629,7 +632,7 @@ describe('Resurrection Module', () => {
 
       resurrection.check({
         id: 'dead-1', name: 'Dead',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       resurrection.claim('dead-1');
       resurrection.complete('dead-1', 'new-1');
@@ -644,14 +647,14 @@ describe('Resurrection Module', () => {
       // First check — stale (not dead yet)
       resurrection.check({
         id: 'agent-1', name: 'Agent',
-        lastHeartbeat: Date.now() - (13 * 60 * 1000),
+        lastHeartbeat: Date.now() - (150 * 60 * 1000),
       });
       expect(handler).not.toHaveBeenCalled();
 
       // Second check — dead
       resurrection.check({
         id: 'agent-1', name: 'Agent',
-        lastHeartbeat: Date.now() - (25 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
       expect(handler).toHaveBeenCalledTimes(1);
     });
@@ -667,7 +670,7 @@ describe('Resurrection Module', () => {
       resurrection.check({
         id: maliciousId,
         name: 'Evil Agent',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       // Table should still exist and work
@@ -684,7 +687,7 @@ describe('Resurrection Module', () => {
         id: 'agent-long',
         name: 'Long Purpose Agent',
         purpose: longPurpose,
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -696,7 +699,7 @@ describe('Resurrection Module', () => {
         id: 'agent-unicode',
         name: 'Agent with special chars',
         purpose: 'Building feature with emojis and CJK chars',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -709,7 +712,7 @@ describe('Resurrection Module', () => {
         name: '',
         purpose: '',
         sessionId: '',
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -723,7 +726,7 @@ describe('Resurrection Module', () => {
         identityProject: null,
         identityStack: null,
         identityContext: null,
-        lastHeartbeat: Date.now() - (21 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       const pending = resurrection.pending();
@@ -746,7 +749,7 @@ describe('Resurrection Module', () => {
         notes: ['Started building auth', 'Got stuck on JWT validation'],
         identityProject: 'myapp',
         identityStack: 'api',
-        lastHeartbeat: Date.now() - (25 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       // 2. Verify it's pending
@@ -776,7 +779,7 @@ describe('Resurrection Module', () => {
       resurrection.check({
         id: 'abandon-agent',
         name: 'Abandon Agent',
-        lastHeartbeat: Date.now() - (25 * 60 * 1000),
+        lastHeartbeat: Date.now() - (300 * 60 * 1000),
       });
 
       // Claim
@@ -803,7 +806,7 @@ describe('Resurrection Module', () => {
           id: `agent-${i}`,
           name: `Agent ${i}`,
           identityProject: 'shared-project',
-          lastHeartbeat: Date.now() - (25 * 60 * 1000),
+          lastHeartbeat: Date.now() - (300 * 60 * 1000),
         });
       }
 
