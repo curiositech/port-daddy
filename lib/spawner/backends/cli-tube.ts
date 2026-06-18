@@ -76,6 +76,25 @@ export interface CliTubeOptions {
   tubeSender?: string;
   /** Hook for tests / observers to capture the underlying ChildProcess. */
   onChild?: (child: ChildProcess) => void;
+  /**
+   * Live per-line hook. Both wrapped CLIs emit JSONL on stdout (claude-code
+   * `stream-json`, codex `--json`); stdout arrives in arbitrary chunks that may
+   * split a line or carry several. This hook is called ONCE per COMPLETE line
+   * (newline-terminated) as it arrives — so the caller can map each event to a
+   * live transcript delta the cockpit sees mid-run, instead of waiting for the
+   * full `rawStdout` at completion. A trailing partial line (no terminating
+   * newline) is flushed when the child closes. Fail-soft: a throwing hook is
+   * swallowed so it can never break the spawn.
+   */
+  onStreamLine?: (line: string) => void;
+  /**
+   * Optional permission mode forwarded to claude-code as `--permission-mode
+   * <mode>` (only when set). `acceptEdits` lets a spawned agent edit files in
+   * its workdir non-interactively; `bypassPermissions` removes all gating.
+   * Unset = the CLI's default (interactive prompts), preserving prior behavior.
+   * Ignored for CLIs that don't support the flag.
+   */
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
 }
 
 export interface CliTubeResult {
@@ -164,6 +183,7 @@ export function buildArgs(
   prompt: string,
   outputPath?: string,
   model?: string,
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
 ): { args: string[]; stdin: string | null } {
   // A model equal to the backend/CLI's own name is a placeholder that leaked
   // from default resolution (backend "cli:claude-code" → model "claude-code").
@@ -187,6 +207,11 @@ export function buildArgs(
     // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
     const args = ['-p', '--output-format', 'stream-json', '--verbose'];
     if (effModel) args.push('--model', effModel);
+    // `--permission-mode acceptEdits` lets the spawned agent edit files in its
+    // workdir without an interactive prompt (non-interactive `-p` runs would
+    // otherwise block on the permission gate). Only forwarded when set, so the
+    // default spawn keeps the CLI's default gating.
+    if (permissionMode) args.push('--permission-mode', permissionMode);
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -275,7 +300,7 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model);
+  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode);
 
   const startedAt = Date.now();
 
@@ -291,7 +316,37 @@ export async function spawnViaCliTube(
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
 
-  child.stdout?.on('data', (d: Buffer) => stdoutChunks.push(d.toString()));
+  // Live per-line dispatch. stdout arrives in arbitrary chunks (a chunk may
+  // split a JSONL line or carry several), so buffer partial lines and emit each
+  // COMPLETE (newline-terminated) line to onStreamLine as it lands. The
+  // trailing partial (if any) is flushed on close. Fail-soft: a throwing hook
+  // never breaks the spawn.
+  const emitLine = opts.onStreamLine;
+  let lineBuffer = '';
+  function pumpStdout(text: string): void {
+    if (!emitLine) return;
+    lineBuffer += text;
+    let nl: number;
+    while ((nl = lineBuffer.indexOf('\n')) !== -1) {
+      const line = lineBuffer.slice(0, nl);
+      lineBuffer = lineBuffer.slice(nl + 1);
+      try { emitLine(line); } catch { /* hook must never break the spawn */ }
+    }
+  }
+  function flushStdout(): void {
+    if (!emitLine) return;
+    if (lineBuffer.length > 0) {
+      const line = lineBuffer;
+      lineBuffer = '';
+      try { emitLine(line); } catch { /* swallow */ }
+    }
+  }
+
+  child.stdout?.on('data', (d: Buffer) => {
+    const text = d.toString();
+    stdoutChunks.push(text);
+    pumpStdout(text);
+  });
   child.stderr?.on('data', (d: Buffer) => stderrChunks.push(d.toString()));
 
   const result = await new Promise<{ code: number; timedOut: boolean; spawnErr: string | null }>((resolve) => {
@@ -317,6 +372,10 @@ export async function spawnViaCliTube(
       resolve({ code: -1, timedOut: false, spawnErr: err.message });
     });
   });
+
+  // Flush any trailing partial line (a final JSONL line without a terminating
+  // newline) so the last event is still delivered live.
+  flushStdout();
 
   const durationMs = Date.now() - startedAt;
   const rawStdout = stdoutChunks.join('');

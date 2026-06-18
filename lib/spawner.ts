@@ -22,8 +22,8 @@ import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
-import { parseCodexTranscript, type StructuredTurn } from './spawner/codex-transcript.js';
-import { parseClaudeCodeTranscript, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
+import { parseCodexTranscript, mapCodexStreamLine, type StructuredTurn } from './spawner/codex-transcript.js';
+import { parseClaudeCodeTranscript, mapClaudeCodeStreamLine, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
 import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
 import { parseCloudflareTranscript } from './spawner/cloudflare-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
@@ -141,6 +141,14 @@ export interface SpawnSpec {
   maxBytes?: number | null; // optional hard egress byte cap
   /** Estimated input prompt token count — used to gate spawn if it would exceed effective context. */
   estimatedPromptTokens?: number;
+  /**
+   * File-edit permission mode for the `cli:claude-code` backend. Forwarded to
+   * the CLI as `--permission-mode <mode>` (only when set). `acceptEdits` lets a
+   * spawned agent edit files in its `workdir` non-interactively;
+   * `bypassPermissions` removes all gating. Unset = current behavior (the CLI's
+   * default interactive gating). Ignored by backends that don't support it.
+   */
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
 }
 
 export interface SpawnResult {
@@ -471,6 +479,17 @@ interface BackendRunResult {
 
 interface BackendRunContext {
   onChildProcess?: (child: ChildProcess) => void;
+  /**
+   * Live transcript-delta sink. A backend that streams events (the cli-tube
+   * backends parse claude-code `stream-json` / codex `--json` per line) calls
+   * this ONCE per event AS IT ARRIVES, so each thinking / tool_use / tool_result
+   * / assistant turn lands in fleet_transcripts mid-run and the cockpit SSE
+   * (`agent.transcript` `update`) renders it live instead of all-at-once at the
+   * end. When a backend streams deltas, the spawn loop records THESE and skips
+   * the batched final re-append (avoiding duplicates). Backends that only yield
+   * a final answer leave it unwired.
+   */
+  onTranscriptDelta?: (msg: TranscriptMessage) => void;
 }
 
 interface CodexUsage {
@@ -606,11 +625,42 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
  * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
  * Pro) for cost accounting at the wallet layer.
  */
+/** Map one backend StructuredTurn to a transcript message (live deltas + batch
+ *  recording share this so a streamed turn and its end-of-run twin are identical). */
+function turnToMessage(turn: StructuredTurn, ts: number): TranscriptMessage {
+  const message: TranscriptMessage = {
+    role: turn.role,
+    content: turn.content,
+    timestamp: ts,
+  };
+  if (turn.toolCalls && turn.toolCalls.length > 0) {
+    message.tool_calls = turn.toolCalls;
+  }
+  return message;
+}
+
 async function runCliTube(
   spec: SpawnSpec,
   cli: CliTubeTool,
   context?: BackendRunContext,
 ): Promise<BackendRunResult> {
+  // Live per-line streaming: map each JSONL event the child emits to a
+  // transcript delta AS IT ARRIVES, so the cockpit sees thinking / tool calls /
+  // assistant text mid-run. Only wired when the spawn loop provided a delta
+  // sink (it does whenever a transcript row is open).
+  const onTranscriptDelta = context?.onTranscriptDelta;
+  const mapLine =
+    cli === 'codex' ? mapCodexStreamLine
+    : cli === 'claude-code' ? mapClaudeCodeStreamLine
+    : null;
+  const onStreamLine = onTranscriptDelta && mapLine
+    ? (line: string) => {
+        for (const turn of mapLine(line)) {
+          onTranscriptDelta(turnToMessage(turn, Date.now()));
+        }
+      }
+    : undefined;
+
   const result = await spawnViaCliTube({
     cli,
     prompt: spec.task,
@@ -619,6 +669,8 @@ async function runCliTube(
     env: { ...spec.env },
     model: spec.model,
     onChild: context?.onChildProcess,
+    onStreamLine,
+    permissionMode: spec.permissionMode,
   });
 
   // Full-depth capture from the raw event stream. Both wrapped CLIs emit
@@ -1179,16 +1231,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (!transcripts || !transcriptId) return;
     recordOrThrow('messages', () => {
       for (const turn of turns) {
-        const message: TranscriptMessage = {
-          role: turn.role,
-          content: turn.content,
-          timestamp: ts,
-        };
-        if (turn.toolCalls && turn.toolCalls.length > 0) {
-          message.tool_calls = turn.toolCalls;
-        }
-        transcripts.appendMessage(transcriptId, message);
+        transcripts.appendMessage(transcriptId, turnToMessage(turn, ts));
       }
+    });
+  }
+
+  /** Append ONE live transcript delta mid-run (the cli-tube `onTranscriptDelta`
+   *  path). Mirrors txMessages' enforcement, but per-message: a live delta that
+   *  can't be recorded under enforcement is loud, just like the batch path.
+   *  Best-effort mode swallows internally. */
+  function txDelta(transcriptId: string | null, message: TranscriptMessage): void {
+    if (!transcripts || !transcriptId) return;
+    recordOrThrow('delta', () => {
+      transcripts.appendMessage(transcriptId, message);
     });
   }
 
@@ -1654,6 +1709,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let telemetry: SpawnTelemetry | null = null;
     let coastGuardReceipt: CoastGuardReceipt | null = null;
     let structuredTurns: StructuredTurn[] | null = null;
+    // Set by the backend's live onTranscriptDelta sink (cli-tube streaming).
+    // When true, the conversation is ALREADY persisted turn-by-turn, so the
+    // end-of-run path skips the batched re-append to avoid duplicating it.
+    let streamedLiveDeltas = false;
 
     try {
       // Recording is a precondition: if the transcript row could not be opened
@@ -1682,6 +1741,16 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               }, { pid });
             }
           },
+          // Live transcript streaming: each event a streaming backend parses is
+          // appended to the open transcript AS IT ARRIVES, so the cockpit SSE
+          // (`agent.transcript` `update`) renders thinking / tool calls / text
+          // mid-run. Only meaningful when a row is open (transcriptId set).
+          onTranscriptDelta: transcriptId
+            ? (msg) => {
+                streamedLiveDeltas = true;
+                txDelta(transcriptId, msg);
+              }
+            : undefined,
         };
         // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
         // every spawn through the local CLI tube, regardless of yml config.
@@ -1816,10 +1885,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // conversation. Under enforcement a recording failure here is loud: it
     // flips the spawn to 'failed' (untracked work must not look successful).
     try {
-      if (structuredTurns && !wasKilled) {
-        // Full-depth path (codex): reasoning + tool calls + each message turn.
-        // The final agent_message is already the last structured turn, so we
-        // do NOT also append `output` — that would duplicate it.
+      if (streamedLiveDeltas) {
+        // Live path (cli-tube streaming): every thinking / tool / assistant turn
+        // was already appended mid-run via onTranscriptDelta, so re-appending
+        // `structuredTurns` or `output` here would duplicate the whole
+        // conversation. Record nothing extra — the error turn below still fires.
+      } else if (structuredTurns && !wasKilled) {
+        // Full-depth path (codex / non-streamed): reasoning + tool calls + each
+        // message turn. The final agent_message is already the last structured
+        // turn, so we do NOT also append `output` — that would duplicate it.
         txMessages(transcriptId, structuredTurns, completedAt);
       } else if (output && !wasKilled) {
         // Final-answer-only backends (API calls): one assistant turn.
