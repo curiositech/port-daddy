@@ -470,6 +470,45 @@ describe('I7 HALT_IS_TOTAL', () => {
     const ok = await conductor.launch({ ...ROOT_INTENT, goal: 'resumed', lineageCeilingUsd: 100 });
     expect(ok.admitted).toBe(true);
   });
+
+  // ── Attack 3: pause/halt must NOT corrupt breaker ceilings ──────────────────
+  test('global pause→resume leaves the global ceiling INTACT (no brick, no silent-zero)', async () => {
+    const { spawner, releaseAll } = makePendingSpawner();
+    const { conductor, breaker } = makeConductor({ spawner });
+    conductor.setGlobalCeiling(100);
+    conductor.pause();          // global operator pause
+    conductor.resume();         // global resume
+    expect(breaker.isOpen(GLOBAL_SCOPE)).toBe(false);
+    // The global ceiling must still be $100 after the cycle. A bonded launch of
+    // $60 must succeed and HOLD its reservation (in-flight). If pause had zeroed
+    // the ceiling, even this $60 would refuse.
+    const aP = conductor.launch({ ...ROOT_INTENT, goal: 'a', bondUsd: 60, lineageCeilingUsd: 100 });
+    await tick();
+    // A second $60 in-flight bond pushes global to $120 > $100 → must refuse,
+    // proving the $100 ceiling is still enforced (not zeroed, not unbounded).
+    const over = await conductor.launch({ goal: 'over', backend: 'claude', source: 'operator', bondUsd: 60, lineageCeilingUsd: 100 });
+    expect(over.admitted).toBe(false);
+    expect(over.refusedReason).toMatch(/GLOBAL_BREAKER|global budget/);
+    releaseAll();
+    await aP.catch(() => {});
+  });
+
+  test('lineage halt→resume leaves the lineage cap INTACT (cap not replaced by unbounded)', async () => {
+    const { conductor, breaker } = makeConductor({ spawner: makeSpawner({ status: 'completed' }) });
+    // Establish a root with a $5 lineage ceiling (settles immediately).
+    const root = await conductor.launch({ ...ROOT_INTENT, bondUsd: 2, mergePolicy: 'never', lineageCeilingUsd: 5 });
+    const rootId = root.launch.rootId;
+    const scope = `root:${rootId}`;
+    // Halt the lineage, then resume it.
+    conductor.halt({ rootId });
+    conductor.resume({ rootId });
+    // After resume the scope is CLOSED (admission reopened)...
+    expect(breaker.isOpen(scope)).toBe(false);
+    // ...AND the $5 lineage cap survived: an over-ceiling reserve is refused
+    // (this very call trips the budget breaker, which is the expected behavior —
+    // it proves the ceiling is still $5, not null/unbounded which would return true).
+    expect(breaker.reserve(scope, 6)).toBe(false);
+  });
 });
 
 // ─── Golden spec: spawner args are byte-identical to the legacy path ──────────

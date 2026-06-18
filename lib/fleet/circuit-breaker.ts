@@ -33,7 +33,7 @@
 
 export type BreakerScope = string; // 'global' | `root:${rootId}`
 
-export type TripReason = 'lineage-budget' | 'global-budget' | 'error-rate';
+export type TripReason = 'lineage-budget' | 'global-budget' | 'error-rate' | 'operator-halt' | 'operator-pause';
 
 /** What action the Conductor should take when a scope newly trips. */
 export type TripDisposition =
@@ -84,6 +84,15 @@ interface ScopeAccounting {
 export interface FleetCircuitBreaker {
   /** Register/refresh a scope's ceiling. Idempotent; preserves accounting. */
   registerScope(scope: BreakerScope, ceilingUsd: number | null): void;
+  /**
+   * Operator-driven trip: flip `open` WITHOUT touching `ceilingUsd`, the realized
+   * cost, or the reserved bond. This is the safe surrogate for pause/halt — it
+   * stops admission while leaving the budget accounting intact, so a later
+   * `close()`/`resume` restores the scope to exactly its pre-pause ceiling. Using
+   * `registerScope(scope, 0) + reserve(scope, 1)` for this is a category error: it
+   * overwrites the ceiling and can never be restored.
+   */
+  forceOpen(scope: BreakerScope, reason: TripReason, disposition: TripDisposition): void;
   /**
    * Reserve `usd` against a scope's ceiling. Returns false WITHOUT mutating if
    * the reservation would exceed the ceiling (the caller must not spawn). This
@@ -145,6 +154,13 @@ export function createFleetCircuitBreaker(config: BreakerConfig = {}): FleetCirc
     acc.state.reason = reason;
     acc.state.disposition = disposition;
     acc.state.trippedAt = now();
+  }
+
+  function forceOpen(scope: BreakerScope, reason: TripReason, disposition: TripDisposition): void {
+    const acc = ensure(scope);
+    // Only mutate the trip state — NEVER the ceiling / realized / reserved. An
+    // already-open scope keeps its original trip reason (the first cause wins).
+    if (!acc.state.open) trip(acc, reason, disposition);
   }
 
   function reserve(scope: BreakerScope, usd: number): boolean {
@@ -243,6 +259,7 @@ export function createFleetCircuitBreaker(config: BreakerConfig = {}): FleetCirc
 
   return {
     registerScope,
+    forceOpen,
     reserve,
     release,
     recordOutcome,
