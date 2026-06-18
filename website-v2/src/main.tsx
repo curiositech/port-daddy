@@ -37,6 +37,7 @@ const MacPreviewPage = lazyNamed(() => import('@/pages/MacPreviewPage'), 'MacPre
 const PdTubePage = lazyNamed(() => import('@/pages/PdTubePage'), 'PdTubePage')
 const SkillAuditPage = lazyNamed(() => import('@/pages/SkillAuditPage'), 'SkillAuditPage')
 const AgentsPage = lazyNamed(() => import('@/pages/AgentsPage'), 'AgentsPage')
+const BrandPage = lazyNamed(() => import('@/pages/BrandPage'), 'BrandPage')
 const IntegrationsPage = lazyNamed(() => import('@/pages/integrations/IntegrationsPage'), 'IntegrationsPage')
 const IntegrationPage = lazyNamed(() => import('@/pages/integrations/IntegrationPage'), 'IntegrationPage')
 
@@ -197,6 +198,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/mac-preview" element={<MacPreviewPage />} />
               <Route path="/pd-tube" element={<PdTubePage />} />
               <Route path="/skill-audit" element={<SkillAuditPage />} />
+              <Route path="/brand" element={<BrandPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/examples/:slug" element={<ExampleDetailPage />} />
               <Route path="/mcp" element={<McpPage />} />

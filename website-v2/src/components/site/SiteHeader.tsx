@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
 import { useTheme } from "@/lib/theme-context";
+import { PortDaddyMark } from "@/components/brand";
 import { PageContainer } from "./primitives";
 
 type NavItem = {
@@ -249,13 +250,12 @@ export function SiteHeader() {
             to="/"
             className="inline-flex shrink-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]"
           >
-            {/* Our logo, in the logo place — the spinning radar mark, transparent
-                background, no border, reads on both light and dark. Always visible. */}
-            <img
-              src="/logos/portdaddy-mark.svg"
+            {/* Our logo, in the logo place — the spinning radar mark, now
+                theme-aware (luminous on dark, deepened on light), transparent
+                background, no border. Always visible. */}
+            <PortDaddyMark
+              size={40}
               alt="Port Daddy"
-              width={40}
-              height={40}
               className="h-9 w-9 shrink-0 xl:h-10 xl:w-10"
             />
             <div className="flex flex-col">

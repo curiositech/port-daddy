@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { PageContainer, PanelTitle, PanelBody, BracketLabel } from '@/components/site/primitives'
 import { ArrowRight, Download, Terminal } from 'lucide-react'
 import { FigureCarousel, type FigureSlide } from './FigureCarousel'
+import { PortDaddyMark } from '@/components/brand'
 import { SpineChain } from '@/components/library/SpineChain'
 import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import { AnchorFourPhases } from '@/components/library/AnchorFourPhases'
@@ -76,11 +77,9 @@ export function Hero() {
           transition={{ duration: 0.6, ease: 'easeOut' as const }}
           className="mt-[var(--space-4)] flex items-center gap-[var(--space-4)] lg:gap-[var(--space-6)]"
         >
-          <img
-            src="/logos/portdaddy-mark.svg"
+          <PortDaddyMark
+            size={224}
             alt="Port Daddy"
-            width={224}
-            height={224}
             className="h-24 w-24 shrink-0 sm:h-32 sm:w-32 lg:h-44 lg:w-44"
           />
           <PanelTitle as="h1" size="hero" className="max-w-[16ch]">

@@ -91,6 +91,41 @@ verify against this doc and `tokens.semantic.css` before acting.
 - **Type is editorial.** `--font-display` for headlines, `--font-sans` for body, `--font-mono` for command/code/channel strings. Sizes through `--type-*` tokens.
 - **Illustration is architectural-blueprint.** Crisp linework, hatching for shading, hand-lettered italic labels. Not painterly cinematic. Canonical reference: `public/img/generated/_brand-reference/style-ref-blueprint.png`.
 
+## Logo roster
+
+The official marks live in `public/logos/` with a full index in
+`public/logos/README.md`, a live gallery at the `/brand` route
+(`src/pages/BrandPage.tsx`), and typed wrappers in `src/components/brand/`.
+
+The logo has its **own** small fixed palette, distinct from the UI tokens above
+— these are tuned per theme for the interlocked **P/D** monogram and its radar:
+
+| Role | Light | Dark |
+|---|---|---|
+| Cobalt — primary, P-stroke | `#2076FE` | `#2076FE` |
+| Seafoam — secondary, D-stroke | `#12B88F` | `#20DEB0` |
+| Amber — intersection wedge | `#F5A623` | `#FFB505` |
+| Ground (opaque variants) | `#F4F7FA` | `#070B12` |
+
+The roster, in one line each:
+
+- **Mark** — big glossy radar + monogram, **animated** (`portdaddy-animated-{light,dark}mode.svg`) and **static** (`portdaddy-static-{light,dark}mode.svg`). Use the animated pair in the hero; static for print / reduced-motion / og fallbacks.
+- **Small mark** — favicon-grade monogram, no radar (`portdaddy-mark-small-{light,dark}.svg`). Legible to 16px.
+- **Mono** — `currentColor` inline glyph (`portdaddy-mark-mono.svg`). For buttons, nav, footers.
+- **Wordmark** — mark + "Port Daddy" type + tagline rule (`portdaddy-wordmark-{light,dark}.svg`).
+- **App tile** — monogram on a cream tile (`portdaddy-app-tile.svg`), the source for `apple-touch-icon.png` and the OG-card logo.
+
+Favicon + social card are wired in `index.html` (`<link rel=icon>` → the brand
+mark) and `src/data/siteMetadata.ts` (`/img/og/home.jpg`, whose logo region is
+the app tile). Regenerate rasters with `scripts/rasterize-logos.py` and
+`scripts/regen-home-og.py` (both render through headless Chromium so the SVGs'
+`var(--…)` stroke colors resolve).
+
+> The roster palette is **not** governed by the
+> `brand-doc matches tokens` contract (those are the *UI* tokens). It is guarded
+> by `scripts/check-brand-colors.mjs`, which fails CI if any retired
+> Harbor-Heritage hex creeps into the marks.
+
 ## When in doubt
 
 1. `cat website-v2/src/styles/tokens.semantic.css` — the source of truth
