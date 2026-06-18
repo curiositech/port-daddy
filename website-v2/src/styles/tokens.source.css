@@ -92,10 +92,13 @@
   --text-4xl: 2.25rem;
   --text-5xl: 3rem;
 
-  --font-sans: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Default type system: Fraunces display serif + Source Sans 3 body +
+     JetBrains Mono. Loaded globally in index.html. Radnika/Recursive/others
+     remain as opt-in previews via the type switcher. */
+  --font-sans: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono:
-    "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 
   --type-meta-size: 0.875rem; /* a11y: 14px floor per vision rule — do not revert to 13px */
   --type-code-size: 0.875rem; /* a11y: 14px floor per vision rule — do not revert to 13px */
@@ -225,6 +228,11 @@ html[data-type-theme="archivo"] {
   --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 }
 
+/* Fraunces display tuning — large optical size for headings. Applies to the
+   default (Fraunces is now the default) and to the explicit fraunces preview. */
+html:not([data-type-theme]) .display,
+html:not([data-type-theme]) h1,
+html:not([data-type-theme]) h2,
 html[data-type-theme="fraunces"] .display,
 html[data-type-theme="fraunces"] h1,
 html[data-type-theme="fraunces"] h2 {

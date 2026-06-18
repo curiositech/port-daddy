@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 /**
  * Type-theme switcher — a feel-out tool for the site's type system.
  *
- * Default (no attribute on <html>) is Radnika — the live site's current
- * type system, unchanged. Every alternate (including Recursive, self-hosted
- * in tokens.source.css) is opt-in and swaps the three font-role variables
+ * Default (no attribute on <html>) is Fraunces — the live site's current
+ * type system, loaded globally in index.html. Every alternate (Radnika and
+ * Recursive are self-hosted in tokens.source.css) is opt-in and swaps the three font-role variables
  * via html[data-type-theme="..."] blocks in tokens.source.css; this
  * component only sets the attribute, lazily injects the alternate's
  * webfont stylesheet the first time it is selected, and persists the
@@ -23,8 +23,14 @@ interface TypeTheme {
 const THEMES: TypeTheme[] = [
   {
     id: null,
+    label: 'Fraunces',
+    detail: 'the current default — editorial serif display',
+    links: [],
+  },
+  {
+    id: 'radnika',
     label: 'Radnika',
-    detail: 'the current default',
+    detail: 'clean grotesque, the previous default',
     links: [],
   },
   {
@@ -55,14 +61,6 @@ const THEMES: TypeTheme[] = [
     detail: 'superfamily: sans display, serif body',
     links: [
       'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap',
-    ],
-  },
-  {
-    id: 'fraunces',
-    label: 'Fraunces',
-    detail: 'serif display over Source Sans',
-    links: [
-      'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0,0&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap',
     ],
   },
   {
