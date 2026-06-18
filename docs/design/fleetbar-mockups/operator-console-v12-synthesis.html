@@ -21,21 +21,70 @@
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.0.13/files/ibm-plex-mono-latin-400-normal.woff2) format('woff2');}
 @font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url(https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.0.13/files/ibm-plex-mono-latin-600-normal.woff2) format('woff2');}
 
+/* ════════════════════════════════════════════════════════════════════════════
+   PALETTE — matched 1:1 to the live website tokens
+   (website-v2/src/styles/tokens.semantic.css — the canonical source of truth).
+   Both themes shipped; toggle top-right. Brand is cobalt/pine (light) and
+   sky/mint (dark) — NOT the v11-spec amber; the website is the source of truth.
+   Maritime signal flags use the website's own --signal-* mappings.
+   ════════════════════════════════════════════════════════════════════════════ */
+:root, [data-theme='light']{
+  --bg:#f2eee6;        /* surface-base */
+  --panel:#f7f3eb;     /* surface-raised */
+  --raised:#e9e2d5;    /* surface-strong */
+  --sunken:#e0d9cb;    /* surface-sunken */
+  --ink:#121212;       /* text-primary */
+  --ink2:#403b34;      /* text-secondary */
+  --muted:#47423a;     /* text-muted */
+  --line:rgba(18,18,18,.16);   /* border-subtle */
+  --line2:rgba(18,18,18,.42);  /* border-default */
+  --accent:#003fb8;    /* brand-primary (cobalt) — the primary accent */
+  --accent2:#006b5f;   /* brand-accent (pine) — secondary accent */
+  --cobalt:#0055ff;    /* status-info */
+  --mayday:#bf2f2f;    /* status-error */
+  /* status carries meaning only (website status-* tokens) */
+  --engaged:#a66f00;   /* status-warning (busy/ochre) */
+  --gated:#bf2f2f;     /* status-error (attention) */
+  --resting:#6b6457;   /* muted slate */
+  --landed:#2d7a43;    /* status-success */
+  --conflict:#bf2f2f;
+  /* maritime signal flags = website --signal-* */
+  --flag-charlie:#2d7a43;  /* signal-charlie → status-success */
+  --flag-kilo:#0055ff;     /* signal-kilo → status-info */
+  --flag-uniform:#a66f00;  /* signal-uniform → status-warning */
+  --flag-november:#bf2f2f; /* signal-november → status-error */
+  --flag-lima:#47423a;     /* signal-lima → text-muted */
+  --glass:rgba(247,243,235,.92);
+  --shadow:0 30px 80px -34px rgba(18,18,18,.28);
+}
+[data-theme='dark']{
+  --bg:#101216;        /* surface-base */
+  --panel:#181c22;     /* surface-raised */
+  --raised:#222833;    /* surface-strong */
+  --sunken:#0b0d11;    /* surface-sunken */
+  --ink:#f5f3ed;       /* text-primary */
+  --ink2:#d3cec2;      /* text-secondary */
+  --muted:#a59f93;     /* text-muted */
+  --line:rgba(245,243,237,.18);  /* border-subtle */
+  --line2:rgba(245,243,237,.44); /* border-default */
+  --accent:#7db4ff;    /* brand-primary (sky) */
+  --accent2:#8fd0a7;   /* brand-accent (mint) */
+  --cobalt:#7db4ff;    /* status-info */
+  --mayday:#ff7d7d;    /* status-error */
+  --engaged:#f2be51;   /* status-warning */
+  --gated:#ff7d7d;     /* status-error */
+  --resting:#8a8378;
+  --landed:#66d28a;    /* status-success */
+  --conflict:#ff7d7d;
+  --flag-charlie:#66d28a;
+  --flag-kilo:#7db4ff;
+  --flag-uniform:#f2be51;
+  --flag-november:#ff7d7d;
+  --flag-lima:#a59f93;
+  --glass:rgba(24,28,34,.9);
+  --shadow:0 30px 80px -30px rgba(0,0,0,.8);
+}
 :root{
-  /* ── v11 palette (warm-dark) — one amber accent; status = meaning only ── */
-  --bg:#0e0d0b; --panel:#16140f; --raised:#1f1c15; --sunken:#0a0907;
-  --ink:#f3eee3; --ink2:#d4ccbb; --muted:#a89e88;
-  --line:rgba(241,236,225,.14); --line2:rgba(241,236,225,.30);
-  --accent:#e0b15c;                    /* amber — the ONE brand color */
-  --engaged:#e0b15c; --gated:#d98a82; --resting:#6c6557; --landed:#86c98e; --conflict:#d98a82;
-  --cobalt:#7db4ff;                    /* merge-as-light / info */
-  --mayday:#c5544a;                    /* failure-class only */
-  /* maritime signal-flag families (carry status meaning, never decoration) */
-  --flag-charlie:#86c98e;   /* affirmative / landed */
-  --flag-kilo:#7db4ff;      /* "I wish to communicate" / info */
-  --flag-uniform:#e0b15c;   /* "stand into danger" / warning */
-  --flag-oscar:#d98a82;     /* "man overboard" / gated */
-  --flag-lima:#6c6557;      /* "stop instantly" / resting */
   /* ── v9 MOTION SYSTEM — named curves, GPU transform/opacity only, ≤500ms ── */
   --swoosh:cubic-bezier(.16,1,.3,1);    /* graceful settle — pane/tab entrance */
   --snap:cubic-bezier(.34,1.56,.64,1);  /* overshoot spring — buttons, controls */
@@ -58,7 +107,7 @@ h1.title{font-size:clamp(1.7rem,3vw,2.3rem);font-weight:600;letter-spacing:-.01e
 
 /* ════════════════════════════ THE CONSOLE MOCK ════════════════════════════ */
 .console{margin-top:22px;border:1px solid var(--line2);border-radius:var(--r-lg);
-  background:var(--panel);overflow:hidden;box-shadow:0 30px 80px -30px rgba(0,0,0,.8);
+  background:var(--panel);overflow:hidden;box-shadow:var(--shadow);
   animation:rise .7s var(--swoosh) both}
 @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
 
@@ -129,10 +178,11 @@ h1.title{font-size:clamp(1.7rem,3vw,2.3rem);font-weight:600;letter-spacing:-.01e
 .sigflag{display:inline-flex;align-items:center;gap:5px;font:600 .72rem/1 var(--mono);
   padding:3px 7px;border-radius:5px;border:1px solid var(--line2);color:var(--ink2)}
 .sigflag i{width:14px;height:10px;border-radius:2px;display:inline-block;position:relative;overflow:hidden}
-.f-charlie{background:linear-gradient(180deg,var(--flag-kilo) 0 33%,#fff 33% 66%,var(--flag-oscar) 66%)}
-.f-kilo{background:repeating-linear-gradient(90deg,var(--flag-uniform) 0 50%,var(--flag-kilo) 50% 100%)}
-.f-oscar{background:linear-gradient(135deg,var(--flag-oscar) 50%,#f3eee3 50%)}
-.f-lima{background:conic-gradient(var(--flag-uniform) 0 25%,#1a1a1a 0 50%,var(--flag-uniform) 0 75%,#1a1a1a 0)}
+.f-charlie{background:linear-gradient(180deg,var(--flag-charlie) 0 50%,#f4f4f2 50%)}
+.f-kilo{background:repeating-linear-gradient(90deg,var(--flag-kilo) 0 50%,#f4f4f2 50% 100%)}
+.f-november{background:linear-gradient(135deg,var(--flag-november) 50%,#f4f4f2 50%)}
+.f-uniform{background:conic-gradient(var(--flag-uniform) 0 25%,#f4f4f2 0 50%,var(--flag-uniform) 0 75%,#f4f4f2 0)}
+.f-lima{background:conic-gradient(var(--flag-lima) 0 25%,#222 0 50%,var(--flag-lima) 0 75%,#222 0)}
 
 /* ── operator-avatar conversation pane ── */
 .conv{display:flex;flex-direction:column;gap:9px;overflow-y:auto}
@@ -247,9 +297,14 @@ a{color:var(--accent)}
 </style>
 </head>
 <body>
+<button id="themeToggle" aria-label="Toggle light/dark"
+  style="position:fixed;top:16px;right:16px;z-index:50;font:600 .82rem/1 var(--sans);
+  padding:9px 13px;border-radius:8px;border:1px solid var(--line2);background:var(--panel);
+  color:var(--ink2);cursor:pointer;box-shadow:var(--shadow);transition:transform .18s var(--snap),color .18s var(--ease)">◐ light / dark</button>
+
 <div class="app">
 
-  <span class="eyebrow">Operator Console · v12 synthesis · static mock</span>
+  <span class="eyebrow">Operator Console · v12 synthesis · static mock · website-matched palette</span>
   <h1 class="title">One seat. Many voyages. The multiplexer grows a soul.</h1>
   <p class="sub">The pane-tree multiplexer that already ships (splits · named tabs · macOS hover controls · command mode) wearing v9's motion soul and v11's voyage IA. Hover the panes. Watch the lane stream. This is a mock of intent, not wired to the daemon.</p>
 
@@ -263,7 +318,7 @@ a{color:var(--accent)}
 
     <!-- HiTL — unmissable -->
     <div class="hitl">
-      <span class="flag">⚑ Oscar · HiTL</span>
+      <span class="flag">⚑ November · HiTL</span>
       <span class="msg"><b>cartographer</b> wants to merge <b>#462 agents/stream</b> — 8 tests green, Copilot clean. Land it?</span>
       <span class="acts">
         <button class="btn approve">Approve &amp; land</button>
@@ -319,7 +374,7 @@ a{color:var(--accent)}
         <div class="body">
           <div class="vessel"><span class="pres eng"></span><div><div class="nm">cartographer</div><div class="role">approver · #462</div></div><span class="sigflag"><i class="f-charlie"></i>Charlie</span><span class="cost">$3.10</span></div>
           <div class="vessel"><span class="pres eng"></span><div><div class="nm">dispatch-fix</div><div class="role">worker · claude-cli</div></div><span class="sigflag"><i class="f-kilo"></i>Kilo</span><span class="cost">$0.42</span></div>
-          <div class="vessel"><span class="pres gate"></span><div><div class="nm">macaroon-gate</div><div class="role">worker · gated</div></div><span class="sigflag"><i class="f-oscar"></i>Oscar</span><span class="cost">$1.80</span></div>
+          <div class="vessel"><span class="pres gate"></span><div><div class="nm">macaroon-gate</div><div class="role">worker · gated</div></div><span class="sigflag"><i class="f-november"></i>November</span><span class="cost">$1.80</span></div>
           <div class="vessel"><span class="pres rest"></span><div><div class="nm">forensics</div><div class="role">nightshift · resting</div></div><span class="sigflag"><i class="f-lima"></i>Lima</span><span class="cost">$0.00</span></div>
         </div>
       </section>
@@ -484,30 +539,46 @@ a{color:var(--accent)}
   const ctx = c.getContext('2d');
   function size(){ c.width = c.offsetWidth*devicePixelRatio; c.height = c.offsetHeight*devicePixelRatio; }
   size(); addEventListener('resize', size);
+  // Pull the live theme accents so fireflies match light/dark.
+  function rgbOf(varName, fallback){
+    const v = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+    const m = v.match(/^#([0-9a-f]{6})$/i);
+    if(m){ const n=parseInt(m[1],16); return [n>>16&255,n>>8&255,n&255]; }
+    return fallback;
+  }
+  let A1 = rgbOf('--accent',[125,180,255]), A2 = rgbOf('--accent2',[143,208,167]);
   const N = reduce ? 0 : 16;
   const flies = Array.from({length:N}, ()=>({
     x:Math.random(), y:Math.random(), vx:(Math.random()-.5)*.0008, vy:(Math.random()-.5)*.0008,
-    r:1+Math.random()*2, p:Math.random()*Math.PI*2,
-    hue: Math.random()<.7 ? [224,177,92] : [125,180,255]
+    r:1+Math.random()*2, p:Math.random()*Math.PI*2, warm: Math.random()<.65
   }));
   function frame(t){
     ctx.clearRect(0,0,c.width,c.height);
     for(const f of flies){
+      const h = f.warm ? A1 : A2;
       f.x+=f.vx; f.y+=f.vy;
       if(f.x<0||f.x>1) f.vx*=-1; if(f.y<0||f.y>1) f.vy*=-1;
       const a = .25 + .45*(0.5+0.5*Math.sin(t/600 + f.p));
       const x=f.x*c.width, y=f.y*c.height, r=f.r*devicePixelRatio;
       const g=ctx.createRadialGradient(x,y,0,x,y,r*5);
-      g.addColorStop(0,`rgba(${f.hue[0]},${f.hue[1]},${f.hue[2]},${a})`);
-      g.addColorStop(1,`rgba(${f.hue[0]},${f.hue[1]},${f.hue[2]},0)`);
+      g.addColorStop(0,`rgba(${h[0]},${h[1]},${h[2]},${a})`);
+      g.addColorStop(1,`rgba(${h[0]},${h[1]},${h[2]},0)`);
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*5,0,7); ctx.fill();
-      ctx.fillStyle=`rgba(${f.hue[0]},${f.hue[1]},${f.hue[2]},${Math.min(1,a+.3)})`;
+      ctx.fillStyle=`rgba(${h[0]},${h[1]},${h[2]},${Math.min(1,a+.3)})`;
       ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
     }
     requestAnimationFrame(frame);
   }
   if(!reduce) requestAnimationFrame(frame);
+  // Re-read accents when the theme flips.
+  window.__refreshFireflies = ()=>{ A1 = rgbOf('--accent',A1); A2 = rgbOf('--accent2',A2); };
 })();
+// Light/dark toggle — flips the whole palette to the website's other theme.
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const root = document.documentElement;
+  root.setAttribute('data-theme', root.getAttribute('data-theme')==='dark' ? 'light' : 'dark');
+  if(window.__refreshFireflies) window.__refreshFireflies();
+});
 // Tabs + add-pane are mock affordances — click feedback only.
 document.querySelectorAll('.tab:not(.add)').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab.on').forEach(x=>x.classList.remove('on')); t.classList.add('on');
