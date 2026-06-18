@@ -43,6 +43,37 @@
   --status-error-on-tint: #5a0000;
   --status-info-on-tint: var(--brand-primary-on-tint);
 
+  /* ── Story palette (ADR-0048 stack made visible) ───────────────────────────
+     The expanded brand hues map 1:1 onto the L0→L3 layers so color *tells the
+     product's story*. Each rounds out the wheel into a harmonious set anchored
+     on cobalt #003fb8 (kernel/truth), teal #006b5f (legibility), amber #a66f00
+     (economy), and danger #bf2f2f (breach). See docs/design/BRAND.md.
+
+       cobalt   L0  kernel / truth        (existing --brand-primary)
+       teal     L2  legibility            (existing --brand-accent)
+       health   L1  ready / coordinated   (new — sage green, 150°)
+       indigo   L1→L3  protocol / federation (new — 248°)
+       violet   L3  identity / continuity (new — 261°, the "person")
+       rust     L3  reputation / Elo earned (new — 21°)
+       amber    L3  economy / value       (existing --status-warning)
+
+     Hues sit at 21°/150°/248°/261° — filling the green & violet gaps between
+     the existing anchors so the wheel reads as one analogous-warm arc
+     (danger→rust→amber→lime) and one analogous-cool arc (health→teal→cobalt→
+     indigo→violet). All AA+ on cream (≥4.5) and as white-text fills (≥4.98). */
+  --story-health: #1f7a4d;          /* L1 ready/healthy — sage green */
+  --story-health-on-tint: #155534;  /* on tinted wells (≥6.8) */
+  --story-health-foreground: #fbf7ef;
+  --story-indigo: #4b3f9e;          /* L1→L3 protocol/federation */
+  --story-indigo-on-tint: #352c73;
+  --story-indigo-foreground: #fbf7ef;
+  --story-violet: #6f48b5;          /* L3 identity/continuity — the person */
+  --story-violet-on-tint: #4f3186;
+  --story-violet-foreground: #fbf7ef;
+  --story-rust: #9a4a1e;            /* L3 reputation/Elo — trust earned */
+  --story-rust-on-tint: #6e3414;
+  --story-rust-foreground: #fbf7ef;
+
   --signal-charlie: var(--status-success);
   --signal-november: var(--status-error);
   --signal-kilo: var(--status-info);
@@ -54,6 +85,18 @@
   --channel-topic: var(--brand-accent);
   --channel-qualifier: var(--status-success);
   --channel-sep: var(--text-muted);
+
+  /* Layer vocabulary — paint ADR-0048 stack diagrams, the layer badges in
+     docs, and the "what Port Daddy is" stack table by semantic layer, not by
+     re-picking hexes. L0 kernel = cobalt (truth), L1 = health (coordinated
+     ready), L2 = teal (legible), L3 = violet (continuity → persons → market). */
+  --layer-l0-kernel: var(--brand-primary);
+  --layer-l1-protocol: var(--story-health);
+  --layer-l2-legibility: var(--brand-accent);
+  --layer-l3-economy: var(--story-violet);
+  --layer-federation: var(--story-indigo);
+  --layer-reputation: var(--story-rust);
+  --layer-value: var(--status-warning);
 
   --voice-mayday: var(--status-error);
   --voice-pan-pan: var(--status-warning);
@@ -144,6 +187,30 @@
   --status-warning-on-tint: #ffe0a0;
   --status-error-on-tint: #ffc4c4;
   --status-info-on-tint: var(--brand-primary-on-tint);
+
+  /* ── Story palette (dark) — luminous variants of the L0→L3 hues.
+     Lightened to sit on near-black surfaces; all ≥6.2 contrast on
+     --surface-base (#101216) and --surface-raised (#181c22), i.e. AA+. */
+  --story-health: #5fce97;
+  --story-health-on-tint: #adf3c2;
+  --story-health-foreground: #121212;
+  --story-indigo: #9d92e8;
+  --story-indigo-on-tint: #cfc9f6;
+  --story-indigo-foreground: #121212;
+  --story-violet: #b69bec;
+  --story-violet-on-tint: #ddccf8;
+  --story-violet-foreground: #121212;
+  --story-rust: #e09464;
+  --story-rust-on-tint: #f4c8ac;
+  --story-rust-foreground: #121212;
+
+  --layer-l0-kernel: var(--brand-primary);
+  --layer-l1-protocol: var(--story-health);
+  --layer-l2-legibility: var(--brand-accent);
+  --layer-l3-economy: var(--story-violet);
+  --layer-federation: var(--story-indigo);
+  --layer-reputation: var(--story-rust);
+  --layer-value: var(--status-warning);
 
   --shadow-raised: none;
   --shadow-inset: none;
