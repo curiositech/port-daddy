@@ -181,6 +181,9 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd spawn kill <id>` — terminates a running spawned agent mid-run
 - `pd fleet down` — SIGTERMs the running fleet
 - `pd fleet panic --reason "<text>"` — SIGTERMs every running fleet agent (also requires typing `YES`)
+- `pd fleet halt [--root <id>]` — Conductor total stop: SIGKILLs a scope and refunds (never slashes) its bonds (ADR-0060)
+- `pd fleet pause [--root <id>]` / `pd fleet resume [--root <id>]` — soft stop / reopen admission for a Conductor scope
+- `pd fleet inspect <rootId>` / `pd fleet tree <rootId>` — render a Conductor lineage tree
 - `pd guard install` — writes git hooks; merges existing ones
 - `pd guard install-shim` / `uninstall-shim` — alters how `git` behaves system-wide
 - `pd guard enable` / `disable` — changes enforcement mode for the whole worktree
@@ -669,6 +672,17 @@ The daemon-served control plane now has an explicit `Agents` surface alongside t
 ### Bonds & Budget Guard
 
 Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it. `pd fleet panic` arms a two-step global kill-switch that **refunds** (not slashes) every running bond — operator action is not agent misbehavior.
+
+**Fleet Conductor cost gates (ADR-0060).** The daemon routes every sortie and reactive-orchestrator spawn through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission. These are armed at daemon startup and env-overridable:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `PD_FLEET_GLOBAL_CEILING_USD` | `25` | Total aggregate fleet spend cap (`off`/`0` = unbounded, logged loudly) |
+| `PD_FLEET_LINEAGE_CEILING_USD` | `5` | Per-subtree (per-root) spend cap stamped on launches without their own |
+| `PD_FLEET_DEFAULT_BOND_USD` | `0.01` | Reservation floor so the breaker accrues even when a launch omits a bond |
+| `PD_FLEET_MAX_DEPTH` | `3` | Max recursion depth (agents launching agents) |
+
+Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree` (see Destructive Operations above). `halt` is total (SIGKILL + refund); `pause` is soft (stop admitting, leave agents running).
 
 **What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
 
