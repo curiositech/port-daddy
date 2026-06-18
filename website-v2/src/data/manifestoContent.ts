@@ -56,6 +56,42 @@ export const manifestoCaptions: Record<string, string> = {
     'Seven papers: four explain the system in prose, three hand the safety claims to a proof-checker.',
 }
 
+/**
+ * The harbor-evolution figure — one drawing, three stages, in the site's flat
+ * blueprint house style. Shared between the manifesto and the library so the
+ * I → II → III arc reads the same wherever a reader meets it. The caption
+ * re-states the three stages in words so the figure does not have to be decoded
+ * from the roman numerals alone.
+ */
+export const harborEvolutionFigure = {
+  src: '/img/generated/manifesto/trilogy-arc.webp',
+  alt: 'A blueprint-style line drawing in three stages connected by a rising arrow. Stage I: a single small hut on pilings. Stage II: a taller house on pilings beside a dockside crane, one machine doing its own loading. Stage III: a full shipyard and harbor with many berths, cranes, and ships.',
+  stages: [
+    { numeral: 'I', label: 'A single process on one machine — one hut, one job, no one to coordinate with.' },
+    { numeral: 'II', label: 'A single machine coordinating its own work — one house, its own crane, keeping its own logbook.' },
+    { numeral: 'III', label: 'A harbor coordinating many machines and agents — many berths, one office that hands them out.' },
+  ],
+  caption:
+    'One process → one machine → many machines. The same arc the three papers climb, drawn once: a hut becomes a house with its own crane becomes a harbor that gives every ship a berth.',
+} as const
+
+/**
+ * The olog / functor figure plus the plain-language gloss the manifesto needs
+ * next to it. Authored here so the prose around the image stays legible to a
+ * reader who has never met category theory.
+ */
+export const ologFunctorFigure = {
+  src: '/img/generated/manifesto/functor-transport.webp',
+  alt: 'A folded protein on the left and a crystal lattice on the right, joined by threads of light that run from points on one structure to matching points on the other — a structure-preserving map carrying relationships across, not just objects.',
+  caption:
+    'A functor in one picture: the threads do not connect a protein to a crystal at random — they carry the relationships, so what holds on the left already holds on the right.',
+  explainer: [
+    'An olog — short for ontology log — is a labeled diagram of the concepts in some domain and the structure-preserving relationships between them. A protein, a supply chain, a legal argument: each one can be written as an olog, where the boxes are the ideas and the arrows are how they relate.',
+    'A functor is a structure-preserving map from one olog to another. It does not merely pair up boxes; it carries the arrows — the relationships — so the shape of one domain lands intact inside the other. That is the difference between a loose metaphor and a transport you can check.',
+    'That is why it matters here: Port Daddy moves a coordination structure faithfully across contexts — one machine, then many — the way a functor carries a domain across without dropping the relationships that made it work.',
+  ],
+} as const
+
 // ─── Concept sections (the "technology we sell") ────────────────────────────
 // These are designed React sections on the page, not markdown. They surface
 // the actual primitives, the one mechanism-design theorem we take seriously,

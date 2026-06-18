@@ -11,10 +11,12 @@ import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
 import {
   cryptoPapers,
+  harborEvolutionFigure,
   layerPapers,
   manifestoCaptions,
   manifestoContent,
   manifestoMeta,
+  ologFunctorFigure,
   technologyPrimitives,
 } from '@/data/manifestoContent'
 import { findWhitePaperById } from '@/data/whitePapers'
@@ -48,7 +50,53 @@ function consumeSidenoteSentinel(children: ReactNode): { label: string; stripped
   return { label, stripped: arr }
 }
 
+/** Flatten an H2's React children to plain text so we can match the heading. */
+function headingText(children: ReactNode): string {
+  const parts: string[] = []
+  const walk = (node: ReactNode): void => {
+    if (typeof node === 'string' || typeof node === 'number') {
+      parts.push(String(node))
+    } else if (Array.isArray(node)) {
+      node.forEach(walk)
+    } else if (isValidElement<{ children?: ReactNode }>(node)) {
+      walk(node.props.children)
+    }
+  }
+  walk(children)
+  return parts.join('').trim()
+}
+
+// Diagrams/figures are placed at the prose anchor where the text first discusses
+// them — keyed by the H2 they should appear *before*. The single ReactMarkdown
+// render is preserved (so footnotes resolve), and the custom `h2` renderer emits
+// the matching figure immediately ahead of its heading.
+const DIAGRAMS_BEFORE_HEADING: Record<string, () => ReactElement> = {
+  // The file collision is laid out in "Start with the file"; the drawn race and
+  // the single-writer fix belong as the reader turns to the economics framing.
+  'Agents are becoming economic actors. They have no economy.': () => <CollisionDiagram />,
+  // "The Leviathan you can check" ends on "one process → one machine → many
+  // machines" — the harbor-evolution drawing makes that arc literal.
+  'Now the part that sounds insane': () => <HarborEvolutionFigure />,
+  // The olog/functor idea is introduced just above; the figure + plain-language
+  // gloss meet the reader before the honest caveat reins the claim back in.
+  'The honest caveat is the entire load-bearing beam': () => <OlogFunctorFigure />,
+  // Myerson–Satterthwaite (the impossibility wall) underwrites the market design
+  // the "bonded commons" section then builds on.
+  'The bonded commons is the missing market microstructure': () => <MathSection />,
+}
+
 const markdownComponents: Components = {
+  h2({ children }) {
+    const text = headingText(children)
+    const Diagram = DIAGRAMS_BEFORE_HEADING[text]
+    return (
+      <>
+        {Diagram ? <Diagram /> : null}
+        <h2>{children}</h2>
+      </>
+    )
+  },
+
   pre({ children }) {
     const codeChild = Array.isArray(children) ? children[0] : children
     if (isCodeElement(codeChild)) {
@@ -196,6 +244,71 @@ function CollisionDiagram() {
   )
 }
 
+/** The harbor-evolution drawing (I → II → III) with the three stages re-stated in words. */
+function HarborEvolutionFigure() {
+  return (
+    <figure className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+      <img
+        src={harborEvolutionFigure.src}
+        alt={harborEvolutionFigure.alt}
+        loading="lazy"
+        className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+      />
+      <div className="mt-[var(--space-4)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
+        {harborEvolutionFigure.stages.map((stage) => (
+          <div key={stage.numeral} className="flex flex-col gap-[var(--space-2)] bg-[var(--surface-raised)] p-[var(--space-4)]">
+            <span className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--brand-primary)]">
+              {stage.numeral}
+            </span>
+            <span className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">{stage.label}</span>
+          </div>
+        ))}
+      </div>
+      <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+        {harborEvolutionFigure.caption}
+      </figcaption>
+    </figure>
+  )
+}
+
+/** The olog/functor drawing with a plain-language gloss for non-mathematicians. */
+function OlogFunctorFigure() {
+  return (
+    <section
+      aria-labelledby="functor-heading"
+      className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]"
+    >
+      <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+        <img
+          src={ologFunctorFigure.src}
+          alt={ologFunctorFigure.alt}
+          loading="lazy"
+          className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+        />
+        <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+          {ologFunctorFigure.caption}
+        </figcaption>
+      </figure>
+      <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
+        <SectionEyebrow>Functors on ologs, in plain words</SectionEyebrow>
+        <h2
+          id="functor-heading"
+          className="mt-[var(--space-3)] font-display text-[length:var(--text-xl)] font-black leading-tight text-[var(--text-primary)]"
+        >
+          What the picture is saying
+        </h2>
+        <div className="mt-[var(--space-3)] flex flex-col gap-[var(--space-3)]">
+          {ologFunctorFigure.explainer.map((para) => (
+            <p key={para.slice(0, 24)} className="text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+              {para}
+            </p>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function TechnologySection() {
   return (
     <section aria-labelledby="tech-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
@@ -310,16 +423,16 @@ function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
       </div>
 
       <h3 className="font-display text-[length:var(--text-xl)] font-black text-[var(--text-primary)]">{spec.title}</h3>
-      <p className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">
+      <p className="max-w-[46ch] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
         {paper?.thesis ?? spec.blurb}
       </p>
 
       {sectionTitles.length > 0 && (
-        <ul className="flex flex-col gap-[var(--space-1)]">
+        <ul className="flex flex-col gap-[var(--space-2)]">
           {sectionTitles.map((t) => (
             <li
               key={t}
-              className="flex items-start gap-[var(--space-2)] text-[length:var(--text-base)] text-[var(--text-secondary)]"
+              className="flex items-start gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
             >
               <span aria-hidden="true" className="mt-[0.55em] h-[6px] w-[6px] shrink-0 bg-[var(--brand-primary)]" />
               {t}
@@ -354,7 +467,7 @@ function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
 
 function PapersSection() {
   return (
-    <section aria-labelledby="papers-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+    <section aria-labelledby="papers-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[104ch]">
       <SectionEyebrow>The jewel</SectionEyebrow>
       <h2
         id="papers-heading"
@@ -362,7 +475,7 @@ function PapersSection() {
       >
         Seven papers that work it out
       </h2>
-      <p className="mt-[var(--space-2)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+      <p className="mt-[var(--space-2)] max-w-[80ch] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
         Four explain the system, climbing one ladder from the machine to the market. Three hand the safety
         claims to a proof-checker — the same family of tools used to verify TLS 1.3 and the Signal protocol.
       </p>
@@ -377,11 +490,13 @@ function PapersSection() {
         </figcaption>
       </figure>
 
-      {/* Three crypto deep dives — shipped, real content surfaced in-line. */}
+      {/* Three crypto deep dives — shipped, real content surfaced in-line.
+          One column on narrow, two on wide: each card keeps a comfortable
+          ~40ch+ measure instead of the three cramped columns it used to be. */}
       <div className="mt-[var(--blog-subsection-break)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--signal-charlie)]">
         <Stamp size={15} aria-hidden="true" /> Three crypto deep dives · proof-checked
       </div>
-      <div className="mt-[var(--space-3)] grid gap-[var(--space-4)] lg:grid-cols-3">
+      <div className="mt-[var(--space-3)] grid gap-[var(--space-4)] sm:grid-cols-2">
         {cryptoPapers.map((p) => (
           <ShippedPaperCard key={p.title} spec={p} />
         ))}
@@ -497,11 +612,13 @@ export function ManifestoPage() {
           </motion.article>
         </div>
 
-        {/* Designed technical band: the diagram, the technology, the math, the
-            papers. Placed after the prose so the markdown footnotes stay intact. */}
-        <CollisionDiagram />
+        {/* The race diagram, the harbor-evolution figure, the olog/functor figure,
+            and the impossibility wall are now interleaved INLINE at their prose
+            anchors (see DIAGRAMS_BEFORE_HEADING). What stays at the close is the
+            "what you install" band and "the jewel" — the seven-paper grid — which
+            the final prose section sets up. The single markdown render keeps the
+            footnotes intact. */}
         <TechnologySection />
-        <MathSection />
         <PapersSection />
 
         <div className="mx-auto mt-16 w-full max-w-[80ch]">

@@ -19,6 +19,7 @@ import {
   findWhitePaperByChapter,
   type WhitePaper,
 } from '@/data/whitePapers'
+import { harborEvolutionFigure } from '@/data/manifestoContent'
 
 /**
  * The cross-reference relationships, in the order they read on a chapter card.
@@ -286,6 +287,33 @@ export default function LibraryPage() {
                   it.
                 </PanelBody>
               </div>
+
+              {/* The arc the stack climbs, drawn once: one process → one machine
+                  → many machines. The three stages are re-stated in words so the
+                  figure does not have to be decoded from the numerals alone. */}
+              <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
+                <img
+                  src={harborEvolutionFigure.src}
+                  alt={harborEvolutionFigure.alt}
+                  className="block w-full border-b-2 border-[var(--border-strong)] object-cover"
+                  loading="lazy"
+                />
+                <div className="grid gap-px border-b-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
+                  {harborEvolutionFigure.stages.map((stage) => (
+                    <div key={stage.numeral} className="space-y-[var(--space-2)] bg-[var(--surface-base)] p-[var(--space-4)]">
+                      <div className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--brand-primary)]">
+                        {stage.numeral}
+                      </div>
+                      <PanelBody className="max-w-none text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                        {stage.label}
+                      </PanelBody>
+                    </div>
+                  ))}
+                </div>
+                <figcaption className="p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  {harborEvolutionFigure.caption}
+                </figcaption>
+              </figure>
 
               {/* The four that explain */}
               <div className="space-y-[var(--space-5)]">
