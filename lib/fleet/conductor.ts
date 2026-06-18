@@ -904,16 +904,19 @@ export function createConductor(deps: ConductorDeps) {
         } catch {
           /* kill is best-effort; the worktree+transcript are preserved to salvage */
         }
+        // Release the reservation here: the body is resolved, so the run path's
+        // pending-kill branch will NOT fire a second release for this launch.
+        if (l.bondUsd) {
+          breaker.release(lineageScope(l.rootId), l.bondUsd);
+          breaker.release(GLOBAL_SCOPE, l.bondUsd);
+        }
       } else {
         // The spawn is still in flight; we do not hold the agentId yet. Record an
         // intent-to-kill — the run path honors it the instant the spawn resolves
-        // (refund-then-SIGTERM the just-born body), so HALT stays total (I7).
+        // (refund-then-SIGTERM the just-born body), so HALT stays total (I7). Do
+        // NOT release the reservation here: the run path's pending-kill branch
+        // releases it exactly once when the spawn resolves (no double-release).
         pendingKills.add(l.id);
-      }
-      // Release any outstanding reservation back to the scope.
-      if (l.bondUsd) {
-        breaker.release(lineageScope(l.rootId), l.bondUsd);
-        breaker.release(GLOBAL_SCOPE, l.bondUsd);
       }
       setState(l.id, 'halted', { settledAt: now() });
       haltedIds.push(l.id);

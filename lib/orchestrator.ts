@@ -561,6 +561,11 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
             purpose: spec.purpose,
             workdir: spec.workdir,
             allowedTools: spec.allowedTools,
+            // Forward the rule's declared capabilities so the conductor path
+            // matches the legacy spawner.spawn(spec) behaviour. Without this they
+            // were dropped and (with the empty-caps→full default) the agent ran
+            // UNrestricted. Conductor admission still narrows-only against any parent.
+            capabilities: Array.isArray(spec.capabilities) ? spec.capabilities : undefined,
             timeoutMs: typeof spec.timeout === 'number' ? spec.timeout : undefined,
             maxTokens: spec.maxTokens,
             harborName: spec.harborName,
