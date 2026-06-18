@@ -514,6 +514,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',
       'check_harbor_envelope': 'harbors',
+      'whois': 'whois',
       'spray_pheromone': 'pheromone',
       'read_pheromones': 'pheromone',
       'read_entity_pheromones': 'pheromone',

@@ -34,6 +34,7 @@ const TOOL_FEATURE_MAP = {
   'list_harbors': 'harbors',
   'get_harbor': 'harbors',
   'check_harbor_envelope': 'harbors',
+  'whois': 'whois',
 
   // Pheromone signals — #199
   'spray_pheromone': 'pheromone',

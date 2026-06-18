@@ -324,6 +324,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
     harbors: ['harbor', 'harbors'],
+    whois: ['whois'],
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
     sorties: ['sortie'],
