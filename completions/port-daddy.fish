@@ -196,6 +196,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_needs_command" -a 'relay status' -d 'Check relay connectivity and latency'
     complete -c $prog -n "__pd_needs_command" -a 'relay exchange' -d 'Publish/subscribe events via the relay worker'
     complete -c $prog -n __pd_needs_command -a dispatch -d 'Queue and run autonomous feature dev (ADR-0035; renames nightshift)'
+    complete -c $prog -n __pd_needs_command -a whois -d 'Semantic skill-router — rank agents by capability x freshness'
     complete -c $prog -n "__pd_using_command dispatch" -x -a 'propose queue list show run review cancel help' -d 'Dispatch subcommand'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l really-run -d 'Actually spawn the autonomous agent (default is dry-run)'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l next -d 'Pop and run the next proposed dispatch'
