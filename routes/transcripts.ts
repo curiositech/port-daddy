@@ -37,6 +37,42 @@ const VALID_OUTPUT_TYPES = new Set([
   'pr-comment', 'issue', 'draft-pr', 'commit', 'noop', 'message', 'other',
 ]);
 
+/** One frame headed for the operator console's live Lane. */
+export interface AgentStreamFrame {
+  kind: 'agent.transcript';
+  body: Record<string, unknown>;
+}
+
+/**
+ * Turn a spawned agent's transcript messages into the `agent.transcript` frames
+ * the pd-console Lane consumes, emitting only messages from index `alreadySent`
+ * onward (the cursor that makes `update` events idempotent). Each message yields
+ * a text frame (`{ text, role }`, when it has content) and one tool frame per
+ * tool call (`{ toolName, status }`, status `done` once a result is present,
+ * else `running`). Pure — no I/O — so it is unit-tested directly.
+ */
+export function agentTranscriptFrames(
+  messages: Array<{ role?: string; content?: string; tool_calls?: Array<{ name: string; result?: unknown }> }>,
+  alreadySent: number,
+): AgentStreamFrame[] {
+  const frames: AgentStreamFrame[] = [];
+  for (let i = Math.max(0, alreadySent); i < messages.length; i++) {
+    const m = messages[i];
+    if (m.content && m.content.trim().length > 0) {
+      frames.push({ kind: 'agent.transcript', body: { text: m.content, role: m.role ?? 'assistant' } });
+    }
+    if (Array.isArray(m.tool_calls)) {
+      for (const tc of m.tool_calls) {
+        frames.push({
+          kind: 'agent.transcript',
+          body: { toolName: tc.name, status: tc.result !== undefined ? 'done' : 'running' },
+        });
+      }
+    }
+  }
+  return frames;
+}
+
 export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }> = async (
   fastify,
   opts,
@@ -148,6 +184,79 @@ export const transcriptsPlugin: FastifyPluginAsync<{ deps: TranscriptRouteDeps }
       clearInterval(heartbeat);
       unsubscribe();
       try { raw.end(); } catch { /* already ended */ }
+    };
+    request.raw.on('close', cleanup);
+    request.raw.on('error', cleanup);
+  });
+
+  // ── GET /agents/:id/stream  (SSE) — per-agent live transcript ────────────
+  // The operator console (pd-console) consumes this: it opens one stream per
+  // watched agent and folds the frames into its live Lane. Frames are the typed
+  // envelope `{ v, kind, agentId, body, ts }` with kind ∈ { agent.status,
+  // agent.transcript }, sourced from the transcript store filtered to this one
+  // spawned agent. The body shape matches exactly what the Lane parses:
+  // transcript text as `{ text }`, tool deltas as `{ toolName, status }`,
+  // status as `{ status }`. Registered (via routes/index.ts) AFTER agentsPlugin
+  // so this specific path is matched ahead of the generic `/agents/:id`.
+  fastify.get('/agents/:id/stream', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!transcripts) return notWired(reply);
+    const agentId = String((request.params as Record<string, string>).id);
+
+    reply.hijack();
+    const raw = reply.raw;
+    raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    raw.write(`event: connected\ndata: ${JSON.stringify({ channel: `agent:${agentId}` })}\n\n`);
+
+    const emit = (kind: string, body: unknown): void => {
+      const env = { v: 1, kind, agentId, body, ts: Date.now() };
+      try {
+        raw.write(`event: ${kind}\ndata: ${JSON.stringify(env)}\n\n`);
+      } catch {
+        /* client disconnected */
+      }
+    };
+
+    // Cursor into this agent's transcript messages, so an `update` event (which
+    // carries the full messages array) only re-emits the new tail.
+    let sent = 0;
+
+    const unsubscribe = transcripts.subscribe((event) => {
+      if (event.entry.spawned_agent_id !== agentId) return;
+      if (event.type === 'start') {
+        sent = 0;
+        emit('agent.status', { status: event.entry.status || 'running' });
+        return;
+      }
+      for (const frame of agentTranscriptFrames(event.entry.messages, sent)) {
+        emit(frame.kind, frame.body);
+      }
+      sent = event.entry.messages.length;
+      if (event.type === 'end') {
+        emit('agent.status', { status: event.entry.status });
+      }
+    });
+
+    const heartbeat = setInterval(() => {
+      try {
+        raw.write(':heartbeat\n\n');
+      } catch {
+        /* dead conn */
+      }
+    }, 30000);
+
+    const cleanup = (): void => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      try {
+        raw.end();
+      } catch {
+        /* already ended */
+      }
     };
     request.raw.on('close', cleanup);
     request.raw.on('error', cleanup);
