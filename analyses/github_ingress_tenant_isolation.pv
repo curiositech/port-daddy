@@ -1,0 +1,77 @@
+(*
+ * Port Daddy: GitHub-App-via-Relay — MULTI-TENANT NAMESPACE ISOLATION (FIXED)
+ * ===========================================================================
+ *
+ * The relay is multi-tenant: each customer/installation maps to a harbor
+ * (tenant), and channels are namespaced `<harbor_fingerprint>:<name>`. The
+ * load-bearing isolation invariant: a publisher authorized for tenant A can
+ * NEVER publish into tenant B's namespace.
+ *
+ * This proves the design choice in apps/relay/src/handlers.ts handlePublish
+ * (S6): harbor binding is checked against authoritative D1 `harbor_members`
+ * membership — NOT against the card's self-declared `iss`, which is
+ * attacker-controlled for daemon-issued Phase 2 cards. We model authoritative
+ * membership as a relay-signed credential (the relay is the authority for who
+ * belongs to which harbor); the daemon cannot forge membership for a harbor it
+ * did not join.
+ *
+ * THREAT: a member of tenant A (semi-trusted daemon, adversary A6, with the
+ * network/relay as Dolev-Yao) tries to publish into tenant B's namespace.
+ *
+ * EXPECTED RESULTS:
+ *   query event(AcceptPublish(harborB, d)) ==> false    is TRUE   (B unreachable)
+ *   query event(AcceptPublish(harborA, daemonD))        is TRUE   (non-vacuous: A works)
+ *)
+
+type skey.  type pkey.
+
+free c: channel.
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; checksign(m, pk(k), sign(m, k)) = true.
+
+(* Two tenants. The daemon is a member of A only; B was never joined. *)
+free harborA: bitstring.
+free harborB: bitstring.
+free daemonD: bitstring.
+
+(* The relay's authoritative signing key (stands in for D1 harbor_members:
+ * only the relay can attest "daemon X is a member of harbor Y"). *)
+free relay_sk: skey [private].
+
+(* The relay accepted daemon `who` to publish into harbor `h`. *)
+event AcceptPublish(bitstring, bitstring).
+
+(* Isolation: nobody publishes into tenant B's namespace (no B-membership exists). *)
+query d: bitstring; event(AcceptPublish(harborB, d)) ==> false.
+
+(* Non-vacuity: the legitimate member CAN publish into its own tenant A. *)
+query event(AcceptPublish(harborA, daemonD)).
+
+(* Relay issues authoritative membership for (daemonD, harborA) — and only that. *)
+let RelayIssueMembership() =
+    out(c, sign((daemonD, harborA), relay_sk)).
+
+(* handlePublish (S6): accept only if the (sub, channel-harbor) pair carries a
+ * valid relay-signed membership. The channel harbor is bound to membership,
+ * not to any self-asserted field. *)
+let RelayPublishVerifier() =
+    in(c, (sub: bitstring, harbor: bitstring, mcred: bitstring));
+    if checksign((sub, harbor), pk(relay_sk), mcred) = true then
+        event AcceptPublish(harbor, sub).
+
+(* Honest member D publishes into its own harbor A. A malicious D (or the
+ * attacker) may also try to claim harborB on c — the verifier rejects that
+ * because no membership credential for B was ever issued. *)
+let DaemonD() =
+    in(c, mcred: bitstring);
+    out(c, (daemonD, harborA, mcred)).
+
+process
+    out(c, pk(relay_sk));
+    (
+        (! RelayIssueMembership())
+      | (! RelayPublishVerifier())
+      | (! DaemonD())
+    )

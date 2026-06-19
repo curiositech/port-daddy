@@ -1,0 +1,29 @@
+{
+  "service": {
+    "port": 9876,
+    "host": "localhost"
+  },
+  "ports": {
+    "range_start": 3100,
+    "range_end": 9999,
+    "reserved": [8080, 8000, 9876]
+  },
+  "cleanup": {
+    "interval_ms": 300000,
+    "stale_threshold_ms": 7200000
+  },
+  "logging": {
+    "level": "info",
+    "file": "port-daddy.log",
+    "error_file": "port-daddy-error.log",
+    "maxsize": 52428800,
+    "maxFiles": 5,
+    "requestSamplingRate": 0
+  },
+  "security": {
+    "rate_limit": {
+      "window_ms": 60000,
+      "max_requests": 100
+    }
+  }
+}

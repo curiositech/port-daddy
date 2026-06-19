@@ -1,0 +1,21 @@
+{
+  "name": "@port-daddy/github-app-receiver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that verifies GitHub App webhook signatures and forwards normalized envelopes to the Port Daddy daemon.",
+  "type": "module",
+  "main": "src/worker.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240605.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "wrangler": "^3.60.0"
+  }
+}

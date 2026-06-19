@@ -1,0 +1,1044 @@
+# Port Daddy JavaScript SDK Reference
+
+The SDK is a zero-dependency Node.js client for the Port Daddy daemon. It wraps every HTTP endpoint with typed methods, handles connection management, and provides convenience features like `withLock()` and `startHeartbeat()`.
+
+```bash
+npm install port-daddy
+```
+
+```javascript
+import { PortDaddy } from 'port-daddy/client';
+
+const pd = new PortDaddy();
+```
+
+---
+
+## Configuration
+
+```javascript
+const pd = new PortDaddy({
+  url: process.env.PORT_DADDY_URL, // Auto-discovered by default; override only when needed
+  agentId: 'my-agent',           // Agent ID for tracking (or PORT_DADDY_AGENT env)
+  pid: process.pid,              // Process ID for ownership
+  timeout: 5000,                 // Request timeout in ms
+});
+```
+
+---
+
+## Services
+
+```javascript
+// Claim a port
+const { port } = await pd.claim('myapp:api');
+console.log(`API running on port ${port}`);
+
+// Request a specific port
+const { port } = await pd.claim('myapp:frontend', { port: 3000 });
+
+// Find services by pattern
+const { services } = await pd.listServices({ pattern: 'myapp:*' });
+
+// Set endpoint URLs for service discovery
+await pd.setEndpoint('myapp:api', 'local', `http://localhost:${port}`);
+await pd.setEndpoint('myapp:api', 'prod', 'https://api.myapp.com');
+
+// Release a service
+await pd.release('myapp:api');
+
+// Release everything for a project
+await pd.release('myapp:*');
+```
+
+---
+
+## Sessions & Notes
+
+```javascript
+// Start a session
+const session = await pd.startSession({
+  purpose: 'Implementing OAuth flow',
+  files: ['src/auth/*', 'src/middleware/auth.ts'],
+  agentId: 'agent-1',
+});
+
+// Add a note
+await pd.note('Started OAuth integration with Google', { type: 'note' });
+
+// Add a note to a specific session
+await pd.note('Switched to PKCE flow', { sessionId: session.id });
+
+// Get notes for a session
+const { notes } = await pd.notes(session.id);
+
+// Get recent notes across all sessions
+const { notes } = await pd.notes({ limit: 20, type: 'commit' });
+
+// List active sessions
+const { sessions } = await pd.sessions({ status: 'active' });
+
+// Get session details
+const detail = await pd.sessionDetails(session.id);
+
+// Claim files (advisory, with conflict detection)
+const result = await pd.claimFiles(session.id, ['src/auth/oauth.ts']);
+
+// Release files
+await pd.releaseFiles(session.id, ['src/auth/oauth.ts']);
+
+// End session
+await pd.endSession('OAuth flow complete');
+
+// Or abandon it
+await pd.abandonSession('Approach was wrong, starting over');
+
+// Delete a session entirely
+await pd.removeSession(session.id);
+```
+
+---
+
+## Sugar (Compound Operations)
+
+Sugar methods combine multiple coordination steps into single atomic calls. Use these instead of the individual `register`, `startSession`, `endSession`, and `unregister` methods for the standard agent lifecycle.
+
+### `pd.begin(purpose, options)`
+
+Register an agent and start a session in one call. Writes slot-scoped local context under `.portdaddy/contexts/<slot>.json` and updates `.portdaddy/current.json` as a compatibility pointer for the most recent local context.
+
+```javascript
+const { agentId, sessionId } = await pd.begin('Implementing user auth', {
+  lifecycle: 'durable',
+  identity: 'myapp:backend:feature-auth',
+  type: 'claude',
+  files: ['src/auth/*', 'src/middleware/auth.ts'],
+});
+
+console.log(agentId);   // e.g. "agent-a1b2c3"
+console.log(sessionId); // e.g. "session-d4e5f6"
+```
+
+**Options:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `purpose` | string | yes | Human-readable description of what this agent is doing |
+| `identity` | string | no | Semantic identity in `project:stack:context` format |
+| `agentId` | string | no | Explicit agent ID (auto-generated if omitted) |
+| `type` | string | no | Agent type: `cli`, `claude`, `ci`, `sdk`, etc. |
+| `files` | string[] | no | File paths to claim at session start |
+| `force` | boolean | no | Claim files even if another session has them |
+
+**Returns:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the operation succeeded |
+| `agentId` | string | The registered agent ID |
+| `sessionId` | string | The started session ID |
+| `identity` | string | Resolved identity string |
+| `purpose` | string | Echo of the purpose |
+| `agentRegistered` | boolean | Whether agent registration succeeded |
+| `sessionStarted` | boolean | Whether session creation succeeded |
+| `salvageHint` | string \| undefined | Message if dead agents were found in the same project |
+
+### `pd.done(options?)`
+
+End the current session and unregister the agent atomically. Reads from the current slot-scoped local context if `agentId` and `sessionId` are not provided.
+
+```javascript
+// Minimal — uses the current slot's local context
+await pd.done();
+
+// With a closing note
+await pd.done({ note: 'Auth system complete, all tests passing' });
+
+// Explicit IDs (if not using local context)
+await pd.done({
+  agentId: 'agent-a1b2c3',
+  sessionId: 'session-d4e5f6',
+  note: 'Partial — ran out of context',
+  status: 'abandoned',
+});
+```
+
+**Options:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agentId` | string | no | Agent to unregister (default: from local context) |
+| `sessionId` | string | no | Session to end (default: from local context) |
+| `note` | string | no | Closing note attached to the session |
+| `status` | string | no | `'completed'` (default) or `'abandoned'` |
+
+**Returns:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the operation succeeded |
+| `agentId` | string | The unregistered agent ID |
+| `sessionId` | string | The ended session ID |
+| `sessionStatus` | string | Final session status |
+| `agentUnregistered` | boolean | Whether agent unregistration succeeded |
+
+### `pd.whoami(agentId?)`
+
+Return the current agent and session context without making changes. Reads from the current slot-scoped local context if `agentId` is not provided.
+
+```javascript
+// Uses the current slot's local context
+const ctx = await pd.whoami();
+
+// Explicit agent ID
+const ctx = await pd.whoami('agent-a1b2c3');
+
+if (ctx.active) {
+  console.log(`Running as ${ctx.agentId}`);
+  console.log(`Session: ${ctx.sessionId}`);
+  console.log(`Purpose: ${ctx.purpose}`);
+  console.log(`Duration: ${ctx.duration}`);  // e.g. "12m"
+  console.log(`Notes: ${ctx.noteCount}`);
+} else {
+  console.log('No active session');
+}
+```
+
+**Returns:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Whether the lookup succeeded |
+| `active` | boolean | Whether an active agent/session was found |
+| `agentId` | string \| undefined | The agent ID |
+| `sessionId` | string \| undefined | The session ID |
+| `purpose` | string \| undefined | What the agent is doing |
+| `identity` | string \| undefined | Semantic identity |
+| `noteCount` | number \| undefined | Number of notes in the session |
+| `duration` | string \| undefined | Time since session started (human-readable) |
+
+### Full lifecycle example
+
+```javascript
+import { PortDaddy } from 'port-daddy/client';
+const pd = new PortDaddy();
+
+// Begin — one call replaces register + startSession + startHeartbeat
+const { agentId, sessionId, salvageHint } = await pd.begin('Implementing user auth', {
+  lifecycle: 'durable',
+  identity: 'myapp:backend:feature-auth',
+  files: ['src/auth/*'],
+});
+
+if (salvageHint) {
+  console.warn(salvageHint); // dead agents in same project
+}
+
+// Check context mid-task
+const ctx = await pd.whoami(agentId);
+console.log(`${ctx.duration} elapsed, ${ctx.noteCount} notes`);
+
+// Add notes as you work
+await pd.note('JWT middleware created');
+await pd.note('Refresh token rotation complete', { type: 'commit' });
+
+// Done — one call replaces endSession + unregister + hb.stop()
+await pd.done({ agentId, note: 'Auth system complete' });
+```
+
+---
+
+## Pub/Sub Messaging
+
+```javascript
+// Publish
+await pd.publish('builds', { status: 'complete', artifact: 'dist.tar.gz' });
+
+// Read messages
+const { messages } = await pd.getMessages('builds', { limit: 10 });
+
+// Subscribe to real-time updates (SSE)
+const sub = pd.subscribe('deployments');
+sub.on('message', (data) => console.log('Deploy event:', data));
+
+// Long-poll for next message
+const { message } = await pd.poll('builds');
+
+// Clear a channel
+await pd.clearChannel('builds');
+```
+
+---
+
+## Port Inspector
+
+```javascript
+// List all active port assignments
+const { ports } = await pd.listActivePorts();
+
+// Get OS-level port usage
+const { systemPorts } = await pd.getSystemPorts();
+
+// Perform internal registry cleanup
+await pd.cleanup();
+```
+
+---
+
+## Orchestration
+
+```javascript
+// Start all services in a Harbor
+await pd.up();
+
+// Teardown all services
+await pd.down();
+```
+
+---
+
+## Distributed Locks
+
+```javascript
+// Manual lock/unlock
+await pd.lock('db-migrations');
+try {
+  await runMigrations();
+} finally {
+  await pd.unlock('db-migrations');
+}
+
+// Convenience wrapper (auto-unlocks on success or failure)
+await pd.withLock('deploy-prod', async () => {
+  await deployToProduction();
+});
+
+// Check if a lock exists without acquiring
+const lockInfo = await pd.checkLock('db-migrations');
+
+// Extend a lock's TTL
+await pd.extendLock('db-migrations', { ttl: 120 });
+```
+
+---
+
+## Agent Lifecycle
+
+```javascript
+const pd = new PortDaddy({ agentId: 'build-agent-1' });
+
+// Register and start heartbeats
+await pd.register({ name: 'Build Agent', type: 'ci' });
+const hb = pd.startHeartbeat(30000); // Every 30s
+
+// ... do work ...
+
+// Cleanup
+hb.stop();
+await pd.unregister();
+```
+
+---
+
+## Maritime Actors
+
+Durable maritime actors are the canonical registry for operator roles like `navigator`, `cartographer`, and `bosun`. The SDK exposes both the roster and each actor mailbox.
+
+```javascript
+// List actors, optionally projecting live evidence from one project
+const { actors } = await pd.listActors({ project: 'port-daddy', limit: 25 });
+
+// Read one actor by canonical id or alias
+const { actor } = await pd.getActor('navigator', { project: 'port-daddy' });
+
+// Queue a message to the actor mailbox and optionally wake its live body
+await pd.messageActor('navigator', 'Review the fleet lease drift', {
+  from: 'captain',
+  type: 'operator.request',
+  wake: true,
+  project: 'port-daddy',
+});
+
+// Read actor mailbox contents
+const inbox = await pd.actorInboxList('navigator', {
+  unreadOnly: true,
+  limit: 20,
+});
+
+// Read actor mailbox counters
+const stats = await pd.actorInboxStats('navigator');
+console.log(stats.unread);
+```
+
+---
+
+## Agent Salvage (Resurrection)
+
+When an agent dies mid-task, Port Daddy preserves its context for another agent to continue.
+
+```javascript
+// Check for dead agents in your project
+const { entries } = await pd.salvage({ project: 'myapp' });
+
+// See all dead agents (requires explicit opt-in)
+const { entries } = await pd.salvage({ all: true, limit: 20 });
+
+// Claim a dead agent's work
+const result = await pd.salvageClaim('dead-agent-123');
+// result: { success: true, sessions: [...], notes: [...] }
+
+// After completing the salvaged work
+await pd.salvageComplete('dead-agent-123');
+
+// If you can't complete it, abandon for another agent
+await pd.salvageAbandon('dead-agent-123');
+
+// Nothing to salvage, just dismiss from queue
+await pd.salvageDismiss('dead-agent-123');
+```
+
+---
+
+## Projects
+
+```javascript
+// Deep-scan a directory for frameworks
+const result = await pd.scan('/path/to/project', { save: true });
+console.log(result.frameworks); // ['react', 'express', ...]
+
+// List all registered projects
+const { projects } = await pd.listProjects();
+
+// Get project details
+const project = await pd.getProject('myproject');
+
+// Remove a project
+await pd.deleteProject('myproject');
+```
+
+---
+
+## Webhooks
+
+```javascript
+// Register a webhook
+const { id } = await pd.addWebhook('https://example.com/hook', {
+  events: ['claim', 'release'],
+  secret: 'my-secret',
+});
+
+// List webhooks
+const { webhooks } = await pd.listWebhooks();
+
+// Get, update, test, remove
+const hook = await pd.getWebhook(id);
+await pd.updateWebhook(id, { events: ['claim'], active: false });
+await pd.testWebhook(id);
+await pd.removeWebhook(id);
+
+// List available events and delivery history
+const { events } = await pd.getWebhookEvents();
+const deliveries = await pd.getWebhookDeliveries(id);
+```
+
+---
+
+## System & Monitoring
+
+```javascript
+// Health, version, metrics
+const health = await pd.health();
+const ver = await pd.version();
+const stats = await pd.metrics();
+
+// Resolved configuration (optionally for a specific directory)
+const config = await pd.getConfig('/path/to/project');
+
+// Quick connectivity check
+const alive = await pd.ping(); // true | false
+
+// Service health
+const allHealth = await pd.listServiceHealth();
+const svcHealth = await pd.checkServiceHealth('myapp:api');
+```
+
+---
+
+## Activity & Monitoring
+
+```javascript
+// Activity log
+const { activity } = await pd.getActivity({ limit: 50, type: 'claim' });
+
+// Time-range query
+const range = await pd.getActivityRange(
+  '2025-01-01T00:00:00Z',
+  '2025-01-31T23:59:59Z'
+);
+
+// Timeline view (hierarchical)
+const timeline = await pd.getActivityTimeline();
+
+// Summary and stats
+const summary = await pd.getActivitySummary('1h');
+const activityStats = await pd.getActivityStats();
+
+// Real-time activity subscription (SSE)
+const sub = pd.subscribeToActivity();
+sub.on('entry', (entry) => console.log('Activity:', entry.details));
+
+// Clear/Delete activity log
+await pd.clearActivity();
+```
+
+---
+
+## Orchestrator Control
+
+```javascript
+// Get current orchestration status
+const status = await pd.getOrchestrationStatus();
+
+// Get orchestration rules
+const rules = await pd.getOrchestrationRules();
+
+// Update orchestration rules
+await pd.setOrchestrationRules({
+  autoRestart: true,
+  healthCheckInterval: 5000
+});
+
+// Start entire stack based on .portdaddyrc or scan
+await pd.startOrchestration();
+
+// Stop entire stack
+await pd.stopOrchestration();
+```
+
+---
+
+## System Info
+
+```javascript
+// Get detailed daemon status and version
+const status = await pd.status();
+console.log(`Port Daddy v${status.version} is ${status.status}`);
+```
+
+If the daemon is running fleets, the returned fleet summary can include mailbox state: agent rows may report `status: 'queued'` and a `queueDepth` when trigger bursts collapse behind a busy agent instead of spawning more runs.
+
+---
+
+## Waiting for Services
+
+Block until services become available (useful for startup scripts).
+
+```javascript
+// Wait for a single service (30s timeout by default)
+await pd.waitForService('myapp:db');
+
+// Wait with custom timeout (in ms)
+await pd.waitForService('myapp:api', 60000);
+
+// Wait for multiple services at once
+await pd.waitForServices(['myapp:db', 'myapp:redis', 'myapp:api']);
+```
+
+---
+
+## Tunnels
+
+Expose local services to the internet via ngrok, cloudflared, or localtunnel.
+
+```javascript
+// Check which providers are installed
+const { providers } = await pd.tunnelProviders();
+// { ngrok: true, cloudflared: true, localtunnel: false }
+
+// Start a tunnel (service must be claimed first)
+const { url } = await pd.tunnelStart('myapp:api', 'cloudflared');
+console.log(`Public URL: ${url}`);
+// https://random-words.trycloudflare.com
+
+// Check status
+const status = await pd.tunnelStatus('myapp:api');
+
+// List all active tunnels
+const { tunnels } = await pd.tunnelList();
+
+// Stop a tunnel
+await pd.tunnelStop('myapp:api');
+```
+
+**Providers:**
+- `ngrok` — requires auth token (`ngrok config add-authtoken`)
+- `cloudflared` — free quick tunnels, no signup required
+- `localtunnel` — free but has password prompt
+
+---
+
+## Inbox
+
+Every registered agent has a personal inbox. Any caller can send a message; only the registered agent receives it. Inbox messages are persistent (up to 1000 per agent) and survive until read or cleared. Use the inbox for targeted handoffs and task results; use pub/sub for broadcast signals.
+
+```javascript
+// Send a message to another agent
+await pd.inboxSend('agent-bob', 'Migrations complete, ready for review', {
+  type: 'handoff',
+  from: 'agent-alice',
+});
+
+// Read your inbox (unread only)
+const { messages } = await pd.inboxList('agent-alice', { unreadOnly: true });
+for (const msg of messages) {
+  console.log(`[${msg.type}] From ${msg.from ?? 'system'}: ${msg.content}`);
+}
+
+// Get stats
+const { total, unread } = await pd.inboxStats('agent-alice');
+console.log(`${unread} unread of ${total} total`);
+
+// Mark a single message read
+await pd.inboxMarkRead('agent-alice', messages[0].id);
+
+// Mark all as read
+await pd.inboxMarkAllRead('agent-alice');
+
+// Clear inbox
+const { deleted } = await pd.inboxClear('agent-alice');
+console.log(`Cleared ${deleted} messages`);
+```
+
+---
+
+## DNS Records
+
+```typescript
+// Register a DNS record for a service
+const record = await pd.dnsRegister('myapp:api', { hostname: 'api.local' });
+// { identity: 'myapp:api', hostname: 'api.local', port: 3100 }
+
+// List all DNS records
+const records = await pd.dnsList();
+
+// Get a specific DNS record
+const record = await pd.dnsGet('myapp:api');
+
+// Remove a DNS record
+await pd.dnsRemove('myapp:api');
+
+// Check resolver status
+const status = await pd.dnsStatus();
+// { active: true, entries: 5, hostsFile: '/etc/hosts' }
+
+// Clean up stale records
+await pd.dnsCleanup();
+
+---
+
+## DNS Resolver (/etc/hosts)
+
+```typescript
+// Set up /etc/hosts resolver (requires sudo)
+await pd.dnsSetup();
+
+// Sync DNS records to /etc/hosts
+await pd.dnsSync();
+
+// Tear down resolver entries
+await pd.dnsTeardown();
+
+// Get resolver configuration
+const config = await pd.dnsResolver();
+```
+
+---
+
+## Briefing
+
+```typescript
+// Generate briefing for a project (writes .portdaddy/briefing.md)
+const result = await pd.generateBriefing('/path/to/project');
+
+// Get briefing data as JSON
+const briefing = await pd.getBriefing('myapp');
+// { project: 'myapp', agents: [...], sessions: [...], signals: [...], notes: [...] }
+```
+
+---
+
+## Integration Signals
+
+```typescript
+// Declare readiness
+await pd.integrationReady(sessionId, 'api');
+
+// Declare dependency
+await pd.integrationNeeds(sessionId, 'api');
+
+// List all signals
+const signals = await pd.integrationList();
+```
+
+---
+
+## Session Phases
+
+```typescript
+// Advance session phase
+await pd.sessionPhase(sessionId, 'implementing');
+
+// Get session with phase info
+const session = await pd.getSession(sessionId);
+// session.phase === 'implementing'
+```
+
+---
+
+## Changelog
+
+The changelog records meaningful work against semantic identities. Entries roll up automatically: a change logged to `myapp:api:auth` also appears when you query `myapp:api` or `myapp`.
+
+```javascript
+// Log what was accomplished
+const { id, ancestors } = await pd.addChangelog({
+  identity: 'myapp:api:auth',
+  summary: 'Implemented JWT middleware',
+  type: 'feature',
+  description: 'Added RS256 JWT verification with refresh token rotation.',
+  sessionId: session.id,   // optional — link to current session
+  agentId: 'my-agent',     // optional — link to current agent
+});
+// ancestors: ['myapp:api', 'myapp'] — shows where it rolls up
+
+// List recent entries (across all identities)
+const { entries } = await pd.listChangelog({ limit: 20 });
+
+// List by identity and all children
+const { entries } = await pd.listChangelogTree('myapp:api');
+// Includes: myapp:api, myapp:api:auth, myapp:api:payments, ...
+
+// All tracked identities (useful for dashboards)
+const { identities } = await pd.changelogIdentities();
+```
+
+**Change types:** `feature`, `fix`, `refactor`, `docs`, `chore`, `breaking`
+
+**`addChangelog` options:**
+```typescript
+interface AddChangelogOptions {
+  identity: string;      // e.g. 'myapp:api:auth'
+  summary: string;       // short one-liner (<200 chars)
+  type?: string;         // default 'chore'
+  description?: string;  // longer markdown body
+  sessionId?: string;    // link to a session
+  agentId?: string;      // link to an agent
+}
+
+---
+
+## Pheromone Trails
+
+Stigmergic ambient signals — spray numeric values (0-1) onto entities. Values decay geometrically on read, creating ephemeral awareness.
+
+```javascript
+// Spray a signal onto an entity
+await pd.pheromoneSpray('services', 'myapp:api', 'urgency', 0.8);
+
+// Sniff values (applies read-time decay)
+const { pheromones } = await pd.pheromoneSniff('services', 'myapp:api');
+// { urgency: 0.72, staleness: 0.15 }
+
+// List all non-zero trails
+const { pheromones: all } = await pd.pheromoneList();
+
+// File heat map — which files are most contested?
+const { files, directories, summary } = await pd.fileHeatMap('src/');
+console.log(summary.hottestFile);      // "src/auth.ts"
+console.log(summary.activeConflicts);  // 2
+```
+
+**Use cases:** adaptive Arbiter thresholds, file contention detection, agent reputation scoring, hot-path identification.
+
+---
+
+## Tuple Space
+
+Linda-style shared coordination data structure. Agents write typed tuples, query by pattern, and optionally consume (take) tuples. Supports harbor scoping for namespace isolation.
+
+```javascript
+// Write a tuple (non-destructive — it stays until taken or expired)
+await pd.tupleOut(['task', 'build-auth', { priority: 1 }], {
+  harbor: 'myapp:fleet',
+  writtenBy: 'agent-planner',
+});
+
+// Read tuples matching a pattern (non-destructive — leaves tuples in place)
+const { tuples } = await pd.tupleRd(['task', null], {
+  harbor: 'myapp:fleet',
+  limit: 10,
+});
+
+// Take tuples (destructive — removes from tuple space)
+const { taken } = await pd.tupleIn(['task', null], {
+  harbor: 'myapp:fleet',
+  limit: 1,
+});
+
+// Scan all tuples in a harbor
+const { tuples: all, count } = await pd.tupleScan('myapp:fleet');
+
+// Count tuples in a harbor
+const { count } = await pd.tupleCount('myapp:fleet');
+```
+
+**Pattern matching:** `null` matches any value. String patterns support `*` wildcards and `>N`/`<N` numeric comparisons.
+
+---
+
+## Arbiter (Observability)
+
+Read-only access to the Arbiter's invariant enforcement status. The Arbiter runs autonomously — these methods are for monitoring, not control.
+
+```javascript
+// Check Arbiter status
+const status = await pd.arbiterStatus();
+console.log(status.rules);          // ['PID_SQUATTING', 'CAP_ESCALATION', ...]
+console.log(status.violationCount); // 0
+
+// List violations
+const { violations } = await pd.arbiterViolations({ limit: 10 });
+
+// Inject a test violation (demos, integration tests)
+await pd.arbiterTestInvariant('NOTE_MONOTONICITY');
+```
+
+**Rules:** PID_SQUATTING, CAP_ESCALATION, NOTE_MONOTONICITY, ESCROW_POSITIVE, LOCK_OWNER_VALID, HEARTBEAT_FRESHNESS
+
+---
+
+## Error Handling
+
+```javascript
+import { PortDaddy, PortDaddyError, ConnectionError } from 'port-daddy/client';
+
+try {
+  await pd.claim('myapp:api');
+} catch (err) {
+  if (err instanceof ConnectionError) {
+    console.error('Daemon not running. Start with: port-daddy start');
+  } else if (err instanceof PortDaddyError) {
+    console.error(`API error (${err.status}): ${err.message}`);
+  }
+}
+```
+
+---
+
+## Webhook Events Reference
+
+| Event | Payload |
+|-------|---------|
+| `service.claim` | Service was claimed |
+| `service.release` | Service was released |
+| `agent.register` | Agent registered |
+| `agent.unregister` | Agent unregistered |
+| `agent.stale` | Agent went stale |
+| `lock.acquire` | Lock was acquired |
+| `lock.release` | Lock was released |
+| `message.publish` | Message was published |
+| `daemon.start` | Daemon started |
+| `daemon.stop` | Daemon stopping |
+
+### Payload Verification
+
+Each delivery includes an HMAC-SHA256 signature:
+
+```
+X-PortDaddy-Signature: sha256=abc123...
+X-PortDaddy-Event: service.claim
+X-PortDaddy-Delivery: uuid
+X-PortDaddy-Timestamp: 1704000000000
+```
+
+Verify in your handler:
+
+```javascript
+const crypto = require('crypto');
+
+function verifySignature(payload, signature, secret) {
+  const hmac = crypto.createHmac('sha256', secret);
+  hmac.update(JSON.stringify(payload));
+  const expected = `sha256=${hmac.digest('hex')}`;
+  return signature === expected;
+}
+```
+
+---
+
+## Spawn — AI Agent Launcher
+
+Launch AI agents through setup-ready runtimes (Cloudflare Workers AI, Codex, Claude, Claude CLI, Gemini, Aider, custom subprocess) with Port Daddy coordination auto-wired. Each spawned agent automatically registers, sends heartbeats, and marks its session done on completion.
+
+Use `spawn()` for the low-level primitive. If you want a tracked mission object with a durable id and event log, use the sortie methods below instead. Canonical operator guidance lives in `docs/DELEGATION-MODES.md`.
+
+**Backends:** Port Daddy only launches backends that pass readiness and exact-telemetry preflight. Use `/fleet/models` or Fleet Control Center to see which are ready on this machine.
+
+```typescript
+// Spawn a Cloudflare Workers AI agent
+const result = await pd.spawn({
+  backend: 'cloudflare',
+  model: '@cf/qwen/qwen3-30b-a3b-fp8',
+  identity: 'myapp:edge',
+  budgetUsd: 0.5,
+  purpose: 'Summarize release notes',
+  task: 'Summarize the last five commits',
+});
+console.log(result.agentId, result.status);  // e.g. "cloudflare-abc123", "completed"
+
+// Use the default ready Cloudflare model
+await pd.spawn({
+  backend: 'cloudflare',
+  identity: 'myapp:edge',
+  budgetUsd: 0.5,
+  purpose: 'Summarize release notes',
+  task: 'Summarize the last five commits',
+});
+
+// Spawn Codex CLI with an explicit low tier
+await pd.spawn({
+  backend: 'codex',
+  modelTier: 'low',
+  identity: 'myapp:fixer',
+  budgetUsd: 0.75,
+  purpose: 'Patch auth flow',
+  task: 'Fix the login bug in src/auth.ts',
+  workdir: '/path/to/project',
+});
+
+// Spawn Claude Code CLI (full agent with file editing tools)
+await pd.spawn({
+  backend: 'claude-cli',
+  model: 'sonnet',
+  identity: 'myapp:reviewer',
+  budgetUsd: 3,
+  task: 'Fix the login bug in src/auth.ts',
+  allowedTools: 'Read,Write,Edit,Glob,Grep,Bash(git*)',
+  workdir: '/path/to/project',
+});
+
+// Spawn Claude API (text in, text out — fast, no tools)
+await pd.spawn({
+  backend: 'claude',
+  model: 'claude-haiku-4-5-20251001',
+  identity: 'myapp:reviewer',
+  budgetUsd: 1,
+  task: 'Review PR #42 for security issues',
+});
+
+// List active spawned agents
+const { agents } = await pd.listSpawned();
+agents.forEach(a => console.log(a.agentId, a.backend, a.status));
+
+// Kill a spawned agent
+await pd.killSpawned(agentId);
+```
+
+| Method | Description |
+|--------|-------------|
+| `pd.spawn(spec)` | Launch an AI agent; returns `SpawnResult` with attached exact telemetry on success |
+| `pd.listSpawned()` | List active spawned agents |
+| `pd.killSpawned(agentId)` | Kill a running spawned agent |
+
+`SpawnResult.telemetry` carries `{ inputTokens, outputTokens, costUsd, rateMode }` for accepted launches. If the backend/model cannot satisfy that exact telemetry contract, Port Daddy rejects the launch during preflight/spawn instead of silently estimating.
+The live spawner defaults that enforcement on. Any internal code path that disables it must attach explicit HITL confirmation metadata instead of quietly falling back to unmetered execution.
+Today, the operator-facing launchable path for that contract is the Claude SDK backend with an exact-rate model entry. Other backend integrations may exist in source, but they should be treated as blocked until they can return the same exact telemetry.
+
+---
+
+## Sorties — Tracked Mission Records
+
+Sorties are Port Daddy's first-class mission records over spawned runs. They buy you:
+
+- a durable sortie id
+- an ephemeral harbor name (`project:sortie:<id>`)
+- persisted status/result lookup
+- a human-readable event log
+
+Current truthful limitation: the first shipped slice still runs one coordinating spawned agent underneath. Richer multi-agent approvals and artifact/result surfaces are the next layer.
+
+```typescript
+// Launch a tracked sortie mission
+const { sortie, result } = await pd.runSortie({
+  goal: 'Investigate flaky auth tests and summarize the root cause',
+  backend: 'claude',
+  model: 'claude-haiku-4-5-20251001',
+  budgetUsd: 0.75,
+  recipe: 'investigate',
+  expectedOutput: 'Root-cause memo with recommended next actions',
+  context: 'Do not patch yet; evidence only',
+});
+
+console.log(sortie.id, sortie.status, sortie.harbor);
+console.log(result?.output);
+
+// Inspect sortie history later
+const { sorties } = await pd.listSorties({ projectDir: '/path/to/project' });
+const { sortie: oneSortie } = await pd.getSortie(sortie.id);
+const { events } = await pd.getSortieLogs(sortie.id);
+```
+
+| Method | Description |
+|--------|-------------|
+| `pd.runSortie(spec)` | Launch a tracked sortie mission and return its initial result |
+| `pd.listSorties(options?)` | List recent sorties, optionally filtered by project directory |
+| `pd.getSortie(id)` | Fetch one sortie by id |
+| `pd.getSortieLogs(id, limit?)` | Fetch the sortie event log |
+
+`pd.runSortie(...)` inherits the same fail-closed telemetry contract as `pd.spawn(...)`. If the chosen backend/model cannot return exact token counts plus an exact nonzero rate-derived cost, the sortie is blocked before the coordinating run launches.
+
+---
+
+## Harbors — Named Permission Namespaces
+
+Harbors group agents into coordination scopes with declared capabilities. Advisory enforcement in v1 (like file claims).
+
+```typescript
+// Create a harbor for a security review
+const { harbor } = await pd.createHarbor('myapp:security-review', {
+  capabilities: ['code:read', 'security:scan'],
+  channels: ['security-alerts'],
+  expiresIn: 7200000,  // 2 hours in ms
+});
+
+// Agent enters the harbor
+await pd.enterHarbor('myapp:security-review', agentId, {
+  capabilities: ['code:read'],
+});
+
+// List all harbors
+const { harbors } = await pd.listHarbors();
+
+// Get a specific harbor with members
+const { harbor: h } = await pd.getHarbor('myapp:security-review');
+h.members.forEach(m => console.log(m.agentId, m.capabilities));
+
+// Agent leaves
+await pd.leaveHarbor('myapp:security-review', agentId);
+
+// List harbors an agent is in
+const { harbors: mine } = await pd.harborMemberships(agentId);
+
+// Destroy harbor (cascades to members)
+await pd.destroyHarbor('myapp:security-review');
+```
+
+| Method | Description |
+|--------|-------------|
+| `pd.createHarbor(name, options?)` | Create a named harbor |
+| `pd.listHarbors()` | List all active harbors |
+| `pd.getHarbor(name)` | Get harbor detail with members |
+| `pd.destroyHarbor(name)` | Destroy harbor and remove all members |
+| `pd.enterHarbor(name, agentId, options?)` | Agent enters harbor, declares capabilities |
+| `pd.leaveHarbor(name, agentId)` | Agent leaves harbor |
+| `pd.harborMemberships(agentId)` | List harbors an agent is currently in |

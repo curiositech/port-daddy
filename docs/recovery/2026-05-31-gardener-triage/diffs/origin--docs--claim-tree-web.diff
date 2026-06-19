@@ -1,0 +1,353 @@
+STATS:
+ website-v2/package-lock.json                       |  28 ++
+ website-v2/package.json                            |   4 +
+ website-v2/src/main.tsx                            |   2 +
+ website-v2/src/pages/docs/concepts/ClaimTree.tsx   | 361 +++++++++++++++++++++
+ .../pages/docs/concepts/claim-tree/CalendarViz.tsx | 136 ++++++++
+ .../pages/docs/concepts/claim-tree/ChordViz.tsx    | 101 ++++++
+ .../pages/docs/concepts/claim-tree/ForceViz.tsx    | 275 ++++++++++++++++
+ .../pages/docs/concepts/claim-tree/GanttViz.tsx    | 136 ++++++++
+ .../docs/concepts/claim-tree/HoverContext.tsx      |  42 +++
+ .../docs/concepts/claim-tree/ModesMatrixViz.tsx    | 142 ++++++++
+ .../pages/docs/concepts/claim-tree/SankeyViz.tsx   | 102 ++++++
+ .../docs/concepts/claim-tree/SessionLegend.tsx     |  44 +++
+ .../docs/concepts/claim-tree/StreamgraphViz.tsx    | 152 +++++++++
+ .../pages/docs/concepts/claim-tree/SunburstViz.tsx | 148 +++++++++
+ .../pages/docs/concepts/claim-tree/TreemapViz.tsx  | 227 +++++++++++++
+ .../pages/docs/concepts/claim-tree/TwoTreesViz.tsx | 189 +++++++++++
+ .../src/pages/docs/concepts/claim-tree/data.ts     | 301 +++++++++++++++++
+ 17 files changed, 2390 insertions(+)
+
+---
+LAST COMMIT:
+f5e880f0831e1a43287d6af6d092c6839d90f5a8
+Erich Owens <[redacted]>
+2026-05-20 23:01:36 -0700
+fix(claim-tree-viz): empty-page crash + tooltip clipping + sunburst contrast
+
+Empty-page crash:
+  d3.select(g).selectAll('[data-node="1"]').data(nodes, d => d.id) was
+  running its keyfn against existing DOM elements with no __data__ bound.
+  d was undefined, d.id threw, React unmounted the whole subtree.
+  Replaced with native React pointer handlers (onPointerDown/Move/Up)
+  using a useRef drag state and SVG-coord math.
+
+Treemap + Gantt tooltips:
+  Edge-detect: if the cell sits near the top of the SVG, flip the
+  tooltip below the cell rather than rendering above and clipping.
+
+Sunburst contrast at root focus:
+  Unclaimed directory rings used var(--surface-raised) at 0.4 opacity —
+  effectively invisible against the page background. Now use soft
+  oklch tints with full opacity so the ring structure is visible even
+  when claim coverage is sparse. Smaller centerR (44px) gives the rings
+  more room. Visible stroke on every arc.
+
+Force-directed: kept d3.zoom for pan/scroll-to-zoom; replaced d3.drag
+with React pointer handlers.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/website-v2/package-lock.json b/website-v2/package-lock.json
+index 702f96e7..a6e06c44 100644
+--- a/website-v2/package-lock.json
++++ b/website-v2/package-lock.json
+@@ -15,10 +15,14 @@
+         "@radix-ui/react-scroll-area": "^1.2.10",
+         "@radix-ui/react-tabs": "^1.1.13",
+         "@radix-ui/react-tooltip": "^1.2.8",
++        "@types/d3": "^7.4.3",
++        "@types/d3-sankey": "^0.12.5",
+         "@types/three": "^0.183.1",
+         "asciinema-player": "^3.15.1",
+         "class-variance-authority": "^0.7.1",
+         "clsx": "^2.1.1",
++        "d3": "^7.9.0",
++        "d3-sankey": "^0.12.3",
+         "framer-motion": "^12.35.2",
+         "lucide-react": "^0.577.0",
+         "mermaid": "^11.13.0",
+@@ -4234,6 +4238,30 @@
+       "integrity": "sha512-Imagg1vJ3y76Y2ea0871wpabqp613+8/r0mCLEBfdtqC7xMSfj9idOnmBYyMoULfHePJyxMAw3nWhJxzc+LFwQ==",
+       "license": "MIT"
+     },
++    "node_modules/@types/d3-sankey": {
++      "version": "0.12.5",
++      "resolved": "https://registry.npmjs.org/@types/d3-sankey/-/d3-sankey-0.12.5.tgz",
++      "integrity": "sha512-/3RZSew0cLAtzGQ+C89hq/Rp3H20QJuVRSqFy6RKLe7E0B8kd2iOS1oBsodrgds4PcNVpqWhdUEng/SHvBcJ6Q==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/d3-shape": "^1"
++      }
++    },
++    "node_modules/@types/d3-sankey/node_modules/@types/d3-path": {
++      "version": "1.0.11",
++      "resolved": "https://registry.npmjs.org/@types/d3-path/-/d3-path-1.0.11.tgz",
++      "integrity": "sha512-4pQMp8ldf7UaB/gR8Fvvy69psNHkTpD/pVw3vmEi8iZAB9EPMBruB1JvHO4BIq9QkUUd2lV1F5YXpMNj7JPBpw==",
++      "license": "MIT"
++    },
++    "node_modules/@types/d3-sankey/node_modules/@types/d3-shape": {
++      "version": "1.3.12",
++      "resolved": "https://registry.npmjs.org/@types/d3-shape/-/d3-shape-1.3.12.tgz",
++      "integrity": "sha512-8oMzcd4+poSLGgV0R1Q1rOlx/xdmozS4Xab7np0eamFFUYq71AU9pOCJEFnkXW2aI/oXdVYJzw6pssbSut7Z9Q==",
++      "license": "MIT",
++      "dependencies": {
++        "@types/d3-path": "^1"
++      }
++    },
+     "node_modules/@types/d3-scale": {
+       "version": "4.0.9",
+       "resolved": "https://registry.npmjs.org/@types/d3-scale/-/d3-scale-4.0.9.tgz",
+diff --git a/website-v2/package.json b/website-v2/package.json
+index 0f2fd251..a7cbfd0f 100644
+--- a/website-v2/package.json
++++ b/website-v2/package.json
+@@ -34,10 +34,14 @@
+     "@radix-ui/react-scroll-area": "^1.2.10",
+     "@radix-ui/react-tabs": "^1.1.13",
+     "@radix-ui/react-tooltip": "^1.2.8",
++    "@types/d3": "^7.4.3",
++    "@types/d3-sankey": "^0.12.5",
+     "@types/three": "^0.183.1",
+     "asciinema-player": "^3.15.1",
+     "class-variance-authority": "^0.7.1",
+     "clsx": "^2.1.1",
++    "d3": "^7.9.0",
++    "d3-sankey": "^0.12.3",
+     "framer-motion": "^12.35.2",
+     "lucide-react": "^0.577.0",
+     "mermaid": "^11.13.0",
+diff --git a/website-v2/src/main.tsx b/website-v2/src/main.tsx
+index c231dfa0..97aa5ec6 100644
+--- a/website-v2/src/main.tsx
++++ b/website-v2/src/main.tsx
+@@ -69,6 +69,7 @@ const SessionsFeature = lazy(() => import('@/pages/docs/features/SessionsFeature
+ const HarborsFeature = lazy(() => import('@/pages/docs/features/HarborsFeature'))
+ const SalvageFeature = lazy(() => import('@/pages/docs/features/SalvageFeature'))
+ const TimelineFeature = lazy(() => import('@/pages/docs/features/TimelineFeature'))
++const ClaimTreeConcept = lazy(() => import('@/pages/docs/concepts/ClaimTree'))
+ const DnsFeature = lazy(() => import('@/pages/docs/features/DnsFeature'))
+ const RemoteFeature = lazy(() => import('@/pages/docs/features/RemoteFeature'))
+ const TunnelsFeature = lazy(() => import('@/pages/docs/features/TunnelsFeature'))
+@@ -287,6 +288,7 @@ createRoot(document.getElementById('root')!).render(
+               <Route path="features/avatars" element={<AvatarsFeature />} />
+               <Route path="features/salvage" element={<SalvageFeature />} />
+               <Route path="features/timeline" element={<TimelineFeature />} />
++              <Route path="concepts/claim-tree" element={<ClaimTreeConcept />} />
+               <Route path="features/dns" element={<DnsFeature />} />
+               <Route path="features/remote" element={<RemoteFeature />} />
+               <Route path="features/sessions" element={<SessionsFeature />} />
+diff --git a/website-v2/src/pages/docs/concepts/ClaimTree.tsx b/website-v2/src/pages/docs/concepts/ClaimTree.tsx
+new file mode 100644
+index 00000000..a9c5fb81
+--- /dev/null
++++ b/website-v2/src/pages/docs/concepts/ClaimTree.tsx
+@@ -0,0 +1,361 @@
++import { Badge } from '@/components/ui/Badge'
++import { Link } from 'react-router-dom'
++import { ArrowRight, ArrowUp, ArrowDown, Folder, FileCode, Hash, Box, Bookmark, AlignLeft, CheckCircle2, AlertTriangle, Layers, Network } from 'lucide-react'
++import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
++import { ClaimTreeHoverProvider } from './claim-tree/HoverContext'
++import { SessionLegend } from './claim-tree/SessionLegend'
++import { TwoTreesViz } from './claim-tree/TwoTreesViz'
++import { TreemapViz } from './claim-tree/TreemapViz'
++import { SunburstViz } from './claim-tree/SunburstViz'
++import { ForceViz } from './claim-tree/ForceViz'
++import { GanttViz } from './claim-tree/GanttViz'
++import { CalendarViz } from './claim-tree/CalendarViz'
++import { StreamgraphViz } from './claim-tree/StreamgraphViz'
++import { SankeyViz } from './claim-tree/SankeyViz'
++import { ChordViz } from './claim-tree/ChordViz'
++import { ModesMatrixViz } from './claim-tree/ModesMatrixViz'
++
++export default function ClaimTree() {
++  return (
++    <ClaimTreeHoverProvider>
++      <div className="space-y-12">
++        {/* ── Hero ─────────────────────────────────────────────── */}
++        <section className="space-y-4">
++          <div className="flex flex-wrap items-center gap-2">
++            <Badge variant="teal">Concept</Badge>
++            <Badge variant="accent">Substrate</Badge>
++            <Badge variant="success">Proposed v1</Badge>
++          </div>
++          <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)] md:text-5xl">
++            The Claim Tree
++          </h1>
++          <p className="max-w-3xl text-lg leading-relaxed text-[var(--text-secondary)]">
++            Port Daddy's multi-granularity coordination structure. One hierarchical
++            tree of claimable units — repo, directory, file, AST symbol, AST block,
++            fenced region — that lets agents work in the same codebase without
++            stepping on each other, and lets operators ask{' '}
++            <em className="text-[var(--text-primary)]">"where is the swarm right now?"</em>{' '}
++            with a single query.
++          </p>
++          <div className="flex flex-wrap gap-3 pt-2 text-sm">
++            <Link to="/docs/adr/0038-claim-tree" className="inline-flex items-center gap-1 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-3 py-1.5 font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
++              Read the spec (ADR-0038) <ArrowRight size={14} />
++            </Link>
++            <Link to="/docs/concepts/primitives" className="inline-flex items-center gap-1 px-3 py-1.5 font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
++              See the primitives this builds on <ArrowRight size={14} />
++            </Link>
++          </div>
++        </section>
++
++        {/* ── Questions it answers ─────────────────────────────── */}
++        <section className="space-y-4">
++          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
++            The questions it answers
++          </h2>
++          <p className="text-[var(--text-secondary)]">
++            These are the questions Port Daddy's existing flat claim table can't
++            answer well. The claim tree was designed so each one becomes a single
++            indexed SQL query.
++          </p>
++          <div className="grid gap-3 md:grid-cols-2">
++            {[
++              { q: 'Anything claimed under lib/auth/?', kind: 'push-down', icon: ArrowDown },
++              { q: 'Does this commit touch a symbol another agent is editing?', kind: 'bubble-up', icon: ArrowUp },
++              { q: 'Two of us want to edit auth.ts — same function or different?', kind: 'overlap', icon: AlertTriangle },
++              { q: 'Show me where the swarm is concentrating right now.', kind: 'aggregate', icon: Network },
++            ].map(({ q, kind, icon: Icon }) => (
++              <div key={q} className="flex items-start gap-3 border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-4">
++                <Icon size={18} className="mt-0.5 shrink-0 text-[var(--brand-accent)]" />
++                <div className="space-y-1">
++                  <p className="font-mono text-[15px] leading-snug text-[var(--text-primary)]">&ldquo;{q}&rdquo;</p>
++                  <span className="inline-block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{kind} query</span>
++                </div>
++              </div>
++            ))}
++          </div>
++        </section>
++
++        {/* ── Mental model: two trees ──────────────────────────── */}
++        <section className="space-y-4">
++          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
++            The mental model: two trees, joined at the file
++          </h2>
++          <p className="text-[var(--text-secondary)]">
++            Picture your repo as two overlapping trees. The filesystem tree is paths;
++            the AST tree is code structure inside each file. The claim tree{' '}
++            <strong className="text-[var(--text-primary)]">joins them at the file</strong>{' '}
++            — every file node has children from its AST when symbol-index data is
++            available. Hover the filesystem's <code className="font-mono text-[13px]">auth.ts</code>{' '}
++            to see the join animate.
++          </p>
++          <TwoTreesViz />
++          <p className="text-sm text-[var(--text-muted)]">
++            You don't need to think about AST when you{' '}
++            <code className="rounded bg-[var(--surface-raised)] px-1 py-0.5 font-mono text-[13px]">pd add lib/auth.ts</code>.
++            The tree degrades gracefully to file granularity. But when symbol data is available,
++            you can claim a specific function instead of the whole file — and let someone else
++            claim a different function in the same file without conflict.
++          </p>
++        </section>
++
++        {/* ── Node kinds ───────────────────────────────────────── */}
++        <section className="space-y-4">
++          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Node kinds</h2>
++          <p className="text-[var(--text-secondary)]">
++            Every node has a kind that determines what it represents and how stable
++            its identity is across refactors.
++          </p>
++          <div className="overflow-x-auto border-2 border-[var(--border-strong)]">
++            <table className="min-w-full divide-y-2 divide-[var(--border-strong)] text-sm">
++              <thead className="bg-[var(--surface-raised)] text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
++                <tr>
++                  <th className="px-4 py-3"></th>
++                  <th className="px-4 py-3">Kind</th>
++                  <th className="px-4 py-3">Example identifier</th>
++                  <th className="px-4 py-3">Stability</th>
++                </tr>
++              </thead>
++              <tbody className="divide-y divide-[var(--border-soft)] bg-[var(--surface-base)]">
++                <NodeKindRow icon={Folder} kind="repo" example="repo:port-daddy" stability="Stable" stabilityTone="success" desc="The repo root" />
++                <NodeKindRow icon={Folder} kind="dir" example="dir:lib/auth/" stability="Stable (path)" stabilityTone="success" desc="Directory; descendants are its files + subdirs" />
++                <NodeKindRow icon={FileCode} kind="file" example="file:lib/auth.ts" stability="Stable (path)" stabilityTone="success" desc="One file; descendants are its AST nodes" />
++                <NodeKindRow icon={Hash} kind="symbol" example="symbol:lib/auth.ts:AuthService.signToken" stability="High (rename detected)" stabilityTone="success" desc="Named function / class / method. Primary claim unit." />
++                <NodeKindRow icon={Box} kind="block" example="block:lib/auth.ts:signToken.body.if[0]" stability="High (AST-anchored)" stabilityTone="success" desc="Unnamed AST block — switch case, arrow expr, etc." />
++                <NodeKindRow icon={Bookmark} kind="fenced" example="fenced:lib/auth.ts:auth-validation" stability="Operator-visible" stabilityTone="info" desc={`Marked region: // PD-CLAIM-BEGIN <slug> ... // PD-CLAIM-END`} />
++                <NodeKindRow icon={AlignLeft} kind="region" example="region:lib/auth.ts:120-180" stability="Low (fallback only)" stabilityTone="warning" desc="Line range — degrades when AST unavailable." />
++              </tbody>
++            </table>
++          </div>
++          <div className="border-l-4 border-[var(--brand-accent)] bg-[var(--surface-raised)] p-4 text-sm leading-relaxed text-[var(--text-secondary)]">
++            <strong className="text-[var(--text-primary)]">Why not just line ranges?</strong>{' '}
++            Line numbers are the wrong frame of reference for code. Add an import at the top of a file
++            and every line shifts. Two agents that <em className="text-[var(--text-primary)]">should</em> be
++            coordinating end up with overlapping line ranges that no longer touch the same code. The
++            AST-anchored model treats <code className="font-mono text-[13px]">AuthService.signToken</code>{' '}
++            as the stable identity.
++          </div>
++        </section>
++
++        {/* ── Claim modes (interactive) ────────────────────────── */}
++        <section className="space-y-4">
++          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Claim modes</h2>
++          <p className="text-[var(--text-secondary)]">
++            When a session claims a node, it picks a mode that signals what it intends to do.
++            Modes mirror multi-granularity locking from database systems (Gray, 1976):
++          </p>
++          <ModesMatrixViz />
++          <p className="text-sm text-[var(--text-secondary)]">
++            For most PD work, the pattern is{' '}
++            <strong className="text-[var(--text-primary)]">IX on the directory → IX on the file → X on the symbol</strong>.
++            The agent never sees the modes unless they're debugging.
++          </p>
++        </section>
++
++        {/* ── Session legend (also the cross-viz hover controller) ─ */}
++        <section className="space-y-4">
++          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
++            One scenario, ten views
++          </h2>
++          <p className="text-[var(--text-secondary)]">
++            Every visualization below renders the same tree state. Hover a session
++            below or in any viz — and watch every other viz dim everything that
++            isn't part of that session.
++          </p>
++          <SessionLegend />
++        </section>
++
++        {/* ── Visualization gallery ────────────────────────────── */}
++        <section className="space-y-6">
++          <Mode letter="A" title="ASCII tree (CLI default)" subtitle="`pd claims tree`" rationale="The terminal-native view. Glyphs encode kind; ANSI color encodes conflict severity.">
++            <DocsCodeBlock label="$ pd claims tree" code={`repo:port-daddy                              [3 sessions, 6 claims]
++├── lib/                                     [2 sessions, IX]
++│   ├─● auth.ts                              [2 sessions, MEDIUM]
++│   │   ├─◆ AuthService.signToken           [session-12abc gardener, X, 28m]
++│   │   └─◆ AuthService.refreshToken        [session-56def you, X, 18m]
++│   └─● tuples.ts                            [session-12abc, S, 22m]
++└── tests/unit/auth/                         [session-78ghi, IX]
++    ├─● signToken.test.ts                    [qa, X, 12m]
++    └─● refreshToken.test.ts                 [qa, X, 9m]
++
++Glyphs:  ● file   ▪ region   ◆ symbol   ◆▾ block   ⌗ fenced`} />
++          </Mode>
++
++          <Mode letter="B" title="Annotated file tree (web sidebar)" subtitle="Web console default" rationale="Standard collapsible tree component. Each row shows claim count chips and risk severity; click for the detail pane.">
++            <AnnotatedTreeMock />
++          </Mode>
++
++          <Mode letter="C" title="Squarified treemap" subtitle="Where is the swarm right now?" rationale="Real d3.treemap with squarify tiling over the full hierarchy. Color = session ownership; border = conflict. Click a directory to zoom into its subtree; breadcrumb to zoom back.">
++            <TreemapViz />
++          </Mode>
++
++          <Mode letter="D" title="Zoomable sunburst" subtitle="Drill into a subtree" rationale="Bostock's classic d3.partition pattern. Click an arc → it becomes the new root with a smooth zoom. Click the center to zoom out.">
++            <SunburstViz />
++          </Mode>
++
++          <Mode letter="E" title="Force-directed graph + imports" subtitle="Coupling structure" rationale="Real d3.forceSimulation with link, charge, and collide forces. Solid edges are parent-child; dashed edges are imports. Hover a node to highlight its 1-hop neighborhood.">
++            <ForceViz />
++          </Mode>
++
++          <Mode letter="F" title="Per-session Gantt ribbon" subtitle="Claim timeline" rationale="d3.scaleTime axis with proper tick formatting. Hover a bar for start/end/duration; the NOW rule pulses.">
++            <GanttViz />
++          </Mode>
++
++          <Mode letter="G" title="Chord diagram: co-claimed files" subtitle="What travels together" rationale="Files frequently claimed in the same session form thick arcs. d3.chord layout; hover a file or a chord to isolate.">
++            <ChordViz />
++          </Mode>
+
+... [2230 more lines truncated]

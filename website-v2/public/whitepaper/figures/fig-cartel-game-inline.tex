@@ -1,0 +1,60 @@
+% Cartel repeated-game node — inline at §sec:youle:a6.
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  state/.style={draw=hhebony,thick,fill=hhsand,circle,inner sep=2pt,
+                minimum size=8mm,font=\sffamily\footnotesize},
+  decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
+                   inner sep=4pt,align=center,minimum width=20mm},
+  payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
+                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+              inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
+              text=hhcobalt},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+  prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
+]
+\node[state] (rt) at (0,2.4) {round $t$};
+\node[decision,right=10mm of rt] (dec) {Action choice};
+\draw[arr] (rt) -- (dec);
+\node[decision,fill=hhteal!30,right=12mm of dec,yshift=14mm] (collude)
+  {COLLUDE\\$q_{\mathrm{floor}}$};
+\draw[arr] (dec.north east) to[bend left=10] (collude.west);
+\node[decision,fill=hhamber!40,right=12mm of dec,yshift=-14mm] (defect)
+  {DEFECT\\$-\varepsilon$};
+\draw[arr] (dec.south east) to[bend right=10] (defect.west);
+\node[state,right=14mm of collude,yshift=10mm] (det) {detected};
+\node[state,right=14mm of collude,yshift=-10mm] (safe) {survived};
+\draw[arr] (collude.east) to[bend left=10]
+  node[prob,above] {$p_d$} (det.west);
+\draw[arr] (collude.east) to[bend right=10]
+  node[prob,below] {$1-p_d$} (safe.west);
+\node[bad,right=4mm of det] {$-5(q_f - \mu)$};
+\node[payoff,right=4mm of safe] {$+\pi_C$};
+\node[state,right=14mm of defect] (collapse) {collapse};
+\draw[arr] (defect.east) -- (collapse.west);
+\node[payoff,right=4mm of collapse,fill=hhamber!20]
+  {$+\pi_D$ once,\\then $\pi_N \approx 0$};
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
+      align=left,inner sep=6pt,
+      below=20mm of defect,minimum width=110mm]
+  {{\bfseries Folk-theorem sustainability:}
+   \quad
+   $\dfrac{\delta \cdot \pi_C}{1 - \delta(1 - p_d)} \;\geq\; \pi_D$};
+\end{tikzpicture}%
+}
+\caption{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or undercutting it by $\varepsilon$. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi_D$ gain once and forfeits future $\pi_C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star$ used in Figure~\ref{fig:cartel-folk}.}
+\label{fig:cartel-game-inline}
+\end{figure}

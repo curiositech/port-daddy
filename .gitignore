@@ -1,0 +1,88 @@
+# Dependencies
+node_modules/
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Build output
+dist/
+**/target/
+**/__pycache__/
+*.py[cod]
+
+# Test coverage
+coverage/
+
+# TLC model checker intermediate state (only check in .tla, .cfg, .run.log)
+proofs/**/states/
+
+# OG image scratch
+website-v2/.tmp-og/
+
+# Environment
+.env
+.env.local
+.port-daddy-env
+
+# Internal: analysis, strategy, dev planning
+plans/
+.CLAUDE_LOCK
+.CLAUDE_NOTES.md
+.portdaddyrc
+.portdaddy/
+.spark/
+.spider/
+.dogfood/
+.remember/
+.serena/
+.cache/
+.public-export/
+CLAUDE.md
+GEMINI.md
+*.strategy.md
+*.internal.md
+.claude/worktrees/
+PORT_DADDY_V3_VISION.md
+PORT_DADDY_V4_STRATEGY.md
+port-daddy-v3.5-execution-plan.md
+port-daddy-website-refresh-plan.md
+port-daddy-distribution-strategy.md
+port-daddy-distribution-analysis.md
+port-daddy-asciinema-skills-plan.md
+vite-output.log
+daemon-error.log
+*.cjs
+STRATEGY_private_gitignore/
+apps/FleetBar/.build/
+**/build/
+.firecrawl/
+.windags/
+v0-agentsd-main/
+agentsd_mocks/
+.aider.chat.history.md
+
+# Ephemeral scratch for scripts/smoke-compiled-daemon.sh
+.smoke-tmp/
+
+# Local scratch/probe scripts and generated artifact lists
+**/.scratch/
+
+# Xcode/SwiftPM user-specific and generated workspace files
+xcuserdata/
+**/.swiftpm/xcode/package.xcworkspace/
+
+# Ephemeral runtime lock files
+.claude/scheduled_tasks.lock

@@ -1,0 +1,74 @@
+name: Whitepaper Metadata
+
+# Runs the whitepaper metadata drift check (PR #117 follow-up) on any PR or
+# push that touches the published PDFs or the registry that describes them.
+# The check itself lives at website-v2/scripts/check-whitepaper-metadata.ts
+# and is exercised by website-v2/src/data/whitePapers.test.ts.
+#
+# Two guards are in place against the "silent green" failure mode flagged
+# in the PR #117 adversarial review:
+#   1. `apt-get install -y poppler-utils` is required for `pdfinfo`.
+#   2. The script itself hard-fails when CI=true and pdfinfo is missing,
+#      so an image change that drops poppler still surfaces a red build.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/whitePapers.ts'
+      - 'website-v2/src/data/whitePapers.test.ts'
+      - 'website-v2/scripts/check-whitepaper-metadata.ts'
+      - 'website-v2/package.json'
+      - '.github/workflows/whitepaper-metadata.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'website-v2/public/whitepaper/**'
+      - 'website-v2/src/data/whitePapers.ts'
+      - 'website-v2/src/data/whitePapers.test.ts'
+      - 'website-v2/scripts/check-whitepaper-metadata.ts'
+      - 'website-v2/package.json'
+      - '.github/workflows/whitepaper-metadata.yml'
+
+jobs:
+  whitepaper-metadata-drift:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website-v2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: website-v2/package-lock.json
+
+      - name: Install poppler (provides pdfinfo)
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+        working-directory: .
+
+      - name: Verify pdfinfo present
+        run: pdfinfo -v 2>&1 | head -1 || true
+
+      - name: Install website-v2 dependencies
+        run: npm ci
+
+      - name: Run figure-palette brand guard (no cinnabar/brass/patina; AAA accents only)
+        run: npm run test:figure-palette
+
+      - name: Run whitepaper metadata drift check
+        # The script honors CI=true and hard-fails if pdfinfo is missing.
+        # GitHub Actions sets CI=true by default; this is belt-and-braces.
+        env:
+          CI: 'true'
+        run: npm run test:whitepaper-metadata
+
+      - name: Run vitest coverage for whitepaper metadata
+        env:
+          CI: 'true'
+        run: npx vitest run src/data/whitePapers.test.ts

@@ -1,0 +1,52 @@
+{
+  "skill": "port-daddy-expository-writer",
+  "status": "initial",
+  "provenance": {
+    "kind": "first-party",
+    "source": "manual",
+    "owners": ["port-daddy"]
+  },
+  "authorship": {
+    "maintainers": ["port-daddy"]
+  },
+  "structure": {
+    "decision_points": true,
+    "failure_modes": true,
+    "worked_examples": true,
+    "quality_gates": true,
+    "not_for": true,
+    "mermaid": false
+  },
+  "affordances": {
+    "scripts": true,
+    "templates": false,
+    "examples": true,
+    "references": true,
+    "agents": true,
+    "assets": false,
+    "browser_open_review": false,
+    "fork_runtime": false,
+    "hooks_runtime": false,
+    "channel_notes": true,
+    "scheduled_task_notes": false
+  },
+  "knowledge_depth": {
+    "l1": true,
+    "l2": true,
+    "l3": true
+  },
+  "pairs_with": [
+    "port-daddy-marketing-copy",
+    "port-daddy-agent-skill",
+    "redteam-review",
+    "proverif-tamarin-protocol-modeling",
+    "tlaplus-practitioner",
+    "knot-theory-educator"
+  ],
+  "validation": {
+    "repo_validator_passed": null,
+    "notes": [
+      "Initial draft 2026-05-20. Voice rules link to user_voice_website.md rather than duplicating. Worked rewrite uses real paragraphs from agent-transactions-whitepaper.tex §sec:youle."
+    ]
+  }
+}

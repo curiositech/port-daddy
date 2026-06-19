@@ -1,0 +1,121 @@
+{
+  "$schema": "./schema/primitives.schema.json",
+  "$description": "Tier 1 — primitives. Raw values, theme-independent. ONLY this file gets to hold hex codes, raw scale numbers, and font stacks. Everything else references these by ID.",
+  "color": {
+    "paper":        { "hex": "#F5F5F0", "rgb": [245, 245, 240], "note": "warm off-white, the page surface" },
+    "paper-soft":   { "hex": "#FFFFFF", "rgb": [255, 255, 255], "note": "pure white, only for cinnabar-bg contrast headroom" },
+    "paper-cream":  { "hex": "#FFF9E0", "rgb": [255, 249, 224], "note": "warmest cream, brand-softer surface" },
+    "sandstone":    { "hex": "#D4C5A9", "rgb": [212, 197, 169], "note": "heritage warm tone, sparingly" },
+    "fog":          { "hex": "#D1D1C7", "rgb": [209, 209, 199], "note": "dim text on ebony, 10.7:1 — lowest muted permitted" },
+    "fog-deep":     { "hex": "#B5B5A8", "rgb": [181, 181, 168], "note": "deeper dim on ebony, 8.2:1" },
+    "slate":        { "hex": "#504B46", "rgb":  [80,  75,  70], "note": "deep neutral, paper-tier" },
+    "slate-deep":   { "hex": "#3F3D38", "rgb":  [63,  61,  56], "note": "body-subtle on paper, 9.8:1" },
+    "slate-darker": { "hex": "#2B2A26", "rgb":  [43,  42,  38], "note": "body on paper, 13.6:1" },
+    "ebony":        { "hex": "#1E1B18", "rgb":  [30,  27,  24], "note": "warm ebony — terminal interior, dark-mode page" },
+    "ebony-deep":   { "hex": "#100E0C", "rgb":  [16,  14,  12], "note": "shadow pad, deeper than ebony" },
+    "ebony-soft":   { "hex": "#2B2724", "rgb":  [43,  39,  36], "note": "ebony-elevated, for raised surfaces in dark mode" },
+
+    "cinnabar":     { "hex": "#BF2F2F", "rgb": [191, 47, 47], "note": "signal red — danger/alert/burning-resource" },
+    "cinnabar-lit": { "hex": "#FF9081", "rgb": [255, 144, 129], "note": "lifted cinnabar — body text on ebony, 6.9:1" },
+    "cinnabar-dim": { "hex": "#8B1622", "rgb": [139,  22,  34], "note": "deeper crimson for mayday band, 9.2:1 on paper" },
+    "tan":          { "hex": "#8B5A1A", "rgb": [139,  90,  26], "note": "warm tan — securité severity band, 7.6:1 on cream" },
+
+    "canary":       { "hex": "#FFDB33", "rgb": [255, 219,  51], "note": "neobrutalism canary — primary brand, 12.3:1 on ebony" },
+    "canary-soft":  { "hex": "#FAE583", "rgb": [250, 229, 131], "note": "softer canary for hovers" },
+    "canary-warm":  { "hex": "#FDE68A", "rgb": [253, 230, 138], "note": "warm cream-canary, captions" },
+    "canary-strong":{ "hex": "#FFCC00", "rgb": [255, 204,   0], "note": "punchier canary for emphasis" },
+    "mustard":      { "hex": "#EDC531", "rgb": [237, 197,  49], "note": "maritime mustard — ICS flag yellow, 11.4:1 on ebony" },
+
+    "navy":         { "hex": "#1E3A8A", "rgb":  [30,  58, 138], "note": "ICS flag blue — maritime primary" },
+    "navy-soft":    { "hex": "#1D4ED8", "rgb":  [29,  78, 216], "note": "sky/info accent variant" },
+    "kelp":         { "hex": "#6DD3A8", "rgb": [109, 211, 168], "note": "success/claim-active on ebony, 9.5:1" },
+    "kelp-deep":    { "hex": "#15803D", "rgb":  [21, 128,  61], "note": "deep success — strong/text" },
+    "kelp-soft":    { "hex": "#DCFCE7", "rgb": [220, 252, 231], "note": "success bg-soft" },
+    "sky":          { "hex": "#7FC4FF", "rgb": [127, 196, 255], "note": "in-progress / informational on ebony, 8.7:1" },
+    "sky-deep":     { "hex": "#0369A1", "rgb":   [3, 105, 161], "note": "REQUEST performative bg" },
+    "purple":       { "hex": "#6D28D9", "rgb": [109,  40, 217], "note": "PROPOSE performative bg" },
+    "indigo":       { "hex": "#4338CA", "rgb":  [67,  56, 202], "note": "ACCEPT-PROPOSAL bg" },
+    "teal":         { "hex": "#0F766E", "rgb":  [15, 118, 110], "note": "SUBSCRIBE bg" },
+    "warning":      { "hex": "#F59E0B", "rgb": [245, 158,  11], "note": "warning amber base" },
+    "warning-deep": { "hex": "#92400E", "rgb": [146,  64,  14], "note": "warning text-fg, AA on canary-soft" },
+    "warning-soft": { "hex": "#FEF3C7", "rgb": [254, 243, 199], "note": "warning bg-soft, awaiting-human" },
+    "danger-soft":  { "hex": "#FECACA", "rgb": [254, 202, 202], "note": "danger bg-soft, conflict" },
+
+    "ics-white":    { "hex": "#FAFAF5", "rgb": [250, 250, 245], "note": "ICS flag white — slightly warm" },
+    "ics-black":    { "hex": "#1E1B18", "rgb":  [30,  27,  24], "note": "ICS flag black — same as ebony for consistency" }
+  },
+  "$colorRules": [
+    "Hex codes appear ONLY in this file. Anywhere else: reference by id (e.g. primitive.color.canary).",
+    "All rgb arrays match their hex exactly. The build script will verify.",
+    "No primitive may have AA-failing contrast as a published 'note' value. If you can't justify a 4.5:1 pair, leave the note blank."
+  ],
+
+  "space": {
+    "0":  "0",
+    "1":  "0.25rem",
+    "2":  "0.5rem",
+    "3":  "0.75rem",
+    "4":  "1rem",
+    "5":  "1.5rem",
+    "6":  "2rem",
+    "7":  "3rem",
+    "8":  "5rem"
+  },
+  "$spaceRules": [
+    "9 stops total. Skill rubric says ≤12 — we cap at 9 to enforce discipline.",
+    "Linear up to step 4, then 1.5× scale. step 8 = 5rem only for hero/section padding."
+  ],
+
+  "radius": {
+    "base": "0",
+    "pill": "9999px"
+  },
+  "$radiusRules": [
+    "Two values only. Neobrutalist DNA forbids the soft-corner family.",
+    "Anything mid-range (4px, 8px) is a design smell — refuse it at PR review."
+  ],
+
+  "border-width": {
+    "default":  "2px",
+    "emphasis": "3px"
+  },
+
+  "shadow": {
+    "2xs": "1px 1px 0 0",
+    "xs":  "2px 2px 0 0",
+    "sm":  "3px 3px 0 0",
+    "md":  "4px 4px 0 0",
+    "lg":  "6px 6px 0 0",
+    "xl":  "10px 10px 0 1px",
+    "2xl": "16px 16px 0 1px"
+  },
+  "$shadowRules": [
+    "Offset, no blur. Neobrutalist signature.",
+    "Color is theme-dependent — applied by semantic layer."
+  ],
+
+  "font": {
+    "display": "\"Fraunces\", \"IBM Plex Sans\", -apple-system, system-ui, sans-serif",
+    "body":    "\"IBM Plex Sans\", system-ui, -apple-system, sans-serif",
+    "mono":    "\"IBM Plex Mono\", ui-monospace, \"Cascadia Code\", \"SF Mono\", Menlo, monospace"
+  },
+
+  "type-scale": {
+    "$description": "Minor Third → Perfect Fourth fluid scale. clamp() against viewport. Baseline 24px.",
+    "baseline":     "1.5rem",
+    "display-1":    "clamp(3.5rem, 2rem + 9vw, 11rem)",
+    "display-2":    "clamp(2.75rem, 1.5rem + 6.5vw, 7.5rem)",
+    "h1":           "clamp(2.25rem, 1.5rem + 3vw, 4rem)",
+    "h2":           "clamp(1.75rem, 1.25rem + 2vw, 2.75rem)",
+    "h3":           "clamp(1.375rem, 1rem + 1.5vw, 2rem)",
+    "h4":           "clamp(1.125rem, 0.9rem + 1vw, 1.5rem)",
+    "body":         "clamp(1rem, 0.95rem + 0.25vw, 1.125rem)",
+    "small":        "0.9375rem",
+    "eyebrow":      "0.875rem"
+  },
+  "$typeRules": [
+    "Floor is 0.875rem (14px) per user accessibility rule. ZERO exceptions to this floor for prose.",
+    "Eyebrow at 0.875rem ONLY when uppercase + ≥600 weight + ≥0.1em letter-spacing.",
+    "Build script will fail if any value below 0.875rem appears."
+  ]
+}

@@ -1,0 +1,8 @@
+/* App-level overrides — intentionally minimal. */
+/* Most styling lives in index.css + component styles. */
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

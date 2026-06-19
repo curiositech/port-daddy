@@ -1,0 +1,754 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "./styles/tokens.css";
+
+@theme inline {
+  /* ── Port Daddy custom color tokens ──────────────────────────────────────── */
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-bg-glass: var(--bg-glass);
+  --color-bg-scrim: var(--bg-scrim);
+  --color-media-scrim: var(--bg-media-scrim);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-glass: var(--surface-glass);
+  --color-text-inverse: var(--text-inverse);
+
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-info: var(--status-info);
+
+  /* Maritime signal flags */
+  --color-signal-charlie:  var(--signal-charlie);
+  --color-signal-november: var(--signal-november);
+  --color-signal-kilo:     var(--signal-kilo);
+  --color-signal-uniform:  var(--signal-uniform);
+  --color-signal-victor:   var(--signal-victor);
+  --color-signal-lima:     var(--signal-lima);
+
+  /* Maritime channel tokens */
+  --color-channel-scope:     var(--channel-scope);
+  --color-channel-topic:     var(--channel-topic);
+  --color-channel-qualifier: var(--channel-qualifier);
+  --color-channel-sep:       var(--channel-sep);
+
+  /* Maritime voice colors */
+  --color-voice-mayday:   var(--voice-mayday);
+  --color-voice-pan-pan:  var(--voice-pan-pan);
+  --color-voice-securite: var(--voice-securite);
+  --color-voice-hail:     var(--voice-hail);
+  --color-voice-roger:    var(--voice-roger);
+  --color-voice-wilco:    var(--voice-wilco);
+  --color-voice-report:   var(--voice-report);
+  --color-voice-over:     var(--voice-over);
+  --color-voice-out:      var(--voice-out);
+
+  --color-interactive-hover: var(--interactive-hover);
+  --color-interactive-active: var(--interactive-active);
+  --color-interactive-focus: var(--interactive-focus);
+
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-xl: var(--radius-xl);
+
+  /* ── shadcn/ui color tokens ──────────────────────────────────────────────── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ── shadcn/ui radius tokens (namespaced to avoid colliding with tokens.css) ── */
+  --radius-shadcn-sm: calc(var(--radius) - 4px);
+  --radius-shadcn-md: calc(var(--radius) - 2px);
+  --radius-shadcn-lg: var(--radius);
+}
+
+/* Explicitly tell Tailwind to use .dark class for dark variants */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Global resets & base ──────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%; /* Respect user preferences, not hardcoded 16px */
+  scroll-behavior: smooth;
+  font-optical-sizing: auto;
+  font-family: var(--font-sans);
+  font-variation-settings: "opsz" var(--radnika-opsz-body);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background-color: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" var(--radnika-opsz-body);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Heading line-heights — tighter at larger sizes */
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" var(--radnika-opsz-display);
+}
+h1 { line-height: 1.1; }
+h2 { line-height: 1.2; }
+h3 { line-height: 1.3; }
+
+@layer utilities {
+  .tracking-tight,
+  .tracking-tighter {
+    letter-spacing: 0 !important;
+  }
+
+  .prose-headings\:tracking-tight :where(h1, h2, h3, h4, h5, h6) {
+    letter-spacing: 0 !important;
+  }
+}
+
+p, li {
+  margin: 0;
+  max-width: 75ch; /* Prevent overly long lines */
+}
+
+/* Dark mode: text renders thinner on dark backgrounds — compensate */
+[data-theme='dark'] body {
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3 {
+  font-weight: inherit;
+}
+
+a {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+/* Inline code uses tokenized inset contrast, not a black-code default. */
+code:not(pre code) {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variation-settings: normal;
+  font-size: 0.82em;
+  font-weight: 600;
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--surface-sunken) 70%, var(--surface-raised));
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-flat);
+  padding: 0.12em 0.5em;
+  border-radius: var(--radius-sm);
+}
+
+/* Code blocks — NO dark background, no inherited inline-code styles */
+pre {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+pre code {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-weight: inherit !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* Tutorial pages should read like docs, not a dashboard of repeated icon tiles. */
+.tutorial-article section > div:first-child:has(> h2) {
+  display: block;
+}
+
+.tutorial-article section > div:first-child:has(> h2) > div:first-child {
+  display: none !important;
+}
+
+/* ─── Blog Article Typography ──────────────────────────────────────────────── */
+/* Uses the design system spacing rules directly (see SPACING RULES below).
+ * Component overrides in BlogPostPage.tsx handle STRUCTURAL rendering only
+ * (code→CodeBlock, mermaid→Mermaid, links→Link). Typography lives here.     */
+
+.blog-article {
+  color: var(--text-secondary);
+  font-size: var(--text-lg);                    /* text-lg per design system "pages" */
+  line-height: 1.6;                              /* body line-height from design system */
+}
+
+/* Headings: design system says mb-4 (h1), mb-3 (h2), mb-2 (h3).
+ * Top margin creates section breaks — more above than below to bind
+ * heading to its content (Gestalt proximity). */
+.blog-article h2 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-2xl);                   /* text-2xl sm:text-3xl per design system */
+  line-height: 1.2;                              /* h2 line-height from design system */
+  letter-spacing: 0;
+  color: var(--text-primary);
+  margin-top: var(--blog-section-break);        /* 80px — section break */
+  margin-bottom: var(--space-3);                /* mb-3 per design system */
+  padding-bottom: var(--space-2);               /* visual separator */
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.blog-article h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--text-xl);
+  line-height: 1.3;                              /* h3 line-height from design system */
+  letter-spacing: 0;
+  color: var(--text-primary);
+  margin-top: var(--blog-subsection-break);     /* 48px — sub-section break */
+  margin-bottom: var(--space-2);                /* mb-2 per design system */
+}
+
+/* Paragraphs: mb-4 (body) per design system. max-width for readability. */
+.blog-article p {
+  margin-top: 0;
+  margin-bottom: var(--space-4);                /* mb-4 per design system */
+}
+
+.blog-article strong {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* Links */
+.blog-article a {
+  color: var(--brand-primary);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: color var(--duration-normal);
+}
+.blog-article a:hover {
+  color: var(--brand-secondary);
+}
+
+/* Lists: same mb-4 as paragraphs */
+.blog-article ul,
+.blog-article ol {
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+  padding-left: var(--space-6);
+}
+.blog-article ul { list-style-type: disc; }
+.blog-article ol { list-style-type: decimal; }
+.blog-article li {
+  margin-bottom: var(--space-2);
+  line-height: 1.6;
+}
+.blog-article li::marker {
+  color: var(--brand-primary);
+}
+
+/* Blockquotes */
+.blog-article blockquote {
+  border-left: 2px solid var(--border-strong);
+  background: transparent;
+  box-shadow: none;
+  padding: var(--space-3) var(--space-5);
+  margin: var(--space-6) 0;
+  border-radius: 0;
+  font-style: normal;
+}
+.blog-article blockquote p:last-child { margin-bottom: 0; }
+
+/* Horizontal rules */
+.blog-article hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: var(--blog-rule-gap) 0;
+}
+
+/* Tables */
+.blog-article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-6) 0;
+  font-size: var(--text-sm);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  overflow: hidden;
+}
+.blog-article th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--border-default);
+}
+.blog-article td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+.blog-article tr:last-child td { border-bottom: none; }
+
+/* Figures (mermaid diagrams, images) */
+.blog-article figure {
+  margin: var(--space-8) 0;
+}
+.blog-article figcaption {
+  text-align: left;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-3);
+  font-style: normal;
+}
+
+/* Images */
+.blog-article img {
+  border-radius: 0;
+  max-width: 100%;
+}
+
+/* ─── Wrapping figures (generated art with prose flowing around it) ─────────
+ * A figure tagged `figure--wrap` floats to one side on wide viewports so the
+ * body text wraps around the generated art instead of stacking full-width.
+ * On narrow viewports it falls back to a centered, full-width block. */
+@media (min-width: 900px) {
+  .blog-article figure.figure--wrap {
+    float: right;
+    clear: right;
+    width: 22rem;
+    max-width: 46%;
+    margin: var(--space-2) 0 var(--space-4) var(--space-6);
+  }
+  .blog-article figure.figure--wrap-left {
+    float: left;
+    clear: left;
+    margin: var(--space-2) var(--space-6) var(--space-4) 0;
+  }
+}
+.blog-article figure.figure--wrap img,
+.blog-article figure.figure--wrap-left img {
+  border: 2px solid var(--border-strong);
+  background: var(--surface-sunken);
+}
+
+/* ─── Footnotes (remark-gfm) ───────────────────────────────────────────────
+ * remark-gfm renders [^id] references as <sup><a> and collects definitions in
+ * a <section class="footnotes"> with an <ol>. Style them as a quiet citation
+ * apparatus: a ruled-off block, smaller (but still ≥ readable) text, with the
+ * accent only on the reference marks. */
+.blog-article sup a[data-footnote-ref],
+.blog-article a[data-footnote-ref] {
+  color: var(--brand-primary);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0 1px;
+}
+.blog-article sup a[data-footnote-ref]:hover,
+.blog-article a[data-footnote-ref]:hover {
+  color: var(--brand-secondary);
+}
+.blog-article .footnotes {
+  margin-top: var(--blog-section-break);
+  padding-top: var(--space-6);
+  border-top: 2px solid var(--border-strong);
+  font-size: var(--text-base);              /* 1rem — still ≥ 16px, no text-xs */
+  color: var(--text-muted);
+}
+.blog-article .footnotes h2.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.blog-article .footnotes::before {
+  content: "References";
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--text-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+.blog-article .footnotes ol {
+  padding-left: var(--space-6);
+}
+.blog-article .footnotes li {
+  margin-bottom: var(--space-3);
+  line-height: 1.6;
+}
+.blog-article .footnotes li::marker {
+  color: var(--brand-primary);
+}
+.blog-article .footnotes a[data-footnote-backref] {
+  color: var(--brand-primary);
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+/* ─── Tufte sidenotes ─────────────────────────────────────────────────────
+ * A `<!-- sidenote: LABEL? -->` directive in markdown wraps the next
+ * paragraph or blockquote, replacing it with an <aside class="sidenote">.
+ *
+ * Reading model:
+ *   • lg+ viewports: aside floats into the right gutter, anchored vertically
+ *     at its source-order position in the prose. The body of the article
+ *     column is 80ch; the gutter slot is 18ch with a 4ch separator. We use
+ *     `float: right` with a negative right margin so the float lands in the
+ *     gutter region without disturbing the prose column.
+ *   • narrow / mobile viewports: float disabled, aside renders inline below
+ *     its anchor paragraph with a brand-coloured left border separator.
+ *
+ * Typography respects the vision-accessibility rule: body text ≥ 13px,
+ * label text 11-12px ONLY because it is uppercase + bold + wide-tracked
+ * (apparent size reads larger).
+ * --------------------------------------------------------------------------*/
+
+.blog-article .sidenote {
+  display: block;
+  margin: var(--space-3) 0 var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border-left: 2px solid var(--brand-primary);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;            /* 15px — well above 13px floor. */
+  line-height: 1.55;
+  font-style: normal;
+}
+
+.blog-article .sidenote .sidenote-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;              /* 12px — uppercase+bold+tracked per vision rule. */
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.blog-article .sidenote .sidenote-body {
+  display: block;
+}
+
+.blog-article .sidenote .sidenote-body p {
+  margin: 0 0 var(--space-2);
+}
+.blog-article .sidenote .sidenote-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* ── lg+: float into the right gutter ─────────────────────────────────── */
+@media (min-width: 1024px) {
+  .blog-article .sidenote {
+    float: right;
+    clear: right;
+    width: 18ch;
+    /* The article column is 80ch wide; the gutter sits 4ch to its right
+     * and is itself 18ch wide. Push the float 4 + 18 = 22ch beyond the
+     * right edge of its containing column, so it lands cleanly in the
+     * gutter slot. */
+    margin: 0 -22ch var(--space-4) var(--space-3);
+    padding: 0 0 0 var(--space-3);
+    border-left: 1px solid var(--border-default);
+    background: transparent;
+    /* Tufte caption baseline. ≥14px per vision rule. */
+    font-size: 0.875rem;            /* 14px — a11y bump from 13px */
+    line-height: 1.5;
+  }
+
+  .blog-article .sidenote .sidenote-label {
+    font-size: 0.6875rem;           /* 11px — uppercase+bold+tracked. */
+  }
+}
+
+.pd-docs-section-block {
+  position: relative;
+  overflow: hidden;
+}
+
+.pd-docs-section-block::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: clamp(0.45rem, 0.9vw, 0.85rem);
+  background: var(--text-primary);
+}
+
+.pd-docs-section-block--blue::before {
+  background: var(--brand-accent);
+}
+
+.pd-docs-section-block--accent::before {
+  background: var(--brand-primary);
+}
+
+.pd-docs-section-block > * {
+  position: relative;
+}
+
+.pd-docs-paragraph-stack {
+  display: grid;
+  gap: clamp(var(--space-3), 1.2vw, var(--space-4));
+}
+
+.pd-docs-body-copy {
+  line-height: 1.44;
+}
+
+.pd-docs-diagram-block {
+  padding-bottom: clamp(var(--space-4), 4vw, var(--space-8)) !important;
+}
+
+.pd-docs-mermaid {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 12%, transparent) 0 18%, transparent 18% 100%),
+    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 16%, transparent), transparent 44%),
+    var(--surface-raised) !important;
+  border: 2px solid var(--border-strong) !important;
+  padding: clamp(var(--space-4), 2.2vw, var(--space-7)) !important;
+  min-height: clamp(24rem, 38vw, 42rem);
+  align-items: center;
+}
+
+.pd-docs-mermaid svg {
+  display: block;
+  width: 100% !important;
+  max-width: none;
+  height: auto;
+}
+
+.pd-docs-mermaid svg text,
+.pd-docs-mermaid svg .label,
+.pd-docs-mermaid svg .nodeLabel {
+  font-family: var(--font-sans) !important;
+  line-height: 1.12 !important;
+}
+
+.pd-docs-mermaid svg foreignObject {
+  overflow: visible !important;
+}
+
+.pd-docs-mermaid svg .edgeLabel,
+.pd-docs-mermaid svg .edgeLabel span {
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  font-size: 15px !important;
+}
+
+.pd-docs-mermaid svg .cluster rect {
+  stroke-width: 2px !important;
+}
+
+.pd-docs-mermaid svg .node rect,
+.pd-docs-mermaid svg .node polygon,
+.pd-docs-mermaid svg .node path {
+  stroke-width: 2px !important;
+}
+
+@media (max-width: 720px) {
+  .pd-docs-mermaid svg {
+    min-width: 100%;
+  }
+}
+
+.blog-article code:not(pre code) {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Code blocks use flat tokenized contrast. */
+.blog-article .code-block-wrapper {
+  background: var(--code-bg) !important;
+  box-shadow: none !important;
+  border: 2px solid var(--border-strong);
+  margin: var(--space-6) 0;
+}
+
+.blog-article .code-block-wrapper > div:first-child {
+  background: var(--code-header-bg) !important;
+}
+
+.blog-article .code-block-wrapper pre {
+  background: var(--code-bg) !important;
+  color: var(--code-text) !important;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.blog-article .code-block-wrapper .rounded-full {
+  border-radius: 0 !important;
+}
+
+/* ─── Design System: Spacing & Layout ─────────────────────────────────────── */
+
+/*
+ * SPACING RULES (use these, nothing else):
+ *   Section padding:  py-12 (mobile) → py-16 lg:py-24 (desktop)
+ *   Card padding:     p-5 (compact) or p-6 (standard)
+ *   Content max:      max-w-[1100px] mx-auto px-6
+ *   Grid gaps:        gap-4 (tight) gap-6 (standard) gap-8 (loose)
+ *   Heading margin:   mb-2 (h3) mb-3 (h2) mb-4 (h1)
+ *   Paragraph margin: mb-4 (body) mb-6 (lead)
+ *   Section headers:  mb-10 (below header block)
+ *   Nav clearance:    pt-20 (first section after fixed nav)
+ *
+ * TYPOGRAPHY (Tailwind classes only):
+ *   Hero h1:     text-3xl sm:text-4xl lg:text-[2.75rem] font-bold
+ *   Section h2:  text-2xl sm:text-3xl font-bold
+ *   Card h3:     text-sm font-semibold
+ *   Body:        text-sm (cards) text-base (pages)
+ *   Overline:    text-xs font-mono uppercase tracking-wide
+ *   Muted:       text-[var(--text-muted)]
+ *
+ * BORDER RADIUS:
+ *   Buttons:     rounded-lg (8px)
+ *   Cards:       rounded-xl (12px) or rounded-2xl (16px)
+ *   Inputs:      rounded-lg (8px)
+ *   Badges:      rounded-full
+ *   Sections:    rounded-3xl (32px) or rounded-4xl (48px) for hero panels
+ *   Max:         rounded-4xl (48px) — nothing bigger
+ */
+
+/* Standard section wrapper */
+.section {
+  padding: 3rem 0;  /* py-12 */
+}
+@media (min-width: 1024px) {
+  .section { padding: 6rem 0; }  /* lg:py-24 */
+}
+
+/* Standard content container */
+.container-narrow {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* ─── Glass (kept for compatibility, simplified) ──────────────────────────── */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Flat relief invariant: Tailwind shadow utilities may remain in old route code,
+   but public surfaces must render as framed planes, not raised or recessed UI. */
+:where([class*="shadow-"]) {
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-shadow-colored: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+
+:where([class*="drop-shadow"]) {
+  filter: none !important;
+}
+
+/* Soft-glow invariant: visual depth comes from Swiss grid pressure, borders,
+   rules, and type scale. Legacy blur blobs stay inert. */
+:where([class^="blur-"], [class*=" blur-"], [class*=":blur-"], [class*="backdrop-blur"]) {
+  --tw-blur: blur(0) !important;
+  --tw-backdrop-blur: blur(0) !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ─── Accessibility ────────────────────────────────────────────────────────── */
+
+/* Global focus ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--interactive-focus);
+  outline-offset: 2px;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ─── Animations ───────────────────────────────────────────────────────────── */
+@keyframes pulse-active {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.pulse-active {
+  animation: pulse-active 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

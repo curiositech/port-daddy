@@ -1,0 +1,43 @@
+{
+  "_comment": "Canonical macaroon byte-parity vectors, GENERATED FROM the canonical Rust impl (core/kernel/pd-anchor/src/macaroon.rs). Both the Rust test (kernel/pd-anchor/tests/parity_vectors.rs) and the TS test (tests/unit/macaroon-parity.test.js) assert their implementation reproduces these signatures byte-for-byte. If you change the construction in either language, regenerate this file from Rust and make both suites pass — that is what keeps I11 (runtime parity, ADR-0054) a theorem instead of a hope.",
+  "root_key_utf8": "pd-canonical-root-key-0000000001",
+  "caveat_key_utf8": "pd-canonical-caveat-key-00000001",
+  "first_party": {
+    "identifier": "grant-canon-1",
+    "location": "pd://daemon/curiositech/port-daddy",
+    "caveats": ["op = push", "repo = curiositech/port-daddy", "branch != main"],
+    "expected_signature_hex": "77398692b3b4993619fb6e28d2a37e51d048664f04377115fb754c733fce354a"
+  },
+  "third_party_grant": {
+    "identifier": "grant-canon-2",
+    "location": "pd://daemon/curiositech/port-daddy",
+    "repo": "curiositech/port-daddy",
+    "session": "session-canon",
+    "expires_ms": 2000000,
+    "rent_nonce": "nonce-canon",
+    "protected_branch": "main",
+    "rent_caveat_id": "rent-paid:session-canon:nonce-canon",
+    "expected_vid_hex": "caf0522b7a70d849496f55518b6495b975c97fc217caf389b534d1096383550d",
+    "expected_signature_hex": "766493ed784d4e4daaafae981456c7a603d3b286e853ffc93deacbfc1af662e0"
+  },
+  "discharge_bound": {
+    "discharge_now_ms": 1000000,
+    "discharge_ttl_ms": 1200000,
+    "expected_signature_hex": "02ff9a87663d860de32173dd8602d56eb0d84a9091bf33581ca692d98cca405e"
+  },
+  "all_caveat_types": {
+    "_comment": "Exercises EVERY first-party caveat kind (op/repo/branch-glob/host/spend_usd/expires/session) so the chain encoding of each is parity-locked — closes the red-team coverage gap.",
+    "identifier": "grant-all-caveats",
+    "location": "pd://daemon/curiositech/port-daddy",
+    "caveats": [
+      "op = push",
+      "repo = curiositech/port-daddy",
+      "branch = feat/dom-daddy-*",
+      "host = api.anthropic.com",
+      "spend_usd <= 2.50",
+      "expires = 2000000",
+      "session = session-canon"
+    ],
+    "expected_signature_hex": "9efaec05fde2f8b8067621348041dd57d8ae8206ae6ea3d5fb5939ce41dd4a4b"
+  }
+}

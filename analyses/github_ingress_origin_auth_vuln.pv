@@ -1,0 +1,51 @@
+(*
+ * Port Daddy: GitHub-App-via-Relay — ORIGIN AUTHENTICATION (VULNERABLE)
+ * =====================================================================
+ *
+ * NEGATIVE CONTROL for github_ingress_origin_auth.pv. This is the PRE-#431
+ * design: the daemon trusted the forward bearer token as proof of GitHub origin
+ * and did NOT re-verify GitHub's HMAC. Identical adversary, identical wire — the
+ * ONLY change from the fixed model is that the daemon's origin check is removed.
+ *
+ * WHY THIS FILE EXISTS: a `RESULT true` on the fixed model is only meaningful if
+ * the property can actually FAIL when the mitigation is absent. Per the skill's
+ * quality gate, the negative control must demonstrably break. If this model also
+ * proved `true`, the fixed model's proof would be suspect (vacuous / mis-modeled).
+ *
+ * EXPECTED RESULT:
+ *   query event(Dispatched(m)) ==> event(GitHubSigned(m))   is FALSE
+ *   (ProVerif exhibits a trace: attacker holds fwd_token, injects an arbitrary
+ *    payload it minted, daemon dispatches it though GitHub never signed it —
+ *    RCE-by-webhook against the fleet.)
+ *)
+
+type mackey.
+
+free c: channel.
+
+fun mac(bitstring, mackey): bitstring.
+reduc forall m: bitstring, k: mackey; checkmac(m, k, mac(m, k)) = true.
+
+free gh_secret: mackey [private].
+free fwd_token: bitstring.
+
+event GitHubSigned(bitstring).
+event Dispatched(bitstring).
+
+query m: bitstring; event(Dispatched(m)) ==> event(GitHubSigned(m)).
+
+let GitHub() =
+    new payload: bitstring;
+    event GitHubSigned(payload);
+    out(c, (payload, mac(payload, gh_secret))).
+
+(* VULNERABLE daemon: token-only. No GitHub origin re-verification. The attacker,
+ * holding the forward token, can dispatch anything it likes. *)
+let DaemonVuln() =
+    in(c, (payload: bitstring, sig: bitstring, tok: bitstring));
+    if tok = fwd_token then
+        event Dispatched(payload).
+
+process
+    out(c, fwd_token);
+    ( (! GitHub()) | (! DaemonVuln()) )

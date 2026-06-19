@@ -1,0 +1,486 @@
+/**
+ * CLI Sugar Commands — Compound commands for common workflows
+ *
+ * Handles: begin, done, whoami, with-lock
+ */
+
+import { spawn } from 'node:child_process';
+import { highlightChannel } from '../../lib/maritime.js';
+import PortDaddy from '../../lib/client.js';
+import { pdFetch } from '../utils/fetch.js';
+import { CLIOptions, isQuiet, isJson } from '../types.js';
+import { IS_TTY, relativeTime } from '../utils/output.js';
+import { canPrompt, promptText, promptSelect, promptIdentity, promptConfirm, printRoger } from '../utils/prompt.js';
+import { autoIdentityFromPackageJson } from './services.js';
+import { assertSafeId, posixShellQuote, fishShellQuote } from '../../lib/shell-quote.js';
+import type { PdFetchResponse } from '../utils/fetch.js';
+import * as ui from '../utils/ui.js';
+import { clearCurrentContext, readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
+import {
+  attachCliSessionWorktreePolicy,
+  resolveCliSessionWorktreePolicy,
+} from '../utils/session-worktree-policy.js';
+
+type BeginLifecycle = 'durable' | 'ephemeral';
+
+type BeginLifecycleResolution =
+  | { success: true; lifecycle: BeginLifecycle; durable: boolean }
+  | { success: false; error: string };
+
+function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
+}
+
+function resolveBeginLifecycle(options: CLIOptions): BeginLifecycleResolution {
+  if (options.lifecycle === undefined) {
+    return {
+      success: false,
+      error: 'pd begin requires an explicit lifecycle: pass --lifecycle durable for ordinary agent work, or --lifecycle ephemeral for heartbeat-bound process sessions.',
+    };
+  }
+
+  const lifecycle = parseBeginLifecycle(options.lifecycle);
+  if (!lifecycle) {
+    return { success: false, error: '--lifecycle must be either "durable" or "ephemeral".' };
+  }
+
+  return { success: true, lifecycle, durable: lifecycle === 'durable' };
+}
+
+function printBeginUsage(): void {
+  console.error('Usage: pd begin <purpose> --lifecycle durable|ephemeral [--purpose "text"] [-P "text"]');
+  console.error('       pd begin --identity ID --agent AGENT_ID --files f1 f2... --lifecycle durable|ephemeral');
+  console.error('       pd begin                                 # interactive (TTY only)');
+}
+
+// =============================================================================
+// handleBegin — pd begin "purpose" --lifecycle durable|ephemeral [--identity X] [--files f1 f2...]
+// =============================================================================
+
+export async function handleBegin(
+  purpose: string | undefined,
+  rest: string[],
+  options: CLIOptions,
+): Promise<void> {
+  // Flag takes precedence over positional
+  purpose = purpose || (options.purpose as string) || undefined;
+
+  if (!purpose && canPrompt()) {
+    // Interactive wizard
+    purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
+    if (!purpose) {
+      ui.error('Purpose is required');
+      process.exit(1);
+    }
+
+    // Prompt for optional identity with auto-detection
+    if (!options.identity) {
+      const suggested = autoIdentityFromPackageJson() || undefined;
+      const identity = await promptIdentity({ suggested });
+      if (identity) options.identity = identity;
+    }
+
+    // Prompt for file claims
+    if (!options.files) {
+      const wantFiles = await promptConfirm('Claim any files?', false);
+      if (wantFiles) {
+        const filesStr = await promptText({ label: 'File paths (space-separated):' });
+        if (filesStr) options.files = filesStr.split(/\s+/).filter(Boolean);
+      }
+    }
+
+    if (options.lifecycle === undefined) {
+      const lifecycle = await promptSelect({
+        label: 'Session lifecycle?',
+        choices: [
+          { value: 'durable', label: 'Durable work context' },
+          { value: 'ephemeral', label: 'Heartbeat-bound process session' },
+        ],
+        default: 'durable',
+      });
+      if (lifecycle) options.lifecycle = lifecycle;
+    }
+  } else if (!purpose) {
+    printBeginUsage();
+    process.exit(1);
+  }
+
+  const lifecycle = resolveBeginLifecycle(options);
+  if (!lifecycle.success) {
+    ui.error(lifecycle.error);
+    printBeginUsage();
+    process.exit(1);
+  }
+
+  // Auto-detect identity from package.json if not provided
+  const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
+
+  const body: Record<string, unknown> = { purpose };
+  if (identity) body.identity = identity;
+  if (options.agent) body.agentId = options.agent;
+  if (options.name) body.name = options.name;
+  if (options.type) body.type = options.type;
+  if (options.force) body.force = true;
+  body.lifecycle = lifecycle.lifecycle;
+
+  // Collect files from --files option or remaining positional args
+  const files: string[] = [];
+  if (options.files) {
+    if (typeof options.files === 'string') files.push(options.files);
+    else if (Array.isArray(options.files)) files.push(...options.files);
+  }
+  for (const arg of rest) {
+    if (!arg.startsWith('-')) files.push(arg);
+  }
+  if (files.length > 0) body.files = files;
+
+  const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+  if (!worktreePolicy.success) {
+    ui.error(worktreePolicy.error || 'Session worktree policy failed');
+    if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+    process.exit(1);
+  }
+  attachCliSessionWorktreePolicy(body, worktreePolicy);
+
+  const res: PdFetchResponse = await pdFetch('/sugar/begin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Failed to begin');
+    process.exit(1);
+  }
+
+  // Write local context file
+  writeCurrentContext({
+    agentId: data.agentId as string,
+    sessionId: data.sessionId as string,
+    agentName: ((data.agentName || data.name) as string | undefined) || null,
+    sessionName: (data.sessionName as string | undefined) || null,
+    purpose,
+    identity: (data.identity as string) || null,
+    startedAt: Date.now(),
+  });
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  // PD_EMIT_EXPORTS=1 — emit ONLY the export lines to stdout so the caller can
+  // `eval $(pd begin ...)`. Any other stdout output would be interpreted by the
+  // shell and could inject code. We return immediately after emitting; the
+  // human-readable banner goes to stderr only in this mode.
+  if (process.env.PD_EMIT_EXPORTS === '1') {
+    try {
+      const agentId = data.agentId as string;
+      const sessionId = data.sessionId as string;
+      assertSafeId(agentId, 'agentId');
+      assertSafeId(sessionId, 'sessionId');
+      const shell = process.env.SHELL || '';
+      if (shell.endsWith('/fish')) {
+        console.log(`set -x PD_AGENT_ID ${fishShellQuote(agentId)}`);
+        console.log(`set -x PD_SESSION_ID ${fishShellQuote(sessionId)}`);
+      } else {
+        console.log(`export PD_AGENT_ID=${posixShellQuote(agentId)}`);
+        console.log(`export PD_SESSION_ID=${posixShellQuote(sessionId)}`);
+      }
+    } catch (err) {
+      // Refuse to emit — write the reason to stderr so the caller sees it but
+      // eval does NOT execute it. Exit non-zero so the caller's eval fails.
+      process.stderr.write(`pd begin: refusing to emit exports — ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+    // Return here: nothing else goes to stdout when eval is the consumer.
+    return;
+  }
+
+  if (isQuiet(options)) {
+    console.log(data.agentId);
+    return;
+  }
+
+  const agentName = (data.agentName || data.name) as string | undefined;
+  const agentLabel = agentName ? `${agentName} (${data.agentId as string})` : (data.agentId as string);
+  const sessionName = data.sessionName as string | undefined;
+  const sessionLabel = sessionName ? `${sessionName} (${data.sessionId as string})` : (data.sessionId as string);
+  ui.success(`Agent ${highlightChannel(agentLabel)} ready`);
+  console.error(`  Session: ${sessionLabel}`);
+  console.error(`  Purpose: ${purpose}`);
+  console.error(`  Lifecycle: ${lifecycle.lifecycle}`);
+  if (identity) console.error(`  Identity: ${identity}`);
+  if (data.worktree && typeof data.worktree === 'object') {
+    const worktree = data.worktree as { name?: string; branch?: string | null; id?: string };
+    const branch = worktree.branch ? `:${worktree.branch}` : '';
+    console.error(`  Worktree: ${worktree.name || worktree.id || 'linked'}${branch}`);
+  }
+  if (data.fileClaims) {
+    const claims = data.fileClaims as string[];
+    console.error(`  Files: ${claims.length} claimed`);
+  }
+  if (data.fileConflicts) {
+    const conflicts = data.fileConflicts as Array<{ filePath: string; sessionId: string }>;
+    console.error(`  Conflicts: ${conflicts.length} file(s) claimed by other sessions`);
+  }
+  if (data.salvageHint) {
+    console.error('');
+    console.error(`  ${data.salvageHint}`);
+  }
+}
+
+// =============================================================================
+// handleDone — pd done ["note"] [--status STATUS]
+// =============================================================================
+
+export async function handleDone(
+  note: string | undefined,
+  options: CLIOptions,
+): Promise<void> {
+  // Flag takes precedence over positional
+  note = note || (options.note as string) || undefined;
+
+  // Interactive mode when no note and no flags provided
+  if (!note && !options.status && canPrompt()) {
+    note = await promptText({ label: 'Final note (optional):' }) || undefined;
+    if (!options.status) {
+      const status = await promptSelect({
+        label: 'Session status?',
+        choices: [
+          { value: 'completed', label: 'Work finished successfully' },
+          { value: 'abandoned', label: 'Leaving incomplete' },
+        ],
+        default: 'completed',
+      });
+      if (status) options.status = status;
+    }
+  }
+
+  // Try to read local context first
+  const ctx = readCurrentContext();
+
+  const body: Record<string, unknown> = {};
+  if (ctx) {
+    body.agentId = ctx.agentId;
+    body.sessionId = ctx.sessionId;
+  }
+  if (options.agent) body.agentId = options.agent;
+  if (options.session) body.sessionId = options.session;
+  if (note) body.note = note;
+  if (options.status) body.status = options.status;
+
+  // pd done origin-rule escape hatch (substrate fix 2026-05-20).
+  // --skip-origin-check requires --reason "<reason>". The reason is
+  // stamped into the result note with a loud [OPERATOR-OVERRIDE] prefix.
+  const skipOriginCheck = options.skipOriginCheck === true || options['skip-origin-check'] === true;
+  const skipOriginCheckReason = (options.reason as string | undefined) || undefined;
+  if (skipOriginCheck) {
+    body.skipOriginCheck = true;
+    if (skipOriginCheckReason) body.skipOriginCheckReason = skipOriginCheckReason;
+  }
+
+  const pd = new PortDaddy({ agentId: typeof body.agentId === 'string' ? body.agentId : undefined });
+  const data = await pd.done(note, {
+    agentId: typeof body.agentId === 'string' ? body.agentId : undefined,
+    sessionId: typeof body.sessionId === 'string' ? body.sessionId : undefined,
+    status: typeof body.status === 'string' ? body.status : undefined,
+    skipOriginCheck: skipOriginCheck ? true : undefined,
+    skipOriginCheckReason: skipOriginCheck ? skipOriginCheckReason : undefined,
+  });
+
+  if (!data?.success) {
+    // For the new precondition refusals, print the structured remediation
+    // hint on its own line so operators see the actionable next step.
+    ui.error(data?.error || 'Failed to end session');
+    const hint = (data as unknown as { hint?: unknown } | null)?.hint;
+    if (typeof hint === 'string') {
+      // Indent each line for readability beneath the error header.
+      console.error(hint.split('\n').map((line) => (line.startsWith('  ') ? line : `  ${line}`)).join('\n'));
+    }
+    process.exit(1);
+  }
+
+  // Clear local context
+  clearCurrentContext();
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  if (isQuiet(options)) {
+    console.log(data.sessionId || 'done');
+    return;
+  }
+
+  if (data.sessionStatus === 'abandoned') {
+    ui.warn(`Session ${data.sessionId} ${data.sessionStatus}`);
+  } else {
+    ui.success(`Session ${data.sessionId} ${data.sessionStatus}`);
+  }
+  if (data.agentUnregistered) console.error(`  Agent ${data.agentId} unregistered`);
+  if (data.notesCount) console.error(`  Notes: ${data.notesCount}`);
+  if (note) console.error(`  Final note: "${note}"`);
+}
+
+// =============================================================================
+// handleWhoami — pd whoami
+// =============================================================================
+
+export async function handleWhoami(options: CLIOptions): Promise<void> {
+  // Try local context first
+  const ctx = readCurrentContext();
+  const agentId = (options.agent as string) || ctx?.agentId;
+  const sessionId = (options.session as string) || ctx?.sessionId;
+
+  if (!agentId && !sessionId) {
+    if (isJson(options)) {
+      console.log(JSON.stringify({ success: true, active: false, hint: 'No active session. Use pd begin to start.' }, null, 2));
+    } else if (!isQuiet(options)) {
+      console.error('No active session. Use pd begin to start.');
+    }
+    return;
+  }
+
+  const pd = new PortDaddy({ agentId });
+  const data = await pd.whoami({ agentId, sessionId });
+
+  // Preserve local context fields when the daemon has to reconstruct from sessionId alone.
+  if (ctx) {
+    if (!data.purpose && ctx.purpose) data.purpose = ctx.purpose;
+    if ((data.identity === undefined || data.identity === null) && ctx.identity) data.identity = ctx.identity;
+    if (data.startedAt == null && ctx.startedAt != null) data.startedAt = ctx.startedAt;
+    data.localContext = {
+      agentId: ctx.agentId,
+      sessionId: ctx.sessionId,
+      agentName: ctx.agentName ?? null,
+      sessionName: ctx.sessionName ?? null,
+      startedAt: ctx.startedAt,
+      purpose: ctx.purpose,
+      identity: ctx.identity ?? null,
+      contextSlot: ctx.contextSlot,
+    };
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  if (!data.active) {
+    if (isQuiet(options)) return;
+    console.error(data.hint || 'No active session');
+    return;
+  }
+
+  if (isQuiet(options)) {
+    console.log(`${data.agentId}:${data.sessionId}`);
+    return;
+  }
+
+  console.error('');
+  const agentName = (data.agentName || data.name || ctx?.agentName) as string | undefined;
+  const sessionName = (data.sessionName || ctx?.sessionName) as string | undefined;
+  console.error(`  Agent:    ${agentName ? `${agentName} (${data.agentId})` : data.agentId}`);
+  console.error(`  Session:  ${sessionName ? `${sessionName} (${data.sessionId})` : data.sessionId}`);
+  console.error(`  Purpose:  ${data.purpose}`);
+  if (data.identity) console.error(`  Identity: ${data.identity}`);
+  console.error(`  Phase:    ${data.phase}`);
+  if (data.duration != null) {
+    console.error(`  Duration: ${relativeTime(data.duration as number)}`);
+  }
+  if (data.noteCount) console.error(`  Notes:    ${data.noteCount}`);
+  if (data.files && (data.files as string[]).length > 0) {
+    console.error(`  Files:    ${(data.files as string[]).join(', ')}`);
+  }
+  console.error('');
+}
+
+// =============================================================================
+// handleWithLock — pd with-lock <name> <cmd...>
+// =============================================================================
+
+export async function handleWithLock(
+  name: string | undefined,
+  command: string[],
+  options: CLIOptions,
+): Promise<void> {
+  if (!name || command.length === 0) {
+    console.error('Usage: pd with-lock <lock-name> <command...>');
+    console.error('');
+    console.error('Acquires a lock, runs the command, then releases the lock.');
+    console.error('The lock is released even if the command fails.');
+    console.error('');
+    console.error('Examples:');
+    console.error('  pd with-lock db-migrations npm run migrate');
+    console.error('  pd with-lock deploy ./deploy.sh');
+    process.exit(1);
+  }
+
+  const ttl = options.ttl ? parseInt(options.ttl as string, 10) : 300000;
+  const current = readCurrentContext();
+  const owner = (options.owner as string) || current?.agentId || `cli-${process.pid}`;
+  const pd = new PortDaddy({
+    agentId: owner,
+    pid: process.pid,
+  });
+
+  // Acquire lock
+  try {
+    await pd.lock(name, { owner, ttl });
+  } catch (error) {
+    const lockData = error && typeof error === 'object' && 'body' in error ? (error as { body?: Record<string, unknown> }).body : null;
+    const message = lockData && typeof lockData.error === 'string'
+      ? lockData.error
+      : (error as Error).message || 'lock is held';
+    ui.error(`Failed to acquire lock "${name}": ${message}`);
+    process.exit(1);
+  }
+
+  if (IS_TTY && !isQuiet(options)) {
+    ui.success(`Lock "${name}" acquired`);
+  }
+
+  // Run the command — shell: false by default to prevent injection.
+  // If the user passed a single string with pipes/&&, they need --shell.
+  const useShell = !!options.shell;
+  const [cmd, ...cmdArgs] = command;
+  const child = spawn(cmd, cmdArgs, {
+    stdio: 'inherit',
+    shell: useShell,
+  });
+
+  // Handle signals — release lock on SIGINT/SIGTERM
+  const cleanup = async (signal: string) => {
+    child.kill(signal as NodeJS.Signals);
+    await pd.unlock(name, { owner, force: true }).catch(() => {});
+    process.exit(128 + (signal === 'SIGINT' ? 2 : 15));
+  };
+
+  const onSigInt = () => cleanup('SIGINT');
+  const onSigTerm = () => cleanup('SIGTERM');
+  process.on('SIGINT', onSigInt);
+  process.on('SIGTERM', onSigTerm);
+
+  const exitCode = await new Promise<number>((resolve) => {
+    child.on('exit', (code) => resolve(code ?? 1));
+  });
+
+  // Remove signal handlers to prevent listener leak
+  process.removeListener('SIGINT', onSigInt);
+  process.removeListener('SIGTERM', onSigTerm);
+
+  // Release lock
+  await pd.unlock(name, { owner, force: true }).catch(() => {});
+
+  if (IS_TTY && !isQuiet(options)) {
+    ui.success(`Lock "${name}" released`);
+  }
+
+  process.exit(exitCode);
+}

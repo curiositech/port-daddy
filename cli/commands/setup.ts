@@ -1,0 +1,387 @@
+/**
+ * pd setup — One-command local onboarding
+ *
+ * Installs the daemon, MCP integration, FleetBar (macOS), and initializes the
+ * current project when it looks like a real project directory.
+ */
+
+import { existsSync, mkdirSync, symlinkSync, lstatSync, unlinkSync, readlinkSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { homedir, platform } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as ui from '../utils/ui.js';
+import { isDaemonRunning } from '../utils/fetch.js';
+import { detectStack } from '../../lib/detect.js';
+import { handleDaemon } from './daemon.js';
+import { handleInit } from './init.js';
+import { handleMcpInstall } from './mcp-install.js';
+import {
+  ensureGeminiPortDaddyExtension,
+  formatSkillSyncSummary,
+  syncAgentSkills,
+} from '../../lib/skill-sync.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
+// or skills/port-daddy-agent-skill/). Handles both source layout
+// (cli/commands/setup.ts → ../..) and compiled layout
+// (dist/cli/commands/setup.js → ../../.., since dist/ also contains a
+// package.json from npm install).
+function findProjectRoot(start: string): string {
+  let dir = start;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, 'Formula', 'port-daddy.rb'))) return dir;
+    if (existsSync(join(dir, 'skills', 'port-daddy-agent-skill', 'SKILL.md'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(start, '..', '..');
+}
+const PROJECT_ROOT = findProjectRoot(__dirname);
+
+// Canonical agent-skill id. Single source of truth so renames propagate across
+// brew install paths, repo source path, and every runtime mirror without
+// drift.
+const AGENT_SKILL_ID = 'port-daddy-agent-skill';
+const TSX_BIN = join(PROJECT_ROOT, 'node_modules', '.bin', 'tsx');
+const INSTALL_DAEMON_SCRIPT = join(PROJECT_ROOT, 'install-daemon.ts');
+const FLEETBAR_INSTALL_SCRIPT = join(PROJECT_ROOT, 'apps', 'FleetBar', 'install.sh');
+
+const PROJECT_MARKERS = [
+  '.git',
+  '.portdaddy',
+  'pd-fleet.yml',
+  'pd-fleet.yaml',
+  'package.json',
+  'pyproject.toml',
+  'requirements.txt',
+  'Cargo.toml',
+  'go.mod',
+  'Gemfile',
+  'composer.json',
+  'mix.exs',
+  'pom.xml',
+  'build.gradle',
+  'build.gradle.kts',
+];
+
+function looksLikeProjectDir(dir: string): boolean {
+  if (!dir || resolve(dir) === resolve(homedir())) {
+    return false;
+  }
+
+  if (PROJECT_MARKERS.some(marker => existsSync(join(dir, marker)))) {
+    return true;
+  }
+
+  try {
+    return !!detectStack(dir);
+  } catch {
+    return false;
+  }
+}
+
+function inferProjectDir(explicitProject: string | undefined): string | null {
+  if (explicitProject) {
+    const resolved = resolve(explicitProject);
+    return existsSync(resolved) ? resolved : null;
+  }
+
+  try {
+    const gitRoot = spawnSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: process.cwd(),
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).stdout.trim();
+    if (gitRoot && looksLikeProjectDir(gitRoot)) {
+      return gitRoot;
+    }
+  } catch {
+    // Fall through to cwd detection.
+  }
+
+  return looksLikeProjectDir(process.cwd()) ? process.cwd() : null;
+}
+
+async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
+  if (await isDaemonRunning()) {
+    ui.success('Daemon already running');
+    return true;
+  }
+
+  ui.step('Installing Port Daddy daemon');
+  const install = spawnSync(TSX_BIN, [INSTALL_DAEMON_SCRIPT, 'install'], {
+    cwd: PROJECT_ROOT,
+    stdio: 'inherit',
+  });
+
+  if ((install.status ?? 1) !== 0) {
+    ui.error('Daemon install failed');
+    return false;
+  }
+
+  if (!(await isDaemonRunning())) {
+    ui.step('Starting Port Daddy daemon');
+    await handleDaemon('start');
+  }
+
+  if (await isDaemonRunning()) {
+    ui.success('Daemon ready');
+    return true;
+  }
+
+  ui.error('Daemon did not come up');
+  return false;
+}
+
+/**
+ * Resolve the canonical agent skill source directory.
+ *
+ * Source priority:
+ *   1. Homebrew install: $(brew --prefix)/share/port-daddy/skills/port-daddy
+ *   2. Repo checkout: PROJECT_ROOT/skills/port-daddy-agent-skill
+ */
+export function resolveSkillSource(): string | null {
+  const candidates: string[] = [];
+
+  const brew = spawnSync('brew', ['--prefix'], { encoding: 'utf8' });
+  if (brew.status === 0) {
+    const prefix = brew.stdout.trim();
+    candidates.push(join(prefix, 'share', 'port-daddy', 'skills', AGENT_SKILL_ID));
+  }
+  candidates.push(join(PROJECT_ROOT, 'skills', AGENT_SKILL_ID));
+
+  return candidates.find((p) => existsSync(join(p, 'SKILL.md'))) ?? null;
+}
+
+/**
+ * Each LLM runtime watches a different directory for skill / instruction
+ * files. We symlink the same canonical source into all of them so every
+ * runtime sees the same content with no copy drift. Brew updates the source;
+ * every link follows automatically.
+ *
+ * Returns true if at least one runtime got linked. Per-runtime failures are
+ * logged but do not abort.
+ */
+export function installSkillSymlinksAt(baseDir: string, scope: 'user' | 'project'): boolean {
+  const source = resolveSkillSource();
+  if (!source) {
+    ui.warn('Skill source not found in brew prefix or repo checkout');
+    return false;
+  }
+
+  const targets: { path: string; runtime: string; mode: 'dir' | 'file' }[] = [
+    // Codex CLI — first-party fleet runtime.
+    { path: join(baseDir, '.codex', 'skills', AGENT_SKILL_ID), runtime: 'Codex CLI', mode: 'dir' },
+    // Claude Code & Desktop — per-scope skills directory.
+    { path: join(baseDir, '.claude', 'skills', AGENT_SKILL_ID), runtime: 'Claude Code', mode: 'dir' },
+    // Generic agents directory — runtime-agnostic skill drop point.
+    { path: join(baseDir, '.agents', 'skills', AGENT_SKILL_ID), runtime: 'Generic agent', mode: 'dir' },
+    // Windsurf — Codeium agent runtime.
+    { path: join(baseDir, '.codeium', 'windsurf', 'skills', AGENT_SKILL_ID), runtime: 'Windsurf', mode: 'dir' },
+    // Continue — VS Code extension; uses .continue prompts dir.
+    { path: join(baseDir, '.continue', 'prompts', AGENT_SKILL_ID), runtime: 'Continue', mode: 'dir' },
+    // Cline / Roo — Claude-Dev-style extensions read from this dir.
+    { path: join(baseDir, '.config', 'cline', 'skills', AGENT_SKILL_ID), runtime: 'Cline', mode: 'dir' },
+    // Gemini CLI — extensions live here.
+    { path: join(baseDir, '.gemini', 'extensions', 'port-daddy', 'skills', AGENT_SKILL_ID), runtime: 'Gemini CLI', mode: 'dir' },
+    // Cursor — single-file rule format. Project-local: <project>/.cursor/rules/port-daddy-agent-skill.md
+    { path: join(baseDir, '.cursor', 'rules', `${AGENT_SKILL_ID}.md`), runtime: 'Cursor', mode: 'file' },
+  ];
+
+  let linkedCount = 0;
+  for (const { path: target, runtime, mode } of targets) {
+    const linkSource = mode === 'file' ? join(source, 'SKILL.md') : source;
+    const targetDir = dirname(target);
+
+    try {
+      if (!existsSync(targetDir)) {
+        mkdirSync(targetDir, { recursive: true });
+      }
+      const stat = lstatSyncSafe(target);
+      if (stat) {
+        if (stat.isSymbolicLink()) {
+          const current = readlinkSync(target);
+          if (current === linkSource) {
+            ui.info(`${runtime}: already linked`);
+            linkedCount++;
+            continue;
+          }
+          unlinkSync(target);
+        } else {
+          ui.warn(`${runtime}: ${target} exists and is not a symlink — skipping`);
+          continue;
+        }
+      }
+      symlinkSync(linkSource, target, mode === 'file' ? 'file' : 'dir');
+      ui.info(`${runtime}: linked ${target} → ${linkSource}`);
+      linkedCount++;
+    } catch (err) {
+      ui.warn(`${runtime}: ${(err as Error).message}`);
+    }
+  }
+
+  if (linkedCount === 0) {
+    ui.warn(`No ${scope} runtimes received the skill symlink`);
+    return false;
+  }
+  const refreshHint = scope === 'user'
+    ? 'brew upgrade port-daddy will refresh all of them.'
+    : 'pd init will refresh links if the canonical source moves.';
+  ui.info(`Skill installed for ${linkedCount} ${scope} runtime(s). ${refreshHint}`);
+  return true;
+}
+
+function installAgentSkillUnion(options: Record<string, unknown>): boolean {
+  const dryRun = !!options['dry-run'];
+  const statusOnly = !!options.status || !!options['skill-status'];
+  const result = syncAgentSkills({
+    baseDir: homedir(),
+    projectRoot: PROJECT_ROOT,
+    scope: 'user',
+    dryRun,
+    statusOnly,
+  });
+
+  for (const line of formatSkillSyncSummary(result)) {
+    ui.info(line);
+  }
+
+  const gemini = ensureGeminiPortDaddyExtension(homedir(), PROJECT_ROOT, dryRun || statusOnly);
+  if (gemini.written.length > 0) {
+    ui.info(`Gemini extension metadata ${dryRun || statusOnly ? 'would refresh' : 'refreshed'}: ${gemini.written.length} file(s)`);
+  }
+  if (gemini.errors.length > 0) {
+    for (const err of gemini.errors.slice(0, 3)) {
+      ui.warn(`Gemini extension metadata: ${err.path}: ${err.error}`);
+    }
+  }
+
+  return result.errors.length === 0;
+}
+
+function lstatSyncSafe(p: string) {
+  try {
+    return lstatSync(p);
+  } catch {
+    return null;
+  }
+}
+
+function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
+  if (skipFleetBar) {
+    ui.info('Skipping FleetBar (--no-fleetbar)');
+    return true;
+  }
+
+  if (platform() !== 'darwin') {
+    ui.info('FleetBar install skipped (macOS only)');
+    return true;
+  }
+
+  if (!existsSync(FLEETBAR_INSTALL_SCRIPT)) {
+    ui.warn('FleetBar install script not found');
+    return false;
+  }
+
+  ui.step('Installing FleetBar');
+  const install = spawnSync('/bin/bash', [FLEETBAR_INSTALL_SCRIPT], {
+    cwd: PROJECT_ROOT,
+    stdio: 'inherit',
+  });
+
+  if ((install.status ?? 1) !== 0) {
+    ui.warn('FleetBar install failed');
+    return false;
+  }
+
+  ui.success('FleetBar installed');
+  return true;
+}
+
+async function maybeInitProject(projectDir: string | null, options: Record<string, unknown>): Promise<void> {
+  if (!projectDir) {
+    ui.info('No project directory detected — skipping pd init');
+    ui.info('Run `cd your-project && pd init` when you are ready.');
+    return;
+  }
+
+  if (options['no-init']) {
+    ui.info('Skipping project init (--no-init)');
+    return;
+  }
+
+  const shouldInit = await ui.confirm(`Initialize Port Daddy in ${projectDir}?`, true);
+  if (!shouldInit) {
+    ui.info('Skipping project init');
+    return;
+  }
+
+  const previousCwd = process.cwd();
+  process.chdir(projectDir);
+  try {
+    await handleInit({
+      'no-mcp': true,
+      'no-fleet': options['no-fleet'],
+      'no-hook': options['no-hook'],
+    });
+  } finally {
+    process.chdir(previousCwd);
+  }
+}
+
+export async function handleSetup(options: Record<string, unknown>): Promise<void> {
+  console.log('');
+  ui.info('Port Daddy setup');
+  console.log('');
+
+  if (options.status || options['skill-status']) {
+    installAgentSkillUnion({ ...options, status: true });
+    return;
+  }
+
+  if (!options['no-daemon']) {
+    const daemonOk = await ensureDaemonInstalledAndRunning();
+    if (!daemonOk) {
+      process.exit(1);
+    }
+  } else {
+    ui.info('Skipping daemon install (--no-daemon)');
+  }
+
+  if (!options['no-mcp']) {
+    await handleMcpInstall({});
+  } else {
+    ui.info('Skipping MCP install (--no-mcp)');
+  }
+
+  installFleetBarIfEnabled(!!options['no-fleetbar']);
+
+  if (!options['no-skill']) {
+    installAgentSkillUnion(options);
+  } else {
+    ui.info('Skipping agent skill symlink (--no-skill)');
+  }
+
+  const explicitProject = typeof options.project === 'string' ? options.project : undefined;
+  if (explicitProject && !existsSync(resolve(explicitProject))) {
+    ui.error(`Project path not found: ${explicitProject}`);
+    process.exit(1);
+  }
+
+  const projectDir = inferProjectDir(explicitProject);
+  await maybeInitProject(projectDir, options);
+
+  console.log('');
+  ui.info('Setup complete');
+  console.log('  Next steps:');
+  if (projectDir) {
+    console.log(`    cd ${projectDir}`);
+    console.log('    pd fleet up');
+  }
+  console.log('    pd fleet status');
+  console.log('    pd begin "your next task" --lifecycle durable');
+  console.log('');
+}

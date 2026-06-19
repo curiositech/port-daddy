@@ -1,0 +1,13 @@
+{
+  "name": "demo-express-api",
+  "version": "1.0.0",
+  "description": "Demo Express API for Port Daddy dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+}

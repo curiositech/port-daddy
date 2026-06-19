@@ -1,0 +1,573 @@
+/**
+ * CLI Permission Tiers
+ *
+ * Authoritative classification of every `pd` command into one of four tiers,
+ * by impact on shared state and other agents:
+ *
+ *   silent       Read-only. No observable side effects.
+ *   notify       Mutates caller-scoped state. Reversible.
+ *   approval     Mutates state that affects another agent. No data loss.
+ *   destructive  Releases another agent's resources, OR removes/expires records.
+ *
+ * The audit that motivated this file caught `pd salvage` releasing another
+ * agent's claims with no user-facing warning. Anything destructive must now
+ * go through `requireConfirmation()` (see cli/utils/destructive-confirm.ts)
+ * and surface its tier in --help.
+ *
+ * Commands here are keyed by what the operator types after `pd `. For
+ * subcommands that change tier mid-command (e.g. `pd salvage` is silent in
+ * its default list form but `pd salvage claim` is destructive), the registry
+ * stores the WORST-CASE tier for the top-level entry and the per-subcommand
+ * tiers under `SUBCOMMAND_TIERS`. Use `resolveTier()` to get the right answer
+ * for an actual invocation.
+ */
+
+export type Tier = 'silent' | 'notify' | 'approval' | 'destructive';
+
+export const ALL_TIERS: readonly Tier[] = ['silent', 'notify', 'approval', 'destructive'];
+
+/**
+ * Top-level command -> tier. For top-level verbs (e.g. `pd claim`), this is
+ * the operative tier. For top-level groups whose subcommands span tiers
+ * (e.g. `pd salvage`, `pd session`, `pd agent`), this is the WORST case the
+ * group can produce; `SUBCOMMAND_TIERS` then refines per subcommand.
+ */
+export const TIER_REGISTRY: Record<string, Tier> = {
+  // ── silent: read-only ────────────────────────────────────────────────────
+  status: 'silent',
+  attest: 'silent', // honest self-report (ADR-0045); read-only introspection
+  version: 'silent',
+  whoami: 'silent',
+  w: 'silent',
+  find: 'silent',
+  f: 'silent',
+  l: 'silent',
+  list: 'silent',
+  ps: 'silent',
+  services: 'silent',
+  url: 'silent',
+  env: 'silent',
+  ports: 'silent',          // refined below: `ports cleanup` is destructive
+  locks: 'silent',
+  sessions: 'silent',
+  notes: 'silent',
+  agents: 'silent',
+  swarm: 'silent',
+  actors: 'silent',
+  actor: 'silent',
+  changelog: 'silent',
+  log: 'silent',
+  activity: 'silent',
+  briefing: 'silent',
+  history: 'silent',
+  dashboard: 'silent',
+  health: 'silent',
+  metrics: 'silent',
+  config: 'silent',
+  hints: 'silent',
+  bench: 'silent',
+  demo: 'silent',
+  doctor: 'silent',
+  diagnose: 'silent',
+  'ci-gate': 'silent',
+  help: 'silent',
+  learn: 'silent',
+  tutorial: 'silent',
+  sitrep: 'silent',
+  look: 'silent',
+  periscope: 'silent',     // operator-loop SIGHT stage: read-only state+next-cut rollup
+  sight: 'silent',         // alias of periscope
+  scope: 'silent',         // alias of periscope
+  'coast-guard': 'silent', // Coast Guard read path: read-only local confinement status
+  cg: 'silent',            // alias of coast-guard
+  advise: 'silent',
+  preflight: 'silent',
+  compass: 'silent',
+  roadmap: 'silent',
+  ideas: 'silent',
+  graph: 'silent',
+  memory: 'silent',
+  'who-owns': 'silent',
+  harbors: 'silent',
+  spawned: 'silent',
+  feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
+  quorum: 'silent',
+  parley: 'approval',       // summons/resolves other agents; read-only forms refined below
+  tuple: 'silent',
+  pheromone: 'silent',
+  ph: 'silent',
+  scan: 'silent',
+  s: 'silent',
+  projects: 'silent',       // refined: `projects rm` is destructive
+  p: 'silent',
+  channels: 'silent',       // refined: `channels clear` is destructive
+  webhook: 'silent',
+  webhooks: 'silent',
+  dns: 'silent',            // refined: `dns cleanup`, `dns register` are mutations
+  snapshots: 'silent',
+  snapshot: 'silent',
+  cockpit: 'silent',
+  shipwright: 'silent',
+  secret: 'silent',         // refined: `secret set` is notify, `secret rm` is destructive
+  popper: 'silent',         // refined: `popper pop` is approval, enable/disable are notify
+  inbox: 'silent',
+  integration: 'silent',
+  wallet: 'silent',
+  bond: 'silent',
+  fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
+  tube: 'silent',
+  tunnel: 'silent',
+  relay: 'silent',           // refined: `relay url <url>` is notify
+  init: 'notify',
+  setup: 'notify',
+  transcripts: 'silent',    // refined: `transcripts delete/rm` is destructive
+  transcript: 'silent',     // singular alias for the same read-only views
+  morning: 'silent',        // reads the overnight dispatch report; no mutation
+
+  // ── notify: caller-scoped, reversible ────────────────────────────────────
+  claim: 'notify',
+  c: 'notify',
+  release: 'notify',        // refined: `release --expired` is destructive (releases stale claims globally)
+  r: 'notify',
+  lock: 'notify',
+  unlock: 'notify',         // refined: `unlock --force` is destructive
+  session: 'notify',        // refined: `session rm`, `session abandon` are destructive
+  note: 'notify',
+  n: 'notify',
+  begin: 'notify',
+  b: 'notify',
+  done: 'notify',
+  'with-lock': 'notify',
+  say: 'notify',
+  add: 'notify',
+  semantic: 'notify',
+  watch: 'notify',
+  attention: 'notify',      // default fetch marks inbox/channel items read for this agent
+  nudge: 'silent',          // bare form lists this agent's pending suggestibility nudges (read-only)
+  commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
+  backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
+  backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
+  cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
+  benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
+  // ── approval: mutates another agent's state, no data loss ────────────────
+  // Top-level entries; subcommand refinement may downgrade.
+  pub: 'approval',
+  publish: 'approval',
+  broadcast: 'approval',
+  sub: 'silent',            // subscribe is read-only stream
+  subscribe: 'silent',
+  listen: 'silent',
+  wait: 'silent',
+  up: 'approval',           // brings up multi-service stacks; effects on shared ports
+  u: 'approval',
+  spawn: 'approval',        // refined: `spawn kill` is destructive
+  sortie: 'approval',
+  agent: 'approval',        // refined: `agent unregister`, `agent inbox clear` are destructive
+  mcp: 'approval',
+  harbor: 'approval',       // refined: `harbor destroy` is destructive
+  harbormaster: 'approval', // start/stop the shared merge-owning actor; affects every agent's merges
+  hm: 'approval',           // alias for harbormaster
+  dispatch: 'approval',     // queues/runs autonomous dev work and spawns agents on shared state
+  nightshift: 'approval',   // kicks off autonomous overnight feature dev across the fleet
+  review: 'approval',       // approves/rejects produced dispatch work — gates others' merges
+
+  // ── destructive: releases another's resources OR removes records ─────────
+  salvage: 'destructive',           // refined: bare `salvage` list is silent; subcommands vary
+  resurrection: 'destructive',
+  down: 'destructive',
+  d: 'destructive',
+  stop: 'destructive',
+  start: 'notify',                  // starts the daemon, not destructive
+  restart: 'destructive',           // kills the running daemon
+  install: 'notify',                // installs launchd plist; not destructive on its own
+  'self-update': 'notify',          // ADR-0062: opt-in hands-off brew-upgrade + restart; notify, not gated (must run unattended via the freshness LaunchAgent)
+  uninstall: 'destructive',
+  guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
+  dev: 'approval',                  // refined: `dev down` stops a berth (destructive); see SUBCOMMAND_TIERS
+  use: 'silent',                    // emits a shell snippet to eval; read-only, no daemon mutation (ADR-0084)
+  daemon: 'silent',                 // refined: subcommands vary
+
+  restore: 'destructive',           // overwrites the live registry DB from a snapshot
+
+  // unmapped fallback handlers
+  message: 'approval',
+};
+
+/**
+ * Tier overrides keyed by `"<command> <subcommand>"`. Looked up FIRST by
+ * resolveTier() before falling back to TIER_REGISTRY[command].
+ *
+ * Two-token keys only. If the second positional arg disambiguates the tier,
+ * it goes here. Three-token keys (e.g. distinguishing `agent inbox clear`
+ * from `agent inbox list`) use the special longer-key form and are matched
+ * by best-effort prefix.
+ */
+export const SUBCOMMAND_TIERS: Record<string, Tier> = {
+  // salvage: list is read-only, mutations are destructive
+  'salvage': 'silent',              // default subcommand = listing
+  'salvage triage': 'silent',
+  'salvage next': 'silent',
+  'salvage claim': 'destructive',   // claims another agent's session+files
+  'salvage complete': 'destructive',// finalizes an inherited session
+  'salvage abandon': 'destructive', // forces session back to queue
+  'salvage dismiss': 'destructive', // permanently removes from queue
+
+  // session: most are notify, removals are destructive
+  'session start': 'notify',
+  'session end': 'notify',
+  'session done': 'notify',
+  'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
+  'session rm': 'destructive',      // deletes session + notes
+  'session files': 'notify',        // add/rm of caller's own claims
+
+  // release: bare release of caller's own port is notify; --expired is global
+  'release --expired': 'destructive',
+
+  // unlock --force breaks another agent's lock
+  'unlock --force': 'destructive',
+
+  // ports cleanup releases stale ports across projects
+  'ports cleanup': 'destructive',
+
+  // projects rm removes a registered project
+  'projects rm': 'destructive',
+  'p rm': 'destructive',
+
+  // channels clear blows away message history on a channel
+  'channels clear': 'destructive',
+  'channels ensure': 'notify',
+  'channels describe': 'silent',
+  'channels discover': 'silent',
+
+  // dns mutations
+  'dns register': 'notify',
+  'dns lookup': 'silent',
+  'dns list': 'silent',
+  'dns cleanup': 'destructive',
+  'dns status': 'silent',
+
+  // agent subcommands
+  'agent register': 'notify',
+  'agent heartbeat': 'notify',
+  'agent unregister': 'destructive',
+  'agent inbox': 'silent',
+  'agent inbox list': 'silent',
+  'agent inbox stats': 'silent',
+  'agent inbox send': 'approval',
+  'agent inbox clear': 'destructive',
+  'agent inbox read-all': 'notify',
+
+  // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
+  'parley list': 'silent',
+  'parley show': 'silent',
+  'parley fit': 'silent',
+  'parley call': 'approval',
+  'parley respond': 'approval',
+  'parley resolve': 'approval',
+
+  // roadmap: default/list/show are reads; upsert/touch/promote mutate the roadmap DB-of-record
+  'roadmap upsert': 'notify',
+  'roadmap add': 'notify',
+  'roadmap touch': 'notify',
+  'roadmap promote': 'notify',
+  'roadmap ack': 'notify',
+  'roadmap harvest': 'notify',
+  'roadmap render': 'notify',
+  'roadmap import': 'notify',
+  'roadmap import-markdown': 'notify',
+
+  // harbor subcommands
+  'harbor create': 'notify',
+  'harbor enter': 'notify',
+  'harbor leave': 'notify',
+  'harbor show': 'silent',
+  'harbor destroy': 'destructive',
+  'harbor delete': 'destructive',
+
+  // relay subcommands
+  'relay url': 'notify',     // sets relay_url — daemon config write
+  'relay status': 'silent',
+  'relay exchange': 'silent',
+
+  // spawn subcommands
+  'spawn kill': 'destructive',
+
+  // fleet subcommands
+  'fleet up': 'approval',
+  'fleet down': 'destructive',
+  'fleet status': 'silent',
+  'fleet validate': 'silent',
+  'fleet models': 'silent',
+  'fleet init': 'notify',
+  'fleet prompt': 'silent',
+  'fleet panic': 'destructive',
+  'fleet unpanic': 'notify',
+
+  // guard subcommands
+  'guard status': 'silent',
+  'guard check': 'silent',
+  'guard enable': 'destructive',    // changes enforcement mode for everyone
+  'guard on': 'destructive',
+  'guard disable': 'destructive',
+  'guard off': 'destructive',
+  'guard install': 'destructive',   // writes git hooks
+  'guard install-shim': 'destructive',
+  'guard shim-install': 'destructive',
+  'guard uninstall-shim': 'destructive',
+  'guard shim-uninstall': 'destructive',
+  'guard help': 'silent',
+
+  // dev (berths) subcommands (ADR-0084). up = build+launch a berth (notify);
+  // down = stop a berth (destructive); list = read-only.
+  'dev up': 'notify',
+  'dev down': 'destructive',
+  'dev list': 'silent',
+  // back-compat aliases for the legacy verbs
+  'dev start': 'notify',
+  'dev stop': 'destructive',
+  'dev status': 'silent',
+
+  // daemon subcommands
+  'daemon list': 'silent',
+  'daemon status': 'silent',
+  'daemon install': 'notify',
+  'daemon uninstall': 'destructive',
+  'daemon stop': 'destructive',
+  'daemon start': 'notify',
+  'daemon restart': 'destructive',
+
+  // feedback writes
+  'feedback list': 'silent',
+  'feedback show': 'silent',
+  'feedback summary': 'silent',
+  'feedback harvest': 'notify',
+
+  // mcp
+  'mcp install': 'notify',
+
+  // attention: default fetch marks items read; peek/list forms are read-only
+  'attention --peek': 'silent',
+  'attention --subscriptions': 'silent',
+  'attention --subscribe': 'notify',
+  'attention --unsubscribe': 'notify',
+
+  // nudge: bare form lists (silent); scan delivers inbox messages, accept/decline mutate state
+  'nudge scan': 'notify',
+  'nudge accept': 'notify',
+  'nudge decline': 'notify',
+
+  // session files claim/rm are caller-scoped
+  'session files add': 'notify',
+  'session files claim': 'notify',
+  'session files rm': 'notify',
+  'session files release': 'notify',
+
+  // secret: list/reveal are read-only, set writes a credential, rm deletes it
+  'secret list': 'silent',
+  'secret ls': 'silent',
+  'secret reveal': 'silent',
+  'secret show': 'silent',
+  'secret set': 'notify',
+  'secret rm': 'destructive',
+  'secret remove': 'destructive',
+  'secret delete': 'destructive',
+
+  // popper: status/next are read-only/dry-run, pop fires a dispatch,
+  // enable/disable toggle a roadmap item's nightshift eligibility
+  'popper status': 'silent',
+  'popper next': 'silent',
+  'popper pop': 'approval',          // pops an item and spawns a dispatch
+  'popper enable': 'notify',
+  'popper disable': 'notify',
+
+  // commit: bare form records a commitment, close finalizes one
+  'commit close': 'notify',
+
+  // transcripts: list/show/cost/watch are read-only; delete/rm removes a run record
+  'transcripts list': 'silent',
+  'transcripts show': 'silent',
+  'transcripts cost': 'silent',
+  'transcripts watch': 'silent',
+  'transcripts delete': 'destructive',
+  'transcripts rm': 'destructive',
+  'transcript delete': 'destructive',
+  'transcript rm': 'destructive',
+
+  // harbormaster: status/queue are read-only; start/stop control the shared actor
+  'harbormaster status': 'silent',
+  'harbormaster queue': 'silent',
+  'harbormaster start': 'approval',
+  'harbormaster stop': 'destructive',  // stops the merge-owning actor for everyone
+  'hm status': 'silent',
+  'hm queue': 'silent',
+  'hm start': 'approval',
+  'hm stop': 'destructive',
+
+  // backend: status/list are read-only; clear/off reset caller config
+  'backend status': 'silent',
+  'backend list': 'silent',
+  'backend clear': 'notify',
+  'backend off': 'notify',
+
+  // backup: run writes a snapshot; schedule install/uninstall toggle the timer
+  'backup run': 'notify',
+  'backup schedule': 'notify',
+
+  // benchmark: `run` makes paid LLM calls (notify); the listing/report forms are read-only
+  'benchmark list-models': 'silent',
+  'benchmark list-conditions': 'silent',
+  'benchmark models': 'silent',
+  'benchmark conditions': 'silent',
+  'benchmark report': 'silent',
+
+  // dispatch: status/list are read-only; cancel/reject affect queued work
+  'dispatch status': 'silent',
+  'dispatch list': 'silent',
+  'dispatch cancel': 'destructive',
+  'dispatch reject': 'approval',
+  'dispatch accept': 'approval',
+
+  // review: list/show read-only; accept/reject gate others' produced work
+  'review list': 'silent',
+  'review show': 'silent',
+  'review accept': 'approval',
+  'review reject': 'approval',
+};
+
+/**
+ * Resolve the tier for a concrete invocation.
+ *
+ * @param command   Top-level verb (e.g. "salvage", "release")
+ * @param argv      Positional args AFTER the command (e.g. ["claim", "agent-99"])
+ *                  Pass [] for bare verbs. Pass options-as-flags strings like
+ *                  "--expired" if the flag changes the tier (rare).
+ *
+ * Resolution order:
+ *   1. Three-token key:  "<command> <argv0> <argv1>"   (e.g. "agent inbox clear")
+ *   2. Two-token key:    "<command> <argv0>"           (e.g. "salvage claim")
+ *   3. Flag-suffix key:  "<command> --<flag>"          (e.g. "release --expired")
+ *   4. Bare command:     TIER_REGISTRY[command]
+ *   5. Fallback:         "silent" (so unmapped lookups don't accidentally
+ *                        gate a read with a confirmation prompt)
+ */
+export function resolveTier(
+  command: string,
+  argv: readonly string[] = [],
+  flags: readonly string[] = []
+): Tier {
+  // 1. Three-token key
+  if (argv.length >= 2) {
+    const k3 = `${command} ${argv[0]} ${argv[1]}`;
+    if (SUBCOMMAND_TIERS[k3]) return SUBCOMMAND_TIERS[k3];
+  }
+
+  // 2. Two-token key
+  if (argv.length >= 1) {
+    const k2 = `${command} ${argv[0]}`;
+    if (SUBCOMMAND_TIERS[k2]) return SUBCOMMAND_TIERS[k2];
+  }
+
+  // 3. Flag-suffix key (only for the small set of flags that change tier)
+  for (const f of flags) {
+    const norm = f.startsWith('--') ? f : `--${f}`;
+    const kf = `${command} ${norm}`;
+    if (SUBCOMMAND_TIERS[kf]) return SUBCOMMAND_TIERS[kf];
+  }
+
+  // 4. Bare-command override in SUBCOMMAND_TIERS — used when the top-level
+  //    verb's "no subcommand" form is safer than the worst-case TIER_REGISTRY
+  //    entry. Notably: `pd salvage` with no args is silent (list), but the
+  //    `salvage <claim|dismiss|...>` family is destructive.
+  if (argv.length === 0 && SUBCOMMAND_TIERS[command]) {
+    return SUBCOMMAND_TIERS[command];
+  }
+
+  // 5. Bare command
+  if (TIER_REGISTRY[command]) return TIER_REGISTRY[command];
+
+  // 6. Fallback
+  return 'silent';
+}
+
+/**
+ * All commands grouped by tier. Useful for `pd help` rendering, README
+ * generation, and tests that need to assert "every destructive command is
+ * wired through requireConfirmation".
+ */
+export function commandsByTier(): Record<Tier, string[]> {
+  const out: Record<Tier, string[]> = {
+    silent: [],
+    notify: [],
+    approval: [],
+    destructive: [],
+  };
+
+  for (const [cmd, tier] of Object.entries(TIER_REGISTRY)) {
+    out[tier].push(cmd);
+  }
+  for (const [key, tier] of Object.entries(SUBCOMMAND_TIERS)) {
+    out[tier].push(key);
+  }
+
+  for (const tier of ALL_TIERS) {
+    out[tier].sort();
+  }
+  return out;
+}
+
+/**
+ * Short single-word label rendered in --help next to a command's description.
+ * Format: `[silent]`, `[notify]`, `[approval]`, `[destructive]`.
+ */
+export function tierBadge(tier: Tier): string {
+  return `[${tier}]`;
+}
+
+/**
+ * The canonical, user-facing list of commands that REQUIRE
+ * requireConfirmation() to be invoked before any side effect. Tests use this
+ * to verify the helper is actually wired into each command's handler.
+ */
+export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
+  'salvage claim',
+  'salvage complete',
+  'salvage abandon',
+  'salvage dismiss',
+  'session abandon',
+  'session rm',
+  'release --expired',
+  'unlock --force',
+  'ports cleanup',
+  'projects rm',
+  'channels clear',
+  'dns cleanup',
+  'agent unregister',
+  'agent inbox clear',
+  'harbor destroy',
+  'spawn kill',
+  'fleet down',
+  'fleet panic',
+  'guard install',
+  'guard install-shim',
+  'guard uninstall-shim',
+  'guard enable',
+  'guard disable',
+  'dev stop',
+  'daemon stop',
+  'daemon restart',
+  'daemon uninstall',
+  'restart',
+  'stop',
+  'uninstall',
+  'down',
+]);
+
+/**
+ * Short, one-line legend for the four tiers. Embedded in `pd help` output.
+ */
+export const TIER_LEGEND = [
+  '  [silent]      Read-only. Safe to run anywhere.',
+  '  [notify]      Mutates your own state. Reversible.',
+  '  [approval]    Affects other agents. No data loss.',
+  '  [destructive] Releases someone else\'s resources or removes records. Prompts for confirmation; pass --yes to skip.',
+].join('\n');

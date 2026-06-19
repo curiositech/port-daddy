@@ -1,0 +1,74 @@
+(* 
+ * Port Daddy: Harbor Card v2 (Ed25519 / EdDSA) Formal Model
+ * 
+ * Verifying Phase 2: Asymmetric identity with per-harbor keying.
+ *)
+
+type id.
+type skey.
+type pkey.
+type jti.
+type capability.
+
+free c: channel. (* Public channel *)
+free k_dist: channel [private]. (* Trusted key distribution channel *)
+
+(*** Digital Signatures (Ed25519) ***)
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+
+reduc forall m: bitstring, k: skey; check_sign(m, pk(k), sign(m, k)) = true.
+
+(* Encoding for bitstrings *)
+fun encode_token(id, id, jti, capability): bitstring [data].
+
+(*** Events ***)
+event Issued(id, id, jti, capability).
+event Accepted(id, id, jti, capability).
+
+(*** Queries ***)
+
+(* 1. Secrecy of the Harbor Secret Keys *)
+free secret_key: skey [private].
+query attacker(secret_key).
+
+(* 2. Authentication: If Accepted(a, h, j, cap), then Issued(a, h, j, cap) *)
+query a: id, h: id, j: jti, cap: capability;
+  event(Accepted(a, h, j, cap)) ==> event(Issued(a, h, j, cap)).
+
+(*** Processes ***)
+
+(* The Daemon issues tokens *)
+let Daemon(a_id: id, h_id: id, j: jti, cap: capability) =
+  in(k_dist, sk_h: skey);
+  let msg = encode_token(a_id, h_id, j, cap) in
+  let signature = sign(msg, sk_h) in
+  event Issued(a_id, h_id, j, cap);
+  out(c, (msg, signature)).
+
+(* The Harbor (Verifier) uses its Public Key *)
+let Harbor(pk_h: pkey, expected_h: id) =
+  in(c, (msg: bitstring, signature: bitstring));
+  if check_sign(msg, pk_h, signature) = true then
+    let encode_token(a: id, h: id, j_1: jti, cap_1: capability) = msg in
+    if h = expected_h then
+      event Accepted(a, h, j_1, cap_1).
+
+(*** Main Process ***)
+process
+  new agent_id: id;
+  new harbor_id: id;
+  new token_jti: jti;
+  new secret_cap: capability;
+  
+  let harbor_pk = pk(secret_key) in
+  
+  (* Distribute the public key publicly *)
+  out(c, harbor_pk);
+  
+  (
+    (!Daemon(agent_id, harbor_id, token_jti, secret_cap)) |
+    (!Harbor(harbor_pk, harbor_id)) |
+    (!out(k_dist, secret_key)) (* Daemon gets the secret key through trusted channel *)
+  )

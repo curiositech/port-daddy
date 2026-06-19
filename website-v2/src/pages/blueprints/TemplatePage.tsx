@@ -1,0 +1,160 @@
+import { motion, useScroll, useSpring } from 'framer-motion'
+import { useParams, Link, Navigate } from 'react-router-dom'
+import { Badge } from '@/components/ui/Badge'
+import { CodeBlock } from '@/components/ui/CodeBlock'
+import { BLUEPRINTS } from '@/data/blueprints'
+import { ChevronLeft, Box, Zap, Shield, Rocket, Terminal, Info, Activity, Users, Layers } from 'lucide-react'
+import { Footer } from '@/components/layout/Footer'
+
+export function TemplatePage() {
+  const { id } = useParams<{ id: string }>();
+  const bp = BLUEPRINTS.find(b => b.id === id);
+  const { scrollYProgress } = useScroll()
+  
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  })
+
+  if (!bp) return <Navigate to="/templates" replace />;
+
+  return (
+    <motion.div 
+      className="min-h-screen bg-[var(--surface-base)] flex flex-col font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+    >
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-[var(--brand-primary)] z-[100] origin-left"
+        style={{ scaleX, top: 'var(--nav-height)' }}
+      />
+
+      {/* Hero Section */}
+      <motion.header 
+        className="py-20 px-6 sm:px-8 lg:px-10 border-b relative overflow-hidden" 
+        style={{ background: 'var(--surface-raised)', borderColor: 'var(--border-subtle)' }}
+      >
+        <motion.div className="max-w-4xl mx-auto relative z-10 flex flex-col items-center text-center gap-10">
+           <Link to="/templates" className="no-underline group">
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-[var(--text-muted)] group-hover:text-[var(--brand-primary)] transition-all">
+                 <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+                 Back to Blueprints
+              </motion.div>
+           </Link>
+
+           <motion.div className="flex items-center gap-6">
+              <motion.div className="w-24 h-24 bg-[var(--interactive-active)] flex items-center justify-center border border-[var(--brand-primary)] group-hover:scale-110 transition-transform">
+                 <Box size={48} className="text-[var(--brand-primary)]" />
+              </motion.div>
+           </motion.div>
+
+           <motion.div className="space-y-4">
+              <Badge variant="teal" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest">Official Fleet Blueprint</Badge>
+              <motion.h1 
+                className="text-5xl sm:text-7xl font-black tracking-tighter font-display leading-[1.05]"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {bp.title}
+              </motion.h1>
+           </motion.div>
+
+           <motion.p 
+             className="text-2xl leading-relaxed text-[var(--text-secondary)] font-medium max-w-2xl"
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.8, delay: 0.1 }}
+           >
+             {bp.description}
+           </motion.p>
+
+           <motion.div className="flex flex-wrap justify-center gap-3">
+              {bp.tags.map(tag => (
+                <Badge key={tag} variant="default" className="px-4 py-1.5 text-[8px] font-black uppercase tracking-widest bg-[var(--surface-overlay)]">{tag}</Badge>
+              ))}
+           </motion.div>
+        </motion.div>
+      </motion.header>
+
+      {/* Main Content */}
+      <motion.main id="main-content" className="flex-1 py-24 px-6 sm:px-8 lg:px-10 max-w-4xl mx-auto w-full font-sans">
+        <motion.div className="space-y-24">
+           
+           {/* Quick Start */}
+           <section className="space-y-12">
+              <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
+                 <motion.div className="w-10 h-10 bg-[var(--brand-primary)]/10 flex items-center justify-center border border-[var(--brand-primary)]/20">
+                    <Rocket size={20} className="text-[var(--brand-primary)]" />
+                 </motion.div>
+                 <motion.h2 className="text-3xl font-display font-black m-0">Bootstrap the Fleet</motion.h2>
+              </motion.div>
+              
+              <motion.div className="p-10 bg-[var(--surface-overlay)] border border-[var(--border-subtle)] space-y-8 relative overflow-hidden">
+                 <motion.div className="absolute top-0 right-0 p-8 opacity-5">
+                    <Terminal size={100} />
+                 </motion.div>
+                 <motion.p className="text-sm font-black uppercase tracking-widest text-[var(--text-muted)] m-0">Terminal Execution</motion.p>
+                 <CodeBlock language="bash">
+                   {`mkdir ${bp.id}\ncd ${bp.id}\n\npd init --template ${bp.id}\npd up`}
+                 </CodeBlock>
+                 <motion.div className="flex items-center gap-3 p-4 bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
+                    <Info size={16} className="text-[var(--brand-primary)] shrink-0" />
+                    <motion.p className="text-sm m-0 text-[var(--text-secondary)]">This template includes pre-configured harbor cards and project-scoped Port Daddy channels.</motion.p>
+                 </motion.div>
+              </motion.div>
+           </section>
+
+           {/* Architecture */}
+           <section className="space-y-12">
+              <motion.div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-8">
+                 <motion.div className="w-10 h-10 bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                    <Layers size={20} className="text-[var(--brand-secondary)]" />
+                 </motion.div>
+                 <motion.h2 className="text-3xl font-display font-black m-0">Fleet Architecture</motion.h2>
+              </motion.div>
+
+              <motion.div className="grid sm:grid-cols-2 gap-8">
+                 <motion.div className="p-8 bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-primary)] transition-colors">
+                    <motion.div className="w-10 h-10 bg-[var(--brand-secondary)]/10 flex items-center justify-center border border-[var(--brand-secondary)]/20">
+                       <Users size={20} className="text-[var(--brand-secondary)]" />
+                    </motion.div>
+                    <motion.h3 className="text-xl font-display font-black m-0">Role-Based Agents</motion.h3>
+                    <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Dedicated identities for planners, coders, and reviewers with scoped file access.</motion.p>
+                 </motion.div>
+                 <motion.div className="p-8 bg-[var(--surface-raised)] border border-[var(--border-subtle)] space-y-4 group hover:border-[var(--brand-accent)] transition-colors">
+                    <motion.div className="w-10 h-10 bg-[var(--brand-accent)]/10 flex items-center justify-center border border-[var(--brand-accent)]/20">
+                       <Zap size={20} className="text-[var(--brand-accent)]" />
+                    </motion.div>
+                    <motion.h3 className="text-xl font-display font-black m-0">Reactive Signaling</motion.h3>
+                    <motion.p className="text-base text-[var(--text-secondary)] m-0 leading-relaxed">Pre-wired Swarm Radio channels for automatic handoffs and error reporting.</motion.p>
+                 </motion.div>
+              </motion.div>
+           </section>
+
+           {/* Security Note */}
+           <motion.div 
+             className="p-16 border border-dashed border-[var(--brand-primary)] bg-[var(--surface-overlay)] flex flex-col items-center text-center gap-8 relative overflow-hidden"
+             whileHover={{ scale: 1.01 }}
+           >
+              <motion.div className="absolute top-0 right-0 p-10 opacity-[0.03] pointer-events-none">
+                 <Shield size={400} />
+              </motion.div>
+              <Badge variant="teal" className="px-6 py-2 text-[10px] font-black uppercase tracking-widest">Formal Integrity</Badge>
+              <motion.h3 className="text-4xl font-display font-black m-0" style={{ color: 'var(--text-primary)' }}>Mathematically Sound.</motion.h3>
+              <motion.p className="text-xl max-w-xl text-[var(--text-secondary)]">
+                Like all Port Daddy templates, this blueprint is verified against our formal state machine. We ensure that the coordination logic cannot result in unauthorized port claims or "zombie" process cycles.
+              </motion.p>
+              <motion.div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
+                 <Activity size={14} className="animate-pulse" />
+                 Current Port Daddy
+              </motion.div>
+           </motion.div>
+        </motion.div>
+      </motion.main>
+
+      <Footer />
+    </motion.div>
+  )
+}

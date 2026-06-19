@@ -1,0 +1,53 @@
+% Figure 4 — the four design questions as a decision flow for any read-surface.
+% Design: vertical spine, asked in order top to bottom (they are not branches);
+% each question's obligation sits to its right. No resizebox shrink — the text
+% renders at its natural size.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  q/.style={draw=hhebony,thick,rounded corners=3pt,fill=hhsand!30,
+            align=left,inner sep=6pt,font=\footnotesize,text width=46mm,
+            minimum height=11mm},
+  act/.style={draw=hhteal,thick,rounded corners=2pt,fill=hhpaper,
+              align=left,inner sep=5pt,font=\footnotesize,text=hhink,text width=52mm},
+  edge/.style={-{Latex[length=2mm]},thick,hhink},
+  ob/.style={-{Latex[length=2mm]},thick,hhteal},
+]
+\node[q] (q1) at (0,0)    {\textbf{Q1.} Is the act irreversible?};
+\node[q] (q2) at (0,-1.7) {\textbf{Q2.} Administrative vs.\ m\^etis?};
+\node[q] (q3) at (0,-3.4) {\textbf{Q3.} Can the summary lie?};
+\node[q] (q4) at (0,-5.1) {\textbf{Q4.} Is the authority legible?};
+\node[q,draw=hhcobalt,very thick,text width=30mm] (ok) at (0,-6.8) {ship the surface};
+
+\node[act] (a1) at (6.4,0)    {force a zoom; artifact one keystroke away};
+\node[act] (a2) at (6.4,-1.7) {flatten admin; link m\^etis verbatim};
+\node[act] (a3) at (6.4,-3.4) {point zoom at the artifact, not narration};
+\node[act] (a4) at (6.4,-5.1) {every act carries a named reason};
+
+\draw[ob] (q1.east) -- (a1.west);
+\draw[ob] (q2.east) -- (a2.west);
+\draw[ob] (q3.east) -- (a3.west);
+\draw[ob] (q4.east) -- (a4.west);
+
+\draw[edge] (q1) -- node[right=1pt,font=\scriptsize\itshape]{then} (q2);
+\draw[edge] (q2) -- node[right=1pt,font=\scriptsize\itshape]{then} (q3);
+\draw[edge] (q3) -- node[right=1pt,font=\scriptsize\itshape]{then} (q4);
+\draw[edge] (q4) -- (ok);
+\end{tikzpicture}
+\caption{The four design questions (\S\ref{sec:four-questions}) as a decision flow
+applied to every read-surface. They are asked in order, and each question binds an
+obligation (force-zoom, verbatim-link, artifact-target, named-reason) the surface
+must satisfy before it may ship. The procedure is the operational form of the one
+law (Def.~\ref{def:zoom}) and the legible-sovereign rule
+(Prop.~\ref{prop:legible-sovereign}).}
+\label{fig:four-questions}
+\end{figure}

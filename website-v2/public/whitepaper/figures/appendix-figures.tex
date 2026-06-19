@@ -1,0 +1,374 @@
+% Algorithm-diagram figures for Appendix B (algorithms).
+% Inline TikZ — no standalone class required.
+% Requires the main paper to load: tikz, float, caption.
+
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,decorations.pathmorphing,shapes.symbols,shapes.geometric,decorations.pathreplacing}
+
+% Harbor Heritage palette (defined locally for safety).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+% ──────────────────────────────────────────────────────────────────────
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  actor/.style={draw=hhebony,fill=hhsand,rounded corners=2pt,
+                inner sep=5pt,minimum width=20mm,minimum height=9mm,
+                thick,align=center},
+  ch/.style={draw=hhebony,fill=hhpaper,inner sep=5pt,minimum width=28mm,thick,
+             align=center,font=\sffamily\footnotesize},
+  capbox/.style={draw=hhcobalt,fill=hhpaper,thick,minimum width=14mm,
+                 minimum height=8mm,inner sep=2pt,
+                 font=\sffamily\bfseries\footnotesize,text=hhcobalt},
+  sql/.style={draw=hhebony,fill=hhsanddeep,thick,rounded corners=2pt,
+              inner sep=6pt,align=center,font=\sffamily\footnotesize},
+  ev/.style={ellipse,draw=hhteal,fill=hhpaper,thick,inner sep=3pt,
+             font=\sffamily\footnotesize},
+  msg/.style={->,>=Latex,thick,draw=hhink},
+  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  mlbl/.style={font=\sffamily\footnotesize,inner sep=1pt,fill=hhpaper},
+  badlbl/.style={font=\sffamily\footnotesize\itshape,text=hhcobalt,
+                 inner sep=1pt,fill=hhpaper},
+]
+% Top row: public channel (Dolev-Yao adversary).
+\node[ch,fill=hhpaper] (pub) at (5.0,5.2) {public channel \texttt{pub} (Dolev-Yao)};
+% Left actor: Issuer (shifted further left so its event ellipse clears the SQL box).
+\node[actor] (issuer) at (-1.4,2.6) {\textbf{Issuer}};
+\node[ev,below=10mm of issuer] (eIssue) {event \texttt{issued\_for}$(a, tk)$};
+% Center column: private channel, cap, SQL update.
+\node[ch] (chTk) at (5.0,3.4) {private channel \texttt{ch\_tk}};
+\node[capbox,below=4mm of chTk] (capBox) {cap};
+\node[sql,below=4mm of capBox,minimum width=60mm] (sql)
+  {\textbf{atomic UPDATE} \emph{(SQLite serializes writers)}\\[2pt]
+   \texttt{UPDATE recovery\_tokens}\\
+   \texttt{SET consumed\_at=? WHERE token=?}\\
+   \texttt{AND consumed\_at IS NULL RETURNING *}};
+% Right actors: Consumer (wins), 2nd Consumer (rejected).
+\node[actor] (consumer) at (11.0,2.6) {\textbf{Consumer}};
+\node[ev,below=10mm of consumer] (eConsume) {event \texttt{consumed\_for}$(a, tk)$};
+\node[actor,fill=hhpaper,draw=hhcobalt,
+      below=26mm of consumer.south] (consumer2)
+  {\textbf{2nd Consumer}};
+% Issuer → ch_tk (sends cap).
+\draw[msg] (issuer.east) -- (chTk.west)
+  node[mlbl,pos=0.5] {\texttt{out(ch\_tk, ())}};
+% Issuer → pub (public link). Label sits on the vertical leg so it doesn't
+% mask the start of the pub channel's text.
+\draw[msg] (issuer.north) |- (pub.west)
+  node[mlbl,pos=0.30,right] {\texttt{out(pub, mkLink)}};
+% pub → Consumer (public link reaches consumer).
+\draw[msg] (pub.east) -| (consumer.north);
+% ch_tk → cap → sql (the cap is physically the gate to the UPDATE).
+\draw[msg] (chTk.south) -- (capBox.north);
+\draw[msg] (capBox.south) -- (sql.north);
+% sql → Consumer (consume succeeds).
+\draw[msg] (sql.east) -| (consumer.south)
+  node[mlbl,pos=0.20] {\texttt{in(ch\_tk, cap)}};
+% sql → 2nd Consumer (rejection — cap already drained).
+\draw[bad] (sql.south) |- (consumer2.west);
+\node[badlbl] at ($(sql.south)+(2.0,-4mm)$) {cap drained $\to$ reject};
+% Event dotted lines (provenance).
+\draw[->,>=Latex,thick,draw=hhteal,dotted] (issuer.south) -- (eIssue.north);
+\draw[->,>=Latex,thick,draw=hhteal,dotted] (consumer.south) -- (eConsume.north);
+\end{tikzpicture}
+\caption{Magic-link single-use atomicity. The SQL \texttt{UPDATE \dots WHERE consumed\_at IS NULL RETURNING} is the runtime analogue of the ProVerif private-channel cap: SQLite serializes concurrent writers, so the first caller drains the cap and the second consumer's transaction returns zero rows. Verified properties: injective single-use ($\mathrm{inj\text{-}event}(\texttt{consumed\_for}) \Rightarrow \mathrm{inj\text{-}event}(\texttt{issued\_for})$) and binding.}
+\label{fig:magic-link-diag}
+\end{figure}
+
+% ──────────────────────────────────────────────────────────────────────
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  hop/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+              minimum width=22mm,minimum height=10mm,inner sep=3pt,align=center},
+  sig/.style={draw=hhamber,thick,fill=hhpaper,rounded corners=1pt,
+              inner sep=2pt,font=\sffamily\footnotesize,align=center},
+  fresh/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=1pt,
+                inner sep=2pt,font=\sffamily\footnotesize},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+]
+\node[hop] (h1) at (0,2.6) {Hop 1\\$\mathrm{id}_1 \to \mathrm{id}_2$};
+\node[hop,right=6mm of h1] (h2) {Hop 2\\$\mathrm{id}_2 \to \mathrm{id}_3$};
+\node[hop,right=6mm of h2] (h3) {Hop 3\\$\mathrm{id}_3 \to \mathrm{id}_4$};
+\node[sig,above=3mm of h1] {sign$_{\mathrm{id}_1}$(\texttt{hopBind}$(n_1, \bot, \mathrm{id}_2, h)$)};
+\node[sig,above=3mm of h2] {sign$_{\mathrm{id}_2}$(\texttt{hopBind}$(n_2, \mathrm{id}_1, \mathrm{id}_3, h)$)};
+\node[sig,above=3mm of h3] {sign$_{\mathrm{id}_3}$(\texttt{hopBind}$(n_3, \mathrm{id}_2, \mathrm{id}_4, h)$)};
+\node[fresh,below=3mm of h1] {$n_1$: fresh};
+\node[fresh,below=3mm of h2] {$n_2$: fresh};
+\node[fresh,below=3mm of h3] {$n_3$: fresh};
+\draw[arr] (h1.east) -- (h2.west);
+\draw[arr] (h2.east) -- (h3.west);
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      left=6mm of h1] (origin) {origin};
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      right=6mm of h3] (target) {$\mathrm{id}_4$};
+\draw[arr] (origin.east) -- (h1.west);
+\draw[arr] (h3.east) -- (target.west);
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
+      align=left,minimum width=120mm,inner sep=5pt,below=16mm of h2.south]
+  {{\bfseries Walker rejects} if any of:
+   \\[2pt]\quad$\bullet$ signature invalid against the advertised $\mathrm{id}_k$ public key
+   \\\quad$\bullet$ $\mathrm{prev\_id}_k \neq \mathrm{id}_{k-1}$ \quad(splice attack)
+   \\\quad$\bullet$ $n_k$ already present in the freshness table \quad(replay)
+   \\\quad$\bullet$ message hash $h$ disagrees across hops \quad(substitute)};
+\end{tikzpicture}
+\caption{Multi-hop delegation walker. Each hop $k$ signs a binding tuple $(n_k, \mathrm{id}_{k-1}, \mathrm{id}_k, h)$ under Ed25519, where $h$ is the message hash that must remain constant across the chain. The walker verifies depth-$N$ chains with a nonce-freshness table and rejects splices, replays, hop-swaps, and substitution.}
+\label{fig:delegation-diag}
+\end{figure}
+
+% ──────────────────────────────────────────────────────────────────────
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  slot/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
+               fill=hhpaper,inner sep=0pt,font=\sffamily\footnotesize},
+  empty/.style={draw=hhebony,thick,minimum width=8mm,minimum height=7mm,
+                fill=hhsand,inner sep=0pt},
+  bucketlbl/.style={font=\sffamily\footnotesize\bfseries,anchor=east},
+  flow/.style={->,>=Latex,thick,draw=hhcobalt},
+  hashflow/.style={->,>=Latex,thick,draw=hhteal},
+]
+\foreach \i/\y in {0/3.6, 1/2.7, 2/1.8, 3/0.9, 4/0.0, 5/-0.9} {
+  \node[bucketlbl] at (-0.2,\y+0.2) {bucket~$i_\i$};
+  \foreach \s/\xoff in {0/0, 1/0.85, 2/1.7, 3/2.55} {
+    \node[empty] (b\i s\s) at (\xoff+0.7, \y) {};
+  }
+}
+\node[slot,fill=hhamber!50] at (b0s0) {a3};
+\node[slot,fill=hhamber!50] at (b0s1) {7e};
+\node[slot,fill=hhamber!50] at (b0s2) {2f};
+\node[slot,fill=hhamber!50] at (b0s3) {91};
+\node[slot,fill=hhamber!50] at (b3s0) {ca};
+\node[slot,fill=hhamber!50] at (b3s1) {1b};
+\node[slot,fill=hhamber!50] at (b3s2) {ff};
+\node[slot,fill=hhamber!50] at (b3s3) {44};
+\node[slot,fill=hhamber!30] at (b1s0) {6c};
+\node[slot,fill=hhamber!30] at (b2s2) {8a};
+\node[slot,fill=hhamber!30] at (b4s1) {19};
+\node[slot,fill=hhamber!30] at (b5s3) {b2};
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=2pt,
+      minimum width=22mm,inner sep=3pt,anchor=west,align=left] (key) at (5.5,3.6)
+  {insert $k$:\\\quad $\mathrm{fp}(k)=\mathtt{c1}$};
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      anchor=west,below=2mm of key] (h1)
+  {$i_1 = h(k) \bmod M = \mathbf{i_0}$};
+\node[draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      anchor=west,below=2mm of h1] (h2)
+  {$i_2 = i_1 \oplus h(\mathrm{fp}) = \mathbf{i_3}$};
+\draw[hashflow] (h1.west) -- ($(b0s3.east)+(0.3,0)$);
+\draw[hashflow] (h2.west) -- ($(b3s3.east)+(0.3,0)$);
+\node[slot,fill=hhcobalt!75,text=white] at (b0s2) {c1};
+% Kick arrow: route straight DOWN through the empty b1s2 cell to b2s2.
+% Label "evict 2f" pinned right at the arrow midpoint, inside the bucket
+% column gutter so it doesn't collide with the formula boxes on the right.
+\draw[flow,line width=1.6pt] (b0s2.south) -- (b2s2.north);
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+      anchor=west] at ([xshift=1.5mm,yshift=0mm]b1s2.east)
+  {evict \texttt{2f}};
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,inner sep=5pt,
+      align=left,anchor=north west,minimum width=58mm] at (5.5,0.4)
+  {{\bfseries Lookup} $k$: check $i_1, i_2$\\[2pt]
+   {\bfseries No false negatives.}\\
+   FP rate $\leq 2B / 2^f = 0.03125$};
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=4pt,
+      align=left,anchor=north west] at (5.5,-2.6)
+  {{\bfseries Insert rejection at load $0.95$}\\
+   (cap holds FP bound under adversarial fill).};
+\end{tikzpicture}
+\caption{Cuckoo filter (Fan et al.~\cite{fan2014cuckoo}). 8-bit fingerprints, 4 entries per bucket, partial-key cuckoo hashing. Insert lands at either of two candidate buckets $i_1, i_2 = i_1 \oplus h(\mathrm{fp})$; on full, evict and re-insert at the kicked fingerprint's alternate. The runtime caps load factor at $0.95$ to keep occupancy inside the regime where the false-positive bound holds.}
+\label{fig:cuckoo-diag}
+\end{figure}
+
+% (auction figure now lives inline at §sec:youle:welfare — see fig-auction-inline.tex)
+\iffalse
+% ──────────────────────────────────────────────────────────────────────
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  actor/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+                inner sep=4pt,minimum width=20mm,align=center},
+  commons/.style={draw=hhebony,thick,fill=hhteal!40,rounded corners=2pt,
+                  inner sep=4pt,minimum width=20mm,align=center},
+  escrow/.style={draw=hhebony,thick,fill=hhamber!30,rounded corners=2pt,
+                 inner sep=4pt,minimum width=20mm,align=center},
+  ins/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+              align=center,minimum width=18mm},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+]
+\begin{scope}[xshift=0cm]
+\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2) {(a) Static escrow};
+\node[actor] (p1) at (1.2,3.2) {Principal};
+\node[escrow,below=10mm of p1] (esc) {Escrow $B_T = \mu(1+s)$};
+\node[commons,below=10mm of esc] (c1) {Commons};
+\draw[arr] (p1.south) -- node[right,font=\sffamily\footnotesize]
+  {deposit $B_T$} (esc.north);
+\draw[arr] (esc.south) -- node[right,font=\sffamily\footnotesize]
+  {on loss: $\min(d, B_T)$} (c1.north);
+\node[align=center,font=\sffamily\footnotesize,
+      draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      below=8mm of c1,minimum width=42mm] (cost1)
+  {{\bfseries Principal cost} \\ $= \mathbb{E}[d] + r \cdot B_T$};
+\end{scope}
+\begin{scope}[xshift=8.2cm]
+\node[font=\sffamily\bfseries,anchor=center] at (1.2,4.2)
+  {(b) Competitive Vickrey};
+\node[actor] (p2) at (1.2,3.2) {Principal};
+\node[ins,fill=hhsand,below=11mm of p2,xshift=-15mm] (i1) {$A$\\$q_A$};
+\node[ins,fill=hhsand,below=11mm of p2] (i2) {$B$\\$q_B$};
+\node[ins,fill=hhsand,below=11mm of p2,xshift=15mm] (i3) {$C$\\$q_C$};
+\node[commons,below=11mm of i2] (c2) {Commons};
+% Vickrey 2nd-price callout placed to the RIGHT of the cohort, not below it.
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=2pt,
+      font=\sffamily\footnotesize,right=4mm of i3,align=center]
+  (vic) {Vickrey 2\textsuperscript{nd}-price\\$q^* = q_{(2)}$};
+\draw[arr] (p2.south) -- (i1.north);
+\draw[arr] (p2.south) -- (i2.north);
+\draw[arr] (p2.south) -- (i3.north);
+\draw[arr,line width=1.4pt,draw=hhcobalt] (i2.south) --
+  node[left,font=\sffamily\footnotesize]
+  {underwrites $B_T$} (c2.north);
+\node[align=center,font=\sffamily\footnotesize,
+      draw=hhebony,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+      below=8mm of c2,minimum width=42mm] (cost2)
+  {{\bfseries Principal cost} \\ $= q^*$ (no idle capital)};
+\end{scope}
+\end{tikzpicture}
+\caption{(SUPPRESSED — see inline Figure~\ref{fig:auction-inline}.)}
+\label{fig:auction-diag-suppressed}
+\end{figure}
+\fi
+
+% ──────────────────────────────────────────────────────────────────────
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  state/.style={draw=hhebony,thick,fill=hhsand,circle,inner sep=2pt,
+                minimum size=8mm,font=\sffamily\footnotesize},
+  decision/.style={draw=hhebony,thick,fill=hhpaper,rounded corners=3pt,
+                   inner sep=4pt,align=center,minimum width=20mm},
+  payoff/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
+                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+  bad/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+              inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries,
+              text=hhcobalt},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+  prob/.style={font=\sffamily\footnotesize\itshape,fill=hhpaper,inner sep=1pt},
+]
+\node[state] (rt) at (0,2.4) {round $t$};
+\node[decision,right=10mm of rt] (dec) {Action choice};
+\draw[arr] (rt) -- (dec);
+\node[decision,fill=hhteal!30,right=12mm of dec,yshift=14mm] (collude)
+  {COLLUDE\\$q_{\mathrm{floor}}$};
+\draw[arr] (dec.north east) to[bend left=10] (collude.west);
+\node[decision,fill=hhamber!40,right=12mm of dec,yshift=-14mm] (defect)
+  {DEFECT\\$-\varepsilon$};
+\draw[arr] (dec.south east) to[bend right=10] (defect.west);
+\node[state,right=14mm of collude,yshift=10mm] (det) {detected};
+\node[state,right=14mm of collude,yshift=-10mm] (safe) {survived};
+\draw[arr] (collude.east) to[bend left=10]
+  node[prob,above] {$p_d$} (det.west);
+\draw[arr] (collude.east) to[bend right=10]
+  node[prob,below] {$1-p_d$} (safe.west);
+\node[bad,right=4mm of det] {$-5(q_f - \mu)$};
+\node[payoff,right=4mm of safe] {$+\pi_C$};
+\node[state,right=14mm of defect] (collapse) {collapse};
+\draw[arr] (defect.east) -- (collapse.west);
+\node[payoff,right=4mm of collapse,fill=hhamber!20]
+  {$+\pi_D$ once,\\then $\pi_N \approx 0$};
+\node[draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
+      align=left,inner sep=6pt,
+      below=12mm of dec,minimum width=110mm]
+  {{\bfseries Folk-theorem sustainability:}
+   \quad
+   $\dfrac{\delta \cdot \pi_C}{1 - \delta(1 - p_d)} \;\geq\; \pi_D$};
+\end{tikzpicture}
+\caption{Cartel repeated-game node under the grim-trigger strategy. Each round a colluding member chooses between maintaining the floor $q_{\mathrm{floor}}$ or undercutting it by $\varepsilon$. Detection probability $p_d$ slashes the colluder; one-shot defection takes the $\pi_D$ gain once and forfeits future $\pi_C$ stream. The sustainability inequality on the right reduces to the closed-form threshold $p_d^\star$ used in Figure~\ref{fig:cartel-folk}.}
+\label{fig:cartel-game-diag}
+\end{figure}
+
+% (Sybil figure now lives inline at the A5 subsection — see fig-sybil-inline.tex)
+\iffalse
+% ──────────────────────────────────────────────────────────────────────
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  adv/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,
+              inner sep=4pt,minimum width=22mm,align=center,
+              font=\sffamily\bfseries,text=hhcobalt},
+  sybil/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+                inner sep=3pt,minimum width=16mm,align=center,
+                font=\sffamily\footnotesize},
+  honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+                 inner sep=3pt,minimum width=16mm,align=center},
+  auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
+                  inner sep=5pt,align=center,minimum width=28mm},
+  payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
+                 inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+]
+\node[adv] (attacker) at (0,4.2) {ATTACKER};
+\node[sybil,right=10mm of attacker.east,yshift=12mm] (s1)
+  {Sybil $S_1$\\dep $B_{\mathrm{dep}}$};
+\node[sybil,right=10mm of attacker.east] (s2)
+  {Sybil $S_2$\\dep $B_{\mathrm{dep}}$};
+\node[sybil,right=10mm of attacker.east,yshift=-12mm] (s3)
+  {Sybil $S_3$\\dep $B_{\mathrm{dep}}$};
+\draw[arr] (attacker.east) -- node[above,font=\sffamily\footnotesize]
+  {spawn} (s1.west);
+\draw[arr] (attacker.east) -- (s2.west);
+\draw[arr] (attacker.east) -- (s3.west);
+% Honest insurers — placed BELOW the Sybil cluster, on the LEFT side
+\node[honest,below=22mm of s3] (h1) {Honest $H_1$};
+\node[honest,right=3mm of h1] (h2) {Honest $H_2$};
+% Auction in the middle-right
+\node[auction,right=24mm of s2] (auction)
+  {Vickrey auction\\$q^* = q_{(2)}$};
+% Sybil undercut bids (red dashed) converging on auction
+\draw[badarr] (s1.east) to[bend left=8] (auction.west);
+\draw[badarr] (s2.east) -- (auction.west);
+\draw[badarr] (s3.east) to[bend right=8] (auction.west);
+% Honest bids feeding the auction from below-left
+\draw[arr] (h1.north) to[bend left=14] (auction.south);
+\draw[arr] (h2.north) to[bend left=8] (auction.south);
+% Floating callout for the undercut, placed ABOVE the auction
+\node[font=\sffamily\footnotesize\itshape,text=hhcobalt,
+      align=center,above=2mm of auction.north]
+  {sybils undercut by $(1-\varepsilon)$};
+% Winner — RIGHT of auction (no overlap risk)
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,inner sep=3pt,
+      align=center,right=10mm of auction,font=\sffamily\bfseries,
+      text=hhcobalt] (winner) {WINNER:\\$S_i$};
+\draw[arr,line width=1.4pt,draw=hhcobalt] (auction.east) -- (winner.west);
+% On-loss payout — BELOW the winner
+\node[payout,below=10mm of winner,fill=hhamber!20,minimum width=42mm,align=left]
+  (lossbox)
+  {{\bfseries on loss $d > 0$:}\\Sybil pays $0$;\\
+   protocol slashes $\min(B_{\mathrm{dep}}, B_T)$};
+\draw[arr,draw=hhcobalt,dashed] (winner.south) -- (lossbox.north);
+% A5 finding — FULL WIDTH below entire diagram, anchored to the page-relative center
+\node[draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,inner sep=5pt,
+      align=left,text width=140mm,
+      below=14mm of h1.south,xshift=44mm,anchor=north]
+  {{\bfseries A5 finding:} the deposit slash is capped at the coverage
+   $B_T = \mu(1+s)$. Past $B_{\mathrm{dep}} \geq B_T$, additional deposit
+   provides no extra deterrence. Closing A5 requires a composite
+   mechanism: $\mathbf{C_{\mathrm{kyc}} + \text{reputation gating} +
+   \text{per-class}\;B_{\mathrm{dep}}}$.};
+\end{tikzpicture}
+\caption{(SUPPRESSED — see inline Figure~\ref{fig:sybil-inline}.)}
+\label{fig:sybil-diag-suppressed}
+\end{figure}
+\fi

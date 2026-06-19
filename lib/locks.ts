@@ -1,0 +1,426 @@
+/**
+ * Distributed Locks Module
+ *
+ * Simple mutex locks for multi-agent coordination
+ * No shell commands - pure SQLite-backed locking
+ */
+
+import type Database from 'better-sqlite3';
+
+interface LockRow {
+  name: string;
+  owner: string;
+  pid: number | null;
+  acquired_at: number;
+  expires_at: number | null;
+  metadata: string | null;
+}
+
+interface AcquireOptions {
+  owner?: string;
+  pid?: number;
+  ttl?: number;
+  metadata?: Record<string, unknown> | null;
+}
+
+interface ReleaseOptions {
+  owner?: string | null;
+  force?: boolean;
+}
+
+interface ListOptions {
+  owner?: string | null;
+}
+
+interface ExtendOptions {
+  owner?: string | null;
+  ttl?: number;
+}
+
+interface SqliteError extends Error {
+  code?: string;
+}
+
+const CONTROL_CHARS_REGEX = /[\u0000-\u001f\u007f]/;
+
+function validateLockName(name: unknown, options: { allowWildcard?: boolean } = {}): string | null {
+  const { allowWildcard = false } = options;
+
+  if (typeof name !== 'string' || name.length === 0 || name.trim().length === 0) {
+    return 'lock name must be a non-empty string';
+  }
+
+  if (CONTROL_CHARS_REGEX.test(name)) {
+    return 'lock name cannot contain control characters';
+  }
+
+  if (!allowWildcard && name.includes('*')) {
+    return 'cannot acquire a lock with a wildcard in its name';
+  }
+
+  return null;
+}
+
+function lockPatternToSql(pattern: string): string {
+  return pattern
+    .replace(/\\/g, '\\\\')
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_')
+    .replace(/\*/g, '%');
+}
+
+/**
+ * Initialize the locks module with a database connection
+ */
+export function createLocks(db: Database.Database) {
+  // Ensure locks table exists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS locks (
+      name TEXT PRIMARY KEY,
+      owner TEXT NOT NULL,
+      pid INTEGER,
+      acquired_at INTEGER NOT NULL,
+      expires_at INTEGER,
+      metadata TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_locks_expires ON locks(expires_at);
+  `);
+
+  const stmts = {
+    get: db.prepare('SELECT * FROM locks WHERE name = ?'),
+    acquire: db.prepare(`
+      INSERT INTO locks (name, owner, pid, acquired_at, expires_at, metadata)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `),
+    release: db.prepare('DELETE FROM locks WHERE name = ?'),
+    releaseIfOwner: db.prepare('DELETE FROM locks WHERE name = ? AND owner = ?'),
+    releaseByPattern: db.prepare("DELETE FROM locks WHERE name LIKE ? ESCAPE '\\'"),
+    releaseExpired: db.prepare('DELETE FROM locks WHERE expires_at IS NOT NULL AND expires_at < ?'),
+    extend: db.prepare('UPDATE locks SET expires_at = ? WHERE name = ?'),
+    list: db.prepare('SELECT * FROM locks ORDER BY acquired_at DESC'),
+    listByOwner: db.prepare('SELECT * FROM locks WHERE owner = ?'),
+    listByPattern: db.prepare("SELECT * FROM locks WHERE name LIKE ? ESCAPE '\\' ORDER BY acquired_at DESC"),
+    listByOwnerPattern: db.prepare("SELECT * FROM locks WHERE owner LIKE ? ESCAPE '\\' ORDER BY acquired_at DESC"),
+  };
+
+  function safeJsonParse(value: string | null): Record<string, unknown> | null {
+    if (!value) return null;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Try to acquire a lock
+   * Returns immediately with success/failure
+   */
+  function acquire(name: string, options: AcquireOptions = {}) {
+    const validationError = validateLockName(name);
+    if (validationError) {
+      return { success: false, error: validationError };
+    }
+
+    const now = Date.now();
+    const {
+      owner = `agent-${process.pid}`,
+      pid = process.pid,
+      ttl: rawTtl = 300000, // 5 minutes default
+      metadata = null
+    } = options;
+
+    // Validate and normalize TTL
+    const DEFAULT_TTL = 300000; // 5 minutes
+    const MAX_TTL = 3600000;    // 1 hour max
+    let ttl: number;
+
+    if (rawTtl === null || rawTtl === undefined) {
+      ttl = DEFAULT_TTL;
+    } else if (typeof rawTtl === 'string') {
+      const parsed = parseInt(rawTtl, 10);
+      if (isNaN(parsed)) {
+        return { success: false, error: 'ttl must be a valid number', code: 'INVALID_TTL' };
+      }
+      ttl = parsed;
+    } else if (typeof rawTtl === 'number') {
+      if (!Number.isFinite(rawTtl)) {
+        return { success: false, error: 'ttl must be a finite number', code: 'INVALID_TTL' };
+      }
+      ttl = rawTtl;
+    } else {
+      return { success: false, error: 'ttl must be a number', code: 'INVALID_TTL' };
+    }
+
+    // Enforce bounds
+    if (ttl <= 0) {
+      ttl = DEFAULT_TTL;
+    } else if (ttl > MAX_TTL) {
+      ttl = MAX_TTL;
+    }
+
+    // Clean up expired locks first
+    stmts.releaseExpired.run(now);
+
+    // Check if lock exists
+    const existing = stmts.get.get(name) as LockRow | undefined;
+
+    if (existing) {
+      // Lock is held by someone else
+      return {
+        success: false,
+        error: 'lock is held',
+        holder: existing.owner,
+        heldSince: existing.acquired_at,
+        expiresAt: existing.expires_at
+      };
+    }
+
+    // Try to acquire
+    const expiresAt = ttl ? now + ttl : null;
+
+    try {
+      stmts.acquire.run(
+        name,
+        owner,
+        pid,
+        now,
+        expiresAt,
+        metadata ? JSON.stringify(metadata) : null
+      );
+
+      return {
+        success: true,
+        name,
+        owner,
+        acquiredAt: now,
+        expiresAt,
+        message: `acquired lock: ${name}`
+      };
+    } catch (err) {
+      if ((err as SqliteError)?.code === 'SQLITE_CONSTRAINT') {
+        // Race condition - someone else got it
+        const holder = stmts.get.get(name) as LockRow | undefined;
+        return {
+          success: false,
+          error: 'lock is held',
+          holder: holder?.owner,
+          heldSince: holder?.acquired_at
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Release a lock
+   */
+  function release(name: string, options: ReleaseOptions = {}) {
+    const validationError = validateLockName(name, { allowWildcard: true });
+    if (validationError) {
+      return { success: false, error: validationError };
+    }
+
+    const { owner = null, force = false } = options;
+
+    if (name.includes('*')) {
+      const sqlPattern = lockPatternToSql(name);
+
+      if (owner && !force) {
+        // If owner specified, we need to fetch and filter
+        const locks = stmts.listByPattern.all(sqlPattern) as LockRow[];
+        let released = 0;
+        for (const lock of locks) {
+          if (lock.owner === owner) {
+            stmts.release.run(lock.name);
+            released++;
+          }
+        }
+        return {
+          success: true,
+          released,
+          message: `released ${released} lock(s) matching ${name} for owner ${owner}`
+        };
+      }
+
+      const result = stmts.releaseByPattern.run(sqlPattern);
+      return {
+        success: true,
+        released: result.changes,
+        message: `released ${result.changes} lock(s) matching ${name}`
+      };
+    }
+
+    const existing = stmts.get.get(name) as LockRow | undefined;
+    if (!existing) {
+      return { success: true, released: false, message: 'lock not held' };
+    }
+
+    // If owner specified, only release if we own it
+    if (owner && !force) {
+      const result = stmts.releaseIfOwner.run(name, owner);
+      if (result.changes === 0) {
+        return {
+          success: false,
+          error: 'lock held by another owner',
+          holder: existing.owner
+        };
+      }
+    } else {
+      stmts.release.run(name);
+    }
+
+    return {
+      success: true,
+      released: true,
+      name,
+      message: `released lock: ${name}`
+    };
+  }
+
+  /**
+   * Check if a lock is held
+   */
+  function check(name: string) {
+    const validationError = validateLockName(name);
+    if (validationError) {
+      return { success: false, error: validationError };
+    }
+
+    // Clean expired first
+    stmts.releaseExpired.run(Date.now());
+
+    const lock = stmts.get.get(name) as LockRow | undefined;
+
+    if (!lock) {
+      return { success: true, held: false, name };
+    }
+
+    return {
+      success: true,
+      held: true,
+      name,
+      owner: lock.owner,
+      pid: lock.pid,
+      acquiredAt: lock.acquired_at,
+      expiresAt: lock.expires_at,
+      metadata: safeJsonParse(lock.metadata)
+    };
+  }
+
+  /**
+   * List all active locks
+   */
+  function list(options: ListOptions = {}) {
+    const { owner = null } = options;
+
+    // Clean expired first
+    stmts.releaseExpired.run(Date.now());
+
+    let locks: LockRow[];
+    if (owner) {
+      if (owner.includes('*')) {
+        const sqlPattern = lockPatternToSql(owner);
+        locks = stmts.listByOwnerPattern.all(sqlPattern) as LockRow[];
+      } else {
+        locks = stmts.listByOwner.all(owner) as LockRow[];
+      }
+    } else {
+      locks = stmts.list.all() as LockRow[];
+    }
+
+    return {
+      success: true,
+      locks: locks.map(l => ({
+        name: l.name,
+        owner: l.owner,
+        pid: l.pid,
+        acquiredAt: l.acquired_at,
+        expiresAt: l.expires_at,
+        metadata: safeJsonParse(l.metadata)
+      })),
+      count: locks.length
+    };
+  }
+
+  /**
+   * Extend a lock's TTL
+   */
+  function extend(name: string, options: ExtendOptions = {}) {
+    const validationError = validateLockName(name);
+    if (validationError) {
+      return { success: false, error: validationError };
+    }
+
+    const { owner = null, ttl: rawTtl = 300000 } = options;
+    const now = Date.now();
+
+    // Validate and normalize TTL (same logic as acquire)
+    const DEFAULT_TTL = 300000;
+    const MAX_TTL = 3600000;
+    let ttl: number;
+
+    if (rawTtl === null || rawTtl === undefined) {
+      ttl = DEFAULT_TTL;
+    } else if (typeof rawTtl === 'string') {
+      const parsed = parseInt(rawTtl, 10);
+      if (isNaN(parsed)) {
+        return { success: false, error: 'ttl must be a valid number', code: 'INVALID_TTL' };
+      }
+      ttl = parsed;
+    } else if (typeof rawTtl === 'number') {
+      if (!Number.isFinite(rawTtl)) {
+        return { success: false, error: 'ttl must be a finite number', code: 'INVALID_TTL' };
+      }
+      ttl = rawTtl;
+    } else {
+      return { success: false, error: 'ttl must be a number', code: 'INVALID_TTL' };
+    }
+
+    if (ttl <= 0) {
+      ttl = DEFAULT_TTL;
+    } else if (ttl > MAX_TTL) {
+      ttl = MAX_TTL;
+    }
+
+    // Clean expired locks first (consistent with acquire/check/list)
+    stmts.releaseExpired.run(now);
+
+    const existing = stmts.get.get(name) as LockRow | undefined;
+    if (!existing) {
+      return { success: false, error: 'lock not held' };
+    }
+
+    if (owner && existing.owner !== owner) {
+      return { success: false, error: 'lock held by another owner' };
+    }
+
+    const newExpiry = now + ttl;
+    stmts.extend.run(newExpiry, name);
+
+    return {
+      success: true,
+      name,
+      expiresAt: newExpiry,
+      message: `extended lock: ${name}`
+    };
+  }
+
+  /**
+   * Cleanup expired locks
+   */
+  function cleanup() {
+    const result = stmts.releaseExpired.run(Date.now());
+    return { cleaned: result.changes };
+  }
+
+  return {
+    acquire,
+    release,
+    check,
+    list,
+    extend,
+    cleanup
+  };
+}

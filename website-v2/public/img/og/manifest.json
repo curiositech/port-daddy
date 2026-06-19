@@ -1,0 +1,2479 @@
+{
+  "generatedAt": "2026-05-02T02:11:05.992Z",
+  "generator": "website-v2/scripts/generate-og-cards.mjs",
+  "renderer": "website-v2/scripts/render-og-cards.py",
+  "siteName": "Port Daddy",
+  "defaultImage": "/img/og/home.jpg",
+  "cardSize": {
+    "width": 1200,
+    "height": 630
+  },
+  "routes": [
+    {
+      "image": "/img/og/agents-templates.jpg",
+      "route": "/agents/templates",
+      "title": "Agent Templates - Port Daddy",
+      "description": "Use the current Port Daddy agent templates: starter fleet YAML, always-on agents, CI repair loops, event-driven ops, remote harbors, research swarms, and secure messaging primitives.",
+      "section": "templates",
+      "sectionLabel": "Agent Templates",
+      "sourceImage": "/img/generated/shipwright-proposal.jpg"
+    },
+    {
+      "image": "/img/og/agents.jpg",
+      "route": "/agents",
+      "title": "Agent Roster - Port Daddy",
+      "description": "Meet the Port Daddy agent roles that monitor health, salvage crashed work, document drift, coordinate projects, and inspect dependencies.",
+      "section": "product",
+      "sectionLabel": "Agent Roster",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/blog-backend-readiness-is-dependency-truth.jpg",
+      "route": "/blog/backend-readiness-is-dependency-truth",
+      "title": "Backend Readiness Is Dependency Truth - Port Daddy",
+      "description": "A model backend is ready only when credentials, packages, CLI auth, model catalog, and telemetry policy all agree.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-backend-readiness.jpg"
+    },
+    {
+      "image": "/img/og/blog-bond-pricing-is-a-market.jpg",
+      "route": "/blog/bond-pricing-is-a-market",
+      "title": "Bond Pricing Is a Market, Not a Constant - Port Daddy",
+      "description": "Daily budgets are training wheels. The v2 of the Bonded Commons paper points at the destination: cleanup-cost lower bounds, scope multipliers, the Bonded Advisor pattern, and Thomas Youle's competitive-insurance market.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-control-plane-product.jpg"
+    },
+    {
+      "image": "/img/og/blog-control-plane-is-the-product.jpg",
+      "route": "/blog/control-plane-is-the-product",
+      "title": "The Control Plane Is the Product - Port Daddy",
+      "description": "A local agent system is only trustworthy when project identity, file ownership, runtime provenance, backend readiness, cost, and recovery share one inspectable control plane.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-control-plane-product.jpg"
+    },
+    {
+      "image": "/img/og/blog-coordination-guard-claims-into-policy.jpg",
+      "route": "/blog/coordination-guard-claims-into-policy",
+      "title": "Coordination Guard Turns Claims Into Policy - Port Daddy",
+      "description": "Notes and file claims are useful as shared facts. Coordination Guard makes them matter at commit time.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-coordination-guard-policy.jpg"
+    },
+    {
+      "image": "/img/og/blog-evidence-that-survives-machines.jpg",
+      "route": "/blog/evidence-that-survives-machines",
+      "title": "Evidence That Survives Multiple Machines - Port Daddy",
+      "description": "A note that only your laptop can verify is half a record. The v2 Merkle forest, the KMS witness, and the new mutable-signal ledger turn evidence into something a CI pipeline or a teammate can verify in 700 bytes.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-map-truth.jpg"
+    },
+    {
+      "image": "/img/og/blog-fleet-designer-cold-start.jpg",
+      "route": "/blog/fleet-designer-cold-start",
+      "title": "Cold Start Without Surprise Launches - Port Daddy",
+      "description": "A good first-run flow should inspect the repo, expose missing credentials, simulate the fleet, and keep the human in control before any agent starts spending money.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-fleet-designer-cold-start.jpg"
+    },
+    {
+      "image": "/img/og/blog-passkey-identity-across-machines.jpg",
+      "route": "/blog/passkey-identity-across-machines",
+      "title": "Passkey Identity Across Machines - Port Daddy",
+      "description": "Single-node scope was a true description that stopped being true. The Federated Sovereign replaces it with passkey-first identity, an abstract KMS, mobile-as-viewer, and an honest recovery story.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-daemon-provenance.jpg"
+    },
+    {
+      "image": "/img/og/blog-pd-tube-event-reply-loop.jpg",
+      "route": "/blog/pd-tube-event-reply-loop",
+      "title": "PD Tube Turns UI Events Into Agent Work - Port Daddy",
+      "description": "PD Tube is the small event-reply loop underneath button-to-agent examples, test reporters, editor lightbulbs, and webhook adapters.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-pd-tube-event-reply.jpg"
+    },
+    {
+      "image": "/img/og/blog-recovery-roadmap-map-truth.jpg",
+      "route": "/blog/recovery-roadmap-map-truth",
+      "title": "Keeping the Map Honest - Port Daddy",
+      "description": "Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-map-truth.jpg"
+    },
+    {
+      "image": "/img/og/blog-red-and-white-stay-in-their-lanes.jpg",
+      "route": "/blog/red-and-white-stay-in-their-lanes",
+      "title": "Red and White Stay In Their Lanes - Port Daddy",
+      "description": "Adversarial review of the Bonded Commons + Anchor Protocol whitepapers now runs as a monthly versioned round, with a ProVerif-proved isolation property between red-team and white-hat fleets. This post explains the crypto, the gates, and what an operator should expect to see.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-map-truth.jpg"
+    },
+    {
+      "image": "/img/og/blog-running-is-not-current.jpg",
+      "route": "/blog/running-is-not-current",
+      "title": "Running Is Not the Same as Current - Port Daddy",
+      "description": "A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-daemon-provenance.jpg"
+    },
+    {
+      "image": "/img/og/blog-telemetry-is-a-launch-gate.jpg",
+      "route": "/blog/telemetry-is-a-launch-gate",
+      "title": "Telemetry Is a Launch Gate - Port Daddy",
+      "description": "Operator-facing launches should not succeed unless the backend can prove exact tokens, exact rates, and persisted nonzero cost.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-telemetry-launch-gate.jpg"
+    },
+    {
+      "image": "/img/og/blog.jpg",
+      "route": "/blog",
+      "title": "Blog - Port Daddy",
+      "description": "Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-api.jpg",
+      "route": "/docs/api",
+      "title": "API Reference - Port Daddy",
+      "description": "Inspect Port Daddy API routes, request shapes, response contracts, and the workflows they support.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-best-practices.jpg",
+      "route": "/docs/best-practices",
+      "title": "Best Practices - Port Daddy",
+      "description": "Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-activity.jpg",
+      "route": "/docs/cli/activity",
+      "title": "pd activity - Port Daddy",
+      "description": "Reference for pd activity, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-actor.jpg",
+      "route": "/docs/cli/actor",
+      "title": "pd actor <id> - Port Daddy",
+      "description": "Reference for pd actor <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-actors.jpg",
+      "route": "/docs/cli/actors",
+      "title": "pd actors - Port Daddy",
+      "description": "Reference for pd actors, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-add.jpg",
+      "route": "/docs/cli/add",
+      "title": "pd add [path...] - Port Daddy",
+      "description": "Reference for pd add [path...], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-advise.jpg",
+      "route": "/docs/cli/advise",
+      "title": "pd advise [files...] - Port Daddy",
+      "description": "Reference for pd advise [files...], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agent-heartbeat-unregister-inbox.jpg",
+      "route": "/docs/cli/agent-heartbeat-unregister-inbox",
+      "title": "pd agent heartbeat|unregister|inbox|<id> - Port Daddy",
+      "description": "Reference for pd agent heartbeat|unregister|inbox|<id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agent-register.jpg",
+      "route": "/docs/cli/agent-register",
+      "title": "pd agent register - Port Daddy",
+      "description": "Reference for pd agent register, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agent-run.jpg",
+      "route": "/docs/cli/agent-run",
+      "title": "pd agent run <task> - Port Daddy",
+      "description": "Reference for pd agent run <task>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agent.jpg",
+      "route": "/docs/cli/agent",
+      "title": "pd agent \"task\" - Port Daddy",
+      "description": "Reference for pd agent \"task\", including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-agents.jpg",
+      "route": "/docs/cli/agents",
+      "title": "pd agents - Port Daddy",
+      "description": "Reference for pd agents, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-b.jpg",
+      "route": "/docs/cli/b",
+      "title": "pd b - Port Daddy",
+      "description": "Reference for pd b, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-begin.jpg",
+      "route": "/docs/cli/begin",
+      "title": "pd begin \"purpose\" - Port Daddy",
+      "description": "Reference for pd begin \"purpose\", including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-bench.jpg",
+      "route": "/docs/cli/bench",
+      "title": "pd bench [iterations] - Port Daddy",
+      "description": "Reference for pd bench [iterations], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-bond.jpg",
+      "route": "/docs/cli/bond",
+      "title": "pd bond <command> - Port Daddy",
+      "description": "Reference for pd bond <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-briefing.jpg",
+      "route": "/docs/cli/briefing",
+      "title": "pd briefing - Port Daddy",
+      "description": "Reference for pd briefing, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-broadcast.jpg",
+      "route": "/docs/cli/broadcast",
+      "title": "pd broadcast - Port Daddy",
+      "description": "Reference for pd broadcast, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-c.jpg",
+      "route": "/docs/cli/c",
+      "title": "pd c - Port Daddy",
+      "description": "Reference for pd c, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-changelog.jpg",
+      "route": "/docs/cli/changelog",
+      "title": "pd changelog <command> - Port Daddy",
+      "description": "Reference for pd changelog <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-channels.jpg",
+      "route": "/docs/cli/channels",
+      "title": "pd channels - Port Daddy",
+      "description": "Reference for pd channels, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ci-gate.jpg",
+      "route": "/docs/cli/ci-gate",
+      "title": "pd ci-gate - Port Daddy",
+      "description": "Reference for pd ci-gate, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-claim.jpg",
+      "route": "/docs/cli/claim",
+      "title": "pd claim <id> - Port Daddy",
+      "description": "Reference for pd claim <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-compass.jpg",
+      "route": "/docs/cli/compass",
+      "title": "pd compass - Port Daddy",
+      "description": "Reference for pd compass, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-config.jpg",
+      "route": "/docs/cli/config",
+      "title": "pd config - Port Daddy",
+      "description": "Reference for pd config, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-d.jpg",
+      "route": "/docs/cli/d",
+      "title": "pd d - Port Daddy",
+      "description": "Reference for pd d, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-daemon.jpg",
+      "route": "/docs/cli/daemon",
+      "title": "pd daemon <command> - Port Daddy",
+      "description": "Reference for pd daemon <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-dashboard.jpg",
+      "route": "/docs/cli/dashboard",
+      "title": "pd dashboard - Port Daddy",
+      "description": "Reference for pd dashboard, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-demo.jpg",
+      "route": "/docs/cli/demo",
+      "title": "pd demo <name> - Port Daddy",
+      "description": "Reference for pd demo <name>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-dev.jpg",
+      "route": "/docs/cli/dev",
+      "title": "pd dev <command> - Port Daddy",
+      "description": "Reference for pd dev <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-diagnose.jpg",
+      "route": "/docs/cli/diagnose",
+      "title": "pd diagnose - Port Daddy",
+      "description": "Reference for pd diagnose, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-dns.jpg",
+      "route": "/docs/cli/dns",
+      "title": "pd dns <command> - Port Daddy",
+      "description": "Reference for pd dns <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-doctor.jpg",
+      "route": "/docs/cli/doctor",
+      "title": "pd doctor - Port Daddy",
+      "description": "Reference for pd doctor, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-done.jpg",
+      "route": "/docs/cli/done",
+      "title": "pd done \"summary\" - Port Daddy",
+      "description": "Reference for pd done \"summary\", including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-down.jpg",
+      "route": "/docs/cli/down",
+      "title": "pd down - Port Daddy",
+      "description": "Reference for pd down, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-env.jpg",
+      "route": "/docs/cli/env",
+      "title": "pd env [pattern] - Port Daddy",
+      "description": "Reference for pd env [pattern], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-f.jpg",
+      "route": "/docs/cli/f",
+      "title": "pd f - Port Daddy",
+      "description": "Reference for pd f, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-feedback.jpg",
+      "route": "/docs/cli/feedback",
+      "title": "pd feedback <command> - Port Daddy",
+      "description": "Reference for pd feedback <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-find.jpg",
+      "route": "/docs/cli/find",
+      "title": "pd find [pattern] - Port Daddy",
+      "description": "Reference for pd find [pattern], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-fleet-panic-unpanic.jpg",
+      "route": "/docs/cli/fleet-panic-unpanic",
+      "title": "pd fleet panic|unpanic - Port Daddy",
+      "description": "Reference for pd fleet panic|unpanic, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-fleet.jpg",
+      "route": "/docs/cli/fleet",
+      "title": "pd fleet init|up|down|status|validate|run - Port Daddy",
+      "description": "Reference for pd fleet init|up|down|status|validate|run, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-graph-edges-stats.jpg",
+      "route": "/docs/cli/graph-edges-stats",
+      "title": "pd graph edges|stats - Port Daddy",
+      "description": "Reference for pd graph edges|stats, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-guard.jpg",
+      "route": "/docs/cli/guard",
+      "title": "pd guard <command> - Port Daddy",
+      "description": "Reference for pd guard <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-harbor-create.jpg",
+      "route": "/docs/cli/harbor-create",
+      "title": "pd harbor create|enter|leave|show|destroy - Port Daddy",
+      "description": "Reference for pd harbor create|enter|leave|show|destroy, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-harbors.jpg",
+      "route": "/docs/cli/harbors",
+      "title": "pd harbors - Port Daddy",
+      "description": "Reference for pd harbors, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-health.jpg",
+      "route": "/docs/cli/health",
+      "title": "pd health - Port Daddy",
+      "description": "Reference for pd health, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-help.jpg",
+      "route": "/docs/cli/help",
+      "title": "pd help <topic> - Port Daddy",
+      "description": "Reference for pd help <topic>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-hints.jpg",
+      "route": "/docs/cli/hints",
+      "title": "pd hints - Port Daddy",
+      "description": "Reference for pd hints, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-history.jpg",
+      "route": "/docs/cli/history",
+      "title": "pd history - Port Daddy",
+      "description": "Reference for pd history, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ideas-list-search-show.jpg",
+      "route": "/docs/cli/ideas-list-search-show",
+      "title": "pd ideas list|search|show - Port Daddy",
+      "description": "Reference for pd ideas list|search|show, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-inbox.jpg",
+      "route": "/docs/cli/inbox",
+      "title": "pd inbox <command> - Port Daddy",
+      "description": "Reference for pd inbox <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-init.jpg",
+      "route": "/docs/cli/init",
+      "title": "pd init - Port Daddy",
+      "description": "Reference for pd init, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-install.jpg",
+      "route": "/docs/cli/install",
+      "title": "pd install - Port Daddy",
+      "description": "Reference for pd install, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-integration.jpg",
+      "route": "/docs/cli/integration",
+      "title": "pd integration <command> - Port Daddy",
+      "description": "Reference for pd integration <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-l.jpg",
+      "route": "/docs/cli/l",
+      "title": "pd l - Port Daddy",
+      "description": "Reference for pd l, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-learn.jpg",
+      "route": "/docs/cli/learn",
+      "title": "pd learn - Port Daddy",
+      "description": "Reference for pd learn, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-list.jpg",
+      "route": "/docs/cli/list",
+      "title": "pd list - Port Daddy",
+      "description": "Reference for pd list, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-listen.jpg",
+      "route": "/docs/cli/listen",
+      "title": "pd listen - Port Daddy",
+      "description": "Reference for pd listen, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-lock-acquire.jpg",
+      "route": "/docs/cli/lock-acquire",
+      "title": "pd lock <name> - Port Daddy",
+      "description": "Reference for pd lock <name>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-lock-release.jpg",
+      "route": "/docs/cli/lock-release",
+      "title": "pd unlock <name> - Port Daddy",
+      "description": "Reference for pd unlock <name>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-locks.jpg",
+      "route": "/docs/cli/locks",
+      "title": "pd locks - Port Daddy",
+      "description": "Reference for pd locks, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-log.jpg",
+      "route": "/docs/cli/log",
+      "title": "pd log - Port Daddy",
+      "description": "Reference for pd log, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-look.jpg",
+      "route": "/docs/cli/look",
+      "title": "pd look - Port Daddy",
+      "description": "Reference for pd look, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-mcp-install.jpg",
+      "route": "/docs/cli/mcp-install",
+      "title": "pd mcp install - Port Daddy",
+      "description": "Reference for pd mcp install, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-mcp.jpg",
+      "route": "/docs/cli/mcp",
+      "title": "pd mcp - Port Daddy",
+      "description": "Reference for pd mcp, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-memory-episodes-stats.jpg",
+      "route": "/docs/cli/memory-episodes-stats",
+      "title": "pd memory episodes|stats - Port Daddy",
+      "description": "Reference for pd memory episodes|stats, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-metrics.jpg",
+      "route": "/docs/cli/metrics",
+      "title": "pd metrics - Port Daddy",
+      "description": "Reference for pd metrics, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-n.jpg",
+      "route": "/docs/cli/n",
+      "title": "pd n - Port Daddy",
+      "description": "Reference for pd n, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-note.jpg",
+      "route": "/docs/cli/note",
+      "title": "pd note <content> - Port Daddy",
+      "description": "Reference for pd note <content>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-notes.jpg",
+      "route": "/docs/cli/notes",
+      "title": "pd notes [session-id] - Port Daddy",
+      "description": "Reference for pd notes [session-id], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-p.jpg",
+      "route": "/docs/cli/p",
+      "title": "pd p - Port Daddy",
+      "description": "Reference for pd p, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ph.jpg",
+      "route": "/docs/cli/ph",
+      "title": "pd ph - Port Daddy",
+      "description": "Reference for pd ph, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-pheromone.jpg",
+      "route": "/docs/cli/pheromone",
+      "title": "pd pheromone <command> - Port Daddy",
+      "description": "Reference for pd pheromone <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ports.jpg",
+      "route": "/docs/cli/ports",
+      "title": "pd ports - Port Daddy",
+      "description": "Reference for pd ports, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-preflight.jpg",
+      "route": "/docs/cli/preflight",
+      "title": "pd preflight - Port Daddy",
+      "description": "Reference for pd preflight, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-projects.jpg",
+      "route": "/docs/cli/projects",
+      "title": "pd projects - Port Daddy",
+      "description": "Reference for pd projects, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-ps.jpg",
+      "route": "/docs/cli/ps",
+      "title": "pd ps - Port Daddy",
+      "description": "Reference for pd ps, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-pub.jpg",
+      "route": "/docs/cli/pub",
+      "title": "pd pub <channel> <message> - Port Daddy",
+      "description": "Reference for pd pub <channel> <message>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-publish.jpg",
+      "route": "/docs/cli/publish",
+      "title": "pd publish - Port Daddy",
+      "description": "Reference for pd publish, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-quorum.jpg",
+      "route": "/docs/cli/quorum",
+      "title": "pd quorum <command> - Port Daddy",
+      "description": "Reference for pd quorum <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-r.jpg",
+      "route": "/docs/cli/r",
+      "title": "pd r - Port Daddy",
+      "description": "Reference for pd r, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-release.jpg",
+      "route": "/docs/cli/release",
+      "title": "pd release <id> - Port Daddy",
+      "description": "Reference for pd release <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-restart.jpg",
+      "route": "/docs/cli/restart",
+      "title": "pd restart - Port Daddy",
+      "description": "Reference for pd restart, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-resurrection.jpg",
+      "route": "/docs/cli/resurrection",
+      "title": "pd resurrection - Port Daddy",
+      "description": "Reference for pd resurrection, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-roadmap.jpg",
+      "route": "/docs/cli/roadmap",
+      "title": "pd roadmap - Port Daddy",
+      "description": "Reference for pd roadmap, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-s.jpg",
+      "route": "/docs/cli/s",
+      "title": "pd s - Port Daddy",
+      "description": "Reference for pd s, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-salvage-claim.jpg",
+      "route": "/docs/cli/salvage-claim",
+      "title": "pd salvage claim <agent> - Port Daddy",
+      "description": "Reference for pd salvage claim <agent>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-salvage-complete-abandon-dismiss.jpg",
+      "route": "/docs/cli/salvage-complete-abandon-dismiss",
+      "title": "pd salvage complete|abandon|dismiss - Port Daddy",
+      "description": "Reference for pd salvage complete|abandon|dismiss, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-salvage.jpg",
+      "route": "/docs/cli/salvage",
+      "title": "pd salvage - Port Daddy",
+      "description": "Reference for pd salvage, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-say.jpg",
+      "route": "/docs/cli/say",
+      "title": "pd say <content> - Port Daddy",
+      "description": "Reference for pd say <content>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-scan.jpg",
+      "route": "/docs/cli/scan",
+      "title": "pd scan [dir] - Port Daddy",
+      "description": "Reference for pd scan [dir], including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-services.jpg",
+      "route": "/docs/cli/services",
+      "title": "pd services - Port Daddy",
+      "description": "Reference for pd services, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-session.jpg",
+      "route": "/docs/cli/session",
+      "title": "pd session <command> - Port Daddy",
+      "description": "Reference for pd session <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sessions.jpg",
+      "route": "/docs/cli/sessions",
+      "title": "pd sessions - Port Daddy",
+      "description": "Reference for pd sessions, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-setup.jpg",
+      "route": "/docs/cli/setup",
+      "title": "pd setup - Port Daddy",
+      "description": "Reference for pd setup, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sitrep.jpg",
+      "route": "/docs/cli/sitrep",
+      "title": "pd sitrep - Port Daddy",
+      "description": "Reference for pd sitrep, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sortie-list-status-logs.jpg",
+      "route": "/docs/cli/sortie-list-status-logs",
+      "title": "pd sortie list|status|logs - Port Daddy",
+      "description": "Reference for pd sortie list|status|logs, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sortie.jpg",
+      "route": "/docs/cli/sortie",
+      "title": "pd sortie <goal> - Port Daddy",
+      "description": "Reference for pd sortie <goal>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-spawn-kill.jpg",
+      "route": "/docs/cli/spawn-kill",
+      "title": "pd spawn kill <agent> - Port Daddy",
+      "description": "Reference for pd spawn kill <agent>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-spawn.jpg",
+      "route": "/docs/cli/spawn",
+      "title": "pd spawn <task> - Port Daddy",
+      "description": "Reference for pd spawn <task>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-spawned.jpg",
+      "route": "/docs/cli/spawned",
+      "title": "pd spawned - Port Daddy",
+      "description": "Reference for pd spawned, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-start.jpg",
+      "route": "/docs/cli/start",
+      "title": "pd start - Port Daddy",
+      "description": "Reference for pd start, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-status.jpg",
+      "route": "/docs/cli/status",
+      "title": "pd status - Port Daddy",
+      "description": "Reference for pd status, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-stop.jpg",
+      "route": "/docs/cli/stop",
+      "title": "pd stop - Port Daddy",
+      "description": "Reference for pd stop, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-sub.jpg",
+      "route": "/docs/cli/sub",
+      "title": "pd sub <channel> - Port Daddy",
+      "description": "Reference for pd sub <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-subscribe.jpg",
+      "route": "/docs/cli/subscribe",
+      "title": "pd subscribe - Port Daddy",
+      "description": "Reference for pd subscribe, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-swarm.jpg",
+      "route": "/docs/cli/swarm",
+      "title": "pd swarm - Port Daddy",
+      "description": "Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tube-chat.jpg",
+      "route": "/docs/cli/tube-chat",
+      "title": "pd tube chat <channel> - Port Daddy",
+      "description": "Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tube.jpg",
+      "route": "/docs/cli/tube",
+      "title": "pd tube <channel> - Port Daddy",
+      "description": "Reference for pd tube <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tunnel-stop.jpg",
+      "route": "/docs/cli/tunnel-stop",
+      "title": "pd tunnel stop <identity> - Port Daddy",
+      "description": "Reference for pd tunnel stop <identity>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tunnel.jpg",
+      "route": "/docs/cli/tunnel",
+      "title": "pd tunnel <identity> - Port Daddy",
+      "description": "Reference for pd tunnel <identity>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tuple.jpg",
+      "route": "/docs/cli/tuple",
+      "title": "pd tuple <command> - Port Daddy",
+      "description": "Reference for pd tuple <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-tutorial.jpg",
+      "route": "/docs/cli/tutorial",
+      "title": "pd tutorial - Port Daddy",
+      "description": "Reference for pd tutorial, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-u.jpg",
+      "route": "/docs/cli/u",
+      "title": "pd u - Port Daddy",
+      "description": "Reference for pd u, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-uninstall.jpg",
+      "route": "/docs/cli/uninstall",
+      "title": "pd uninstall - Port Daddy",
+      "description": "Reference for pd uninstall, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-up.jpg",
+      "route": "/docs/cli/up",
+      "title": "pd up - Port Daddy",
+      "description": "Reference for pd up, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-url.jpg",
+      "route": "/docs/cli/url",
+      "title": "pd url <id> - Port Daddy",
+      "description": "Reference for pd url <id>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-version.jpg",
+      "route": "/docs/cli/version",
+      "title": "pd version - Port Daddy",
+      "description": "Reference for pd version, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-w.jpg",
+      "route": "/docs/cli/w",
+      "title": "pd w - Port Daddy",
+      "description": "Reference for pd w, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-wait.jpg",
+      "route": "/docs/cli/wait",
+      "title": "pd wait <service...> - Port Daddy",
+      "description": "Reference for pd wait <service...>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-wallet.jpg",
+      "route": "/docs/cli/wallet",
+      "title": "pd wallet <command> - Port Daddy",
+      "description": "Reference for pd wallet <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-watch.jpg",
+      "route": "/docs/cli/watch",
+      "title": "pd watch <channel> - Port Daddy",
+      "description": "Reference for pd watch <channel>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-webhook.jpg",
+      "route": "/docs/cli/webhook",
+      "title": "pd webhook <command> - Port Daddy",
+      "description": "Reference for pd webhook <command>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-webhooks.jpg",
+      "route": "/docs/cli/webhooks",
+      "title": "pd webhooks - Port Daddy",
+      "description": "Reference for pd webhooks, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-who-owns.jpg",
+      "route": "/docs/cli/who-owns",
+      "title": "pd who-owns <path> - Port Daddy",
+      "description": "Reference for pd who-owns <path>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-whoami.jpg",
+      "route": "/docs/cli/whoami",
+      "title": "pd whoami - Port Daddy",
+      "description": "Reference for pd whoami, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-with-lock.jpg",
+      "route": "/docs/cli/with-lock",
+      "title": "pd with-lock <name> -- <cmd> - Port Daddy",
+      "description": "Reference for pd with-lock <name> -- <cmd>, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli.jpg",
+      "route": "/docs/cli",
+      "title": "CLI Overview - Port Daddy",
+      "description": "Reference for CLI Overview, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-concepts.jpg",
+      "route": "/docs/concepts",
+      "title": "Concepts - Port Daddy",
+      "description": "Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-arbiter.jpg",
+      "route": "/docs/features/arbiter",
+      "title": "Arbiter - Port Daddy",
+      "description": "Learn the Port Daddy arbiter feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-avatars.jpg",
+      "route": "/docs/features/avatars",
+      "title": "Agent Avatars - Port Daddy",
+      "description": "Learn the Port Daddy agent avatars feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-dns.jpg",
+      "route": "/docs/features/dns",
+      "title": "DNS Resolver - Port Daddy",
+      "description": "Learn the Port Daddy dns resolver feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-fleet.jpg",
+      "route": "/docs/features/fleet",
+      "title": "Fleet YAML - Port Daddy",
+      "description": "Learn the Port Daddy fleet yaml feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-harbors.jpg",
+      "route": "/docs/features/harbors",
+      "title": "Harbors - Port Daddy",
+      "description": "Learn the Port Daddy harbors feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-pheromone.jpg",
+      "route": "/docs/features/pheromone",
+      "title": "Pheromone Trails - Port Daddy",
+      "description": "Learn the Port Daddy pheromone trails feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-ports.jpg",
+      "route": "/docs/features/ports",
+      "title": "Port Claims - Port Daddy",
+      "description": "Learn the Port Daddy port claims feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-radio.jpg",
+      "route": "/docs/features/radio",
+      "title": "Radio Messaging - Port Daddy",
+      "description": "Learn the Port Daddy radio messaging feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-relay-pki.jpg",
+      "route": "/docs/features/relay-pki",
+      "title": "Relay PKI - Port Daddy",
+      "description": "Learn the Port Daddy relay pki feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-remote.jpg",
+      "route": "/docs/features/remote",
+      "title": "Remote Coordination - Port Daddy",
+      "description": "Learn the Port Daddy remote coordination feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-salvage.jpg",
+      "route": "/docs/features/salvage",
+      "title": "Salvage - Port Daddy",
+      "description": "Learn the Port Daddy salvage feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-sessions.jpg",
+      "route": "/docs/features/sessions",
+      "title": "Sessions - Port Daddy",
+      "description": "Learn the Port Daddy sessions feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-timeline.jpg",
+      "route": "/docs/features/timeline",
+      "title": "Timeline - Port Daddy",
+      "description": "Learn the Port Daddy timeline feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-tunnels.jpg",
+      "route": "/docs/features/tunnels",
+      "title": "Tunnels - Port Daddy",
+      "description": "Learn the Port Daddy tunnels feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-features-tuples.jpg",
+      "route": "/docs/features/tuples",
+      "title": "Tuples - Port Daddy",
+      "description": "Learn the Port Daddy tuples feature, what problem it solves, and how to use it with agent work.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-get-started.jpg",
+      "route": "/docs/get-started",
+      "title": "Get Started - Port Daddy",
+      "description": "Install Port Daddy, check that it is running, and try your first coordinated agent task.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/docs-guides-prompting-agents.jpg",
+      "route": "/docs/guides/prompting-agents",
+      "title": "Prompting Agents - Port Daddy",
+      "description": "Prompt agents to use Port Daddy sessions, notes, file claims, and shared status.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-guides-protocol.jpg",
+      "route": "/docs/guides/protocol",
+      "title": "Protocol Guide - Port Daddy",
+      "description": "Understand how Port Daddy handles ports, sessions, locks, messages, harbors, and salvage.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-guides-templates.jpg",
+      "route": "/docs/guides/templates",
+      "title": "Template Guide - Port Daddy",
+      "description": "Adapt Port Daddy fleet templates for recurring project work, background agents, hooks, and review.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-acquire-lock.jpg",
+      "route": "/docs/mcp/acquire-lock",
+      "title": "MCP Acquire Lock Tool - Port Daddy",
+      "description": "Use MCP Acquire Lock Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-add-note.jpg",
+      "route": "/docs/mcp/add-note",
+      "title": "MCP Add Note Tool - Port Daddy",
+      "description": "Use MCP Add Note Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-begin-session.jpg",
+      "route": "/docs/mcp/begin-session",
+      "title": "MCP Begin Session Tool - Port Daddy",
+      "description": "Use MCP Begin Session Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-claim-port.jpg",
+      "route": "/docs/mcp/claim-port",
+      "title": "MCP Claim Port Tool - Port Daddy",
+      "description": "Use MCP Claim Port Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-claude.jpg",
+      "route": "/docs/mcp/claude",
+      "title": "Claude MCP Setup - Port Daddy",
+      "description": "Use Claude MCP Setup with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-create-harbor.jpg",
+      "route": "/docs/mcp/create-harbor",
+      "title": "MCP Create Harbor Tool - Port Daddy",
+      "description": "Use MCP Create Harbor Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-cursor.jpg",
+      "route": "/docs/mcp/cursor",
+      "title": "Cursor MCP Setup - Port Daddy",
+      "description": "Use Cursor MCP Setup with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-custom.jpg",
+      "route": "/docs/mcp/custom",
+      "title": "Custom MCP Clients - Port Daddy",
+      "description": "Use Custom MCP Clients with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-dns-register.jpg",
+      "route": "/docs/mcp/dns-register",
+      "title": "MCP DNS Register Tool - Port Daddy",
+      "description": "Use MCP DNS Register Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-dns-resolve.jpg",
+      "route": "/docs/mcp/dns-resolve",
+      "title": "MCP DNS Resolve Tool - Port Daddy",
+      "description": "Use MCP DNS Resolve Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-done-session.jpg",
+      "route": "/docs/mcp/done-session",
+      "title": "MCP Done Session Tool - Port Daddy",
+      "description": "Use MCP Done Session Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-down.jpg",
+      "route": "/docs/mcp/down",
+      "title": "MCP Down Tool - Port Daddy",
+      "description": "Use MCP Down Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-find-port.jpg",
+      "route": "/docs/mcp/find-port",
+      "title": "MCP Find Port Tool - Port Daddy",
+      "description": "Use MCP Find Port Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-leave-harbor.jpg",
+      "route": "/docs/mcp/leave-harbor",
+      "title": "MCP Leave Harbor Tool - Port Daddy",
+      "description": "Use MCP Leave Harbor Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-list-harbors.jpg",
+      "route": "/docs/mcp/list-harbors",
+      "title": "MCP List Harbors Tool - Port Daddy",
+      "description": "Use MCP List Harbors Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-list-notes.jpg",
+      "route": "/docs/mcp/list-notes",
+      "title": "MCP List Notes Tool - Port Daddy",
+      "description": "Use MCP List Notes Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-list-services.jpg",
+      "route": "/docs/mcp/list-services",
+      "title": "MCP List Services Tool - Port Daddy",
+      "description": "Use MCP List Services Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-list-spawned.jpg",
+      "route": "/docs/mcp/list-spawned",
+      "title": "MCP List Spawned Tool - Port Daddy",
+      "description": "Use MCP List Spawned Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-publish-message.jpg",
+      "route": "/docs/mcp/publish-message",
+      "title": "MCP Publish Message Tool - Port Daddy",
+      "description": "Use MCP Publish Message Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-release-port.jpg",
+      "route": "/docs/mcp/release-port",
+      "title": "MCP Release Port Tool - Port Daddy",
+      "description": "Use MCP Release Port Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-salvage-claim.jpg",
+      "route": "/docs/mcp/salvage-claim",
+      "title": "MCP Salvage Claim Tool - Port Daddy",
+      "description": "Use MCP Salvage Claim Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-salvage.jpg",
+      "route": "/docs/mcp/salvage",
+      "title": "MCP Salvage Tool - Port Daddy",
+      "description": "Use MCP Salvage Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-scan-services.jpg",
+      "route": "/docs/mcp/scan-services",
+      "title": "MCP Scan Services Tool - Port Daddy",
+      "description": "Use MCP Scan Services Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-spawn-agent.jpg",
+      "route": "/docs/mcp/spawn-agent",
+      "title": "MCP Spawn Agent Tool - Port Daddy",
+      "description": "Use MCP Spawn Agent Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-status.jpg",
+      "route": "/docs/mcp/status",
+      "title": "MCP Status Tool - Port Daddy",
+      "description": "Use MCP Status Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-subscribe.jpg",
+      "route": "/docs/mcp/subscribe",
+      "title": "MCP Subscribe Tool - Port Daddy",
+      "description": "Use MCP Subscribe Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-tunnel-stop.jpg",
+      "route": "/docs/mcp/tunnel-stop",
+      "title": "MCP Tunnel Stop Tool - Port Daddy",
+      "description": "Use MCP Tunnel Stop Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-tunnel.jpg",
+      "route": "/docs/mcp/tunnel",
+      "title": "MCP Tunnel Tool - Port Daddy",
+      "description": "Use MCP Tunnel Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-up.jpg",
+      "route": "/docs/mcp/up",
+      "title": "MCP Up Tool - Port Daddy",
+      "description": "Use MCP Up Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-watch.jpg",
+      "route": "/docs/mcp/watch",
+      "title": "MCP Watch Tool - Port Daddy",
+      "description": "Use MCP Watch Tool with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp-windsurf.jpg",
+      "route": "/docs/mcp/windsurf",
+      "title": "Windsurf MCP Setup - Port Daddy",
+      "description": "Use Windsurf MCP Setup with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-mcp.jpg",
+      "route": "/docs/mcp",
+      "title": "MCP Overview - Port Daddy",
+      "description": "Use MCP Overview with MCP clients so agents can work through Port Daddy safely.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-old.jpg",
+      "route": "/docs-old",
+      "title": "Legacy Docs - Port Daddy",
+      "description": "Legacy Port Daddy documentation kept available for compatibility while the current docs system is normalized.",
+      "section": "legacy",
+      "sectionLabel": "Archive",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-quickstart.jpg",
+      "route": "/docs/quickstart",
+      "title": "Quickstart - Port Daddy",
+      "description": "Install Port Daddy, check the local service, claim a port, and start the first coordinated agent task.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/docs-reference-architectures.jpg",
+      "route": "/docs/reference-architectures",
+      "title": "Reference Architectures - Port Daddy",
+      "description": "Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-reference.jpg",
+      "route": "/docs/reference",
+      "title": "Reference - Port Daddy",
+      "description": "CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-add-note.jpg",
+      "route": "/docs/sdk/add-note",
+      "title": "SDK Add Note - Port Daddy",
+      "description": "Use SDK Add Note from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-dns-register.jpg",
+      "route": "/docs/sdk/dns-register",
+      "title": "SDK DNS Register - Port Daddy",
+      "description": "Use SDK DNS Register from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-dns-resolve.jpg",
+      "route": "/docs/sdk/dns-resolve",
+      "title": "SDK DNS Resolve - Port Daddy",
+      "description": "Use SDK DNS Resolve from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-done-session.jpg",
+      "route": "/docs/sdk/done-session",
+      "title": "SDK Done Session - Port Daddy",
+      "description": "Use SDK Done Session from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-down.jpg",
+      "route": "/docs/sdk/down",
+      "title": "SDK Down - Port Daddy",
+      "description": "Use SDK Down from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-harbors.jpg",
+      "route": "/docs/sdk/harbors",
+      "title": "SDK Harbors - Port Daddy",
+      "description": "Use SDK Harbors from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-leave-harbor.jpg",
+      "route": "/docs/sdk/leave-harbor",
+      "title": "SDK Leave Harbor - Port Daddy",
+      "description": "Use SDK Leave Harbor from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-list-harbors.jpg",
+      "route": "/docs/sdk/list-harbors",
+      "title": "SDK List Harbors - Port Daddy",
+      "description": "Use SDK List Harbors from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-list-notes.jpg",
+      "route": "/docs/sdk/list-notes",
+      "title": "SDK List Notes - Port Daddy",
+      "description": "Use SDK List Notes from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-list-spawned.jpg",
+      "route": "/docs/sdk/list-spawned",
+      "title": "SDK List Spawned - Port Daddy",
+      "description": "Use SDK List Spawned from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-locks.jpg",
+      "route": "/docs/sdk/locks",
+      "title": "SDK Locks - Port Daddy",
+      "description": "Use SDK Locks from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-ports.jpg",
+      "route": "/docs/sdk/ports",
+      "title": "SDK Ports - Port Daddy",
+      "description": "Use SDK Ports from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-register-agent.jpg",
+      "route": "/docs/sdk/register-agent",
+      "title": "SDK Register Agent - Port Daddy",
+      "description": "Use SDK Register Agent from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-release-lock.jpg",
+      "route": "/docs/sdk/release-lock",
+      "title": "SDK Release Lock - Port Daddy",
+      "description": "Use SDK Release Lock from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-salvage-claim.jpg",
+      "route": "/docs/sdk/salvage-claim",
+      "title": "SDK Salvage Claim - Port Daddy",
+      "description": "Use SDK Salvage Claim from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-salvage.jpg",
+      "route": "/docs/sdk/salvage",
+      "title": "SDK Salvage - Port Daddy",
+      "description": "Use SDK Salvage from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-scan-services.jpg",
+      "route": "/docs/sdk/scan-services",
+      "title": "SDK Scan Services - Port Daddy",
+      "description": "Use SDK Scan Services from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-sessions.jpg",
+      "route": "/docs/sdk/sessions",
+      "title": "SDK Sessions - Port Daddy",
+      "description": "Use SDK Sessions from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-spawn.jpg",
+      "route": "/docs/sdk/spawn",
+      "title": "SDK Spawn - Port Daddy",
+      "description": "Use SDK Spawn from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-status.jpg",
+      "route": "/docs/sdk/status",
+      "title": "SDK Status - Port Daddy",
+      "description": "Use SDK Status from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-subscribe.jpg",
+      "route": "/docs/sdk/subscribe",
+      "title": "SDK Subscribe - Port Daddy",
+      "description": "Use SDK Subscribe from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-tunnel-stop.jpg",
+      "route": "/docs/sdk/tunnel-stop",
+      "title": "SDK Tunnel Stop - Port Daddy",
+      "description": "Use SDK Tunnel Stop from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-tunnel.jpg",
+      "route": "/docs/sdk/tunnel",
+      "title": "SDK Tunnel - Port Daddy",
+      "description": "Use SDK Tunnel from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-up.jpg",
+      "route": "/docs/sdk/up",
+      "title": "SDK Up - Port Daddy",
+      "description": "Use SDK Up from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-watch.jpg",
+      "route": "/docs/sdk/watch",
+      "title": "SDK Watch - Port Daddy",
+      "description": "Use SDK Watch from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-whoami.jpg",
+      "route": "/docs/sdk/whoami",
+      "title": "SDK Whoami - Port Daddy",
+      "description": "Use SDK Whoami from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk-with-lock.jpg",
+      "route": "/docs/sdk/with-lock",
+      "title": "SDK With Lock - Port Daddy",
+      "description": "Use SDK With Lock from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-sdk.jpg",
+      "route": "/docs/sdk",
+      "title": "SDK Overview - Port Daddy",
+      "description": "Use SDK Overview from TypeScript code with Port Daddy sessions, locks, ports, and agent coordination features.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/docs-tutorials.jpg",
+      "route": "/docs/tutorials",
+      "title": "Tutorials - Port Daddy",
+      "description": "Step-by-step walkthroughs that take you from install to useful agent workflows.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs.jpg",
+      "route": "/docs",
+      "title": "Docs Overview - Port Daddy",
+      "description": "Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/examples-agent-archetypes.jpg",
+      "route": "/examples/agent-archetypes",
+      "title": "Sketch agent archetypes before you launch them - Port Daddy",
+      "description": "Compare star, ring, arbiter, watchdog, and repair topologies before committing a fleet shape to YAML.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-agent-archetypes.jpg"
+    },
+    {
+      "image": "/img/og/examples-editor-lightbulb-to-agent.jpg",
+      "route": "/examples/editor-lightbulb-to-agent",
+      "title": "Build an editor lightbulb that asks the local agent - Port Daddy",
+      "description": "Select code in a local page, publish the file and range to the agent, and render the explanation inline.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-editor-lightbulb-to-agent.jpg"
+    },
+    {
+      "image": "/img/og/examples-ephemeral-ci-db.jpg",
+      "route": "/examples/ephemeral-ci-db",
+      "title": "Claim a collision-free port for an ephemeral CI database - Port Daddy",
+      "description": "Give short-lived test databases clean local ports so CI helpers and agents do not collide on the same machine.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-ephemeral-ci-db.jpg"
+    },
+    {
+      "image": "/img/og/examples-leader-election.jpg",
+      "route": "/examples/leader-election",
+      "title": "Elect one leader from a local agent swarm - Port Daddy",
+      "description": "Use Port Daddy locks and inboxes so one local agent becomes the coordinator while the rest remain safe followers.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-leader-election.jpg"
+    },
+    {
+      "image": "/img/og/examples-p2p-webrtc.jpg",
+      "route": "/examples/p2p-webrtc",
+      "title": "Build WebRTC signaling over agent inboxes - Port Daddy",
+      "description": "Use durable Port Daddy inbox messages for offer-answer rendezvous before peers switch to a direct local link.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-p2p-webrtc.jpg"
+    },
+    {
+      "image": "/img/og/examples-pd-tube-button-to-agent.jpg",
+      "route": "/examples/pd-tube-button-to-agent",
+      "title": "Build a button-to-agent loop with PD Tube - Port Daddy",
+      "description": "Turn a plain HTML button into a local phone line to the agent session already running in your project.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-pd-tube-button-to-agent.jpg"
+    },
+    {
+      "image": "/img/og/examples-test-failure-to-agent.jpg",
+      "route": "/examples/test-failure-to-agent",
+      "title": "Build a test reporter that asks the agent for help - Port Daddy",
+      "description": "Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-test-failure-to-agent.jpg"
+    },
+    {
+      "image": "/img/og/examples-webhook-to-local-agent.jpg",
+      "route": "/examples/webhook-to-local-agent",
+      "title": "Build a webhook adapter backed by your workstation - Port Daddy",
+      "description": "Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.",
+      "section": "product",
+      "sectionLabel": "Executable Example",
+      "sourceImage": "/img/generated/example-webhook-to-local-agent.jpg"
+    },
+    {
+      "image": "/img/og/examples.jpg",
+      "route": "/examples",
+      "title": "Executable Examples - Port Daddy",
+      "description": "Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.",
+      "section": "product",
+      "sectionLabel": "Examples",
+      "sourceImage": "/img/generated/example-agent-archetypes.jpg"
+    },
+    {
+      "image": "/img/og/home.jpg",
+      "route": "/",
+      "title": "Port Daddy - Local Coordination for AI Coding Agents",
+      "description": "Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.",
+      "section": "home",
+      "sectionLabel": "Local Control Plane",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/integrations-aider.jpg",
+      "route": "/integrations/aider",
+      "title": "Aider - Port Daddy",
+      "description": "CLI integration for Aider. pd begin wraps Aider sessions with automatic port assignment, notes, and salvage on crash.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations-claude-mcp.jpg",
+      "route": "/integrations/claude-mcp",
+      "title": "Claude MCP Server - Port Daddy",
+      "description": "Native Model Context Protocol integration for Claude Code agents. Provides structured tools for port claiming, session management, and agent coordination.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations-continue-dev.jpg",
+      "route": "/integrations/continue-dev",
+      "title": "Continue.dev - Port Daddy",
+      "description": "IDE extension integration for Continue.dev. File claims prevent collisions when multiple Continue agents edit the same codebase.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations-crewai.jpg",
+      "route": "/integrations/crewai",
+      "title": "CrewAI - Port Daddy",
+      "description": "Session-per-crew-member integration for CrewAI. Each crew member gets an isolated session with file claims and coordinated notes.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations-cursor.jpg",
+      "route": "/integrations/cursor",
+      "title": "Cursor - Port Daddy",
+      "description": "MCP integration for Cursor IDE. Port Daddy tools appear natively in Cursor's AI assistant for seamless port and session management.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations-langchain.jpg",
+      "route": "/integrations/langchain",
+      "title": "LangChain - Port Daddy",
+      "description": "Python SDK wrapper for LangChain agents. Gives chains and agents access to port claiming, sessions, and pub/sub coordination.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations-windsurf.jpg",
+      "route": "/integrations/windsurf",
+      "title": "Windsurf - Port Daddy",
+      "description": "MCP integration for Windsurf IDE. Enables AI flows to coordinate ports, sessions, and locks through Port Daddy's structured tools.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/integrations.jpg",
+      "route": "/integrations",
+      "title": "Integrations - Port Daddy",
+      "description": "Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.",
+      "section": "integrations",
+      "sectionLabel": "Integration",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/mac-preview.jpg",
+      "route": "/mac-preview",
+      "title": "Mac Preview - Port Daddy",
+      "description": "Download the signed FleetBar Mac build and see how the app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.",
+      "section": "product",
+      "sectionLabel": "FleetBar",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/mcp.jpg",
+      "route": "/mcp",
+      "title": "Skill + MCP for AI Agents - Port Daddy",
+      "description": "Use the Port Daddy agent skill and MCP server together: an instruction manual plus callable tools for sessions, claims, scoped channels, inboxes, readiness, salvage, fleets, and handoffs.",
+      "section": "product",
+      "sectionLabel": "Skill + MCP",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-always-on.jpg",
+      "route": "/tutorials/always-on",
+      "title": "Run Event-Triggered Agents - Port Daddy",
+      "description": "Combine pd spawn and pd watch so agents react to channel events automatically across Ollama, Codex, Claude, Gemini, Aider, and custom backends.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 12",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-debugging.jpg",
+      "route": "/tutorials/debugging",
+      "title": "Debug Coordination Failures - Port Daddy",
+      "description": "Use harbor activity, notes, ownership, diagnostics, and session history to find the exact point where work drifted.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 06",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-dns.jpg",
+      "route": "/tutorials/dns",
+      "title": "Resolve Services by Name - Port Daddy",
+      "description": "Register harbor-local service names so agents and scripts can discover endpoints without hardcoded addresses.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 08",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-fleet.jpg",
+      "route": "/tutorials/fleet",
+      "title": "Run Background Fleets - Port Daddy",
+      "description": "Declare background agents in YAML, bind them to project events, and keep QA, docs, and research work continuously inspectable.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 18",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-getting-started.jpg",
+      "route": "/tutorials/getting-started",
+      "title": "Install the Local Control Plane - Port Daddy",
+      "description": "Install the daemon, open FleetBar, join the project harbor, and verify the control plane before asking agents to work.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 02",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-harbors.jpg",
+      "route": "/tutorials/harbors",
+      "title": "Start Inside a Harbor - Port Daddy",
+      "description": "Create the project boundary first, then run agents, sessions, ports, channels, and recovery inside a named permission scope.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 01",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-inbox.jpg",
+      "route": "/tutorials/inbox",
+      "title": "Use Agent Inboxes - Port Daddy",
+      "description": "Send direct handoffs, publish channel events, and subscribe to live SSE updates without losing attribution.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 10",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-monorepo.jpg",
+      "route": "/tutorials/monorepo",
+      "title": "Map a Monorepo - Port Daddy",
+      "description": "Scan a large repo, detect service boundaries, register them in the harbor, and bring the local stack up and down cleanly.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 05",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-multi-agent.jpg",
+      "route": "/tutorials/multi-agent",
+      "title": "Coordinate Multiple Agents - Port Daddy",
+      "description": "Run two agents in the same harbor with file claims, session notes, conflict visibility, and channel signals.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 04",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-pd-spawn.jpg",
+      "route": "/tutorials/pd-spawn",
+      "title": "pd spawn: Launch One-Shot Agents - Port Daddy",
+      "description": "Start a bounded agent job with sessions, heartbeats, notes, cost telemetry, and salvage wired around the backend.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 13",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-pd-tube.jpg",
+      "route": "/tutorials/pd-tube",
+      "title": "Pipe Agent Conversations - Port Daddy",
+      "description": "Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 21",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-pheromone.jpg",
+      "route": "/tutorials/pheromone",
+      "title": "Use Ambient Attention Signals - Port Daddy",
+      "description": "Attach decaying numeric signals to files, sessions, or ideas so agents can prioritize work without extra chat traffic.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 19",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-pipelines.jpg",
+      "route": "/tutorials/pipelines",
+      "title": "Build Reactive Pipelines - Port Daddy",
+      "description": "Chain channels, watchers, locks, and spawned agents into event-driven workflows with clear ownership boundaries.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 15",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-primitives.jpg",
+      "route": "/tutorials/primitives",
+      "title": "Walk the 11 Product Primitives - Port Daddy",
+      "description": "Use the Mac app, Fleet Control Center, Shipwright, and CLI checks to see where every public primitive lives.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 20",
+      "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-remote-harbors.jpg",
+      "route": "/tutorials/remote-harbors",
+      "title": "Plan Remote Coordination - Port Daddy",
+      "description": "Separate what works today with tunnels and DNS from the roadmap for cross-machine daemon coordination.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 17",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-semantic-identities.jpg",
+      "route": "/tutorials/semantic-identities",
+      "title": "Name Work Inside the Harbor - Port Daddy",
+      "description": "Use project:stack:context names so services, agents, sessions, channels, and wildcard queries stay predictable across runs.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 03",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-session-phases.jpg",
+      "route": "/tutorials/session-phases",
+      "title": "Model Session Phases - Port Daddy",
+      "description": "Move work through planning, implementation, review, and done states with phase-aware recovery and handoff evidence.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 09",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-sugar.jpg",
+      "route": "/tutorials/sugar",
+      "title": "Use Operator Shortcuts - Port Daddy",
+      "description": "Use pd begin, pd done, pd whoami, and pd with-lock as the daily command layer over the lower-level primitives.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 11",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-time-travel.jpg",
+      "route": "/tutorials/time-travel",
+      "title": "Inspect the Activity Ledger - Port Daddy",
+      "description": "Query the append-only event timeline. Correlate infrastructure events with agent session notes to diagnose coordination failures.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 14",
+      "sourceImage": "/img/generated/salvage-ledger.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-tunnel.jpg",
+      "route": "/tutorials/tunnel",
+      "title": "Expose a Local Service - Port Daddy",
+      "description": "Publish one harbor-owned service through pd tunnel with clear ownership, explicit provider choice, and a reversible path.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 07",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/tutorials-watch.jpg",
+      "route": "/tutorials/watch",
+      "title": "Observe Runtime Channels - Port Daddy",
+      "description": "Use pd watch to follow channel activity, inspect event pressure, and trigger bounded responses from scripts or agents.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial 16",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/tutorials.jpg",
+      "route": "/tutorials",
+      "title": "Tutorials - Port Daddy",
+      "description": "Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.",
+      "section": "tutorials",
+      "sectionLabel": "Tutorial",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-anchor-protocol.jpg",
+      "route": "/whitepaper/anchor-protocol",
+      "title": "The Anchor Protocol - Port Daddy",
+      "description": "Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-bonded-commons.jpg",
+      "route": "/whitepaper/bonded-commons",
+      "title": "The Bonded Commons - Port Daddy",
+      "description": "Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper.jpg",
+      "route": "/whitepaper",
+      "title": "Whitepaper - Port Daddy",
+      "description": "Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    }
+  ]
+}

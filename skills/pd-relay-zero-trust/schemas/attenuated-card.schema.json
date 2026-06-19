@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://port-daddy.dev/schemas/pd-relay-zero-trust/attenuated-card.json",
+  "title": "Attenuated Card Chain (Phase 3)",
+  "description": "Macaroons-inspired multi-hop capability chain. Each hop signs the chain-so-far with its own ephemeral key, appending only restrictions (caveats). Verifier walks the chain, applying caveats in order; any expansion of rights is a verification failure.",
+  "type": "object",
+  "required": ["root", "caveats", "version"],
+  "properties": {
+    "version": {"const": "phase3.1"},
+    "root": {"$ref": "https://port-daddy.dev/schemas/pd-relay-zero-trust/harbor-card.json"},
+    "caveats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["hop", "constraint", "sig", "kid"],
+        "properties": {
+          "hop": {"type": "integer", "minimum": 1},
+          "constraint": {
+            "type": "object",
+            "description": "Each constraint can ONLY contract rights; never expand.",
+            "properties": {
+              "exp_max": {"type": "integer", "description": "Tighten exp to <= this"},
+              "channels_allow": {"type": "array", "items": {"type": "string"}},
+              "ops_allow": {"type": "array", "items": {"type": "string", "enum": ["pub", "sub"]}},
+              "rate_per_min_max": {"type": "integer"},
+              "max_payload_bytes_max": {"type": "integer"},
+              "ip_cidr_allow": {"type": "array", "items": {"type": "string"}},
+              "audience_restrict": {"type": "array", "items": {"type": "string"}},
+              "delegation_allowed": {"const": false, "description": "If false, this hop is terminal"}
+            },
+            "additionalProperties": false
+          },
+          "sig": {"type": "string", "description": "Ed25519 signature over (prev_chain_hash || constraint)"},
+          "kid": {"type": "string", "description": "Public key of the hop signer"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

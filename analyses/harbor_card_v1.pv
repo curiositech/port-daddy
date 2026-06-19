@@ -1,0 +1,86 @@
+(* 
+ * Port Daddy: Harbor Card v1 (HS256) Formal Model
+ * 
+ * This model verifies the security properties of the HS256 Harbor Card 
+ * exchange protocol as implemented in lib/harbor-tokens.ts.
+ *
+ * Security Properties:
+ *   - Secrecy of the Daemon Master Key.
+ *   - Authentication: If a Harbor accepts a token for Agent A, then the 
+ *     Daemon must have issued that token for Agent A.
+ *   - Integrity: Capabilities and identity cannot be forged.
+ *   - Revocation: Once a JTI is revoked, it should no longer be accepted.
+ *)
+
+(*** Types and Channels ***)
+type id.
+type key.
+type token.
+type capability.
+type jti.
+type timestamp.
+
+free c: channel. (* Public channel *)
+
+(*** Cryptographic Functions ***)
+
+(* HS256 (HMAC-SHA256) *)
+fun hmac(bitstring, key): bitstring.
+reduc forall m: bitstring, k: key; check_hmac(m, k, hmac(m, k)) = true.
+
+(* Encoding/Decoding for bitstrings *)
+fun encode_token(id, id, jti, capability): bitstring [data].
+
+(*** Events for Authentication ***)
+event Issued(id, id, jti, capability).
+event Accepted(id, id, jti, capability).
+event Revoked(jti).
+
+(*** Queries ***)
+
+(* 1. Secrecy of the Daemon Master Key *)
+free master_key: key [private].
+query attacker(master_key).
+
+(* 2. Authentication: If Accepted(a, h, j, cap), then Issued(a, h, j, cap) *)
+query a: id, h: id, j: jti, cap: capability;
+  event(Accepted(a, h, j, cap)) ==> event(Issued(a, h, j, cap)).
+
+(* 3. Secrecy of Capability: If a capability is marked secret, can the attacker get it? *)
+free secret_cap: capability [private].
+
+(*** Processes ***)
+
+(* The Daemon issues and verifies tokens *)
+let Daemon(k: key, a_id: id, h_id: id, j: jti, cap: capability) =
+  (* Issuance *)
+  let msg = encode_token(a_id, h_id, j, cap) in
+  let signature = hmac(msg, k) in
+  event Issued(a_id, h_id, j, cap);
+  out(c, (msg, signature)).
+
+(* The Harbor (Verifier) processes received tokens *)
+let Harbor(k: key, expected_h: id) =
+  in(c, (msg: bitstring, signature: bitstring));
+  if check_hmac(msg, k, signature) = true then
+    let encode_token(a: id, h: id, j: jti, cap: capability) = msg in
+    if h = expected_h then
+      (* Additional check: JTI revocation would go here if modeling state *)
+      event Accepted(a, h, j, cap).
+
+(* Modelling Revocation (Simplified) *)
+let Revoker(j: jti) =
+  event Revoked(j);
+  out(c, j). (* Announce revocation publicly *)
+
+(*** Main Process ***)
+process
+  new agent_id: id;
+  new harbor_id: id;
+  new token_jti: jti;
+  
+  (
+    (!Daemon(master_key, agent_id, harbor_id, token_jti, secret_cap)) |
+    (!Harbor(master_key, harbor_id)) |
+    (!Revoker(token_jti))
+  )

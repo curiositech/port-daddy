@@ -1,0 +1,1019 @@
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import * as ui from '../utils/ui.js';
+import { pdFetch, PORT_DADDY_URL, type PdFetchResponse } from '../utils/fetch.js';
+import { readCurrentContext } from '../utils/current-context.js';
+import { installGitShim, uninstallGitShim, SHIM_BIN_DIR } from '../utils/git-shim.js';
+import type { CLIOptions } from '../types.js';
+import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
+import { evaluateLeaseRent } from '../../lib/coast-guard/compulsion.js';
+import { gatherCommitsSinceLastNote } from '../../lib/coast-guard/compulsion-facts.js';
+
+/**
+ * Destructive git verbs intercepted by the optional `~/.port-daddy/bin/git`
+ * shim. Each verb maps to "all working-tree paths" for the purpose of the
+ * coordination check — we don't try to predict which paths a `reset --hard`
+ * will touch, we just consult the daemon for any active claim that would
+ * be steamrolled.
+ */
+const DESTRUCTIVE_GIT_VERBS = new Set([
+  'reset-hard',
+  'checkout-paths',
+  'clean-force',
+  'add-all',
+  // v2: extended after 2026-04-28 auto-stash incident on codex/pd-tube-tutorial.
+  // The shim intercepts these before the working tree is touched; the daemon
+  // evaluates active claims for any session and refuses if another session
+  // owns affected files in enforce mode.
+  'stash-push',
+  'cherry-pick',
+  'rebase',
+]);
+
+export const COORDINATION_GUARD_NAME = 'Coordination Guard';
+export const GUARD_CONFIG_RELATIVE_PATH = '.portdaddy/coordination-guard.json';
+
+const HOOK_START = '# >>> Port Daddy Coordination Guard';
+const HOOK_END = '# <<< Port Daddy Coordination Guard';
+
+export type CoordinationGuardMode = 'off' | 'warn' | 'enforce';
+
+export interface CoordinationGuardConfig {
+  name: typeof COORDINATION_GUARD_NAME;
+  enabled: boolean;
+  mode: Exclude<CoordinationGuardMode, 'off'>;
+  requireSession: boolean;
+  requireClaims: boolean;
+  /** The compulsion (ADR-0050): every commit must publish a coordination note.
+   *  When true, a commit left un-noted blocks the next commit. Default true —
+   *  coordination is the price of the sandbox. */
+  requireNotePerCommit: boolean;
+  /** Coordination primitives must also leave a roadmap receipt. Source of truth
+   *  is roadmap_items, not docs/ROADMAP.md. Default true: serious swarm work has
+   *  to be visible in the maintained roadmap, not only in a branch diff. */
+  requireRoadmapForCoordinationChanges: boolean;
+  updatedAt?: string;
+}
+
+export interface GuardOwner {
+  sessionId?: string | null;
+  agentId?: string | null;
+  purpose?: string | null;
+  phase?: string | null;
+}
+
+export interface GuardRoadmapReceipt {
+  slug: string;
+  lastTouchedAt?: number | null;
+  promotedByAgentId?: string | null;
+  notes?: Array<{ at?: number | null; by?: string | null; text?: string | null }>;
+}
+
+export interface GuardViolation {
+  code: string;
+  severity: 'warning' | 'critical';
+  message: string;
+  file?: string;
+  owners?: GuardOwner[];
+}
+
+export interface GuardCheckResult {
+  success: boolean;
+  passed: boolean;
+  shouldBlock: boolean;
+  mode: CoordinationGuardMode;
+  enabled: boolean;
+  files: string[];
+  agentId?: string | null;
+  sessionId?: string | null;
+  violations: GuardViolation[];
+}
+
+export const DEFAULT_GUARD_CONFIG: CoordinationGuardConfig = {
+  name: COORDINATION_GUARD_NAME,
+  enabled: false,
+  mode: 'warn',
+  requireSession: true,
+  requireClaims: true,
+  requireNotePerCommit: true,
+  requireRoadmapForCoordinationChanges: true,
+};
+
+const ROADMAP_RECEIPT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const COORDINATION_ROADMAP_PATTERNS: RegExp[] = [
+  /^cli\/commands\/(?:guard|roadmap|parley|quorum|agents|spawn|dispatch|sortie|sessions|attention)\.ts$/,
+  /^routes\/(?:parley|quorum|roadmap|sessions|coordination|operator)\.ts$/,
+  /^lib\/(?:parley|swarm-coordination|roadmap-[^/]+|roadmap-items|coordination-[^/]+|sessions|spawner|dispatch\/.+|obligation-monitor|commitments)\.ts$/,
+  /^docs\/adr\/\d+-.+\.md$/,
+  /^docs\/research\/.+\.md$/,
+  /^skills\/port-daddy-agent-skill\/.+/,
+  /^features\.manifest\.json$/,
+];
+
+function boolValue(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+function normalizeMode(value: unknown, fallback: Exclude<CoordinationGuardMode, 'off'>): Exclude<CoordinationGuardMode, 'off'> {
+  return value === 'enforce' || value === 'warn' ? value : fallback;
+}
+
+export function normalizeGuardConfig(raw: unknown): CoordinationGuardConfig {
+  const input = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+  return {
+    name: COORDINATION_GUARD_NAME,
+    enabled: boolValue(input.enabled, DEFAULT_GUARD_CONFIG.enabled),
+    mode: normalizeMode(input.mode, DEFAULT_GUARD_CONFIG.mode),
+    requireSession: boolValue(input.requireSession, DEFAULT_GUARD_CONFIG.requireSession),
+    requireClaims: boolValue(input.requireClaims, DEFAULT_GUARD_CONFIG.requireClaims),
+    requireNotePerCommit: boolValue(input.requireNotePerCommit, DEFAULT_GUARD_CONFIG.requireNotePerCommit),
+    requireRoadmapForCoordinationChanges: boolValue(
+      input.requireRoadmapForCoordinationChanges,
+      DEFAULT_GUARD_CONFIG.requireRoadmapForCoordinationChanges,
+    ),
+    updatedAt: typeof input.updatedAt === 'string' ? input.updatedAt : undefined,
+  };
+}
+
+export function localGuardConfigPath(cwd = process.cwd()): string {
+  return join(cwd, GUARD_CONFIG_RELATIVE_PATH);
+}
+
+function gitCommonDir(cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const resolved = result.stdout.trim();
+  return resolved ? resolve(cwd, resolved) : null;
+}
+
+export function sharedGuardConfigPath(cwd = process.cwd()): string | null {
+  const commonDir = gitCommonDir(cwd);
+  return commonDir ? join(commonDir, 'port-daddy', 'coordination-guard.json') : null;
+}
+
+function configCandidatePaths(cwd = process.cwd()): string[] {
+  const paths = [sharedGuardConfigPath(cwd), localGuardConfigPath(cwd)].filter((path): path is string => Boolean(path));
+  return Array.from(new Set(paths));
+}
+
+function readGuardConfigFile(path: string): CoordinationGuardConfig | null {
+  if (!existsSync(path)) return null;
+  try {
+    return normalizeGuardConfig(JSON.parse(readFileSync(path, 'utf8')));
+  } catch {
+    return null;
+  }
+}
+
+export function readGuardConfig(cwd = process.cwd()): CoordinationGuardConfig {
+  for (const path of configCandidatePaths(cwd)) {
+    const config = readGuardConfigFile(path);
+    if (config) return config;
+  }
+  return { ...DEFAULT_GUARD_CONFIG };
+}
+
+function configPath(cwd = process.cwd()): string {
+  for (const path of configCandidatePaths(cwd)) {
+    if (existsSync(path)) return path;
+  }
+  return sharedGuardConfigPath(cwd) ?? localGuardConfigPath(cwd);
+}
+
+function writeGuardConfig(config: CoordinationGuardConfig, cwd = process.cwd()): void {
+  const stamped = JSON.stringify({ ...config, updatedAt: new Date().toISOString() }, null, 2) + '\n';
+  for (const path of configCandidatePaths(cwd)) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, stamped);
+  }
+}
+
+function optionMode(options: CLIOptions): CoordinationGuardMode | undefined {
+  if (options.enforce) return 'enforce';
+  if (options.warn) return 'warn';
+  if (options.off) return 'off';
+  const mode = typeof options.mode === 'string' ? options.mode.trim() : '';
+  if (mode === 'off' || mode === 'warn' || mode === 'enforce') return mode;
+  return undefined;
+}
+
+function effectiveMode(config: CoordinationGuardConfig, options: CLIOptions = {}): CoordinationGuardMode {
+  const explicit = optionMode(options);
+  if (explicit) return explicit;
+  return config.enabled ? config.mode : 'off';
+}
+
+function gitOutput(args: string[], cwd = process.cwd()): string[] {
+  return gitText(args, cwd)
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+}
+
+function gitText(args: string[], cwd = process.cwd()): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return '';
+  return result.stdout;
+}
+
+function gitRoot(cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  return result.stdout.trim() || null;
+}
+
+function gitPath(path: string, cwd = process.cwd()): string | null {
+  const result = spawnSync('git', ['rev-parse', '--git-path', path], { cwd, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const resolved = result.stdout.trim();
+  return resolved ? resolve(cwd, resolved) : null;
+}
+
+function stagedFiles(cwd = process.cwd()): string[] {
+  return gitOutput(['diff', '--cached', '--name-only', '--diff-filter=ACMRDTU'], cwd);
+}
+
+/**
+ * Files modified in a commit. Used by the post-commit hook so that
+ * commits made via `git cherry-pick`, `git rebase`, `git revert`, or
+ * `git merge` (none of which fire pre-commit) still get audited.
+ */
+function commitFiles(ref: string, cwd = process.cwd()): string[] {
+  return gitOutput(
+    ['show', '--name-only', '--no-renames', '--diff-filter=ACMRDTU', '--pretty=format:', ref],
+    cwd,
+  );
+}
+
+function normalizeFiles(files: string[]): string[] {
+  return Array.from(new Set(files.map(file => file.trim()).filter(Boolean)));
+}
+
+export function fileNeedsRoadmapReceipt(file: string): boolean {
+  const normalized = posixPath(file).replace(/^\.\//, '');
+  return COORDINATION_ROADMAP_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function noteMatchesAgent(
+  note: { at?: number | null; by?: string | null },
+  agentId: string | null | undefined,
+  since: number,
+): boolean {
+  if (!agentId) return false;
+  return note.by === agentId && typeof note.at === 'number' && note.at >= since;
+}
+
+function receiptMatchesAgent(
+  receipt: GuardRoadmapReceipt,
+  agentId: string | null | undefined,
+  since: number,
+): boolean {
+  const touchedRecently = typeof receipt.lastTouchedAt === 'number' && receipt.lastTouchedAt >= since;
+  if (touchedRecently && agentId && receipt.promotedByAgentId === agentId) return true;
+  return Array.isArray(receipt.notes) && receipt.notes.some((note) => noteMatchesAgent(note, agentId, since));
+}
+
+function posixPath(path: string): string {
+  return path.split('\\').join('/');
+}
+
+function relativePathInside(root: string, path: string): string | null {
+  const rel = relative(root, path);
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
+  return posixPath(rel);
+}
+
+export function ownerQueryPaths(file: string, repoRoot = process.cwd()): string[] {
+  const trimmed = file.trim();
+  if (!trimmed) return [];
+
+  const root = resolve(repoRoot);
+  const paths = new Set<string>([trimmed]);
+
+  if (isAbsolute(trimmed)) {
+    const rel = relativePathInside(root, trimmed);
+    if (rel) paths.add(rel);
+  } else {
+    paths.add(resolve(root, trimmed));
+  }
+
+  return Array.from(paths);
+}
+
+function mergeOwners(owners: GuardOwner[]): GuardOwner[] {
+  const seen = new Set<string>();
+  const merged: GuardOwner[] = [];
+  for (const owner of owners) {
+    const key = `${owner.sessionId ?? ''}\0${owner.agentId ?? ''}\0${owner.purpose ?? ''}\0${owner.phase ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(owner);
+  }
+  return merged;
+}
+
+function dirtyFiles(cwd = process.cwd()): string[] {
+  const files: string[] = [];
+  for (const line of gitText(['status', '--porcelain=v1'], cwd).split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const rawPath = line.slice(3).trim();
+    if (!rawPath) continue;
+    if (rawPath.includes(' -> ')) {
+      const [from, to] = rawPath.split(' -> ');
+      files.push(from, to);
+    } else {
+      files.push(rawPath);
+    }
+  }
+  return normalizeFiles(files);
+}
+
+function guardHookBlock(): string {
+  return [
+    HOOK_START,
+    'if command -v pd >/dev/null 2>&1; then',
+    '  pd guard check --staged --hook || exit $?',
+    'elif command -v port-daddy >/dev/null 2>&1; then',
+    '  port-daddy guard check --staged --hook || exit $?',
+    'else',
+    '  echo "Coordination Guard: pd command not found." >&2',
+    '  exit 1',
+    'fi',
+    HOOK_END,
+  ].join('\n');
+}
+
+/**
+ * The post-commit guard block. Git invokes post-commit on `commit`,
+ * `cherry-pick`, `rebase`, `revert`, and `merge --no-ff` — every path
+ * that creates a commit. post-commit's exit code is *informational*
+ * (git ignores it), so this block:
+ *   - prints loudly when a commit was made without coordination
+ *   - never blocks (post-commit can't), but the violation is recorded
+ *     by `pd guard check --post-commit` in the daemon log so the
+ *     operator can see what slipped through pre-commit
+ *
+ * This is the only enforcement path for cherry-pick/rebase/revert,
+ * which silently bypass pre-commit hooks in git's sequencer.
+ */
+function guardPostCommitBlock(): string {
+  return [
+    HOOK_START,
+    'if command -v pd >/dev/null 2>&1; then',
+    '  pd guard check --post-commit --hook || true',
+    'elif command -v port-daddy >/dev/null 2>&1; then',
+    '  port-daddy guard check --post-commit --hook || true',
+    'fi',
+    HOOK_END,
+  ].join('\n');
+}
+
+function mergeHookBlock(existing: string, block: string, defaultShebang = '#!/usr/bin/env sh'): string {
+  const markerPattern = new RegExp(`${HOOK_START}[\\s\\S]*?${HOOK_END}`, 'm');
+  if (markerPattern.test(existing)) {
+    return existing.replace(markerPattern, block);
+  }
+
+  const normalized = existing.trimEnd();
+  if (!normalized) return `${defaultShebang}\n\n${block}\n`;
+
+  const exitMatch = normalized.match(/\nexit 0\s*$/);
+  if (exitMatch?.index != null) {
+    return `${normalized.slice(0, exitMatch.index)}\n\n${block}${normalized.slice(exitMatch.index)}\n`;
+  }
+
+  return `${normalized}\n\n${block}\n`;
+}
+
+export function mergePreCommitHook(existing: string): string {
+  return mergeHookBlock(existing, guardHookBlock());
+}
+
+export function mergePostCommitHook(existing: string): string {
+  return mergeHookBlock(existing, guardPostCommitBlock());
+}
+
+export function evaluateGuardFacts(input: {
+  config: CoordinationGuardConfig;
+  mode?: CoordinationGuardMode;
+  files?: string[];
+  active?: boolean;
+  daemonReachable?: boolean;
+  agentId?: string | null;
+  sessionId?: string | null;
+  ownersByFile?: Record<string, GuardOwner[]>;
+  /** Commits on this lease that have no coordination note published after them.
+   *  Supplied only at commit-time (staged/hook/post-commit). Drives the
+   *  compulsion: no note, no commit (ADR-0050). */
+  commitsSinceLastNote?: number;
+  /** True for staged/hook/post-commit checks. Roadmap compulsion is a commit
+   *  invariant; dirty-tree advisory checks should not demand a roadmap receipt. */
+  atCommitTime?: boolean;
+  roadmapReceipts?: GuardRoadmapReceipt[];
+  nowMs?: number;
+}): GuardCheckResult {
+  const mode = input.mode ?? (input.config.enabled ? input.config.mode : 'off');
+  const files = normalizeFiles(input.files ?? []);
+  const violations: GuardViolation[] = [];
+
+  if (mode === 'off') {
+    return {
+      success: true,
+      passed: true,
+      shouldBlock: false,
+      mode,
+      enabled: false,
+      files,
+      agentId: input.agentId,
+      sessionId: input.sessionId,
+      violations,
+    };
+  }
+
+  if (input.daemonReachable === false) {
+    violations.push({
+      code: 'daemon-unreachable',
+      severity: 'critical',
+      message: 'Port Daddy daemon is unreachable; live session and claim truth cannot be verified.',
+    });
+  }
+
+  if (input.config.requireSession && !input.active) {
+    violations.push({
+      code: 'no-active-session',
+      severity: 'critical',
+      message: 'No active Port Daddy session is attached to this shell. Run pd begin before editing or committing.',
+    });
+  }
+
+  if (input.config.requireClaims && input.active && files.length > 0) {
+    for (const file of files) {
+      const owners = input.ownersByFile?.[file] ?? [];
+      const selfOwnsFile = owners.some(owner => owner.sessionId === input.sessionId);
+      const otherOwners = owners.filter(owner => owner.sessionId && owner.sessionId !== input.sessionId);
+
+      if (otherOwners.length > 0 && !selfOwnsFile) {
+        violations.push({
+          code: 'claimed-by-other-session',
+          severity: 'critical',
+          file,
+          owners: otherOwners,
+          message: `${file} is claimed by another active Port Daddy session.`,
+        });
+        continue;
+      }
+
+      if (!selfOwnsFile) {
+        violations.push({
+          code: 'unclaimed-file',
+          severity: 'critical',
+          file,
+          owners,
+          message: `${file} is not claimed by the active Port Daddy session.`,
+        });
+      }
+    }
+  }
+
+  // The compulsion — coordination is the price of the sandbox (ADR-0050).
+  // Every commit must publish a note; a commit left un-noted blocks the next
+  // commit. Delegates to the single rent authority so the message and policy
+  // live in one place; we feed it neutral values for the drift/idle facts so
+  // ONLY the note-per-commit rule can fire here.
+  if (
+    input.config.requireNotePerCommit &&
+    input.active &&
+    typeof input.commitsSinceLastNote === 'number' &&
+    input.commitsSinceLastNote > 0
+  ) {
+    const rent = evaluateLeaseRent({
+      commitsSinceLastNote: input.commitsSinceLastNote,
+      commitsTotal: input.commitsSinceLastNote,
+      notesTotal: 1,
+      claimsTotal: 1,
+      commitsBehindBase: 0,
+      ageMs: 0,
+      lastSignalAgeMs: 0,
+    });
+    if (rent.action === 'block-commit') {
+      violations.push({ code: 'rent-due', severity: 'critical', message: rent.reason });
+    }
+  }
+
+  if (
+    input.config.requireRoadmapForCoordinationChanges &&
+    input.atCommitTime &&
+    input.active
+  ) {
+    const roadmapFiles = files.filter(fileNeedsRoadmapReceipt);
+    if (roadmapFiles.length > 0) {
+      const since = (input.nowMs ?? Date.now()) - ROADMAP_RECEIPT_WINDOW_MS;
+      const hasReceipt = (input.roadmapReceipts ?? []).some((receipt) =>
+        receiptMatchesAgent(receipt, input.agentId, since),
+      );
+      if (!hasReceipt) {
+        violations.push({
+          code: 'roadmap-receipt-missing',
+          severity: 'critical',
+          file: roadmapFiles[0],
+          message:
+            `Coordination architecture changed (${roadmapFiles.slice(0, 3).join(', ')}${roadmapFiles.length > 3 ? ', …' : ''}) ` +
+            'without a recent roadmap_items receipt from this agent. Run `pd roadmap upsert <slug> --summary <md>` or `pd roadmap touch <slug> --note <why>`.',
+        });
+      }
+    }
+  }
+
+  const shouldBlock = mode === 'enforce' && violations.length > 0;
+  return {
+    success: !shouldBlock,
+    passed: violations.length === 0,
+    shouldBlock,
+    mode,
+    enabled: true,
+    files,
+    agentId: input.agentId,
+    sessionId: input.sessionId,
+    violations,
+  };
+}
+
+async function fetchJson(path: string): Promise<Record<string, unknown>> {
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}${path}`);
+  return await res.json();
+}
+
+async function loadActiveContext(cwd = process.cwd()): Promise<{
+  active: boolean;
+  daemonReachable: boolean;
+  agentId?: string | null;
+  sessionId?: string | null;
+}> {
+  const context = readCurrentContext(cwd);
+  if (!context?.agentId && !context?.sessionId) {
+    return { active: false, daemonReachable: true };
+  }
+
+  const params = new URLSearchParams();
+  if (context.agentId) params.set('agentId', context.agentId);
+  if (context.sessionId) params.set('sessionId', context.sessionId);
+
+  try {
+    const data = await fetchJson(`/sugar/whoami?${params.toString()}`);
+    return {
+      active: data.active === true,
+      daemonReachable: true,
+      agentId: typeof data.agentId === 'string' ? data.agentId : context.agentId,
+      sessionId: typeof data.sessionId === 'string' ? data.sessionId : context.sessionId,
+    };
+  } catch {
+    return {
+      active: false,
+      daemonReachable: false,
+      agentId: context.agentId,
+      sessionId: context.sessionId,
+    };
+  }
+}
+
+async function loadOwners(files: string[], repoRoot = process.cwd()): Promise<Record<string, GuardOwner[]>> {
+  const ownersByFile: Record<string, GuardOwner[]> = {};
+  for (const file of files) {
+    const owners: GuardOwner[] = [];
+    for (const queryPath of ownerQueryPaths(file, repoRoot)) {
+      try {
+        const data = await fetchJson(`/files/who-owns?path=${encodeURIComponent(queryPath)}`);
+        if (Array.isArray(data.owners)) owners.push(...data.owners as GuardOwner[]);
+      } catch {
+        // Keep checking the alternate spelling. A daemon/API mismatch should not
+        // erase owners found through the other canonical form.
+      }
+    }
+    ownersByFile[file] = mergeOwners(owners);
+  }
+  return ownersByFile;
+}
+
+function printCheckResult(result: GuardCheckResult, options: CLIOptions): void {
+  if (options.json || options.j) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  const label = result.mode === 'enforce' ? 'ENFORCE' : result.mode === 'warn' ? 'WARN' : 'OFF';
+  if (result.mode === 'off') {
+    console.log(`${COORDINATION_GUARD_NAME}: off`);
+    return;
+  }
+
+  if (result.passed) {
+    console.log(`${COORDINATION_GUARD_NAME}: ${label} passed`);
+    if (result.files.length > 0) console.log(`  checked: ${result.files.join(', ')}`);
+    return;
+  }
+
+  const heading = `${COORDINATION_GUARD_NAME}: ${label} found ${result.violations.length} issue(s)`;
+  if (result.shouldBlock) {
+    ui.error(heading);
+  } else {
+    ui.warn(heading);
+  }
+
+  for (const violation of result.violations) {
+    console.error(`  - ${violation.message}`);
+    if (violation.owners && violation.owners.length > 0) {
+      const owners = violation.owners
+        .map(owner => `${owner.agentId ?? 'unknown'}:${owner.sessionId ?? 'unknown'}`)
+        .join(', ');
+      console.error(`    owners: ${owners}`);
+    }
+  }
+
+  if (result.mode === 'warn') {
+    console.error('  mode=warn: not blocking. Use pd guard enable --mode enforce to block.');
+  }
+}
+
+export function extractClaimPaths(data: Record<string, unknown>): string[] {
+  const files = Array.isArray(data.claims)
+    ? data.claims
+    : Array.isArray(data.files)
+      ? data.files
+      : [];
+  const paths = new Set<string>();
+  for (const entry of files) {
+    if (entry && typeof entry === 'object') {
+      const record = entry as Record<string, unknown>;
+      const path = record.filePath ?? record.file_path ?? record.path;
+      if (typeof path === 'string' && path.trim()) paths.add(path.trim());
+    }
+  }
+  return Array.from(paths);
+}
+
+async function loadAllActiveClaims(): Promise<string[]> {
+  // Pulls every file currently claimed by an active session. Used by the
+  // git-shim path: a destructive verb implicates the whole working tree,
+  // so the universe of "things at risk" is the union of active claims.
+  //
+  // The Port Daddy daemon's claim DB is host-global — sessions across every
+  // project share one namespace. Callers MUST filter this list with
+  // `filterClaimsToRepo()` before treating the paths as "files about to be
+  // touched," otherwise a claim on `apps/marketing/page.tsx` in some
+  // unrelated repo blocks an unrelated rebase here. The long-term fix is
+  // a `repo_root` column on `session_files` (denormalize from the parent
+  // session's worktree) so the daemon can filter server-side; see
+  // ADR follow-up after this hotfix.
+  try {
+    const data = await fetchJson('/files');
+    return extractClaimPaths(data);
+  } catch {
+    return [];
+  }
+}
+
+async function loadRoadmapReceipts(): Promise<GuardRoadmapReceipt[]> {
+  try {
+    const data = await fetchJson('/roadmap/items?status=all&limit=200');
+    if (!Array.isArray(data.items)) return [];
+    return data.items
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+      .map((item) => ({
+        slug: typeof item.slug === 'string' ? item.slug : '',
+        lastTouchedAt: typeof item.lastTouchedAt === 'number' ? item.lastTouchedAt : null,
+        promotedByAgentId: typeof item.promotedByAgentId === 'string' ? item.promotedByAgentId : null,
+        notes: Array.isArray(item.notes) ? item.notes as GuardRoadmapReceipt['notes'] : [],
+      }))
+      .filter((item) => item.slug);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Drops claim paths that can't possibly belong to `repoRoot`.
+ *
+ * A claim path passes when both:
+ *   (a) its absolute form resolves inside `repoRoot` (via the existing
+ *       `relativePathInside` semantics — no escaping `..`), AND
+ *   (b) the file exists on disk.
+ *
+ * This prevents cross-project claim leak: a session that claimed
+ * `apps/marketing/page.tsx` in some other repo no longer pollutes the
+ * destructive-verb check here. Conservative tradeoff: a claim on a file
+ * that hasn't been created yet in this repo will be filtered out. For
+ * destructive verbs that's acceptable — nobody has live edits on a
+ * file that doesn't exist yet — and the alternative (keeping ghosts)
+ * is the bug we're fixing.
+ *
+ * Both `repoRoot` and each candidate path are canonicalized via
+ * `realpathSync` before the containment check. Without this, a symlink
+ * pointing outside the repo would pass `resolve()`'s `..`-collapsing
+ * check unchallenged and re-introduce the very leak this fixes. On
+ * macOS, `/var` → `/private/var` makes this matter even for plain
+ * paths under `os.tmpdir()`.
+ */
+export function filterClaimsToRepo(paths: string[], repoRoot: string): string[] {
+  let root: string;
+  try {
+    root = realpathSync(resolve(repoRoot));
+  } catch {
+    // Repo root doesn't exist or isn't resolvable — no claims belong here.
+    return [];
+  }
+  return paths.filter(path => {
+    const trimmed = path.trim();
+    if (!trimmed) return false;
+    const abs = isAbsolute(trimmed) ? trimmed : resolve(root, trimmed);
+    let real: string;
+    try {
+      real = realpathSync(abs);
+    } catch {
+      // Doesn't exist or unresolvable. `existsSync` was the prior bar,
+      // and `realpathSync` throwing covers the same case plus broken
+      // symlinks. Drop it.
+      return false;
+    }
+    return relativePathInside(root, real) !== null;
+  });
+}
+
+async function runCheck(positional: string[], options: CLIOptions): Promise<GuardCheckResult> {
+  const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
+  const config = readGuardConfig(cwd);
+  const mode = effectiveMode(config, options);
+  const postCommit = Boolean(options['post-commit']);
+  const gitVerb = typeof options['git-verb'] === 'string' ? String(options['git-verb']).trim() : '';
+  const commitRef = typeof options.commit === 'string' && options.commit.length > 0 ? options.commit : 'HEAD';
+  const root = gitRoot(cwd) ?? cwd;
+  const files = normalizeFiles(
+    gitVerb && DESTRUCTIVE_GIT_VERBS.has(gitVerb)
+      // For destructive verbs the universe of risk is "any claim that
+      // exists right now AND belongs to this repo." We pull every active
+      // claim from the daemon and then filter to ones that resolve inside
+      // `root`. Without the filter, claims from sessions operating in
+      // unrelated repos (PD's claim DB is host-global) produce false-
+      // positive refusals on rebases here.
+      ? filterClaimsToRepo(await loadAllActiveClaims(), root)
+      : postCommit
+        ? commitFiles(commitRef, cwd)
+        : options.staged || options.hook
+          ? stagedFiles(cwd)
+          : positional.length > 0
+            ? positional
+            : dirtyFiles(cwd),
+  );
+  const context = await loadActiveContext(cwd);
+  const ownersByFile = mode === 'off' || files.length === 0 ? {} : await loadOwners(files, root);
+
+  // Rent is only assessed at commit-time (staged / hook / post-commit), never on
+  // a plain dirty-tree advisory check — you owe a note for a *commit*, not for
+  // unsaved edits. Compute it only when the guard is live and a session is
+  // attached; daemon/git failures degrade to "no rent owed" (fail-open here, so
+  // a flaky daemon never wedges every commit — the claim discipline still bites).
+  const atCommitTime = Boolean(options.staged || options.hook || postCommit);
+  const commitsSinceLastNote =
+    mode !== 'off' && atCommitTime && config.requireNotePerCommit && context.active && context.sessionId
+      ? await gatherCommitsSinceLastNote(context.sessionId, root)
+      : undefined;
+  const roadmapReceipts =
+    mode !== 'off' &&
+    atCommitTime &&
+    config.requireRoadmapForCoordinationChanges &&
+    context.active &&
+    files.some(fileNeedsRoadmapReceipt)
+      ? await loadRoadmapReceipts()
+      : undefined;
+
+  return evaluateGuardFacts({
+    config,
+    mode,
+    files,
+    active: context.active,
+    daemonReachable: context.daemonReachable,
+    agentId: context.agentId,
+    sessionId: context.sessionId,
+    ownersByFile,
+    commitsSinceLastNote,
+    atCommitTime,
+    roadmapReceipts,
+  });
+}
+
+async function handleInstallShim(options: CLIOptions): Promise<void> {
+  const ok = await requireConfirmation({
+    summary: 'Guard install-shim will write ~/.port-daddy/bin/git that intercepts destructive git verbs (reset --hard, clean -f, stash push, cherry-pick, rebase). It alters how git behaves system-wide for your shell.',
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+  const result = installGitShim();
+  if (options.json || options.j) {
+    console.log(JSON.stringify({ success: true, ...result }, null, 2));
+    return;
+  }
+  if (result.alreadyInstalled) {
+    ui.info(`git shim already installed at ${result.path}`);
+  } else {
+    ui.success(`git shim installed at ${result.path}`);
+  }
+  ui.info(result.pathHint);
+  ui.info('Disable temporarily with PD_SHIM_OFF=1 git ...');
+}
+
+async function handleUninstallShim(options: CLIOptions): Promise<void> {
+  const ok = await requireConfirmation({
+    summary: 'Guard uninstall-shim will remove ~/.port-daddy/bin/git. Destructive git verbs will no longer be intercepted; coordination relies on git hooks alone.',
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+  const result = uninstallGitShim();
+  if (options.json || options.j) {
+    console.log(JSON.stringify({ success: true, ...result }, null, 2));
+    return;
+  }
+  if (result.removed) {
+    ui.success(`git shim removed from ${result.path}`);
+  } else {
+    ui.info(`No git shim at ${result.path}`);
+  }
+  ui.info(`(directory ${SHIM_BIN_DIR} preserved)`);
+}
+
+function handleStatus(options: CLIOptions): void {
+  const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
+  const config = readGuardConfig(cwd);
+  const mode = config.enabled ? config.mode : 'off';
+  const data = {
+    success: true,
+    name: COORDINATION_GUARD_NAME,
+    enabled: config.enabled,
+    mode,
+    requireSession: config.requireSession,
+    requireClaims: config.requireClaims,
+    requireRoadmapForCoordinationChanges: config.requireRoadmapForCoordinationChanges,
+    configPath: configPath(cwd),
+  };
+
+  if (options.json || options.j) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  console.log(`${COORDINATION_GUARD_NAME}: ${mode}`);
+  console.log(`  config: ${data.configPath}`);
+  console.log(
+    `  requires: ${config.requireSession ? 'active session' : 'session optional'}, ` +
+    `${config.requireClaims ? 'file claims' : 'claims optional'}` +
+    `${config.requireNotePerCommit ? ', a note per commit' : ''}` +
+    `${config.requireRoadmapForCoordinationChanges ? ', roadmap receipts for coordination changes' : ''}`,
+  );
+  console.log('  install hook: pd guard install');
+  console.log('  check now:    pd guard check --staged');
+}
+
+async function enableGuard(options: CLIOptions): Promise<void> {
+  const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
+  const requested = optionMode(options);
+  const mode = requested === 'warn' || requested === 'enforce' ? requested : 'enforce';
+
+  const ok = await requireConfirmation({
+    summary: `Guard enable will set ${COORDINATION_GUARD_NAME} to ${mode} mode for this worktree. Other agents committing in this repo will be gated by the same policy.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+  const config = normalizeGuardConfig({
+    ...readGuardConfig(cwd),
+    enabled: true,
+    mode,
+    requireSession: options['no-session'] ? false : true,
+    requireClaims: options['no-claims'] ? false : true,
+  });
+  writeGuardConfig(config, cwd);
+  ui.success(`${COORDINATION_GUARD_NAME} enabled in ${mode} mode`);
+}
+
+async function disableGuard(options: CLIOptions): Promise<void> {
+  const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
+
+  const ok = await requireConfirmation({
+    summary: `Guard disable will turn off ${COORDINATION_GUARD_NAME} enforcement in this worktree. Commits will no longer be gated by session/claim discipline.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+  const config = normalizeGuardConfig({ ...readGuardConfig(cwd), enabled: false });
+  writeGuardConfig(config, cwd);
+  ui.success(`${COORDINATION_GUARD_NAME} disabled`);
+}
+
+async function installGuard(options: CLIOptions): Promise<void> {
+  const cwd = resolve(typeof options.dir === 'string' ? options.dir : process.cwd());
+  const root = gitRoot(cwd);
+  if (!root) {
+    ui.error('Not inside a git repository; cannot install guard hooks.');
+    process.exit(1);
+  }
+
+  const requestedMode = optionMode(options);
+  const mode = requestedMode === 'warn' || requestedMode === 'enforce' ? requestedMode : 'enforce';
+
+  const ok = await requireConfirmation({
+    summary: `Guard install will write pre-commit and post-commit hooks into ${root}/.git/hooks. Any existing hooks will be merged. Mode: ${requestedMode === 'off' ? 'off (hooks-only)' : mode}.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
+
+  if (requestedMode !== 'off') {
+    const config = normalizeGuardConfig({ ...readGuardConfig(cwd), enabled: true, mode });
+    writeGuardConfig(config, cwd);
+  }
+
+  const hooks: Array<{ name: string; merge: (existing: string) => string }> = [
+    { name: 'pre-commit', merge: mergePreCommitHook },
+    // post-commit is the only enforcement path for cherry-pick / rebase /
+    // revert, since git's sequencer skips pre-commit on those.
+    { name: 'post-commit', merge: mergePostCommitHook },
+  ];
+
+  for (const hook of hooks) {
+    const hookPath = gitPath(`hooks/${hook.name}`, cwd);
+    if (!hookPath) {
+      ui.error(`Could not resolve git ${hook.name} hook path.`);
+      process.exit(1);
+    }
+    const existing = existsSync(hookPath) ? readFileSync(hookPath, 'utf8') : '';
+    mkdirSync(dirname(hookPath), { recursive: true });
+    writeFileSync(hookPath, hook.merge(existing));
+    chmodSync(hookPath, 0o755);
+    ui.success(`${COORDINATION_GUARD_NAME} installed in ${hookPath}`);
+  }
+
+  if (requestedMode === 'off') ui.warn('Guard hooks are installed but local config is disabled.');
+}
+
+function printUsage(): void {
+  console.log(`Usage: pd guard <status|check|enable|disable|install|install-shim> [files...]`);
+  console.log('');
+  console.log('Controls:');
+  console.log('  pd guard status');
+  console.log('  pd guard enable --mode enforce');
+  console.log('  pd guard enable --mode warn');
+  console.log('  pd guard check --staged');
+  console.log('  pd guard check src/file.ts');
+  console.log('  pd guard check --git-verb reset-hard      # consult before destructive verbs');
+  console.log('  # also: checkout-paths, clean-force, add-all, stash-push, cherry-pick, rebase');
+  console.log('  pd guard install --mode enforce           # pre-commit + post-commit hooks');
+  console.log('  pd guard install-shim                     # ~/.port-daddy/bin/git wrapper');
+  console.log('  pd guard uninstall-shim');
+}
+
+export async function handleGuard(positional: string[], options: CLIOptions): Promise<void> {
+  const subcommand = positional[0] || 'status';
+  const rest = positional.slice(1);
+
+  switch (subcommand) {
+    case 'status':
+      handleStatus(options);
+      return;
+    case 'enable':
+    case 'on':
+      await enableGuard(options);
+      return;
+    case 'disable':
+    case 'off':
+      await disableGuard(options);
+      return;
+    case 'install':
+      await installGuard(options);
+      return;
+    case 'install-shim':
+    case 'shim-install':
+      await handleInstallShim(options);
+      return;
+    case 'uninstall-shim':
+    case 'shim-uninstall':
+      await handleUninstallShim(options);
+      return;
+    case 'check': {
+      const result = await runCheck(rest, options);
+      printCheckResult(result, options);
+      if (result.shouldBlock) process.exit(1);
+      return;
+    }
+    case 'help':
+    case '--help':
+    case '-h':
+      printUsage();
+      return;
+    default: {
+      const result = await runCheck(positional, options);
+      printCheckResult(result, options);
+      if (result.shouldBlock) process.exit(1);
+    }
+  }
+}

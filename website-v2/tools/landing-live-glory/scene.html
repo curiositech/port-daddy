@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Port Daddy Landing Live Glory Capture</title>
+    <style>
+      :root {
+        --radnika-opsz-body: 18;
+        --radnika-opsz-display: 48;
+        --bg: #f2eee6;
+        --ink: #121212;
+        --muted: #403b34;
+        --line: #121212;
+        --soft-line: rgba(18, 18, 18, 0.14);
+        --panel: #f7f3eb;
+        --panel-strong: #e9e2d5;
+        --terminal: #12161f;
+        --terminal-ink: #edf1f9;
+        --terminal-muted: #c7d0e5;
+        --accent: #003fb8;
+        --accent-2: #006b5f;
+        --accent-3: #0055ff;
+        --logo-teal: #5bb9b7;
+        --logo-red: #a66f00;
+        --shadow: 12px 14px 0 rgba(18, 18, 18, 0.15);
+      }
+
+      :root[data-theme="dark"] {
+        --bg: #101216;
+        --ink: #f5f3ed;
+        --muted: #d3cec2;
+        --line: #f5f3ed;
+        --soft-line: rgba(245, 243, 237, 0.16);
+        --panel: #181c22;
+        --panel-strong: #222833;
+        --terminal: #0b0d11;
+        --terminal-ink: #f5f3ed;
+        --terminal-muted: #c4cee2;
+        --accent: #7db4ff;
+        --accent-2: #8fd0a7;
+        --accent-3: #95b8ff;
+        --logo-teal: #5bb9b7;
+        --logo-red: #a66f00;
+        --shadow: 12px 14px 0 rgba(0, 0, 0, 0.44);
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 700;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: "Radnika";
+        src: url("../../public/fonts/radnika/Radnika-Black.woff2") format("woff2");
+        font-style: normal;
+        font-weight: 900;
+        font-display: swap;
+      }
+
+      @media (min-resolution: 2dppx) {
+        :root {
+          --radnika-opsz-body: 20;
+          --radnika-opsz-display: 56;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-optical-sizing: auto;
+        font-synthesis-weight: none;
+        font-variation-settings: "opsz" var(--radnika-opsz-body);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .stage {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, var(--soft-line) 1px, transparent 1px),
+          linear-gradient(0deg, var(--soft-line) 1px, transparent 1px),
+          var(--bg);
+        background-size: 64px 64px, 64px 64px, auto;
+      }
+
+      .chrome {
+        position: absolute;
+        left: 46px;
+        right: 46px;
+        top: 30px;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .mark {
+        display: block;
+        width: 48px;
+        height: 48px;
+        border: 2px solid var(--line);
+        background: #0d0c0b;
+        object-fit: cover;
+      }
+
+      .run-state {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        padding: 10px 14px;
+      }
+
+      .run-state::before {
+        content: "";
+        width: 10px;
+        height: 10px;
+        background: var(--logo-teal);
+      }
+
+      .terminal {
+        position: absolute;
+        left: 74px;
+        top: 128px;
+        z-index: 10;
+        width: 760px;
+        height: 430px;
+        border: 2px solid var(--line);
+        background: var(--terminal);
+        color: var(--terminal-ink);
+        box-shadow: var(--shadow);
+        transform-origin: top left;
+        will-change: transform, opacity;
+      }
+
+      .terminal-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 44px;
+        border-bottom: 2px solid color-mix(in srgb, var(--terminal-ink) 20%, transparent);
+        padding: 0 18px;
+        color: var(--terminal-muted);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-dots span {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--terminal-muted);
+      }
+
+      .terminal-lines {
+        position: absolute;
+        top: 44px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        padding: 22px 24px;
+        color: var(--terminal-ink);
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 18px;
+        line-height: 1.55;
+      }
+
+      .terminal-line {
+        min-height: 1.55em;
+        white-space: pre;
+      }
+
+      .prompt {
+        color: var(--accent-2);
+      }
+
+      .terminal-muted {
+        color: var(--terminal-muted);
+      }
+
+      .terminal-glow {
+        color: var(--logo-red);
+      }
+
+      .capture {
+        position: absolute;
+        overflow: hidden;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        will-change: transform, opacity;
+      }
+
+      .fleetbar-shell {
+        left: 94px;
+        top: 78px;
+        z-index: 20;
+        width: 1092px;
+        height: 610px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .menu-bar {
+        height: 70px;
+        border-bottom: 2px solid var(--line);
+        background: #15110f;
+      }
+
+      .menu-bar img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center top;
+      }
+
+      .popover-stage {
+        position: relative;
+        height: calc(100% - 70px);
+        background:
+          radial-gradient(circle at 18% 20%, color-mix(in srgb, var(--logo-teal) 16%, transparent), transparent 32%),
+          linear-gradient(135deg, color-mix(in srgb, var(--panel) 72%, var(--bg)), var(--bg));
+      }
+
+      .popover-image {
+        position: absolute;
+        left: 34px;
+        top: 28px;
+        width: 760px;
+        height: 506px;
+        border: 2px solid color-mix(in srgb, var(--line) 72%, transparent);
+        border-radius: 0;
+        object-fit: cover;
+        object-position: top center;
+        box-shadow: 10px 12px 0 rgba(0, 0, 0, 0.18);
+        transform-origin: center top;
+        will-change: transform;
+      }
+
+      .fleetbar-callout {
+        position: absolute;
+        left: 792px;
+        top: 118px;
+        right: 34px;
+        min-height: 268px;
+        border: 3px solid var(--line);
+        background: var(--panel);
+        box-shadow: inset 10px 0 0 var(--logo-teal);
+        padding: 34px 36px;
+      }
+
+      .fleetbar-callout strong {
+        display: block;
+        font-size: 48px;
+        line-height: 0.96;
+        letter-spacing: 0;
+        font-variation-settings: "opsz" var(--radnika-opsz-display);
+      }
+
+      .fleetbar-callout span {
+        display: block;
+        margin-top: 24px;
+        color: var(--muted);
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1.12;
+      }
+
+      .surface-copy {
+        position: absolute;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        z-index: 3;
+        width: fit-content;
+        min-width: 380px;
+        max-width: 460px;
+        border: 4px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        box-shadow: inset 10px 0 0 var(--accent);
+        padding: 28px 30px 28px 38px;
+      }
+
+      .surface-copy.pos-bottom-left {
+        left: 64px;
+        bottom: 108px;
+      }
+
+      .surface-copy.pos-bottom-right {
+        right: 64px;
+        bottom: 108px;
+      }
+
+      .surface-copy.pos-top-right {
+        top: 96px;
+        right: 64px;
+      }
+
+      .surface-copy strong {
+        display: block;
+        max-width: 11ch;
+        font-size: 42px;
+        line-height: 0.98;
+        letter-spacing: 0;
+        font-variation-settings: "opsz" var(--radnika-opsz-display);
+      }
+
+      .surface-copy span {
+        display: block;
+        margin-top: 20px;
+        max-width: 19ch;
+        color: var(--muted);
+        font-size: 23px;
+        font-weight: 700;
+        line-height: 1.16;
+      }
+
+      .surface {
+        left: 50px;
+        top: 36px;
+        z-index: 30;
+        width: 1180px;
+        height: 650px;
+        opacity: 0;
+        transform-origin: center;
+      }
+
+      .surface img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+        object-position: top center;
+        transform-origin: center top;
+        will-change: transform;
+      }
+
+      .surface-title {
+        position: absolute;
+        left: 18px;
+        top: 18px;
+        z-index: 2;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        padding: 10px 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .timeline {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 28px;
+        z-index: 60;
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        border: 2px solid var(--line);
+        background: var(--panel);
+      }
+
+      .timeline-step {
+        border-right: 2px solid var(--line);
+        padding: 10px 8px;
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .timeline-step:last-child {
+        border-right: 0;
+      }
+
+      .timeline-step.active {
+        background: var(--accent);
+        color: var(--panel);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" id="stage">
+      <div class="chrome" id="chrome">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <img class="mark" id="brandMark" alt="" />
+          <span>Port Daddy live run</span>
+        </div>
+        <div class="run-state" id="topStatus">daemon nominal</div>
+      </div>
+
+      <section class="terminal" id="terminal" aria-label="Terminal">
+        <div class="terminal-top">
+          <div class="window-dots"><span></span><span></span><span></span></div>
+          <div>~/coding/port-daddy</div>
+        </div>
+        <div class="terminal-lines" id="terminalLines"></div>
+      </section>
+
+      <section class="capture fleetbar-shell" id="fleetbar" aria-label="FleetBar menu bar app">
+        <div class="menu-bar">
+          <div class="traffic"><span></span><span></span><span></span></div>
+          <img id="topbarImage" alt="macOS menu bar with FleetBar icon" />
+        </div>
+        <div class="popover-stage">
+          <img class="popover-image" id="fleetbarImage" alt="FleetBar popover" />
+          <div class="fleetbar-callout">
+            <strong>FleetBar</strong>
+            <span>Menu-bar app for daemon health, recent agent work, touched files, and the Console jump.</span>
+          </div>
+        </div>
+      </section>
+
+      <figure class="capture surface" id="shipwright" aria-label="Fleet Control Center Shipwright">
+        <span class="surface-title">Shipwright</span>
+        <img id="shipwrightImage" alt="Fleet Control Center Shipwright" />
+        <figcaption class="surface-copy pos-bottom-right">
+          <strong>Shipwright builds the fleet.</strong>
+          <span>Proposes agents, budgets the run, and keeps launch choices visible.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="roadmap" aria-label="Fleet Control Center Roadmap">
+        <span class="surface-title">Roadmap</span>
+        <img id="roadmapImage" alt="Fleet Control Center Roadmap" />
+        <figcaption class="surface-copy pos-top-right">
+          <strong>Roadmap ranks the next cuts.</strong>
+          <span>Turns notes, recovery docs, and feedback into prioritized work.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="sorties" aria-label="Fleet Control Center Sorties">
+        <span class="surface-title">Sorties</span>
+        <img id="sortiesImage" alt="Fleet Control Center Sorties" />
+        <figcaption class="surface-copy pos-top-right">
+          <strong>Sorties keep launches bounded.</strong>
+          <span>Preview roster, approvals, budget, and launch path before work starts.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="flow" aria-label="Fleet Control Center Flow">
+        <span class="surface-title">Flow</span>
+        <img id="flowImage" alt="Fleet Control Center Flow" />
+        <figcaption class="surface-copy pos-bottom-right">
+          <strong>Flow shows who wakes whom.</strong>
+          <span>Shows listeners, triggers, publishes, and where work moves next.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="resources" aria-label="Fleet Control Center Resources">
+        <span class="surface-title">Resources</span>
+        <img id="resourcesImage" alt="Fleet Control Center Resources" />
+        <figcaption class="surface-copy pos-bottom-right">
+          <strong>Resources shows fleet pressure.</strong>
+          <span>Shows daemon load, memory, spend, and launch capacity.</span>
+        </figcaption>
+      </figure>
+
+      <figure class="capture surface" id="agents" aria-label="Fleet Control Center Agents">
+        <span class="surface-title">Agents</span>
+        <img id="agentsImage" alt="Fleet Control Center Agents" />
+        <figcaption class="surface-copy pos-top-right">
+          <strong>Agents ties signals to actors.</strong>
+          <span>Connects runtime bodies, notes, claims, inboxes, and handoffs.</span>
+        </figcaption>
+      </figure>
+
+      <div class="timeline">
+        <div class="timeline-step" id="stepTerminal">Terminal</div>
+        <div class="timeline-step" id="stepFleetbar">FleetBar</div>
+        <div class="timeline-step" id="stepShipwright">Shipwright</div>
+        <div class="timeline-step" id="stepRoadmap">Roadmap</div>
+        <div class="timeline-step" id="stepSorties">Sorties</div>
+        <div class="timeline-step" id="stepFlow">Flow</div>
+        <div class="timeline-step" id="stepResources">Resources</div>
+        <div class="timeline-step" id="stepAgents">Agents</div>
+      </div>
+    </main>
+
+    <script>
+      const DURATION = 30.4
+      const defaultSnapshot = {
+        status: {
+          activePorts: '21',
+          fleet: '1 project, 8 agents, 3/8 launchable',
+          runtime: 'nominal',
+        },
+        sessions: [
+          'Landing live-glory video',
+          'Fleet agent: cartographer',
+          'QA agent found issues',
+          'Promote Fleet Control Center entrance',
+          'Render real FleetBar popover',
+          'Record Flow and Agents surfaces',
+        ],
+      }
+
+      const params = new URLSearchParams(window.location.search)
+      const theme = params.get('theme') === 'dark' ? 'dark' : 'light'
+      const manual = params.get('manual') === '1'
+      document.documentElement.dataset.theme = theme
+
+      const state = { snapshot: defaultSnapshot }
+      const terminal = document.getElementById('terminal')
+      const chrome = document.getElementById('chrome')
+      const terminalLines = document.getElementById('terminalLines')
+      const fleetbar = document.getElementById('fleetbar')
+      const shipwright = document.getElementById('shipwright')
+      const roadmap = document.getElementById('roadmap')
+      const sorties = document.getElementById('sorties')
+      const flow = document.getElementById('flow')
+      const resources = document.getElementById('resources')
+      const agents = document.getElementById('agents')
+      const topbarImage = document.getElementById('topbarImage')
+      const fleetbarImage = document.getElementById('fleetbarImage')
+      const brandMark = document.getElementById('brandMark')
+      const shipwrightImage = document.getElementById('shipwrightImage')
+      const roadmapImage = document.getElementById('roadmapImage')
+      const sortiesImage = document.getElementById('sortiesImage')
+      const flowImage = document.getElementById('flowImage')
+      const resourcesImage = document.getElementById('resourcesImage')
+      const agentsImage = document.getElementById('agentsImage')
+      const topStatus = document.getElementById('topStatus')
+
+      function clamp(value, min = 0, max = 1) {
+        return Math.max(min, Math.min(max, value))
+      }
+
+      function smooth(edge0, edge1, x) {
+        const v = clamp((x - edge0) / (edge1 - edge0))
+        return v * v * (3 - 2 * v)
+      }
+
+      function short(text, max = 46) {
+        if (!text) return 'Port Daddy agent'
+        return text.length > max ? `${text.slice(0, max - 1)}...` : text
+      }
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+      }
+
+      function mediaAsset(name) {
+        const themed = new Set([
+          'fleetbar-menu-captured',
+          'live-shipwright-focus',
+          'live-roadmap',
+          'live-sorties',
+          'live-flow-graph',
+          'live-resources',
+          'live-agents-panel',
+        ])
+        if (themed.has(name)) {
+          return `../../public/media/landing-live-glory/${name}-${theme}.png`
+        }
+        return `../../public/media/landing-live-glory/${name}.png`
+      }
+
+      function normalizeSnapshot(snapshot) {
+        const sessions = Array.isArray(snapshot.sessions) && snapshot.sessions.length
+          ? snapshot.sessions
+          : defaultSnapshot.sessions
+        return {
+          status: { ...defaultSnapshot.status, ...(snapshot.status || {}) },
+          sessions: sessions.slice(0, 8),
+        }
+      }
+
+      function paintStatic() {
+        const { status } = state.snapshot
+        topStatus.textContent = `daemon ${status.runtime || 'nominal'}`
+        brandMark.src = theme === 'dark' ? '../../public/pd_logo_darkmode.svg' : '../../public/pd_logo.svg'
+        topbarImage.src = mediaAsset('topbar-crop')
+        fleetbarImage.src = mediaAsset('fleetbar-menu-captured')
+        shipwrightImage.src = mediaAsset('live-shipwright-focus')
+        roadmapImage.src = mediaAsset('live-roadmap')
+        sortiesImage.src = mediaAsset('live-sorties')
+        flowImage.src = mediaAsset('live-flow-graph')
+        resourcesImage.src = mediaAsset('live-resources')
+        agentsImage.src = mediaAsset('live-agents-panel')
+      }
+
+      function paintTerminal(t) {
+        const { status, sessions } = state.snapshot
+        const lines = [
+          { kind: 'command', text: 'pd status' },
+          { kind: 'muted', text: `Port Daddy is running - ${status.runtime || 'nominal'}` },
+          { kind: 'muted', text: `Fleet: ${status.fleet || `${sessions.length} agent(s) visible`}` },
+          { kind: 'command', text: 'pd notes --limit 6' },
+          ...sessions.slice(0, 5).map((session, index) => ({
+            kind: 'agent',
+            agent: `agent-${String(index + 1).padStart(2, '0')}`,
+            text: short(session, 46),
+          })),
+          { kind: 'command', text: 'open -a FleetBar' },
+        ]
+        const visibleCount = Math.max(1, Math.ceil(lines.length * smooth(0.12, 2.65, t)))
+        terminalLines.innerHTML = lines.slice(0, visibleCount).map((line) => {
+          if (line.kind === 'command') {
+            return `<div class="terminal-line"><span class="prompt">$</span> ${escapeHtml(line.text)}</div>`
+          }
+          if (line.kind === 'agent') {
+            return `<div class="terminal-line"><span class="terminal-glow">${escapeHtml(line.agent)}</span> ${escapeHtml(line.text)}</div>`
+          }
+          return `<div class="terminal-line terminal-muted">${escapeHtml(line.text)}</div>`
+        }).join('')
+      }
+
+      function setTimeline(t) {
+        document.querySelectorAll('.timeline-step').forEach((step) => step.classList.remove('active'))
+        if (t < 3.05) document.getElementById('stepTerminal').classList.add('active')
+        else if (t < 7.0) document.getElementById('stepFleetbar').classList.add('active')
+        else if (t < 11.0) document.getElementById('stepShipwright').classList.add('active')
+        else if (t < 15.0) document.getElementById('stepRoadmap').classList.add('active')
+        else if (t < 19.0) document.getElementById('stepSorties').classList.add('active')
+        else if (t < 22.7) document.getElementById('stepFlow').classList.add('active')
+        else if (t < 26.4) document.getElementById('stepResources').classList.add('active')
+        else document.getElementById('stepAgents').classList.add('active')
+      }
+
+      function fadeInOut(t, start, end, outStart, outEnd) {
+        return smooth(start, end, t) * (1 - smooth(outStart, outEnd, t))
+      }
+
+      function beatProgress(t, start, end) {
+        return smooth(start, end, t)
+      }
+
+      function setImageMotion(image, progress, start, end) {
+        const scale = start.scale + (end.scale - start.scale) * progress
+        const x = start.x + (end.x - start.x) * progress
+        const y = start.y + (end.y - start.y) * progress
+        image.style.transform = `translate(${x}px, ${y}px) scale(${scale})`
+      }
+
+      function renderFrame(time) {
+        const t = ((time % DURATION) + DURATION) % DURATION
+        const terminalOut = smooth(3.0, 4.1, t)
+        const chromeOut = smooth(6.55, 7.15, t)
+        const fleetAlpha = fadeInOut(t, 2.65, 3.5, 6.55, 7.15)
+        const shipwrightAlpha = fadeInOut(t, 6.65, 7.35, 10.55, 11.15)
+        const roadmapAlpha = fadeInOut(t, 10.65, 11.35, 14.55, 15.15)
+        const sortiesAlpha = fadeInOut(t, 14.65, 15.35, 18.55, 19.15)
+        const flowAlpha = fadeInOut(t, 18.65, 19.35, 22.25, 22.85)
+        const resourcesAlpha = fadeInOut(t, 22.35, 23.05, 25.95, 26.55)
+        const agentsAlpha = smooth(26.05, 26.75, t)
+
+        paintTerminal(t)
+        setTimeline(t)
+
+        chrome.style.opacity = String(1 - chromeOut)
+        terminal.style.opacity = String(1 - terminalOut)
+        terminal.style.transform = `translate(${terminalOut * -58}px, ${terminalOut * 24}px) scale(${1 - terminalOut * 0.22})`
+
+        fleetbar.style.opacity = String(fleetAlpha)
+        fleetbar.style.transform = `translate(${(1 - smooth(2.65, 3.5, t)) * 82}px, ${(1 - smooth(2.65, 3.5, t)) * 26}px) scale(${0.94 + smooth(2.65, 3.5, t) * 0.06})`
+        setImageMotion(
+          fleetbarImage,
+          beatProgress(t, 3.5, 6.55),
+          { scale: 1.0, x: 0, y: 0 },
+          { scale: 1.08, x: -24, y: -18 },
+        )
+
+        shipwright.style.opacity = String(shipwrightAlpha)
+        shipwright.style.transform = `translate(${(1 - smooth(6.65, 7.35, t)) * 76}px, ${(1 - smooth(6.65, 7.35, t)) * 20}px) scale(${0.95 + smooth(6.65, 7.35, t) * 0.05})`
+        setImageMotion(
+          shipwrightImage,
+          beatProgress(t, 7.35, 10.55),
+          { scale: 1.01, x: 0, y: 0 },
+          { scale: 1.09, x: -18, y: -16 },
+        )
+
+        roadmap.style.opacity = String(roadmapAlpha)
+        roadmap.style.transform = `translate(${(1 - smooth(10.65, 11.35, t)) * 76}px, ${(1 - smooth(10.65, 11.35, t)) * 20}px) scale(${0.95 + smooth(10.65, 11.35, t) * 0.05})`
+        setImageMotion(
+          roadmapImage,
+          beatProgress(t, 11.35, 14.55),
+          { scale: 1.01, x: 0, y: 0 },
+          { scale: 1.08, x: -10, y: -30 },
+        )
+
+        sorties.style.opacity = String(sortiesAlpha)
+        sorties.style.transform = `translate(${(1 - smooth(14.65, 15.35, t)) * 76}px, ${(1 - smooth(14.65, 15.35, t)) * 20}px) scale(${0.95 + smooth(14.65, 15.35, t) * 0.05})`
+        setImageMotion(
+          sortiesImage,
+          beatProgress(t, 15.35, 18.55),
+          { scale: 1.01, x: 0, y: 0 },
+          { scale: 1.08, x: -22, y: -14 },
+        )
+
+        flow.style.opacity = String(flowAlpha)
+        flow.style.transform = `translate(${(1 - smooth(18.65, 19.35, t)) * 76}px, ${(1 - smooth(18.65, 19.35, t)) * 20}px) scale(${0.95 + smooth(18.65, 19.35, t) * 0.05})`
+        setImageMotion(
+          flowImage,
+          beatProgress(t, 19.35, 22.25),
+          { scale: 1.0, x: 0, y: 0 },
+          { scale: 1.13, x: -26, y: -18 },
+        )
+
+        resources.style.opacity = String(resourcesAlpha)
+        resources.style.transform = `translate(${(1 - smooth(22.35, 23.05, t)) * 76}px, ${(1 - smooth(22.35, 23.05, t)) * 20}px) scale(${0.95 + smooth(22.35, 23.05, t) * 0.05})`
+        setImageMotion(
+          resourcesImage,
+          beatProgress(t, 23.05, 25.95),
+          { scale: 1.01, x: 0, y: 0 },
+          { scale: 1.08, x: -18, y: -20 },
+        )
+
+        agents.style.opacity = String(agentsAlpha)
+        agents.style.transform = `translate(${(1 - agentsAlpha) * 76}px, ${(1 - agentsAlpha) * 20}px) scale(${0.95 + agentsAlpha * 0.05})`
+        setImageMotion(
+          agentsImage,
+          beatProgress(t, 26.75, DURATION - 0.2),
+          { scale: 1.01, x: 0, y: 0 },
+          { scale: 1.08, x: -20, y: -22 },
+        )
+
+        return true
+      }
+
+      window.setSnapshot = (snapshot) => {
+        state.snapshot = normalizeSnapshot(snapshot || defaultSnapshot)
+        paintStatic()
+        renderFrame(0)
+      }
+
+      window.renderFrame = renderFrame
+      window.setSnapshot(defaultSnapshot)
+
+      window.mediaReady = Promise.all([
+        topbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        fleetbarImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        shipwrightImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        roadmapImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        sortiesImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        flowImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        resourcesImage.decode?.().catch(() => undefined) || Promise.resolve(),
+        agentsImage.decode?.().catch(() => undefined) || Promise.resolve(),
+      ]).then(() => {
+        if (!manual) {
+          renderFrame(0)
+        }
+        return true
+      })
+
+      if (!manual) {
+        const started = performance.now()
+        function tick() {
+          renderFrame((performance.now() - started) / 1000)
+          requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }
+    </script>
+  </body>
+</html>

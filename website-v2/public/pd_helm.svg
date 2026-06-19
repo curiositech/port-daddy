@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      /* --- SWISS MODERN COLOR PALETTE --- */
+      :root {
+        --bg-dark: #070B12;
+        --grid-line: #121A28;
+        --grid-accent: #1B273A;
+        --text-primary: #60E0D0;
+        --text-secondary: #4A5B73;
+        
+        --cobalt: #2076FE;
+        --seafoam: #20DEB0;
+        --amber: #FFB505;
+        --teal: #60E0D0;
+      }
+
+      .bg { fill: var(--bg-dark); }
+      .grid { stroke: var(--grid-line); stroke-width: 1; }
+      .accent-grid { stroke: var(--grid-accent); stroke-width: 1; }
+      
+      .tech-text { 
+        font-family: 'Courier New', Courier, monospace; 
+        font-size: 10px; 
+        font-weight: bold; 
+        letter-spacing: 1px; 
+      }
+
+      /* --- ANIMATION PROFILES --- */
+      
+      /* Mid-spin inversion: Snaps 180°, swapping the identical geometry but flipping colors */
+      @keyframes pd-flip {
+        0%, 15%   { transform: rotate(0deg); }
+        45%, 65%  { transform: rotate(180deg); }
+        85%, 100% { transform: rotate(360deg); }
+      }
+
+      /* Speeding-up to spin, slowing-down from spin (Ease-In-Out looping) */
+      @keyframes spin-accel-decel {
+        0%   { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes spin-rev-accel-decel {
+        0%   { transform: rotate(0deg); }
+        100% { transform: rotate(-360deg); }
+      }
+
+      /* --- COMPONENT CLASSES --- */
+      .pd-center {
+        transform-origin: 250px 250px;
+        animation: pd-flip 6s cubic-bezier(0.77, 0, 0.17, 1) infinite;
+        mix-blend-mode: screen; /* Creates digital color harmonization where paths intersect */
+      }
+
+      .ring-outer {
+        transform-origin: 250px 250px;
+        animation: spin-accel-decel 5s ease-in-out infinite;
+      }
+      .ring-mid {
+        transform-origin: 250px 250px;
+        animation: spin-rev-accel-decel 7s ease-in-out infinite;
+      }
+      .ring-inner {
+        transform-origin: 250px 250px;
+        animation: spin-accel-decel 4s ease-in-out infinite;
+      }
+      .ring-core {
+        transform-origin: 250px 250px;
+        animation: spin-rev-accel-decel 9s ease-in-out infinite;
+      }
+
+      .color-cobalt  { stroke: var(--cobalt); fill: none; }
+      .color-seafoam { stroke: var(--seafoam); fill: none; }
+      .color-amber   { stroke: var(--amber); fill: none; }
+      .color-teal    { stroke: var(--teal); fill: none; }
+    </style>
+
+    <!-- Grid Patterns -->
+    <pattern id="gridPattern" width="25" height="25" patternUnits="userSpaceOnUse">
+      <line x1="25" y1="0" x2="25" y2="25" class="grid" />
+      <line x1="0" y1="25" x2="25" y2="25" class="grid" />
+    </pattern>
+    <pattern id="gridPatternLarge" width="100" height="100" patternUnits="userSpaceOnUse">
+      <line x1="100" y1="0" x2="100" y2="100" class="accent-grid" />
+      <line x1="0" y1="100" x2="100" y2="100" class="accent-grid" />
+    </pattern>
+  </defs>
+
+  <!-- ================= BACKGROUND & SWISS GRID ================= -->
+  <rect width="100%" height="100%" class="bg" />
+  <rect width="100%" height="100%" fill="url(#gridPattern)" />
+  <rect width="100%" height="100%" fill="url(#gridPatternLarge)" />
+
+  <!-- Center Crosshairs -->
+  <line x1="0" y1="250" x2="500" y2="250" class="accent-grid" stroke-dasharray="5 5" />
+  <line x1="250" y1="0" x2="250" y2="500" class="accent-grid" stroke-dasharray="5 5" />
+
+  <!-- ================= GYROSCOPIC SHELLS (HELM WHEEL) ================= -->
+  
+  <!-- Outer Shell (Teal) -->
+  <g class="ring-outer">
+    <circle cx="250" cy="250" r="170" class="color-teal" stroke-width="2" stroke-dasharray="150 20 60 20 400 30" />
+    <!-- Helm Wheel Handles / Spokes Nodes -->
+    <circle cx="250" cy="80" r="4" fill="var(--teal)" />
+    <circle cx="250" cy="420" r="4" fill="var(--teal)" />
+    <circle cx="80" cy="250" r="4" fill="var(--teal)" />
+    <circle cx="420" cy="250" r="4" fill="var(--teal)" />
+    <line x1="250" y1="70" x2="250" y2="85" class="color-teal" stroke-width="2" />
+    <line x1="250" y1="415" x2="250" y2="430" class="color-teal" stroke-width="2" />
+  </g>
+
+  <!-- Mid Shell (Amber) -->
+  <g class="ring-mid">
+    <circle cx="250" cy="250" r="145" class="color-amber" stroke-width="4" stroke-dasharray="250 50 100 50" />
+    <!-- Technical hash marks -->
+    <path d="M 250 100 v 10 M 250 390 v 10 M 100 250 h 10 M 390 250 h 10" class="color-amber" stroke-width="4" />
+  </g>
+
+  <!-- Inner Shell (Seafoam) -->
+  <g class="ring-inner">
+    <circle cx="250" cy="250" r="120" class="color-seafoam" stroke-width="3" stroke-dasharray="120 30 40 30" />
+    <!-- Gyroscopic balance weights -->
+    <circle cx="165" cy="165" r="3" fill="var(--seafoam)" />
+    <circle cx="335" cy="335" r="3" fill="var(--seafoam)" />
+  </g>
+
+  <!-- Core Shell (Cobalt) -->
+  <g class="ring-core">
+    <circle cx="250" cy="250" r="95" class="color-cobalt" stroke-width="2" stroke-dasharray="80 20 20 20 100 40" />
+    <line x1="245" y1="155" x2="255" y2="155" class="color-cobalt" stroke-width="2" />
+    <line x1="245" y1="345" x2="255" y2="345" class="color-cobalt" stroke-width="2" />
+  </g>
+
+  <!-- ================= MONOGRAM 'pd' ================= -->
+  <!-- 
+    Mathematically perfectly symmetrical. 
+    A 180° mid-spin rotation swaps the identical geometry, exchanging the colors. 
+  -->
+  <g class="pd-center">
+    <!-- 'p' Geometry (Cobalt) -->
+    <g class="color-cobalt" stroke-width="26" stroke-linecap="butt">
+      <line x1="184" y1="195" x2="184" y2="330" />
+      <circle cx="226" cy="250" r="42" />
+    </g>
+    
+    <!-- 'd' Geometry (Seafoam) -->
+    <g class="color-seafoam" stroke-width="26" stroke-linecap="butt">
+      <line x1="316" y1="305" x2="316" y2="170" />
+      <circle cx="274" cy="250" r="42" />
+    </g>
+  </g>
+
+  <!-- ================= STATIONARY HUB PIVOT ================= -->
+  <circle cx="250" cy="250" r="6" fill="var(--bg-dark)" stroke="var(--amber)" stroke-width="3" />
+  <circle cx="250" cy="250" r="1.5" fill="var(--amber)" />
+
+</svg>

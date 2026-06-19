@@ -1,0 +1,198 @@
+/**
+ * Sugar Routes — Compound commands for common workflows
+ *
+ * POST /sugar/begin   - Register agent + start session atomically
+ * POST /sugar/done    - End session + unregister agent
+ * GET  /sugar/whoami  - Show current agent/session context
+ */
+
+import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
+
+interface SugarRouteDeps {
+  sugar: {
+    begin(options: Record<string, unknown>): Record<string, unknown>;
+    done(options: Record<string, unknown>): Record<string, unknown>;
+    whoami(options: Record<string, unknown>): Record<string, unknown>;
+  };
+  metrics: { errors: number };
+  logger: {
+    info(msg: string, meta?: Record<string, unknown>): void;
+    error(msg: string, meta?: Record<string, unknown>): void;
+  };
+}
+
+type BeginLifecycle = 'durable' | 'ephemeral';
+
+function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
+}
+
+
+// =============================================================================
+// Fastify plugin export
+// =============================================================================
+export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (fastify, opts) => {
+  const { deps } = opts;
+  const { sugar, metrics, logger } = deps;
+
+  // POST /sugar/begin
+  fastify.post('/sugar/begin', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const {
+        purpose,
+        identity,
+        agentId,
+        name,
+        type,
+        files,
+        force,
+        metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+        bypassCrowdedGate,
+        lifecycle: rawLifecycle,
+      } = request.body as any;
+
+      if (!purpose || typeof purpose !== 'string') {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'purpose must be a non-empty string',
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const lifecycle = parseBeginLifecycle(rawLifecycle);
+      if (!lifecycle) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'lifecycle must be explicitly set to "durable" or "ephemeral"',
+          code: 'SESSION_LIFECYCLE_REQUIRED',
+        };
+      }
+
+      const result = sugar.begin({
+        purpose,
+        identity,
+        agentId,
+        name,
+        type,
+        files,
+        force,
+        metadata,
+        worktree,
+        requireLinkedWorktree,
+        allowMainWorktree,
+        bypassCrowdedGate,
+        lifecycle,
+      });
+
+      if (!result.success) {
+        const status = result.code === 'AGENT_REGISTRATION_FAILED'
+          || result.code === 'WORKTREE_REQUIRED'
+          || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
+          || result.code === 'MAIN_WORKTREE_CROWDED'
+          ? 400
+          : 500;
+        reply.code(status);
+        return result;
+      }
+
+      logger.info('sugar_begin', {
+        agentId: result.agentId,
+        sessionId: result.sessionId,
+        identity,
+        lifecycle,
+        purpose,
+      });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_begin_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // POST /sugar/done
+  fastify.post('/sugar/done', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const {
+        agentId,
+        sessionId,
+        note,
+        status,
+        skipOriginCheck,
+        skipOriginCheckReason,
+      } = request.body as any;
+
+      const VALID_DONE_STATUSES = new Set(['completed', 'abandoned']);
+      if (status && !VALID_DONE_STATUSES.has(status)) {
+        reply.code(400);
+        return {
+          success: false,
+          error: `Invalid status "${status}". Must be one of: completed, abandoned`,
+          code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const result = sugar.done({
+        agentId,
+        sessionId,
+        note,
+        status,
+        skipOriginCheck,
+        skipOriginCheckReason,
+      });
+
+      if (!result.success) {
+        const httpStatus = result.code === 'NO_ACTIVE_SESSION'
+          ? 404
+          : result.code === 'SESSION_OWNERSHIP_MISMATCH'
+            ? 409
+            : result.code === 'BRANCH_NOT_ON_ORIGIN'
+              || result.code === 'RESULT_NOTE_MISSING_SENTINEL'
+              || result.code === 'SKIP_ORIGIN_CHECK_REASON_REQUIRED'
+              ? 400
+              : 500;
+        reply.code(httpStatus);
+        return result;
+      }
+
+      logger.info('sugar_done', {
+        agentId: result.agentId,
+        sessionId: result.sessionId,
+        status: result.sessionStatus,
+      });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_done_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /sugar/whoami
+  fastify.get('/sugar/whoami', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const agentId = typeof (request.query as any).agentId === 'string' ? (request.query as any).agentId : undefined;
+      const sessionId = typeof (request.query as any).sessionId === 'string' ? (request.query as any).sessionId : undefined;
+
+      const result = sugar.whoami({ agentId, sessionId });
+
+      return result;
+    } catch (error) {
+      metrics.errors++;
+      logger.error('sugar_whoami_error', { error: (error as Error).message });
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+};

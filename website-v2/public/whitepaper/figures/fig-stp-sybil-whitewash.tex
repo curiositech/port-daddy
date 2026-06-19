@@ -1,0 +1,54 @@
+% Fig 6 — Sybil / whitewashing defeated by a daemon-minted non-forgeable id.
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={draw=hhebony,thick,rounded corners=2pt,inner sep=4pt,align=center,
+              minimum height=10mm},
+  bad/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  good/.style={->,>=Latex,thick,draw=hhink},
+]
+% TOP — the attacks against self-asserted strings
+\node[font=\bfseries,anchor=west] at (-0.3,3.2)
+  {Self-asserted id (\texttt{project:stack:context}) --- both attacks are free:};
+\node[box,fill=hhsand!30] (bad1) at (0,1.8) {agent ``X''\\(bad record)};
+\node[box,fill=hhsand!30,right=34mm of bad1] (bad2) {agent ``X'\,'\\(fresh, clean)};
+\draw[bad] (bad1) -- node[midway,above,font=\scriptsize,text=hhink]
+  {respawn = \textbf{whitewash}} (bad2);
+\node[box,fill=hhsand!30,right=32mm of bad2] (syb)
+  {1000 $\times$ ``X$_i$''\\(forged quorum)};
+\draw[bad] (bad2) -- node[midway,above,font=\scriptsize,text=hhink]
+  {replicate = \textbf{Sybil}} (syb);
+
+% BOTTOM — the fix: daemon-minted non-forgeable id bound to credential + principal
+\node[font=\bfseries,anchor=west] at (-0.3,-0.6)
+  {Daemon-minted, non-forgeable identity, bound to a principal:};
+\node[box,fill=hhsand!30,draw=hhink,thick] (daemon) at (1.2,-2.3)
+  {daemon mints\\a non-forgeable id};
+\node[box,fill=hhpaper,right=14mm of daemon] (cred) {non-re-pickable\\credential (key)};
+\node[box,fill=hhpaper,right=12mm of cred] (princ) {principal\\(owns the fleet,\\posts bonds)};
+\draw[good] (daemon) -- (cred);
+\draw[good] (cred) -- (princ);
+
+\end{tikzpicture}}
+\caption{\textbf{The non-forgeable root forecloses the two classic attacks.} With
+self-asserted strings (top), whitewashing and Sybil are free. A daemon-minted,
+non-forgeable identity bound to a non-re-pickable credential and a principal
+(bottom) makes both costly: churn costs more than a clean record
+(Thm.~\ref{thm:whitewash-cost}), and sanctions survive respawns
+(Thm.~\ref{thm:necessity}). The newcomer policy is a shape, not a scalar: a fresh
+id may have full \emph{work} ability but a reduced \emph{economic ceiling} until
+it earns a witnessed history (Friedman--Resnick). This is the one genuinely
+architectural piece of the program.}
+\label{fig:sybil}
+\end{figure}

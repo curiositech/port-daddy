@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Port Daddy - Local Control Plane for AI Coding Agents</title>
+
+    <!-- Primary Meta Tags -->
+    <!-- Fallback content. The postbuild step in scripts/inject-route-html.mjs
+         replaces these with per-route values from src/data/siteMetadata.ts.
+         If you change this, change DEFAULT_SITE_DESCRIPTION too so a
+         postbuild failure doesn't ship a different homepage from production. -->
+    <meta name="description" content="Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine." />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://portdaddy.dev/" />
+    <meta property="og:title" content="Port Daddy - Local Control Plane for AI Coding Agents" />
+    <meta property="og:description" content="Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine." />
+    <meta property="og:image" content="https://portdaddy.dev/img/og/home.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Port Daddy" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://portdaddy.dev/" />
+    <meta name="twitter:title" content="Port Daddy - Local Control Plane for AI Coding Agents" />
+    <meta name="twitter:description" content="Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine." />
+    <meta name="twitter:image" content="https://portdaddy.dev/img/og/home.jpg" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://portdaddy.dev/" />
+
+    <!-- FOWT Prevention: Set theme before any rendering -->
+    <script>
+      (function() {
+        const theme = localStorage.getItem('pd-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (theme === 'dark' || (!theme && prefersDark)) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+    
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

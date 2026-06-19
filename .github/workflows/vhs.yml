@@ -1,0 +1,60 @@
+name: VHS Tape Generation
+on:
+  push:
+    paths:
+      - 'demos/*.tape'
+      - '.github/workflows/vhs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vhs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install recorder tools
+        env:
+          VHS_VERSION: 0.11.0
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ttyd
+          curl -fsSL -o /tmp/vhs.deb \
+            "https://github.com/charmbracelet/vhs/releases/download/v${VHS_VERSION}/vhs_${VHS_VERSION}_amd64.deb"
+          sudo apt-get install -y /tmp/vhs.deb
+          vhs --version
+
+      - name: Start daemon for recording
+        run: |
+          node bin/port-daddy-cli.js start &
+          sleep 3
+          node bin/port-daddy-cli.js status || true
+
+      - name: Run VHS tapes
+        run: |
+          for tape in demos/*.tape; do
+            echo "Recording: $tape"
+            vhs "$tape" || echo "Warning: $tape failed, continuing"
+          done
+
+      - name: Stop daemon
+        if: always()
+        run: node bin/port-daddy-cli.js stop || true
+
+      - name: Commit changes
+        if: github.ref == 'refs/heads/main'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update VHS demos [skip ci]"
+          file_pattern: "demos"

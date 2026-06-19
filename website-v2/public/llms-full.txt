@@ -1,0 +1,35 @@
+# Port Daddy LLM Full Context Index
+
+## Product
+Port Daddy is an always-on local daemon and control plane for coordinating multiple coding agents in the same repository.
+
+Core capabilities:
+- deterministic semantic identity -> port mapping
+- session lifecycle with immutable notes
+- distributed file claims and locks
+- scoped pub/sub channels for inter-agent signaling
+- salvage queue for crash recovery and work continuity
+- harbor capability boundaries and DNS/tunnel primitives
+- fleet orchestration for scheduled and trigger-based agent runs
+
+## Docs Structure
+- /docs                         : Documentation landing
+- /docs/quickstart              : Install + first run
+- /docs/guides/prompting-agents : Prompt engineering for coordinated fleets
+- /docs/guides/templates        : Starter templates and command patterns
+- /docs/guides/protocol         : Lifecycle/state/event model with diagrams
+- /docs/features/*              : Concept pages
+- /docs/cli/*                   : CLI reference
+- /docs/sdk/*                   : TypeScript SDK reference
+- /docs/mcp/*                   : MCP tool reference
+- /docs/api                     : HTTP API reference
+
+## Recommended grounding order for models
+1) /docs
+2) /docs/quickstart
+3) /docs/guides/prompting-agents
+4) /docs/guides/protocol
+5) interface-specific reference pages (/docs/cli or /docs/sdk or /docs/mcp or /docs/api)
+
+## Operational note
+Use project-scoped identity and channel context when producing commands/examples for users.

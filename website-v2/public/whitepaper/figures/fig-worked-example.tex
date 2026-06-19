@@ -1,0 +1,93 @@
+% Worked example timeline — inline in Appendix D (App D Worked Example).
+
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  font=\sffamily\small,
+  lane/.style={font=\sffamily\bfseries\footnotesize,anchor=east},
+  ev/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
+             inner sep=3pt,minimum height=7mm,align=center,
+             font=\sffamily\footnotesize},
+  evL1/.style={ev,fill=hhsand!80},          % structural
+  evL2/.style={ev,fill=hhsanddeep!70},      % attribution
+  evL3/.style={ev,fill=hhamber!40},         % economic
+  crash/.style={ev,fill=hhcobalt!50,text=hhpaper,font=\sffamily\bfseries\footnotesize},
+  succ/.style={ev,fill=hhteal!40},
+  done/.style={ev,fill=hhteal!70,font=\sffamily\bfseries\footnotesize},
+  axis/.style={->,>=Latex,thick,draw=hhebony},
+  tick/.style={font=\sffamily\footnotesize,text=hhink},
+  layer/.style={font=\sffamily\bfseries\footnotesize,text=hhebony},
+]
+% Three swimlanes
+\foreach \y/\name/\col in {0/Layer 3 (economic)/hhamber,
+                            1.2/Layer 2 (attribution)/hhsanddeep,
+                            2.4/Layer 1 (structural)/hhsand} {
+  \draw[draw=\col,fill=\col!30,line width=0pt]
+    (-0.4,\y-0.35) rectangle (13.2,\y+0.35);
+  \node[lane] at (-0.5,\y) {\name};
+}
+% Time axis
+\draw[axis] (-0.4,-0.85) -- (13.4,-0.85)
+  node[above right,font=\sffamily\footnotesize]{wall time};
+% Time ticks
+\foreach \x/\t in {0/$t_0$, 1.5/$t_0{+}1$, 3.5/$t_0{+}3$, 5.5/$t_0{+}7$,
+                   7/$t_0{+}12$, 9/$t_0{+}13$, 11/$t_0{+}22$, 12.5/$t_0{+}24$} {
+  \draw (\x,-0.85) -- (\x,-1.0);
+  \node[tick] at (\x,-1.25) {\t};
+}
+% Events
+% Step 1: capability issuance (L1)
+\node[evL1] (s1) at (0,2.4) {\textbf{1}\\cap issue};
+% Step 2: bond post (L3)
+\node[evL3] (s2) at (1.5,0) {\textbf{2}\\bond \$6};
+% Step 3: file claim (L1)
+\node[evL1] (s3) at (3.5,2.4) {\textbf{3}\\claim auth.ts};
+% Step 4a: scope note (L2)
+\node[evL2] (s4a) at (3.5,1.2) {\textbf{4}\\$h_1$};
+% Step 4b: more evidence (L2)
+\node[evL2] (s4b) at (5.5,1.2) {$h_2{\ldots}h_5$};
+% Step 5: crash (L1 + cobalt)
+\node[crash] (s5) at (7,2.4) {\textbf{5} CRASH};
+% TTL release (downstream of crash) — moved right to avoid collision with step 5
+\node[evL1] (ttl) at (9,2.4) {TTL release};
+% Step 6: successor begins
+\node[succ] (s6a) at (9,1.2) {\textbf{6}\\salvage};
+\node[evL2] (s6b) at (11,1.2) {$h_6{\ldots}h_8$};
+% Step 7: settlement
+\node[done] (s7) at (12.5,0) {\textbf{7}\\settle \$6 $\to$ $P$};
+% Connecting arrows on the agent's path
+\draw[->,>=Latex,thick,draw=hhebony]
+  (s1.south) -- (s2.north);
+\draw[->,>=Latex,thick,draw=hhebony]
+  (s3.south) -- (s4a.north);
+\draw[->,>=Latex,thick,draw=hhebony]
+  (s4a.east) -- (s4b.west);
+\draw[->,>=Latex,thick,draw=hhebony]
+  (s4b.east) -- (s5.south);
+\draw[->,>=Latex,thick,dashed,draw=hhcobalt]
+  (s5.east) -- (ttl.west);
+\draw[->,>=Latex,thick,draw=hhteal]
+  (ttl.south) -- (s6a.north);
+\draw[->,>=Latex,thick,draw=hhebony]
+  (s6a.east) -- (s6b.west);
+\draw[->,>=Latex,thick,draw=hhebony]
+  (s6b.south) -- (s7.north);
+% Salvage parent edge — arc dips below lane 2 then rises; label placed below the dip
+\draw[->,>=Latex,thick,dashed,draw=hhink]
+  (s4b.south) .. controls ($(s4b.south)+(0,-0.55)$) and ($(s6a.south)+(-1.2,-0.55)$)
+  .. (s6a.south west)
+  node[midway,font=\sffamily\footnotesize\itshape,below,text=hhink]
+  {salvage parent};
+\end{tikzpicture}
+\caption{Worked-example timeline (App~D). Three swimlanes for the three architectural layers; events placed by wall-clock minute on the $x$-axis. Layer~1 (structural) issues the capability at $t_0$, releases on TTL after crash, and re-issues for the successor. Layer~3 (economic) posts \$6 in escrow at $t_0+1$ and settles at $t_0+24$. Layer~2 (attribution) accumulates evidence-chain entries $h_1$--$h_5$ on $\alpha$'s timeline and $h_6$--$h_8$ on $\beta$'s, linked by an explicit \emph{salvage parent} edge so attribution survives the identity disposal at minute~12.}
+\label{fig:worked-example}
+\end{figure}

@@ -1,0 +1,251 @@
+/**
+ * Integration test: spawner ↔ transcripts wiring.
+ *
+ * Verifies the spawner records a transcript with system prompt, user task,
+ * assistant reply, outputs, and finalized cost/tokens whenever a
+ * `transcripts` dep is provided.
+ */
+
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, jest } from '@jest/globals';
+
+// Mock child_process so spawner's custom/aider backends don't actually fork.
+const mockChildProcess = {
+  stdout: { on: jest.fn() },
+  stderr: { on: jest.fn() },
+  on: jest.fn(),
+  kill: jest.fn(),
+  pid: 12345,
+};
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: jest.fn(() => mockChildProcess),
+  execSync: jest.fn(),
+  execFileSync: jest.fn(),
+}));
+
+const { createSpawner } = await import('../../lib/spawner.js');
+const { createTranscripts } = await import('../../lib/transcripts.js');
+const { createTestDb } = await import('../setup-unit.js');
+
+const TEST_TELEMETRY_BYPASS = {
+  humanConfirmed: true,
+  confirmedBy: 'jest',
+  reason: 'Spawner+transcripts integration test — exercises legacy non-metered path',
+};
+
+describe('spawner ↔ transcripts integration', () => {
+  let db;
+  let transcripts;
+  let originalFetch;
+
+  // assessSpawnIsolation (lib/spawner.ts) blocks spawns into a repository main
+  // checkout. These tests pass no workdir, so the guard reads process.cwd() —
+  // a worktree locally but the primary checkout in CI — and would fail every
+  // spawn before transcripts are written. This suite exercises the
+  // spawn↔transcripts integration, not the guard (see
+  // spawner-isolation-guard.test.js), so opt out of layer-2 isolation.
+  const originalSpawnIsolationOff = process.env.PD_SPAWN_ISOLATION_OFF;
+  beforeAll(() => { process.env.PD_SPAWN_ISOLATION_OFF = '1'; });
+  afterAll(() => {
+    if (originalSpawnIsolationOff === undefined) delete process.env.PD_SPAWN_ISOLATION_OFF;
+    else process.env.PD_SPAWN_ISOLATION_OFF = originalSpawnIsolationOff;
+  });
+
+  beforeEach(() => {
+    db = createTestDb();
+    transcripts = createTranscripts(db);
+    originalFetch = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true }),
+      text: async () => 'OK',
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    if (db) db.close();
+  });
+
+  it('records a full transcript for a successful spawn', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({
+          output: 'Done — LGTM.',
+          error: null,
+          inputTokens: 100,
+          outputTokens: 50,
+        }),
+      },
+    });
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      task: 'Review PR #42',
+      ship: 'code-reviewer',
+      trigger: 'pull_request:opened',
+      prNumber: 42,
+      systemPrompt: 'You are a code reviewer.',
+    });
+
+    expect(result.status).toBe('completed');
+
+    const rows = transcripts.listTranscripts({ ship: 'code-reviewer' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].pr_number).toBe(42);
+    expect(rows[0].trigger).toBe('pull_request:opened');
+    expect(rows[0].status).toBe('completed');
+
+    const tx = transcripts.getTranscript(rows[0].id);
+    const roles = tx.messages.map((m) => m.role);
+    expect(roles).toEqual(['system', 'user', 'assistant']);
+    expect(tx.messages[0].content).toBe('You are a code reviewer.');
+    expect(tx.messages[1].content).toBe('Review PR #42');
+    expect(tx.messages[2].content).toBe('Done — LGTM.');
+    expect(tx.outputs).toHaveLength(1);
+    expect(tx.outputs[0].type).toBe('message');
+  });
+
+  it('records error as assistant message and marks status=failed', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({ output: '', error: 'backend unreachable' }),
+      },
+    });
+    const result = await spawner.spawn({
+      backend: 'claude',
+      model: 'claude-haiku-4-5',
+      task: 'do thing',
+      ship: 'qa',
+      trigger: 'manual',
+    });
+    expect(result.status).toBe('failed');
+    const rows = transcripts.listTranscripts({ ship: 'qa' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe('failed');
+    const tx = transcripts.getTranscript(rows[0].id);
+    const lastMsg = tx.messages[tx.messages.length - 1];
+    expect(lastMsg.role).toBe('assistant');
+    expect(lastMsg.content).toMatch(/\[error\] backend unreachable/);
+    expect(tx.outputs[0].type).toBe('noop');
+  });
+
+  it('uses ship="spawn:<backend>" as default when no ship provided', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({ output: 'hi', error: null }),
+      },
+    });
+    await spawner.spawn({ backend: 'claude', task: 'hi' });
+    const rows = transcripts.listTranscripts({ ship: 'spawn:claude' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].trigger).toBe('manual');
+  });
+
+  it('does not throw when transcripts is absent AND policy is not enforced (opt-out path)', async () => {
+    const spawner = createSpawner({
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: false,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({ output: 'hi', error: null }),
+      },
+    });
+    const result = await spawner.spawn({ backend: 'claude', task: 'hi' });
+    expect(result.status).toBe('completed');
+  });
+
+  // ── Fail-loud policy ─────────────────────────────────────────────────────
+
+  it('refuses to construct a spawner with no transcripts module when enforced', () => {
+    expect(() => createSpawner({
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+    })).toThrow(/TRANSCRIPT RECORDING REQUIRED/);
+  });
+
+  it('fails the spawn (and does not run the backend) when the transcript cannot be opened', async () => {
+    let backendRan = false;
+    const brokenTranscripts = {
+      ...transcripts,
+      start() { throw new Error('db is on fire'); },
+    };
+    const spawner = createSpawner({
+      transcripts: brokenTranscripts,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => { backendRan = true; return { output: 'hi', error: null }; },
+      },
+    });
+    const result = await spawner.spawn({ backend: 'claude', task: 'hi' });
+    expect(result.status).toBe('failed');
+    expect(result.error).toMatch(/recording failed|must not run unless its conversation is recorded/i);
+    expect(backendRan).toBe(false);
+  });
+
+  it('marks the spawn failed when finalize throws (recording failure cannot report success)', async () => {
+    // The backend runs and turns record fine, but the final status-stamp write
+    // fails. Under enforcement that must surface as a failed spawn, not a
+    // silent `completed`.
+    const brokenFinalize = {
+      ...transcripts,
+      finalize() { throw new Error('disk full at finalize'); },
+    };
+    const spawner = createSpawner({
+      transcripts: brokenFinalize,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        claude: async () => ({ output: 'hi', error: null }),
+      },
+    });
+    const result = await spawner.spawn({ backend: 'claude', task: 'hi' });
+    expect(result.status).toBe('failed');
+    expect(result.error).toMatch(/recording failed|disk full/i);
+  });
+
+  it('records codex-style structured turns (thinking + tool + assistant) as distinct messages', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: TEST_TELEMETRY_BYPASS,
+      runnerOverrides: {
+        codex: async () => ({
+          output: 'It printed hello.',
+          error: null,
+          inputTokens: 10,
+          outputTokens: 5,
+          transcript: [
+            { role: 'thinking', content: 'I should run echo.' },
+            { role: 'tool', content: '$ echo hello', toolCalls: [{ name: 'shell', args: { command: 'echo hello' }, result: { output: 'hello\n', exit_code: 0 } }] },
+            { role: 'assistant', content: 'It printed hello.' },
+          ],
+        }),
+      },
+    });
+    await spawner.spawn({ backend: 'codex', task: 'run echo', model: 'gpt-5.4-mini' });
+    const rows = transcripts.listTranscripts({ ship: 'spawn:codex' });
+    expect(rows).toHaveLength(1);
+    const full = transcripts.getTranscript(rows[0].id);
+    const roles = full.messages.map((m) => m.role);
+    // user (from txStart) + thinking + tool + assistant
+    expect(roles).toEqual(['user', 'thinking', 'tool', 'assistant']);
+    const toolMsg = full.messages.find((m) => m.role === 'tool');
+    expect(toolMsg.tool_calls[0].name).toBe('shell');
+    expect(toolMsg.tool_calls[0].result.exit_code).toBe(0);
+  });
+});

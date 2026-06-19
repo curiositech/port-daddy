@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Port Daddy FleetBar icon</title>
+  <desc id="desc">A warm Swiss-modern app icon with a menu-bar strip, a dark coordination map, teal route lines, and a coral port marker.</desc>
+  <defs>
+    <clipPath id="app-mask">
+      <rect x="64" y="64" width="896" height="896" rx="212" />
+    </clipPath>
+    <linearGradient id="paper-fill" x1="130" y1="110" x2="890" y2="940" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF8EA" />
+      <stop offset="0.58" stop-color="#E9D9BC" />
+      <stop offset="1" stop-color="#D4BF9B" />
+    </linearGradient>
+    <linearGradient id="panel-fill" x1="190" y1="250" x2="820" y2="870" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827" />
+      <stop offset="1" stop-color="#070A13" />
+    </linearGradient>
+    <linearGradient id="route-fill" x1="270" y1="310" x2="790" y2="730" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#70E1D6" />
+      <stop offset="0.48" stop-color="#38C6BE" />
+      <stop offset="1" stop-color="#197679" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="none" />
+  <g clip-path="url(#app-mask)">
+    <rect x="64" y="64" width="896" height="896" fill="url(#paper-fill)" />
+    <rect x="112" y="112" width="800" height="800" rx="164" fill="#F6EBD4" opacity="0.78" />
+
+    <g stroke="#BEAA86" stroke-width="8" opacity="0.42">
+      <path d="M224 134v756" />
+      <path d="M384 116v792" />
+      <path d="M544 116v792" />
+      <path d="M704 134v756" />
+      <path d="M134 224h756" />
+      <path d="M116 384h792" />
+      <path d="M116 544h792" />
+      <path d="M134 704h756" />
+    </g>
+
+    <rect x="150" y="148" width="724" height="86" rx="36" fill="#0E1322" />
+    <rect x="190" y="182" width="148" height="20" rx="10" fill="#70E1D6" />
+    <rect x="368" y="182" width="82" height="20" rx="10" fill="#F7EBD3" opacity="0.78" />
+    <rect x="476" y="182" width="54" height="20" rx="10" fill="#F7EBD3" opacity="0.46" />
+    <circle cx="804" cy="192" r="24" fill="#F36D4F" />
+    <circle cx="804" cy="192" r="8" fill="#FFF8EA" />
+
+    <rect x="150" y="276" width="724" height="600" rx="84" fill="url(#panel-fill)" />
+    <g stroke="#243047" stroke-width="8" opacity="0.72">
+      <path d="M250 336v480" />
+      <path d="M392 316v520" />
+      <path d="M534 316v520" />
+      <path d="M676 316v520" />
+      <path d="M210 396h622" />
+      <path d="M190 536h662" />
+      <path d="M210 676h622" />
+    </g>
+
+    <path
+      d="M306 730V362H700M306 528H596C674 528 734 588 754 688"
+      fill="none"
+      stroke="#050712"
+      stroke-width="128"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M306 730V362H700M306 528H596C674 528 734 588 754 688"
+      fill="none"
+      stroke="url(#route-fill)"
+      stroke-width="58"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+
+    <g fill="#F8EAD0" stroke="#050712" stroke-width="24">
+      <circle cx="306" cy="730" r="54" />
+      <circle cx="306" cy="362" r="54" />
+      <circle cx="700" cy="362" r="54" />
+      <circle cx="596" cy="528" r="48" />
+    </g>
+    <circle cx="754" cy="688" r="70" fill="#F36D4F" stroke="#050712" stroke-width="28" />
+    <circle cx="754" cy="688" r="24" fill="#FFF8EA" />
+
+    <path d="M842 304v512" stroke="#F8EAD0" stroke-width="18" opacity="0.86" />
+    <path d="M210 846h604" stroke="#F8EAD0" stroke-width="18" opacity="0.86" />
+  </g>
+  <rect x="74" y="74" width="876" height="876" rx="202" fill="none" stroke="#0E1322" stroke-width="20" />
+</svg>

@@ -1,0 +1,13 @@
+{
+  "name": "port-daddy",
+  "owner": "curiositech",
+  "plugins": [
+    {
+      "name": "port-daddy",
+      "source": ".",
+      "skills": [
+        "./skills/port-daddy-agent-skill"
+      ]
+    }
+  ]
+}

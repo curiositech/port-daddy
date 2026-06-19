@@ -1,0 +1,203 @@
+import { existsSync } from 'node:fs';
+import { platform } from 'node:os';
+import { basename, dirname, join } from 'node:path';
+
+export type DaemonLaunchMode = 'binary' | 'source' | 'self';
+
+export interface DaemonLaunchCommand {
+  mode: DaemonLaunchMode;
+  program: string;
+  args: string[];
+  env?: Record<string, string>;
+  binaryPath: string;
+  sourceServerPath: string;
+  sourceTsxPath: string;
+  pathDirs: string[];
+  reason: string;
+}
+
+export function daemonBinaryName(os: NodeJS.Platform = platform()): string {
+  return os === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon';
+}
+
+export function sourceDaemonFallbackAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.PORT_DADDY_ALLOW_SOURCE_DAEMON === '1' || env.PORT_DADDY_DEV_SOURCE_DAEMON === '1';
+}
+
+export function selfDaemonLaunchAllowed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.PORT_DADDY_CAN_SELF_DAEMON === '1';
+}
+
+export function isBunVirtualPath(path: string): boolean {
+  return path.includes('/$bunfs/') || path.startsWith('/$bunfs/') || path.startsWith('$bunfs/');
+}
+
+/**
+ * Pure detection helper for `bun build --compile` runtime context.
+ *
+ * Why this exists as its own function (not a closure over `process` / `import.meta`):
+ * `import.meta.url` may be inlined at build time by bun's bundler, so a check
+ * that *only* reads `import.meta.url` can wrongly return false at runtime
+ * inside the compiled binary. That regression (issue #86, "fixed" in 3.14.1
+ * but still observed in the field) bypassed the re-exec branch and tried to
+ * spawn `node_modules/.bin/tsx` from inside the bun bundle, producing
+ * `ENOENT: posix_spawn '/node_modules/.bin/tsx'`.
+ *
+ * The multi-signal probe: `process.versions.bun` is necessary but not
+ * sufficient (source-mode bun also sets it). Then any one of:
+ *   - `importMetaUrl` contains `/$bunfs/` (works when bun preserves it)
+ *   - `errorStack` contains `/$bunfs/` (always reflects runtime paths)
+ *   - `execPath` basename is not `bun` or `node` (compiled binaries name themselves)
+ *
+ * Tested via `tests/unit/daemon-bun-detection.test.js`.
+ */
+export interface BunRuntimeSignals {
+  versionsBun: string | undefined;
+  importMetaUrl: string;
+  errorStack: string;
+  execPath: string;
+}
+
+// Source-mode interpreter names. Anything else with process.versions.bun set
+// is treated as a `bun build --compile` bundle by the third signal. We allow
+// versioned bun (Homebrew @-formulae create `bun-1.3.14` symlinks) and the
+// other shapes a developer might invoke: `bunx`, `node`, `tsx`. If a new
+// interpreter ships, we'd rather false-negative here (and surface as the
+// original ENOENT spawn error) than infinite-re-exec on the basename signal.
+const INTERPRETER_BASENAME_RE = /^(bun(?:-[\w.+\-]+)?|bunx|node|tsx)$/i;
+
+export function isBunCompiledRuntime(signals: BunRuntimeSignals): boolean {
+  if (!signals.versionsBun) return false;
+  if (isBunVirtualPath(signals.importMetaUrl)) return true;
+  if (isBunVirtualPath(signals.errorStack)) return true;
+  const execBase = (signals.execPath || '').split(/[\\/]/).pop()?.replace(/\.exe$/i, '') || '';
+  // Empty basename (process.execPath was missing/blank) is not a positive
+  // signal — return false rather than misclassifying a partial signal bag.
+  if (execBase === '') return false;
+  if (!INTERPRETER_BASENAME_RE.test(execBase)) return true;
+  return false;
+}
+
+/**
+ * One-shot guard so the unconventional-layout warning doesn't spam
+ * stderr every time the resolver is called (CLI invocations chain
+ * through it many times per command).
+ */
+let warnedUnconventionalLayout = false;
+
+export function resolveDistributionRoot(
+  moduleDir: string,
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
+): string {
+  const explicit = env.PORT_DADDY_RESOURCE_DIR?.trim();
+  if (explicit) return explicit;
+  if (!isBunVirtualPath(moduleDir)) return moduleDir;
+
+  const execDir = dirname(execPath);
+  const parentDir = dirname(execDir);
+  if (basename(execDir) === 'daemon' && basename(parentDir) === 'dist') {
+    return dirname(parentDir);
+  }
+  if (basename(execDir) === 'dist') {
+    return parentDir;
+  }
+
+  // Unconventional layout (user-built binary, non-Homebrew install
+  // location, cross-target build dropped outside `dist/`). Falling
+  // back to `process.cwd()` is wrong — it'd land on whatever
+  // directory the operator was in when launchd fired the daemon and
+  // attempt to write the DB there. Use `execDir` instead: it at
+  // least relates to where the binary actually lives. Warn so the
+  // operator can set PORT_DADDY_RESOURCE_DIR explicitly if they
+  // care about a different layout. The warning fires once per
+  // process — `pd doctor` check 13 also surfaces this for free.
+  if (!warnedUnconventionalLayout) {
+    warnedUnconventionalLayout = true;
+    console.warn(
+      `[port-daddy] resolveDistributionRoot: bun virtual-fs binary at ${execPath} ` +
+      `lives in an unconventional layout (neither dist/daemon/ nor dist/). ` +
+      `Falling back to ${execDir}. ` +
+      `Set PORT_DADDY_RESOURCE_DIR to silence this warning and pin the asset root.`,
+    );
+  }
+  return execDir;
+}
+
+export function daemonBinaryPath(rootDir: string, env: NodeJS.ProcessEnv = process.env): string {
+  const explicit = env.PORT_DADDY_DAEMON_BINARY?.trim();
+  if (explicit) return explicit;
+  return join(rootDir, 'dist', 'daemon', daemonBinaryName());
+}
+
+export function resolveDaemonLaunchCommand(
+  rootDir: string,
+  options: { env?: NodeJS.ProcessEnv; allowSourceFallback?: boolean } = {},
+): DaemonLaunchCommand {
+  const env = options.env ?? process.env;
+  const binaryPath = daemonBinaryPath(rootDir, env);
+  const sourceTsxPath = join(rootDir, 'node_modules', '.bin', 'tsx');
+  const sourceServerPath = join(rootDir, 'server.ts');
+
+  if (env.PORT_DADDY_DAEMON_BINARY?.trim() && existsSync(binaryPath)) {
+    return {
+      mode: 'binary',
+      program: binaryPath,
+      args: [],
+      env: { PORT_DADDY_RESOURCE_DIR: rootDir },
+      binaryPath,
+      sourceServerPath,
+      sourceTsxPath,
+      pathDirs: [dirname(binaryPath)],
+      reason: 'explicit daemon binary found',
+    };
+  }
+
+  if (selfDaemonLaunchAllowed(env)) {
+    const resourceDir = resolveDistributionRoot(rootDir, env);
+    return {
+      mode: 'self',
+      program: process.execPath,
+      args: ['__daemon'],
+      env: { PORT_DADDY_RESOURCE_DIR: resourceDir },
+      binaryPath: process.execPath,
+      sourceServerPath,
+      sourceTsxPath,
+      pathDirs: [dirname(process.execPath)],
+      reason: 'single binary can self-host daemon',
+    };
+  }
+
+  if (existsSync(binaryPath)) {
+    return {
+      mode: 'binary',
+      program: binaryPath,
+      args: [],
+      env: { PORT_DADDY_RESOURCE_DIR: rootDir },
+      binaryPath,
+      sourceServerPath,
+      sourceTsxPath,
+      pathDirs: [dirname(binaryPath)],
+      reason: 'daemon binary found',
+    };
+  }
+
+  const allowSource = options.allowSourceFallback ?? sourceDaemonFallbackAllowed(env);
+  if (allowSource) {
+    return {
+      mode: 'source',
+      program: sourceTsxPath,
+      args: [sourceServerPath],
+      binaryPath,
+      sourceServerPath,
+      sourceTsxPath,
+      pathDirs: [dirname(sourceTsxPath)],
+      reason: 'source fallback explicitly allowed',
+    };
+  }
+
+  throw new Error(
+    `Port Daddy daemon binary missing at ${binaryPath}. ` +
+    'Build it with `npm run build:daemon:dist`, or set PORT_DADDY_ALLOW_SOURCE_DAEMON=1 for a development-only source daemon.',
+  );
+}

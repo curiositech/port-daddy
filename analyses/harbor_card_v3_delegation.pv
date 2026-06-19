@@ -1,0 +1,83 @@
+(* 
+ * Port Daddy: Harbor Card v3 (Delegation Chains) Formal Model (Attempt 8)
+ *)
+
+type id.
+type skey.
+type pkey.
+type capability.
+
+free c: channel.
+
+(*** Cryptographic Functions ***)
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; check_sign(m, pk(k), sign(m, k)) = true.
+
+(* REDUC defines the function - do not use 'fun' before it *)
+reduc forall c1: capability; is_subset(c1, c1) = true.
+
+fun base_token(id, id, id, capability): bitstring [data].
+fun delegate_token(bitstring, id, capability): bitstring [data].
+
+(*** Events ***)
+event IssuedRoot(id, id, capability).
+event Delegated(id, id, capability).
+event Accepted(id, id, capability).
+
+(*** Queries ***)
+free harbor_id: id.
+
+query b: id, cap: capability, a: id;
+  event(Accepted(b, harbor_id, cap)) ==> 
+    (event(IssuedRoot(a, harbor_id, cap)) && event(Delegated(a, b, cap)))
+    || event(IssuedRoot(b, harbor_id, cap)).
+
+(*** Processes ***)
+free daemon_id: id.
+free daemon_sk: skey [private].
+
+(* The Daemon issues a token to Agent A *)
+let Daemon(a: id, cap: capability) =
+  let msg = base_token(daemon_id, a, harbor_id, cap) in
+  let s = sign(msg, daemon_sk) in
+  event IssuedRoot(a, harbor_id, cap);
+  out(c, (msg, s)).
+
+(* Agent A delegates to Agent B *)
+let AgentA(a: id, a_sk: skey, b: id, sub_cap: capability) =
+  in(c, (msg: bitstring, s: bitstring));
+  let base_token(=daemon_id, =a, =harbor_id, root_cap: capability) = msg in
+  if check_sign(msg, pk(daemon_sk), s) = true then
+    if is_subset(sub_cap, root_cap) = true then
+      let d_msg = delegate_token((msg, s), b, sub_cap) in
+      let d_s = sign(d_msg, a_sk) in
+      event Delegated(a, b, sub_cap);
+      out(c, (d_msg, d_s)).
+
+(* Harbor verifies delegation from A to B *)
+let Harbor(a_pk: pkey) =
+  in(c, (d_msg: bitstring, d_s: bitstring));
+  let delegate_token((base_msg: bitstring, base_s: bitstring), b: id, sub_cap: capability) = d_msg in
+  let base_token(=daemon_id, a: id, =harbor_id, root_cap: capability) = base_msg in
+  
+  if check_sign(base_msg, pk(daemon_sk), base_s) = true then
+  if check_sign(d_msg, a_pk, d_s) = true then
+  if is_subset(sub_cap, root_cap) = true then
+    event Accepted(b, harbor_id, sub_cap).
+
+(*** Main Process ***)
+process
+  new sk_a: skey;
+  let pk_a = pk(sk_a) in
+  out(c, pk_a);
+
+  new id_a: id;
+  new id_b: id;
+  new cap_root: capability;
+  
+  (
+    (!Daemon(id_a, cap_root)) | 
+    (!AgentA(id_a, sk_a, id_b, cap_root)) | 
+    (!Harbor(pk_a))
+  )

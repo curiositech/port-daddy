@@ -1,0 +1,83 @@
+Process 0 (that is, the initial process):
+{1}new agent_id: id;
+{2}new harbor_id: id;
+{3}new token_jti: jti;
+{4}new secret_cap: capability;
+{5}let harbor_pk: pkey = pk(secret_key) in
+{6}out(c, harbor_pk);
+(
+    {7}!
+    {8}let a_id: id = agent_id in
+    {9}let h_id: id = harbor_id in
+    {10}let j: jti = token_jti in
+    {11}let cap: capability = secret_cap in
+    {12}in(k_dist, sk_h: skey);
+    {13}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
+    {14}let signature: bitstring = sign(msg,sk_h) in
+    {15}event Issued(a_id,h_id,j,cap);
+    {16}out(c, (msg,signature))
+) | (
+    {17}!
+    {18}let expected_h: id = harbor_id in
+    {19}in(c, (msg_1: bitstring,signature_1: bitstring));
+    {20}if (check_sign(msg_1,harbor_pk,signature_1) = true) then
+    {21}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
+    {22}if (h = expected_h) then
+    {23}event Accepted(a,h,j_1,cap_1)
+) | (
+    {24}!
+    {25}out(k_dist, secret_key)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new agent_id: id;
+{2}new harbor_id: id;
+{3}new token_jti: jti;
+{4}new secret_cap: capability;
+{5}let harbor_pk: pkey = pk(secret_key) in
+{6}out(c, harbor_pk);
+(
+    {7}!
+    {12}in(k_dist, sk_h: skey);
+    {11}let cap: capability = secret_cap in
+    {10}let j: jti = token_jti in
+    {9}let h_id: id = harbor_id in
+    {8}let a_id: id = agent_id in
+    {15}event Issued(a_id,h_id,j,cap);
+    {13}let msg: bitstring = encode_token(a_id,h_id,j,cap) in
+    {14}let signature: bitstring = sign(msg,sk_h) in
+    {16}out(c, (msg,signature))
+) | (
+    {17}!
+    {19}in(c, (msg_1: bitstring,signature_1: bitstring));
+    {20}if (check_sign(msg_1,harbor_pk,signature_1) = true) then
+    {21}let encode_token(a: id,h: id,j_1: jti,cap_1: capability) = msg_1 in
+    {18}let expected_h: id = harbor_id in
+    {22}if (h = expected_h) then
+    {23}event Accepted(a,h,j_1,cap_1)
+) | (
+    {24}!
+    {25}out(k_dist, secret_key)
+)
+
+-- Query not attacker(secret_key[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(secret_key[])
+RESULT not attacker(secret_key[]) is true.
+-- Query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2))
+goal reachable: b-event(Issued(agent_id[],harbor_id[],token_jti[],secret_cap[])) -> event(Accepted(agent_id[],harbor_id[],token_jti[],secret_cap[]))
+RESULT event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(secret_key[]) is true.
+
+Query event(Accepted(a_1,h_1,j_2,cap_2)) ==> event(Issued(a_1,h_1,j_2,cap_2)) is true.
+
+--------------------------------------------------------------
+

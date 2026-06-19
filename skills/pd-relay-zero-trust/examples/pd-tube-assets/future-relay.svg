@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+  <title id="title">pd tube future relay composition</title>
+  <desc id="desc">The same tube envelope moves from one local daemon through the future relay to another daemon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1">
+      <stop offset="0%" stop-color="#07131f"/>
+      <stop offset="55%" stop-color="#13203c"/>
+      <stop offset="100%" stop-color="#0f2b25"/>
+    </linearGradient>
+    <style>
+      .title { fill:#f1f8ff; font:700 28px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .muted { fill:#8fa5ba; font:500 18px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .label { fill:#dcefff; font:700 23px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .code { fill:#a9f5d0; font:500 19px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .box { fill:#101827; stroke:#4b6a88; stroke-width:2; }
+      .relay { fill:#1b2440; stroke:#9b8cff; stroke-width:4; }
+      .line { fill:none; stroke:#52f2b8; stroke-width:7; stroke-linecap:round; stroke-dasharray:18 14; animation:dash 1.2s linear infinite; }
+      .packet { fill:#ffcf5a; animation:travel 3s ease-in-out infinite; }
+      @keyframes dash { to { stroke-dashoffset:-32; } }
+      @keyframes travel {
+        0% { transform:translate(0,0); opacity:0; }
+        18% { transform:translate(180px,0); opacity:1; }
+        50% { transform:translate(500px,0); opacity:1; }
+        82% { transform:translate(820px,0); opacity:1; }
+        100% { transform:translate(980px,0); opacity:0; }
+      }
+    </style>
+  </defs>
+  <rect width="1200" height="560" fill="url(#bg)"/>
+  <text x="58" y="62" class="title">Future relay: same envelope, different transport</text>
+  <g transform="translate(78 170)">
+    <rect class="box" width="230" height="150" rx="24"/>
+    <text x="42" y="62" class="label">Daemon A</text>
+    <text x="38" y="100" class="muted">local pd tube</text>
+  </g>
+  <g transform="translate(485 130)">
+    <rect class="relay" width="230" height="230" rx="52"/>
+    <text x="73" y="92" class="label">Relay</text>
+    <text x="48" y="132" class="muted">routes envelope</text>
+    <text x="42" y="162" class="muted">does not rewrite</text>
+  </g>
+  <g transform="translate(892 170)">
+    <rect class="box" width="230" height="150" rx="24"/>
+    <text x="42" y="62" class="label">Daemon B</text>
+    <text x="38" y="100" class="muted">remote listener</text>
+  </g>
+  <path class="line" d="M308 245 H485"/>
+  <path class="line" d="M715 245 H892"/>
+  <circle class="packet" cx="110" cy="245" r="13"/>
+  <g transform="translate(338 410)">
+    <rect class="box" width="524" height="72" rx="16"/>
+    <text x="24" y="45" class="code">{"v":1,"kind":"tube.msg","body":"hello","inReplyTo":123}</text>
+  </g>
+</svg>

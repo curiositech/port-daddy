@@ -1,0 +1,405 @@
+/**
+ * CLI-tube backend unit tests.
+ *
+ * Mocks node:child_process.spawn to exercise:
+ *   - claude-code argv shape: `claude -p --output-format=text <prompt>`
+ *   - codex argv shape: `codex exec --skip-git-repo-check --full-auto ...`
+ *   - Tube publish: when a tubeClient is provided, the wrapper
+ *     publishes the result on the channel
+ *   - Auth failure mapping (stderr "unauthorized" → actionable error)
+ *   - ENOENT (binary not found) → next-step copy
+ *   - Tube channel naming: defaults to cli:<tool>:<short-uuid>
+ *   - tube: null suppresses publishing entirely
+ *
+ * No real CLI is invoked. Smoke tests against `claude` / `codex` live
+ * in tests/integration/spawner-cli-tube-smoke.test.js.
+ */
+
+import { jest } from '@jest/globals';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
+
+const mockSpawn = jest.fn();
+
+jest.unstable_mockModule('node:child_process', () => ({
+  spawn: mockSpawn,
+}));
+
+const {
+  spawnViaCliTube,
+  buildArgs,
+  generateTubeChannel,
+  createCliTubeBackend,
+} = await import('../../lib/spawner/backends/cli-tube.js');
+
+// Helper: build a fake ChildProcess that we can drive from the test.
+// `stdout` may be a string (emitted as one chunk) or an array of strings
+// (emitted as SEPARATE chunks) so line-buffering across chunk boundaries can be
+// exercised — stdout in real life arrives in arbitrary chunks.
+function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0 } = {}) {
+  const ee = new EventEmitter();
+  const stdoutChunks = Array.isArray(stdout) ? stdout : [stdout];
+  ee.stdout = Readable.from(stdoutChunks);
+  ee.stderr = Readable.from([stderr]);
+  ee.kill = jest.fn();
+  ee.pid = 4242;
+  setTimeout(() => {
+    if (error) {
+      ee.emit('error', error);
+    } else {
+      ee.emit('close', exitCode);
+    }
+  }, delay);
+  return ee;
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  delete process.env.PD_CLI_CLAUDE_CODE_BIN;
+  delete process.env.PD_CLI_CODEX_BIN;
+  delete process.env.PD_CLI_GEMINI_BIN;
+  delete process.env.PD_CLI_GROQ_BIN;
+  delete process.env.PD_CLI_GROK_BIN;
+});
+
+describe('buildArgs', () => {
+  test('claude-code uses -p + stream-json --verbose (full-depth capture)', () => {
+    const { args } = buildArgs('claude-code', 'hello');
+    expect(args[0]).toBe('-p');
+    // stream-json + verbose emits thinking/tool_use/text blocks as JSONL so
+    // the spawner can record the full conversation, not just the final answer.
+    expect(args).toContain('--output-format');
+    expect(args).toContain('stream-json');
+    expect(args).toContain('--verbose');
+    expect(args[args.length - 1]).toBe('hello');
+  });
+
+  test('claude-code includes --model when provided', () => {
+    const { args } = buildArgs('claude-code', 'hi', undefined, 'sonnet');
+    const idx = args.indexOf('--model');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('sonnet');
+  });
+
+  test('codex uses exec + workspace-write sandbox', () => {
+    const { args } = buildArgs('codex', 'hello');
+    expect(args[0]).toBe('exec');
+    expect(args).toContain('--skip-git-repo-check');
+    expect(args).toContain('--full-auto');
+    expect(args).toContain('--sandbox');
+    expect(args[args.indexOf('--sandbox') + 1]).toBe('workspace-write');
+    expect(args).toContain('--json');
+  });
+
+  test('codex includes --output-last-message when outputPath provided', () => {
+    const { args } = buildArgs('codex', 'hi', '/tmp/fake.txt');
+    const idx = args.indexOf('--output-last-message');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('/tmp/fake.txt');
+  });
+
+  test.each(['gemini', 'groq', 'grok'])('%s uses -p headless flag with prompt last', (cli) => {
+    const { args } = buildArgs(cli, 'hello');
+    expect(args[0]).toBe('-p');
+    expect(args[args.length - 1]).toBe('hello');
+  });
+
+  test.each(['gemini', 'groq', 'grok'])('%s includes --model when provided', (cli) => {
+    const { args } = buildArgs(cli, 'hi', undefined, 'some-model');
+    const idx = args.indexOf('--model');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('some-model');
+  });
+
+  test('claude-code forwards --permission-mode only when set', () => {
+    // Unset → no flag (preserves the CLI's default interactive gating).
+    expect(buildArgs('claude-code', 'hi').args).not.toContain('--permission-mode');
+    // Set → flag with the mode, letting a spawned agent edit files non-interactively.
+    const { args } = buildArgs('claude-code', 'hi', undefined, undefined, 'acceptEdits');
+    const idx = args.indexOf('--permission-mode');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('acceptEdits');
+    // Prompt still goes last.
+    expect(args[args.length - 1]).toBe('hi');
+  });
+
+  test('throws on unknown tool', () => {
+    expect(() => buildArgs('bogus-tool', 'hi')).toThrow(/unknown cli tool/);
+  });
+});
+
+describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
+  test('emits one COMPLETE line per newline, buffering across chunk boundaries', async () => {
+    const lines = [];
+    // Three JSONL lines split awkwardly across four stdout chunks: a line is
+    // split mid-content, and one chunk carries the tail of one line + the head
+    // of the next. The buffer must reassemble them into exactly 3 lines.
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: ['{"a":1}\n{"b":', '2}\n{"c"', ':3}', '\n'],
+      exitCode: 0,
+    }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onStreamLine: (line) => lines.push(line),
+    });
+    expect(lines).toEqual(['{"a":1}', '{"b":2}', '{"c":3}']);
+  });
+
+  test('flushes a trailing partial line (no terminating newline) on close', async () => {
+    const lines = [];
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: ['{"a":1}\n{"b":2}'], // second line has NO trailing newline
+      exitCode: 0,
+    }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onStreamLine: (line) => lines.push(line),
+    });
+    expect(lines).toEqual(['{"a":1}', '{"b":2}']);
+  });
+
+  test('a throwing onStreamLine hook never breaks the spawn', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: ['line1\nline2\n'], exitCode: 0 }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onStreamLine: () => { throw new Error('hook blew up'); },
+    });
+    expect(res.error).toBeNull();
+    // rawStdout still fully captured despite the throwing hook.
+    expect(res.rawStdout).toBe('line1\nline2\n');
+  });
+
+  test('no onStreamLine: stdout still fully captured (no-op buffering)', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: ['a\nb\n'], exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.rawStdout).toBe('a\nb\n');
+  });
+});
+
+describe('spawnViaCliTube — gemini/groq/grok binaries + overrides', () => {
+  test.each([
+    ['gemini', 'gemini', 'PD_CLI_GEMINI_BIN'],
+    ['groq', 'groq', 'PD_CLI_GROQ_BIN'],
+    ['grok', 'grok', 'PD_CLI_GROK_BIN'],
+  ])('%s invokes the `%s` binary by default and honors %s', async (cli, bin, envKey) => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli, prompt: 'say hi' });
+    expect(mockSpawn.mock.calls[0][0]).toBe(bin);
+    expect(res.tube).toMatch(new RegExp(`^cli:${cli}:`));
+    expect(res.error).toBeNull();
+
+    process.env[envKey] = `/custom/path/${bin}-beta`;
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli, prompt: 'hi' });
+    expect(mockSpawn.mock.calls[1][0]).toBe(`/custom/path/${bin}-beta`);
+  });
+
+  test('gemini maps auth-flavored stderr to an actionable error', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stderr: 'Error: not authenticated', exitCode: 1 }));
+    const res = await spawnViaCliTube({ cli: 'gemini', prompt: 'hi' });
+    expect(res.error).toMatch(/authentication failed/i);
+    expect(res.error).toMatch(/GEMINI_API_KEY/);
+  });
+
+  test('grok ENOENT maps to install guidance', async () => {
+    const err = new Error('spawn grok ENOENT');
+    mockSpawn.mockReturnValue(fakeChild({ error: err }));
+    const res = await spawnViaCliTube({ cli: 'grok', prompt: 'hi' });
+    expect(res.error).toMatch(/not found on PATH/);
+  });
+});
+
+describe('generateTubeChannel', () => {
+  test('produces cli:<tool>:<short-uuid> format', () => {
+    const ch = generateTubeChannel('claude-code');
+    expect(ch).toMatch(/^cli:claude-code:[a-f0-9]{8}$/);
+  });
+
+  test('produces unique channels across calls', () => {
+    const a = generateTubeChannel('codex');
+    const b = generateTubeChannel('codex');
+    expect(a).not.toBe(b);
+  });
+});
+
+describe('spawnViaCliTube — claude-code happy path', () => {
+  test('invokes `claude` binary with the prompt', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'Hello!', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'say hi' });
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('claude');
+    expect(args).toContain('-p');
+    expect(args[args.length - 1]).toBe('say hi');
+    expect(res.output).toBe('Hello!');
+    expect(res.exitCode).toBe(0);
+    expect(res.error).toBeNull();
+  });
+
+  test('respects PD_CLI_CLAUDE_CODE_BIN env override', async () => {
+    process.env.PD_CLI_CLAUDE_CODE_BIN = '/custom/path/claude-beta';
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    const [binary] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('/custom/path/claude-beta');
+  });
+
+  test('returns the generated tube channel name', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.tube).toMatch(/^cli:claude-code:/);
+  });
+
+  test('tube: null suppresses channel naming', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi', tube: null });
+    expect(res.tube).toBeNull();
+  });
+});
+
+describe('spawnViaCliTube — tube publishing', () => {
+  test('publishes result via tubeClient when provided', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 1 }));
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'Cool result', exitCode: 0 }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      tube: 'cli:test:abc',
+      tubeClient: { publish },
+      tubeSender: 'unit-test',
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
+    const [channel, payload, opts] = publish.mock.calls[0];
+    expect(channel).toBe('cli:test:abc');
+    expect(payload.kind).toBe('cli-tube.result');
+    expect(payload.cli).toBe('claude-code');
+    expect(payload.ok).toBe(true);
+    expect(payload.output).toBe('Cool result');
+    expect(opts.sender).toBe('unit-test');
+    expect(res.output).toBe('Cool result');
+  });
+
+  test('does NOT publish when tube: null', async () => {
+    const publish = jest.fn();
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      tube: null,
+      tubeClient: { publish },
+    });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('swallows tube publish errors without failing the spawn', async () => {
+    const publish = jest.fn(async () => { throw new Error('tube offline'); });
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      tubeClient: { publish },
+    });
+    expect(res.output).toBe('hi');
+    expect(res.error).toBeNull();
+  });
+});
+
+describe('spawnViaCliTube — failure paths', () => {
+  test('ENOENT → "binary not found" error with auth hint', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ error: Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' }) }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('binary "claude" not found');
+    expect(res.error).toContain('claude setup-token');
+  });
+
+  test('auth failure in stderr surfaces actionable next-step', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: '',
+      stderr: 'Error: not authenticated. Please log in.',
+      exitCode: 1,
+    }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('authentication failed');
+    expect(res.error).toContain('claude setup-token');
+  });
+
+  test('non-auth non-zero exit reports the exit code', async () => {
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: '',
+      stderr: 'Something else broke',
+      exitCode: 2,
+    }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.error).toContain('exited with code 2');
+    expect(res.error).toContain('Something else broke');
+  });
+
+  test('onChild callback receives the spawned child', async () => {
+    let captured;
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'hi', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onChild: (c) => { captured = c; },
+    });
+    expect(captured).toBeDefined();
+    expect(captured.pid).toBe(4242);
+  });
+});
+
+describe('createCliTubeBackend', () => {
+  test('binds to a specific cli and passes through other options', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'codex says hi', exitCode: 0 }));
+    const codex = createCliTubeBackend({ cli: 'codex' });
+    const res = await codex({ prompt: 'hello' });
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('codex');
+    expect(args[0]).toBe('exec');
+    expect(res.output).toBeTruthy();
+  });
+});
+
+describe('spawnViaCliTube — codex shape', () => {
+  test('uses --output-last-message and reads it on success', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: '{"type":"log"}', exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'codex', prompt: 'do thing' });
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('codex');
+    expect(args).toContain('--output-last-message');
+    expect(res.exitCode).toBe(0);
+    // The file won't exist in this test (no real codex), so output
+    // falls back to stdout.
+    expect(typeof res.output).toBe('string');
+  });
+});
+
+describe('spawnViaCliTube — binary override scoping + PATH parity', () => {
+  test('per-spawn opts.env cannot override the binary (operator process.env only)', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({
+      cli: 'gemini',
+      prompt: 'hi',
+      env: { PD_CLI_GEMINI_BIN: '/attacker/controlled/binary' },
+    });
+    expect(mockSpawn.mock.calls[0][0]).toBe('gemini');
+  });
+
+  test('child PATH is augmented with the per-user install dirs readiness checks', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'groq', prompt: 'hi' });
+    const env = mockSpawn.mock.calls[0][2].env;
+    expect(env.PATH).toContain('.local/bin');
+    expect(env.PATH).toContain('/opt/homebrew/bin');
+  });
+
+  test('caller-supplied PATH stays as the base and still gets augmented', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: 'ok', exitCode: 0 }));
+    await spawnViaCliTube({ cli: 'groq', prompt: 'hi', env: { PATH: '/caller/bin' } });
+    const env = mockSpawn.mock.calls[0][2].env;
+    expect(env.PATH.startsWith('/caller/bin')).toBe(true);
+    expect(env.PATH).toContain('.local/bin');
+  });
+});

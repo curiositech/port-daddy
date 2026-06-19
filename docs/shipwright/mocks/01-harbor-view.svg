@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HARBOR VIEW · light-theme, paper ground, ink text.
+  Every fill/stroke is inline to avoid CSS class-order bugs (lesson learned).
+  Ships are data marks: class = kind, size = LOC, stern-dot = fleet status.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900"
+     font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <rect width="1440" height="900" fill="#f2eee6"/>
+
+  <!-- Header -->
+  <line x1="0" y1="72" x2="1440" y2="72" stroke="#121212" stroke-width="2"/>
+  <text x="48" y="46" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">
+    PORT DADDY · SHIPWRIGHT
+  </text>
+  <text x="48" y="62" font-size="11" letter-spacing="0.14em" fill="#67645d">
+    HARBOR VIEW · 6 PROJECTS · 3 WITH FLEET · $4.12/DAY BURN
+  </text>
+  <g transform="translate(1120 30)">
+    <rect x="0" y="0" width="120" height="28" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <text x="60" y="19" text-anchor="middle" font-weight="700" font-size="14" fill="#121212">SURVEY ALL</text>
+    <rect x="130" y="0" width="120" height="28" fill="#dfff00" stroke="#121212" stroke-width="2"/>
+    <text x="190" y="19" text-anchor="middle" font-weight="700" font-size="14" fill="#121212">/ SEARCH</text>
+  </g>
+
+  <!-- CARD TEMPLATE: shadow rect at +5/+5, paper card on top, text on card -->
+  <!-- Row 1 -->
+  <g transform="translate(48 108)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <!-- battleship glyph -->
+    <g transform="translate(24 42)" fill="#121212">
+      <rect x="0" y="24" width="180" height="14"/>
+      <polygon points="0,24 20,12 160,12 180,24"/>
+      <rect x="40" y="2" width="14" height="12"/>
+      <rect x="60" y="-4" width="8" height="16"/>
+      <rect x="90" y="2" width="12" height="12"/>
+      <rect x="130" y="2" width="10" height="12"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">PORT-DADDY</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">SERVER · DAEMON · HOT</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">127 commits · 8 agents · $1.80/d</text>
+    <circle cx="268" cy="148" r="6" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <g transform="translate(360 108)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <g transform="translate(24 50)" fill="#121212">
+      <rect x="0" y="16" width="150" height="10"/>
+      <polygon points="0,16 14,8 140,8 150,16"/>
+      <rect x="30" y="-2" width="10" height="10"/>
+      <rect x="80" y="-2" width="8" height="10"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">WRKGROUP-AI</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">LIB · SKILLS CORPUS · WARM</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">541 skills · no fleet · —</text>
+    <circle cx="268" cy="148" r="6" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <g transform="translate(672 108)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <g transform="translate(40 56)" fill="#121212">
+      <rect x="0" y="12" width="118" height="8"/>
+      <polygon points="0,12 10,6 110,6 118,12"/>
+      <rect x="28" y="-4" width="8" height="10"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">BOSUN</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">APP · ASSISTANT · WARM</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">42 commits · no fleet · —</text>
+    <circle cx="268" cy="148" r="6" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <g transform="translate(984 108)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <g transform="translate(64 70)" fill="#121212">
+      <polygon points="0,10 10,4 70,4 78,10"/>
+      <rect x="14" y="-8" width="4" height="14"/>
+      <polygon points="18,-8 52,2 18,2"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">JBUDS4LIFE</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">SITE · BLOG · COOL</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">6 commits · no fleet · —</text>
+    <circle cx="268" cy="148" r="6" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <!-- Row 2 -->
+  <g transform="translate(48 308)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <g transform="translate(24 50)" fill="#121212">
+      <rect x="0" y="16" width="150" height="10"/>
+      <polygon points="0,16 14,8 140,8 150,16"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">EXPUNGEMENT</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">SITE · LEGAL · HOT</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">89 commits · 3 agents · $0.90/d</text>
+    <circle cx="268" cy="148" r="6" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <g transform="translate(360 308)" opacity="0.45">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <g transform="translate(64 70)" fill="#121212">
+      <polygon points="0,10 10,4 70,4 78,10"/>
+      <rect x="14" y="-8" width="4" height="14"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">OLD-SCRIPT</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">LIB · STALE 74D · COLD</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">0 commits/30d · archive?</text>
+    <circle cx="268" cy="148" r="6" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <g transform="translate(672 308)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2"/>
+    <g transform="translate(24 42)" fill="#121212">
+      <rect x="0" y="24" width="180" height="14"/>
+      <polygon points="0,24 20,12 160,12 180,24"/>
+      <rect x="50" y="-4" width="10" height="16"/>
+      <rect x="110" y="2" width="10" height="12"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#121212">WINDAGS</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">APP · MULTI-AGENT · HOT</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">203 commits · 12 agents · $2.30/d</text>
+    <circle cx="268" cy="148" r="6" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+  </g>
+
+  <!-- Ghost card: surveyed, no fleet yet -->
+  <g transform="translate(984 308)">
+    <rect x="5" y="5" width="288" height="168" fill="#121212"/>
+    <rect width="288" height="168" fill="#f2eee6" stroke="#121212" stroke-width="2" stroke-dasharray="4 4"/>
+    <g transform="translate(40 56)" fill="none" stroke="#121212" stroke-width="2">
+      <rect x="0" y="12" width="118" height="8"/>
+      <polygon points="0,12 10,6 110,6 118,12"/>
+    </g>
+    <text x="16" y="120" font-size="22" font-weight="900" letter-spacing="-0.02em" fill="#4d4a43">NEXT-MOVE</text>
+    <text x="16" y="138" font-size="11" letter-spacing="0.14em" fill="#67645d">SITE · CAREER · NO FLEET</text>
+    <text x="16" y="156" font-size="11" font-family="IBM Plex Mono, monospace" fill="#67645d">surveyed · propose fleet?</text>
+    <rect x="200" y="140" width="72" height="20" fill="#dfff00" stroke="#121212" stroke-width="1.5"/>
+    <text x="236" y="154" text-anchor="middle" font-weight="700" font-size="11" fill="#121212">PROPOSE</text>
+  </g>
+
+  <!-- Legend for stern-dot encoding -->
+  <g transform="translate(48 520)">
+    <text x="0" y="0" font-size="11" letter-spacing="0.14em" fill="#67645d">STERN DOT · FLEET STATUS</text>
+    <circle cx="8" cy="24" r="6" fill="#0055ff" stroke="#121212" stroke-width="1.5"/>
+    <text x="22" y="28" font-size="12" fill="#121212">active fleet</text>
+    <circle cx="132" cy="24" r="6" fill="#f2eee6" stroke="#121212" stroke-width="1.5"/>
+    <text x="146" y="28" font-size="12" fill="#121212">no fleet</text>
+    <text x="228" y="28" font-size="12" fill="#67645d">dashed border = ghost proposal drafted</text>
+  </g>
+
+  <!-- Activity sparkline -->
+  <g transform="translate(48 780)">
+    <text x="0" y="-4" font-size="11" letter-spacing="0.14em" fill="#67645d">FLEET ACTIVITY · COMMITS / HOUR · 24H</text>
+    <line x1="0" y1="32" x2="1344" y2="32" stroke="#67645d" stroke-width="1"/>
+    <polyline fill="none" stroke="#121212" stroke-width="1.25"
+      points="0,28 40,24 80,30 120,22 160,18 200,26 240,16 280,12 320,20 360,10 400,8 440,14 480,6 520,10 560,16 600,8 640,4 680,10 720,14 760,6 800,10 840,18 880,12 920,8 960,14 1000,6 1040,12 1080,20 1120,14 1160,10 1200,16 1240,8 1280,4 1344,10"/>
+  </g>
+
+  <line x1="0" y1="852" x2="1440" y2="852" stroke="#121212" stroke-width="2"/>
+  <text x="48" y="878" font-size="11" letter-spacing="0.14em" fill="#67645d">↑↓←→ NAVIGATE · ENTER FOCUS · / SEARCH · ⌘K COMMANDS</text>
+  <text x="1392" y="878" text-anchor="end" font-size="11" letter-spacing="0.14em" fill="#67645d">BUDGET $4.12 / $10.00 DAILY</text>
+</svg>

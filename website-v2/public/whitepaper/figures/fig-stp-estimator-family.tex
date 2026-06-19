@@ -1,0 +1,50 @@
+% Fig 8 — the estimator family by signal type (BT/Elo/TrueSkill, EigenTrust, feedback).
+\providecolor{hhsand}{HTML}{E9DCC4}
+\providecolor{hhsanddeep}{HTML}{D8C7A6}
+\providecolor{hhebony}{HTML}{121212}
+\providecolor{hhink}{HTML}{1B1712}
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhpaper}{HTML}{FBF7EF}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\small,
+  sig/.style={draw=hhink,thick,fill=hhpaper,rounded corners=2pt,inner sep=4pt,
+              align=center,minimum width=34mm,font=\bfseries\footnotesize},
+  est/.style={draw=hhebony,thick,fill=hhsand!30,rounded corners=2pt,inner sep=4pt,
+              align=center,minimum width=40mm,text width=38mm,font=\footnotesize},
+  arr/.style={->,>=Latex,thick,draw=hhink},
+]
+
+\node[sig] (s1) at (0,2) {pairwise / tournament\\``$A$ beat $B$''};
+\node[sig,below=16mm of s1] (s2) {trust propagation\\``who does the net trust''};
+\node[sig,below=16mm of s2] (s3) {marketplace feedback\\``buyers rate sellers''};
+
+\node[est,right=22mm of s1] (e1)
+  {\textbf{Bradley--Terry} (full-history MLE)\\ \textbf{Elo} $\cdot$ \textbf{TrueSkill}};
+\node[est,right=22mm of s2] (e2)
+  {\textbf{EigenTrust} --- principal eigenvector\\ of the local-trust matrix};
+\node[est,right=22mm of s3] (e3)
+  {\textbf{Feedback systems}\\ (Resnick--Zeckhauser, Tadelis)};
+
+\draw[arr] (s1) -- (e1);
+\draw[arr] (s2) -- (e2);
+\draw[arr] (s3) -- (e3);
+
+
+\end{tikzpicture}}
+\caption{\textbf{The estimator family, by signal type} --- the wrong choice is a
+real error. Pairwise outcomes call for Bradley--Terry / Elo / TrueSkill; network
+trust calls for EigenTrust (PageRank for reputation --- \emph{not} a bandit);
+marketplace feedback calls for feedback systems with measured price premia
+(Resnick--Zeckhauser's ${\sim}8\%$; Tadelis on adverse selection). A SQLite harbor holds the \emph{whole} settled-outcome
+history, so it is in the Bradley--Terry regime, not the streaming-Elo regime. None
+of these is the hard part: the estimator is \emph{cheap and last}, while the
+substrate beneath --- non-forgeable identity, continuity, an oracle-witnessed
+ledger --- is the gate.}
+\label{fig:estimators}
+\end{figure}

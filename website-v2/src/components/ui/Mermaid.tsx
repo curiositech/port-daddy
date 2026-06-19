@@ -1,0 +1,131 @@
+import React, { useEffect, useRef, useCallback, useId, useState } from 'react'
+import type { Mermaid as MermaidApi } from 'mermaid'
+import { Surface } from './Surface'
+import { cn } from '@/lib/utils'
+
+interface MermaidProps {
+  chart: string
+  className?: string
+}
+
+export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
+  const ref = useRef<HTMLDivElement>(null)
+  const idPrefix = useId().replace(/:/g, '')
+  const renderCount = useRef(0)
+  // Dynamic import so the `mermaid` module never evaluates during
+  // prerender — it touches `document` / `window` at module scope,
+  // which throws under vite-react-ssg.
+  const [mermaid, setMermaid] = useState<MermaidApi | null>(null)
+  useEffect(() => {
+    let active = true
+    import('mermaid').then((mod) => {
+      if (active) setMermaid(mod.default)
+    })
+    return () => { active = false }
+  }, [])
+
+  const renderChart = useCallback(() => {
+    if (!mermaid) return
+    const root = document.documentElement
+    const style = getComputedStyle(root)
+    const token = (name: string) => style.getPropertyValue(name).trim() || `var(${name})`
+
+    const primary = token('--brand-secondary')
+    const surface = token('--surface-base')
+    const raised = token('--surface-raised')
+    const border = token('--border-strong')
+    const text = token('--text-primary')
+    const inverse = token('--text-inverse')
+    const signalText = token('--text-primary')
+    const signalLine = token('--brand-secondary')
+    const actorLine = token('--border-strong')
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      securityLevel: 'loose',
+      themeVariables: {
+        primaryColor: primary,
+        primaryTextColor: inverse,
+        primaryBorderColor: primary,
+        lineColor: signalLine,
+        secondaryColor: primary,
+        tertiaryColor: surface,
+        mainBkg: raised,
+        nodeBorder: primary,
+        clusterBkg: surface,
+        clusterBorder: border,
+        defaultLinkColor: signalLine,
+        titleColor: text,
+        edgeLabelBackground: 'transparent',
+        nodeTextColor: text,
+        // Sequence diagram specific
+        signalColor: signalLine,
+        signalTextColor: signalText,
+        actorTextColor: text,
+        actorLineColor: actorLine,
+        activationBorderColor: primary,
+        sequenceNumberColor: inverse,
+        labelTextColor: signalText,
+        loopTextColor: signalText,
+        noteBkgColor: raised,
+        noteTextColor: text,
+        noteBorderColor: border,
+        fontFamily: 'Radnika, Helvetica Neue, Helvetica, Arial, sans-serif',
+        fontSize: '16px',
+      },
+      flowchart: {
+        curve: 'basis',
+        htmlLabels: true,
+        nodeSpacing: 72,
+        rankSpacing: 82,
+        padding: 22,
+        useMaxWidth: false,
+      },
+    })
+
+    if (ref.current && chart) {
+      // mermaid.render produces trusted SVG from our own chart definitions
+      ref.current.textContent = ''
+      const id = `mermaid-${idPrefix}-${renderCount.current}`
+      renderCount.current += 1
+      mermaid.render(id, chart).then((result) => {
+        if (ref.current) {
+          const parsed = new DOMParser().parseFromString(result.svg, 'image/svg+xml')
+          const svg = parsed.documentElement
+          if (svg.tagName.toLowerCase() === 'svg') {
+            ref.current.textContent = ''
+            ref.current.appendChild(document.importNode(svg, true))
+          }
+        }
+      })
+    }
+  }, [chart, idPrefix, mermaid])
+
+  useEffect(() => {
+    if (!mermaid) return
+    renderChart()
+
+    // Re-render when theme changes
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.attributeName === 'data-theme') {
+          renderChart()
+          break
+        }
+      }
+    })
+    observer.observe(document.documentElement, { attributes: true })
+    return () => observer.disconnect()
+  }, [renderChart, mermaid])
+
+  return (
+    <Surface
+      depth="inset"
+      radius="none"
+      padding="xl"
+      className={cn('pd-docs-mermaid my-12 flex w-full justify-start overflow-x-auto', className)}
+      ref={ref}
+    />
+  )
+}

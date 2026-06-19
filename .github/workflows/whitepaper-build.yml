@@ -1,0 +1,108 @@
+name: Whitepaper PDF Build & Deploy
+
+# Rebuilds the published whitepaper PDFs from their LaTeX source whenever the
+# source changes, so the artifacts the website serves never drift from the
+# .tex/figures. Closes the gap that let the trilogy PDFs ship a stale June-3
+# render (retired cinnabar) eight days after the source moved to cobalt.
+#
+# Modes:
+#   * feature-branch push -> rebuild and COMMIT any changed PDFs back to the
+#       branch, so the merge carries fresh artifacts and the next
+#       deploy-website-v2 run (push to main) serves them.
+#   * PR -> rebuild as an advisory check (always green if it compiles); the
+#       feature-branch push above is what actually heals stale PDFs.
+#   * main push -> rebuild and FAIL if a committed PDF is stale, since main is
+#       protected and should only ever receive fresh PDFs via merged PRs.
+#
+# Builds are reproducible (scripts/build-whitepapers.sh pins SOURCE_DATE_EPOCH
+# per paper), so a byte difference means a genuine source change, not timestamp
+# noise.
+
+on:
+  push:
+    branches: [main, claude/papers-feature-branches-hb055f]
+    paths:
+      - 'website-v2/public/whitepaper/**/*.tex'
+      - 'whitepaper/**/*.tex'
+      - 'scripts/build-whitepapers.sh'
+      - '.github/workflows/whitepaper-build.yml'
+  pull_request:
+    paths:
+      - 'website-v2/public/whitepaper/**/*.tex'
+      - 'whitepaper/**/*.tex'
+      - 'scripts/build-whitepapers.sh'
+      - '.github/workflows/whitepaper-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: whitepaper-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: texlive/texlive:latest
+    steps:
+      - name: Ensure git present
+        run: command -v git >/dev/null 2>&1 || (apt-get update && apt-get install -y git)
+
+      - uses: actions/checkout@v4
+        with:
+          # Check out the branch tip (not the PR merge ref) so we can commit
+          # rebuilt PDFs back on push events. Full history so the build script
+          # can read per-paper commit times for reproducible dates.
+          ref: ${{ github.head_ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Trust the checkout dir (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build all whitepaper PDFs
+        run: bash scripts/build-whitepapers.sh
+
+      - name: Commit rebuilt PDFs (feature-branch push)
+        # Auto-commit only on feature branches. main is protected and receives
+        # fresh PDFs through merged PRs, so we never push to it from CI.
+        if: github.event_name == 'push' && github.ref_name != 'main'
+        run: |
+          set -euo pipefail
+          # Loop-breaker: never stack a second build commit on our own. This
+          # bounds the build->commit->build chain to a single extra commit even
+          # if a render is not perfectly reproducible, so no [skip ci] is needed
+          # (and the resulting commit's PR/main checks see the fresh tree).
+          case "$(git log -1 --format=%s)" in
+            "build(whitepaper): regenerate PDFs from source"*)
+              echo "HEAD is already a build commit — nothing to do."; exit 0;;
+          esac
+          if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
+            echo "PDFs already match source — nothing to commit."; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website-v2/public/whitepaper/*.pdf
+          echo "Changed PDFs:"; git diff --cached --stat
+          git commit -m "build(whitepaper): regenerate PDFs from source"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Freshness check (advisory on PRs, enforced on main)
+        # Skipped on feature-branch pushes (the step above already heals those).
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref_name == 'main')
+        run: |
+          set -uo pipefail
+          if git diff --quiet -- 'website-v2/public/whitepaper/*.pdf'; then
+            echo "All published PDFs match a fresh render. ✔"; exit 0
+          fi
+          echo "Published PDFs differ from a fresh render of current source:"
+          git diff --stat -- 'website-v2/public/whitepaper/*.pdf' || true
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "main" ]; then
+            echo "::error::main is serving stale whitepaper PDFs — a PR must carry"
+            echo "rebuilt PDFs (the feature-branch build commits them automatically)."
+            exit 1
+          fi
+          echo "::notice::Advisory only — PDFs are regenerated and committed on the"
+          echo "feature branch, so the merge carries fresh artifacts to main."

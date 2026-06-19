@@ -1,0 +1,15 @@
+A central admiralty anchor with a warm amber trust-halo, rendered as flat editorial illustration on a fully transparent canvas (PNG alpha — the canvas is empty, only the anchor, halo, and orbiting ships carry pixels). Square 1:1 framing, strict bilateral symmetry around the anchor's vertical axis.
+
+The anchor: centered, classic admiralty pattern — curved crown, two flukes angled outward, a horizontal stock at the top. Drawn in cobalt blue #003fb8 with crisp near-black #1f1f1f thin outlines and diagonal hatched shading on the shank. A length of rope wraps once around the stock in deep teal / sage green #006b5f, with neat coil detail at one end. Ruler-clean, geometric, not ornate.
+
+The amber halo: a clean concentric ring of warm amber #e8a23a radiates from the crown of the anchor — NOT a soft painterly glow, but a defined two-tone ring (a brighter inner band fading to softer outer band, both clearly amber, alpha-blending toward fully transparent at the outermost edge). The halo communicates "this is a trust point — safe attachment, safe trade." It is the second-most-prominent color element after the cobalt anchor itself.
+
+The fleet: three small line-drawn sailboat silhouettes (one hull + one triangular sail each) orbit the halo at equal 120° spacing on an invisible circular path that passes through the outer amber band. Each ship is a flat fill in deep teal / sage green #006b5f with a thin near-black outline. Each ship's bow points along the orbit direction (sailing around the halo, not pointing at it). The ships are tiny relative to the anchor — they read as a constellation, not as individual subjects.
+
+The amber halo is the warmth signal. Cobalt and sage carry the structure; amber carries the trust + surety + welcome semantics. Mariners trust anchors because they hold; here the halo says "this anchor is also a place where the fleet gathers safely."
+
+Strict no-fill rules: the background is FULLY TRANSPARENT — alpha zero — no cream, no white, no tint. Only the anchor, rope, halo, and ships carry pixels. No text. No labels. No numbers. No watermarks. No 3D, no photorealism, no painterly rendering.
+
+Composition discipline: the icon must read at 60×60 — keep ship silhouettes as simple geometric shapes that survive downsampling, keep the amber halo wide enough to remain visible at thumbnail, keep the anchor centered and proportional. Hand-drawn-but-precise feel, like a civic seal etched on transparent vellum.
+
+This icon will live on GitHub marketplace and in-product chrome — light backgrounds, dark backgrounds, tinted backgrounds. The amber halo plus transparent canvas must work in all three contexts.

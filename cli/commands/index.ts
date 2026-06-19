@@ -1,0 +1,73 @@
+/**
+ * CLI Commands Index
+ *
+ * Re-exports all command modules for easy importing.
+ */
+
+export * from './sessions.js';
+export * from './services.js';
+export * from './locks.js';
+export * from './messaging.js';
+export * from './agents.js';
+export * from './activity.js';
+export * from './webhooks.js';
+export * from './projects.js';
+export * from './orchestration.js';
+export * from './diagnostics.js';
+export * from './daemon.js';
+export * from './resurrection.js';
+export * from './changelog.js';
+export * from './tunnel.js';
+export * from './dns.js';
+export * from './integration.js';
+export * from './briefing.js';
+export * from './periscope.js';
+export * from './coast-guard.js';
+export * from './sugar.js';
+export * from './attention.js';
+export * from './nudge.js';
+export * from './tutorial.js';
+export * from './inbox.js';
+export * from './spawn.js';
+export * from './transcripts.js';
+export * from './sortie.js';
+export * from './harbors.js';
+export * from './bench.js';
+export * from './benchmark.js';
+export * from './demo.js';
+export * from './tuples.js';
+export * from './setup.js';
+export * from './secret.js';
+export * from './semantic.js';
+export * from './ideas.js';
+export * from './roadmap.js';
+export * from './commit.js';
+export * from './quorum.js';
+export * from './parley.js';
+export * from './feedback.js';
+export * from './sitrep.js';
+export * from './pheromone.js';
+export * from './say.js';
+export * from './look.js';
+export * from './wallet.js';
+export * from './bond.js';
+export * from './advisor.js';
+export * from './actors.js';
+export * from './tube.js';
+export * from './guard.js';
+export * from './add.js';
+export * from './snapshots.js';
+export * from './backup.js';
+export * from './restore.js';
+export * from './attest.js';
+export * from './shipwright.js';
+export * from './cockpit.js';
+export * from './popper.js';
+export * from './harbormaster.js';
+export * from './dispatch.js';
+export * from './nightshift.js';
+export * from './review.js';
+export * from './morning.js';
+export * from './backend.js';
+
+export * from './cut.js';

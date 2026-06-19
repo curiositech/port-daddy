@@ -1,0 +1,195 @@
+{
+  "round_from": "v2.0",
+  "round_to": "v2.1",
+  "kind": "bootstrap",
+  "sealed_at": "2026-05-01",
+  "lead": "secops:lead",
+  "exchanges": [
+    {
+      "id": "smell:vuln:crypto:anchor:3:0001",
+      "class": "crypto",
+      "section": "Anchor §3",
+      "severity": "high",
+      "title": "Algorithm confusion in token verification",
+      "smell_from": "human-author",
+      "fix_from": "defense-crypto",
+      "fix_status": "staged",
+      "artifact": "proofs/anchor/phase-pinned/"
+    },
+    {
+      "id": "smell:vuln:crypto:anchor:3:0002",
+      "class": "crypto",
+      "section": "Anchor §3",
+      "severity": "high",
+      "title": "Delegation chain replay",
+      "smell_from": "human-author",
+      "fix_from": "defense-crypto",
+      "fix_status": "staged"
+    },
+    {
+      "id": "smell:vuln:crypto:anchor:2.4:0003",
+      "class": "crypto",
+      "section": "Anchor §2.4",
+      "severity": "medium",
+      "title": "Cuckoo filter pollution",
+      "smell_from": "human-author",
+      "fix_from": "defense-crypto",
+      "fix_status": "partial",
+      "artifact": "proofs/anchor/cuckoo/"
+    },
+    {
+      "id": "smell:vuln:crypto:anchor:2.4:0004",
+      "class": "crypto",
+      "section": "Anchor §2.4",
+      "severity": "medium",
+      "title": "Gossip partition timing",
+      "smell_from": "human-author",
+      "fix_from": "defense-crypto",
+      "fix_status": "scope-clarified"
+    },
+    {
+      "id": "smell:vuln:crypto:bonded:4.2:0005",
+      "class": "crypto",
+      "section": "Bonded §4.2",
+      "severity": "high",
+      "title": "Merkle Forest equivocation",
+      "smell_from": "human-author",
+      "fix_from": "defense-crypto",
+      "fix_status": "scope-narrowed"
+    },
+    {
+      "id": "smell:vuln:crypto:bonded:7.4:0006",
+      "class": "crypto+recovery",
+      "section": "Bonded §7.4",
+      "severity": "high",
+      "title": "Passkey pairing MITM",
+      "smell_from": "human-author",
+      "fix_from": "defense-crypto + defense-recovery",
+      "fix_status": "staged",
+      "artifact": "proofs/bonded/pairing/"
+    },
+    {
+      "id": "smell:vuln:econ:bonded:8.4:0007",
+      "class": "econ",
+      "section": "Bonded §8.4",
+      "severity": "medium",
+      "title": "Sybil insurers",
+      "smell_from": "human-author",
+      "fix_from": "defense-econ",
+      "fix_status": "staged"
+    },
+    {
+      "id": "smell:vuln:econ:bonded:8.4:0008",
+      "class": "econ",
+      "section": "Bonded §8.4",
+      "severity": "medium",
+      "title": "Insurer collusion / cartel",
+      "smell_from": "human-author",
+      "fix_from": "defense-econ",
+      "fix_status": "staged"
+    },
+    {
+      "id": "smell:vuln:econ:bonded:8.3:0009",
+      "class": "econ",
+      "section": "Bonded §8.3",
+      "severity": "medium",
+      "title": "Reputation amortization",
+      "smell_from": "human-author",
+      "fix_from": "defense-econ",
+      "fix_status": "landed-in-paper"
+    },
+    {
+      "id": "smell:vuln:coord:bonded:4.3:0010",
+      "class": "coord",
+      "section": "Bonded §4.3",
+      "severity": "medium",
+      "title": "Pheromone retraction race",
+      "smell_from": "human-author",
+      "fix_from": "defense-coord",
+      "fix_status": "landed-in-paper"
+    },
+    {
+      "id": "smell:vuln:coord:bonded:9.2:0011",
+      "class": "coord",
+      "section": "Bonded §9.2",
+      "severity": "medium",
+      "title": "Distress-class abuse",
+      "smell_from": "human-author",
+      "fix_from": "defense-coord",
+      "fix_status": "landed-in-paper"
+    },
+    {
+      "id": "smell:vuln:recovery:bonded:7.x:0012",
+      "class": "recovery",
+      "section": "Bonded §7.x",
+      "severity": "high",
+      "title": "Email magic-link race",
+      "smell_from": "human-author",
+      "fix_from": "defense-recovery",
+      "fix_status": "staged"
+    },
+    {
+      "id": "smell:vuln:recovery:bonded:7:0013",
+      "class": "recovery",
+      "section": "Bonded §7",
+      "severity": "scope-clarification",
+      "title": "Same-user adversary boundary",
+      "smell_from": "human-author",
+      "fix_from": "defense-recovery",
+      "fix_status": "landed-in-paper"
+    }
+  ],
+  "carried": [
+    {
+      "id": "smell:proof-gap:bonded:7.x:conservation",
+      "class": "proof-gap",
+      "title": "Conservation Theorem mechanization (TLA+)",
+      "reason": "proof-completer routed; TLA+ artifact target proofs/bonded/conservation/ next round"
+    },
+    {
+      "id": "smell:proof-gap:bonded:7.x:no-overdraft",
+      "class": "proof-gap",
+      "title": "No-Overdraft Lemma mechanization (Kani)",
+      "reason": "Kani harness on lib/bonds.ts:escrow scheduled v2.2"
+    },
+    {
+      "id": "smell:proof-gap:bonded:4.2:merkle-binding",
+      "class": "proof-gap",
+      "title": "Merkle Forest binding (EasyCrypt)",
+      "reason": "Scope narrowed in paper text v2.1; full mechanization deferred"
+    },
+    {
+      "id": "smell:proof-gap:bonded:8.4:pareto",
+      "class": "proof-gap",
+      "title": "Pareto-dominance proof (§8.4.4)",
+      "reason": "Depends on Youle's pending formal proof — external"
+    }
+  ],
+  "paper_changes_v21": [
+    "§2.4 cuckoo freshness bound cited Fan/Demers",
+    "§4.2 binding claim narrowed to non-equivocating daemon OR honest KMS witness",
+    "§4.3 pheromone conflict-resolution rule documented",
+    "§7 same-user adversary three-tier scope table",
+    "§7.x email magic-link weakness + device-channel confirmation",
+    "§8.3 reputation decay function ρ(p) specified",
+    "§9.2 distress blast-radius bond ceiling specified",
+    "§A.3 mechanization gap registry"
+  ],
+  "infrastructure_added_v21": [
+    "skills/redteam-review (5 personas + comms)",
+    "skills/whitehat-defense (6 personas + comms)",
+    "lib/coordination-{crypto,acl,gates,route-guard}.ts envelope crypto + ACL + Gates",
+    "proofs/coordination/isolation.pv ProVerif proof of red/white isolation under Dolev-Yao",
+    "tests/unit/coordination-{crypto,gates,routes}.test.js (30 cases)",
+    "docs/shipwright/REDTEAM-WHITEHAT-CADENCE.md cadence doc"
+  ],
+  "reputation_deltas": {
+    "human-author": "+bootstrap (13 real smells)",
+    "defense-crypto": "+staged (4 counters)",
+    "defense-econ": "+staged (3 counters)",
+    "defense-coord": "+landed (2 counters in paper)",
+    "defense-recovery": "+landed (2 counters in paper)",
+    "proof-completer": "0 (deferred)",
+    "secops:lead": "+baseline (round closed cleanly)"
+  }
+}

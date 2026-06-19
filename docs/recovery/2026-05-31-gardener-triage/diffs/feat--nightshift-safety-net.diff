@@ -1,0 +1,356 @@
+STATS:
+ bin/git-nightshift                            | 307 +++++++++++++++
+ bin/port-daddy-cli.ts                         |  12 +
+ cli/commands/index.ts                         |   2 +
+ cli/commands/morning.ts                       | 181 +++++++++
+ cli/commands/nightshift.ts                    | 495 ++++++++++++++++++++++++
+ completions/port-daddy.bash                   |   2 +
+ completions/port-daddy.fish                   |  14 +-
+ completions/port-daddy.zsh                    |   2 +
+ docs/proposals/pd-nightshift-safety.md        | 258 +++++++++++++
+ docs/proposals/pd-nightshift.md               | 176 +++++++++
+ features.manifest.json                        |  32 ++
+ lib/nightshift/control.ts                     | 358 +++++++++++++++++
+ lib/nightshift/precommit-hook.sh              | 122 ++++++
+ lib/nightshift/prepare-commit-msg-hook.sh     |  45 +++
+ lib/nightshift/queue.ts                       | 527 ++++++++++++++++++++++++++
+ lib/nightshift/runner.ts                      | 349 +++++++++++++++++
+ lib/nightshift/sandbox-profile.ts             | 282 ++++++++++++++
+ pd-fleet.yml                                  |  23 ++
+ tests/unit/nightshift-control.test.js         | 247 ++++++++++++
+ tests/unit/nightshift-git-wrapper.test.js     | 275 ++++++++++++++
+ tests/unit/nightshift-precommit-hook.test.js  | 200 ++++++++++
+ tests/unit/nightshift-queue.test.js           | 332 ++++++++++++++++
+ tests/unit/nightshift-safety-e2e.test.js      | 139 +++++++
+ tests/unit/nightshift-sandbox-profile.test.js | 135 +++++++
+ tests/unit/nightshift-slug.test.js            | 266 +++++++++++++
+ 25 files changed, 4780 insertions(+), 1 deletion(-)
+
+---
+LAST COMMIT:
+619aba8ebe18e855d2c92b6eb92d85963f8f9940
+Erich Owens <[redacted]>
+2026-05-20 13:09:08 -0700
+feat(nightshift): circuit breakers + sandbox layers
+
+Layered defenses on top of PR #143's autonomous spawn so the operator never wakes up to a wiped laptop, destroyed repo, or rewritten history.
+
+- sandbox-profile.ts: macOS sandbox-exec, worktree write-only, ~25 forbidden binaries
+
+- bin/git-nightshift: refuses push -f, push origin main, filter-branch, update-ref refs/heads/main, config --global, etc.
+
+- precommit-hook.sh + prepare-commit-msg-hook.sh: branch shape, file/LOC caps, big-delete marker, Spawned-by trailer
+
+- control.ts + nightshift CLI halt/disable/enable/status
+
+- runner.ts --really-run opts safety layers on; refuses when ~/.pd/nightshift-disabled present
+
+- 75 new unit tests; 209 suites / 5955 tests green
+
+- Gaps documented: pf network allowlist (needs sudo) + Layer 5 ulimit adapter wiring
+
+
+---
+DIFF (first 300 lines):
+diff --git a/bin/git-nightshift b/bin/git-nightshift
+new file mode 100755
+index 00000000..daa6ab81
+--- /dev/null
++++ b/bin/git-nightshift
+@@ -0,0 +1,307 @@
++#!/usr/bin/env bash
++# git-nightshift -- wrapper that intercepts git calls from an autonomous
++# nightshift spawn, refuses destructive operations, logs everything to the
++# run's transcript, and otherwise delegates to the real git.
++#
++# Installed by the runner into ${worktree}/.nightshift/bin/git, then placed
++# AHEAD of /usr/bin/git in PATH for the spawn:
++#   PATH="${worktree}/.nightshift/bin:${PATH}"
++#
++# The agent calls `git ...` which resolves to this script. We pattern-match
++# argv. If the call is destructive we exit non-zero with a clear message; if
++# not, we exec the real git.
++#
++# Hard rule: anything that could affect a branch OTHER than night-shift/* is
++# refused. The agent owns its worktree and its night-shift/<id> branch. It
++# does not get to talk to main, master, release branches, tags, or any
++# remote ref outside `night-shift/`.
++#
++# Forensics: every invocation, refused or not, is appended to
++# ${PD_NIGHTSHIFT_TRANSCRIPT:-${worktree}/.nightshift/git-audit.log}.
++
++set -u
++
++# -- locate the real git ------------------------------------------------------
++# Strip our wrapper dir from PATH so `which git` doesn't loop. We rely on the
++# runner having set PD_NIGHTSHIFT_REAL_GIT to an absolute path; if not, fall
++# back to a sensible default after stripping our own dir.
++real_git="${PD_NIGHTSHIFT_REAL_GIT:-}"
++if [[ -z "${real_git}" ]]; then
++  if [[ -x /opt/homebrew/bin/git ]]; then
++    real_git=/opt/homebrew/bin/git
++  elif [[ -x /usr/local/bin/git ]]; then
++    real_git=/usr/local/bin/git
++  elif [[ -x /usr/bin/git ]]; then
++    real_git=/usr/bin/git
++  else
++    echo "git-nightshift: cannot locate real git binary" >&2
++    exit 127
++  fi
++fi
++
++# -- transcript ---------------------------------------------------------------
++log_path="${PD_NIGHTSHIFT_TRANSCRIPT:-}"
++if [[ -z "${log_path}" ]]; then
++  # Try to land it next to ourselves. ${BASH_SOURCE[0]} resolves to the
++  # wrapper, so ../git-audit.log puts the log alongside the bin/ dir.
++  wrapper_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
++  log_path="${wrapper_dir%/bin}/git-audit.log"
++fi
++
++log_invocation() {
++  local verdict="$1"; shift
++  local reason="$1"; shift
++  local ts
++  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
++  # Quote each arg lossy-but-safe for log readability.
++  local rendered=""
++  for a in "$@"; do
++    rendered+="$(printf %q "$a") "
++  done
++  printf '%s %s %s -- %s\n' "$ts" "$verdict" "$reason" "$rendered" >> "$log_path" 2>/dev/null || true
++}
++
++refuse() {
++  local reason="$1"; shift
++  log_invocation REFUSED "$reason" "$@"
++  echo "git-nightshift: REFUSED ($reason)" >&2
++  echo "  command: git $*" >&2
++  echo "  policy:  https://github.com/curiositech/port-daddy/blob/main/docs/proposals/pd-nightshift-safety.md" >&2
++  exit 75  # EX_TEMPFAIL — non-zero, distinct from real-git errors
++}
++
++# -- helpers ------------------------------------------------------------------
++# Find the first non-flag positional after the subcommand. We do not parse
++# every option; we just need the targets used by destructive subcommands.
++first_positional_after() {
++  local skip="$1"; shift
++  local seen=0
++  for a in "$@"; do
++    if [[ "$a" == "$skip" ]] && [[ $seen -eq 0 ]]; then
++      seen=1
++      continue
++    fi
++    [[ "$a" == -* ]] && continue
++    if [[ $seen -eq 1 ]]; then
++      printf '%s' "$a"
++      return 0
++    fi
++  done
++  return 1
++}
++
++# Detect any --force / -f / --force-with-lease anywhere in argv.
++has_force_flag() {
++  for a in "$@"; do
++    case "$a" in
++      -f|--force|--force-with-lease|--force-with-lease=*) return 0 ;;
++    esac
++  done
++  return 1
++}
++
++# Detect main/master mentions in argv. Strict: matches "main", "master",
++# "origin/main", "origin/master", "refs/heads/main", "refs/heads/master".
++mentions_main_or_master() {
++  for a in "$@"; do
++    case "$a" in
++      main|master|origin/main|origin/master|refs/heads/main|refs/heads/master) return 0 ;;
++      */main|*/master) return 0 ;;
++    esac
++  done
++  return 1
++}
++
++# Is this a night-shift/ branch reference?
++is_nightshift_ref() {
++  case "$1" in
++    night-shift/*|refs/heads/night-shift/*|origin/night-shift/*) return 0 ;;
++  esac
++  return 1
++}
++
++# -- dispatch -----------------------------------------------------------------
++sub="${1:-}"
++shift || true
++
++case "${sub}" in
++  '' )
++    exec "$real_git"
++    ;;
++
++  push)
++    # Reject force-push categorically.
++    if has_force_flag "$@"; then
++      refuse "force-push" push "$@"
++    fi
++    # Reject special destructive variants.
++    for a in "$@"; do
++      case "$a" in
++        --mirror|--all|--prune|--delete) refuse "push $a forbidden" push "$@" ;;
++      esac
++    done
++    # Reject any push that mentions main/master, even as a remote name guess.
++    if mentions_main_or_master "$@"; then
++      refuse "push to main/master forbidden" push "$@"
++    fi
++    # Find the refspec target (last non-flag positional). If it doesn't look
++    # like night-shift/* we refuse. Empty refspec is allowed only if the
++    # current branch is night-shift/* (let git decide; we still check).
++    refspec=""
++    for a in "$@"; do
++      [[ "$a" == -* ]] && continue
++      refspec="$a"
++    done
++    if [[ -n "$refspec" ]]; then
++      # Strip leading "+" force-marker; we already rejected force above, but
++      # belt-and-suspenders.
++      stripped="${refspec#+}"
++      # Refspecs can be "src:dst"; check both halves.
++      src="${stripped%%:*}"
++      dst="${stripped#*:}"
++      for part in "$src" "$dst"; do
++        [[ -z "$part" ]] && continue
++        # Skip non-ref-looking things (probably the remote name).
++        case "$part" in
++          origin|upstream) continue ;;
++        esac
++        if ! is_nightshift_ref "$part"; then
++          # If the part is just "HEAD" or a remote name, check current branch
++          # below; otherwise refuse.
++          if [[ "$part" != "HEAD" ]]; then
++            refuse "push target must be under night-shift/" push "$@"
++          fi
++        fi
++      done
++    fi
++    # Final check: current branch must be a night-shift/* to push at all.
++    cur_branch="$("$real_git" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '')"
++    if ! is_nightshift_ref "$cur_branch"; then
++      refuse "current branch ${cur_branch} is not night-shift/*" push "$@"
++    fi
++    log_invocation ALLOWED "push night-shift" push "$@"
++    exec "$real_git" push "$@"
++    ;;
++
++  reset)
++    # Reject any `reset --hard` that touches main/master (any remote prefix).
++    if [[ "${1:-}" == "--hard" ]]; then
++      if mentions_main_or_master "$@"; then
++        refuse "reset --hard onto main/master forbidden" reset "$@"
++      fi
++    fi
++    log_invocation ALLOWED "reset" reset "$@"
++    exec "$real_git" reset "$@"
++    ;;
++
++  filter-branch|filter-repo)
++    refuse "history-rewriting subcommand forbidden" "$sub" "$@"
++    ;;
++
++  update-ref)
++    # Refuse update-ref of refs/heads/main or refs/heads/master or any
++    # remote-tracking ref. Allowed: refs/heads/night-shift/*.
++    target="${1:-}"
++    case "$target" in
++      refs/heads/main|refs/heads/master) refuse "update-ref on main/master forbidden" update-ref "$@" ;;
++      refs/heads/night-shift/*) : ;;
++      refs/remotes/*) refuse "update-ref on remote-tracking ref forbidden" update-ref "$@" ;;
++      refs/tags/*) refuse "update-ref on tag forbidden" update-ref "$@" ;;
++      *) : ;;
++    esac
++    log_invocation ALLOWED "update-ref" update-ref "$@"
++    exec "$real_git" update-ref "$@"
++    ;;
++
++  config)
++    # `git config --global` rewrites the operator's ~/.gitconfig -- refuse.
++    # `git config receive.denyDeletes` and similar repo-level toggles that
++    # disarm safety -- refuse.
++    for a in "$@"; do
++      case "$a" in
++        --global|--system) refuse "config $a forbidden" config "$@" ;;
++        receive.denyDeletes|receive.denyDeleteCurrent|receive.denyNonFastForwards)
++          refuse "config $a forbidden (disables push safety)" config "$@" ;;
++      esac
++    done
++    log_invocation ALLOWED "config" config "$@"
++    exec "$real_git" config "$@"
++    ;;
++
++  remote)
++    # Reject `remote add` for any URL that isn't github.com/curiositech/* or
++    # the existing origin. Reject `remote set-url`. Reject `remote rename`.
++    op="${1:-}"
++    case "$op" in
++      set-url|rename|remove|rm|prune)
++        refuse "remote $op forbidden" remote "$@" ;;
++      add)
++        # `remote add <name> <url>` -- allow only known-good URLs.
++        url="${3:-}"
++        case "$url" in
++          https://github.com/curiositech/*|git@github.com:curiositech/*) : ;;
++          *) refuse "remote add URL not in allowlist" remote "$@" ;;
++        esac
++        ;;
++    esac
++    exec "$real_git" remote "$@"
++    ;;
++
++  worktree)
++    # Refuse `git worktree add` that points outside ~/coding/tmp/nightshift/
++    # (the agent should not spin up worktrees outside its own scratch root).
++    op="${1:-}"
++    if [[ "$op" == "add" ]]; then
++      # First non-flag positional after "add" is the path.
++      target=""
++      seen_add=0
++      for a in "$@"; do
++        if [[ "$a" == "add" ]] && [[ $seen_add -eq 0 ]]; then
++          seen_add=1; continue
++        fi
++        [[ "$a" == -* ]] && continue
++        if [[ $seen_add -eq 1 ]]; then
++          target="$a"; break
++        fi
++      done
++      if [[ -n "$target" ]] && [[ "$target" != ${HOME}/coding/tmp/* ]]; then
++        refuse "worktree add must live under ~/coding/tmp/" worktree "$@"
++      fi
++    fi
++    exec "$real_git" worktree "$@"
++    ;;
++
++  clean)
++    # `git clean -fdx /` or any clean targeting an absolute path outside the
++    # worktree is destructive. Refuse any -x with absolute paths.
++    for a in "$@"; do
++      case "$a" in
++        /*) refuse "clean with absolute path forbidden" clean "$@" ;;
++      esac
++    done
++    exec "$real_git" clean "$@"
++    ;;
++
++  checkout|switch)
++    # Refuse checkout -B/-b that names main or master (would clobber).
++    for ((i=1; i<=$#; i++)); do
++      eval "a=\${$i}"
++      case "$a" in
++        -B|-b)
++          # Next positional is the new branch name.
++          nxt=$((i+1))
++          eval "name=\${$nxt:-}"
++          case "$name" in
+
+... [4685 more lines truncated]

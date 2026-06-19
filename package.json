@@ -1,0 +1,145 @@
+{
+  "name": "port-daddy",
+  "version": "3.20.0",
+  "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
+  "main": "./dist/server.js",
+  "type": "module",
+  "types": "./dist/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./client": {
+      "types": "./dist/lib/client.d.ts",
+      "default": "./dist/lib/client.js"
+    }
+  },
+  "bin": {
+    "port-daddy": "./bin/port-daddy-cli.js",
+    "pd": "./bin/port-daddy-cli.js"
+  },
+  "scripts": {
+    "start": "tsx server.ts",
+    "daemon:start": "tsx server.ts",
+    "dev": "tsx bin/port-daddy-cli.ts dev",
+    "install-daemon": "tsx install-daemon.ts",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "npm test -- --watch",
+    "test:coverage": "npm test -- --coverage",
+    "test:ci": "npm test",
+    "test:bun": "bun test tests/bun/",
+    "typecheck": "tsc --noEmit",
+    "boundary:public": "tsx scripts/check-public-repo-boundary.ts",
+    "export:public": "tsx scripts/export-public-repo.ts",
+    "check:public-export": "tsx scripts/export-public-repo.ts --check",
+    "diagnose:node-builtin-imports": "node scripts/check-builtin-named-imports.mjs",
+    "check:doc-citations": "node scripts/check-doc-citations.mjs",
+    "parity": "tsx scripts/check-parity.ts",
+    "preversion": "npm run parity && npm test -- --no-coverage",
+    "postversion": "tsx scripts/sync-version.ts && git add .claude-plugin/plugin.json .gemini/extensions/port-daddy/gemini-extension.json mcp-server.json mcp/server.ts server.ts website-v2/src/data/referenceCatalog.ts public/samples/manifest.json && git commit --amend --no-edit",
+    "build": "tsc",
+    "prepublishOnly": "npm run build && npm run build:daemon:dist && npm run build:bin",
+    "build:core:dist": "bash scripts/build-core.sh",
+    "build:bosun": "cargo build --manifest-path core/pd-bosun/Cargo.toml --release -j 1",
+    "build:bosun:dist": "npm run build:bosun && mkdir -p dist/core && cp core/pd-bosun/target/release/pd-bosun dist/core/pd-bosun",
+    "build:public-samples": "node scripts/build-public-samples.mjs",
+    "build:daemon": "node scripts/build-daemon-binary.mjs",
+    "build:daemon:dist": "npm run build:public-samples && node scripts/build-daemon-binary.mjs",
+    "build:bin": "node scripts/build-single-binary.mjs",
+    "build:bin:all": "node scripts/build-single-binary.mjs --outfile=dist/port-daddy-darwin-arm64 && node scripts/build-single-binary.mjs --target=bun-linux-x64 --outfile=dist/port-daddy-linux-x64",
+    "package:fleetbar-preview": "bash scripts/package-fleetbar-preview.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/curiositech/port-daddy.git"
+  },
+  "author": "Curiositech LLC <hello@curiositech.ai> (https://curiositech.ai)",
+  "license": "FSL-1.1-MIT",
+  "bugs": {
+    "url": "https://github.com/curiositech/port-daddy/issues"
+  },
+  "homepage": "https://github.com/curiositech/port-daddy#readme",
+  "keywords": [
+    "port",
+    "port-management",
+    "port-finder",
+    "port-conflict",
+    "devtools",
+    "development",
+    "dev-server",
+    "multi-agent",
+    "pubsub",
+    "distributed-locks",
+    "agent-coordination",
+    "service-orchestration",
+    "monorepo",
+    "framework-detection",
+    "daemon",
+    "ai-development",
+    "claude"
+  ],
+  "files": [
+    "dist/",
+    "server.ts",
+    "install-daemon.ts",
+    "bin/",
+    "lib/",
+    "routes/",
+    "shared/",
+    "public/",
+    "scripts/build-core.sh",
+    "scripts/build-daemon-binary.mjs",
+    "scripts/build-public-samples.mjs",
+    "scripts/build-single-binary.mjs",
+    "mcp/",
+    "config.json",
+    "completions/",
+    "skills/",
+    ".claude-plugin/",
+    "LICENSE",
+    "README.md",
+    "tsconfig.json"
+  ],
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1",
+    "@clack/core": "^1.1.0",
+    "@clack/prompts": "^1.1.0",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/static": "^9.0.0",
+    "@huggingface/transformers": "^4.1.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@types/commander": "^2.12.0",
+    "better-sqlite3": "^12.6.2",
+    "chokidar": "^5.0.0",
+    "fastify": "^5.8.4",
+    "ink": "^6.8.0",
+    "jose": "^5.10.0",
+    "koffi": "^2.15.2",
+    "msgpackr": "^1.11.9",
+    "react": "^19.2.4",
+    "tree-sitter-wasms": "^0.1.13",
+    "tsx": "^4.21.0",
+    "web-tree-sitter": "^0.24.7",
+    "winston": "^3.19.0",
+    "yaml": "^2.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.11",
+    "@swc/jest": "^0.2.39",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.3.0",
+    "@types/react": "^19.2.14",
+    "fast-check": "^4.7.0",
+    "jest": "^30.2.0",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "glob": "^13.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "port-daddy",
+  "description": "Authoritative port management and multi-agent coordination for local development. Atomic port assignment, pub/sub messaging, distributed locks, and agent registry via CLI, SDK, or HTTP API.",
+  "version": "3.20.0",
+  "author": "Curiositech LLC",
+  "homepage": "https://github.com/curiositech/port-daddy",
+  "repository": "https://github.com/curiositech/port-daddy",
+  "license": "MIT",
+  "skills": [
+    "port-daddy",
+    "port-daddy-agent-skill"
+  ],
+  "keywords": [
+    "port-management",
+    "multi-agent",
+    "dev-server",
+    "pubsub",
+    "distributed-locks",
+    "agent-coordination",
+    "daemon"
+  ]
+}

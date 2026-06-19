@@ -1,0 +1,2211 @@
+{
+  "$schema": "./features.schema.json",
+  "_comment": "Feature manifest for parity enforcement. Every feature MUST be declared here before shipping.",
+  "features": {
+    "claim": {
+      "description": "Claim a port for a service",
+      "cli": [
+        "claim",
+        "c"
+      ],
+      "sdk": [
+        "claim"
+      ],
+      "routes": [
+        "POST /claim"
+      ],
+      "completions": [
+        "claim",
+        "c"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "release": {
+      "description": "Release a service and free its port",
+      "cli": [
+        "release",
+        "r"
+      ],
+      "sdk": [
+        "release"
+      ],
+      "routes": [
+        "DELETE /release"
+      ],
+      "completions": [
+        "release",
+        "r"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "services": {
+      "description": "List and query services",
+      "cli": [
+        "find",
+        "f",
+        "list",
+        "l",
+        "services",
+        "ps"
+      ],
+      "sdk": [
+        "listServices",
+        "getService"
+      ],
+      "routes": [
+        "GET /services",
+        "GET /services/:param"
+      ],
+      "completions": [
+        "find",
+        "f",
+        "list",
+        "l",
+        "services",
+        "ps"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "endpoints": {
+      "description": "Service endpoint URLs and environment variable export",
+      "cli": [
+        "url",
+        "env"
+      ],
+      "sdk": [
+        "setEndpoint"
+      ],
+      "routes": [
+        "PUT /services/:param/endpoints/:param"
+      ],
+      "completions": [
+        "url",
+        "env"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "locks": {
+      "description": "Distributed locking",
+      "cli": [
+        "lock",
+        "unlock",
+        "locks"
+      ],
+      "sdk": [
+        "lock",
+        "unlock",
+        "checkLock",
+        "extendLock",
+        "listLocks",
+        "lockWithRetry",
+        "withLock"
+      ],
+      "routes": [
+        "POST /locks/:param",
+        "PUT /locks/:param",
+        "DELETE /locks/:param",
+        "GET /locks/:param",
+        "GET /locks"
+      ],
+      "completions": [
+        "lock",
+        "unlock",
+        "locks"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "messaging": {
+      "description": "Pub/sub messaging",
+      "cli": [
+        "pub",
+        "publish",
+        "sub",
+        "subscribe",
+        "broadcast",
+        "listen",
+        "tube",
+        "channels"
+      ],
+      "sdk": [
+        "publish",
+        "getMessages",
+        "poll",
+        "subscribe",
+        "listChannels",
+        "discoverChannels",
+        "resolveChannel",
+        "ensureChannel",
+        "clearChannel"
+      ],
+      "routes": [
+        "GET /msg",
+        "POST /msg/:param",
+        "GET /msg/:param",
+        "DELETE /msg/:param",
+        "GET /msg/:param/poll",
+        "GET /msg/:param/subscribe",
+        "GET /channels/discover",
+        "GET /channels/resolve/:param",
+        "POST /channels/ensure",
+        "GET /channels"
+      ],
+      "completions": [
+        "pub",
+        "publish",
+        "sub",
+        "subscribe",
+        "broadcast",
+        "listen",
+        "tube",
+        "channels"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "agents": {
+      "description": "Agent registration and heartbeats",
+      "cli": [
+        "agent",
+        "agents",
+        "swarm"
+      ],
+      "sdk": [
+        "register",
+        "heartbeat",
+        "unregister",
+        "getAgent",
+        "listAgents",
+        "startHeartbeat"
+      ],
+      "routes": [
+        "POST /agents",
+        "POST /agents/:param/heartbeat",
+        "DELETE /agents/:param",
+        "GET /agents/:param",
+        "GET /agents"
+      ],
+      "completions": [
+        "agent",
+        "agents",
+        "swarm"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "agent_cockpit": {
+      "description": "Watch + Grab the Wheel (Phase 0) — additive console surface for one agent/sortie. GET /agents/:id/stream is a single SSE feed merging that agent's lifecycle status, its steering-channel tube/control messages, and its ship-run transcript events into typed envelopes ({v,kind,agentId,body,ts}). POST /agents/:id/interrupt delivers a SOFT cancel/steer signal (a control.interrupt message on the agent's `agent:<id>` steering channel) that a cooperating agent loop can observe — pause/redirect, NOT the hard process kill of DELETE /spawn/:id.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /agents/:param/stream",
+        "POST /agents/:param/interrupt"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "routes/agent-cockpit.ts. CLI surface is `pd agent stream <id>` (tails the merged SSE feed) and `pd agent interrupt <id> [--reason]` (publishes the soft control.interrupt), handled inside cli/commands/agents.ts handleAgent as subcommands of the existing `agent` top-level command (owned by the `agents` feature, so not re-listed here to avoid a cross-feature duplicate CLI entry). These are real first-class agent consumers, not an MCP-exempt cop-out for the CLI; bijective-parity maps route category `agentcockpit` -> [`agent`]. Bash/zsh/fish completions list `interrupt`/`stream` under the agent subcommand. Steering channel is deterministically agent:<id>, derivable by both the console (stream subscriber) and a cooperating agent loop. SSE idioms mirror routes/messaging.ts + routes/transcripts.ts (hijack, event: connected, 30s :heartbeat, fail-closed cleanup, per-IP SSE limits). transcripts source is optional and self-degrades when the dep is absent."
+    },
+    "actors": {
+      "description": "Durable maritime actor directory",
+      "cli": [
+        "actor",
+        "actors"
+      ],
+      "sdk": [
+        "listActors",
+        "getActor",
+        "messageActor",
+        "actorInboxList",
+        "actorInboxStats"
+      ],
+      "routes": [
+        "GET /actors",
+        "GET /actors/:param",
+        "GET /actors/:param/inbox",
+        "GET /actors/:param/inbox/stats",
+        "PUT /actors/:param/inbox/read-all",
+        "POST /actors/:param/message"
+      ],
+      "completions": [
+        "actor",
+        "actors"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "cartographer": {
+      "description": "Cartographer roadmap progress + atomic claim from the curated pile (ADR-0033) + session/agent linkage (ADR-0034)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /cartographer/roadmap-progress",
+        "POST /cartographer/roadmap-pop",
+        "POST /cartographer/roadmap-release",
+        "GET /cartographer/roadmap-claims",
+        "POST /cartographer/roadmap-claim-link"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "mcp": [
+        "roadmap_progress",
+        "roadmap_claims"
+      ]
+    },
+    "resource_governance": {
+      "description": "Read-only resource governance overview for operator UI",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /resources/overview"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "inbox": {
+      "description": "Agent inbox messaging",
+      "cli": [
+        "inbox",
+        "send"
+      ],
+      "sdk": [
+        "inboxSend",
+        "inboxList",
+        "inboxStats",
+        "inboxMarkRead",
+        "inboxMarkAllRead",
+        "inboxClear"
+      ],
+      "routes": [
+        "POST /agents/:param/inbox",
+        "GET /agents/:param/inbox",
+        "DELETE /agents/:param/inbox",
+        "GET /agents/:param/inbox/stats",
+        "PUT /agents/:param/inbox/:param/read",
+        "PUT /agents/:param/inbox/read-all"
+      ],
+      "completions": [
+        "inbox",
+        "send"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "salvage": {
+      "description": "Agent resurrection / salvage queue",
+      "cli": [
+        "salvage",
+        "resurrection"
+      ],
+      "sdk": [
+        "salvage",
+        "salvageClaim",
+        "salvageComplete",
+        "salvageAbandon",
+        "salvageDismiss"
+      ],
+      "routes": [
+        "GET /resurrection/pending",
+        "GET /resurrection",
+        "POST /resurrection/claim/:param",
+        "POST /resurrection/complete/:param",
+        "POST /resurrection/abandon/:param",
+        "POST /resurrection/reap",
+        "DELETE /resurrection/:param",
+        "GET /salvage/pending",
+        "GET /salvage",
+        "POST /salvage/claim/:param",
+        "POST /salvage/complete/:param",
+        "POST /salvage/abandon/:param",
+        "POST /salvage/reap",
+        "DELETE /salvage/:param"
+      ],
+      "completions": [
+        "salvage",
+        "resurrection"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "sessions": {
+      "description": "Work sessions for agent coordination",
+      "cli": [
+        "session",
+        "sessions"
+      ],
+      "sdk": [
+        "startSession",
+        "endSession",
+        "abandonSession",
+        "removeSession",
+        "sessions",
+        "sessionDetails",
+        "claimFiles",
+        "releaseFiles"
+      ],
+      "routes": [
+        "POST /sessions",
+        "GET /sessions",
+        "GET /sessions/:param",
+        "PUT /sessions/:param",
+        "DELETE /sessions/:param",
+        "POST /sessions/:param/files",
+        "DELETE /sessions/:param/files",
+        "POST /sessions/:param/symbols",
+        "GET /sessions/:param/symbols"
+      ],
+      "completions": [
+        "session",
+        "sessions"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "notes": {
+      "description": "Session notes",
+      "cli": [
+        "note",
+        "notes",
+        "say"
+      ],
+      "sdk": [
+        "note",
+        "notes"
+      ],
+      "routes": [
+        "POST /notes",
+        "GET /notes",
+        "POST /sessions/:param/notes",
+        "GET /sessions/:param/notes"
+      ],
+      "completions": [
+        "note",
+        "notes",
+        "say"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "webhooks": {
+      "description": "Webhook subscriptions",
+      "cli": [
+        "webhook",
+        "webhooks"
+      ],
+      "sdk": [
+        "addWebhook",
+        "listWebhooks",
+        "getWebhook",
+        "updateWebhook",
+        "removeWebhook",
+        "testWebhook",
+        "getWebhookDeliveries",
+        "getWebhookEvents"
+      ],
+      "routes": [
+        "POST /webhooks",
+        "GET /webhooks",
+        "GET /webhooks/events",
+        "POST /webhooks/github",
+        "GET /webhooks/:param",
+        "PUT /webhooks/:param",
+        "DELETE /webhooks/:param",
+        "POST /webhooks/:param/test",
+        "GET /webhooks/:param/deliveries"
+      ],
+      "completions": [
+        "webhook",
+        "webhooks"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "tunnel": {
+      "description": "Expose services via ngrok/cloudflared/localtunnel",
+      "cli": [
+        "tunnel"
+      ],
+      "sdk": [
+        "tunnelStart",
+        "tunnelStop",
+        "tunnelStatus",
+        "tunnelList",
+        "tunnelProviders"
+      ],
+      "routes": [
+        "GET /tunnel/providers",
+        "POST /tunnel/:param",
+        "DELETE /tunnel/:param",
+        "GET /tunnel/:param",
+        "GET /tunnels"
+      ],
+      "completions": [
+        "tunnel"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "changelog": {
+      "description": "Hierarchical changelog",
+      "cli": [
+        "changelog"
+      ],
+      "sdk": [
+        "addChangelog",
+        "listChangelog",
+        "getChangelog",
+        "listChangelogByIdentity",
+        "listChangelogTree",
+        "listChangelogBySession",
+        "listChangelogByAgent",
+        "changelogIdentities"
+      ],
+      "routes": [
+        "POST /changelog",
+        "GET /changelog",
+        "GET /changelog/identities",
+        "GET /changelog/session/:param",
+        "GET /changelog/agent/:param",
+        "GET /changelog/:param"
+      ],
+      "completions": [
+        "changelog"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "orchestrator": {
+      "description": "Service orchestration (up/down)",
+      "cli": [
+        "up",
+        "down"
+      ],
+      "sdk": [
+        "up",
+        "down"
+      ],
+      "routes": [
+        "POST /orchestrator/up",
+        "POST /orchestrator/down",
+        "GET /orchestrator/status",
+        "GET /orchestrator/rules",
+        "POST /orchestrator/rules",
+        "DELETE /orchestrator/rules/:param"
+      ],
+      "completions": [
+        "up",
+        "down"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": true
+      }
+    },
+    "scan": {
+      "description": "Project scanning and detection",
+      "cli": [
+        "scan",
+        "s"
+      ],
+      "sdk": [
+        "scan"
+      ],
+      "routes": [
+        "POST /scan"
+      ],
+      "completions": [
+        "scan",
+        "s"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "projects": {
+      "description": "Project registry",
+      "cli": [
+        "projects",
+        "p"
+      ],
+      "sdk": [
+        "listProjects",
+        "getProject",
+        "deleteProject"
+      ],
+      "routes": [
+        "GET /projects",
+        "GET /projects/:param",
+        "DELETE /projects/:param"
+      ],
+      "completions": [
+        "projects",
+        "p"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "health": {
+      "description": "Health checks",
+      "cli": [
+        "health"
+      ],
+      "sdk": [
+        "health",
+        "checkServiceHealth",
+        "listServiceHealth"
+      ],
+      "routes": [
+        "GET /health",
+        "GET /services/health",
+        "GET /services/health/:param"
+      ],
+      "completions": [
+        "health"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "activity": {
+      "description": "Activity logging",
+      "cli": [
+        "log",
+        "activity"
+      ],
+      "sdk": [
+        "getActivity",
+        "getActivityRange",
+        "getActivitySummary",
+        "getActivityStats"
+      ],
+      "routes": [
+        "GET /activity",
+        "GET /activity/range",
+        "GET /activity/summary",
+        "GET /activity/stats",
+        "GET /activity/timeline",
+        "GET /activity/subscribe",
+        "DELETE /activity"
+      ],
+      "completions": [
+        "log",
+        "activity"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "ports": {
+      "description": "Port management",
+      "cli": [
+        "ports"
+      ],
+      "sdk": [
+        "listActivePorts",
+        "getSystemPorts",
+        "cleanup"
+      ],
+      "routes": [
+        "GET /ports/active",
+        "GET /ports/system",
+        "POST /ports/cleanup",
+        "POST /ports/request",
+        "DELETE /ports/release"
+      ],
+      "completions": [
+        "ports"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "system": {
+      "description": "System info and config",
+      "cli": [
+        "metrics",
+        "config",
+        "dashboard",
+        "status",
+        "version",
+        "look",
+        "sitrep"
+      ],
+      "sdk": [
+        "version",
+        "metrics",
+        "getConfig",
+        "ping"
+      ],
+      "routes": [
+        "GET /status",
+        "GET /version",
+        "GET /metrics",
+        "GET /config",
+        "GET /dashboard/events",
+        "GET /ping",
+        "GET /sitrep",
+        "GET /operator/actors",
+        "GET /operator/state",
+        "GET /operator/coordination-guard",
+        "POST /operator/coordination-guard",
+        "POST /operator/open-file",
+        "POST /operator/file-preview",
+        "POST /operator/files-exist"
+      ],
+      "completions": [
+        "metrics",
+        "config",
+        "dashboard",
+        "status",
+        "version",
+        "look",
+        "sitrep"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "daemon": {
+      "description": "Daemon lifecycle + berths (CLI-only)",
+      "cli": [
+        "start",
+        "stop",
+        "restart",
+        "install",
+        "uninstall",
+        "dev",
+        "use",
+        "mcp",
+        "daemon",
+        "self-update"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /whoami"
+      ],
+      "completions": [
+        "start",
+        "stop",
+        "restart",
+        "install",
+        "uninstall",
+        "dev",
+        "use",
+        "self-update",
+        "mcp",
+        "daemon"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Daemon management is CLI-only. `pd dev up/down/list` runs tiered berths (ADR-0084); `pd use`/`pd --daemon` target a berth; GET /whoami reports the daemon's berth identity."
+    },
+    "diagnostics": {
+      "description": "Environment diagnostics (CLI-only)",
+      "cli": [
+        "doctor",
+        "diagnose",
+        "ci-gate"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "doctor",
+        "diagnose",
+        "ci-gate"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Diagnostics are CLI-only"
+    },
+    "dns": {
+      "description": "Local DNS for ports via /etc/hosts",
+      "cli": [
+        "dns"
+      ],
+      "sdk": [
+        "dnsRegister",
+        "dnsList",
+        "dnsGet",
+        "dnsRemove",
+        "dnsStatus",
+        "dnsCleanup",
+        "dnsSetup",
+        "dnsSync",
+        "dnsTeardown",
+        "dnsResolver"
+      ],
+      "routes": [
+        "GET /dns",
+        "POST /dns/:param",
+        "GET /dns/:param",
+        "DELETE /dns/:param",
+        "GET /dns/status",
+        "POST /dns/setup",
+        "POST /dns/teardown",
+        "POST /dns/sync",
+        "GET /dns/resolver",
+        "POST /dns/cleanup"
+      ],
+      "completions": [
+        "dns"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "wait": {
+      "description": "Wait for services to become available",
+      "cli": [
+        "wait"
+      ],
+      "sdk": [
+        "waitForService",
+        "waitForServices"
+      ],
+      "routes": [
+        "GET /wait/:param",
+        "POST /wait"
+      ],
+      "completions": [
+        "wait"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "session_phases": {
+      "description": "Session lifecycle phases (planning/in_progress/testing/reviewing/completed/abandoned)",
+      "cli": [
+        "pheromone",
+        "ph"
+      ],
+      "sdk": [],
+      "routes": [
+        "PUT /sessions/:param/phase"
+      ],
+      "completions": [
+        "pheromone",
+        "ph"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      },
+      "_note": "Phase is set via MCP tool or API, no dedicated CLI command"
+    },
+    "file_claims": {
+      "description": "Global file claim view across all sessions",
+      "cli": [
+        "files",
+        "who-owns"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /files",
+        "GET /files/who-owns"
+      ],
+      "completions": [
+        "files",
+        "who-owns"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "integration_signals": {
+      "description": "Integration signals via pub/sub (ready/needs)",
+      "cli": [
+        "integration"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "integration"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      },
+      "_note": "Routes are messaging routes reused with integration: prefix channels"
+    },
+    "briefing": {
+      "description": "Project-local agent intelligence (.portdaddy/ briefing)",
+      "cli": [
+        "briefing",
+        "history"
+      ],
+      "sdk": [
+        "generateBriefing",
+        "getBriefing"
+      ],
+      "routes": [
+        "POST /briefing",
+        "GET /briefing/:param"
+      ],
+      "completions": [
+        "briefing",
+        "history"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "attention": {
+      "description": "Single-call aggregator of unread inbox + subscribed channel messages for the current agent. Mark-read-on-fetch semantics; --peek leaves cursors in place. Designed to be the first command of every harness session (Claude Code SessionStart hook wires it automatically).",
+      "cli": [
+        "attention"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /attention",
+        "POST /attention/subscribe",
+        "POST /attention/unsubscribe",
+        "GET /attention/subscriptions"
+      ],
+      "completions": [
+        "attention"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "suggestions": {
+      "description": "Suggestibility layer (ADR-0039): durable, dismissible coaching nudges for active agents. This slice ships the claim-overlap detector — when two distinct live sessions hold overlapping claims on one file, both agents get a `claim-overlap-headsup` delivered to their inbox (surfaced by `pd attention`). Deterministic and NLP-free; the semantic topic/prior-art classifier (Primitive 1) is the next slice. Named `pd nudge` to stay distinct from the Tender->operator `pd suggest` queue. The same overlap signal is parley's (ADR-0084) T1 trigger.",
+      "module": "lib/suggestions.ts",
+      "cli": [
+        "nudge"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /suggestions",
+        "POST /suggestions/scan",
+        "POST /suggestions/:param/accept",
+        "POST /suggestions/:param/decline",
+        "POST /suggestions/mute"
+      ],
+      "completions": [
+        "nudge"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "ADR-0039 first slice (claim-overlap-headsup only). Out of scope (next slices): the Haiku/embedding topical classifier (group-chat-proposal, prior-art-doc), the periodic/reactive auto-trigger (today scan is on-demand via `pd nudge scan`), and the per-kind mute CLI surface (route exists; CLI flag deferred)."
+    },
+    "sugar": {
+      "description": "Compound commands for common workflows (begin/done/whoami)",
+      "cli": [
+        "begin",
+        "b",
+        "done",
+        "whoami",
+        "w",
+        "with-lock",
+        "n",
+        "u",
+        "d"
+      ],
+      "sdk": [
+        "begin",
+        "done",
+        "whoami"
+      ],
+      "routes": [
+        "POST /sugar/begin",
+        "POST /sugar/done",
+        "GET /sugar/whoami"
+      ],
+      "completions": [
+        "begin",
+        "b",
+        "done",
+        "whoami",
+        "w",
+        "with-lock"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "tutorial": {
+      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "cli": [
+        "learn",
+        "tutorial"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "learn",
+        "tutorial"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "launch_hints": {
+      "description": "Context-aware startup hints: salvage queue summary and new-folder onboarding nudges",
+      "cli": [
+        "hints"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /launch-hints"
+      ],
+      "completions": [
+        "hints"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "mcp": [
+        "get_launch_hints"
+      ]
+    },
+    "attest": {
+      "description": "Honest self-report + loud-fail invariants (ADR-0045) \u2014 pd attest / GET /attest",
+      "cli": [
+        "attest"
+      ],
+      "sdk": [],
+      "mcp": [
+        "attest"
+      ],
+      "routes": [
+        "GET /attest"
+      ],
+      "completions": [
+        "attest"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "spawn": {
+      "description": "Launch AI agents (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
+      "cli": [
+        "spawn",
+        "spawned"
+      ],
+      "sdk": [
+        "spawn",
+        "listSpawned",
+        "killSpawned"
+      ],
+      "routes": [
+        "POST /spawn/preflight",
+        "POST /spawn",
+        "DELETE /spawn/:param",
+        "GET /spawn"
+      ],
+      "completions": [
+        "spawn",
+        "spawned"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "cockpit": {
+      "description": "App-Native Development Cockpit \u2014 read roadmap/recovery markdown into typed mission cards with live coordination cross-ref",
+      "cli": [
+        "cockpit"
+      ],
+      "sdk": [
+        "cockpitMissions"
+      ],
+      "routes": [
+        "GET /cockpit/missions",
+        "GET /cockpit/missions/:param",
+        "POST /cockpit/missions/:param/plan",
+        "GET /cockpit/triage/runs",
+        "GET /cockpit/triage/items",
+        "GET /cockpit/triage/diff/:param/:param",
+        "GET /cockpit/triage/decisions",
+        "POST /cockpit/triage/decisions"
+      ],
+      "completions": [
+        "cockpit"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "popper": {
+      "description": "Autonomous roadmap-to-dispatch task puller \u2014 produces dispatch.state='proposed' rows from nightshift-eligible roadmap items. Operator override + FleetBar Nightshift surface via pd popper / HTTP.",
+      "cli": [
+        "popper"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /popper/status",
+        "GET /popper/next",
+        "POST /popper/pop",
+        "POST /popper/eligibility"
+      ],
+      "completions": [
+        "popper"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "recovery": {
+      "description": "Magic-link account recovery \u2014 single-use token issue + atomic consume (single-use enforced at the DB layer per proofs/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /recovery/request",
+        "POST /recovery/consume"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "harbormaster": {
+      "description": "Canonical merge-owning actor body (ADR-0037) \u2014 serializes merges of dispatched work, routes conflicts back as sub-dispatches, blocks on branch-protection / CI-red failures. Two-key safety: dispatch.state='accepted' AND merge_queue.state='queued'.",
+      "cli": [
+        "harbormaster",
+        "hm"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "harbormaster",
+        "hm"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "sorties": {
+      "description": "Tracked mission records over spawned runs with durable ids, harbors, and event logs",
+      "cli": [
+        "sortie"
+      ],
+      "sdk": [
+        "runSortie",
+        "listSorties",
+        "getSortie",
+        "getSortieLogs"
+      ],
+      "routes": [
+        "POST /sorties",
+        "GET /sorties",
+        "GET /sorties/:param",
+        "GET /sorties/:param/logs"
+      ],
+      "completions": [
+        "sortie"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "watch": {
+      "description": "Subscribe to a channel and run a script on each message",
+      "cli": [
+        "watch"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "watch"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "fleet": {
+      "description": "Always-on fleet management \u2014 daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
+      "cli": [
+        "fleet"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /fleet",
+        "GET /fleet/:param",
+        "POST /fleet/start",
+        "POST /fleet/stop",
+        "POST /fleet/reload",
+        "POST /fleet/register",
+        "POST /fleet/agent/run",
+        "POST /fleet/agent/pause",
+        "POST /fleet/agent/resume",
+        "POST /fleet/bootstrap",
+        "GET /fleet/events",
+        "GET /fleet/prompt",
+        "GET /fleet/config/:project",
+        "PUT /fleet/config/:project",
+        "POST /fleet/config/:project/budget",
+        "POST /fleet/config/:project/runtime",
+        "GET /fleet/models",
+        "POST /fleet/backend-secrets"
+      ],
+      "completions": [
+        "fleet"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "backend": {
+      "description": "CLI surface for the fleet backend catalog — list available backends with cost-model framing (subscription/metered/local/cli), switch the forced backend via PD_USE_CLI_BACKEND, and roll up spend per window. The CLI-tube backends (cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok) ride the operator's existing CLI subscriptions (Claude Max, ChatGPT Pro, Google account, Groq account, SuperGrok) at $0 marginal cost. Read-only CLI surface — uses existing routes owned by the fleet + metrics features.",
+      "cli": [
+        "backend"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "backend"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "harbors": {
+      "description": "Named permission namespaces for agent coordination \u2014 agents enter/leave harbors and declare capabilities",
+      "cli": [
+        "harbor",
+        "harbors"
+      ],
+      "sdk": [
+        "createHarbor",
+        "listHarbors",
+        "getHarbor",
+        "destroyHarbor",
+        "enterHarbor",
+        "leaveHarbor",
+        "harborMemberships"
+      ],
+      "routes": [
+        "POST /harbors",
+        "GET /harbors",
+        "GET /harbors/:name",
+        "DELETE /harbors/:name",
+        "POST /harbors/:name/enter",
+        "POST /harbors/:name/leave",
+        "GET /harbors/:name/members",
+        "GET /harbors/:name/envelope",
+        "PUT /harbors/:name/envelope",
+        "POST /harbors/:name/check",
+        "GET /harbors/agent/:agentId"
+      ],
+      "completions": [
+        "harbor",
+        "harbors"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      },
+      "mcp": [
+        "list_harbors",
+        "get_harbor",
+        "check_harbor_envelope"
+      ]
+    },
+    "bonds": {
+      "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
+      "module": "lib/bonds.ts",
+      "cli": [
+        "bond",
+        "wallet"
+      ],
+      "sdk": [
+        "listBonds",
+        "getBond",
+        "slashBond",
+        "listWallets",
+        "getWallet",
+        "topUpWallet"
+      ],
+      "routes": [
+        "GET /bonds",
+        "GET /bonds/:id",
+        "POST /bonds/:id/slash",
+        "GET /wallets",
+        "GET /wallets/:project",
+        "POST /wallets/:project/budget",
+        "POST /wallets/:project/top-up"
+      ],
+      "completions": [
+        "bond",
+        "wallet"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "budget_guard": {
+      "description": "Pre-flight canSpawn() + mid-flight onCharge() kill-switch that SIGTERMs live spawns when daily budget is breached. Works in tandem with cost-tracker (observability) and bonds (enforcement).",
+      "module": "lib/budget-guard.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /budget/pending",
+        "GET /budget/pending/:agentId",
+        "POST /budget/pending/:agentId/resolve"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "panic": {
+      "description": "Daemon-wide panic kill-switch. Two-step arm (POST without confirm \u2192 POST with confirm:true) SIGTERMs every running spawn and refunds their bonds (operator action, not misbehavior).",
+      "module": "routes/panic.ts",
+      "cli": [],
+      "sdk": [
+        "getPanicStatus",
+        "armPanic",
+        "disarmPanic"
+      ],
+      "routes": [
+        "GET /fleet/panic",
+        "POST /fleet/panic",
+        "POST /fleet/unpanic"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "bench": {
+      "description": "Performance benchmarking CLI",
+      "cli": [
+        "bench"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "bench"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "benchmark": {
+      "description": "Multi-backend LLM diversity experiment runner (the diversity dividend): run a task corpus across homogeneous and heterogeneous fleet conditions, synthesize via MoA, and score with a rotating blind judge panel",
+      "cli": [
+        "benchmark"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "benchmark"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "demo": {
+      "description": "Interactive multi-agent coordination demonstrations",
+      "cli": [
+        "demo"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "demo"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "arbiter": {
+      "description": "Runtime invariant enforcement \u2014 the sovereign's sword",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /arbiter/status",
+        "GET /arbiter/violations",
+        "POST /arbiter/test-invariant/:name"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "pheromone": {
+      "description": "Stigmergic evaporation system \u2014 agents spray/sniff numeric signals on entities; signals decay over time",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /pheromone/spray",
+        "GET /pheromone/:table/:id",
+        "GET /pheromone",
+        "GET /pheromone/files"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "mcp": [
+        "spray_pheromone",
+        "read_pheromones",
+        "read_entity_pheromones"
+      ]
+    },
+    "merge_queue": {
+      "description": "Ordered merge queue with conflict prediction and orchestrator plugins",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /merge/submit",
+        "GET /merge/queue",
+        "GET /merge/queue/:param",
+        "POST /merge/queue/reorder",
+        "POST /merge/execute/:param",
+        "DELETE /merge/queue/:param",
+        "GET /merge/predict",
+        "POST /merge/inspect/:param",
+        "GET /merge/stats",
+        "GET /merge/plugins",
+        "PUT /merge/plugins/active"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet"
+    },
+    "symbols": {
+      "description": "AST-based symbol extraction, dependency tracking, and conflict prediction",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /symbols/parse",
+        "GET /symbols/stats",
+        "GET /symbols",
+        "GET /symbols/file/*",
+        "GET /symbols/blast-radius",
+        "GET /dependencies",
+        "POST /conflicts/predict"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet",
+      "mcp": [
+        "find_symbols",
+        "symbol_stats",
+        "predict_conflicts"
+      ]
+    },
+    "tuples": {
+      "description": "Linda-style tuple space \u2014 shared coordination data structure for agent swarms with pattern matching and harbor scoping",
+      "cli": [
+        "tuple"
+      ],
+      "sdk": [
+        "tupleOut",
+        "tupleRd",
+        "tupleIn",
+        "tupleScan",
+        "tupleCount"
+      ],
+      "routes": [
+        "POST /tuples",
+        "GET /tuples",
+        "DELETE /tuples",
+        "GET /tuples/poll",
+        "GET /tuples/scan",
+        "GET /tuples/count"
+      ],
+      "completions": [
+        "tuple"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": true
+      }
+    },
+    "blob": {
+      "description": "Content-addressed blob store (Phase 0 tube-as-coordination-substrate). SHA-256 keyed object storage on the filesystem under ~/.port-daddy/blobs/",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /blob",
+        "GET /blob",
+        "GET /blob/:param",
+        "DELETE /blob/:param"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only \u2014 Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
+    },
+    "graph": {
+      "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
+      "cli": [
+        "graph"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /graph/edges",
+        "GET /graph/stats"
+      ],
+      "completions": [
+        "graph"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "memory": {
+      "description": "Episodic memory entries and aggregate memory stats promoted from sessions and sorties",
+      "cli": [
+        "memory"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /memory/episodes",
+        "GET /memory/stats"
+      ],
+      "completions": [
+        "memory"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "semantic": {
+      "description": "Embedding-backed semantic resolution stats, review candidates, and nearest-neighbor term search",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /semantic/stats",
+        "GET /semantic/resolutions",
+        "GET /semantic/resolve",
+        "POST /semantic/resolutions/:param/review",
+        "GET /semantic/search"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "mcp": [
+        "semantic_search",
+        "semantic_resolve"
+      ]
+    },
+    "advisor": {
+      "description": "Deterministic coordination advisor for preflight suggestions across sessions, claims, symbols, salvage, channels, tuples, and locks",
+      "cli": [
+        "advise",
+        "preflight",
+        "compass"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /advisor",
+        "POST /advisor"
+      ],
+      "completions": [
+        "advise",
+        "preflight",
+        "compass"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "coordination_guard": {
+      "description": "Project-local enforcement controls requiring active Port Daddy sessions and matching file claims before commit",
+      "cli": [
+        "guard"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "guard"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "coordination_pipeline_audit": {
+      "description": "Coxswain's deterministic comm-pipeline audit. Periodically scans declared+observed channels, agent activity, and tuple keys; emits structured complaints (subscription_coverage, channel_near_duplicate, channel_naming, tuple_naming, silent_agent) with cooldown keys. Borderline cases are flagged needsJudge=true for the LLM judge layer to evaluate. Owned by actor:coxswain.",
+      "module": "lib/coordination-pipeline-audit.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "coordination_judge": {
+      "description": "Backend-agnostic LLM yes/no for the coordination-pipeline audit's borderline cases. Pure transport-injection design: 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). No transport injected \u2192 judge stays implicitly disabled. Coxswain stays quiet rather than fire the wrong DM.",
+      "module": "lib/coordination-judge.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "llm_call": {
+      "description": "Single source of LLM call infrastructure. Owns the per-backend HTTP adapters (cloudflare, ollama) \u2014 both lib/spawner.ts (spawn-shape) and lib/llm-backend-resolver.ts (request-shape) delegate here. Also owns createLLMClient: cache (LRU + TTL) + rolling rate limit + hard timeout (AbortController) + fallback-deny, configurable per actor. Judge is the first consumer; future request-shape actors compose on top with their own ttl/perMinute settings. Spawn-shape callers skip the client wrapper since fleet-engine already does cost-budget kill + per-project rate limiting.",
+      "module": "lib/llm-call.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "llm_backend_resolver": {
+      "description": "Env cascade for backend selection. options.backend \u2192 PD_<ACTOR>_BACKEND \u2192 PD_FLEET_DEFAULT_BACKEND \u2192 PORT_DADDY_FLEET_DEFAULT_BACKEND \u2192 null. Spawn-shape (fleet engine) calls resolveRawBackendName (preserves claude-vs-claude-cli); request-shape (judge + future actors) calls resolveLLMBackend which materializes a transport delegating to lib/llm-call adapters. Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so exactly one place reads backend env.",
+      "module": "lib/llm-backend-resolver.ts",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "shipwright": {
+      "description": "Project surveyor + fleet authoring assistant. `pd shipwright survey` walks the surveyed project, classifies stack/activity, surfaces risks/opportunities, and writes `.portdaddy/shipwright/survey.json`. Optional --llm augmentation routes through the daemon's LLM client. Propose/apply ship in PR3 commit 3.",
+      "module": "lib/shipwright/survey.ts",
+      "cli": [
+        "shipwright"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /shipwright/survey"
+      ],
+      "completions": [
+        "shipwright"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "claim_watcher_snapshots": {
+      "description": "Daemon-side mtime/hash watcher captures prior bytes when a claimed file's content changes mid-claim. `pd snapshots list/show/restore/prune` surfaces those snapshots to operators with one-command rollback. Auto-prune keeps disk usage bounded (default 7 days).",
+      "module": "lib/claim-watcher.ts",
+      "cli": [
+        "snapshots",
+        "snapshot"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "snapshots",
+        "snapshot"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "db_backup": {
+      "description": "Durable snapshots of port-registry.db with online-Backup-API atomicity, gzipped artifacts + sha256-verified manifests, and GFS retention. `pd backup` runs a snapshot; `pd backup list/show/prune` inspect and trim. URI-addressed backend interface (file:// in PR-\u03b1; s3:// and gcs:// in PR-\u03b3). Encryption-at-rest lands in PR-\u03b2. See ADR-0037.",
+      "module": "lib/backup.ts",
+      "cli": [
+        "backup"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "backup"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "db_restore": {
+      "description": "Restore a port-registry.db snapshot taken by `pd backup`. Live DB is renamed to `<dbPath>.pre-restore-<timestamp>` so the operation is reversible; `PRAGMA integrity_check` auto-rolls back on failure. See ADR-0037.",
+      "module": "lib/backup.ts",
+      "cli": [
+        "restore"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "restore"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
+    "ideas": {
+      "description": "Canonical ideation trove inspection and dedupe over docs/recovery/IDEAS-TROVE.md with optional local Spark/Spider residue",
+      "cli": [
+        "ideas"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "ideas"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "roadmap": {
+      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` reads the table; `pd roadmap upsert/touch` leaves actor-attributed receipts; `POST /roadmap/promote` is the atomic feedback\u2192item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex",
+      "cli": [
+        "roadmap"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /roadmap/items",
+        "GET /roadmap/items",
+        "GET /roadmap/items/:slug",
+        "POST /roadmap/items/:slug/status",
+        "POST /roadmap/items/:slug/touch",
+        "POST /roadmap/promote",
+        "POST /roadmap/render",
+        "POST /roadmap/import-markdown"
+      ],
+      "completions": [
+        "roadmap"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Read-side (Next Cuts/feedback/claims projection) routes live under the `cartographer` feature; this feature owns the structured roadmap_items write side",
+      "mcp": [
+        "roadmap_list",
+        "roadmap_get",
+        "roadmap_promote"
+      ]
+    },
+    "commitments": {
+      "description": "Durable commitments + obligation monitor (ADR-0041): the obligation dual of resurrection. Resurrection watches whether an agent is ALIVE; commitments watch whether it KEPT ITS PROMISE. `due_at` is daemon-derived from the commitment scope (Law 1); `close` refuses without an external oracle ref (Law 2); the monitor is a pure runtime SQLite sweep with no Rust-FFI dependency so it cannot silently degrade (Law 4). `pd commit` creates an obligation, `pd obligations [--overdue]` lists/sweeps, `pd commit close <id> --oracle <ref>` closes against an oracle",
+      "module": "lib/commitments.ts",
+      "cli": [
+        "commit",
+        "obligations"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /commitments",
+        "GET /commitments",
+        "GET /commitments/overdue",
+        "POST /commitments/:param/close"
+      ],
+      "completions": [
+        "commit",
+        "obligations"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "ADR-0041 first slice. Out of scope (separate roadmap items / ADRs): graduated-sanction-ladder, accountability-ledger, and non-forgeable actor identity (ADR-0040). owner_actor_id is the self-asserted session/actor id until ADR-0040 lands",
+      "mcp": [
+        "commit",
+        "list_commitments",
+        "list_overdue_commitments"
+      ]
+    },
+    "quorum": {
+      "description": "Tuple-backed propose/vote primitive for swarm decisions \u2014 agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
+      "cli": [
+        "quorum"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /quorum/propose",
+        "POST /quorum/vote",
+        "GET /quorum/proposals",
+        "GET /quorum/proposals/:id"
+      ],
+      "completions": [
+        "quorum"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "parley": {
+      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED\u2192CONVENED\u2192COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface.",
+      "cli": [
+        "parley"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /parley/call",
+        "POST /parley/respond",
+        "POST /parley/resolve",
+        "GET /parley",
+        "GET /parley/:id"
+      ],
+      "completions": [
+        "parley"
+      ],
+      "mcp": [
+        "call_parley",
+        "list_parleys",
+        "get_parley",
+        "respond_parley",
+        "resolve_parley"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "feedback": {
+      "description": "Central agentic-feedback primitive \u2014 agents drop structured findings; cartographer (or any subscriber) harvests them into the roadmap. Tuple-backed, harbor-scoped, severity-sorted",
+      "cli": [
+        "feedback"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /feedback",
+        "GET /feedback",
+        "GET /feedback/summary",
+        "GET /feedback/:id",
+        "POST /feedback/:id/harvest"
+      ],
+      "completions": [
+        "feedback"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "cost_tracker": {
+      "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+    },
+    "counters": {
+      "description": "ODS-style time-bucketed operational metrics \u2014 in-memory batching with minute/hour rollups",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+    },
+    "observability": {
+      "description": "Golden signals (RED method) and aggregated metrics \u2014 rate, errors, duration, cost/hr",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /metrics/golden",
+        "GET /metrics/counters",
+        "GET /metrics/counters/top",
+        "GET /metrics/cost",
+        "GET /metrics/cost/recent",
+        "GET /metrics/cost/budget/:project"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
+    },
+    "metricsprom": {
+      "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer, skill freshness/distribution gauges, and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /metrics/prom",
+        "GET /metrics/skills",
+        "GET /metrics/http/routes",
+        "GET /metrics/http/outliers",
+        "GET /metrics/http/now",
+        "GET /metrics/annotations"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Browser-served at /metrics.html. /metrics/prom is the Prometheus scrape path (the bare /metrics path is owned by the older info.ts daemon-stats endpoint that the SDK and MCP depend on). /metrics/skills is the JSON skill-distribution audit feeding the dashboard panel and Prometheus gauge export."
+    },
+    "usage": {
+      "description": "Local product-usage telemetry for developer-pane diagnostics and operator UX instrumentation",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /usage/trace",
+        "GET /usage/summary",
+        "GET /usage/events"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only telemetry surface consumed by the Fleet Console developer pane."
+    },
+    "orchestrator_plugins": {
+      "description": "Hot-swappable merge orchestrator plugins \u2014 default FIFO, custom priority/scheduling",
+      "cli": [],
+      "sdk": [],
+      "routes": [],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Library-only \u2014 used internally by merge-queue; no HTTP surface yet"
+    },
+    "init": {
+      "description": "Project onboarding \u2014 scan stack, create fleet, configure MCP, install git hook",
+      "cli": [
+        "init"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "init"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      }
+    },
+    "setup": {
+      "description": "One-command onboarding \u2014 install daemon, configure MCP, install FleetBar, init project",
+      "cli": [
+        "setup"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /setup/overview",
+        "POST /setup/run"
+      ],
+      "completions": [
+        "setup"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
+    },
+    "cut": {
+      "description": "Cut a release (ADR-0084 Phase 3): build the daemon binary + Rust cdylib + FleetBar.app, collect into dist/release/<version>/, hash each, and write a manifest. Signing (ADR-0057) is opt-in via --sign; an unsigned cut is recorded as such. Verb is `pd cut` (pd release is port release).",
+      "cli": [
+        "cut"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "cut"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "CLI / CI-only release engineering \u2014 a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
+    },
+    "secrets": {
+      "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
+      "cli": [
+        "secret",
+        "secrets"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /secrets",
+        "POST /secrets",
+        "POST /secrets/:param/reveal",
+        "DELETE /secrets/:param"
+      ],
+      "completions": [
+        "secret",
+        "secrets"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      },
+      "_note": "Store is the macOS Keychain (encrypted at rest, fail-closed) via lib/keychain.ts. `pd secret set` reads the value from a hidden stdin prompt, never argv (audit finding L1). Reveal returns plaintext for the FleetBar Copy flow and is loopback-only on the daemon (preHandler) plus the global DNS-rebinding guard."
+    },
+    "dispatch": {
+      "description": "Operator queue for autonomous feature dev: drop a sentence-shaped goal, daemon routes it to a worker, worker produces a PR, operator accepts/rejects via pd review. Renames pd nightshift (PR #143) onto ADR-0035's 8-state machine. Adds base_branch column for per-base-branch serialization (harbormaster/PR #141 will consume).",
+      "cli": [
+        "dispatch",
+        "nightshift",
+        "review",
+        "morning"
+      ],
+      "sdk": [],
+      "routes": [
+        "POST /dispatches",
+        "GET /dispatches",
+        "GET /dispatches/:id",
+        "POST /dispatches/:id/accept",
+        "POST /dispatches/:id/reject",
+        "POST /dispatches/:id/cancel"
+      ],
+      "completions": [
+        "dispatch",
+        "nightshift",
+        "review",
+        "morning"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "pd nightshift is preserved as a deprecation alias for one minor version. HTTP surface landed in PR #163 (routes/dispatches.ts): propose/list over the dispatch queue. routes/dispatches.ts also serves GET /dispatches/:id and POST /dispatches/:id/{accept,reject,cancel}; those use generic-typed fastify handlers (fastify.get<{Params}>) that the manifest route-parser does not extract, so they are intentionally omitted here to keep the manifest<->code bijection clean."
+    },
+    "operator_periscope": {
+      "description": "Operator loop SIGHT stage \u2014 pd periscope (aliases sight, scope) raises the periscope in one command: fetches daemon truth from GET /status and renders the current state plus the next recommended cut. Pure read-only glance over existing daemon state; introduces no new route.",
+      "cli": [
+        "periscope",
+        "sight",
+        "scope"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "periscope",
+        "sight",
+        "scope"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Read-only: reuses GET /status (owned by the core status feature). No dedicated route, so routes:[] is intentional \u2014 same pattern as coordination_guard."
+    },
+    "operator_coast_guard": {
+      "description": "Coast Guard read path \u2014 pd coast-guard status (alias cg) shows the operator whether spawned agents are confined on this machine (the OS sandbox mechanism in force), plus the secret broker, dotenv denial, hard egress cap, and the protected directories. Pure local read-only legibility over ADR-0050; introduces no new route.",
+      "cli": [
+        "coast-guard",
+        "cg"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "coast-guard",
+        "cg"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Read-only local capability read (computed from lib/coast-guard.ts, no daemon round-trip). Route + MCP follow on the same coastGuardStatus() accessor \u2014 same read-only pattern as operator_periscope."
+    },
+    "transcripts": {
+      "description": "Fleet ship-run transcript records \u2014 operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
+      "cli": [
+        "transcripts",
+        "transcript"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /transcripts",
+        "GET /transcripts/cost",
+        "GET /transcripts/stream",
+        "GET /transcripts/:id",
+        "POST /transcripts",
+        "POST /transcripts/:id/messages",
+        "POST /transcripts/:id/outputs",
+        "DELETE /transcripts/:id"
+      ],
+      "completions": [
+        "transcripts",
+        "transcript"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Surfaced by pd transcripts (singular alias: pd transcript). routes/transcripts.ts is the HTTP API the FleetBar/dashboard ship-run views read from."
+    },
+    "context_health": {
+      "description": "Agent context-window health and per-task token ledger — swarm-wide budget visibility (ADR-0048 P1/P3)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /context/overview",
+        "GET /context/task-ledger"
+      ],
+      "mcp": [
+        "get_context_budget",
+        "get_context_overview",
+        "get_task_ledger"
+      ],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase 1/3 context economics. routes/context.ts, lib/context-window-tracker.ts."
+    },
+    "harvest": {
+      "description": "Session note → episode promotion (Knowledge Custodian harvest duty, ADR-0048 P2/P3)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /harvest/related",
+        "POST /harvest/session/:id"
+      ],
+      "mcp": [
+        "harvest_session",
+        "find_related_work"
+      ],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase 2/3 session harvest. routes/harvest.ts, lib/session-harvest.ts."
+    },
+    "custodian": {
+      "description": "Knowledge Custodian — daemon-resident compaction engine and operator permission learning (ADR-0048 P3)",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "GET /custodian/status",
+        "GET /custodian/approvals",
+        "POST /custodian/approvals/:id",
+        "GET /custodian/permissions"
+      ],
+      "mcp": [
+        "custodian_status",
+        "list_pending_approvals",
+        "resolve_approval"
+      ],
+      "completions": [],
+      "docs": { "readme": false, "sdk": false },
+      "_note": "Phase 3 knowledge custodian. routes/custodian.ts, lib/knowledge-custodian.ts, lib/operator-permissions.ts."
+    },
+    "relay": {
+      "description": "Cloud relay \u2014 zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
+      "cli": [
+        "relay"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /relay/config",
+        "POST /relay/config",
+        "GET /relay/status",
+        "POST /relay/exchange"
+      ],
+      "completions": [
+        "relay"
+      ],
+      "mcp": [
+        "relay_status"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE. Subcommands: relay url <url>|--clear, relay status, relay exchange."
+    }
+  }
+}

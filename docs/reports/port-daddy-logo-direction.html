@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Port Daddy Logo Direction</title>
+    <style>
+      :root {
+        --paper: #f4efe5;
+        --ink: #101010;
+        --muted: #514d45;
+        --blue: #003fb8;
+        --line: #101010;
+        --panel: #fffaf0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      header,
+      main {
+        width: min(1320px, calc(100vw - 48px));
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 56px 0 32px;
+        border-bottom: 2px solid var(--line);
+      }
+
+      h1 {
+        max-width: 860px;
+        margin: 0;
+        font-size: clamp(44px, 7vw, 92px);
+        line-height: 0.92;
+        letter-spacing: 0;
+      }
+
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .deck {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+        padding: 32px 0 64px;
+      }
+
+      .card {
+        border: 2px solid var(--line);
+        background: var(--panel);
+      }
+
+      .card > div {
+        padding: 20px;
+      }
+
+      .specimen {
+        display: grid;
+        min-height: 260px;
+        place-items: center;
+        border-bottom: 2px solid var(--line);
+        background:
+          linear-gradient(90deg, rgba(16, 16, 16, 0.04) 1px, transparent 1px),
+          linear-gradient(rgba(16, 16, 16, 0.04) 1px, transparent 1px),
+          #fffaf0;
+        background-size: 24px 24px;
+      }
+
+      .sizes {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .sizes svg {
+        border: 1px solid #bbb2a2;
+        background: #f4efe5;
+      }
+
+      .label {
+        margin-bottom: 10px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .summary {
+        color: var(--muted);
+        font-size: 18px;
+        max-width: 760px;
+        margin-top: 18px;
+      }
+
+      .wordmark {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px;
+        border: 2px solid var(--line);
+        background: var(--panel);
+      }
+
+      .wordmark strong {
+        display: block;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .wordmark span {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      svg {
+        display: block;
+      }
+
+      .mark {
+        width: 164px;
+        height: 164px;
+      }
+
+      .dark {
+        background: #101010;
+        color: #f4efe5;
+      }
+
+      .dark .label,
+      .dark p,
+      .dark .wordmark span,
+      .wordmark.dark span {
+        color: #d8d1c3;
+      }
+
+      @media (max-width: 720px) {
+        header,
+        main {
+          width: calc(100vw - 24px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="label">Selected direction</div>
+      <h1>PD Circuit Monogram is the mark.</h1>
+      <p class="summary">
+        Port Daddy now reads as a local communication substrate for coding agents.
+        The production logo keeps the SVG-maker shared-state channel, then
+        turns it into a crisp square monogram instead of old nautical
+        illustration.
+      </p>
+    </header>
+
+    <main>
+      <section class="deck">
+        <article class="card">
+          <div class="specimen">
+            <svg class="mark" viewBox="0 0 128 128" aria-label="PD Circuit monogram">
+              <rect x="10" y="10" width="108" height="108" fill="#f7f3eb" stroke="currentColor" stroke-width="8" />
+              <path d="M34 94V34h32c18.5 0 30 12 30 30S84.5 94 66 94H34Z" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="miter" />
+              <path d="M62 34v60" stroke="var(--blue)" stroke-width="9" stroke-linecap="square" />
+              <path d="M62 64h42" stroke="currentColor" stroke-width="9" stroke-linecap="square" />
+              <rect x="94" y="54" width="20" height="20" fill="var(--blue)" stroke="currentColor" stroke-width="6" />
+            </svg>
+          </div>
+          <div>
+            <div class="label">Selected</div>
+            <h2>PD Circuit Monogram</h2>
+            <p>
+              A compact Port Daddy letterform with the blue shared-state channel
+              running through it.
+            </p>
+            <div class="sizes">
+              <svg width="16" height="16" viewBox="0 0 128 128"><use href="#mini-pd" /></svg>
+              <svg width="24" height="24" viewBox="0 0 128 128"><use href="#mini-pd" /></svg>
+              <svg width="40" height="40" viewBox="0 0 128 128"><use href="#mini-pd" /></svg>
+              <svg width="64" height="64" viewBox="0 0 128 128"><use href="#mini-pd" /></svg>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="specimen">
+            <svg class="mark" viewBox="0 0 128 128" aria-label="Shared state channel concept">
+              <rect x="14" y="14" width="100" height="100" fill="none" stroke="currentColor" stroke-width="8" />
+              <path d="M36 42H64V64H92" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="square" />
+              <path d="M36 86H64V64" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="square" />
+              <rect x="26" y="32" width="20" height="20" fill="var(--paper)" stroke="currentColor" stroke-width="6" />
+              <rect x="82" y="54" width="20" height="20" fill="var(--blue)" stroke="currentColor" stroke-width="6" />
+              <rect x="26" y="76" width="20" height="20" fill="var(--paper)" stroke="currentColor" stroke-width="6" />
+              <rect x="56" y="54" width="16" height="20" fill="var(--paper)" stroke="currentColor" stroke-width="6" />
+            </svg>
+          </div>
+          <div>
+            <div class="label">Source prototype</div>
+            <h2>Shared-State Channel</h2>
+            <p>
+              The SVG-maker output validated the central channel and connected
+              nodes. The final mark makes that idea ownable.
+            </p>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="specimen dark">
+            <svg class="mark" viewBox="0 0 128 128" aria-label="Menu bar template mark concept">
+              <rect x="16" y="16" width="96" height="96" fill="none" stroke="currentColor" stroke-width="8" />
+              <path d="M36 64H92" stroke="currentColor" stroke-width="8" />
+              <path d="M64 36V92" stroke="currentColor" stroke-width="8" />
+              <rect x="28" y="28" width="22" height="22" fill="#101010" stroke="currentColor" stroke-width="6" />
+              <rect x="78" y="28" width="22" height="22" fill="#101010" stroke="currentColor" stroke-width="6" />
+              <rect x="28" y="78" width="22" height="22" fill="#101010" stroke="currentColor" stroke-width="6" />
+              <rect x="78" y="78" width="22" height="22" fill="#101010" stroke="currentColor" stroke-width="6" />
+            </svg>
+          </div>
+          <div>
+            <div class="label">System variant</div>
+            <h2>Template Signal</h2>
+            <p>
+              A one-color version for FleetBar and favicon contexts. It must work
+              even when macOS ignores brand color.
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="deck">
+        <div class="wordmark">
+          <svg width="44" height="44" viewBox="0 0 128 128" aria-hidden="true">
+            <use href="#mini-pd" />
+          </svg>
+          <div>
+            <strong>PORT DADDY</strong>
+            <span>Agent communication layer</span>
+          </div>
+        </div>
+
+        <div class="wordmark dark">
+          <svg width="44" height="44" viewBox="0 0 128 128" aria-hidden="true">
+            <use href="#mini-pd-dark" />
+          </svg>
+          <div>
+            <strong>PORT DADDY</strong>
+            <span>Agent communication layer</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <svg width="0" height="0" style="position: absolute">
+      <symbol id="mini-pd" viewBox="0 0 128 128">
+        <rect x="10" y="10" width="108" height="108" fill="#f7f3eb" stroke="currentColor" stroke-width="8" />
+        <path d="M34 94V34h32c18.5 0 30 12 30 30S84.5 94 66 94H34Z" fill="none" stroke="currentColor" stroke-width="9" stroke-linejoin="miter" />
+        <path d="M62 34v60" fill="none" stroke="#003fb8" stroke-width="9" stroke-linecap="square" />
+        <path d="M62 64h42" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="square" />
+        <rect x="94" y="54" width="20" height="20" fill="#003fb8" stroke="currentColor" stroke-width="6" />
+      </symbol>
+      <symbol id="mini-pd-dark" viewBox="0 0 128 128">
+        <rect x="10" y="10" width="108" height="108" fill="#101216" stroke="#f5f3ed" stroke-width="8" />
+        <path d="M34 94V34h32c18.5 0 30 12 30 30S84.5 94 66 94H34Z" fill="none" stroke="#f5f3ed" stroke-width="9" stroke-linejoin="miter" />
+        <path d="M62 34v60" fill="none" stroke="#7db4ff" stroke-width="9" stroke-linecap="square" />
+        <path d="M62 64h42" fill="none" stroke="#f5f3ed" stroke-width="9" stroke-linecap="square" />
+        <rect x="94" y="54" width="20" height="20" fill="#7db4ff" stroke="#f5f3ed" stroke-width="6" />
+      </symbol>
+    </svg>
+  </body>
+</html>

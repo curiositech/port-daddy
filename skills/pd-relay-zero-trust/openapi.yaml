@@ -1,0 +1,323 @@
+openapi: 3.1.0
+info:
+  title: Port Daddy Relay
+  version: 0.1.0
+  description: |
+    Outbound-only event relay for Port Daddy daemons and external publishers.
+    The relay routes ciphertext between authenticated harbor members.
+    Identity bootstrap per ADR-0025 (PKI Decision); transport per ADR-0026.
+
+    Threat model: see references/threat-model.md.
+    All payloads are end-to-end encrypted (relay sees only metadata).
+
+  contact:
+    name: Port Daddy
+    url: https://portdaddy.dev
+  license:
+    name: FSL-1.1-MIT
+    url: https://github.com/curiositech/port-daddy/blob/main/LICENSE
+
+servers:
+  - url: https://relay.portdaddy.dev
+    description: Managed relay
+  - url: https://{host}
+    description: Self-hosted relay
+    variables:
+      host:
+        default: localhost:9877
+
+tags:
+  - name: handshake
+    description: Daemon → relay session bootstrap
+  - name: publish
+    description: Publish events
+  - name: subscribe
+    description: Subscribe to channels (SSE)
+  - name: chain
+    description: Per-publisher Merkle chain heads
+  - name: identity
+    description: Identity registry, enrollment, and revocation
+  - name: exchange
+    description: Bootstrap an attenuated card from an external token (OIDC, etc.)
+
+paths:
+  /v1/handshake:
+    post:
+      tags: [handshake]
+      summary: Open a relay session
+      description: Daemon sends client_hello; relay returns server_hello.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientHello'
+      responses:
+        '200':
+          description: Session opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerHello'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /v1/publish:
+    post:
+      tags: [publish]
+      summary: Publish a single event envelope
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventEnvelope'
+      responses:
+        '202':
+          description: Accepted; queued for fan-out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted_at: { type: integer }
+                  this_hash: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Chain mismatch (prev_hash or seq wrong)
+        '413':
+          description: Payload exceeds card.max_payload_bytes
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '429':
+          description: Rate limit exceeded
+          headers:
+            Retry-After:
+              schema: { type: integer }
+
+  /v1/subscribe/{session_id}:
+    get:
+      tags: [subscribe]
+      summary: SSE stream of accepted-subscription events
+      parameters:
+        - name: session_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: Last-Event-ID
+          in: header
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: envelope
+                  id: 9f1d...c488:ci:pr-opened:42
+                  data: { ... event_envelope ... }
+
+                  event: heartbeat
+                  data: { "at": 1714060860 }
+
+                  event: chain_head
+                  data: { ... merkle_chain_head ... }
+
+  /v1/chain/{sender}/{channel}/head:
+    parameters:
+      - { name: sender, in: path, required: true, schema: { type: string } }
+      - { name: channel, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [chain]
+      summary: Latest signed chain head for a (sender, channel)
+      responses:
+        '200':
+          description: Signed chain head
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChainHead'
+        '404':
+          description: No head recorded for this (sender, channel)
+    put:
+      tags: [chain]
+      summary: Publish a new signed chain head
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChainHead'
+      responses:
+        '201': { description: Recorded }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+
+  /v1/identity/enroll:
+    post:
+      tags: [identity]
+      summary: Enroll a daemon identity (ACME / OIDC / WoT path-dependent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pub_key, proof]
+              properties:
+                pub_key:
+                  type: string
+                  description: Daemon Ed25519 pubkey hex
+                proof:
+                  type: object
+                  required: [method, details]
+                  properties:
+                    method:
+                      type: string
+                      enum: [acme, oidc, wot]
+                    details:
+                      type: object
+                      description: Method-specific proof payload
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fingerprint: { type: string }
+                  expires_at: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/revoke:
+    post:
+      tags: [identity]
+      summary: Revoke a card by JTI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [jti, signature, kid]
+              properties:
+                jti: { type: string }
+                signature: { type: string }
+                kid: { type: string }
+      responses:
+        '202': { description: Accepted; broadcast to subscribers }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/exchange:
+    post:
+      tags: [exchange]
+      summary: Exchange an external bootstrap token for an attenuated PD card
+      description: |
+        Currently supports OIDC tokens (esp. GitHub Actions OIDC).
+        See `references/pki-options-oidc.md` and `examples/attenuation-walkthrough.md`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request:
+                  type: object
+                  properties:
+                    channels:
+                      type: array
+                      items: { type: string }
+                    ops:
+                      type: array
+                      items: { type: string, enum: [pub, sub] }
+                    rate_per_min: { type: integer }
+                    max_payload_bytes: { type: integer }
+                    exp_seconds:
+                      type: integer
+                      maximum: 3600
+      responses:
+        '200':
+          description: Attenuated card chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttenuatedCard'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/keys/{fingerprint}:
+    get:
+      tags: [identity]
+      summary: Lookup the published Ed25519 pubkey for a fingerprint
+      parameters:
+        - { name: fingerprint, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Pubkey + identity proof summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fingerprint: { type: string }
+                  pub_key: { type: string }
+                  identity_proof_method: { type: string }
+                  expires_at: { type: integer }
+                  revoked: { type: boolean }
+        '404':
+          description: Unknown fingerprint
+
+  /v1/health:
+    get:
+      summary: Liveness check
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+                  version: { type: string }
+                  region: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT (OIDC)
+  responses:
+    BadRequest:
+      description: Schema or input validation error
+    Unauthorized:
+      description: Missing or invalid card / signature
+    Forbidden:
+      description: Card is valid but capability or policy denies the request
+    UnprocessableEntity:
+      description: Semantically invalid (e.g., signature does not verify)
+  schemas:
+    ClientHello:
+      $ref: 'schemas/relay-handshake.schema.json#/$defs/ClientHello'
+    ServerHello:
+      $ref: 'schemas/relay-handshake.schema.json#/$defs/ServerHello'
+    EventEnvelope:
+      $ref: 'schemas/event-envelope.schema.json'
+    ChainHead:
+      $ref: 'schemas/merkle-chain-head.schema.json'
+    HarborCard:
+      $ref: 'schemas/harbor-card.schema.json'
+    AttenuatedCard:
+      $ref: 'schemas/attenuated-card.schema.json'

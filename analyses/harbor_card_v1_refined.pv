@@ -1,0 +1,87 @@
+(* 
+ * Port Daddy: Harbor Card v1 (HS256) Formal Model (Refined for Alg-Switching)
+ * 
+ * Verifying protection against algorithm-switching attacks (CVE-2026-22817).
+ *)
+
+type id.
+type key.
+type jti.
+type capability.
+type alg_type.
+
+const hs256_alg: alg_type.
+const none_alg: alg_type.
+
+free c: channel.
+
+(*** Cryptographic Functions ***)
+
+(* HS256: HMAC with a key *)
+fun hs256(bitstring, key): bitstring.
+reduc forall m: bitstring, k: key; check_hs256(m, k, hs256(m, k)) = true.
+
+(* A flawed "generic" verifier that trusts the header (the vulnerability) *)
+reduc forall m: bitstring, k: key; verify_generic(m, hs256_alg, hs256(m, k), k) = true;
+      forall m: bitstring, k: key; verify_generic(m, none_alg, m, k) = true. (* 'none' alg doesn't need signature! *)
+
+(* Encoding for bitstrings *)
+fun encode_token(id, id, jti, capability): bitstring [data].
+
+(*** Events ***)
+event Issued(id, id, jti, capability).
+event Accepted(id, id, jti, capability).
+
+(*** Queries ***)
+
+(* Master Key Secrecy *)
+free master_key: key [private].
+query attacker(master_key).
+
+(* Authentication Query *)
+query a: id, h: id, j: jti, cap: capability;
+  event(Accepted(a, h, j, cap)) ==> event(Issued(a, h, j, cap)).
+
+(*** Processes ***)
+
+(* The Daemon strictly issues HS256 tokens *)
+let Daemon(k: key, a_id: id, h_id: id, j: jti, cap: capability) =
+  let msg = encode_token(a_id, h_id, j, cap) in
+  let signature = hs256(msg, k) in
+  event Issued(a_id, h_id, j, cap);
+  (* In the JWT, we'd send (alg: HS256, payload: msg, signature: hs256(msg, k)) *)
+  out(c, (hs256_alg, msg, signature)).
+
+(* The SECURE Harbor (Implementation in lib/harbor-tokens.ts) 
+ * It IGNORES the 'alg' header and always uses HS256 check.
+ *)
+let SecureHarbor(k: key, expected_h: id) =
+  in(c, (alg_header: alg_type, msg: bitstring, signature: bitstring));
+  (* PINNED to HS256 - ignores alg_header *)
+  if check_hs256(msg, k, signature) = true then
+    let encode_token(a: id, h: id, j: jti, cap: capability) = msg in
+    if h = expected_h then
+      event Accepted(a, h, j, cap).
+
+(* A VULNERABLE Harbor (Example of what we ARE NOT doing)
+ * It trusts the alg_header to decide how to verify.
+ *)
+let VulnerableHarbor(k: key, expected_h: id) =
+  in(c, (alg_header: alg_type, msg: bitstring, signature: bitstring));
+  if verify_generic(msg, alg_header, signature, k) = true then
+    let encode_token(a: id, h: id, j: jti, cap: capability) = msg in
+    if h = expected_h then
+      event Accepted(a, h, j, cap).
+
+(*** Main Process ***)
+process
+  new agent_id: id;
+  new harbor_id: id;
+  new token_jti: jti;
+  new secret_cap: capability;
+  
+  (
+    (!Daemon(master_key, agent_id, harbor_id, token_jti, secret_cap)) |
+    (!SecureHarbor(master_key, harbor_id))
+    (* If we swapped SecureHarbor for VulnerableHarbor, the Auth query would fail! *)
+  )

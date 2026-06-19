@@ -1,0 +1,34 @@
+{
+  "name": "Port Daddy FleetBar",
+  "channel": "signed-mac-build",
+  "platform": "macOS",
+  "arch": "arm64",
+  "artifact": "PortDaddy-FleetBar-macOS-arm64.zip",
+  "sha256": "872f7834932d2699af888d51692338b99be3ffd33ab0a4013372c74d4a1d8067",
+  "sizeBytes": 861294,
+  "signature": "developer-id",
+  "developerIdSigned": true,
+  "signingIdentity": "Developer ID Application: Curiositech LLC (P5H9P59X2M)",
+  "teamIdentifier": "P5H9P59X2M",
+  "notarized": false,
+  "notarizationStatus": "not-submitted",
+  "notaryRequestId": null,
+  "releaseGate": "Apple notarization ticket not yet stapled; Developer ID signing is present when developerIdSigned is true",
+  "minimumMacOS": "14.0",
+  "bundle": {
+    "identifier": "ai.portdaddy.FleetBar",
+    "version": "1",
+    "shortVersion": "1.0"
+  },
+  "source": {
+    "repository": "curiositech/port-daddy",
+    "commit": "07c191a05fca554efb387aec41047abe289010db",
+    "repoDirty": true,
+    "fleetbarSourceDirty": false,
+    "appPath": "apps/FleetBar",
+    "packagingScript": "scripts/package-fleetbar-preview.sh",
+    "buildCommand": "npm run package:fleetbar-preview"
+  },
+  "generatedBy": "scripts/package-fleetbar-preview.sh",
+  "generatedAt": "2026-04-29T17:43:34.103Z"
+}

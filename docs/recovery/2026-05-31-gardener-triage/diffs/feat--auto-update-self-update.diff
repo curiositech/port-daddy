@@ -1,0 +1,108 @@
+STATS:
+
+---
+LAST COMMIT:
+b6d4ae9bbba8ff6fe14a6db650617e1b71b96622
+Erich Owens <[redacted]>
+2026-05-22 07:20:17 -0700
+feat(attention): pd attention — harness-agent mailbox aggregator (#169)
+
+* feat(attention): pd attention — harness-agent mailbox aggregator
+
+PD has had broadcast plumbing (inbox, /msg channels, tuples) but harness
+agents (Claude Code, Gemini CLI, Codex CLI) don't poll any of it on each
+turn. Senders write to a black hole; receivers never read.
+
+This is the verb half of the fix. One call returns 'everything new for this
+agent' with a stable JSON schema, marks it seen on fetch (per-message markRead
+on inbox so messages beyond the limit are NOT silently consumed; per-channel
+cursor advance in a new attention_subscriptions table). --peek leaves cursors
+in place.
+
+Surfaces:
+  - lib/attention.ts                  composer
+  - routes/attention.ts               GET /attention, POST /attention/subscribe
+                                      POST /attention/unsubscribe,
+                                      GET /attention/subscriptions
+  - cli/commands/attention.ts         pd attention [--json|--peek|--limit N|
+                                      --subscribe CH|--unsubscribe CH|
+                                      --subscriptions]
+  - .claude/settings.json             SessionStart hook pins output into prompt
+  - AGENTS.md § Port Daddy First      pd attention as first command of every session
+
+Tests: 11 unit covering empty state, inbox mark-read, channel cursor advance,
+peek semantics, sort order, limit-with-remaining accounting, idempotent
+subscribe, per-agent scope, input validation. Live-daemon smoke confirmed
+end-to-end. All 5828 unit tests pass.
+
+mcp-parity: attention is in MCP_EXEMPT_FEATURES. Exposing as an MCP tool
+inverts the dependency — the model would have to call it mid-turn, which is
+exactly the polling problem this is supposed to remove. SessionStart hook is
+the correct invocation surface.
+
+Closes roadmap item pd-attention-mailbox-for-harness-agents (HIGH).
+Followups for Gemini and Codex SessionStart hooks dropped as pd feedback.
+
+* fixup: address PR #169 adversarial review (HIGH cursor race + HIGH messaging LIMIT + MEDIUM subscribe snapshot + MEDIUM batched markRead)
+
+HIGH — wrap channel fetch+advance in db.transaction (lib/attention.ts):
+  Two concurrent compose() calls for the same (agentId, channel) could both
+  read cursor=N, both fetch the same messages, and both think they marked
+  them seen. Now each channel's fetch + cursor advance is one txn that
+  re-reads the cursor inside the txn boundary; the forward-only
+  'cursor < maxId' guard handles the resulting conflict cleanly.
+
+HIGH — parameterize messaging.getAfter LIMIT (lib/messaging.ts):
+  Previously hardcoded LIMIT 200, ignoring the caller's limit option on the
+  cursor-based read path. attention.compose() advertises CHANNEL_FETCH_LIMIT
+  = 100 but was silently getting up to 200. Now LIMIT ? bound, with poll()
+  updated to pass 1 (it only needs the next message anyway).
+
+MEDIUM — snapshot subscribe cursor at channel's current max (lib/attention.ts):
+  Previously subscribe inserted cursor=0, which on a long-running channel
+  meant a new subscriber's first compose() drained CHANNEL_FETCH_LIMIT
+  messages and orphaned everything before that. Now snapshot-isolated:
+  subscribe captures MAX(id) at subscribe time, so new subscribers see only
+  forward messages. Added test 'subscribe snapshots channel state' to lock
+  the semantic.
+
+MEDIUM — batched inbox markRead via db.transaction (lib/attention.ts):
+  Previously N synchronous UPDATE calls in a JS for-loop (up to 500 at the
+  max limit, ~50ms stall). Now one db.transaction wrapping the per-message
+  markRead calls so it's one fsync regardless of N. Per-message (NOT
+  markAllRead) preserved so messages beyond the fetch limit stay unread.
+
+LOW — document limit clamp asymmetry (lib/attention.ts):
+  Route rejects limit<=0 with 400 before reaching the lib. Lib still clamps
+  defensively for direct callers. Added comment explaining why both layers
+  exist and what they cover.
+
+Deferred to followup (not blocking ship):
+  - LOW schemaVersion field for forward-compat (cheap, defer until first
+    schema change is needed)
+  - LOW mcp/server.ts inline comment about MCP exemption reasoning (already
+    documented in tests/unit/mcp-parity.test.js comment)
+  - MEDIUM .claude/settings.json hook silent-fail (separate UX concern; will
+    drop a pd feedback item)
+
+Tests: attention 12/12 (new snapshot test), messaging 89/89, manifest/parity
+suites unchanged. Full unit suite: 5829 pass / 1 skip / 0 fail.
+
+* fixup: tsc errors caught by CI (PR #169)
+
+CI tsc strict mode caught two type errors that didn't show up locally:
+
+1. cli/commands/attention.ts:228 — direct cast from Record<string, unknown>
+   to AttentionSummary required an intermediate 'unknown' step. Now
+   '(await res.json()) as unknown as AttentionSummary'.
+
+2. server.ts:411 — my MessagingAPI interface declared sender as 'string'
+   but the real lib/messaging.ts return type has 'string | null'. Loosened
+   the interface to use a {[key: string]: unknown} index signature so we
+   only assert on the fields we actually consume (.success, .messages),
+   and made MessagingMessage.sender properly nullable.
+
+npx tsc --noEmit now clean. All 5829 unit tests still pass.
+
+---
+DIFF (first 300 lines):

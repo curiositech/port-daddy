@@ -1,0 +1,300 @@
+/**
+ * Tuple Space — Shared coordination data structure for agent swarms
+ *
+ * Based on Linda (Gelernter, 1985) and blackboard systems (Erman, 1980).
+ * Agents write typed tuples, other agents query by pattern matching.
+ *
+ * Operations:
+ *   out(tuple)              — Write a tuple to the space
+ *   rd(pattern)             — Read matching tuples (non-destructive)
+ *   in(pattern)             — Take matching tuples (removes from space)
+ *   scan(harbor?)           — List all tuples, optionally scoped to a harbor
+ *
+ * Tuples are JSON arrays with typed fields. Pattern matching uses:
+ *   '*'     — matches any value
+ *   value   — exact match
+ *   '>N'    — numeric greater-than
+ *   '<N'    — numeric less-than
+ *
+ * Scoped to harbors for fleet isolation. TTL for automatic cleanup.
+ */
+
+import type Database from 'better-sqlite3';
+
+export interface Tuple {
+  id: number;
+  harbor: string | null;
+  fields: unknown[];
+  writtenBy: string | null;
+  createdAt: number;
+  expiresAt: number | null;
+}
+
+export interface TuplePollResult {
+  tuple: Tuple | null;
+  lastId: number;
+}
+
+type TupleSubscriberCallback = (tuple: Tuple) => void;
+
+export function createTupleSpace(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tuples (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      harbor TEXT,
+      fields TEXT NOT NULL,
+      written_by TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      expires_at INTEGER
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_harbor ON tuples(harbor)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tuples_expires ON tuples(expires_at)`);
+
+  const insertStmt = db.prepare(
+    'INSERT INTO tuples (harbor, fields, written_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?)'
+  );
+  const deleteStmt = db.prepare('DELETE FROM tuples WHERE id = ?');
+  const cleanupStmt = db.prepare('DELETE FROM tuples WHERE expires_at IS NOT NULL AND expires_at < ?');
+  const subscribers = new Map<number, {
+    pattern: unknown[];
+    harbor?: string;
+    callback: TupleSubscriberCallback;
+  }>();
+  let nextSubscriberId = 1;
+
+  function notifySubscribers(tuple: Tuple): void {
+    for (const sub of subscribers.values()) {
+      if (sub.harbor && sub.harbor !== tuple.harbor) continue;
+      if (!matchesPattern(tuple.fields, sub.pattern)) continue;
+      try {
+        sub.callback(tuple);
+      } catch (error) {
+        console.error('tuple subscriber callback failed:', error);
+      }
+    }
+  }
+
+  /** Write a tuple to the space. */
+  function out(
+    fields: unknown[],
+    options?: { harbor?: string; writtenBy?: string; ttlMs?: number }
+  ): Tuple {
+    const now = Date.now();
+    const expiresAt = options?.ttlMs ? now + options.ttlMs : null;
+
+    const result = insertStmt.run(
+      options?.harbor ?? null,
+      JSON.stringify(fields),
+      options?.writtenBy ?? null,
+      now,
+      expiresAt
+    );
+
+    const tuple = {
+      id: result.lastInsertRowid as number,
+      harbor: options?.harbor ?? null,
+      fields,
+      writtenBy: options?.writtenBy ?? null,
+      createdAt: now,
+      expiresAt,
+    };
+    notifySubscribers(tuple);
+    return tuple;
+  }
+
+  /**
+   * Match fields against a pattern.
+   *   '*'         — matches any value
+   *   '>N' / '<N' — numeric comparison
+   *   'foo:*'     — semantic identity prefix match (Port Daddy native)
+   *   value       — exact match
+   */
+  function matchesPattern(tupleFields: unknown[], pattern: unknown[]): boolean {
+    if (pattern.length > tupleFields.length) return false;
+
+    for (let i = 0; i < pattern.length; i++) {
+      const p = pattern[i];
+      const v = tupleFields[i];
+
+      if (p === '*' || p === null) continue;
+
+      if (typeof p === 'string') {
+        // Numeric comparisons
+        if (p.startsWith('>') && typeof v === 'number') {
+          const t = parseFloat(p.slice(1));
+          if (isNaN(t) || v <= t) return false;
+          continue;
+        }
+        if (p.startsWith('<') && typeof v === 'number') {
+          const t = parseFloat(p.slice(1));
+          if (isNaN(t) || v >= t) return false;
+          continue;
+        }
+        // Semantic identity prefix: 'myapp:*' matches 'myapp:api:main'
+        if (p.endsWith(':*') && typeof v === 'string') {
+          const prefix = p.slice(0, -1); // 'myapp:'
+          if (!v.startsWith(prefix)) return false;
+          continue;
+        }
+        // Semantic identity wildcard: 'myapp:*:main' matches 'myapp:api:main'
+        if (p.includes(':*:') && typeof v === 'string') {
+          const parts = p.split(':');
+          const valueParts = v.split(':');
+          if (parts.length !== valueParts.length) { if (p !== v) return false; continue; }
+          let segMatch = true;
+          for (let j = 0; j < parts.length; j++) {
+            if (parts[j] === '*') continue;
+            if (parts[j] !== valueParts[j]) { segMatch = false; break; }
+          }
+          if (!segMatch) return false;
+          continue;
+        }
+      }
+
+      if (p !== v) return false;
+    }
+    return true;
+  }
+
+  interface TupleRow {
+    id: number;
+    harbor: string | null;
+    fields: string;
+    written_by: string | null;
+    created_at: number;
+    expires_at: number | null;
+  }
+
+  function rowToTuple(row: TupleRow): Tuple {
+    return {
+      id: row.id,
+      harbor: row.harbor,
+      fields: JSON.parse(row.fields),
+      writtenBy: row.written_by,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+    };
+  }
+
+  /** Read matching tuples (non-destructive). */
+  function rd(pattern: unknown[], options?: { harbor?: string; limit?: number }): Tuple[] {
+    cleanupStmt.run(Date.now());
+
+    const now = Date.now();
+    const rows = options?.harbor
+      ? db.prepare('SELECT * FROM tuples WHERE harbor = ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at DESC').all(options.harbor, now) as TupleRow[]
+      : db.prepare('SELECT * FROM tuples WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC').all(now) as TupleRow[];
+
+    const matches: Tuple[] = [];
+    const limit = options?.limit ?? 100;
+
+    for (const row of rows) {
+      if (matches.length >= limit) break;
+      const tuple = rowToTuple(row);
+      if (matchesPattern(tuple.fields, pattern)) {
+        matches.push(tuple);
+      }
+    }
+    return matches;
+  }
+
+  /** Take matching tuples (removes from space). */
+  function take(pattern: unknown[], options?: { harbor?: string; limit?: number }): Tuple[] {
+    const matches = rd(pattern, options);
+    for (const tuple of matches) {
+      deleteStmt.run(tuple.id);
+    }
+    return matches;
+  }
+
+  /**
+   * Poll for the next tuple after a cursor.
+   * Returns the first matching tuple in ascending ID order, or advances the cursor
+   * past inspected non-matching rows so callers do not rescan forever.
+   */
+  function poll(
+    pattern: unknown[],
+    options?: { harbor?: string; afterId?: number; limit?: number }
+  ): TuplePollResult {
+    cleanupStmt.run(Date.now());
+
+    const afterId = Math.max(0, options?.afterId ?? 0);
+    const limit = Math.min(Math.max(options?.limit ?? 200, 1), 1000);
+    const now = Date.now();
+    const rows = options?.harbor
+      ? db.prepare(
+        'SELECT * FROM tuples WHERE harbor = ? AND id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
+      ).all(options.harbor, afterId, now, limit) as TupleRow[]
+      : db.prepare(
+        'SELECT * FROM tuples WHERE id > ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC LIMIT ?'
+      ).all(afterId, now, limit) as TupleRow[];
+
+    let lastId = afterId;
+    for (const row of rows) {
+      const tuple = rowToTuple(row);
+      lastId = tuple.id;
+      if (matchesPattern(tuple.fields, pattern)) {
+        return { tuple, lastId };
+      }
+    }
+
+    return { tuple: null, lastId };
+  }
+
+  /** List all tuples, optionally filtered by harbor. */
+  function scan(harbor?: string): Tuple[] {
+    cleanupStmt.run(Date.now());
+    const now = Date.now();
+    const rows = harbor
+      ? db.prepare('SELECT * FROM tuples WHERE harbor = ? AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at DESC').all(harbor, now) as TupleRow[]
+      : db.prepare('SELECT * FROM tuples WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC').all(now) as TupleRow[];
+    return rows.map(rowToTuple);
+  }
+
+  /** Count tuples, optionally matching a pattern. */
+  function count(pattern?: unknown[], harbor?: string): number {
+    if (!pattern) {
+      const row = harbor
+        ? db.prepare('SELECT COUNT(*) as c FROM tuples WHERE harbor = ? AND (expires_at IS NULL OR expires_at > ?)').get(harbor, Date.now()) as { c: number }
+        : db.prepare('SELECT COUNT(*) as c FROM tuples WHERE expires_at IS NULL OR expires_at > ?').get(Date.now()) as { c: number };
+      return row.c;
+    }
+    return rd(pattern, { harbor }).length;
+  }
+
+  /** Remove expired tuples. Called automatically on reads. */
+  function cleanup(): number {
+    return cleanupStmt.run(Date.now()).changes;
+  }
+
+  /**
+   * Subscribe to matching tuple writes. This is in-process delivery, mirroring
+   * the messaging module's live fanout while keeping tuple storage authoritative.
+   */
+  function subscribe(
+    pattern: unknown[],
+    options: { harbor?: string } | undefined,
+    callback: TupleSubscriberCallback
+  ): (() => void) | null {
+    if (!Array.isArray(pattern) || pattern.length === 0) return null;
+    const id = nextSubscriberId++;
+    subscribers.set(id, {
+      pattern,
+      harbor: options?.harbor,
+      callback,
+    });
+    return () => {
+      subscribers.delete(id);
+    };
+  }
+
+  function destroy(): void {
+    subscribers.clear();
+  }
+
+  return { out, rd, take, poll, scan, count, cleanup, subscribe, destroy };
+}
+
+export type TupleSpace = ReturnType<typeof createTupleSpace>;

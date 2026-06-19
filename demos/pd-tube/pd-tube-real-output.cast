@@ -1,0 +1,11 @@
+{"version":3,"term":{"cols":80,"rows":24},"timestamp":1778031154,"command":"PD_TUBE_DEMO_CHANNEL=port-daddy:demo:tube-recording-1778031154 examples/pd-tube/demo.sh","env":{"SHELL":"/bin/zsh"}}
+[0.117, "o", "# PD Tube: real daemon-backed conversation\r\n# channel: port-daddy:demo:tube-recording-1778031154\r\n\r\n"]
+[0.001, "o", "$ printf 'Coordination should be visible.' | pd tube port-daddy:demo:tube-recording-1778031154 --send --sender demo-writer --json\r\n"]
+[12.479, "o", "{\"ok\":true,\"id\":45646,\"channel\":\"port-daddy:demo:tube-recording-1778031154\"}\r\n"]
+[0.093, "o", "\r\n"]
+[0.000, "o", "$ printf 'Replying with proof from the same channel.' | pd tube port-daddy:demo:tube-recording-1778031154 --reply-to=45646 --sender demo-reviewer --json\r\n"]
+[5.244, "o", "{\"ok\":true,\"id\":45647,\"channel\":\"port-daddy:demo:tube-recording-1778031154\"}\r\n{\"id\":45646,\"sender\":\"demo-writer\",\"createdAt\":1778031166463,\"body\":\"Coordination should be visible.\"}\r\n\r\n$ pd tube port-daddy:demo:tube-recording-1778031154 --since=45645 --once --json --no-history --limit=5\r\n"]
+[12.723, "o", "{\"id\":45646,\"sender\":\"demo-writer\",\"createdAt\":1778031166463,\"body\":\"Coordination should be visible.\"}\r\n"]
+[0.000, "o", "{\"id\":45647,\"sender\":\"demo-reviewer\",\"createdAt\":1778031169399,\"body\":\"Replying with proof from the same channel.\",\"inReplyTo\":45646}\r\n"]
+[2.971, "o", "\r\n# Done: both messages came from live Port Daddy channel history.\r\n"]
+[0.000, "x", "0"]

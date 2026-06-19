@@ -1,0 +1,25 @@
+{
+  "name": "@port-daddy/github-app-fleet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub App scaffolding for the Port Daddy fleet (auth helpers + ship identity wrapper).",
+  "exports": {
+    "./auth": "./lib/auth.ts",
+    "./post-as": "./lib/post-as.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js --config jest.config.mjs",
+    "icons:gen": "bash scripts/generate-icons.sh",
+    "icons:regen": "bash scripts/generate-icons.sh --force",
+    "icons:resize": "bash scripts/generate-icons.sh --resize-only"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^7.1.0",
+    "@octokit/rest": "^21.0.0"
+  },
+  "devDependencies": {
+    "@swc/jest": "^0.2.39",
+    "jest": "^30.2.0"
+  }
+}

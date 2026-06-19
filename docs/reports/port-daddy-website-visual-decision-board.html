@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Port Daddy Website Rehab Decision Board</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: #f4efe6;
+        --paper-2: #fbf7ef;
+        --ink: #151515;
+        --muted: #5c584f;
+        --line: #1f1f1f;
+        --line-soft: rgba(31, 31, 31, 0.18);
+        --blue: #0057ff;
+        --blue-soft: #dce7ff;
+        --lime: #dfff00;
+        --red: #b22635;
+        --green: #1f7a48;
+        --shadow: 8px 8px 0 var(--line);
+        --radius: 10px;
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.5rem;
+        --space-6: 2rem;
+        --space-7: 3rem;
+        --space-8: 4rem;
+        --max: 1220px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        font-optical-sizing: auto;
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(rgba(21, 21, 21, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(21, 21, 21, 0.035) 1px, transparent 1px),
+          var(--paper);
+        background-size: 32px 32px;
+        color: var(--ink);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a:focus-visible,
+      button:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 4px;
+      }
+
+      .wrap {
+        width: min(100% - 32px, var(--max));
+        margin: 0 auto;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 2px solid var(--line);
+        background: rgba(244, 239, 230, 0.94);
+        backdrop-filter: blur(12px);
+      }
+
+      .topbar-inner {
+        display: flex;
+        min-height: 72px;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-4);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .mark {
+        display: inline-grid;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border: 2px solid var(--line);
+        background: var(--blue);
+        color: var(--paper-2);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.85rem;
+        font-weight: 900;
+      }
+
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .nav a {
+        border: 1px solid var(--line-soft);
+        background: var(--paper-2);
+        padding: 0.6rem 0.8rem;
+      }
+
+      .hero {
+        padding: var(--space-8) 0 var(--space-7);
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        border: 1px solid var(--line);
+        background: var(--lime);
+        padding: 0.55rem 0.8rem;
+        font-size: 0.75rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        max-width: 950px;
+        margin-top: var(--space-5);
+        font-size: clamp(3rem, 8vw, 7.8rem);
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 740px;
+        margin-top: var(--space-5);
+        color: var(--muted);
+        font-size: clamp(1.08rem, 1.7vw, 1.35rem);
+        line-height: 1.6;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        margin-top: var(--space-5);
+      }
+
+      .pill {
+        border: 2px solid var(--line);
+        background: var(--paper-2);
+        padding: 0.72rem 0.9rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .pill.primary {
+        background: var(--blue);
+        color: white;
+      }
+
+      .grid {
+        display: grid;
+        gap: var(--space-5);
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card {
+        border: 2px solid var(--line);
+        background: var(--paper-2);
+        box-shadow: var(--shadow);
+      }
+
+      .card-pad {
+        padding: var(--space-5);
+      }
+
+      .metric {
+        display: grid;
+        min-height: 180px;
+        align-content: space-between;
+        gap: var(--space-4);
+      }
+
+      .metric b {
+        display: block;
+        font-size: clamp(1.4rem, 3vw, 2.35rem);
+        line-height: 1;
+      }
+
+      .metric span,
+      .caption,
+      .kicker {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .ok {
+        color: var(--green);
+      }
+
+      .bad {
+        color: var(--red);
+      }
+
+      .warn {
+        color: #8a5f00;
+      }
+
+      section {
+        padding: var(--space-7) 0;
+        border-top: 2px solid var(--line);
+      }
+
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr);
+        gap: var(--space-6);
+        align-items: end;
+        margin-bottom: var(--space-5);
+      }
+
+      .section-head h2 {
+        font-size: clamp(2rem, 4.6vw, 4rem);
+        line-height: 0.98;
+      }
+
+      .section-head p {
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.65;
+      }
+
+      .shots-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      figure {
+        margin: 0;
+      }
+
+      .shot {
+        overflow: hidden;
+      }
+
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: var(--paper);
+      }
+
+      .shot.mobile {
+        display: grid;
+        grid-template-columns: minmax(0, 0.82fr) minmax(220px, 0.38fr);
+        align-items: start;
+      }
+
+      .shot.mobile img {
+        max-width: 390px;
+        justify-self: center;
+        border-left: 2px solid var(--line);
+      }
+
+      figcaption {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        border-top: 2px solid var(--line);
+        padding: var(--space-3) var(--space-4);
+        background: var(--paper-2);
+      }
+
+      .shot.mobile figcaption {
+        min-height: 100%;
+        border-top: 0;
+        border-right: 2px solid var(--line);
+      }
+
+      .tag {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        background: var(--blue-soft);
+        padding: 0.25rem 0.45rem;
+        color: var(--ink);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-5);
+      }
+
+      .stack {
+        display: grid;
+        gap: var(--space-4);
+      }
+
+      .list {
+        display: grid;
+        gap: var(--space-3);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .list li {
+        border-left: 4px solid var(--blue);
+        background: rgba(0, 87, 255, 0.06);
+        padding: var(--space-3) var(--space-4);
+        line-height: 1.55;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 0.88rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--ink);
+        color: var(--paper-2);
+        font-size: 0.75rem;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      td {
+        background: var(--paper-2);
+        line-height: 1.45;
+      }
+
+      .matrix {
+        overflow-x: auto;
+        border: 2px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .timeline {
+        counter-reset: step;
+        display: grid;
+        gap: var(--space-3);
+      }
+
+      .step {
+        counter-increment: step;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: var(--space-3);
+        align-items: start;
+        border: 2px solid var(--line);
+        background: var(--paper-2);
+        padding: var(--space-4);
+      }
+
+      .step::before {
+        content: counter(step, decimal-leading-zero);
+        display: grid;
+        width: 3rem;
+        height: 3rem;
+        place-items: center;
+        background: var(--lime);
+        border: 2px solid var(--line);
+        font-weight: 900;
+      }
+
+      .step h3 {
+        font-size: 1.25rem;
+        line-height: 1.1;
+      }
+
+      .step p {
+        margin-top: var(--space-2);
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .footer {
+        padding: var(--space-7) 0;
+        border-top: 2px solid var(--line);
+        color: var(--muted);
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.92em;
+      }
+
+      @media (max-width: 980px) {
+        .summary-grid,
+        .shots-grid,
+        .split,
+        .section-head {
+          grid-template-columns: 1fr;
+        }
+
+        .shot.mobile {
+          grid-template-columns: 1fr;
+        }
+
+        .shot.mobile figcaption {
+          border-top: 2px solid var(--line);
+          border-right: 0;
+        }
+
+        .shot.mobile img {
+          border-left: 0;
+        }
+      }
+
+      @media (max-width: 680px) {
+        .topbar {
+          position: static;
+        }
+
+        .topbar-inner {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: var(--space-4) 0;
+        }
+
+        .hero {
+          padding-top: var(--space-6);
+        }
+
+        section {
+          padding: var(--space-6) 0;
+        }
+
+        .card-pad {
+          padding: var(--space-4);
+        }
+      }
+
+      @media print {
+        .topbar {
+          position: static;
+        }
+
+        body {
+          background: white;
+        }
+
+        .card,
+        .matrix {
+          box-shadow: none;
+        }
+
+        a[href]::after {
+          content: " (" attr(href) ")";
+          font-size: 0.8em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="wrap topbar-inner">
+        <a class="brand" href="#top" aria-label="Port Daddy website rehab decision board">
+          <span class="mark">PD</span>
+          <span>Port Daddy Website Rehab</span>
+        </a>
+        <nav class="nav" aria-label="Decision board sections">
+          <a href="#evidence">Evidence</a>
+          <a href="#screens">Screens</a>
+          <a href="#direction">Direction</a>
+          <a href="#decisions">Decisions</a>
+          <a href="#execution">Execution</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <div class="wrap hero">
+        <span class="eyebrow">Static visual decision board</span>
+        <h1>Stabilize the site before making it beautiful.</h1>
+        <p class="lead">
+          This board translates the `ideal-web-app-builder` handoff into a static
+          HTML review artifact. The stabilization, token/performance, MCP
+          proof-route, Swiss-modern grid-layer, MCP a11y/Storybook gate,
+          public shell route-matrix, and SEO metadata/discovery slices are now
+          executed; the board remains the visual checkpoint for the next
+          route-internal, content, and product-readiness decisions.
+        </p>
+        <div class="hero-actions" aria-label="Source artifacts">
+          <a class="pill primary" href="../plans/port-daddy-website-ideal-web-app-rehab.md">Open rehab plan</a>
+          <a class="pill" href="../plans/port-daddy-website-visual-decision-board.md">Open markdown board</a>
+          <a class="pill" href="website-rehab-screenshots/">Open screenshots</a>
+        </div>
+      </div>
+
+      <section id="evidence">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Current Truth</h2>
+            <p>
+              Stabilization, token layering, route chunking, the MCP proof
+              route, the first Swiss-modern grid layer, the MCP
+              a11y/Storybook proof gates, the shared public shell, SEO discovery,
+              and the generated hero/social visual replacement are complete for
+              their first slices. This is still not a finished ideal web app:
+              manual screen-reader/reduced-motion evidence, complete
+              route-composite Storybook matrices, prerendered metadata,
+              dedicated OG image generation, PWA posture, legal pages,
+              observability, and deeper diagram-payload decisions still need
+              explicit work.
+            </p>
+          </div>
+
+          <div class="grid summary-grid" aria-label="Baseline gate summary">
+            <article class="card card-pad metric">
+              <span>Build</span>
+              <b class="ok">Pass</b>
+              <p>Vite builds with no chunk warning. The largest JS chunk is Mermaid at 491.12 kB minified / 136.65 kB gzip.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>Tests</span>
+              <b class="ok">Pass</b>
+              <p>The focused design-system contract passes at 13/13, and the full Vitest suite passes at 76/76.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>Lint</span>
+              <b class="ok">Pass</b>
+              <p>Generated Storybook output is ignored, and the real source ESLint gate is green.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>Storybook</span>
+              <b class="warn">Pass, large</b>
+              <p>Build succeeds with the a11y addon running through WCAG AAA; the iframe chunk is 1.09 MB.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>MCP a11y</span>
+              <b class="ok">Pass</b>
+              <p>Playwright plus axe reports 0 violations, keyboard roving tabs, visible focus, and no horizontal overflow.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>Shell a11y</span>
+              <b class="ok">Pass</b>
+              <p>Home, docs, MCP, and blog pass desktop/mobile shell structure, skip-link focus, axe AAA, and overflow checks.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>SEO discovery</span>
+              <b class="ok">Pass</b>
+              <p>182 canonical routes now drive runtime head tags, sitemap.xml, robots.txt, and llms.txt from one registry.</p>
+            </article>
+            <article class="card card-pad metric">
+              <span>Generated visuals</span>
+              <b class="ok">Pass</b>
+              <p>Nano Banana/Gemini assets replaced the sailor hero, added default social imagery, and have optimized JPEG/WebP variants.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="screens">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Screenshot Baseline</h2>
+            <p>
+              These are not target designs. They are the current visible truth
+              that later changes must improve without hiding regressions.
+            </p>
+          </div>
+
+          <div class="grid shots-grid">
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/home-desktop.png" alt="Desktop screenshot of the Port Daddy home page with hero headline, navigation, CTA, and washed-out hero image.">
+              <figcaption>
+                <span class="caption">Home desktop</span>
+                <span class="tag">Normalize</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/generated-hero-homepage.png" alt="Browser screenshot of the Port Daddy homepage after generated schematic visual replacement.">
+              <figcaption>
+                <span class="caption">Generated hero proof</span>
+                <span class="tag">Improved</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">Home mobile</span>
+                <span class="tag">Normalize</span>
+                <p>
+                  Coherent route capture. Heavy type works better here than on
+                  desktop, but secondary action hierarchy is weak.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/home-mobile.png" alt="Mobile screenshot of the Port Daddy home page with stacked hero headline, chips, and CTA.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/docs-desktop.png" alt="Desktop screenshot of the Port Daddy docs shell with paper background, lime active nav, and protocol-first copy.">
+              <figcaption>
+                <span class="caption">Docs desktop</span>
+                <span class="tag">Preserve thesis</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">Docs mobile</span>
+                <span class="tag">Audit</span>
+                <p>
+                  The docs shell carries the clearest design language. It needs
+                  shared navigation and component-state discipline.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/docs-mobile.png" alt="Mobile screenshot of the Port Daddy docs shell.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/mcp-desktop.png" alt="Desktop screenshot of the MCP page with large headline and runtime integration content.">
+              <figcaption>
+                <span class="caption">MCP desktop</span>
+                <span class="tag">Replace first</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">MCP mobile baseline</span>
+                <span class="tag">Fixed in proof slice</span>
+                <p>
+                  The original hero paragraph nearly disappeared on mobile. It
+                  remains here as baseline evidence for the proof-route change.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/mcp-mobile.png" alt="Mobile screenshot of the MCP page with low-contrast hero body copy.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/mcp-proof-desktop.png" alt="Desktop screenshot of the rebuilt MCP proof route with two-column hero and tokenized proof panel.">
+              <figcaption>
+                <span class="caption">MCP proof desktop</span>
+                <span class="tag">Proof slice</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">MCP proof mobile</span>
+                <span class="tag">Proof slice</span>
+                <p>
+                  The rebuilt route wraps mobile copy and keeps wide terminal
+                  content inside the code block instead of widening the page.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/mcp-proof-mobile.png" alt="Mobile screenshot of the rebuilt MCP proof route with readable copy and contained code panel.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/mcp-swiss-desktop.png" alt="Desktop screenshot of the MCP page after Swiss-modern grid layering with clearer 12-column alignment.">
+              <figcaption>
+                <span class="caption">MCP Swiss desktop</span>
+                <span class="tag">Grid layer</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">MCP Swiss mobile</span>
+                <span class="tag">Grid layer</span>
+                <p>
+                  The Swiss layer preserves mobile readability while the desktop
+                  layout moves to a stricter editorial grid and flatter surfaces.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/mcp-swiss-mobile.png" alt="Mobile screenshot of the MCP page after Swiss-modern grid layering.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/mcp-a11y-desktop.png" alt="Desktop screenshot of the MCP page captured by the Playwright accessibility gate.">
+              <figcaption>
+                <span class="caption">MCP a11y desktop</span>
+                <span class="tag">Axe pass</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">MCP a11y mobile</span>
+                <span class="tag">Keyboard pass</span>
+                <p>
+                  The a11y gate checks mobile overflow, axe violations, roving
+                  tabs, Home/End navigation, and visible focus instead of only
+                  relying on screenshots.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/mcp-a11y-mobile.png" alt="Mobile screenshot of the MCP page captured by the Playwright accessibility gate.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/shell-home-desktop.png" alt="Desktop shell screenshot of the Port Daddy home page with shared header, main content, and footer.">
+              <figcaption>
+                <span class="caption">Shell home desktop</span>
+                <span class="tag">Shell pass</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">Shell home mobile</span>
+                <span class="tag">No overflow</span>
+                <p>
+                  The terminal demo tab rail and code panel now stay inside
+                  the mobile viewport while preserving horizontal code scroll.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/shell-home-mobile.png" alt="Mobile shell screenshot of the Port Daddy home page with contained terminal demo content.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/shell-docs-desktop.png" alt="Desktop shell screenshot of the docs page with shared header and footer.">
+              <figcaption>
+                <span class="caption">Shell docs desktop</span>
+                <span class="tag">AAA axe pass</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">Shell docs mobile</span>
+                <span class="tag">AAA axe pass</span>
+                <p>
+                  Shared docs cards no longer depend on opacity-dimmed
+                  eyebrow text for hierarchy.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/shell-docs-mobile.png" alt="Mobile shell screenshot of the docs page after contrast fixes.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/shell-blog-desktop.png" alt="Desktop shell screenshot of the blog page after shared shell and badge contrast fixes.">
+              <figcaption>
+                <span class="caption">Shell blog desktop</span>
+                <span class="tag">Badge tokens</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">Shell blog mobile</span>
+                <span class="tag">Contrast pass</span>
+                <p>
+                  Blog badges and small action text now use high-contrast
+                  on-tint tokens instead of literal or low-contrast colors.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/shell-blog-mobile.png" alt="Mobile shell screenshot of the blog page after high-contrast badge token fixes.">
+            </figure>
+            <figure class="card shot">
+              <img src="website-rehab-screenshots/blog-desktop.png" alt="Desktop screenshot of the blog page with article cards and editorial sections.">
+              <figcaption>
+                <span class="caption">Blog desktop</span>
+                <span class="tag">Normalize</span>
+              </figcaption>
+            </figure>
+            <figure class="card shot mobile">
+              <figcaption>
+                <span class="caption">Blog mobile</span>
+                <span class="tag">Normalize later</span>
+                <p>
+                  Content depth exists, but metadata, cards, visual hierarchy,
+                  and route-level SEO need system work.
+                </p>
+              </figcaption>
+              <img src="website-rehab-screenshots/blog-mobile.png" alt="Mobile screenshot of the Port Daddy blog page.">
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section id="direction">
+        <div class="wrap split">
+          <div class="card card-pad stack">
+            <span class="eyebrow">Recommended direction</span>
+            <h2>Signal-grade infrastructure editorial.</h2>
+            <p class="lead">
+              Preserve the distinct paper, ink, blue, and lime identity, but
+              make it stricter, more legible, and more operational. The target
+              is serious local infrastructure with enough editorial edge to be
+              memorable.
+            </p>
+          </div>
+          <div class="card card-pad stack">
+            <span class="kicker">Design family</span>
+            <ul class="list">
+              <li>Use TypeUI-style `Refined` for typography discipline.</li>
+              <li>Use `Paper` for docs tactility and artifact credibility.</li>
+              <li>Use `Perspective` for diagrams and system explanation.</li>
+              <li>Use Swiss-modern structure for grids, measure, rhythm, and restraint.</li>
+              <li>Keep only a measured amount of neobrutalist pressure.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="decisions">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>Approval Decisions</h2>
+            <p>
+              These decisions were approved for the first stabilization slice
+              on 2026-04-26. They still govern future broad token, route,
+              layout, and content rewrites.
+            </p>
+          </div>
+          <div class="matrix" role="region" aria-label="Approval decision table" tabindex="0">
+            <table>
+              <thead>
+                <tr>
+                  <th>Decision</th>
+                  <th>Recommended choice</th>
+                  <th>Alternative</th>
+                  <th>Why it matters</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Brand register</td>
+                  <td>Signal-grade infrastructure editorial</td>
+                  <td>Full poster style, generic SaaS, mascot-forward maritime</td>
+                  <td>Controls type, density, imagery, and content voice.</td>
+                </tr>
+                <tr>
+                  <td>Shape system</td>
+                  <td>Mostly square protocol panels with a small integral radius ladder</td>
+                  <td>Zero radius everywhere or large pill/blob radii</td>
+                  <td>The current route mix is visibly inconsistent.</td>
+                </tr>
+                <tr>
+                  <td>Typography</td>
+                  <td>One high-quality sans/display family plus technical mono</td>
+                  <td>Keep `font-black` everywhere or buy a distinctive face immediately</td>
+                  <td>Typography is the fastest path to making the site feel intentional.</td>
+                </tr>
+                <tr>
+                  <td>Color system</td>
+                  <td>Source palette in token files only, semantic and role tokens everywhere else</td>
+                  <td>Keep arbitrary page-level colors</td>
+                  <td>Required for WCAG, dark mode, and maintainability.</td>
+                </tr>
+                <tr>
+                  <td>Grid system</td>
+                  <td>Shared 12-column Swiss editorial grid primitive for new proof slices</td>
+                  <td>Keep local grid math inside each page</td>
+                  <td>Prevents arbitrary widths from rebuilding visual drift route by route.</td>
+                </tr>
+                <tr>
+                  <td>Route strategy</td>
+                  <td>Preserve the broad current route surface and normalize in slices</td>
+                  <td>Replace with a tiny site or delete old pages</td>
+                  <td>Current recovery notes warn against another replacement reset.</td>
+                </tr>
+                <tr>
+                  <td>First proof route</td>
+                  <td>Rebuild `/mcp` first after baseline stabilization; first proof route complete</td>
+                  <td>Defer MCP and polish home first</td>
+                  <td>MCP has visible mobile contrast failure and high drift.</td>
+                </tr>
+                <tr>
+                  <td>PWA posture</td>
+                  <td>Add manifest and favicons, decide offline scope after content audit</td>
+                  <td>Skip PWA entirely</td>
+                  <td>Installability may fit a docs/tool site, but stale offline docs are risky.</td>
+                </tr>
+                <tr>
+                  <td>Observability</td>
+                  <td>Privacy-first Sentry and Web Vitals behind env and consent policy</td>
+                  <td>No browser telemetry</td>
+                  <td>A polished production site needs real error and performance evidence.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="execution">
+        <div class="wrap">
+          <div class="section-head">
+            <h2>First Execution Slice</h2>
+            <p>
+              This is the pessimistic order. It prevents the site from getting
+              prettier while remaining broken.
+            </p>
+          </div>
+
+          <div class="timeline">
+            <article class="step">
+              <div>
+                <h3>Approve or revise this board.</h3>
+                <p>Status: approved for the first stabilization slice. Future broad visual changes still need slice-level evidence.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Repair baseline truth.</h3>
+                <p>Status: complete. Tutorial truth, lint scope, lint blockers, full tests, and build are green.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Split the token layers.</h3>
+                <p>Status: complete for the active entrypoint. Source tokens, semantic aliases, role tokens, and compatibility aliases are in place.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Normalize primitives and stories.</h3>
+                <p>Status: in progress. Public primitives and code blocks gained shrink-safe mobile behavior; SwissGrid exists; Button, Badge, Surface, CodeBlock, public primitives, and SiteHeader state matrices are now gated; route composites still need work.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Layer in Swiss-modern structure.</h3>
+                <p>Status: complete for the first proof slice. Source and role tokens now include grid and measure roles, shadows are flatter, and `/mcp` uses the shared 12-column grid.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Rebuild `/mcp` as the proof slice.</h3>
+                <p>Status: complete for the first proof route. The route uses approved primitives/tokens, has desktop/mobile screenshots, passes axe and keyboard checks, and is covered by Storybook plus contract gates.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Unify the public shell.</h3>
+                <p>Status: complete for the shell slice. Home, docs, MCP, and blog now share the same header/footer shell and pass the desktop/mobile shell a11y route matrix.</p>
+              </div>
+            </article>
+            <article class="step">
+              <div>
+                <h3>Centralize SEO and discovery metadata.</h3>
+                <p>Status: complete for canonical routes. Runtime head tags, sitemap.xml, robots.txt, and llms.txt are generated from a source-backed metadata registry with tests.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="wrap split">
+          <div class="card card-pad stack">
+            <span class="kicker">Do not claim done</span>
+            <ul class="list">
+              <li>The website is not product-ready just because tests and lint are green.</li>
+              <li>The design system is not ideal until all page slices migrate to shared grid/measure primitives and state matrices exist.</li>
+              <li>Accessibility is not acceptable until axe, keyboard, focus, reduced-motion, and screen-reader evidence exists.</li>
+              <li>SEO is improved, not done, until prerendering and dedicated OG image generation are handled.</li>
+              <li>Performance is improved, not done, while Mermaid and diagram payload decisions remain.</li>
+            </ul>
+          </div>
+          <div class="card card-pad stack">
+            <span class="kicker">Source of truth</span>
+            <p>
+              This HTML is a static review view. The canonical plan remains
+              <code>docs/plans/port-daddy-website-ideal-web-app-rehab.md</code>.
+              Update both if the user approves a different direction.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap">
+        <p>
+          Generated for the Port Daddy website rehab handoff on 2026-04-24.
+          Updated through the SEO metadata/discovery slice on 2026-04-27.
+          No production `website-v2` code is changed by this report.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

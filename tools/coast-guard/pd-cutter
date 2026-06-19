@@ -1,0 +1,60 @@
+#!/bin/bash
+# pd-cutter (prototype) — confine an agent from your secrets AND meter its egress.
+# Cooperative-case Coast Guard: blast-radius reduction + a HARD spend ceiling +
+# accountability. NOT a vault against a truly-malicious same-UID agent.
+# Usage: pd-cutter [--cap USD] [--max-requests N] -- <command...>
+set -euo pipefail
+CAP="unlimited"; MAXREQ=100000
+while [ "${1:-}" != "--" ] && [ $# -gt 0 ]; do
+  case "$1" in
+    --cap) CAP="$2"; shift 2;;
+    --max-requests) MAXREQ="$2"; shift 2;;
+    *) break;;
+  esac
+done
+[ "${1:-}" = "--" ] && shift
+H="$HOME"; HERE="$(cd "$(dirname "$0")" && pwd)"
+
+# --- 1. egress meter: all API traffic routes through a local hard-capped proxy ---
+PORT=$(( (RANDOM % 20000) + 20000 ))
+METER="$(mktemp -t pdcutter-meter).json"
+python3 "$HERE/egress-meter.py" "$PORT" "$MAXREQ" "$METER" &
+PROXY_PID=$!
+sleep 0.4
+export HTTPS_PROXY="http://127.0.0.1:$PORT" HTTP_PROXY="http://127.0.0.1:$PORT"
+export https_proxy="http://127.0.0.1:$PORT" http_proxy="http://127.0.0.1:$PORT"
+
+# --- 2. secret confinement: Seatbelt profile denies the crown jewels ---
+PROFILE="$(mktemp -t pdcutter).sb"
+command cat > "$PROFILE" <<SBPL
+(version 1)
+(allow default)
+(deny file-read* (subpath "$H/.ssh"))
+(deny file-read* (subpath "$H/.aws"))
+(deny file-read* (subpath "$H/.gnupg"))
+(deny file-read* (subpath "$H/.config/gcloud"))
+(deny file-read* (regex #"^$H/.*/\.env(\.local)?\$"))
+SBPL
+
+START=$(date +%s)
+set +e
+sandbox-exec -f "$PROFILE" "$@"
+CODE=$?
+set -e
+END=$(date +%s)
+kill "$PROXY_PID" 2>/dev/null || true
+
+# --- 3. signed-ish receipt: what ran, what it touched, what it spent ---
+USAGE=$(command cat "$METER" 2>/dev/null || echo '{}')
+RECEIPT="$(mktemp -t pdcutter-receipt).json"
+command cat > "$RECEIPT" <<JSON
+{"tool":"pd-cutter/proto","cmd":"$*","exit":$CODE,"started":$START,"ended":$END,
+ "cap_usd":"$CAP","max_requests":$MAXREQ,
+ "confined":["~/.ssh","~/.aws","~/.gnupg","~/.config/gcloud","**/.env.local"],
+ "egress":$USAGE,
+ "honest_limits":"cooperative-case: Seatbelt confinement + HTTPS_PROXY request/byte cap. A malicious same-UID agent can unset HTTPS_PROXY (needs separate UID/netns + pf forced egress); dollar-accurate metering needs MITM+usage-parsing."}
+JSON
+echo "-- pd-cutter receipt -> $RECEIPT" >&2
+command cat "$RECEIPT" >&2
+rm -f "$PROFILE" "$METER"
+exit $CODE
