@@ -33,7 +33,7 @@ class PortDaddy < Formula
     pd = opt_bin/"pd"
     return unless pd.exist?
 
-    ohai "Refreshing Port Daddy skill symlinks + pre-downloading embedding model"
+    ohai "Refreshing Port Daddy cross-tool skill symlinks + pre-downloading embedding model"
     system pd.to_s, "setup", "--no-daemon", "--no-mcp", "--no-fleetbar", "--no-init"
   end
 
