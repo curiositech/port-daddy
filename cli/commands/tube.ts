@@ -13,6 +13,8 @@
  *   pd tube <channel> --reply=<id> --send      # LEGACY: numeric --reply means parent id; prefer --reply-to
  *   pd tube <channel> --send                   # read stdin to EOF, post top-level
  *   pd tube <channel> --send <body>            # inline top-level body
+ *   pd tube <ch> --reply "no, see X" --relationship contradicts --performative inform
+ *                                              # typed discourse move: act + argumentative stance (RCP-14)
  *   pd tube <channel> --no-history             # listen without touching the cursor
  *   pd tube <channel> --limit=N                # initial backfill cap (default 50)
  *
@@ -38,6 +40,9 @@ import {
   reply,
   send,
   synthesizeSender,
+  PERFORMATIVES,
+  DISCOURSE_RELATIONSHIPS,
+  type ConversationMeta,
   type HistoryStore,
   type ListenResult,
   type RawDaemonMessage,
@@ -251,6 +256,38 @@ function parseNumberOption(raw: unknown, label: string): number {
 }
 
 /**
+ * Build the typed conversation metadata from `--performative`,
+ * `--relationship`, and `--conversation-id`. Invalid enum values are a hard
+ * error (explicit operator input, unlike the lenient drop-on-decode path for
+ * untrusted wire data). Returns `undefined` when no meta flags were passed, so
+ * the envelope stays in its pre-Phase-0 shape.
+ */
+export function buildMetaFromOptions(options: CLIOptions): ConversationMeta | undefined {
+  const meta: ConversationMeta = {};
+
+  const perf = options.performative;
+  if (typeof perf === 'string') {
+    if (!(PERFORMATIVES as readonly string[]).includes(perf)) {
+      throw new Error(`tube: unknown --performative ${JSON.stringify(perf)} — one of: ${PERFORMATIVES.join(', ')}`);
+    }
+    meta.performative = perf as ConversationMeta['performative'];
+  }
+
+  const rel = options.relationship;
+  if (typeof rel === 'string') {
+    if (!(DISCOURSE_RELATIONSHIPS as readonly string[]).includes(rel)) {
+      throw new Error(`tube: unknown --relationship ${JSON.stringify(rel)} — one of: ${DISCOURSE_RELATIONSHIPS.join(', ')}`);
+    }
+    meta.relationship = rel as ConversationMeta['relationship'];
+  }
+
+  const conv = options['conversation-id'] ?? options.conversation;
+  if (typeof conv === 'string' && conv) meta.conversationId = conv;
+
+  return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
+/**
  * `pd tube` entry point.
  *
  * Listen mode (default): emits the prose crank-handle for each new event;
@@ -265,7 +302,7 @@ function parseNumberOption(raw: unknown, label: string): number {
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history] [--performative <act> --relationship <stance> --conversation-id <id>]');
     process.exit(1);
   }
 
@@ -398,7 +435,7 @@ export async function handleTube(channel: string | undefined, options: CLIOption
         body = replyArg.body;
       }
 
-      const result = await reply(physical, parentId, body, client, { sender: selfSender });
+      const result = await reply(physical, parentId, body, client, { sender: selfSender, meta: buildMetaFromOptions(options) });
       reportPost(result.id);
     } catch (e) {
       ui.error((e as Error).message);
@@ -421,7 +458,7 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       let body: string;
       if (sendArg.kind === 'inline') body = sendArg.body;
       else body = await bodyFromStdin();
-      const result = await send(physical, body, client, { sender: selfSender });
+      const result = await send(physical, body, client, { sender: selfSender, meta: buildMetaFromOptions(options) });
       reportPost(result.id);
       return;
     } catch (e) {
