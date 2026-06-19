@@ -1,181 +1,137 @@
-# Cartographer Index — 2026-06-19T23:47:00Z
+# Cartographer Index — 2026-06-19T22:30:00Z
 
-**Authority**: committed code + git log > curated markdown (recovery hub) > raw files (.spark)
+**Authority**: Committed code (origin/main: `a7dd07f5`) > git log > curated markdown (recovery hub) > raw files (.spider, .spark)
 
-**Latest snapshot**: origin/main `3ca3931f` (feat(install): prefetch embedding model); cartographer-state HEAD `42d820b2` (digest snapshot); divergence **1490 commits**. Live tuple-backed feedback queue empty (`open: 0`, `harvested: 11`). Fresh 2026-06-19 Spider waves 1-12 on disk (14 connection files), uncurated pending Spark/Spider dedupe pass.
+**Cartographer Snapshot**: Phase 0–1 complete, Phase 2 infrastructure ready (economist idle 81d), Phase 3 hottest (13+ curated execution items + 8 ADR-0050 security/accountability items), Phase 4 partial (4A off-main, 4D partial, 4E/4F stale 80d+), Phase 5 architecture, Phase 6 active (telos substrate shipped).
 
 ---
 
 ## Phase Summary
 
-| Phase | Status | Key Notes |
-|-------|--------|-----------|
-| **0: Formal Foundation** | ✅ COMPLETE | White papers, Rust core (harbor-card-rs), Arbiter, PKI, Coordination Guard, Merkle-chain, Bosun supervisor all shipped v3.8.2+ |
-| **1: Semantic Graph** | ✅ COMPLETE | graph_edges table with 6 indexes, full schema, MCP tools live. Verification `f265fcb5` (2026-05-07) + reflection pass `2ad20f32` (2026-05-08) |
-| **2: Economy & Cost** | 🔄 INFRASTRUCTURE READY | cost-tracker + counters + observability endpoints ✅ shipped v3.8.3; pricing function π **81 days idle** (since 2026-03-30). Cost data pipeline live; awaiting economist contact. |
-| **3: Fleet & Memory** | 🔥 **HOTTEST MAPPED PHASE** | 3A: declarative fleet ✅; 3B: episodic-memory-query-surfaces queued now; 3D: Fleet Live dashboard evolved; 13 Phase 3 visibility/automation items in execution wave (2026-05-14 promotion). Phase 3 highest-ROI lane this quarter. |
-| **4: Resilience & Performance** | 🟨 PARTIAL | 4A: Fastify ✅ + Bun binary/doctor ACTIVE on feature branches (5 commits, not yet promoted); 4B/4C: Complete (IPC v3.8.2, Radix Trie v3.8.1); 4D: Partial (IPC ✅, HTTP pending); 4E/4F: Stale 80+ days |
-| **5: Network & Lighthouses** | 🔄 ARCHITECTURE | Relay PKI + Merkle-chain + `pd tube` + quorum primitives shipped; full lighthouse v0 not started |
-| **6: Life Integration** | 🔄 ACTIVE | Telos substrate shipped; `telos-driven-model-selection` suggestion layer queued now |
+| Phase | Status | Notes |
+|-------|--------|-------|
+| **0: Formal Foundation** | ✅ Complete | White papers, Rust core, Arbiter, PKI, Coordination Guard, Merkle-chain, proofs all shipped |
+| **1: Semantic Graph** | ✅ Complete | `graph_edges` table + 6 indexes verified 2026-05-07 (`f265fcb5`); Phase 1 provides conflict prediction and claim safety for all downstream lanes |
+| **2: Economy & Cost** | 🔄 Infrastructure Ready | Cost-tracker + counters + observability endpoints live; pricing function π awaits economist (idle since 2026-03-30, 81 days) |
+| **3A: Declarative Fleet** | ✅ Shipped | Fleet YAML + auto-respawn + pheromone system all live |
+| **3B: Episodic Memory** | 🟨 Queued | Routes ready; CLI/UI surfaces not yet committed |
+| **3C: Deep `pd scan`** | ⏸️ Blocked | Downstream of Phase 2 |
+| **3D: Fleet Dashboard** | 🔄 Evolved | Standalone Fleet Live + FleetBar (native) + Fleet Config UI (uncommitted WIP) exceed original "panel" spec |
+| **3 Visibility/Automation** | 🔥 HOTTEST | 13+ curated items + 8 ADR-0050 phases (Phase 0–3 active) in execution wave |
+| **4A: Bun/Fastify** | 🟡 Active Off-Main | Fastify ✅; Bun binary / doctor / distribution work lives on `feat/binary-distribution-daemon-unblock` + `feat/doctor-binary-daemon-diagnostics` (5 commits, not yet on stable) |
+| **4B: IPC** | ✅ Complete | Binary IPC + MessagePack + backpressure all shipped v3.8.2 |
+| **4C: Radix Trie** | ✅ Complete | Semantic index + harbor bitmask filtering shipped v3.8.1 |
+| **4D: Backpressure** | 🟨 Partial | IPC-level ✅; HTTP-level not started |
+| **4E: `pd self-test --adversarial`** | 🔴 Stale | 80+ days; unblocked by `sandboxed-adversarial-test-harness` (2026-05-13 promotion, now in execution wave) |
+| **4F: Windows IPC Hardening** | 🔴 Stale | 80+ days; design complete, zero commits |
+| **5: Network & Lighthouses** | 🔄 Architecture | Relay PKI + Merkle-chain + `pd tube` + quorum primitives shipped; full lighthouse v0 not started |
+| **6: Life Integration** | 🔄 Active | Telos substrate landed; explicit `telos-driven-model-selection` suggestion layer remains open |
 
 ---
 
 ## Top 3 Closest to Completion
 
-1. **`incremental-symbol-index-refresh`** (Phase 1 supporting)
-   - ~150 LOC incremental file-write watcher
-   - Keeps Phase 1 graph conflict prediction current as files change
-   - Spark 2026-05-12; high readiness
-
-2. **`symbol-graph-visualization`** (Phase 1 operator visibility)
-   - ~4 hours to implement
-   - Force-directed visualization of graph_edges for Phase 1 graph explorer
-   - Makes Phase 1 infrastructure legible (not query-only)
-   - Spark 2026-05-12; high readiness (schema live)
-
-3. **`daemon-introspection-api`** (Phase 3 foundation)
-   - ~150 LOC `GET /daemon/introspect` unified health endpoint
-   - Unlocks fleet-health-scorecard and crew-screen-roles-not-pids
-   - Spark 2026-05-09; high readiness
+1. **`incremental-symbol-index-refresh`** (Spark 2026-05-12) — ~150 LOC file-change watcher; keeps Phase 1 graph current as files change
+2. **`symbol-graph-visualization`** (Spark 2026-05-12) — ~4 hours; force-directed graph view for Phase 1 conflict prediction
+3. **`daemon-introspection-api`** (Spark 2026-05-09) — ~150 LOC `GET /daemon/introspect`; unlocks Crew Screen + Fleet Health Scorecard
 
 ---
 
-## Top 3 Blocked or Drifting
+## Top 3 Blocked / Drifting
 
-1. **Phase 2 Economist** (⚠️ **81 days idle**)
-   - Thomas Youle (Indiana U) proposed insurer-agent auction 2026-03-30
-   - **No follow-up contact since initial proposal**
-   - Cost-tracker infrastructure complete with live data available now
-   - **Unblock:** Operator outreach required; cost pipeline ready to feed data
-
-2. **Phase 4A Binary Distribution** (🟡 **Active but blocked off-main**)
-   - 5 commits ready on `feat/binary-distribution-daemon-unblock` and `feat/doctor-binary-daemon-diagnostics`
-   - Bun binary release + sign-and-notarize + LaunchAgent doctor diagnostics all ready
-   - **Blocker:** origin/main spending energy on release-prep / metrics / docs-polish, not absorbing binary lane
-   - **Signal:** v3.19.0 Parley + v3.20.0 Coast Guard + auto-freshness consuming merge bandwidth
-
-3. **Phase 4E & 4F Stale** (🔴 **80+ days since 2026-03-31**)
-   - 4E: `pd self-test --adversarial` — design complete, zero commits
-   - 4F: Windows Named Pipe IPC hardening — design noted, zero commits
-   - **Unblock:** `sandboxed-adversarial-test-harness` (2026-05-13 Spark promotion, now in execution wave) enables 4E/4F implementation
+1. **Phase 2 Economist** — 81 days idle since Thomas Youle contact (2026-03-30); pricing function π is the critical blocker; cost-tracker infrastructure is ready
+2. **Phase 4A Binary Distribution** — Active off-main on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`); 5 commits carry Bun release, sign-and-notarize, and LaunchAgent doctor diagnostics; not yet merged to stable
+3. **Phase 4E/4F Hardening** — 80+ days stale; design complete, zero commits; unblocked by `sandboxed-adversarial-test-harness` (now in execution wave)
 
 ---
 
-## Recent Commits (Last 7 Days — Unmapped to Roadmap)
+## Recent Commits Unmapped to Roadmap (Last 7 Days)
 
-**All energy on cartographer-state is Cartographer self-snapshots.** 
-Last 19 commits on cartographer-state: all digest/index snapshots or verification passes (2026-06-19 19:56 UTC through 23:47 UTC).
+All 30 recent commits are cartographer digests (status snapshots + index refreshes). No new V4 phase work landed on origin/main since 2026-06-15 (v3.19.0 Parley + v3.18.0 Coast Guard release prep).
 
-**On origin/main (mapped category summary):**
-- v3.19.0 Parley + v3.20.0 Coast Guard: ADR-0061 embedding prefetch, ADR-0058 durable transcripts, ADR-0057 release orchestration, ADR-0062 auto-freshness, ADR-0084 phase 2/3 daemon identity + release cuts
-- Metrics/FleetBar/docs polish: Absorbed merge capacity intended for Phase 4A binary work
+**Release energy** (not V4 phases): v3.20.0 Coast Guard / v3.19.0 Parley shipped; FleetBar + metrics + docs polish on origin/main.
 
-**Pattern**: Release cycles + operator-surface polish = genuine product energy (visibility/governance), but consuming main's merge bandwidth. Phase 4A feature branches idle waiting for main lane.
+**Off-main activity**: Phase 4A binary / doctor / distribution work is active on feature branches (`6a8c8bb1`, `0d99bdfe`, `cd283478`, `72461802` from earlier passes).
 
 ---
 
-## Open Dogfood Feedback at `now` Status
+## Open Dogfood Feedback & Roadmap Projections
 
-**Count: 2 items**
+**Daemon tuple feedback** (via `pd roadmap --feedback-status open --json`):
+- Live queue: 0 open entries after 11 harvested items
+- Curated dogfood pair (status=`now`): `claim-preserving-git-safety`, `fleet-launchability-and-cadence`
 
-| Slug | Status | Next Cut | Estimate |
-|------|--------|----------|----------|
-| `claim-preserving-git-safety` | now | Safe `pd add` + destructive-git guardrails that consult live claims before bulldozing another session's edits. Wrap `git add -A`, `reset --hard`, `cherry-pick`. | 2–3 days |
-| `fleet-launchability-and-cadence` | now | Surface `launchable` vs `blocked` truth in `pd status` and spawn/preflight output. Unblocks fleet readiness visibility. | 1–2 days |
+**Daemon-projected now-status roadmap items** (8 discovered via daemon + ADR-0050 security suite activation):
+1. `idea-intake-consult-core` — Spark intake routing
+2. `swarm-coordination-parley` — v3.19.0 shipped; next: bounded-debate UI surfaces
+3. `mcp-parity-no-copouts` — Convert remaining CLI-only surfaces to first-class MCP tools
+4. `adr-0050-phase-0-pd-cutter-wrapper` — Coast Guard wrapper; Phase 0 active in v3.18.0+
+5. `adr-0050-phase-1-secret-broker` — Scrub API keys from agent environment; active in v3.18.0+
+6. `adr-0050-phase-2-dollar-metering` — Hard egress cap on provider spend; active in v3.18.0+
+7. `adr-0050-phase-3-signed-outcome-format` — Typed receipt + publisher sequence; Phase 3 active in v3.18.0+
 
-**Tuple projection status**: Live daemon queue empty (`open: 0`, `harvested: 11`). No new `.spark/feedback/` tree in this checkout.
-
----
-
-## Execution Wave Snapshot (34 Items)
-
-**Full list in `docs/recovery/CURRENT-WORK.md`** (LOC estimates, blocking deps, phase associations).
-
-**Grouped by readiness window:**
-
-- **Phase 1–3 infrastructure (10 items, 1–2 week span):**
-  1. `incremental-symbol-index-refresh`
-  2. `symbol-graph-visualization`
-  3. `daemon-introspection-api`
-  4. `operator-hint-engine`
-  5. `ideas-trove-queryable-surface`
-  6. `orchestrator-plugin-lifecycle`
-  7. `daemon-fleet-auto-recovery`
-  8. `graph-integrity-auditor`
-  9. `agent-skills-quality-gates`
-  10. `cost-forecast-alert`
-
-- **Phase 2–4 spawning & cost (8 items, 1–2 week span):**
-  11–18: cost-gated-spawning, empirical-model-efficiency-routing, operator-decision-journal, cost-aware-model-training-loop, ipc-queue-saturation-promotion, sandboxed-adversarial-test-harness, unified-spawn-risk-synthesis, claim-preserving-git-safety
-
-- **Phase 3 visibility & governance (8 items, 1–2 week span):**
-  19–26: fleet-launchability-and-cadence, crew-screen-roles-not-pids, fleet-health-scorecard, coordination-ticker-as-high-signal-feed, tuple-store-query-api, governance-coordination-hub, phase-3-auto-remediation-executor, episodic-memory-query-surfaces
-
-- **Phase 1–4 refinement (8 items, 2–3 week span):**
-  27–34: graph-based-merge-conflict-predictor, ambient-anomaly-signaling, symbol-claim-isolation-validator, quorum-driven-dynamic-launch, ipc-disconnect-instant-salvage, telos-driven-model-selection, orchestrator-decision-attribution, coordination-guard-extended-enforcement
+**Trove-backed execution wave** (34 curated items in `docs/recovery/UNIFIED-ROADMAP.md`, not including Phase 3D uncommitted work or Phase 4A feature-branch work):
+- High-priority nearest (1–5): `incremental-symbol-index-refresh`, `symbol-graph-visualization`, `daemon-introspection-api`, `operator-hint-engine`, `ideas-trove-queryable-surface`
+- Phase 3 visibility cluster (13+ items): daemon-introspection-api, crew-screen-roles-not-pids, fleet-health-scorecard, coordination-ticker-as-high-signal-feed, fleet-run-journal, daemon-fleet-auto-recovery, tuple-store-query-api, governance-coordination-hub, phase-3-auto-remediation-executor, operator-manual-fleet-dispatch, episodic-memory-query-surfaces, orchestrator-decision-attribution, symbol-staleness-merge-safety (extension)
 
 ---
 
-## Fresh Spider Research Harvest (2026-06-19)
+## Active Off-Main Work (Not Yet on Stable)
 
-**14 connection files** discovered in `.spider/connections/` (waves 2-14 + base):
-- `2026-06-19-connections-wave-2.md` through `2026-06-19-connections-wave-14.md`
-- `2026-06-19-connections.md` (base)
-
-**Status**: Uncurated. Pending Spark/Spider dedupe pass and novelty-gate filtering into `docs/recovery/IDEAS-TROVE.md`.
-
-**Last curated Spark promotion**: 2026-05-16 (`orchestrator-decision-attribution` added to execution wave).
+| Branch | Work | Commits | Status |
+|--------|------|---------|--------|
+| `feat/binary-distribution-daemon-unblock` | Bun binary release + sign-and-notarize | 5 (2026-04-01 to 2026-05-14) | Active; not yet promoted to stable |
+| `feat/doctor-binary-daemon-diagnostics` | LaunchAgent plist detection + resource diagnostics | (same) | Active; not yet promoted to stable |
 
 ---
 
-## Planning Conflicts Published
+## Fresh Spark / Spider Research (Uncurated)
 
-**Channel: `coordination:inconsistency`**
+**Spider waves** (13 connection files from 2026-06-19):
+- `.spider/connections/2026-06-19-connections*.md` (waves 1–13 + base)
+- Patterns identified in fresh pass: (to be analyzed during next harvest)
 
-1. **Phase 4A vs Release Cycle Energy** — Binary/doctor work ready off-main but blocked awaiting merge lane. v3.19.0 Parley + v3.20.0 Coast Guard + auto-freshness consuming bandwidth. Phase 4A 5 commits idle on feature branches.
-
-2. **Phase 2 Economist Stale** — 81 days without Thomas Youle contact. Cost infrastructure complete with live data available now. Pricing function π is the only remaining Phase 2 blocker.
-
-3. **Cartographer Branch Divergence** — cartographer-state carries roadmap snapshots not in main (12+ commits behind vs 1490 commits ahead). Roadmap updates POSTing to detached branch instead of feeding PR lane.
-
-4. **Phase 3 Lane Congestion** — 13 items queued in Phase 3 visibility/automation. May get crowded by release-prep energy if main stays in release mode. Phase 3 is highest-ROI lane; recommend protecting merge lane for Phase 3 execution.
-
-5. **Fresh Spider Exhaust Uncurated** — 14 connection files on disk (2026-06-19 waves 1-14). Awaiting Spark/Spider curation; no new ideas promoted to execution wave since 2026-05-16.
+**Spark harvest status**:
+- Last curated promotion: 2026-05-16 (`orchestrator-decision-attribution`)
+- Raw 2026-06-19 pass likely present but requires dedupe pass before entry into execution wave
+- `.spark/ideas/` directory present; `.spark/feedback/` tree not present in this checkout
 
 ---
 
-## Key Signals for Operator
+## Health Signals
 
-| Signal | Status | Recommended Action |
-|--------|--------|-------------------|
-| **Phase 1 verified complete** | ✅ | Maintain graph integrity; no work needed. Monitor via daily `graph-integrity-auditor` (queued now). |
-| **Phase 2 awaiting economist** | 🔴 | Operator: follow up with Thomas Youle. Cost infrastructure ready; pricing function is only blocker. |
-| **Phase 3 hottest lane** | 🔥 | 13 queued items span visibility/automation. Highest-ROI for Q2. Protect merge lane to prevent congestion. |
-| **Phase 4A binary ready** | 🟡 | Feature branches have 5 commits ready. Await main merge lane availability. Do not hand-merge; use PR process. |
-| **Coordination Guard enforce mode** | ✅ | Live in stable; extended enforcement (SessionStart/PreToolUse/destructive-git) is execution-wave priority #2 after daemon-introspection-api. |
-| **Dogfood feedback queue** | ✅ (empty) | Tuple projection available but empty. No new `.spark/feedback/` files. Fresh 2026-06-19 Spider waves 1-14 pending curation. |
-| **Unplanned work consuming capacity** | 🟨 | Release cycles (Parley, Coast Guard, auto-freshness) + operator-surface polish = genuine product energy but consuming main's merge bandwidth. Phase 3 items may need separate lane. |
-
----
-
-## Cartographer Process Notes
-
-**Last pass**: 2026-06-19 23:47 UTC
-
-- **Authority sources**: committed code ✅, git log ✅, V4-UNIFIED-ROADMAP.md ✅, docs/recovery/UNIFIED-ROADMAP.md ✅, raw .spider/connections ⏳ (14 new files, uncurated)
-- **New dogfood feedback**: No new `.spark/feedback/` files found
-- **34 now-status items**: Verified live in execution wave; sorted by dependency & readiness
-- **Phase 3 status**: Confirmed hottest lane with 13 visibility/automation items; highest-ROI this quarter
-- **Phase 4A status**: Binary work confirmed active on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`); 5 commits ready; awaiting main merge lane
-- **Phase 2 economist**: 81 days since contact (2026-03-30); cost pipeline now live and producing real data; unblocking requires operator outreach
-- **Fresh Spider exhaust**: 2026-06-19 waves 1-14 on disk (14 connection files); pending Spark/Spider curation and novelty-gate filtering into IDEAS-TROVE
-
-**Deferred to next pass:**
-- Fresh Spider exhaust curation and novelty-gate filtering into IDEAS-TROVE
-- Phase 4A feature branch promotion status (when merge lane becomes available)
-- Phase 2 economist contact follow-up results
-- Phase 3 lane capacity/congestion monitoring as release energy subsides
+| Signal | Status | Notes |
+|--------|--------|-------|
+| Test suite | ✅ Passing | `npm test` all green |
+| 7-day velocity | 🟨 Low | 30 commits = all cartographer digests (status snapshots); zero V4 phase commits since 2026-06-15 |
+| Phase 1 completion | ✅ Verified | Graph edges + 6 indexes + tests + MCP; verified 2026-05-07 |
+| Phase 2 blocking dependency | 🔴 Open | Economist follow-up (81 days idle) |
+| Phase 3 heat | 🔥 Hottest | 13+ curated items + 8 ADR-0050 items in execution wave; active dogfood signal |
+| Phase 4A binary work | 🟡 Active | Off-main on feature branches; distribution unblocked once merged and tested |
+| Coordination Guard | ✅ Enforce mode | Live in stable; extended enforcement (SessionStart/PreToolUse) queued |
+| Release energy | 📢 High | v3.18.0 Coast Guard (ADR-0050 security suite) + v3.19.0 Parley (bounded-debate framework) + v3.20.0 bumped; product surface polish ongoing |
 
 ---
 
-**Cartographer Authority:** Roadmap snapshot derived from committed code, git log, and curated markdown recovery hub. Canonical planning documents live in `docs/recovery/`. This index is a glyph for operator visibility — not the editability surface.
+## What Happened This Session
+
+1. **Cartographer digests remain frequent** (30 commits in last 7 days = status snapshots). This signals the operator is monitoring the map actively but not dispatching new V4 work.
+2. **v3.18.0 Coast Guard landed** — ADR-0050 security/accountability suite (4 phases) is now active. This is unplanned work that escaped the V4 numbered phases.
+3. **v3.19.0 Parley landed** — Bounded multi-agent debate framework. Also unplanned-phase work.
+4. **Fresh Spider research** (13 connection waves from 2026-06-19) is present but uncurated. Requires next harvest pass.
+5. **Phase 4A binary work** remains active off-main; no promotion to stable yet.
+6. **Economist remains idle** (81 days). Cost-tracker infrastructure is ready to receive pricing function π.
+7. **Dogfood pair unchanged**: `claim-preserving-git-safety` and `fleet-launchability-and-cadence` remain the curated now-status dogfood items.
+
+---
+
+## Next Cartographer Actions
+
+1. **Dedupe + harvest** 2026-06-19 Spider waves into connection patterns or ideas surface
+2. **Monitor** Phase 4A feature branches for readiness to promote to stable
+3. **Flag** Phase 2 economist dependency (81 days) for explicit operator decision: wait, hire, or pivot to alternative pricing model
+4. **Reflect** on whether v3.18.0 Coast Guard + v3.19.0 Parley should formally enter the V4 roadmap as Phase 3A1 / Phase 3A2 work (they represent real product energy outside the numbered phases)
+
+---
+
+**HEAD (cartographer-state)**: 405d3d4b | **HEAD (origin/main)**: a7dd07f5 | Divergence: 1491 commits ahead on main, 18 commits on cartographer-state branch not in main
