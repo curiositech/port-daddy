@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useCallback, useId, useState } from 'react'
 import type { Mermaid as MermaidApi } from 'mermaid'
-import { Surface } from './Surface'
 import { cn } from '@/lib/utils'
 
 interface MermaidProps {
@@ -26,53 +25,54 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
 
   const renderChart = useCallback(() => {
     if (!mermaid) return
-    const root = document.documentElement
-    const style = getComputedStyle(root)
-    const token = (name: string) => style.getPropertyValue(name).trim() || `var(${name})`
-
-    const primary = token('--brand-secondary')
-    const surface = token('--surface-base')
-    const raised = token('--surface-raised')
-    const border = token('--border-strong')
-    const text = token('--text-primary')
-    const inverse = token('--text-inverse')
-    const signalText = token('--text-primary')
-    const signalLine = token('--brand-secondary')
-    const actorLine = token('--border-strong')
+    // Render diagrams as a theme-INDEPENDENT light "paper" card so they stay
+    // legible in dark mode (the old version inherited dark tokens -> dark text
+    // on a dark inset gradient, and the SVG rendered at tiny natural size).
+    const ink = '#1A1A2E' // indigo-black
+    const paper = '#f7f3eb' // raised cream
+    const paperBase = '#f2eee6'
+    const cobalt = '#003fb8'
+    const lifeline = '#9a948a'
 
     mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
       securityLevel: 'loose',
       themeVariables: {
-        primaryColor: primary,
-        primaryTextColor: inverse,
-        primaryBorderColor: primary,
-        lineColor: signalLine,
-        secondaryColor: primary,
-        tertiaryColor: surface,
-        mainBkg: raised,
-        nodeBorder: primary,
-        clusterBkg: surface,
-        clusterBorder: border,
-        defaultLinkColor: signalLine,
-        titleColor: text,
-        edgeLabelBackground: 'transparent',
-        nodeTextColor: text,
+        primaryColor: paper,
+        primaryTextColor: ink,
+        primaryBorderColor: ink,
+        lineColor: cobalt,
+        secondaryColor: paperBase,
+        tertiaryColor: paperBase,
+        mainBkg: paper,
+        nodeBorder: ink,
+        clusterBkg: paperBase,
+        clusterBorder: ink,
+        defaultLinkColor: cobalt,
+        titleColor: ink,
+        textColor: ink,
+        edgeLabelBackground: paper,
+        nodeTextColor: ink,
         // Sequence diagram specific
-        signalColor: signalLine,
-        signalTextColor: signalText,
-        actorTextColor: text,
-        actorLineColor: actorLine,
-        activationBorderColor: primary,
-        sequenceNumberColor: inverse,
-        labelTextColor: signalText,
-        loopTextColor: signalText,
-        noteBkgColor: raised,
-        noteTextColor: text,
-        noteBorderColor: border,
-        fontFamily: 'Radnika, Helvetica Neue, Helvetica, Arial, sans-serif',
-        fontSize: '16px',
+        signalColor: cobalt,
+        signalTextColor: ink,
+        actorBkg: paper,
+        actorBorder: ink,
+        actorTextColor: ink,
+        actorLineColor: lifeline,
+        activationBorderColor: cobalt,
+        activationBkgColor: paperBase,
+        sequenceNumberColor: '#fbf7ef',
+        labelBoxBkgColor: paperBase,
+        labelBoxBorderColor: ink,
+        labelTextColor: ink,
+        loopTextColor: ink,
+        noteBkgColor: '#fff3d6',
+        noteTextColor: ink,
+        noteBorderColor: ink,
+        fontFamily: '"Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif',
+        fontSize: '15px',
       },
       flowchart: {
         curve: 'basis',
@@ -80,7 +80,18 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
         nodeSpacing: 72,
         rankSpacing: 82,
         padding: 22,
-        useMaxWidth: false,
+        useMaxWidth: true,
+      },
+      sequence: {
+        useMaxWidth: true,
+        diagramMarginX: 8,
+        diagramMarginY: 8,
+        actorMargin: 60,
+        boxMargin: 10,
+        messageFontSize: 15,
+        actorFontSize: 15,
+        noteFontSize: 14,
+        mirrorActors: true,
       },
     })
 
@@ -94,6 +105,12 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
           const parsed = new DOMParser().parseFromString(result.svg, 'image/svg+xml')
           const svg = parsed.documentElement
           if (svg.tagName.toLowerCase() === 'svg') {
+            // Fill the container width so the diagram is legible, not tiny.
+            svg.setAttribute('width', '100%')
+            svg.style.width = '100%'
+            svg.style.height = 'auto'
+            svg.style.maxWidth = '100%'
+            svg.style.display = 'block'
             ref.current.textContent = ''
             ref.current.appendChild(document.importNode(svg, true))
           }
@@ -119,12 +136,14 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
     return () => observer.disconnect()
   }, [renderChart, mermaid])
 
+  // Light "paper" card, theme-independent — the diagram is always dark-on-cream
+  // so it reads the same in light and dark mode (no dark-on-dark gradient).
   return (
-    <Surface
-      depth="inset"
-      radius="none"
-      padding="xl"
-      className={cn('pd-docs-mermaid my-12 flex w-full justify-start overflow-x-auto', className)}
+    <div
+      className={cn(
+        'pd-docs-mermaid my-12 flex w-full justify-center overflow-x-auto border-2 border-[var(--border-strong)] bg-[#f7f3eb] p-[var(--space-6)]',
+        className,
+      )}
       ref={ref}
     />
   )
