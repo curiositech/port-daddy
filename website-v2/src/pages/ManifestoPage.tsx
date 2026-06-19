@@ -215,7 +215,7 @@ function SectionEyebrow({ children }: { children: ReactNode }) {
 
 function CollisionDiagram() {
   return (
-    <section aria-labelledby="collision-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+    <section aria-labelledby="collision-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[64rem]">
       <SectionEyebrow>The race, drawn</SectionEyebrow>
       <h2
         id="collision-heading"
@@ -223,19 +223,19 @@ function CollisionDiagram() {
       >
         One file, two writers, one survivor
       </h2>
-      <p className="mt-[var(--space-2)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
-        Read the two timelines side by side. The only structural difference is who keeps the logbook.
+      <p className="mt-[var(--space-2)] max-w-[60ch] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+        Same two agents, same file, read top to bottom. The only structural difference is who keeps the logbook.
       </p>
-      <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-2">
+      <div className="mt-[var(--space-6)] flex flex-col gap-[var(--space-6)]">
         <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
           <div className="mb-[var(--space-3)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--status-error)]">
-            Without a harbor-master
+            Without a harbor-master — both think they own the file
           </div>
           <Mermaid chart={COLLISION_DIAGRAM} />
         </div>
         <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
           <div className="mb-[var(--space-3)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-            With Port Daddy
+            With Port Daddy — one writer at a time, the other sees it
           </div>
           <Mermaid chart={FIX_DIAGRAM} />
         </div>

@@ -566,14 +566,16 @@ pre code {
   padding-bottom: clamp(var(--space-4), 4vw, var(--space-8)) !important;
 }
 
+/* Diagrams render as a theme-INDEPENDENT light "paper" card (dark-on-cream),
+   so they read identically in light and dark mode. A faint brand corner keeps
+   the house texture without sacrificing contrast. Content-sized — no forced
+   min-height that floated the diagram in a tall empty box. */
 .pd-docs-mermaid {
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 12%, transparent) 0 18%, transparent 18% 100%),
-    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 16%, transparent), transparent 44%),
-    var(--surface-raised) !important;
-  border: 2px solid var(--border-strong) !important;
+    linear-gradient(135deg, color-mix(in srgb, #003fb8 7%, transparent) 0 16%, transparent 16% 100%),
+    #f7f3eb !important;
+  border: 2px solid #1a1a2e !important;
   padding: clamp(var(--space-4), 2.2vw, var(--space-7)) !important;
-  min-height: clamp(24rem, 38vw, 42rem);
   align-items: center;
 }
 
@@ -584,11 +586,25 @@ pre code {
   height: auto;
 }
 
+/* Text fills only — must NOT match the actor box <rect class="actor">, which
+   would paint the participant boxes solid ink and hide their labels. */
 .pd-docs-mermaid svg text,
 .pd-docs-mermaid svg .label,
-.pd-docs-mermaid svg .nodeLabel {
+.pd-docs-mermaid svg .nodeLabel,
+.pd-docs-mermaid svg .messageText,
+.pd-docs-mermaid svg text.actor,
+.pd-docs-mermaid svg .loopText,
+.pd-docs-mermaid svg .noteText {
   font-family: var(--font-sans) !important;
   line-height: 1.12 !important;
+  fill: #1a1a2e !important;
+}
+
+/* Participant boxes: cream fill, ink outline (theme-independent paper look). */
+.pd-docs-mermaid svg rect.actor,
+.pd-docs-mermaid svg .actor-box {
+  fill: #f7f3eb !important;
+  stroke: #1a1a2e !important;
 }
 
 .pd-docs-mermaid svg foreignObject {
@@ -597,8 +613,8 @@ pre code {
 
 .pd-docs-mermaid svg .edgeLabel,
 .pd-docs-mermaid svg .edgeLabel span {
-  background: var(--text-primary) !important;
-  color: var(--text-inverse) !important;
+  background: #f7f3eb !important;
+  color: #1a1a2e !important;
   font-size: 15px !important;
 }
 
