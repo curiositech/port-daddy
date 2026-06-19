@@ -5,6 +5,12 @@ description: Review and rewrite copy, web UI, slides, READMEs, marketing pages, 
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch
 argument-hint: '[file-or-directory] [--medium prose|web|deck|image] [--report out.html]'
 metadata:
+  provenance:
+    kind: first-party
+    owners: [port-daddy]
+    scope: public
+  authorship:
+    maintainers: [port-daddy]
   category: Writing & Editing
   tags:
     - humanize

@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REF = ROOT / "references"
-cat = json.loads((REF / "catalog.json").read_text())
+cat = json.loads((REF / "catalog.json").read_text(encoding="utf-8"))
 items, sources = cat["items"], cat["sources"]
 
 PROSE_GENERIC = {"prose"}
@@ -66,12 +66,12 @@ for fname, g in GROUPS.items():
     doc = [f"# {g['title']}", "", g["intro"], "",
            f"_{len(picked)} items. Generated from catalog.json — edit there, then re-run scripts/regenerate_references.py._", ""]
     doc += [block(i) for i in picked]
-    (REF / fname).write_text("\n".join(doc))
+    (REF / fname).write_text("\n".join(doc), encoding="utf-8")
     print(f"{fname}: {len(picked)} items")
 
 src_doc = ["# Sources", "", "Published catalogs, stylometry research, and essays the catalog draws on.", ""]
 for s in sorted(sources, key=lambda s: s["title"].lower()):
     note = f" — {s['note']}" if s.get("note") else ""
     src_doc.append(f"- [{s['title']}]({s['url']}){note}")
-(REF / "sources.md").write_text("\n".join(src_doc) + "\n")
+(REF / "sources.md").write_text("\n".join(src_doc) + "\n", encoding="utf-8")
 print(f"sources.md: {len(sources)} sources")

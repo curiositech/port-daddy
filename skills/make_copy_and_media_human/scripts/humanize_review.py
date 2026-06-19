@@ -11,9 +11,9 @@ Stdlib only. Two detection layers:
      and merged into the report via --findings.
 
 Usage:
-  python3 humanize_review.py FILE [FILE...] --out report.html
-  python3 humanize_review.py FILE --findings findings.json --out report.html
-  python3 humanize_review.py --selftest
+  python3 scripts/humanize_review.py FILE [FILE...] --out report.html
+  python3 scripts/humanize_review.py FILE --findings findings.json --out report.html
+  python3 scripts/humanize_review.py --selftest
 
 Findings JSON (from the agent's judge pass):
   [{"file": "...", "line": 12, "excerpt": "...", "ism": "not-x-but-y",
@@ -24,11 +24,9 @@ Findings JSON (from the agent's judge pass):
 import argparse
 import html
 import json
-import math
 import re
 import statistics
 import sys
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -268,7 +266,7 @@ MARKUP_EXT = {".html", ".htm", ".css", ".jsx", ".tsx", ".vue", ".svelte", ".js",
 
 def analyze_file(path: Path):
     try:
-        text = path.read_text(errors="replace")
+        text = path.read_text(encoding="utf-8", errors="replace")
     except Exception as e:
         return [finding(path, 0, str(e), "unreadable", "low", "Could not read file.")]
     if path.suffix.lower() in MARKUP_EXT:
@@ -352,7 +350,7 @@ def render_report(findings, out_path: Path, title="Humanize review"):
 <footer>generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%MZ')} · structural layer is
 measurable signals only; phrase-level tropes come from the model judge pass.</footer>
 </body></html>"""
-    out_path.write_text(doc)
+    out_path.write_text(doc, encoding="utf-8")
     return out_path
 
 
@@ -385,7 +383,6 @@ def main():
 
     findings = []
     if args.selftest:
-        p = Path("/tmp-selftest.md")  # never written; analyzed from memory
         findings += analyze_prose(Path("selftest.md"), SELFTEST)
         ok = {f["ism"] for f in findings}
         need = {"emoji-as-structure", "unattributed-quote", "bold-label-colon-bullets", "arrow-chain"}
@@ -398,12 +395,12 @@ def main():
     for f in args.files:
         findings += analyze_file(Path(f))
     if args.findings:
-        ext = json.loads(Path(args.findings).read_text())
+        ext = json.loads(Path(args.findings).read_text(encoding="utf-8"))
         for f in ext:
             f.setdefault("layer", "judge")
         findings += ext
     if args.json:
-        Path(args.json).write_text(json.dumps(findings, indent=2))
+        Path(args.json).write_text(json.dumps(findings, indent=2), encoding="utf-8")
     out = render_report(findings, Path(args.out), title=args.title)
     print(f"wrote {out} ({len(findings)} findings)")
 

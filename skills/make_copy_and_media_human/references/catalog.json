@@ -496,7 +496,7 @@
     },
     {
       "name": "grok-forced-irreverence",
-      "dialect": "groq",
+      "dialect": "grok",
       "medium": "marketing-copy",
       "description": "Grok is prompt-tuned for an 'edgy/spicy' persona, producing try-hard irreverence: shoehorned snark, winking asides ('Buckle up, buttercup'), and contrarian 'I'm not like other AIs' posturing that doesn't fit the topic.",
       "detection": "llm-judge: 'Is a uniform edgy/snarky persona applied regardless of subject, with manufactured irreverence and unlike-other-AIs framing rather than wit specific to the topic?'",
