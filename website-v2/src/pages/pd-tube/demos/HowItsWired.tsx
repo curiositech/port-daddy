@@ -177,7 +177,7 @@ export function HowItsWired({
               it watches the trigger, dispatches the agent, and applies the backend +{' '}
               <code className="font-mono">fallbacks</code> order.
             </PanelBody>
-            <DocsCodeBlock code={fleetYaml} language="text" label="pd-fleet.yml" />
+            <DocsCodeBlock code={fleetYaml} language="yaml" label="pd-fleet.yml" />
           </div>
         </WiredRow>
 
