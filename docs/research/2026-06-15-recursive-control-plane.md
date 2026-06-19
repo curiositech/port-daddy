@@ -146,6 +146,20 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 ## Open research items (promote to the Ledger / roadmap)
 
+> **Source-audit correction (2026-06-19).** The RCP items below were grafted from
+> summary memos. A read-only audit of the two source repos as they actually stand
+> — `docs/research/grafts/2026-06-19-soma-windags-source-audit.md` — corrected
+> several maturity claims before they harden into roadmap commitments. In short:
+> soma's "sheaf" is a **graph Laplacian** (cohomology/restriction-maps **absent**,
+> not "the math is there" → RCP-8, RCP-5b are aspirational); windags' **Thompson**
+> trust signal was **rejected as a "category error"** and replaced by
+> attribution-kNN (re-attribute RCP-4a/6a); monster-barring (RCP-6b) and
+> io-contract runtime validation (RCP-13) are **design-only**; the coverage delta
+> (RCP-12) and the 34.78%→4.35% figure are **not benchmarked on the source repos**.
+> What *is* shipped and portable: soma's graph-diffusion + expected-free-energy
+> agent, and windags' retrieval cascade + economic eval gate + typed discourse bus.
+> See the audit for `path:line` and the port plan.
+
 - **RCP-1 — Convergence detector.** Semantic task-shape similarity for "another
   agent is doing a similar thing," without keyword matching. *(Hard; gates the
   parley. Both source repos match at task-PLAN time; neither detects RUNTIME
