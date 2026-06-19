@@ -55,6 +55,21 @@ export type DispatchState =
 
 export type MergePolicy = 'review' | 'auto' | 'never';
 
+/**
+ * The backends a dispatch may target. Widened (ADR-0060 fold-in) to the full
+ * cli-tube roster. Kept in sync with `DispatchBackend` in ./runner.ts, which is
+ * the canonical definition; queue.ts redeclares it here only because runner.ts
+ * imports from queue.ts (importing the other direction would cycle). The DB
+ * column is free-form `backend TEXT` (no CHECK constraint), so widening the
+ * type is purely a compile-time change.
+ */
+export type DispatchBackend =
+  | 'cli:claude-code'
+  | 'cli:codex'
+  | 'cli:gemini'
+  | 'cli:groq'
+  | 'cli:grok';
+
 /** States from which no further state changes are allowed. */
 export const DISPATCH_TERMINAL_STATES: DispatchState[] = [
   'settled',
@@ -82,7 +97,7 @@ export interface Dispatch {
   reviewerActorId: string | null;
   /** Branch the worktree was carved from. Default: 'main'. */
   baseBranch: string;
-  backend: 'cli:claude-code' | 'cli:codex' | null;
+  backend: DispatchBackend | null;
   budgetUsd: number | null;
   timeoutMs: number | null;
   worktreePath: string | null;
@@ -109,7 +124,7 @@ export interface Dispatch {
 export interface ProposeDispatchInput {
   goal: string;
   tags?: string[];
-  backend?: 'cli:claude-code' | 'cli:codex';
+  backend?: DispatchBackend;
   budgetUsd?: number;
   timeoutMs?: number;
   /** Default: 'main'. The branch the worktree is carved from. */
@@ -585,6 +600,41 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
      LIMIT 1`,
   );
 
+  // ── Crash-recovery statements ───────────────────────────────────────────────
+  // A dispatch left in `claimed` or `in_progress` when the daemon (or CLI
+  // foreground run) died is STRANDED: its worker no longer exists, so nothing
+  // will ever advance it. On daemon start we either re-queue it (back to
+  // `proposed` so the worker picks it up again — safe because the spawn-adapter
+  // re-uses or re-creates the worktree idempotently) or mark it `salvage` if it
+  // has exhausted its retry budget. The cutoff is age-based: a dispatch claimed
+  // within the last few seconds may belong to a worker that is still alive
+  // (concurrent daemon startup races), so recovery only touches rows older than
+  // a grace window.
+  const selectStrandedStmt = db.prepare<[number], DispatchRow>(
+    `SELECT * FROM dispatches
+     WHERE state IN ('claimed','in_progress')
+       AND COALESCE(started_at, claimed_at, created_at) <= ?
+     ORDER BY created_at ASC`,
+  );
+
+  const requeueStrandedStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = 'proposed',
+           worker_actor_id = NULL,
+           session_id = NULL,
+           started_at = NULL,
+           error_message = @note
+     WHERE id = @id AND state IN ('claimed','in_progress')
+  `);
+
+  const salvageStrandedStmt = db.prepare(`
+    UPDATE dispatches
+       SET state = 'salvage',
+           error_message = @note,
+           settled_at = @at
+     WHERE id = @id AND state IN ('claimed','in_progress')
+  `);
+
   function propose(input: ProposeDispatchInput): Dispatch {
     if (!input.goal || typeof input.goal !== 'string') {
       throw new Error('propose: goal text is required');
@@ -832,6 +882,70 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     return rowToDispatch(updated);
   }
 
+  /**
+   * Detect dispatches stranded in `claimed`/`in_progress` by a dead worker and
+   * resolve each one. Called on daemon start (and could be called periodically).
+   *
+   * Policy:
+   *   - A dispatch re-queued fewer than `maxRequeues` times is reset to
+   *     `proposed` (state machine's privileged "back to the front of the queue"
+   *     — the worker re-runs it; the spawn-adapter's worktree creation is
+   *     idempotent because gitWorktreeAdd re-uses an existing path).
+   *   - A dispatch that has already been re-queued `maxRequeues` times is marked
+   *     `salvage` (terminal) so it never loops forever; the operator sees it in
+   *     `pd dispatch list --state terminal` and can re-propose it.
+   *
+   * `olderThanMs` is a grace window: rows whose most-recent transition is within
+   * this window are skipped (their worker may still be alive — a concurrent
+   * daemon startup, or a worker that just claimed). Default 0 = recover all,
+   * which is correct on a cold daemon start because no worker can be alive yet.
+   *
+   * Returns a summary the caller can log.
+   */
+  function recoverStranded(opts: {
+    now?: number;
+    olderThanMs?: number;
+    maxRequeues?: number;
+  } = {}): { requeued: Dispatch[]; salvaged: Dispatch[] } {
+    const at = opts.now ?? now();
+    const olderThanMs = opts.olderThanMs ?? 0;
+    const maxRequeues = opts.maxRequeues ?? 3;
+    const cutoff = at - olderThanMs;
+    const stranded = selectStrandedStmt.all(cutoff);
+    const requeued: Dispatch[] = [];
+    const salvaged: Dispatch[] = [];
+    const txn = db.transaction(() => {
+      for (const row of stranded) {
+        // Count prior recovery markers embedded in the error_message trail.
+        const priorRequeues = countRecoveryMarkers(row.error_message);
+        if (priorRequeues >= maxRequeues) {
+          salvageStrandedStmt.run({
+            id: row.id,
+            note: appendRecoveryMarker(
+              row.error_message,
+              `salvage: stranded in '${row.state}' and exceeded ${maxRequeues} recovery attempts`,
+            ),
+            at,
+          });
+          const updated = selectByIdStmt.get(row.id);
+          if (updated) salvaged.push(rowToDispatch(updated));
+        } else {
+          requeueStrandedStmt.run({
+            id: row.id,
+            note: appendRecoveryMarker(
+              row.error_message,
+              `recovered: re-queued after being stranded in '${row.state}' (attempt ${priorRequeues + 1})`,
+            ),
+          });
+          const updated = selectByIdStmt.get(row.id);
+          if (updated) requeued.push(rowToDispatch(updated));
+        }
+      }
+    });
+    txn();
+    return { requeued, salvaged };
+  }
+
   return {
     propose,
     get,
@@ -845,7 +959,29 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     reject,
     settle,
     cancel,
+    recoverStranded,
   };
+}
+
+// ── Recovery marker helpers ────────────────────────────────────────────────────
+// We track recovery attempts inside error_message rather than adding a column,
+// so the migration surface stays zero. The marker is a machine-greppable tag.
+const RECOVERY_MARKER = '[pd-recovery]';
+
+export function countRecoveryMarkers(errorMessage: string | null): number {
+  if (!errorMessage) return 0;
+  let count = 0;
+  let idx = errorMessage.indexOf(RECOVERY_MARKER);
+  while (idx !== -1) {
+    count += 1;
+    idx = errorMessage.indexOf(RECOVERY_MARKER, idx + RECOVERY_MARKER.length);
+  }
+  return count;
+}
+
+export function appendRecoveryMarker(errorMessage: string | null, note: string): string {
+  const line = `${RECOVERY_MARKER} ${note}`;
+  return errorMessage ? `${errorMessage}\n${line}` : line;
 }
 
 export type DispatchQueue = ReturnType<typeof createDispatchQueue>;

@@ -127,6 +127,18 @@ export interface LaunchIntent {
   worktree?: WorktreePolicy;
   mergePolicy?: MergePolicy;
 
+  // dispatch passthrough (ADR-0060 fold-in) — carried through admission UNTOUCHED;
+  // these inform worktree minting and PR publishing but MUST NOT affect any
+  // gate/admission decision. A dispatch supplies the worktree it wants minted
+  // (path/branch/baseRef), the env to run under, and the tube channel to publish
+  // its exchange on. The Conductor's `mintWorktree`/`publishArtifact` hooks read
+  // these; admission never branches on them.
+  worktreePath?: string;
+  worktreeBranch?: string;
+  worktreeBaseRef?: string;
+  env?: Record<string, string>;
+  tubeChannel?: string;
+
   // execution context (passed through to the spawner spec) —
   workdir?: string;
   identity?: string;
@@ -211,7 +223,25 @@ export interface ConductorDeps {
    * workdir to run in. Injected; defaults to a no-op that reuses `workdir`
    * (Phase-1 behavior) — real worktree minting wires in via this hook.
    */
-  mintWorktree?: (launch: Launch, intent: LaunchIntent) => string | undefined;
+  mintWorktree?: (
+    launch: Launch,
+    intent: LaunchIntent,
+  ) => string | undefined | Promise<string | undefined>;
+  /**
+   * AFTER a successful run on the `mergePolicy:'review'` path, publish a
+   * reviewable artifact (e.g. push the dispatch branch and open a draft PR),
+   * returning its URL — stored as `resultArtifact`. Injected so the Conductor
+   * owns the dispatch's draft-PR step without importing git/gh directly. This is
+   * a PURE SIDE-EFFECT: it runs OUTSIDE the cost breaker and bonds, never flips a
+   * successful run to failed, and a throw is swallowed (resultArtifact stays
+   * null — the run is not lost). NOT called on `mergePolicy:'never'` (which
+   * settles immediately with no review artifact) nor on a failed run.
+   */
+  publishArtifact?: (
+    launch: Launch,
+    intent: LaunchIntent,
+    spawnResult: Awaited<ReturnType<ConductorSpawner['spawn']>>,
+  ) => Promise<string | null>;
   /**
    * Operator-set ceiling on the capabilities a ROOT launch may declare (I6 for
    * roots). A root's effective caps are intersected with this list. Empty/absent
@@ -369,6 +399,7 @@ export function createConductor(deps: ConductorDeps) {
   const breaker = deps.breaker ?? createFleetCircuitBreaker({ now });
   const isMainCheckout = deps.isMainCheckout ?? defaultIsMainCheckout;
   const mintWorktree = deps.mintWorktree ?? ((_l, intent) => intent.workdir);
+  const publishArtifact = deps.publishArtifact;
   const rootCapabilityCeiling = deps.rootCapabilityCeiling ?? null;
   const defaultLineageCeilingUsd = deps.defaultLineageCeilingUsd ?? null;
   const defaultBondUsd = deps.defaultBondUsd != null && deps.defaultBondUsd > 0 ? deps.defaultBondUsd : 0;
@@ -706,6 +737,11 @@ export function createConductor(deps: ConductorDeps) {
       spec.capabilities = caps;
     }
     if (intent.allowSharedCheckout != null) spec.allowSharedCheckout = intent.allowSharedCheckout;
+    // ADR-0060 dispatch passthrough: forward env + tube channel ONLY when present
+    // so the golden spec stays byte-identical for every non-dispatch caller (the
+    // sortie/orchestrator paths set neither). Additive-only.
+    if (intent.env != null) spec.env = intent.env;
+    if (intent.tubeChannel != null) spec.tubeChannel = intent.tubeChannel;
     return spec;
   }
 
@@ -755,7 +791,9 @@ export function createConductor(deps: ConductorDeps) {
     // opted in for a read-only observer).
     let workdir = intent.workdir;
     if (intent.worktree === 'create') {
-      workdir = mintWorktree(admitted, intent);
+      // mintWorktree may be async (real git worktree add). Await it so the
+      // NO_SPAWN_ON_MAIN check below sees the freshly-minted off-main workdir.
+      workdir = await mintWorktree(admitted, intent);
     }
     if (!intent.allowSharedCheckout && isMainCheckout(workdir)) {
       // Release the reservation; this admission will not spawn.
@@ -850,9 +888,39 @@ export function createConductor(deps: ConductorDeps) {
       settledAt: success ? null : now(),
     });
 
+    const effectiveMergePolicy = intent.mergePolicy ?? 'review';
+
     // A `mergePolicy:'never'` produced launch settles immediately (no review gate).
-    if (success && (intent.mergePolicy ?? 'review') === 'never') {
+    if (success && effectiveMergePolicy === 'never') {
       setState(admitted.id, 'settled', { settledAt: now() });
+    }
+
+    // ── Publish a reviewable artifact (ADR-0060 dispatch fold-in) ────────────────
+    // ONLY on the `review` path, ONLY on success, ONLY when a publisher is wired.
+    // Why review-only: a `never` launch produced no PR-able review gate (it has
+    // already settled above) and an `auto` launch is harbormaster's job, not the
+    // Conductor's; a `review` launch is exactly the dispatch case — push the
+    // branch and open a draft PR for the operator. This is a PURE SIDE-EFFECT,
+    // deliberately OUTSIDE the cost breaker and bonds: publishing a PR is not a
+    // spawn and must never accrue against the budget or trip the breaker. A throw
+    // here (push rejected, gh down) MUST NOT lose the launch nor flip a green run
+    // to failed — we record `resultArtifact: null` and keep the produced state.
+    if (success && effectiveMergePolicy === 'review' && publishArtifact) {
+      let artifactUrl: string | null = null;
+      try {
+        artifactUrl = await publishArtifact(get(admitted.id)!, intent, spawnResult);
+      } catch (err) {
+        // Note the failure on the launch row WITHOUT changing its (produced)
+        // state. The operator can still find the branch; the missing PR is
+        // surfaced as an error note, not a lost or failed launch.
+        const note = `artifact publish failed: ${err instanceof Error ? err.message : String(err)}`;
+        setState(admitted.id, get(admitted.id)!.state, { errorMessage: note, resultArtifact: null });
+        artifactUrl = null;
+      }
+      if (artifactUrl) {
+        // Keep the CURRENT state (produced); only attach the artifact URL.
+        setState(admitted.id, get(admitted.id)!.state, { resultArtifact: artifactUrl });
+      }
     }
 
     // If THIS outcome tripped the breaker, broadcast and (for budget) signal the

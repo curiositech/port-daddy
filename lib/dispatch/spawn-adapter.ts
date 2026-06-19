@@ -156,7 +156,7 @@ export async function gitWorktreeAdd(
  * `off` here scopes the bypass to THIS worktree only; the operator's main
  * checkout keeps its enforcing guard untouched.
  */
-function disableGuardInWorktree(worktreePath: string): void {
+export function disableGuardInWorktree(worktreePath: string): void {
   try {
     const dir = join(worktreePath, '.portdaddy');
     mkdirSync(dir, { recursive: true });
@@ -174,8 +174,37 @@ function disableGuardInWorktree(worktreePath: string): void {
   }
 }
 
-async function gitPushBranch(worktreePath: string, branch: string): Promise<void> {
+export async function gitPushBranch(worktreePath: string, branch: string): Promise<void> {
   await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch]);
+}
+
+/**
+ * Reap a dispatch worktree once the run reaches a terminal state. The branch is
+ * already pushed (or the run failed with nothing to keep), so the on-disk
+ * worktree is disposable. `git worktree remove --force` detaches it from the
+ * repo's worktree list AND deletes the directory; a follow-up `git worktree
+ * prune` cleans any dangling administrative entry. Best-effort: a reap failure
+ * must never flip a settled dispatch back to failed, so callers swallow errors.
+ *
+ * Honest scoping: we reap from the MAIN repo (process.cwd at daemon start),
+ * because `git worktree remove` must run from a checkout that knows about the
+ * worktree, not from inside the worktree being removed.
+ */
+export async function reapWorktree(worktreePath: string): Promise<void> {
+  if (!existsSync(worktreePath)) return;
+  try {
+    await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath]);
+  } catch {
+    // The worktree may have uncommitted state git refuses to remove, or it was
+    // created outside the current repo. Fall back to a raw rm + prune so the
+    // disk doesn't accumulate stranded dispatch dirs overnight.
+    try {
+      execFileSync('rm', ['-rf', worktreePath]);
+    } catch { /* give up — surfaced via logs, not a dispatch failure */ }
+  }
+  try {
+    await execFileAsync('git', ['worktree', 'prune']);
+  } catch { /* prune is housekeeping; non-fatal */ }
 }
 
 // ── gh pr create (draft) ─────────────────────────────────────────────────────
@@ -525,5 +554,17 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
 /**
  * The default adapter — uses real filesystem, git, and gh.
  * Import and pass to runNext() on the --really-run path in cli/commands/dispatch.ts.
+ *
+ * LEGACY / SUPERSEDED (ADR-0060 Conductor fold-in): the PRODUCTION dispatch path
+ * no longer uses this inline adapter. The daemon injects
+ * `createConductorSpawnAdapter(conductor)` (lib/dispatch/conductor-adapter.ts)
+ * into the DispatchWorker, so dispatch now spawns through the ONE Conductor
+ * primitive (`conductor.launch`) — bond-gated, ceiling-gated, depth-capped,
+ * halt-able, capability-scoped, and refused on a main checkout — and the
+ * Conductor owns worktree mint + cost pricing + draft-PR publish via its
+ * `mintWorktree`/`readCost`/`publishArtifact` hooks. This Coast-Guard-wrapped
+ * inline path is retained only for the standalone CLI foreground flow and as a
+ * fallback; its separate cost parser and worktree/PR orchestration are
+ * redundant with the Conductor and are not on the daemon's spawn path.
  */
 export const defaultSpawnAdapter: SpawnAdapter = createSpawnAdapter();
