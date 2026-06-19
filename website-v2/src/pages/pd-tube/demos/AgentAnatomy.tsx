@@ -19,13 +19,17 @@ import { cn } from '@/lib/utils'
  * backend and its fallbacks, the singleton guard, and — the question the demos
  * always provoke — the literal prompt block the model runs with.
  *
+ * The YAML is syntax-highlighted (keys / strings / numbers / comments) and every
+ * annotated line carries a hover card: pointing at it floats the field's note
+ * right beside the line, and cross-highlights the matching legend entry. The
+ * hover card is fixed-positioned off the hovered line's rect so it is never
+ * clipped by the code panel's scroll box.
+ *
  * Ground truth: /Users/erichowens/coding/port-daddy/pd-fleet.yml, the `gardener`
- * agent (verbatim, prompt included). Nothing here is invented; this is a real
- * shipping fleet agent.
+ * agent (verbatim, prompt included). Nothing here is invented.
  *
  * House style: cream/cobalt, indigo-black ink, flat 2px borders, zero radius,
- * >=14px text. The line<->note mapping is exposed to assistive tech via
- * aria-describedby so it is not a purely visual association.
+ * >=14px text. Line<->note mapping is exposed to AT via aria-describedby.
  */
 
 interface YamlLine {
@@ -154,10 +158,78 @@ const ANNOTATIONS: Annotation[] = [
   },
 ]
 
+const ANNOTATION_BY_REF = new Map(ANNOTATIONS.map((a) => [a.ref, a]))
+
+/* ── YAML syntax highlighting ──────────────────────────────────────────────
+ * A tiny, dependency-free highlighter tuned for this one fleet snippet: leading
+ * indent, an optional list dash, a key, a colon, then a value (quoted string,
+ * number, boolean, or a bare scalar). Colours come from house tokens so it
+ * tracks the theme. Comment and prompt-body lines are passed through dimmed by
+ * the caller, so this only ever sees structural YAML.
+ */
+const C = {
+  key: 'text-[var(--brand-primary)]',
+  punct: 'text-[var(--text-muted)]',
+  string: 'text-[var(--brand-secondary)]',
+  number: 'font-semibold text-[var(--text-primary)]',
+  bool: 'font-semibold text-[var(--text-primary)]',
+  scalar: 'text-[var(--text-primary)]',
+} as const
+
+function highlightValue(value: string, keyName: string): ReactNode {
+  const v = value.trim()
+  if (!v) return null
+  const lead = value.slice(0, value.length - value.trimStart().length)
+  let cls: string = C.scalar
+  if (/^["'].*["']$/.test(v)) cls = C.string
+  else if (/^-?\d+(\.\d+)?$/.test(v)) cls = C.number
+  else if (/^(true|false)$/.test(v)) cls = C.bool
+  // `prompt: |` — the block scalar indicator reads as punctuation, not a value.
+  if (keyName === 'prompt' && v === '|') cls = C.punct
+  return (
+    <>
+      {lead}
+      <span className={cls}>{v}</span>
+    </>
+  )
+}
+
+function highlightYaml(text: string): ReactNode {
+  // indent + optional "- " + key + ":" + value
+  const m = /^(\s*)(- )?([A-Za-z0-9_.]+)(:)(.*)$/.exec(text)
+  if (!m) return text || ' '
+  const [, indent, dash, key, colon, rest] = m
+  return (
+    <>
+      {indent}
+      {dash && <span className={C.punct}>{dash}</span>}
+      <span className={C.key}>{key}</span>
+      <span className={C.punct}>{colon}</span>
+      {highlightValue(rest, key)}
+    </>
+  )
+}
+
+interface HoverState {
+  ref: number
+  x: number
+  y: number
+}
+
 export function AgentAnatomy() {
-  const [activeRef, setActiveRef] = useState<number | null>(null)
+  const [hover, setHover] = useState<HoverState | null>(null)
+  const activeRef = hover?.ref ?? null
   const baseId = useId().replace(/:/g, '')
   const noteId = (ref: number) => `${baseId}-note-${ref}`
+
+  const onLineEnter = (ref: number, e: React.SyntheticEvent<HTMLElement>) => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    // Anchor the card to the line's left edge, just below it; clamp to viewport.
+    const x = Math.min(r.left, window.innerWidth - 360)
+    setHover({ ref, x: Math.max(12, x), y: r.bottom + 6 })
+  }
+
+  const hovered = hover ? ANNOTATION_BY_REF.get(hover.ref) : undefined
 
   return (
     <SurfacePanel className="space-y-[var(--space-6)]">
@@ -170,13 +242,13 @@ export function AgentAnatomy() {
           This is the <strong>Gardener</strong> — a real agent from Port Daddy&rsquo;s own{' '}
           <Mono>pd-fleet.yml</Mono>, shown verbatim, prompt and all. An agent is not a black box: it is
           a name, a trigger the daemon watches, a model backend, and a prompt you write. Hover or tap a
-          numbered line to see what it does.
+          numbered line for a card explaining it.
         </PanelBody>
       </div>
 
       <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_22rem]">
-        {/* The real YAML, with numbered call-outs. */}
-        <div className="overflow-x-auto border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+        {/* The real YAML, syntax-highlighted, with numbered hover-card call-outs. */}
+        <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
           <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)]">
             <span className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--text-secondary)]">
               pd-fleet.yml
@@ -185,51 +257,59 @@ export function AgentAnatomy() {
               real, unedited
             </span>
           </div>
-          <pre className="m-0 overflow-x-auto p-[var(--space-3)] font-mono text-[14px] leading-[1.7]">
-            {LINES.map((line, i) => {
-              const active = line.ref != null && line.ref === activeRef
-              return (
-                <div
-                  key={i}
-                  className={cn(
-                    'flex items-start gap-[var(--space-2)] px-[var(--space-1)]',
-                    line.ref != null && 'cursor-help',
-                    active && 'bg-[color-mix(in_srgb,var(--brand-primary)_16%,transparent)]',
-                  )}
-                  onMouseEnter={() => line.ref != null && setActiveRef(line.ref)}
-                  onMouseLeave={() => line.ref != null && setActiveRef(null)}
-                >
-                  <code
+          <div className="overflow-x-auto">
+            <pre className="m-0 p-[var(--space-3)] font-mono text-[14px] leading-[1.7]">
+              {LINES.map((line, i) => {
+                const active = line.ref != null && line.ref === activeRef
+                const interactive = line.ref != null
+                const body =
+                  line.kind === 'comment'
+                    ? <span className="italic text-[var(--text-muted)]">{line.text || ' '}</span>
+                    : line.kind === 'prompt'
+                      ? <span className="text-[var(--text-secondary)]">{line.text || ' '}</span>
+                      : highlightYaml(line.text)
+                return (
+                  <div
+                    key={i}
                     className={cn(
-                      'whitespace-pre',
-                      line.kind === 'comment' && 'text-[var(--text-muted)]',
-                      line.kind === 'prompt' && 'text-[var(--text-secondary)]',
-                      (line.kind === 'key' || !line.kind) && 'text-[var(--text-primary)]',
+                      'flex items-start gap-[var(--space-2)] rounded-[2px] px-[var(--space-1)]',
+                      interactive && 'cursor-help',
+                      active && 'bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)] ring-1 ring-[var(--brand-primary)]',
                     )}
-                    aria-describedby={line.ref != null ? noteId(line.ref) : undefined}
+                    tabIndex={interactive ? 0 : undefined}
+                    onMouseEnter={interactive ? (e) => onLineEnter(line.ref!, e) : undefined}
+                    onMouseLeave={interactive ? () => setHover(null) : undefined}
+                    onFocus={interactive ? (e) => onLineEnter(line.ref!, e) : undefined}
+                    onBlur={interactive ? () => setHover(null) : undefined}
                   >
-                    {line.text || ' '}
-                  </code>
-                  {line.ref != null && (
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'ml-auto inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full border px-[4px] text-[11px] font-bold leading-none',
-                        active
-                          ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-                          : 'border-[var(--border-default)] text-[var(--text-secondary)]',
-                      )}
+                    <code
+                      className="whitespace-pre"
+                      aria-describedby={line.ref != null ? noteId(line.ref) : undefined}
                     >
-                      {line.ref}
-                    </span>
-                  )}
-                </div>
-              )
-            })}
-          </pre>
+                      {body}
+                    </code>
+                    {line.ref != null && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'ml-auto inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full border px-[4px] text-[11px] font-bold leading-none',
+                          active
+                            ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                            : 'border-[var(--border-default)] text-[var(--text-secondary)]',
+                        )}
+                      >
+                        {line.ref}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </pre>
+          </div>
         </div>
 
-        {/* The legend — each field, what it does, and who acts on it. */}
+        {/* The legend — each field, what it does, and who acts on it. Always
+            present (scannable + accessible + no-JS); the hover card mirrors it. */}
         <ol className="m-0 list-none space-y-[var(--space-2)] p-0">
           {ANNOTATIONS.map((note) => {
             const active = note.ref === activeRef
@@ -237,8 +317,6 @@ export function AgentAnatomy() {
               <li
                 key={note.ref}
                 id={noteId(note.ref)}
-                onMouseEnter={() => setActiveRef(note.ref)}
-                onMouseLeave={() => setActiveRef(null)}
                 className={cn(
                   'border-2 p-[var(--space-3)] transition-colors',
                   active
@@ -247,17 +325,7 @@ export function AgentAnatomy() {
                 )}
               >
                 <div className="flex items-center gap-[var(--space-2)]">
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-full border px-[5px] text-[12px] font-bold leading-none',
-                      active
-                        ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
-                        : 'border-[var(--border-strong)] text-[var(--text-primary)]',
-                    )}
-                  >
-                    {note.ref}
-                  </span>
+                  <RefChip ref={note.ref} active={active} />
                   <Mono className="font-semibold">{note.field}</Mono>
                 </div>
                 <p className="mt-[var(--space-2)] font-sans text-[14px] leading-[1.55] text-[var(--text-secondary)]">
@@ -271,6 +339,28 @@ export function AgentAnatomy() {
           })}
         </ol>
       </div>
+
+      {/* The hover card — fixed off the hovered line's rect, so the code panel's
+          scroll box never clips it. Decorative duplicate of the legend entry
+          (which carries the AT semantics), so pointer-events-none + aria-hidden. */}
+      {hover && hovered && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed z-[60] w-[min(22rem,calc(100vw-1.5rem))] border-2 border-[var(--brand-primary)] bg-[var(--surface-base)] p-[var(--space-3)] shadow-[var(--shadow-md)]"
+          style={{ left: hover.x, top: hover.y }}
+        >
+          <div className="flex items-center gap-[var(--space-2)]">
+            <RefChip ref={hovered.ref} active />
+            <Mono className="font-semibold">{hovered.field}</Mono>
+          </div>
+          <p className="mt-[var(--space-2)] font-sans text-[14px] leading-[1.55] text-[var(--text-secondary)]">
+            {hovered.what}
+          </p>
+          <p className="mt-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+            {hovered.where}
+          </p>
+        </div>
+      )}
 
       <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-2)]">
         <PanelEyebrow>The short version</PanelEyebrow>
@@ -289,10 +379,24 @@ export function AgentAnatomy() {
   )
 }
 
-function Mono({ children, className }: { children: ReactNode; className?: string }) {
+function RefChip({ ref, active }: { ref: number; active: boolean }) {
   return (
-    <code className={cn('font-mono text-[var(--brand-primary)]', className)}>{children}</code>
+    <span
+      aria-hidden="true"
+      className={cn(
+        'inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-full border px-[5px] text-[12px] font-bold leading-none',
+        active
+          ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+          : 'border-[var(--border-strong)] text-[var(--text-primary)]',
+      )}
+    >
+      {ref}
+    </span>
   )
+}
+
+function Mono({ children, className }: { children: ReactNode; className?: string }) {
+  return <code className={cn('font-mono text-[var(--brand-primary)]', className)}>{children}</code>
 }
 
 function AnatomyDocLink({ to, children }: { to: string; children: ReactNode }) {
