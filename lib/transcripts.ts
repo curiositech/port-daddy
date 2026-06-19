@@ -78,6 +78,17 @@ export interface TranscriptEntry {
   identity?: string | null;
 }
 
+/**
+ * Durable retention sink for finalized transcripts (lib/transcript-archive.ts).
+ * Called fire-and-forget when a transcript reaches a terminal state, so the
+ * record survives even if the live DB is lost. MUST NOT throw — it reports its
+ * own failures loudly instead (a silent retention loss is what the directive
+ * forbids).
+ */
+export interface TranscriptArchiveSink {
+  archive(entry: TranscriptEntry): void;
+}
+
 export interface TranscriptFilter {
   ship?: string;
   pr?: number;
@@ -131,6 +142,8 @@ export interface TranscriptsModule {
   deleteTranscript(id: string): boolean;
   /** Rollup cost by ship + day. */
   costRollup(opts: { since: number; until?: number }): CostRollup;
+  /** Durably re-archive every transcript in the DB (retention backfill). Returns count. */
+  backfillArchive(): { archived: number };
   /** Subscribe to live transcript events (returns unsubscribe). */
   subscribe(listener: TranscriptListener): () => void;
   /** Emit an event to all subscribers (called internally; exposed for tests). */
@@ -168,6 +181,12 @@ export interface TranscriptsOptions {
   maxToolArgFieldBytes?: number;
   /** Max bytes for a single message content cell. Larger contents are truncated with marker. Default 256KB. */
   maxMessageContentBytes?: number;
+  /**
+   * Durable retention sink. When set, every finalized transcript is written to it
+   * (fire-and-forget) so the record survives loss of the live DB. The daemon wires
+   * the always-on JSONL archive (lib/transcript-archive.ts) here by default.
+   */
+  archiveSink?: TranscriptArchiveSink;
 }
 
 // =============================================================================
@@ -318,6 +337,21 @@ export function createTranscripts(
   const now = options.now ?? Date.now;
   const maxToolArgFieldBytes = options.maxToolArgFieldBytes ?? DEFAULT_TOOL_ARG_FIELD_BYTES;
   const maxMessageContentBytes = options.maxMessageContentBytes ?? DEFAULT_MESSAGE_CONTENT_BYTES;
+  const archiveSink = options.archiveSink;
+
+  /**
+   * Push a finalized transcript to the durable retention sink. Fire-and-forget:
+   * a sink failure must never block transcript recording or the spawn. The sink
+   * reports its own failures loudly (lib/transcript-archive.ts).
+   */
+  function archiveFinalized(entry: TranscriptEntry | null): void {
+    if (!entry || !archiveSink) return;
+    try {
+      archiveSink.archive(entry);
+    } catch {
+      // The sink owns loud failure reporting; never propagate.
+    }
+  }
 
   for (const stmt of SCHEMA_STATEMENTS) {
     db.prepare(stmt).run();
@@ -561,6 +595,7 @@ export function createTranscripts(
     );
     const refreshed = getTranscript(id);
     if (refreshed) emit({ type: 'end', entry: refreshed });
+    archiveFinalized(refreshed);
   }
 
   function recordTranscript(entry: TranscriptEntry): void {
@@ -592,6 +627,7 @@ export function createTranscripts(
     }
     const refreshed = getTranscript(entry.id);
     if (refreshed) emit({ type: 'end', entry: refreshed });
+    archiveFinalized(refreshed);
   }
 
   function getTranscript(id: string): TranscriptEntry | null {
@@ -707,6 +743,21 @@ export function createTranscripts(
     }
   }
 
+  /**
+   * Retention backfill: push every transcript currently in the DB to the archive
+   * sink, so durable retention covers history, not just runs since the sink was
+   * enabled ("log ALL transcripts"). No-op without a sink. Returns the count.
+   */
+  function backfillArchive(): { archived: number } {
+    if (!archiveSink) return { archived: 0 };
+    let archived = 0;
+    for (const header of listTranscripts({})) {
+      archiveFinalized(getTranscript(header.id) ?? header);
+      archived += 1;
+    }
+    return { archived };
+  }
+
   return {
     start,
     appendMessage,
@@ -719,6 +770,7 @@ export function createTranscripts(
     costRollup,
     subscribe,
     emit,
+    backfillArchive,
   };
 }
 

@@ -56,6 +56,7 @@ import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
 import { createTranscripts } from './lib/transcripts.js';
+import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
@@ -533,7 +534,15 @@ const contextTracker = createContextWindowTracker(db);
 // (critically) makes every spawn record its full conversation. The spawner is
 // constructed with enforceTranscriptPolicy:true, so wiring this is mandatory:
 // without it createSpawner throws rather than run agents whose work vanishes.
-const transcripts = createTranscripts(db);
+//
+// archiveSink: every finalized transcript is ALSO written, in full, to an
+// always-on append-only JSONL archive OUTSIDE the live DB (~/.port-daddy/
+// transcripts/), so the record survives DB loss/corruption/reset. This is the
+// retention floor (ADR-0058); external warehouses plug in behind the same sink.
+// Opt out with PD_TRANSCRIPT_ARCHIVE=off (durability is on by default).
+const transcriptArchive =
+  process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
+const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   enforceTelemetryPolicy: true,

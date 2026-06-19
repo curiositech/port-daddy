@@ -2119,6 +2119,7 @@
         "POST /transcripts",
         "POST /transcripts/:id/messages",
         "POST /transcripts/:id/outputs",
+        "POST /transcripts/archive/backfill",
         "DELETE /transcripts/:id"
       ],
       "completions": [
