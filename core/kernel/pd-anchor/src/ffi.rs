@@ -120,6 +120,69 @@ pub unsafe extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize)
     result.unwrap_or_else(|_| respond(false, "internal error"))
 }
 
+// ─── Planner scheduler (ADR-0086) ────────────────────────────────────────────
+
+use crate::schedule::{schedule, ScheduleResult, SchedEdge, SchedNode};
+
+#[derive(Deserialize)]
+struct FfiScheduleRequest {
+    #[serde(default)]
+    nodes: Vec<SchedNode>,
+    #[serde(default)]
+    edges: Vec<SchedEdge>,
+}
+
+/// Serialize any value to a heap C string (caller frees with `pd_string_free`).
+/// Mirrors `respond`'s NUL/encoding safety so null is unreachable on encodable input.
+fn respond_value<T: Serialize>(v: &T) -> *mut c_char {
+    let body = serde_json::to_string(v)
+        .unwrap_or_else(|_| "{\"ok\":false,\"reason\":\"serialize error\"}".to_string());
+    CString::new(body)
+        .or_else(|_| CString::new("{\"ok\":false,\"reason\":\"response encoding error\"}"))
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+fn schedule_error(reason: impl Into<String>) -> ScheduleResult {
+    ScheduleResult {
+        ok: false,
+        reason: reason.into(),
+        cyclic: false,
+        makespan: 0,
+        order: Vec::new(),
+        nodes: Vec::new(),
+        critical_path: Vec::new(),
+    }
+}
+
+/// Schedule a dependency DAG (Critical Path Method). Input JSON:
+/// `{ nodes:[{id,estimate?}], edges:[{from,to}] }` (an edge means `from` finishes before `to`
+/// starts). Output JSON is the full `ScheduleResult` (ok/cyclic/makespan/order/nodes/criticalPath).
+/// Returns null only on catastrophic allocation failure; every other path returns a JSON result
+/// (fail closed — malformed input yields `ok:false`).
+/// # Safety
+/// `req` must be null or a valid pointer to `len` readable bytes (the C-ABI contract koffi
+/// upholds). The guards below enforce the rest; the body never panics across the boundary.
+#[no_mangle]
+pub unsafe extern "C" fn pd_schedule_dag_json(req: *const c_char, len: usize) -> *mut c_char {
+    let result = catch_unwind(|| {
+        if req.is_null() || len == 0 || len > MAX_REQUEST_BYTES {
+            return respond_value(&schedule_error("malformed request (null/empty/oversized)"));
+        }
+        let bytes = unsafe { std::slice::from_raw_parts(req as *const u8, len) };
+        let s = match std::str::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => return respond_value(&schedule_error("request is not valid UTF-8")),
+        };
+        let parsed: FfiScheduleRequest = match serde_json::from_str(s) {
+            Ok(p) => p,
+            Err(e) => return respond_value(&schedule_error(format!("request parse error: {e}"))),
+        };
+        respond_value(&schedule(&parsed.nodes, &parsed.edges))
+    });
+    result.unwrap_or_else(|_| respond_value(&schedule_error("internal error")))
+}
+
 /// Reclaim a string returned by this library. The caller MUST call this exactly
 /// once for every non-null pointer received.
 /// # Safety

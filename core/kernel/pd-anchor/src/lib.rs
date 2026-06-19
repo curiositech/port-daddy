@@ -7,6 +7,7 @@ use thiserror::Error;
 
 pub mod ffi;
 pub mod macaroon;
+pub mod schedule;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AnchorSubject {
