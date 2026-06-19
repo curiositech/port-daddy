@@ -25,24 +25,22 @@ type NavItem = {
 };
 
 const PRIMARY_NAV_ITEMS = [
+  { label: "Home", href: "/", end: true },
   { label: "Get started", href: "/docs/quickstart", end: true },
   { label: "Agents", href: "/agents", end: true },
-  { label: "pd tube", href: "/pd-tube", end: false },
-  { label: "Skills + MCP", href: "/mcp", end: true },
+  { label: "Tube Playground", href: "/pd-tube", end: false },
   { label: "Docs", href: "/docs", end: false },
+  { label: "Blog", href: "/blog", end: false },
   { label: "Manifesto", href: "/manifesto", end: true },
 ] satisfies readonly NavItem[];
 
 const OVERFLOW_NAV_ITEMS = [
-  { label: "Tube playground", href: "/pd-tube/playground", end: true },
   { label: "Mac app", href: "/mac-preview", end: false },
   { label: "Run agents on your subscription", href: "/cli-backend", end: true },
   { label: "Examples", href: "/examples", end: false },
   { label: "Tutorials", href: "/tutorials", end: false },
-  { label: "Templates", href: "/agents/templates", end: true },
   { label: "Library", href: "/library", end: false },
   { label: "Landscape", href: "/landscape", end: false },
-  { label: "Harbor Log", href: "/blog", end: false },
 ] satisfies readonly NavItem[];
 
 const NAV_ITEMS: readonly NavItem[] = [

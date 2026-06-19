@@ -44,6 +44,7 @@ import {
   SwissGridItem,
 } from '@/components/site/primitives'
 import { RoleTerm } from '@/components/site/RoleTerm'
+import { AgentAnatomy } from '@/components/agents/AgentAnatomy'
 import { useTheme } from '@/lib/theme-context'
 
 type ThemedImage = string | {
@@ -1791,6 +1792,11 @@ function AgentsOverview() {
         </PageContainer>
       </section>
       <ConceptStrip />
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
+        <PageContainer width="wide">
+          <AgentAnatomy />
+        </PageContainer>
+      </section>
       <AgentGrid />
       <PlatformActors />
       <OneOffs />
