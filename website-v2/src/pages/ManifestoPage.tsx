@@ -85,9 +85,16 @@ const DIAGRAMS_BEFORE_HEADING: Record<string, () => ReactElement> = {
   // The olog/functor idea is introduced just above; the figure + plain-language
   // gloss meet the reader before the honest caveat reins the claim back in.
   'The honest caveat is the entire load-bearing beam': () => <OlogFunctorFigure />,
+  // The operad/wiring-diagram figure grounds the abstract category theory back
+  // in Port Daddy's mechanics (the claim is load-bearing by type), then
   // Myerson–Satterthwaite (the impossibility wall) underwrites the market design
-  // the "bonded commons" section then builds on.
-  'The bonded commons is the missing market microstructure': () => <MathSection />,
+  // the "bonded commons" section builds on.
+  'The bonded commons is the missing market microstructure': () => (
+    <>
+      <OperadWiringFigure />
+      <MathSection />
+    </>
+  ),
   // The verifiable bond — collateral plus a receipt anyone can check — is what
   // lets the big claim be earned rather than asserted.
   'Earn the big claim': () => <BondReceiptFigure />,
@@ -377,6 +384,72 @@ function OlogFunctorFigure() {
               {para}
             </p>
           ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ManifestoMono({ children }: { children: ReactNode }) {
+  return <code className="font-mono text-[0.92em] text-[var(--brand-primary)]">{children}</code>
+}
+
+/**
+ * The operad / wiring-diagram figure: the 3 a.m. collision drawn as a typed task
+ * decomposition where `merge` structurally requires the Claim. This is the other
+ * half of Spivak's category theory the manifesto leans on — functors say *what*
+ * transports between domains; operads say *how* one domain's work composes — and
+ * it is the formalism that actually describes a harbor coordinating agents.
+ */
+function OperadWiringFigure() {
+  return (
+    <section aria-labelledby="operad-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+      <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+        <img
+          src="/img/generated/manifesto/operad-wiring.webp"
+          alt="A blueprint-style wiring diagram on cream graph paper. Boxes wired left to right: 'claim' takes a Task and emits a Claim; 'implement' takes a Task and the Claim and emits a Patch; the Patch forks to 'test' (emitting Tests) and 'review' (emitting Review) running in parallel; 'merge' takes Patch, Tests, Review and the Claim and emits a Merge. The Claim wire is drawn in red the whole way from claim to merge, annotated 'no Claim, no Merge'."
+          loading="lazy"
+          className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+        />
+        <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+          The 3 a.m. collision, drawn as types. Each box is an operation with typed inputs and one typed output;
+          <ManifestoMono>test</ManifestoMono> and <ManifestoMono>review</ManifestoMono> run in parallel; and
+          <ManifestoMono>merge</ManifestoMono> takes the Claim as an input — so single-writer safety is a fact of the
+          wiring, not a rule anyone is asked to follow.
+        </figcaption>
+      </figure>
+      <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
+        <SectionEyebrow>Operads, or how the harbor composes</SectionEyebrow>
+        <h2
+          id="operad-heading"
+          className="mt-[var(--space-3)] font-display text-[length:var(--text-xl)] font-black leading-tight text-[var(--text-primary)]"
+        >
+          Functors say what transports. Operads say how it composes.
+        </h2>
+        <div className="mt-[var(--space-3)] flex flex-col gap-[var(--space-3)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+          <p>
+            An <strong>operad</strong> is Spivak&rsquo;s other construction: the algebra of typed boxes wired together —
+            a thing decomposes into simpler things, and the decomposition itself composes. It is the exact formalism for
+            a harbor that coordinates many agents, where each box has typed input and output ports and you may only wire
+            ports whose types match.
+          </p>
+          <p>
+            Read the diagram as the opening collision, made honest. <ManifestoMono>claim</ManifestoMono> hands out a
+            single-writer <ManifestoMono>Claim</ManifestoMono>; <ManifestoMono>implement</ManifestoMono> turns a{' '}
+            <ManifestoMono>Task</ManifestoMono> and that <ManifestoMono>Claim</ManifestoMono> into a{' '}
+            <ManifestoMono>Patch</ManifestoMono>; <ManifestoMono>test</ManifestoMono> and{' '}
+            <ManifestoMono>review</ManifestoMono> run in parallel on it; <ManifestoMono>merge</ManifestoMono> combines the{' '}
+            <ManifestoMono>Patch</ManifestoMono>, the <ManifestoMono>Tests</ManifestoMono>, the{' '}
+            <ManifestoMono>Review</ManifestoMono> — and the <ManifestoMono>Claim</ManifestoMono> — into a committed{' '}
+            <ManifestoMono>Merge</ManifestoMono>.
+          </p>
+          <p>
+            The whole argument is the red wire. <ManifestoMono>merge</ManifestoMono>&rsquo;s type signature{' '}
+            <em>requires</em> a <ManifestoMono>Claim</ManifestoMono>, so there is no way to produce a{' '}
+            <ManifestoMono>Merge</ManifestoMono> without having held the claim. The single-writer guarantee stops being a
+            rule an agent is asked to obey and becomes a fact of the wiring — type-checkable before any agent runs. That
+            is &ldquo;institutions, not cleverness,&rdquo; made literal.
+          </p>
         </div>
       </div>
     </section>
