@@ -1012,6 +1012,132 @@ async function fleetUnpanic(options: CLIOptions): Promise<void> {
   ui.success(`Fleet PANIC disarmed — reason: ${reason}`);
 }
 
+// ─── fleet conductor control: halt / pause / resume / inspect / tree ─────────
+// Operator control surface for the Daemon Fleet Conductor (ADR-0060). Each verb
+// calls the conductor methods that already exist in the daemon:
+//   halt   → POST /fleet/halt    (total: SIGTERM→SIGKILL the scope, refund bonds)
+//   pause  → POST /fleet/pause   (soft: stop admitting, leave running agents)
+//   resume → POST /fleet/resume  (reopen a halted/paused scope)
+//   inspect/tree → GET /fleet/tree/:rootId (render the lineage tree)
+// A bare verb targets the WHOLE fleet (global scope); `--root <id>` (or a
+// positional rootId) targets one lineage subtree.
+
+interface ConductorScopeResult {
+  success?: boolean;
+  scope?: string;
+  halted?: string[];
+  count?: number;
+  paused?: boolean;
+  resumed?: boolean;
+  error?: string;
+}
+
+interface ConductorTreeResult {
+  success?: boolean;
+  rootId?: string;
+  count?: number;
+  tree?: Array<{
+    id: string;
+    parentId: string;
+    depth: number;
+    state: string;
+    goal: string;
+    source: string;
+    bondUsd: number | null;
+    lineageCeilingUsd: number | null;
+    costUsd: number | null;
+    agentId: string | null;
+  }>;
+  error?: string;
+}
+
+function resolveScopeRootId(options: CLIOptions, positional?: string): string | undefined {
+  if (typeof options.root === 'string' && options.root.trim()) return options.root.trim();
+  if (positional && positional.trim()) return positional.trim();
+  return undefined;
+}
+
+async function fleetHalt(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  const scopeLabel = rootId ? `lineage ${rootId}` : 'the ENTIRE fleet (global)';
+  // Halt is destructive (it SIGKILLs running agents) → confirm unless --yes.
+  const confirmed = await requireConfirmation({
+    summary: `Fleet halt will SIGTERM→SIGKILL every running launch in ${scopeLabel} and refund (never slash) their bonds.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!confirmed) {
+    ui.warn('Cancelled.');
+    process.exit(DESTRUCTIVE_EXIT_CODE);
+  }
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/halt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rootId ? { rootId } : {}),
+  });
+  const data = (await res.json()) as ConductorScopeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log(`halted ${data.count ?? 0}`); return; }
+  ui.success(`Fleet HALT (${data.scope ?? (rootId ?? 'global')}) — ${data.count ?? 0} launch(es) halted, bonds refunded.`);
+}
+
+async function fleetPauseConductor(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/pause`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rootId ? { rootId } : {}),
+  });
+  const data = (await res.json()) as ConductorScopeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('paused'); return; }
+  ui.success(`Fleet PAUSE (${data.scope ?? (rootId ?? 'global')}) — admission stopped; running agents left alive.`);
+}
+
+async function fleetResume(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/resume`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rootId ? { rootId } : {}),
+  });
+  const data = (await res.json()) as ConductorScopeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('resumed'); return; }
+  ui.success(`Fleet RESUME (${data.scope ?? (rootId ?? 'global')}) — admission reopened.`);
+}
+
+async function fleetInspect(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  if (!rootId) {
+    ui.error('Usage: pd fleet inspect <rootId>   (or: pd fleet tree <rootId>)');
+    process.exit(1);
+  }
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/tree/${encodeURIComponent(rootId)}`);
+  const data = (await res.json()) as ConductorTreeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  const nodes = data.tree ?? [];
+  if (nodes.length === 0) {
+    ui.warn(`No launches found for root ${rootId}.`);
+    return;
+  }
+  // Render the lineage as an indented tree (depth-based indentation).
+  console.log('');
+  ui.info(`Fleet lineage — root ${rootId} (${nodes.length} launch${nodes.length === 1 ? '' : 'es'})`);
+  console.log('');
+  for (const n of nodes) {
+    const indent = '  '.repeat(Math.max(0, n.depth));
+    const cost = n.costUsd != null ? `$${n.costUsd.toFixed(4)}` : (n.bondUsd != null ? `~$${n.bondUsd.toFixed(4)}` : '$—');
+    const ceiling = n.lineageCeilingUsd != null ? `cap $${n.lineageCeilingUsd}` : 'cap ∞';
+    console.log(`${indent}• [${n.state}] ${n.source}  d${n.depth}  ${cost}  ${ceiling}`);
+    console.log(`${indent}  ${n.goal.slice(0, 80)}${n.agentId ? `  (agent ${n.agentId})` : ''}`);
+  }
+  console.log('');
+}
+
 // ─── fleet prompt ───────────────────────────────────────────────────────────
 
 async function fleetPrompt(): Promise<void> {
@@ -1128,6 +1254,23 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetUnpanic(_options as CLIOptions);
       break;
 
+    case 'halt':
+      await fleetHalt(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'pause':
+      await fleetPauseConductor(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'resume':
+      await fleetResume(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'inspect':
+    case 'tree':
+      await fleetInspect(_options as CLIOptions, positional[1]);
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -1144,6 +1287,12 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('  status          Show fleet health');
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('  models          Show backend model ladders and readiness');
+      console.log('');
+      console.log('Conductor control (ADR-0060 — operate the live fleet):');
+      console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');
+      console.log('  pause [rootId]  Soft stop: stop admitting; leave running agents alive');
+      console.log('  resume [rootId] Reopen a halted/paused scope');
+      console.log('  inspect <rootId> | tree <rootId>   Render a lineage tree');
       console.log('');
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);

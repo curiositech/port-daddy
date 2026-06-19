@@ -1210,7 +1210,11 @@
         "POST /fleet/config/:project/budget",
         "POST /fleet/config/:project/runtime",
         "GET /fleet/models",
-        "POST /fleet/backend-secrets"
+        "POST /fleet/backend-secrets",
+        "POST /fleet/halt",
+        "POST /fleet/pause",
+        "POST /fleet/resume",
+        "GET /fleet/tree/:param"
       ],
       "completions": [
         "fleet"
