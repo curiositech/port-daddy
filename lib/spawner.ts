@@ -32,7 +32,7 @@ import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
-import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
+import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
 import { coastGuardStatus } from './coast-guard.js';
@@ -149,6 +149,14 @@ export interface SpawnSpec {
    * default interactive gating). Ignored by backends that don't support it.
    */
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+   * Optional stable tube channel the cli-tube backend publishes the agent
+   * exchange on, so an operator can watch the run live (`pd tube <channel>`).
+   * Dispatch sets this to `dispatch:<id>` (ADR-0060) so a folded dispatch keeps
+   * the live observability the legacy inline adapter provided. When unset, the
+   * cli-tube backend falls back to its per-invocation `cli:<tool>:<uuid>`
+   * channel — same default sortie/orchestrator spawns have always used.
+   */
+  tubeChannel?: string;
 }
 
 export interface SpawnResult {
@@ -220,6 +228,16 @@ interface SpawnerDeps {
    *  fail-closed posture: untracked work is not allowed to look like success. */
   enforceTranscriptPolicy?: boolean;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
+  /**
+   * Optional tube client (the daemon's messaging layer). When wired, cli-tube
+   * spawns that carry a `spec.tubeChannel` publish their agent exchange on that
+   * channel so an operator can watch the run live (`pd tube <channel>`). This is
+   * the single seam that gives a folded dispatch back the live observability the
+   * legacy inline dispatch adapter provided (ADR-0060): the conductor stamps
+   * `dispatch:<id>` onto the spec, and this client is what actually publishes it.
+   * Absent → no publishing (the spawn still runs); same posture as before.
+   */
+  tubeClient?: TubeClientLike;
 }
 
 const ANSI_RESET = '\x1b[0m';
@@ -490,6 +508,14 @@ interface BackendRunContext {
    * a final answer leave it unwired.
    */
   onTranscriptDelta?: (msg: TranscriptMessage) => void;
+   * Tube client + stable channel for live observability. Threaded from
+   * `SpawnerDeps.tubeClient` + `spec.tubeChannel` into the cli-tube backend so a
+   * folded dispatch keeps `pd tube dispatch:<id>` working (ADR-0060). Both must
+   * be present for publishing to occur; otherwise the cli-tube backend uses its
+   * default per-invocation channel and (without a client) publishes nothing.
+   */
+  tubeClient?: TubeClientLike;
+  tubeChannel?: string;
 }
 
 interface CodexUsage {
@@ -671,6 +697,13 @@ async function runCliTube(
     onChild: context?.onChildProcess,
     onStreamLine,
     permissionMode: spec.permissionMode,
+    // Live observability (ADR-0060): publish the exchange on the operator-
+    // discoverable channel (dispatch:<id>) when both a channel and a tube client
+    // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
+    // its own `cli:<tool>:<uuid>` default — unchanged for sortie/orchestrator
+    // spawns. The publish is best-effort inside spawnViaCliTube and never blocks.
+    tube: context?.tubeChannel,
+    tubeClient: context?.tubeClient,
   });
 
   // Full-depth capture from the raw event stream. Both wrapped CLIs emit
@@ -1146,6 +1179,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     enforceTranscriptPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
+    tubeClient,
   } = deps;
 
   // ── Transcript helpers ──────────────────────────────────────────────────
@@ -1751,6 +1785,11 @@ export function createSpawner(deps: SpawnerDeps = {}) {
                 txDelta(transcriptId, msg);
               }
             : undefined,
+          // Live observability seam (ADR-0060): when the daemon wired a tube
+          // client and this spawn carries a stable channel (dispatch:<id>), the
+          // cli-tube backend publishes the exchange there for `pd tube`.
+          tubeClient,
+          tubeChannel: spec.tubeChannel,
         };
         // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
         // every spawn through the local CLI tube, regardless of yml config.

@@ -141,6 +141,112 @@ describe('DispatchWorker — autonomous drain', () => {
   });
 });
 
+/**
+ * ADR-0060 fold-in regression: the worktree reap must respect salvage semantics.
+ *
+ * When an operator HALTS a dispatch mid-flight, the Conductor PRESERVES the
+ * worktree + transcript and the conductor-adapter maps that to a terminal
+ * `salvage` state so the operator can recover the work. The worker's `finally`
+ * reap used to fire "regardless of outcome", which DESTROYED the very worktree
+ * the operator was meant to salvage. The fix: reap on `settled` (PR pushed —
+ * disposable) and `failed` (nothing recoverable per policy), but PRESERVE on
+ * `salvage`.
+ */
+describe('DispatchWorker — reap respects salvage (ADR-0060)', () => {
+  /** Adapter that drives the dispatch to a chosen terminal state WITHOUT calling
+   *  queue.settle itself, so runClaimedDispatch performs the settle exactly as
+   *  the live flow does. For `salvage` it mirrors a halted-mid-flight run: the
+   *  agent started, produced nothing reviewable, and the row lands in salvage. */
+  function terminalAdapter(state) {
+    return jest.fn(async ({ plan, queue: q }) => {
+      q.start(plan.dispatch.id);
+      if (state === 'settled') {
+        q.produce({ id: plan.dispatch.id, resultArtifact: 'https://example.com/pr/9' });
+        q.requestReview(plan.dispatch.id);
+        return { state: 'settled', resultArtifact: 'https://example.com/pr/9' };
+      }
+      // failed / salvage: no artifact; runClaimedDispatch settles to result.state.
+      return { state };
+    });
+  }
+
+  test('does NOT reap when the dispatch terminal state is salvage', async () => {
+    const d = queue.propose({ goal: 'halt me mid-flight' });
+    const reaper = jest.fn(async () => {});
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: terminalAdapter('salvage'),
+      reaper,
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    const reloaded = queue.get(d.id);
+    expect(reloaded.state).toBe('salvage');
+    // The worktree the operator is meant to salvage must survive.
+    expect(reaper).not.toHaveBeenCalled();
+    expect(worker.getStatus().inFlight).toBe(0);
+  });
+
+  test('DOES reap when the dispatch settles', async () => {
+    const d = queue.propose({ goal: 'ship a PR' });
+    const reaper = jest.fn(async () => {});
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: terminalAdapter('settled'),
+      reaper,
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(queue.get(d.id).state).toBe('settled');
+    // A settled dispatch pushed its PR — the worktree is disposable.
+    expect(reaper).toHaveBeenCalledTimes(1);
+    expect(worker.getStatus().inFlight).toBe(0);
+  });
+
+  test('DOES reap when the dispatch fails', async () => {
+    const d = queue.propose({ goal: 'this will fail' });
+    const reaper = jest.fn(async () => {});
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: terminalAdapter('failed'),
+      reaper,
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(queue.get(d.id).state).toBe('failed');
+    // A failed dispatch has nothing recoverable per existing policy — reap it.
+    expect(reaper).toHaveBeenCalledTimes(1);
+    expect(worker.getStatus().inFlight).toBe(0);
+  });
+
+  test('an adapter EXCEPTION still reaps (defensive failed path)', async () => {
+    const d = queue.propose({ goal: 'throws' });
+    const reaper = jest.fn(async () => {});
+    const worker = createDispatchWorker({
+      queue,
+      maxConcurrency: 1,
+      spawnAdapter: jest.fn(async () => { throw new Error('kaboom'); }),
+      reaper,
+    });
+
+    await worker.poll();
+    await new Promise((r) => setImmediate(r));
+
+    expect(queue.get(d.id).state).toBe('failed');
+    expect(reaper).toHaveBeenCalledTimes(1);
+    expect(worker.getStatus().inFlight).toBe(0);
+  });
+});
+
 describe('queue.recoverStranded — crash recovery', () => {
   test('re-queues a dispatch stranded in in_progress', () => {
     const d = queue.propose({ goal: 'stranded' });

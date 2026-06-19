@@ -260,6 +260,11 @@ export class DispatchWorker {
   private async runOne(claimed: Dispatch): Promise<void> {
     const idShort = claimed.id.slice(0, 8);
     const worktreePath = deriveWorktreePath(claimed.id);
+    // Terminal outcome of this dispatch. Hoisted so the `finally` reap guard can
+    // see it. A `salvage` outcome means an operator halted mid-flight and the
+    // Conductor PRESERVED the worktree + transcript on purpose — reaping it would
+    // destroy the very thing the operator is meant to salvage (ADR-0060).
+    let outcomeState: 'settled' | 'failed' | 'salvage' | null = null;
     try {
       this.logger.info('dispatch_worker_run_start', { id: idShort, goal: claimed.goal.slice(0, 80) });
       const { result } = await runClaimedDispatch(this.queue, claimed, {
@@ -270,6 +275,7 @@ export class DispatchWorker {
         tubeClient: this.tubeClient,
         costFn: this.costFn,
       });
+      outcomeState = result.state;
       if (result.state === 'settled') {
         this.totalSettled += 1;
       } else {
@@ -287,6 +293,7 @@ export class DispatchWorker {
       // claim somehow desynced (e.g. cancelled mid-run) we may land here. Settle
       // defensively so the row never strands in claimed/in_progress.
       this.totalFailed += 1;
+      outcomeState = 'failed';
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.logger.error('dispatch_worker_run_error', { id: idShort, error: errorMessage });
       try {
@@ -297,15 +304,29 @@ export class DispatchWorker {
       } catch { /* terminal already, or row gone */ }
     } finally {
       this.inFlight.delete(claimed.id);
-      // Reap the worktree regardless of outcome. Best-effort; never throws out.
+      // Reap on `settled` (PR pushed — worktree disposable) and `failed` (nothing
+      // recoverable per existing policy). PRESERVE on `salvage` so the operator can
+      // recover the halted dispatch's worktree + transcript (ADR-0060). Re-read the
+      // row state defensively in case the dispatch landed in `salvage` without the
+      // returned result reflecting it (belt-and-suspenders for the halt path).
+      let rowState: string | null = null;
       try {
-        await this.reaper(worktreePath);
-      } catch (err) {
-        this.logger.warn('dispatch_worker_reap_failed', {
-          id: idShort,
-          worktreePath,
-          error: err instanceof Error ? err.message : String(err),
-        });
+        rowState = this.queue.get(claimed.id)?.state ?? null;
+      } catch { /* row gone — treat as reapable */ }
+      const isSalvage = outcomeState === 'salvage' || rowState === 'salvage';
+      if (isSalvage) {
+        this.logger.info('dispatch_worker_reap_skipped_salvage', { id: idShort, worktreePath });
+      } else {
+        // Best-effort; never throws out.
+        try {
+          await this.reaper(worktreePath);
+        } catch (err) {
+          this.logger.warn('dispatch_worker_reap_failed', {
+            id: idShort,
+            worktreePath,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     }
   }

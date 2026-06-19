@@ -559,6 +559,25 @@ const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
+  // Live observability seam (ADR-0060): give the spawner the daemon's messaging
+  // layer as a tube client so cli-tube spawns that carry a stable channel (a
+  // folded dispatch stamps `dispatch:<id>`) publish their exchange there. This is
+  // what restores `pd tube dispatch:<id>` after the fold-in routed dispatch
+  // through conductor → spawner.spawn → runCliTube. Adapter shape: messaging's
+  // `publish` returns `{ success, id, error }`; the cli-tube TubeClientLike wants
+  // `{ ok, id?, error? }`, so we translate. Best-effort — never throws.
+  tubeClient: {
+    publish: async (channel, payload, opts) => {
+      try {
+        const r = messaging.publish(channel, payload, opts?.sender ? { sender: opts.sender } : {});
+        return r.success
+          ? { ok: true, id: r.id }
+          : { ok: false, error: r.error };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  },
 });
 spawnerRef = spawner;
 
@@ -672,8 +691,11 @@ if (FLEET_GLOBAL_CEILING_USD == null) {
 // `conductor.launch` primitive — bond-gated, ceiling-gated, depth-capped,
 // halt-able, capability-scoped, and refused on a main checkout — and the
 // Conductor owns the worktree mint + cost pricing + draft-PR publish via its
-// hooks above. The dispatch `tubeClient`/`costFn` are no longer threaded through
-// (the Conductor owns tube + cost), so they are omitted here.
+// hooks above. The dispatch `costFn` is no longer threaded through (the Conductor
+// prices the run), so it is omitted here. Live tube observability is preserved at
+// the SPAWNER layer: the conductor stamps `dispatch:<id>` onto the spawn spec
+// (intentToSpawnSpec) and the spawner — wired with `tubeClient: messaging` above —
+// publishes the cli-tube exchange there, so `pd tube dispatch:<id>` still works.
 const dispatchQueue = createDispatchQueue({ db });
 const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
 const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
