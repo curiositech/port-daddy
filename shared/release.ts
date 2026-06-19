@@ -21,8 +21,12 @@ export type ReleaseArtifactKind = 'daemon' | 'core' | 'fleetbar';
 export interface ReleaseArtifact {
   name: string;
   kind: ReleaseArtifactKind;
-  /** The existing build script that produces this artifact. */
-  build: { cmd: string; args: string[] };
+  /**
+   * The existing build script that produces this artifact. `env` pins variables
+   * the script reads so the produced filename can't drift from `output` (the
+   * fleetbar packager names its zip from an env-overridable arch template).
+   */
+  build: { cmd: string; args: string[]; env?: Record<string, string> };
   /** Where the build script writes the artifact (repo-relative). */
   output: string;
   /** Whether this artifact can be code-signed on this platform. */
@@ -44,12 +48,23 @@ export function planRelease(opts: {
   version: string;
   gitSha: string;
   platform: NodeJS.Platform;
+  /** CPU arch; defaults to the running process. Mapped to the `uname -m` form
+   *  that scripts/package-fleetbar.sh uses to name its zip (node `x64` → `x86_64`). */
+  arch?: string;
   tier?: BerthTier;
 }): ReleasePlan {
   const { version, gitSha, platform } = opts;
   const libExt = platform === 'darwin' ? 'dylib' : 'so';
   const daemonBin = platform === 'win32' ? 'port-daddy-daemon.exe' : 'port-daddy-daemon';
   const outDir = `dist/release/${version}`;
+  // package-fleetbar.sh names its zip PortDaddy-FleetBar-macOS-${uname -m}.zip,
+  // overridable via PORT_DADDY_FLEETBAR_ZIP. Mirror that name here AND pin it via
+  // env on the build (below) so the planner's `output` and the script's actual
+  // output can never disagree — the earlier hardcoded `FleetBar.app.zip` did not
+  // match what the script writes, so the cut ENOENT'd hashing a nonexistent file.
+  const nodeArch = opts.arch ?? process.arch;
+  const unameArch = nodeArch === 'x64' ? 'x86_64' : nodeArch; // node arch → uname -m
+  const fleetbarZip = `PortDaddy-FleetBar-macOS-${unameArch}.zip`;
   return {
     version,
     gitSha,
@@ -72,11 +87,17 @@ export function planRelease(opts: {
         signable: platform === 'darwin',
       },
       {
-        // package-fleetbar.sh takes the output dir as $1 and writes FleetBar.app.zip there
-        name: 'FleetBar.app.zip',
+        // package-fleetbar.sh takes the output dir as $1 and writes
+        // PortDaddy-FleetBar-macOS-<arch>.zip there. PORT_DADDY_FLEETBAR_ZIP pins
+        // that name to exactly what we expect, so `output` is always right.
+        name: fleetbarZip,
         kind: 'fleetbar',
-        build: { cmd: 'bash', args: ['scripts/package-fleetbar.sh', outDir] },
-        output: `${outDir}/FleetBar.app.zip`,
+        build: {
+          cmd: 'bash',
+          args: ['scripts/package-fleetbar.sh', outDir],
+          env: { PORT_DADDY_FLEETBAR_ZIP: fleetbarZip },
+        },
+        output: `${outDir}/${fleetbarZip}`,
         signable: platform === 'darwin',
       },
     ],
@@ -154,8 +175,9 @@ export function signingPreflight(opts: {
 }
 
 export interface RunReleaseDeps {
-  /** Run a build script; MUST throw if the build fails. */
-  exec: (cmd: string, args: string[]) => void;
+  /** Run a build script; MUST throw if the build fails. `env` (when present) is
+   *  merged over the process env for that one build (pins the fleetbar zip name). */
+  exec: (cmd: string, args: string[], env?: Record<string, string>) => void;
   hashFile: (path: string) => { sha256: string; bytes: number };
   /** Copy `from` into the release outDir under `toName`; return the destination path. */
   collect: (from: string, toName: string) => string;
@@ -177,7 +199,7 @@ export function runRelease(plan: ReleasePlan, deps: RunReleaseDeps, opts: { sign
 
   for (const a of plan.artifacts) {
     deps.log(`▸ ${a.kind}: ${a.build.cmd} ${a.build.args.join(' ')}`);
-    deps.exec(a.build.cmd, a.build.args);
+    deps.exec(a.build.cmd, a.build.args, a.build.env);
     // fleetbar already writes into outDir; the others are collected in from their build dir
     const dest = a.kind === 'fleetbar' ? a.output : deps.collect(a.output, a.name);
 

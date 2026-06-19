@@ -14,6 +14,24 @@ describe('planRelease', () => {
     expect(plan.artifacts.find((a) => a.kind === 'fleetbar').build.args).toContain('dist/release/4.0.0');
   });
 
+  // Regression: package-fleetbar.sh writes PortDaddy-FleetBar-macOS-<arch>.zip,
+  // NOT "FleetBar.app.zip". The earlier hardcoded name made a real cut ENOENT
+  // when runRelease tried to hash a file the script never produced. The artifact
+  // `output` must equal what the script writes, and the build must pin the name.
+  test('fleetbar artifact name/output match the package script output (arch-aware, env-pinned)', () => {
+    const arm = planRelease({ version: '4.0.0', gitSha: 'abc', platform: 'darwin', arch: 'arm64' });
+    const fb = arm.artifacts.find((a) => a.kind === 'fleetbar');
+    expect(fb.name).toBe('PortDaddy-FleetBar-macOS-arm64.zip');
+    // output is exactly outDir/name — the thing runRelease will hashFile().
+    expect(fb.output).toBe('dist/release/4.0.0/PortDaddy-FleetBar-macOS-arm64.zip');
+    // the build pins the script's zip name so the two can never drift.
+    expect(fb.build.env).toEqual({ PORT_DADDY_FLEETBAR_ZIP: 'PortDaddy-FleetBar-macOS-arm64.zip' });
+
+    // node `x64` maps to `uname -m` `x86_64`, matching the shell script.
+    const intel = planRelease({ version: '4.0.0', gitSha: 'abc', platform: 'darwin', arch: 'x64' });
+    expect(intel.artifacts.find((a) => a.kind === 'fleetbar').name).toBe('PortDaddy-FleetBar-macOS-x86_64.zip');
+  });
+
   test('linux uses .so and marks nothing signable (no codesign)', () => {
     const plan = planRelease({ version: '4.0.0', gitSha: 'abc', platform: 'linux' });
     expect(plan.artifacts.find((a) => a.kind === 'core').output.endsWith('.so')).toBe(true);
