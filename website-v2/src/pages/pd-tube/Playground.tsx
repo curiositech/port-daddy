@@ -31,6 +31,7 @@ import {
   type ThreadEntry,
   type TubePhase,
 } from '@/components/tube/TubeWire'
+import { RedToGreen } from './demos/RedToGreen'
 
 /**
  * The pd tube playground — every trigger, one agent.
@@ -174,6 +175,22 @@ export function Playground() {
             />
             <div className="mt-[var(--space-6)]">
               <Switchboard />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* Demo #2 — Red-to-Green */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Demo 02 · Red-to-Green"
+              title="A test fails. An agent reads it and replies with a fix."
+              description="Run tests posts a captured failure — suite, failing assertion, stack snippet — to dev:test-failed. An agent listening there replies with a diagnosis and a suggested diff. When the reply lands, the status bar wipes from red to green."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-6)]">
+              <RedToGreen />
             </div>
           </PageContainer>
         </section>
