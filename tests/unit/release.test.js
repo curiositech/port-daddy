@@ -1,4 +1,4 @@
-import { planRelease, runRelease } from '../../shared/release.js';
+import { planRelease, runRelease, signingPreflight, SIGN_ENV } from '../../shared/release.js';
 
 describe('planRelease', () => {
   test('darwin cut contains daemon + core + fleetbar with their build scripts', () => {
@@ -75,5 +75,60 @@ describe('runRelease', () => {
     const { calls, d } = deps({ exec: () => { throw new Error('cargo build failed'); } });
     expect(() => runRelease(plan, d)).toThrow('cargo build failed');
     expect(calls.manifest).toBeNull();
+  });
+});
+
+describe('signingPreflight', () => {
+  const identity = 'Developer ID Application: Curiositech LLC (P5H9P59X2M)';
+
+  test('darwin with identity + notary profile is good to go (will notarize)', () => {
+    const pre = signingPreflight({
+      platform: 'darwin',
+      env: { [SIGN_ENV.identity]: identity, [SIGN_ENV.notaryProfile]: 'pd-notary' },
+    });
+    expect(pre.ok).toBe(true);
+    expect(pre.willNotarize).toBe(true);
+    expect(pre.reason).toBeUndefined();
+  });
+
+  test('darwin with identity + SKIP_NOTARIZE=1 signs without a notary profile', () => {
+    const pre = signingPreflight({
+      platform: 'darwin',
+      env: { [SIGN_ENV.identity]: identity, [SIGN_ENV.skipNotarize]: '1' },
+    });
+    expect(pre.ok).toBe(true);
+    expect(pre.willNotarize).toBe(false);
+  });
+
+  test('missing identity fails fast', () => {
+    const pre = signingPreflight({ platform: 'darwin', env: {} });
+    expect(pre.ok).toBe(false);
+    expect(pre.reason).toContain(SIGN_ENV.identity);
+  });
+
+  test('identity present but notary profile missing (and not skipping) fails fast', () => {
+    const pre = signingPreflight({ platform: 'darwin', env: { [SIGN_ENV.identity]: identity } });
+    expect(pre.ok).toBe(false);
+    expect(pre.reason).toContain(SIGN_ENV.notaryProfile);
+    // The reason should also point at the SKIP_NOTARIZE escape hatch.
+    expect(pre.reason).toContain(SIGN_ENV.skipNotarize);
+  });
+
+  test('non-darwin can never sign, even with creds set', () => {
+    const pre = signingPreflight({
+      platform: 'linux',
+      env: { [SIGN_ENV.identity]: identity, [SIGN_ENV.notaryProfile]: 'pd-notary' },
+    });
+    expect(pre.ok).toBe(false);
+    expect(pre.reason).toContain('darwin');
+  });
+
+  test('whitespace-only identity is treated as unset', () => {
+    const pre = signingPreflight({
+      platform: 'darwin',
+      env: { [SIGN_ENV.identity]: '   ', [SIGN_ENV.notaryProfile]: 'pd-notary' },
+    });
+    expect(pre.ok).toBe(false);
+    expect(pre.reason).toContain(SIGN_ENV.identity);
   });
 });

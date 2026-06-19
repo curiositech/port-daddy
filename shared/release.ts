@@ -103,6 +103,56 @@ export interface ReleaseManifest {
   artifacts: ReleaseManifestEntry[];
 }
 
+/**
+ * Env vars the signing recipe (ADR-0057, `scripts/sign-and-notarize.mjs`) reads.
+ * Named here so the cut's pre-flight and the script agree on one set of keys.
+ */
+export const SIGN_ENV = {
+  identity: 'PORT_DADDY_SIGN_IDENTITY',
+  notaryProfile: 'PORT_DADDY_NOTARY_PROFILE',
+  skipNotarize: 'PORT_DADDY_SKIP_NOTARIZE',
+} as const;
+
+export interface SigningPreflight {
+  ok: boolean;
+  /** Why a required cut can't be signed (only set when ok === false). */
+  reason?: string;
+  /** Whether notarization will run (false when PORT_DADDY_SKIP_NOTARIZE=1). */
+  willNotarize: boolean;
+}
+
+/**
+ * Decide, *before any heavy build*, whether a sign-required cut can actually be
+ * signed on this machine — so `pd cut --require-sign` fails fast instead of after
+ * a multi-minute build. Pure: reads an injected env + platform, touches nothing.
+ *
+ * A distributable cut needs:
+ *   - darwin (codesign/notarytool are macOS-only),
+ *   - PORT_DADDY_SIGN_IDENTITY (the Developer ID), and
+ *   - PORT_DADDY_NOTARY_PROFILE unless PORT_DADDY_SKIP_NOTARIZE=1 (local sign-only).
+ */
+export function signingPreflight(opts: {
+  platform: NodeJS.Platform;
+  env: NodeJS.ProcessEnv;
+}): SigningPreflight {
+  const { platform, env } = opts;
+  const skipNotarize = env[SIGN_ENV.skipNotarize] === '1';
+  if (platform !== 'darwin') {
+    return { ok: false, willNotarize: false, reason: `signing requires darwin (this is ${platform})` };
+  }
+  if (!env[SIGN_ENV.identity]?.trim()) {
+    return { ok: false, willNotarize: !skipNotarize, reason: `${SIGN_ENV.identity} is not set (the Developer ID codesign identity)` };
+  }
+  if (!skipNotarize && !env[SIGN_ENV.notaryProfile]?.trim()) {
+    return {
+      ok: false,
+      willNotarize: true,
+      reason: `${SIGN_ENV.notaryProfile} is not set (create with: xcrun notarytool store-credentials), or set ${SIGN_ENV.skipNotarize}=1 to sign without notarizing`,
+    };
+  }
+  return { ok: true, willNotarize: !skipNotarize };
+}
+
 export interface RunReleaseDeps {
   /** Run a build script; MUST throw if the build fails. */
   exec: (cmd: string, args: string[]) => void;
