@@ -201,7 +201,7 @@ true to *earn* the sentence instead of merely shouting it:
    not the solution and not the marketplace — it is the **verified functor**, and those
    are hard-won. *(The caveat, kept in the load-bearing position where it belongs.)*
 
-Get those three and the fantasy stops being a fantasy and starts being plumbing. Elliott
+Get those three and the fantasy stops being a fantasy and starts being plumbing. Elinor
 Ostrom spent a career showing that commons don't need a tyrant *or* a tragedy — they
 need rules, monitoring, and graduated stakes.[^ostrom] That is what we are building, for
 the strangest commons yet: the space of ideas, traded by machines, priced by how much

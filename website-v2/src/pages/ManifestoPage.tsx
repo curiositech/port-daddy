@@ -357,9 +357,10 @@ function OlogFunctorFigure() {
           className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
         />
         <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
-          The same move in the abstract: any olog — a diagram of labelled boxes and arrows — maps to another by a
-          functor that carries every arrow across. The harbor is just one instance; this is why the construction is
-          general, not a trick.
+          The same move in the abstract: an olog is a diagram of labelled boxes and arrows, and a functor between two
+          ologs carries every arrow across, not just the boxes — that is what makes the structure travel. The catch the
+          rest of this section insists on: a functor like this is exactly what is hard to find. Most analogies are leaky
+          spans wearing a functor&rsquo;s coat.
         </figcaption>
       </figure>
       <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
