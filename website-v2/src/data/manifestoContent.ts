@@ -82,11 +82,11 @@ export const harborEvolutionFigure = {
  */
 export const ologFunctorFigure = {
   src: '/img/generated/manifesto/functor-transport.webp',
-  alt: 'A folded protein on the left and a crystal lattice on the right, joined by threads of light that run from points on one structure to matching points on the other — a structure-preserving map carrying relationships across, not just objects.',
+  alt: 'A blueprint-style pen drawing on cream graph paper. On the left, a small panel labelled "one machine": a box "a claim" with two arrows leaving it — "is held by" to a box "an agent", and "is on" to a box "a file". A large arrow labelled "functor" fans that same shape across to a larger panel labelled "the harbor", which holds three copies (claim A, B, C, each held by an agent and on a file). One "is on" arrow is highlighted in red on both sides.',
   caption:
-    'A functor in one picture: the threads do not connect a protein to a crystal at random — they carry the relationships, so what holds on the left already holds on the right.',
+    'A functor in one picture: the same structure — a claim is held by an agent and sits on a file — transports from one machine to the whole harbor, and the arrows come too. What holds on the left already holds on the right.',
   explainer: [
-    'An olog — short for ontology log — is a labeled diagram of the concepts in some domain and the structure-preserving relationships between them. A protein, a supply chain, a legal argument: each one can be written as an olog, where the boxes are the ideas and the arrows are how they relate.',
+    'An olog — short for ontology log — is a labeled diagram of the concepts in some domain and the relationships between them, with one strict rule: every arrow is functional, mapping each source to exactly one target. "A claim is held by an agent" is an olog arrow (one agent per claim); "an agent holds claims" is not (many claims per agent) — you write the functional direction. The boxes are the ideas; the arrows are how they relate.',
     'A functor is a structure-preserving map from one olog to another. It does not merely pair up boxes; it carries the arrows — the relationships — so the shape of one domain lands intact inside the other. That is the difference between a loose metaphor and a transport you can check.',
     'That is why it matters here: Port Daddy moves a coordination structure faithfully across contexts — one machine, then many — the way a functor carries a domain across without dropping the relationships that made it work.',
   ],

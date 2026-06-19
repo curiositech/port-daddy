@@ -352,7 +352,7 @@ function OlogFunctorFigure() {
       <figure className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
         <img
           src="/img/generated/manifesto/olog-exchange.webp"
-          alt="A blueprint-style pen drawing on cream graph paper: two ontology diagrams (ologs) of labelled boxes and arrows, with a large arrow 'F — a functor' carrying each box and arrow on the left to a matching box and arrow on the right, one matched pair highlighted in red."
+          alt="A blueprint-style pen drawing on cream graph paper: two ologs of labelled boxes joined by a functor F. Left (olog A): a person is born in a city, a city is in a country, a person is a citizen of a country. Right (olog B): a class is declared in a file, a file lives in a package, a class belongs to a package. F maps person to class, city to file, country to package, and each arrow to its match; the 'is in' / 'lives in' pair is highlighted in red."
           loading="lazy"
           className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
         />
