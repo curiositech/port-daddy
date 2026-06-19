@@ -167,7 +167,8 @@ fn main() {
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane
-        let (tx, rx) = mpsc::channel::<Vec<(usize, Vec<pane::Block>)>>();
+        let (tx, rx) =
+            mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -227,6 +228,16 @@ fn main() {
                             // Send a turn to the cartographer over its tube channel.
                             app::ControlMsg::Cartographer { text } => {
                                 let _ = client.tube_send("cartographer", &text, "operator").await;
+                            }
+                            // Operator review-gate verdicts on a dispatch.
+                            app::ControlMsg::DispatchAccept { id } => {
+                                let _ = client.dispatch_action(&id, "accept", None).await;
+                            }
+                            app::ControlMsg::DispatchReject { id, reason } => {
+                                let _ = client.dispatch_action(&id, "reject", Some(&reason)).await;
+                            }
+                            app::ControlMsg::DispatchCancel { id } => {
+                                let _ = client.dispatch_action(&id, "cancel", Some("operator cancelled")).await;
                             }
                         }
                     }
@@ -292,7 +303,7 @@ fn main() {
                         (16, lane.view()),
                     ];
 
-                    if tx.send(all).is_err() {
+                    if tx.send((all, dispatch.head())).is_err() {
                         break; // window closed
                     }
                 }
@@ -306,10 +317,10 @@ fn main() {
             .spawn(async move {
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok(pane_updates) = rx.try_recv() {
+                    while let Ok((panes, dispatch_head)) = rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.update_panes(pane_updates.clone());
+                                view.update_panes(panes.clone(), dispatch_head.clone());
                                 cx.notify();
                             });
                         });

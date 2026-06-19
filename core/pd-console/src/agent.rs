@@ -372,6 +372,26 @@ impl DaemonClient {
         Ok(())
     }
 
+    /// Operator review gate on a dispatch: `POST /dispatches/:id/{accept|reject|cancel}`.
+    /// `accept` needs no body; `reject` REQUIRES a `reason` (>=3 chars, daemon-enforced);
+    /// `cancel` takes an optional reason. The single seat where the operator vetoes/lands
+    /// agent work (the supervisor-worker blocking gate).
+    pub async fn dispatch_action(&self, id: &str, action: &str, reason: Option<&str>) -> Result<()> {
+        let body = match reason {
+            Some(r) => serde_json::json!({ "reason": r }),
+            None => serde_json::json!({}),
+        };
+        let resp = self
+            .http
+            .post(format!("{}/dispatches/{id}/{action}", self.base))
+            .json(&body)
+            .send()
+            .await
+            .with_context(|| format!("POST /dispatches/{id}/{action}"))?;
+        ensure_success(resp, "dispatch_action").await?;
+        Ok(())
+    }
+
     /// Open the live SSE feed `GET /agents/:id/stream` and yield parsed
     /// `StreamEnvelope`s on an mpsc channel. Spawns a tokio task that owns the
     /// HTTP body stream; it runs until the daemon closes the stream, the agent

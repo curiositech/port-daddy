@@ -18,6 +18,7 @@
 use gpui::prelude::*;
 use gpui::*;
 
+use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
 use crate::palette::{Theme, ThemeMode};
@@ -36,6 +37,10 @@ pub enum ControlMsg {
     Spawn { backend: String, prompt: String },
     /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
     Cartographer { text: String },
+    /// Operator review-gate verdicts on the head dispatch.
+    DispatchAccept { id: String },
+    DispatchReject { id: String, reason: String },
+    DispatchCancel { id: String },
 }
 
 /// Which command line is open at the bottom of the console.
@@ -45,6 +50,9 @@ pub enum CmdKind {
     Spawn,
     /// Talk to the cartographer. Buffer is the message.
     Cartographer,
+    /// Reject the head dispatch with a reason (the human-gate "modify/why" path).
+    /// The target dispatch id is held in `ConsoleView::reject_target`.
+    DispatchReject,
 }
 
 impl CmdKind {
@@ -52,6 +60,7 @@ impl CmdKind {
         match self {
             CmdKind::Spawn => "spawn",
             CmdKind::Cartographer => "cartographer",
+            CmdKind::DispatchReject => "reject reason",
         }
     }
 }
@@ -340,6 +349,10 @@ pub struct ConsoleView {
     control_tx: Option<mpsc::Sender<ControlMsg>>,
     /// Transient confirmation shown after a control action ("interrupt sent").
     control_flash: Option<String>,
+    /// Head-of-queue dispatch the review gate acts on (from the background refresh).
+    dispatch_head: Option<DispatchHead>,
+    /// Dispatch id pending a reject reason (set when the operator opens the reject line).
+    reject_target: Option<String>,
 }
 
 impl ConsoleView {
@@ -377,6 +390,8 @@ impl ConsoleView {
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
+            dispatch_head: None,
+            reject_target: None,
         }
     }
 
@@ -535,7 +550,8 @@ impl ConsoleView {
     /// daemon client and performs the POST).
     fn submit_command(&mut self, cmd: CommandLine) {
         let text = cmd.buffer.trim().to_string();
-        if text.is_empty() {
+        // Reject may submit empty (falls back to a default reason); the others need text.
+        if text.is_empty() && cmd.kind != CmdKind::DispatchReject {
             return;
         }
         let Some(tx) = &self.control_tx else { return };
@@ -552,17 +568,30 @@ impl ConsoleView {
                 let _ = tx.send(ControlMsg::Cartographer { text });
                 self.control_flash = Some("sent to cartographer — watch the lane".into());
             }
+            CmdKind::DispatchReject => {
+                if let Some(id) = self.reject_target.take() {
+                    let reason = if text.len() >= 3 { text } else { "rejected via console".into() };
+                    let _ = tx.send(ControlMsg::DispatchReject { id, reason });
+                    self.control_flash = Some("dispatch rejected".into());
+                }
+            }
         }
     }
 
     /// Push fresh data for all panes from the background refresh loop.
-    /// Each entry is (nav_index, blocks_for_that_pane).
-    pub fn update_panes(&mut self, updates: Vec<(usize, Vec<Block>)>) {
+    /// Each entry is (nav_index, blocks_for_that_pane); `dispatch_head` is the
+    /// head-of-queue dispatch for the review gate (None when the queue is empty).
+    pub fn update_panes(
+        &mut self,
+        updates: Vec<(usize, Vec<Block>)>,
+        dispatch_head: Option<DispatchHead>,
+    ) {
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 *slot = blocks;
             }
         }
+        self.dispatch_head = dispatch_head;
     }
 
     /// Recursively render the pane tree. Splits become weighted flex
@@ -605,6 +634,10 @@ impl ConsoleView {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
+        // The dispatch surface (focused) gets the interactive review GATE.
+        let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
+        let dispatch_head = self.dispatch_head.clone();
+        let gate_flash = self.control_flash.clone();
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
         let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
         let control_flash = self.control_flash.clone();
@@ -741,8 +774,128 @@ impl ConsoleView {
                         }),
                 )
             })
+            // ── Dispatch review GATE (focused dispatch surface) — the operator's
+            //    supervisor-worker veto: shows the head dispatch's intent + cost
+            //    (stop-conditions) and Approve / Reject / Cancel. human-gate-designer:
+            //    context + cost, never binary-only (Reject opens a reason line). ──
+            .when(is_dispatch && is_focused, |content| {
+                let head = dispatch_head.clone();
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(8.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(match &head {
+                                    Some(h) => format!("⚑ Review gate · {} awaiting", h.count),
+                                    None => "Review gate · queue empty".to_string(),
+                                }),
+                        )
+                        .when_some(head.clone(), |c, h| {
+                            let goal: String = h.goal.chars().take(78).collect();
+                            let fmt = |o: Option<f64>| {
+                                o.map(|v| format!("${v:.2}")).unwrap_or_else(|| "—".into())
+                            };
+                            c.child(
+                                div()
+                                    .text_color(rgb(current_theme().ink2))
+                                    .text_size(px(14.0))
+                                    .child(format!("intent: {goal}")),
+                            )
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .font_family("IBM Plex Mono")
+                                    .child(format!(
+                                        "state {} · budget {} · spent {}",
+                                        h.state,
+                                        fmt(h.budget_usd),
+                                        fmt(h.cost_usd)
+                                    )),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .gap(px(8.0))
+                                    .child(dispatch_gate_btn(
+                                        "approve", "✓ Approve", current_theme().landed, h.id.clone(), cx,
+                                    ))
+                                    .child(dispatch_gate_btn(
+                                        "reject", "✗ Reject…", current_theme().gated, h.id.clone(), cx,
+                                    ))
+                                    .child(dispatch_gate_btn(
+                                        "cancel", "⊘ Cancel", current_theme().muted, h.id.clone(), cx,
+                                    )),
+                            )
+                        })
+                        .when_some(gate_flash, |c, flash| {
+                            c.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
             .into_any_element()
     }
+}
+
+/// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
+/// Reject opens a reason command line (the human-gate "why" path) targeting `id`.
+fn dispatch_gate_btn(
+    action: &'static str,
+    label: &'static str,
+    color: u32,
+    id: String,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    div()
+        .id(SharedString::from(format!("gate-{action}")))
+        .px(px(12.0))
+        .py(px(5.0))
+        .rounded(px(6.0))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(14.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            match action {
+                "approve" => {
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
+                    }
+                    this.control_flash = Some("dispatch approved → landing".into());
+                }
+                "cancel" => {
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
+                    }
+                    this.control_flash = Some("dispatch cancelled".into());
+                }
+                "reject" => {
+                    // Don't reject blind — open a reason line targeting this dispatch.
+                    this.reject_target = Some(id.clone());
+                    this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
+                }
+                _ => {}
+            }
+            cx.notify();
+        }))
 }
 
 /// Split a spawn command into `(backend, prompt)`. If the first whitespace

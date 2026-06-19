@@ -81,6 +81,20 @@ fn parse_dispatches(v: &serde_json::Value) -> (Vec<DispatchEntry>, u32) {
     (entries, count)
 }
 
+/// The head-of-queue dispatch the operator reviews next, surfaced to the GPUI
+/// view so it can render an interactive review gate (Approve / Reject / Cancel)
+/// with the agent's intention + stop-conditions legible (human-gate-designer).
+#[derive(Debug, Clone)]
+pub struct DispatchHead {
+    pub id: String,
+    pub goal: String,
+    pub state: String,
+    pub budget_usd: Option<f64>,
+    pub cost_usd: Option<f64>,
+    /// Total dispatches awaiting review (the queue depth behind this head).
+    pub count: u32,
+}
+
 /// Pane that shows the dispatch queue (sorties in `review_pending` state).
 pub struct DispatchQueuePane {
     /// Current snapshot from the daemon (empty until first refresh).
@@ -100,6 +114,18 @@ impl Default for DispatchQueuePane {
 impl DispatchQueuePane {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The oldest dispatch awaiting review — what the operator gate acts on next.
+    pub fn head(&self) -> Option<DispatchHead> {
+        self.dispatches.first().map(|d| DispatchHead {
+            id: d.id.clone(),
+            goal: d.goal.clone(),
+            state: d.state.clone(),
+            budget_usd: d.budget_usd,
+            cost_usd: d.cost_usd,
+            count: self.count,
+        })
     }
 }
 
