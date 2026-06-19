@@ -150,6 +150,7 @@ import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
+import { handleSelfUpdate } from '../cli/commands/self-update.js';
 import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
 import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
@@ -1303,7 +1304,7 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
@@ -2622,6 +2623,12 @@ export async function main(): Promise<void> {
 
       case 'ci-gate':
         await ciGateCheck();
+        break;
+
+      case 'self-update':
+        // ADR-0062: auto-freshness self-heal. The hourly com.portdaddy.freshness
+        // LaunchAgent runs `pd self-update --tick`; humans can run `pd self-update`.
+        await handleSelfUpdate({ tick: !!options.tick });
         break;
 
       case 'doctor':
