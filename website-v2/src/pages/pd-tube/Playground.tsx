@@ -36,6 +36,7 @@ import { EditorLightbulb } from './demos/EditorLightbulb'
 import { WarRoom } from './demos/WarRoom'
 import { HowItsWired } from './demos/HowItsWired'
 import { PlaygroundExplainer } from './demos/PlaygroundExplainer'
+import { AgentAnatomy } from './demos/AgentAnatomy'
 
 /**
  * The pd tube playground — every trigger, one agent.
@@ -224,6 +225,13 @@ export function Playground() {
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <PlaygroundExplainer />
+          </PageContainer>
+        </section>
+
+        {/* Anatomy of one real agent — the canonical "what IS an agent" dissection. */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <AgentAnatomy />
           </PageContainer>
         </section>
 
