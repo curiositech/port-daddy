@@ -18,8 +18,12 @@
 use gpui::prelude::*;
 use gpui::*;
 
+use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
+use crate::palette::{Theme, ThemeMode};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
+use std::time::Duration;
 
 /// Operator control messages sent from the GPUI view (button clicks) back to the
 /// background refresh thread, which owns the surfaces and performs the daemon
@@ -28,10 +32,49 @@ use std::sync::mpsc;
 pub enum ControlMsg {
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
+    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt.
+    Spawn { backend: String, prompt: String },
+    /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
+    Cartographer { text: String },
+}
+
+/// Which command line is open at the bottom of the console.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CmdKind {
+    /// Kick off a new job. Buffer is `[backend] <prompt>`.
+    Spawn,
+    /// Talk to the cartographer. Buffer is the message.
+    Cartographer,
+}
+
+impl CmdKind {
+    fn prompt(&self) -> &'static str {
+        match self {
+            CmdKind::Spawn => "spawn",
+            CmdKind::Cartographer => "cartographer",
+        }
+    }
+}
+
+/// An open command line: a prompt kind plus the text typed so far.
+#[derive(Debug, Clone)]
+pub struct CommandLine {
+    kind: CmdKind,
+    buffer: String,
+}
+
+/// One named tab — an independent pane tree, plus an optional zoomed (maximized)
+/// pane that fills the tab while set.
+#[derive(Debug, Clone)]
+struct Tab {
+    name: String,
+    workspace: Workspace,
+    zoomed: Option<PaneId>,
 }
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 
+#[allow(dead_code)] // label/icon retained for the title-bar + future surface picker
 struct NavItem {
     id: &'static str,
     label: &'static str,
@@ -60,30 +103,78 @@ const NAV: &[NavItem] = &[
     NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/sorties.svg",  key: "l" },
 ];
 
-// ── Palette — pre-computed from DARK OKLCH theme ──────────────────────────────
-// All values are sRGB u32 (0xRRGGBB), passed through rgb() at render time.
+// ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
+// One process-global mode (a single window), flipped by `Ctrl-A g`. `current_theme()`
+// is a captureless fn so it drops into every `rgb(...)` site — including hover/click
+// closures, which then re-read the live theme — with no borrow/lifetime threading.
+// 0 = light, 1 = dark (default = the shipped look).
+static THEME_MODE: AtomicU8 = AtomicU8::new(1);
 
-const C_BG:     u32 = 0x1a1917;
-const C_PANEL:  u32 = 0x1f1e1b;
-const C_RAISED: u32 = 0x252420;
-const C_INK:    u32 = 0xf2f0eb;
-const C_INK2:   u32 = 0xd4cfc7;
-const C_MUTED:  u32 = 0xa09a90;
-const C_ACCENT: u32 = 0xe3b56d; // amber
-const C_ENGAGED:u32 = 0x6b8fd4; // blue
-const C_GATED:  u32 = 0xd4736b; // warm red
-const C_LANDED: u32 = 0x6bd4a0; // green
-const C_BORDER: u32 = 0x2e2c28;
+fn current_theme() -> Theme {
+    let mode = if THEME_MODE.load(Ordering::Relaxed) == 0 {
+        ThemeMode::Light
+    } else {
+        ThemeMode::Dark
+    };
+    Theme::for_mode(mode)
+}
+
+/// Flip light ⇄ dark (the `Ctrl-A g` leader command). Re-skins on next `cx.notify()`.
+fn toggle_theme() {
+    let next = if THEME_MODE.load(Ordering::Relaxed) == 0 { 1 } else { 0 };
+    THEME_MODE.store(next, Ordering::Relaxed);
+}
+
+/// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
+/// Call once at startup before the window opens.
+pub fn init_theme_from_env() {
+    if let Ok(v) = std::env::var("PD_CONSOLE_THEME") {
+        if v.eq_ignore_ascii_case("light") {
+            THEME_MODE.store(0, Ordering::Relaxed);
+        } else if v.eq_ignore_ascii_case("dark") {
+            THEME_MODE.store(1, Ordering::Relaxed);
+        }
+    }
+}
 
 fn tone_rgb(tone: &Tone) -> u32 {
-    match tone {
-        Tone::Default    => C_INK2,
-        Tone::Accent     => C_ACCENT,
-        Tone::Engaged    => C_ENGAGED,
-        Tone::Gated      => C_GATED,
-        Tone::Resting    => C_MUTED,
-        Tone::Landed     => C_LANDED,
-        Tone::Conflicted => C_GATED,
+    current_theme().tone(tone)
+}
+
+// ── Motion — gpui 0.2.2 has no fluent transform, so "lift/glow/spring" reads
+// through hover color + box-shadow (instant, GPU-cheap) and with_animation
+// one-shot/looping timelines. Curves match the mock's bezier set. ≤500ms.
+mod motion {
+    use gpui::{point, px, BoxShadow, Hsla};
+
+    pub const RISE_MS: u64 = 500;
+
+    /// `--swoosh`: graceful fast-out settle (≈ quintic ease-out).
+    pub fn swoosh(t: f32) -> f32 {
+        1.0 - (1.0 - t).powi(5)
+    }
+
+    /// A soft halo glow (focus ring / hover). Alpha rides on `Hsla`.
+    pub fn glow(color: u32, alpha: f32, blur: f32, spread: f32) -> Vec<BoxShadow> {
+        let mut h: Hsla = gpui::rgb(color).into();
+        h.a = alpha;
+        vec![BoxShadow {
+            color: h,
+            offset: point(px(0.0), px(0.0)),
+            blur_radius: px(blur),
+            spread_radius: px(spread),
+        }]
+    }
+
+    /// Neobrutalist hard offset drop — the hover "lift" cue (no translate in 0.2.2).
+    pub fn hard_offset(color: u32, dx: f32, dy: f32) -> Vec<BoxShadow> {
+        let h: Hsla = gpui::rgb(color).into();
+        vec![BoxShadow {
+            color: h,
+            offset: point(px(dx), px(dy)),
+            blur_radius: px(0.0),
+            spread_radius: px(0.0),
+        }]
     }
 }
 
@@ -96,7 +187,7 @@ fn render_block(block: Block) -> impl IntoElement {
                 .px(px(16.0))
                 .pt(px(12.0))
                 .pb(px(6.0))
-                .text_color(rgb(C_ACCENT))
+                .text_color(rgb(current_theme().accent_ink))
                 .text_size(px(15.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .child(text)
@@ -110,7 +201,7 @@ fn render_block(block: Block) -> impl IntoElement {
                 .py(px(3.0))
                 .child(
                     div()
-                        .text_color(rgb(C_MUTED))
+                        .text_color(rgb(current_theme().muted))
                         .text_size(px(14.0))
                         .w(px(150.0))
                         .flex_shrink_0()
@@ -118,7 +209,7 @@ fn render_block(block: Block) -> impl IntoElement {
                 )
                 .child(
                     div()
-                        .text_color(rgb(C_INK))
+                        .text_color(rgb(current_theme().ink))
                         .text_size(px(14.0))
                         .font_family("IBM Plex Mono")
                         .child(val)
@@ -131,11 +222,11 @@ fn render_block(block: Block) -> impl IntoElement {
                 .gap(px(16.0))
                 .px(px(16.0))
                 .py(px(4.0))
-                .hover(|s| s.bg(rgb(C_RAISED)))
+                .hover(|s| s.bg(rgb(current_theme().raised)))
                 .children(
                     cells.into_iter().enumerate().map(|(i, cell)| {
                         div()
-                            .text_color(rgb(if i == 0 { C_ACCENT } else { C_INK2 }))
+                            .text_color(rgb(if i == 0 { current_theme().accent_ink } else { current_theme().ink2 }))
                             .text_size(px(14.0))
                             .font_family("IBM Plex Mono")
                             .flex_shrink_0()
@@ -164,7 +255,7 @@ fn render_block(block: Block) -> impl IntoElement {
             div()
                 .px(px(16.0))
                 .py(px(4.0))
-                .text_color(rgb(C_MUTED))
+                .text_color(rgb(current_theme().muted))
                 .text_size(px(13.0))
                 .child("▁▂▃▄▅▆▇")
                 .into_any_element()
@@ -177,6 +268,7 @@ fn render_block(block: Block) -> impl IntoElement {
 
 // ── Sidebar nav item (clickable) ──────────────────────────────────────────────
 
+#[allow(dead_code)] // retained for the slice-3 surface picker; tree shell no longer uses the fixed sidebar
 #[derive(IntoElement)]
 struct SidebarItem {
     icon: &'static str,
@@ -187,7 +279,7 @@ struct SidebarItem {
 
 impl RenderOnce for SidebarItem {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let ink = if self.active { C_INK } else { C_MUTED };
+        let ink = if self.active { current_theme().ink } else { current_theme().muted };
         div()
             .px(px(10.0))
             .py(px(6.0))
@@ -196,11 +288,11 @@ impl RenderOnce for SidebarItem {
             .rounded(px(6.0))
             .cursor_pointer()
             .when(self.active, |s| {
-                s.bg(rgb(C_RAISED))
+                s.bg(rgb(current_theme().raised))
                  .border_l_2()
-                 .border_color(rgb(C_ACCENT))
+                 .border_color(rgb(current_theme().accent_ink))
             })
-            .hover(|s| s.bg(rgb(C_RAISED)))
+            .hover(|s| s.bg(rgb(current_theme().raised)))
             .flex()
             .flex_col()
             .items_center()
@@ -210,7 +302,7 @@ impl RenderOnce for SidebarItem {
                     .path(self.icon)
                     .w(px(18.0))
                     .h(px(18.0))
-                    .text_color(rgb(if self.active { C_ACCENT } else { C_MUTED }))
+                    .text_color(rgb(if self.active { current_theme().accent_ink } else { current_theme().muted }))
             )
             .child(
                 div()
@@ -225,7 +317,18 @@ impl RenderOnce for SidebarItem {
 // ── Main console view ─────────────────────────────────────────────────────────
 
 pub struct ConsoleView {
-    pub active_nav: usize,
+    /// Named tabs — each an independent pane tree (like tmux windows). The
+    /// active tab's workspace is what renders.
+    tabs: Vec<Tab>,
+    active_tab: usize,
+    /// True after the leader key (Ctrl-A) is pressed; the next keystroke is a
+    /// multiplexer command (split / close / focus / swap-surface) rather than
+    /// passing through. Disarms after one command. tmux muscle-memory.
+    leader_armed: bool,
+    /// An open command line (kick-off-job / talk-to-cartographer). `Some` means
+    /// keystrokes type into the buffer instead of acting as commands; Enter
+    /// submits, Escape cancels.
+    command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
     /// Stable focus handle — created once and focused on open. Recreating it per
@@ -260,18 +363,195 @@ impl ConsoleView {
             ]
         }).collect();
 
-        // Open on the requested pane if its id matches a NAV entry, else Fleet.
-        let active_nav = initial_pane
-            .and_then(|id| NAV.iter().position(|n| n.id == id))
-            .unwrap_or(0);
-
         Self {
-            active_nav,
+            tabs: vec![Tab {
+                name: "main".into(),
+                workspace: Self::default_workspace(initial_pane.as_deref()),
+                zoomed: None,
+            }],
+            active_tab: 0,
+            leader_armed: false,
+            command: None,
             pane_blocks,
             daemon_url,
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
+        }
+    }
+
+    /// The opening layout: a fleet overview beside a stacked agent-lane /
+    /// roadmap column — proof of multiplex on first launch. `initial` (if a
+    /// known nav id) becomes the focused pane's surface.
+    fn default_workspace(initial: Option<&str>) -> Workspace {
+        let mut ws = Workspace::new(SurfaceKind::Fleet);
+        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
+        ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
+        ws.focus(1); // start on the fleet pane (first leaf id)
+        if let Some(nav) = initial {
+            if NAV.iter().any(|n| n.id == nav) {
+                ws.swap_surface(surface_for_nav_id(nav));
+            }
+        }
+        ws
+    }
+
+    // ── Active-tab accessors ─────────────────────────────────────────────────
+    fn ws(&self) -> &Workspace {
+        &self.tabs[self.active_tab].workspace
+    }
+    fn ws_mut(&mut self) -> &mut Workspace {
+        &mut self.tabs[self.active_tab].workspace
+    }
+    fn zoomed(&self) -> Option<PaneId> {
+        self.tabs[self.active_tab].zoomed
+    }
+    /// Toggle maximize on a pane within the active tab.
+    fn toggle_zoom(&mut self, id: PaneId) {
+        let t = &mut self.tabs[self.active_tab];
+        t.zoomed = if t.zoomed == Some(id) { None } else { Some(id) };
+    }
+    /// Open a fresh tab and focus it.
+    fn new_tab(&mut self) {
+        let n = self.tabs.len() + 1;
+        self.tabs.push(Tab {
+            name: format!("tab {n}"),
+            workspace: Workspace::new(SurfaceKind::Fleet),
+            zoomed: None,
+        });
+        self.active_tab = self.tabs.len() - 1;
+    }
+    /// Close a tab (never the last one); keep the active index valid.
+    fn close_tab(&mut self, idx: usize) {
+        if self.tabs.len() <= 1 || idx >= self.tabs.len() {
+            return;
+        }
+        self.tabs.remove(idx);
+        if self.active_tab >= self.tabs.len() {
+            self.active_tab = self.tabs.len() - 1;
+        }
+    }
+    fn switch_tab(&mut self, delta: isize) {
+        let n = self.tabs.len() as isize;
+        self.active_tab = (((self.active_tab as isize + delta) % n + n) % n) as usize;
+    }
+
+    /// Map a surface to the blocks the background refresh thread has fetched
+    /// for it. Existing live panels resolve through `pane_blocks`; surfaces
+    /// without a backing fetcher yet render an honest placeholder.
+    fn blocks_for_surface(&self, surface: &SurfaceKind) -> Vec<Block> {
+        match nav_id_for_surface(surface) {
+            Some(nav_id) => NAV
+                .iter()
+                .position(|n| n.id == nav_id)
+                .and_then(|i| self.pane_blocks.get(i).cloned())
+                .unwrap_or_default(),
+            None => vec![
+                Block::Header(surface.label()),
+                Block::KeyVal("status".into(), "live wiring lands in slice 3".into()),
+            ],
+        }
+    }
+
+    /// Handle one multiplexer command after the leader key. Disarming is done
+    /// by the caller.
+    fn leader_command(&mut self, key: &str, ctrl: bool, cx: &mut Context<Self>) {
+        match key {
+            // Splits duplicate the focused surface (tmux behaviour); swap after.
+            "|" | "\\" => {
+                let s = self.ws_mut().focused_surface().clone();
+                self.ws_mut().split(Dir::Row, s);
+            }
+            "-" => {
+                let s = self.ws_mut().focused_surface().clone();
+                self.ws_mut().split(Dir::Col, s);
+            }
+            "x" => {
+                self.ws_mut().close();
+            }
+            "o" | "tab" => self.ws_mut().focus_next(),
+            "O" => self.ws_mut().focus_prev(),
+            // Double-prefix (Ctrl-A Ctrl-A) cycles focus — fast tmux idiom.
+            "a" if ctrl => self.ws_mut().focus_next(),
+            // Resize the focused pane.
+            "=" | "+" => { self.ws_mut().resize(0.15); }
+            "_" => { self.ws_mut().resize(-0.15); }
+            // Flip the palette (light ⇄ dark) — re-skins the whole console.
+            "g" => toggle_theme(),
+            // Maximize / restore the focused pane.
+            "z" => { let id = self.ws().focused(); self.toggle_zoom(id); }
+            // Tabs (tmux windows): w = new, [ / ] = prev / next.
+            "w" => self.new_tab(),
+            "]" => self.switch_tab(1),
+            "[" => self.switch_tab(-1),
+            // Open command lines.
+            "n" => self.command = Some(CommandLine { kind: CmdKind::Spawn, buffer: String::new() }),
+            "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
+            // Any nav key swaps the focused pane's surface — "hop context".
+            other => {
+                if let Some(item) = NAV.iter().find(|n| n.key == other) {
+                    self.ws_mut().swap_surface(surface_for_nav_id(item.id));
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    /// Feed one keystroke into the open command line. `key` is the gpui key name
+    /// (for enter/escape/backspace/space); `typed` is the actual character for
+    /// printable input (case-preserving via `keystroke.key_char`).
+    fn handle_command_key(&mut self, key: &str, typed: Option<&str>, cx: &mut Context<Self>) {
+        match key {
+            "enter" => {
+                if let Some(cmd) = self.command.take() {
+                    self.submit_command(cmd);
+                }
+            }
+            "escape" => self.command = None,
+            "backspace" => {
+                if let Some(cmd) = self.command.as_mut() {
+                    cmd.buffer.pop();
+                }
+            }
+            "space" => {
+                if let Some(cmd) = self.command.as_mut() {
+                    cmd.buffer.push(' ');
+                }
+            }
+            _ => {
+                // Only accept genuine printable characters; ignore bare modifiers,
+                // arrows, function keys, etc. (their key_char is None).
+                if let Some(ch) = typed {
+                    if let Some(cmd) = self.command.as_mut() {
+                        cmd.buffer.push_str(ch);
+                    }
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    /// Dispatch a submitted command to the background thread (which owns the
+    /// daemon client and performs the POST).
+    fn submit_command(&mut self, cmd: CommandLine) {
+        let text = cmd.buffer.trim().to_string();
+        if text.is_empty() {
+            return;
+        }
+        let Some(tx) = &self.control_tx else { return };
+        match cmd.kind {
+            CmdKind::Spawn => {
+                let (backend, prompt) = split_backend(&text);
+                let _ = tx.send(ControlMsg::Spawn {
+                    backend: backend.clone(),
+                    prompt,
+                });
+                self.control_flash = Some(format!("spawning a {backend} agent…"));
+            }
+            CmdKind::Cartographer => {
+                let _ = tx.send(ControlMsg::Cartographer { text });
+                self.control_flash = Some("sent to cartographer — watch the lane".into());
+            }
         }
     }
 
@@ -285,11 +565,275 @@ impl ConsoleView {
         }
     }
 
-    fn blocks_for_active(&self) -> Vec<Block> {
-        self.pane_blocks
-            .get(self.active_nav)
-            .cloned()
-            .unwrap_or_default()
+    /// Recursively render the pane tree. Splits become weighted flex
+    /// containers (so `resize` is visible); leaves render their surface.
+    fn render_node(&self, node: &Node, focused: PaneId, cx: &mut Context<Self>) -> AnyElement {
+        match node {
+            Node::Split { dir, children } => {
+                let total: f32 = children.iter().map(|c| c.weight).sum::<f32>().max(0.0001);
+                let mut container = div().flex().size_full().overflow_hidden();
+                container = match dir {
+                    Dir::Row => container.flex_row(),
+                    Dir::Col => container.flex_col(),
+                };
+                for child in children {
+                    let frac = child.weight / total;
+                    container = container.child(
+                        div()
+                            .flex_basis(relative(frac))
+                            .flex_grow()
+                            .flex_shrink()
+                            .overflow_hidden()
+                            .child(self.render_node(&child.node, focused, cx)),
+                    );
+                }
+                container.into_any_element()
+            }
+            Node::Leaf { id, surface } => self.render_leaf(*id, surface, *id == focused, cx),
+        }
+    }
+
+    /// Render one leaf: a bordered pane with a title bar (focus-highlighted) and
+    /// its surface blocks. A focused agent transcript also gets the steering bar.
+    fn render_leaf(
+        &self,
+        id: PaneId,
+        surface: &SurfaceKind,
+        is_focused: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let label = surface.label();
+        let blocks = self.blocks_for_surface(surface);
+        let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
+        let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
+        let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
+        let control_flash = self.control_flash.clone();
+
+        div()
+            .id(SharedString::from(format!("pane-{id}")))
+            // Hover group: the title-bar controls reveal only when this pane is
+            // hovered (macOS window-control feel).
+            .group("pane")
+            .flex()
+            .flex_col()
+            .size_full()
+            .overflow_hidden()
+            .border_1()
+            .border_color(rgb(border))
+            .bg(rgb(current_theme().panel))
+            // Focus glow: a soft mustard halo proves "this pane has the wheel".
+            // Unfocused panes preview the warm border + faint glow on hover.
+            .when(is_focused, |s| s.shadow(motion::glow(current_theme().accent, 0.45, 16.0, 1.0)))
+            .when(!is_focused, |s| {
+                s.hover(|h| {
+                    h.border_color(rgb(current_theme().accent))
+                        .shadow(motion::glow(current_theme().accent, 0.18, 10.0, 0.0))
+                })
+            })
+            .on_click(cx.listener(move |this, _ev, _window, cx| {
+                this.ws_mut().focus(id);
+                cx.notify();
+            }))
+            // Title bar: focus dot · label · spacer · hover controls
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(6.0))
+                    .px(px(10.0))
+                    .py(px(4.0))
+                    .bg(rgb(if is_focused { current_theme().raised } else { current_theme().panel }))
+                    .border_b_1()
+                    .border_color(rgb(current_theme().line))
+                    .child({
+                        // The focused pane's dot breathes (presence beacon, the mock's
+                        // @keyframes beacon) via a looping with_animation; idle panes are static.
+                        let dot = div()
+                            .text_color(rgb(if is_focused { current_theme().accent } else { current_theme().line }))
+                            .text_size(px(13.0))
+                            .child(if is_focused { "●" } else { "○" });
+                        if is_focused {
+                            dot.with_animation(
+                                SharedString::from(format!("dot-pulse-{id}")),
+                                Animation::new(Duration::from_millis(2400))
+                                    .repeat()
+                                    .with_easing(pulsating_between(0.55, 1.0)),
+                                |el, delta| el.opacity(delta),
+                            )
+                            .into_any_element()
+                        } else {
+                            dot.into_any_element()
+                        }
+                    })
+                    .child(
+                        div()
+                            .text_color(rgb(title_color))
+                            .text_size(px(14.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(label),
+                    )
+                    // Spacer pushes the controls to the right edge.
+                    .child(div().flex_1())
+                    // Hover controls — invisible until the pane is hovered.
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(2.0))
+                            .opacity(0.0)
+                            .group_hover("pane", |s| s.opacity(1.0))
+                            .child(pane_ctrl(id, "vsplit", "│", current_theme().muted, cx))
+                            .child(pane_ctrl(id, "hsplit", "─", current_theme().muted, cx))
+                            .child(pane_ctrl(id, "zoom", "□", current_theme().muted, cx))
+                            .child(pane_ctrl(id, "close", "✕", current_theme().gated, cx)),
+                    ),
+            )
+            // Surface body
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_hidden()
+                    .flex()
+                    .flex_col()
+                    .children(blocks.into_iter().map(render_block)),
+            )
+            // Steering bar — only the focused agent transcript grabs the wheel.
+            .when(is_agent && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(6.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("interrupt-{id}")))
+                                .px(px(12.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().gated))
+                                .text_color(rgb(current_theme().gated))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("◼ Interrupt")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    if let Some(tx) = &this.control_tx {
+                                        let _ = tx.send(ControlMsg::InterruptLane);
+                                        this.control_flash =
+                                            Some("interrupt sent — watch the stream".into());
+                                        cx.notify();
+                                    }
+                                })),
+                        )
+                        .when_some(control_flash, |bar, flash| {
+                            bar.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
+            .into_any_element()
+    }
+}
+
+/// Split a spawn command into `(backend, prompt)`. If the first whitespace
+/// token is a known backend it is consumed as the backend; otherwise the whole
+/// string is the prompt and the backend defaults to `claude-cli`.
+fn split_backend(text: &str) -> (String, String) {
+    const BACKENDS: &[&str] = &[
+        "ollama", "claude", "claude-cli", "gemini", "cloudflare", "codex", "aider", "custom",
+    ];
+    if let Some((first, rest)) = text.split_once(char::is_whitespace) {
+        if BACKENDS.contains(&first) && !rest.trim().is_empty() {
+            return (first.to_string(), rest.trim().to_string());
+        }
+    }
+    ("claude-cli".to_string(), text.to_string())
+}
+
+/// One macOS-style pane control (split / zoom / close). Targets a specific pane
+/// `id` (it focuses that pane first, so a click acts where the cursor is, not on
+/// whatever was focused before).
+fn pane_ctrl(
+    id: PaneId,
+    kind: &'static str,
+    glyph: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    div()
+        .id(SharedString::from(format!("ctrl-{kind}-{id}")))
+        .px(px(5.0))
+        .py(px(1.0))
+        .rounded(px(4.0))
+        .text_size(px(14.0))
+        .text_color(rgb(color))
+        .cursor_pointer()
+        // Hover pop: tint the glyph (crimson for close, ink otherwise), fill a
+        // raised chip, and snap a glow — the per-control "press" cue.
+        .hover(move |s| {
+            let t = current_theme();
+            let (tint, glow) = if kind == "close" { (t.gated, t.gated) } else { (t.ink, t.accent) };
+            s.bg(rgb(t.raised)).text_color(rgb(tint)).shadow(motion::glow(glow, 0.22, 8.0, 0.0))
+        })
+        .child(glyph)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            match kind {
+                "vsplit" => {
+                    this.ws_mut().focus(id);
+                    let s = this.ws_mut().focused_surface().clone();
+                    this.ws_mut().split(Dir::Row, s);
+                }
+                "hsplit" => {
+                    this.ws_mut().focus(id);
+                    let s = this.ws_mut().focused_surface().clone();
+                    this.ws_mut().split(Dir::Col, s);
+                }
+                "zoom" => this.toggle_zoom(id),
+                "close" => {
+                    this.ws_mut().focus(id);
+                    this.ws_mut().close();
+                }
+                _ => {}
+            }
+            cx.notify();
+        }))
+}
+
+/// Map an existing nav id to the richest matching surface (semantic where one
+/// exists, generic `Panel` otherwise).
+fn surface_for_nav_id(nav: &str) -> SurfaceKind {
+    match nav {
+        "lane" => SurfaceKind::AgentTranscript { agent_id: None },
+        "roadmap" => SurfaceKind::Roadmap,
+        "health" => SurfaceKind::DaemonHealth,
+        "fleet" => SurfaceKind::Fleet,
+        "sessions" => SurfaceKind::Sessions,
+        "dispatch" => SurfaceKind::Dispatch,
+        other => SurfaceKind::Panel { nav: other.to_string() },
+    }
+}
+
+/// Inverse: which nav id (if any) backs this surface's live data.
+fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
+    match surface {
+        SurfaceKind::AgentTranscript { .. } => Some("lane"),
+        SurfaceKind::Roadmap => Some("roadmap"),
+        SurfaceKind::DaemonHealth => Some("health"),
+        SurfaceKind::Fleet => Some("fleet"),
+        SurfaceKind::Sessions => Some("sessions"),
+        SurfaceKind::Dispatch => Some("dispatch"),
+        SurfaceKind::Panel { nav } => Some(nav.as_str()),
+        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } => None,
     }
 }
 
@@ -301,201 +845,172 @@ impl Focusable for ConsoleView {
 
 impl Render for ConsoleView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let active = self.active_nav;
-        let blocks = self.blocks_for_active();
         let daemon_url = self.daemon_url.clone();
-        let active_nav_name = NAV.get(active).map(|n| n.label).unwrap_or("—");
-        let active_nav_icon = NAV.get(active).map(|n| n.icon).unwrap_or("icons/nav/fleet.svg");
-        // The Lane is the only steerable surface so far — show its wheel bar.
-        let is_lane = NAV.get(active).map(|n| n.id == "lane").unwrap_or(false);
-        let control_flash = self.control_flash.clone();
+        let focused = self.ws().focused();
+        let armed = self.leader_armed;
+        let command = self.command.clone();
+        let lit = armed || command.is_some();
+        let pane_count = self.ws().pane_count();
+        let zoomed = self.zoomed();
+        // Tab bar data (index, name, is-active).
+        let tabs: Vec<(usize, String, bool)> = self
+            .tabs
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (i, t.name.clone(), i == self.active_tab))
+            .collect();
+        // Body: a single maximized pane, or the full tree.
+        let body: AnyElement = match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
+            Some((zid, surf)) => self.render_leaf(zid, &surf, true, cx),
+            None => {
+                let root = self.ws().root.clone();
+                self.render_node(&root, focused, cx)
+            }
+        };
 
         div()
             .key_context("console")
             .track_focus(&self.focus_handle)
             .size_full()
-            .bg(rgb(C_BG))
+            .bg(rgb(current_theme().bg))
             .flex()
             .flex_col()
             .font_family("General Sans")
+            // Leader-key dispatcher: Ctrl-A arms; the next keystroke is a
+            // multiplexer command (split / close / focus / swap-surface).
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _window, cx| {
-                let idx = NAV.iter().position(|n| n.key == ev.keystroke.key.as_str());
-                if let Some(i) = idx {
-                    this.active_nav = i;
+                let key = ev.keystroke.key.clone();
+                let key_char = ev.keystroke.key_char.clone();
+                let ctrl = ev.keystroke.modifiers.control;
+                if this.command.is_some() {
+                    // A command line is open: type into it.
+                    this.handle_command_key(key.as_str(), key_char.as_deref(), cx);
+                } else if this.leader_armed {
+                    this.leader_armed = false;
+                    this.leader_command(key.as_str(), ctrl, cx);
+                } else if ctrl && key == "a" {
+                    this.leader_armed = true;
                     cx.notify();
                 }
             }))
-            // Body
+            // ── Tab bar (named workspaces, like tmux windows) ──
             .child(
                 div()
+                    .h(px(28.0))
+                    .px(px(6.0))
                     .flex()
-                    .flex_1()
-                    .overflow_hidden()
-                    // ── Sidebar ──
-                    .child(
+                    .items_center()
+                    .gap(px(4.0))
+                    .bg(rgb(current_theme().panel))
+                    .border_b_1()
+                    .border_color(rgb(current_theme().line))
+                    .children(tabs.into_iter().map(|(i, name, active)| {
                         div()
-                            .w(px(96.0))
-                            .h_full()
-                            .bg(rgb(C_PANEL))
-                            .flex()
-                            .flex_col()
-                            .py(px(8.0))
-                            // Logo — SVG glyph (animated monogram + radar ring)
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .px(px(8.0))
-                                    .py(px(10.0))
-                                    .mb(px(2.0))
-                                    .border_b_1()
-                                    .border_color(rgb(C_BORDER))
-                                    .child(
-                                        svg()
-                                            .path("icons/pd-glyph.svg")
-                                            .w(px(32.0))
-                                            .h(px(32.0))
-                                            .text_color(rgb(C_ACCENT))
-                                    )
-                            )
-                            // Nav items — clickable (sets active_nav) AND driven by
-                            // the key handler above. Each is an id'd interactive div
-                            // so the whole row is a hit target, not just decoration.
-                            .children(
-                                NAV.iter().enumerate().map(|(i, item)| {
-                                    div()
-                                        .id(item.id)
-                                        .on_click(cx.listener(move |this, _ev, _window, cx| {
-                                            this.active_nav = i;
-                                            cx.notify();
-                                        }))
-                                        .child(SidebarItem {
-                                            icon: item.icon,
-                                            label: item.label,
-                                            index: i,
-                                            active: i == active,
-                                        })
-                                })
-                            )
-                    )
-                    // ── Divider ──
-                    .child(div().w(px(1.0)).bg(rgb(C_BORDER)))
-                    // ── Main content ──
-                    .child(
-                        div()
-                            .flex_1()
-                            .flex()
-                            .flex_col()
-                            .overflow_hidden()
-                            // Pane header
-                            .child(
-                                div()
-                                    .px(px(16.0))
-                                    .py(px(10.0))
-                                    .border_b_1()
-                                    .border_color(rgb(C_BORDER))
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(10.0))
-                                    .child(
-                                        svg()
-                                            .path(active_nav_icon)
-                                            .w(px(16.0))
-                                            .h(px(16.0))
-                                            .text_color(rgb(C_ACCENT))
-                                    )
-                                    .child(
-                                        div()
-                                            .text_color(rgb(C_INK))
-                                            .text_size(px(15.0))
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .child(active_nav_name)
-                                    )
-                            )
-                            // Pane blocks
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .overflow_hidden()
-                                    .flex()
-                                    .flex_col()
-                                    .children(blocks.into_iter().map(render_block))
-                            )
-                            // ── Steering bar (Lane only) — "grab the wheel" ──
-                            .when(is_lane, |content| {
-                                content.child(
-                                    div()
-                                        .px(px(16.0))
-                                        .py(px(8.0))
-                                        .border_t_1()
-                                        .border_color(rgb(C_BORDER))
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(10.0))
-                                        // Interrupt button — POSTs /agents/:id/interrupt
-                                        // via the background thread; the control message
-                                        // returns on the stream (closed loop).
-                                        .child(
-                                            div()
-                                                .id("lane-interrupt")
-                                                .px(px(14.0))
-                                                .py(px(6.0))
-                                                .rounded(px(6.0))
-                                                .border_1()
-                                                .border_color(rgb(C_GATED))
-                                                .text_color(rgb(C_GATED))
-                                                .text_size(px(14.0))
-                                                .font_weight(FontWeight::SEMIBOLD)
-                                                .cursor_pointer()
-                                                .hover(|s| s.bg(rgb(C_RAISED)))
-                                                .child("◼ Interrupt")
-                                                .on_click(cx.listener(|this, _ev, _window, cx| {
-                                                    if let Some(tx) = &this.control_tx {
-                                                        let _ = tx.send(ControlMsg::InterruptLane);
-                                                        this.control_flash =
-                                                            Some("interrupt sent — watch the stream".into());
-                                                        cx.notify();
-                                                    }
-                                                })),
-                                        )
-                                        .when_some(control_flash, |bar, flash| {
-                                            bar.child(
-                                                div()
-                                                    .text_color(rgb(C_MUTED))
-                                                    .text_size(px(13.0))
-                                                    .child(flash),
-                                            )
-                                        }),
-                                )
+                            .id(SharedString::from(format!("tab-{i}")))
+                            .px(px(10.0))
+                            .py(px(3.0))
+                            .rounded(px(5.0))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(rgb(if active { current_theme().accent_ink } else { current_theme().muted }))
+                            // Active tab: raised + a mustard glow. Inactive: lift on hover
+                            // (a hard offset shadow stands in for the mock's translateY(-1px)).
+                            .when(active, |s| {
+                                s.bg(rgb(current_theme().raised))
+                                    .shadow(motion::glow(current_theme().accent, 0.30, 12.0, 0.0))
                             })
-                    )
+                            .cursor_pointer()
+                            .when(!active, |s| {
+                                s.hover(|h| {
+                                    let t = current_theme();
+                                    h.bg(rgb(t.raised)).text_color(rgb(t.ink2)).shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+                                })
+                            })
+                            .child(name)
+                            .on_click(cx.listener(move |this, _ev, _window, cx| {
+                                this.active_tab = i;
+                                cx.notify();
+                            }))
+                    }))
+                    .child(
+                        div()
+                            .id("tab-new")
+                            .px(px(8.0))
+                            .py(px(3.0))
+                            .rounded(px(5.0))
+                            .text_size(px(15.0))
+                            .text_color(rgb(current_theme().muted))
+                            .cursor_pointer()
+                            .hover(|s| {
+                                let t = current_theme();
+                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink)).shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                            })
+                            .child("+")
+                            .on_click(cx.listener(|this, _ev, _window, cx| {
+                                this.new_tab();
+                                cx.notify();
+                            })),
+                    ),
             )
-            // ── Status bar ──
+            // The pane tree (or a maximized pane) fills the window.
+            .child(div().flex_1().overflow_hidden().child(body))
+            // ── Command / status bar ──
             .child(
                 div()
-                    .h(px(24.0))
-                    .px(px(16.0))
+                    .h(px(26.0))
+                    .px(px(12.0))
                     .flex()
                     .items_center()
                     .gap(px(12.0))
-                    .bg(rgb(C_PANEL))
+                    .bg(rgb(if lit { current_theme().raised } else { current_theme().panel }))
                     .border_t_1()
-                    .border_color(rgb(C_BORDER))
-                    .child(
+                    .border_color(rgb(if lit { current_theme().accent_ink } else { current_theme().line }))
+                    // PREFIX / command mode glows unmistakably.
+                    .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
+                    .child(if let Some(cmd) = command.as_ref() {
+                        // Open command line — type, Enter submits, Esc cancels.
                         div()
-                            .text_color(rgb(C_MUTED))
+                            .flex()
+                            .gap(px(8.0))
+                            .items_center()
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().accent_ink))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(format!("{}", cmd.kind.prompt())),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_color(rgb(current_theme().ink))
+                                    .text_size(px(14.0))
+                                    .font_family("IBM Plex Mono")
+                                    .child(format!("› {}▏", cmd.buffer)),
+                            )
+                            .child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child("⏎ send · esc cancel"),
+                            )
+                    } else if armed {
+                        div()
+                            .text_color(rgb(current_theme().accent_ink))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · [1-9…] surface",
+                            )
+                    } else {
+                        div()
+                            .text_color(rgb(current_theme().muted))
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
-                            .child(format!("daemon  {daemon_url}"))
-                    )
-                    .child(div().text_color(rgb(C_MUTED)).text_size(px(13.0)).child("·"))
-                    .child(
-                        div()
-                            .text_color(rgb(C_MUTED))
-                            .text_size(px(13.0))
-                            .child("pd-console v0.2.0")
-                    )
+                            .child(format!(
+                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → n new-job · t cartographer · | split  ·  pd-console v0.3.0"
+                            ))
+                    }),
             )
     }
 }

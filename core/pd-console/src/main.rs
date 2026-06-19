@@ -20,6 +20,8 @@ mod health_pane;
 mod inbox_pane;
 mod lane_pane;
 mod maritime;
+mod mux;
+mod palette;
 mod notes_pane;
 mod pane;
 mod peek_pane;
@@ -96,6 +98,9 @@ impl AssetSource for FsAssets {
 }
 
 fn main() {
+    // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
+    app::init_theme_from_env();
+
     // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
     // All fallback logic lives in DaemonClient::discover(); no literals here.
     let daemon_url = DaemonClient::discover()
@@ -212,6 +217,16 @@ fn main() {
                                 let _ = lane
                                     .mutate(&client, SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
                                     .await;
+                            }
+                            // Kick off a new top-level agent on the live daemon.
+                            app::ControlMsg::Spawn { backend, prompt } => {
+                                if let Some(b) = agent::Backend::parse(&backend) {
+                                    let _ = client.spawn(b, &prompt, "operator").await;
+                                }
+                            }
+                            // Send a turn to the cartographer over its tube channel.
+                            app::ControlMsg::Cartographer { text } => {
+                                let _ = client.tube_send("cartographer", &text, "operator").await;
                             }
                         }
                     }

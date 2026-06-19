@@ -24,6 +24,8 @@
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../lane_pane.rs"]      mod lane_pane;
+#[allow(dead_code)]
+#[path = "../mux.rs"]            mod mux;
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../peek_pane.rs"]      mod peek_pane;
@@ -175,7 +177,23 @@ async fn main() -> Result<()> {
                     ),
                 ),
                 Some(backend) => match mgr.create_agent(backend, prompt).await {
-                    Ok(n) => ok(&style, &format!("created top-level agent {n} on {} (voyage on the bus)", backend.as_str())),
+                    Ok((n, out)) => {
+                        // Surface the real launch result — including the inline
+                        // output one-shot backends return in the spawn response,
+                        // and any guard block (budget / worktree / wallet).
+                        if let Some(reason) = out.error.filter(|_| out.status == "failed" || out.status == "blocked") {
+                            err(&style, &format!("agent {n} {} — {reason}", out.status));
+                        } else {
+                            ok(&style, &format!("created agent {n} on {} ({})", backend.as_str(), out.status));
+                            if let Some(text) = out.output.filter(|t| !t.trim().is_empty()) {
+                                println!(
+                                    "  {} {}",
+                                    style.paint(&format!("{}:", backend.as_str()), Sem::Engaged),
+                                    text,
+                                );
+                            }
+                        }
+                    }
                     Err(e) => err(&style, &format!("spawn failed: {e}")),
                 },
             }
