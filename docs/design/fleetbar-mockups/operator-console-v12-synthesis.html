@@ -29,7 +29,7 @@
    Maritime signal flags use the website's own --signal-* mappings.
    ════════════════════════════════════════════════════════════════════════════ */
 /* Maritime + neobrutalism token system — design/tokens/*.json → core/pd-tui/src/tokens.rs.
-   Mustard-amber brand #FFDB33, cinnabar #CC3D2E, mayday crimson #8B1622, ICS flags,
+   Mustard-amber brand #FFDB33, signal-red crimson #C41E30, mayday crimson #8B1622, ICS flags,
    hard borders, warm ebony/paper. --accent = brand pop (fills/dots/glows);
    --accent-ink = accent-as-text (darkened in light for contrast). */
 :root, [data-theme='light']{
@@ -48,13 +48,13 @@
   --cobalt:#003f7f;    /* signal-blue */
   --mayday:#8b1622;    /* severity_mayday */
   --engaged:#b8860b;   /* warning amber (busy), readable */
-  --gated:#cc3d2e;     /* cinnabar (attention) */
+  --gated:#c41e30;     /* signal-red crimson (attention) — guard-safe, AAA, shifted off cinnabar */
   --resting:#6b6457;
   --landed:#15803d;    /* success */
-  --conflict:#cc3d2e;
+  --conflict:#c41e30;
   /* ICS maritime signal flags */
   --flag-charlie:#15803d; --flag-kilo:#003f7f; --flag-uniform:#b8860b;
-  --flag-november:#cc3d2e; --flag-lima:#3f3d38;
+  --flag-november:#c41e30; --flag-lima:#3f3d38;
   --glass:rgba(255,255,255,.92);
   --shadow:6px 6px 0 0 #1e1b18, 0 26px 60px -34px rgba(30,27,24,.35); /* neobrutalist offset */
 }
@@ -74,12 +74,12 @@
   --cobalt:#7fc4ff;    /* term_info */
   --mayday:#8b1622;    /* severity_mayday */
   --engaged:#f59e0b;   /* warning amber */
-  --gated:#cc3d2e;     /* cinnabar */
+  --gated:#f26475;     /* lighter crimson (attention) — AAA on ebony, guard-safe, off cinnabar */
   --resting:#8a8378;
   --landed:#6dd3a8;    /* term_ok */
-  --conflict:#cc3d2e;
+  --conflict:#f26475;
   --flag-charlie:#6dd3a8; --flag-kilo:#1e3a8a; --flag-uniform:#edc531;
-  --flag-november:#cc3d2e; --flag-lima:#b5b5a8;
+  --flag-november:#f26475; --flag-lima:#b5b5a8;
   --glass:rgba(43,39,36,.9);
   --shadow:6px 6px 0 0 #100e0c, 0 26px 60px -30px rgba(0,0,0,.7); /* neobrutalist offset */
 }
