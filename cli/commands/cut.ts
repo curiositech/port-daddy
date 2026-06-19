@@ -73,8 +73,12 @@ export async function handleCut(_args: string[], options: CLIOptions): Promise<v
     manifest = runRelease(
       plan,
       {
-        exec: (cmd, a) => {
-          const r = spawnSync(cmd, a, { cwd: repoRoot, stdio: isJson(options) ? 'ignore' : 'inherit' });
+        exec: (cmd, a, env) => {
+          const r = spawnSync(cmd, a, {
+            cwd: repoRoot,
+            stdio: isJson(options) ? 'ignore' : 'inherit',
+            env: env ? { ...process.env, ...env } : process.env,
+          });
           if (r.status !== 0) throw new Error(`build failed: ${cmd} ${a.join(' ')} (exit ${r.status ?? 'signal'})`);
         },
         hashFile: (p) => {
