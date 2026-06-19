@@ -33,6 +33,7 @@ import {
 } from '@/components/tube/TubeWire'
 import { RedToGreen } from './demos/RedToGreen'
 import { EditorLightbulb } from './demos/EditorLightbulb'
+import { WarRoom } from './demos/WarRoom'
 
 /**
  * The pd tube playground — every trigger, one agent.
@@ -208,6 +209,22 @@ export function Playground() {
             />
             <div className="mt-[var(--space-6)]">
               <EditorLightbulb />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* Demo #4 — War Room */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Demo 04 · War Room"
+              title="Three agents investigate one incident — and reply to each other."
+              description="This one isn't human→agent; it's agent↔agent. Open the incident seeds a real symptom to bridge:warroom. Three named agents — alpha (lead), bravo (database), charlie (logs) — post findings on the same channel and reply to one another. Each reply draws a teal provenance arrow between the cards, so you see the argument's lineage. When an agent posts a ROOT CAUSE, it lands in a cobalt banner."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-6)]">
+              <WarRoom />
             </div>
           </PageContainer>
         </section>

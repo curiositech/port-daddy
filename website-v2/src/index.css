@@ -866,3 +866,37 @@ pre code {
     opacity: 0;
   }
 }
+
+/* War Room demo: agents talk to each other on one channel. When one agent's
+   message replies-to another's, a teal provenance arrow is drawn between the two
+   cards so the argument's lineage is visible. The arrow's stroke is "drawn" via
+   stroke-dashoffset on each new link; it never loops (forwards, single run).
+   Under prefers-reduced-motion the arrow is static (no draw), and a fresh agent
+   card appears without a rise (callers gate tube-card-rise on the motion read).
+   The ROOT CAUSE banner flares once (a single brighten/settle) when it lands. */
+@keyframes tube-arrow-draw {
+  from { stroke-dashoffset: var(--arrow-len, 240); }
+  to { stroke-dashoffset: 0; }
+}
+.tube-arrow-draw {
+  animation: tube-arrow-draw 0.5s cubic-bezier(0.5, 0, 0.25, 1) forwards;
+}
+@keyframes tube-rootcause-flare {
+  0% { opacity: 0; transform: translateY(8px); }
+  60% { opacity: 1; transform: translateY(-1px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.tube-rootcause-flare {
+  animation: tube-rootcause-flare 0.45s cubic-bezier(0.34, 1.3, 0.5, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-arrow-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .tube-rootcause-flare {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
