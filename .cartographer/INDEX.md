@@ -1,8 +1,8 @@
-# Cartographer Index — 2026-06-19T22:50:00Z (REFRESHED 23:00 UTC)
+# Cartographer Index — 2026-06-19T23:30:00Z
 
 **Snapshot Authority:** git log + committed code + recovery hub status > roadmap markdown > raw files
 
-**Current Scope:** cartographer-state HEAD at `b8059cee` (fresh 2026-06-19 work: ADR-0060 dispatch→Conductor fold-in, ADR-0085 idea-intake grammar, pd-console motion/theme polish). Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 77 days** (since 2026-03-30 contact with Thomas Youle).
+**Current Scope:** cartographer-state HEAD at `995d82c2` (2026-06-19 18:30 UTC verified snapshot). Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 81 days** (since 2026-03-30 last contact with Thomas Youle). Phase 4E/4F STALE: 80+ days (2026-03-31). Phase 4A ACTIVE OFF-MAIN on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`).
 
 ---
 
@@ -12,15 +12,15 @@
 |-------|--------|---------------------|
 | **0: Formal Foundation** | ✅ COMPLETE | White papers (Bonded Commons, Anchor Protocol), Rust core (Kani-verified), Arbiter (6 invariant rules), Merkle-chain, PKI, Coordination Guard all shipped |
 | **1: Semantic Graph** | ✅ COMPLETE (2026-05-07) | graph_edges table + 6 indexes + 40 tests verified (`f265fcb5`, reflection pass `2ad20f32`); Phase 1-adjacent support slices (`incremental-symbol-index-refresh`, `symbol-graph-visualization`, `orchestrator-plugin-lifecycle`) in curated wave |
-| **2: Economy & Cost** | 🔄 INFRASTRUCTURE READY | cost-tracker + counters + observability endpoints (6 routes) live since 2026-04-05. Pricing function π **idle 77 days** (last contact with Thomas Youle 2026-03-30). Cost infrastructure ships; economic routing blocked. |
+| **2: Economy & Cost** | 🔄 INFRASTRUCTURE READY | cost-tracker + counters + observability endpoints (6 routes) live since 2026-04-05. Pricing function π **idle 81 days** (last contact with Thomas Youle 2026-03-30). Cost infrastructure ships; economic routing blocked. |
 | **3A: Declarative Fleet** | ✅ COMPLETE | Fleet YAML (`pd-fleet.yml`) + pheromone system + auto-respawn shipped 2026-03-27 |
 | **3B: Episodic Memory** | 🟨 PARTIAL | `episodic-memory-query-surfaces` in curated now-wave; routes/CLI not yet landed |
 | **3: Visibility & Automation** | 🔥 **HOTTEST MAPPED PHASE** | 12 core visibility items: daemon-introspection-api, crew-screen-roles-not-pids, fleet-health-scorecard, coordination-ticker-as-high-signal-feed, fleet-run-journal, daemon-fleet-auto-recovery, operator-hint-engine, tuple-store-query-api, governance-coordination-hub, phase-3-auto-remediation-executor, episodic-memory-query-surfaces, operator-manual-fleet-dispatch. Also: 5 supporting cross-cutting items. Closest to ship: #1–3 in "Top Closest" below. |
 | **4A: Bun/Fastify** | 🟡 ACTIVE (OFF-MAIN) | Fastify migration ✅ (2026-03-31). Bun binary / doctor / distribution **active on feature branches** (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`) with 5 commits; origin/main + stable have not absorbed this lane yet. Release prep (v3.19.0 Parley, v3.20.0 Coast Guard) is consuming that integration bandwidth. |
 | **4B: IPC & Radix Trie** | ✅ COMPLETE | Binary IPC (MessagePack, 70–80% bandwidth reduction) + Radix Trie (sub-millisecond wildcard) shipped v3.8.0–3.8.2 |
 | **4D: Backpressure** | 🟨 PARTIAL | IPC-level ✅; HTTP-level not started |
-| **4E: `pd self-test --adversarial`** | 🔴 STALE (46+ days) | Design complete (ADR-0049). Zero commits since 2026-03-31. Unblocked by `sandboxed-adversarial-test-harness` (now-wave). Not blocking anything except itself. |
-| **4F: Windows IPC Hardening** | 🔴 STALE (46+ days) | Design noted (Named Pipes, SDDL, NTLM relay prevention). Zero commits since 2026-03-31. Lower priority than Phase 4E. |
+| **4E: `pd self-test --adversarial`** | 🔴 STALE (80+ days) | Design complete (ADR-0049). Zero commits since 2026-03-31. Unblocked by `sandboxed-adversarial-test-harness` (now-wave). Not blocking anything except itself. |
+| **4F: Windows IPC Hardening** | 🔴 STALE (80+ days) | Design noted (Named Pipes, SDDL, NTLM relay prevention). Zero commits since 2026-03-31. Lower priority than Phase 4E. |
 | **5: Network & Lighthouses** | 🔄 ARCHITECTURE GROUNDWORK | Relay PKI (OIDC-first ADR-0027) + Merkle-chain library + `pd tube` relay-independent pipe + quorum primitives + daemon profiles + Coordination Guard all shipped (Phase 0). Lighthouse discovery / federation not started. |
 | **6: Life Integration** | 🔄 ACTIVE | Telos substrate (durable agent contracts) landed 2026-05-01. `telos-driven-model-selection` (explicit spawn-time suggestion layer) in curated now-wave; hero component updates ongoing. |
 
@@ -65,7 +65,7 @@
    **Action Required:** Merge feature branches after next release (v3.21.0 window)
 
 3. **Phase 4E & 4F Staleness** (Blocked on capacity/prioritization)  
-   **Status:** Designs complete (ADR-0049, ADR-0050); zero commits since 2026-03-31 (46+ days)  
+   **Status:** Designs complete (ADR-0049, ADR-0050); zero commits since 2026-03-31 (80+ days)  
    **Blockers:** None technical; capacity / sequencing decision  
    **Impact:** `pd self-test --adversarial` (chaos harness) and Windows IPC hardening not shipping. Phase 4 not provably production-hardened.  
    **Action Required:** Clarify intent: backlog until Phase 5 active, or resume now to prove Phase 4 robustness pre-Phase-5?
@@ -138,7 +138,7 @@
 
 ### Tension 3: Phase 4E/F Capacity Prioritization
 
-**Signal:** Designs are solid (ADR-0049, sandbox test harness clear). Work is knowable. Zero progress for 46+ days = capacity decision, not technical risk.
+**Signal:** Designs are solid (ADR-0049, sandbox test harness clear). Work is knowable. Zero progress for 80+ days = capacity decision, not technical risk.
 
 **Trade-off:** Backlog (deprioritize below Phase 5 start) vs. resume (harden Phase 4 before Phase 5 ships network).
 
@@ -205,9 +205,10 @@
 
 ---
 
-**Generated by:** Cartographer (autonomous maintenance pass)  
-**Branch:** cartographer-state (orphan, 8 commits ahead of a historic baseline)  
+**Generated by:** Cartographer (autonomous maintenance + verification pass)  
+**Branch:** cartographer-state (orphan, snapshot-only)  
 **Authority:** git log + committed code > recovery hub > raw exhaust  
-**HEAD:** `b8059cee` (2026-06-19 22:50 UTC)  
-**Next sync:** 2026-06-20 automatic daily harvest (cron-triggered or commit-triggered)
+**HEAD:** `995d82c2` (2026-06-19 18:30 UTC verified); cartographer-state carries this digest  
+**Refresh cadence:** 2–3× daily (auto-triggered on `git:committed` via fleet engine); weekly mapping pass with promotion/harvest; index digest updated continuously  
+**Read access:** `git checkout cartographer-state -- cartographer/INDEX.md` to view latest without polluting main history; index remains authority for roadmap state between major phase transitions
 
