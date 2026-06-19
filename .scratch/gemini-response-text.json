@@ -1,0 +1,35 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "**My Immediate Response to the Query**\n\nOkay, so the user wants the capital of France, and they want it boiled down to a single sentence. Alright, that's straightforward enough. Let's see... the capital of France is Paris, no problem there. Now, how best to phrase that concisely?\n\nI can go with either \"The capital of France is Paris\" or \"Paris is the capital of France.\" Both are factually correct and fit the single-sentence constraint. Hmm... Thinking about how I'd naturally respond in a conversation, \"Paris is the capital of France\" has a slightly more fluid feel, a tad less formal. Either works, but I think that is the better choice for everyday speech. So, that's what I'll offer.\n",
+            "thought": true
+          },
+          {
+            "text": "Paris is the capital of France."
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 12,
+    "candidatesTokenCount": 7,
+    "totalTokenCount": 155,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 12
+      }
+    ],
+    "thoughtsTokenCount": 136,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "LBswavCWFM2oqtsPlsDCuA8"
+}

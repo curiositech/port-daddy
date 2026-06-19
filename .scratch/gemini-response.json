@@ -1,0 +1,50 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "**Weather Inquiry Breakdown**\n\nOkay, so the user wants the weather for Paris and Tokyo. Straightforward enough, I'll need to hit the `get_weather` tool twice, once for each city.  I'll call it for Paris first, then Tokyo. The core of this is the temperature comparison. They didn't specify units, which is fine; I'll let the tool handle the default, which will likely be Celsius, or not specify any unit at all and let the tool infer it. The main thing is that the tool spits out a comparable numerical value, so I can directly pit the Paris temperature against Tokyo's.  Then I can just state which one is warmer based on the numerical comparison. Simple and efficient.\n",
+            "thought": true
+          },
+          {
+            "functionCall": {
+              "name": "get_weather",
+              "args": {
+                "city": "Paris"
+              }
+            },
+            "thoughtSignature": "CqIEAQw51sf6kbzr8jcTP6Ir4EHDR2FFAYaJhlXJCmmEKQGWCiHWWjbVaxJrp1MVReedJP/sOncDe4lHOAyHzPMOppU9oWtoQy4VZXit5VGRiCNTkiSicbpDsK27sXDSOYgAghpgz1JMQMLuaYTVg+lM/fY1Q/eKEmD4M4HB9Ssqib25ny2GtsxBUKpUP5uin4llOMNhguPNKfbTj85hOUj44c7qDieJfSBKg7ZyG1kGyZUKX5pi67a0iHL1DK3nkk3d03MN8vFjkssUzQC4dFxj6TgwuzovZWxxA+d6li3kNNi5KviKor08gqHBne7+QPEixxaaFHRxWZcIoCD8wOt8suh+8awaWVUckT1j8WYE0BQlwnHbHxIMACxatiNq6gNkxsDCpnlMwPRKjPodDNtCg26TzB56AvYST+g03+UnmPHfHrpB3HsHs66Nh4h2/7H5b4qD5I7Lo/nYYkMif8ix39FXHojFDjHLWQv/mxUNomA28jLZBd7zImh+B9tKq6s9eIrXIfBVGCf8PtwPUlCo9F16jIbahOVhoakDGs5qb0pkmgRbOLbid/mp9yXdWYddf+1ROQSL7JwAyvYZqxnO/JIQITrRalLwC0iGbFR6rEVs3crdj+ypyttrEpsrMxUXkZy9fXyc+btOLLaJwODStEes6XEY2XafYqtyHgkWJrwuA9kPgRB4eSKKzaNz9SGXEqNiAlVjfqgA9syz5O45IZGv"
+          },
+          {
+            "functionCall": {
+              "name": "get_weather",
+              "args": {
+                "city": "Tokyo"
+              }
+            }
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0,
+      "finishMessage": "Model generated function call(s)."
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 94,
+    "candidatesTokenCount": 30,
+    "totalTokenCount": 232,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 94
+      }
+    ],
+    "thoughtsTokenCount": 108,
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "FxswatmfA5PxqtsPhtqYgQw"
+}
