@@ -23,6 +23,7 @@ use crate::pane::{Block, Tone};
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
+use std::time::Duration;
 
 /// Operator control messages sent from the GPUI view (button clicks) back to the
 /// background refresh thread, which owns the surfaces and performs the daemon
@@ -138,6 +139,43 @@ pub fn init_theme_from_env() {
 
 fn tone_rgb(tone: &Tone) -> u32 {
     current_theme().tone(tone)
+}
+
+// ── Motion — gpui 0.2.2 has no fluent transform, so "lift/glow/spring" reads
+// through hover color + box-shadow (instant, GPU-cheap) and with_animation
+// one-shot/looping timelines. Curves match the mock's bezier set. ≤500ms.
+mod motion {
+    use gpui::{point, px, BoxShadow, Hsla};
+
+    pub const RISE_MS: u64 = 500;
+
+    /// `--swoosh`: graceful fast-out settle (≈ quintic ease-out).
+    pub fn swoosh(t: f32) -> f32 {
+        1.0 - (1.0 - t).powi(5)
+    }
+
+    /// A soft halo glow (focus ring / hover). Alpha rides on `Hsla`.
+    pub fn glow(color: u32, alpha: f32, blur: f32, spread: f32) -> Vec<BoxShadow> {
+        let mut h: Hsla = gpui::rgb(color).into();
+        h.a = alpha;
+        vec![BoxShadow {
+            color: h,
+            offset: point(px(0.0), px(0.0)),
+            blur_radius: px(blur),
+            spread_radius: px(spread),
+        }]
+    }
+
+    /// Neobrutalist hard offset drop — the hover "lift" cue (no translate in 0.2.2).
+    pub fn hard_offset(color: u32, dx: f32, dy: f32) -> Vec<BoxShadow> {
+        let h: Hsla = gpui::rgb(color).into();
+        vec![BoxShadow {
+            color: h,
+            offset: point(px(dx), px(dy)),
+            blur_radius: px(0.0),
+            spread_radius: px(0.0),
+        }]
+    }
 }
 
 // ── Block renderer ───────────────────────────────────────────────────────────
@@ -583,6 +621,15 @@ impl ConsoleView {
             .border_1()
             .border_color(rgb(border))
             .bg(rgb(current_theme().panel))
+            // Focus glow: a soft mustard halo proves "this pane has the wheel".
+            // Unfocused panes preview the warm border + faint glow on hover.
+            .when(is_focused, |s| s.shadow(motion::glow(current_theme().accent, 0.45, 16.0, 1.0)))
+            .when(!is_focused, |s| {
+                s.hover(|h| {
+                    h.border_color(rgb(current_theme().accent))
+                        .shadow(motion::glow(current_theme().accent, 0.18, 10.0, 0.0))
+                })
+            })
             .on_click(cx.listener(move |this, _ev, _window, cx| {
                 this.ws_mut().focus(id);
                 cx.notify();
@@ -598,12 +645,26 @@ impl ConsoleView {
                     .bg(rgb(if is_focused { current_theme().raised } else { current_theme().panel }))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
-                    .child(
-                        div()
-                            .text_color(rgb(if is_focused { current_theme().accent_ink } else { current_theme().line }))
+                    .child({
+                        // The focused pane's dot breathes (presence beacon, the mock's
+                        // @keyframes beacon) via a looping with_animation; idle panes are static.
+                        let dot = div()
+                            .text_color(rgb(if is_focused { current_theme().accent } else { current_theme().line }))
                             .text_size(px(13.0))
-                            .child(if is_focused { "●" } else { "○" }),
-                    )
+                            .child(if is_focused { "●" } else { "○" });
+                        if is_focused {
+                            dot.with_animation(
+                                SharedString::from(format!("dot-pulse-{id}")),
+                                Animation::new(Duration::from_millis(2400))
+                                    .repeat()
+                                    .with_easing(pulsating_between(0.55, 1.0)),
+                                |el, delta| el.opacity(delta),
+                            )
+                            .into_any_element()
+                        } else {
+                            dot.into_any_element()
+                        }
+                    })
                     .child(
                         div()
                             .text_color(rgb(title_color))
@@ -714,10 +775,16 @@ fn pane_ctrl(
         .px(px(5.0))
         .py(px(1.0))
         .rounded(px(4.0))
-        .text_size(px(13.0))
+        .text_size(px(14.0))
         .text_color(rgb(color))
         .cursor_pointer()
-        .hover(|s| s.bg(rgb(current_theme().raised)))
+        // Hover pop: tint the glyph (crimson for close, ink otherwise), fill a
+        // raised chip, and snap a glow — the per-control "press" cue.
+        .hover(move |s| {
+            let t = current_theme();
+            let (tint, glow) = if kind == "close" { (t.gated, t.gated) } else { (t.ink, t.accent) };
+            s.bg(rgb(t.raised)).text_color(rgb(tint)).shadow(motion::glow(glow, 0.22, 8.0, 0.0))
+        })
         .child(glyph)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             match kind {
@@ -846,9 +913,19 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::MEDIUM)
                             .text_color(rgb(if active { current_theme().accent_ink } else { current_theme().muted }))
-                            .when(active, |s| s.bg(rgb(current_theme().raised)))
+                            // Active tab: raised + a mustard glow. Inactive: lift on hover
+                            // (a hard offset shadow stands in for the mock's translateY(-1px)).
+                            .when(active, |s| {
+                                s.bg(rgb(current_theme().raised))
+                                    .shadow(motion::glow(current_theme().accent, 0.30, 12.0, 0.0))
+                            })
                             .cursor_pointer()
-                            .hover(|s| s.bg(rgb(current_theme().raised)))
+                            .when(!active, |s| {
+                                s.hover(|h| {
+                                    let t = current_theme();
+                                    h.bg(rgb(t.raised)).text_color(rgb(t.ink2)).shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+                                })
+                            })
                             .child(name)
                             .on_click(cx.listener(move |this, _ev, _window, cx| {
                                 this.active_tab = i;
@@ -864,7 +941,10 @@ impl Render for ConsoleView {
                             .text_size(px(15.0))
                             .text_color(rgb(current_theme().muted))
                             .cursor_pointer()
-                            .hover(|s| s.bg(rgb(current_theme().raised)).text_color(rgb(current_theme().accent_ink)))
+                            .hover(|s| {
+                                let t = current_theme();
+                                s.bg(rgb(t.raised)).text_color(rgb(t.accent_ink)).shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                            })
                             .child("+")
                             .on_click(cx.listener(|this, _ev, _window, cx| {
                                 this.new_tab();
@@ -885,6 +965,8 @@ impl Render for ConsoleView {
                     .bg(rgb(if lit { current_theme().raised } else { current_theme().panel }))
                     .border_t_1()
                     .border_color(rgb(if lit { current_theme().accent_ink } else { current_theme().line }))
+                    // PREFIX / command mode glows unmistakably.
+                    .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
                     .child(if let Some(cmd) = command.as_ref() {
                         // Open command line — type, Enter submits, Esc cancels.
                         div()
