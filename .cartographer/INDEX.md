@@ -1,8 +1,8 @@
-# Cartographer Index — 2026-06-19T22:50:00Z
+# Cartographer Index — 2026-06-19T22:50:00Z (REFRESHED 23:00 UTC)
 
 **Snapshot Authority:** git log + committed code + recovery hub status > roadmap markdown > raw files
 
-**Current Scope:** origin/main is 1490+ commits ahead of cartographer-state; cartographer-state carries Cartographer snapshot commits. Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 77 days** (since 2026-03-30 contact with Thomas Youle).
+**Current Scope:** cartographer-state HEAD at `b8059cee` (fresh 2026-06-19 work: ADR-0060 dispatch→Conductor fold-in, ADR-0085 idea-intake grammar, pd-console motion/theme polish). Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 77 days** (since 2026-03-30 contact with Thomas Youle).
 
 ---
 
@@ -74,14 +74,22 @@
 
 ## Recent Commits Unmapped to Roadmap (Last 7 Days)
 
-**High-level signal:** Release preparation + Cartographer snapshots (not V4 phase work)
+**High-level signal:** ADR-0060/0085 active unplanned work + pd-console polish + Cartographer snapshots
 
-| Date | Commit Range | Category | Notes |
-|------|---------------|----------|-------|
-| 2026-06-19 | `251f552f`, `ada93305` (5 cartographer commits) | Cartographer INDEX refresh | Automated daily snapshots; new digest format |
-| 2026-06-15 → 2026-06-19 | upstream from origin/main | Release prep + operator polish | v3.19.0 Parley (multi-agent debate), v3.20.0 Coast Guard (sandboxed spawns, egress meter), metrics dashboard wiring, FleetBar enhancements, docs prose. Real product velocity; not mapped to named V4 phase lanes. |
+| Date | Commit | Category | Signal |
+|------|--------|----------|--------|
+| 2026-06-19 | `775fc4f7` | ADR-0060 fleet fixes | Close 5 red-team findings in dispatch→Conductor fold-in |
+| 2026-06-19 | `f2c731a4` | ADR-0060 regressions | Fix salvage reap + tube observability in fold-in |
+| 2026-06-19 | `54f28600` | ADR-0060 feature | Fold dispatch into the Conductor (refactoring fleet dispatch pattern) |
+| 2026-06-19 | `03a6e8a6` | ADR-0085 feature | Cartographer idea-intake grammar — consult/disposition core (Phase 1a) |
+| 2026-06-19 | `416ca038` | Docs | pd-console build/install/run instructions (AGENTS.md + skill) |
+| 2026-06-19 | `7bc88438` | Console polish | Motion slice — hover glow/color + breathing focus dot (v12 feel-pass) |
+| 2026-06-19 | `801ca8e3` | Console polish | Light + dark theme (maritime/neobrutalism palette) + Ctrl-A g toggle |
+| 2026-06-19 | 5× cartographer | Cartographer INDEX refresh | Automated daily snapshots; new digest format |
 
-**Velocity:** 1.3 commits/day (stable post-May-1 burst). Last major burst: May 1–2 (7 fleet-model/telos commits + 15+ docs pages + cost-tracker work).
+**Unplanned Work Pattern:** ADR-0060 (dispatch→Conductor refactoring) and ADR-0085 (idea-intake grammar) are real unplanned product architecture work. pd-console (Phase 6 life-integration) motion/theme polish is polish energy. These are NOT yet mapped to the numbered phase grid.
+
+**Velocity:** 1.3 commits/day (stable post-May-1 burst). Last major burst: May 1–2 (7 fleet-model/telos commits + 15+ docs pages + cost-tracker work). New 2026-06-19 energy: ADR lanes + console feel-pass.
 
 ---
 
@@ -177,20 +185,29 @@
 
 ## Next Cartographer Action (2026-06-20)
 
-1. **Watch Phase 4A promotion** — Track when feature branches are promoted to origin/main / stable; update phase status grid accordingly.
+1. **Map ADR-0060 & ADR-0085 to phase grid** — New unplanned work (dispatch→Conductor refactoring + idea-intake grammar core) is real but unmapped. Decide: are these Phase 1.5 extensions, Phase 3 automation cuts, or separate cross-cutting concerns? Once mapped, update ROADMAP.md.
 
-2. **Monitor Phase 3 velocity** — 12 curated visibility items are hottest lane. If execution starts this week, capture it. If release prep crowding happens (v3.21.0 planning), surface the trade-off to the operator.
+2. **Watch Phase 4A promotion** — Track when feature branches are promoted to origin/main / stable; update phase status grid accordingly.
 
-3. **Economist escalation decision point** — If Phase 2 pricing is essential to H2 timeline, escalate Thomas Youle contact gap now. Otherwise, accept as parallel lane with later ETA.
+3. **Monitor Phase 3 velocity** — 12 curated visibility items are hottest lane. If execution starts this week, capture it. If ADR lanes + console polish + Phase 3 all compete, surface bandwidth constraint to operator.
 
-4. **Phase 4E/F capacity decision** — Clarify operator intent: backlog until Phase 5 ramp, or resume now? Design is clear; decision is sequencing, not risk.
+4. **Economist escalation decision point** — If Phase 2 pricing is essential to H2 timeline, escalate Thomas Youle contact gap now. Otherwise, accept as parallel lane with later ETA.
 
-5. **Harvest fresh Spark/Spider exhaust** — 2026-05-10 raw Spider files (S41/S42/S43) remain uncurated on disk; fresh 2026-06-19 passes may exist. Dedupe and promote to execution wave if novel.
+5. **Phase 4E/F capacity decision** — Clarify operator intent: backlog until Phase 5 ramp, or resume now? Design is clear; decision is sequencing, not risk.
+
+6. **Harvest fresh Spark/Spider exhaust** — 2026-05-10 raw Spider files (S41/S42/S43) remain uncurated on disk; fresh 2026-06-19+ passes may exist. Dedupe and promote to execution wave if novel.
+
+---
+
+## Key Cartographer Observation (2026-06-19)
+
+**Unplanned work lanes are load-bearing.** ADR-0060 (dispatch→Conductor) + ADR-0085 (idea-intake) + pd-console polish are real product energy. Phase 3 execution wave may compete with these if all lanes run in parallel. Monitor for bandwidth contention; surface decision trade-offs to operator if necessary.
 
 ---
 
 **Generated by:** Cartographer (autonomous maintenance pass)  
-**Branch:** cartographer-state (orphan, 8 commits not in origin/main)  
+**Branch:** cartographer-state (orphan, 8 commits ahead of a historic baseline)  
 **Authority:** git log + committed code > recovery hub > raw exhaust  
+**HEAD:** `b8059cee` (2026-06-19 22:50 UTC)  
 **Next sync:** 2026-06-20 automatic daily harvest (cron-triggered or commit-triggered)
 
