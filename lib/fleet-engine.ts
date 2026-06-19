@@ -61,10 +61,26 @@ export interface FleetWatcher {
   confirm?: boolean;
 }
 
+/**
+ * Finite safe defaults applied when an operator does not set explicit spawn caps.
+ * Previously undefined meant "unlimited", which let a trigger flood (e.g. an
+ * attacker-controlled installed repo firing webhooks) spawn unbounded paid LLM
+ * agents. Generous enough not to affect real fleets; override per project in
+ * pd-fleet.yml. See docs/security/relay-ingress-cryptoeconomics.md (Class 2).
+ */
+const DEFAULT_MAX_CONCURRENT_SPAWNS = 8;
+const DEFAULT_MAX_SPAWNS_PER_HOUR = 240;
+
+/** Read a non-negative integer from env, falling back to `fallback`. */
+function envPosInt(name: string, fallback: number): number {
+  const v = Number(process.env[name]);
+  return Number.isFinite(v) && v >= 0 ? v : fallback;
+}
+
 export interface FleetLimits {
-  /** Max concurrent spawns for this project's fleet (default: unlimited) */
+  /** Max concurrent spawns (default: DEFAULT_MAX_CONCURRENT_SPAWNS = 8) */
   maxConcurrentSpawns?: number;
-  /** Max spawns per hour (rate limit, default: unlimited) */
+  /** Max spawns per hour (default: DEFAULT_MAX_SPAWNS_PER_HOUR = 240) */
   maxSpawnsPerHour?: number;
   /** Required daily LLM spend ceiling for this project */
   budgetUsdPerDay?: number;
@@ -847,21 +863,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       return { allowed: false, reason: 'fleet limits.budgetUsdPerDay is required for every agentic launch' };
     }
 
-    // Concurrency limit
-    if (limits.maxConcurrentSpawns !== undefined && activeSpawns >= limits.maxConcurrentSpawns) {
-      return { allowed: false, reason: `concurrent spawn limit (${limits.maxConcurrentSpawns}) reached` };
+    // Concurrency limit. Undefined now resolves to a finite safe default rather
+    // than "unlimited", so a webhook (or any trigger) flood cannot spawn unbounded
+    // LLM agents when an operator hasn't set an explicit cap (cryptoeconomic
+    // Class-2 defense; docs/security/relay-ingress-cryptoeconomics.md). Override
+    // per project via pd-fleet.yml limits.
+    const maxConcurrent = limits.maxConcurrentSpawns
+      ?? envPosInt('PD_FLEET_DEFAULT_MAX_CONCURRENT_SPAWNS', DEFAULT_MAX_CONCURRENT_SPAWNS);
+    if (activeSpawns >= maxConcurrent) {
+      return { allowed: false, reason: `concurrent spawn limit (${maxConcurrent}) reached` };
     }
 
-    // Hourly rate limit
-    if (limits.maxSpawnsPerHour !== undefined) {
-      const oneHourAgo = Date.now() - 3600000;
-      // Prune old timestamps
-      while (spawnTimestamps.length > 0 && spawnTimestamps[0] < oneHourAgo) {
-        spawnTimestamps.shift();
-      }
-      if (spawnTimestamps.length >= limits.maxSpawnsPerHour) {
-        return { allowed: false, reason: `hourly spawn limit (${limits.maxSpawnsPerHour}/hr) reached` };
-      }
+    // Hourly rate limit (also finite-by-default; see above).
+    const maxPerHour = limits.maxSpawnsPerHour
+      ?? envPosInt('PD_FLEET_DEFAULT_MAX_SPAWNS_PER_HOUR', DEFAULT_MAX_SPAWNS_PER_HOUR);
+    const oneHourAgo = Date.now() - 3600000;
+    // Prune old timestamps
+    while (spawnTimestamps.length > 0 && spawnTimestamps[0] < oneHourAgo) {
+      spawnTimestamps.shift();
+    }
+    if (spawnTimestamps.length >= maxPerHour) {
+      return { allowed: false, reason: `hourly spawn limit (${maxPerHour}/hr) reached` };
     }
 
     // Daily budget limit

@@ -1322,6 +1322,48 @@ test('maxSpawnsPerHour blocks spawn after limit is reached', async () => {
   expect(failedEvents.length).toBeGreaterThan(0);
 });
 
+test('a finite default hourly cap applies when no explicit maxSpawnsPerHour is set', async () => {
+  // Class-2 defense: undefined must mean a finite safe default, not unlimited.
+  // The default IS consulted: with the default forced to 0 (env override) the very
+  // first webhook-triggered spawn is blocked, which the old undefined==unlimited
+  // behavior would have skipped entirely. (The real default is 240/hr; reaching a
+  // positive default deterministically under the suite's fake timers is impractical,
+  // and the cap mechanism itself is covered by the explicit-limit test above.)
+  process.env.PD_FLEET_DEFAULT_MAX_SPAWNS_PER_HOUR = '0';
+  try {
+    const config = {
+      ...makeConfig({ schedule: '*/5 * * * *' }),
+      limits: { budgetUsdPerDay: 5 }, // NO maxSpawnsPerHour -> exercises the default path
+    };
+
+    const onEvent = jest.fn();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ agentId: 'abc', status: 'spawned' }),
+    });
+
+    const runner = createFleetRunner(config, '/Users/erichowens/coding/tmp/fleet-test-proj', { onEvent });
+    runner.startAgent(config.agents[0]);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    await runner.hailAgent('test-agent', { source: 'manual' });
+    await Promise.resolve();
+
+    // Third should be blocked by the DEFAULT hourly cap (2), not unlimited.
+    await runner.hailAgent('test-agent', { source: 'manual' });
+    await Promise.resolve();
+
+    const blocked = onEvent.mock.calls
+      .map(c => c[0])
+      .filter(e => e.type === 'agent_failed' && e.details?.error?.includes('hourly spawn limit'));
+    expect(blocked.length).toBeGreaterThan(0);
+  } finally {
+    delete process.env.PD_FLEET_DEFAULT_MAX_SPAWNS_PER_HOUR;
+  }
+});
+
 test('cooldown blocks a second run until the window expires', async () => {
   const config = {
     ...makeConfig({ schedule: undefined, trigger: undefined, cooldownMs: 60000 }),

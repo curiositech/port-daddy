@@ -272,8 +272,32 @@ function channelsFor(hook: NormalizedWebhook, repoRegistry?: RepoRegistryLike): 
   return { channels, routedProjectDir };
 }
 
+const DISPATCH_WINDOW_MS = 60_000;
+const SEEN_DELIVERY_MAX = 2000;
+
+/**
+ * Per-installation webhook→dispatch rate cap (cryptoeconomic Class-2 defense:
+ * docs/security/relay-ingress-cryptoeconomics.md). A webhook that passes origin
+ * auth still fans out to LLM-spawning fleet ships, so an attacker controlling an
+ * installed repo could flood webhooks to burn compute. We bound dispatches per
+ * installation per minute here (ingress), as defense-in-depth with the
+ * fleet-engine concurrency/hour caps. Generous default so real webhook rates are
+ * never affected; env-overridable.
+ */
+function dispatchCapPerMin(): number {
+  const v = Number(process.env.PD_GITHUB_MAX_DISPATCH_PER_MIN);
+  return Number.isFinite(v) && v > 0 ? v : 30;
+}
+
 export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteDeps }> = async (fastify, opts) => {
   const { logger, metrics, messaging, repoRegistry } = opts.deps;
+
+  // Closure-scoped throttle + idempotency state (per-process, fresh per plugin
+  // registration). `dispatchTimes` is a sliding 1-minute window per installation;
+  // `seenDeliveries` is a bounded FIFO of processed X-GitHub-Delivery UUIDs.
+  const dispatchTimes = new Map<string, number[]>();
+  const seenDeliveries = new Set<string>();
+  const seenOrder: string[] = [];
 
   // Capture the raw body (encapsulated to this plugin) so HMAC verification
   // can hash the exact bytes GitHub signed, while still exposing parsed JSON.
@@ -341,6 +365,40 @@ export const githubWebhookPlugin: FastifyPluginAsync<{ deps: GithubWebhookRouteD
       reply.code(400);
       return { error: 'could not determine GitHub event (set X-GitHub-Event header or envelope.event)' };
     }
+
+    // Idempotency: GitHub redelivers webhooks; drop one we've already processed so
+    // a redelivery storm cannot re-trigger ships. (Distinct from replay-freedom on
+    // the relay chain — this is the raw-forward path.)
+    if (hook.delivery) {
+      if (seenDeliveries.has(hook.delivery)) {
+        logger.info('github_webhook_duplicate_delivery', { delivery: hook.delivery });
+        reply.code(200);
+        return { ok: true, deduplicated: true };
+      }
+      seenDeliveries.add(hook.delivery);
+      seenOrder.push(hook.delivery);
+      if (seenOrder.length > SEEN_DELIVERY_MAX) {
+        const evicted = seenOrder.shift();
+        if (evicted) seenDeliveries.delete(evicted);
+      }
+    }
+
+    // Per-installation dispatch rate cap (Class-2 cost-griefing defense).
+    const throttleKey = hook.installation_id != null
+      ? `inst:${hook.installation_id}`
+      : `repo:${hook.repository?.full_name ?? 'unknown'}`;
+    const now = Date.now();
+    const cap = dispatchCapPerMin();
+    const recent = (dispatchTimes.get(throttleKey) ?? []).filter((t) => now - t < DISPATCH_WINDOW_MS);
+    if (recent.length >= cap) {
+      dispatchTimes.set(throttleKey, recent);
+      logger.error('github_webhook_dispatch_throttled', { key: throttleKey, cap, window_ms: DISPATCH_WINDOW_MS });
+      reply.code(429);
+      reply.header('retry-after', '60');
+      return { error: `dispatch rate cap ${cap}/min exceeded for ${throttleKey}` };
+    }
+    recent.push(now);
+    dispatchTimes.set(throttleKey, recent);
 
     const { channels, routedProjectDir } = channelsFor(hook, repoRegistry);
     try {

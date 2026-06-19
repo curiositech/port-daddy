@@ -8,6 +8,7 @@ const GITHUB_ENV_KEYS = [
   'PD_GITHUB_WEBHOOK_SECRET',
   'PD_GITHUB_WEBHOOK_ALLOW_UNAUTH',
   'PD_GITHUB_REQUIRE_ORIGIN_HMAC',
+  'PD_GITHUB_MAX_DISPATCH_PER_MIN',
 ];
 
 function snapshotEnv() {
@@ -282,6 +283,46 @@ describe('POST /webhooks/github — inbound GitHub webhook → fleet channel', (
 
     expect(res.statusCode).toBe(204);
     expect(deps.published.length).toBeGreaterThan(0);
+    await app.close();
+  });
+
+  // --- Class-2 cost-griefing defenses: delivery dedup + per-installation cap ----
+
+  test('duplicate X-GitHub-Delivery is de-duplicated (200, no second dispatch)', async () => {
+    process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH = '1';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const first = await app.inject({ method: 'POST', url: '/webhooks/github', payload: envelope() });
+    expect(first.statusCode).toBe(204);
+    const afterFirst = deps.published.length;
+    expect(afterFirst).toBeGreaterThan(0);
+
+    // Same delivery UUID again (GitHub redelivery) — dropped, no new publishes.
+    const second = await app.inject({ method: 'POST', url: '/webhooks/github', payload: envelope() });
+    expect(second.statusCode).toBe(200);
+    expect(JSON.parse(second.payload).deduplicated).toBe(true);
+    expect(deps.published.length).toBe(afterFirst);
+    await app.close();
+  });
+
+  test('per-installation dispatch rate cap returns 429 over the limit, publishing nothing further', async () => {
+    process.env.PD_GITHUB_WEBHOOK_ALLOW_UNAUTH = '1';
+    process.env.PD_GITHUB_MAX_DISPATCH_PER_MIN = '2';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    // Same installation (9999), distinct deliveries so dedup does not interfere.
+    const r1 = await app.inject({ method: 'POST', url: '/webhooks/github', payload: envelope({ delivery: 'd-1' }) });
+    const r2 = await app.inject({ method: 'POST', url: '/webhooks/github', payload: envelope({ delivery: 'd-2' }) });
+    expect(r1.statusCode).toBe(204);
+    expect(r2.statusCode).toBe(204);
+    const publishedBefore = deps.published.length;
+
+    const r3 = await app.inject({ method: 'POST', url: '/webhooks/github', payload: envelope({ delivery: 'd-3' }) });
+    expect(r3.statusCode).toBe(429);
+    expect(r3.headers['retry-after']).toBe('60');
+    expect(deps.published.length).toBe(publishedBefore); // throttled before publish
     await app.close();
   });
 
