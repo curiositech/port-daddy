@@ -399,6 +399,24 @@ const TOOLS = [
       properties: {},
     },
   },
+  {
+    name: 'coast_guard_rent_status',
+    description:
+      '[System] Rent-to-slash status (ADR-0050 phase 7). Returns the daemon\'s current ' +
+      'rent-slash mode (off | advisory | enforce; advisory debits nothing) and, when a ' +
+      'session_id is supplied, that session\'s own principal breach state (count, ' +
+      'first/last breach). Read-only — reporting breaches and curing them are daemon/' +
+      'guard ingestion paths, not MCP tools. Usage: coast_guard_rent_status({ "session_id": "session-..." })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        session_id: {
+          type: 'string',
+          description: 'Optional session ID — include to read your own breach state; omit for mode only',
+        },
+      },
+    },
+  },
 
   // ── Harbors (permission namespaces) ──────────────────────────────────
   {
