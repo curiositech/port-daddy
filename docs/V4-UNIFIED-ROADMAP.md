@@ -3,22 +3,22 @@
 Canonical note: this file remains valuable historical context, but the active recovery authority now lives in `docs/recovery/README.md` and `docs/recovery/UNIFIED-ROADMAP.md`.
 
 **Author:** Erich Owens
-**Last Updated:** 2026-06-19 18:30 UTC (Cartographer validation pass; v3.19.0 Parley + v3.18.0 Coast Guard shipped; 34 curated execution items; Phase 3 hottest)
-**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 1 complete, Phase 2 infrastructure ready (`cost-tracker` + `counters` + observability shipped v3.8.3) with the economist pricing function still idle **81 days** (since 2026-03-30 contact), Phase 3 hottest mapped phase with `daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `daemon-fleet-auto-recovery`, `operator-hint-engine`, `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `tuple-driven-fleet`, `operator-manual-fleet-dispatch`, and `episodic-memory-query-surfaces` widening the fleet, memory, and visibility lanes (13 items), Phase 4 partial with 4A active off-main on `feat/binary-distribution-daemon-unblock` and `feat/doctor-binary-daemon-diagnostics` (5 commits) while 4D is partial IPC and 4E/4F remain stale at 80 days, Phase 5 architecture groundwork shipped (`pd tube`, Merkle-chain, relay PKI, quorum, daemon profiles), and Phase 6 active with telos substrate landed and the suggestion layer still open. The 2026-06-19 cartographer-state carries dispatch → Conductor fold-in (ADR-0060), idea-intake consult/disposition core (ADR-0085), and pd-console build/install/run instructions; those slices are unplanned and not yet folded into the numbered phase map.
+**Last Updated:** 2026-06-19 19:34 UTC (Cartographer digest update; v3.20.0 Coast Guard + v3.19.0 Parley shipped; 34 curated execution items; Phase 3 hottest)
+**Status:** Canonical reference document — authority for execution now lives in `docs/recovery/UNIFIED-ROADMAP.md`. Phase 0 complete, Phase 1 complete, Phase 2 infrastructure ready (`cost-tracker` + `counters` + observability shipped v3.8.3) with the economist pricing function still idle **81 days** (since 2026-03-30 contact), Phase 3 hottest mapped phase with `daemon-introspection-api`, `crew-screen-roles-not-pids`, `fleet-health-scorecard`, `coordination-ticker-as-high-signal-feed`, `fleet-run-journal`, `daemon-fleet-auto-recovery`, `operator-hint-engine`, `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `tuple-driven-fleet`, `operator-manual-fleet-dispatch`, and `episodic-memory-query-surfaces` widening the fleet, memory, and visibility lanes (13 items), Phase 4 partial with 4A active off-main on `feat/binary-distribution-daemon-unblock` and `feat/doctor-binary-daemon-diagnostics` (5 commits) while 4D is partial IPC and 4E/4F remain stale at 80+ days, Phase 5 architecture groundwork shipped (`pd tube`, Merkle-chain, relay PKI, quorum, daemon profiles), and Phase 6 active with telos substrate landed and the suggestion layer still open. The 2026-06-19 cartographer-state carries dispatch → Conductor fold-in (ADR-0060), idea-intake consult/disposition core (ADR-0085), and pd-console build/install/run instructions; those slices are unplanned and not yet folded into the numbered phase map.
 
-**Branch Status:** `origin/main` is 1490 commits ahead of cartographer-state; cartographer-state carries 12 commits not in main. Main recent energy (v3.19.0 release Parley, v3.18.0 Coast Guard, metrics/FleetBar/docs polish). Phase 4A binary work is active off-main on feature branches.
+**Branch Status:** `origin/main` is 1490 commits ahead of cartographer-state; cartographer-state carries 15 commits not in main. Main recent energy (v3.20.0 Coast Guard, v3.19.0 Parley, metrics/FleetBar/docs/console polish). Phase 4A binary work is active off-main on feature branches.
 
 **Curated Execution Wave:** 34 now-status items in `docs/recovery/UNIFIED-ROADMAP.md`. Tuple-backed feedback queue empty (`open: 0`, `harvested: 11`).
 
 **No New Dogfood Feedback:** No new `.spark/feedback/` files. Curated now-pair remains `claim-preserving-git-safety` and `fleet-launchability-and-cadence`.
 
-**Spark/Spider Harvest:** 2026-05-14 promotion complete. Fresh 2026-06-19 Spider waves 1-7 present on disk but uncurated pending dedupe.
+**Spark/Spider Harvest:** 2026-05-14 promotion complete. Fresh 2026-06-19 Spider waves 1-12 present on disk but uncurated pending dedupe.
 
 **Unplanned Work Signal:** Release cycles (Parley, Coast Guard) + operator-surface polish (metrics, FleetBar, docs) are real product energy feeding Phase 3 visibility/automation. Monitor that Phase 3 execution wave items don't get crowded out.
 
-HEAD (cartographer-state): `b47f8fd9`. HEAD (origin/main): `3ca3931f`. Divergence confirmed: origin/main 1490 commits ahead, cartographer-state 12 commits not in main.
+HEAD (cartographer-state): `f3dd5eb4`. HEAD (origin/main): `3ca3931f`. Divergence confirmed: origin/main 1490 commits ahead, cartographer-state 15 commits not in main.
 
-This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix. The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; the 2026-05-12 continuation passes (`857f225c`, `d017bc28`) added the claim-safety and plugin-lifecycle support lane; the 2026-05-14 promotion adds `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis` to the curated wave while `skill-degradation-contagion-early-warning` stays backlog, and the 2026-05-10 raw Spider exhaust (`S41`/`S42`/`S43`) remains uncurated and is therefore not reflected in the phase map below yet.
+This document synthesizes all V4 planning documents into a single sequenced roadmap. Nothing from the original documents has been discarded — ideas that aren't yet sequenced are preserved in the Appendix. The 2026-05-11 Spark promotion added `graph-based-merge-conflict-predictor` and `ambient-anomaly-signaling` to the curated wave; the 2026-05-12 continuation passes (`857f225c`, `d017bc28`) added the claim-safety and plugin-lifecycle support lane; the 2026-05-14 promotion adds `tuple-store-query-api`, `governance-coordination-hub`, `phase-3-auto-remediation-executor`, `cost-aware-model-training-loop`, and `unified-spawn-risk-synthesis` to the curated wave while `skill-degradation-contagion-early-warning` stays backlog, and the 2026-05-10 raw Spider exhaust (`S41`/`S42`/`S43`) and the fresh 2026-06-19 Spider waves 1-12 remain uncurated and are therefore not reflected in the phase map below yet.
 
 The same 2026-05-14 Spark promotion also surfaced
 `episodic-memory-query-surfaces` as the Phase 3B memory cut, so Fleet &
@@ -297,7 +297,7 @@ Visual fleet management, watch hooks with message history, spawn agent form, fle
 
 ### 4A. Bun/Fastify Migration [FASTIFY SHIPPED v3.8.1, BUN BINARY ACTIVE OFF-MAIN — resumed 2026-05-11, carries v3.14.0 distribution work not yet on stable]
 
-Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`. **STATUS UPDATE (2026-06-19 Cartographer pass)**: Binary / doctor / distribution work is ACTIVE off-main on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`) with commits `0f3e2fbe`, `6a8c8bb1`, `0d99bdfe`, `cd283478`, and `72461802`. `origin/main` is currently spending its release energy on the v3.19.0 Parley / v3.18.0 Coast Guard releases plus metrics / FleetBar / docs polish. Stable has not absorbed either lane yet.
+Replace Express with Fastify on Bun for 20,000+ req/sec. Single-file binary compilation via `bun build --compile`. **STATUS UPDATE (2026-06-19 Cartographer pass)**: Binary / doctor / distribution work is ACTIVE off-main on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`) with commits `0f3e2fbe`, `6a8c8bb1`, `0d99bdfe`, `cd283478`, and `72461802`. `origin/main` is currently spending its release energy on the v3.20.0 Coast Guard / v3.19.0 Parley releases plus metrics / FleetBar / docs / console polish. Stable has not absorbed either lane yet.
 
 > **Cartographer — 2026-03-31:** Fastify migration complete (`b8a8ae0`, 2026-03-29). All 23 route files converted to Fastify plugins. `express`, `cors`, `express-rate-limit`, `supertest` removed. Same API surface, same endpoints. BigInt serialization fixed, ephemeral port exhaustion eliminated with `fastify.inject()`. **Bun** (single-file binary) has zero commits — this half of 4A is not started.
 >
@@ -335,17 +335,17 @@ Socket-level backpressure when SQLite WAL commits lag. Forces agents to pause ra
 >
 > **Cartographer — 2026-05-14:** `unified-spawn-risk-synthesis` combines the Phase 4B launch gates into one preflight risk signal so operators can see the combined cost/skill/dependency/harbor/learning picture before spawn.
 
-### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31 (80 days)]
+### 4E. `pd self-test --adversarial` [STALE — no commits since 2026-03-31 (80+ days)]
 
 Ships with the daemon. Runs the chaos test suite from V4-TEST-SUITE.md against the live instance. Outputs a "Nautical Seaworthiness Report."
 
-**Cartographer Note (2026-06-19):** 80 days stale. Unblocked by `sandboxed-adversarial-test-harness` (2026-05-13 Spark promotion now in execution wave). Safe isolated chaos harness can run adversarial tests off-daemon.
+**Cartographer Note (2026-06-19):** 80+ days stale. Unblocked by `sandboxed-adversarial-test-harness` (2026-05-13 Spark promotion now in execution wave). Safe isolated chaos harness can run adversarial tests off-daemon.
 
-### 4F. Hardened Windows IPC [STALE — no commits since 2026-03-31 (80 days)]
+### 4F. Hardened Windows IPC [STALE — no commits since 2026-03-31 (80+ days)]
 
 Named Pipes with explicit DACLs (SDDL). `PIPE_REJECT_REMOTE_CLIENTS` to prevent NTLM relay attacks.
 
-**Cartographer Note (2026-06-19):** 80 days stale. No blocking issues identified; design is complete. This is a lower-priority hardening item — reevaluate once 4E is in flight.
+**Cartographer Note (2026-06-19):** 80+ days stale. No blocking issues identified; design is complete. This is a lower-priority hardening item — reevaluate once 4E is in flight.
 
 **Deliverable:** The daemon handles production agent fleets at scale with sub-millisecond coordination.
 
