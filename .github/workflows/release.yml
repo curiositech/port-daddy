@@ -135,15 +135,15 @@ jobs:
 
   update-homebrew:
     runs-on: ubuntu-latest
-    # The Homebrew formula ships the CLI + daemon binaries ONLY. It must roll
-    # whenever those binaries build — it must NOT be gated on the FleetBar Swift
-    # preview (a separate cask, no Swift toolchain guarantee) or publish-npm
-    # (a known-flaky non-essential job). Gating the tap on either of those meant
-    # a FleetBar compile failure silently stranded an entire CLI release at the
-    # old version (v3.17.0: binaries built + uploaded, tap left at 3.16.2). Only
-    # gate on build-binaries.
-    needs: [build-binaries]
-    if: always() && needs.build-binaries.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    # FleetBar is now ESSENTIAL (operator directive 2026-06-18): a release ships
+    # the daemon AND its GUI together, so the tap MUST NOT roll if the FleetBar
+    # preview failed to build. This reverses the prior "binaries-only" gate — that
+    # let FleetBar rot silently across releases. The tradeoff is deliberate: a
+    # flaky FleetBar build now blocks the release, which forces FleetBar to be
+    # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
+    # distribution channel, not part of the daemon+GUI bundle).
+    needs: [build-binaries, build-fleetbar-preview]
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Set release version
         id: release
