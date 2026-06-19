@@ -1,4 +1,4 @@
-# Cartographer Index — 2026-06-19T16:31:00Z
+# Cartographer Index — 2026-06-19T18:30:39Z
 ## Phase summary
 - Phase 0: COMPLETE
 - Phase 1: COMPLETE
@@ -7,7 +7,9 @@
 - Phase 4: PARTIAL, 4A active off-main, 4E/4F stale 80 days
 - Phase 5: ARCHITECTURE
 - Phase 6: ACTIVE
-- Branch reality: `origin/main` is 1490 commits ahead of cartographer-state; cartographer-state is 8 commits ahead of `origin/main`
+- Branch reality: `origin/main` is 1490 commits ahead of cartographer-state; cartographer-state is 12 commits ahead of `origin/main`
+- HEAD: `b47f8fd9`
+- origin/main: `3ca3931f`
 
 ## Top 3 closest to completion
 1. `incremental-symbol-index-refresh` - keeps the Phase 1 graph current as files change
@@ -20,14 +22,18 @@
 3. Phase 4E/4F self-test and Windows hardening - 80 days stale, awaiting the sandboxed adversarial harness
 
 ## Recent commits unmapped to roadmap (last 7d)
-- `ada93305` - cartographer: index digest for 2026-06-19 21:30 UTC
+- `b47f8fd9` - cartographer: refresh index snapshot for 2026-06-19 23:00 UTC
+- `b8059cee` - cartographer: update index snapshot for 2026-06-19 22:50 UTC (Phase 1 COMPLETE, Phase 3 HOTTEST, 34 execution items, economist 77d idle)
+- `737c453e` - cartographer: refresh index snapshot for 2026-06-19 22:45 UTC (Phase 1 COMPLETE, Phase 3 HOTTEST, 34 execution items, economist 77d idle)
+- `251f552f` - cartographer: refresh index snapshot for 2026-06-19 16:31 UTC
+- `ada93305` - cartographer: index digest for 2026-06-19 21:30 UTC (Phase 1 COMPLETE, Phase 3 HOT, 34 execution items, 2 dogfood-backed)
 - `77985eb2` - cartographer: refresh index snapshot for 2026-06-19 20:45 UTC
 - `d63a105d` - cartographer: refresh index snapshot for 2026-06-19 18:16 UTC
 - `826b39c4` - cartographer: refresh index snapshot for 2026-06-19
 - `f51b4034` - cartographer: state snapshot for 2026-06-19 17:42 UTC
 - `f615b956` - cartographer: state snapshot for 2026-06-19 17:42 UTC
-- `a7a547ab` - cartographer: state snapshot for 2026-06-19 03:00 UTC
-- `3ca3931f` - origin/main: v3.19.0 Parley, v3.18.0 Coast Guard, metrics/FleetBar/docs polish
+- `a7a547ab` - cartographer: state snapshot for 2026-06-19 03:00 UTC (Phase 1 COMPLETE, Phase 3 HOT, ADR-0084 active, 35+ commits since 2026-05-16)
+- `19c63d0f` - cartographer: state snapshot for 2026-06-19 03:00 UTC (Phase 1 complete, Phase 3 active, Phase 4A off-main, 34 execution items, 2 dogfood-backed)
 
 ## Open dogfood-feedback at `now` (count + slugs)
 - 2: `claim-preserving-git-safety`, `fleet-launchability-and-cadence`
