@@ -13,7 +13,7 @@ struct Berth: Identifiable, Equatable {
     let label: String
     let port: Int
     let colorHex: String
-    let canonical: Bool       // the stable brew berth on :9876
+    let canonical: Bool       // the stable brew berth on the canonical port
     let sourceDir: String?
     let gitBranch: String?
     let gitRev: String?
