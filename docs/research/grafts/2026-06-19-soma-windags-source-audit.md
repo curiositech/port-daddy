@@ -114,7 +114,7 @@ machinery are not.**
 | 4 | Monster-barring (Lakatos degeneracy signal) | **DESIGN-ONLY** | `lakatos-v2/Lakatos_SKILL.md`, `Lakatos_knowledge_map.json` | reference material; no runtime detector over skill revisions |
 | 5 | Commitment levels COMMITTED/TENTATIVE/EXPLORATORY | **PARTIAL** | `types/dag.ts` `CommitmentLevel`; used at `evaluation-engine.ts:61` | sets base `P(fail)`; **not** wired to differential model/retry/budget allocation |
 | 6 | Halt gate (validity < 0.6 → halt before decompose) | **BUILT + WIRED** | `context/meta-dag-predict.ts:~700` | Wave-0 sensemaker emits `{type:'halt'}`, blocks Wave-1 |
-| 7 | Wave execution + 6 topologies | **BUILT + WIRED** | `core/topology.ts`; `topologies/index.ts` | DAG/Team/Swarm/Blackboard/TeamBuilder/Recurring |
+| 7 | Wave execution + 6 topologies | **BUILT + WIRED** | `packages/core/src/core/topology.ts`; `packages/core/src/topologies/index.ts` | DAG/Team/Swarm/Blackboard/TeamBuilder/Recurring |
 | 8 | Progressive Revelation; 34.78%→4.35% | **DESIGN-ONLY; metric external** | metric in `…/windags-avatar/windags-constitution-v3.md`, `wang-et-al-2025-tdag/` | on-demand vague-node expansion not wired; metric borrowed from TDAG/HTN literature, not measured here |
 | 9 | io-contracts + `ContractValidator` | **METADATA-ONLY** | `types/next-move.ts:80-90` | free-text `input_/output_contract`; **no validator** |
 | 10 | `SwarmTracer` epistemic-ancestry (Toulmin) | **BUILT + WIRED** | `topologies/swarm-tracer.ts` | records `SwarmExecutionSpan.discourse[]`, builds lineage graph |

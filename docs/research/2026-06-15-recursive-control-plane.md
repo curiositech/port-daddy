@@ -2,7 +2,7 @@
 
 > Status: **research / exploratory.** Not canon. A landing pad for the bolder
 > cross-cutting ideas generated alongside the four-paper rewrite
-> (`docs/research/north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target**
+> (`docs/research/north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target** <!-- cite-exempt: pending in #378 -->
 > for `erichowens/soma` and `curiositech/windags` once those repos are added to
 > the session scope. The "Open research items" list at the bottom is meant to be
 > promoted into `docs/research/north-star/00-THE-LEDGER-open-problems.md` (research) and/or the Cartographer
@@ -165,7 +165,7 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
   parley. Both source repos match at task-PLAN time; neither detects RUNTIME
   overlap between active agents — the real gap.)*
   - *1a (windags):* BM25 → cosine-RRF → cross-encoder → attribution-kNN cascade
-    (`core/skill-matcher.ts`), adapted from skill-matching to task-shape.
+    (`packages/core/src/core/skill-matcher.ts`), adapted from skill-matching to task-shape.
   - *1b (windags):* run that cascade on live **agent outputs**, not task
     descriptions, to catch two agents converging on the same claim. *(open)*
 - **RCP-2 — Parley trigger.** Cost-aware (Signal-Detection) threshold for when to
