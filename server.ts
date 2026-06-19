@@ -102,7 +102,7 @@ import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
 import { createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
-import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
+import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 
@@ -613,6 +613,10 @@ const bosunHeartbeat = createBosunHeartbeat({
   pidFile: PID_FILE,
   portFile: PORT_FILE,
   requirePidFileMatch: true,
+  // Loopback probe of our own request pipeline over the primary Unix socket.
+  // If HTTP wedges while the event loop keeps turning, the heartbeat halts and
+  // Bosun restarts us (Bosun is HTTP-free by design and can't see this itself).
+  selfProbe: createSocketHealthProbe({ socketPath: SOCK_PATH }),
   logger,
 });
 
