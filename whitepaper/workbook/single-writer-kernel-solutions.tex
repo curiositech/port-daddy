@@ -1,0 +1,546 @@
+% ─────────────────────────────────────────────────────────────────────────────
+% The Harbor Volume Workbook — Part I: The Single-Writer Kernel (solutions)
+%
+% Full worked answers to the Part I questions. Check items get a tight, complete
+% answer; Trace items get a step-by-step derivation; Open items get a genuine
+% design discussion that takes a position, names the trade, and bounds the claim.
+% Numbering matches single-writer-kernel-questions.tex (Q1..Q30).
+%
+% Expects \wbans{<label>}{<body>} from the workbook preamble; a fallback is below.
+% ─────────────────────────────────────────────────────────────────────────────
+
+\providecommand{\wbans}[2]{%
+  \par\vspace{6pt}\noindent
+  {\scshape\bfseries\textcolor{hhteal}{#1.}}\enspace #2\par\vspace{2pt}%
+}
+
+\section{The Single-Writer Kernel --- Solutions}
+\label{wbsol:swk}
+
+% ─── The seven organs ─────────────────────────────────────────────────────────
+\subsection*{The seven organs}
+
+\wbans{Q1}{Six of the seven organs survive an in-memory database; one is gutted.
+Resource (claims/locks), communication (bus, markers, the two delegation objects),
+obligation/enforcement (the monitor and commitments), identity, and self-attestation
+all operate on live state and are meaningful with no disk: mutual exclusion,
+loop-detection, deontic checks, and integrity self-checks are all about the
+\emph{current} configuration, not its persistence. The \textbf{substrate organ}
+becomes vacuous --- its entire job is durability and serialized mutation, and
+durability with no disk is a contradiction. The \textbf{continuity organ} is the
+subtler casualty: memory, recovery, and the audit log all assume state outlives the
+process. ``Recovery passes notes'' presupposes the notes are still there after the
+agent dies; with no disk there is nothing to pass. So: substrate vacuous outright,
+continuity vacuous in spirit (it degrades to within-process bookkeeping that the next
+crash erases), the other five intact.}
+
+\wbans{Q2}{Example, the resource organ. Its home table is the claims/registry table,
+keyed by the resource key (port number, file-region descriptor, or named-lock name)
+with a holder column and an \texttt{expires\_at} column. The invariant it owes the
+coordination layer above is \textbf{at most one live holder per key at any instant}
+(I2, atomic mutual exclusion): the layer above may treat ``who holds this key'' as a
+single-valued ground truth and never has to reconcile two simultaneous holders. The
+table enforces this with a uniqueness/primary-key constraint on the key column, so the
+invariant is a property of the schema, not of careful application code.}
+
+\wbans{Q3}{The seven cut is defensible but not forced; it is chosen so that each
+organ owns exactly one contract the layers above name. A plausible \emph{five-organ}
+cut folds identity into continuity (both are ``who is this actor over time'') and
+self-attestation into substrate (``the floor reports its own health''). That makes
+the picture smaller and emphasizes that durability and integrity-reporting are the
+same trust root. What it hides: identity is the precondition that gates the
+\emph{soundness} of every enforcement rule (I12 gates I7--I9), so burying it inside
+continuity obscures the single most load-bearing dependency in the threat model. A
+\emph{nine-organ} cut would split the resource organ into ports / file-regions /
+named-locks and the communication organ into bus / markers; this makes each table's
+schema crisper but multiplies near-identical exclusion arguments and loses the
+insight that all three claim granularities reduce to one exclusion primitive. The
+seven-organ cut wins because it keeps one mechanism per organ while still surfacing
+the identity-gates-enforcement dependency as its own thing. The deeper lesson: the
+``right'' decomposition is the one whose boundaries coincide with the contracts the
+next layer actually relies on, not the one with the fewest boxes.}
+
+% ─── The substrate organ ──────────────────────────────────────────────────────
+\subsection*{The substrate organ}
+
+\wbans{Q4}{Take module A owning a \texttt{sessions} table and module B that, at a
+later version, wants to read \texttt{sessions.actor\_label}. Suppose A renames
+\texttt{actor} to \texttt{actor\_label} via a lazy ``add column if absent, copy,
+stop reading the old one'' migration that runs when A loads. Because schema-by-union
+imposes no load order, B can load and run its first read \emph{before} A has loaded
+and performed the backfill: B sees a table with \texttt{actor} populated and
+\texttt{actor\_label} absent or null, and either crashes or silently reads nulls. The
+unsafety is precisely that a rename is a two-step (add-new, backfill, drop-old)
+operation whose steps are not atomic across modules, and ``any module, any order''
+gives no barrier guaranteeing the backfill precedes the first foreign read. A pure
+\texttt{CREATE TABLE IF NOT EXISTS} is safe under any order because it is idempotent
+and touches only its own columns; a rename is not, because it has a happens-before
+obligation the union model cannot express.}
+
+\wbans{Q5}{Walk the request \texttt{acquire(key)} from the CLI:
+(1) the CLI process serializes the request and sends it over a Unix domain socket ---
+no database contact yet;
+(2) the daemon's single request queue receives it --- \emph{routing} point 1: the
+daemon, not the OS lock, is what serializes this against other in-flight requests;
+(3) the daemon, holding its one read--write connection, issues the
+\texttt{INSERT}; the SQLite file lock is taken for the duration of that statement ---
+this is the \emph{file-lock} point, and it is the backstop, not the primary
+serializer;
+(4) the constraint decides win/lose and the daemon returns the result over the socket.
+So there are two routing points (socket send, daemon queue) where correctness rests on
+\emph{where the write goes}, and exactly one file-lock point (the insert) where the OS
+lock would still serialize even a rogue second writer. The paper's claim is that under
+the discipline the file lock never actually arbitrates between two daemon writes ---
+it only matters as the safety net if a second writer ever appears.}
+
+\wbans{Q6}{Take a position: idempotent self-init can be extended a long way without a
+version table, but not all the way --- down-migrations force one. The extension that
+works: make each module declare not just \texttt{CREATE TABLE IF NOT EXISTS} but a
+\emph{set of idempotent, commutative, monotone} schema assertions --- ``column X
+exists with type T'', ``index Y exists'', ``column Z backfilled from W where null''.
+Each assertion is safe in any order \emph{because} it is idempotent and only adds; the
+union of monotone additions is order-independent (it is a join in a lattice of
+schemas). Renames become ``add new column + backfill assertion + a read-shim that
+prefers new, falls back to old'', never a destructive drop, which preserves
+any-order safety at the cost of leaving dead columns. The wall you hit: a true
+\emph{down}-migration (undo a column, shrink a type) is not monotone --- it removes
+information --- so it cannot be an order-independent assertion, and you cannot know
+whether a down-migration has already run without recording that it did. That record
+is, minimally, a version/applied-migrations table. Conclusion: ``any module, any
+order'' survives all forward, additive, backfill-only evolution; it cannot survive
+destructive rollback, and the smallest thing that buys rollback is exactly the
+sequencer the design set out to avoid. The honest design ships the additive subset and
+declares destructive migration an explicit, operator-gated, sequenced operation ---
+not part of the auto-init path.}
+
+% ─── Durability by fault class ────────────────────────────────────────────────
+\subsection*{Durability by fault class}
+
+\wbans{Q7}{(a) Forced kill of the daemon process --- \textbf{I1a-survivable}: the
+committed pages are in the OS page cache, which outlives the process; restart replays
+the WAL. (b) Clean OS reboot --- \textbf{I1a-survivable}: a clean shutdown runs the
+shutdown checkpoint (or at minimum flushes the cache), so committed data reaches
+stable storage. (c) Yanking the power cord --- \textbf{I1b-exposed}: the page cache is
+lost before the next checkpoint syncs the WAL, so the last committed-but-uncheckpointed
+writes can roll back. (d) Unhandled exception in a request handler --- \textbf{I1a},
+and in fact weaker than a kill: the process may not even die; the transaction either
+committed (durable in cache) or never committed (nothing to lose). The discriminating
+question for every case is the same: \emph{did the page cache survive?} Process death
+and clean reboot preserve it; power loss does not.}
+
+\wbans{Q8}{Timeline: at $t_0$ the claim commits --- its pages are in the WAL in the OS
+page cache, not yet fsync'd. The vulnerable window opens at $t_0$ and closes at the
+moment the WAL is durably synced, which under \texttt{synchronous=NORMAL} is the next
+checkpoint at $t_0+\delta$. A power loss anywhere in the open interval $(t_0,\,
+t_0+\delta)$ reverts the claim; a power loss after the checkpoint does not. Bounding
+$\delta$: SQLite's \texttt{wal\_autocheckpoint} is a \emph{page-count} threshold, not
+a timer --- a checkpoint fires when the WAL reaches $N$ pages (the reference config uses
+$N=200$). So $\delta$ is bounded not by wall-clock but by write \emph{volume}: under a
+write rate of $\rho$ pages/second the worst-case window is $\delta \le N/\rho$, and
+under low write rates $\delta$ can be \emph{unbounded in time} --- a single claim on an
+otherwise idle system may sit unsynced indefinitely because nothing pushes the WAL to
+200 pages. This is the sharp edge: page-count checkpointing bounds the window in pages,
+not in seconds, so a money-bearing write on a quiet system is exactly the case where
+I1b bites hardest. The remedy (a commit-path checkpoint or full sync for that write)
+is the subject of Q9.}
+
+\wbans{Q9}{Design a \emph{per-write-path} selector rather than a global pragma. The
+cleanest interface attaches a durability class to the write at the API boundary, not
+to the connection:
+\texttt{write(payload, durability=\{fast \textbar\ durable\})}, defaulting to
+\texttt{fast}. \texttt{fast} keeps \texttt{synchronous=NORMAL} (the current behavior).
+\texttt{durable} wraps the write so that immediately after the commit the daemon issues
+either a \texttt{PRAGMA wal\_checkpoint(FULL)} or runs that single transaction under a
+temporarily elevated \texttt{synchronous=FULL} --- forcing the WAL to stable storage
+before returning success. The crucial design rule that avoids re-introducing the
+conflation: the durability class must be a property of the \emph{call}, surfaced in the
+return contract, so that ``success'' means different things for the two classes and the
+caller chose knowingly. A settlement-ledger write opts into \texttt{durable} and pays
+the fsync latency; a claim write stays \texttt{fast}. Two traps to avoid: (1) do not
+make \texttt{durable} a connection-level mode that silently slows unrelated writes
+sharing the connection --- it must be per-statement; (2) do not let \texttt{durable}
+become the default ``to be safe'', which would erase the throughput rationale for the
+single-writer design. The interface succeeds when the cost is visible at the exact
+call site that needs the guarantee and nowhere else.}
+
+% ─── The resource organ ───────────────────────────────────────────────────────
+\subsection*{The resource organ}
+
+\wbans{Q10}{Releasing a lock you do not hold returns success because release is defined
+to be \textbf{idempotent} (I3): its postcondition is ``the key is not held by you,''
+which already holds, so the operation is a no-op that succeeds. This is the same
+property as idempotent re-claim --- the operation asserts a target state rather than a
+delta. If release raised on a non-held key, two real things break. First, crash
+recovery: an agent that crashed mid-release and retries on restart would get an error
+on the second attempt and could not cleanly converge. Second, double-release races: two
+cleanup paths (the agent's own \texttt{finally} block and the TTL sweep) legitimately
+race to release the same expired lock, and exactly one would ``win'' while the other
+errored --- turning a benign convergence into a spurious failure the operator must
+triage. Idempotent release makes ``ensure this is released'' a safe, repeatable
+command, which is what every caller actually wants.}
+
+\wbans{Q11}{Both agents issue \texttt{acquire(K)} on fresh key $K$. Both requests reach
+the single daemon and are serialized by its request queue, so the two inserts are
+attempted one after the other, never truly simultaneously at the storage layer.
+Step the winner (say A): \texttt{INSERT row (key=K, holder=A, expires\_at=...)}
+succeeds --- $K$ had no row --- and A is returned \texttt{GRANTED(holder=A)}.
+Step the loser (B), arriving an instant later:
+\texttt{INSERT row (key=K, holder=B, ...)} violates the uniqueness/primary-key
+constraint on \texttt{key} and is rejected \emph{atomically}; there is no instant at
+which two rows for $K$ exist. Control falls to the catch path, which runs
+\texttt{existing = SELECT row WHERE key=K}; this read returns A's row. The branch
+\texttt{existing.holder == requester} is false (holder is A, requester is B) and the
+expiry branch is false (A's lock is fresh), so B is returned
+\texttt{DENIED(holder=existing.holder)} --- and \emph{that} return value is the exact
+point at which the loser learns the holder's identity: it is read back from the very
+row whose constraint rejected B, in the catch path, after the failed insert. B never
+gets a bare error; it gets ``held by A.''}
+
+\wbans{Q12}{Position: a FIFO wait-list of TTL'd reservations is \emph{almost} enough,
+and the residual gap is exactly what forces (or avoids) a scheduler. Add a second
+table, \texttt{waiters(key, requester, enqueued\_at, reservation\_ttl)}. On a denied
+acquire, instead of bouncing the loser, enqueue it. On release (or TTL sweep) of the
+held key, the daemon grants the key to the head of the FIFO queue for that key. This
+gives bounded-wait \emph{provided} every grant is consumed --- and that proviso is the
+catch. A reserved waiter that never comes back to claim its grant must time out
+(\texttt{reservation\_ttl}), or the head-of-line blocks everyone behind it. Sweeping
+expired reservations is the same lazy-on-read mechanism the claim table already uses,
+so \emph{no background scheduler is required for fairness per se}: fairness is achieved
+by ordering (FIFO) plus reservation expiry, both evaluable at request time. Where a
+scheduler \emph{does} creep in: if you want \emph{priority} (not just FIFO),
+\emph{anti-starvation across keys} (a slow agent waiting on many hot keys), or
+\emph{proactive} grant notification (push the grant rather than wait for the waiter to
+poll), you now need a component that wakes up on its own and makes allocation decisions
+--- which is a scheduler, and a scheduler that decides ``who runs next'' is a
+coordination-layer concern, blurring the substrate boundary the design protects. So:
+plain FIFO bounded-wait with reservation TTL stays in the substrate (it is still pure
+exclusion, just ordered); anything that ranks or pushes belongs one layer up. The clean
+answer ships the FIFO-with-TTL primitive and exports the ordering, letting the
+coordination layer build priority on top.}
+
+% ─── The communication organ ──────────────────────────────────────────────────
+\subsection*{The communication organ}
+
+\wbans{Q13}{Read-time decay is more honest because the value a reader observes is the
+value as of the read, not as of the last background tick. With tick-only decay, a
+marker's stored magnitude is stale between ticks: if a tick fires every $T$ seconds and
+a reader queries at $T-\epsilon$, it sees a magnitude that should have decayed for
+nearly a full interval but has not. Concrete failure: a coordination marker (``agent is
+actively working this file'') with a half-life shorter than the tick interval. The
+depositing agent dies; no further deposits arrive; but until the next tick the stored
+value is unchanged, so a reader concludes the file is hot and backs off --- coordinating
+around a ghost. Read-time decay computes $w\cdot r^{\Delta t}$ with $\Delta t$ measured
+from the deposit to \emph{now}, so the reader sees the correctly evaporated value
+regardless of when the last tick ran; the background tick then exists only to prune
+sub-threshold rows, not to keep values honest. The honesty property is: no reader ever
+sees a signal fresher than physics allows.}
+
+\wbans{Q14}{Under the silent-dedup resolution, the operator should see \emph{exactly one}
+logical speech act, not two, and \emph{no} anomaly alarm. The bus redelivered the
+envelope (at-least-once, working as designed), and the receiving protocol machinery
+recognizes the redelivery as benign transport non-determinism and suppresses it
+quietly; only a genuine protocol-state-machine violation (e.g.\ a reply to a
+conversation that was already closed) would surface loudly. Trace: envelope arrives,
+its effect is applied, the conversation advances; the duplicate arrives, the receiver
+must determine ``have I already applied this?'' Today, without an idempotency key, that
+determination is heuristic --- it leans on conversation-id plus in-reply-to plus content
+equality, which can misfire (two legitimately identical acks look like a dup; a dup with
+a re-stamped timestamp looks new). An envelope \textbf{idempotency key} (a stable id
+minted once at first send and preserved across redeliveries) changes this from a
+heuristic to an exact test: ``apply effect only if this key has not been applied,''
+recorded in a small dedup table. The operator-visible behavior is identical in the happy
+path; the difference is that with the key, dedup is provably correct and the rare
+false-merge / false-split cases vanish.}
+
+\wbans{Q15}{Frame it as measurement, not a guessed constant, because the ``right'' decay
+is the one matched to the empirical lifetime of the coordination signal it carries, and
+that lifetime differs per marker kind. Method: for each marker kind, instrument the
+system to log (deposit time, the time the signal stopped being actionable). The signal
+``stops being actionable'' when the situation it encodes ends --- e.g.\ for ``working
+this file,'' when the agent releases the claim or dies. Collect the distribution of
+these lifetimes $L$. Set the per-kind half-life so that the marker has decayed to its
+prune threshold at roughly the upper quantile (say $p_{90}$) of $L$: this keeps a signal
+alive for as long as 90\% of real situations last (avoiding premature evaporation) and
+evaporates it shortly after (avoiding rot). Concretely, if $r^{\Delta t}$ should reach
+the prune threshold $\theta/w$ at $\Delta t = L_{p90}$, solve $r = (\theta/w)^{1/L_{p90}}$
+per kind. Re-measure periodically because the workload (agent count, task granularity)
+shifts $L$. The deliverable is not a number but a calibration procedure plus the two
+failure signals to watch (operators backing off ghosts = too slow; signals vanishing
+before peers read them = too fast), which lets the rate self-correct against observed
+behavior rather than a guess.}
+
+% ─── The obligation & enforcement organ ───────────────────────────────────────
+\subsection*{The obligation \& enforcement organ}
+
+\wbans{Q16}{Walk the rules. \emph{Lock-owner validity} and \emph{capability-escalation}
+checks \emph{could} move pre-commit: both are predicates on the proposed write that can
+be evaluated by a before-insert trigger before the row lands (``does this releaser own
+this lock?'', ``does this actor hold this capability?''), so in principle they are
+regimentable --- their soundness is bounded only by I12 (a forged identity defeats the
+predicate, but that is an identity gap, not a timing gap). \emph{Note monotonicity}
+could also move pre-commit: ``reject any write that would lower an active session's note
+count'' is a predicate on the transition, checkable at insert. The rule that genuinely
+\emph{cannot} move is \textbf{heartbeat freshness}, and the reason is fundamental, not
+incidental: heartbeat freshness is a \emph{failure detector} --- it concludes ``agent is
+dead'' from the \emph{absence} of an event within a timeout. Chandra and Toueg show that
+in an asynchronous system you cannot build a perfect failure detector: you cannot
+distinguish a crashed agent from a slow one synchronously, so the judgement is
+inherently retrospective (the timeout must elapse) and probabilistic. There is no insert
+to reject pre-commit, because the triggering condition is a \emph{non-event} observed
+after a delay. So the partition is: predicate-on-a-proposed-write rules are
+regimentable; absence-of-event / timeout rules are not, and heartbeat freshness is the
+canonical irreducibly-post-hoc rule.}
+
+\wbans{Q17}{Trace the Law-2 gate with an empty oracle reference. Entry:
+\texttt{close(commitment, status='done', oracle\_ref='')}. First branch:
+\texttt{status != 'done'}? No --- status is \texttt{'done'}, so the drop-strategy path is
+skipped. Second branch: \texttt{if oracle\_ref is empty} --- true, the reference is the
+empty string. The gate returns \texttt{REFUSED("done requires a verifiable oracle
+reference")} immediately. That is the exact point and reason: closure as ``done'' is
+refused at the empty-reference check, \emph{before} the vocabulary classification and
+\emph{before} the re-verification step, because Law 2's whole purpose is that ``done''
+must be \emph{witnessed} by something the daemon can re-check, and an empty reference
+witnesses nothing. The agent cannot close by assertion; it must name a released claim, a
+merged commit, a passing test, or a satisfied policy sub-check. The refusal is by
+construction (a branch), not by inspection of free text --- which is what makes it
+Goodhart-resistant.}
+
+\wbans{Q18}{Position and theorem sketch. Define a monitor rule $\phi$ as a predicate over
+system states/transitions. $\phi$ is \textbf{regimentable} iff there exists a pure
+predicate $g$ on the \emph{proposed} transition $(s, a)$ such that $g(s,a)$ is decidable
+\emph{before} commit and $g(s,a) \Leftrightarrow$ ($a$ would violate $\phi$). $\phi$ is
+\textbf{only enforceable} iff its violation condition references information not
+available until after commit --- in particular (i) the \emph{passage of time} relative
+to a future event (timeouts / failure detection), or (ii) a \emph{global aggregate} over
+state the single insert does not carry. Claim: a rule is regimentable iff its violation
+is a local, present-time function of the proposed write; it is merely enforceable iff
+its violation is a function of elapsed time or post-hoc aggregate. Proof direction one:
+if violation is a local present-time predicate, install it as a before-insert trigger;
+the bad row never commits (truncation before the bad state, satisfying Schneider's
+condition for enforceable safety). Direction two: if violation depends on a timeout, then
+by Chandra--Toueg no synchronous pre-commit predicate decides it, so no before-insert
+trigger can truncate, hence the bad state is reachable and only detect-and-compensate
+remains. The deontic payoff: this partitions the monitor's rule set into a regimentable
+core (move these to triggers and earn ``physically unreachable'') and an
+irreducibly-post-hoc remainder (heartbeat/liveness), and it tells you that enlarging the
+regimented set is exactly the work of rewriting aggregate/timeout rules as local
+present-time predicates where possible.}
+
+\wbans{Q19}{Propose a new oracle: \textbf{a signed, content-addressed artifact digest}
+--- e.g.\ ``this commitment is done because artifact with hash $H$ exists in the
+content-addressed store and matches the declared output contract.'' Closure supplies
+$H$; the daemon re-verifies by (1) confirming an object with hash $H$ exists, and (2)
+confirming $H$ satisfies a \emph{structural} contract declared when the commitment
+opened (e.g.\ ``a tar of files matching glob $G$, non-empty, parsing as valid JSON
+against schema $S$''). Why it is Goodhart-resistant: the agent does not get to assert
+``done''; it must produce a \emph{thing} whose hash the daemon independently recomputes
+and whose structure the daemon independently checks against a contract the agent could
+not edit (the contract, like the deadline in Law 1, is daemon-held). The agent controls
+the work, not the metric: it cannot name an artifact that does not exist (hash check
+fails) nor one that does not meet the structural contract (schema check fails), and it
+cannot retro-edit the contract. The line it does \emph{not} cross --- and this is the
+honest limit --- is \emph{semantic} adequacy: the oracle verifies ``a well-formed
+artifact of the declared shape exists,'' never ``the artifact is \emph{good}.'' That is
+the same boundary as the existing vocabulary (a passing test verifies the test passed,
+not that the code is correct), so the extension is consistent with the kernel's honesty
+boundary rather than breaching it. Adding it widens what ``done'' can mean without
+re-admitting free text, because every new condition is a re-checkable structural
+predicate, not a note.}
+
+% ─── The continuity organ ─────────────────────────────────────────────────────
+\subsection*{The continuity organ}
+
+\wbans{Q20}{``Recovery passes notes'' hands the successor agent the dead agent's durable
+notes --- a summary of intent and progress. ``Recovery restores work'' would hand it the
+actual execution state. They are fundamentally different because a language-model agent's
+real state is not in its notes; it is in the working-tree edits in flight, the open
+claims, the partially-formed plan, and the model's own in-context reasoning. One thing
+notes preserve: \emph{declared intent and checkpointed conclusions} --- ``I decided to
+refactor module X; tests A and B pass.'' One thing notes cannot preserve: the
+\emph{uncommitted working state} --- the half-applied diff, the reasoning that had not
+yet been written down, the next step the agent was about to take. A successor reading the
+notes must \emph{re-derive} the in-flight work from scratch, often re-doing or conflicting
+with edits the dead agent had already made on disk but not described. That gap --- between
+knowing what the agent meant to do and being able to continue exactly where it stopped ---
+is OP-4, and it is why checkpoint is the weakest implemented link in the continuity organ.}
+
+\wbans{Q21}{Trace: (1) the agent calls the append-note operation; (2) it is a normal
+write --- it routes through the single writer, takes the file lock for the insert, and
+\textbf{commits}; the note row is now durable in the WAL/log. (3) The append emits an
+event onto the append-only operation log. (4) The policy monitor, a subscriber
+\emph{downstream} of that log, observes the event and evaluates the note-monotonicity
+rule (``the active session's note count must not regress''). (5) If this write lowered
+the count, the monitor raises a violation and compensates (flag, alert, possibly
+restore). The answer to ``at which point is the violation already durable'': at step
+(2) --- the offending write committed before the monitor ever saw it, because the monitor
+subscribes to the post-commit log. By the post-commit enforcement theorem the monitor
+cannot have prevented the regression; it can only detect it and compensate within a
+bounded window. The rule is real and useful (amnesia is caught and undone) but it is
+detect-and-compensate, not regimentation --- exactly the correction the paper insists on.}
+
+\wbans{Q22}{The minimal artifact is a \textbf{content-addressed execution snapshot}, and
+the proposed bundle is close to right but should be made precise. Capture, at snapshot
+time: (1) the \emph{working-tree diff} against the last commit (so disk edits in flight
+are recoverable); (2) the \emph{open claims} (so the successor inherits the same
+exclusion footprint and does not collide); (3) the \emph{commitment set} with
+daemon-held deadlines (so obligations survive the death); (4) the last $N$ turns of the
+agent's \emph{transcript} (so the reasoning context can be reconstituted into a fresh
+context window). Content-address the bundle (hash it) so it is tamper-evident and
+dedup-able. What is recoverable from this: the exact disk state, the coordination
+footprint, the outstanding promises, and enough recent reasoning to resume coherently.
+What is \emph{fundamentally lost}: the model's \emph{latent} state --- the
+not-yet-verbalized intuition, the half-formed next token, the implicit plan that never
+reached the transcript. A transcript is a lossy projection of the model's hidden state;
+you can re-prompt from it but you cannot reinstate the exact internal activations. So the
+honest claim is: an execution snapshot turns ``re-derive everything'' into ``resume from
+a faithful but lossy checkpoint,'' which is the difference between restarting a task and
+continuing it --- and it is the literal foundation of cross-machine reputation, because a
+reputation economy must be able to say ``this agent delivered this work'' even across the
+agent's death, which requires the work to survive the death.}
+
+% ─── The invariants as theorems ───────────────────────────────────────────────
+\subsection*{The invariants, stated as theorems}
+
+\wbans{Q23}{``Free'' means ``without an agreement protocol,'' not ``without cost.''
+Linearizability falls out of one decider committing in a total order --- no Raft, no
+quorum, no round trips. What it costs is \textbf{throughput and a scalability ceiling}.
+Every mutation funnels through one writer holding one file lock, so the maximum write
+rate is bounded by what a single writer can commit serially; under contention, losers
+busy-wait (bounded, but still latency) and the system cannot scale writes by adding
+cores or machines --- the single writer is a structural bottleneck. The trade is
+deliberate and defensible for a local-first developer tool (write rates are modest;
+simplicity and correctness dominate), but it is a real cost: the same architectural
+choice that buys linearizability for free is also the thing that caps write
+scalability, and it cannot be relaxed without re-introducing the consensus problem the
+design refused. ``For free'' is true at the consistency layer and paid in full at the
+throughput layer.}
+
+\wbans{Q24}{Take three operations on key $K$:
+$O_1=\texttt{acquire}(K,A)$, $O_2=\texttt{acquire}(K,B)$, $O_3=\texttt{release}(K,A)$,
+issued so that in real time $O_1$ completes before $O_2$ is invoked, and $O_2$ is
+invoked before $O_3$ completes but they overlap. The daemon commits in the order it
+received them; suppose it received $O_1$, then $O_2$, then $O_3$. The unique
+linearization is $\langle O_1: \text{GRANT } A,\; O_2: \text{DENY (held by } A),\; O_3:
+\text{release } A\rangle$. This is consistent with real time: $O_1$'s linearization
+point (its commit) precedes $O_2$'s, which precedes $O_3$'s, and these commit points lie
+within each operation's invocation--response interval. Why no second linearization works:
+any ordering that puts $O_2$ before $O_1$ would have $O_2$ \emph{grant} $B$ (the key was
+free), but $O_2$ actually returned DENY, so that ordering contradicts the observed
+response --- a linearization must be consistent with the values operations returned.
+Likewise putting $O_3$ before $O_1$ would release a key $A$ does not yet hold; release is
+idempotent so it ``succeeds,'' but then $O_1$ would still grant and the history is
+unchanged --- yet real time forbids $O_3$ (invoked after $O_1$ completed) preceding
+$O_1$. The single total commit order, consistent with both returned values and real-time
+precedence, is unique; that uniqueness \emph{is} linearizability.}
+
+\wbans{Q25}{The differential-test suite must compare the two SQLite-binding runtimes on
+exactly the observable behavior the invariants depend on. Operation sequences to run
+against both: (1) \emph{contended acquire} --- $N$ concurrent \texttt{acquire}(K) and
+assert exactly one GRANT and $N-1$ DENY-with-holder, in both runtimes; (2)
+\emph{expire-then-reacquire} --- acquire, let TTL pass, reacquire, asserting the
+delete-then-insert sequence yields one holder and no ``database busy'' divergence; (3)
+\emph{idempotent re-claim/re-release} --- repeat the same claim/release and assert no
+state change and identical return; (4) \emph{WAL crash-replay} --- write, simulate
+process kill, reopen, assert the committed row is present (I1a) under both bindings; (5)
+\emph{pragma-semantics probe} --- set \texttt{synchronous}, \texttt{busy\_timeout},
+\texttt{foreign\_keys} and assert each runtime reports and honors them identically.
+Observable-state assertions: holder identity per key, return code/category for each call,
+post-crash row presence, and the exact pragma values read back. The suite makes I11 a
+theorem (rather than a hope) when, for every sequence, the two runtimes are proven to
+produce \emph{bit-identical observable results} --- same holder, same return category,
+same survivor set, same pragma readback --- because then ``green in test'' and ``correct
+in production'' are the same statement. The CI consequence the paper draws follows: the
+pipeline must \emph{boot the deployment runtime} and run these sequences against it, not
+merely compile it.}
+
+% ─── Cross-organ atomicity ────────────────────────────────────────────────────
+\subsection*{Cross-organ atomicity}
+
+\wbans{Q26}{Concrete partial failure: a ``begin session'' that should (1) claim port
+7421, (2) open session $S$, (3) record commitment $C$. Steps (1) and (2) commit, then
+(3) fails (say a constraint or a transient error). Inconsistent state left behind: port
+7421 is now held and session $S$ is open, but there is \emph{no} commitment $C$ binding
+the work --- so the agent holds a resource and a session with no obligation governing
+them, and from the operator's view a session exists that the obligation organ does not
+know about. Who sees it: the \emph{agent} sees a half-initialized session (it thinks
+``begin'' failed and may retry, double-claiming or orphaning); the \emph{operator} sees
+a port held and a session open with no commitment, which the monitor cannot reconcile
+because no rule says ``a session must have a commitment.'' A \emph{second agent} sees
+port 7421 as taken and cannot use it, even though the owning session is effectively
+dead-on-arrival. The damage is bounded (it is all local rows) but it is exactly the
+undefined partial-failure semantics §12 names --- and Q27's single transaction erases
+it.}
+
+\wbans{Q27}{Interface change: wrap the three writes in one local transaction at the
+endpoint boundary. Pseudocode: \texttt{BEGIN IMMEDIATE; claim(port); open(session);
+record(commitment); COMMIT}, with any failure triggering \texttt{ROLLBACK} so the
+operation is all-or-nothing. \texttt{IMMEDIATE} is required so the write lock is taken at
+\texttt{BEGIN} rather than lazily on first write, which closes the busy-error window the
+paper flags in the stale-holder branch. Because all three writes are local rows in one
+SQLite file under one writer, this single transaction gives atomicity, consistency, and
+isolation for the composite operation for free --- no compensating logic, no intermediate
+visible state. Contrast with Sagas: if you instead chose a saga, you would execute the
+three steps as separate committed transactions and attach a \emph{compensating action} to
+each --- release-port compensates claim-port, close-session compensates open-session,
+retract-commitment compensates record-commitment --- and on failure of step 3 you would
+run the compensations for steps 2 and 1 in reverse. The saga is strictly more complex
+\emph{and strictly weaker}: it exposes intermediate states (other agents can observe the
+port held before the saga aborts), the compensations can themselves fail, and you must
+reason about every interleaving. The single transaction dominates because Sagas exist
+precisely for the case the kernel does \emph{not} have --- remote steps where one
+transaction is impossible. Here every step is a local write, so the simpler, stronger
+primitive applies. Filing this under ``research'' overstated it: it is a buildable
+defect, and the build is one \texttt{BEGIN IMMEDIATE} wrapper.}
+
+% ─── Threat model ─────────────────────────────────────────────────────────────
+\subsection*{Threat model and the limits of mediation}
+
+\wbans{Q28}{The hash chain defends against a \textbf{tamperer who is not the same user}
+--- specifically, a process or party that can present or replicate the audit log across
+a trust boundary the local owner does not control. Under the substrate's stated threat
+model the same-user process is out of scope (it already owns the file), so on a single
+machine the chain protects against nobody real. The adversary becomes real at the
+\textbf{economy layer}: when an audit log is shipped across machines to another operator,
+that operator cannot assume the sender's good faith, and the hash chain lets them verify
+the log was not retroactively edited in transit or by the sender. So the chain is
+``provisioned locally, activated across machines'': built now, load-bearing only when a
+cross-operator must trust a log it did not produce. Naming the out-of-scope adversary is
+the honest move --- a control that defends nobody in the current model is re-scoped, not
+quietly claimed as security.}
+
+\wbans{Q29}{Trace the forgery. The lock-owner-validity rule says ``a release of lock $L$
+succeeds only if the requester's actor identity equals $L$'s recorded holder.'' Agent $X$
+wants to release agent $Y$'s lock. (1) $X$ constructs a request asserting actor identity
+$Y$ --- and here is the gap: identity is \emph{self-asserted} (I12 is \textsc{designed},
+not built), so the session simply claims to be $Y$ and nothing cryptographic contradicts
+it. (2) The release request reaches the daemon; the lock-owner-validity check compares the
+\emph{claimed} requester ($Y$) against the recorded holder ($Y$) --- they match. (3) The
+release is granted; $Y$'s lock is gone, released by $X$. The exact point the forgery slips
+through is step (1)/(2): the validity rule keys on an identity field that the requester
+populates and that no signature binds to a real principal. The rule is sound \emph{given}
+an unforgeable identity and unsound without one --- which is precisely the paper's claim
+that I12 gates the soundness of I7--I9. Cryptographic identity (a per-actor signing key,
+with the release request signed) would make step (1) impossible: $X$ cannot produce $Y$'s
+signature, so the claimed identity no longer matches a verifiable principal.}
+
+\wbans{Q30}{Layered hardening against the same-machine adversary, smallest first, with
+each layer's stopping point. (1) \textbf{OS keychain for the signing key} --- move the
+private key out of the owner-readable database file into the platform keychain
+(Keychain/Secret Service/DPAPI), so a same-user process that reads the DB no longer gets
+the key. Stops: casual key exfiltration via file read. Does not stop: a process running
+\emph{as the same user} that asks the keychain to sign on its behalf, since keychain ACLs
+are typically per-user, not per-process. (2) \textbf{Per-process keychain ACLs / signing
+broker} --- gate signing behind a broker that authenticates the calling process, so only
+the daemon binary can use the key. Stops: arbitrary same-user processes minting
+signatures. Does not stop: a process that injects into or impersonates the daemon binary.
+(3) \textbf{Sealed memory / OS sandbox} (Landlock, \texttt{unveil}, Seatbelt) around the
+daemon --- confine the daemon's own surface and seal the in-memory key so even a debugger
+on the same uid cannot scrape it. Stops: memory scraping and ptrace of the live daemon.
+Does not stop: a privileged (root) adversary or hardware attack. The honest boundary: each
+layer raises the bar for a same-user attacker, and the sequence asymptotes at ``everything
+short of root and hardware'' --- which is exactly where a TPM/secure-enclave dependency
+would begin. The minimal \emph{useful} hardening is layers (1)+(2): key in the keychain
+behind a process-authenticated broker. That closes the realistic same-user adversary
+(another of your own tools reading the file) without the TPM dependency the question
+rules out; sealing memory is the next increment when the threat model promotes the
+same-uid-injection attacker into scope.}

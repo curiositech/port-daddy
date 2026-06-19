@@ -1,0 +1,164 @@
+% ═══════════════════════════════════════════════════════════════════════════════
+%  THE HARBOR VOLUME WORKBOOK — Part IV: The Harbor Economy (Floor 4)
+%  Questions. Renumbered locally 1..n. Three tiers (Check / Trace / Open),
+%  difficulty by ★. House small-caps callout idiom; no raw ASCII $\star$.
+%  Intended to be \input from the workbook master, which defines the shared
+%  preamble (hh-* palette, \wbcheck/\wbtrace/\wbopen tier marks, \wbstar).
+% ═══════════════════════════════════════════════════════════════════════════════
+
+% ─── Fallbacks so this part also compiles standalone for review ───────────────
+\providecommand{\wbtier}[1]{{\scshape\bfseries\textcolor{hhcobalt}{#1}}\enspace}
+\providecommand{\wbcheck}{\wbtier{Check.}}
+\providecommand{\wbtrace}{\wbtier{Trace.}}
+\providecommand{\wbopen}{\wbtier{Open.}}
+\providecommand{\wbstar}{{\textcolor{hhcobalt}{$\bigstar$}}\,}
+
+\section*{Part IV --- The Harbor Economy}
+\addcontentsline{toc}{section}{Part IV --- The Harbor Economy}
+
+\emph{Floor 4 of the Harbor Volume: the trading floor. You don't sell crypto, you
+sell hosted trust --- a three-sided agent labor market. These questions track the
+paper section by section; worked solutions are in the Solutions part under the same
+numbering.}
+
+\begin{enumerate}[label=\textbf{IV.\arabic*},leftmargin=2.8em,itemsep=6pt,topsep=4pt]
+
+% ── from §The thesis ──────────────────────────────────────────────────────────
+\item \wbcheck Give a one-sentence reason the market cannot ship before reputation
+  does, using only the word ``clone.''
+
+\item \wbcheck Side~1 (operator-for-hire) does not require durable identity in the
+  same way sides 2 and 3 do. Why? (Who is the counterparty, and who bears the
+  consequence?)
+
+\item \wbopen\wbstar Construct a market design in which sides 2 and 3 exist
+  \emph{without} a non-forgeable identity. Argue informally why every such design
+  collapses to a Sybil attack.
+
+% ── from §What a side is ──────────────────────────────────────────────────────
+\item \wbcheck State the operational test for ``how many sides'' in one sentence,
+  then apply it to a ride-share platform: how many sides, and why?
+
+\item \wbtrace Side~3 (skill licensing) keys reputation on a \emph{content hash},
+  not a person. What breaks when a licensor ships v2 of a skill?
+
+\item \wbopen\wbstar A buyer reads a three-axis reputation vector
+  $(\text{accuracy},\text{aesthetics},\text{efficiency})$. Specify a disclosure rule
+  that lets the buyer weight the axes without re-introducing a single Goodhart
+  target. Argue why every fixed scalar collapse re-creates the bandit framing the
+  design rejects.
+
+% ── from §The float plan ──────────────────────────────────────────────────────
+\item \wbtrace Trace the flow of funds for a \textbf{Partial} settlement where the
+  worker completed 40\% of the evidence chain. Confirm Conservation holds across the
+  split, then redo it for a bond of $250$\,\textsc{cr} and $70\%$ completion.
+
+\item \wbcheck Why does closure bind to an oracle rather than a self-reported note?
+  Name the attack a free-text ``Result:'' note enables.
+
+\item \wbopen\wbstar The four states assume the acceptance criteria were
+  \emph{right}. Design a float-plan amendment protocol for the case where the
+  criteria turn out wrong mid-flight (re-sign by both parties, escrow
+  top-up/refund delta), preserving Conservation.
+
+% ── from §Three sides on one escrow ───────────────────────────────────────────
+\item \wbcheck Map each of Grossman--Hart's two parties (residual-control-right
+  holder vs.\ reputational-consequence bearer) onto the rental side's roles. Which
+  one is the runtime jail?
+
+\item \wbtrace Show that adding a lease line item and a metered-license line item to
+  a float plan cannot violate Conservation, no matter the amounts.
+
+\item \wbopen\wbstar A skill's portfolio proof for v1 says nothing about v2. Specify
+  a version-binding for the Merkle portfolio proof so a new version starts with a
+  discounted inherited prior --- the newcomer policy, but for code.
+
+% ── from §The keystone ────────────────────────────────────────────────────────
+\item \wbcheck In one sentence, state why a reputation system layered on forgeable
+  pseudonyms is \emph{no} mechanism, not merely a weak one (cite Douceur).
+
+\item \wbcheck Local non-forgeable identity has a non-goal: ``no defense against a
+  hostile operator.'' Name the exact word in the market's definition
+  (``mutually-distrusting,'' ``boundary neither controls'') that this non-goal
+  contradicts.
+
+\item \wbopen\wbstar Specify a cryptographic binding tying $N$ agents to one
+  principal such that spawning fresh agents does not reset the bond floor, and that
+  survives into the cross-operator world (where the single-operator trusted-credential
+  shortcut is unavailable). This is the hard half of cross-operator attestation.
+
+% ── from §Conservation as a functor ───────────────────────────────────────────
+\item \wbcheck State Myerson--Satterthwaite in one sentence, then identify which of
+  its four desiderata the harbor sacrifices and why.
+
+\item \wbtrace The single-unit-federation theorem requires a single unit of account.
+  Give a concrete two-harbor example where heterogeneous units make $F$ fail to
+  preserve composition (the source of the lax functor's slack $\varphi$).
+
+\item \wbopen\wbstar Write the coherence 2-cells of the lax functor explicitly and
+  bound them by $\varphi$. Determine whether the pentagon/triangle coherence holds.
+
+% ── from §Cross-harbor capability transfer ────────────────────────────────────
+\item \wbcheck Why is the transfer ceremony four messages and not two? Identify what
+  message (3) buys (who must counter-sign, and under whose key does $C_B'$ later
+  verify?).
+
+\item \wbtrace Trace what happens to an in-flight $C_B'$ when Alice rotates her
+  signing key between message (3) and a later presentation at $B$.
+
+\item \wbopen\wbstar Specify replay protection across the boundary: is the
+  \emph{anchor id} a nonce? Does $B$ reject a re-presented message (3)? State the
+  freshness invariant.
+
+% ── from §Federation / revocation gossip ──────────────────────────────────────
+\item \wbcheck The convergence bound is $\Delta(1+\ln m)$ expected. Name the two
+  assumptions that make it false in the adversarial setting, and the partial-synchrony
+  assumption that rescues a weaker version.
+
+\item \wbtrace Trace a revoked capability through the revocation-gossip figure: at
+  which harbor, and at what time, can it still be spent? That window is what the
+  Equivocation Lower Bound must price.
+
+\item \wbopen\wbstar State and (attempt to) prove the Equivocation Lower Bound for a
+  three-harbor mesh under a fixed gossip period $\Delta$ and a single equivocating
+  witness.
+
+% ── from §The grading-oracle keystone ─────────────────────────────────────────
+\item \wbcheck State the exact assumption the folk theorem needs about the public
+  signal, and explain why a capturable grader violates it.
+
+\item \wbcheck Classify three settlement criteria as machine-checkable (Fix A) or
+  judge-dependent (Fix B): a unit test passing; a merged SHA; ``the refactor is
+  tasteful.''
+
+\item \wbopen\wbstar Prove the rate-the-raters recursion terminates: define a
+  well-founded order on ``levels of judge,'' grounded at machine-checkable oracles,
+  and show no infinite ascending chain of ``judges judging judges'' is needed.
+
+% ── from §Cold start / the auction question ───────────────────────────────────
+\item \wbcheck Which side should Phase~1 subsidize, and why? Apply the ``scarcest
+  cross-side externality'' rule.
+
+\item \wbtrace Use the cartel repeated-game figure to identify the grim-trigger
+  condition under which the cartel is self-sustaining. What raises the critical
+  discount factor $\delta$ enough to break it?
+
+\item \wbopen\wbstar ``Price of anarchy when reputation is for sale'' is the wrong
+  tool: once reputation is tradeable you have changed the game, so PoA (a ratio for a
+  fixed game) does not apply. Reframe it as a signal-existence question
+  (Spence-signaling with a resale market): does any informative separating
+  equilibrium survive reputation resale?
+
+% ── from §The sheaf-gluing problem ────────────────────────────────────────────
+\item \wbcheck In one sentence each, restate the trustless-settlement conjecture, the
+  Equivocation Lower Bound, and the lax-functor theorem as facets of the gluing
+  obstruction.
+
+\item \wbcheck Why is double-spend ``$H^1 \ne 0$'' and not ``$H^0 \ne 0$''? ($H^0$ is
+  global sections; $H^1$ is the obstruction to building one.)
+
+\item \wbopen\wbstar Either exhibit a defense that forces $H^1 = 0$ for a bounded
+  gossip topology, or prove no such defense exists without consensus (which would
+  refute the federation thesis's no-consensus stance).
+
+\end{enumerate}

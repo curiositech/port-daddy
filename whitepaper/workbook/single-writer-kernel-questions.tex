@@ -1,0 +1,185 @@
+% ─────────────────────────────────────────────────────────────────────────────
+% The Harbor Volume Workbook — Part I: The Single-Writer Kernel (questions)
+%
+% Extracted from the paper "The Single-Writer Kernel" (Floor 1, Kernel).
+% Renumbered locally 1..n. Three tiers — Check / Trace / Open — with a star
+% glyph for the open research problems. Open problems carry their global OP tag
+% so they cross-link the paper's consolidated Open-Problems list.
+%
+% This file expects the workbook preamble to define:
+%   \wbq{<tier>}{<label>}{<body>}   one question, small-caps tier eyebrow
+%   \wbstar                          the difficulty glyph (filled star)
+% A self-contained fallback definition is provided below if undefined.
+% ─────────────────────────────────────────────────────────────────────────────
+
+\providecommand{\wbstar}{\ensuremath{\bigstar}}
+\providecommand{\wbq}[3]{%
+  \par\vspace{6pt}\noindent
+  {\scshape\bfseries\textcolor{hhcobalt}{#1.}}\enspace{\footnotesize\textcolor{hhgray}{#2}}\par
+  \nopagebreak\vspace{2pt}\noindent #3\par\vspace{2pt}%
+}
+
+\section{The Single-Writer Kernel}
+\label{wb:swk}
+
+\noindent\emph{Floor 1 --- Kernel. Source paper: \emph{The Single-Writer Kernel}.
+The \textsc{check} tier confirms you read; \textsc{trace} asks you to walk a
+mechanism step by step; \textsc{open} is live research, starred and cross-tagged to
+the paper's Open-Problems list.}
+
+% ─── 1–3 · The kernel as seven organs (paper §3) ──────────────────────────────
+\subsection*{The seven organs}
+
+\wbq{Check}{Q1}{Which of the seven organs would still be meaningful if the daemon
+ran over an in-memory database with no disk at all? Which become vacuous?}
+
+\wbq{Trace}{Q2}{Pick any one organ and name the single SQLite table that is its
+``home'' table. Then name one invariant that organ owes the layer above it.}
+
+\wbq{Open \wbstar}{Q3}{The seven-organ decomposition is a choice. Is there a more
+natural cut --- five organs, or nine? Argue for an alternative and show what it
+makes easier to reason about and what it hides.}
+
+% ─── 4–6 · The substrate organ (paper §4) ─────────────────────────────────────
+\subsection*{The substrate organ}
+
+\wbq{Check}{Q4}{The schema-by-union design lets any module create its tables in any
+order. Give a concrete two-module example where a lazy column-rename migration would
+be unsafe under this design.}
+
+\wbq{Trace}{Q5}{Follow a single claim request from command line to disk. At how many
+points does the single-writer discipline (Definition: single-writer discipline) hold
+by \emph{routing} versus by the \emph{file lock}?}
+
+\wbq{Open \wbstar}{Q6}{\textbf{(OP-7, Schema evolution without a sequencer.)} Can
+idempotent self-init be extended to safe renames, backfills, and down-migrations
+while preserving ``any module, any order''? Or is a version table unavoidable?}
+
+% ─── 7–9 · Durability, split by fault class (paper §5) ────────────────────────
+\subsection*{Durability by fault class}
+
+\wbq{Check}{Q7}{Classify each fault as I1a-survivable or I1b-exposed: (a) a forced
+kill of the daemon process; (b) a clean operating-system reboot; (c) yanking the
+power cord; (d) an unhandled exception in a request handler.}
+
+\wbq{Trace}{Q8}{A claim commits at $t_0$; the next auto-checkpoint fires at
+$t_0+\delta$. Draw the window during which a power loss reverts the claim, and state
+how a page-count auto-checkpoint threshold bounds $\delta$.}
+
+\wbq{Open \wbstar}{Q9}{\textbf{(OP-10, Per-write-path durability.)} Design a
+per-write-path durability selector: how would the kernel let a settlement-ledger
+write opt into I1b while keeping claim writes fast? What is the cleanest interface
+that does not re-introduce the durability/consistency conflation?}
+
+% ─── 10–12 · The resource organ (paper §6) ────────────────────────────────────
+\subsection*{The resource organ}
+
+\wbq{Check}{Q10}{Why does releasing a lock you do not hold return success rather
+than an error? Which property (I2--I4) is this, and what would break if it raised?}
+
+\wbq{Trace}{Q11}{Two agents call \texttt{acquire} on the same fresh key at the same
+instant. Walk the uniqueness-constraint insert for both and show exactly where the
+loser learns the holder's identity.}
+
+\wbq{Open \wbstar}{Q12}{\textbf{(OP-1, Fair exclusion without a scheduler.)} Can the
+substrate add a bounded-wait fairness guarantee to claims and locks while keeping the
+single-writer, no-background-scheduler simplicity? Is a FIFO wait-list of
+time-to-live'd reservations enough, or does fairness force a scheduler --- and thus
+blur the substrate/coordination boundary?}
+
+% ─── 13–15 · The communication organ (paper §7) ───────────────────────────────
+\subsection*{The communication organ}
+
+\wbq{Check}{Q13}{Why does read-time marker decay make the system more honest than a
+background tick alone? Give a scenario where tick-only decay would report a stale
+signal as fresh.}
+
+\wbq{Trace}{Q14}{A request speech act is sent over the bus and redelivered once by
+the at-least-once channel. Trace what the operator should see under the silent-dedup
+resolution, and what an envelope idempotency key would change.}
+
+\wbq{Open \wbstar}{Q15}{\textbf{(OP-8, Stigmergic decay calibration.)} What per-kind
+marker decay rate keeps stigmergic signals neither rotten nor prematurely
+evaporated? Frame this as an empirical measurement, not a constant to guess.}
+
+% ─── 16–19 · The obligation & enforcement organ (paper §8) ────────────────────
+\subsection*{The obligation \& enforcement organ}
+
+\wbq{Check}{Q16}{For each monitor rule in the post-commit enforcement theorem, say
+whether it could in principle be moved to a pre-commit check (a before-insert
+trigger). Which genuinely cannot, and why? (Hint: heartbeat freshness is a failure
+detector, and Chandra and Toueg show failure detection cannot be made perfectly
+synchronous.)}
+
+\wbq{Trace}{Q17}{An agent attempts to close a commitment with an empty oracle
+reference. Walk the Law-2 gate and show exactly where and why the transition is
+refused.}
+
+\wbq{Open \wbstar}{Q18}{\textbf{(OP-2, Regimentation vs.\ enforcement boundary.)}
+Formalize the boundary: which monitor rules are truly regimentable (rejectable at
+insert) versus only enforceable (detectable after)? A clean theorem here is the
+deontic heart of the layer.}
+
+\wbq{Open \wbstar}{Q19}{\textbf{(OP-5, Oracle completeness.)} Extend the Law-2 oracle
+vocabulary to capture a ``done'' condition it currently misses, without re-admitting
+free text. State your new oracle and prove it is Goodhart-resistant.}
+
+% ─── 20–22 · The continuity organ (paper §9) ──────────────────────────────────
+\subsection*{The continuity organ}
+
+\wbq{Check}{Q20}{Why is ``recovery passes notes'' fundamentally weaker than
+``recovery restores work'' for a language-model agent that died mid-edit? Name one
+thing notes preserve and one thing they cannot.}
+
+\wbq{Trace}{Q21}{Follow the note-monotonicity rule from an agent appending a note to
+the monitor detecting a regression. At which point is the violation already durable
+(per the post-commit enforcement theorem)?}
+
+\wbq{Open \wbstar}{Q22}{\textbf{(OP-4, Checkpoint with teeth.)} What is the minimal
+durable artifact that turns ``recovery passes notes'' into ``recovery restores
+work''? Is it a content-addressed snapshot of \{working-tree diff $+$ open claims $+$
+commitment set $+$ the last $N$ turns of the agent's transcript\}? What is recoverable
+versus fundamentally lost when a language-model agent dies mid-thought?}
+
+% ─── 23–25 · The invariants as theorems (paper §11) ───────────────────────────
+\subsection*{The invariants, stated as theorems}
+
+\wbq{Check}{Q23}{The consistency-model theorem gives linearizability ``for free.''
+What does ``free'' cost? (Hint: the busy-wait and throughput under contention --- the
+single writer is also a scalability ceiling.)}
+
+\wbq{Trace}{Q24}{Construct a three-operation claim history and give its unique
+linearization. Then show why no second linearization is consistent with real time.}
+
+\wbq{Open \wbstar}{Q25}{\textbf{(OP-3, Cross-runtime soundness as a proof
+obligation.)} Specify the minimal differential-test suite that would make I11 a
+theorem: what operation sequences, what observable-state assertions, run against both
+runtimes?}
+
+% ─── 26–27 · Cross-organ atomicity (paper §12) ────────────────────────────────
+\subsection*{Cross-organ atomicity}
+
+\wbq{Check}{Q26}{Give a concrete partial-failure: port claimed, session opened, then
+the commitment write fails. What inconsistent state is left, and which agent sees
+it?}
+
+\wbq{Open \wbstar}{Q27}{\textbf{(OP-11, Cross-organ atomicity by default.)} Sketch
+the interface change that wraps the three-organ ``begin'' operation in one local
+transaction. What is the compensating action if you instead chose Sagas, and why is
+the single transaction strictly simpler here?}
+
+% ─── 28–30 · Threat model (paper §13) ─────────────────────────────────────────
+\subsection*{Threat model and the limits of mediation}
+
+\wbq{Check}{Q28}{The hash chain defends against nobody in scope. Name the
+out-of-scope adversary it does defend against, and the layer (substrate or economy)
+where that adversary becomes real.}
+
+\wbq{Trace}{Q29}{An agent forges its actor identity to release another agent's lock.
+Walk the lock-owner-validity rule and show exactly where I12's absence lets the
+forgery through.}
+
+\wbq{Open \wbstar}{Q30}{\textbf{(OP-9, Same-machine adversary.)} What is the minimal
+hardening that closes the same-machine adversary without a hardware
+trusted-platform-module dependency --- an OS keychain for the signing key, sealed
+memory? Where does each stop?}

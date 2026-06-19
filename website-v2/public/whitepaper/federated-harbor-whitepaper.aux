@@ -1,0 +1,255 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\newlabel{sec:fh-readers-map}{{}{2}{Reader's Map}{section*.1}{}}
+\citation{owens2026anchor}
+\citation{owens2026bonded}
+\citation{tobin2017inevitable}
+\citation{schindler2019ethdkg}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction: The Two-Machine Problem}{6}{section.1}\protected@file@percent }
+\newlabel{sec:fh-intro}{{1}{6}{Introduction: The Two-Machine Problem}{section.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.1}What this paper is and is not}{6}{subsection.1.1}\protected@file@percent }
+\newlabel{sec:fh-scope}{{1.1}{6}{What this paper is and is not}{subsection.1.1}{}}
+\citation{laurie2013ct}
+\citation{herlihy2018atomic}
+\citation{owens2026proposal}
+\citation{owens2026bonded}
+\@writefile{toc}{\contentsline {subsection}{\numberline {1.2}Contributions}{7}{subsection.1.2}\protected@file@percent }
+\newlabel{sec:fh-contributions}{{1.2}{7}{Contributions}{subsection.1.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}The Federated Authority}{8}{section.2}\protected@file@percent }
+\newlabel{sec:fh-authority}{{2}{8}{The Federated Authority}{section.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above is the shared correlation device — each harbor publishes its epoch root, and any third party can audit for equivocation. The escrow below is structurally bounded (it can refuse to clear, but it cannot redirect funds or equivocate about its decisions). The amber arrow between the harbors is the cross-harbor capability transfer ceremony of \S  \ref {sec:fh-xfer}; the dashed teal line is the federated revocation gossip of \S  \ref {sec:fh-revocation}. The diagram is deliberately small: every primitive in the paper attaches to one of these four elements.}}{8}{figure.caption.3}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:fh-topology}{{1}{8}{The Federated Harbor as a four-element gestalt. Neither harbor is a root of authority for the other. The witness log above is the shared correlation device — each harbor publishes its epoch root, and any third party can audit for equivocation. The escrow below is structurally bounded (it can refuse to clear, but it cannot redirect funds or equivocate about its decisions). The amber arrow between the harbors is the cross-harbor capability transfer ceremony of \S \ref {sec:fh-xfer}; the dashed teal line is the federated revocation gossip of \S \ref {sec:fh-revocation}. The diagram is deliberately small: every primitive in the paper attaches to one of these four elements}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Harbor sovereignty as a property characterization}{8}{subsection.2.1}\protected@file@percent }
+\newlabel{sec:fh-sovereignty}{{2.1}{8}{Harbor sovereignty as a property characterization}{subsection.2.1}{}}
+\newlabel{def:fh-sovereignty}{{2.1}{8}{Harbor Sovereignty}{definition.2.1}{}}
+\citation{laurie2013ct}
+\citation{newman2022sigstore}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Inter-harbor scope}{9}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:fh-scope-property}{{2.2}{9}{Inter-harbor scope}{subsection.2.2}{}}
+\newlabel{def:fh-interscope}{{2.2}{9}{Inter-Harbor Scope}{definition.2.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}The witness log}{9}{subsection.2.3}\protected@file@percent }
+\newlabel{sec:fh-witness}{{2.3}{9}{The witness log}{subsection.2.3}{}}
+\newlabel{prop:fh-witness}{{2.1}{9}{Witness-Log Admissibility}{property.2.1}{}}
+\citation{douceur2002sybil}
+\citation{dolev1983security}
+\citation{bernstein2012high}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}What the federation is not}{10}{subsection.2.4}\protected@file@percent }
+\newlabel{sec:fh-not}{{2.4}{10}{What the federation is not}{subsection.2.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Threat Model}{10}{section.3}\protected@file@percent }
+\newlabel{sec:fh-threat-model}{{3}{10}{Threat Model}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}In-scope attacks}{10}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:fh-attacks-in}{{3.1}{10}{In-scope attacks}{subsection.3.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Cross-realm identity spoofing.}{10}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Replay across the boundary.}{10}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Capability inflation across transfer.}{10}{section*.6}\protected@file@percent }
+\citation{maler2008venn}
+\@writefile{toc}{\contentsline {paragraph}{Stale-revocation acceptance.}{11}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Cross-witness equivocation.}{11}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Settlement redirection or equivocation.}{11}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Harbor membership forgery at the federation boundary.}{11}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Out-of-scope attacks}{11}{subsection.3.2}\protected@file@percent }
+\newlabel{sec:fh-attacks-out}{{3.2}{11}{Out-of-scope attacks}{subsection.3.2}{}}
+\@writefile{toc}{\contentsline {paragraph}{Compromise of a harbor's signing key.}{11}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Sybil at the federation layer.}{11}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Cartel formation across harbors.}{11}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Centralization gravity.}{11}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Side channels.}{11}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Threat-band visualization}{12}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:fh-threat-band-viz}{{3.3}{12}{Threat-band visualization}{subsection.3.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Threat-band layout for the Federated Harbor. The Anchor paper's defense-in-depth structure carries over: every claim either has a mechanization artifact (teal), a named bound that the bond can price against (amber), or an explicit acknowledgement of the open frontier (cobalt). The paper is disciplined about which band each claim lives in --- see Appendix~\ref {app:fh-mech} for the artifact registry. Reading left to right runs deeper into threat space and out of formal reach; bands shift left over time as future work mechanizes what is presently bounded.}}{12}{figure.caption.16}\protected@file@percent }
+\newlabel{fig:fh-threat-bands}{{2}{12}{Threat-band layout for the Federated Harbor. The Anchor paper's defense-in-depth structure carries over: every claim either has a mechanization artifact (teal), a named bound that the bond can price against (amber), or an explicit acknowledgement of the open frontier (cobalt). The paper is disciplined about which band each claim lives in --- see Appendix~\ref {app:fh-mech} for the artifact registry. Reading left to right runs deeper into threat space and out of formal reach; bands shift left over time as future work mechanizes what is presently bounded}{figure.caption.16}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Cross-Harbor Capability Transfer}{12}{section.4}\protected@file@percent }
+\newlabel{sec:fh-xfer}{{4}{12}{Cross-Harbor Capability Transfer}{section.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces The four-message cross-harbor capability transfer ceremony. The critical property is that no message after (3) needs to reach back to Harbor~$A$ in the hot path: $C_B'$ is verifiable under $\mathit  {sk}_B$ alone, which is why federation does not turn every authorization into a synchronous inter-machine round trip. The epoch root $R_A^{(e)}$ bound into the envelope is the load-bearing primitive — a revocation issued by $A$ after epoch $e$ invalidates $C_B'$ as soon as the new $R_A^{(e+1)}$ reaches the witness log that $B$ audits.}}{13}{figure.caption.17}\protected@file@percent }
+\newlabel{fig:fh-xfer}{{3}{13}{The four-message cross-harbor capability transfer ceremony. The critical property is that no message after (3) needs to reach back to Harbor~$A$ in the hot path: $C_B'$ is verifiable under $\mathit {sk}_B$ alone, which is why federation does not turn every authorization into a synchronous inter-machine round trip. The epoch root $R_A^{(e)}$ bound into the envelope is the load-bearing primitive — a revocation issued by $A$ after epoch $e$ invalidates $C_B'$ as soon as the new $R_A^{(e+1)}$ reaches the witness log that $B$ audits}{figure.caption.17}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}The four-message ceremony}{13}{subsection.4.1}\protected@file@percent }
+\newlabel{sec:fh-xfer-ceremony}{{4.1}{13}{The four-message ceremony}{subsection.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Why this composes cleanly with Anchor}{13}{subsection.4.2}\protected@file@percent }
+\newlabel{sec:fh-xfer-compose}{{4.2}{13}{Why this composes cleanly with Anchor}{subsection.4.2}{}}
+\citation{demers1987epidemic}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Attenuation across the boundary}{14}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:fh-xfer-att}{{4.3}{14}{Attenuation across the boundary}{subsection.4.3}{}}
+\newlabel{lem:fh-att}{{4.1}{14}{Attenuation Monotonicity Across the Boundary}{lemma.4.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Threats foreclosed and threats deferred}{14}{subsection.4.4}\protected@file@percent }
+\newlabel{sec:fh-xfer-threats}{{4.4}{14}{Threats foreclosed and threats deferred}{subsection.4.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}Mechanization status}{14}{subsection.4.5}\protected@file@percent }
+\newlabel{sec:fh-xfer-mech}{{4.5}{14}{Mechanization status}{subsection.4.5}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Federated Revocation}{14}{section.5}\protected@file@percent }
+\newlabel{sec:fh-revocation}{{5}{14}{Federated Revocation}{section.5}{}}
+\citation{laurie2013ct}
+\citation{laurie2013ct}
+\citation{laurie2013ct}
+\citation{demers1987epidemic}
+\citation{demers1987epidemic}
+\citation{laurie2013ct}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Federated revocation propagation across three harbors. The cuckoo filter mechanism is unchanged from Anchor~\S  2.4 of the companion paper, but two new pieces are bolted on: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite  {laurie2013ct}. The window between $t=0$ and $t=\Delta $ is the structural attacker window: bounded, named, and priced into the bond in \S  \ref {sec:fh-settlement}.}}{15}{figure.caption.18}\protected@file@percent }
+\newlabel{fig:fh-revocation}{{4}{15}{Federated revocation propagation across three harbors. The cuckoo filter mechanism is unchanged from Anchor~\S 2.4 of the companion paper, but two new pieces are bolted on: (a) per-epoch roots $R_X^{(e)}$ published to a shared witness log so a third party can audit any harbor's local view, and (b) cross-witness signatures so the auditor pattern generalizes Certificate Transparency~\cite {laurie2013ct}. The window between $t=0$ and $t=\Delta $ is the structural attacker window: bounded, named, and priced into the bond in \S \ref {sec:fh-settlement}}{figure.caption.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Convergence bound}{15}{subsection.5.1}\protected@file@percent }
+\newlabel{sec:fh-conv-bound}{{5.1}{15}{Convergence bound}{subsection.5.1}{}}
+\newlabel{thm:fh-conv}{{5.1}{15}{Federated Revocation Convergence}{theorem.5.1}{}}
+\newlabel{cor:fh-window}{{5.1}{15}{Bounded Attacker Window}{corollary.5.1}{}}
+\citation{owens2026bonded}
+\citation{owens2026proposal}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Conflict resolution across harbors}{16}{subsection.5.2}\protected@file@percent }
+\newlabel{sec:fh-revocation-conflict}{{5.2}{16}{Conflict resolution across harbors}{subsection.5.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Cuckoo filter discipline}{16}{subsection.5.3}\protected@file@percent }
+\newlabel{sec:fh-cuckoo}{{5.3}{16}{Cuckoo filter discipline}{subsection.5.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Cross-Harbor Settlement}{16}{section.6}\protected@file@percent }
+\newlabel{sec:fh-settlement}{{6}{16}{Cross-Harbor Settlement}{section.6}{}}
+\citation{herlihy2018atomic}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Cross-harbor settlement protocol. The escrow is a third party in the sense that neither $A$ nor $B$ alone can compel an outcome, but it is \emph  {not} a trusted third party in the operational sense: the protocol restricts its decision space to two outcomes (clear or refuse) and prices its maximum extractable fee $\phi $ up front. Redirecting funds, equivocating about a clearing decision, or delaying past TTL are structurally forbidden by the property checks in Theorem~\ref {thm:fh-escrow-bound}. The escrow is a \emph  {bounded} third party --- the bond it holds plus the cap on $\phi $ make its misbehavior bounded-loss rather than catastrophic.}}{17}{figure.caption.19}\protected@file@percent }
+\newlabel{fig:fh-settlement}{{5}{17}{Cross-harbor settlement protocol. The escrow is a third party in the sense that neither $A$ nor $B$ alone can compel an outcome, but it is \emph {not} a trusted third party in the operational sense: the protocol restricts its decision space to two outcomes (clear or refuse) and prices its maximum extractable fee $\phi $ up front. Redirecting funds, equivocating about a clearing decision, or delaying past TTL are structurally forbidden by the property checks in Theorem~\ref {thm:fh-escrow-bound}. The escrow is a \emph {bounded} third party --- the bond it holds plus the cap on $\phi $ make its misbehavior bounded-loss rather than catastrophic}{figure.caption.19}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}The bounded escrow}{17}{subsection.6.1}\protected@file@percent }
+\newlabel{sec:fh-escrow}{{6.1}{17}{The bounded escrow}{subsection.6.1}{}}
+\newlabel{thm:fh-escrow-bound}{{6.1}{17}{Bounded Escrow}{theorem.6.1}{}}
+\citation{douceur2002sybil}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Cross-harbor conservation}{18}{subsection.6.2}\protected@file@percent }
+\newlabel{sec:fh-cross-conservation}{{6.2}{18}{Cross-harbor conservation}{subsection.6.2}{}}
+\newlabel{prop:fh-cross-cons}{{6.1}{18}{Cross-Harbor Conservation}{property.6.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}Settlement protocol}{18}{subsection.6.3}\protected@file@percent }
+\newlabel{sec:fh-settle-proto}{{6.3}{18}{Settlement protocol}{subsection.6.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}Fee structure and economic discipline}{18}{subsection.6.4}\protected@file@percent }
+\newlabel{sec:fh-econ}{{6.4}{18}{Fee structure and economic discipline}{subsection.6.4}{}}
+\citation{zimmermann1995pgp}
+\citation{maler2008venn}
+\citation{maler2008venn}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Federation Admission}{19}{section.7}\protected@file@percent }
+\newlabel{sec:fh-admission}{{7}{19}{Federation Admission}{section.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}The bonded-sponsor pattern}{19}{subsection.7.1}\protected@file@percent }
+\newlabel{sec:fh-sponsor}{{7.1}{19}{The bonded-sponsor pattern}{subsection.7.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Cold-start failure modes}{19}{subsection.7.2}\protected@file@percent }
+\newlabel{sec:fh-cold-start}{{7.2}{19}{Cold-start failure modes}{subsection.7.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Worked Example}{19}{section.8}\protected@file@percent }
+\newlabel{sec:fh-worked-example}{{8}{19}{Worked Example}{section.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Setup}{20}{subsection.8.1}\protected@file@percent }
+\newlabel{sec:fh-ex-setup}{{8.1}{20}{Setup}{subsection.8.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}The agent task}{20}{subsection.8.2}\protected@file@percent }
+\newlabel{sec:fh-ex-task}{{8.2}{20}{The agent task}{subsection.8.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Step 1: Cross-harbor transfer}{20}{subsection.8.3}\protected@file@percent }
+\newlabel{sec:fh-ex-xfer}{{8.3}{20}{Step 1: Cross-harbor transfer}{subsection.8.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.4}Step 2: Damage detection}{20}{subsection.8.4}\protected@file@percent }
+\newlabel{sec:fh-ex-damage}{{8.4}{20}{Step 2: Damage detection}{subsection.8.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.5}Step 3: Settlement}{21}{subsection.8.5}\protected@file@percent }
+\newlabel{sec:fh-ex-settle}{{8.5}{21}{Step 3: Settlement}{subsection.8.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.6}Step 4: Revocation propagation}{21}{subsection.8.6}\protected@file@percent }
+\newlabel{sec:fh-ex-revocation}{{8.6}{21}{Step 4: Revocation propagation}{subsection.8.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.7}What this example shows}{21}{subsection.8.7}\protected@file@percent }
+\newlabel{sec:fh-ex-shows}{{8.7}{21}{What this example shows}{subsection.8.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {9}Formal Model}{21}{section.9}\protected@file@percent }
+\newlabel{sec:fh-formal}{{9}{21}{Formal Model}{section.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}ProVerif extensions to Anchor}{21}{subsection.9.1}\protected@file@percent }
+\newlabel{sec:fh-proverif-ext}{{9.1}{21}{ProVerif extensions to Anchor}{subsection.9.1}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {1}{\ignorespaces Cross-realm authenticity query (sketch)}}{21}{lstlisting.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}TLA+ extension for cross-harbor conservation}{22}{subsection.9.2}\protected@file@percent }
+\newlabel{sec:fh-tla-ext}{{9.2}{22}{TLA+ extension for cross-harbor conservation}{subsection.9.2}{}}
+\@writefile{lol}{\contentsline {lstlisting}{\numberline {2}{\ignorespaces Cross-Harbor Conservation specification (sketch)}}{22}{lstlisting.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}What is mechanized and what is structural}{22}{subsection.9.3}\protected@file@percent }
+\newlabel{sec:fh-mech-summary}{{9.3}{22}{What is mechanized and what is structural}{subsection.9.3}{}}
+\@writefile{toc}{\contentsline {paragraph}{Mechanized ({\textcolor {hhteal}{\textbf  {\textsf  {closed}}}}).}{22}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Proof sketch, pending full mechanization ({\textcolor {hhamber}{\textbf  {\textsf  {partial}}}}).}{22}{section*.21}\protected@file@percent }
+\citation{maler2008venn}
+\citation{abdulrahman1997pgp}
+\citation{newman2022sigstore}
+\citation{maler2008venn}
+\citation{tailscale2020}
+\citation{headscale}
+\citation{torres2019intoto}
+\citation{slsa2023}
+\citation{laurie2013ct}
+\citation{owens2026anchor}
+\@writefile{toc}{\contentsline {paragraph}{Bounded (amber).}{23}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Open (cobalt).}{23}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Failure Modes}{23}{section.10}\protected@file@percent }
+\newlabel{sec:fh-failure-modes}{{10}{23}{Failure Modes}{section.10}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}Centralization gravity}{23}{subsection.10.1}\protected@file@percent }
+\newlabel{sec:fh-centralization}{{10.1}{23}{Centralization gravity}{subsection.10.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Equivocation by a malicious witness}{23}{subsection.10.2}\protected@file@percent }
+\newlabel{sec:fh-equiv}{{10.2}{23}{Equivocation by a malicious witness}{subsection.10.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.3}Partition tolerance}{23}{subsection.10.3}\protected@file@percent }
+\newlabel{sec:fh-partition}{{10.3}{23}{Partition tolerance}{subsection.10.3}{}}
+\citation{hedberg2024openidfed}
+\citation{maler2008venn}
+\citation{birgisson2014macaroons}
+\citation{ucan2024}
+\citation{miller2006robust}
+\citation{dennis1966programming}
+\citation{laurie2013ct}
+\citation{newman2022sigstore}
+\citation{torres2019intoto}
+\citation{slsa2023}
+\citation{crosby2009tamper}
+\citation{herlihy2018atomic}
+\citation{goes2020ibc}
+\citation{owens2026bonded}
+\@writefile{toc}{\contentsline {section}{\numberline {11}Related Work}{24}{section.11}\protected@file@percent }
+\newlabel{sec:fh-related}{{11}{24}{Related Work}{section.11}{}}
+\@writefile{toc}{\contentsline {paragraph}{Federated identity.}{24}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Capability-based federation.}{24}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Transparency logs.}{24}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Cross-domain settlement.}{24}{section*.27}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {12}Limitations and Open Questions}{24}{section.12}\protected@file@percent }
+\newlabel{sec:fh-limitations}{{12}{24}{Limitations and Open Questions}{section.12}{}}
+\citation{owens2026proposal}
+\citation{herlihy2018atomic}
+\citation{maler2008venn}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}The multi-principal correlated-equilibrium extension}{25}{subsection.12.1}\protected@file@percent }
+\newlabel{sec:fh-lim-correlated}{{12.1}{25}{The multi-principal correlated-equilibrium extension}{subsection.12.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}Trustless settlement for non-fungible bonds}{25}{subsection.12.2}\protected@file@percent }
+\newlabel{sec:fh-lim-trustless}{{12.2}{25}{Trustless settlement for non-fungible bonds}{subsection.12.2}{}}
+\newlabel{conj:fh-trustless}{{12.1}{25}{Trustless settlement impossible for non-fungible bonds}{conjecture.12.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.3}Cartel formation across federations}{25}{subsection.12.3}\protected@file@percent }
+\newlabel{sec:fh-lim-cartel}{{12.3}{25}{Cartel formation across federations}{subsection.12.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.4}Cold-start admission and the invitation-only failure mode}{25}{subsection.12.4}\protected@file@percent }
+\newlabel{sec:fh-lim-cold-start}{{12.4}{25}{Cold-start admission and the invitation-only failure mode}{subsection.12.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.5}Equivocation propagation speed}{25}{subsection.12.5}\protected@file@percent }
+\newlabel{sec:fh-lim-equiv}{{12.5}{25}{Equivocation propagation speed}{subsection.12.5}{}}
+\bibstyle{plain}
+\bibcite{owens2026anchor}{1}
+\bibcite{owens2026bonded}{2}
+\bibcite{owens2026proposal}{3}
+\bibcite{birgisson2014macaroons}{4}
+\bibcite{dennis1966programming}{5}
+\bibcite{miller2006robust}{6}
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.6}What this means for the reader}{26}{subsection.12.6}\protected@file@percent }
+\newlabel{sec:fh-lim-reader}{{12.6}{26}{What this means for the reader}{subsection.12.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {13}Conclusion}{26}{section.13}\protected@file@percent }
+\newlabel{sec:fh-conclusion}{{13}{26}{Conclusion}{section.13}{}}
+\bibcite{dolev1983security}{7}
+\bibcite{bernstein2012high}{8}
+\bibcite{laurie2013ct}{9}
+\bibcite{newman2022sigstore}{10}
+\bibcite{torres2019intoto}{11}
+\bibcite{slsa2023}{12}
+\bibcite{crosby2009tamper}{13}
+\bibcite{demers1987epidemic}{14}
+\bibcite{herlihy2018atomic}{15}
+\bibcite{douceur2002sybil}{16}
+\bibcite{maler2008venn}{17}
+\bibcite{zimmermann1995pgp}{18}
+\bibcite{abdulrahman1997pgp}{19}
+\bibcite{ucan2024}{20}
+\bibcite{hedberg2024openidfed}{21}
+\bibcite{goes2020ibc}{22}
+\bibcite{schindler2019ethdkg}{23}
+\bibcite{tobin2017inevitable}{24}
+\bibcite{tailscale2020}{25}
+\bibcite{headscale}{26}
+\bibcite{blanchet2016modeling}{27}
+\citation{owens2026bonded}
+\citation{demers1987epidemic}
+\citation{owens2026proposal}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Verification Status}{28}{appendix.A}\protected@file@percent }
+\newlabel{app:fh-mech}{{A}{28}{Verification Status}{appendix.A}{}}
+\@writefile{toc}{\contentsline {paragraph}{Artifact registry.}{28}{section*.29}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Federated Harbor verification status. {\textcolor {hhteal}{\textbf  {\textsf  {closed}}}}: model verified and runtime conformance test passes. {\textcolor {hhamber}{\textbf  {\textsf  {partial}}}}: design specified, mechanization in draft. {\textcolor {hhcobalt}{\textbf  {\textsf  {open}}}}: known unmechanized; threat band visible in Figure~\ref {fig:fh-threat-bands} (cobalt).}}{28}{table.caption.30}\protected@file@percent }
+\newlabel{tab:fh-status}{{1}{28}{Federated Harbor verification status. \Closed : model verified and runtime conformance test passes. \Partial : design specified, mechanization in draft. \Open : known unmechanized; threat band visible in Figure~\ref {fig:fh-threat-bands} (cobalt)}{table.caption.30}{}}
+\@writefile{toc}{\contentsline {paragraph}{What this table means.}{28}{section*.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Maturity-vocabulary mapping.}{28}{section*.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}ProVerif Models (draft)}{29}{appendix.B}\protected@file@percent }
+\newlabel{app:fh-proverif}{{B}{29}{ProVerif Models (draft)}{appendix.B}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {C}TLA+ Specification (draft)}{29}{appendix.C}\protected@file@percent }
+\newlabel{app:fh-tla}{{C}{29}{TLA+ Specification (draft)}{appendix.C}{}}
+\gdef \@abspage@last{29}

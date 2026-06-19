@@ -1,0 +1,81 @@
+\contentsline {section}{\numberline {1}Introduction: The Two-Machine Problem}{6}{section.1}%
+\contentsline {subsection}{\numberline {1.1}What this paper is and is not}{6}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Contributions}{7}{subsection.1.2}%
+\contentsline {section}{\numberline {2}The Federated Authority}{8}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Harbor sovereignty as a property characterization}{8}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Inter-harbor scope}{9}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}The witness log}{9}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}What the federation is not}{10}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Threat Model}{10}{section.3}%
+\contentsline {subsection}{\numberline {3.1}In-scope attacks}{10}{subsection.3.1}%
+\contentsline {paragraph}{Cross-realm identity spoofing.}{10}{section*.4}%
+\contentsline {paragraph}{Replay across the boundary.}{10}{section*.5}%
+\contentsline {paragraph}{Capability inflation across transfer.}{10}{section*.6}%
+\contentsline {paragraph}{Stale-revocation acceptance.}{11}{section*.7}%
+\contentsline {paragraph}{Cross-witness equivocation.}{11}{section*.8}%
+\contentsline {paragraph}{Settlement redirection or equivocation.}{11}{section*.9}%
+\contentsline {paragraph}{Harbor membership forgery at the federation boundary.}{11}{section*.10}%
+\contentsline {subsection}{\numberline {3.2}Out-of-scope attacks}{11}{subsection.3.2}%
+\contentsline {paragraph}{Compromise of a harbor's signing key.}{11}{section*.11}%
+\contentsline {paragraph}{Sybil at the federation layer.}{11}{section*.12}%
+\contentsline {paragraph}{Cartel formation across harbors.}{11}{section*.13}%
+\contentsline {paragraph}{Centralization gravity.}{11}{section*.14}%
+\contentsline {paragraph}{Side channels.}{11}{section*.15}%
+\contentsline {subsection}{\numberline {3.3}Threat-band visualization}{12}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Cross-Harbor Capability Transfer}{12}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The four-message ceremony}{13}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Why this composes cleanly with Anchor}{13}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Attenuation across the boundary}{14}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Threats foreclosed and threats deferred}{14}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Mechanization status}{14}{subsection.4.5}%
+\contentsline {section}{\numberline {5}Federated Revocation}{14}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Convergence bound}{15}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Conflict resolution across harbors}{16}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Cuckoo filter discipline}{16}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Cross-Harbor Settlement}{16}{section.6}%
+\contentsline {subsection}{\numberline {6.1}The bounded escrow}{17}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Cross-harbor conservation}{18}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Settlement protocol}{18}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Fee structure and economic discipline}{18}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Federation Admission}{19}{section.7}%
+\contentsline {subsection}{\numberline {7.1}The bonded-sponsor pattern}{19}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Cold-start failure modes}{19}{subsection.7.2}%
+\contentsline {section}{\numberline {8}Worked Example}{19}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Setup}{20}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}The agent task}{20}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Step 1: Cross-harbor transfer}{20}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Step 2: Damage detection}{20}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Step 3: Settlement}{21}{subsection.8.5}%
+\contentsline {subsection}{\numberline {8.6}Step 4: Revocation propagation}{21}{subsection.8.6}%
+\contentsline {subsection}{\numberline {8.7}What this example shows}{21}{subsection.8.7}%
+\contentsline {section}{\numberline {9}Formal Model}{21}{section.9}%
+\contentsline {subsection}{\numberline {9.1}ProVerif extensions to Anchor}{21}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}TLA+ extension for cross-harbor conservation}{22}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}What is mechanized and what is structural}{22}{subsection.9.3}%
+\contentsline {paragraph}{Mechanized ({\textcolor {hhteal}{\textbf {\textsf {closed}}}}).}{22}{section*.20}%
+\contentsline {paragraph}{Proof sketch, pending full mechanization ({\textcolor {hhamber}{\textbf {\textsf {partial}}}}).}{22}{section*.21}%
+\contentsline {paragraph}{Bounded (amber).}{23}{section*.22}%
+\contentsline {paragraph}{Open (cobalt).}{23}{section*.23}%
+\contentsline {section}{\numberline {10}Failure Modes}{23}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Centralization gravity}{23}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Equivocation by a malicious witness}{23}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Partition tolerance}{23}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Related Work}{24}{section.11}%
+\contentsline {paragraph}{Federated identity.}{24}{section*.24}%
+\contentsline {paragraph}{Capability-based federation.}{24}{section*.25}%
+\contentsline {paragraph}{Transparency logs.}{24}{section*.26}%
+\contentsline {paragraph}{Cross-domain settlement.}{24}{section*.27}%
+\contentsline {section}{\numberline {12}Limitations and Open Questions}{24}{section.12}%
+\contentsline {subsection}{\numberline {12.1}The multi-principal correlated-equilibrium extension}{25}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Trustless settlement for non-fungible bonds}{25}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Cartel formation across federations}{25}{subsection.12.3}%
+\contentsline {subsection}{\numberline {12.4}Cold-start admission and the invitation-only failure mode}{25}{subsection.12.4}%
+\contentsline {subsection}{\numberline {12.5}Equivocation propagation speed}{25}{subsection.12.5}%
+\contentsline {subsection}{\numberline {12.6}What this means for the reader}{26}{subsection.12.6}%
+\contentsline {section}{\numberline {13}Conclusion}{26}{section.13}%
+\contentsline {section}{\numberline {A}Verification Status}{28}{appendix.A}%
+\contentsline {paragraph}{Artifact registry.}{28}{section*.29}%
+\contentsline {paragraph}{What this table means.}{28}{section*.31}%
+\contentsline {paragraph}{Maturity-vocabulary mapping.}{28}{section*.32}%
+\contentsline {section}{\numberline {B}ProVerif Models (draft)}{29}{appendix.B}%
+\contentsline {section}{\numberline {C}TLA+ Specification (draft)}{29}{appendix.C}%

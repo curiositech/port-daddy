@@ -1,0 +1,59 @@
+\contentsline {section}{\numberline {1}Where this paper sits, and what it promises}{4}{section.1}%
+\contentsline {subsection}{\numberline {1.1}The one-sentence thesis}{5}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Why ``reference monitor,'' and why \emph {not} consensus}{5}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}The maturity key, and why the marks are load-bearing}{5}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Reader's Map}{7}{section.2}%
+\contentsline {section}{\numberline {3}The kernel as seven organs}{7}{section.3}%
+\contentsline {section}{\numberline {4}The substrate organ: one writer, one file}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The single-writer discipline}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}The configuration is the durability claim}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Schema by union, not by sequencer}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Path and ownership invariants}{10}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Durability, split by fault class}{10}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Why one label is a lie here}{10}{subsection.5.1}%
+\contentsline {paragraph}{Worked dramatization: Alice crashes mid-write.}{11}{section*.8}%
+\contentsline {subsection}{\numberline {5.2}Why the trade is defensible --- and where it stops being so}{11}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}A recovery story, not just a durability story}{11}{subsection.5.3}%
+\contentsline {section}{\numberline {6}The resource organ: claims, locks, and fair exclusion}{12}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Claim granularity is richer than ``claims''}{12}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}The claim lifecycle as a finite-state machine}{12}{subsection.6.2}%
+\contentsline {paragraph}{Worked dramatization: Alice and Bob race for one port.}{13}{section*.11}%
+\contentsline {subsection}{\numberline {6.3}The missing state: fairness}{14}{subsection.6.3}%
+\contentsline {section}{\numberline {7}The communication organ: the bus, stigmergy, and two delegation chains}{14}{section.7}%
+\contentsline {subsection}{\numberline {7.1}The bus: a durable carrier envelope}{15}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Stigmergic markers: decay as a provided guarantee}{15}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Two delegation chains, one dangerous name}{15}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}A second transport}{16}{subsection.7.4}%
+\contentsline {section}{\numberline {8}The obligation \& enforcement organ: the sovereign's two arms}{16}{section.8}%
+\contentsline {subsection}{\numberline {8.1}The deontic split}{16}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}The policy monitor is a detector, not a regimenter}{17}{subsection.8.2}%
+\contentsline {paragraph}{Worked dramatization: Bob attempts a forbidden action.}{18}{section*.15}%
+\contentsline {subsection}{\numberline {8.3}Commitments: obligation with oracle-bound closure}{19}{subsection.8.3}%
+\contentsline {section}{\numberline {9}The continuity organ: memory, checkpoint, and the foundation of the economy}{20}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Three organs, one weak link}{21}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}The operation log and tamper-evidence}{21}{subsection.9.2}%
+\contentsline {section}{\numberline {10}The self-attestation organ: honest green}{22}{section.10}%
+\contentsline {section}{\numberline {11}The invariants, stated as theorems}{22}{section.11}%
+\contentsline {subsection}{\numberline {11.1}The consistency-model theorem}{23}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}The dual-runtime hazard, and what would make I11 a theorem}{24}{subsection.11.2}%
+\contentsline {section}{\numberline {12}Cross-organ atomicity: a buildable defect, not a frontier}{24}{section.12}%
+\contentsline {section}{\numberline {13}Threat model and the limits of mediation}{25}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Advisory claims are not sandboxing}{25}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Self-asserted identity bounds every other invariant}{25}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Hash-chain tamper-evidence, re-scoped to cross-machine provisioning}{26}{subsection.13.3}%
+\contentsline {section}{\numberline {14}Adjacency contract: what the kernel assumes and provides}{26}{section.14}%
+\contentsline {subsection}{\numberline {14.1}What the substrate assumes from the machine}{26}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}What the substrate provides to the coordination layer}{26}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}The explicit non-provisions}{27}{subsection.14.3}%
+\contentsline {section}{\numberline {15}Related work}{27}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Reference monitors and the trusted computing base}{27}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Durable storage and transaction processing}{27}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Coordination, stigmergy, and deontic control}{28}{subsection.15.3}%
+\contentsline {subsection}{\numberline {15.4}Capability security and tamper-evident logs}{28}{subsection.15.4}%
+\contentsline {section}{\numberline {16}Open problems}{28}{section.16}%
+\contentsline {section}{\numberline {17}Conclusion: solid where local, provisional where it must grow}{29}{section.17}%
+\contentsline {section}{\numberline {A}Implementation \& status}{30}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}The reference implementation}{30}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}Mechanism-to-artifact map}{30}{subsection.A.2}%
+\contentsline {subsection}{\numberline {A.3}Status, and the three load-bearing corrections}{31}{subsection.A.3}%
+\contentsline {subsection}{\numberline {A.4}Nomenclature}{31}{subsection.A.4}%

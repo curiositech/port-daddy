@@ -1,0 +1,329 @@
+% ═══════════════════════════════════════════════════════════════════════════════
+%  THE HARBOR VOLUME WORKBOOK — Part IV Solutions: The Harbor Economy
+%  Full worked answers, same numbering as harbor-economy-questions.tex.
+%  Derivations for Trace items, design discussion for Open items.
+% ═══════════════════════════════════════════════════════════════════════════════
+
+\providecommand{\wbtier}[1]{{\scshape\bfseries\textcolor{hhcobalt}{#1}}\enspace}
+\providecommand{\wbcheck}{\wbtier{Check.}}
+\providecommand{\wbtrace}{\wbtier{Trace.}}
+\providecommand{\wbopen}{\wbtier{Open.}}
+\providecommand{\wbstar}{{\textcolor{hhcobalt}{$\bigstar$}}\,}
+
+\section*{Part IV Solutions --- The Harbor Economy}
+\addcontentsline{toc}{section}{Part IV Solutions --- The Harbor Economy}
+
+\begin{enumerate}[label=\textbf{IV.\arabic*},leftmargin=2.8em,itemsep=8pt,topsep=4pt]
+
+% 1
+\item \wbcheck A reputation any spawn can \emph{clone} carries no information, so
+  there is nothing to rent or license; the market needs an asset that cannot be
+  costlessly cloned, and reputation-on-a-non-forgeable-identity is the first such
+  asset in the stack.
+
+% 2
+\item \wbcheck On Side~1 the counterparty is the \emph{operator} (a firm taking
+  work-for-hire), and the operator bears the consequence directly: it eats slashed
+  sub-bonds and its own reputation moves. The accountable principal is already
+  present and already exposed, so durable per-agent identity is not the gate.
+  Sides 2 and 3 trade the \emph{agent} or the \emph{skill} as a standalone asset
+  whose value is its track record; there the asset is the identity, so a forgeable
+  one is fatal.
+
+% 3
+\item \wbopen\wbstar \emph{Sketch.} Suppose sides 2 and 3 run on pseudonyms with no
+  binding to a scarce principal. Asset value is the discounted stream of future
+  rents conditioned on a track record $r$. With free identities an owner facing a
+  pending bad outcome simply abandons the pseudonym and re-lists the same asset under
+  a fresh one at the newcomer prior. The expected penalty for any bad outcome is then
+  capped at $\min(\text{slash}, \text{newcomer re-entry cost})$; if re-entry is free
+  the penalty is zero and no sanction binds. Formally this is Douceur's result:
+  without a cost to mint identities, no reputation or quorum mechanism is robust. The
+  only escape is a positive \emph{abandonment cost} --- exactly what binding to a
+  scarce, non-forgeable principal supplies (and what \emph{From Spawn to Person}
+  proves is necessary for any sanction-respecting reputation). Every cloneless design
+  reintroduces that cost under another name (stake, deposit, hardware root); strip it
+  and the design collapses to Sybil.
+
+% 4
+\item \wbcheck \emph{Test:} count the distinct, privately-informed parties the
+  platform must individually rationalize into participating. Ride-share is two-sided
+  (riders, drivers): the driver is the only worker-side party and the platform
+  prices to ignite the cross-side network effect. It becomes three-sided only if a
+  separate party (e.g.\ a fleet owner who is neither the platform nor the driver)
+  bears distinct private information.
+
+% 5
+\item \wbtrace v2 is a new content hash, so it inherits an \emph{empty} track record
+  and re-enters at the newcomer prior --- the Akerlof lemons problem reappears at
+  every version bump, because the buyer again cannot observe quality before use.
+  Fix: a version-binding (IV.12) that lets v2 inherit a discounted prior from v1's
+  settled outcomes rather than starting cold.
+
+% 6
+\item \wbopen\wbstar Treat the reputation vector as a functor into a product object
+  $R = R_{\mathrm{acc}}\times R_{\mathrm{aes}}\times R_{\mathrm{eff}}$ with \emph{no}
+  chosen universal map to $\mathbb{R}$. \emph{Disclosure rule:} publish each axis
+  separately with its sample size and provenance, and let the buyer supply the weight
+  vector $w$ at read time; the platform never publishes a single ranked scalar.
+  Any \emph{fixed} platform-chosen collapse $s = w\cdot R$ recreates one scalar
+  target that producers optimize against --- the Goodhart/bandit framing: a single
+  exploitable maximand. Keeping the collapse buyer-side and per-query means there is
+  no global target to game, only a moving family of buyer utilities; the cone (the
+  universal map) is deliberately left unspecified. (This is exactly the
+  multi-dimensional aggregation gap the paper lists as \openmark{}.)
+
+% 7
+\item \wbtrace \emph{Base case (paper's worked trace):} bounty $400$, bond $100$,
+  $40\%$ done. Before: $\text{wallet}_{\text{Bob}}$ down $500$, $\text{escrow}=500$.
+  After: Bob refunded the unearned $400$ bounty; worker earns
+  $0.40\times100=40$ pro-rata; salvage gets $100-40=60$; escrow $=0$. Check:
+  $400+40+60=500$. Conserved.\par
+  \emph{Asked variant:} bond $250$, $70\%$ done, same bounty $400$. Before:
+  escrow $=400+250=650$. After: worker earns $0.70\times250=175$; salvage gets
+  $250-175=75$; Bob refunded $400$; escrow $=0$. Check: $400+175+75=650$. Conserved.
+  The split is always $\text{bond}=f\cdot\text{bond}+(1-f)\cdot\text{bond}$ with the
+  bounty returning whole on any non-success state, so conservation is an algebraic
+  identity in $f$, independent of the amounts.
+
+% 8
+\item \wbcheck An oracle is a source of ground truth the agent \emph{cannot author}
+  (a passing test id, a merged SHA, a satisfied policy check). A free-text
+  ``Result:'' note lets the worker grade its own work --- a Goodhart attack: the
+  agent writes whatever string releases the bounty regardless of what it did. Binding
+  closure to an oracle makes the daemon \emph{derive} the grade rather than read the
+  worker's claim.
+
+% 9
+\item \wbopen\wbstar \emph{Amendment protocol.} (1) Either party proposes a delta
+  $\Delta_{\text{criteria}}$ and a delta budget/bounty $\Delta_b$. (2) Both
+  countersign $\mathsf{sign}_R,\mathsf{sign}_W$ over $\langle \text{plan hash}_{\text{old}},
+  \Delta_{\text{criteria}}, \Delta_b\rangle$. (3) The daemon, in one serialized
+  transaction, applies the escrow delta: if $\Delta_b>0$ debit $R$'s wallet into
+  escrow; if $\Delta_b<0$ refund $R$; write a new plan hash chaining the old one;
+  commit. Conservation is preserved because every amendment is itself a debit/credit
+  pair through the same wallet/escrow/commons objects --- the amendment is a morphism
+  in the same conservation category, so it composes with the existing settlement
+  morphisms. Replay safety: the new plan hash supersedes the old, and a presentation
+  against the old hash is rejected.
+
+% 10
+\item \wbcheck Grossman--Hart says the residual control right should go to the party
+  making the most important non-contractible investment. On the rental side, the
+  \emph{renter} runs the agent on its own repository, so the renter must hold the
+  \emph{runtime control right} --- the runtime jail (per-agent tool-allowlist plus
+  scoped filesystem). The \emph{owner} bears the reputational consequence. So the
+  jail belongs to the renter, not the owner.
+
+% 11
+\item \wbtrace A lease line item moves $\ell$ from renter-wallet to owner-wallet on
+  green settlement; a metered license moves $u\cdot p$ from buyer-wallet to
+  licensor-wallet. Each is a matched debit/credit through the same ledger objects, so
+  $\text{wallet}+\text{escrow}+\text{commons}$ is unchanged by construction --- the
+  total before equals the total after for \emph{any} $\ell, u, p$, because no line
+  item creates or destroys credits, it only relocates them. Conservation is therefore
+  amount-independent.
+
+% 12
+\item \wbopen\wbstar \emph{Version-binding.} Anchor v2's portfolio proof to v1's
+  Merkle root: v2 publishes $\langle \text{hash}(v2), \text{parent}=\text{root}(v1),
+  \text{diff-attestation}\rangle$. v2's starting prior is a discounted function of
+  v1's settled-outcome distribution, $\hat\mu_{v2}=(1-\lambda)\mu_{\text{newcomer}}
+  +\lambda\,\mu_{v1}$, with the discount $\lambda$ falling as the diff grows
+  (a large rewrite earns less inherited credit). This mirrors the newcomer policy for
+  agents: a fresh identity does not start at zero if it can prove lineage, but it
+  cannot inherit a clean slate for a substantively different artifact. Wash-resistance:
+  the parent link is in the evidence chain, so an owner cannot launder a bad v1 by
+  re-publishing it as v2 --- the inherited prior follows the lineage.
+
+% 13
+\item \wbcheck If identities are free (Douceur), an adversary mints fresh pseudonyms
+  faster than any sanction can attach, so the reputation map has no fixed point to
+  condition on --- it is not a weak mechanism but \emph{no} mechanism, because the
+  signal it conditions on can be reset to the prior at zero cost.
+
+% 14
+\item \wbcheck ``Mutually-distrusting'' (equivalently ``a boundary neither
+  controls''). Local non-forgeable identity assumes a single trusted root; the
+  market's defining adjective denies any shared root, so the keystone's threat model
+  excludes exactly the adversary the market is about.
+
+% 15
+\item \wbopen\wbstar \emph{Design.} Bind $N$ agent keys to one principal via a
+  hop-bound authorization chain rooted at a principal credential that is itself
+  scarce (hardware-attested or stake-bonded), so the principal's bond floor is a
+  property of the \emph{root}, not the leaves: spawning a fresh agent extends the
+  chain but does not mint a new root, so it cannot reset the floor. Cross-operator:
+  replace the single-operator ``the daemon is the trusted root'' shortcut with a
+  attestation that other harbors can verify without trusting the issuer --- e.g.\ a
+  transparency-log-published principal certificate plus a stake that is slashable in a
+  shared bond ledger. The hard half (still \openmark{}) is the attestation: making
+  ``this key really is one distinct principal, not a hundred sock puppets'' checkable
+  across harbors with no shared root. A stake-and-transparency construction reduces it
+  to ``is the stake real and non-double-counted,'' which is itself the gluing problem
+  (IV.31--33).
+
+% 16
+\item \wbcheck Myerson--Satterthwaite: no bilateral-trade mechanism under two-sided
+  private information can be simultaneously efficient, incentive-compatible,
+  individually rational, and budget-balanced. The harbor keeps IC, IR, and budget
+  balance (the latter forced by strict conservation), so it must surrender
+  \emph{efficiency}: the slashing/commons buffer is the budget-balancing wedge that
+  pushes the realized allocation below first-best.
+
+% 17
+\item \wbtrace Harbor $A$ prices in unit $\alpha$, Harbor $B$ in $\beta$, with a
+  boundary conversion rate $\rho$. A transfer $f$ of $1\,\alpha$ then $g$ of the
+  result back records $\rho^{-1}\rho = 1$ only if $\rho$ is globally consistent. If
+  $A\to B$ uses $\rho$ but $B\to A$ uses $\rho'\ne 1/\rho$ (stale or
+  arbitrage-divergent rates), then $F(g\circ f)\ne F(g)\circ F(f)$: the round trip
+  leaves a residual $|\rho'\rho-1|$. That residual, capped by the pre-agreed escrow
+  slack, is the lax functor's $\varphi$.
+
+% 18
+\item \wbopen\wbstar The coherence 2-cell is the natural transformation
+  $\eta_{f,g}: F(g)\circ F(f)\Rightarrow F(g\circ f)$ whose component on a transfer
+  is the conversion residual, bounded $\|\eta_{f,g}\|\le\varphi$. Pentagon coherence
+  requires the two ways of re-associating three composable transfers to agree; this
+  holds iff the conversion residuals are \emph{additive and path-independent} over the
+  triple, which fails in general for non-consistent rates (a triangular-arbitrage
+  cycle has nonzero net residual). So the lax functor exists with bounded 2-cells but
+  the pentagon/triangle coherence is \emph{not} guaranteed --- this is the
+  unit-of-account facet of the gluing obstruction, and proving when coherence holds
+  is open.
+
+% 19
+\item \wbcheck Two messages would let $A$ mint a card $B$ must trust on $A$'s word.
+  Message (3) is $B$'s counter-signature: $B$ applies its \emph{own} attenuation and
+  mints $C_B'$ under $B$'s key, so every later presentation verifies under $B$ alone
+  --- no synchronous call back to $A$ on the hot path. Four messages buy the liveness
+  property (no $A$-interaction after step 3) plus $B$-side attenuation; two cannot.
+
+% 20
+\item \wbtrace $C_B'$ verifies under $B$'s key, not $A$'s, so a rotation of $A$'s
+  signing key does \emph{not} immediately invalidate the already-minted $C_B'$ ---
+  that is the point of $B$ re-minting. What an $A$-rotation must do is publish the new
+  epoch root $R_A^{(e+1)}$; once that root reaches $B$'s witness log, any $C_B'$ bound
+  to the stale $R_A^{(e)}$ is invalidated. The gap (\openmark{}) is the interval
+  between rotation and root-propagation, and whether a rotated-but-not-revoked key
+  should re-validate held delegations --- cross-boundary key rotation is unspecified.
+
+% 21
+\item \wbopen\wbstar The \emph{anchor id} should be a nonce, unique per transfer.
+  $B$ must reject a re-presented message (3) by recording consumed anchor ids (or a
+  monotonic per-source counter) for the lifetime of the epoch root they bind to.
+  Freshness invariant: a transfer is accepted iff (a) its envelope binds the current
+  or a not-yet-superseded epoch root $R_A^{(e)}$, and (b) its anchor id has not been
+  consumed at $B$. Replay against a stale root fails (a); replay of a fresh message
+  fails (b).
+
+% 22
+\item \wbcheck The bound $\Delta(1+\ln m)$ assumes (1) \emph{honest} participants and
+  (2) \emph{random} peer selection (Demers' average-case epidemic model). An attacker
+  who controls peer selection or partitions the gossip graph (eclipse attack) breaks
+  both. Partial synchrony (gossip eventually delivered within $\Delta$ after some
+  unknown global stabilization time) rescues a weaker eventual-convergence guarantee.
+
+% 23
+\item \wbtrace Alice revokes $c$ at home harbor $A$ at $t=0$. Harbor $B$ (one hop)
+  learns at $t=\Delta$; in $[0,\Delta]$ its filter is stale and $c$ is still spendable
+  at $B$. Harbor $C$ (two hops) learns at $t=2\Delta$. So the worst single-hop
+  exposure window is $[0,\Delta]$ at $B$, and the Equivocation Lower Bound must price
+  the maximum value spendable in that window.
+
+% 24
+\item \wbopen\wbstar \emph{Setup.} Three harbors $A,B,C$, gossip period $\Delta$,
+  one equivocating witness. Worst-case (not expected) convergence over a path of
+  length $\le m-1$ hops is $(m-1)\Delta$; for $m=3$ the deepest honest harbor learns
+  by $2\Delta$. Let $v$ be the max value spendable against $c$ per harbor per unit
+  time. Then a rational adversary equivocates iff the extractable value
+  $\sum_{\text{stale harbors}} v\cdot(\text{stale window})$ exceeds the bond. The
+  lower bound is therefore $B_{\text{witness}} \ge v\cdot\sum_{k=1}^{m-1}k\Delta
+  = v\,\Delta\,\binom{m}{2}$ in the worst case (here $v\,\Delta\,(1+2)=3v\Delta$).
+  Proving tightness requires showing the adversary can actually realize spends at
+  every stale harbor simultaneously; that is the open part --- the expected-case
+  Demers bound understates it by the gap between $\binom{m}{2}\Delta$ (worst case) and
+  $(1+\ln m)\Delta$ (expected).
+
+% 25
+\item \wbcheck The folk theorem (Green--Porter; Abreu--Pearce--Stacchetti) needs the
+  public-signal distribution to be common knowledge and \emph{exogenous}. A capturable
+  grader makes the signal \emph{endogenous} --- a strategic player chooses it --- so
+  the premise fails and the equilibrium characterization does not apply as stated.
+
+% 26
+\item \wbcheck Unit test passing: machine-checkable (Fix A). Merged SHA:
+  machine-checkable (Fix A). ``The refactor is tasteful'': judge-dependent (Fix B) ---
+  not machine-checkable, so it needs a bonded human/LLM judge with a re-audit lane.
+
+% 27
+\item \wbopen\wbstar Define levels: a level-0 oracle is machine-checkable (a test, a
+  SHA). A level-$(k{+}1)$ judge adjudicates disputes over level-$k$ rulings, posts a
+  bond, and is subject to re-audit by a sampled level-$(k{+}1)$ panel whose
+  \emph{own} evidence is the same machine-checkable artifact (the diff, the tests).
+  Order judges by the level they adjudicate; the order is well-founded because every
+  dispute ultimately preserves the same diff/tests, so any chain of ``judges judging
+  judges'' terminates at the level-0 machine-checkable base in finitely many steps ---
+  there is no infinite ascending chain because re-audit always reduces to the fixed,
+  machine-checkable evidence, not to a fresh subjective judgement. The bond makes each
+  level individually IC; well-foundedness makes the recursion terminate.
+
+% 28
+\item \wbcheck Subsidize the side carrying the scarcest cross-side externality ---
+  in the harbor, \emph{supply} (worker agents / listed assets), because no requester
+  shops an empty shelf. Phase~1 seeds supply at zero/negative price with
+  platform-posted tasks at above-market bounties, generating the first settled
+  outcomes (the bootstrap reputation data), then flips to charging demand once a
+  liquidity threshold is met.
+
+% 29
+\item \wbtrace The cartel is self-sustaining under grim trigger when the discounted
+  collusion stream dominates one-shot defection:
+  $\dfrac{\delta\,\pi_C}{1-\delta(1-p_d)} \ge \pi_D$. Raising the detection
+  probability $p_d$ (sampled adversarial re-audit of high-velocity pairs) or lowering
+  the collusion payoff $\pi_C$ (diminishing-returns concavity on pairwise settled
+  outcomes) raises the critical $\delta$ needed to sustain collusion until it exceeds
+  $1$, breaking the cartel. Slashing on detection enters as the $-5(q_f-\mu)$ branch,
+  which lowers the effective $\pi_C$.
+
+% 30
+\item \wbopen\wbstar Price-of-anarchy is a ratio for a \emph{fixed} game; once
+  reputation is resold, the strategy space and payoffs change, so PoA is ill-posed.
+  Reframe via Spence signaling with a resale market: a quality type $\theta$ signals
+  by accumulating costly settled outcomes; the question is whether \emph{any}
+  informative separating equilibrium survives when the signal (reputation) can be
+  bought. It survives iff the marginal signaling cost is steeper for low types
+  \emph{even accounting for purchase} --- i.e.\ buying reputation must cost more than
+  it is worth to a low type. The structural break (pairwise concavity + re-audit) is
+  what keeps the single-crossing condition intact under resale; without it, resale
+  pools the types and the separating equilibrium collapses.
+
+% 31
+\item \wbcheck \emph{Trustless settlement:} local ledgers cannot glue into a global
+  settled state without a shared chain. \emph{Equivocation Lower Bound:} the gossip
+  window is the overlap on which local sections must agree, and an equivocating
+  witness publishes inconsistent overlaps. \emph{Lax functor:} heterogeneous units
+  make the conversion residual a nonzero cocycle. All three are ``local sections fail
+  to glue,'' i.e.\ $H^1\ne 0$.
+
+% 32
+\item \wbcheck $H^0$ is the space of global sections --- it asks whether a consistent
+  global state \emph{exists at all}. $H^1$ is the \emph{obstruction} to building a
+  global section from locally consistent ones. Double-spend is not ``no consistent
+  state exists'' ($H^0$); it is ``locally each harbor is consistent, but they cannot
+  be glued into one consistent global ledger'' --- precisely a nonzero $H^1$ class.
+
+% 33
+\item \wbopen\wbstar Two horns. \emph{Defense horn:} a bounded-degree gossip topology
+  with a shared transparency log and slashable witness bonds forces detected
+  equivocation to be unprofitable; if the bond dominates the worst-case window value
+  (IV.24), the only surviving sections are consistent ones and $H^1=0$ effectively
+  (economically, not topologically). \emph{Impossibility horn:} without consensus,
+  there exist gossip schedules under which two harbors commit contradictory overlaps
+  before detection, so the cocycle is nonzero for that schedule --- meaning $H^1=0$
+  \emph{deterministically} requires agreement on order, which is exactly the consensus
+  the federation refuses (FLP). The honest position: the federation buys
+  \emph{economic} $H^1=0$ (deterrence), not \emph{topological} $H^1=0$ (prevention) ---
+  and proving that boundary precisely is the deepest open problem in the layer.
+
+\end{enumerate}

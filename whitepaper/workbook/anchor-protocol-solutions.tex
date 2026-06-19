@@ -1,0 +1,238 @@
+% =============================================================================
+%  The Harbor Volume — Workbook
+%  Part V · The Anchor Protocol (Beam A — Identity & capability)
+%  SOLUTIONS
+%
+%  Self-contained \input fragment; reuses \wbsol from the parent workbook with a
+%  local fallback. Worked answers: derivations for Trace items, design
+%  discussion for Open items. Cross-references to the paper are by section name,
+%  not number, so the file survives renumbering.
+% =============================================================================
+
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhink}{HTML}{1B1712}
+\providecommand{\wbtier}[1]{{\footnotesize\scshape\bfseries\textcolor{hhink}{#1}}}
+
+\providecommand{\wbsol}[2]{%
+  \par\medskip\noindent
+  \makebox[0pt][r]{\textbf{V.#1}\hspace{1.2em}}%
+  \ignorespaces #2\par}
+
+\section*{Part V \quad The Anchor Protocol \quad — Solutions}
+\addcontentsline{toc}{section}{Part V — The Anchor Protocol (Solutions)}
+
+% ───────────────────────────── Check tier ──────────────────────────────────
+\wbsol{1}{%
+\textbf{Rule: algorithmic pinning.} The verifier records the algorithm at
+\emph{issuance}, out of band, and forces the crypto library to evaluate the
+signature under that pinned algorithm. It never consults the \texttt{alg} field
+carried in the token. The attack works because the \texttt{alg} field is
+attacker-controlled data on the wire: rewriting \texttt{alg:HS256} to
+\texttt{alg:none} (strip the signature) or to a symmetric algorithm while
+supplying the public key as the HMAC secret turns a key the verifier publishes
+into a forging oracle. Even \emph{validating} the header against an allow-list
+still lets the attacker choose \emph{which} allowed algorithm runs; if two allowed
+algorithms can be confused (asymmetric verify vs.\ symmetric MAC over the same
+key material), the choice is the exploit. The only safe posture is to give the
+header zero authority: header trust $=0$. This is the content of the
+Algorithmic-Pinning property and is exactly what the bottom row of the
+algorithm-confusion figure proves: the pinned verifier admits no rewrite trace.}
+
+\wbsol{2}{%
+From parent to child, two quantities are monotone non-increasing: (i) the
+capability set, $\mathrm{cap}_\text{child}\subseteq\mathrm{cap}_\text{parent}$
+(in the strict-attenuation reading, $\subsetneq$); and (ii) the TTL,
+$\mathrm{ttl}_\text{child}\le\mathrm{ttl}_\text{parent}$. A third invariant is
+structural: the child cannot re-grant authority it does not itself hold. The
+quantity that must be \emph{fresh} at every hop is the per-hop nonce $n_k$. Each
+hop signs the binding tuple $(n_k,\mathrm{id}_{k-1},\mathrm{id}_k,h)$, where the
+nonce defeats replay and the bound previous/next identities defeat splicing
+(reusing a hop's signature inside a different chain) and substitution (changing
+the message hash $h$ mid-chain).}
+
+\wbsol{3}{%
+ProVerif mechanizes Phases~1--3: symmetric pinning (authentication + injective
+agreement), asymmetric identity (Ed25519 unforgeability), and multi-hop
+delegation (the injective-agreement chain query). Phase~4, revocation, is
+enforced at \emph{runtime} against two invariants --- filter monotonicity over a
+TTL epoch and no partial reanimation --- and a property test on the cuckoo
+filter's false-positive bound. It does not need the same symbolic proof because
+revocation can only \emph{narrow} the set of accepted cards; it never grants
+acceptance. A mechanism that strictly shrinks the admit set cannot introduce a
+new authentication or escalation trace, so the existing soundness proofs are
+preserved by inspection of the verification path: the revocation check is
+unconditional and precedes admission.}
+
+\wbsol{4}{%
+The two senses range over different quantities. (1) \textbf{Unbounded sessions} ---
+ProVerif quantifies over an unbounded number of concurrent protocol runs and
+proves the security queries hold across all of them; this is delivered. (2)
+\textbf{Unbounded delegation depth} --- the number of \emph{hops} in a single
+chain. The modeled delegation process fixes the hop count as a structural bound
+(the proof is machine-checked at depth~3, the depth realized in deployment).
+Extending it to unbounded depth via recursive replication of the delegation
+process is explicitly future work. Conflating the two is the trap the paper warns
+against: ``unbounded sessions'' is not ``unbounded depth.''}
+
+% ───────────────────────────── Trace tier ──────────────────────────────────
+\wbsol{5}{%
+Per-entry cost: $\log_2(1/\epsilon)+3$ bits. At $\epsilon=10^{-3}$,
+$\log_2(10^3)=10\log_2 10\approx 9.97$, so $\approx 9.97+3\approx 13$ bits per
+card --- the paper's ``$\approx 13$ bits.'' For $N=10^5$ revocations:
+\[
+  10^5 \times 13\ \text{bits} = 1.3\times10^6\ \text{bits}
+  = \frac{1.3\times10^6}{8}\ \text{bytes} \approx 1.6\times10^5\ \text{bytes}
+  \approx 160\ \text{KB}.
+\]
+The assumption that makes this gossip-cheap is that only \emph{fingerprints} are
+shipped, not full card IDs: the version-vector deltas carry $\sim$13-bit
+fingerprints per newly-revoked card, so a full filter at $10^5$ entries is
+$\approx 160$\,KB and an incremental delta is a few bytes per revocation ---
+trivially in memory and trivially gossiped.}
+
+\wbsol{6}{%
+Anti-entropy gossip spreads a fact epidemically: each round, every informed node
+infects (in expectation) a constant fraction of the uninformed, so the informed
+count grows geometrically and full coverage takes $O(\log m)$ rounds. Multiplying
+the expected round count by the period $\Delta$ gives expected wall-clock
+$\Delta(1+\ln m)$. For $m=10$, $\Delta=30$\,s:
+\[
+  30\,(1+\ln 10) = 30\,(1+2.302) = 30\times 3.302 \approx 99\ \text{s}\approx 1.7\ \text{min}.
+\]
+The figure's ``$\approx 2$\,minutes'' is the \emph{worst-case} headline, not the
+expected value: $\Delta(1+\ln m)$ is an expectation over the random peer
+selection, and the tail of the epidemic spread (the last one or two nodes to be
+reached) pushes the worst case past the mean. The gap is exactly the variance of
+the coupon-collector-like final phase, where the chance of picking an
+already-informed peer is highest. Security-critical revocations bypass this by
+immediate push to all known peers.}
+
+\wbsol{7}{%
+\textbf{The vacuity.} In the v3 model, capabilities are opaque atoms and the only
+order fact is \texttt{is\_subset(c1,c1)=true}. There is no pair of distinct
+capabilities $x\ne y$ with $\texttt{is\_subset}(x,y)$ derivable, so a delegated
+capability can only ever \emph{equal} its parent. ``Escalation'' --- delegating
+more than you hold --- is not blocked; it is \emph{inexpressible}, because there
+is no larger capability to name. The no-escalation query
+$\text{Accepted}(\dots\text{over-broad}\dots)\Rightarrow\text{false}$ therefore
+holds trivially: its antecedent is unsatisfiable. The proof says nothing about
+the protocol.\par
+\smallskip
+\textbf{The fix (v5).} Three additions turn the query into a real defense.
+(i) A \emph{sound partial order}: \texttt{cap\_read} $\sqsubset$ \texttt{cap\_write},
+both public so the attacker can construct either, with
+\texttt{is\_subset(cap\_read,cap\_write)} derivable and
+\texttt{is\_subset(cap\_write,cap\_read)} \emph{not}. (ii) An \emph{insider
+escalation adversary}: an agent holding a valid \texttt{cap\_read} root that signs
+an over-broad \texttt{cap\_write} delegation. (iii) A \emph{non-vacuity query}:
+\texttt{EscalationAttempted} must be reachable, proving the attack is expressible.
+ProVerif then reports Q1 (escalating delegation accepted) unreachable while Q2
+(escalation attempted) reachable --- a genuine defense, not the v3 vacuum.\par
+\smallskip
+\textbf{The negative control.} Deleting the verifier's \texttt{is\_subset} guard
+flips Q1 to false-with-trace: ProVerif exhibits the read$\to$write escalation.
+This establishes that the guard is \emph{load-bearing} --- the proof passes
+\emph{because} of the check, not because the model is too weak to witness the
+attack. A passing proof with no counterexample under guard-removal would be
+suspicious; the control is what makes the green result trustworthy.}
+
+\wbsol{8}{%
+\textbf{The attack.} Root issues $A$ a \texttt{write} card. $A$ delegates
+\texttt{read} to $B$ (a legal attenuation). $B$ delegates \texttt{write} to $C$.
+The chain is $A{:}\texttt{write}\to B{:}\texttt{read}\to C{:}\texttt{write}$.\par
+\smallskip
+\textbf{Why final-vs-root accepts it.} A verifier that checks only
+$\mathrm{is\_subset}(\mathrm{cap}_\text{final},\mathrm{cap}_\text{root})$ sees
+$\texttt{write}\subseteq\texttt{write}$ --- true --- and admits $C$. It never
+inspects the middle hop, so it misses that $B$ held only \texttt{read} and could
+not legitimately confer \texttt{write}. The middle hop is non-monotonic, but the
+endpoints look consistent.\par
+\smallskip
+\textbf{The per-hop predicate.} Each hop must be checked against its
+\emph{immediate parent}:
+\[
+  \mathrm{is\_subset}(\mathrm{cap}_\text{final},\mathrm{cap}_\text{mid})
+  \;\wedge\;
+  \mathrm{is\_subset}(\mathrm{cap}_\text{mid},\mathrm{cap}_\text{root}).
+\]
+On the attack chain the first conjunct is
+$\texttt{write}\subseteq\texttt{read}$ --- false --- so $C$ is rejected.
+\texttt{harbor\_card\_v7\_multihop\_fixed.pv} verifies exactly this and ProVerif
+proves the chain rejected; \texttt{v6} mechanizes the attack against the naive
+verifier. \textbf{Runtime tie-in:} the cross-harbor attenuation recompute
+$\mathrm{att}_B\circ\mathrm{att}_A$ must be applied \emph{per hop}, composing
+each hop's restriction in order, never collapsing to a single final-vs-root
+comparison. Function composition of monotone attenuations is itself monotone only
+if each factor is checked; skipping a factor breaks the chain.}
+
+% ───────────────────────────── Open tier ───────────────────────────────────
+\wbsol{9}{%
+\textbf{Approach.} Replace the fixed-arity delegation process with a replicated
+sub-process $!P_\text{hop}$ that reads a chain prefix off the channel, appends one
+attenuated hop, and re-emits, so a single ProVerif process can generate chains of
+any length. The verifier becomes a recursive walker over the reconstructed
+list.\par
+\smallskip
+\textbf{The obstacle.} ProVerif's unbounded-session guarantee comes free because
+sessions are \emph{independent} parallel runs --- the Horn-clause abstraction
+quantifies over them without an inductive argument. Chain depth is different: each
+hop's validity \emph{depends} on the accumulated state of all prior hops (the
+running capability lower bound, the chained identity bindings). That recursion is
+an inductive invariant over an unbounded data structure, which is precisely what
+Horn-clause resolution does not handle natively; it tends to lose precision or
+fail to terminate on recursive list predicates. The honest options are: (a) move
+the depth argument to an inductive prover (Tamarin's induction, or a Coq/F$^\star$
+proof of the monotone-composition lemma) and keep ProVerif for the per-hop
+property; or (b) prove a depth-independent lemma --- ``if every hop satisfies the
+immediate-parent predicate then the chain is attenuated'' --- once, by induction,
+outside ProVerif, and let ProVerif discharge the per-hop base case. Option (b) is
+the cleaner factoring and matches how the paper already separates per-hop
+verification from total-depth policy.}
+
+\wbsol{10}{%
+\textbf{Taking the gossip-convergence bound.} Today the $\Delta(1+\ln m)$ figure
+is borrowed from the classical anti-entropy analysis; it is not mechanized for
+\emph{this} protocol's delta-shipping and version-vector reconciliation. A
+credible path to \wbtier{built}: model the mesh as a probabilistic transition
+system and discharge the convergence bound in a probabilistic model checker (PRISM
+or Storm), proving $\Pr[\text{not converged after } k\Delta] \le f(k,m)$ for the
+actual peer-selection distribution, then a separate \emph{safety} proof (TLA$^+$
+or Apalache) that the version-vector merge is monotone and eventually-consistent
+under reordered/duplicated deltas. The property to discharge is two-part:
+\emph{safety} (no daemon ever admits a card revoked in its own converged view ---
+already implied by the local gate) and \emph{liveness/quantitative} (every
+revocation reaches every honest daemon within the stated time with the stated
+probability). Splitting safety from the probabilistic timing keeps each tool in
+its sweet spot. \emph{Alternatively}, for the constant-time comparator: rather
+than trusting \texttt{subtle::ConstantTimeEq}, re-discharge branch-freedom on the
+secret bytes with a dedicated constant-time checker (e.g.\ ct-verif / a
+Kani-style harness asserting no secret-dependent control flow), moving it from
+``audited-library trust'' to a re-proved obligation in the same source tree as the
+rest of the Kani harnesses.}
+
+\wbsol{11}{%
+\textbf{Residual leakage with daily-rotating salts.} Within one salt epoch, the
+hash $H(\texttt{kid},\texttt{salt}_\text{day})$ is a stable pseudonym: an
+adversary cannot invert it to a \texttt{kid} (assuming $H$ is one-way and the
+\texttt{kid} space has enough entropy), but can still count \emph{how many}
+revocations occurred that day and observe their \emph{timing} and \emph{gossip
+topology} --- which daemon revoked first, how fast it spread, and therefore which
+operator is disciplining agents and at what rate. Rotation breaks
+\emph{cross-day} linkage of a single card's pseudonym, so an adversary cannot
+track ``the same card stayed revoked for a week.''\par
+\smallskip
+\textbf{What a cross-epoch adversary still infers.} (i) \emph{Volume and cadence}:
+daily revocation counts and their distribution reveal an organization's incident
+rate and operational rhythm even without identities. (ii) \emph{Correlation
+attacks}: if the \texttt{kid} space is small or guessable, an adversary can
+pre-compute $H(\texttt{kid},\texttt{salt}_\text{day})$ for each candidate once the
+daily salt leaks or is itself observable, collapsing the pseudonymity --- so the
+salt must be secret and high-entropy, not merely rotating. (iii) \emph{Survival
+inference}: a card revoked near a day boundary appears under two pseudonyms in
+quick succession; an adversary watching the rotation seam can sometimes re-link
+them by timing. The honest framing the paper takes --- ``for an organization's own
+daemons this is acceptable audit transparency'' --- is right for the intended
+trust domain; the salted-hash scheme is a mitigation for cross-organization
+gossip, not a guarantee of unlinkability, and should be stated as such.}

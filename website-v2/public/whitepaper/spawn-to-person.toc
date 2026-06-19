@@ -1,0 +1,49 @@
+\contentsline {section}{Reader's Map}{4}{section*.2}%
+\contentsline {section}{\numberline {1}Introduction: the spawn that cannot be paid}{4}{section.1}%
+\contentsline {paragraph}{S1 --- the spawn that cannot be paid.}{4}{section*.4}%
+\contentsline {subsection}{\numberline {1.1}What this paper claims, and what it refuses to claim}{5}{subsection.1.1}%
+\contentsline {section}{\numberline {2}Prior art, and where this paper departs from it}{6}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Personal identity: what makes a later thing the same person}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Reputation and skill-rating estimators}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Reputation economics: cheap pseudonyms and limited records}{7}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}LLM-as-judge, and why it cannot be the whole story}{7}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}What is genuinely new here}{8}{subsection.2.5}%
+\contentsline {section}{\numberline {3}The role / person distinction, made precise}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Capability is not permission (a nomenclature the volume holds)}{9}{subsection.3.1}%
+\contentsline {section}{\numberline {4}Continuity is a personal-identity problem}{10}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Locke's memory criterion, and its famous bug}{10}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Parfit's repair: continuity, not connectedness}{10}{subsection.4.2}%
+\contentsline {section}{\numberline {5}The three organs of continuity}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Organ 1 --- Memory: the episodic record \hskip 1em\relax {\textcolor {hhink}{\textsc {\textbf {implemented}}}}}{12}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Organ 2 --- Checkpoint: restorable state \hskip 1em\relax {\textcolor {hhink}{\textsc {partial}}}}{12}{subsection.5.2}%
+\contentsline {paragraph}{Co-ownership note (with the formal-core paper).}{12}{section*.11}%
+\contentsline {subsection}{\numberline {5.3}Organ 3 --- Outcome ledger: the witnessed record of delivery \hskip 1em\relax {\textcolor {hhgray}{\textsc {specified}}}}{13}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}The canonical seam sentence (stated identically in every paper)}{13}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Identity: the root the whole chain hangs from}{14}{section.6}%
+\contentsline {subsection}{\numberline {6.1}S2 --- whitewashing in action}{15}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}The classic attacks this forecloses}{16}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}The principal above the actor}{17}{subsection.6.3}%
+\contentsline {section}{\numberline {7}The keystone split: local identity vs.\ cross-operator attestation}{18}{section.7}%
+\contentsline {section}{\numberline {8}Reputation as a substrate, not a score}{19}{section.8}%
+\contentsline {subsection}{\numberline {8.1}The estimator family (the well-understood part)}{20}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Score as telemetry; gate on predicates}{21}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Why reputation is \emph {not} a bandit problem}{22}{section.9}%
+\contentsline {subsection}{\numberline {9.1}The four broken assumptions}{22}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}What survives the bandit framing}{23}{subsection.9.2}%
+\contentsline {section}{\numberline {10}The multi-dimensional reputation protocol}{23}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Multi-dimensional quality (different axes, different judges)}{23}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}The neutral-judge market (the harbor's universities and rating agencies)}{24}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}S3 --- a graded job, end to end}{25}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Skill $\to $ agent helpfulness attribution}{26}{subsection.10.4}%
+\contentsline {section}{\numberline {11}The grading oracle's incentive-compatibility}{27}{section.11}%
+\contentsline {paragraph}{Option A --- bond-and-slash the judges.}{27}{section*.19}%
+\contentsline {paragraph}{Option B --- 2-of-3 multi-oracle.}{27}{section*.20}%
+\contentsline {paragraph}{The rate-the-raters recursion --- does it terminate?}{27}{section*.21}%
+\contentsline {section}{\numberline {12}Revocation, tombstones, and bounded memory}{29}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Monotone in honest outcomes, individually revocable}{29}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}S4 --- the fraudulent outcome retracted}{30}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Bounded memory is a design parameter, not a virtue to assert away}{30}{subsection.12.3}%
+\contentsline {section}{\numberline {13}What this paper hands the market (The Harbor Economy, Floor~4)}{31}{section.13}%
+\contentsline {section}{\numberline {14}Open problems (the starred exercises, collected)}{32}{section.14}%
+\contentsline {section}{\numberline {15}Conclusion}{32}{section.15}%
+\contentsline {section}{\numberline {A}Implementation status of the reference system}{33}{appendix.A}%

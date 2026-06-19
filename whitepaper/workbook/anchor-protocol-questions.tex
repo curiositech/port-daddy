@@ -1,0 +1,110 @@
+% =============================================================================
+%  The Harbor Volume — Workbook
+%  Part V · The Anchor Protocol (Beam A — Identity & capability)
+%  QUESTIONS
+%
+%  Self-contained \input fragment: the parent workbook supplies the document
+%  class, the palette (hhcobalt/hhteal/hhamber/maydayred), and the \wbq /
+%  \wbtier macros. The fallback definitions below let this file compile on its
+%  own for proofing. Tiers: Check (recall) · Trace (derivation) · Open (design).
+%  Difficulty: one to three filled stars.
+% =============================================================================
+
+\providecommand{\hhcobalt}{}  % no-op guard if palette not yet loaded
+\providecolor{hhcobalt}{HTML}{003FB8}
+\providecolor{hhteal}{HTML}{00564C}
+\providecolor{hhamber}{HTML}{6B4500}
+\providecolor{hhink}{HTML}{1B1712}
+
+% Difficulty stars, set in small-caps cobalt so they read as a label, not ASCII.
+\providecommand{\wbstars}[1]{{\footnotesize\textcolor{hhcobalt}{%
+  \ifcase#1\or$\bigstar$\or$\bigstar\bigstar$\or$\bigstar\bigstar\bigstar$\fi}}}
+
+% A tier tag: small-caps, weight 600, tracked — the eyebrow idiom, never clowny.
+\providecommand{\wbtier}[1]{{\footnotesize\scshape\bfseries\textcolor{hhink}{#1}}}
+
+% One question. #1 = local number, #2 = tier word, #3 = difficulty 1..3, #4 = body.
+\providecommand{\wbq}[4]{%
+  \par\medskip\noindent
+  \makebox[0pt][r]{\textbf{V.#1}\hspace{1.2em}}%
+  \wbtier{#2}~\wbstars{#3}\par\nopagebreak
+  \noindent\ignorespaces #4\par}
+
+\section*{Part V \quad The Anchor Protocol}
+\addcontentsline{toc}{section}{Part V — The Anchor Protocol}
+
+\noindent\textit{Beam A — Identity \& capability. Math-based identity for a
+process: a verified control plane on localhost.} These problems exercise the
+protocol's four phases (pinning, asymmetric identity, multi-hop delegation,
+revocation), the three-layer verification stack, and the soundness boundary the
+paper is careful to draw between the design proof and the deployed code.
+
+% ───────────────────────────── Check tier ──────────────────────────────────
+\wbq{1}{Check}{1}{%
+State the one rule that makes a verifier immune to JWT algorithm confusion, and
+explain in one sentence why reading the token's \texttt{alg} header --- even to
+\emph{validate} it --- reintroduces the vulnerability.}
+
+\wbq{2}{Check}{1}{%
+A Harbor Card is delegated A~$\to$~B~$\to$~C. List every quantity that must
+shrink or stay equal from one hop to the next, and name the one quantity that
+must be \emph{fresh} (never reused) at each hop.}
+
+\wbq{3}{Check}{1}{%
+The paper claims the four phases are ``not four proofs.'' Which three phases does
+ProVerif mechanize, and what is done instead for the fourth? Why does the fourth
+phase not need a symbolic proof of the same kind?}
+
+\wbq{4}{Check}{2}{%
+Distinguish the two senses in which the Anchor Protocol is ``verified at unbounded
+scale.'' One is delivered by ProVerif; one is explicitly future work. Name both
+and say which quantity each ranges over.}
+
+% ───────────────────────────── Trace tier ──────────────────────────────────
+\wbq{5}{Trace}{2}{%
+A cuckoo filter uses approximately $\log_2(1/\epsilon)+3$ bits per entry. Derive
+the per-card cost at $\epsilon=10^{-3}$, then the total memory for $10^5$ active
+revocations. Confirm the paper's ``$\approx 160$\,KB'' figure and state the one
+assumption that makes it gossip-cheap.}
+
+\wbq{6}{Trace}{2}{%
+The freshness bound is stated two ways: ``$O(\log m)$ gossip rounds'' and
+expected wall-clock $\Delta(1+\ln m)$. For $m=10$ daemons at $\Delta=30$\,s,
+compute the expected convergence time and reconcile it with the figure's
+``$\approx 2$\,minutes.'' Where does the gap between expected and worst case come
+from?}
+
+\wbq{7}{Trace}{3}{%
+Reproduce the v3-vacuity argument. Given the reflexive-only order
+\texttt{is\_subset(c1,c1)=true}, show that the no-escalation query holds for a
+reason unrelated to the protocol. Then show precisely what
+\texttt{harbor\_card\_v5} adds (the order, the insider adversary, the
+non-vacuity query) so that the same query becomes a real defense. What does the
+negative control establish?}
+
+\wbq{8}{Trace}{3}{%
+Construct the multi-hop escalation the single-hop proof misses:
+$A{:}\texttt{write}\to B{:}\texttt{read}\to C{:}\texttt{write}$. Show why a
+verifier that checks the \emph{final} capability against the \emph{root} accepts
+it, and write the per-hop predicate that rejects it. Tie this to the runtime
+requirement on $\mathrm{att}_B\circ\mathrm{att}_A$.}
+
+% ───────────────────────────── Open tier ───────────────────────────────────
+\wbq{9}{Open}{3}{%
+The delegation-depth bound is a spawn-time policy check, not a verification-time
+invariant. Sketch how you would extend the ProVerif model to unbounded chain
+depth via recursive replication, and state the obstacle that makes this harder
+than ProVerif's existing unbounded-\emph{session} guarantee.}
+
+\wbq{10}{Open}{3}{%
+The gossip-convergence bound currently leans on the standard anti-entropy
+analysis rather than a mechanized proof, and the constant-time comparator's
+side-channel resistance is inherited from an audited library. Pick one. Propose a
+verification approach that would move it from \wbtier{open} to \wbtier{built},
+and name the proof tool and the property you would discharge.}
+
+\wbq{11}{Open}{2}{%
+A Dolev--Yao adversary observing all gossip traffic learns which agents have been
+disciplined. The paper offers salted-hash revocation IDs with daily salt rotation
+as a mitigation. Analyse the residual leakage, and discuss what an adversary who
+records gossip across many salt epochs can still infer.}
