@@ -359,6 +359,7 @@ covered mcp;       skip "mcp"       "boots a stdio MCP server that blocks readin
 covered dashboard; skip "dashboard" "web form opens a browser via 'open'; TUI form is interactive (tsx) — both unsafe in CI"
 covered dev;       skip "dev"       "ADR-0084 berths: 'dev list' is read-tested above; 'dev up/down' build+launch/stop a real berth (mutating)"
 covered setup;     skip "setup"     "interactive onboarding; writes .portdaddyrc — covered indirectly by scan/init paths"
+covered cut;       skip "cut"       "ADR-0084 release cut: runs the daemon/Rust/FleetBar build scripts + writes dist/release (heavy, mutating) — orchestration is unit-tested in tests/unit/release.test.js"
 covered init;      skip "init"      "writes project config to cwd; covered by the scan read instead"
 covered learn;     skip "learn"     "requires an interactive TTY; refuses in CI by design"
 covered tutorial;  skip "tutorial"  "alias of learn — requires a TTY"
