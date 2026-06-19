@@ -158,7 +158,7 @@ _port_daddy() {
     # Project onboarding
     setup init
     # Daemon lifecycle
-    start stop restart install uninstall dev use daemon ci-gate mcp
+    start stop restart install uninstall dev use daemon ci-gate self-update mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
