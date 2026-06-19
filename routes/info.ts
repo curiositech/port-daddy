@@ -407,6 +407,11 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         startedAt: STARTED_AT,
         installDir: __dirname,
         nodeVersion: process.version,
+        // Berth self-identity (ADR-0084) embedded here so a single `/status`
+        // poll (FleetBar, dashboards) carries which berth this daemon is —
+        // stable / dev-latest / codebase — without a second `/whoami` round-trip.
+        // Defaults to the stable, canonical berth when PD_DAEMON_* is unset.
+        berth: deps.daemonBerth ?? undefined,
       },
       metrics: {
         ...metrics,
