@@ -2140,6 +2140,7 @@ _port_daddy() {
     'dev:daemon berths — up/down/list tiered side-by-side daemons (ADR-0055)'
     'use:target this shell at a daemon berth (eval "$(pd use dev)")'
     'ci-gate:exit non-zero if daemon is running stale code'
+    'self-update:brew-upgrade + restart the daemon and FleetBar onto the current release'
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
     'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'

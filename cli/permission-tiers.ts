@@ -179,6 +179,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   start: 'notify',                  // starts the daemon, not destructive
   restart: 'destructive',           // kills the running daemon
   install: 'notify',                // installs launchd plist; not destructive on its own
+  'self-update': 'notify',          // ADR-0062: opt-in hands-off brew-upgrade + restart; notify, not gated (must run unattended via the freshness LaunchAgent)
   uninstall: 'destructive',
   guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
   dev: 'approval',                  // refined: `dev down` stops a berth (destructive); see SUBCOMMAND_TIERS

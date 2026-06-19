@@ -104,7 +104,7 @@ set -l __pd_commands \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'mcp' \
     'setup' 'init' \
     'version' 'help'
 
@@ -439,6 +439,7 @@ for prog in port-daddy pd
     complete -c $prog -n '__pd_is_cmd use' -a 'stable dev dev-latest' -d 'Berth target'
     complete -c $prog -n __pd_needs_command -a daemon -d 'Daemon lifecycle subcommands (status, log, doctor)'
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
+    complete -c $prog -n __pd_needs_command -a self-update -d 'Brew-upgrade + restart daemon and FleetBar onto the current release'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
     complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
     complete -c $prog -n __pd_needs_command -a setup -d 'Install daemon, MCP, FleetBar, and init a project'
