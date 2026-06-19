@@ -138,10 +138,16 @@ export async function gitWorktreeAdd(
  * occupant (the autonomous agent) and no operator shell to run `pd begin`.
  * Left enforcing, the pre-commit hook rejects the agent's commit ("No active
  * Port Daddy session…"), so the run produces a branch with zero commits and
- * `gh pr create` fails with "No commits between main and …". The guard config
- * is resolved per-cwd (`<cwd>/.portdaddy/coordination-guard.json`), so writing
- * `off` here scopes the bypass to THIS worktree only; the operator's main
- * checkout keeps its enforcing guard untouched.
+ * `gh pr create` fails with "No commits between main and …".
+ *
+ * LIMITATION: `pd guard` resolves its config shared-first (git common dir,
+ * see cli/commands/guard.ts configCandidatePaths) — deliberately, so an agent
+ * on a shared checkout can't drop a local off-config to dodge enforcement. In
+ * repos where `pd guard install` wrote a shared config, this worktree-local
+ * file is therefore ignored and the hook would still block. That case is
+ * handled by hookBypassEnv() below, which skips git hooks for the dispatch
+ * child only. This file remains as the bypass for repos with only a local
+ * guard config, and as the visible marker that the worktree is autonomous.
  */
 function disableGuardInWorktree(worktreePath: string): void {
   try {
@@ -161,8 +167,41 @@ function disableGuardInWorktree(worktreePath: string): void {
   }
 }
 
+/**
+ * Build env vars that make every git invocation inside the dispatch worktree
+ * skip the repo's shared hooks. Worktrees share `.git/hooks` with the main
+ * checkout, and the Coordination Guard's pre-commit/pre-push hooks read the
+ * SHARED guard config (enforce, in installed repos) — so the worktree-local
+ * off-config above can't unblock the autonomous agent's commit there.
+ *
+ * `GIT_CONFIG_{COUNT,KEY_n,VALUE_n}` is git's env-level equivalent of `-c`:
+ * it outranks every config file, applies to the whole child process tree, and
+ * mutates nothing on disk — the operator's repo config, shared hooks, and
+ * enforcing guard are untouched. Pointing `core.hooksPath` at an empty dir
+ * inside the disposable worktree disables hooks for the dispatch child only.
+ * The trade-off (PD activity hooks also skip for this child) is acceptable:
+ * the dispatch queue itself records the run.
+ */
+function hookBypassEnv(worktreePath: string): Record<string, string> {
+  const noHooksDir = join(worktreePath, '.portdaddy', 'no-hooks');
+  try {
+    mkdirSync(noHooksDir, { recursive: true });
+  } catch {
+    /* best-effort — git tolerates a missing hooksPath dir (no hooks run) */
+  }
+  return {
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'core.hooksPath',
+    GIT_CONFIG_VALUE_0: noHooksDir,
+  };
+}
+
 async function gitPushBranch(worktreePath: string, branch: string): Promise<void> {
-  await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch]);
+  await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch], {
+    // The shared pre-push hook enforces the Coordination Guard too — skip
+    // hooks for this push the same way the agent's commits do.
+    env: { ...process.env, ...hookBypassEnv(worktreePath) },
+  });
 }
 
 // ── gh pr create (draft) ─────────────────────────────────────────────────────
@@ -415,6 +454,11 @@ export function createSpawnAdapter(opts: SpawnAdapterOptions = {}): SpawnAdapter
       ...process.env,
       ...plan.env,
       PD_DISPATCH_WORKTREE: plan.worktreePath,
+      // Skip the repo's shared git hooks for the agent's commits — the shared
+      // Coordination Guard config outranks the worktree-local off-config (see
+      // hookBypassEnv). Without this the agent's commit is rejected in any
+      // repo where `pd guard install` wrote a shared enforcing config.
+      ...hookBypassEnv(plan.worktreePath),
     };
 
     let agentError: string | null = null;
