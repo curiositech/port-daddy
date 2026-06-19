@@ -799,3 +799,37 @@ pre code {
     clip-path: inset(0 0 0 0);
   }
 }
+
+/* Fan-Out Wall demo: one send pulse leaves the sender, reaches a junction, and
+   forks into three teal-bound branches that travel out to the three agent
+   nodes. The trunk pulse runs cobalt left→right; the three branch pulses fan
+   to their lanes with a small stagger so the eye reads "one became three". The
+   branch travel is expressed with custom properties so each lane can aim at its
+   own vertical offset. Under prefers-reduced-motion the pulses are suppressed
+   (the global block collapses duration) and callers render static dots. */
+@keyframes tube-fork-trunk {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 1; transform: translateX(var(--fork-trunk-x, 24px)); }
+}
+@keyframes tube-fork-branch {
+  0% { opacity: 0; transform: translate(0, 0); }
+  12% { opacity: 1; }
+  100% { opacity: 1; transform: translate(var(--fork-branch-x, 40px), var(--fork-branch-y, 0)); }
+}
+.tube-fork-trunk {
+  left: 0;
+  animation: tube-fork-trunk 0.32s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+.tube-fork-branch {
+  animation: tube-fork-branch 0.42s cubic-bezier(0.4, 0, 0.4, 1) forwards;
+  animation-delay: var(--fork-delay, 0.3s);
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-fork-trunk,
+  .tube-fork-branch {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
