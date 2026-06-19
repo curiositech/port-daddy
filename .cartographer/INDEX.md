@@ -1,6 +1,8 @@
-# Cartographer Index — 2026-06-19T19:56:51Z
+# Cartographer Index — 2026-06-19T22:30:00Z
 
 **Authority**: committed code + git log > curated markdown (recovery hub) > raw files (.spark)
+
+**Update Summary**: Cartographer scanned daemon feedback queue; discovered 8 open now-status roadmap items (ADR-0050 4-phase security/accountability suite + idea-intake-consult-core + mcp-parity + swarm-coordination-parley). Previous pass showed empty tuple projection (`open: 0`); this pass shows active execution planning for security accountability. Phase 3 visibility remains hottest mapped lane. v3.20.0 Coast Guard and v3.19.0 Parley shipped on origin/main; binary work still active on feature branches.
 
 ---
 
@@ -52,16 +54,28 @@
 
 ---
 
-## Open Dogfood Feedback at `now` Status
+## Open Roadmap Items at `now` Status
 
-**Count**: 2 entries
+**Count**: 8 entries (7 unique slugs)
+
+| Slug | Status | Category | Summary |
+|------|--------|----------|---------|
+| `idea-intake-consult-core` | now | ADR-0085 Phase 1a | Pure consult/disposition core for Cartographer idea-intake grammar; semantic relatedness, dedup, clash-read, auto-commit/HiTL |
+| `swarm-coordination-parley` | now | Release 3.19.0 | Fleet coordination governance: fit gate, council tally, tuple-backed parley, guard-enforced receipts, skill grafts (v3.19.0 shipped) |
+| `mcp-parity-no-copouts` | now | Infrastructure | Agents are first-class MCP consumers; 19 tools/5 categories batch complete; genuine exemptions only (security/lifecycle) |
+| `adr-0050-phase-0-pd-cutter-wrapper` | now | ADR-0050 | Phase 0: signed outcome wrapper for custody handoff and release attestation |
+| `adr-0050-phase-1-secret-broker` | now | ADR-0050 | Phase 1: secrets vault with TTL enforcement, audit trail, revocation |
+| `adr-0050-phase-2-dollar-metering` | now | ADR-0050 | Phase 2: token-backed metering, burn-on-spawn, budget-aware gating |
+| `adr-0050-phase-3-signed-outcome-format` | now | ADR-0050 | Phase 3: signed outcome format for machine-verifiable custody and settlement |
+
+**Tuples Projection**: Live tuple-backed feedback queue shows 8 open, 11 harvested. No new `.spark/feedback/` files found this pass. Fresh 2026-06-19 Spider waves 1-12 on disk but uncurated pending dedupe.
+
+**New Dogfood Feedback at `now` Status** (from earlier pass):
 
 | Slug | Status | Provenance | Summary |
 |------|--------|-----------|---------|
 | `claim-preserving-git-safety` | now | dogfood | Wrap `git add -A`, `reset --hard`, `cherry-pick` with claim guardrails; prevent silent bulldoze of other sessions' edits (2–3 days) |
 | `fleet-launchability-and-cadence` | now | dogfood | Surface `launchable` vs `blocked` truth in `pd status` and spawn/preflight output; unblocks fleet readiness visibility (1–2 days) |
-
-**Tuples Projection**: Live tuple-backed feedback queue is empty (`open: 0`, `harvested: 11`). No new `.spark/feedback/` files found this pass. Fresh 2026-06-19 Spider waves 1-12 on disk but uncurated pending dedupe.
 
 ---
 
@@ -119,26 +133,31 @@
 | **Phase 2 awaiting economist** | 🔴 | Operator: follow up with Thomas Youle on pricing function π. Cost infrastructure is ready. |
 | **Phase 3 is hottest lane** | 🔥 | 13 queued now items span visibility/automation; Phase 3 is the highest-ROI lane this quarter. |
 | **Phase 4A binary active off-main** | 🟨 | Feature branches have 5 commits; await merge to main via PR. Release prep is consuming main's energy. |
+| **New: ADR-0050 security suite** | 🆕 8 now items | Custody/settlement accountability: pd-cutter-wrapper (phase 0) → secret-broker (phase 1) → dollar-metering (phase 2) → signed-outcome-format (phase 3). High-priority roadmap inflation. |
 | **Coordination Guard enforce mode** | ✅ | Live in stable; extended enforcement (SessionStart/PreToolUse/destructive-git) is #2 priority after daemon-introspection-api. |
-| **Dogfood feedback queue** | ✅ (empty, 11 harvested) | No new `.spark/feedback/` files. Tuple-backed projection available and empty. Fresh 2026-06-19 Spider waves 1-12 uncurated. |
-| **Unplanned work signal** | 🟨 | Release-prep / metrics / docs-polish / console cluster consuming real capacity on `origin/main` — not V4 phase work, but genuine product energy. |
+| **Roadmap tuple projection** | 🔄 8 open, 11 harvested | Daemon feedback now active with 8 now-status items (vs. previous empty projection). Tuple-backed planning now live. |
+| **Unplanned work signal** | 🟨 | v3.20.0 Coast Guard + v3.19.0 Parley shipped; release infrastructure (ADR-0084 pd cut, ADR-0062 auto-freshness, ADR-0057/61) consuming main energy. Phase 6 still seeing release/lifecycle work. |
 
 ---
 
 ## Cartographer Process Notes
 
-**Last Pass**: 2026-06-19 19:56 UTC
-- Authority sources: committed code + git log ✅, V4-UNIFIED-ROADMAP.md ✅, recovery hub ✅, raw .spark/ pending harvest
-- No new dogfood feedback files found this pass
-- 34 now-status items verified live in markdown; execution wave sorted by dependency readiness
-- Phase 3 visibility/automation confirmed hottest lane with 13 queued items
-- Phase 4A binary work confirmed active on feature branches; awaiting promotion to main
-- Economist feedback awaiting operator follow-up (81 days idle)
+**Current Pass**: 2026-06-19 22:30 UTC
+- Authority sources: committed code + git log ✅, V4-UNIFIED-ROADMAP.md ✅, recovery hub ✅, daemon feedback queue ✅
+- **NEW DISCOVERY**: 8 open roadmap items in daemon projection (vs. previous empty); ADR-0050 security suite (4 phases) + idea-intake-consult-core + mcp-parity + swarm-coordination-parley all at "now" status
+- 34 marked items still in markdown execution wave; 8 new daemon-backed items now visible
+- Phase 3 visibility/automation confirmed hottest *mapped* lane with 13 queued items; ADR-0050 security suite represents parallel high-priority tier
+- Phase 4A binary work active on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`); awaiting promotion to main
+- Economist feedback awaiting operator follow-up (81 days idle since 2026-03-30)
 - Fresh 2026-06-19 Spider waves 1-12 on disk; pending curation into IDEAS-TROVE.md
+- **Recent Main Work** (origin/main): v3.20.0 Coast Guard, v3.19.0 Parley shipped with release infrastructure (ADR-0084 pd cut, ADR-0062 auto-freshness, transcript durability ADR-0058, security forensics ADR-0060)
+
+**Signal**: Roadmap inflation from daemon feedback is genuine architecture work (security accountability), not noise. Executor should prioritize mapping ADR-0050 phases into delivery timeline alongside Phase 3 visibility items.
 
 **Deferred to next pass**:
 - Fresh Spider exhaust curation into IDEAS-TROVE.md
 - Phase 4A feature branch promotion status (awaiting PR review/merge signal)
+- ADR-0050 phase sequencing and dependency analysis
 - Cost-aware feedback loop progress (awaiting economist pricing function)
 
 ---
