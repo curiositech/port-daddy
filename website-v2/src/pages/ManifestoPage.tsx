@@ -71,9 +71,14 @@ function headingText(children: ReactNode): string {
 // render is preserved (so footnotes resolve), and the custom `h2` renderer emits
 // the matching figure immediately ahead of its heading.
 const DIAGRAMS_BEFORE_HEADING: Record<string, () => ReactElement> = {
+  // The state of nature — agents colliding over one file — opens the piece as an
+  // establishing drawing right before the "3 a.m." scene it illustrates.
+  'Start with the file': () => <StateOfNatureFigure />,
   // The file collision is laid out in "Start with the file"; the drawn race and
   // the single-writer fix belong as the reader turns to the economics framing.
   'Agents are becoming economic actors. They have no economy.': () => <CollisionDiagram />,
+  // The harbor-master that ends the scramble — order you can check, not trust.
+  'The Leviathan you can check': () => <LeviathanHarborFigure />,
   // "The Leviathan you can check" ends on "one process → one machine → many
   // machines" — the harbor-evolution drawing makes that arc literal.
   'Now the part that sounds insane': () => <HarborEvolutionFigure />,
@@ -83,6 +88,9 @@ const DIAGRAMS_BEFORE_HEADING: Record<string, () => ReactElement> = {
   // Myerson–Satterthwaite (the impossibility wall) underwrites the market design
   // the "bonded commons" section then builds on.
   'The bonded commons is the missing market microstructure': () => <MathSection />,
+  // The verifiable bond — collateral plus a receipt anyone can check — is what
+  // lets the big claim be earned rather than asserted.
+  'Earn the big claim': () => <BondReceiptFigure />,
 }
 
 const markdownComponents: Components = {
@@ -244,6 +252,58 @@ function CollisionDiagram() {
   )
 }
 
+/** A single full-width manifesto plate: one house-style drawing + a meaning
+ *  caption. Used for the establishing figures that sit before a section heading,
+ *  so the manifesto carries its argument in pictures as well as prose. */
+function ManifestoPlate({ src, alt, caption }: { src: string; alt: string; caption: string }) {
+  return (
+    <figure className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+      />
+      <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+        {caption}
+      </figcaption>
+    </figure>
+  )
+}
+
+/** Establishing image for "Start with the file" — the war of all against all. */
+function StateOfNatureFigure() {
+  return (
+    <ManifestoPlate
+      src="/img/generated/manifesto/hero-state-of-nature.webp"
+      alt="A blueprint-style pen drawing on cream graph paper: five or six small tugboats all crowd the same stone berth at once with no harbor-master, bumping and knocked askew, while an open logbook sits ignored on a pedestal at the pier's edge. A small spilled crate in red ink marks the lost work."
+      caption="The state of nature: every agent races for the same berth, no one keeps the logbook, and the work that gets erased still looks finished."
+    />
+  )
+}
+
+/** Establishing image for "The Leviathan you can check" — order without trust. */
+function LeviathanHarborFigure() {
+  return (
+    <ManifestoPlate
+      src="/img/generated/manifesto/leviathan-harbor.webp"
+      alt="A blueprint-style pen drawing on cream graph paper: a tall lighthouse — the harbor-master — sweeps a ruled beam across calm water where many small tugboats move in tidy parallel lanes, each heading to its own numbered berth, with no collisions."
+      caption="The Leviathan you can check: one office hands out berths, every lane is visible to all, and order replaces the scramble — without anyone having to be trusted."
+    />
+  )
+}
+
+/** Establishing image for "Earn the big claim" — the verifiable bond. */
+function BondReceiptFigure() {
+  return (
+    <ManifestoPlate
+      src="/img/generated/manifesto/verified-bond-receipt.webp"
+      alt="A blueprint-style pen drawing on cream graph paper: a hand-drawn BOND RECEIPT certificate with a red wax seal, a stack of coins labelled as posted collateral, and a magnifying glass held over a check-mark verifying the signature."
+      caption="A bond posts collateral and a receipt anyone can verify: slashed if the agent misbehaves, returned if it behaves. Skin in the game, made checkable."
+    />
+  )
+}
+
 /** The harbor-evolution drawing (I → II → III) with the three stages re-stated in words. */
 function HarborEvolutionFigure() {
   return (
@@ -287,6 +347,19 @@ function OlogFunctorFigure() {
         />
         <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
           {ologFunctorFigure.caption}
+        </figcaption>
+      </figure>
+      <figure className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+        <img
+          src="/img/generated/manifesto/olog-exchange.webp"
+          alt="A blueprint-style pen drawing on cream graph paper: two ontology diagrams (ologs) of labelled boxes and arrows, with a large arrow 'F — a functor' carrying each box and arrow on the left to a matching box and arrow on the right, one matched pair highlighted in red."
+          loading="lazy"
+          className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+        />
+        <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+          The same move in the abstract: any olog — a diagram of labelled boxes and arrows — maps to another by a
+          functor that carries every arrow across. The harbor is just one instance; this is why the construction is
+          general, not a trick.
         </figcaption>
       </figure>
       <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
