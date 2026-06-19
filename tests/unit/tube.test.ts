@@ -651,6 +651,50 @@ describe('cli/tube handler', () => {
     expect(JSON.parse(logs[0])).toMatchObject({ id: 1, sender: 'a', body: 'hi' });
   });
 
+  test('--lineage --json renders the argument graph + digest over the backlog (RCP-14)', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'alice', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'do X', performative: 'propose', conversationId: 'cv' } },
+          { id: 2, sender: 'bob', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'no, Y', inReplyTo: 1, relationship: 'contradicts', conversationId: 'cv' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('chan', { lineage: true, json: true }, { client, history: inMemoryHistoryStore() });
+
+    expect(logs).toHaveLength(1);
+    const out = JSON.parse(logs[0]);
+    expect(out).toMatchObject({ ok: true, conversationId: 'cv' });
+    expect(out.digest.total).toBe(2);
+    expect(out.digest.byRelationship.contradicts).toBe(1);
+    expect(out.digest.unresolvedContradictions).toHaveLength(1);
+    expect(out.tree).toContain('#1 alice [act=propose]: do X');
+    expect(out.tree).toContain('#2 bob [contradicts]: no, Y');
+  });
+
+  test('--lineage prose mode prints the digest summary and flags unresolved contradictions', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'alice', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'claim' } },
+          { id: 2, sender: 'bob', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'wrong', inReplyTo: 1, relationship: 'contradicts' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('chan', { lineage: true }, { client, history: inMemoryHistoryStore() });
+
+    const out = logs.join('\n');
+    expect(out).toContain('Discourse lineage');
+    expect(out).toContain('stances: contradicts=1');
+    expect(out).toContain('unresolved contradiction');
+  });
+
   test('--send pipes stdin to publish (top-level, no inReplyTo)', async () => {
     const publish = jest.fn(async () => ({ ok: true, id: 50 })) as unknown as TubeClient['publish'];
     const client: TubeClient = {
