@@ -21,6 +21,7 @@ mod inbox_pane;
 mod lane_pane;
 mod maritime;
 mod mux;
+mod palette;
 mod notes_pane;
 mod pane;
 mod peek_pane;
@@ -97,6 +98,9 @@ impl AssetSource for FsAssets {
 }
 
 fn main() {
+    // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
+    app::init_theme_from_env();
+
     // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
     // All fallback logic lives in DaemonClient::discover(); no literals here.
     let daemon_url = DaemonClient::discover()

@@ -20,6 +20,8 @@ use gpui::*;
 
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
+use crate::palette::{Theme, ThemeMode};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
 
 /// Operator control messages sent from the GPUI view (button clicks) back to the
@@ -100,31 +102,42 @@ const NAV: &[NavItem] = &[
     NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/sorties.svg",  key: "l" },
 ];
 
-// ── Palette — pre-computed from DARK OKLCH theme ──────────────────────────────
-// All values are sRGB u32 (0xRRGGBB), passed through rgb() at render time.
+// ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
+// One process-global mode (a single window), flipped by `Ctrl-A g`. `current_theme()`
+// is a captureless fn so it drops into every `rgb(...)` site — including hover/click
+// closures, which then re-read the live theme — with no borrow/lifetime threading.
+// 0 = light, 1 = dark (default = the shipped look).
+static THEME_MODE: AtomicU8 = AtomicU8::new(1);
 
-const C_BG:     u32 = 0x1a1917;
-const C_PANEL:  u32 = 0x1f1e1b;
-const C_RAISED: u32 = 0x252420;
-const C_INK:    u32 = 0xf2f0eb;
-const C_INK2:   u32 = 0xd4cfc7;
-const C_MUTED:  u32 = 0xa09a90;
-const C_ACCENT: u32 = 0xe3b56d; // amber
-const C_ENGAGED:u32 = 0x6b8fd4; // blue
-const C_GATED:  u32 = 0xd4736b; // warm red
-const C_LANDED: u32 = 0x6bd4a0; // green
-const C_BORDER: u32 = 0x2e2c28;
+fn current_theme() -> Theme {
+    let mode = if THEME_MODE.load(Ordering::Relaxed) == 0 {
+        ThemeMode::Light
+    } else {
+        ThemeMode::Dark
+    };
+    Theme::for_mode(mode)
+}
+
+/// Flip light ⇄ dark (the `Ctrl-A g` leader command). Re-skins on next `cx.notify()`.
+fn toggle_theme() {
+    let next = if THEME_MODE.load(Ordering::Relaxed) == 0 { 1 } else { 0 };
+    THEME_MODE.store(next, Ordering::Relaxed);
+}
+
+/// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
+/// Call once at startup before the window opens.
+pub fn init_theme_from_env() {
+    if let Ok(v) = std::env::var("PD_CONSOLE_THEME") {
+        if v.eq_ignore_ascii_case("light") {
+            THEME_MODE.store(0, Ordering::Relaxed);
+        } else if v.eq_ignore_ascii_case("dark") {
+            THEME_MODE.store(1, Ordering::Relaxed);
+        }
+    }
+}
 
 fn tone_rgb(tone: &Tone) -> u32 {
-    match tone {
-        Tone::Default    => C_INK2,
-        Tone::Accent     => C_ACCENT,
-        Tone::Engaged    => C_ENGAGED,
-        Tone::Gated      => C_GATED,
-        Tone::Resting    => C_MUTED,
-        Tone::Landed     => C_LANDED,
-        Tone::Conflicted => C_GATED,
-    }
+    current_theme().tone(tone)
 }
 
 // ── Block renderer ───────────────────────────────────────────────────────────
@@ -136,7 +149,7 @@ fn render_block(block: Block) -> impl IntoElement {
                 .px(px(16.0))
                 .pt(px(12.0))
                 .pb(px(6.0))
-                .text_color(rgb(C_ACCENT))
+                .text_color(rgb(current_theme().accent_ink))
                 .text_size(px(15.0))
                 .font_weight(FontWeight::SEMIBOLD)
                 .child(text)
@@ -150,7 +163,7 @@ fn render_block(block: Block) -> impl IntoElement {
                 .py(px(3.0))
                 .child(
                     div()
-                        .text_color(rgb(C_MUTED))
+                        .text_color(rgb(current_theme().muted))
                         .text_size(px(14.0))
                         .w(px(150.0))
                         .flex_shrink_0()
@@ -158,7 +171,7 @@ fn render_block(block: Block) -> impl IntoElement {
                 )
                 .child(
                     div()
-                        .text_color(rgb(C_INK))
+                        .text_color(rgb(current_theme().ink))
                         .text_size(px(14.0))
                         .font_family("IBM Plex Mono")
                         .child(val)
@@ -171,11 +184,11 @@ fn render_block(block: Block) -> impl IntoElement {
                 .gap(px(16.0))
                 .px(px(16.0))
                 .py(px(4.0))
-                .hover(|s| s.bg(rgb(C_RAISED)))
+                .hover(|s| s.bg(rgb(current_theme().raised)))
                 .children(
                     cells.into_iter().enumerate().map(|(i, cell)| {
                         div()
-                            .text_color(rgb(if i == 0 { C_ACCENT } else { C_INK2 }))
+                            .text_color(rgb(if i == 0 { current_theme().accent_ink } else { current_theme().ink2 }))
                             .text_size(px(14.0))
                             .font_family("IBM Plex Mono")
                             .flex_shrink_0()
@@ -204,7 +217,7 @@ fn render_block(block: Block) -> impl IntoElement {
             div()
                 .px(px(16.0))
                 .py(px(4.0))
-                .text_color(rgb(C_MUTED))
+                .text_color(rgb(current_theme().muted))
                 .text_size(px(13.0))
                 .child("▁▂▃▄▅▆▇")
                 .into_any_element()
@@ -228,7 +241,7 @@ struct SidebarItem {
 
 impl RenderOnce for SidebarItem {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let ink = if self.active { C_INK } else { C_MUTED };
+        let ink = if self.active { current_theme().ink } else { current_theme().muted };
         div()
             .px(px(10.0))
             .py(px(6.0))
@@ -237,11 +250,11 @@ impl RenderOnce for SidebarItem {
             .rounded(px(6.0))
             .cursor_pointer()
             .when(self.active, |s| {
-                s.bg(rgb(C_RAISED))
+                s.bg(rgb(current_theme().raised))
                  .border_l_2()
-                 .border_color(rgb(C_ACCENT))
+                 .border_color(rgb(current_theme().accent_ink))
             })
-            .hover(|s| s.bg(rgb(C_RAISED)))
+            .hover(|s| s.bg(rgb(current_theme().raised)))
             .flex()
             .flex_col()
             .items_center()
@@ -251,7 +264,7 @@ impl RenderOnce for SidebarItem {
                     .path(self.icon)
                     .w(px(18.0))
                     .h(px(18.0))
-                    .text_color(rgb(if self.active { C_ACCENT } else { C_MUTED }))
+                    .text_color(rgb(if self.active { current_theme().accent_ink } else { current_theme().muted }))
             )
             .child(
                 div()
@@ -425,6 +438,8 @@ impl ConsoleView {
             // Resize the focused pane.
             "=" | "+" => { self.ws_mut().resize(0.15); }
             "_" => { self.ws_mut().resize(-0.15); }
+            // Flip the palette (light ⇄ dark) — re-skins the whole console.
+            "g" => toggle_theme(),
             // Maximize / restore the focused pane.
             "z" => { let id = self.ws().focused(); self.toggle_zoom(id); }
             // Tabs (tmux windows): w = new, [ / ] = prev / next.
@@ -552,8 +567,8 @@ impl ConsoleView {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
-        let border = if is_focused { C_ACCENT } else { C_BORDER };
-        let title_color = if is_focused { C_ACCENT } else { C_MUTED };
+        let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
+        let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
         let control_flash = self.control_flash.clone();
 
         div()
@@ -567,7 +582,7 @@ impl ConsoleView {
             .overflow_hidden()
             .border_1()
             .border_color(rgb(border))
-            .bg(rgb(C_PANEL))
+            .bg(rgb(current_theme().panel))
             .on_click(cx.listener(move |this, _ev, _window, cx| {
                 this.ws_mut().focus(id);
                 cx.notify();
@@ -580,12 +595,12 @@ impl ConsoleView {
                     .gap(px(6.0))
                     .px(px(10.0))
                     .py(px(4.0))
-                    .bg(rgb(if is_focused { C_RAISED } else { C_PANEL }))
+                    .bg(rgb(if is_focused { current_theme().raised } else { current_theme().panel }))
                     .border_b_1()
-                    .border_color(rgb(C_BORDER))
+                    .border_color(rgb(current_theme().line))
                     .child(
                         div()
-                            .text_color(rgb(if is_focused { C_ACCENT } else { C_BORDER }))
+                            .text_color(rgb(if is_focused { current_theme().accent_ink } else { current_theme().line }))
                             .text_size(px(13.0))
                             .child(if is_focused { "●" } else { "○" }),
                     )
@@ -606,10 +621,10 @@ impl ConsoleView {
                             .gap(px(2.0))
                             .opacity(0.0)
                             .group_hover("pane", |s| s.opacity(1.0))
-                            .child(pane_ctrl(id, "vsplit", "│", C_MUTED, cx))
-                            .child(pane_ctrl(id, "hsplit", "─", C_MUTED, cx))
-                            .child(pane_ctrl(id, "zoom", "□", C_MUTED, cx))
-                            .child(pane_ctrl(id, "close", "✕", C_GATED, cx)),
+                            .child(pane_ctrl(id, "vsplit", "│", current_theme().muted, cx))
+                            .child(pane_ctrl(id, "hsplit", "─", current_theme().muted, cx))
+                            .child(pane_ctrl(id, "zoom", "□", current_theme().muted, cx))
+                            .child(pane_ctrl(id, "close", "✕", current_theme().gated, cx)),
                     ),
             )
             // Surface body
@@ -628,7 +643,7 @@ impl ConsoleView {
                         .px(px(10.0))
                         .py(px(6.0))
                         .border_t_1()
-                        .border_color(rgb(C_BORDER))
+                        .border_color(rgb(current_theme().line))
                         .flex()
                         .items_center()
                         .gap(px(8.0))
@@ -639,12 +654,12 @@ impl ConsoleView {
                                 .py(px(5.0))
                                 .rounded(px(6.0))
                                 .border_1()
-                                .border_color(rgb(C_GATED))
-                                .text_color(rgb(C_GATED))
+                                .border_color(rgb(current_theme().gated))
+                                .text_color(rgb(current_theme().gated))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
                                 .cursor_pointer()
-                                .hover(|s| s.bg(rgb(C_RAISED)))
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
                                 .child("◼ Interrupt")
                                 .on_click(cx.listener(|this, _ev, _window, cx| {
                                     if let Some(tx) = &this.control_tx {
@@ -658,7 +673,7 @@ impl ConsoleView {
                         .when_some(control_flash, |bar, flash| {
                             bar.child(
                                 div()
-                                    .text_color(rgb(C_MUTED))
+                                    .text_color(rgb(current_theme().muted))
                                     .text_size(px(13.0))
                                     .child(flash),
                             )
@@ -702,7 +717,7 @@ fn pane_ctrl(
         .text_size(px(13.0))
         .text_color(rgb(color))
         .cursor_pointer()
-        .hover(|s| s.bg(rgb(C_RAISED)))
+        .hover(|s| s.bg(rgb(current_theme().raised)))
         .child(glyph)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             match kind {
@@ -790,7 +805,7 @@ impl Render for ConsoleView {
             .key_context("console")
             .track_focus(&self.focus_handle)
             .size_full()
-            .bg(rgb(C_BG))
+            .bg(rgb(current_theme().bg))
             .flex()
             .flex_col()
             .font_family("General Sans")
@@ -819,9 +834,9 @@ impl Render for ConsoleView {
                     .flex()
                     .items_center()
                     .gap(px(4.0))
-                    .bg(rgb(C_PANEL))
+                    .bg(rgb(current_theme().panel))
                     .border_b_1()
-                    .border_color(rgb(C_BORDER))
+                    .border_color(rgb(current_theme().line))
                     .children(tabs.into_iter().map(|(i, name, active)| {
                         div()
                             .id(SharedString::from(format!("tab-{i}")))
@@ -830,10 +845,10 @@ impl Render for ConsoleView {
                             .rounded(px(5.0))
                             .text_size(px(13.0))
                             .font_weight(FontWeight::MEDIUM)
-                            .text_color(rgb(if active { C_ACCENT } else { C_MUTED }))
-                            .when(active, |s| s.bg(rgb(C_RAISED)))
+                            .text_color(rgb(if active { current_theme().accent_ink } else { current_theme().muted }))
+                            .when(active, |s| s.bg(rgb(current_theme().raised)))
                             .cursor_pointer()
-                            .hover(|s| s.bg(rgb(C_RAISED)))
+                            .hover(|s| s.bg(rgb(current_theme().raised)))
                             .child(name)
                             .on_click(cx.listener(move |this, _ev, _window, cx| {
                                 this.active_tab = i;
@@ -847,9 +862,9 @@ impl Render for ConsoleView {
                             .py(px(3.0))
                             .rounded(px(5.0))
                             .text_size(px(15.0))
-                            .text_color(rgb(C_MUTED))
+                            .text_color(rgb(current_theme().muted))
                             .cursor_pointer()
-                            .hover(|s| s.bg(rgb(C_RAISED)).text_color(rgb(C_ACCENT)))
+                            .hover(|s| s.bg(rgb(current_theme().raised)).text_color(rgb(current_theme().accent_ink)))
                             .child("+")
                             .on_click(cx.listener(|this, _ev, _window, cx| {
                                 this.new_tab();
@@ -867,9 +882,9 @@ impl Render for ConsoleView {
                     .flex()
                     .items_center()
                     .gap(px(12.0))
-                    .bg(rgb(if lit { C_RAISED } else { C_PANEL }))
+                    .bg(rgb(if lit { current_theme().raised } else { current_theme().panel }))
                     .border_t_1()
-                    .border_color(rgb(if lit { C_ACCENT } else { C_BORDER }))
+                    .border_color(rgb(if lit { current_theme().accent_ink } else { current_theme().line }))
                     .child(if let Some(cmd) = command.as_ref() {
                         // Open command line — type, Enter submits, Esc cancels.
                         div()
@@ -878,7 +893,7 @@ impl Render for ConsoleView {
                             .items_center()
                             .child(
                                 div()
-                                    .text_color(rgb(C_ACCENT))
+                                    .text_color(rgb(current_theme().accent_ink))
                                     .text_size(px(14.0))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .child(format!("{}", cmd.kind.prompt())),
@@ -886,20 +901,20 @@ impl Render for ConsoleView {
                             .child(
                                 div()
                                     .flex_1()
-                                    .text_color(rgb(C_INK))
+                                    .text_color(rgb(current_theme().ink))
                                     .text_size(px(14.0))
                                     .font_family("IBM Plex Mono")
                                     .child(format!("› {}▏", cmd.buffer)),
                             )
                             .child(
                                 div()
-                                    .text_color(rgb(C_MUTED))
+                                    .text_color(rgb(current_theme().muted))
                                     .text_size(px(13.0))
                                     .child("⏎ send · esc cancel"),
                             )
                     } else if armed {
                         div()
-                            .text_color(rgb(C_ACCENT))
+                            .text_color(rgb(current_theme().accent_ink))
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
@@ -907,7 +922,7 @@ impl Render for ConsoleView {
                             )
                     } else {
                         div()
-                            .text_color(rgb(C_MUTED))
+                            .text_color(rgb(current_theme().muted))
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
                             .child(format!(
