@@ -19,6 +19,7 @@ mod fleet_pane;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
+mod ledger_pane;
 mod maritime;
 mod mux;
 mod palette;
@@ -45,6 +46,7 @@ use fleet_pane::FleetPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
 use lane_pane::LanePane;
+use ledger_pane::LedgerPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
@@ -200,6 +202,7 @@ fn main() {
                 let mut coast      = CoastGuardPane::default();// 14
                 let mut dispatch   = DispatchQueuePane::new(); // 15
                 let mut lane       = LanePane::new();          // 16 — the LIVE one
+                let mut ledger     = LedgerPane::new();        // 17 — the money
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -260,6 +263,7 @@ fn main() {
                     let _ = coast.refresh(&client).await;
                     let _ = dispatch.refresh(&client).await;
                     let _ = lane.refresh(&client).await;
+                    let _ = ledger.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -301,6 +305,7 @@ fn main() {
                         (14, coast.view()),
                         (15, dispatch.view()),
                         (16, lane.view()),
+                        (17, ledger.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {
