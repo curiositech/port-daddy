@@ -2,8 +2,8 @@
   "auditor_version": "0.2.0",
   "summary": {
     "total": 116,
-    "passing": 111,
-    "failing": 5
+    "passing": 116,
+    "failing": 0
   },
   "skills": [
     {
@@ -513,82 +513,31 @@
     {
       "name": "federated-harbor-author",
       "root": "skills/federated-harbor-author",
-      "ok": false,
-      "orphans": [
-        "agents/cross-paper-citation.md",
-        "agents/drafter.md",
-        "agents/voice-editor.md",
-        "examples/section-claim-example.json",
-        "references/topic-map.md",
-        "scripts/new-round.sh",
-        "scripts/probe-template.json",
-        "scripts/voice-check.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
       "name": "federated-harbor-redteam",
       "root": "skills/federated-harbor-redteam",
-      "ok": false,
-      "orphans": [
-        "agents/fh-proof-gap-auditor.md",
-        "agents/fh-redteam-econ.md",
-        "agents/fh-redteam-revocation.md",
-        "agents/fh-redteam-tokens.md",
-        "agents/fh-redteam-trust.md",
-        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
-        "examples/probe-trust-example.json",
-        "references/topic-map.md",
-        "scripts/env.sh",
-        "scripts/new-round.sh",
-        "scripts/probe-template.json",
-        "scripts/verify-probe.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "examples",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
       "name": "federated-harbor-whitehat",
       "root": "skills/federated-harbor-whitehat",
-      "ok": false,
-      "orphans": [
-        "agents/fh-proof-completer.md",
-        "agents/fh-secops-lead.md",
-        "agents/fh-whitehat-econ.md",
-        "agents/fh-whitehat-revocation.md",
-        "agents/fh-whitehat-tokens.md",
-        "agents/fh-whitehat-trust.md",
-        "examples/defense-tokens-example.json",
-        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
-        "references/mechanization-targets.md",
-        "references/topic-map.md",
-        "scripts/defense-template.json",
-        "scripts/env.sh",
-        "scripts/new-round.sh",
-        "scripts/run-fh-secops-lead.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "examples",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
@@ -867,22 +816,9 @@
     {
       "name": "port-daddy-agent-skill",
       "root": "skills/port-daddy-agent-skill",
-      "ok": false,
+      "ok": true,
       "orphans": [],
-      "drift": [
-        {
-          "index": "diagrams/INDEX.md",
-          "ghost_entries": [
-            "05_promote-stable-timing.md"
-          ]
-        },
-        {
-          "index": "references/INDEX.md",
-          "missing_from_index": [
-            "git-discipline.md"
-          ]
-        }
-      ],
+      "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
@@ -905,10 +841,8 @@
     {
       "name": "port-daddy-internal-dev",
       "root": "skills/port-daddy-internal-dev",
-      "ok": false,
-      "orphans": [
-        "examples/01-add-mcp-tool.md"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
