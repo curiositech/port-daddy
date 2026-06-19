@@ -597,6 +597,12 @@ const FLEET_GLOBAL_CEILING_USD: number | null =
 const FLEET_LINEAGE_CEILING_USD = parsePositiveFloat(process.env.PD_FLEET_LINEAGE_CEILING_USD, 5);
 const FLEET_DEFAULT_BOND_USD = parsePositiveFloat(process.env.PD_FLEET_DEFAULT_BOND_USD, 0.01);
 const FLEET_MAX_DEPTH = parsePositiveInt(process.env.PD_FLEET_MAX_DEPTH, 3);
+// Upper bound (ms) on the dispatch PR publish (git push + gh pr create). A hung
+// publish must not pin a dispatch's in-flight slot until the OS TCP timeout; the
+// Conductor abandons the await past this bound (resultArtifact null, run stays
+// produced). Default 2 min; raise for slow remotes, never make it unbounded for
+// an autonomous/overnight dispatch.
+const FLEET_PUBLISH_TIMEOUT_MS = parsePositiveInt(process.env.PD_FLEET_PUBLISH_TIMEOUT_MS, 120_000);
 
 const conductor = createConductor({
   db,
@@ -614,6 +620,9 @@ const conductor = createConductor({
   // breaker actually accrues committed spend instead of reserving $0.
   defaultLineageCeilingUsd: FLEET_LINEAGE_CEILING_USD,
   defaultBondUsd: FLEET_DEFAULT_BOND_USD,
+  // FIX 3 (ADR-0060): bound the dispatch publish so a wedged push/PR can't hold
+  // the launch's in-flight slot indefinitely.
+  publishTimeoutMs: FLEET_PUBLISH_TIMEOUT_MS,
   // ADR-0060 dispatch fold-in: the Conductor owns the dispatch worktree mint +
   // draft-PR publish so dispatch becomes a `worktree:'create', mergePolicy:'review'`
   // LaunchIntent (see lib/dispatch/conductor-adapter.ts). These hooks are only

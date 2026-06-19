@@ -88,6 +88,27 @@ export function createConductorSpawnAdapter(conductor: ConductorLike): SpawnAdap
   return async function conductorSpawnAdapter(
     input: SpawnAdapterInput,
   ): Promise<SpawnAdapterResult> {
+    // Transition the dispatch row `claimed → in_progress` BEFORE launching, so
+    // `started_at` is stamped (duration is computed at settle) and the row is
+    // observably `in_progress` for `pd dispatch list --state in_progress` for the
+    // whole run. Without this the row stays `claimed` for the entire launch:
+    // `in_progress` is never visited, `started_at`/`duration_ms` stay null, and
+    // `recoverStranded` re-queues claimed rows too aggressively → a crash between
+    // launch() returning and settle() yields a DUPLICATE run. The runner has
+    // already claimed the row (`nextProposed`) before this adapter runs, so the
+    // row is in `claimed` here. Mirrors the legacy spawn-adapter (queue.start at
+    // the claimed→in_progress step): a start that throws (e.g. the operator
+    // cancelled the dispatch between claim and start) is reported as a failure
+    // WITHOUT launching — we never spawn a body for a dispatch we can't start.
+    try {
+      input.queue.start(input.plan.dispatch.id);
+    } catch (err) {
+      return {
+        state: 'failed',
+        errorMessage: `Failed to transition dispatch ${input.plan.dispatch.id} to in_progress: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+
     const intent = planToLaunchIntent(input.plan);
     const r = await conductor.launch(intent);
 

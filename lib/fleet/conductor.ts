@@ -243,6 +243,17 @@ export interface ConductorDeps {
     spawnResult: Awaited<ReturnType<ConductorSpawner['spawn']>>,
   ) => Promise<string | null>;
   /**
+   * Upper bound (ms) on `publishArtifact`. The publish (`git push` + `gh pr
+   * create`) is an unbounded await INSIDE the run that HOLDS the launch's
+   * in-flight slot: a hung push/PR (network wedge, gh outage, NFS stall) would
+   * otherwise stall the slot until the OS TCP timeout (minutes-to-forever).
+   * Dispatch is autonomous/overnight, so we bound it: when publish exceeds this,
+   * the await is abandoned (it becomes a swallowed throw → resultArtifact null,
+   * the run stays produced, the slot is released). Default 120_000ms (2 min).
+   * Set to 0/negative/Infinity to disable the bound (legacy unbounded await).
+   */
+  publishTimeoutMs?: number;
+  /**
    * Operator-set ceiling on the capabilities a ROOT launch may declare (I6 for
    * roots). A root's effective caps are intersected with this list. Empty/absent
    * = no ceiling (roots may declare any caps — the legacy behavior). Non-root
@@ -368,6 +379,41 @@ function rowToLaunch(row: LaunchRow): Launch {
 const DEFAULT_MAX_DEPTH = 3;
 
 /**
+ * Default upper bound (ms) on the `publishArtifact` slot-hold (FIX 3 / ADR-0060).
+ * A hung `git push`/`gh pr create` must not pin a dispatch's in-flight slot until
+ * the OS TCP timeout. 2 minutes is generous for a push + draft-PR open yet bounds
+ * an overnight dispatch from stalling indefinitely.
+ */
+const DEFAULT_PUBLISH_TIMEOUT_MS = 120_000;
+
+/**
+ * Race a promise against a timeout. On timeout the returned promise REJECTS with
+ * a timeout error (caught by the publish try/catch → resultArtifact null, run
+ * stays produced, slot released). The abandoned underlying promise is left to
+ * settle on its own (we cannot cancel a raw `git push`), but it no longer holds
+ * the launch path. A non-finite/≤0 `ms` disables the bound (legacy unbounded).
+ */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  if (!Number.isFinite(ms) || ms <= 0) return p;
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`));
+    }, ms);
+    timer.unref?.();
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
+/**
  * Sources entitled to mint a ROOT launch (depth 0, fresh rootId, self-chosen
  * ceiling/caps). These are the daemon's own operator-initiated surfaces — the
  * operator typing a command, a sortie POST, an orchestrator rule firing,
@@ -400,6 +446,10 @@ export function createConductor(deps: ConductorDeps) {
   const isMainCheckout = deps.isMainCheckout ?? defaultIsMainCheckout;
   const mintWorktree = deps.mintWorktree ?? ((_l, intent) => intent.workdir);
   const publishArtifact = deps.publishArtifact;
+  // Bound the publish slot-hold. A finite positive value arms the race below; 0,
+  // a negative, or Infinity (or absent + the DEFAULT_PUBLISH_TIMEOUT_MS) leaves
+  // the publish unbounded only when explicitly disabled.
+  const publishTimeoutMs = deps.publishTimeoutMs ?? DEFAULT_PUBLISH_TIMEOUT_MS;
   const rootCapabilityCeiling = deps.rootCapabilityCeiling ?? null;
   const defaultLineageCeilingUsd = deps.defaultLineageCeilingUsd ?? null;
   const defaultBondUsd = deps.defaultBondUsd != null && deps.defaultBondUsd > 0 ? deps.defaultBondUsd : 0;
@@ -793,7 +843,28 @@ export function createConductor(deps: ConductorDeps) {
     if (intent.worktree === 'create') {
       // mintWorktree may be async (real git worktree add). Await it so the
       // NO_SPAWN_ON_MAIN check below sees the freshly-minted off-main workdir.
-      workdir = await mintWorktree(admitted, intent);
+      // CRITICAL: a real `gitWorktreeAdd` can THROW (branch already exists, a
+      // stale `.git/worktrees` lock, a full disk, a slow/wedged NFS mount). If
+      // we let that escape `launch()`, the reservation reserved at admission is
+      // NEVER released and the row stays `'admitted'` forever — over time the
+      // leaked reservations wall off the lineage/global ceiling and every
+      // subsequent dispatch is refused with LINEAGE_BUDGET_CONSERVED /
+      // GLOBAL_BREAKER. Mirror the isMainCheckout release below and the
+      // spawn-threw handler: release the reservation, settle the row `'failed'`,
+      // and return a failed LaunchResult rather than throwing.
+      try {
+        workdir = await mintWorktree(admitted, intent);
+      } catch (err) {
+        if (reserved > 0) {
+          breaker.release(lineageScope(admitted.rootId), reserved);
+          breaker.release(GLOBAL_SCOPE, reserved);
+        }
+        setState(admitted.id, 'failed', {
+          errorMessage: `mintWorktree failed: ${err instanceof Error ? err.message : String(err)}`,
+          settledAt: now(),
+        });
+        return { launch: get(admitted.id)!, admitted: true, refusedReason: null, spawn: null };
+      }
     }
     if (!intent.allowSharedCheckout && isMainCheckout(workdir)) {
       // Release the reservation; this admission will not spawn.
@@ -908,7 +979,16 @@ export function createConductor(deps: ConductorDeps) {
     if (success && effectiveMergePolicy === 'review' && publishArtifact) {
       let artifactUrl: string | null = null;
       try {
-        artifactUrl = await publishArtifact(get(admitted.id)!, intent, spawnResult);
+        // BOUND the publish: a hung push/PR (the execFile awaits in
+        // gitPushBranch/openDraftPr have no native timeout) would otherwise hold
+        // this launch's in-flight slot until the OS TCP timeout. The timeout
+        // surfaces as a throw, caught below exactly like any publish failure —
+        // resultArtifact stays null, the run stays produced, the slot frees.
+        artifactUrl = await withTimeout(
+          publishArtifact(get(admitted.id)!, intent, spawnResult),
+          publishTimeoutMs,
+          'publishArtifact',
+        );
       } catch (err) {
         // Note the failure on the launch row WITHOUT changing its (produced)
         // state. The operator can still find the branch; the missing PR is
@@ -974,6 +1054,17 @@ export function createConductor(deps: ConductorDeps) {
         }
         // Release the reservation here: the body is resolved, so the run path's
         // pending-kill branch will NOT fire a second release for this launch.
+        //
+        // INVARIANT (why the DB row is the correct release source): at admission
+        // the breaker RESERVED exactly `effectiveBond(intent)` against both the
+        // lineage and global scopes, and that SAME value was persisted to the row
+        // as `bond_usd` (admit() writes `bondUsd: reserved`). So `l.bondUsd` IS
+        // the outstanding reservation for this launch — releasing it unwinds the
+        // admission reservation precisely, with no drift. A null/0 stored bond
+        // means NOTHING was reserved (the legacy `defaultBondUsd:0` path), so the
+        // guard correctly skips the release. We release the stored amount as-is;
+        // `breaker.release` floors at 0, so even a stale over-release cannot push
+        // the scope's reserved accounting negative.
         if (l.bondUsd) {
           breaker.release(lineageScope(l.rootId), l.bondUsd);
           breaker.release(GLOBAL_SCOPE, l.bondUsd);
