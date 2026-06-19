@@ -1,8 +1,8 @@
-# Cartographer Index — 2026-06-19T23:30:00Z
+# Cartographer Index — 2026-06-19T19:34:25Z
 
 **Snapshot Authority:** git log + committed code + recovery hub status > roadmap markdown > raw files
 
-**Current Scope:** cartographer-state HEAD at `995d82c2` (2026-06-19 18:30 UTC verified snapshot). Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 81 days** (since 2026-03-30 last contact with Thomas Youle). Phase 4E/4F STALE: 80+ days (2026-03-31). Phase 4A ACTIVE OFF-MAIN on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`).
+**Current Scope:** cartographer-state HEAD at `f3dd5eb4` (2026-06-19 19:34 UTC digest snapshot). Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 81 days** (since 2026-03-30 last contact with Thomas Youle). Phase 4E/4F STALE: 80+ days (2026-03-31). Phase 4A ACTIVE OFF-MAIN on feature branches (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`). `origin/main` is 1490 commits ahead of cartographer-state; cartographer-state carries 15 commits not in main.
 
 ---
 
@@ -16,7 +16,7 @@
 | **3A: Declarative Fleet** | ✅ COMPLETE | Fleet YAML (`pd-fleet.yml`) + pheromone system + auto-respawn shipped 2026-03-27 |
 | **3B: Episodic Memory** | 🟨 PARTIAL | `episodic-memory-query-surfaces` in curated now-wave; routes/CLI not yet landed |
 | **3: Visibility & Automation** | 🔥 **HOTTEST MAPPED PHASE** | 12 core visibility items: daemon-introspection-api, crew-screen-roles-not-pids, fleet-health-scorecard, coordination-ticker-as-high-signal-feed, fleet-run-journal, daemon-fleet-auto-recovery, operator-hint-engine, tuple-store-query-api, governance-coordination-hub, phase-3-auto-remediation-executor, episodic-memory-query-surfaces, operator-manual-fleet-dispatch. Also: 5 supporting cross-cutting items. Closest to ship: #1–3 in "Top Closest" below. |
-| **4A: Bun/Fastify** | 🟡 ACTIVE (OFF-MAIN) | Fastify migration ✅ (2026-03-31). Bun binary / doctor / distribution **active on feature branches** (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`) with 5 commits; origin/main + stable have not absorbed this lane yet. Release prep (v3.19.0 Parley, v3.20.0 Coast Guard) is consuming that integration bandwidth. |
+| **4A: Bun/Fastify** | 🟡 ACTIVE (OFF-MAIN) | Fastify migration ✅ (2026-03-31). Bun binary / doctor / distribution **active on feature branches** (`feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics`) with 5 commits; origin/main + stable have not absorbed this lane yet. Release prep (v3.20.0 Coast Guard, v3.19.0 Parley) is consuming that integration bandwidth. |
 | **4B: IPC & Radix Trie** | ✅ COMPLETE | Binary IPC (MessagePack, 70–80% bandwidth reduction) + Radix Trie (sub-millisecond wildcard) shipped v3.8.0–3.8.2 |
 | **4D: Backpressure** | 🟨 PARTIAL | IPC-level ✅; HTTP-level not started |
 | **4E: `pd self-test --adversarial`** | 🔴 STALE (80+ days) | Design complete (ADR-0049). Zero commits since 2026-03-31. Unblocked by `sandboxed-adversarial-test-harness` (now-wave). Not blocking anything except itself. |
@@ -53,14 +53,14 @@
 ## Top 3 Blocked / Drifting
 
 1. **Phase 2 Economy** (Blocked on external contact)  
-   **Status:** Thomas Youle (economist, Indiana U) — no follow-up since 2026-03-30 (77 days idle)  
+   **Status:** Thomas Youle (economist, Indiana U) — no follow-up since 2026-03-30 (81 days idle)
    **Blocker:** Pricing function π (bond pricing, reputation discount, cost-aware routing)  
    **Impact:** Phase 2 wallet, spawn-time model selection, cost feedback loop all waiting. Phase 2 infrastructure ships; Phase 2 optimization logic blocked.  
    **Action Required:** Contact escalation or accept 2–3 month delay until late 2026
 
 2. **Phase 4A Binary Distribution** (Blocked on release integration)  
    **Status:** Feature branches `feat/binary-distribution-daemon-unblock`, `feat/doctor-binary-daemon-diagnostics` carry Bun / sign-and-notarize / doctor work (5 commits 2026-04-01 → 2026-05-14)  
-   **Blocker:** Release prep (v3.19.0 Parley, v3.20.0 Coast Guard) consuming origin/main integration bandwidth  
+   **Blocker:** Release prep (v3.20.0 Coast Guard, v3.19.0 Parley) consuming origin/main integration bandwidth
    **Impact:** Binary distribution, doctor diagnostics, LaunchAgent plist detection all waiting for promotion. Phase 4A complete-but-unshipped.  
    **Action Required:** Merge feature branches after next release (v3.21.0 window)
 
@@ -85,7 +85,7 @@
 | 2026-06-19 | `416ca038` | Docs | pd-console build/install/run instructions (AGENTS.md + skill) |
 | 2026-06-19 | `7bc88438` | Console polish | Motion slice — hover glow/color + breathing focus dot (v12 feel-pass) |
 | 2026-06-19 | `801ca8e3` | Console polish | Light + dark theme (maritime/neobrutalism palette) + Ctrl-A g toggle |
-| 2026-06-19 | 5× cartographer | Cartographer INDEX refresh | Automated daily snapshots; new digest format |
+| 2026-06-19 | 8× cartographer | Cartographer INDEX refresh | Automated daily snapshots; new digest format |
 
 **Unplanned Work Pattern:** ADR-0060 (dispatch→Conductor refactoring) and ADR-0085 (idea-intake grammar) are real unplanned product architecture work. pd-console (Phase 6 life-integration) motion/theme polish is polish energy. These are NOT yet mapped to the numbered phase grid.
 
@@ -128,7 +128,7 @@
 
 **Cartographer recommendation:** Both are load-bearing. Prioritize Phase 4A promotion into the v3.21.0 release cycle (next 2 weeks). Phase 3 execution items can parallel-track that integration.
 
-### Tension 2: Economist Stale (77 Days)
+### Tension 2: Economist Stale (81 Days)
 
 **Signal:** No follow-up from Thomas Youle since 2026-03-30. Cost infrastructure ships; pricing function π waits.
 
@@ -195,7 +195,7 @@
 
 5. **Phase 4E/F capacity decision** — Clarify operator intent: backlog until Phase 5 ramp, or resume now? Design is clear; decision is sequencing, not risk.
 
-6. **Harvest fresh Spark/Spider exhaust** — 2026-05-10 raw Spider files (S41/S42/S43) remain uncurated on disk; fresh 2026-06-19+ passes may exist. Dedupe and promote to execution wave if novel.
+6. **Harvest fresh Spark/Spider exhaust** — 2026-05-10 raw Spider files (S41/S42/S43) remain uncurated on disk; fresh 2026-06-19 Spider waves 1-12 are present and uncurated. Dedupe and promote to execution wave if novel.
 
 ---
 
@@ -208,7 +208,6 @@
 **Generated by:** Cartographer (autonomous maintenance + verification pass)  
 **Branch:** cartographer-state (orphan, snapshot-only)  
 **Authority:** git log + committed code > recovery hub > raw exhaust  
-**HEAD:** `995d82c2` (2026-06-19 18:30 UTC verified); cartographer-state carries this digest  
+**HEAD:** `f3dd5eb4` (2026-06-19 19:34 UTC verified); cartographer-state carries this digest
 **Refresh cadence:** 2–3× daily (auto-triggered on `git:committed` via fleet engine); weekly mapping pass with promotion/harvest; index digest updated continuously  
 **Read access:** `git checkout cartographer-state -- cartographer/INDEX.md` to view latest without polluting main history; index remains authority for roadmap state between major phase transitions
-
