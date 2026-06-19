@@ -149,6 +149,7 @@ export interface SpawnSpec {
    * default interactive gating). Ignored by backends that don't support it.
    */
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+  /**
    * Optional stable tube channel the cli-tube backend publishes the agent
    * exchange on, so an operator can watch the run live (`pd tube <channel>`).
    * Dispatch sets this to `dispatch:<id>` (ADR-0060) so a folded dispatch keeps
@@ -508,6 +509,7 @@ interface BackendRunContext {
    * a final answer leave it unwired.
    */
   onTranscriptDelta?: (msg: TranscriptMessage) => void;
+  /**
    * Tube client + stable channel for live observability. Threaded from
    * `SpawnerDeps.tubeClient` + `spec.tubeChannel` into the cli-tube backend so a
    * folded dispatch keeps `pd tube dispatch:<id>` working (ADR-0060). Both must
