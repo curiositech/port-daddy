@@ -1998,6 +1998,22 @@
       },
       "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
     },
+    "cut": {
+      "description": "Cut a release (ADR-0084 Phase 3): build the daemon binary + Rust cdylib + FleetBar.app, collect into dist/release/<version>/, hash each, and write a manifest. Signing (ADR-0057) is opt-in via --sign; an unsigned cut is recorded as such. Verb is `pd cut` (pd release is port release).",
+      "cli": [
+        "cut"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "cut"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "CLI / CI-only release engineering \u2014 a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
+    },
     "secrets": {
       "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
       "cli": [

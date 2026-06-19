@@ -147,6 +147,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
+  cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.

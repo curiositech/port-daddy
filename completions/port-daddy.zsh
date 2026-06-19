@@ -2144,6 +2144,7 @@ _port_daddy() {
     'mcp:start MCP server for Claude Code / Claude Desktop (pd mcp install to configure)'
     'daemon:daemon lifecycle subcommands (status, log, doctor)'
     'setup:install daemon, MCP, FleetBar, and initialize a project'
+    'cut:cut a release — build daemon + Rust + FleetBar, hash, optionally sign (pd cut)'
     'init:set up Port Daddy for this project (scan, fleet, MCP, git hook)'
     # Bonds / Wallets — FleetControl hardening
     'wallet:manage project USD wallets (show/top-up/history)'
