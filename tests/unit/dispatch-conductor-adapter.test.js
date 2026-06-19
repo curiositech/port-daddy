@@ -46,8 +46,19 @@ function makePlan(over = {}) {
     baseBranch: over.baseBranch ?? 'main',
     mergePolicy: over.mergePolicy ?? 'review',
   });
-  const plan = planRunFor(dispatch, { backend: over.backend ?? 'cli:codex', model: over.model });
-  return { plan, dispatch, queue, db };
+  // Claim the row so it is in `claimed` exactly as the runner leaves it before
+  // invoking the adapter (the production path claims via `nextProposed` first).
+  // The adapter's first act is `queue.start()`, which requires `claimed`.
+  const claimed = (over.claim ?? true)
+    ? queue.claim({
+        id: dispatch.id,
+        worktreePath: dispatch.worktreePath ?? '/coding/tmp/wt-test',
+        branch: dispatch.branch ?? 'dispatch/test',
+        sessionId: 'sess-test',
+      })
+    : dispatch;
+  const plan = planRunFor(claimed, { backend: over.backend ?? 'cli:codex', model: over.model });
+  return { plan, dispatch: claimed, queue, db };
 }
 
 /**
@@ -291,5 +302,103 @@ describe('createConductorSpawnAdapter — result mapping', () => {
     expect(intent.bondUsd).toBe(9);
     expect(intent.lineageCeilingUsd).toBe(9);
     expect(intent.tubeChannel).toBe(`dispatch:${dispatch.id}`);
+  });
+});
+
+// ─── FIX 2 (HIGH): the adapter visits in_progress via queue.start BEFORE launch ─
+//
+// The legacy spawn-adapter called queue.start(id) at the claimed→in_progress
+// step. The Conductor adapter ignored the queue entirely, so a dispatch stayed
+// `claimed` for the whole run: in_progress never visited, started_at/duration_ms
+// never set, and recoverStranded re-queued claimed rows too aggressively
+// (duplicate runs after a crash). These tests pin: (a) queue.start(id) is called
+// BEFORE conductor.launch; (b) a start that throws → {state:'failed'} and
+// conductor.launch is NOT called.
+describe('createConductorSpawnAdapter — queue.start (in_progress) ordering', () => {
+  /** A spy queue recording the call order of start vs the conductor.launch. */
+  function makeSpyQueue(order, { startThrows = false } = {}) {
+    return {
+      start: jest.fn((id) => {
+        order.push(`start:${id}`);
+        if (startThrows) throw new Error('dispatch was cancelled');
+        return { id, state: 'in_progress' };
+      }),
+    };
+  }
+
+  test('queue.start(id) is called BEFORE conductor.launch', async () => {
+    const order = [];
+    const conductor = {
+      intents: [],
+      launch: jest.fn(async (intent) => {
+        order.push('launch');
+        conductor.intents.push(intent);
+        return {
+          admitted: true,
+          refusedReason: null,
+          launch: launch({ state: 'produced', resultArtifact: 'https://x/pr/7' }),
+          spawn: { agentId: 'agent-1', status: 'completed', output: 'ok', error: null },
+        };
+      }),
+    };
+    const adapter = createConductorSpawnAdapter(conductor);
+    const { plan } = makePlan();
+    const spyQueue = makeSpyQueue(order);
+
+    const res = await adapter({ plan, queue: spyQueue });
+
+    // start happened, and it happened strictly before launch.
+    expect(spyQueue.start).toHaveBeenCalledTimes(1);
+    expect(spyQueue.start).toHaveBeenCalledWith(plan.dispatch.id);
+    expect(order).toEqual([`start:${plan.dispatch.id}`, 'launch']);
+    // The run still maps through normally.
+    expect(res.state).toBe('settled');
+    expect(res.resultArtifact).toBe('https://x/pr/7');
+  });
+
+  test('a queue.start that throws → {state:failed} and conductor.launch is NOT called', async () => {
+    const order = [];
+    const conductor = {
+      launch: jest.fn(async () => {
+        order.push('launch');
+        return { admitted: true, refusedReason: null, launch: launch({ state: 'produced' }), spawn: null };
+      }),
+    };
+    const adapter = createConductorSpawnAdapter(conductor);
+    const { plan } = makePlan();
+    const spyQueue = makeSpyQueue(order, { startThrows: true });
+
+    const res = await adapter({ plan, queue: spyQueue });
+
+    expect(res.state).toBe('failed');
+    expect(res.errorMessage).toMatch(/to in_progress: dispatch was cancelled/);
+    // CRITICAL: we never spawn a body for a dispatch we couldn't start.
+    expect(conductor.launch).not.toHaveBeenCalled();
+    expect(order).toEqual([`start:${plan.dispatch.id}`]); // start tried, no launch
+  });
+
+  test('end-to-end with a REAL queue: the row actually visits in_progress (started_at set)', async () => {
+    // Proves the integration, not just the spy: a real claimed row is moved to
+    // in_progress by the adapter, so started_at is stamped and duration is
+    // computable. Without queue.start the row would stay `claimed`.
+    const conductor = makeFakeConductor({
+      admitted: true,
+      refusedReason: null,
+      launch: launch({ state: 'produced', resultArtifact: 'https://x/pr/3', costUsd: 1.2 }),
+      spawn: { agentId: 'agent-1', status: 'completed', output: 'ok', error: null },
+    });
+    const adapter = createConductorSpawnAdapter(conductor);
+    const { plan, queue } = makePlan();
+
+    // Before: claimed, no started_at.
+    expect(queue.get(plan.dispatch.id).state).toBe('claimed');
+    expect(queue.get(plan.dispatch.id).startedAt).toBeNull();
+
+    await adapter({ plan, queue });
+
+    // After: the adapter advanced the row to in_progress and stamped started_at.
+    const row = queue.get(plan.dispatch.id);
+    expect(row.state).toBe('in_progress');
+    expect(row.startedAt).not.toBeNull();
   });
 });

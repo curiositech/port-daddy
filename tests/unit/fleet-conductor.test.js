@@ -111,6 +111,7 @@ function makeConductor(over = {}) {
     isMainCheckout: over.isMainCheckout ?? (() => false),
     mintWorktree: over.mintWorktree,
     publishArtifact: over.publishArtifact,
+    publishTimeoutMs: over.publishTimeoutMs,
     rootCapabilityCeiling: over.rootCapabilityCeiling,
     defaultLineageCeilingUsd: over.defaultLineageCeilingUsd,
     defaultBondUsd: over.defaultBondUsd,
@@ -748,6 +749,68 @@ describe('settlement & lifecycle', () => {
     expect(breaker.reserve(scope, 10)).toBe(true); // would be false if $5 still held
   });
 
+  // FIX 1 (CRITICAL, I4/I5): an unguarded `await mintWorktree` leaks the breaker
+  // reservation. A `worktree:'create'` launch whose mint throws (real
+  // gitWorktreeAdd can fail: branch exists, stale .git/worktrees lock, full disk,
+  // slow NFS) must release the reservation and settle the row `'failed'` — NOT
+  // throw out of launch() leaving the row `'admitted'` and the bond walled off.
+  test('worktree:create whose mintWorktree throws releases the reservation and fails the row (no leak)', async () => {
+    const { conductor, breaker } = makeConductor({
+      // The mint hook throws exactly like a wedged `git worktree add` would.
+      mintWorktree: () => { throw new Error('git worktree add: branch already exists'); },
+    });
+    const res = await conductor.launch({
+      ...ROOT_INTENT,
+      worktree: 'create',
+      bondUsd: 5,
+      lineageCeilingUsd: 10,
+    });
+    // The launch does NOT throw; it returns a failed LaunchResult.
+    expect(res.admitted).toBe(true);
+    expect(res.spawn).toBeNull();
+    // The row is settled `'failed'`, not stuck at `'admitted'`.
+    expect(res.launch.state).toBe('failed');
+    expect(conductor.get(res.launch.id).state).toBe('failed');
+    expect(res.launch.errorMessage).toMatch(/mintWorktree failed/);
+    // CRITICAL: the $5 reservation was released back to the lineage scope. With
+    // the leak, $5 stays reserved and a fresh $10 reserve (5+10 > 10) is refused.
+    const scope = `root:${res.launch.rootId}`;
+    expect(breaker.reserve(scope, 10)).toBe(true); // would be false if $5 still held
+    // And the GLOBAL reservation was released too: a fresh global $5 (after the
+    // earlier global $5 was released) does not exceed a $5 global ceiling.
+    expect(breaker.state(GLOBAL_SCOPE).open).toBe(false);
+  });
+
+  // FIX 1 corollary: the freed budget is genuinely available to the NEXT launch.
+  // A second dispatch sized to exactly fill the ceiling is admitted only if the
+  // first launch's failed mint released its reservation.
+  test('a launch admitted after a failed mintWorktree reuses the freed lineage budget', async () => {
+    const minted = '/coding/tmp/wt-ok';
+    let firstCall = true;
+    const { conductor } = makeConductor({
+      defaultLineageCeilingUsd: null,
+      // First mint throws (leak candidate); second mint succeeds.
+      mintWorktree: () => {
+        if (firstCall) { firstCall = false; throw new Error('stale .git/worktrees lock'); }
+        return minted;
+      },
+    });
+    // Global ceiling of $5: the first launch reserves $5 then fails to mint.
+    conductor.setGlobalCeiling(5);
+    const first = await conductor.launch({
+      ...ROOT_INTENT, worktree: 'create', bondUsd: 5, lineageCeilingUsd: 5,
+    });
+    expect(first.launch.state).toBe('failed');
+    // If the first reservation leaked, the global breaker is at $5/$5 and this
+    // second $5 launch is refused (GLOBAL_BREAKER). With the fix, it is admitted.
+    const second = await conductor.launch({
+      ...ROOT_INTENT, worktree: 'create', bondUsd: 5, lineageCeilingUsd: 5,
+    });
+    expect(second.admitted).toBe(true);
+    expect(second.refusedReason).toBeNull();
+    expect(second.launch.state).not.toBe('refused');
+  });
+
   test('recursive sub-launch within depth+budget succeeds', async () => {
     const { conductor } = makeConductor({ maxDepth: 3 });
     const root = await conductor.launch({ ...ROOT_INTENT, bondUsd: 1, lineageCeilingUsd: 100 });
@@ -987,6 +1050,53 @@ describe('ADR-0060 dispatch fold-in — mintWorktree + publishArtifact', () => {
     // The publish failure is recorded as a note for the operator, not a failure.
     expect(res.launch.errorMessage).toMatch(/artifact publish failed/);
     expect(publishArtifact).toHaveBeenCalledTimes(1);
+  });
+
+  // FIX 3 (MED): a HUNG publish (git push / gh pr create wedged) must NOT hold the
+  // launch's in-flight slot until the OS TCP timeout. The conductor bounds the
+  // publish await; on timeout it becomes a swallowed throw — the run still settles
+  // `produced` with resultArtifact null, and the slot (the awaiting launch()) is
+  // released within the bound. We inject a short publishTimeoutMs and a publish
+  // that NEVER resolves; without the bound, `await conductor.launch` would hang
+  // forever (this test would time out the whole jest run).
+  test('a publishArtifact that never resolves is bounded — launch settles produced with resultArtifact null', async () => {
+    let resolvePublishStarted;
+    const publishStarted = new Promise((r) => { resolvePublishStarted = r; });
+    const publishArtifact = jest.fn(() => {
+      resolvePublishStarted();
+      // Never resolves: a wedged `git push`/`gh pr create` with no native timeout.
+      return new Promise(() => {});
+    });
+    const { conductor } = makeConductor({ publishArtifact, publishTimeoutMs: 50 });
+
+    const start = Date.now();
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+    const elapsed = Date.now() - start;
+
+    // The publish WAS attempted (so this isn't a false pass from skipping it)...
+    await publishStarted;
+    expect(publishArtifact).toHaveBeenCalledTimes(1);
+    // ...but the launch returned (slot released) shortly after the 50ms bound,
+    // not after the publish resolved (it never does). Generous ceiling to avoid
+    // CI flake while still proving the bound fired (vs. an unbounded hang).
+    expect(elapsed).toBeLessThan(5_000);
+    // The run is NOT lost and NOT failed — produced with no artifact, the timeout
+    // recorded as a publish-failed note exactly like any other publish failure.
+    expect(res.admitted).toBe(true);
+    expect(res.launch.state).toBe('produced');
+    expect(res.launch.resultArtifact).toBeNull();
+    expect(res.launch.errorMessage).toMatch(/artifact publish failed.*timed out/);
+  });
+
+  // FIX 3 guard: with the bound DISABLED (0) and a FAST publish, behavior is the
+  // legacy unbounded await — proving the timeout is opt-outable and the race does
+  // not interfere with a normal publish.
+  test('publishTimeoutMs:0 disables the bound; a fast publish still lands its URL', async () => {
+    const publishArtifact = jest.fn(async () => 'https://example.com/pr/99');
+    const { conductor } = makeConductor({ publishArtifact, publishTimeoutMs: 0 });
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+    expect(res.launch.state).toBe('produced');
+    expect(res.launch.resultArtifact).toBe('https://example.com/pr/99');
   });
 
   test('publishArtifact does NOT touch the cost breaker (publishing is not a spawn)', async () => {
