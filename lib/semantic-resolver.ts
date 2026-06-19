@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
 import type { TupleSpace } from './tuples.js';
@@ -14,6 +15,21 @@ import type { SemanticAlias } from './semantic-terms.js';
  * tradeoff for local-first Port Daddy installations.
  */
 export const DEFAULT_SEMANTIC_MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
+
+/**
+ * The ONE stable cache dir for the local embedding model, shared by every reader
+ * (the resolver, the daemon, the shipwright skill index) and the install-time
+ * prefetch (scripts/prefetch-embedding-model.ts). Under `~/.port-daddy/` so it
+ * survives reinstalls and is identical whether the caller's cwd is the repo, a
+ * worktree, or the launchd daemon's bare dir — prefetch writes here, runtime reads
+ * here. Overridable via `PD_TRANSFORMERS_CACHE_DIR`. (ADR-0061.)
+ */
+export function defaultTransformersCacheDir(): string {
+  return (
+    process.env.PD_TRANSFORMERS_CACHE_DIR?.trim() ||
+    join(homedir(), '.port-daddy', 'transformers-cache')
+  );
+}
 export const DEFAULT_SEMANTIC_AUTO_THRESHOLD = 0.88;
 export const DEFAULT_SEMANTIC_REVIEW_THRESHOLD = 0.8;
 export const DEFAULT_SEMANTIC_BOUNDARY_MARGIN = 0.02;
@@ -596,7 +612,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   const reviewThreshold = options.reviewThreshold ?? DEFAULT_SEMANTIC_REVIEW_THRESHOLD;
   const boundaryMargin = options.boundaryMargin ?? DEFAULT_SEMANTIC_BOUNDARY_MARGIN;
   const candidateLimit = options.candidateLimit ?? DEFAULT_SEMANTIC_CANDIDATE_LIMIT;
-  const cacheDir = options.cacheDir ?? join(process.cwd(), '.cache', 'transformers');
+  const cacheDir = options.cacheDir ?? defaultTransformersCacheDir();
   const counters = options.counters;
   const graphEdges = options.graphEdges;
   const tuples = options.tuples;

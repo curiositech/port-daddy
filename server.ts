@@ -101,7 +101,7 @@ import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
-import { createSemanticResolver } from './lib/semantic-resolver.js';
+import { createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
 import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
@@ -402,7 +402,9 @@ const blobs = createBlobStore();
 const counters = createCounters(db);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
-  cacheDir: join(REPO_ROOT, '.cache', 'transformers'),
+  // Stable, daemon-portable cache (~/.port-daddy/transformers-cache) shared with
+  // the install-time prefetch — NOT a repo/cwd-relative dir (ADR-0061).
+  cacheDir: defaultTransformersCacheDir(),
   counters,
   graphEdges,
   tuples,
