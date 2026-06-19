@@ -833,3 +833,36 @@ pre code {
     transform: none;
   }
 }
+
+/* Editor Lightbulb demo: the gutter lightbulb is the signature beat. On a fire
+   it "lights up" — a one-shot flare (quick brighten, soft settle) plus a single
+   expanding ring that fades out. It never loops. Under prefers-reduced-motion the
+   bulb switches to its lit state instantly with no flare or ring (the global
+   block collapses the duration; these guards are a backstop and EditorLightbulb.tsx
+   additionally skips rendering the ring). */
+@keyframes tube-lamp-flare {
+  0% { opacity: 0.55; transform: scale(0.96); }
+  35% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes tube-lamp-ring {
+  0% { opacity: 0.55; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+.tube-lamp-flare {
+  animation: tube-lamp-flare 0.5s cubic-bezier(0.34, 1.4, 0.5, 1) forwards;
+}
+.tube-lamp-ring {
+  animation: tube-lamp-ring 0.6s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-lamp-flare {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .tube-lamp-ring {
+    animation: none;
+    opacity: 0;
+  }
+}

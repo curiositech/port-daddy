@@ -32,6 +32,7 @@ import {
   type TubePhase,
 } from '@/components/tube/TubeWire'
 import { RedToGreen } from './demos/RedToGreen'
+import { EditorLightbulb } from './demos/EditorLightbulb'
 
 /**
  * The pd tube playground — every trigger, one agent.
@@ -191,6 +192,22 @@ export function Playground() {
             />
             <div className="mt-[var(--space-6)]">
               <RedToGreen />
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* Demo #3 — Editor Lightbulb */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Demo 03 · Editor Lightbulb"
+              title="Select code. The lightbulb lights up. An agent explains it."
+              description="A selection in a faux editor carries a cobalt lightbulb in the gutter. Ask the agent posts the file, range, and selected text to editor:explain. An agent listening there replies with a plain-language explanation — and a suggested change as a unified diff when it has one. The bulb lighting up is the signature beat."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-6)]">
+              <EditorLightbulb />
             </div>
           </PageContainer>
         </section>
