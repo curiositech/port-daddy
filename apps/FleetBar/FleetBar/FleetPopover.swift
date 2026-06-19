@@ -282,6 +282,11 @@ struct FleetPopover: View {
                 HStack(spacing: Fleet.Space.m) {
                     daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
                     daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
+                    daemonReportRow(
+                        label: "Berth",
+                        value: status.daemon?.berth?.label ?? "stable",
+                        color: status.daemon?.berth.flatMap { Fleet.Color.hex($0.color) } ?? Fleet.Color.warning
+                    )
                     daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
                 }
                 daemonReportDiagnostic(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
@@ -458,6 +463,13 @@ struct FleetPopover: View {
                             .frame(width: 6, height: 6)
                             .opacity(store.totalActive > 0 ? 1 : 0.4)
                     }
+
+                    // Berth identity (ADR-0084): which daemon am I talking to —
+                    // stable / dev-latest / codebase. Always shown when running so
+                    // the operator never confuses a dev daemon for the canonical one.
+                    if store.isDaemonRunning {
+                        berthChip
+                    }
                 }
 
                 if store.isDaemonRunning {
@@ -527,6 +539,67 @@ struct FleetPopover: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
+    }
+
+    // The berth this FleetBar is connected to (ADR-0084). A daemon that predates
+    // berth self-identity reports no `berth`; we treat that as the canonical
+    // stable berth so the chip is always meaningful.
+    private var berth: DaemonBerthResponse? {
+        store.daemonStatus?.daemon?.berth
+    }
+
+    // Color-coded berth pill. Canonical `stable` renders quietly (it's the
+    // expected default); a non-canonical `dev-latest` / `codebase` berth renders
+    // with a filled, higher-contrast pill — "heads up, this isn't stable".
+    @ViewBuilder
+    private var berthChip: some View {
+        let b = berth
+        let tier = b?.tier ?? "stable"
+        let label = b?.label ?? "stable"
+        let canonical = b?.canonical ?? true
+        let tint = b.flatMap { Fleet.Color.hex($0.color) } ?? berthFallbackColor(tier)
+        let tooltip = berthTooltip(b)
+
+        HStack(spacing: 4) {
+            Circle()
+                .fill(tint)
+                .frame(width: 6, height: 6)
+            Text(label.uppercased())
+                .font(.system(size: 11, weight: .bold))
+                .tracking(0.6)
+                .foregroundStyle(canonical ? AnyShapeStyle(.secondary) : AnyShapeStyle(tint))
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(
+            Capsule().fill(tint.opacity(canonical ? 0.10 : 0.20))
+        )
+        .overlay(
+            Capsule().strokeBorder(tint.opacity(canonical ? 0.0 : 0.55), lineWidth: 1)
+        )
+        .help(tooltip)
+        .accessibilityLabel("Connected to \(label) berth")
+    }
+
+    // Fallback colours mirror `BERTH_COLORS` in shared/daemon-berths.ts for the
+    // legacy-daemon (no berth reported) path; the live path uses the daemon's hex.
+    private func berthFallbackColor(_ tier: String) -> Color {
+        switch tier {
+        case "dev-latest": return Fleet.Color.active   // blue — bleeding edge
+        case "codebase":   return Color(red: 0.66, green: 0.33, blue: 0.97) // purple
+        default:           return Fleet.Color.warning  // amber — stable "as ever"
+        }
+    }
+
+    private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
+        guard let b else { return "Connected to the stable berth (port 9876)" }
+        var parts = ["\(b.label) berth · port \(b.port)"]
+        if let branch = b.gitBranch, !branch.isEmpty {
+            let rev = b.gitRev.map { " @ \($0)" } ?? ""
+            parts.append("\(branch)\(rev)")
+        }
+        if let dir = b.sourceDir, !dir.isEmpty { parts.append(dir) }
+        return parts.joined(separator: "\n")
     }
 
     private var headerAccent: Color {

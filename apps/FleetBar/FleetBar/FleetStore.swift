@@ -329,6 +329,25 @@ struct DaemonBuildResponse: Decodable {
     let startedAt: Double
     let installDir: String
     let nodeVersion: String
+    /// Which berth this daemon is (ADR-0084): stable / dev-latest / codebase.
+    /// Optional — an older daemon that predates berth self-identity omits it,
+    /// in which case the UI treats the connection as the canonical stable berth.
+    /// Defaulted so the synthesized memberwise init stays source-compatible.
+    var berth: DaemonBerthResponse? = nil
+}
+
+/// The daemon's self-reported berth identity (ADR-0084). Mirrors the TS
+/// `DaemonBerthIdentity` in `shared/daemon-berths.ts`; only the fields the menu
+/// bar surfaces are decoded.
+struct DaemonBerthResponse: Decodable {
+    let tier: String        // "stable" | "dev-latest" | "codebase"
+    let label: String
+    let color: String       // "#RRGGBB"
+    let canonical: Bool
+    let port: Int
+    let gitBranch: String?
+    let gitRev: String?
+    let sourceDir: String?
 }
 
 struct DaemonMetricsResponse: Decodable {
