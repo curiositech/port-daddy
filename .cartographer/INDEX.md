@@ -1,8 +1,8 @@
-# Cartographer Index — 2026-06-19T22:45:00Z
+# Cartographer Index — 2026-06-19T22:50:00Z
 
 **Snapshot Authority:** git log + committed code + recovery hub status > roadmap markdown > raw files
 
-**Current Scope:** origin/main is 1490 commits ahead of cartographer-state; cartographer-state carries 8 commits not in main. Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave.
+**Current Scope:** origin/main is 1490+ commits ahead of cartographer-state; cartographer-state carries Cartographer snapshot commits. Phase 0 COMPLETE, Phase 1 COMPLETE (verified 2026-05-07 `f265fcb5`), Phase 3 HOTTEST MAPPED. 34 curated execution items in immediate wave. **Economist idle: 77 days** (since 2026-03-30 contact with Thomas Youle).
 
 ---
 
