@@ -592,7 +592,10 @@ struct FleetPopover: View {
     }
 
     private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
-        guard let b else { return "Connected to the stable berth (port 9876)" }
+        // Resolve the canonical port through DaemonLocation rather than hardcoding
+        // it — the no-hardcoded-daemon-port guard (and ADR-0084) keep the literal
+        // in exactly one place.
+        guard let b else { return "Connected to the stable berth (port \(DaemonLocation.canonicalPreferredPort))" }
         var parts = ["\(b.label) berth · port \(b.port)"]
         if let branch = b.gitBranch, !branch.isEmpty {
             let rev = b.gitRev.map { " @ \($0)" } ?? ""
