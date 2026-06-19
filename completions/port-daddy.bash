@@ -156,7 +156,7 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    setup init
+    setup init cut
     # Daemon lifecycle
     start stop restart install uninstall dev use daemon ci-gate self-update mcp
     # Bonds / Wallets — FleetControl hardening
