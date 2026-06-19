@@ -146,6 +146,11 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 ## Open research items (promote to the Ledger / roadmap)
 
+> **Promoted 2026-06-19** into the Ledger as
+> `docs/research/north-star/00-THE-LEDGER-open-problems.md` § D (Recursive control
+> plane), with source-verified maturity and cross-links to the PRV/RQ/IMP rows.
+> The list below remains the prose source; the Ledger is the authoritative registry.
+
 > **Source-audit correction (2026-06-19).** The RCP items below were grafted from
 > summary memos. A read-only audit of the two source repos as they actually stand
 > — `docs/research/grafts/2026-06-19-soma-windags-source-audit.md` — corrected
