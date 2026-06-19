@@ -58,6 +58,15 @@ const cards: MarqueeCard[] = [
     hook: 'A single click hands work to a live agent.',
   },
   {
+    href: '/pd-tube/playground',
+    media: {
+      kind: 'video',
+      src: '/demos/pd-tube/red-to-green.mp4',
+    },
+    title: 'A test fails, an agent fixes it',
+    hook: 'Red turns green over one channel.',
+  },
+  {
     href: '/blog/attention-is-the-first-command',
     media: {
       kind: 'image',
