@@ -208,6 +208,52 @@ Forever."*
   This needs macOS **Screen Recording** permission for the capturing process — a
   headless/background host is denied by TCC (`screencapture` prints "could not
   create image from display"); run the capture from a permitted Terminal.
+
+### Building, installing & running pd-console (don't relearn this the hard way)
+
+`core/pd-console` ships **two** binaries from one crate, on **crates.io gpui 0.2.2**
+(NOT the Zed git pin — published, versioned, reproducible; the git pin rots):
+- `pd-console` — the GPU-native window (Metal/macOS), gated behind `--features gpui`.
+- `pd-console-repl` — headless TUI of the same panes; builds everywhere; the CI/Linux gate.
+
+**Build** (from `core/pd-console`): GPU = `cargo build --release --bin pd-console --features gpui`
+(clean build pulls gpui + deps, ~5 min; incremental ~secs). REPL = `cargo build --release --bin pd-console-repl`.
+
+**Install — there are TWO launch surfaces, keep BOTH current or you'll demo a stale build:**
+1. `cp core/target/release/pd-console ~/.port-daddy/bin/pd-console` — the PATH binary (`which pd-console`).
+2. `cp core/target/release/pd-console ~/Applications/pd-console.app/Contents/MacOS/pd-console`
+   — the **`.app` double-clickers launch; it has its OWN embedded binary and does NOT use PATH**,
+   so updating only `~/.port-daddy/bin` leaves GUI launches on the old build (the "old POS" trap).
+   **After replacing the .app binary you MUST re-sign or macOS rejects the bundle:**
+   `codesign --force --deep --sign - ~/Applications/pd-console.app`. (The re-signed binary's
+   hash differs from the unsigned source — that's the embedded signature, expected.)
+
+**Run:** `pd-console` (PATH) or double-click the .app. Daemon discovery: `PORT_DADDY_URL` env →
+`~/.port-daddy/daemon.port` → default; if discovery fails it **panics**, so launch with
+`PORT_DADDY_URL=http://127.0.0.1:9876` when the port file is absent.
+
+**Theme:** `PD_CONSOLE_THEME=light|dark` seeds startup; `Ctrl-A g` toggles live. Palette lives in
+`core/pd-console/src/palette.rs` (light+dark, maritime/neobrutalism). `theme.rs` is the *REPL's*
+OKLCH system — distinct module, don't conflate. All colors are guard-safe (no cinnabar/brass/patina;
+`scripts/check-brand-colors.mjs` fails CI on those, hex AND rgb, comments included).
+
+**Spawning agents from the console** (`POST /spawn`) clears real daemon guards — the console must send
+`task` + `identity` + `budgetUsd>0` + `model` (for ollama) + a worktree `workdir` (the daemon BLOCKS
+main-checkout spawns), and the **operator must fund the project wallet** (`pd wallet top-up <project>
+--usd N`) + set a daily budget (`pd wallet budget <project> --usd-per-day N`). One-shot backends (ollama)
+return output inline in the spawn response (not on the tube). Missing any of these = "spawn looks
+wired but does nothing" — the historical hollowness.
+
+**gpui 0.2.2 idioms** (no fluent transform exists): express "lift/glow/spring" via `shadow(vec![BoxShadow{
+color:Hsla, offset:point(px,px), blur_radius, spread_radius}])` + hover color, and `with_animation(id,
+Animation::new(dur).with_easing(f) [.repeat()], |el,delta| el.opacity(delta))` for timelines
+(`pulsating_between`, `ease_out_quint` available). **Inside a `.hover(|s| …)` closure pass bare `rgb(x)`
+to `bg`/`text_color`/`border_color` — NOT `.into()` (Rgba has 4 `Into` targets → E0283 ambiguity).**
+A one-shot replays only when its `ElementId` changes (suffix a nonce); a stable id + `.repeat()` loops
+without restarting each render.
+
+Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design slices are in
+`docs/design/fleetbar-mockups/v12-feelpass-slices/`.
 - **Website / dashboard**: headless Playwright (`headless=True`), dark + light
   pairs, 100% and 200% zoom where layout matters. Read the PNGs back to confirm a
   settled render (not a loading state) before attaching.

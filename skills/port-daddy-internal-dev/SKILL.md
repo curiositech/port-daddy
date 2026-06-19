@@ -149,6 +149,22 @@ reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +
 Rust-surface-alignment ADR (ADR-0054) is being written in parallel; cite it by
 number until it lands.
 
+#### Building / installing / running `pd-console` (full detail in `AGENTS.md` § *Building, installing & running pd-console*)
+
+Two binaries from one crate on **crates.io gpui 0.2.2** (not the Zed git pin):
+`pd-console` (GPU window, `--features gpui`, macOS) and `pd-console-repl` (headless TUI, CI gate).
+Build: `cargo build --release --bin pd-console --features gpui` (from `core/pd-console`).
+**Install BOTH launch surfaces or you demo a stale build:** the PATH binary
+`~/.port-daddy/bin/pd-console` *and* the double-clickable `~/Applications/pd-console.app`
+(embeds its own binary — does NOT read PATH). After replacing the .app binary,
+`codesign --force --deep --sign - ~/Applications/pd-console.app` or macOS rejects it.
+Launch with `PORT_DADDY_URL=http://127.0.0.1:9876` if daemon discovery panics;
+`PD_CONSOLE_THEME=light|dark` / `Ctrl-A g` for theme. Spawning from the console clears real
+guards (`task`+`identity`+`budgetUsd`+`model`+ worktree `workdir`, plus a funded project wallet +
+daily budget) — miss one and spawn "looks wired but does nothing." gpui 0.2.2 has no transform:
+glow/lift = `shadow(BoxShadow)` + hover color; timelines = `with_animation`; inside `.hover(|s|…)`
+pass bare `rgb(x)` (NOT `.into()` — ambiguous). Console branch: `feat/console-tmux-multiplexer`.
+
 ## Release-Surface Drift (the contributor's prime directive)
 
 When Port Daddy itself ships, the cost of inconsistency lands on every
