@@ -364,6 +364,7 @@ covered learn;     skip "learn"     "requires an interactive TTY; refuses in CI 
 covered tutorial;  skip "tutorial"  "alias of learn — requires a TTY"
 covered tunnel;    skip "tunnel"    "tunnel <create> opens a network tunnel; only 'tunnel list' is read-tested above"
 covered ci-gate;   skip "ci-gate"   "runs the full feature-parity gate (heavy); exercised by its own CI job"
+covered self-update; skip "self-update" "ADR-0062: runs brew upgrade + restarts the daemon/GUI — mutating + macOS/Homebrew-only; the pure isUpgradeAvailable() is unit-tested"
 covered guard;     skip "guard"     "guard install/check mutate hooks; only 'guard status' is read-tested above"
 covered harbor;    skip "harbor"    "harbor create/enter/leave/destroy mutate permission namespaces; usage read-tested above"
 covered add;       skip "add"       "git staging wrapper; mutates the index — not run in the surface gate"
