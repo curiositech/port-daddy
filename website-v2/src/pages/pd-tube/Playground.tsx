@@ -34,23 +34,78 @@ import {
 import { RedToGreen } from './demos/RedToGreen'
 import { EditorLightbulb } from './demos/EditorLightbulb'
 import { WarRoom } from './demos/WarRoom'
+import { HowItsWired } from './demos/HowItsWired'
+import { PlaygroundExplainer } from './demos/PlaygroundExplainer'
 
 /**
  * The pd tube playground — every trigger, one agent.
  *
  * Route: /pd-tube/playground. Hosts the demo suite for `pd tube`, starting with
  * "The Switchboard": seven distinct trigger tiles, each firing a REAL POST to
- * the SAME channel (summon:demo) with a different sender. A single shared
- * AgentNode sits center; the cobalt send-pulse travels to it and the teal reply
- * routes back to whichever tile fired.
+ * the SAME channel (desk:requests) with a different sender. A single shared
+ * AgentNode — the Concierge — sits center; the cobalt send-pulse travels to it
+ * and the teal reply routes back to whichever tile fired.
  *
  * Honesty: the tiles that mock a non-UI surface (Git hook, test runner, Slack,
  * webhook, Jupyter, QR scan) are labelled as UI mocks — clicking them fires a
  * real POST and each shows the copyable real shell command. No fake activity:
  * every pulse is a real round-trip or a real timeout.
+ *
+ * Legibility: a top-of-page explainer answers "how does pd tube actually work?"
+ * and every demo carries a "How this is wired" disclosure showing the channel,
+ * the listening agent's name + role, its real prompt, the pd-fleet.yml that
+ * declares it, the trigger the daemon dispatches on, and where FleetBar shows it.
  */
 
-const DEMO_CHANNEL = 'summon:demo'
+const DEMO_CHANNEL = 'desk:requests'
+
+/** The Concierge — the named agent that answers on desk:requests. */
+const CONCIERGE_NAME = 'concierge'
+const CONCIERGE_ROLE = 'Front-desk dispatcher'
+
+/** The real prompt the Concierge runs with — the instructions handed to the model. */
+const CONCIERGE_PROMPT = `You are Concierge, the front desk for this project's
+desk:requests channel. Requests arrive here from many places — a button on a
+page, a Git hook, a CI run, a Slack relay, a webhook, a notebook cell, a
+scanner. Each message names its sender and carries one short request.
+
+For every message:
+1. Read the sender and the request. Decide who or what should handle it.
+2. Reply in one or two plain sentences: either the answer, or where you routed
+   it and what happens next. No preamble, no restating the question.
+3. If a request is unsafe or out of scope, say so plainly and route it nowhere.
+
+Reply on the same channel with inReplyTo set to the message id, sender
+"concierge". You are advisory — you dispatch and answer, you do not take
+destructive action on the operator's behalf.`
+
+/** The pd-fleet.yml that declares the Concierge as a channel-triggered agent. */
+const CONCIERGE_FLEET_YAML = `# pd-fleet.yml — declare the Concierge on the desk:requests channel.
+fleet:
+  name: front-desk
+  agents:
+    concierge:
+      trigger: desk:requests        # daemon dispatches on every message here
+      backend: cli:claude-code      # free on a Claude Max plan
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+      singleton: true
+      identity: "{project}:fleet:concierge"
+      telos: "Route every inbound request to the right place; answer in one line."
+      prompt: |
+        You are Concierge, the front desk for desk:requests. Requests arrive
+        from a button, a Git hook, a CI run, Slack, a webhook, a notebook, a
+        scanner. Read the sender and request, decide who handles it, and reply
+        in one or two plain sentences — the answer, or where you routed it.
+        Reply on the same channel with inReplyTo set, sender "concierge".
+        You are advisory; you do not take destructive action.`
+
+/** The ad-hoc one-liner: a listener that hands the prompt to a model. */
+const CONCIERGE_ADHOC = `# Ad-hoc: tail the channel and hand each request to a model with the prompt above.
+pd tube ${DEMO_CHANNEL} --tail --as ${CONCIERGE_NAME} \\
+  --prompt "You are Concierge. Read the sender + request, route it, and reply in one line."`
 
 interface Trigger {
   id: string
@@ -165,18 +220,40 @@ export function Playground() {
           </PageContainer>
         </section>
 
+        {/* How pd tube actually works — the legibility explainer. */}
+        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <PlaygroundExplainer />
+          </PageContainer>
+        </section>
+
         {/* Demo #1 — The Switchboard */}
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 01 · The Switchboard"
-              title="Seven different triggers. One channel. The same agent answers."
-              description="A button, a Git hook, a test run, a Slack message, a webhook, a Jupyter cell, and a QR scan all post to summon:demo with a different sender. One agent listens. Each trigger's cobalt pulse travels to the agent; the teal reply routes back to the tile that fired it."
+              title="Seven different triggers. One channel. The Concierge answers."
+              description="A button, a Git hook, a test run, a Slack message, a webhook, a Jupyter cell, and a QR scan all post to desk:requests with a different sender. One named agent — the Concierge, a front-desk dispatcher — listens. Each trigger's cobalt pulse travels to it; the teal reply routes back to the tile that fired it."
               titleAs="h2"
               titleSize="display"
             />
-            <div className="mt-[var(--space-6)]">
+            <div className="mt-[var(--space-6)] space-y-[var(--space-5)]">
               <Switchboard />
+              <HowItsWired
+                channel={DEMO_CHANNEL}
+                agents={[{ name: CONCIERGE_NAME, role: CONCIERGE_ROLE, prompt: CONCIERGE_PROMPT }]}
+                trigger={
+                  <>
+                    Every tile POSTs a message to <code className="font-mono">{DEMO_CHANNEL}</code>.
+                    In a fleet the trigger is the channel itself: the daemon watches{' '}
+                    <code className="font-mono">desk:requests</code> and dispatches the Concierge on
+                    each new message — no polling, no cloud, only the local daemon reacting to its
+                    own mailbox.
+                  </>
+                }
+                fleetYaml={CONCIERGE_FLEET_YAML}
+                adHocCommand={CONCIERGE_ADHOC}
+              />
             </div>
           </PageContainer>
         </section>
@@ -187,7 +264,7 @@ export function Playground() {
             <SectionIntro
               eyebrow="Demo 02 · Red-to-Green"
               title="A test fails. An agent reads it and replies with a fix."
-              description="Run tests posts a captured failure — suite, failing assertion, stack snippet — to dev:test-failed. An agent listening there replies with a diagnosis and a suggested diff. When the reply lands, the status bar wipes from red to green."
+              description="Run tests posts a captured failure — suite, failing assertion, stack snippet — to tests:failed. The Mechanic, a test-fixer listening there, replies with a diagnosis and a suggested diff. When the reply lands, the status bar wipes from red to green."
               titleAs="h2"
               titleSize="display"
             />
@@ -203,7 +280,7 @@ export function Playground() {
             <SectionIntro
               eyebrow="Demo 03 · Editor Lightbulb"
               title="Select code. The lightbulb lights up. An agent explains it."
-              description="A selection in a faux editor carries a cobalt lightbulb in the gutter. Ask the agent posts the file, range, and selected text to editor:explain. An agent listening there replies with a plain-language explanation — and a suggested change as a unified diff when it has one. The bulb lighting up is the signature beat."
+              description="A selection in a faux editor carries a cobalt lightbulb in the gutter. Ask the agent posts the file, range, and selected text to editor:explain. The Explainer, a code-explainer listening there, replies with a plain-language explanation — and a suggested change as a unified diff when it has one. The bulb lighting up is the signature beat."
               titleAs="h2"
               titleSize="display"
             />
@@ -219,7 +296,7 @@ export function Playground() {
             <SectionIntro
               eyebrow="Demo 04 · War Room"
               title="Three agents investigate one incident — and reply to each other."
-              description="This one isn't human→agent; it's agent↔agent. Open the incident seeds a real symptom to bridge:warroom. Three named agents — alpha (lead), bravo (database), charlie (logs) — post findings on the same channel and reply to one another. Each reply draws a teal provenance arrow between the cards, so you see the argument's lineage. When an agent posts a ROOT CAUSE, it lands in a cobalt banner."
+              description="This one isn't human→agent; it's agent↔agent. Open the incident seeds a real symptom to incident:checkout. Three named agents — alpha (incident lead), bravo (database), charlie (logs) — post findings on the same channel and reply to one another. Each reply draws a teal provenance arrow between the cards, so you see the argument's lineage. When an agent posts a ROOT CAUSE, it lands in a cobalt banner."
               titleAs="h2"
               titleSize="display"
             />
@@ -234,7 +311,7 @@ export function Playground() {
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Make it answer"
-              title="Start an agent on summon:demo, then fire any tile."
+              title="Start the Concierge on desk:requests, then fire any tile."
               description="The page never fakes a reply. To see the wire complete, run pd tube in your project on the same channel. Each tile also shows the exact shell command that fires the same message from a terminal."
               titleAs="h2"
               titleSize="display"
@@ -242,14 +319,14 @@ export function Playground() {
             <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-2">
               <SurfacePanel elevation="quiet" padding="compact">
                 <CopyableCommandBlock
-                  label="Listen on the demo channel"
-                  command={`pd tube ${DEMO_CHANNEL}`}
+                  label="Listen on the requests channel"
+                  command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME}`}
                 />
               </SurfacePanel>
               <SurfacePanel elevation="quiet" padding="compact">
                 <CopyableCommandBlock
                   label="Reply from the same command"
-                  command={`pd tube ${DEMO_CHANNEL} --reply "on it."`}
+                  command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME} --reply "routed to deploy — on it."`}
                 />
               </SurfacePanel>
             </div>
@@ -342,7 +419,7 @@ function Switchboard() {
 
         {/* Shared wire + agent + thread */}
         <SurfacePanel className="space-y-[var(--space-5)]">
-          <PanelEyebrow>One agent · one channel</PanelEyebrow>
+          <PanelEyebrow>Concierge · one channel</PanelEyebrow>
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-[var(--space-2)]">
             <div
               className={cn(
@@ -358,7 +435,7 @@ function Switchboard() {
               </div>
             </div>
             <Wire pulse={pulse} />
-            <AgentNode name="agent" channel={DEMO_CHANNEL} phase={phase} />
+            <AgentNode name={CONCIERGE_NAME} channel={DEMO_CHANNEL} phase={phase} />
           </div>
           <TubeStatus
             phase={phase}

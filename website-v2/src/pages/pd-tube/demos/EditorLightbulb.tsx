@@ -7,6 +7,7 @@ import {
   SurfacePanel,
 } from '@/components/site/primitives'
 import { cn } from '@/lib/utils'
+import { HowItsWired } from './HowItsWired'
 import {
   AgentNode,
   Sender,
@@ -47,6 +48,54 @@ import {
  */
 
 const EXPLAIN_CHANNEL = 'editor:explain'
+
+/** The Explainer — the named agent that reads a selection and explains it. */
+const EXPLAINER_NAME = 'explainer'
+const EXPLAINER_ROLE = 'Code explainer'
+
+/** The real prompt the Explainer runs with — the instructions handed to the model. */
+const EXPLAINER_PROMPT = `You are Explainer, the code explainer on this project's
+editor:explain channel. Each message is a JSON request from an editor:
+{ file, range, selection } — a file path, a line range, and the selected source.
+
+For every request:
+1. Explain the selected code in plain language: what it does, and one thing
+   worth knowing (an edge case, an assumption, a subtle bug). Two or three
+   sentences, no restating the code line by line.
+2. If — and only if — there is a clear improvement, append a unified diff for
+   it. If the code is fine as-is, say so and send no diff.
+
+Reply on the same channel with inReplyTo set to the request's id, sender
+"explainer". You explain and suggest; the editor decides whether to apply.`
+
+/** The pd-fleet.yml that declares the Explainer on the editor:explain channel. */
+const EXPLAINER_FLEET_YAML = `# pd-fleet.yml — declare the Explainer on the editor:explain channel.
+fleet:
+  name: editor-crew
+  agents:
+    explainer:
+      trigger: editor:explain       # daemon dispatches on every selection sent
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      singleton: true
+      allowedTools: "Read,Grep,Glob"
+      identity: "{project}:fleet:explainer"
+      telos: "Explain a selection plainly; suggest a change only when it earns one."
+      prompt: |
+        You are Explainer on editor:explain. Each message is JSON from an editor:
+        { file, range, selection }. Explain the selected code in plain language —
+        what it does plus one thing worth knowing — in two or three sentences.
+        Append a unified diff only if there is a clear improvement; otherwise say
+        the code is fine and send no diff. Reply on the same channel with
+        inReplyTo set, sender "explainer".`
+
+/** The ad-hoc one-liner: a listener that hands the prompt to a model. */
+const EXPLAINER_ADHOC = `# Ad-hoc: tail the channel and hand each selection to a model with the prompt above.
+pd tube ${EXPLAIN_CHANNEL} --tail --as ${EXPLAINER_NAME} \\
+  --prompt "You are Explainer. Read the { file, range, selection } JSON and explain it plainly; add a diff only if it earns one."`
 
 /** The faux editor file + the lines shown, with the selected range marked. */
 const FILE_PATH = 'src/daemon/url.ts'
@@ -245,7 +294,7 @@ export function EditorLightbulb() {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-[var(--space-2)]">
             <Sender role="Editor" name="selection" active={lit} />
             <Wire pulse={pulse} />
-            <AgentNode name="explainer" channel={EXPLAIN_CHANNEL} phase={phase} />
+            <AgentNode name={EXPLAINER_NAME} channel={EXPLAIN_CHANNEL} phase={phase} />
           </div>
 
           <TubeStatus
@@ -307,6 +356,26 @@ export function EditorLightbulb() {
               command={EDITOR_SNIPPET}
             />
           </SurfacePanel>
+        </div>
+
+        {/* Full-width: how this demo is wired. */}
+        <div className="lg:col-span-2">
+          <HowItsWired
+            channel={EXPLAIN_CHANNEL}
+            agents={[{ name: EXPLAINER_NAME, role: EXPLAINER_ROLE, prompt: EXPLAINER_PROMPT }]}
+            trigger={
+              <>
+                Your editor's “Ask the agent” command POSTs a{' '}
+                <code className="font-mono">{'{ file, range, selection }'}</code> request to{' '}
+                <code className="font-mono">{EXPLAIN_CHANNEL}</code>. In a fleet the channel is the
+                trigger: the daemon watches <code className="font-mono">editor:explain</code> and
+                dispatches the Explainer on each selection. The editor side is roughly 300 lines of a
+                VS Code extension; the agent side is the prompt below.
+              </>
+            }
+            fleetYaml={EXPLAINER_FLEET_YAML}
+            adHocCommand={EXPLAINER_ADHOC}
+          />
         </div>
       </div>
     </TubeMotionProvider>

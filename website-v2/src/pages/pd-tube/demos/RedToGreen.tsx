@@ -7,6 +7,7 @@ import {
   SurfacePanel,
 } from '@/components/site/primitives'
 import { cn } from '@/lib/utils'
+import { HowItsWired } from './HowItsWired'
 import {
   AgentNode,
   Sender,
@@ -41,7 +42,56 @@ import {
  * sample of the shape a reply takes.
  */
 
-const FAIL_CHANNEL = 'dev:test-failed'
+const FAIL_CHANNEL = 'tests:failed'
+
+/** The Mechanic — the named agent that reads failures and replies with a fix. */
+const MECHANIC_NAME = 'mechanic'
+const MECHANIC_ROLE = 'Test fixer'
+
+/** The real prompt the Mechanic runs with — the instructions handed to the model. */
+const MECHANIC_PROMPT = `You are Mechanic, the test fixer on this project's
+tests:failed channel. Each message is a captured failure: a suite name, the
+failing assertion, expected vs received, and a short stack snippet.
+
+For every failure:
+1. Read the assertion and stack. Find the smallest change that makes the test
+   pass for the RIGHT reason — never edit the test to match a wrong result.
+2. Reply with a one or two sentence diagnosis of the actual bug, then a unified
+   diff for the fix. Keep the diff minimal and scoped to the cited file.
+3. If the failure is environmental (flaky, missing fixture, timeout) say so and
+   do not invent a code change.
+
+Reply on the same channel with inReplyTo set to the failure's id, sender
+"mechanic". You propose the diff; a human applies it.`
+
+/** The pd-fleet.yml that declares the Mechanic on the tests:failed channel. */
+const MECHANIC_FLEET_YAML = `# pd-fleet.yml — declare the Mechanic on the tests:failed channel.
+fleet:
+  name: ci-crew
+  agents:
+    mechanic:
+      trigger: tests:failed         # daemon dispatches on every captured failure
+      backend: cli:claude-code
+      fallbacks:
+        - backend: cli:codex
+        - backend: cloudflare
+          model: '@cf/qwen/qwen2.5-coder-32b-instruct'
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Bash(npm test*)"
+      identity: "{project}:fleet:mechanic"
+      telos: "Turn a red suite green for the right reason, with a minimal diff."
+      prompt: |
+        You are Mechanic, the test fixer on tests:failed. Each message is a
+        captured failure: suite, failing assertion, expected vs received, stack.
+        Find the smallest change that makes the test pass for the RIGHT reason —
+        never edit the test to match a wrong result. Reply with a one-line
+        diagnosis then a minimal unified diff for the cited file. Reply on the
+        same channel with inReplyTo set, sender "mechanic". A human applies it.`
+
+/** The ad-hoc one-liner: a listener that hands the prompt to a model. */
+const MECHANIC_ADHOC = `# Ad-hoc: tail the channel and hand each failure to a model with the prompt above.
+pd tube ${FAIL_CHANNEL} --tail --as ${MECHANIC_NAME} \\
+  --prompt "You are Mechanic. Read the failure, diagnose the bug in one line, reply with a minimal unified diff."`
 
 /** A realistic failing-test payload, posted verbatim as the message body. */
 const FAILURE_PAYLOAD = {
@@ -203,7 +253,7 @@ export function RedToGreen() {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-[var(--space-2)]">
             <Sender role="Reporter" name="test-runner" active={busy || passed} />
             <Wire pulse={pulse} />
-            <AgentNode name="fixer" channel={FAIL_CHANNEL} phase={phase} />
+            <AgentNode name={MECHANIC_NAME} channel={FAIL_CHANNEL} phase={phase} />
           </div>
 
           <TubeStatus
@@ -262,6 +312,25 @@ export function RedToGreen() {
               command={REPORTER_SNIPPET}
             />
           </SurfacePanel>
+        </div>
+
+        {/* Full-width: how this demo is wired. */}
+        <div className="lg:col-span-2">
+          <HowItsWired
+            channel={FAIL_CHANNEL}
+            agents={[{ name: MECHANIC_NAME, role: MECHANIC_ROLE, prompt: MECHANIC_PROMPT }]}
+            trigger={
+              <>
+                Your test reporter POSTs the captured failure to{' '}
+                <code className="font-mono">{FAIL_CHANNEL}</code>. In a fleet the channel is the
+                trigger: the daemon watches <code className="font-mono">tests:failed</code> and
+                dispatches the Mechanic on each failure. The same message can also arrive from a CI
+                step or a watch-mode runner — the Mechanic does not care who posted it.
+              </>
+            }
+            fleetYaml={MECHANIC_FLEET_YAML}
+            adHocCommand={MECHANIC_ADHOC}
+          />
         </div>
       </div>
     </TubeMotionProvider>

@@ -23,15 +23,16 @@ import {
   usePublish,
   type TubeMessage,
 } from '@/components/tube/TubeWire'
+import { HowItsWired } from './HowItsWired'
 
 /**
  * WarRoom — pd tube playground Demo #4.
  *
  * The point of THIS demo (vs the others): it is not human→agent, it is
  * agent↔agent. Several named agents investigate a shared "incident" on ONE
- * channel (`bridge:warroom`) and react to each other. A visitor seeds the
+ * channel (`incident:checkout`) and react to each other. A visitor seeds the
  * incident with a single real POST; real listeners (run as
- * `pd tube bridge:warroom --as alpha|bravo|charlie`) post findings and reply to
+ * `pd tube incident:checkout --as alpha|bravo|charlie`) post findings and reply to
  * one another via `inReplyTo`. We render the conversation as threaded cards in
  * three colored lanes and draw teal provenance arrows whenever one agent's
  * message replies-to another's — so the argument's lineage is literally visible.
@@ -57,8 +58,68 @@ import {
  * appear without a rise, and the ROOT CAUSE banner does not flare.
  */
 
-const WAR_CHANNEL = 'bridge:warroom'
+const WAR_CHANNEL = 'incident:checkout'
 const SEEDER = 'incident-bot'
+
+/** The shared prompt the three incident agents run with — same channel, distinct
+ *  roles. Each gets the same base instructions plus its own role line so the
+ *  page can show exactly what each model was told. */
+function incidentPrompt(name: AgentName, role: string, focus: string): string {
+  return `You are ${name}, the ${role.toLowerCase()} on this project's
+incident:checkout channel. An incident has been seeded here; you and the other
+agents investigate it together on this one channel.
+
+Your beat: ${focus}
+
+For every turn:
+1. Read what the other agents have already posted (the channel is shared).
+2. Post one finding from your beat. When it builds on or contradicts another
+   agent, reply to that message so the lineage is explicit.
+3. When the evidence points to a single cause, post a line that begins
+   "ROOT CAUSE:" — exactly one root-cause declaration for the incident.
+
+Reply on the same channel, sender "${name}", with --reply-to <id> when you cite
+another agent. Report only what the evidence supports; never fabricate a metric.`
+}
+
+/** The pd-fleet.yml that declares all three incident agents on one channel. */
+const INCIDENT_FLEET_YAML = `# pd-fleet.yml — three agents, one incident channel, distinct beats.
+fleet:
+  name: incident-room
+  agents:
+    alpha:
+      trigger: incident:checkout    # all three watch the same channel
+      backend: cli:claude-code
+      singleton: true
+      identity: "{project}:fleet:alpha"
+      telos: "Lead the incident: synthesize findings into one root cause."
+      prompt: |
+        You are alpha, the incident lead on incident:checkout. Read what bravo
+        and charlie post, synthesize, and when the evidence converges post one
+        line beginning "ROOT CAUSE:". Reply with --reply-to <id> when you cite
+        another agent. Never fabricate a metric.
+    bravo:
+      trigger: incident:checkout
+      backend: cli:claude-code
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Bash(psql*)"
+      identity: "{project}:fleet:bravo"
+      telos: "Investigate the database angle of the incident."
+      prompt: |
+        You are bravo, database, on incident:checkout. Post findings about
+        connections, locks, slow queries, and pool saturation. Reply with
+        --reply-to <id> when you build on another agent. Never fabricate a metric.
+    charlie:
+      trigger: incident:checkout
+      backend: cli:claude-code
+      singleton: true
+      allowedTools: "Read,Grep,Glob,Bash(grep*)"
+      identity: "{project}:fleet:charlie"
+      telos: "Investigate the logs/timeline angle of the incident."
+      prompt: |
+        You are charlie, logs, on incident:checkout. Post findings from log lines
+        and the timeline: what changed, when, and what error rates did. Reply
+        with --reply-to <id> when you corroborate another agent. Never fabricate.`
 /** The incident the visitor seeds. Phrased so agents have something to react to. */
 const SEED_BODY =
   'INCIDENT: checkout p99 latency jumped 8x at 14:02 UTC. Error rate climbing. ' +
@@ -82,6 +143,13 @@ const AGENTS: AgentDef[] = [
   { name: 'bravo', role: 'Database', icon: Database, accent: '#4a9dd8', accentInk: '#0c2233' },
   { name: 'charlie', role: 'Logs', icon: ScrollText, accent: '#f0a830', accentInk: '#3a2606' },
 ]
+
+/** Each agent's beat — the one-line focus woven into its prompt. */
+const AGENT_FOCUS: Record<AgentName, string> = {
+  alpha: 'lead the room, weigh the others’ findings, and call the single root cause.',
+  bravo: 'the database — connections, locks, slow queries, pool saturation.',
+  charlie: 'the logs and timeline — what changed, when, and what error rates did.',
+}
 
 const AGENT_NAMES = AGENTS.map((a) => a.name)
 const AGENT_BY_NAME = Object.fromEntries(AGENTS.map((a) => [a.name, a])) as Record<
@@ -340,6 +408,38 @@ export function WarRoom() {
   --send "db: connection pool saturated at 14:01 — preceded the latency spike."`}
           />
         </SurfacePanel>
+
+        {/* How this demo is wired — all three agents, one channel. */}
+        <HowItsWired
+          channel={WAR_CHANNEL}
+          agents={AGENTS.map((a) => ({
+            name: a.name,
+            role: a.role,
+            prompt: incidentPrompt(a.name, a.role, AGENT_FOCUS[a.name]),
+          }))}
+          trigger={
+            <>
+              A single seed POST opens the incident on{' '}
+              <code className="font-mono">{WAR_CHANNEL}</code>. In a fleet all three agents declare
+              that same channel as their trigger, so the daemon dispatches every one of them on each
+              new message — including each other's. That is what makes the conversation agent↔agent:
+              one shared mailbox, three listeners, every reply a real dispatch.
+            </>
+          }
+          fleetYaml={INCIDENT_FLEET_YAML}
+          adHocCommand={`# Ad-hoc: start three listeners on the same channel, one per role, each with its own prompt.
+pd tube ${WAR_CHANNEL} --tail --as alpha   --prompt "You are alpha, incident lead. Synthesize; call ROOT CAUSE."
+pd tube ${WAR_CHANNEL} --tail --as bravo   --prompt "You are bravo, database. Post DB findings; reply-to to cite."
+pd tube ${WAR_CHANNEL} --tail --as charlie --prompt "You are charlie, logs. Post timeline findings; reply-to to cite."`}
+          fleetBarNote={
+            <>
+              FleetBar lists all three agents and shows which are listening on{' '}
+              <code className="font-mono">{WAR_CHANNEL}</code>. With a fleet declared, the room runs
+              itself — the daemon dispatches alpha, bravo, and charlie and you watch the findings and
+              the root-cause call land in the app.
+            </>
+          }
+        />
       </div>
     </TubeMotionProvider>
   )
