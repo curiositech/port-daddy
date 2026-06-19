@@ -110,6 +110,7 @@ function makeConductor(over = {}) {
     // Default: nothing is a main checkout unless a test injects otherwise.
     isMainCheckout: over.isMainCheckout ?? (() => false),
     mintWorktree: over.mintWorktree,
+    publishArtifact: over.publishArtifact,
     rootCapabilityCeiling: over.rootCapabilityCeiling,
     defaultLineageCeilingUsd: over.defaultLineageCeilingUsd,
     defaultBondUsd: over.defaultBondUsd,
@@ -893,5 +894,177 @@ describe('cost gates ARMED on the live (no-bond) path', () => {
     expect(res.admitted).toBe(true);
     expect(res.launch.lineageCeilingUsd).toBeNull(); // unbounded by default
     expect(res.launch.bondUsd).toBeNull();           // reserve nothing by default
+  });
+});
+
+// ─── ADR-0060 dispatch fold-in: mintWorktree (async) + publishArtifact ────────
+//
+// The dispatch surface folds into the Conductor as a `worktree:'create',
+// mergePolicy:'review'` launch. Two hooks carry the dispatch-specific lifecycle:
+//   • mintWorktree — async git worktree add (must be AWAITED so the minted
+//     off-main workdir reaches the spawn spec, satisfying I2 NO_SPAWN_ON_MAIN).
+//   • publishArtifact — push branch + open draft PR AFTER a successful review-
+//     path run; its URL lands in resultArtifact. It is a PURE SIDE-EFFECT: it
+//     never touches the breaker/bonds, never flips a green run to failed, and a
+//     throw is swallowed (resultArtifact null, launch NOT lost).
+//
+// These are real-bug tests: each guards a property whose violation would either
+// lose a dispatch's PR, publish a PR for a launch that never produced output,
+// charge the budget breaker for a non-spawn, or spawn against a main checkout
+// because the async mint wasn't awaited.
+describe('ADR-0060 dispatch fold-in — mintWorktree + publishArtifact', () => {
+  const DISPATCH_INTENT = {
+    goal: 'build the dispatch feature',
+    backend: 'cli:codex',
+    source: 'dispatch',
+    worktree: 'create',
+    mergePolicy: 'review',
+    worktreePath: '/Users/me/coding/tmp/port-daddy-dispatch-abc12345',
+    worktreeBranch: 'dispatch/build-the-dispatch-abc12345',
+    worktreeBaseRef: 'origin/main',
+    env: { PD_DISPATCH_ID: 'abc12345' },
+    tubeChannel: 'dispatch:abc12345',
+    bondUsd: 5,
+    lineageCeilingUsd: 5,
+  };
+
+  test('publishArtifact IS called on a mergePolicy:review success and its URL lands in resultArtifact', async () => {
+    const calls = [];
+    const publishArtifact = jest.fn(async (launch, intent) => {
+      calls.push({ launchId: launch.id, branch: intent.worktreeBranch });
+      return 'https://github.com/curiositech/port-daddy/pull/999';
+    });
+    const { conductor } = makeConductor({ publishArtifact });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+
+    expect(res.admitted).toBe(true);
+    expect(publishArtifact).toHaveBeenCalledTimes(1);
+    // The hook receives the ADMITTED launch (with a stamped id) and the intent.
+    expect(calls[0].launchId).toBe(res.launch.id);
+    expect(calls[0].branch).toBe(DISPATCH_INTENT.worktreeBranch);
+    expect(res.launch.resultArtifact).toBe('https://github.com/curiositech/port-daddy/pull/999');
+  });
+
+  test('publishArtifact is NOT called on mergePolicy:never (no review artifact)', async () => {
+    const publishArtifact = jest.fn(async () => 'https://example.com/pr/1');
+    const { conductor } = makeConductor({ publishArtifact });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT, mergePolicy: 'never' });
+
+    expect(res.admitted).toBe(true);
+    // A `never` launch settles immediately with no PR-able review gate.
+    expect(res.launch.state).toBe('settled');
+    expect(publishArtifact).not.toHaveBeenCalled();
+    expect(res.launch.resultArtifact).toBeNull();
+  });
+
+  test('publishArtifact is NOT called on a FAILED run (nothing to publish)', async () => {
+    const publishArtifact = jest.fn(async () => 'https://example.com/pr/1');
+    const spawner = makeSpawner({ status: 'failed', error: 'agent exploded' });
+    const { conductor } = makeConductor({ publishArtifact, spawner });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+
+    expect(res.admitted).toBe(true);
+    expect(res.launch.state).toBe('failed');
+    expect(publishArtifact).not.toHaveBeenCalled();
+    expect(res.launch.resultArtifact).toBeNull();
+  });
+
+  test('a THROWING publishArtifact leaves the run produced with resultArtifact null (run NOT lost)', async () => {
+    const publishArtifact = jest.fn(async () => {
+      throw new Error('gh pr create failed: network down');
+    });
+    const { conductor } = makeConductor({ publishArtifact });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+
+    // The launch is NOT lost and NOT flipped to failed — the run succeeded.
+    expect(res.admitted).toBe(true);
+    expect(res.launch.state).toBe('produced');
+    expect(res.launch.resultArtifact).toBeNull();
+    // The publish failure is recorded as a note for the operator, not a failure.
+    expect(res.launch.errorMessage).toMatch(/artifact publish failed/);
+    expect(publishArtifact).toHaveBeenCalledTimes(1);
+  });
+
+  test('publishArtifact does NOT touch the cost breaker (publishing is not a spawn)', async () => {
+    // Price the spawn at $2 via telemetry. The publish must not add to realized
+    // spend, so the lineage scope's realized accrual reflects ONLY the spawn.
+    const spawner = makeSpawner({ status: 'completed', telemetry: { costUsd: 2 } });
+    const publishArtifact = jest.fn(async () => 'https://example.com/pr/7');
+    const { conductor, breaker } = makeConductor({
+      spawner,
+      publishArtifact,
+      defaultLineageCeilingUsd: 10,
+    });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+    expect(res.admitted).toBe(true);
+    expect(res.launch.resultArtifact).toBe('https://example.com/pr/7');
+    // Realized cost on the launch is the spawn cost only ($2) — publishing the PR
+    // added nothing. (The bond was $5; telemetry $2 < bond, recordOutcome uses the
+    // reported cost.) The launch's recorded cost must be the spawn's $2, proving
+    // the publish never accrued.
+    expect(res.launch.costUsd).toBe(2);
+    void breaker;
+  });
+
+  test('async mintWorktree is AWAITED and its workdir reaches the spawn spec', async () => {
+    // mintWorktree resolves on a later macrotask; if launch() did not await it,
+    // the spec.workdir would be undefined (or the intent's, not the minted one).
+    const mintWorktree = jest.fn(async (_launch, intent) => {
+      await new Promise((r) => setTimeout(r, 5)); // genuinely async
+      return intent.worktreePath; // the minted off-main workdir
+    });
+    const spawner = makeSpawner();
+    const { conductor } = makeConductor({ mintWorktree, spawner });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+
+    expect(res.admitted).toBe(true);
+    expect(mintWorktree).toHaveBeenCalledTimes(1);
+    // The single recorded spawn spec must carry the AWAITED minted workdir.
+    expect(spawner.calls).toHaveLength(1);
+    expect(spawner.calls[0].workdir).toBe(DISPATCH_INTENT.worktreePath);
+  });
+
+  test('the dispatch intent forwards env + tubeChannel into the spawn spec (passthrough)', async () => {
+    const spawner = makeSpawner();
+    const { conductor } = makeConductor({ spawner, publishArtifact: async () => 'https://x/pr/1' });
+
+    const res = await conductor.launch({ ...DISPATCH_INTENT });
+
+    expect(res.admitted).toBe(true);
+    expect(spawner.calls).toHaveLength(1);
+    expect(spawner.calls[0].env).toEqual(DISPATCH_INTENT.env);
+    expect(spawner.calls[0].tubeChannel).toBe(DISPATCH_INTENT.tubeChannel);
+  });
+
+  test('a non-dispatch launch leaves env/tubeChannel OFF the spec (golden byte-identity)', () => {
+    // The fold-in is additive-only: a sortie/operator intent that sets neither
+    // env nor tubeChannel must produce a spec WITHOUT those keys.
+    const { conductor } = makeConductor();
+    const spec = conductor.intentToSpawnSpec(
+      { ...ROOT_INTENT, source: 'sortie' },
+      '/some/workdir',
+    );
+    expect('env' in spec).toBe(false);
+    expect('tubeChannel' in spec).toBe(false);
+  });
+
+  test('a refused dispatch (depth-capped) never calls publishArtifact', async () => {
+    // An `agent`-sourced dispatch-shaped intent claiming roothood is refused at
+    // admission. publishArtifact must never fire for a launch that never ran.
+    const publishArtifact = jest.fn(async () => 'https://x/pr/1');
+    const { conductor } = makeConductor({ publishArtifact });
+    const res = await conductor.launch({
+      ...DISPATCH_INTENT,
+      source: 'agent', // may not mint a root → refused
+      parentId: 'operator',
+    });
+    expect(res.admitted).toBe(false);
+    expect(publishArtifact).not.toHaveBeenCalled();
   });
 });

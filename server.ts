@@ -65,6 +65,15 @@ import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
 import { createConductor } from './lib/fleet/conductor.js';
+import { createDispatchQueue } from './lib/dispatch/queue.js';
+import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
+import {
+  gitWorktreeAdd,
+  gitPushBranch,
+  openDraftPr,
+  disableGuardInWorktree,
+} from './lib/dispatch/spawn-adapter.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
 import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
@@ -598,6 +607,48 @@ const conductor = createConductor({
   // breaker actually accrues committed spend instead of reserving $0.
   defaultLineageCeilingUsd: FLEET_LINEAGE_CEILING_USD,
   defaultBondUsd: FLEET_DEFAULT_BOND_USD,
+  // ADR-0060 dispatch fold-in: the Conductor owns the dispatch worktree mint +
+  // draft-PR publish so dispatch becomes a `worktree:'create', mergePolicy:'review'`
+  // LaunchIntent (see lib/dispatch/conductor-adapter.ts). These hooks are only
+  // exercised by `source:'dispatch'` launches (they carry worktreePath/branch/
+  // baseRef); every other launch leaves them untouched.
+  mintWorktree: async (_launch, intent) => {
+    // I2 NO_SPAWN_ON_MAIN is satisfied here: carve a fresh off-main worktree on
+    // the dispatch branch, then scope-disable the Coordination Guard inside it so
+    // the autonomous agent can commit without an interactive `pd begin` session.
+    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
+      // Not a dispatch-shaped intent — fall back to the intent's own workdir.
+      return intent.workdir;
+    }
+    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef);
+    disableGuardInWorktree(intent.worktreePath);
+    return intent.worktreePath;
+  },
+  publishArtifact: async (launch, intent) => {
+    // Push the dispatch branch and open a draft PR; return its URL. Runs OUTSIDE
+    // the cost breaker/bonds (Conductor guarantees this). A throw is swallowed by
+    // the Conductor (resultArtifact stays null, launch not lost), but we also
+    // catch here so the log message is dispatch-specific.
+    if (!intent.worktreePath || !intent.worktreeBranch) return null;
+    try {
+      await gitPushBranch(intent.worktreePath, intent.worktreeBranch);
+      // worktreeBaseRef is `<remote>/<branch>` (e.g. origin/main); the PR base is
+      // the branch name with the remote prefix stripped.
+      const baseRef = intent.worktreeBaseRef ?? 'origin/main';
+      const slash = baseRef.indexOf('/');
+      const baseBranch = slash >= 0 ? baseRef.slice(slash + 1) : baseRef;
+      return await openDraftPr({
+        branch: intent.worktreeBranch,
+        baseBranch,
+        goal: launch.goal,
+        dispatchId: launch.id,
+        worktreePath: intent.worktreePath,
+      });
+    } catch (e) {
+      console.error('[Conductor] dispatch PR publish failed:', e);
+      return null;
+    }
+  },
 });
 // ARM I5: register the GLOBAL ceiling so aggregate fleet spend is bounded. Without
 // this the global breaker has a null ceiling = unbounded and never trips.
@@ -607,6 +658,47 @@ if (FLEET_GLOBAL_CEILING_USD == null) {
 } else {
   console.error(`[Conductor] Fleet cost gates ARMED: global=$${FLEET_GLOBAL_CEILING_USD}, lineage=$${FLEET_LINEAGE_CEILING_USD}, bond floor=$${FLEET_DEFAULT_BOND_USD}, maxDepth=${FLEET_MAX_DEPTH}.`);
 }
+
+// ── Dispatch worker (ADR-0060 — the FOURTH spawn surface, folded into the Conductor) ──
+// Before this, dispatch execution was bound to the foreground CLI for up to 6h;
+// an interrupted CLI stranded the dispatch `in_progress` forever. The worker is a
+// background poll loop that claims `proposed` dispatches and runs them — fully
+// detached from any terminal — and recovers dispatches stranded by a previous
+// daemon on start. Disable with PD_DISPATCH_WORKER=false.
+//
+// THE FOLD-IN: rather than the legacy inline spawn adapter (which did worktree +
+// raw spawn + cost parse + PR itself), the worker is injected with the
+// CONDUCTOR-backed adapter. Every dispatch therefore spawns through the ONE
+// `conductor.launch` primitive — bond-gated, ceiling-gated, depth-capped,
+// halt-able, capability-scoped, and refused on a main checkout — and the
+// Conductor owns the worktree mint + cost pricing + draft-PR publish via its
+// hooks above. The dispatch `tubeClient`/`costFn` are no longer threaded through
+// (the Conductor owns tube + cost), so they are omitted here.
+const dispatchQueue = createDispatchQueue({ db });
+const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
+const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
+const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
+  ? Math.min(_dispatchConcurrency, 5)
+  : 2;
+const _dispatchPollMs = parseInt(process.env.PD_DISPATCH_POLL_MS ?? '5000', 10);
+const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 500
+  ? _dispatchPollMs
+  : 5000;
+// Optional model pin for dispatch work. Absent → the CLI's authenticated default.
+const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
+const dispatchWorker = DISPATCH_WORKER_ENABLED
+  ? createDispatchWorker({
+      queue: dispatchQueue,
+      logger,
+      maxConcurrency: DISPATCH_CONCURRENCY,
+      pollIntervalMs: DISPATCH_POLL_MS,
+      model: DISPATCH_MODEL,
+      // THE INJECTION POINT: spawn every dispatch through the Conductor.
+      spawnAdapter: createConductorSpawnAdapter(conductor),
+    })
+  : null;
+if (dispatchWorker) dispatchWorker.start();
+
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {
@@ -1139,7 +1231,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, conductor, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
@@ -1264,6 +1356,7 @@ function shutdown(signal: string): void {
   try { bosunHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
+  try { dispatchWorker?.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);
