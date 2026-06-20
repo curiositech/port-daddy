@@ -414,8 +414,8 @@ function OperadWiringFigure() {
         <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
           The 3 a.m. collision, drawn as types. Each box is an operation with typed inputs and one typed output;
           <ManifestoMono>test</ManifestoMono> and <ManifestoMono>review</ManifestoMono> run in parallel; and
-          <ManifestoMono>merge</ManifestoMono> takes the Claim as an input — so single-writer safety is a fact of the
-          wiring, not a rule anyone is asked to follow.
+          <ManifestoMono>merge</ManifestoMono> takes the Claim as an input — the contract the harbor recommends. The claim
+          is advisory, made credible by an observable history, not a hard lock.
         </figcaption>
       </figure>
       <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
@@ -444,11 +444,14 @@ function OperadWiringFigure() {
             <ManifestoMono>Merge</ManifestoMono>.
           </p>
           <p>
-            The whole argument is the red wire. <ManifestoMono>merge</ManifestoMono>&rsquo;s type signature{' '}
-            <em>requires</em> a <ManifestoMono>Claim</ManifestoMono>, so there is no way to produce a{' '}
-            <ManifestoMono>Merge</ManifestoMono> without having held the claim. The single-writer guarantee stops being a
-            rule an agent is asked to obey and becomes a fact of the wiring — type-checkable before any agent runs. That
-            is &ldquo;institutions, not cleverness,&rdquo; made literal.
+            The whole argument is the red wire — kept honest. Port Daddy&rsquo;s file claims are{' '}
+            <em>advisory</em>, not a hard lock: an agent technically can merge without one. What holds the contract
+            together is not enforcement but incentives — with an observable, immutable history and a persistent
+            identity, defecting from the wiring costs more than complying (the folk-theorem result for repeated games),
+            and where the stakes demand a real wall, Anchor&rsquo;s capability tokens supply one cryptographically. So{' '}
+            <ManifestoMono>merge</ManifestoMono> &ldquo;needs&rdquo; the <ManifestoMono>Claim</ManifestoMono> is a
+            contract the harbor makes legible and self-enforcing — institutions, not cleverness — without pretending the
+            wiring physically forbids the merge.
           </p>
         </div>
       </div>
