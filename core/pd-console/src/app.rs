@@ -487,14 +487,14 @@ impl ConsoleView {
         }
     }
 
-    /// The opening layout: a fleet overview beside a stacked agent-lane /
-    /// roadmap column — proof of multiplex on first launch. `initial` (if a
-    /// known nav id) becomes the focused pane's surface.
+    /// The opening layout: a clickable file browser beside a stacked agent-lane /
+    /// roadmap column — click a file to open it in an Editor split, no keyboard
+    /// incantation. `initial` (if a known nav id) becomes the focused surface.
     fn default_workspace(initial: Option<&str>) -> Workspace {
-        let mut ws = Workspace::new(SurfaceKind::Fleet);
-        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
+        let mut ws = Workspace::new(SurfaceKind::FileTree { root: None });
+        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // files | lane
         ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
-        ws.focus(1); // start on the fleet pane (first leaf id)
+        ws.focus(1); // start on the file-browser pane (first leaf id)
         if let Some(nav) = initial {
             if NAV.iter().any(|n| n.id == nav) {
                 ws.swap_surface(surface_for_nav_id(nav));
@@ -754,6 +754,13 @@ impl ConsoleView {
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
+        // FileTree renders a CLICKABLE directory browser (not Blocks): click a
+        // folder to descend, click a file to open it in an Editor split.
+        let filetree_root = match surface {
+            SurfaceKind::FileTree { root } => Some(root.clone()),
+            _ => None,
+        };
+        let is_filetree = filetree_root.is_some();
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
@@ -849,7 +856,12 @@ impl ConsoleView {
                     .overflow_y_scroll()
                     .flex()
                     .flex_col()
-                    .children(blocks.into_iter().map(render_block)),
+                    .when_some(filetree_root, |body, root| {
+                        body.child(render_file_browser(root, id, cx))
+                    })
+                    .when(!is_filetree, |body| {
+                        body.children(blocks.into_iter().map(render_block))
+                    }),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
@@ -1014,6 +1026,98 @@ fn dispatch_gate_btn(
                     this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
                 }
                 _ => {}
+            }
+            cx.notify();
+        }))
+}
+
+/// Render the clickable file browser for a `SurfaceKind::FileTree`. Lists the
+/// directory — folders first, then files, hidden entries skipped — each row a
+/// real clickable control: click a folder to descend (swaps THIS pane's root),
+/// click a file to open it in a new Editor split. No keyboard incantation.
+fn render_file_browser(
+    root: Option<String>,
+    pane_id: PaneId,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    use std::path::PathBuf;
+    let dir: PathBuf = root
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+    let mut dirs: Vec<(String, PathBuf)> = Vec::new();
+    let mut files: Vec<(String, PathBuf)> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(&dir) {
+        for e in rd.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') {
+                continue; // skip dotfiles for a calm default view
+            }
+            let p = e.path();
+            if p.is_dir() {
+                dirs.push((name, p));
+            } else {
+                files.push((name, p));
+            }
+        }
+    }
+    dirs.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+    files.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+
+    let mut col = div()
+        .id(SharedString::from(format!("ftbrowse-{pane_id}")))
+        .flex()
+        .flex_col()
+        .child(
+            // Current path header (eyebrow-style: small but mono + muted).
+            div()
+                .px(px(12.0))
+                .py(px(6.0))
+                .text_color(rgb(current_theme().muted))
+                .text_size(px(13.0))
+                .font_family("IBM Plex Mono")
+                .child(dir.display().to_string()),
+        );
+
+    if let Some(parent) = dir.parent() {
+        col = col.child(file_row("▸ ..".into(), parent.to_path_buf(), true, pane_id, cx));
+    }
+    for (name, p) in dirs {
+        col = col.child(file_row(format!("▸ {name}/"), p, true, pane_id, cx));
+    }
+    for (name, p) in files {
+        col = col.child(file_row(format!("   {name}"), p, false, pane_id, cx));
+    }
+    col.into_any_element()
+}
+
+/// One clickable file-browser row. Folder → descend (swap this pane's FileTree
+/// root); file → open in a new Editor split. Hover lifts the row (raised bg).
+fn file_row(
+    label: String,
+    path: std::path::PathBuf,
+    is_dir: bool,
+    pane_id: PaneId,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let color = if is_dir { current_theme().accent_ink } else { current_theme().ink };
+    div()
+        .id(SharedString::from(format!("ftrow-{}", path.display())))
+        .px(px(12.0))
+        .py(px(3.0))
+        .cursor_pointer()
+        .text_color(rgb(color))
+        .text_size(px(14.0))
+        .hover(|s| s.bg(rgb(current_theme().raised)))
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.ws_mut().focus(pane_id);
+            let p = path.to_string_lossy().to_string();
+            if is_dir {
+                this.ws_mut().swap_surface(SurfaceKind::FileTree { root: Some(p) });
+            } else {
+                this.ws_mut()
+                    .split(Dir::Row, SurfaceKind::Editor { path: p, region: None });
             }
             cx.notify();
         }))
