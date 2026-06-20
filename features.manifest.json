@@ -157,6 +157,7 @@
         "POST /msg/:param",
         "GET /msg/:param",
         "DELETE /msg/:param",
+        "GET /msg/:param/lineage",
         "GET /msg/:param/poll",
         "GET /msg/:param/subscribe",
         "GET /channels/discover",
@@ -1416,6 +1417,8 @@
       "sdk": [],
       "routes": [
         "POST /pheromone/spray",
+        "POST /pheromone/resolve",
+        "GET /pheromone/coverage/:table",
         "GET /pheromone/:table/:id",
         "GET /pheromone",
         "GET /pheromone/files"
@@ -1427,6 +1430,8 @@
       },
       "mcp": [
         "spray_pheromone",
+        "resolve_pheromone",
+        "pheromone_coverage",
         "read_pheromones",
         "read_entity_pheromones"
       ]

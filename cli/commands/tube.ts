@@ -50,6 +50,7 @@ import {
   type TubeMessage,
 } from '../../lib/tube.js';
 import { buildLineage, summarizeThread, renderLineageTree } from '../../lib/discourse-lineage.js';
+import { shouldConvene } from '../../lib/parley-trigger.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daemon client (HTTP shim over pdFetch)
@@ -303,7 +304,7 @@ export function buildMetaFromOptions(options: CLIOptions): ConversationMeta | un
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --lineage [--conversation-id <id>] | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history] [--performative <act> --relationship <stance> --conversation-id <id>]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --lineage [--conversation-id <id>] [--parley-cost <n> --waste-per-contradiction <n>] | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history] [--performative <act> --relationship <stance> --conversation-id <id>]');
     process.exit(1);
   }
 
@@ -483,17 +484,31 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       }
       const graph = buildLineage(msgs);
       const digest = summarizeThread(graph);
+      // Parley recommendation (RCP-2a / ADR-0086): should the swarm convene over
+      // the unresolved contradictions? Costs are tunable; defaults are unit-scaled.
+      const num = (v: unknown, d: number) => {
+        const n = typeof v === 'string' ? Number(v) : NaN;
+        return Number.isFinite(n) ? n : d;
+      };
+      const parley = shouldConvene(digest, {
+        wastePerUnresolved: num(options['waste-per-contradiction'], 2),
+        parleyCost: num(options['parley-cost'], 1),
+      });
       if (emitMode === 'json') {
         console.log(JSON.stringify({
           ok: true,
           channel: physical,
           ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
           digest: { ...digest },
+          parley,
           tree: renderLineageTree(graph),
         }));
       } else {
         const head = `Discourse lineage · ${formatResolvedChannel(resolved)}${graph.conversationId ? ` · conversation ${graph.conversationId}` : ''}`;
         const relBits = Object.entries(digest.byRelationship).filter(([, n]) => n > 0).map(([k, n]) => `${k}=${n}`);
+        const parleyLine = parley.convene
+          ? `▶ parley recommended (${parley.shape}): ${parley.reason}`
+          : `· no parley: ${parley.reason}`;
         const summary = [
           head,
           `${digest.total} message(s) · ${digest.participants.length} participant(s) · depth ${digest.maxDepth}`,
@@ -501,6 +516,7 @@ export async function handleTube(channel: string | undefined, options: CLIOption
           digest.unresolvedContradictions.length > 0
             ? `⚠ ${digest.unresolvedContradictions.length} unresolved contradiction(s): ${digest.unresolvedContradictions.map((e) => `#${e.from}→#${e.to}`).join(', ')}`
             : '',
+          parleyLine,
           '',
           renderLineageTree(graph) || '(no messages)',
         ].filter((l) => l !== '').join('\n');

@@ -6,7 +6,13 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import { createPheromoneManager } from '../../lib/pheromone.js';
+import {
+  createPheromoneManager,
+  dampedStrength,
+  applyResolutionDamping,
+  coverageOf,
+  pickUnseenTarget,
+} from '../../lib/pheromone.js';
 import { createTestDb } from '../setup-unit.js';
 
 let db;
@@ -610,5 +616,122 @@ describe('list', () => {
     const entry = results.find(r => r.id === 'list-spray');
     expect(entry).toBeDefined();
     expect(entry.pheromones.heat).toBe(0.9);
+  });
+});
+
+// ─── RCP-7a / RCP-12 pure helpers (no DB) ────────────────────────────────────
+
+describe('dampedStrength (RCP-7a)', () => {
+  test('full resolution damps to zero', () => {
+    expect(dampedStrength(0.8, 1)).toBeCloseTo(0);
+  });
+  test('partial resolution scales down proportionally', () => {
+    expect(dampedStrength(0.8, 0.5)).toBeCloseTo(0.4);
+  });
+  test('no resolution leaves the raw value untouched', () => {
+    expect(dampedStrength(0.8, 0)).toBe(0.8);
+  });
+  test('damping factor amplifies suppression and clamps at 1', () => {
+    expect(dampedStrength(0.8, 0.5, 2)).toBeCloseTo(0); // 2*0.5 = 1 → full
+  });
+});
+
+describe('applyResolutionDamping (RCP-7a)', () => {
+  test('damps only the keys that carry a resolution', () => {
+    const out = applyResolutionDamping({ a: 0.8, b: 0.6 }, { a: 1 });
+    expect(out.a).toBeUndefined();      // fully damped → dropped (< 0.01)
+    expect(out.b).toBeCloseTo(0.6);     // untouched
+  });
+});
+
+describe('coverageOf (RCP-12)', () => {
+  test('computes coverage and the unseen set', () => {
+    const c = coverageOf(['a', 'b', 'c', 'd'], ['a', 'b']);
+    expect(c.total).toBe(4);
+    expect(c.seen).toBe(2);
+    expect(c.coverage).toBe(0.5);
+    expect(c.unseen.sort()).toEqual(['c', 'd']);
+  });
+  test('empty universe is fully covered (no divide-by-zero)', () => {
+    expect(coverageOf([], []).coverage).toBe(1);
+  });
+  test('seen ids outside the universe do not inflate coverage', () => {
+    expect(coverageOf(['a'], ['a', 'ghost']).coverage).toBe(1);
+  });
+});
+
+describe('pickUnseenTarget (RCP-12)', () => {
+  test('is deterministic given rngValue and picks within the unseen set', () => {
+    expect(pickUnseenTarget(['x', 'y', 'z'], 0)).toBe('x');
+    expect(pickUnseenTarget(['x', 'y', 'z'], 0.5)).toBe('y');
+    expect(pickUnseenTarget(['x', 'y', 'z'], 0.99)).toBe('z');
+  });
+  test('returns null when everything is seen', () => {
+    expect(pickUnseenTarget([], 0.5)).toBeNull();
+  });
+});
+
+// ─── resolution traces + coverage on the manager (DB-backed) ─────────────────
+
+describe('sprayResolution + sniffEffective (RCP-7a)', () => {
+  function insertService(id, port = 4000) {
+    const now = Date.now();
+    db.prepare(`INSERT INTO services (id, port, status, created_at, last_seen) VALUES (?, ?, 'assigned', ?, ?)`).run(id, port, now, now);
+  }
+
+  test('a resolution trace damps the effective pheromone but not the raw sniff', () => {
+    insertService('res-svc');
+    const mgr = createPheromoneManager(db);
+    mgr.spray('services', 'res-svc', 'heat', 0.9);
+
+    expect(mgr.sniff('services', 'res-svc').pheromones.heat).toBeCloseTo(0.9); // raw unaffected
+    const r = mgr.sprayResolution('services', 'res-svc', 'heat', 1);
+    expect(r.success).toBe(true);
+    expect(mgr.sniffEffective('services', 'res-svc').pheromones.heat).toBeUndefined(); // damped away
+  });
+
+  test('rejects an out-of-range resolution strength', () => {
+    insertService('res-bad');
+    const mgr = createPheromoneManager(db);
+    expect(mgr.sprayResolution('services', 'res-bad', 'heat', 5).success).toBe(false);
+  });
+
+  test('resolution traces fade faster than pheromones under evaporation', () => {
+    insertService('res-fade');
+    const mgr = createPheromoneManager(db, { decayRate: 0.5, intervalMs: 60000 });
+    mgr.spray('services', 'res-fade', 'heat', 0.8);
+    mgr.sprayResolution('services', 'res-fade', 'heat', 0.8);
+    mgr.evaporateNow();
+    const md = JSON.parse(db.prepare(`SELECT metadata FROM services WHERE id = 'res-fade'`).get().metadata);
+    // pheromone *0.5 = 0.4 ; resolution *0.25 = 0.2  → resolution decayed more
+    expect(md.pheromones.heat).toBeCloseTo(0.4);
+    expect(md.resolutions.heat).toBeCloseTo(0.2);
+  });
+});
+
+describe('coverage (RCP-12)', () => {
+  function insertService(id, port) {
+    const now = Date.now();
+    db.prepare(`INSERT INTO services (id, port, status, created_at, last_seen) VALUES (?, ?, 'assigned', ?, ?)`).run(id, port, now, now);
+  }
+
+  test('reports the fraction of entities that carry pheromone', () => {
+    insertService('cov-a', 5001);
+    insertService('cov-b', 5002);
+    insertService('cov-c', 5003);
+    const mgr = createPheromoneManager(db);
+    mgr.spray('services', 'cov-a', 'heat', 0.5);
+
+    const c = mgr.coverage('services');
+    expect(c.success).toBe(true);
+    expect(c.total).toBe(3);
+    expect(c.seen).toBe(1);
+    expect(c.coverage).toBeCloseTo(1 / 3);
+    expect(c.unseen.sort()).toEqual(['cov-b', 'cov-c']);
+  });
+
+  test('rejects an invalid table', () => {
+    const mgr = createPheromoneManager(db);
+    expect(mgr.coverage('DROP TABLE services;--').success).toBe(false);
   });
 });

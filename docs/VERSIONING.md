@@ -12,7 +12,7 @@ This document covers **what to bump and when**. For **how to actually cut a rele
 
 ## Version surfaces
 
-A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` handles the JSON ones automatically; the rest must currently be bumped by hand (see [Known gaps](#known-gaps-in-sync-versionts) below).
+A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` now handles **all** of them — the JSON manifests, the MCP/server TypeScript constants, and the website reference constant. The only manual surface left is `CHANGELOG.md` (see [Known gaps](#known-gaps-in-sync-versionts) below).
 
 | Surface | Updated by | Notes |
 |---|---|---|
@@ -42,7 +42,7 @@ The release tag, the binary `--version` output, the brew formula version, and th
 ## What you do NOT do anymore
 
 - There is no `~/port-daddy-stable` worktree.
-- There is no `scripts/promote-stable.sh`.
+- There is no `promote-stable.sh` script (it was removed with the stable-worktree flow).
 - Do not `npm link` from a working checkout — the `port-daddy` and `pd` CLIs are the Homebrew-installed binaries. Local source work is for development only; users get the signed bottle.
 - Do not hand-roll daemon promotion with `launchctl` commands. The brew formula installs the launchd service definition; `brew services restart port-daddy` is the supported operator action.
 

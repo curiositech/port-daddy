@@ -24,6 +24,9 @@
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../lane_pane.rs"]      mod lane_pane;
+#[allow(dead_code)]
+#[path = "../mux.rs"]            mod mux;
+#[path = "../lineage_pane.rs"]   mod lineage_pane;
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../peek_pane.rs"]      mod peek_pane;
@@ -39,6 +42,7 @@ use agent::{AgentManager, Backend};
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use lane_pane::LanePane;
+use lineage_pane::LineagePane;
 use pane::PaneRegistry;
 use std::io::{self, Write};
 use std::time::Duration;
@@ -64,7 +68,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · <text> · :quit",
+            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · :lineage · <text> · :quit",
             Sem::Muted
         )
     );
@@ -87,6 +91,7 @@ async fn main() -> Result<()> {
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
     reg.register(Box::new(LanePane::new()));
+    reg.register(Box::new(LineagePane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -136,6 +141,16 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
+        } else if line == ":lineage" {
+            // RCP-14 discourse argument graph for PD_LINEAGE_CHANNEL (default
+            // "discourse"). Refresh + render one tick of the lineage surface.
+            reg.active = reg.panes.iter().position(|p| p.id() == "lineage").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
         } else if line == ":agents" {
             if mgr.agents.is_empty() {
                 println!("  {}", style.paint("(no agents — :new <backend> <prompt>)", Sem::Muted));
@@ -175,7 +190,23 @@ async fn main() -> Result<()> {
                     ),
                 ),
                 Some(backend) => match mgr.create_agent(backend, prompt).await {
-                    Ok(n) => ok(&style, &format!("created top-level agent {n} on {} (voyage on the bus)", backend.as_str())),
+                    Ok((n, out)) => {
+                        // Surface the real launch result — including the inline
+                        // output one-shot backends return in the spawn response,
+                        // and any guard block (budget / worktree / wallet).
+                        if let Some(reason) = out.error.filter(|_| out.status == "failed" || out.status == "blocked") {
+                            err(&style, &format!("agent {n} {} — {reason}", out.status));
+                        } else {
+                            ok(&style, &format!("created agent {n} on {} ({})", backend.as_str(), out.status));
+                            if let Some(text) = out.output.filter(|t| !t.trim().is_empty()) {
+                                println!(
+                                    "  {} {}",
+                                    style.paint(&format!("{}:", backend.as_str()), Sem::Engaged),
+                                    text,
+                                );
+                            }
+                        }
+                    }
                     Err(e) => err(&style, &format!("spawn failed: {e}")),
                 },
             }

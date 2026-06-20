@@ -19,7 +19,11 @@ mod fleet_pane;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
+mod ledger_pane;
+mod lineage_pane;
 mod maritime;
+mod mux;
+mod palette;
 mod notes_pane;
 mod pane;
 mod peek_pane;
@@ -43,6 +47,8 @@ use fleet_pane::FleetPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
 use lane_pane::LanePane;
+use ledger_pane::LedgerPane;
+use lineage_pane::LineagePane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
@@ -96,6 +102,9 @@ impl AssetSource for FsAssets {
 }
 
 fn main() {
+    // Seed light/dark from PD_CONSOLE_THEME before the window opens (default dark).
+    app::init_theme_from_env();
+
     // Canonical daemon discovery: PORT_DADDY_URL env var → daemon.port file → default.
     // All fallback logic lives in DaemonClient::discover(); no literals here.
     let daemon_url = DaemonClient::discover()
@@ -161,8 +170,9 @@ fn main() {
         // NAV order mirrors app::NAV:
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane
-        let (tx, rx) = mpsc::channel::<Vec<(usize, Vec<pane::Block>)>>();
+        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
+        let (tx, rx) =
+            mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -194,6 +204,8 @@ fn main() {
                 let mut coast      = CoastGuardPane::default();// 14
                 let mut dispatch   = DispatchQueuePane::new(); // 15
                 let mut lane       = LanePane::new();          // 16 — the LIVE one
+                let mut ledger     = LedgerPane::new();        // 17 — the money
+                let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -212,6 +224,26 @@ fn main() {
                                 let _ = lane
                                     .mutate(&client, SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
                                     .await;
+                            }
+                            // Kick off a new top-level agent on the live daemon.
+                            app::ControlMsg::Spawn { backend, prompt } => {
+                                if let Some(b) = agent::Backend::parse(&backend) {
+                                    let _ = client.spawn(b, &prompt, "operator").await;
+                                }
+                            }
+                            // Send a turn to the cartographer over its tube channel.
+                            app::ControlMsg::Cartographer { text } => {
+                                let _ = client.tube_send("cartographer", &text, "operator").await;
+                            }
+                            // Operator review-gate verdicts on a dispatch.
+                            app::ControlMsg::DispatchAccept { id } => {
+                                let _ = client.dispatch_action(&id, "accept", None).await;
+                            }
+                            app::ControlMsg::DispatchReject { id, reason } => {
+                                let _ = client.dispatch_action(&id, "reject", Some(&reason)).await;
+                            }
+                            app::ControlMsg::DispatchCancel { id } => {
+                                let _ = client.dispatch_action(&id, "cancel", Some("operator cancelled")).await;
                             }
                         }
                     }
@@ -234,6 +266,8 @@ fn main() {
                     let _ = coast.refresh(&client).await;
                     let _ = dispatch.refresh(&client).await;
                     let _ = lane.refresh(&client).await;
+                    let _ = ledger.refresh(&client).await;
+                    let _ = lineage.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -275,9 +309,11 @@ fn main() {
                         (14, coast.view()),
                         (15, dispatch.view()),
                         (16, lane.view()),
+                        (17, ledger.view()),
+                        (18, lineage.view()),
                     ];
 
-                    if tx.send(all).is_err() {
+                    if tx.send((all, dispatch.head())).is_err() {
                         break; // window closed
                     }
                 }
@@ -291,10 +327,10 @@ fn main() {
             .spawn(async move {
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok(pane_updates) = rx.try_recv() {
+                    while let Ok((panes, dispatch_head)) = rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.update_panes(pane_updates.clone());
+                                view.update_panes(panes.clone(), dispatch_head.clone());
                                 cx.notify();
                             });
                         });

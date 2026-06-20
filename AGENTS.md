@@ -47,7 +47,7 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
   - `pd status`
   - `pd briefing`
   - `pd salvage` when crash residue or abandoned work might matter
-  - `pd begin --identity <project>:<task> --lifecycle durable`
+  - `pd begin --identity <project>:<task>`
 - If you are going to edit files, coordinate through Port Daddy primitives, not only prose:
   - leave a `pd note` describing scope and intended files
   - prefer symbol/region claims for code edits when the symbol index knows the file; use whole-file claims only when the edit truly spans the file or no symbol/section identity exists
@@ -128,31 +128,6 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If you change runtime-serving code (`server.ts`, `routes/`, `lib/` runtime paths, CLI commands that hit daemon routes), rebuild and relaunch the daemon before trusting any dogfood result. Source truth without a daemon restart is not operator truth in this repo.
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
-
-## Daemon Berths (ADR-0084) — never swap the stable daemon to test
-
-To dogfood a code change, **do not stop the brew daemon and run yours in its place.**
-Spin a side-by-side **berth** instead. Three tiered, colour-coded daemons run at once:
-
-| Berth | Built from | Port | Colour |
-|---|---|---|---|
-| **stable** (canonical) | brew release | `:9876` | amber |
-| **dev-latest** | `origin/main` HEAD | `:9886` | blue |
-| **codebase** | your worktree/branch | a `port-daddy claim`-ed port | purple |
-
-```sh
-pd dev up --from main                       # dev-latest berth on :9886
-pd dev up --from <branch> --label my-thing  # codebase berth on a claimed port
-pd dev list                                 # stable + every dev berth
-eval "$(pd use dev)"                         # point THIS shell at dev-latest (per-shell, never global)
-pd --daemon my-thing roadmap items          # target ONE command at a berth
-pd dev down my-thing                         # stop a berth (never the brew/stable daemon); --all stops all
-```
-
-- `pd dev up` builds the daemon **binary** (`scripts/build-daemon-binary.mjs`), never `tsx`. Binding `:9876` is refused.
-- `pd use` exports `PORT_DADDY_URL` + a `PD_ACTIVE_DAEMON` marker — the CLI, MCP, SDK, and the Rust console (`core/pd-console/src/agent.rs` honours `PORT_DADDY_URL`) all follow the chosen berth. `pd use stable` resets to `:9876`.
-- The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. No `PD_DAEMON_*` env → `tier=stable, canonical=true` (the brew daemon, unchanged).
-- A dev berth must never become the *implicit* default — targeting is opt-in, per shell, and visibly marked. Full model: [`docs/adr/0084-daemon-berths.md`](docs/adr/0084-daemon-berths.md).
 
 ## Agent Operating Expectations
 
@@ -245,8 +220,9 @@ flow is:
 2. **Spawn a skeptical reviewer agent.** An always-on neutral adversary already
    runs in CI on every PR — the `claude-adversarial-review` workflow, which
    assumes laziness/slop/lies/corner-cutting and ends with a
-   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. For non-trivial changes, ALSO
-   spawn your own: use the `feature-dev:code-reviewer`
+   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict (note: GitHub's action-validation
+   rule skips it on the PR that first introduces it — run your own there). For
+   non-trivial changes, ALSO spawn your own: use the `feature-dev:code-reviewer`
    subagent type (or `auditor` for whole-codebase concerns). Brief it with
    the PR's context, the change's invariants, the failure modes you're
    worried about, and SPECIFIC hunting prompts ("could this leak X? does
@@ -286,56 +262,6 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
-### Ship checklist — killer items only (DO-CONFIRM)
-
-The procedure above is the *manual*. This is the *cognitive net*: the few
-omissions that actually cause harm here, confirmed at each irreversible point.
-It is not a replacement for judgment — it catches the predictable lapses that
-slip through under momentum. **Add nothing routine.** If agents here already do
-a step reliably (worktree, `pd begin`, commit hygiene), it does not belong on
-this list. Each item below is here because it was actually missed in a real
-session. `[M]` = a machine enforces this; the rest are human DO-CONFIRM (a
-script cannot judge them, and pretending it can is solutionism).
-
-**Before you commit:**
-- **Citations are real.** `[M, partial]` Every cited repo path / file / proof
-  exists and says what you claim — "a path that no longer exists is a caught
-  lie." `scripts/check-doc-citations.mjs` (CI job `doc-citation-guard`)
-  mechanically verifies backtick'd repo paths + relative links in *changed*
-  docs. It canNOT verify that a *command/concept* you name (e.g. a `pd` verb) is
-  actually shipped vs. designed-not-built — that stays your DO-CONFIRM.
-- **Agent-neutral.** No single-harness assumption on a cross-agent surface. LLM
-  steps route through `resolveLLMBackend` (`lib/llm-backend-resolver.ts`);
-  memory/coordination lives in PD primitives, never a harness freebie like
-  Claude Code's gitignored `.remember/`. (Caught the hard way: a design doc that
-  mapped a PD pillar onto `.remember/`.)
-- **Coordinated.** `[M]` Files claimed and `pd guard check --staged` passes
-  (Coordination Guard enforces this at commit).
-
-**Before you push / open the PR:**
-- **The PR description is the contract.** `[M]` Fill out
-  `.github/PULL_REQUEST_TEMPLATE.md`: an exhaustive Summary and a non-trivial Test
-  Plan are required, plus screenshot + GIF/recording artifacts for any visual
-  surface. `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`)
-  fails the check on an empty or too-thin Summary or Test Plan, or a visual
-  diff with no artifacts. The machine checks structure; the
-  `claude-adversarial-review` workflow judges whether the prose is honest and the
-  artifacts show success.
-- **The gate is real, not theater.** The test/CI that "passes" actually *builds
-  and exercises the code you changed*. A green check on a job that never ran
-  your workspace is not coverage — that is exactly how the macaroon parity gate
-  sat untested for weeks (its workspace was never built in CI).
-- **Rebased on latest `origin/main`.**
-
-**Before you merge (the no-return point):**
-- **Adversarial review happened and every HIGH finding is *addressed*** — fixed
-  or contested-with-reason, not merely opened. Verdict on record.
-- **Genuinely green, not racing review.** Required checks pass on their own
-  merits; **never `--admin` over red** (Port Daddy wraps `git` but deliberately
-  not `gh`, so nothing mechanically blocks this — it is a hard rule + the harness
-  classifier, not a gate, so it is on you); let Copilot post before merging
-  non-trivial code.
-
 ### Visual artifacts for UI diffs (hard requirement — forever)
 
 Every PR that touches a **GPUI** surface (`core/pd-console` window), the
@@ -349,16 +275,17 @@ artifacts, so a UI PR without them is incomplete and must not merge. Operator,
 comprehensive screenshot artifacts, GIFs and screen recording in the test plan.
 Forever."*
 
-`[M]` This is now machine-enforced. `scripts/check-pr-requirements.mjs` (CI job
-`pr-requirements-guard`) fails the PR when a change under a visual surface
-(`core/pd-console/`, `website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`,
-`public/`, `dashboard/`, `apps/FleetBar/`) ships without at least one screenshot
-AND one motion artifact (GIF / recording) in the body — committed media in the
-diff or embedded `raw.githubusercontent` links both count. The escape hatch for a
-genuinely non-visual change is an explicit `<!-- visual-exempt: <reason> -->` in
-the PR body. The guard checks *presence*; whether the artifacts actually show
-ideal behavior (vs. an error or loading state) is judged by the
-`claude-adversarial-review` workflow, which presumes failure on sparse evidence.
+`[M]` This is now machine-enforced. `scripts/check-pr-requirements.mjs` (the
+`pr-requirements-guard` check, its own `pr-requirements.yml` workflow) fails the PR
+when a change under a visual surface (`core/pd-console/`, `website-v2/`,
+`fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`, `apps/FleetBar/`)
+ships without at least one screenshot AND one motion artifact (GIF / recording) in
+the body — committed media in the diff or embedded `raw.githubusercontent` links
+both count. The escape hatch for a genuinely non-visual change is an explicit
+`<!-- visual-exempt: <reason> -->` (a reason is required). The guard checks
+*presence*; whether the artifacts actually show ideal behavior (vs. an error or
+loading state) is judged by the `claude-adversarial-review` workflow, which presumes
+failure on sparse evidence.
 
 - **TUI / pd-console panes**: record with `vhs` (tape committed under
   `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
@@ -368,6 +295,52 @@ ideal behavior (vs. an error or loading state) is judged by the
   This needs macOS **Screen Recording** permission for the capturing process — a
   headless/background host is denied by TCC (`screencapture` prints "could not
   create image from display"); run the capture from a permitted Terminal.
+
+### Building, installing & running pd-console (don't relearn this the hard way)
+
+`core/pd-console` ships **two** binaries from one crate, on **crates.io gpui 0.2.2**
+(NOT the Zed git pin — published, versioned, reproducible; the git pin rots):
+- `pd-console` — the GPU-native window (Metal/macOS), gated behind `--features gpui`.
+- `pd-console-repl` — headless TUI of the same panes; builds everywhere; the CI/Linux gate.
+
+**Build** (from `core/pd-console`): GPU = `cargo build --release --bin pd-console --features gpui`
+(clean build pulls gpui + deps, ~5 min; incremental ~secs). REPL = `cargo build --release --bin pd-console-repl`.
+
+**Install — there are TWO launch surfaces, keep BOTH current or you'll demo a stale build:**
+1. `cp core/target/release/pd-console ~/.port-daddy/bin/pd-console` — the PATH binary (`which pd-console`).
+2. `cp core/target/release/pd-console ~/Applications/pd-console.app/Contents/MacOS/pd-console`
+   — the **`.app` double-clickers launch; it has its OWN embedded binary and does NOT use PATH**,
+   so updating only `~/.port-daddy/bin` leaves GUI launches on the old build (the "old POS" trap).
+   **After replacing the .app binary you MUST re-sign or macOS rejects the bundle:**
+   `codesign --force --deep --sign - ~/Applications/pd-console.app`. (The re-signed binary's
+   hash differs from the unsigned source — that's the embedded signature, expected.)
+
+**Run:** `pd-console` (PATH) or double-click the .app. Daemon discovery: `PORT_DADDY_URL` env →
+`~/.port-daddy/daemon.port` → default; if discovery fails it **panics**, so launch with
+`PORT_DADDY_URL=http://127.0.0.1:9876` when the port file is absent.
+
+**Theme:** `PD_CONSOLE_THEME=light|dark` seeds startup; `Ctrl-A g` toggles live. Palette lives in
+`core/pd-console/src/palette.rs` (light+dark, maritime/neobrutalism). `theme.rs` is the *REPL's*
+OKLCH system — distinct module, don't conflate. All colors are guard-safe (no cinnabar/brass/patina;
+`scripts/check-brand-colors.mjs` fails CI on those, hex AND rgb, comments included).
+
+**Spawning agents from the console** (`POST /spawn`) clears real daemon guards — the console must send
+`task` + `identity` + `budgetUsd>0` + `model` (for ollama) + a worktree `workdir` (the daemon BLOCKS
+main-checkout spawns), and the **operator must fund the project wallet** (`pd wallet top-up <project>
+--usd N`) + set a daily budget (`pd wallet budget <project> --usd-per-day N`). One-shot backends (ollama)
+return output inline in the spawn response (not on the tube). Missing any of these = "spawn looks
+wired but does nothing" — the historical hollowness.
+
+**gpui 0.2.2 idioms** (no fluent transform exists): express "lift/glow/spring" via `shadow(vec![BoxShadow{
+color:Hsla, offset:point(px,px), blur_radius, spread_radius}])` + hover color, and `with_animation(id,
+Animation::new(dur).with_easing(f) [.repeat()], |el,delta| el.opacity(delta))` for timelines
+(`pulsating_between`, `ease_out_quint` available). **Inside a `.hover(|s| …)` closure pass bare `rgb(x)`
+to `bg`/`text_color`/`border_color` — NOT `.into()` (Rgba has 4 `Into` targets → E0283 ambiguity).**
+A one-shot replays only when its `ElementId` changes (suffix a nonce); a stable id + `.repeat()` loops
+without restarting each render.
+
+Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design slices are in
+`docs/design/fleetbar-mockups/v12-feelpass-slices/`.
 - **Website / dashboard**: headless Playwright (`headless=True`), dark + light
   pairs, 100% and 200% zoom where layout matters. Read the PNGs back to confirm a
   settled render (not a loading state) before attaching.
@@ -382,7 +355,7 @@ The numbered flow above is the *review contract*. This subsection is the
 - **Create.** Branch in a linked Git worktree off `origin/main` under
   `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
   carries the operator's WIP). Then `pd begin "<purpose>" --identity
-  port-daddy:<type>:<slug> --lifecycle durable` → a scope `pd note` → `pd session files add
+  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
   <files>` *before* editing → edit → `pd guard check --staged` → commit
   (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
   create` → `pd done`.
