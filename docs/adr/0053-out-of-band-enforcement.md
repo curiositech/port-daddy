@@ -4,6 +4,12 @@
 
 Proposed (2026-06-12)
 
+> Reconciled by [ADR-0087](0087-trusted-computing-base-broker.md) (2026-06-20):
+> this ADR's three layers converge on one object — a separate-UID Rust broker.
+> Layer 3 (separate-UID/VM + `pf` forced egress) is ADR-0087's phases 5–6;
+> Layers 1–2 (branch protection + credential broker) are its phase 4. ADR-0087
+> does not supersede this — it concretizes the spine.
+
 > Note: ADR number 0051 is taken by *The Marketplace Protocol* (`docs/adr/0051-marketplace-protocol.md`) and 0052 by *Trajectory Export* (`docs/adr/0052-trajectory-export-and-rl-loop.md`); this ADR takes the next free number, 0053. Add the corresponding row to `docs/adr/README.md`.
 
 ## Context
@@ -180,7 +186,7 @@ merely-confused agent that runs plain `git push origin feature-x` today succeeds
 via the inherited global credential. So the null helper raises the bar for the
 *repo-local default path* only; the ambient credential is removed only by Layer 3.
 
-**Pushing routes through `pd push`.** A new command (`cli/commands/push.ts`,
+**Pushing routes through `pd push`.** A new command, not yet shipped (`cli/commands/push.ts`,
 following the pattern of the existing `cli/commands/dispatch.ts`) asks the daemon
 to push on the agent's behalf, with the broker holding the credential
 out-of-process.
