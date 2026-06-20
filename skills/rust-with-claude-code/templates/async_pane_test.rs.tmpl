@@ -1,0 +1,55 @@
+// Template: tests for a pane/surface with an async refresh, plus a runtime-free check of
+// an object-safe boxed future. Mirrors core/pd-console/src/pane.rs::tests.
+//
+// Paste at the bottom of {{module}}.rs. Needs tokio in [dev-dependencies]:
+//   tokio = { version = "1", features = ["rt", "macros"] }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- sync view-state tests (no runtime) ---
+
+    #[test]
+    fn empty_view_still_renders() {
+        let p = {{Struct}}::new();
+        assert!(!p.view().is_empty());
+    }
+
+    // --- async refresh test ({{#[tokio::test]}}, never #[test] on async fn) ---
+
+    #[tokio::test]
+    async fn refresh_without_daemon_records_error_not_panic() {
+        let mut p = {{Struct}}::new();
+        // Nothing listens at :1 — refresh must record last_error, never panic/propagate.
+        let client = crate::agent::DaemonClient::new("http://127.0.0.1:1".into());
+        let _ = p.refresh(&client).await;        // Ok(()) — error is captured internally
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "error")));
+    }
+
+    // --- runtime-free block-on for an object-safe boxed future that never yields ---
+    // (Copied from pane.rs: lets you exercise mutate/refresh dispatch without tokio when
+    //  the future is an immediate Ok(()).)
+
+    fn block_on<F: std::future::Future>(mut fut: F) -> F::Output {
+        use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
+        fn noop(_: *const ()) {}
+        fn clone(_: *const ()) -> RawWaker { RawWaker::new(std::ptr::null(), &VTABLE) }
+        static VTABLE: RawWakerVTable = RawWakerVTable::new(clone, noop, noop, noop);
+        let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &VTABLE)) };
+        let mut cx = Context::from_waker(&waker);
+        let mut fut = unsafe { std::pin::Pin::new_unchecked(&mut fut) };
+        loop {
+            if let Poll::Ready(v) = fut.as_mut().poll(&mut cx) { return v; }
+        }
+    }
+
+    #[test]
+    fn mutate_dispatch_is_object_safe() {
+        let mut p: Box<dyn Pane> = Box::new({{Struct}}::new());
+        let daemon = crate::agent::DaemonClient::new("http://127.0.0.1:1".into());
+        // The default no-op mutate is an immediate Ok(()) — block_on needs no runtime.
+        block_on(p.mutate(&daemon, SurfaceAction::Interrupt { reason: None })).unwrap();
+    }
+}

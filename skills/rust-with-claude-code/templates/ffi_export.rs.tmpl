@@ -1,0 +1,114 @@
+//! Template: a fail-closed C-ABI export for a cdylib crate the TS daemon loads via koffi.
+//!
+//! Mirrors core/kernel/pd-anchor/src/ffi.rs (ADR-0054). Obeys the four iron rules:
+//!   1. catch_unwind the whole body (a panic across the C boundary is UB)
+//!   2. guard null / len==0 / len > MAX / utf8 / parse BEFORE touching the data
+//!   3. fail CLOSED — every path returns a {"ok":false,...} JSON; null only on alloc failure
+//!   4. caller frees the returned string exactly once via {{prefix}}_string_free
+//!
+//! Requires in Cargo.toml:  [lib] crate-type = ["rlib", "cdylib"]
+
+use serde::{Deserialize, Serialize};
+use std::ffi::{c_char, CString};
+use std::panic::catch_unwind;
+
+/// Reject pathological sizes fail-fast before any allocation/parse.
+const MAX_REQUEST_BYTES: usize = 256 * 1024;
+
+#[derive(Deserialize)]
+struct {{Request}} {
+    // ... request fields ...
+    input: String,
+}
+
+#[derive(Serialize)]
+struct {{Response}} {
+    ok: bool,
+    reason: String,
+}
+
+/// Encode a response; never null on an encodable body (interior-NUL fallback is NUL-free).
+fn respond(ok: bool, reason: impl Into<String>) -> *mut c_char {
+    let body = serde_json::to_string(&{{Response}} { ok, reason: reason.into() })
+        .unwrap_or_else(|_| "{\"ok\":false,\"reason\":\"serialize error\"}".to_string());
+    CString::new(body)
+        .or_else(|_| CString::new("{\"ok\":false,\"reason\":\"response encoding error\"}"))
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+/// # Safety
+/// `req` must be null or a valid pointer to `len` readable bytes (the C-ABI contract koffi
+/// upholds). The guards below enforce the rest; the body never panics across the boundary.
+#[no_mangle]
+pub unsafe extern "C" fn {{prefix}}_{{op}}_json(req: *const c_char, len: usize) -> *mut c_char {
+    let result = catch_unwind(|| {
+        if req.is_null() || len == 0 || len > MAX_REQUEST_BYTES {
+            return respond(false, "malformed request (null/empty/oversized)");
+        }
+        let bytes = unsafe { std::slice::from_raw_parts(req as *const u8, len) };
+        let s = match std::str::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => return respond(false, "request is not valid UTF-8"),
+        };
+        let parsed: {{Request}} = match serde_json::from_str(s) {
+            Ok(p) => p,
+            Err(e) => return respond(false, format!("request parse error: {e}")),
+        };
+        // ---- do the real work here; return respond(true/false, ...) ----
+        let ok = !parsed.input.is_empty();
+        respond(ok, if ok { "ok" } else { "empty input" })
+    });
+    result.unwrap_or_else(|_| respond(false, "internal error"))
+}
+
+/// Reclaim a string returned by this library — caller MUST call exactly once per non-null ptr.
+/// # Safety
+/// `ptr` must be null or a pointer previously returned by this library and not yet freed.
+#[no_mangle]
+pub unsafe extern "C" fn {{prefix}}_string_free(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        unsafe { drop(CString::from_raw(ptr)) };
+    }
+}
+
+// In-process exercise of the exported entry point — full coverage under plain `cargo test`,
+// no dylib build, no koffi.
+#[cfg(test)]
+fn call_via_ffi(req_json: &str) -> String {
+    let c = CString::new(req_json).unwrap();
+    let ptr = unsafe { {{prefix}}_{{op}}_json(c.as_ptr(), req_json.len()) };
+    assert!(!ptr.is_null());
+    let out = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+    unsafe { {{prefix}}_string_free(ptr) };
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn valid_input_succeeds() {
+        let resp: serde_json::Value =
+            serde_json::from_str(&call_via_ffi("{\"input\":\"hello\"}")).unwrap();
+        assert_eq!(resp["ok"], true, "{resp}");
+    }
+
+    #[test]
+    fn malformed_input_fails_closed_not_panics() {
+        for bad in ["", "not json", "{}", "{\"input\":1}"] {
+            let c = CString::new(bad).unwrap();
+            let ptr = unsafe { {{prefix}}_{{op}}_json(c.as_ptr(), bad.len()) };
+            assert!(!ptr.is_null(), "input {bad:?} returned null");
+            let out = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+            unsafe { {{prefix}}_string_free(ptr) };
+            let resp: serde_json::Value = serde_json::from_str(&out).unwrap();
+            assert_eq!(resp["ok"], false, "input {bad:?} should fail closed");
+        }
+        // null pointer guard
+        let ptr = unsafe { {{prefix}}_{{op}}_json(std::ptr::null(), 0) };
+        assert!(!ptr.is_null());
+        unsafe { {{prefix}}_string_free(ptr) };
+    }
+}
