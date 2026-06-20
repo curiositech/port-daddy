@@ -45,8 +45,9 @@
   the squash. An agent will review these and reason about whether they show ideal
   behavior or an error — sparse/ambiguous evidence is treated as failure.
 
-  Not a visual change? Replace this whole section's body with exactly:
-  <!-- visual-exempt: <one-line reason> -->
+  Not a visual change? Delete this guidance and add an HTML comment whose FIRST
+  token is  visual-exempt:  followed by a one-line reason. For the exact syntax to
+  copy, see CONTRIBUTING.md (a reason is required; a bare marker is ignored).
 -->
 
 ## Surface Parity & Docs
@@ -81,8 +82,8 @@
   the symmetric-difference, best-of-both-worlds version — without derailing
   existing functionality unless the operator has signed off on the trade-off.
 
-  Not a doc/plan PR? Replace this section's body with exactly:
-  <!-- roadmap-exempt: not a doc/plan PR -->
+  Not a doc/plan PR? Delete this guidance; this section is advisory and not
+  machine-gated, so no marker is needed.
 -->
 
 ## Changelog & Parsimony

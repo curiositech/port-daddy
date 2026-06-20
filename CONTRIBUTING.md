@@ -173,7 +173,8 @@ lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the load-
 - **Exhaustive Summary + non-trivial Test Plan.** Not "ran the tests" — show the
   evidence (commands, output, edge cases), ideally turned into new test cases.
   Enforced by `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`):
-  an empty or boilerplate Summary/Test Plan fails the merge queue. Run it locally
+  an empty or too-thin Summary/Test Plan fails the check (and the merge queue once
+  the operator marks `pr-requirements-guard` a required check). Run it locally
   with `npm run check:pr-requirements -- --body-file <your-draft.md>`.
 - **Visual proof for visual changes.** A PR touching `core/pd-console/`,
   `website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`,

@@ -52,17 +52,20 @@ const VISUAL_SURFACE_RE = /^(core\/pd-console\/|website-v2\/|fleet-config-ui\/|p
 // A changed file that is itself a committed image/video counts as artifact evidence
 // (you committed the screenshot/recording), independent of body links. These are
 // `$`-anchored: they match a FILENAME.
-const IMAGE_EXT_RE = /\.(png|jpe?g|webp|svg|bmp|tiff?)$/i
-const MOTION_EXT_RE = /\.(gif|mp4|mov|webm|m4v|avif)$/i
+// avif is a still-image format (animated AVIF is rare); it counts as a screenshot,
+// not as the "GIF or recording" motion artifact.
+const IMAGE_EXT_RE = /\.(png|jpe?g|webp|svg|bmp|tiff?|avif)$/i
+const MOTION_EXT_RE = /\.(gif|mp4|mov|webm|m4v)$/i
 // Same extensions, but for finding a link INSIDE the PR body, where the path is
 // followed by `)`, `"`, a query string, an anchor, or whitespace — never end-of-string.
-const BODY_IMAGE_RE = /\.(png|jpe?g|webp|svg|bmp|tiff?)(?=[)"'\s?#]|$)/i
-const BODY_MOTION_RE = /\.(gif|mp4|mov|webm|m4v|avif)(?=[)"'\s?#]|$)/i
+const BODY_IMAGE_RE = /\.(png|jpe?g|webp|svg|bmp|tiff?|avif)(?=[)"'\s?#]|$)/i
+const BODY_MOTION_RE = /\.(gif|mp4|mov|webm|m4v)(?=[)"'\s?#]|$)/i
 
 // Floors on substance. Intentionally moderate: the gate enforces PRESENCE and a
-// floor so empty/boilerplate sections cannot ship; the adversarial reviewer judges
-// real triviality. Counted in words AFTER stripping HTML comments, checkbox lines,
-// and the template's own placeholder prose.
+// word floor so empty or near-empty sections cannot ship. It does NOT catch
+// well-padded boilerplate or filler that clears the floor — judging real triviality
+// vs. honest brevity is the adversarial reviewer's job, not a word counter's.
+// Counted AFTER stripping HTML comments and checkbox lines.
 const MIN_SUMMARY_WORDS = 10
 const MIN_TEST_PLAN_WORDS = 12
 
@@ -132,8 +135,14 @@ function exemptMarkers(body) {
   return markers
 }
 
+// A marker counts ONLY when an HTML comment *is* the directive: it starts with the
+// token and carries a non-empty reason — `<!-- visual-exempt: pure refactor -->`.
+// A loose substring match (the original bug) let the PR template's own guidance
+// comment, which names these markers, silently exempt every PR — the gate would
+// disable itself. Requiring the reason also makes the exemption auditable, not blank.
 function hasMarker(body, name) {
-  return exemptMarkers(body).some((c) => new RegExp(`\\b${name}\\b`, 'i').test(c))
+  const re = new RegExp(`^<!--\\s*${name}\\s*:\\s*\\S`, 'i')
+  return exemptMarkers(body).some((c) => re.test(c.trim()))
 }
 
 /**
@@ -143,9 +152,13 @@ function hasMarker(body, name) {
  */
 function sectionWordCount(strippedBody, headingNeedle) {
   const lines = strippedBody.split('\n')
+  const isFence = (l) => /^\s*(?:```|~~~)/.test(l)
   let start = -1
   let startLevel = 0
+  let inFence = false
   for (let i = 0; i < lines.length; i++) {
+    if (isFence(lines[i])) { inFence = !inFence; continue }
+    if (inFence) continue
     const m = lines[i].match(/^(#{1,6})\s*(.+?)\s*$/)
     if (m && m[2].toLowerCase().includes(headingNeedle)) {
       start = i
@@ -155,10 +168,16 @@ function sectionWordCount(strippedBody, headingNeedle) {
   }
   if (start === -1) return null // section absent
 
+  // Headings INSIDE a fenced code block (e.g. `# comment` in pasted shell output)
+  // must not terminate the section — track fences so the Test Plan can quote logs.
   const content = []
+  inFence = false
   for (let i = start + 1; i < lines.length; i++) {
-    const m = lines[i].match(/^(#{1,6})\s/)
-    if (m && m[1].length <= startLevel) break
+    if (isFence(lines[i])) { inFence = !inFence; content.push(lines[i]); continue }
+    if (!inFence) {
+      const m = lines[i].match(/^(#{1,6})\s/)
+      if (m && m[1].length <= startLevel) break
+    }
     content.push(lines[i])
   }
 
@@ -182,14 +201,16 @@ function bodyHasMedia(body, motion) {
   const extRe = motion ? BODY_MOTION_RE : BODY_IMAGE_RE
   if (extRe.test(text)) return true
   if (motion) {
-    // <video>, GitHub-rendered asset video, or "recording"/"screencast" + a link.
+    // Motion needs EXPLICIT evidence — an animated/video extension (above) or a
+    // <video> embed. An opaque GitHub attachment link could be a still image, so it
+    // must not satisfy the "GIF or recording" half on its own (else one unknown
+    // link clears both requirements).
     if (/<video[\s>]/i.test(text)) return true
-    if (/https:\/\/github\.com\/[^\s)]+\/assets\//i.test(text)) return true
   } else {
-    // Markdown image or <img>.
+    // Markdown image, <img>, or a dragged-in GitHub attachment (often extension-less).
     if (/!\[[^\]]*\]\([^)]+\)/.test(text)) return true
     if (/<img[\s>]/i.test(text)) return true
-    if (/https:\/\/github\.com\/[^\s)]+\/assets\//i.test(text)) return true
+    if (/https:\/\/github\.com\/[^\s)]+\/(?:assets|user-attachments)\//i.test(text)) return true
   }
   return false
 }

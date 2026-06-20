@@ -317,7 +317,7 @@ script cannot judge them, and pretending it can is solutionism).
   `.github/PULL_REQUEST_TEMPLATE.md`: an exhaustive Summary and a non-trivial Test
   Plan are required, plus screenshot + GIF/recording artifacts for any visual
   surface. `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`)
-  fails the merge queue on an empty/boilerplate Summary or Test Plan, or a visual
+  fails the check on an empty or too-thin Summary or Test Plan, or a visual
   diff with no artifacts. The machine checks structure; the
   `claude-adversarial-review` workflow judges whether the prose is honest and the
   artifacts show success.

@@ -18,7 +18,7 @@ name: Claude Adversarial Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [opened, synchronize, ready_for_review, reopened, edited]
   # Required-check parity with ci.yml + claude-code-review.yml: report on
   # merge_group heads (pass-through) so a queued PR never hangs. The substantive
   # review ran at pull_request time; a rebase does not change its verdict.

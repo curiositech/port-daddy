@@ -84,4 +84,75 @@ describe('check-pr-requirements guard', () => {
     expect(code).toBe(0);
     expect(stdout).toMatch(/skipping/);
   });
+
+  // Regression: hasMarker() used a loose substring match, so the PR template's own
+  // guidance comment (which names `visual-exempt`) silently exempted EVERY PR.
+  test('the PR template guidance comment does NOT auto-exempt the visual gate', () => {
+    const body = [
+      '## Summary',
+      'A real summary that is clearly long enough to clear the floor for review.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves.',
+      '## Visual Proof',
+      '<!--',
+      '  Not a visual change? Replace this section body with exactly:',
+      '  <!-- visual-exempt: <one-line reason> -->',
+      '-->',
+    ].join('\n');
+    const { code, stderr } = run('--body', body, '--changed', 'fleet-config-ui/src/X.tsx');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/Visual surface changed/);
+  });
+
+  test('an exempt marker with no reason does not count', () => {
+    const body = '## Summary\nLong enough summary prose to clear the floor for sure here today.\n## Test Plan\nRan everything and checked the edges carefully across many inputs here.\n<!-- visual-exempt -->';
+    const { code, stderr } = run('--body', body, '--changed', 'website-v2/src/x.tsx');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/Visual surface changed/);
+  });
+
+  test('a heading inside a fenced code block does not truncate the Test Plan', () => {
+    const body = [
+      '## Summary',
+      'A genuine summary with plenty of words to satisfy the floor cleanly here.',
+      '## Test Plan',
+      '```sh',
+      '# Test Plan output below',
+      'npm test # 1255 passed across the whole suite here',
+      '```',
+      'All green; exercised the empty-input and oversize-input edges too.',
+    ].join('\n');
+    const { code, stdout } = run('--body', body, '--changed', 'lib/x.ts');
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/meets the contract/);
+  });
+
+  test('an opaque GitHub attachment link counts as a screenshot but not as motion', () => {
+    const body = [
+      '## Summary',
+      'A real summary that is clearly long enough to clear the floor for review.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves.',
+      '## Visual Proof',
+      '![shot](https://github.com/curiositech/port-daddy/assets/1/abc-uuid)',
+    ].join('\n');
+    const { code, stderr } = run('--body', body, '--changed', 'fleet-config-ui/src/X.tsx');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/GIF or screen recording/);
+    expect(stderr).not.toMatch(/screenshot \(image\)/);
+  });
+
+  test('an .avif still does not satisfy the motion requirement', () => {
+    const body = [
+      '## Summary',
+      'A real summary that is clearly long enough to clear the floor for review.',
+      '## Test Plan',
+      'Ran the suite and exercised several edge cases to be sure it behaves.',
+      '## Visual Proof',
+      '![shot](docs/pane.avif)',
+    ].join('\n');
+    const { code, stderr } = run('--body', body, '--changed', 'fleet-config-ui/src/X.tsx');
+    expect(code).toBe(1);
+    expect(stderr).toMatch(/GIF or screen recording/);
+  });
 });

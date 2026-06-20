@@ -50,32 +50,10 @@ jobs:
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
 
-  pr-requirements-guard:
-    # The machine half of AGENTS.md § Pull Request Operating Procedure +
-    # § Visual artifacts for UI diffs (the "forever" rule). Fails the PR if the
-    # description has no real Summary / Test Plan, or if a visual surface
-    # (core/pd-console, website-v2, fleet-config-ui, public/fleet-ui, public,
-    # dashboard, apps/FleetBar) changed without screenshot + GIF/recording
-    # artifacts. It judges STRUCTURE only — the claude-adversarial-review workflow
-    # judges whether the prose is honest and the artifacts show success.
-    #
-    # On push/merge_group the event carries no PR body, so the script no-ops (exit
-    # 0): the substantive check already ran at pull_request time, mirroring the
-    # merge-queue pass-through used by claude-code-review. Stays a required check
-    # that reports green on the merge-queue head.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Ensure origin/main ref for the changed-files diff
-        run: git fetch --no-tags origin main:refs/remotes/origin/main
-      - name: PR-requirements guard (summary, test plan, visual artifacts)
-        run: node scripts/check-pr-requirements.mjs --event-path "$GITHUB_EVENT_PATH"
+  # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
+  # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on
+  # `edited` events (a body gutted after the last code push must be re-checked) — the
+  # full matrix here deliberately does not listen to `edited`.
 
   # Decide whether website-terminal-recordings (the heaviest job, ~7 min)
   # needs to run on this PR. It re-records terminal GIFs of the CLI, so only
