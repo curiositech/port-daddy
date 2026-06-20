@@ -2023,7 +2023,7 @@ export function AgentsPage() {
   const { section } = useParams()
 
   if (section === 'agent-skill') {
-    return <Navigate to="/mcp" replace />
+    return <Navigate to="/mac-preview" replace />
   }
 
   const matchedSection = section ? AGENT_SECTIONS.find((item) => item.slug === section) : null

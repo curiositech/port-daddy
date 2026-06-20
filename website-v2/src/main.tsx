@@ -23,7 +23,6 @@ const DocsPage = lazy(() => import('@/pages/DocsPage'))
 const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'TutorialsPage')
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
-const McpPage = lazy(() => import('@/pages/MCPPage'))
 const LibraryPage = lazy(() => import('@/pages/library'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
@@ -203,10 +202,11 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/skill-audit" element={<SkillAuditPage />} />
               <Route path="/examples" element={<ExamplesPage />} />
               <Route path="/examples/:slug" element={<ExampleDetailPage />} />
-              <Route path="/mcp" element={<McpPage />} />
+              {/* Skills + MCP page retired; its install + skill story merged into the Mac app page. */}
+              <Route path="/mcp" element={<Navigate to="/mac-preview" replace />} />
               <Route path="/templates" element={<Navigate to="/agents/templates" replace />} />
               <Route path="/agents" element={<AgentsPage />} />
-              <Route path="/agents/agent-skill" element={<Navigate to="/mcp" replace />} />
+              <Route path="/agents/agent-skill" element={<Navigate to="/mac-preview" replace />} />
               <Route path="/agents/:section" element={<AgentsPage />} />
 
               <Route path="/tutorials" element={<TutorialsPage />} />

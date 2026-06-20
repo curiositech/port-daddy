@@ -7,7 +7,7 @@ const SITE_LINKS = [
   { label: 'Mac Preview', href: '/mac-preview' },
   { label: 'Examples', href: '/examples' },
   { label: 'Agents', href: '/agents' },
-  { label: 'Skills + MCP', href: '/mcp' },
+  { label: 'Install & MCP', href: '/mac-preview' },
   { label: 'Manifesto', href: '/manifesto' },
 ] as const
 

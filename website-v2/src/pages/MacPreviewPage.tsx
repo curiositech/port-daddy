@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/Button'
 import { MacAppShowcase } from '@/components/landing/MacAppShowcase'
 import { ColdStartSection } from '@/components/landing/ColdStartSection'
 import { DistributionSection } from '@/components/landing/DistributionSection'
+import { MacInstallSection } from '@/components/landing/MacInstallSection'
 import { MacWorkflowDemos } from '@/components/landing/MacWorkflowDemos'
 import { Footer } from '@/components/layout/Footer'
 import {
@@ -79,6 +80,7 @@ export function MacPreviewPage() {
           </PageContainer>
         </section>
 
+        <MacInstallSection />
         <MacAppShowcase />
         <ColdStartSection />
         <MacWorkflowDemos />

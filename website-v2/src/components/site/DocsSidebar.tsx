@@ -60,7 +60,7 @@ export function DocsSidebar() {
     { title: 'Mac Preview', href: '/mac-preview' },
     { title: 'Runnable examples', href: '/examples' },
     { title: 'Templates', href: '/agents/templates' },
-    { title: 'Skill + MCP', href: '/mcp' },
+    { title: 'Skill + MCP', href: '/mac-preview' },
     { title: 'Agents', href: '/agents' },
   ]
   const taskGroups = [
@@ -89,7 +89,7 @@ export function DocsSidebar() {
     },
     {
       title: 'Skill + MCP',
-      href: '/mcp',
+      href: '/mac-preview',
       description: 'Install the agent operating guide and expose the same coordination primitives through MCP tools.',
     },
     {
