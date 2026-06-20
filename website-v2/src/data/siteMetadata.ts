@@ -628,12 +628,26 @@ export function structuredDataForRoute(route: SiteMetadata) {
 
   if (route.section !== 'blog' || !route.publishedAt) return base
 
+  // Article rich-result completeness: Google wants datePublished + dateModified,
+  // a publisher Organization with a logo, mainEntityOfPage, and an author. We
+  // have no separate modified date, so dateModified mirrors datePublished (which
+  // Google accepts) rather than inventing freshness.
   return {
     ...base,
     datePublished: route.publishedAt,
+    dateModified: route.publishedAt,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     author: {
       '@type': 'Person',
       name: route.author ?? 'Erich Owens',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      logo: {
+        '@type': 'ImageObject',
+        url: absoluteUrl('/apple-touch-icon.png'),
+      },
     },
     keywords: route.tags?.join(', '),
   }
