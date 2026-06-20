@@ -9,7 +9,10 @@
 //! Design rules applied (beautiful-cli-design):
 //!   - 3 semantic colors + 1 accent; grayscale carries hierarchy
 //!   - same symbols everywhere: ✓ landed · ● engaged · ✗ gated · ○ resting
-//!   - column alignment is char-count based (multibyte-safe), never bytes
+//!   - column alignment is DISPLAY-width based (CJK/emoji-safe), never bytes or
+//!     char-count — a 漢 occupies two columns, a combining mark zero
+//!   - lines reflow to the terminal width on a TTY (ANSI-aware truncation with
+//!     an … marker); piped/Plain output is never truncated, so `| grep` is whole
 //!   - everything degrades to clean plain text under pipes/NO_COLOR
 
 use crate::pane::{Block, Tone};
@@ -155,14 +158,117 @@ impl TermStyle {
     }
 }
 
-/// Char-count padding (multibyte-safe; bytes would misalign on é/—/CJK).
+/// Display columns one char occupies: 0 for combining/zero-width, 2 for East
+/// Asian Wide / Fullwidth / emoji, 1 otherwise. Dep-free (a pragmatic subset of
+/// UAX#11 + emoji ranges) — enough to keep CJK names and emoji from shearing
+/// table columns, which a `chars().count()` (or byte) measure never could.
+pub fn char_width(c: char) -> usize {
+    let u = c as u32;
+    // Zero-width: combining marks, ZWSP/ZWJ, variation selectors.
+    if u == 0x200B
+        || u == 0x200D
+        || (0x0300..=0x036F).contains(&u)
+        || (0xFE00..=0xFE0F).contains(&u)
+    {
+        return 0;
+    }
+    // Wide / fullwidth / emoji.
+    let wide = (0x1100..=0x115F).contains(&u)            // Hangul Jamo
+        || (0x2E80..=0x303E).contains(&u)                // CJK radicals … punctuation
+        || (0x3041..=0x33FF).contains(&u)                // Hiragana/Katakana/CJK symbols
+        || (0x3400..=0x4DBF).contains(&u)                // CJK Ext A
+        || (0x4E00..=0x9FFF).contains(&u)                // CJK Unified
+        || (0xA000..=0xA4CF).contains(&u)                // Yi
+        || (0xAC00..=0xD7A3).contains(&u)                // Hangul Syllables
+        || (0xF900..=0xFAFF).contains(&u)                // CJK Compat
+        || (0xFE30..=0xFE4F).contains(&u)                // CJK Compat Forms
+        || (0xFF00..=0xFF60).contains(&u)                // Fullwidth Forms
+        || (0xFFE0..=0xFFE6).contains(&u)                // Fullwidth signs
+        || (0x1F300..=0x1FAFF).contains(&u)              // emoji & pictographs
+        || (0x20000..=0x3FFFD).contains(&u); // CJK Ext B+
+    if wide {
+        2
+    } else {
+        1
+    }
+}
+
+/// Total display width of a string (sum of `char_width`).
+pub fn display_width(s: &str) -> usize {
+    s.chars().map(char_width).sum()
+}
+
+/// Pad to a target DISPLAY width (CJK/emoji-safe; bytes or char-count misalign).
 fn pad(text: &str, width: usize) -> String {
-    let len = text.chars().count();
+    let len = display_width(text);
     if len >= width {
         text.to_string()
     } else {
         format!("{text}{}", " ".repeat(width - len))
     }
+}
+
+/// Truncate a (possibly ANSI-colored) line to `max` display columns, ANSI-aware:
+/// escape sequences don't count toward width and are preserved, an `…` marks a
+/// cut, and a reset is appended so color never bleeds past the cut. Lines that
+/// already fit are returned unchanged.
+fn truncate_ansi(line: &str, max: usize) -> String {
+    if max == 0 {
+        return String::new();
+    }
+    // Fast path: no escapes and already within width.
+    if !line.contains('\x1b') && display_width(line) <= max {
+        return line.to_string();
+    }
+    let budget = max.saturating_sub(1); // leave a column for the … marker
+    let mut out = String::new();
+    let mut width = 0usize;
+    let mut had_escape = false;
+    let mut truncated = false;
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            had_escape = true;
+            out.push(c);
+            // Copy through the end of the CSI sequence (terminated by a letter).
+            while let Some(&n) = chars.peek() {
+                out.push(n);
+                chars.next();
+                if n.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+            continue;
+        }
+        let w = char_width(c);
+        if width + w > budget {
+            truncated = true;
+            break;
+        }
+        width += w;
+        out.push(c);
+    }
+    if truncated {
+        out.push('…');
+    }
+    if had_escape {
+        out.push_str("\x1b[0m");
+    }
+    out
+}
+
+/// How many columns to reflow to. Plain mode (pipe/redirect/NO_COLOR) returns
+/// None — piped output must stay whole so `| grep`/`| tee` is lossless. On a
+/// TTY, honor $COLUMNS, else assume 80.
+fn detect_cols(style: &TermStyle) -> Option<usize> {
+    if style.mode == ColorMode::Plain {
+        return None;
+    }
+    std::env::var("COLUMNS")
+        .ok()
+        .and_then(|c| c.parse::<usize>().ok())
+        .filter(|&c| c >= 20)
+        .or(Some(80))
 }
 
 /// Render a `Spark` series as a real unicode ramp, normalized to min..max.
@@ -186,9 +292,16 @@ fn spark_line(values: &[f32]) -> String {
         .collect()
 }
 
-/// Render blocks to a styled string. Consecutive `Row` runs get their columns
-/// aligned (widths computed across the run, char-count based).
+/// Render blocks to a styled string, reflowed to the detected terminal width.
 pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
+    render_blocks_width(blocks, style, detect_cols(style))
+}
+
+/// Render blocks to a styled string. Consecutive `Row` runs get their columns
+/// aligned (widths computed across the run, DISPLAY-width based). When `cols` is
+/// `Some(w)`, every emitted line is ANSI-aware-truncated to `w` columns; `None`
+/// (pipes/Plain) leaves lines whole.
+pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usize>) -> String {
     let mut out = String::new();
     let mut i = 0;
 
@@ -229,7 +342,7 @@ pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
                 let mut widths = vec![0usize; ncols];
                 for row in &rows {
                     for (c, cell) in row.iter().enumerate() {
-                        widths[c] = widths[c].max(cell.chars().count());
+                        widths[c] = widths[c].max(display_width(cell));
                     }
                 }
                 let sep = style.paint("│", Sem::Resting);
@@ -282,7 +395,16 @@ pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
             }
         }
     }
-    out
+    // Reflow: truncate each emitted line to the terminal width (TTY only; pipes
+    // pass None and stay whole). ANSI-aware so color never bleeds past the cut.
+    match cols {
+        Some(w) => out
+            .split('\n')
+            .map(|line| truncate_ansi(line, w))
+            .collect::<Vec<_>>()
+            .join("\n"),
+        None => out,
+    }
 }
 
 #[cfg(test)]
@@ -357,5 +479,63 @@ mod tests {
         assert_eq!(Tone::Gated.symbol(), "✗");
         assert_eq!(Tone::Engaged.symbol(), "●");
         assert_eq!(Tone::Conflicted.symbol(), "⚠");
+    }
+
+    #[test]
+    fn display_width_handles_cjk_emoji_and_combining() {
+        assert_eq!(display_width("abc"), 3);
+        assert_eq!(display_width("日本語"), 6); // 3 wide chars × 2
+        assert_eq!(display_width("a日b"), 4); // 1 + 2 + 1
+        assert_eq!(char_width('🚀'), 2); // emoji is wide
+        assert_eq!(char_width('\u{0301}'), 0); // combining acute accent
+        // "e" + combining acute renders as one column.
+        assert_eq!(display_width("e\u{0301}"), 1);
+    }
+
+    #[test]
+    fn rows_align_with_cjk_content() {
+        // A CJK cell occupies 2 columns each; char-count alignment would shear
+        // the separator. Display-width alignment keeps it straight.
+        let s = plain();
+        let blocks = vec![
+            Block::Row(vec!["日本".into(), "x".into()]), // 4 display cols
+            Block::Row(vec!["ab".into(), "y".into()]),   // 2 display cols
+        ];
+        let out = render_blocks_width(&blocks, &s, None);
+        let lines: Vec<&str> = out.lines().collect();
+        // Both separators land at the same DISPLAY column (measure the prefix).
+        let col = |l: &str| display_width(&l[..l.find('│').unwrap()]);
+        assert_eq!(col(lines[0]), col(lines[1]), "CJK rows misaligned:\n{out}");
+    }
+
+    #[test]
+    fn truncate_ansi_respects_width_and_preserves_color() {
+        // Plain over-long line gets an ellipsis at the budget.
+        let t = truncate_ansi("hello world", 6);
+        assert_eq!(display_width(&t), 6); // 5 visible + …
+        assert!(t.ends_with('…'));
+        // A colored line keeps its escapes and never bleeds (reset appended).
+        let colored = "\x1b[31mhello world\x1b[0m";
+        let tc = truncate_ansi(colored, 6);
+        assert!(tc.contains("\x1b[31m"), "lost color: {tc:?}");
+        assert!(tc.ends_with("\x1b[0m"), "color bleeds past cut: {tc:?}");
+        // CJK truncation counts display columns, not chars.
+        let cjk = truncate_ansi("日本語テスト", 5);
+        assert!(display_width(&cjk) <= 5, "over budget: {cjk:?}");
+    }
+
+    #[test]
+    fn render_truncates_on_tty_but_keeps_pipes_whole() {
+        let s = plain();
+        let long = "x".repeat(200);
+        let blocks = vec![Block::KeyVal("k".into(), long.clone())];
+        // None (pipe/Plain) → never truncated, full content survives `| grep`.
+        let piped = render_blocks_width(&blocks, &s, None);
+        assert!(piped.contains(&long), "pipe output must stay whole");
+        // Some(w) (TTY) → every line fits the width.
+        let reflowed = render_blocks_width(&blocks, &s, Some(40));
+        for line in reflowed.lines() {
+            assert!(display_width(line) <= 40, "line over 40 cols: {line:?}");
+        }
     }
 }
