@@ -56,7 +56,9 @@ function esc(s: string): string {
 /** Render the whole board to a single self-contained HTML document. */
 export function renderBoard(input: BoardInput): string {
   const { plan, schedule, items, generatedAt } = input;
-  const pdBase = input.pdBase ?? 'http://127.0.0.1:9876';
+  // Default to same-origin: the board's JS then fetches '/roadmap/items' relative to wherever
+  // it's served (the daemon). The dry-run generator passes an explicit base for file:// viewing.
+  const pdBase = input.pdBase ?? '';
 
   const itemBySlug = new Map(items.map((i) => [i.slug, i]));
   const schedById = new Map(schedule.nodes.map((n) => [n.id, n]));

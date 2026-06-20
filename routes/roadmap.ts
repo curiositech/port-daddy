@@ -24,6 +24,13 @@ import type {
 import type { RoadmapPromote, PromoteFromFeedbackInput } from '../lib/roadmap-promote.js';
 import { renderNextCutsMarkdown, applyRoadmapMarkdown } from '../lib/roadmap-render.js';
 import { importMarkdownRoadmap } from '../lib/roadmap-import.js';
+import { derivePlan, type MigrationItem } from '../lib/planner-migrate.js';
+import { schedule } from '../lib/planner-schedule.js';
+import { renderBoard, type AdrMeta } from '../lib/planner-board.js';
+import { parseAdrIdentity } from '../lib/adr-matrix.js';
+import { renderMarkdown } from '../lib/mini-markdown.js';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 interface RoadmapDeps {
   roadmapItems: RoadmapItems;
@@ -119,6 +126,55 @@ const STATUS_VALUES = new Set<RoadmapStatus>(['now', 'backlog', 'parked', 'merge
 
 export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (fastify, opts) => {
   const { roadmapItems, roadmapPromote } = opts.deps;
+  // routes/index.ts registers this plugin with the FULL server deps, so repoRoot is present
+  // even though RoadmapDeps only names the two it strictly requires.
+  const repoRoot = (opts.deps as { repoRoot?: string }).repoRoot;
+
+  // GET /roadmap/board — the live, browsable planner board (ADR-0086 §5). Derives the
+  // Project→Epic→Task hierarchy from roadmap_items on each request (so it reflects live state
+  // without needing the migration applied), computes the critical-path schedule, enriches epics
+  // with their ADR title + inline ADR text (from repoRoot/docs/adr), and serves self-contained
+  // HTML. Same-origin, so the board's poll + tube layer goes live (no CORS, unlike file://).
+  fastify.get('/roadmap/board', async (_request: FastifyRequest, reply: FastifyReply) => {
+    const rows = roadmapItems.list({ status: 'all', limit: 2000 });
+    const items: MigrationItem[] = rows.map((r) => ({
+      slug: r.slug,
+      summaryMd: r.summaryMd,
+      status: r.status,
+      dependencies: r.dependencies ?? [],
+      notes: (r.notes ?? []).map((n) => ({ text: n.text })),
+      harbor: r.harbor,
+    }));
+    const plan = derivePlan(items);
+    const sched = schedule(
+      plan.tasks.map((t) => ({ id: t.slug as string, estimate: 1 })),
+      plan.dependsOnEdges,
+    );
+    const adrs: Record<string, AdrMeta> = {};
+    if (repoRoot) {
+      try {
+        const dir = join(repoRoot, 'docs', 'adr');
+        const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
+        for (const epic of plan.epics) {
+          if (!epic.id.startsWith('adr-')) continue;
+          const num = epic.id.replace('adr-', '');
+          const file = files.find((f) => f.startsWith(`${num}-`));
+          if (!file) {
+            adrs[num] = {};
+            continue;
+          }
+          const md = readFileSync(join(dir, file), 'utf8');
+          adrs[num] = { title: parseAdrIdentity(md)?.title, html: renderMarkdown(md), path: `docs/adr/${file}` };
+        }
+      } catch {
+        /* repo docs unavailable (packaged daemon); the board still renders without ADR text */
+      }
+    }
+    // pdBase '' → the board's JS fetches '/roadmap/items' and posts '/messages' same-origin.
+    const html = renderBoard({ plan, schedule: sched, items, adrs, generatedAt: Date.now(), pdBase: '' });
+    reply.type('text/html; charset=utf-8');
+    return html;
+  });
 
   fastify.post('/roadmap/items', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = (request.body ?? {}) as UpsertBody;
