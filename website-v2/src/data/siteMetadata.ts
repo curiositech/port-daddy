@@ -292,8 +292,8 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/blog',
-    'Blog',
-    'Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
+    'Harbor Blog',
+    'Short, honest write-ups from running a fleet of agents: what broke, what we fixed, and what the daemon has to keep true. Shared state, file ownership, launch checks, PD Tube, recovery trails, and daemon provenance.',
     { section: 'blog' },
   ),
   metadata(
@@ -526,11 +526,6 @@ export const siteMetadataRoutes: SiteMetadata[] = [
   ...productRoutes,
   ...contentMetadata,
   ...docsRouteMetadata,
-  metadata('/docs-old', 'Legacy Docs', 'Legacy Port Daddy documentation kept available for compatibility while the current docs system is normalized.', {
-    section: 'legacy',
-    canonicalPath: '/docs',
-    index: false,
-  }),
 ]
 
 const metadataByPath = new Map(siteMetadataRoutes.map((route) => [route.path, route]))
@@ -628,12 +623,26 @@ export function structuredDataForRoute(route: SiteMetadata) {
 
   if (route.section !== 'blog' || !route.publishedAt) return base
 
+  // Article rich-result completeness: Google wants datePublished + dateModified,
+  // a publisher Organization with a logo, mainEntityOfPage, and an author. We
+  // have no separate modified date, so dateModified mirrors datePublished (which
+  // Google accepts) rather than inventing freshness.
   return {
     ...base,
     datePublished: route.publishedAt,
+    dateModified: route.publishedAt,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     author: {
       '@type': 'Person',
       name: route.author ?? 'Erich Owens',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      logo: {
+        '@type': 'ImageObject',
+        url: absoluteUrl('/apple-touch-icon.png'),
+      },
     },
     keywords: route.tags?.join(', '),
   }

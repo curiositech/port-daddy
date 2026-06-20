@@ -157,6 +157,7 @@
         "POST /msg/:param",
         "GET /msg/:param",
         "DELETE /msg/:param",
+        "GET /msg/:param/lineage",
         "GET /msg/:param/poll",
         "GET /msg/:param/subscribe",
         "GET /channels/discover",
@@ -726,7 +727,8 @@
         "use",
         "mcp",
         "daemon",
-        "self-update"
+        "self-update",
+        "upgrade"
       ],
       "sdk": [],
       "routes": [
@@ -741,6 +743,7 @@
         "dev",
         "use",
         "self-update",
+        "upgrade",
         "mcp",
         "daemon"
       ],
@@ -748,7 +751,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "Daemon management is CLI-only. `pd dev up/down/list` runs tiered berths (ADR-0084); `pd use`/`pd --daemon` target a berth; GET /whoami reports the daemon's berth identity."
+      "_note": "Daemon management is CLI-only. `pd dev up/down/list` runs tiered berths (ADR-0084); `pd use`/`pd --daemon` target a berth; GET /whoami reports the daemon's berth identity. `pd upgrade` (ADR-0057 phase 7) checks the latest.json update feed and reports/performs an update."
     },
     "diagnostics": {
       "description": "Environment diagnostics (CLI-only)",
@@ -1210,7 +1213,11 @@
         "POST /fleet/config/:project/budget",
         "POST /fleet/config/:project/runtime",
         "GET /fleet/models",
-        "POST /fleet/backend-secrets"
+        "POST /fleet/backend-secrets",
+        "POST /fleet/halt",
+        "POST /fleet/pause",
+        "POST /fleet/resume",
+        "GET /fleet/tree/:param"
       ],
       "completions": [
         "fleet"
@@ -1412,6 +1419,8 @@
       "sdk": [],
       "routes": [
         "POST /pheromone/spray",
+        "POST /pheromone/resolve",
+        "GET /pheromone/coverage/:table",
         "GET /pheromone/:table/:id",
         "GET /pheromone",
         "GET /pheromone/files"
@@ -1423,6 +1432,8 @@
       },
       "mcp": [
         "spray_pheromone",
+        "resolve_pheromone",
+        "pheromone_coverage",
         "read_pheromones",
         "read_entity_pheromones"
       ]

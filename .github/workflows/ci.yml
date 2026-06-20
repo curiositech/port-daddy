@@ -50,6 +50,11 @@ jobs:
       - name: Doc-citation guard (cited repo paths in changed docs must exist)
         run: node scripts/check-doc-citations.mjs
 
+  # NOTE: the PR-description / visual-artifact gate (pr-requirements-guard) lives in
+  # its own workflow, .github/workflows/pr-requirements.yml, so it can also re-run on
+  # `edited` events (a body gutted after the last code push must be re-checked) — the
+  # full matrix here deliberately does not listen to `edited`.
+
   # Decide whether website-terminal-recordings (the heaviest job, ~7 min)
   # needs to run on this PR. It re-records terminal GIFs of the CLI, so only
   # changes to the website, the CLI/daemon surface it demos, the build

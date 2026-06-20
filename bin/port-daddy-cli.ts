@@ -152,6 +152,7 @@ import { handleRelay } from '../cli/commands/relay.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
 import { handleSelfUpdate } from '../cli/commands/self-update.js';
+import { handleUpgrade } from '../cli/commands/upgrade.js';
 import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
 import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
@@ -1305,7 +1306,7 @@ const ALL_COMMANDS: string[] = [
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
@@ -2631,6 +2632,20 @@ export async function main(): Promise<void> {
         // LaunchAgent runs `pd self-update --tick`; humans can run `pd self-update`.
         await handleSelfUpdate({ tick: !!options.tick });
         break;
+
+      case 'upgrade': {
+        // ADR-0057 phase 7 (dist-update-channel): fetch the published latest.json
+        // feed, compare to THIS binary's embedded version, report or (--apply)
+        // perform the brew-upgrade path. Distinct from `self-update` (unattended
+        // freshness): this is the interactive "is there a newer release" command.
+        const upgradeResult = await handleUpgrade(PKG.version, {
+          feed: typeof options.feed === 'string' ? options.feed : undefined,
+          apply: !!options.apply,
+          json: !!(options.json ?? options.j),
+        });
+        if (upgradeResult.exitCode !== 0) process.exitCode = upgradeResult.exitCode;
+        break;
+      }
 
       case 'doctor':
       case 'diagnose':

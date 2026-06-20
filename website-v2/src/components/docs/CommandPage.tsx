@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
   BracketLink,
-  BracketLabel,
   DocsNoteCard,
   PanelBody,
   PanelEyebrow,
@@ -144,18 +143,13 @@ export function CommandPage({
       </div>
 
       <div className="space-y-[var(--space-4)]">
-        <div className="flex items-center gap-3">
-          <BracketLabel>CLI</BracketLabel>
-          <BracketLabel>v{version}</BracketLabel>
-        </div>
-
         <SectionIntro
-          eyebrow="CLI command"
+          eyebrow={`CLI command · v${version}`}
           title={
             <>
               {command}
               {shortFlag ? (
-                <span className="ml-[var(--space-2)] text-[var(--text-muted)] text-[0.66em]">({shortFlag})</span>
+                <span className="ml-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] text-[var(--text-muted)]">({shortFlag})</span>
               ) : null}
             </>
           }

@@ -58,7 +58,7 @@ jest.unstable_mockModule('../../cli/utils/channel-resolution.js', () => ({
 }));
 jest.unstable_mockModule('../../cli/utils/ui.js', () => mockUi);
 
-const { handleTube, readStdinToEnd } = await import('../../cli/commands/tube.js');
+const { handleTube, readStdinToEnd, buildMetaFromOptions } = await import('../../cli/commands/tube.js');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lib tests — pure functions
@@ -150,6 +150,42 @@ describe('lib/tube envelope', () => {
     });
     expect(decoded.envelope).toBe(true);
     expect(decoded.performative).toBeUndefined();
+  });
+
+  // RCP-14 — argumentative relationship (the discourse-move half of SwarmDiscourse).
+  test('buildEnvelope carries the argumentative relationship', () => {
+    const env = buildEnvelope('no, the cause is X', 7, { relationship: 'contradicts' });
+    expect(env).toEqual({
+      v: 1, kind: TUBE_ENVELOPE_KIND, body: 'no, the cause is X', inReplyTo: 7, relationship: 'contradicts',
+    });
+  });
+
+  test('relationship ROUND-TRIPS through build → decode, alongside a performative', () => {
+    const env = buildEnvelope('and also Y', 4, { performative: 'inform', relationship: 'extends' });
+    const decoded = decodeMessage({ id: 11, sender: 'worker', createdAt: 1, payload: env });
+    expect(decoded).toMatchObject({
+      body: 'and also Y', inReplyTo: 4, envelope: true, performative: 'inform', relationship: 'extends',
+    });
+  });
+
+  test('relationship round-trips through the stringified-payload path too', () => {
+    const env = buildEnvelope('combining both', undefined, { relationship: 'synthesizes' });
+    const decoded = decodeMessage({ id: 12, sender: 'x', createdAt: 1, payload: JSON.stringify(env) });
+    expect(decoded).toMatchObject({ relationship: 'synthesizes', envelope: true });
+  });
+
+  test('an unknown relationship is dropped, not surfaced as a bad value', () => {
+    const decoded = decodeMessage({
+      id: 1, sender: 's', createdAt: 1,
+      payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'x', relationship: 'vibes-with' },
+    });
+    expect(decoded.envelope).toBe(true);
+    expect(decoded.relationship).toBeUndefined();
+  });
+
+  test('legacy envelopes without a relationship decode unchanged (back-compat)', () => {
+    const decoded = decodeMessage({ id: 1, sender: 's', createdAt: 1, payload: buildEnvelope('hi', 3) });
+    expect(decoded.relationship).toBeUndefined();
   });
 });
 
@@ -362,6 +398,24 @@ describe('lib/tube send & reply', () => {
     const client = makeClient();
     await expect(send('c', '   ', client)).rejects.toThrow(/empty body/);
   });
+
+  test('send forwards conversation meta onto the envelope', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 1 })) as unknown as jest.Mock;
+    const client = makeClient({ publish });
+    await send('c', 'proposing', client, { sender: 'me', meta: { performative: 'propose', conversationId: 'cv' } });
+    expect((publish as jest.Mock).mock.calls[0][1]).toMatchObject({
+      body: 'proposing', performative: 'propose', conversationId: 'cv',
+    });
+  });
+
+  test('reply forwards the argumentative relationship onto the envelope', async () => {
+    const publish = jest.fn(async () => ({ ok: true, id: 2 })) as unknown as jest.Mock;
+    const client = makeClient({ publish });
+    await reply('c', 5, 'that is wrong because Z', client, { sender: 'me', meta: { relationship: 'contradicts' } });
+    expect((publish as jest.Mock).mock.calls[0][1]).toMatchObject({
+      body: 'that is wrong because Z', inReplyTo: 5, relationship: 'contradicts',
+    });
+  });
 });
 
 describe('lib/tube prose & sender helpers', () => {
@@ -412,6 +466,25 @@ describe('lib/tube prose & sender helpers', () => {
       'chan'
     );
     expect(block).toContain('↩ 42');
+  });
+
+  test('formatProse surfaces the typed discourse move when present', () => {
+    const block = formatProse(
+      {
+        id: 90, sender: 'agent', createdAt: 0, body: 'disagree', inReplyTo: 7,
+        performative: 'inform', relationship: 'contradicts', envelope: true, raw: null,
+      },
+      'chan'
+    );
+    expect(block).toContain('Discourse: act=inform · relationship=contradicts');
+  });
+
+  test('formatProse omits the discourse line for a plain message', () => {
+    const block = formatProse(
+      { id: 91, sender: 'agent', createdAt: 0, body: 'hi', envelope: true, raw: null },
+      'chan'
+    );
+    expect(block).not.toContain('Discourse:');
   });
 });
 
@@ -576,6 +649,87 @@ describe('cli/tube handler', () => {
 
     expect(logs).toHaveLength(1);
     expect(JSON.parse(logs[0])).toMatchObject({ id: 1, sender: 'a', body: 'hi' });
+  });
+
+  test('--lineage --json renders the argument graph + digest over the backlog (RCP-14)', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'alice', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'do X', performative: 'propose', conversationId: 'cv' } },
+          { id: 2, sender: 'bob', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'no, Y', inReplyTo: 1, relationship: 'contradicts', conversationId: 'cv' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('chan', { lineage: true, json: true }, { client, history: inMemoryHistoryStore() });
+
+    expect(logs).toHaveLength(1);
+    const out = JSON.parse(logs[0]);
+    expect(out).toMatchObject({ ok: true, conversationId: 'cv' });
+    expect(out.digest.total).toBe(2);
+    expect(out.digest.byRelationship.contradicts).toBe(1);
+    expect(out.digest.unresolvedContradictions).toHaveLength(1);
+    expect(out.tree).toContain('#1 alice [act=propose]: do X');
+    expect(out.tree).toContain('#2 bob [contradicts]: no, Y');
+  });
+
+  test('--lineage prose mode prints the digest summary and flags unresolved contradictions', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'alice', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'claim' } },
+          { id: 2, sender: 'bob', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'wrong', inReplyTo: 1, relationship: 'contradicts' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    await handleTube('chan', { lineage: true }, { client, history: inMemoryHistoryStore() });
+
+    const out = logs.join('\n');
+    expect(out).toContain('Discourse lineage');
+    expect(out).toContain('stances: contradicts=1');
+    expect(out).toContain('unresolved contradiction');
+  });
+
+  test('--lineage recommends a parley when waste beats cost (RCP-2a)', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'alice', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'claim' } },
+          { id: 2, sender: 'bob', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'wrong', inReplyTo: 1, relationship: 'contradicts' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    // High waste-per-contradiction, low parley cost → convene.
+    await handleTube('chan', { lineage: true, json: true, 'waste-per-contradiction': '10', 'parley-cost': '1' }, { client, history: inMemoryHistoryStore() });
+    const out = JSON.parse(logs[0]);
+    expect(out.parley.convene).toBe(true);
+    expect(out.parley.shape).toBe('debate-with-judge');
+  });
+
+  test('--lineage holds (no parley) when coordinating costs more than the conflict', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'a', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'one' } },
+          { id: 2, sender: 'b', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'two', inReplyTo: 1, relationship: 'contradicts' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    // High parley cost → coordinating isn't worth it.
+    await handleTube('chan', { lineage: true, 'parley-cost': '100' }, { client, history: inMemoryHistoryStore() });
+    const out = logs.join('\n');
+    expect(out).toContain('no parley');
   });
 
   test('--send pipes stdin to publish (top-level, no inReplyTo)', async () => {
@@ -912,5 +1066,28 @@ describe('cli/tube handler', () => {
     logs.length = 0;
     await handleTube('chan', { once: true, json: true }, { client, history });
     expect(logs).toHaveLength(0);
+  });
+});
+
+describe('cli/tube buildMetaFromOptions', () => {
+  test('parses valid performative + relationship + conversation-id', () => {
+    const meta = buildMetaFromOptions({
+      performative: 'propose',
+      relationship: 'extends',
+      'conversation-id': 'cv-7',
+    } as any);
+    expect(meta).toEqual({ performative: 'propose', relationship: 'extends', conversationId: 'cv-7' });
+  });
+
+  test('returns undefined when no meta flags are present', () => {
+    expect(buildMetaFromOptions({ reply: 'hi' } as any)).toBeUndefined();
+  });
+
+  test('rejects an unknown performative with a helpful error', () => {
+    expect(() => buildMetaFromOptions({ performative: 'yell' } as any)).toThrow(/unknown --performative/);
+  });
+
+  test('rejects an unknown relationship with a helpful error', () => {
+    expect(() => buildMetaFromOptions({ relationship: 'vibes' } as any)).toThrow(/unknown --relationship/);
   });
 });

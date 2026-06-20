@@ -52,6 +52,10 @@ type Snapshot = {
   skills: SkillReport[]
 }
 
+// Status colour is functional, not decorative: it tells you pass / warn / fail at a glance.
+const metaClass =
+  'font-mono text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)]'
+
 function StatTile({
   label,
   value,
@@ -71,7 +75,7 @@ function StatTile({
           : 'border-[var(--border-strong)] text-[var(--ink-strong)]'
   return (
     <SurfacePanel elevation="quiet" padding="compact" className={`grid gap-[var(--space-2)] border-2 ${toneStyles}`}>
-      <span className="text-[length:var(--text-xs)] font-mono uppercase tracking-[0.15em] opacity-70">{label}</span>
+      <span className={`${metaClass} opacity-70`}>{label}</span>
       <span className="text-[length:var(--text-4xl)] font-semibold leading-none">{value}</span>
     </SurfacePanel>
   )
@@ -84,11 +88,11 @@ function FailingSkillCard({ skill }: { skill: SkillReport }) {
         <h3 className="font-mono text-[length:var(--text-lg)] font-semibold text-rose-700 dark:text-rose-300">
           {skill.name}
         </h3>
-        <span className="font-mono text-[length:var(--text-xs)] opacity-70">{skill.root}</span>
+        <span className="font-mono text-[length:var(--type-meta-size)] opacity-70">{skill.root}</span>
       </div>
       {skill.orphans.length > 0 && (
         <div>
-          <p className="font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">
+          <p className={`${metaClass} opacity-70`}>
             Orphans ({skill.orphans.length})
           </p>
           <ul className="mt-[var(--space-1)] grid gap-[var(--space-1)] font-mono text-[length:var(--text-sm)]">
@@ -100,7 +104,7 @@ function FailingSkillCard({ skill }: { skill: SkillReport }) {
       )}
       {skill.drift.length > 0 && (
         <div>
-          <p className="font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">INDEX drift</p>
+          <p className={`${metaClass} opacity-70`}>INDEX drift</p>
           <ul className="mt-[var(--space-1)] grid gap-[var(--space-1)] font-mono text-[length:var(--text-sm)]">
             {skill.drift.map((d, i) => (
               <li key={`${d.index}-${i}`}>
@@ -116,7 +120,7 @@ function FailingSkillCard({ skill }: { skill: SkillReport }) {
       )}
       {skill.broken_links.length > 0 && (
         <div>
-          <p className="font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">
+          <p className={`${metaClass} opacity-70`}>
             Broken links ({skill.broken_links.length})
           </p>
           <ul className="mt-[var(--space-1)] grid gap-[var(--space-1)] font-mono text-[length:var(--text-sm)]">
@@ -133,7 +137,7 @@ function FailingSkillCard({ skill }: { skill: SkillReport }) {
       )}
       {skill.missing_indexes_failure.length > 0 && (
         <div>
-          <p className="font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">Missing INDEX.md</p>
+          <p className={`${metaClass} opacity-70`}>Missing INDEX.md</p>
           <ul className="mt-[var(--space-1)] grid gap-[var(--space-1)] font-mono text-[length:var(--text-sm)]">
             {skill.missing_indexes_failure.map(m => (
               <li key={m}>· {m}/</li>
@@ -211,27 +215,28 @@ export function SkillAuditPage() {
             <SwissGrid className="items-end">
               <SwissGridItem span="wide">
                 <div className="space-y-[var(--space-4)]">
-                  <PanelEyebrow>Skill Hygiene</PanelEyebrow>
+                  <PanelEyebrow>Skill hygiene</PanelEyebrow>
                   <PanelTitle as="h1" size="hero" className="max-w-[18ch]">
-                    Every bundled file should be reachable.
+                    Every file in a skill should be reachable.
                   </PanelTitle>
                   <PanelBody className="max-w-[44rem]">
-                    A skill bundle is only as useful as the parts an agent can find. The hygiene
-                    auditor walks every skill in this repo, parses the markdown links from
-                    SKILL.md and every INDEX.md, and reports anything that fell out of the
-                    reachable graph: orphaned docs, broken links, missing index hubs, and ghost
-                    entries.
+                    A skill is a bundle of files an agent reads on the job. If a file is in the
+                    folder but nothing links to it, the agent never sees it. This auditor walks
+                    every skill in the repo, follows the markdown links out of SKILL.md and each
+                    INDEX.md, and flags whatever falls off the trail: files nothing points to,
+                    links to files that moved, index pages that are missing, and index entries
+                    for files that no longer exist.
                   </PanelBody>
                 </div>
               </SwissGridItem>
               <SwissGridItem span="narrow">
                 <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
-                  <p className="flex items-center gap-[var(--space-2)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">
+                  <p className={`flex items-center gap-[var(--space-2)] ${metaClass} opacity-70`}>
                     <RefreshCw size={14} />
                     {run_id != null ? `Run #${run_id}` : 'Latest audit'}
                   </p>
                   {formatted && <p className="font-mono text-[length:var(--text-sm)]">{formatted}</p>}
-                  <p className="font-mono text-[length:var(--text-xs)] opacity-70">
+                  <p className="font-mono text-[length:var(--type-meta-size)] opacity-70">
                     auditor v{auditor_version}
                   </p>
                 </SurfacePanel>
@@ -268,13 +273,13 @@ export function SkillAuditPage() {
                   role="tab"
                   aria-selected={filter === 'failing'}
                   onClick={() => setFilter('failing')}
-                  className={`flex items-center gap-[var(--space-1)] border-2 px-[var(--space-3)] py-[var(--space-1)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] ${
+                  className={`flex items-center gap-[var(--space-1)] border-2 px-[var(--space-3)] py-[var(--space-1)] ${metaClass} ${
                     filter === 'failing'
                       ? 'border-rose-600 bg-rose-600/10 text-rose-700 dark:text-rose-300'
                       : 'border-[var(--border-strong)] text-[var(--ink-strong)]'
                   }`}
                 >
-                  <AlertTriangle size={12} />
+                  <AlertTriangle size={14} />
                   Failing
                 </button>
                 <button
@@ -282,13 +287,13 @@ export function SkillAuditPage() {
                   role="tab"
                   aria-selected={filter === 'warning'}
                   onClick={() => setFilter('warning')}
-                  className={`flex items-center gap-[var(--space-1)] border-2 px-[var(--space-3)] py-[var(--space-1)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] ${
+                  className={`flex items-center gap-[var(--space-1)] border-2 px-[var(--space-3)] py-[var(--space-1)] ${metaClass} ${
                     filter === 'warning'
                       ? 'border-amber-600 bg-amber-600/10 text-amber-700 dark:text-amber-300'
                       : 'border-[var(--border-strong)] text-[var(--ink-strong)]'
                   }`}
                 >
-                  <FileWarning size={12} />
+                  <FileWarning size={14} />
                   Warnings
                 </button>
                 <button
@@ -296,13 +301,13 @@ export function SkillAuditPage() {
                   role="tab"
                   aria-selected={filter === 'all'}
                   onClick={() => setFilter('all')}
-                  className={`flex items-center gap-[var(--space-1)] border-2 px-[var(--space-3)] py-[var(--space-1)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] ${
+                  className={`flex items-center gap-[var(--space-1)] border-2 px-[var(--space-3)] py-[var(--space-1)] ${metaClass} ${
                     filter === 'all'
                       ? 'border-emerald-600 bg-emerald-600/10 text-emerald-700 dark:text-emerald-300'
                       : 'border-[var(--border-strong)] text-[var(--ink-strong)]'
                   }`}
                 >
-                  <CheckCircle2 size={12} />
+                  <CheckCircle2 size={14} />
                   All
                 </button>
               </div>
@@ -315,8 +320,8 @@ export function SkillAuditPage() {
                   All {summary.total} skills pass.
                 </PanelTitle>
                 <PanelBody className="mt-[var(--space-2)]">
-                  No orphans, no broken links, no INDEX drift, no missing hubs. Every bundled file
-                  is reachable from SKILL.md or one of its index hubs.
+                  Nothing orphaned, no broken links, no index drift, no missing hubs. Every file
+                  is reachable from SKILL.md or one of its index pages.
                 </PanelBody>
               </SurfacePanel>
             )}
@@ -338,7 +343,7 @@ export function SkillAuditPage() {
                     <SurfacePanel key={s.name} elevation="quiet" padding="compact" className="border-2 border-amber-600/40">
                       <div className="flex flex-wrap items-baseline justify-between gap-[var(--space-2)]">
                         <h3 className="font-mono text-[length:var(--text-base)] font-medium">{s.name}</h3>
-                        <span className="font-mono text-[length:var(--text-xs)] opacity-70">
+                        <span className="font-mono text-[length:var(--type-meta-size)] opacity-70">
                           warnings: {s.missing_indexes_warning.join(', ')}
                         </span>
                       </div>
@@ -365,7 +370,7 @@ export function SkillAuditPage() {
                   >
                     <div className="flex items-baseline justify-between gap-[var(--space-2)]">
                       <h3 className="font-mono text-[length:var(--text-sm)]">{s.name}</h3>
-                      <span className="font-mono text-[length:var(--text-xs)] opacity-70">
+                      <span className="font-mono text-[length:var(--type-meta-size)] opacity-70">
                         {!s.ok ? 'fail' : s.missing_indexes_warning.length > 0 ? 'warn' : 'ok'}
                       </span>
                     </div>
@@ -385,27 +390,27 @@ export function SkillAuditPage() {
                   Every commit is audited.
                 </PanelTitle>
                 <PanelBody className="mt-[var(--space-3)] max-w-[44rem]">
-                  The pre-commit hook runs <code>skills/skill-hygiene/scripts/audit_skill_bundle.py</code>
-                  {' '}on every skill bundle touched by the commit. A library-wide audit runs
-                  separately and writes its result to a local SQLite history, then exports the
-                  snapshot powering this page.
+                  A pre-commit hook runs <code>skills/skill-hygiene/scripts/audit_skill_bundle.py</code>
+                  {' '}on each skill the commit touches. A separate run audits the whole library, writes
+                  the result to a local SQLite history, and exports the snapshot this page reads.
                 </PanelBody>
                 <PanelBody className="mt-[var(--space-3)] max-w-[44rem]">
-                  Drift falls into four buckets: <strong>orphan</strong> (file no SKILL or INDEX
-                  mentions), <strong>missing-from-index</strong> (file exists, INDEX doesn't list
-                  it), <strong> ghost entry</strong> (INDEX lists a file that doesn't exist), and
-                  <strong> broken link</strong> (markdown link points at a missing path; fuzzy-matched
-                  typo suggestions included). Missing-INDEX in a multi-file directory is a soft
-                  warning when SKILL.md already names every file individually.
+                  Drift comes in four kinds. An <strong>orphan</strong> is a file no SKILL.md or
+                  INDEX.md mentions. <strong>Missing from index</strong> means the file exists but
+                  its INDEX.md does not list it. A <strong>ghost entry</strong> is the reverse: the
+                  INDEX.md lists a file that is not there. A <strong>broken link</strong> points at
+                  a path that does not resolve, with a typo suggestion when one is close. A missing
+                  INDEX.md in a multi-file folder is only a warning when SKILL.md already names every
+                  file by hand.
                 </PanelBody>
               </SwissGridItem>
               <SwissGridItem span="narrow">
                 <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)]">
-                  <p className="flex items-center gap-[var(--space-2)] font-mono text-[length:var(--text-xs)] uppercase tracking-[0.15em] opacity-70">
+                  <p className={`flex items-center gap-[var(--space-2)] ${metaClass} opacity-70`}>
                     <GitBranch size={14} />
                     Run locally
                   </p>
-                  <pre className="overflow-x-auto whitespace-pre font-mono text-[length:var(--text-xs)] leading-relaxed">
+                  <pre className="overflow-x-auto whitespace-pre font-mono text-[length:var(--type-code-size)] leading-relaxed">
 {`python3 skills/skill-hygiene/scripts/audit_skill_bundle.py \\
   skills/<bundle-name>
 

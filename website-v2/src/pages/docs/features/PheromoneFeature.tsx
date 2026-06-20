@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -9,17 +8,13 @@ export default function PheromoneFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="default">Experimental</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Pheromone Trails
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Stigmergic coordination for agent swarms. Agents spray numeric signals onto
-          services, sessions, and projects. Signals decay over time — hot spots show
-          where work is concentrated, cold spots show what's been abandoned.
+          Agents leave numeric signals on services, sessions, and projects — the way ants leave
+          a scent trail. Signals fade over time, so hot spots show where work is concentrated and
+          cold spots show what has been left behind. This is called a pheromone trail.
         </p>
       </div>
 
@@ -210,7 +205,7 @@ curl 'http://localhost:9876/pheromone/files?path=src/lib/&depth=3'`}
             },
           ].map(({ method, path, desc }) => (
             <div key={path} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
-              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
+              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
                 method === 'POST'
                   ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                   : 'bg-[var(--badge-green-bg)] text-[var(--badge-green-text)]'

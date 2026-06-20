@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
 import {
   BracketLink,
   DocsNoteCard,
@@ -64,13 +63,8 @@ export function SdkFunctionPage({
       </div>
 
       <div className="space-y-[var(--space-4)]">
-        <div className="flex items-center gap-3">
-          <Badge variant="teal">SDK</Badge>
-          <Badge variant="default">v{version}</Badge>
-        </div>
-
         <SectionIntro
-          eyebrow={`${module} module`}
+          eyebrow={`${module} module · v${version}`}
           title={`${fn}()`}
           description={description}
           titleAs="h1"
@@ -101,14 +95,18 @@ export function SdkFunctionPage({
           <div className="space-y-[var(--space-3)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
             {params.map((param) => (
               <SurfacePanel key={param.name} elevation="quiet" padding="compact" className="space-y-[var(--space-2)]">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-[var(--space-2)]">
                   <PanelTitle as="p" size="nav" className="max-w-none font-mono text-[var(--brand-primary)]">
                     {param.name}
                   </PanelTitle>
-                  {param.required ? <Badge variant="default" size="sm">required</Badge> : null}
-                  <Badge variant="outline" size="sm">
+                  {param.required ? (
+                    <span className="inline-flex items-center border border-[var(--border-default)] bg-[var(--surface-overlay)] px-[var(--space-2)] py-px text-[length:var(--type-meta-size)] font-semibold uppercase tracking-wider text-[var(--text-primary)]">
+                      required
+                    </span>
+                  ) : null}
+                  <span className="inline-flex items-center border border-[var(--border-default)] px-[var(--space-2)] py-px font-mono text-[length:var(--type-meta-size)] text-[var(--text-secondary)]">
                     {param.type}
-                  </Badge>
+                  </span>
                 </div>
                 <PanelBody size="compact" className="max-w-none">
                   {param.description}
