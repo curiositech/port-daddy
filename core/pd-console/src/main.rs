@@ -15,6 +15,7 @@ mod app;
 mod claims_pane;
 mod cockpit_pane;
 mod dispatch_pane;
+mod editor;
 mod fleet_pane;
 mod health_pane;
 mod inbox_pane;

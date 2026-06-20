@@ -39,6 +39,11 @@ pub enum SurfaceKind {
     CartographerChat,
     /// Filetree rooted at a repo/worktree path (`None` = the operator's repo).
     FileTree { root: Option<String> },
+    /// A read-only code editor on one file, optionally scrolled/selected to a
+    /// `(start_line, end_line)` region (1-based). Bound by `path`; `region`
+    /// repoints via a scroll/select, not a path change. Fed per-path (not via a
+    /// NAV slot) — the editor reads its file from disk.
+    Editor { path: String, region: Option<(u32, u32)> },
     /// Daemon health / runtime state.
     DaemonHealth,
     /// All running fleet agents at a glance.
@@ -64,6 +69,17 @@ impl SurfaceKind {
             SurfaceKind::CartographerChat => "cartographer".into(),
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),
+            SurfaceKind::Editor { path, region } => {
+                let name = path
+                    .rsplit('/')
+                    .next()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(path.as_str());
+                match region {
+                    Some((a, b)) => format!("{name}:{a}-{b}"),
+                    None => name.to_string(),
+                }
+            }
             SurfaceKind::DaemonHealth => "daemon".into(),
             SurfaceKind::Fleet => "fleet".into(),
             SurfaceKind::Sessions => "sessions".into(),
@@ -268,6 +284,13 @@ impl Workspace {
             match s {
                 SurfaceKind::AgentTranscript { agent_id } => *agent_id = entity,
                 SurfaceKind::FileTree { root } => *root = entity,
+                // Editor's `path` is non-optional, so binding `None` is a no-op;
+                // only `Some` repoints it at another file.
+                SurfaceKind::Editor { path, .. } => {
+                    if let Some(p) = entity {
+                        *path = p;
+                    }
+                }
                 _ => {}
             }
         }
@@ -420,6 +443,42 @@ mod tests {
         assert_eq!(ws.pane_count(), 2);
         assert_eq!(ws.focused(), new);
         assert_eq!(ws.focused_surface(), &agent("a1"));
+    }
+
+    fn editor(path: &str) -> SurfaceKind {
+        SurfaceKind::Editor { path: path.into(), region: None }
+    }
+
+    #[test]
+    fn editor_label_is_basename_with_optional_region() {
+        assert_eq!(editor("/repo/src/foo.rs").label(), "foo.rs");
+        assert_eq!(editor("foo.rs").label(), "foo.rs");
+        let with_region = SurfaceKind::Editor { path: "/a/b/foo.rs".into(), region: Some((10, 20)) };
+        assert_eq!(with_region.label(), "foo.rs:10-20");
+        // A trailing slash never yields an empty label — it falls back to the path.
+        assert_eq!(editor("/repo/").label(), "/repo/");
+    }
+
+    #[test]
+    fn split_into_editor_focuses_the_new_editor_pane() {
+        // The new mux split path: opening a file beside the focused pane.
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        let new = ws.split(Dir::Row, editor("/repo/src/mux.rs"));
+        assert_eq!(ws.pane_count(), 2);
+        assert_eq!(ws.focused(), new);
+        assert_eq!(ws.focused_surface(), &editor("/repo/src/mux.rs"));
+        // The tree's ASCII rendering carries the editor's basename label.
+        assert!(format!("{ws}").contains("mux.rs"));
+    }
+
+    #[test]
+    fn bind_entity_repoints_editor_path_only_on_some() {
+        let mut ws = Workspace::new(editor("/repo/a.rs"));
+        ws.bind_entity(Some("/repo/b.rs".into()));
+        assert_eq!(ws.focused_surface(), &editor("/repo/b.rs"));
+        // `None` is a no-op for an Editor (path is non-optional) — unchanged.
+        ws.bind_entity(None);
+        assert_eq!(ws.focused_surface(), &editor("/repo/b.rs"));
     }
 
     #[test]

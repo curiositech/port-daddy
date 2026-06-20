@@ -19,6 +19,11 @@
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
+// The Harbor Editor pane is gpui-free; re-host it here so its unit tests run on
+// the Linux/CI gate (`cargo test --bin pd-console-repl`). The repl doesn't drive
+// it yet, hence dead_code.
+#[allow(dead_code)]
+#[path = "../editor.rs"]         mod editor;
 // fleet_pane and maritime are excluded — they pull in GPUI derive macros
 // (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
 #[path = "../health_pane.rs"]    mod health_pane;

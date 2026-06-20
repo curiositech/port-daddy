@@ -20,7 +20,7 @@ use gpui::*;
 
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
-use crate::pane::{Block, Tone};
+use crate::pane::{Block, Pane, Tone};
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -91,7 +91,19 @@ fn build_stamp() -> String {
 /// Matches a NAV label/id/key by case-insensitive prefix, plus the two
 /// non-nav surfaces ("chat" → cartographer, "files"/"tree" → file tree).
 fn surface_for_query(query: &str) -> Option<SurfaceKind> {
-    let q = query.trim().to_lowercase();
+    let raw = query.trim();
+    // `editor <path>` (or `e <path>`) opens a read-only editor on that file.
+    // The path keeps its original case — only the verb is matched loosely.
+    if let Some(path) = raw
+        .strip_prefix("editor ")
+        .or_else(|| raw.strip_prefix("e "))
+    {
+        let path = path.trim();
+        if !path.is_empty() {
+            return Some(SurfaceKind::Editor { path: path.to_string(), region: None });
+        }
+    }
+    let q = raw.to_lowercase();
     if q.is_empty() {
         return None;
     }
@@ -535,6 +547,13 @@ impl ConsoleView {
     /// for it. Existing live panels resolve through `pane_blocks`; surfaces
     /// without a backing fetcher yet render an honest placeholder.
     fn blocks_for_surface(&self, surface: &SurfaceKind) -> Vec<Block> {
+        // Editor reads from DISK, not a NAV slot: construct + load synchronously
+        // and return its render-agnostic Blocks (the same set the TUI paints).
+        // A read-only walking skeleton re-reads on each frame; the editable +
+        // off-thread-streamed slice comes later.
+        if let SurfaceKind::Editor { path, .. } = surface {
+            return crate::editor::EditorPane::loaded(path.clone()).view();
+        }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
                 .iter()
@@ -1093,7 +1112,11 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } => None,
+        // Editor content comes from disk (via `blocks_for_surface`), not a NAV
+        // slot; CartographerChat / FileTree have no live fetcher yet.
+        SurfaceKind::CartographerChat
+        | SurfaceKind::FileTree { .. }
+        | SurfaceKind::Editor { .. } => None,
     }
 }
 
@@ -1306,6 +1329,26 @@ mod add_pane_tests {
         assert!(matches!(surface_for_query("chat"), Some(SurfaceKind::CartographerChat)));
         assert!(matches!(surface_for_query("files"), Some(SurfaceKind::FileTree { .. })));
         assert!(matches!(surface_for_query("tree"), Some(SurfaceKind::FileTree { .. })));
+    }
+
+    #[test]
+    fn picker_opens_editor_on_a_path() {
+        // `editor <path>` and the `e <path>` alias both open a read-only editor,
+        // preserving the path's original case.
+        match surface_for_query("editor src/Foo.rs") {
+            Some(SurfaceKind::Editor { path, region }) => {
+                assert_eq!(path, "src/Foo.rs");
+                assert!(region.is_none());
+            }
+            other => panic!("'editor <path>' should open an Editor, got {other:?}"),
+        }
+        match surface_for_query("e /abs/Bar.rs") {
+            Some(SurfaceKind::Editor { path, .. }) => assert_eq!(path, "/abs/Bar.rs"),
+            other => panic!("'e <path>' alias should open an Editor, got {other:?}"),
+        }
+        // Bare `editor` with no path is not an editor open (falls through to the
+        // nav matcher, which has no match → None).
+        assert!(surface_for_query("editor ").is_none());
     }
 
     #[test]
