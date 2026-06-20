@@ -345,10 +345,12 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
   }
 
   /**
-   * List all non-zero pheromones across all tracked tables.
+   * List all non-zero pheromones across all tracked tables. Each entry also
+   * carries its `resolutions` map (RCP-7a) — present (possibly empty) so
+   * consumers can show effective (damped) heat without an extra fetch.
    */
-  function list(): Array<{ table: string; id: string; pheromones: Record<string, number> }> {
-    const results: Array<{ table: string; id: string; pheromones: Record<string, number> }> = [];
+  function list(): Array<{ table: string; id: string; pheromones: Record<string, number>; resolutions: Record<string, number> }> {
+    const results: Array<{ table: string; id: string; pheromones: Record<string, number>; resolutions: Record<string, number> }> = [];
 
     for (const table of ['services', 'projects', 'sessions', 'agents']) {
       if (!ALLOWED_TABLES.has(table)) continue;
@@ -358,7 +360,7 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
           try {
             const metadata = JSON.parse(row.metadata);
             if (metadata?.pheromones && Object.keys(metadata.pheromones).length > 0) {
-              results.push({ table, id: row.id, pheromones: metadata.pheromones });
+              results.push({ table, id: row.id, pheromones: metadata.pheromones, resolutions: metadata.resolutions ?? {} });
             }
           } catch {}
         }
