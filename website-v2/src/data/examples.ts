@@ -739,7 +739,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     related: [
       { title: 'Inbox tutorial', href: '/tutorials/inbox' },
       { title: 'Agent command', href: '/docs/cli/agent' },
-      { title: 'Remote harbors', href: '/tutorials/remote-harbors' },
+      { title: 'pd tube playground', href: '/pd-tube' },
     ],
   },
   {
