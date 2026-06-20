@@ -840,6 +840,15 @@ We maintain an extreme standard of reliability for the control plane:
 - **Formal Verification:** Roadmap includes **ProVerif** modeling for the Anchor Protocol.
 - **Benchmarking:** `pd bench` measures atomic commit latency.
 
+### Contributing
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against
+[`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) and is held to
+the contract in [AGENTS.md](AGENTS.md): an exhaustive summary and a non-trivial test
+plan (enforced by the `pr-requirements-guard` CI job), screenshots + a GIF/recording
+for any visual change, surface parity for new CLI verbs (`npm run parity`), new tests
+for new code, and a `CHANGELOG.md` entry. A neutral adversarial reviewer runs on every
+PR and posts a `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict.
+
 ---
 
 ## 🗺️ V4 Roadmap: The Wild West

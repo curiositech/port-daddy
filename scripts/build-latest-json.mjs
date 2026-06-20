@@ -5,9 +5,12 @@
  *
  * Scans a directory of built release artifacts, computes the SHA-256 of each,
  * and emits a `latest.json` manifest (version + per-surface download URL +
- * checksum) for `pd upgrade` and the GUI apps to consume. The schema + the
- * validation live in lib/latest-manifest.ts; this script is the PRODUCER that
- * feeds buildLatestManifest the real artifact bytes.
+ * checksum) for `pd upgrade` and the GUI apps to consume. The canonical schema +
+ * types live in lib/latest-manifest.ts and are exercised by the consumer + unit
+ * tests; this .mjs script does NOT import them — to stay dependency-free / TS-
+ * build-free for the release runner, it DUPLICATES the small amount of structural
+ * validation it needs (semver parse + checksum-shape guard) from that module.
+ * Keep the two in sync (or add a round-trip test) when the schema changes.
  *
  * Usage:
  *   node scripts/build-latest-json.mjs \
@@ -42,14 +45,15 @@ import { dirname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// Import the shared schema builder. We import the .ts via a tiny inline
-// transpile-free shim: the schema math is duplicated minimally here ONLY for the
-// producer's structural needs (parseSemver validation), but the canonical types
-// + validation live in lib/latest-manifest.ts and are exercised by the consumer
-// + unit tests. To avoid a TS build step in a .mjs release script, we re-derive
-// the small amount needed and rely on buildLatestManifest's runtime validation
-// being mirrored here. (Keeping this dependency-free is deliberate: the release
-// runner must run it with plain `node`.)
+// NOTE: this script intentionally does NOT import lib/latest-manifest.ts. The
+// canonical types + validation live there (and are exercised by the consumer +
+// unit tests), but importing a .ts module would require a TS build step in this
+// release-runner script. So the small amount of structural validation the
+// PRODUCER needs (semver parse + checksum-shape guard) is DUPLICATED here, kept
+// deliberately minimal. Keeping this dependency-free is the point: the release
+// runner must run it with plain `node`. If the schema changes, update both
+// places (or add a round-trip test asserting this output parses via
+// parseLatestManifest).
 
 function sha256File(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
@@ -97,7 +101,7 @@ function main() {
     console.error('build-latest-json: --tag <vX.Y.Z> is required');
     process.exit(2);
   }
-  const version = String(tag).replace(/^v/i, '');
+  const version = String(tag).replace(/^v(?=\d)/i, '');
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) {
     console.error(`build-latest-json: tag "${tag}" does not contain a valid semver`);
     process.exit(2);

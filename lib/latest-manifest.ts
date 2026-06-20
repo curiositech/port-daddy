@@ -84,7 +84,7 @@ export interface ParsedSemver {
  */
 export function parseSemver(input: string): ParsedSemver | null {
   if (typeof input !== 'string') return null;
-  const trimmed = input.trim().replace(/^v/i, '');
+  const trimmed = input.trim().replace(/^v(?=\d)/i, '');
   // MAJOR.MINOR.PATCH, optional -prerelease, optional +build
   const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(trimmed);
   if (!m) return null;
@@ -174,7 +174,7 @@ export function buildLatestManifest(input: BuildLatestManifestInput): LatestMani
   const now = input.now ?? (() => new Date());
   return {
     schema: LATEST_MANIFEST_SCHEMA,
-    version: input.version.trim().replace(/^v/i, ''),
+    version: input.version.trim().replace(/^v(?=\d)/i, ''),
     tag: input.tag,
     publishedAt: now().toISOString(),
     releaseUrl: input.releaseUrl,
@@ -219,7 +219,7 @@ export function parseLatestManifest(raw: unknown): LatestManifest {
   });
   return {
     schema: typeof obj.schema === 'number' ? obj.schema : LATEST_MANIFEST_SCHEMA,
-    version: (obj.version as string).trim().replace(/^v/i, ''),
+    version: (obj.version as string).trim().replace(/^v(?=\d)/i, ''),
     tag: typeof obj.tag === 'string' ? obj.tag : `v${obj.version}`,
     publishedAt: typeof obj.publishedAt === 'string' ? obj.publishedAt : '',
     releaseUrl: typeof obj.releaseUrl === 'string' ? obj.releaseUrl : '',
@@ -251,7 +251,7 @@ export interface UpgradeDecision {
  */
 export function decideUpgrade(currentVersion: string, manifest: LatestManifest): UpgradeDecision {
   return {
-    current: currentVersion.trim().replace(/^v/i, ''),
+    current: currentVersion.trim().replace(/^v(?=\d)/i, ''),
     latest: manifest.version,
     upgradeAvailable: isNewerVersion(manifest.version, currentVersion),
     daemonArtifact: artifactFor(manifest, 'daemon'),

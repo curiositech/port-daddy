@@ -14,12 +14,24 @@
  * Distinct from `pd self-update` (ADR-0062): that is the unattended hourly
  * freshness LaunchAgent that always brew-upgrades + restarts the daemon and
  * FleetBar. `pd upgrade` is the interactive "is there a newer release, and what
- * is it" command that consumes the shared feed and verifies a checksum before
- * recommending an action. They share the brew path; they differ in audience.
+ * is it" command that consumes the shared feed. They share the brew path; they
+ * differ in audience.
+ *
+ * Integrity, stated plainly: `pd upgrade` SURFACES the daemon asset's published
+ * SHA-256 from the feed (so a human/GUI can verify a manual download) but does
+ * NOT itself download-then-verify the bottle. On `--apply` it shells out to
+ * `brew upgrade <formula>`, and Homebrew is what actually verifies the bottle's
+ * integrity before installing it. `verifyChecksum` / `sha256File` below are
+ * helpers for the deferred manual/GUI verify path; the current command does not
+ * exercise them on its own download.
  *
  * What is wired vs. deferred (honest):
  *   - Detect newer version from the feed:           DONE (decideUpgrade)
- *   - Verify a downloaded asset's SHA-256:          DONE (verifyChecksum)
+ *   - Surface the asset's published SHA-256:        DONE (printed in the report)
+ *   - Verify the actual installed bottle's integrity: DELEGATED to Homebrew
+ *     (`brew upgrade` checks the bottle; `pd upgrade` does not re-download)
+ *   - Standalone SHA-256 verify of a manual download: helper only, NOT invoked
+ *     by this command (verifyChecksum/sha256File — for the deferred GUI path)
  *   - Perform the brew-upgrade path (--apply):      DONE (macOS + brew install)
  *   - Privileged in-place self-replace of a signed
  *     relocated binary:                             DEFERRED to brew by design
@@ -61,9 +73,14 @@ export function sha256File(path: string): string {
 }
 
 /**
- * PURE: does a file's bytes match the expected checksum? Extracted so the
- * verify path is unit-tested without a download. `expected` is compared
+ * PURE: does a file's bytes match the expected checksum? `expected` is compared
  * case-insensitively against the lowercase-hex digest of the file.
+ *
+ * NOTE (honest): this helper is NOT invoked by the current `pd upgrade` flow —
+ * `--apply` delegates bottle integrity to `brew upgrade`, and the bare path only
+ * prints the published SHA-256. It exists for the deferred manual/GUI verify
+ * path (verify a hand-downloaded asset against the feed's advertised digest) and
+ * is unit-tested directly so that path is ready when wired.
  */
 export function verifyChecksum(path: string, expected: string): boolean {
   if (!existsSync(path)) return false;
