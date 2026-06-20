@@ -36,10 +36,12 @@ final class SingleInstanceGuardTests: XCTestCase {
         XCTAssertEqual(SingleInstanceGuard.decide(me: me, peers: [me, peer]), .reapOlder([101]))
     }
 
-    func testKnownDatePeerOutranksUnknownSelf() {
-        // A peer with a real launch date is treated as newer than an unknown self.
+    func testUnknownSelfNeverYields() {
+        // Self with no launch date must NOT yield to a dated peer — refusing to
+        // launch (the old behaviour) stranded a fresh app against a stale
+        // LaunchServices registration. Unknown self defaults to newest → reap.
         let me = RunningInstance(pid: 100, launchDate: nil)
         let peer = RunningInstance(pid: 101, launchDate: at(5))
-        XCTAssertEqual(SingleInstanceGuard.decide(me: me, peers: [me, peer]), .yield)
+        XCTAssertEqual(SingleInstanceGuard.decide(me: me, peers: [me, peer]), .reapOlder([101]))
     }
 }

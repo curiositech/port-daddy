@@ -37,17 +37,23 @@ enum SingleInstanceGuard {
     /// this process), decide what to do. Factored out so the newest-wins logic is
     /// unit-testable without `NSWorkspace`.
     ///
-    /// Launch dates are compared with unknowns treated as `.distantPast`, so an
-    /// instance with a known date is preferred as the survivor. When *everything*
-    /// is unknown, the current instance simply wins (reaps the rest).
+    /// Yield only when a peer is *provably* newer — both its and our launch dates
+    /// are known and the peer's is later. An unknown self-launch time (which AppKit
+    /// can report during `applicationDidFinishLaunching`) defaults to "newest", so
+    /// the instance reaps rather than yields. Refusing to launch is a worse failure
+    /// than the rare double-launch the yield path guards against, and a stale or
+    /// still-terminating LaunchServices registration must never euthanise a fresh
+    /// instance.
     static func decide(me: RunningInstance, peers: [RunningInstance]) -> SingleInstanceDecision {
         let others = peers.filter { $0.pid != me.pid }
         guard !others.isEmpty else { return .soleInstance }
 
-        let myStart = me.launchDate ?? .distantPast
-        if others.contains(where: { ($0.launchDate ?? .distantPast) > myStart }) {
-            return .yield
+        let myStart = me.launchDate ?? .distantFuture
+        let aPeerIsProvablyNewer = others.contains { peer in
+            guard let peerStart = peer.launchDate else { return false }
+            return peerStart > myStart
         }
+        if aPeerIsProvablyNewer { return .yield }
         return .reapOlder(others.map(\.pid))
     }
 
@@ -66,7 +72,7 @@ enum SingleInstanceGuard {
 
         let me = RunningInstance(pid: current.processIdentifier, launchDate: current.launchDate)
         let peers = workspace.runningApplications
-            .filter { $0.bundleIdentifier == myID }
+            .filter { $0.bundleIdentifier == myID && !$0.isTerminated }
             .map { RunningInstance(pid: $0.processIdentifier, launchDate: $0.launchDate) }
 
         let decision = decide(me: me, peers: peers)
