@@ -412,6 +412,8 @@ Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES
 
 For Port Daddy itself, the release boundary is the signed-binary cut. Tagging `v<version>` and publishing a GitHub Release triggers the `release.yml` workflow, which rebuilds the daemon, CLI, and MCP server as signed/notarized binaries (per [ADR-0028](docs/adr/0028-signed-binary-distribution.md)). The brew tap (`curiositech/homebrew-tap`) is then bumped via the manual `publish.yml` workflow. Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill around the same tag, since those surfaces become live operator truth at the moment users run `brew upgrade port-daddy`.
 
+Each Release also publishes a `latest.json` update feed (version + per-artifact download URL + SHA-256 + signed flag; schema in [ADR-0057](docs/adr/0057-unified-distribution.md) phase 7). Run `pd upgrade` to check the feed against your installed version and see the verified daemon asset; `pd upgrade --apply` runs `brew upgrade port-daddy` for a Homebrew install (privileged self-replace is deferred to brew by design). This is the interactive sibling of the unattended hourly `pd self-update` freshness LaunchAgent ([ADR-0062](docs/adr/0062-auto-freshness-self-heal.md)).
+
 ```bash
 # Preferred single-agent delegation
 pd agent "Review the last commit for regressions" \
