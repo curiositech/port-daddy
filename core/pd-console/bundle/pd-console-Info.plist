@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>Port Daddy Console</string>
+  <key>CFBundleDisplayName</key>
+  <string>Port Daddy Console</string>
+  <key>CFBundleIdentifier</key>
+  <string>dev.portdaddy.console</string>
+  <key>CFBundleExecutable</key>
+  <string>pd-console</string>
+  <key>CFBundleIconFile</key>
+  <string>PortDaddyConsole</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <!-- Stamped from package.json by scripts/package-pd-console.sh (ADR-0057
+       phase dist-version-authority): CFBundleShortVersionString tolerates a
+       SemVer suffix; CFBundleVersion must be numeric-only. -->
+  <key>CFBundleShortVersionString</key>
+  <string>0.0.0</string>
+  <key>CFBundleVersion</key>
+  <string>0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>12.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <!-- GPU-native window: it draws its own UI and is not a document app. -->
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.developer-tools</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>© Curiositech LLC</string>
+</dict>
+</plist>
