@@ -49,6 +49,7 @@ import {
   type TubeClient,
   type TubeMessage,
 } from '../../lib/tube.js';
+import { buildLineage, summarizeThread, renderLineageTree } from '../../lib/discourse-lineage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daemon client (HTTP shim over pdFetch)
@@ -302,7 +303,7 @@ export function buildMetaFromOptions(options: CLIOptions): ConversationMeta | un
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history] [--performative <act> --relationship <stance> --conversation-id <id>]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --lineage [--conversation-id <id>] | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history] [--performative <act> --relationship <stance> --conversation-id <id>]');
     process.exit(1);
   }
 
@@ -460,6 +461,51 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       else body = await bodyFromStdin();
       const result = await send(physical, body, client, { sender: selfSender, meta: buildMetaFromOptions(options) });
       reportPost(result.id);
+      return;
+    } catch (e) {
+      ui.error((e as Error).message);
+      process.exit(1);
+      return;
+    }
+  }
+
+  // ── --lineage: render the argument graph over the channel backlog ───────
+  // (RCP-14). Pulls the full backlog, builds the typed inReplyTo graph, and
+  // prints a digest (zoom-out) + tree (zoom-in). Optionally scoped to one
+  // --conversation-id.
+  if (options.lineage) {
+    try {
+      const res = await listen(physical, client, history, { disableHistory: true, limit: 2000 });
+      let msgs = res.messages;
+      const convFilter = options['conversation-id'] ?? options.conversation;
+      if (typeof convFilter === 'string' && convFilter) {
+        msgs = msgs.filter((m) => m.conversationId === convFilter);
+      }
+      const graph = buildLineage(msgs);
+      const digest = summarizeThread(graph);
+      if (emitMode === 'json') {
+        console.log(JSON.stringify({
+          ok: true,
+          channel: physical,
+          ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
+          digest: { ...digest },
+          tree: renderLineageTree(graph),
+        }));
+      } else {
+        const head = `Discourse lineage · ${formatResolvedChannel(resolved)}${graph.conversationId ? ` · conversation ${graph.conversationId}` : ''}`;
+        const relBits = Object.entries(digest.byRelationship).filter(([, n]) => n > 0).map(([k, n]) => `${k}=${n}`);
+        const summary = [
+          head,
+          `${digest.total} message(s) · ${digest.participants.length} participant(s) · depth ${digest.maxDepth}`,
+          relBits.length > 0 ? `stances: ${relBits.join(' · ')}` : 'stances: (none typed)',
+          digest.unresolvedContradictions.length > 0
+            ? `⚠ ${digest.unresolvedContradictions.length} unresolved contradiction(s): ${digest.unresolvedContradictions.map((e) => `#${e.from}→#${e.to}`).join(', ')}`
+            : '',
+          '',
+          renderLineageTree(graph) || '(no messages)',
+        ].filter((l) => l !== '').join('\n');
+        console.log(summary);
+      }
       return;
     } catch (e) {
       ui.error((e as Error).message);
