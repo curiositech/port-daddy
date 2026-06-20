@@ -526,11 +526,6 @@ export const siteMetadataRoutes: SiteMetadata[] = [
   ...productRoutes,
   ...contentMetadata,
   ...docsRouteMetadata,
-  metadata('/docs-old', 'Legacy Docs', 'Legacy Port Daddy documentation kept available for compatibility while the current docs system is normalized.', {
-    section: 'legacy',
-    canonicalPath: '/docs',
-    index: false,
-  }),
 ]
 
 const metadataByPath = new Map(siteMetadataRoutes.map((route) => [route.path, route]))

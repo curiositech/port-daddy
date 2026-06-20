@@ -19,7 +19,6 @@ function lazyNamed(loader: () => Promise<Record<string, unknown>>, exportName: s
 
 const App = lazy(() => import('./App'))
 const DocsLayout = lazyNamed(() => import('@/components/docs/DocsLayout'), 'DocsLayout')
-const DocsPage = lazy(() => import('@/pages/DocsPage'))
 const TutorialsPage = lazyNamed(() => import('@/pages/TutorialsPage'), 'TutorialsPage')
 const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPage')
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
@@ -396,7 +395,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="*" element={<Navigate to="/docs" replace />} />
             </Route>
 
-            <Route path="/docs-old" element={<DocsPage />} />
+            {/* Legacy docs route retired — redirect to the current docs. */}
+            <Route path="/docs-old" element={<Navigate to="/docs" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
