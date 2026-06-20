@@ -33,6 +33,14 @@ describe('renderMarkdown', () => {
     expect(renderMarkdown('1. a\n2. b')).toContain('<ol><li>a</li><li>b</li></ol>');
   });
 
+  test('rejects javascript:/data: URL schemes in links (only http/relative/anchor)', () => {
+    const h = renderMarkdown('[bad](javascript:alert(1)) and [ok](https://e.com) and [rel](./x.md)');
+    expect(h).not.toContain('href="javascript:');
+    expect(h).not.toMatch(/href="javascript/);
+    expect(h).toContain('href="https://e.com"');
+    expect(h).toContain('href="./x.md"');
+  });
+
   test('HTML in source is escaped (no injection)', () => {
     const h = renderMarkdown('a <script>alert(1)</script> b');
     expect(h).not.toContain('<script>alert(1)</script>');

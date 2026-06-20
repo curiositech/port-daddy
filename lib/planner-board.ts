@@ -304,7 +304,7 @@ ${flagBanner}
                  '.task[data-slug="'+CSS.escape(it.slug)+'"] .chip.status-backlog');
         // Light refresh: update the first status chip's class/text if it drifted.
         const node=document.querySelector('.task[data-slug="'+CSS.escape(it.slug)+'"] .chip');
-        if(node && node.textContent!==it.status){ node.textContent=it.status; node.className='chip status-'+it.status; changed++; }
+        if(node && ['now','backlog','parked','merge','done'].includes(it.status) && node.textContent!==it.status){ node.textContent=it.status; node.className='chip status-'+it.status; changed++; }
       }
       dot.className='dot on';
       txt.textContent='live · '+items.length+' items'+(changed?(' · '+changed+' updated'):'');

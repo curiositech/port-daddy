@@ -158,6 +158,12 @@ export const roadmapPlugin: FastifyPluginAsync<{ deps: RoadmapDeps }> = async (f
         for (const epic of plan.epics) {
           if (!epic.id.startsWith('adr-')) continue;
           const num = epic.id.replace('adr-', '');
+          // Defense-in-depth: num is derived from item slugs; require digits-only before any
+          // filesystem lookup so a crafted slug can never drive a path beyond docs/adr.
+          if (!/^\d{2,4}$/.test(num)) {
+            adrs[num] = {};
+            continue;
+          }
           const file = files.find((f) => f.startsWith(`${num}-`));
           if (!file) {
             adrs[num] = {};
