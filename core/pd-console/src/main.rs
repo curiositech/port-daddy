@@ -21,6 +21,7 @@ mod inbox_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
+mod substrate_pane;
 mod maritime;
 mod mux;
 mod palette;
@@ -49,6 +50,7 @@ use inbox_pane::InboxPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
+use substrate_pane::SubstratePane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
@@ -170,7 +172,7 @@ fn main() {
         // NAV order mirrors app::NAV:
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
+        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate
         let (tx, rx) =
             mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         let url = daemon_url.clone();
@@ -206,6 +208,7 @@ fn main() {
                 let mut lane       = LanePane::new();          // 16 — the LIVE one
                 let mut ledger     = LedgerPane::new();        // 17 — the money
                 let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
+                let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -268,6 +271,7 @@ fn main() {
                     let _ = lane.refresh(&client).await;
                     let _ = ledger.refresh(&client).await;
                     let _ = lineage.refresh(&client).await;
+                    let _ = substrate.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -311,6 +315,7 @@ fn main() {
                         (16, lane.view()),
                         (17, ledger.view()),
                         (18, lineage.view()),
+                        (19, substrate.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {
