@@ -42,6 +42,13 @@ struct GrantKeys {
 static STORE: Mutex<Option<HashMap<String, GrantKeys>>> = Mutex::new(None);
 
 fn with_store<R>(f: impl FnOnce(&mut HashMap<String, GrantKeys>) -> R) -> R {
+    // Recover from a poisoned lock rather than panic: the kernel must not unwind
+    // (no-panic across the FFI boundary). Recovery is sound here because the
+    // guarded value is only a HashMap<String, GrantKeys> — `insert`/`remove` move
+    // whole, fully-constructed values, so a panic can't leave a torn entry with a
+    // half-written key (safe Rust has no partial struct writes). The worst a poison
+    // means is "some prior op panicked"; the key map itself is consistent. (PR #496
+    // review finding — contested: into_inner() is the correct no-panic choice.)
     let mut guard = STORE.lock().unwrap_or_else(|p| p.into_inner());
     f(guard.get_or_insert_with(HashMap::new))
 }
