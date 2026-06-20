@@ -58,6 +58,68 @@ fn stale_socket_file_is_cleaned_up_on_bind() {
 }
 
 #[test]
+fn stale_socket_left_by_dropped_listener_is_recovered() {
+    // A faithful crashed-predecessor scenario: bind a real socket, then drop the
+    // listener WITHOUT unlinking, leaving a dead socket inode behind (no process
+    // is listening). A re-bind must detect there is no live listener and recover.
+    let dir = temp_socket();
+    let path = dir.path().join("broker.sock");
+
+    let first = bind_listener(&path).expect("first bind");
+    // Dropping a UnixListener closes its fd but does NOT unlink the socket file,
+    // so this leaves a dead socket inode on disk with no process listening behind
+    // it — exactly the stale state a crashed predecessor leaves.
+    drop(first);
+    assert!(path.exists(), "socket inode should linger after a crash");
+
+    // Re-bind: nothing is listening behind the stale inode, so the probe-connect
+    // fails and bind_listener unlinks + rebinds.
+    let second = bind_listener(&path).expect("re-bind over stale (no listener) socket");
+    drop(second);
+}
+
+#[test]
+fn live_predecessor_is_not_clobbered() {
+    // A LIVE broker is already listening on the path. A second bind_listener must
+    // REFUSE rather than steal the socket out from under it (stale-socket
+    // takeover / self-DoS guard).
+    let dir = temp_socket();
+    let path = dir.path().join("broker.sock");
+
+    let live = bind_listener(&path).expect("first (live) bind");
+    // Spawn an acceptor so a connect-probe actually succeeds (proves "live").
+    let live_clone_path = path.clone();
+    let server = thread::spawn(move || {
+        // Accept exactly one probe connection then return.
+        if let Ok((stream, _)) = live.accept() {
+            drop(stream);
+        }
+        // Hold the listener alive until the test drops it via the channel below.
+        let _ = live_clone_path; // keep path captured for clarity
+        live
+    });
+
+    // Give the acceptor a moment to be ready.
+    thread::sleep(Duration::from_millis(50));
+
+    let err = bind_listener(&path)
+        .expect_err("second bind over a LIVE broker must refuse, not clobber");
+    assert_eq!(
+        err.kind(),
+        std::io::ErrorKind::AddrInUse,
+        "expected AddrInUse refusal, got {err:?}"
+    );
+    assert!(
+        err.to_string().contains("already listening"),
+        "refusal should name the live-listener condition, got: {err}"
+    );
+
+    // Clean up the acceptor thread (it returns the listener after one accept).
+    let _live = server.join().expect("join acceptor");
+    drop(_live);
+}
+
+#[test]
 fn partial_message_is_reassembled_across_writes() {
     let dir = temp_socket();
     let path = dir.path().join("broker.sock");

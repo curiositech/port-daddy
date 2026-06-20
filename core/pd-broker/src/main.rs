@@ -15,17 +15,25 @@
 use std::collections::HashMap;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use pd_broker::broker::{Broker, BrokerConfig};
-use pd_broker::transport::{bind_listener, serve_connection};
+use pd_broker::transport::{bind_listener, serve_connection, READ_TIMEOUT};
 use pd_core::now_ms;
 
 /// 20-minute default ticket lifetime — matches the rent/discharge TTL window
 /// (pd_anchor::macaroon::DISCHARGE_TTL_MS) so a ticket never outlives the
 /// discharge that earned it.
 const DEFAULT_TICKET_TTL_MS: i64 = 20 * 60 * 1000;
+
+/// Hard ceiling on concurrently-served connections. Each connection gets its own
+/// handler thread (so a stalled client cannot pin the acceptor); this bounds the
+/// thread count so a flood of connections cannot exhaust memory/FDs. At the cap
+/// the broker closes new connections cleanly rather than spawning unbounded
+/// threads. 64 is far above any legitimate concurrent-agent count for a
+/// single-host broker.
+const MAX_CONCURRENT_CONNS: usize = 64;
 
 static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 
@@ -161,13 +169,54 @@ fn run() -> Result<(), String> {
         ticket_ttl_ms
     );
 
-    let broker = Mutex::new(broker);
+    // Shared so each connection's handler thread can lock the broker. The broker
+    // mutates internal state (the ticket nonce counter), so all handlers
+    // serialize on this mutex — correct and cheap, since `handle` is fast and
+    // the contention point is only the brief mint, not the socket I/O.
+    let broker = Arc::new(Mutex::new(broker));
+    // Live connection count, decremented by an RAII guard on each handler thread.
+    let conn_count = Arc::new(AtomicUsize::new(0));
 
     while !SHUTDOWN.load(Ordering::SeqCst) {
         match listener.accept() {
             Ok((stream, _addr)) => {
+                // Back to blocking mode for the per-connection read, but bounded
+                // by a read timeout so a stalled/half-open client cannot hold its
+                // handler thread forever.
                 let _ = stream.set_nonblocking(false);
-                serve_connection(stream, &broker, now_ms);
+                let _ = stream.set_read_timeout(Some(READ_TIMEOUT));
+
+                // Bound concurrency: refuse cleanly at the cap rather than
+                // spawning unbounded threads. Reserve a slot first; if we are
+                // over the cap, undo the reservation and drop the connection.
+                let prior = conn_count.fetch_add(1, Ordering::SeqCst);
+                if prior >= MAX_CONCURRENT_CONNS {
+                    conn_count.fetch_sub(1, Ordering::SeqCst);
+                    // Dropping `stream` closes the connection cleanly (FIN/EOF).
+                    drop(stream);
+                    continue;
+                }
+
+                let broker = Arc::clone(&broker);
+                let handler_count = Arc::clone(&conn_count);
+                // Move serving off the acceptor thread: a stalled client now only
+                // blocks its own thread, never the accept loop.
+                let spawned = std::thread::Builder::new()
+                    .name("pd-broker-conn".into())
+                    .spawn(move || {
+                        // RAII guard decrements the live count even if the
+                        // handler panics, so a panicking handler can never leak a
+                        // slot and wedge the cap.
+                        let _guard = ConnGuard(&handler_count);
+                        serve_connection(stream, &broker, now_ms);
+                    });
+                if spawned.is_err() {
+                    // Thread spawn failed (e.g. resource limit). The closure that
+                    // captured `stream` was already dropped inside `spawn` on the
+                    // Err path, so the connection is closed cleanly; we just
+                    // release the reserved slot here.
+                    conn_count.fetch_sub(1, Ordering::SeqCst);
+                }
             }
             Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::sleep(std::time::Duration::from_millis(50));
@@ -182,6 +231,16 @@ fn run() -> Result<(), String> {
     let _ = std::fs::remove_file(&path);
     eprintln!("pd-broker: shut down, socket unlinked");
     Ok(())
+}
+
+/// Decrements the live-connection counter on drop, so the slot is released even
+/// if the handler thread panics mid-connection.
+struct ConnGuard<'a>(&'a AtomicUsize);
+
+impl Drop for ConnGuard<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 fn main() {
