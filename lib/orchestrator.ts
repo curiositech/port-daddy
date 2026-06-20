@@ -479,7 +479,16 @@ export interface OrchestratorRule {
   enabled: boolean;
 }
 
-export function createReactiveOrchestrator(db: any, messaging: any, spawner: any) {
+/**
+ * The reactive orchestrator (the autonomous, event-driven spawn surface). It
+ * keeps its TRIGGER logic (channel rules → action) but, per ADR-0060, no longer
+ * owns LAUNCH: when a `conductor` is supplied, a `spawn` action routes through
+ * `conductor.launch(intent)` — the one spawn primitive — so even the least-
+ * supervised surface inherits the bond/lineage/breaker/halt envelope. When no
+ * conductor is supplied (legacy wiring, unit tests), it falls back to the direct
+ * `spawner.spawn` it used before, byte-identically.
+ */
+export function createReactiveOrchestrator(db: any, messaging: any, spawner: any, conductor?: any) {
   const events = new EventEmitter();
   const execChildren = new Set<ChildProcess>();
   let closed = false;
@@ -532,7 +541,44 @@ export function createReactiveOrchestrator(db: any, messaging: any, spawner: any
       if (rule.action === 'spawn') {
         const spec = { ...rule.payload };
         if (typeof spec.task === 'string') spec.task = spec.task.replace('{{msg}}', JSON.stringify(msg.payload));
-        const spawnResult = await spawner.spawn(spec);
+        let spawnResult;
+        if (conductor) {
+          // Route the autonomous spawn through the ONE spawn primitive (ADR-0060).
+          // The conductor rebuilds the byte-identical spawn spec from the intent
+          // and reaches `spawner.spawn` itself. An orchestrator-triggered launch
+          // is source:'orchestrator', runs in place (inherit), and settles with no
+          // review gate (never) — matching the legacy fire-and-forget behavior.
+          const launchResult = await conductor.launch({
+            source: 'orchestrator',
+            goal: typeof spec.task === 'string' && spec.task.trim()
+              ? spec.task
+              : `orchestrator:${rule.name}`,
+            task: typeof spec.task === 'string' ? spec.task : undefined,
+            backend: spec.backend,
+            model: spec.model,
+            modelTier: spec.modelTier,
+            identity: spec.identity,
+            purpose: spec.purpose,
+            workdir: spec.workdir,
+            allowedTools: spec.allowedTools,
+            // Forward the rule's declared capabilities so the conductor path
+            // matches the legacy spawner.spawn(spec) behaviour. Without this they
+            // were dropped and (with the empty-caps→full default) the agent ran
+            // UNrestricted. Conductor admission still narrows-only against any parent.
+            capabilities: Array.isArray(spec.capabilities) ? spec.capabilities : undefined,
+            timeoutMs: typeof spec.timeout === 'number' ? spec.timeout : undefined,
+            maxTokens: spec.maxTokens,
+            harborName: spec.harborName,
+            worktree: 'inherit',
+            mergePolicy: 'never',
+          });
+          spawnResult = launchResult.spawn ?? {
+            status: launchResult.admitted ? 'failed' : 'refused',
+            error: launchResult.refusedReason ?? undefined,
+          };
+        } else {
+          spawnResult = await spawner.spawn(spec);
+        }
         if (spawnResult && typeof spawnResult === 'object' && 'status' in spawnResult && spawnResult.status !== 'completed' && !closed) {
           console.error(`[orchestrator:${rule.name}] spawn ${spawnResult.status}: ${spawnResult.error || 'unknown error'}`);
           events.emit('rule:spawn_failed', {

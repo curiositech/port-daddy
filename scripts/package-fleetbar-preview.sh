@@ -178,6 +178,31 @@ cp "$RELEASE_BIN" "$APP_BIN"
 cp "$APP_INFO_PLIST_SRC" "$APP_CONTENTS/Info.plist"
 cp "$APP_ICON_SRC" "$APP_RESOURCES/FleetBarIcon.icns"
 chmod +x "$APP_BIN"
+
+# Dev/preview identity (ADR-0084). A preview build must NOT inherit the shipped
+# app's bundle id (ai.portdaddy.FleetBar): it would be indistinguishable in
+# LaunchServices and the FleetBar single-instance guard, keyed on bundle id,
+# would treat a preview launched beside the installed app as the same app and
+# reap it. Stamp a distinct `dev.portdaddy.fleetbar.<label>` id plus a visible
+# CFBundleDisplayName so a dev FleetBar runs alongside production and is labelled
+# everywhere — menu bar ("DEV"), Cmd-Tab, and Activity Monitor. The label
+# defaults to the current branch slug; override with FLEETBAR_PREVIEW_LABEL.
+PREVIEW_LABEL="${FLEETBAR_PREVIEW_LABEL:-}"
+if [[ -z "$PREVIEW_LABEL" ]]; then
+  PREVIEW_LABEL="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null \
+    | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9]#-#g; s#-\{2,\}#-#g; s#^-##; s#-$##')"
+fi
+PREVIEW_LABEL="${PREVIEW_LABEL:-preview}"
+PREVIEW_BUNDLE_ID="dev.portdaddy.fleetbar.${PREVIEW_LABEL}"
+PREVIEW_DISPLAY_NAME="FleetBar dev (${PREVIEW_LABEL})"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${PREVIEW_BUNDLE_ID}" "$APP_CONTENTS/Info.plist"
+if /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$APP_CONTENTS/Info.plist" >/dev/null 2>&1; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${PREVIEW_DISPLAY_NAME}" "$APP_CONTENTS/Info.plist"
+else
+  /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ${PREVIEW_DISPLAY_NAME}" "$APP_CONTENTS/Info.plist"
+fi
+echo "Stamped preview identity: ${PREVIEW_BUNDLE_ID} (${PREVIEW_DISPLAY_NAME})"
+
 bundle_port_daddy_payload "$PORT_DADDY_PAYLOAD_DIR"
 
 SIGNATURE_LABEL="ad-hoc"
