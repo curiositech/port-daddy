@@ -79,9 +79,10 @@ repo-specific mechanics:
   public `port-daddy-agent-skill` if it generalizes).
 - **Generalize.** Features must work for non-tsx/non-Rust repos, remote harbors,
   other machines, and shared GitHub teams — not just this checkout.
-- **Whitepaper check.** Reconcile coordination/kernel work against
-  [`whitepaper/single-writer-kernel.tex`](../../whitepaper/single-writer-kernel.tex)
-  and [`whitepaper/legible-swarm.tex`](../../whitepaper/legible-swarm.tex); note drift in the PR.
+- **Whitepaper check.** Reconcile coordination/kernel work against the seven
+  whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
+  Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
+  Commons, Federated Harbor); note drift in the PR.
 - **Skill matching.** If you're missing a matching skill, pause and do skill
   research. The intended home is a **seamanship** match-cascade/graft selector
   (proposed, not yet built — modelled on windags `windags_skill_induct` /

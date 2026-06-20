@@ -201,12 +201,14 @@ Documents`.
   manufactured confidence, no em-dash confetti. Use the `make-human` skill and
   keep the customer-personae skill in agreement. Write like the person who
   maintains this repo.
-- **Mind the whitepaper.** Before shipping coordination/kernel work, check it
-  against [`whitepaper/single-writer-kernel.tex`](whitepaper/single-writer-kernel.tex)
-  and [`whitepaper/legible-swarm.tex`](whitepaper/legible-swarm.tex): have you
-  drifted from the model, or have you built something the paper should now
-  describe? They need not be 1:1 — the paper is the lofty theory, the code is what
-  we actually shipped — but each should correct the other. Note drift in the PR.
+- **Mind the whitepapers.** Before shipping coordination/kernel work, check it
+  against the seven Port Daddy whitepapers — the canon registered in
+  `website-v2/src/data/whitePapers.ts` (Legible Swarm, Single-Writer Kernel, Spawn
+  to Person, Harbor Economy, Anchor Protocol, Bonded Commons, Federated Harbor;
+  sources + PDFs under `website-v2/public/whitepaper/`): have you drifted from the
+  model, or built something a paper should now describe? They need not be 1:1 — the
+  papers are the lofty theory, the code is what we actually shipped — but each
+  should correct the other. Note drift in the PR.
 - **Work at maximal tool + skill access, and pause to find the right skill.** Start
   with the broadest toolset you can reach. If you catch yourself working without a
   matching skill, stop and do skill research before improvising what a skill
