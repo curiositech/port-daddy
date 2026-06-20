@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
+import { AgentAnatomy } from '@/components/agents/AgentAnatomy'
 
 export default function FleetFeature() {
   return (
@@ -85,6 +86,9 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
           </div>
         </div>
       </div>
+
+      {/* One real agent, labeled — the visual lead-in to the schema reference. */}
+      <AgentAnatomy />
 
       {/* Fleet YAML */}
       <div className="space-y-4">

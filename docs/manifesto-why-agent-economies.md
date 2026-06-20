@@ -177,9 +177,14 @@ machinery is already built:
 - You **price by categorical fidelity.** A full equivalence is worth more than a faithful
   functor is worth more than a Galois connection is worth more than a bare span. The
   market can grade its merchandise.
-- And you **bond it.** Post collateral against the claim. If the receipt fails an audit —
-  if your "functor" turns out to be a leaky span dressed up — the bond is slashed and
-  the conservation law makes sure no value evaporated quietly in the process.
+- And you **bond it** — honestly about what the bond is for. The receipt is *checkable*:
+  a buyer verifies the witness themselves, so no trusted auditor sits in the middle to
+  bribe, and that structural check, not the collateral, is what kills the market for
+  lemons. The bond is the residual backstop, covering the damage a claim that *passes* the
+  check can still do downstream; if the bonded claim turns out to be a leaky span dressed
+  up, it is slashed and the conservation law keeps any value from evaporating quietly.
+  Sizing that bond — high enough to deter, low enough not to price out honest sellers — is
+  its own open problem, not a detail I get to wave past.
 
 That is the whole trick. The boring permit office — bonds, evidence chains, a
 conservation theorem, structurally-bounded settlement — turns out to be the missing
