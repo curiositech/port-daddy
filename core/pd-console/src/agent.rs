@@ -257,17 +257,33 @@ impl DaemonClient {
         &self.http
     }
 
-    /// Create a top-level agent on `backend`, bound to `channel` for the conversation.
-    /// Returns the agent id. (The spawned agent listens+replies on the tube channel —
-    /// the steering-channel pattern; one-shot backends reply once.)
-    pub async fn spawn(&self, backend: Backend, prompt: &str, channel: &str) -> Result<String> {
-        let body = serde_json::json!({
+    /// Create a top-level agent on `backend`, bound to `channel`. The daemon
+    /// enforces real launch guards — a positive budget ceiling, a model for
+    /// model-backends, and a worktree workdir (NOT a main checkout). We satisfy
+    /// all three here so the command actually launches instead of bouncing off a
+    /// precondition. `workdir` comes from `PD_CONSOLE_WORKDIR` (an isolated
+    /// worktree); the daemon blocks main-checkout spawns by design.
+    /// Returns the outcome incl. one-shot inline `output` (ollama et al. reply in
+    /// the spawn response, not on the tube).
+    pub async fn spawn(&self, backend: Backend, prompt: &str, channel: &str) -> Result<SpawnOutcome> {
+        let mut body = serde_json::json!({
             "backend": backend.as_str(),
             "task": prompt,
             "identity": format!("console:agent:{channel}"),
             "purpose": "Top-level console agent (tube conversation)",
             "tubeChannel": channel,
+            "budgetUsd": 0.25,
         });
+        // Model-backends (ollama) require an explicit model.
+        if matches!(backend, Backend::Ollama) {
+            let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
+            body["model"] = serde_json::json!(m);
+        }
+        // Worktree isolation: the daemon refuses to run an agent in a main
+        // checkout. Pass an operator-provided worktree.
+        if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+            body["workdir"] = serde_json::json!(wd);
+        }
         let resp = self
             .http
             .post(format!("{}/spawn", self.base))
@@ -275,14 +291,15 @@ impl DaemonClient {
             .send()
             .await
             .context("POST /spawn")?;
-        // reqwest returns Ok on 4xx/5xx — check status before trusting the body,
-        // so a budget/validation rejection surfaces as an error, not a parse miss.
         let resp = ensure_success(resp, "spawn").await?;
         let v: serde_json::Value = resp.json().await.context("spawn response")?;
-        v.get("agentId")
-            .and_then(|a| a.as_str())
-            .map(String::from)
-            .ok_or_else(|| anyhow!("spawn failed: {}", v))
+        let s = |k: &str| v.get(k).and_then(|x| x.as_str()).map(String::from);
+        Ok(SpawnOutcome {
+            id: s("agentId").unwrap_or_else(|| "?".into()),
+            status: s("status").unwrap_or_default(),
+            output: s("output"),
+            error: s("error"),
+        })
     }
 
     /// Post a turn up the tube.
@@ -352,6 +369,26 @@ impl DaemonClient {
         // A 404 (unknown agent) or guard rejection must surface as an error, not
         // be silently swallowed as a delivered interrupt.
         ensure_success(resp, "interrupt").await?;
+        Ok(())
+    }
+
+    /// Operator review gate on a dispatch: `POST /dispatches/:id/{accept|reject|cancel}`.
+    /// `accept` needs no body; `reject` REQUIRES a `reason` (>=3 chars, daemon-enforced);
+    /// `cancel` takes an optional reason. The single seat where the operator vetoes/lands
+    /// agent work (the supervisor-worker blocking gate).
+    pub async fn dispatch_action(&self, id: &str, action: &str, reason: Option<&str>) -> Result<()> {
+        let body = match reason {
+            Some(r) => serde_json::json!({ "reason": r }),
+            None => serde_json::json!({}),
+        };
+        let resp = self
+            .http
+            .post(format!("{}/dispatches/{id}/{action}", self.base))
+            .json(&body)
+            .send()
+            .await
+            .with_context(|| format!("POST /dispatches/{id}/{action}"))?;
+        ensure_success(resp, "dispatch_action").await?;
         Ok(())
     }
 
@@ -427,6 +464,15 @@ fn extract_text(payload: Option<&serde_json::Value>) -> String {
     }
 }
 
+/// Result of a spawn: the agent id, its lifecycle status, any one-shot inline
+/// output, and a daemon error/block reason when the launch was refused.
+pub struct SpawnOutcome {
+    pub id: String,
+    pub status: String,
+    pub output: Option<String>,
+    pub error: Option<String>,
+}
+
 /// One hosted top-level agent.
 pub struct TopLevelAgent {
     pub id: String,
@@ -453,14 +499,14 @@ impl AgentManager {
     }
 
     /// Create a NEW top-level agent on `backend`. The thing iterm2 was for.
-    pub async fn create_agent(&mut self, backend: Backend, prompt: &str) -> Result<u64> {
+    pub async fn create_agent(&mut self, backend: Backend, prompt: &str) -> Result<(u64, SpawnOutcome)> {
         let local = self.next;
         self.next += 1;
         let channel = format!("console-agent-{local}");
-        let id = self.client.spawn(backend, prompt, &channel).await?;
-        self.agents.insert(local, TopLevelAgent { id, backend, channel, cursor: 0 });
+        let outcome = self.client.spawn(backend, prompt, &channel).await?;
+        self.agents.insert(local, TopLevelAgent { id: outcome.id.clone(), backend, channel, cursor: 0 });
         self.active = Some(local);
-        Ok(local)
+        Ok((local, outcome))
     }
 
     pub async fn send(&mut self, text: &str) -> Result<()> {

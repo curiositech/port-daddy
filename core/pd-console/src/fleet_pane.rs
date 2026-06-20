@@ -93,15 +93,20 @@ impl Pane for FleetPane {
                 } else {
                     trunc(&a.identity, 24)
                 };
-                blocks.push(Block::Row(vec![
-                    format!("[{}]", flag.letter()),
-                    callsign,
-                    a.backend.clone(),
-                    a.state.clone(),
-                    age_short(a.last_heartbeat_ms),
-                ]));
+                // A real hoisted signal flag (colored square + ICS letter),
+                // tone by engagement. The letter encodes the ICS state.
+                let tone = if a.active { Tone::Engaged } else { Tone::Resting };
+                blocks.push(Block::Flag {
+                    letter: flag.letter(),
+                    label: format!("{callsign}  ·  {}", a.state),
+                    tone,
+                });
+                blocks.push(Block::KeyVal(
+                    "  detail".into(),
+                    format!("{} · {} ago", a.backend, age_short(a.last_heartbeat_ms)),
+                ));
                 if !a.purpose.is_empty() {
-                    blocks.push(Block::KeyVal("purpose".into(), trunc(&a.purpose, 60)));
+                    blocks.push(Block::KeyVal("  purpose".into(), trunc(&a.purpose, 60)));
                 }
             }
         }
@@ -179,6 +184,15 @@ mod tests {
             last_heartbeat_ms: 0,
         }];
         let blocks = p.view();
-        assert!(blocks.iter().any(|b| matches!(b, Block::Row(_))));
+        // The roster now hoists a real signal flag per agent (was a `[A]` Row).
+        assert!(
+            blocks.iter().any(|b| matches!(b, Block::Flag { .. })),
+            "each agent must render a maritime Flag block"
+        );
+        // The engaged agent's flag carries its callsign + state.
+        let labelled = blocks.iter().any(|b| matches!(
+            b, Block::Flag { label, .. } if label.contains("port-daddy:panels") && label.contains("engaged")
+        ));
+        assert!(labelled, "flag label must carry callsign + state");
     }
 }

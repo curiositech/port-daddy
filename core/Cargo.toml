@@ -60,3 +60,9 @@ time = { version = "0.3", features = ["formatting", "serde"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "sync", "time"] }
 dirs = "5"
 uuid = { version = "1", features = ["v4", "serde"] }
+
+# Stripping debuginfo from the test profile keeps the gpui test binary's
+# compilation under this machine's memory ceiling (debuginfo=2 on the combined
+# gpui+app crate SIGBUSes rustc). Tests still run with full assertions.
+[profile.test]
+debug = false

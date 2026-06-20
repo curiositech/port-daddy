@@ -13,7 +13,7 @@ use peniko::{Brush, Color, Fill};
 use std::collections::HashMap;
 use vello::Scene;
 
-use crate::data::{Timeline, Track};
+use crate::data::{Event, Timeline, Track};
 
 // --- Palette (dark, harbor-ish; not pulled from website tokens — this is a
 //     standalone R&D window, so it carries its own minimal scheme). ---
@@ -271,13 +271,27 @@ pub fn build_scene(
     //    service.claim rows in a burst), we only draw a label when it clears
     //    the previously-labeled x on that track by a minimum gap. Markers
     //    always draw; labels are decluttered.
-    let mut last_label_x: [f64; 4] = [f64::NEG_INFINITY; 4];
-    const LABEL_GAP: f64 = 130.0;
-    for ev in &tl.events {
+    // Declutter so labels are READABLE and NEVER overlap (operator hard rule):
+    //   (a) sort events by time so "next" is always to the right on a track;
+    //   (b) truncate each label so one event can't hog the lane;
+    //   (c) place a label only past the previous label's *measured* right edge —
+    //       not a guessed constant gap (the old bug: a 130px gap vs ~200px labels);
+    //   (d) two vertical stagger rows per track double density while still never
+    //       colliding (each row tracks its own next-free-x).
+    const LABEL_PAD: f64 = 16.0;
+    const MAX_LABEL_CHARS: usize = 30;
+    const STAGGER_DY: f64 = 14.0;
+    let mut next_free_x: [[f64; 2]; 4] = [[f64::NEG_INFINITY; 2]; 4]; // [track][stagger row]
+    let mut next_stagger: [usize; 4] = [0; 4];
+
+    let mut ordered: Vec<&Event> = tl.events.iter().collect();
+    ordered.sort_by_key(|e| e.t_ms);
+
+    for ev in ordered {
         let x = spec.x_for(ev.t_ms, tl.t_min, tl.t_max);
         let y = spec.track_y(ev.track);
         let c = track_color(ev.track);
-        // Block under the dot for visual weight.
+        // Marker (block + dot) — ALWAYS drawn (only labels are decluttered).
         scene.fill(
             Fill::NonZero,
             Affine::IDENTITY,
@@ -292,11 +306,21 @@ pub fn build_scene(
             None,
             &Circle::new(Point::new(x, y), 5.0),
         );
-        // Label above the marker (>= 12px logical), decluttered per track.
+        // Label: pick a stagger row that's clear at this x; if both are busy,
+        // skip the label (the marker still shows). Right edge uses the measured
+        // glyph-run width, so two labels can physically never touch.
         let row = ev.track.row();
-        if x - last_label_x[row] >= LABEL_GAP {
-            text.draw_text(scene, &ev.label, x + 8.0, y - 20.0, 12.0, TEXT_DIM, scale);
-            last_label_x[row] = x;
+        let label = truncate_label(&ev.label, MAX_LABEL_CHARS);
+        let lx = x + 8.0;
+        for s in 0..2 {
+            let sr = (next_stagger[row] + s) % 2;
+            if lx >= next_free_x[row][sr] {
+                let ly = y - 20.0 - (sr as f64) * STAGGER_DY;
+                let w = text.draw_text(scene, &label, lx, ly, 12.0, TEXT_DIM, scale);
+                next_free_x[row][sr] = lx + w + LABEL_PAD;
+                next_stagger[row] = (sr + 1) % 2;
+                break;
+            }
         }
     }
 
@@ -331,6 +355,17 @@ pub fn build_scene(
         PLAYHEAD,
         scale,
     );
+}
+
+/// Truncate a label to `max` chars with an ellipsis, on a char boundary, so a
+/// single noisy event ("Agent agent-stream-interrupt-…") can't smear a lane.
+fn truncate_label(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let kept: String = s.chars().take(max.saturating_sub(1)).collect();
+        format!("{kept}…")
+    }
 }
 
 /// A smooth S-curve cubic bezier from cause `a` to effect `b`.
