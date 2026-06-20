@@ -217,3 +217,110 @@ impl Pane for LedgerPane {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// Build a LedgerPane with pre-loaded daemon JSON (no HTTP needed).
+    fn make_pane(cost: Option<Value>, wallets: Option<Value>) -> LedgerPane {
+        LedgerPane {
+            cost,
+            wallets,
+            last_error: None,
+        }
+    }
+
+    #[test]
+    fn burn_bar_fills_proportionally_and_clamps() {
+        assert_eq!(burn_bar(0.0), "░░░░░░░░░░");
+        assert_eq!(burn_bar(100.0), "██████████");
+        assert_eq!(burn_bar(80.0), "████████░░");
+        // Over-budget clamps to full rather than overflowing.
+        assert_eq!(burn_bar(140.0), "██████████");
+        // Negative (shouldn't happen) clamps to empty.
+        assert_eq!(burn_bar(-5.0), "░░░░░░░░░░");
+    }
+
+    #[test]
+    fn usd_formats_cents_then_dollars() {
+        assert_eq!(usd(0.0), "$0.00");
+        assert_eq!(usd(0.3456), "$0.35");
+        assert_eq!(usd(99.99), "$99.99");
+        assert_eq!(usd(250.0), "$250");
+    }
+
+    #[test]
+    fn view_error_state_is_gated() {
+        let mut pane = make_pane(None, None);
+        pane.last_error = Some("daemon unreachable".into());
+        let blocks = pane.view();
+        let has_gate = blocks
+            .iter()
+            .any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. }));
+        assert!(has_gate, "error state must surface a gated chip");
+    }
+
+    #[test]
+    fn view_joins_spend_with_wallet_caps_and_color_codes() {
+        // alpha: spent 0.80 vs $1/day cap = 80% → Gated (watch).
+        // beta:  spent 0.05 vs $4/day cap = ~1% → Landed (calm).
+        let cost = json!({
+            "totals": {"totalUsd": 0.85, "spawnCount": 11, "estimatedCount": 2},
+            "byProject": [
+                {"projectName": "alpha", "totalUsd": 0.80},
+                {"projectName": "beta",  "totalUsd": 0.05}
+            ],
+            "byBackend": [{"backend": "ollama", "totalUsd": 0.85, "count": 11}]
+        });
+        let wallets = json!({
+            "wallets": [
+                {"project": "alpha", "balanceUsd": 5.0, "budgetUsdPerDay": 1.0},
+                {"project": "beta",  "balanceUsd": 3.0, "budgetUsdPerDay": 4.0}
+            ]
+        });
+        let pane = make_pane(Some(cost), Some(wallets));
+        let blocks = pane.view();
+
+        // The hero accent chip carries the 24h total.
+        let hero = blocks.iter().find_map(|b| match b {
+            Block::Chip { label, tone: Tone::Accent } if label.contains("spent") => Some(label),
+            _ => None,
+        });
+        assert!(hero.map(|l| l.contains("$0.85")).unwrap_or(false), "hero must show 24h total");
+
+        // alpha at 80% must be a Gated (watch) chip; beta calm = Landed.
+        let alpha_gated = blocks.iter().any(|b| matches!(
+            b, Block::Chip { label, tone: Tone::Gated } if label.contains("alpha") && label.contains("80%")
+        ));
+        assert!(alpha_gated, "alpha at 80% of cap must render a gated burn bar");
+        let beta_landed = blocks.iter().any(|b| matches!(
+            b, Block::Chip { label, tone: Tone::Landed } if label.contains("beta")
+        ));
+        assert!(beta_landed, "beta well under cap must render a landed burn bar");
+
+        // The wallet balance joined in for alpha.
+        let bal = blocks.iter().any(|b| matches!(
+            b, Block::KeyVal(k, v) if k.trim() == "balance" && v == "$5.00"
+        ));
+        assert!(bal, "wallet balance must be joined into the project rows");
+    }
+
+    #[test]
+    fn view_without_wallets_shows_spend_without_caps() {
+        // Spend present, wallets 501'd (None) → projects render as no-cap rows,
+        // never panicking and never inventing a budget.
+        let cost = json!({
+            "totals": {"totalUsd": 0.10, "spawnCount": 1, "estimatedCount": 0},
+            "byProject": [{"projectName": "gamma", "totalUsd": 0.10}],
+            "byBackend": []
+        });
+        let pane = make_pane(Some(cost), None);
+        let blocks = pane.view();
+        let no_cap = blocks.iter().any(|b| matches!(
+            b, Block::Row(cells) if cells.iter().any(|c| c == "gamma") && cells.iter().any(|c| c == "no cap")
+        ));
+        assert!(no_cap, "without a wallet cap, project spend renders as a no-cap row");
+    }
+}

@@ -258,6 +258,17 @@ pub fn render_blocks(blocks: &[Block], style: &TermStyle) -> String {
                 ));
                 i += 1;
             }
+            Block::Flag { letter, label, tone } => {
+                // TUI hoist: a bracketed signal letter painted in the flag tone,
+                // then the label. (The GPU face draws the colored square.)
+                let sem = tone.sem();
+                out.push_str(&format!(
+                    "  {} {}\n",
+                    style.paint(&format!("⚑{letter}"), sem),
+                    style.paint(label, sem),
+                ));
+                i += 1;
+            }
             Block::Spark(values) => {
                 out.push_str(&format!(
                     "  {}\n",

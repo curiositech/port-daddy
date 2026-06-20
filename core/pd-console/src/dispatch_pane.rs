@@ -337,6 +337,39 @@ mod tests {
         }
     }
 
+    #[test]
+    fn head_surfaces_oldest_dispatch_with_queue_count() {
+        // Empty queue → no head (the review gate shows "queue empty").
+        assert!(make_pane(vec![], 0).head().is_none());
+
+        // Populated → head is the first entry, carrying intent + economics + the
+        // full queue count (what the review gate renders).
+        let first = DispatchEntry {
+            id: "head-1".into(),
+            goal: "Land the auth refactor".into(),
+            state: "review_pending".into(),
+            budget_usd: Some(2.0),
+            cost_usd: Some(0.5),
+            created_at: Some(1),
+        };
+        let second = DispatchEntry {
+            id: "tail-2".into(),
+            goal: "later".into(),
+            state: "review_pending".into(),
+            budget_usd: None,
+            cost_usd: None,
+            created_at: Some(2),
+        };
+        let pane = make_pane(vec![first, second], 2);
+        let head = pane.head().expect("head present");
+        assert_eq!(head.id, "head-1");
+        assert_eq!(head.goal, "Land the auth refactor");
+        assert_eq!(head.state, "review_pending");
+        assert_eq!(head.budget_usd, Some(2.0));
+        assert_eq!(head.cost_usd, Some(0.5));
+        assert_eq!(head.count, 2, "head carries the full queue depth");
+    }
+
     /// Regression: real `routes/dispatches.ts` entities carry epoch-ms
     /// `createdAt` numbers and nulls — the old strict struct (created_at as
     /// String) failed the whole-response decode.

@@ -53,6 +53,9 @@ pub enum CmdKind {
     /// Reject the head dispatch with a reason (the human-gate "modify/why" path).
     /// The target dispatch id is held in `ConsoleView::reject_target`.
     DispatchReject,
+    /// Add a new split pane of a chosen surface kind. Buffer is a surface name
+    /// (nav label/id/key prefix, e.g. "cost", "fleet", "chat"). Handled locally.
+    AddPane,
 }
 
 impl CmdKind {
@@ -61,8 +64,48 @@ impl CmdKind {
             CmdKind::Spawn => "spawn",
             CmdKind::Cartographer => "cartographer",
             CmdKind::DispatchReject => "reject reason",
+            CmdKind::AddPane => "add pane",
         }
     }
+}
+
+/// Version + build-freshness of the running binary, for the status bar.
+/// The build time is the executable's own mtime (via `age_short`), so it is the
+/// honest "did my rebuild actually land?" readout — if you just reinstalled, it
+/// reads "built now"; a stale launcher reads "built 3d ago".
+fn build_stamp() -> String {
+    let ver = env!("CARGO_PKG_VERSION");
+    let built = std::env::current_exe()
+        .ok()
+        .and_then(|p| std::fs::metadata(&p).ok())
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| crate::util::age_short(d.as_millis() as i64));
+    match built {
+        Some(age) => format!("pd-console v{ver} · built {age} ago"),
+        None => format!("pd-console v{ver}"),
+    }
+}
+
+/// Resolve a typed surface name to a `SurfaceKind` for the add-pane picker.
+/// Matches a NAV label/id/key by case-insensitive prefix, plus the two
+/// non-nav surfaces ("chat" → cartographer, "files"/"tree" → file tree).
+fn surface_for_query(query: &str) -> Option<SurfaceKind> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return None;
+    }
+    if "chat".starts_with(&q) || "cartographer".starts_with(&q) {
+        return Some(SurfaceKind::CartographerChat);
+    }
+    if "files".starts_with(&q) || "tree".starts_with(&q) || "filetree".starts_with(&q) {
+        return Some(SurfaceKind::FileTree { root: None });
+    }
+    NAV.iter()
+        .find(|n| {
+            n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q)
+        })
+        .map(|n| surface_for_nav_id(n.id))
 }
 
 /// An open command line: a prompt kind plus the text typed so far.
@@ -259,6 +302,40 @@ fn render_block(block: Block) -> impl IntoElement {
                 .text_color(color)
                 .text_size(px(13.0))
                 .child(label)
+                .into_any_element()
+        }
+        Block::Flag { letter, label, tone } => {
+            let color = rgb(tone_rgb(&tone));
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .px(px(16.0))
+                .py(px(3.0))
+                .child(
+                    // The signal flag itself: a bold square hoist in the flag's
+                    // semantic tone, bearing the ICS letter.
+                    div()
+                        .w(px(22.0))
+                        .h(px(22.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(3.0))
+                        .border_2()
+                        .border_color(color)
+                        .bg(rgb(current_theme().raised))
+                        .text_color(color)
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(letter.to_string()),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().ink))
+                        .text_size(px(14.0))
+                        .child(label),
+                )
                 .into_any_element()
         }
         Block::Spark(_) => {
@@ -503,6 +580,8 @@ impl ConsoleView {
             // Open command lines.
             "n" => self.command = Some(CommandLine { kind: CmdKind::Spawn, buffer: String::new() }),
             "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
+            // Insert a new pane of a chosen kind (the add-pane picker).
+            "i" => self.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() }),
             // Any nav key swaps the focused pane's surface — "hop context".
             other => {
                 if let Some(item) = NAV.iter().find(|n| n.key == other) {
@@ -555,6 +634,20 @@ impl ConsoleView {
         if text.is_empty() && cmd.kind != CmdKind::DispatchReject {
             return;
         }
+        // AddPane is a purely local UI mutation (split a new pane of the chosen
+        // surface) — no daemon round-trip, so handle it before the tx guard.
+        if cmd.kind == CmdKind::AddPane {
+            match surface_for_query(&text) {
+                Some(surface) => {
+                    self.ws_mut().split(Dir::Row, surface);
+                    self.control_flash = Some(format!("added pane: {text}"));
+                }
+                None => {
+                    self.control_flash = Some(format!("no surface matches '{text}'"));
+                }
+            }
+            return;
+        }
         let Some(tx) = &self.control_tx else { return };
         match cmd.kind {
             CmdKind::Spawn => {
@@ -576,6 +669,8 @@ impl ConsoleView {
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
+            // AddPane is handled locally above (early return) — never reaches here.
+            CmdKind::AddPane => {}
         }
     }
 
@@ -716,17 +811,20 @@ impl ConsoleView {
                             .gap(px(2.0))
                             .opacity(0.0)
                             .group_hover("pane", |s| s.opacity(1.0))
+                            .child(pane_ctrl(id, "addpane", "+", current_theme().accent_ink, cx))
                             .child(pane_ctrl(id, "vsplit", "│", current_theme().muted, cx))
                             .child(pane_ctrl(id, "hsplit", "─", current_theme().muted, cx))
                             .child(pane_ctrl(id, "zoom", "□", current_theme().muted, cx))
                             .child(pane_ctrl(id, "close", "✕", current_theme().gated, cx)),
                     ),
             )
-            // Surface body
+            // Surface body — scrollable so long rosters/ledgers/transcripts are
+            // reachable instead of clipped (needs a stable id for scroll state).
             .child(
                 div()
+                    .id(SharedString::from(format!("pane-body-{id}")))
                     .flex_1()
-                    .overflow_hidden()
+                    .overflow_y_scroll()
                     .flex()
                     .flex_col()
                     .children(blocks.into_iter().map(render_block)),
@@ -957,6 +1055,12 @@ fn pane_ctrl(
                     this.ws_mut().focus(id);
                     this.ws_mut().close();
                 }
+                // Mouse-driven "add a pane of a kind": focus this pane, then open
+                // the surface picker (same flow as Ctrl-A i).
+                "addpane" => {
+                    this.ws_mut().focus(id);
+                    this.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() });
+                }
                 _ => {}
             }
             cx.notify();
@@ -1146,7 +1250,11 @@ impl Render for ConsoleView {
                                 div()
                                     .text_color(rgb(current_theme().muted))
                                     .text_size(px(13.0))
-                                    .child("⏎ send · esc cancel"),
+                                    .child(if cmd.kind == CmdKind::AddPane {
+                                        "fleet·cost·roadmap·lane·dispatch·chat·files… ⏎ add".to_string()
+                                    } else {
+                                        "⏎ send · esc cancel".to_string()
+                                    }),
                             )
                     } else if armed {
                         div()
@@ -1154,7 +1262,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · [1-9…] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · [1-9…] surface",
                             )
                     } else {
                         div()
@@ -1162,9 +1270,53 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
                             .child(format!(
-                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → n new-job · t cartographer · | split  ·  pd-console v0.3.0"
+                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → n new-job · t cartographer · i insert-pane · | split  ·  {}",
+                                build_stamp()
                             ))
                     }),
             )
+    }
+}
+
+#[cfg(test)]
+mod add_pane_tests {
+    use super::*;
+
+    #[test]
+    fn picker_matches_nav_by_id_label_and_key() {
+        // Dedicated-variant surfaces resolve to their own kind.
+        assert!(matches!(surface_for_query("fleet"), Some(SurfaceKind::Fleet)));
+        assert!(matches!(surface_for_query("roadmap"), Some(SurfaceKind::Roadmap)));
+        // The new Cost ledger resolves via the generic Panel path (nav id "ledger").
+        match surface_for_query("cost") {
+            Some(SurfaceKind::Panel { nav }) => assert_eq!(nav, "ledger"),
+            other => panic!("'cost' should map to the ledger panel, got {other:?}"),
+        }
+        // Match by single-key too (ledger's leader key is 'b').
+        match surface_for_query("b") {
+            Some(SurfaceKind::Panel { nav }) => assert_eq!(nav, "ledger"),
+            other => panic!("key 'b' should map to the ledger panel, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn picker_matches_non_nav_surfaces() {
+        assert!(matches!(surface_for_query("chat"), Some(SurfaceKind::CartographerChat)));
+        assert!(matches!(surface_for_query("files"), Some(SurfaceKind::FileTree { .. })));
+        assert!(matches!(surface_for_query("tree"), Some(SurfaceKind::FileTree { .. })));
+    }
+
+    #[test]
+    fn picker_is_case_insensitive_and_rejects_unknown() {
+        assert!(matches!(surface_for_query("FLEET"), Some(SurfaceKind::Fleet)));
+        assert!(surface_for_query("").is_none(), "empty query matches nothing");
+        assert!(surface_for_query("zzzznope").is_none(), "unknown surface matches nothing");
+    }
+
+    #[test]
+    fn build_stamp_carries_version() {
+        let stamp = build_stamp();
+        assert!(stamp.starts_with("pd-console v"), "stamp must name the app: {stamp}");
+        assert!(stamp.contains(env!("CARGO_PKG_VERSION")), "stamp must carry the crate version: {stamp}");
     }
 }
