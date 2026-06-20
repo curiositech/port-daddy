@@ -361,6 +361,8 @@ pub enum MacaroonError {
     Malformed,
     #[error(transparent)]
     Hex(#[from] hex::FromHexError),
+    #[error("rng failure: {0}")]
+    Rng(String),
 }
 
 // ===========================================================================

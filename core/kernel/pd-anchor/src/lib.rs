@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use thiserror::Error;
 
 pub mod ffi;
+pub mod keystore;
 pub mod macaroon;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
