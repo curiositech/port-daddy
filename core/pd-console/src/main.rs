@@ -14,6 +14,7 @@ mod agent;
 mod app;
 mod claims_pane;
 mod cockpit_pane;
+mod conductor_pane;
 mod dispatch_pane;
 mod fleet_pane;
 mod health_pane;
@@ -38,6 +39,7 @@ use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
 use cockpit_pane::CockpitPane;
+use conductor_pane::ConductorPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use health_pane::HealthPane;
@@ -194,6 +196,7 @@ fn main() {
                 let mut coast      = CoastGuardPane::default();// 14
                 let mut dispatch   = DispatchQueuePane::new(); // 15
                 let mut lane       = LanePane::new();          // 16 — the LIVE one
+                let mut conductor  = ConductorPane::new();     // 17 — Fleet Conductor (ADR-0060)
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -234,6 +237,7 @@ fn main() {
                     let _ = coast.refresh(&client).await;
                     let _ = dispatch.refresh(&client).await;
                     let _ = lane.refresh(&client).await;
+                    let _ = conductor.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -275,6 +279,7 @@ fn main() {
                         (14, coast.view()),
                         (15, dispatch.view()),
                         (16, lane.view()),
+                        (17, conductor.view()),
                     ];
 
                     if tx.send(all).is_err() {

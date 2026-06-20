@@ -261,6 +261,19 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     return { success: true, rootId, count: nodes.length, tree: nodes };
   });
 
+  // GET /fleet/conductor — every launch across all roots (newest first, bounded).
+  // Powers the operator console's Conductor pane (ADR-0060): the per-root `tree`
+  // endpoint needs a rootId; this aggregates so the console can render every live
+  // subtree at once. The pane groups by rootId and indents by depth.
+  fastify.get('/fleet/conductor', async (request: FastifyRequest, reply: FastifyReply) => {
+    const c = requireConductor(reply);
+    if (!c) return;
+    const q = (request.query as { limit?: string }) || {};
+    const limit = q.limit ? Number.parseInt(q.limit, 10) : 200;
+    const launches = c.allLaunches(Number.isFinite(limit) ? limit : 200);
+    return { success: true, count: launches.length, launches };
+  });
+
   function resolveFleetRecord(projectOrDir: string, reply: FastifyReply) {
     const fleets = fleetDaemon.getStatus().fleets;
     const exactDirMatch = fleets.find((fleet) => fleet.projectDir === projectOrDir);
