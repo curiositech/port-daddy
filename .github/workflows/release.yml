@@ -89,18 +89,27 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
           export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+          # Notarize only if the notary credentials are present AND actually
+          # authenticate. A bad/expired/rotated App Store Connect key must NOT
+          # break a release — it degrades to a signed-but-not-notarized binary
+          # (still a Gatekeeper improvement over adhoc). store-credentials does a
+          # live validation call, so it's the right gate. (Verified 2026-06-20 via
+          # the _sign-smoke workflow: signing is independent of notary auth.)
+          export PORT_DADDY_SKIP_NOTARIZE=1
           if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
             echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
-            xcrun notarytool store-credentials pd-notary \
-              --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
-              --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"
-            export PORT_DADDY_NOTARY_PROFILE=pd-notary
-            # tell notarytool to read the profile from the temp keychain, not the
-            # default login keychain (which may not exist on a clean runner)
-            export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+            if xcrun notarytool store-credentials pd-notary \
+                 --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+                 --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"; then
+              unset PORT_DADDY_SKIP_NOTARIZE
+              export PORT_DADDY_NOTARY_PROFILE=pd-notary
+              # read the profile from the temp keychain, not the default login one
+              export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+            else
+              echo "::warning::notary credentials failed validation — signing only, not notarizing. Check APPLE_NOTARY_KEY_ID / _ISSUER / _P8_BASE64."
+            fi
           else
             echo "::warning::notary secrets absent — signing only, not notarizing."
-            export PORT_DADDY_SKIP_NOTARIZE=1
           fi
           node scripts/sign-and-notarize.mjs dist/port-daddy
           node scripts/sign-and-notarize.mjs dist/pd
