@@ -95,6 +95,7 @@ const TOOL_FEATURE_MAP = {
   // Messaging
   'publish_message': 'messaging',
   'get_messages': 'messaging',
+  'discourse_lineage': 'messaging',
 
   // Agents
   'register_agent': 'agents',

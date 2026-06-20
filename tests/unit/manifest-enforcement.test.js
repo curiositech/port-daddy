@@ -555,6 +555,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_locks': 'locks',
       'publish_message': 'messaging',
       'get_messages': 'messaging',
+      'discourse_lineage': 'messaging',
       'register_agent': 'agents',
       'agent_heartbeat': 'agents',
       'list_agents': 'agents',

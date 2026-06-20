@@ -176,7 +176,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'messaging': {
     description: 'Pub/sub messaging between agents',
-    tools: ['publish_message', 'get_messages', 'list_channels', 'clear_channel'],
+    tools: ['publish_message', 'get_messages', 'discourse_lineage', 'list_channels', 'clear_channel'],
   },
   'agents': {
     description: 'Agent registry, heartbeats, salvage/resurrection',
@@ -1344,6 +1344,24 @@ const TOOLS = [
         limit: {
           type: 'number',
           description: 'Maximum number of messages to return',
+        },
+      },
+      required: ['channel'],
+    },
+  },
+  {
+    name: 'discourse_lineage',
+    description: '[Advanced] Argument graph (RCP-14) over a channel: builds the typed inReplyTo lineage of the conversation and returns a digest (counts by stance/act, participants, and the contradiction edges — flagging which look unresolved) plus an indented tree. Use to see who answered whom and where agents disagree.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'Channel name to analyze',
+        },
+        conversationId: {
+          type: 'string',
+          description: 'Optional: scope the lineage to a single conversationId',
         },
       },
       required: ['channel'],
@@ -3685,6 +3703,14 @@ async function handleTool(
     case 'get_messages': {
       const qs = args.limit ? `?limit=${args.limit}` : '';
       res = await GET(`/msg/${encodeURIComponent(args.channel as string)}${qs}`);
+      break;
+    }
+
+    case 'discourse_lineage': {
+      const params = new URLSearchParams();
+      if (args.conversationId) params.set('conversationId', args.conversationId as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/msg/${encodeURIComponent(args.channel as string)}/lineage${qs}`);
       break;
     }
 
