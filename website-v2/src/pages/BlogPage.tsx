@@ -132,37 +132,25 @@ export function BlogPage() {
   return (
     <div className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)] selection:bg-[var(--brand-primary)] selection:text-[var(--text-inverse)]">
       <header className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] px-4 py-14 sm:px-6 sm:py-20 lg:px-10 lg:py-24">
-        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-12 lg:gap-8">
-          <div className="lg:col-span-7">
-            <div className={`mb-5 ${metaClass} text-[var(--text-muted)]`}>
-              The Harbor Log
-            </div>
-            <h1 className="max-w-[14ch] text-5xl font-black leading-[0.9] tracking-normal text-[var(--text-primary)] sm:text-7xl lg:text-[5.8rem]">
-              Notes from coordinating agents that didn't want to be coordinated.
+        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-12 lg:gap-12">
+          <div className="lg:col-span-6">
+            <div className={`mb-4 ${metaClass} text-[var(--text-muted)]`}>Port Daddy</div>
+            <h1 className="text-6xl font-black leading-[0.95] tracking-normal text-[var(--text-primary)] sm:text-7xl">
+              Harbor Blog
             </h1>
-            <p className="mt-6 max-w-2xl text-2xl font-black leading-tight tracking-normal text-[var(--text-primary)] sm:text-3xl">
-              Four agents in one repo will eventually overwrite each other's work. This is the running log of what broke, what we fixed, and what the app has to keep true to stop it.
+            <p className="mt-5 max-w-xl text-xl leading-snug text-[var(--text-secondary)] sm:text-2xl">
+              What broke while coordinating agents — and what we did about it. Short, honest write-ups from
+              running a fleet, not announcements.
             </p>
           </div>
 
-          <div className="grid gap-6 lg:col-span-5 lg:self-end">
-            <p className="max-w-xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
-              A ship's log kept at harbor. Each entry starts with something that broke — two agents reaching for the same file, a push that should never have landed, a green test suite hiding a real bug — and works out loud toward the fix. Shared memory, file ownership, launch checks, PD Tube, recovery trails, daemon provenance: the unglamorous parts that turn a clever demo into something you can leave running on a Tuesday.
-            </p>
-            <div className="grid grid-cols-3 border-2 border-[var(--border-strong)]">
-              <div className="border-r-2 border-[var(--border-strong)] p-4">
-                <div className="font-mono text-3xl font-black leading-none">{blogPosts.length}</div>
-                <div className={`mt-2 ${metaClass} text-[var(--text-muted)]`}>In rotation</div>
-              </div>
-              <div className="border-r-2 border-[var(--border-strong)] p-4">
-                <div className="font-mono text-3xl font-black leading-none">{deprecatedBlogPosts.length}</div>
-                <div className={`mt-2 ${metaClass} text-[var(--text-muted)]`}>Retired</div>
-              </div>
-              <div className="p-4">
-                <div className="font-mono text-3xl font-black leading-none">0</div>
-                <div className={`mt-2 ${metaClass} text-[var(--text-muted)]`}>Future-dated</div>
-              </div>
-            </div>
+          <div className="lg:col-span-6">
+            <img
+              src="/img/blog/harbor-blog-hero.webp"
+              alt="A blueprint-style drawing of an open harbor-master's logbook on a desk with a fountain pen and a brass lantern, a porthole behind showing tugboats at their berths."
+              loading="eager"
+              className="block w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
+            />
           </div>
         </div>
       </header>

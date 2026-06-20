@@ -292,8 +292,8 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/blog',
-    'The Harbor Log',
-    'The running log of coordinating agents that did not want to be coordinated: what broke, what we fixed, and what the daemon has to keep true. Shared state, file ownership, launch checks, PD Tube, recovery trails, and daemon provenance, written for the engineer deciding whether to leave it running on a Tuesday.',
+    'Harbor Blog',
+    'Short, honest write-ups from running a fleet of agents: what broke, what we fixed, and what the daemon has to keep true. Shared state, file ownership, launch checks, PD Tube, recovery trails, and daemon provenance.',
     { section: 'blog' },
   ),
   metadata(

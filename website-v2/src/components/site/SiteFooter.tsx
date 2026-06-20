@@ -15,7 +15,7 @@ const LEARN_LINKS = [
   { label: 'Docs', href: '/docs' },
   { label: 'Tutorials', href: '/tutorials' },
   { label: 'Templates', href: '/agents/templates' },
-  { label: 'Harbor Log', href: '/blog' },
+  { label: 'Harbor Blog', href: '/blog' },
 ] as const
 
 const REFERENCE_LINKS = [
