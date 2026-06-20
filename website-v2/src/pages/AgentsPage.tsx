@@ -1720,42 +1720,78 @@ function OneOffs() {
   )
 }
 
+/** One section card — shared by the "Start here" row and the "More" grid. */
+function SectionCard({ section, headingAs = 'h2' }: { section: AgentSection; headingAs?: 'h2' | 'h3' }) {
+  return (
+    <Link
+      to={`/agents/${section.slug}`}
+      className="group grid overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)]"
+    >
+      <ThemedScreenshot source={section.image} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
+      <div className="grid gap-[var(--space-3)] p-[var(--panel-padding)]">
+        <PanelEyebrow>{section.eyebrow}</PanelEyebrow>
+        <PanelTitle as={headingAs} size="card">
+          {section.nav}
+        </PanelTitle>
+        <PanelBody size="compact" className="max-w-none">
+          {section.summary}
+        </PanelBody>
+        <span className="inline-flex items-center gap-[var(--space-2)] font-sans text-sm font-semibold text-[var(--brand-primary)]">
+          Open section
+          <ArrowRight
+            className="h-[var(--space-3)] w-[var(--space-3)] transition-transform group-hover:translate-x-1"
+            strokeWidth={2.25}
+          />
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+const PRIORITY_SECTION_SLUGS = ['flow', 'coordination-guard', 'smart-resources']
+
 function AgentsOverview() {
+  const sections = AGENT_SECTIONS.filter((section) => section.slug !== 'agent-skill')
+  const priority = PRIORITY_SECTION_SLUGS.map((slug) => sections.find((s) => s.slug === slug)).filter(
+    (s): s is AgentSection => Boolean(s),
+  )
+  const rest = sections.filter((s) => !PRIORITY_SECTION_SLUGS.includes(s.slug))
+
   return (
     <main className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
       <AgentSectionNav />
       <AgentHero />
+
+      {/* Start here — the three entry points the hero recommends, promoted out
+          of the long section wall so a first-time reader has an obvious move. */}
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)]">
         <PageContainer width="wide">
-          <div className="grid gap-[var(--panel-gap)] md:grid-cols-2">
-            {AGENT_SECTIONS.filter((section) => section.slug !== 'agent-skill').map((section) => (
-              <Link
-                key={section.slug}
-                to={`/agents/${section.slug}`}
-                className="group grid overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-strong)]"
-              >
-                <ThemedScreenshot source={section.image} alt="" className="aspect-[16/7] w-full object-cover" loading="lazy" />
-                <div className="grid gap-[var(--space-3)] p-[var(--panel-padding)]">
-                  <PanelEyebrow>{section.eyebrow}</PanelEyebrow>
-                  <PanelTitle as="h2" size="card">
-                    {section.nav}
-                  </PanelTitle>
-                  <PanelBody size="compact" className="max-w-none">
-                    {section.summary}
-                  </PanelBody>
-                  <span className="inline-flex items-center gap-[var(--space-2)] font-sans text-sm font-semibold text-[var(--brand-primary)]">
-                    Open section
-                    <ArrowRight
-                      className="h-[var(--space-3)] w-[var(--space-3)] transition-transform group-hover:translate-x-1"
-                      strokeWidth={2.25}
-                    />
-                  </span>
-                </div>
-              </Link>
+          <div className="mb-[var(--space-4)] flex flex-col gap-[var(--space-1)]">
+            <PanelEyebrow>Start here</PanelEyebrow>
+            <PanelTitle as="h2" size="display" className="max-w-[26ch]">
+              Three places that pay off first.
+            </PanelTitle>
+          </div>
+          <div className="grid gap-[var(--panel-gap)] md:grid-cols-3">
+            {priority.map((section) => (
+              <SectionCard key={section.slug} section={section} />
             ))}
           </div>
         </PageContainer>
       </section>
+
+      {/* Everything else. */}
+      <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)]">
+        <PageContainer width="wide">
+          <PanelEyebrow className="mb-[var(--space-4)] block">The rest of the surfaces</PanelEyebrow>
+          <div className="grid gap-[var(--panel-gap)] md:grid-cols-2">
+            {rest.map((section) => (
+              <SectionCard key={section.slug} section={section} headingAs="h3" />
+            ))}
+          </div>
+        </PageContainer>
+      </section>
+
       <ConceptStrip />
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
         <PageContainer width="wide">
@@ -1776,7 +1812,9 @@ function SectionDetail({ section }: { section: AgentSection }) {
       <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
         <PageContainer width="wide">
           <div className="space-y-[var(--space-6)]">
-              <div className="grid gap-[var(--panel-gap)] xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
+              {/* Lead with the live GIF (the static shot is already the
+                  overview card thumbnail — no need to stack both here). */}
+              <div className="grid gap-[var(--panel-gap)] xl:grid-cols-[minmax(0,1fr)_minmax(24rem,1fr)] xl:items-center">
                 <SurfacePanel className="space-y-[var(--space-4)]">
                   <PanelEyebrow>{section.eyebrow}</PanelEyebrow>
                   <PanelTitle as="h1" size="hero" className="max-w-[13ch]">
@@ -1785,10 +1823,7 @@ function SectionDetail({ section }: { section: AgentSection }) {
                   <PanelBody className="max-w-[48rem]">{section.summary}</PanelBody>
                 </SurfacePanel>
                 <figure className="m-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-                  <ThemedScreenshot source={section.image} alt={section.alt} className="aspect-[16/9] w-full object-cover" loading="eager" />
-                </figure>
-                <figure className="m-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] xl:col-span-2">
-                  <img src={section.gif} alt="" className="aspect-[16/9] w-full object-cover" loading="lazy" />
+                  <img src={section.gif} alt={section.alt} className="aspect-[16/9] w-full object-cover" loading="eager" />
                 </figure>
               </div>
 
