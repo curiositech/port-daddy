@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented the now machine-enforced visual-artifact and PR-description rules in AGENTS.md, CONTRIBUTING.md (new § Pull Request Requirements), and the `port-daddy-internal-dev` skill.
 - Added an `Agent Operating Expectations` section to AGENTS.md (and a matching slice-discipline block to the internal skill): coordinate + pay rent on clean worktrees, dogfood novelly and capture hard-won gambits in the skill, assume features are broken until read-back/cold-start/worktree/GitHub-verified, confirm the usage + transcript + Cloudflare durability trail, generalize beyond tsx/Rust to any repo and remote harbor, treat GUIs as needing real design feedback, avoid AI tropes / humanize, reconcile against the whitepapers, work at maximal tool+skill access (pausing for skill research), and launch other agents through Port Daddy's own fabric. README gains a Contributing section pointing at the PR contract.
 
+### Fixed
+- De-flaked the compiled-CLI `pd tube` fan-out smoke (`scripts/smoke-compiled-cli-runs.sh`): it raced a blind `sleep` against asynchronous subscriber setup and a single live send, so a slow second listener intermittently missed the message. It now re-sends until both listeners receive a copy (or a ~15s timeout), proving fan-out delivery without depending on subscribe timing. (Unrelated to the PR-process changes; surfaced as a flaky required check while landing them.)
+
 ## [3.19.0] - 2026-06-15
 
 ### Added
