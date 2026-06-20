@@ -129,6 +129,76 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
+## Agent Operating Expectations
+
+How you are expected to *work* a slice here — the standing posture, not a per-task
+checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintenance
+is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
+Documents`.
+
+- **Coordinate, and pay rent.** Work in a clean linked worktree off
+  `origin/main` (§ Create / Update / Land), never the operator's main checkout.
+  `pd begin --identity … --lifecycle durable` → scope `pd note` → `pd session
+  files add` before editing → `pd done` at the end. Rent is real: every commit
+  carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
+  Coast Guard). A silent agent is a non-durable agent.
+- **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
+  slice; deliberately exercise a surface you have not used before instead of
+  living on `claim`/`note`/`done`. File feature feedback as you go. When a
+  genuinely novel gambit finally works — especially after a run of failures —
+  write it down: the public `skills/port-daddy-agent-skill` if any agent on any
+  project could reuse it, the internal `skills/port-daddy-internal-dev` if it is
+  repo-specific. A win nobody recorded did not happen.
+- **Assume every feature is broken until you watch it work.** A zero exit code is
+  not proof. Confirm the write landed where you think (right DB, right harbor,
+  right channel, right worktree-scoped name), then that it is read back from that
+  same place, then that it survives the hard cases: cold start (daemon down → the
+  first command must *instruct the operator elegantly*, not stack-trace), git
+  operations, linked worktrees, a second user on the same box, and GitHub
+  round-trips. Read the row back before you believe it.
+- **Confirm the telemetry trail.** A call you cannot see did not durably happen.
+  Check that CLI / MCP / SDK / tool calls land in both raw usage statistics
+  (`pd usage`) and explicit transcript saves (`lib/transcripts.ts`), and that
+  durable state rides the intended Cloudflare fabric (relay / R2 / D1 / KV via
+  `lib/relay-client.ts`) so posterity is stable and cheap. Prove the read-back
+  from durable storage; do not assume persistence.
+- **Build for any repo, not just this one.** Port Daddy is not a tsx/Rust tool and
+  not a port-daddy-only tool. A new feature must generalize to other languages,
+  other machines, remote harbors, shared users, and GitHub-mediated teams. If a
+  design only works in this checkout, it is wrong — same root as the Agent-neutral
+  killer item.
+- **GUIs: assume you are bad at them.** Claude and Codex ship clumsy UI by
+  default. Before committing pixels to any FleetBar / console / website surface,
+  go get reference, the house design system, and human feedback, and make it feel
+  professional and hand-built. The visual-artifact gate proves it *renders*, not
+  that it is *good* (§ Operator UX Expectations).
+- **Avoid AI tropes; humanize.** No "Certainly!", no hedge-everything prose, no
+  manufactured confidence, no em-dash confetti. Use the `make-human` skill and
+  keep the customer-personae skill in agreement. Write like the person who
+  maintains this repo.
+- **Mind the whitepapers.** Before shipping coordination/kernel work, check it
+  against the seven Port Daddy whitepapers — the canon registered in
+  `website-v2/src/data/whitePapers.ts` (Legible Swarm, Single-Writer Kernel, Spawn
+  to Person, Harbor Economy, Anchor Protocol, Bonded Commons, Federated Harbor;
+  sources + PDFs under `website-v2/public/whitepaper/`): have you drifted from the
+  model, or built something a paper should now describe? They need not be 1:1 — the
+  papers are the lofty theory, the code is what we actually shipped — but each
+  should correct the other. Note drift in the PR.
+- **Work at maximal tool + skill access, and pause to find the right skill.** Start
+  with the broadest toolset you can reach. If you catch yourself working without a
+  matching skill, stop and do skill research before improvising what a skill
+  already encodes. Skill matching is meant to live in a **seamanship** module
+  (proposed, not yet built): a match-cascade-and-graft selector modelled on the
+  windags repo's `windags_skill_induct` / `windags_skill_graft` cascade. Until it
+  lands, match by hand against `skills/`.
+- **Launch other agents *through* Port Daddy.** When you need more hands, spawn
+  them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
+  tube → spawner router (conductor) — never a raw side-channel, so the work is
+  registered, sandboxed (Coast Guard), budgeted, and salvageable.
+- **Keep the README current.** When a slice changes a surface an operator or
+  contributor reads about, update `README.md` in the same PR — a stale README is a
+  caught lie just like a stale citation.
+
 ## Pull Request Operating Procedure
 
 **This lifecycle is autonomous — never gated on operator confirmation.**
@@ -147,7 +217,12 @@ flow is:
 1. **Open the PR.** Branch claimed via `pd begin --identity` + `pd session
    files add ...`. CI must be green (or you must explicitly justify each
    red check in the PR body).
-2. **Spawn a skeptical reviewer agent.** Use the `feature-dev:code-reviewer`
+2. **Spawn a skeptical reviewer agent.** An always-on neutral adversary already
+   runs in CI on every PR — the `claude-adversarial-review` workflow, which
+   assumes laziness/slop/lies/corner-cutting and ends with a
+   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict (note: GitHub's action-validation
+   rule skips it on the PR that first introduces it — run your own there). For
+   non-trivial changes, ALSO spawn your own: use the `feature-dev:code-reviewer`
    subagent type (or `auditor` for whole-codebase concerns). Brief it with
    the PR's context, the change's invariants, the failure modes you're
    worried about, and SPECIFIC hunting prompts ("could this leak X? does
@@ -199,6 +274,18 @@ artifacts, so a UI PR without them is incomplete and must not merge. Operator,
 2026-06-11: *"I demand all GPUI diffs and console and website diffs include
 comprehensive screenshot artifacts, GIFs and screen recording in the test plan.
 Forever."*
+
+`[M]` This is now machine-enforced. `scripts/check-pr-requirements.mjs` (the
+`pr-requirements-guard` check, its own `pr-requirements.yml` workflow) fails the PR
+when a change under a visual surface (`core/pd-console/`, `website-v2/`,
+`fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`, `apps/FleetBar/`)
+ships without at least one screenshot AND one motion artifact (GIF / recording) in
+the body — committed media in the diff or embedded `raw.githubusercontent` links
+both count. The escape hatch for a genuinely non-visual change is an explicit
+`<!-- visual-exempt: <reason> -->` (a reason is required). The guard checks
+*presence*; whether the artifacts actually show ideal behavior (vs. an error or
+loading state) is judged by the `claude-adversarial-review` workflow, which presumes
+failure on sparse evidence.
 
 - **TUI / pd-console panes**: record with `vhs` (tape committed under
   `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
