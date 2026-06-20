@@ -19,6 +19,7 @@ mod fleet_pane;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
+mod lineage_pane;
 mod maritime;
 mod notes_pane;
 mod pane;
@@ -43,6 +44,7 @@ use fleet_pane::FleetPane;
 use health_pane::HealthPane;
 use inbox_pane::InboxPane;
 use lane_pane::LanePane;
+use lineage_pane::LineagePane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
@@ -161,7 +163,7 @@ fn main() {
         // NAV order mirrors app::NAV:
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane
+        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Lineage
         let (tx, rx) = mpsc::channel::<Vec<(usize, Vec<pane::Block>)>>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
@@ -194,6 +196,7 @@ fn main() {
                 let mut coast      = CoastGuardPane::default();// 14
                 let mut dispatch   = DispatchQueuePane::new(); // 15
                 let mut lane       = LanePane::new();          // 16 — the LIVE one
+                let mut lineage    = LineagePane::new();       // 17 — RCP-14 argument graph
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -234,6 +237,7 @@ fn main() {
                     let _ = coast.refresh(&client).await;
                     let _ = dispatch.refresh(&client).await;
                     let _ = lane.refresh(&client).await;
+                    let _ = lineage.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -275,6 +279,7 @@ fn main() {
                         (14, coast.view()),
                         (15, dispatch.view()),
                         (16, lane.view()),
+                        (17, lineage.view()),
                     ];
 
                     if tx.send(all).is_err() {
