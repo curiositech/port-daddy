@@ -179,7 +179,7 @@ Badge progression per transport: **`stubbed` â†’ `wired (behind health board)` â
 `shipped (creds + a green e2e test)`**. Only the last state earns marketing copy.
 Mirror the Mac-install contract test: a per-transport contract test that the docs'
 commands match the code, plus a gated live smoke test (like
-`scripts/test-mac-install.sh`).
+`website-v2/scripts/test-mac-install.sh`).
 
 ---
 

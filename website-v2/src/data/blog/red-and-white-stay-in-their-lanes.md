@@ -88,7 +88,7 @@ Three honest gaps:
 
 - **Side channels.** Tag taxonomy is public. An attacker who watches when red personas write, how often, and which tags they touch can infer activity. The taxonomy was designed to be public-tolerant (the smell schema is `<class>:<subclass>:<paper>:<§>:<id>`), but cardinality leaks remain.
 - **Compromised personas.** If a red persona's process is itself compromised, its fleet key leaks. Defense at that layer is per-process hardening, not the comms layer. The orchestration scripts refuse to spawn a persona that can also load the opposing fleet's key, but they cannot defend against a process that lies after spawn.
-- **Compromised lead.** If `sec-eng-lead`'s keychain is breached, the round is compromised. The mitigation is rotation: per-round HKDF salt, annual root rotation, and an audit chain that external observers can verify retroactively. The procedure lives in `docs/SECURITY.md`.
+- **Compromised lead.** If `sec-eng-lead`'s keychain is breached, the round is compromised. The mitigation is rotation: per-round HKDF salt, annual root rotation, and an audit chain that external observers can verify retroactively.
 
 We document those gaps where they live. The point of running adversarial rounds is to surface gaps; pretending we have closed all of them on day one would defeat the exercise.
 
