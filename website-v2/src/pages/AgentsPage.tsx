@@ -403,16 +403,6 @@ pd note "Ops decision: investigated, mitigated, validation pending"`,
     icon: ShieldCheck,
   },
   {
-    title: 'Multiplayer Dev Environment',
-    label: 'Remote harbors',
-    path: 'templates/multiplayer-dev-env/README.md',
-    body: 'A shared development topology for multiple machines using harbors, tunnels, DNS-style discovery, and cross-machine coordination without losing local ownership.',
-    command: `pd harbor create shared-dev
-pd harbor discover
-pd tunnel expose web 5173`,
-    icon: Compass,
-  },
-  {
     title: 'Swarm Researcher',
     label: 'Research graph',
     path: 'templates/swarm-researcher/README.md',
@@ -741,7 +731,7 @@ pd fleet up
     title: 'Fleet templates now live inside the Agents system.',
     eyebrow: 'Reusable agent patterns',
     summary:
-      'The old top-level Templates library is deprecated. Current templates are agent operating patterns: starter YAML, always-on fleets, CI repair loops, event ops, remote harbors, research swarms, and secure messaging primitives.',
+      'The old top-level Templates library is deprecated. Current templates are agent operating patterns: starter YAML, always-on fleets, CI repair loops, event ops, research swarms, and secure messaging primitives.',
     image: '/img/generated/virtual-actor-fleet.webp',
     gif: '/gifs/agents/yaml-and-shipwright.gif',
     alt: 'Generated image of reusable Port Daddy agent templates connected to fleet YAML and runtime signals',
@@ -803,7 +793,6 @@ pd note "Template adopted: starter fleet; validation: pd fleet validate + pd fle
       { label: 'Template guide', href: '/docs/guides/templates', body: 'Adapt recurring project patterns without hiding the coordination contract.' },
       { label: 'Fleet CLI', href: '/docs/cli/fleet', body: 'Validate, run, and inspect fleet YAML.' },
       { label: 'pd pub', href: '/docs/cli/pub', body: 'Publish the events that template agents can consume.' },
-      { label: 'Remote harbors', href: '/tutorials/remote-harbors', body: 'Use harbors and tunnels when a template crosses machines.' },
       { label: 'Prompting agents', href: '/docs/guides/prompting-agents', body: 'Teach a copied template the note, claim, and handoff loop.' },
     ],
   },
