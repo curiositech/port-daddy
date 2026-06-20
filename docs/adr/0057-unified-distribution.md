@@ -4,6 +4,11 @@
 
 Proposed — 2026-06-17
 
+> Reconciled by [ADR-0087](0087-trusted-computing-base-broker.md) (2026-06-20):
+> the TCB broker binary is another signed limb of the one whole this ADR ships —
+> ADR-0087 phase 7 builds/signs/notarizes it and adds it to the `latest.json` feed
+> defined here. No new distribution mechanism; one more artifact through the same pipe.
+
 Numbering note: 0055 (parley) and 0056 (weighted note retrieval) are the latest
 sequential ADRs; 0084 is an out-of-band outlier. 0057 is the lowest free number.
 

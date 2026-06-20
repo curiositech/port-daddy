@@ -4,6 +4,12 @@
 
 Accepted — 2026-06-12. Author: Erich (operator, single-person operation).
 
+> Reconciled by [ADR-0087](0087-trusted-computing-base-broker.md) (2026-06-20):
+> the canonical Rust kernel (`pd-anchor`) this ADR established is the *same process*
+> ADR-0087 designates as the Trusted Computing Base. ADR-0087 clarifies that the
+> kernel's security comes from running it under a separate UID, not from the choice
+> of Rust — Rust buys memory-safe key handling and one canonical impl, not isolation.
+
 Two questions prompted this ADR, both from the operator:
 
 1. **Release cadence** — "Create a programmed, broadcasted, well-understood cadence
