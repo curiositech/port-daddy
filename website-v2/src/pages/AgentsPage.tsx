@@ -171,7 +171,7 @@ const ACTOR_ROLES: ActorRole[] = [
     name: 'Coxswain',
     roleKey: 'coxswain',
     label: 'Owns claims, locks, and comms',
-    body: 'The single durable mailbox for coordination — file claims, locks, stale assets, session contention — plus the live comms fabric: channels, tuples, naming hygiene, subscription coverage, and silent-agent detection. Reachable at pd actor coxswain whether or not any fleet agent is running.',
+    body: 'One durable mailbox for coordination: file claims, locks, stale assets, session contention, plus the live comms fabric (channels, tuples, naming hygiene, subscription coverage, silent-agent detection). Reach it at pd actor coxswain whether or not any fleet agent is running.',
     icon: FileLock2,
   },
   {
@@ -1800,8 +1800,46 @@ function AgentsOverview() {
       </section>
       <AgentGrid />
       <PlatformActors />
+      <CooperativeSection />
       <OneOffs />
     </main>
+  )
+}
+
+/** Foregrounds the cooperative case — the harder, more defensible half: not your
+ *  solo fleet, but two people's agents on one project across two machines. */
+function CooperativeSection() {
+  return (
+    <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-8)] lg:py-[var(--space-9)]">
+      <PageContainer width="wide">
+        <SwissGrid className="gap-y-[var(--space-6)]">
+          <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
+            <PanelEyebrow>Past your own machine</PanelEyebrow>
+            <PanelTitle as="h2" size="display" className="max-w-[16ch]">
+              Two people, two laptops, one repo.
+            </PanelTitle>
+          </SwissGridItem>
+          <SwissGridItem span="body">
+            <SurfacePanel className="space-y-[var(--space-4)]">
+              <PanelBody className="max-w-[60ch] text-[length:var(--text-lg)]">
+                Your own fleet is the easy case: it lives on one machine, where the daemon sees
+                everything. The harder case is a teammate&rsquo;s agents reaching for the same files
+                from a laptop you do not control. The same claims, sessions, and bonds cross that
+                boundary. Two daemons run by two people can share one project without either being
+                put in charge of the other.
+              </PanelBody>
+              <Link
+                to="/whitepaper/federated-harbor"
+                className="group inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)] no-underline"
+              >
+                Read the Federated Harbor
+                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </SurfacePanel>
+          </SwissGridItem>
+        </SwissGrid>
+      </PageContainer>
+    </section>
   )
 }
 
