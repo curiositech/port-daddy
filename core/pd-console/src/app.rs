@@ -760,7 +760,6 @@ impl ConsoleView {
             SurfaceKind::FileTree { root } => Some(root.clone()),
             _ => None,
         };
-        let is_filetree = filetree_root.is_some();
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
@@ -856,11 +855,11 @@ impl ConsoleView {
                     .overflow_y_scroll()
                     .flex()
                     .flex_col()
+                    .when(filetree_root.is_none(), |body| {
+                        body.children(blocks.into_iter().map(render_block))
+                    })
                     .when_some(filetree_root, |body, root| {
                         body.child(render_file_browser(root, id, cx))
-                    })
-                    .when(!is_filetree, |body| {
-                        body.children(blocks.into_iter().map(render_block))
                     }),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.

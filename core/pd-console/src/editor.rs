@@ -67,9 +67,11 @@ impl EditorPane {
         match std::fs::read_to_string(&self.path) {
             Ok(text) => {
                 self.last_error = None;
-                self.lines = text.lines().take(MAX_LINES).map(|l| l.to_string()).collect();
-                // Was there more than MAX_LINES? Cheap check without storing all.
-                self.truncated = text.lines().nth(MAX_LINES).is_some();
+                // Single pass: after taking MAX_LINES, the iterator's next item
+                // (if any) is line MAX_LINES — no second scan of the file.
+                let mut it = text.lines();
+                self.lines = it.by_ref().take(MAX_LINES).map(|l| l.to_string()).collect();
+                self.truncated = it.next().is_some();
             }
             Err(e) => {
                 self.last_error = Some(format!("{e}"));
@@ -92,13 +94,9 @@ impl EditorPane {
     /// split a UTF-8 codepoint), appending an ellipsis when cut. Also strips a
     /// trailing `\r` so CRLF files don't render a stray carriage return.
     fn clip(content: &str) -> String {
-        let content = content.strip_suffix('\r').unwrap_or(content);
-        if content.chars().count() <= MAX_LINE_WIDTH {
-            content.to_string()
-        } else {
-            let head: String = content.chars().take(MAX_LINE_WIDTH).collect();
-            format!("{head}…")
-        }
+        // Strip a trailing CR (CRLF files), then reuse the shared char-safe
+        // truncator rather than re-implementing ellipsis logic.
+        crate::util::trunc(content.strip_suffix('\r').unwrap_or(content), MAX_LINE_WIDTH)
     }
 
     /// Right-align a 1-based line number into a fixed-width gutter sized to the
