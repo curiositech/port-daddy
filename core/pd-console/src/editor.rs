@@ -34,12 +34,16 @@ pub struct EditorPane {
     truncated: bool,
     /// Last read error (missing file, permission, non-UTF8), shown in `view()`.
     last_error: Option<String>,
+    /// Optional 1-based inclusive line range to focus. When set, `view()` shows
+    /// only those lines (gutter keeps real numbers) so a `foo.rs:10-20` label is
+    /// HONEST — it never promises a range the view then ignores.
+    region: Option<(usize, usize)>,
 }
 
 impl EditorPane {
     /// Bind the pane to a path. The file is not read until `refresh()` runs.
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into(), lines: Vec::new(), truncated: false, last_error: None }
+        Self { path: path.into(), lines: Vec::new(), truncated: false, last_error: None, region: None }
     }
 
     /// The path currently being viewed.
@@ -77,8 +81,9 @@ impl EditorPane {
 
     /// Construct + load in one call — the convenience the GPUI `blocks_for_surface`
     /// path uses to render an Editor surface synchronously on each frame.
-    pub fn loaded(path: impl Into<PathBuf>) -> Self {
+    pub fn loaded(path: impl Into<PathBuf>, region: Option<(usize, usize)>) -> Self {
         let mut p = Self::new(path);
+        p.region = region;
         p.load();
         p
     }
@@ -131,10 +136,25 @@ impl Pane for EditorPane {
             return blocks;
         }
 
+        // Honor a focus region so the `foo.rs:10-20` label is not a lie.
+        let (start, end) = match self.region {
+            Some((a, b)) => (
+                a.saturating_sub(1).min(self.lines.len()),
+                b.min(self.lines.len()),
+            ),
+            None => (0, self.lines.len()),
+        };
+        if let Some((a, b)) = self.region {
+            blocks.push(Block::KeyVal(
+                "range".into(),
+                format!("lines {a}–{b} of {}", self.lines.len()),
+            ));
+        }
         blocks.push(Block::Gap);
-        for (i, line) in self.lines.iter().enumerate() {
+        for (offset, line) in self.lines[start..end].iter().enumerate() {
             // gutter column + content column → two-column Row the renderer aligns.
-            blocks.push(Block::Row(vec![self.gutter(i + 1), Self::clip(line)]));
+            let lineno = start + offset + 1;
+            blocks.push(Block::Row(vec![self.gutter(lineno), Self::clip(line)]));
         }
 
         if self.truncated {
@@ -231,7 +251,7 @@ mod tests {
         // Read a file we know exists and is UTF-8: this very source file. The
         // test binary's cwd is the crate root (core/pd-console), so a relative
         // path resolves.
-        let p = EditorPane::loaded("src/editor.rs");
+        let p = EditorPane::loaded("src/editor.rs", None);
         // The module doc-comment's first line is the marker below.
         assert!(p.last_error.is_none(), "expected a clean read, got {:?}", p.last_error);
         let rows = p
@@ -244,11 +264,29 @@ mod tests {
 
     #[test]
     fn missing_file_via_load_is_gated() {
-        let p = EditorPane::loaded("/nonexistent/path/to/nowhere.rs");
+        let p = EditorPane::loaded("/nonexistent/path/to/nowhere.rs", None);
         assert!(p.last_error.is_some());
         assert!(p
             .view()
             .iter()
             .any(|b| matches!(b, Block::Chip { tone: Tone::Gated, .. })));
+    }
+
+    #[test]
+    fn region_slices_to_range_and_keeps_real_line_numbers() {
+        let mut p = EditorPane::new("/x");
+        p.lines = (1..=30).map(|i| format!("line{i}")).collect();
+        p.region = Some((10, 12));
+        let rows: Vec<_> = p
+            .view()
+            .into_iter()
+            .filter_map(|b| if let Block::Row(c) = b { Some(c) } else { None })
+            .collect();
+        assert_eq!(rows.len(), 3, "region 10..=12 must render exactly 3 lines");
+        assert_eq!(rows[0][0].trim(), "10", "gutter keeps the real line number");
+        assert_eq!(rows[0][1], "line10");
+        assert_eq!(rows[2][1], "line12");
+        // The honest range header is present so the label isn't a lie.
+        assert!(p.view().iter().any(|b| matches!(b, Block::KeyVal(k, _) if k == "range")));
     }
 }

@@ -33,7 +33,7 @@ fn editor_module_links_without_gpui() {
 fn editor_loads_a_real_file_and_numbers_lines() {
     use pane::{Block, Pane};
     // The crate root is this test binary's cwd, so a repo-relative path resolves.
-    let p = editor::EditorPane::loaded("src/pane.rs");
+    let p = editor::EditorPane::loaded("src/pane.rs", None);
     let rows = p
         .view()
         .into_iter()

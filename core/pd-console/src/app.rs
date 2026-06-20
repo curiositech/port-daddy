@@ -551,8 +551,9 @@ impl ConsoleView {
         // and return its render-agnostic Blocks (the same set the TUI paints).
         // A read-only walking skeleton re-reads on each frame; the editable +
         // off-thread-streamed slice comes later.
-        if let SurfaceKind::Editor { path, .. } = surface {
-            return crate::editor::EditorPane::loaded(path.clone()).view();
+        if let SurfaceKind::Editor { path, region } = surface {
+            let region = region.map(|(a, b)| (a as usize, b as usize));
+            return crate::editor::EditorPane::loaded(path.clone(), region).view();
         }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
