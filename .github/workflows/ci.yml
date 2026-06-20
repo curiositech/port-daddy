@@ -28,6 +28,25 @@ jobs:
       - name: Brand-color guard (retired Harbor Heritage hexes must not return)
         run: node scripts/check-brand-colors.mjs
 
+  version-drift-guard:
+    # ADR-0057 phase dist-version-authority: package.json is the sole version
+    # authority and scripts/sync-version.ts stamps it across every distribution
+    # surface (JSON manifests, the MCP/server TS constants, the website constant,
+    # the VERSION file, and core/pd-console/Cargo.toml — the GPU app's
+    # CARGO_PKG_VERSION). This guard FAILS the build when any source surface has
+    # drifted, so a release can never ship a daemon that says 3.20.0 next to a
+    # console that says 0.3.0. The deep (embedded-artifact) check runs in
+    # release.yml where the bundles actually exist.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Version drift guard (every surface must match package.json)
+        run: node scripts/check-version-drift.mjs
+
   doc-citation-guard:
     # The machine-checkable half of the ship checklist's "citations are real" killer
     # item (AGENTS.md § Pull Request Operating Procedure). Verifies that backtick'd

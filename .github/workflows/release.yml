@@ -226,6 +226,16 @@ jobs:
           scripts/package-pd-console.sh dist/console
           rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
 
+      - name: Version drift guard — deep (embedded artifact versions must match)
+        # ADR-0057 §Consequences: a source-only gate can be Goodharted by bumping
+        # the version string without rebuilding a surface. Now that the pd-console
+        # binary + .app exist, --deep reads the version EMBEDDED in the built
+        # artifact (the .app's CFBundleShortVersionString and the binary's build
+        # stamp) and fails the release if it disagrees with package.json.
+        # --require-artifacts: the .app was just built here, so its absence is a
+        # real failure, not a skip.
+        run: node scripts/check-version-drift.mjs --deep --require-artifacts
+
       - name: Upload pd-console.app to release
         uses: softprops/action-gh-release@v2
         with:
