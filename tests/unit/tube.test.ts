@@ -695,6 +695,43 @@ describe('cli/tube handler', () => {
     expect(out).toContain('unresolved contradiction');
   });
 
+  test('--lineage recommends a parley when waste beats cost (RCP-2a)', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'alice', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'claim' } },
+          { id: 2, sender: 'bob', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'wrong', inReplyTo: 1, relationship: 'contradicts' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    // High waste-per-contradiction, low parley cost → convene.
+    await handleTube('chan', { lineage: true, json: true, 'waste-per-contradiction': '10', 'parley-cost': '1' }, { client, history: inMemoryHistoryStore() });
+    const out = JSON.parse(logs[0]);
+    expect(out.parley.convene).toBe(true);
+    expect(out.parley.shape).toBe('debate-with-judge');
+  });
+
+  test('--lineage holds (no parley) when coordinating costs more than the conflict', async () => {
+    const client: TubeClient = {
+      publish: jest.fn() as unknown as TubeClient['publish'],
+      getMessages: jest.fn(async () => ({
+        ok: true,
+        messages: [
+          { id: 1, sender: 'a', createdAt: 1, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'one' } },
+          { id: 2, sender: 'b', createdAt: 2, payload: { v: 1, kind: TUBE_ENVELOPE_KIND, body: 'two', inReplyTo: 1, relationship: 'contradicts' } },
+        ],
+      })) as unknown as TubeClient['getMessages'],
+    };
+
+    // High parley cost → coordinating isn't worth it.
+    await handleTube('chan', { lineage: true, 'parley-cost': '100' }, { client, history: inMemoryHistoryStore() });
+    const out = logs.join('\n');
+    expect(out).toContain('no parley');
+  });
+
   test('--send pipes stdin to publish (top-level, no inReplyTo)', async () => {
     const publish = jest.fn(async () => ({ ok: true, id: 50 })) as unknown as TubeClient['publish'];
     const client: TubeClient = {
