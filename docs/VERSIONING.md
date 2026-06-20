@@ -42,7 +42,7 @@ The release tag, the binary `--version` output, the brew formula version, and th
 ## What you do NOT do anymore
 
 - There is no `~/port-daddy-stable` worktree.
-- There is no `scripts/promote-stable.sh`.
+- There is no `promote-stable.sh` script (it was removed with the stable-worktree flow).
 - Do not `npm link` from a working checkout — the `port-daddy` and `pd` CLIs are the Homebrew-installed binaries. Local source work is for development only; users get the signed bottle.
 - Do not hand-roll daemon promotion with `launchctl` commands. The brew formula installs the launchd service definition; `brew services restart port-daddy` is the supported operator action.
 
