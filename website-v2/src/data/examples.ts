@@ -14,6 +14,8 @@ import p2pWebrtcReadme from '../../../examples/p2p-webrtc/README.md?raw'
 import p2pWebrtcSource from '../../../examples/p2p-webrtc/webrtc-signaling.ts?raw'
 import agentTopologiesReadme from '../../../examples/agent-topologies/README.md?raw'
 import agentTopologiesSource from '../../../examples/agent-topologies/topology-pubsub.ts?raw'
+import swarmReadme from '../../../examples/swarm/README.md?raw'
+import swarmSource from '../../../examples/swarm/coordination-board.ts?raw'
 
 export type ExampleLevel = 'Beginner' | 'Intermediate' | 'Advanced'
 export type ExampleLanguage = 'cli' | 'text' | 'typescript'
@@ -74,6 +76,11 @@ export interface ExampleDoc {
 }
 
 const EXAMPLE_VISUALS = {
+  'swarm-coordination-board': {
+    src: '/img/generated/example-swarm-coordination.jpg',
+    webpSrc: '/img/generated/example-swarm-coordination.webp',
+    alt: 'A paper-craft coordination board: four felt agent tiles connected left to right by glowing tubes, with paper padlock tokens on the links and a tray of index-card chips beside it.',
+  },
   'pd-tube-button-to-agent': {
     src: '/img/generated/example-pd-tube-button-to-agent.jpg',
     webpSrc: '/img/generated/example-pd-tube-button-to-agent.webp',
@@ -816,6 +823,93 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     ],
     related: [
       { title: 'Messaging reference', href: '/docs/cli/pub' },
+      { title: 'Fleet tutorial', href: '/tutorials/fleet' },
+      { title: 'Agents view', href: '/agents' },
+    ],
+  },
+  {
+    slug: 'swarm-coordination-board',
+    title: 'Run a four-agent swarm that hands off cleanly',
+    eyebrow: 'Multi-agent',
+    level: 'Advanced',
+    time: '20 min',
+    summary:
+      'Four agents — scout, builder, verifier, integrator — run in one process and pass work down a chain without ever clobbering each other.',
+    surveyPlain:
+      'Watch a scout find work, a builder claim a lock and propose a patch, a verifier prove it, and an integrator declare convergence — all coordinated through shared Port Daddy state.',
+    builds:
+      'A runnable four-stage workflow where each stage waits for the previous one\'s published result, takes an exclusive lock for its critical section, and leaves a permanent note.',
+    whyItMatters:
+      'This is the flagship "this is what Port Daddy is for" example. It uses every core coordination primitive together — sessions, channels, pub/sub, the tuple space, locks, and notes — to turn four independent agents into a pipeline that cannot step on itself.',
+    lastReviewed: '2026-06-19',
+    tags: ['swarm', 'coordination', 'tuples', 'locks', 'pub/sub'],
+    visual: EXAMPLE_VISUALS['swarm-coordination-board'],
+    prerequisites: [
+      'A running Port Daddy daemon.',
+      'Node.js with npx/tsx available.',
+      'No API keys — the example coordinates real agents but the demo drives the four stages in one process.',
+    ],
+    files: [
+      'examples/swarm/coordination-board.ts',
+      'examples/swarm/README.md',
+    ],
+    commands: [
+      {
+        title: 'Run the swarm',
+        command: '$ npx tsx examples/swarm/coordination-board.ts',
+        notes: ['Four stages run in one process: scout publishes, builder claims the implementation lock, verifier claims the test lock, integrator declares convergence.'],
+      },
+      {
+        title: 'Run it in its own harbor',
+        command: '$ PD_EXAMPLE_HARBOR=my-demo npx tsx examples/swarm/coordination-board.ts',
+        notes: ['Scopes the channels, tuples, and locks to a named harbor so you can run it without touching your real coordination state.'],
+      },
+      {
+        title: 'Inspect the shared state it left behind',
+        command: '$ pd tuple scan --harbor my-demo',
+        notes: ['Every handoff is a real tuple you can read after the run — the swarm leaves an inspectable trail, not just logs.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A four-stage relay where each agent waits for real evidence before it acts.',
+        paragraphs: [
+          'Scout publishes a finding. Builder waits for it, claims the implementation lock, and publishes a patch plan. Verifier waits for the plan, claims the test lock, and publishes test evidence. Integrator waits for the evidence and publishes convergence.',
+          'Nothing is faked or sequenced by a sleep. Each stage genuinely blocks on the previous stage\'s published result, so the order is enforced by the coordination layer, not by timing.',
+        ],
+      },
+      {
+        id: 'why-it-matters',
+        label: 'Why it matters',
+        title: 'This is the whole point of Port Daddy in one file.',
+        paragraphs: [
+          'A swarm without coordination is four agents racing for the same files. Here, the implementation lock means only the builder writes while it holds it; the test lock means the verifier runs alone; the tuple space carries the structured handoff; and the notes leave a permanent record of who did what.',
+          'Pull any one primitive out and the pipeline breaks down into a scramble. Together they make four agents behave like a team.',
+        ],
+      },
+      {
+        id: 'inspect-it',
+        label: 'Inspect it',
+        title: 'The coordination is readable after the fact, not buried in logs.',
+        paragraphs: [
+          'Because every handoff is a tuple and every decision is a note, you can scan the harbor after the run and reconstruct exactly what happened: the finding, the plan, the evidence, the convergence.',
+          'That inspectability is the difference between "the agents did something" and "here is the claim-backed trail of what they did and why."',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/swarm/coordination-board.ts', language: 'typescript', code: swarmSource },
+      { path: 'examples/swarm/README.md', language: 'text', code: swarmReadme },
+    ],
+    adapt: [
+      'Swap the four scripted stages for real agent backends to run an actual scout/builder/verifier/integrator team.',
+      'Add a fifth stage (for example, a release gate) by subscribing it to the integrator\'s convergence channel.',
+      'Replace the locks with finer-grained file claims if two stages can safely touch different files at once.',
+    ],
+    related: [
+      { title: 'Tuples reference', href: '/docs/features/tuples' },
       { title: 'Fleet tutorial', href: '/tutorials/fleet' },
       { title: 'Agents view', href: '/agents' },
     ],
