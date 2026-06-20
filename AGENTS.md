@@ -154,6 +154,74 @@ pd dev down my-thing                         # stop a berth (never the brew/stab
 - The daemon self-reports its berth on `GET /health` (`.daemon`) and `GET /whoami`. No `PD_DAEMON_*` env → `tier=stable, canonical=true` (the brew daemon, unchanged).
 - A dev berth must never become the *implicit* default — targeting is opt-in, per shell, and visibly marked. Full model: [`docs/adr/0084-daemon-berths.md`](docs/adr/0084-daemon-berths.md).
 
+## Agent Operating Expectations
+
+How you are expected to *work* a slice here — the standing posture, not a per-task
+checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintenance
+is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
+Documents`.
+
+- **Coordinate, and pay rent.** Work in a clean linked worktree off
+  `origin/main` (§ Create / Update / Land), never the operator's main checkout.
+  `pd begin --identity … --lifecycle durable` → scope `pd note` → `pd session
+  files add` before editing → `pd done` at the end. Rent is real: every commit
+  carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
+  Coast Guard). A silent agent is a non-durable agent.
+- **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
+  slice; deliberately exercise a surface you have not used before instead of
+  living on `claim`/`note`/`done`. File feature feedback as you go. When a
+  genuinely novel gambit finally works — especially after a run of failures —
+  write it down: the public `skills/port-daddy-agent-skill` if any agent on any
+  project could reuse it, the internal `skills/port-daddy-internal-dev` if it is
+  repo-specific. A win nobody recorded did not happen.
+- **Assume every feature is broken until you watch it work.** A zero exit code is
+  not proof. Confirm the write landed where you think (right DB, right harbor,
+  right channel, right worktree-scoped name), then that it is read back from that
+  same place, then that it survives the hard cases: cold start (daemon down → the
+  first command must *instruct the operator elegantly*, not stack-trace), git
+  operations, linked worktrees, a second user on the same box, and GitHub
+  round-trips. Read the row back before you believe it.
+- **Confirm the telemetry trail.** A call you cannot see did not durably happen.
+  Check that CLI / MCP / SDK / tool calls land in both raw usage statistics
+  (`pd usage`) and explicit transcript saves (`lib/transcripts.ts`), and that
+  durable state rides the intended Cloudflare fabric (relay / R2 / D1 / KV via
+  `lib/relay-client.ts`) so posterity is stable and cheap. Prove the read-back
+  from durable storage; do not assume persistence.
+- **Build for any repo, not just this one.** Port Daddy is not a tsx/Rust tool and
+  not a port-daddy-only tool. A new feature must generalize to other languages,
+  other machines, remote harbors, shared users, and GitHub-mediated teams. If a
+  design only works in this checkout, it is wrong — same root as the Agent-neutral
+  killer item.
+- **GUIs: assume you are bad at them.** Claude and Codex ship clumsy UI by
+  default. Before committing pixels to any FleetBar / console / website surface,
+  go get reference, the house design system, and human feedback, and make it feel
+  professional and hand-built. The visual-artifact gate proves it *renders*, not
+  that it is *good* (§ Operator UX Expectations).
+- **Avoid AI tropes; humanize.** No "Certainly!", no hedge-everything prose, no
+  manufactured confidence, no em-dash confetti. Use the `make-human` skill and
+  keep the customer-personae skill in agreement. Write like the person who
+  maintains this repo.
+- **Mind the whitepaper.** Before shipping coordination/kernel work, check it
+  against [`whitepaper/single-writer-kernel.tex`](whitepaper/single-writer-kernel.tex)
+  and [`whitepaper/legible-swarm.tex`](whitepaper/legible-swarm.tex): have you
+  drifted from the model, or have you built something the paper should now
+  describe? They need not be 1:1 — the paper is the lofty theory, the code is what
+  we actually shipped — but each should correct the other. Note drift in the PR.
+- **Work at maximal tool + skill access, and pause to find the right skill.** Start
+  with the broadest toolset you can reach. If you catch yourself working without a
+  matching skill, stop and do skill research before improvising what a skill
+  already encodes. Skill matching is meant to live in a **seamanship** module
+  (proposed, not yet built): a match-cascade-and-graft selector modelled on the
+  windags repo's `windags_skill_induct` / `windags_skill_graft` cascade. Until it
+  lands, match by hand against `skills/`.
+- **Launch other agents *through* Port Daddy.** When you need more hands, spawn
+  them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
+  tube → spawner router (conductor) — never a raw side-channel, so the work is
+  registered, sandboxed (Coast Guard), budgeted, and salvageable.
+- **Keep the README current.** When a slice changes a surface an operator or
+  contributor reads about, update `README.md` in the same PR — a stale README is a
+  caught lie just like a stale citation.
+
 ## Pull Request Operating Procedure
 
 **This lifecycle is autonomous — never gated on operator confirmation.**

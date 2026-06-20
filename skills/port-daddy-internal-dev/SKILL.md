@@ -58,6 +58,38 @@ roadmap before the CLI-only path ships to operators. Examples in flight:
 `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+## How to work a slice (operating expectations)
+
+The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
+repo-specific mechanics:
+
+- **Coordinate + pay rent.** Clean linked worktree off `origin/main`,
+  `pd begin … --lifecycle durable`, `pd session files add` before editing, a
+  `pd note` per commit (the Coordination Guard enforces it), `pd done` at the end.
+- **Assume broken; verify both ends.** After any write, read it back from the
+  surface that should serve it, and prove cold start (daemon down → elegant
+  operator instruction, never a stack trace), worktrees, a second user, and the
+  GitHub round-trip. A green exit code is not evidence.
+- **Confirm the telemetry trail.** Calls must show up in `pd usage` AND in the
+  transcript saves (`lib/transcripts.ts`), and durable state must ride the
+  Cloudflare fabric (`lib/relay-client.ts`) so posterity is cheap and survives the
+  container — verify the read-back, don't assume it.
+- **Dogfood novelly + capture wins.** Exercise a CLI/MCP/SDK surface you haven't
+  before each slice; when a hard-won gambit lands, write it into this skill (or the
+  public `port-daddy-agent-skill` if it generalizes).
+- **Generalize.** Features must work for non-tsx/non-Rust repos, remote harbors,
+  other machines, and shared GitHub teams — not just this checkout.
+- **Whitepaper check.** Reconcile coordination/kernel work against
+  [`whitepaper/single-writer-kernel.tex`](../../whitepaper/single-writer-kernel.tex)
+  and [`whitepaper/legible-swarm.tex`](../../whitepaper/legible-swarm.tex); note drift in the PR.
+- **Skill matching.** If you're missing a matching skill, pause and do skill
+  research. The intended home is a **seamanship** match-cascade/graft selector
+  (proposed, not yet built — modelled on windags `windags_skill_induct` /
+  `windags_skill_graft`); until it lands, match by hand against `skills/`.
+- **Launch agents through PD** (`pd agent` / `pd sortie` / `pd dispatch` / conductor),
+  never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
+- **Keep `README.md` current** in the same PR when a slice changes a documented surface.
+
 ## Core Decision Tree
 
 ```mermaid

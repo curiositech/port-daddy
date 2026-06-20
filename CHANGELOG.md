@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Documented the now machine-enforced visual-artifact and PR-description rules in AGENTS.md, CONTRIBUTING.md (new § Pull Request Requirements), and the `port-daddy-internal-dev` skill.
+- Added an `Agent Operating Expectations` section to AGENTS.md (and a matching slice-discipline block to the internal skill): coordinate + pay rent on clean worktrees, dogfood novelly and capture hard-won gambits in the skill, assume features are broken until read-back/cold-start/worktree/GitHub-verified, confirm the usage + transcript + Cloudflare durability trail, generalize beyond tsx/Rust to any repo and remote harbor, treat GUIs as needing real design feedback, avoid AI tropes / humanize, reconcile against the whitepapers, work at maximal tool+skill access (pausing for skill research), and launch other agents through Port Daddy's own fabric. README gains a Contributing section pointing at the PR contract.
 
 ## [3.19.0] - 2026-06-15
 
