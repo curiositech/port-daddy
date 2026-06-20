@@ -17,17 +17,40 @@ use crate::broker::Broker;
 use crate::protocol::{Request, Response};
 
 /// Bind a Unix listener at `path`: remove any stale socket file left by a
-/// crashed predecessor, create the parent dir, bind, and chmod the socket 0600
-/// (owner-only). Returns the bound listener.
+/// crashed predecessor, create the parent dir 0700, bind under a restrictive
+/// umask, and chmod the socket 0600 (owner-only). Returns the bound listener.
+///
+/// TOCTOU note: `UnixListener::bind` creates the socket inode honoring the
+/// process umask, so there is a window between `bind()` and `set_permissions`
+/// during which a lax umask could leave the socket group/other-connectable. We
+/// close that window two ways: (1) the parent dir is created mode 0700 so no
+/// other user can traverse to the socket even momentarily, and (2) we force
+/// umask 0o077 across the `bind()` so the inode is born owner-only. The explicit
+/// `set_permissions(0o600)` afterward stays as defense-in-depth.
 pub fn bind_listener(path: &Path) -> std::io::Result<UnixListener> {
     if path.exists() {
         // Stale socket from a crashed predecessor — unlink so bind() can succeed.
         let _ = std::fs::remove_file(path);
     }
     if let Some(parent) = path.parent() {
+        // Create the parent dir owner-only (0700) so the socket is never
+        // reachable by another user even in the bind→chmod window. create_dir_all
+        // does not apply a mode to dirs it creates, so chmod the leaf afterward.
         std::fs::create_dir_all(parent)?;
+        std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700))?;
     }
-    let listener = UnixListener::bind(path)?;
+
+    // Force a restrictive umask (0o077) for the duration of the bind so the
+    // socket inode is created owner-only with no race, then restore the prior
+    // umask. `umask(2)` returns the previous mask and cannot fail.
+    let prev_umask = unsafe { libc::umask(0o077) };
+    let bind_result = UnixListener::bind(path);
+    unsafe {
+        libc::umask(prev_umask);
+    }
+    let listener = bind_result?;
+
+    // Defense-in-depth: assert 0600 explicitly regardless of the umask above.
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     Ok(listener)
 }

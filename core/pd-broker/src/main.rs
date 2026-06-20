@@ -78,16 +78,30 @@ fn trim_trailing_newline(mut bytes: Vec<u8>) -> Vec<u8> {
 }
 
 /// Load a key from an env var, falling back to a deterministic dev key only when
-/// `PD_BROKER_DEV=1`. In production the keys must be supplied.
+/// `PD_BROKER_DEV=1` AND this is a debug build. In production (release build) the
+/// keys must be supplied: the hardcoded dev defaults are gated behind
+/// `cfg!(debug_assertions)` so a release binary started with `PD_BROKER_DEV=1`
+/// still refuses and requires real keys — the dev keys can never sign tickets or
+/// verify macaroons in a shipped binary.
 fn load_key(var: &str, dev_default: &[u8]) -> Result<Vec<u8>, String> {
     match std::env::var(var) {
         Ok(s) if !s.is_empty() => Ok(s.into_bytes()),
         _ => {
             if std::env::var("PD_BROKER_DEV").as_deref() == Ok("1") {
-                eprintln!("pd-broker: {var} unset, using dev default (PD_BROKER_DEV=1)");
-                Ok(dev_default.to_vec())
+                if cfg!(debug_assertions) {
+                    eprintln!("pd-broker: {var} unset, using dev default (PD_BROKER_DEV=1, debug build)");
+                    Ok(dev_default.to_vec())
+                } else {
+                    eprintln!(
+                        "pd-broker: PD_BROKER_DEV=1 ignored in a release build; \
+                         {var} must be a real key in production"
+                    );
+                    Err(format!(
+                        "set {var}: dev-key fallback is disabled in release builds"
+                    ))
+                }
             } else {
-                Err(format!("set {var} (or PD_BROKER_DEV=1 for a dev key)"))
+                Err(format!("set {var} (or PD_BROKER_DEV=1 for a dev key in debug builds)"))
             }
         }
     }

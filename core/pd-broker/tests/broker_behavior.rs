@@ -295,6 +295,164 @@ fn unknown_caveat_key_revokes_authorization() {
 }
 
 // ---------------------------------------------------------------------------
+// 7b. expired-DISCHARGE replay -> refusal even though the grant is still live
+// ---------------------------------------------------------------------------
+// A discharge carries its own short-lived `expires` caveat. An agent that paid
+// rent once must not replay that stale discharge later: the broker injects ITS
+// clock, so a discharge whose TTL has elapsed is refused even while the grant's
+// own (longer) expiry window is still open.
+#[test]
+fn expired_discharge_replay_yields_refusal() {
+    let g = grant();
+    let mut broker = broker_for(&g, DISCHARGE_TTL_MS);
+
+    // Mint a discharge at t=1_000_000 with a SHORT 5s TTL so it expires well
+    // before the grant's hard expiry (2_000_000).
+    let short_ttl_ms: i64 = 5_000;
+    let discharge = discharge_rent_paid(
+        &g.caveat_key,
+        &g.rent_caveat_id,
+        RentVerdict::Paid,
+        1_000_000,
+        short_ttl_ms,
+    )
+    .unwrap()
+    .expect("paid rent yields a discharge");
+    let bound = g.macaroon.prepare_for_request(&discharge).unwrap();
+
+    // Replay the now-stale discharge at t=1_500_000: past the discharge expiry
+    // (1_005_000) but still inside the grant window (< 2_000_000).
+    let resp = broker.handle(
+        Request::BrokerCredential {
+            grant: Box::new(g.macaroon.clone()),
+            discharges: vec![bound],
+            ctx: Box::new(push_ctx()),
+        },
+        1_500_000,
+    );
+    assert!(
+        matches!(resp, Response::Refused { .. }),
+        "expired discharge replay must refuse, got {resp:?}"
+    );
+    assert!(!payload(&resp).contains(SECRET));
+
+    // Control: the SAME discharge replayed BEFORE its expiry still authorizes,
+    // proving the refusal above is the TTL biting and not a structural reject.
+    let mut broker2 = broker_for(&g, DISCHARGE_TTL_MS);
+    let fresh = discharge_rent_paid(
+        &g.caveat_key,
+        &g.rent_caveat_id,
+        RentVerdict::Paid,
+        1_000_000,
+        short_ttl_ms,
+    )
+    .unwrap()
+    .unwrap();
+    let bound_fresh = g.macaroon.prepare_for_request(&fresh).unwrap();
+    let ok = broker2.handle(
+        Request::BrokerCredential {
+            grant: Box::new(g.macaroon.clone()),
+            discharges: vec![bound_fresh],
+            ctx: Box::new(push_ctx()),
+        },
+        1_002_000, // inside the 5s discharge window
+    );
+    assert!(
+        matches!(ok, Response::Ticket { .. }),
+        "in-window discharge must authorize (control), got {ok:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// 7c. cross-grant replay -> refusal (a discharge bound to grant A cannot
+//     authorize a different grant B)
+// ---------------------------------------------------------------------------
+// The discharge is request-bound (prepare_for_request) and its third-party
+// caveat id encodes the originating session+nonce. Presenting grant B with a
+// discharge minted for grant A must refuse: the broker has no discharge key for
+// B's rent caveat (different nonce -> different caveat id), so the third-party
+// caveat goes undischarged.
+#[test]
+fn cross_grant_discharge_replay_yields_refusal() {
+    let g_a = grant(); // nonce-1, rent_caveat_id rent-paid:session-abc:nonce-1
+
+    // Grant B: a DIFFERENT grant (distinct grant id + rent nonce), so its rent
+    // caveat id differs from A's.
+    let g_b = mint_push_grant(MintPushGrant {
+        root_key: ROOT,
+        grant_id: "grant-2",
+        repo: REPO,
+        session: SESSION,
+        expires_ms: 2_000_000,
+        caveat_key: CKEY.to_vec(),
+        rent_nonce: "nonce-2",
+        protected_branch: PROTECTED,
+    })
+    .unwrap();
+    assert_ne!(
+        g_a.rent_caveat_id, g_b.rent_caveat_id,
+        "the two grants must have distinct rent caveat ids"
+    );
+
+    // The broker only knows grant B's rent caveat key (the live lease). The
+    // discharge we replay was minted for grant A.
+    let mut caveat_keys = HashMap::new();
+    caveat_keys.insert(g_b.rent_caveat_id.clone(), CKEY.to_vec());
+    let mut broker = Broker::new(BrokerConfig {
+        secret: SECRET.as_bytes().to_vec(),
+        macaroon_root_key: ROOT.to_vec(),
+        ticket_signing_key: TICKET_KEY.to_vec(),
+        caveat_keys,
+        ticket_ttl_ms: DISCHARGE_TTL_MS,
+    })
+    .unwrap();
+
+    // A's discharge, presented against grant B.
+    let a_discharge = paid_discharge(&g_a);
+    let resp = broker.handle(
+        Request::BrokerCredential {
+            grant: Box::new(g_b.macaroon.clone()),
+            discharges: vec![a_discharge],
+            ctx: Box::new(push_ctx()),
+        },
+        1_000_000,
+    );
+    match &resp {
+        Response::Refused { .. } => {}
+        other => panic!("cross-grant discharge replay must refuse, got {other:?}"),
+    }
+    assert!(!payload(&resp).contains(SECRET));
+
+    // Control: grant B WITH its own discharge authorizes, proving the refusal
+    // above is the cross-grant binding biting, not a broken grant B.
+    let mut broker2 = Broker::new(BrokerConfig {
+        secret: SECRET.as_bytes().to_vec(),
+        macaroon_root_key: ROOT.to_vec(),
+        ticket_signing_key: TICKET_KEY.to_vec(),
+        caveat_keys: {
+            let mut m = HashMap::new();
+            m.insert(g_b.rent_caveat_id.clone(), CKEY.to_vec());
+            m
+        },
+        ticket_ttl_ms: DISCHARGE_TTL_MS,
+    })
+    .unwrap();
+    let b_discharge = paid_discharge(&g_b);
+    let ok = broker2.handle(
+        Request::BrokerCredential {
+            grant: Box::new(g_b.macaroon.clone()),
+            discharges: vec![b_discharge],
+            ctx: Box::new(push_ctx()),
+        },
+        1_000_000,
+    );
+    assert!(
+        matches!(ok, Response::Ticket { .. }),
+        "grant B with its own discharge must authorize (control), got {ok:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
 // 8. empty secret / empty keys are rejected at construction (fail closed)
 // ---------------------------------------------------------------------------
 #[test]
