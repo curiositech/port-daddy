@@ -117,10 +117,10 @@ contracts, and operator surfaces must stay coherent.
 
 | Actor | Route | Lib module | Fleet persona | Status surface |
 |---|---|---|---|---|
-| **Coxswain** | `routes/claims.ts`, `routes/locks.ts` | `lib/claims/`, `lib/locks/`, `lib/symbol-index/` | `agents/coxswain.yaml` (when present) | claim density + lock health in `pd briefing` |
-| **Navigator** | `routes/sessions.ts`, `routes/recovery.ts` | `lib/sessions/`, `lib/salvage.ts` | `agents/navigator.yaml` | `docs/recovery/CURRENT-WORK.md` |
+| **Coxswain** | `routes/claims.ts`, `routes/locks.ts` | `lib/claims/`, `lib/locks/`, `lib/symbol-index/` | `agents/coxswain.yaml` (when present) | claim density + lock health in `pd briefing` |  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
+| **Navigator** | `routes/sessions.ts`, `routes/recovery.ts` | `lib/sessions/`, `lib/salvage.ts` | `agents/navigator.yaml` | `docs/recovery/CURRENT-WORK.md` |  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
 | **Cartographer** | `routes/cartographer.ts` | `lib/roadmap-progress.ts`, `lib/feedback.ts` | `agents/cartographer.yaml` (also lives at `.claude/agents/cartographer/`) | `.cartographer/status.md`, `IDEAS-TROVE.md`, `DOGFOOD-FEEDBACK.md` |
-| **Lookout** | `routes/lookout.ts` | release-surface scanners under `lib/` | `fleet/documentarian.sh` (current shell-script form) | drift reports posted to lookout inbox |
+| **Lookout** | `routes/lookout.ts` | release-surface scanners under `lib/` | `fleet/documentarian.sh` (current shell-script form) | drift reports posted to lookout inbox |  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
 | **Quartermaster** | `routes/spawn.ts`, `routes/fleet.ts` | `lib/spawner.ts`, `lib/cost-tracker.ts`, `lib/backend-readiness.ts`, `lib/resource-governance.ts` | `agents/quartermaster.yaml` | spawn budget + readiness in FleetBar |
 
 **Shipwright** is a sixth, internal-only role: it owns skill-bundle
@@ -141,8 +141,8 @@ code. The public-facing summary lives in `skills/port-daddy-agent-skill/SKILL.md
 | Surface | ADR | Edit these together |
 |---|---|---|
 | **Relay** — cross-machine pub/sub | `docs/adr/0049-relay-architecture.md` | Worker `apps/relay/` (D1 schema `apps/relay/schema.sql`, `wrangler.toml`) · daemon routes `routes/relay.ts` · outbound SSE `lib/relay-client.ts` · CLI `cli/commands/relay.ts` · MCP `relay_status` in `mcp/server.ts` |
-| **Dispatch** — autonomous feature-dev queue | ADR-0035 | `cli/commands/dispatch.ts` (+ deprecated alias `cli/commands/nightshift.ts`) · `lib/dispatch/{runner,spawn-adapter,queue,state-machine}.ts` · `routes/dispatches.ts` · `pd review` · `docs/proposals/pd-nightshift.md` |
-| **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) |
+| **Dispatch** — autonomous feature-dev queue | ADR-0035 | `cli/commands/dispatch.ts` (+ deprecated alias `cli/commands/nightshift.ts`) · `lib/dispatch/{runner,spawn-adapter,queue,state-machine}.ts` · `routes/dispatches.ts` · `pd review` · `docs/proposals/pd-nightshift.md` |  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
+| **Coast Guard** — sandbox + compulsion rent | `docs/adr/0050-coast-guard.md` | `lib/coast-guard.ts` (`buildSeatbeltProfile`, `wrapWithSandbox`) · `lib/coast-guard/{compulsion,compulsion-facts,egress-meter}.ts` · default in `lib/spawner.ts` · read path `cli/commands/coast-guard.ts` (`operator_coast_guard` feature) · `requireNotePerCommit` wiring in the Coordination Guard (`cli/commands/guard.ts`) |  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
 | **Attest** — honest self-report | ADR-0045 | `cli/commands/attest.ts` · `lib/attest.ts` · `lib/attest-invariants.ts` · `GET /attest` · the `attest` manifest feature |
 | **Tube** — conversational pipe | — | `cli/commands/tube.ts` · message-channel store · `pd_discover` listing |
 
@@ -229,9 +229,15 @@ calling a branch ready, inspect and close the full PR surface:
 - Inline bot comments from Copilot, Claude review, Cloudflare Pages, CodeQL,
   package/release jobs, or deploy previews count as review findings. Reply to
   each actionable thread with fixed / deferred / contested-because.
-- Run a skeptical reviewer agent for non-trivial changes and require a
-  `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. Fix high-confidence findings
+- A neutral adversarial reviewer runs in CI on **every** PR (the
+  `claude-adversarial-review` workflow — assumes laziness/slop/lies/corner-cutting,
+  ends with a `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict). Also run your own
+  skeptical reviewer agent for non-trivial changes. Fix high-confidence findings
   as named fixup commits on the branch.
+- **The PR description is gated.** `.github/PULL_REQUEST_TEMPLATE.md` is the form,
+  and `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`) fails the
+  merge queue on an empty/boilerplate Summary or Test Plan, or a visual diff with no
+  artifacts. Draft-check locally: `npm run check:pr-requirements -- --body-file <draft.md>`.
 - Treat GitHub CI, external deploy checks, release-package jobs, and Cloudflare
   Pages as one CI/CD surface. If one is red, inspect the linked logs. Only call
   it external after proving the branch is not the cause, and record that proof
@@ -239,11 +245,13 @@ calling a branch ready, inspect and close the full PR surface:
 - Do not leave a PR with "CI green except..." as an unresolved aside. Either
   make it green, file/assign the external blocker with evidence, or hand off the
   exact next action to an active Port Daddy session.
-- **UI diffs ship visual artifacts — forever.** A PR touching a GPUI surface
-  (`core/pd-console` window), the console (any pane/renderer), or the
-  website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) is
-  incomplete without screenshots + a GIF + a short screen recording of the real
-  change in its Test Plan. Green CI proves compilation, not rendering. TUI panes →
+- **UI diffs ship visual artifacts — forever (now `[M]`).** A PR touching a GPUI
+  surface (`core/pd-console` window), the console (any pane/renderer), or the
+  website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`,
+  `public/`, `dashboard/`, `apps/FleetBar/`) is incomplete without screenshots + a
+  GIF + a short screen recording of the real change in its Test Plan, and
+  `pr-requirements-guard` now fails the PR without at least a screenshot + a motion
+  artifact. Green CI proves compilation, not rendering. TUI panes →
   `vhs` (tape under `core/pd-console/docs/artifacts/`); GPUI window →
   `cargo build --release --features gpui` then `core/pd-console/scripts/capture-gpui.sh`
   (needs macOS Screen Recording permission — a headless host is TCC-denied);
@@ -563,10 +571,10 @@ pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 1. Worktree: `git worktree add ../port-daddy-$(date +%s)-mcp-swarm-status origin/main && cd $_`.
 2. `pd begin "Add pd_swarm_status MCP tool" --identity port-daddy:contrib:mcp-swarm-status --lifecycle durable`.
 3. Implement in `mcp/server.ts` (new tool registration).
-4. Implement the underlying lib in `lib/swarm-status.ts` if not present.
-5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert.
+4. Implement the underlying lib in `lib/swarm-status.ts` if not present.  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
+5. Update `scripts/mcp-handshake-test.mjs` — bump REQUIRED_TOOLS count and assert.  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
 6. Update `port-daddy-agent-skill/SKILL.md` "MCP Equivalents" list.
-7. Update website `apps/website-v2/.../mcp-catalog.tsx` (or equivalent route).
+7. Update website `apps/website-v2/.../mcp-catalog.tsx` (or equivalent route).  <!-- cite-exempt: illustrative module map / how-to placeholder, not a literal current path -->
 8. `pd actor lookout --message "NEW MCP TOOL pd_swarm_status: tested, surfaces updated."`
 9. Commit with explicit paths; tag if this is part of a numbered release.
 

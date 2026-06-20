@@ -172,7 +172,11 @@ flow is:
 1. **Open the PR.** Branch claimed via `pd begin --identity` + `pd session
    files add ...`. CI must be green (or you must explicitly justify each
    red check in the PR body).
-2. **Spawn a skeptical reviewer agent.** Use the `feature-dev:code-reviewer`
+2. **Spawn a skeptical reviewer agent.** An always-on neutral adversary already
+   runs in CI on every PR — the `claude-adversarial-review` workflow, which
+   assumes laziness/slop/lies/corner-cutting and ends with a
+   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. For non-trivial changes, ALSO
+   spawn your own: use the `feature-dev:code-reviewer`
    subagent type (or `auditor` for whole-codebase concerns). Brief it with
    the PR's context, the change's invariants, the failure modes you're
    worried about, and SPECIFIC hunting prompts ("could this leak X? does
@@ -239,6 +243,14 @@ script cannot judge them, and pretending it can is solutionism).
   (Coordination Guard enforces this at commit).
 
 **Before you push / open the PR:**
+- **The PR description is the contract.** `[M]` Fill out
+  `.github/PULL_REQUEST_TEMPLATE.md`: an exhaustive Summary and a non-trivial Test
+  Plan are required, plus screenshot + GIF/recording artifacts for any visual
+  surface. `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`)
+  fails the merge queue on an empty/boilerplate Summary or Test Plan, or a visual
+  diff with no artifacts. The machine checks structure; the
+  `claude-adversarial-review` workflow judges whether the prose is honest and the
+  artifacts show success.
 - **The gate is real, not theater.** The test/CI that "passes" actually *builds
   and exercises the code you changed*. A green check on a job that never ran
   your workspace is not coverage — that is exactly how the macaroon parity gate
@@ -266,6 +278,17 @@ artifacts, so a UI PR without them is incomplete and must not merge. Operator,
 2026-06-11: *"I demand all GPUI diffs and console and website diffs include
 comprehensive screenshot artifacts, GIFs and screen recording in the test plan.
 Forever."*
+
+`[M]` This is now machine-enforced. `scripts/check-pr-requirements.mjs` (CI job
+`pr-requirements-guard`) fails the PR when a change under a visual surface
+(`core/pd-console/`, `website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`,
+`public/`, `dashboard/`, `apps/FleetBar/`) ships without at least one screenshot
+AND one motion artifact (GIF / recording) in the body — committed media in the
+diff or embedded `raw.githubusercontent` links both count. The escape hatch for a
+genuinely non-visual change is an explicit `<!-- visual-exempt: <reason> -->` in
+the PR body. The guard checks *presence*; whether the artifacts actually show
+ideal behavior (vs. an error or loading state) is judged by the
+`claude-adversarial-review` workflow, which presumes failure on sparse evidence.
 
 - **TUI / pd-console panes**: record with `vhs` (tape committed under
   `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
