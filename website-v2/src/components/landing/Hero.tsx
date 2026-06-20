@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, Terminal } from 'lucide-react'
+import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
@@ -72,6 +72,39 @@ export function Hero() {
                 Already pay for Claude Max or ChatGPT Pro? The fleet runs on it.
                 <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
+            </div>
+
+            {/* Trust strip — the engineer's risk-reducers (the weakest vertex on
+                the appeal triangle): local-first, no account, inspectable, broad
+                tool support. Every line is a verifiable fact, not a guarantee. */}
+            <div className="space-y-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
+              <div className="flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                <span className="inline-flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+                  <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+                  Runs on your machine
+                </span>
+                <span>No account, no cloud</span>
+                <a
+                  href="https://github.com/curiositech/port-daddy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group inline-flex items-center gap-[var(--space-1)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+                >
+                  Read the source on GitHub
+                  <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                </a>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-[var(--space-3)] gap-y-[var(--space-1)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                <span className="font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                  Works with
+                </span>
+                {['Claude Code', 'Codex', 'Cursor', 'Windsurf', 'Cline'].map((tool, i) => (
+                  <span key={tool} className="inline-flex items-center gap-[var(--space-3)]">
+                    {i > 0 && <span aria-hidden="true">·</span>}
+                    {tool}
+                  </span>
+                ))}
+              </div>
             </div>
           </motion.div>
 
