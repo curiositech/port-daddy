@@ -12,7 +12,7 @@ This document covers **what to bump and when**. For **how to actually cut a rele
 
 ## Version surfaces
 
-A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` handles the JSON ones automatically; the rest must currently be bumped by hand (see [Known gaps](#known-gaps-in-sync-versionts) below).
+A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` now handles **all** of them — the JSON manifests, the MCP/server TypeScript constants, and the website reference constant. The only manual surface left is `CHANGELOG.md` (see [Known gaps](#known-gaps-in-sync-versionts) below).
 
 | Surface | Updated by | Notes |
 |---|---|---|
