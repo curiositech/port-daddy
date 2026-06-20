@@ -6,8 +6,8 @@
 //! flipping `ThemeMode` (Ctrl-A g) re-skins the whole window on the next notify.
 //!
 //! Brand is mustard-amber #FFDB33 (accent). Alert is crimson — #C41E30 in light,
-//! #F26475 in dark (gated). NEVER cinnabar #CC3D2E / brass #B08D57 / patina
-//! #5C7A6A — scripts/check-brand-colors.mjs fails CI on those.
+//! #F26475 in dark (gated). NEVER the retired Harbor Heritage trio — cinnabar,
+//! brass, patina — which scripts/check-brand-colors.mjs fails CI on.
 
 use crate::pane::Tone;
 use gpui::{rgba, Rgba};
