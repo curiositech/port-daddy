@@ -4007,6 +4007,22 @@ name = "pd-bosun"
 version = "0.1.0"
 
 [[package]]
+name = "pd-broker"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "hmac",
+ "libc",
+ "pd-anchor",
+ "pd-core",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "pd-compat"
 version = "0.1.0"
 dependencies = [
