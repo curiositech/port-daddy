@@ -37,6 +37,8 @@ const TOOL_FEATURE_MAP = {
 
   // Pheromone signals — #199
   'spray_pheromone': 'pheromone',
+  'resolve_pheromone': 'pheromone',
+  'pheromone_coverage': 'pheromone',
   'read_pheromones': 'pheromone',
   'read_entity_pheromones': 'pheromone',
 

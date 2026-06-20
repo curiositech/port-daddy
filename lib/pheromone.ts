@@ -15,6 +15,73 @@ export interface PheromoneConfig {
 
 const ALLOWED_TABLES = new Set(['services', 'projects', 'sessions', 'agents', 'locks']);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Pure helpers (no DB) — RCP-7a resolution damping + RCP-12 coverage scan.
+// Exported so the math is unit-testable without a database.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Anti-inflammatory damping (RCP-7a, soma's resolution traces): once a problem
+ * on an entity is *resolved*, a resolution trace suppresses its pheromone so
+ * agents stop piling onto solved work. effective = raw · (1 − clamp(damping·res)).
+ */
+export function dampedStrength(raw: number, resolution: number, damping = 1): number {
+  if (!Number.isFinite(resolution) || resolution <= 0) return raw;
+  const r = Math.min(1, Math.max(0, damping * resolution));
+  return raw * (1 - r);
+}
+
+/** Apply {@link dampedStrength} across a pheromone map given a resolution map. */
+export function applyResolutionDamping(
+  pheromones: Record<string, number>,
+  resolutions: Record<string, number>,
+  damping = 1,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(pheromones)) {
+    if (typeof raw !== 'number') continue;
+    const eff = dampedStrength(raw, resolutions[key] ?? 0, damping);
+    if (eff >= 0.01) out[key] = eff;
+  }
+  return out;
+}
+
+export interface Coverage {
+  total: number;
+  seen: number;
+  coverage: number; // seen / total, in [0,1]; 1 when the universe is empty
+  unseen: string[];
+}
+
+/**
+ * Coverage of an entity universe given the set of seen (pheromone-bearing) ids
+ * (RCP-12 epistemic scan). The pheromone blackboard *is* the visit record: a
+ * sprayed entity is "seen". Tells an innate-scan driver what is still invisible.
+ */
+export function coverageOf(universe: string[], seen: Iterable<string>): Coverage {
+  const seenSet = new Set(seen);
+  const uniq = [...new Set(universe)];
+  const unseen = uniq.filter((id) => !seenSet.has(id));
+  const total = uniq.length;
+  return {
+    total,
+    seen: total - unseen.length,
+    coverage: total === 0 ? 1 : (total - unseen.length) / total,
+    unseen,
+  };
+}
+
+/**
+ * The innate-scan choice: pick an unseen target so no node stays permanently
+ * invisible. Deterministic given `rngValue` ∈ [0,1) (seeded-reproducible, like
+ * soma); returns null when everything is already seen.
+ */
+export function pickUnseenTarget(unseen: string[], rngValue: number): string | null {
+  if (unseen.length === 0) return null;
+  const r = Number.isFinite(rngValue) ? Math.min(0.999999, Math.max(0, rngValue)) : 0;
+  return unseen[Math.floor(r * unseen.length)] ?? unseen[0]!;
+}
+
 export function createPheromoneManager(db: Database.Database, config: PheromoneConfig = { decayRate: 0.95, intervalMs: 60000 }) {
 
   // Pre-built statements per table — eliminates SQL interpolation entirely.
@@ -77,9 +144,9 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
               if (!row.metadata) continue;
               const metadata = JSON.parse(row.metadata);
 
-              if (metadata && metadata.pheromones && typeof metadata.pheromones === 'object') {
-                let changed = false;
+              let changed = false;
 
+              if (metadata && metadata.pheromones && typeof metadata.pheromones === 'object') {
                 for (const [key, value] of Object.entries(metadata.pheromones)) {
                   if (typeof value === 'number') {
                     metadata.pheromones[key] = value * config.decayRate;
@@ -89,10 +156,25 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
                     changed = true;
                   }
                 }
+              }
 
-                if (changed && s.update) {
-                  s.update.run(JSON.stringify(metadata), row.id);
+              // Resolution traces (RCP-7a) fade faster than pheromones —
+              // anti-inflammatory damping is transient, not a permanent veto.
+              if (metadata && metadata.resolutions && typeof metadata.resolutions === 'object') {
+                const resDecay = config.decayRate * config.decayRate;
+                for (const [key, value] of Object.entries(metadata.resolutions)) {
+                  if (typeof value === 'number') {
+                    metadata.resolutions[key] = value * resDecay;
+                    if (metadata.resolutions[key] < 0.01) {
+                      delete metadata.resolutions[key];
+                    }
+                    changed = true;
+                  }
                 }
+              }
+
+              if (changed && s.update) {
+                s.update.run(JSON.stringify(metadata), row.id);
               }
             } catch (e) {
               // Ignore row-level JSON or update errors
@@ -202,6 +284,67 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
   }
 
   /**
+   * Deposit a RESOLUTION trace (RCP-7a): mark `key` on an entity as resolved so
+   * its pheromone is damped on effective reads. Stored in a separate
+   * `metadata.resolutions` map; decays faster than pheromones (anti-inflammatory).
+   */
+  function sprayResolution(table: string, id: string, key: string, strength: number): { success: boolean; resolutions: Record<string, number> } {
+    if (!ALLOWED_TABLES.has(table)) return { success: false, resolutions: {} };
+    if (strength < 0 || strength > 1) return { success: false, resolutions: {} };
+
+    const row = db.prepare(`SELECT metadata FROM ${table} WHERE id = ?`).get(id) as { metadata: string | null } | undefined;
+    if (!row) return { success: false, resolutions: {} };
+
+    const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+    if (!metadata.resolutions) metadata.resolutions = {};
+    metadata.resolutions[key] = strength;
+
+    db.prepare(`UPDATE ${table} SET metadata = ? WHERE id = ?`).run(JSON.stringify(metadata), id);
+    return { success: true, resolutions: metadata.resolutions };
+  }
+
+  /**
+   * Read pheromones with anti-inflammatory damping applied (RCP-7a). Where
+   * `sniff` returns raw heat, `sniffEffective` suppresses entries that carry a
+   * resolution trace — what an agent deciding "is this still worth flocking to?"
+   * should read.
+   */
+  function sniffEffective(table: string, id: string, damping = 1): { success: boolean; pheromones: Record<string, number> } {
+    if (!ALLOWED_TABLES.has(table)) return { success: false, pheromones: {} };
+    const row = db.prepare(`SELECT metadata FROM ${table} WHERE id = ?`).get(id) as { metadata: string | null } | undefined;
+    if (!row) return { success: false, pheromones: {} };
+
+    const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+    const pheromones = decayOnRead(table, id, { ...(metadata.pheromones || {}) });
+    const resolutions = (metadata.resolutions || {}) as Record<string, number>;
+    return { success: true, pheromones: applyResolutionDamping(pheromones, resolutions, damping) };
+  }
+
+  /**
+   * Coverage of a table (RCP-12): the pheromone blackboard is the visit record,
+   * so "seen" = entities carrying any pheromone, and the universe is every row.
+   * Surfaces what is still invisible so an innate scan can target it.
+   */
+  function coverage(table: string): { success: boolean; table: string } & Coverage {
+    const empty = { success: false, table, total: 0, seen: 0, coverage: 1, unseen: [] as string[] };
+    if (!ALLOWED_TABLES.has(table)) return empty;
+    try {
+      const universe = (db.prepare(`SELECT id FROM ${table}`).all() as Array<{ id: string }>).map((r) => r.id);
+      const rows = db.prepare(`SELECT id, metadata FROM ${table} WHERE metadata IS NOT NULL`).all() as any[];
+      const seen: string[] = [];
+      for (const row of rows) {
+        try {
+          const md = JSON.parse(row.metadata);
+          if (md?.pheromones && Object.keys(md.pheromones).length > 0) seen.push(row.id);
+        } catch {}
+      }
+      return { success: true, table, ...coverageOf(universe, seen) };
+    } catch {
+      return empty;
+    }
+  }
+
+  /**
    * List all non-zero pheromones across all tracked tables.
    */
   function list(): Array<{ table: string; id: string; pheromones: Record<string, number> }> {
@@ -240,6 +383,9 @@ export function createPheromoneManager(db: Database.Database, config: PheromoneC
     evaporateNow: evaporate,
     spray,
     sniff,
+    sprayResolution,
+    sniffEffective,
+    coverage,
     list,
   };
 }
