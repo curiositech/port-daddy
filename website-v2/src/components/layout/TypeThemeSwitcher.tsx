@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Type-theme switcher — a feel-out tool for the site's type system.
+ * Type-theme switcher — a small toggle for the site's type system.
  *
- * Default (no attribute on <html>) is Fraunces — the live site's current
- * type system, loaded globally in index.html. Every alternate (Radnika and
- * Recursive are self-hosted in tokens.source.css) is opt-in and swaps the three font-role variables
- * via html[data-type-theme="..."] blocks in tokens.source.css; this
- * component only sets the attribute, lazily injects the alternate's
- * webfont stylesheet the first time it is selected, and persists the
- * choice in localStorage. Delete this component (and the theme blocks)
- * once a winner is chosen.
+ * Normalized to two systems, both self-hosted (no external font requests):
+ *   - Fraunces (default, no attribute) — editorial serif display + Source Sans 3
+ *     body + JetBrains Mono, loaded globally in index.html.
+ *   - Recursive (opt-in) — one variable font, sans-to-mono on a single axis,
+ *     self-hosted in tokens.source.css.
+ *
+ * The earlier grab-bag (Radnika, General Sans, Geist+Inter, IBM Plex, Archivo)
+ * was removed: those either had no CSS block or pulled external webfonts, which
+ * is exactly the font sprawl this toggle should not create.
  */
 
 interface TypeTheme {
@@ -24,13 +25,7 @@ const THEMES: TypeTheme[] = [
   {
     id: null,
     label: 'Fraunces',
-    detail: 'the current default — editorial serif display',
-    links: [],
-  },
-  {
-    id: 'radnika',
-    label: 'Radnika',
-    detail: 'clean grotesque, the previous default',
+    detail: 'the default — editorial serif over Source Sans 3',
     links: [],
   },
   {
@@ -38,38 +33,6 @@ const THEMES: TypeTheme[] = [
     label: 'Recursive',
     detail: 'one variable font, sans-to-mono on a single axis',
     links: [],
-  },
-  {
-    id: 'general-sans',
-    label: 'General Sans',
-    detail: 'console-aligned, same faces as pd-console',
-    links: [
-      'https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap',
-    ],
-  },
-  {
-    id: 'geist-inter',
-    label: 'Geist + Inter',
-    detail: 'technical Swiss',
-    links: [
-      'https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Inter:opsz,wght@14..32,400..700&family=Geist+Mono:wght@400;500&display=swap',
-    ],
-  },
-  {
-    id: 'plex',
-    label: 'IBM Plex',
-    detail: 'superfamily: sans display, serif body',
-    links: [
-      'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap',
-    ],
-  },
-  {
-    id: 'archivo',
-    label: 'Archivo',
-    detail: 'poster grotesque over Source Serif',
-    links: [
-      'https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap',
-    ],
   },
 ]
 

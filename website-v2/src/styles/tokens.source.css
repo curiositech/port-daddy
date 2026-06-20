@@ -22,39 +22,6 @@
   font-variation-settings: "MONO" 1, "CASL" 0;
 }
 
-/* Radnika — kept for the "current" option in the type-theme switcher. */
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Regular.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Medium.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Bold.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Black.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
-}
-
 :root {
   --radnika-opsz-body: 17;
   --radnika-opsz-small: 12;
@@ -99,6 +66,17 @@
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono:
     "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Diagram "paper" palette — deliberately theme-INDEPENDENT (not overridden in
+     the dark theme) so Mermaid sequence/flow diagrams render as a legible
+     light card in both light and dark mode. Consumed by Mermaid.tsx. */
+  --diagram-ink: #1a1a2e;
+  --diagram-paper: #f7f3eb;
+  --diagram-paper-2: #f2eee6;
+  --diagram-signal: #003fb8;
+  --diagram-lifeline: #9a948a;
+  --diagram-seq-num: #fbf7ef;
+  --diagram-note: #fff3d6;
 
   --type-meta-size: 0.875rem; /* a11y: 14px floor per vision rule — do not revert to 13px */
   --type-code-size: 0.875rem; /* a11y: 14px floor per vision rule — do not revert to 13px */
@@ -163,11 +141,10 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Type-theme switcher (feel-out tool, see TypeThemeSwitcher.tsx).
-   The DEFAULT (no attribute) is Radnika, set in :root above — the live site is
-   unchanged. Each block below is an opt-in preview that swaps the three font
-   roles; alternate webfonts are CDN-loaded on demand by the switcher. Remove
-   the unused blocks (and the switcher) once a winner is chosen.
+   Type-theme switcher (see TypeThemeSwitcher.tsx).
+   The DEFAULT (no attribute) is Fraunces + Source Sans 3 + JetBrains Mono, set
+   in :root above. The single opt-in below (Recursive) is self-hosted; no
+   external webfonts are loaded. The old grab-bag of CDN font themes was removed.
 --------------------------------------------------------------------------- */
 
 /* Recursive — opt-in preview. Self-hosted (see @font-face above). Its upper
@@ -197,44 +174,10 @@ html[data-type-theme="recursive"] :is(pre, code, kbd, samp) {
   font-size-adjust: none;
 }
 
-html[data-type-theme="general-sans"] {
-  --font-sans: "General Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display:
-    "General Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-}
-
-html[data-type-theme="geist-inter"] {
-  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono: "Geist Mono", "SFMono-Regular", Consolas, monospace;
-}
-
-html[data-type-theme="plex"] {
-  --font-sans: "IBM Plex Serif", Georgia, serif;
-  --font-display: "IBM Plex Sans", "Helvetica Neue", Helvetica, sans-serif;
-  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-}
-
-html[data-type-theme="fraunces"] {
-  --font-sans: "Source Sans 3", "Helvetica Neue", Helvetica, sans-serif;
-  --font-display: "Fraunces", Georgia, serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
-}
-
-html[data-type-theme="archivo"] {
-  --font-sans: "Source Serif 4", Georgia, serif;
-  --font-display: "Archivo", "Helvetica Neue", Helvetica, sans-serif;
-  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-}
-
-/* Fraunces display tuning — large optical size for headings. Applies to the
-   default (Fraunces is now the default) and to the explicit fraunces preview. */
+/* Fraunces display tuning — large optical size for headings on the default
+   (no-attribute) type system. */
 html:not([data-type-theme]) .display,
 html:not([data-type-theme]) h1,
-html:not([data-type-theme]) h2,
-html[data-type-theme="fraunces"] .display,
-html[data-type-theme="fraunces"] h1,
-html[data-type-theme="fraunces"] h2 {
+html:not([data-type-theme]) h2 {
   font-variation-settings: "opsz" 120, "SOFT" 0, "WONK" 0;
 }

@@ -28,11 +28,17 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
     // Render diagrams as a theme-INDEPENDENT light "paper" card so they stay
     // legible in dark mode (the old version inherited dark tokens -> dark text
     // on a dark inset gradient, and the SVG rendered at tiny natural size).
-    const ink = '#1A1A2E' // indigo-black
-    const paper = '#f7f3eb' // raised cream
-    const paperBase = '#f2eee6'
-    const cobalt = '#003fb8'
-    const lifeline = '#9a948a'
+    // Colours come from the --diagram-* tokens (defined once, not overridden in
+    // the dark theme), so the literals live in the token file, not here.
+    const style = getComputedStyle(document.documentElement)
+    const tok = (name: string) => style.getPropertyValue(name).trim()
+    const ink = tok('--diagram-ink')
+    const paper = tok('--diagram-paper')
+    const paperBase = tok('--diagram-paper-2')
+    const cobalt = tok('--diagram-signal')
+    const lifeline = tok('--diagram-lifeline')
+    const seqNum = tok('--diagram-seq-num')
+    const note = tok('--diagram-note')
 
     mermaid.initialize({
       startOnLoad: false,
@@ -63,12 +69,12 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
         actorLineColor: lifeline,
         activationBorderColor: cobalt,
         activationBkgColor: paperBase,
-        sequenceNumberColor: '#fbf7ef',
+        sequenceNumberColor: seqNum,
         labelBoxBkgColor: paperBase,
         labelBoxBorderColor: ink,
         labelTextColor: ink,
         loopTextColor: ink,
-        noteBkgColor: '#fff3d6',
+        noteBkgColor: note,
         noteTextColor: ink,
         noteBorderColor: ink,
         fontFamily: '"Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif',
@@ -141,7 +147,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className }) => {
   return (
     <div
       className={cn(
-        'pd-docs-mermaid my-12 flex w-full justify-center overflow-x-auto border-2 border-[var(--border-strong)] bg-[#f7f3eb] p-[var(--space-6)]',
+        'pd-docs-mermaid my-12 flex w-full justify-center overflow-x-auto border-2 border-[var(--border-strong)] bg-[var(--diagram-paper)] p-[var(--space-6)]',
         className,
       )}
       ref={ref}
