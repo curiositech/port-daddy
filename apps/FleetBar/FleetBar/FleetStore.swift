@@ -489,9 +489,16 @@ class FleetStore: ObservableObject {
 
     private var sseTask: Task<Void, Never>?
     private nonisolated(unsafe) var pollTimer: Timer?
-    private let baseURL: String
+    /// Mutable so the operator can switch berths live via `rebind(to:)`. Switching
+    /// is in-memory only — FleetBar returns to the canonical berth on next launch,
+    /// per the ADR-0084 rail that a dev berth must never be the implicit default.
+    private var baseURL: String
 
     var daemonURL: String { baseURL }
+
+    /// The port FleetBar is currently bound to, for matching against discovered
+    /// berths in the manager UI.
+    var activePort: Int? { URL(string: baseURL)?.port }
 
     var daemonLabel: String {
         guard let url = URL(string: baseURL) else { return baseURL }
@@ -597,6 +604,29 @@ class FleetStore: ObservableObject {
 
             settingsMessage = "Daemon did not respond"
             isStartingDaemon = false
+        }
+    }
+
+    /// Switch the live connection to a different daemon berth (ADR-0084). Tears
+    /// down the current SSE stream, repoints `baseURL`, clears stale state, and
+    /// reconnects. In-memory only: not persisted, so a relaunch returns to the
+    /// canonical berth and a dev berth never becomes the silent default.
+    func rebind(to url: String) {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
+        guard !normalized.isEmpty, normalized != baseURL else { return }
+
+        sseTask?.cancel()
+        baseURL = normalized
+        isConnected = false
+        isDaemonRunning = false
+        daemonStatus = nil
+        projects = []
+        settingsMessage = nil
+
+        Task {
+            await refresh()
+            connectSSE()
         }
     }
 

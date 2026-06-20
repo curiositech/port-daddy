@@ -39,6 +39,7 @@ struct FleetPopover: View {
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
+    @StateObject private var berthStore = BerthStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
@@ -109,6 +110,10 @@ struct FleetPopover: View {
                 budgetPauseBanner
                 Divider().opacity(0.5)
             }
+            // Berth switcher (ADR-0084): always available — switch to a live berth
+            // even when the current connection is down.
+            BerthManagerView(store: store, berthStore: berthStore)
+            Divider().opacity(0.5)
             if store.isDaemonRunning {
                 BackendStatusRow(store: backendStore)
                 Divider().opacity(0.5)
