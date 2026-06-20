@@ -41,6 +41,11 @@ pub enum ControlMsg {
     DispatchAccept { id: String },
     DispatchReject { id: String, reason: String },
     DispatchCancel { id: String },
+    /// Conductor operator control (ADR-0060): halt/pause/resume a fleet lineage.
+    /// `root_id: None` = the whole fleet (global emergency stop).
+    FleetHalt { root_id: Option<String> },
+    FleetPause { root_id: Option<String> },
+    FleetResume { root_id: Option<String> },
 }
 
 /// Which command line is open at the bottom of the console.
@@ -156,6 +161,7 @@ const NAV: &[NavItem] = &[
     NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
     NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
     NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
+    NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
 ];
 
 // ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
@@ -734,8 +740,10 @@ impl ConsoleView {
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
+        let is_conductor = nav_id_for_surface(surface) == Some("conductor");
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
+        let cond_flash = self.control_flash.clone();
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
         let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
         let control_flash = self.control_flash.clone();
@@ -948,6 +956,51 @@ impl ConsoleView {
                         }),
                 )
             })
+            // ── Conductor operator GATE (focused conductor surface) — grab the
+            //    wheel on the fleet: HALT (SIGTERM->SIGKILL + refund) / PAUSE
+            //    (stop admitting) / RESUME. ADR-0060. MVP = whole-fleet scope;
+            //    per-root targeting is a fast-follow (needs a ConductorHead).
+            .when(is_conductor && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(8.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("\u{2388} Fleet control \u{2014} grab the wheel (ADR-0060)"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(13.0))
+                                .child("whole-fleet scope \u{00b7} halt SIGTERM\u{2192}SIGKILL, refunds bonds"),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .gap(px(8.0))
+                                .child(conductor_gate_btn("halt", "\u{23fb} Halt Fleet", current_theme().conflict, cx))
+                                .child(conductor_gate_btn("pause", "\u{23f8} Pause", current_theme().gated, cx))
+                                .child(conductor_gate_btn("resume", "\u{25b6} Resume", current_theme().landed, cx)),
+                        )
+                        .when_some(cond_flash, |c, flash| {
+                            c.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
             .into_any_element()
     }
 }
@@ -995,6 +1048,49 @@ fn dispatch_gate_btn(
                 }
                 _ => {}
             }
+            cx.notify();
+        }))
+}
+
+/// One conductor fleet-control button (ADR-0060). Fires the verb immediately
+/// against the whole fleet (global scope) — the operator's emergency wheel.
+fn conductor_gate_btn(
+    action: &'static str,
+    label: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    div()
+        .id(SharedString::from(format!("fleet-{action}")))
+        .px(px(12.0))
+        .py(px(5.0))
+        .rounded(px(6.0))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(14.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            if let Some(tx) = &this.control_tx {
+                let msg = match action {
+                    "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
+                    "pause" => Some(ControlMsg::FleetPause { root_id: None }),
+                    "resume" => Some(ControlMsg::FleetResume { root_id: None }),
+                    _ => None,
+                };
+                if let Some(m) = msg {
+                    let _ = tx.send(m);
+                }
+            }
+            this.control_flash = Some(match action {
+                "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
+                "pause" => "fleet paused \u{2192} no new admissions".to_string(),
+                "resume" => "fleet resumed".to_string(),
+                _ => String::new(),
+            });
             cx.notify();
         }))
 }

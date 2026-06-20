@@ -22,6 +22,7 @@ mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod substrate_pane;
+mod conductor_pane;
 mod maritime;
 mod mux;
 mod palette;
@@ -51,6 +52,7 @@ use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
 use substrate_pane::SubstratePane;
+use conductor_pane::ConductorPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
@@ -209,6 +211,7 @@ fn main() {
                 let mut ledger     = LedgerPane::new();        // 17 — the money
                 let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
+                let mut conductor  = ConductorPane::new();     // 20 — Fleet Conductor (ADR-0060)
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -248,6 +251,16 @@ fn main() {
                             app::ControlMsg::DispatchCancel { id } => {
                                 let _ = client.dispatch_action(&id, "cancel", Some("operator cancelled")).await;
                             }
+                            // Conductor operator control (ADR-0060): grab the wheel on the fleet.
+                            app::ControlMsg::FleetHalt { root_id } => {
+                                let _ = client.fleet_action("halt", root_id.as_deref()).await;
+                            }
+                            app::ControlMsg::FleetPause { root_id } => {
+                                let _ = client.fleet_action("pause", root_id.as_deref()).await;
+                            }
+                            app::ControlMsg::FleetResume { root_id } => {
+                                let _ = client.fleet_action("resume", root_id.as_deref()).await;
+                            }
                         }
                     }
 
@@ -272,6 +285,7 @@ fn main() {
                     let _ = ledger.refresh(&client).await;
                     let _ = lineage.refresh(&client).await;
                     let _ = substrate.refresh(&client).await;
+                    let _ = conductor.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -316,6 +330,7 @@ fn main() {
                         (17, ledger.view()),
                         (18, lineage.view()),
                         (19, substrate.view()),
+                        (20, conductor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

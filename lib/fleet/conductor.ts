@@ -484,6 +484,9 @@ export function createConductor(deps: ConductorDeps) {
   const selectRunningStmt = db.prepare<[], LaunchRow>(
     `SELECT * FROM fleet_launches WHERE state = 'running'`,
   );
+  const selectAllStmt = db.prepare<[number], LaunchRow>(
+    `SELECT * FROM fleet_launches ORDER BY created_at DESC LIMIT ?`,
+  );
   const setStateStmt = db.prepare(`
     UPDATE fleet_launches
        SET state = @state,
@@ -1107,6 +1110,17 @@ export function createConductor(deps: ConductorDeps) {
     return (selectByRootStmt.all(rootId) as LaunchRow[]).map(rowToLaunch);
   }
 
+  /**
+   * Every launch across all roots, newest first (bounded, hard cap 1000).
+   * Powers the operator console's Conductor pane (ADR-0060): the CLI renders one
+   * lineage at a time via tree(rootId); the console needs every active subtree at
+   * once without first knowing a rootId. The pane groups the flat list by rootId.
+   */
+  function allLaunches(limit = 200): Launch[] {
+    const n = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 1000) : 200;
+    return (selectAllStmt.all(n) as LaunchRow[]).map(rowToLaunch);
+  }
+
   /** Register the global ceiling at startup (null = unbounded). */
   function setGlobalCeiling(ceilingUsd: number | null): void {
     breaker.registerScope(GLOBAL_SCOPE, ceilingUsd);
@@ -1118,6 +1132,7 @@ export function createConductor(deps: ConductorDeps) {
     pause,
     resume,
     tree,
+    allLaunches,
     get,
     setGlobalCeiling,
     breaker,
