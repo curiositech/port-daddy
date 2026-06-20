@@ -19,7 +19,6 @@ import {
   GitBranch,
   Hammer,
   Lightbulb,
-  Map,
   Route,
   ScanSearch,
   ShieldCheck,
@@ -161,62 +160,26 @@ const CONCEPTS: Concept[] = [
   },
 ]
 
+// The two STANDING actors — the only roles in lib/actor-roster.ts with
+// compatibilityFleetAgent: null, i.e. durable mailboxes that exist whether or
+// not a fleet agent is attached. (The earlier maritime cast — Navigator,
+// Lookout, Signalman, Harbormaster, Sounder — was not in the roster; the
+// responsibilities they named are owned by real fleet agents shown above:
+// cartographer keeps the map, documentarian catches drift, qa checks evidence.)
 const ACTOR_ROLES: ActorRole[] = [
-  {
-    name: 'Shipwright',
-    roleKey: 'shipwright',
-    label: 'Picks agents for new repos',
-    body: 'Surveys a repo, proposes a starter fleet, rehearses what it would cost and when each agent wakes, then points you at Flow, Agents, Resources, and the YAML.',
-    icon: Hammer,
-  },
-  {
-    name: 'Navigator',
-    roleKey: 'navigator',
-    label: 'Keeps the roadmap honest',
-    body: 'Keeps the roadmap, the recovery list, and current work lined up with what actually shipped.',
-    icon: Map,
-  },
   {
     name: 'Coxswain',
     roleKey: 'coxswain',
-    label: 'Watches who owns what',
-    body: 'Watches file claims, who owns which code, active locks, and stale work, so you see contention before two agents collide.',
+    label: 'Owns claims, locks, and comms',
+    body: 'The single durable mailbox for coordination — file claims, locks, stale assets, session contention — plus the live comms fabric: channels, tuples, naming hygiene, subscription coverage, and silent-agent detection. Reachable at pd actor coxswain whether or not any fleet agent is running.',
     icon: FileLock2,
-  },
-  {
-    name: 'Lookout',
-    roleKey: 'lookout',
-    label: 'Catches docs that drifted',
-    body: 'Finds where docs, API specs, CLI help, skills, and website copy no longer match the running product.',
-    icon: BookOpen,
   },
   {
     name: 'Quartermaster',
     roleKey: 'quartermaster',
-    label: 'Owns spend and backends',
-    body: 'Owns spend caps, model choices, whether each backend is ready, and how much the fleet is allowed to launch.',
+    label: 'Owns spend, backends, launch-readiness',
+    body: 'Owns spawn discipline, backend readiness, model ladders, telemetry policy, budget ceilings, and spend-related launch blockers. Reachable at pd actor quartermaster; like Coxswain, it persists across runs.',
     icon: Wallet,
-  },
-  {
-    name: 'Signalman',
-    roleKey: 'signalman',
-    label: 'Checks the evidence',
-    body: 'Tracks tests, validation proof, leftover cleanup, and whether a finding is something you can actually act on.',
-    icon: FileCheck2,
-  },
-  {
-    name: 'Harbormaster',
-    roleKey: 'harbormaster',
-    label: 'Guards what ships',
-    body: 'Checks whether a build is ready to promote, whether the running daemon is current, and whether the release checkout is clean.',
-    icon: ShieldCheck,
-  },
-  {
-    name: 'Sounder',
-    roleKey: 'sounder',
-    label: 'Keeps the shared memory',
-    body: 'Maintains the shared memory the fleet reads from: the facts agents post, how they connect, and what each agent remembers.',
-    icon: Database,
   },
 ]
 
@@ -984,19 +947,19 @@ pd fleet run qa`,
     title: 'The actor is the durable role. The model process is only the current body.',
     eyebrow: 'Actor model',
     summary:
-      'Navigator, Coxswain, Lookout, and Shipwright remain addressable even when no live model process is attached.',
+      'Coxswain and Quartermaster remain addressable even when no live model process is attached — and every fleet agent keeps its own actor inbox too.',
     image: '/img/generated/virtual-actor-fleet.webp',
     gif: '/gifs/agents/virtual-actors.gif',
     alt: 'Generated image of durable virtual actors connected to temporary runtime bodies',
     codeLabel: 'Actor inboxes',
     code: `pd actors --project port-daddy
-pd actor navigator --inbox --unread
-pd actor coxswain --message "Claims check needed before routes/fleet.ts edits"
-pd actor lookout --message "Website product copy changed; verify skill/docs drift" --wake
+pd actor coxswain --inbox --unread
+pd actor quartermaster --message "Budget check before the next sortie"
+pd actor cartographer --message "Roadmap drifted from what shipped; re-map" --wake
 pd notes --limit 10`,
     theory: [
       'A durable actor is a role with memory, addressability, and responsibility. A model process is just one possible body for that role, which is why a dead body does not erase the inbox, session notes, or ownership trail.',
-      'This is the move that lets multi-agent work become operational instead of theatrical. You can ask Navigator for roadmap truth, Lookout for docs drift, and Coxswain for contention without pretending all of them are currently alive in the same chat window.',
+      'This is the move that lets multi-agent work become operational instead of theatrical. You can ask Cartographer for the map, Documentarian for docs drift, and Coxswain for contention without pretending all of them are currently alive in the same chat window.',
     ],
     bullets: [
       'The actor has a name, job, inbox, and history.',
@@ -1112,7 +1075,7 @@ launchctl print gui/501/com.portdaddy.daemon
     alt: 'Generated image of protocol lanes for tuples, channels, inboxes, and notes',
     codeLabel: 'Protocol primitives',
     code: `pd pub git:committed '{"sha":"abc123","projectDir":"/path/to/project"}'
-pd inbox send navigator "Roadmap changed; please reconcile the recovery ledger"
+pd inbox send cartographer "Roadmap changed; please reconcile the recovery ledger"
 pd tuple out '["coordination:claim","routes/fleet.ts","session-123"]'
 pd note "Protocol decision: channel for event, inbox for owner, tuple for machine-readable fact"
 pd notes --limit 10`,
@@ -1677,12 +1640,14 @@ function PlatformActors() {
           <SwissGridItem span="rail" className="space-y-[var(--space-4)]">
             <PanelEyebrow>Standing roles</PanelEyebrow>
             <PanelTitle as="h2" size="display">
-              Some agents are standing roles, not one-off jobs.
+              Two roles stay addressable, fleet or no fleet.
             </PanelTitle>
             <PanelBody>
-              Each of these is a named role with its own inbox, kept around even when no agent is
-              attached. You always have an address to ask for the roadmap, the claims and locks,
-              the docs that drifted, the spend, or work to recover.
+              The fleet agents above each have their own actor inbox, but two roles have no fleet
+              agent behind them at all — Coxswain owns claims, locks, and the comms fabric;
+              Quartermaster owns spend, backends, and launch-readiness. They are durable mailboxes
+              you can always reach with <code className="font-mono text-[var(--brand-primary)]">pd actor</code>,
+              whether or not anything is currently running.
             </PanelBody>
           </SwissGridItem>
           <SwissGridItem span="body">

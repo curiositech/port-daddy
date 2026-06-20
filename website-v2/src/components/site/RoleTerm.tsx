@@ -10,19 +10,13 @@ type RoleDefinition = {
 const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
   shipwright: {
     name: 'Shipwright',
-    category: 'Platform actor',
+    category: 'Fleet designer',
     short: 'Designs a repo-specific fleet.',
     detail: 'Surveys a project, proposes agents, budgets, triggers, and rehearsal paths, then points the operator toward Flow, Agents, and YAML.',
   },
-  navigator: {
-    name: 'Navigator',
-    category: 'Platform actor',
-    short: 'Owns the roadmap and recovery map.',
-    detail: 'Keeps planned work, current work, recovery docs, and shipped reality aligned.',
-  },
   cartographer: {
     name: 'Cartographer',
-    category: 'Fleet template / Navigator body',
+    category: 'Fleet template',
     short: 'Turns roadmap drift into visible status.',
     detail: 'Reads roadmap, recovery notes, dogfood feedback, and recent commits, then updates what is built, blocked, or drifting.',
   },
@@ -32,15 +26,9 @@ const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
     short: 'Coordinates claims and locks.',
     detail: 'Watches file ownership, symbol claims, stale assets, and coordination mismatches before parallel agents collide.',
   },
-  lookout: {
-    name: 'Lookout',
-    category: 'Platform actor',
-    short: 'Watches product truth drift.',
-    detail: 'Checks docs, OpenAPI, CLI help, website, skills, and dashboard copy against the live product.',
-  },
   documentarian: {
     name: 'Documentarian',
-    category: 'Fleet template / Lookout body',
+    category: 'Fleet template',
     short: 'Keeps docs in sync after release gates.',
     detail: 'Updates release materials when source behavior changes: README, docs, SDK, OpenAPI, website, and skills.',
   },
@@ -50,41 +38,11 @@ const ROLE_DEFINITIONS: Record<string, RoleDefinition> = {
     short: 'Governs spend and launch pressure.',
     detail: 'Owns budget ceilings, backend readiness, model tiers, spawn discipline, and resource pressure.',
   },
-  signalman: {
-    name: 'Signalman',
-    category: 'Platform actor',
-    short: 'Tracks validation evidence.',
-    detail: 'Keeps test runs, proof, warnings, and signal quality visible to the operator.',
-  },
   qa: {
     name: 'QA',
-    category: 'Fleet template / Signalman body',
+    category: 'Fleet template',
     short: 'Reviews commits for real failure modes.',
     detail: 'Looks for bugs, weak tests, missing negative paths, and evidence that would fail against no-op code.',
-  },
-  harbormaster: {
-    name: 'Harbormaster',
-    category: 'Platform actor',
-    short: 'Owns runtime and promotion truth.',
-    detail: 'Checks daemon freshness, stable checkout cleanliness, promotion readiness, and launch provenance.',
-  },
-  sounder: {
-    name: 'Sounder',
-    category: 'Platform actor',
-    short: 'Owns tuples, graph, and memory.',
-    detail: 'Maintains shared coordination facts, episodic memory, graph edges, and semantic joins.',
-  },
-  breaker: {
-    name: 'Breaker',
-    category: 'Platform actor',
-    short: 'Maps failure propagation.',
-    detail: 'Finds retry storms, circuit-breaker gaps, cascading failures, and forensic context windows.',
-  },
-  caulker: {
-    name: 'Caulker',
-    category: 'Platform actor',
-    short: 'Repairs robustness leaks.',
-    detail: 'Handles teardown debt, orphan cleanup, timeout hygiene, IPC leaks, and brittle fallbacks.',
   },
   gardener: {
     name: 'Gardener',
