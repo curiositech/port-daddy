@@ -10,6 +10,13 @@ import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
+// SQLite via the runtime adapter — NOT better-sqlite3 directly. The `pd`
+// CLI is compiled to a single Bun binary (ADR-0028), where a
+// `better-sqlite3` import cannot resolve its native binding inside the
+// read-only /$bunfs/ virtual filesystem (the same blocker that grounded
+// the daemon). The adapter picks bun:sqlite under Bun and better-sqlite3
+// under Node, so `pd doctor` works in both the compiled binary and dev.
+import Database from '../../lib/sqlite-runtime.js';
 import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
@@ -720,7 +727,6 @@ export async function handleDoctor(): Promise<void> {
   try {
     const dbPath: string = join(libDir, 'port-registry.db');
     if (existsSync(dbPath)) {
-      const Database = (await import('better-sqlite3')).default;
       let testDb;
       try {
         testDb = new Database(dbPath, { readonly: true });
