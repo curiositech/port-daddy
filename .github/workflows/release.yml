@@ -90,6 +90,80 @@ jobs:
             dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip.sha256
             dist/fleetbar/fleetbar-preview-manifest.json
 
+  build-pd-console-app:
+    # Bundle the GPU-native pd-console (core/pd-console, --features gpui) into a
+    # signed + notarized pd-console.app (ADR-0057 phase dist-console-app-bundle).
+    # Reuses the exact Developer ID signing path proven for the daemon in #447;
+    # locally verified 2026-06-20 (the real pd-console binary bundles to a valid
+    # hardened-runtime Developer ID .app). Same APPLE_* secrets; no-ops unsigned
+    # if the cert secret is absent so the build never breaks.
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/pd-console
+
+      - name: Build pd-console (--release --features gpui)
+        run: cargo build --release --features gpui --bin pd-console
+        working-directory: core/pd-console
+
+      - name: Package + sign + notarize pd-console.app
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
+        run: |
+          set -euo pipefail
+          export PORT_DADDY_SKIP_NOTARIZE=1
+          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
+            KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
+            KCPASS="$(openssl rand -hex 24)"
+            security create-keychain -p "$KCPASS" "$KEYCHAIN"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN"
+            security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+            echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+            security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+            export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+            export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+            if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
+              echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+              if xcrun notarytool store-credentials pd-notary \
+                   --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+                   --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"; then
+                unset PORT_DADDY_SKIP_NOTARIZE
+                export PORT_DADDY_NOTARY_PROFILE=pd-notary
+              else
+                echo "::warning::notary creds failed validation — signing pd-console.app only."
+              fi
+            fi
+          else
+            echo "::warning::APPLE_CERT_P12_BASE64 unset — pd-console.app ships unsigned."
+          fi
+          scripts/package-pd-console.sh dist/console
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
+
+      - name: Upload pd-console.app to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: |
+            dist/console/PortDaddy-Console-macOS-*.zip
+            dist/console/PortDaddy-Console-macOS-*.zip.sha256
+
   publish-npm:
     # Run on real release events and on operator-triggered workflow_dispatch.
     # workflow_dispatch is privileged (repo-write required), so this isn't a
