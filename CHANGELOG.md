@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.20.1] - 2026-06-20
+
 ### Added
 - Added `.github/PULL_REQUEST_TEMPLATE.md` — the fill-in form for the PR contract (exhaustive summary, non-trivial test plan, visual proof, surface parity, coverage, roadmap reasoning, changelog, parsimony, adversarial verdict).
 - Added `scripts/check-pr-requirements.mjs` and CI job `pr-requirements-guard` (`npm run check:pr-requirements`): the machine half of AGENTS.md § Pull Request Operating Procedure. Fails the PR when the Summary or Test Plan is empty or too thin, or when a visual surface (`core/pd-console/`, `website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`, `apps/FleetBar/`) changes without a screenshot + a GIF/recording. Lives in its own `pr-requirements.yml` workflow so it re-runs on PR-body `edited` events; becomes merge-blocking once added to branch protection. Escape hatches require a reason: `<!-- visual-exempt: … -->` and `<!-- pr-requirements-exempt: … -->`.
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added an `Agent Operating Expectations` section to AGENTS.md (and a matching slice-discipline block to the internal skill): coordinate + pay rent on clean worktrees, dogfood novelly and capture hard-won gambits in the skill, assume features are broken until read-back/cold-start/worktree/GitHub-verified, confirm the usage + transcript + Cloudflare durability trail, generalize beyond tsx/Rust to any repo and remote harbor, treat GUIs as needing real design feedback, avoid AI tropes / humanize, reconcile against the whitepapers, work at maximal tool+skill access (pausing for skill research), and launch other agents through Port Daddy's own fabric. README gains a Contributing section pointing at the PR contract.
 
 ### Fixed
+- **Bosun now restarts an HTTP-wedged daemon, not just a dead one.** The `pd-bosun` supervisor (ADR-0036) is HTTP-free by design, so it only restarts on a missing/dead-pid/stale/foreign heartbeat. But the heartbeat is written on a `setInterval`, so a daemon whose event loop still turns while its HTTP request pipeline is wedged kept writing a fresh heartbeat and reading as healthy forever — observed live as `/health` flapping `200/000/000` while the process stayed up. The daemon-side heartbeat writer (`lib/bosun-heartbeat.ts`) now runs a loopback `GET /health` self-probe over its primary Unix socket and, after 3 consecutive failures, stops advancing the heartbeat so Bosun's existing staleness window restarts it (self-heals if the probe recovers first). Bosun and the heartbeat schema are unchanged; the no-probe path is byte-for-byte the prior behavior. (#474)
 - De-flaked the compiled-CLI `pd tube` fan-out smoke (`scripts/smoke-compiled-cli-runs.sh`): it raced a blind `sleep` against asynchronous subscriber setup and a single live send, so a slow second listener intermittently missed the message. It now re-sends until both listeners receive a copy (or a ~15s timeout), proving fan-out delivery without depending on subscribe timing. (Unrelated to the PR-process changes; surfaced as a flaky required check while landing them.)
 
 ## [3.19.0] - 2026-06-15
