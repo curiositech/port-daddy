@@ -67,7 +67,7 @@ export const referenceSection: DocsContentSection = {
         'Every public method on the `PortDaddy` client class, grouped by daemon capability.',
       truth: 'source-backed',
       goals: [
-        'Show the direct SDK method surface, not an imagined nested module API.',
+        'Show the direct SDK method surface, not a made-up nested module API.',
         'Expose newer SDK coverage for actors, wallets, bonds, panic, pheromones, Arbiter, tuples, sorties, and semantic work.',
         'Keep `/docs/sdk` useful even before every method has a dedicated page.',
       ],
@@ -127,7 +127,7 @@ export const referenceSection: DocsContentSection = {
           title: 'Tiered by default, complete through discovery',
           paragraphs: [
             'The MCP server starts small by exposing the essential tool set plus `pd_discover` unless full mode is enabled.',
-            '`pd_discover` returns categories, counts, names, and schemas so model clients can unlock the full tool surface without flooding the first tool list.',
+            '`pd_discover` returns categories, counts, names, and schemas so model clients can reach the full tool surface without flooding the first tool list.',
           ],
         },
         {

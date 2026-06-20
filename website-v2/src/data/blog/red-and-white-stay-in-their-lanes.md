@@ -1,10 +1,10 @@
 # Red and White Stay In Their Lanes
 
-The papers that govern Port Daddy's economic and cryptographic claims --- the Bonded Commons whitepaper and the Anchor Protocol whitepaper --- now have a permanent adversarial-review apparatus around them. We persisted both an attacker fleet and a defender fleet as reusable skills, and we mechanized the property that keeps them honest: each fleet cannot read the other's work in progress.
+A whitepaper sits in the repo. Someone proofread it once, a reviewer nodded at it, and then it ossified. Section 4.2 still says "the Merkle Forest binding holds" in a tone of finished confidence, and nobody in the building is paid a single cent to wake up tomorrow and try to break that sentence. The claim is true the way a bridge is sound right up until the morning a heavier truck drives across it.
 
-This post explains what that means, why we built it the way we built it, and what an operator should expect to see in the changelog month over month.
+That is the quiet rot we set out to stop. The two papers that govern Port Daddy's economic and cryptographic claims --- the Bonded Commons whitepaper and the Anchor Protocol whitepaper --- now have a permanent adversarial-review apparatus around them: a standing attacker fleet and a standing defender fleet, both persisted as reusable skills, and one mechanized property that keeps the whole thing honest. Neither fleet can read the other's work in progress. The rest of this post is what that costs, why we paid it, and what shows up in the changelog month over month.
 
-![Red and white separated by gates](/img/generated/blog-map-truth.jpg)
+![Two sealed glass-walled war rooms side by side, red attackers on the left, white-hat defenders on the right, with a single signed gate as the only passage between them](/img/generated/blog-map-truth.jpg)
 
 ## The premise
 
@@ -69,7 +69,7 @@ The first says no message a red-team persona sends in Phase 1 is derivable by th
 
 ProVerif checked all three under the symbolic model. The artifact lives at `proofs/coordination/isolation.pv`, the run log next to it. Anyone can re-run them with `eval $(opam env) && proverif proofs/coordination/isolation.pv`.
 
-![Coordination Guard policy bridging red and white via a single signed gate](/img/generated/blog-coordination-guard-policy.jpg)
+![ProVerif treats the daemon as a Dolev-Yao adversary holding every ciphertext but no fleet key, so the only path from red plaintext to the white-hat fleet runs through sec-eng-lead at Gate B](/img/generated/blog-coordination-guard-policy.jpg)
 
 ## What this lets us do
 
@@ -88,7 +88,7 @@ Three honest gaps:
 
 - **Side channels.** Tag taxonomy is public. An attacker who watches when red personas write, how often, and which tags they touch can infer activity. The taxonomy was designed to be public-tolerant (the smell schema is `<class>:<subclass>:<paper>:<§>:<id>`), but cardinality leaks remain.
 - **Compromised personas.** If a red persona's process is itself compromised, its fleet key leaks. Defense at that layer is per-process hardening, not the comms layer. The orchestration scripts refuse to spawn a persona that can also load the opposing fleet's key, but they cannot defend against a process that lies after spawn.
-- **Compromised lead.** If `sec-eng-lead`'s keychain is breached, the round is compromised. The mitigation is rotation: per-round HKDF salt, annual root rotation, and an audit chain that external observers can verify retroactively. The procedure lives in `docs/SECURITY.md`.
+- **Compromised lead.** If `sec-eng-lead`'s keychain is breached, the round is compromised. The mitigation is rotation: per-round HKDF salt, annual root rotation, and an audit chain that external observers can verify retroactively.
 
 We document those gaps where they live. The point of running adversarial rounds is to surface gaps; pretending we have closed all of them on day one would defeat the exercise.
 

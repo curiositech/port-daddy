@@ -86,7 +86,7 @@ const landingStatTone = {
   accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
-type DocsCodeLanguage = 'cli' | 'text' | 'typescript'
+type DocsCodeLanguage = 'cli' | 'text' | 'typescript' | 'yaml'
 
 function panelToneForAccent(tone: AccentTone): 'default' | 'primary' | 'accent' {
   return panelToneMap[tone]
@@ -867,8 +867,17 @@ export function DocsCodeBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const surface = useSurfaceTone()
-  const terminalLabel = label ?? (language === 'cli' ? 'CLI' : language === 'typescript' ? 'TypeScript' : 'Text')
-  const codeLanguage = language === 'typescript' ? 'typescript' : undefined
+  const terminalLabel =
+    label ??
+    (language === 'cli'
+      ? 'CLI'
+      : language === 'typescript'
+        ? 'TypeScript'
+        : language === 'yaml'
+          ? 'YAML'
+          : 'Text')
+  const codeLanguage =
+    language === 'typescript' ? 'typescript' : language === 'yaml' ? 'yaml' : undefined
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)

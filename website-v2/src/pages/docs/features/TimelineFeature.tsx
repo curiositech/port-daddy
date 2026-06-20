@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,16 +7,12 @@ export default function TimelineFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Observability</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Activity Timeline
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          An append-only audit trail of every operation across the daemon. Filter by type,
-          time range, or identity to reconstruct exactly what happened and when.
+          A running record of every operation, written once and never changed. Filter by type,
+          time range, or identity to reconstruct what happened and when.
         </p>
       </div>
 
@@ -87,17 +82,17 @@ $ pd activity`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">claim / release</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Port assignments</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Who claimed what port and when</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Who claimed what port and when</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">lock / unlock</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Distributed locks</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Lock acquisition and release events</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Lock acquisition and release events</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">session / note</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Work tracking</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Session lifecycle and note additions</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Session lifecycle and note additions</p>
           </div>
         </div>
       </div>

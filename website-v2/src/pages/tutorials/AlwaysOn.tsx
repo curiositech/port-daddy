@@ -22,7 +22,7 @@ export function AlwaysOn() {
           <h2 className="m-0">The shipped pattern is watch plus spawn</h2>
           <p>
             Port Daddy does support recurring automation, but the durable shape
-            is not a magical immortal in-memory avatar. Today the common pattern
+            is not an immortal in-memory avatar. Today the common pattern
             is simpler: a watcher stays connected to a project-scoped channel,
             and each event launches a bounded agent job with{" "}
             <code>pd spawn</code>.
@@ -98,7 +98,7 @@ pd spawn --backend codex --tier low --budget 0.20 \\
           <h2 className="m-0">2. Pick the right lifetime</h2>
           <p>
             If the automation is supposed to survive shell exits, dedupe bursts,
-            honor daily budgets, and stay legible in the control plane, move it
+            honor daily budgets, and stay visible to the whole team, move it
             into the fleet layer instead of leaving it as a personal terminal
             watcher.
           </p>
