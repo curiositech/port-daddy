@@ -157,6 +157,7 @@
         "POST /msg/:param",
         "GET /msg/:param",
         "DELETE /msg/:param",
+        "GET /msg/:param/lineage",
         "GET /msg/:param/poll",
         "GET /msg/:param/subscribe",
         "GET /channels/discover",
