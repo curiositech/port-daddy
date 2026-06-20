@@ -17,7 +17,12 @@ OUT_DIR="${1:?usage: package-pd-console.sh <out-dir>}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONSOLE_DIR="$REPO_ROOT/core/pd-console"
 BUNDLE_DIR="$CONSOLE_DIR/bundle"
-ENTITLEMENTS="$REPO_ROOT/scripts/entitlements/port-daddy.plist"
+# Deliberately an EMPTY entitlements dict (not the Bun daemon's port-daddy.plist):
+# a Rust + Metal GUI binary needs none of Bun's JIT / unsigned-executable-memory /
+# disable-library-validation entitlements, and shipping those would be a needless
+# dylib-injection / W^X regression (PR #493 review finding 2). The file has no XML
+# comment because codesign's AMFI parser rejects them.
+ENTITLEMENTS="$REPO_ROOT/scripts/entitlements/pd-console.plist"
 ICON_SRC="$REPO_ROOT/apps/github-app-fleet/icons/A-lighthouse/icon-1024.png"
 ARCH="$(uname -m)"
 APP_NAME="pd-console.app"
@@ -51,7 +56,9 @@ cp "$BUNDLE_DIR/PortDaddyConsole.icns" "$APP/Contents/Resources/PortDaddyConsole
 
 # 4. Stamp the version from package.json (CFBundleVersion numeric-only).
 PD_VERSION="$(node -p "require('$REPO_ROOT/package.json').version")"
-PD_VERSION_NUMERIC="$(echo "$PD_VERSION" | sed 's/[^0-9.].*$//')"
+# CFBundleVersion must be 1–3 dotted integers — strip any -prerelease / +build
+# suffix the same proven way package-fleetbar.sh does (a suffix breaks notarization).
+PD_VERSION_NUMERIC="${PD_VERSION%%-*}"; PD_VERSION_NUMERIC="${PD_VERSION_NUMERIC%%+*}"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $PD_VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $PD_VERSION_NUMERIC" "$APP/Contents/Info.plist"
 
@@ -61,6 +68,10 @@ if [[ -z "$IDENTITY" ]]; then
   echo "::warning::PORT_DADDY_SIGN_IDENTITY unset — pd-console.app is UNSIGNED."
 else
   KEYCHAIN_ARGS=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && KEYCHAIN_ARGS=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
+  # No --deep (intentional): this bundle holds a single Mach-O and no nested
+  # frameworks/helpers, so codesign on the bundle root seals the inner executable;
+  # --deep would mis-apply these entitlements to nested code. --verify --strict
+  # below fails if the inner binary were left unsigned.
   codesign --force --options runtime --timestamp \
     --entitlements "$ENTITLEMENTS" \
     --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$APP"
