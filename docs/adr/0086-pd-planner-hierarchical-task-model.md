@@ -91,8 +91,8 @@ start-finish, slack, critical path, makespan; plus the ladder validator) is **ca
 consumed by:
 
 - **`core/pd-console` (Rust GPUI)** — natively, no round-trip, to render the Gantt + critical path;
-- **the TS daemon** — via koffi (`lib/planner-schedule-ffi.ts`), with a **pure TS byte-parity
-  fallback** (`lib/planner-schedule.ts`) when the binding is unavailable. A CI **parity gate**
+- **the TS daemon** — via koffi (a `planner-schedule-ffi` binding, Phase 1d), with a **pure TS
+  byte-parity fallback** (`lib/planner-schedule.ts`) when the binding is unavailable. A CI **parity gate**
   asserts Rust and TS produce identical output on shared fixtures.
 
 The scheduler is pure compute (input: nodes with `estimate` + `depends_on` edges; output: per-node
@@ -127,7 +127,7 @@ fallback is therefore a first-class peer, not a degraded mode.
 | 1a | planner-scheduler-kernel | now | — | Pure scheduler in `core/kernel` (topo + cycle detect + CPM + Jira-ladder validation) with cargo tests; a `schedule_dag(json)->json` cdylib export. |
 | 1b | planner-scheduler-ts-parity | now | planner-scheduler-kernel | Pure TS byte-parity fallback `lib/planner-schedule.ts` + jest tests; the canonical reference for the parity gate. |
 | 1c | planner-schema-columns | now | — | Migration: kind/priority/assignee_id/description_md/started_at/due_at/estimate on roadmap_items (CREATE-TABLE + inline ALTER + companion .sql), CHECK constraints, indexes. |
-| 1d | planner-scheduler-ffi-bridge | backlog | planner-scheduler-kernel, planner-scheduler-ts-parity | koffi binding `lib/planner-schedule-ffi.ts` + build wiring + the CI parity gate (Rust output == TS fallback on shared fixtures). |
+| 1d | planner-scheduler-ffi-bridge | backlog | planner-scheduler-kernel, planner-scheduler-ts-parity | koffi binding (`planner-schedule-ffi`, new) + build wiring + the CI parity gate (Rust output == TS fallback on shared fixtures). |
 | 2 | planner-edges-graph-adoption | backlog | planner-schema-columns | Write parent_of/depends_on/supersedes/links to graph_edges; backfill dependencies_json → depends_on edges. |
 | 3 | planner-popper-refactor | backlog | planner-edges-graph-adoption | Refactor the nightshift popper to compute readiness from graph_edges + the schedule; retire dependencies_json reads. |
 | 4 | planner-intake-integration | backlog | planner-edges-graph-adoption | ADR-0085 idea_commit writes kind/parent/priority/assignee + edges; consult infers parent epic + priority. |

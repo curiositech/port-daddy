@@ -189,11 +189,12 @@ function criticalChain(
   let cur: string | undefined = starts[0];
   const seen = new Set<string>();
   while (cur !== undefined && !seen.has(cur)) {
-    seen.add(cur);
-    path.push(cur);
+    const curId: string = cur; // narrow once; TS won't narrow `cur` inside the closure below
+    seen.add(curId);
+    path.push(curId);
     const next = succ
-      .get(cur)!
-      .filter((s) => isCritical(s) && es.get(s) === ef.get(cur))
+      .get(curId)!
+      .filter((s) => isCritical(s) && es.get(s) === ef.get(curId))
       .sort();
     cur = next[0];
   }
