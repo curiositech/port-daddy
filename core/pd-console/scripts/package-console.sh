@@ -70,7 +70,9 @@ LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchService
 if [ "${PD_CONSOLE_NO_LAUNCH:-0}" != "1" ]; then
   echo "▸ relaunching pd-console"
   pkill -x pd-console 2>/dev/null || true
-  sleep 0.5
+  sleep 0.8
+  pkill -9 -x pd-console 2>/dev/null || true   # reap any wedged instance
+  sleep 0.3
   open "$APP"
 fi
 
