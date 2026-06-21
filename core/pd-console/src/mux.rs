@@ -280,6 +280,13 @@ impl Workspace {
     pub fn resize(&mut self, delta: f32) -> bool {
         resize_leaf(&mut self.root, self.focused, delta)
     }
+
+    /// Drag-to-resize: set the boundary between child `left` and `left+1` of the
+    /// split at `path` (indices from the root) to `target` — a fraction of that
+    /// split's total extent along its axis. Shifts weight only within the pair.
+    pub fn resize_pair(&mut self, path: &[usize], left: usize, target: f32) -> bool {
+        resize_pair_in(&mut self.root, path, left, target)
+    }
 }
 
 // ── Recursive tree surgery (free fns keep the borrow checker happy) ──────────
@@ -369,6 +376,35 @@ fn resize_leaf(node: &mut Node, target: PaneId, delta: f32) -> bool {
             if resize_leaf(&mut c.node, target, delta) {
                 return true;
             }
+        }
+    }
+    false
+}
+
+/// Walk to the split at `path` and move the boundary between children `left` and
+/// `left+1` so the boundary sits at `target` (fraction of the split's total),
+/// keeping the pair's combined weight constant and clamping each ≥ 0.05.
+fn resize_pair_in(node: &mut Node, path: &[usize], left: usize, target: f32) -> bool {
+    if path.is_empty() {
+        if let Node::Split { children, .. } = node {
+            if left + 1 >= children.len() {
+                return false;
+            }
+            let total: f32 = children.iter().map(|c| c.weight).sum::<f32>().max(0.0001);
+            let prefix: f32 = children[..left].iter().map(|c| c.weight).sum();
+            let pair: f32 = children[left].weight + children[left + 1].weight;
+            // boundary target (fraction of total) → left child's weight
+            let want = (target * total - prefix).clamp(0.05, pair - 0.05);
+            children[left].weight = want;
+            children[left + 1].weight = pair - want;
+            return true;
+        }
+        return false;
+    }
+    if let Node::Split { children, .. } = node {
+        let i = path[0];
+        if i < children.len() {
+            return resize_pair_in(&mut children[i].node, &path[1..], left, target);
         }
     }
     false
@@ -535,5 +571,26 @@ mod tests {
         ids.sort_unstable();
         ids.dedup();
         assert_eq!(ids.len(), total);
+    }
+
+    #[test]
+    fn resize_pair_moves_the_boundary_and_clamps() {
+        let mut ws = Workspace::new(SurfaceKind::Roadmap);
+        ws.split(Dir::Row, agent("a1")); // ROW[roadmap, a1], weights 1,1 (total 2)
+        // Move the boundary to 0.25 of total → left weight 0.5, right 1.5.
+        assert!(ws.resize_pair(&[], 0, 0.25));
+        if let Node::Split { children, .. } = &ws.root {
+            assert!((children[0].weight - 0.5).abs() < 1e-4, "left {}", children[0].weight);
+            assert!((children[1].weight - 1.5).abs() < 1e-4, "right {}", children[1].weight);
+        } else {
+            panic!("expected a split");
+        }
+        // Clamp: target 0 pins the left child to the 0.05 floor (no zero panes).
+        ws.resize_pair(&[], 0, 0.0);
+        if let Node::Split { children, .. } = &ws.root {
+            assert!((children[0].weight - 0.05).abs() < 1e-4, "clamped {}", children[0].weight);
+        }
+        // Out-of-range boundary index is a no-op.
+        assert!(!ws.resize_pair(&[], 5, 0.5));
     }
 }
