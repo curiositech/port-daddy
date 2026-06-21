@@ -1766,6 +1766,7 @@
       "routes": [
         "POST /roadmap/items",
         "GET /roadmap/items",
+        "GET /roadmap/board",
         "GET /roadmap/items/:slug",
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",
