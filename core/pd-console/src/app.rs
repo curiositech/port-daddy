@@ -435,6 +435,15 @@ struct DragState {
     dir: Dir,
 }
 
+/// An in-flight pane-divider drag (grab-the-rope resize): which split (by tree
+/// path from the root), which boundary (the left child's index), and the axis.
+#[derive(Debug, Clone)]
+struct DragState {
+    path: Vec<usize>,
+    left: usize,
+    dir: Dir,
+}
+
 /// One named tab — an independent pane tree, plus an optional zoomed (maximized)
 /// pane that fills the tab while set.
 #[derive(Debug, Clone)]
