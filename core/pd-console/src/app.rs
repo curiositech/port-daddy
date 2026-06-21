@@ -24,6 +24,9 @@ use crate::pane::{Block, Tone};
 use crate::tokens;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -119,6 +122,15 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
 pub struct CommandLine {
     kind: CmdKind,
     buffer: String,
+}
+
+/// An in-flight pane-divider drag (grab-the-rope resize): which split (by tree
+/// path from the root), which boundary (the left child's index), and the axis.
+#[derive(Debug, Clone)]
+struct DragState {
+    path: Vec<usize>,
+    left: usize,
+    dir: Dir,
 }
 
 /// One named tab — an independent pane tree, plus an optional zoomed (maximized)
@@ -567,6 +579,11 @@ pub struct ConsoleView {
     prev_viewport_w: f32,
     /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
     flag_ticking: bool,
+    /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
+    dragging: Option<DragState>,
+    /// Laid-out bounds of each split container, keyed by tree path, captured via a
+    /// canvas overlay so the drag handler can map a mouse position to a weight.
+    split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
 }
 
 impl ConsoleView {
@@ -644,6 +661,8 @@ impl ConsoleView {
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
+            dragging: None,
+            split_bounds: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -1083,25 +1102,46 @@ impl ConsoleView {
 
     /// Recursively render the pane tree. Splits become weighted flex
     /// containers (so `resize` is visible); leaves render their surface.
-    fn render_node(&self, node: &Node, focused: PaneId, cx: &mut Context<Self>) -> AnyElement {
+    fn render_node(&self, node: &Node, focused: PaneId, path: &[usize], cx: &mut Context<Self>) -> AnyElement {
         match node {
             Node::Split { dir, children } => {
                 let total: f32 = children.iter().map(|c| c.weight).sum::<f32>().max(0.0001);
-                let mut container = div().flex().size_full().overflow_hidden();
+                let mut container = div().relative().flex().size_full().overflow_hidden();
                 container = match dir {
                     Dir::Row => container.flex_row(),
                     Dir::Col => container.flex_col(),
                 };
-                for child in children {
+                // Capture this split's laid-out bounds (keyed by tree path) so the
+                // drag handler can convert a mouse position into a weight fraction.
+                let key = path.to_vec();
+                let sb = self.split_bounds.clone();
+                container = container.child(
+                    canvas(
+                        move |bounds: Bounds<Pixels>, _window, _cx| {
+                            sb.borrow_mut().insert(key.clone(), bounds);
+                        },
+                        |_bounds, _prepaint, _window, _cx| {},
+                    )
+                    .absolute()
+                    .size_full(),
+                );
+                let n = children.len();
+                for (i, child) in children.iter().enumerate() {
                     let frac = child.weight / total;
+                    let mut child_path = path.to_vec();
+                    child_path.push(i);
                     container = container.child(
                         div()
                             .flex_basis(relative(frac))
                             .flex_grow()
                             .flex_shrink()
                             .overflow_hidden()
-                            .child(self.render_node(&child.node, focused, cx)),
+                            .child(self.render_node(&child.node, focused, &child_path, cx)),
                     );
+                    // A draggable "mooring line" divider after every child but the last.
+                    if i + 1 < n {
+                        container = container.child(split_divider(path.to_vec(), i, *dir, cx));
+                    }
                 }
                 container.into_any_element()
             }
@@ -1594,6 +1634,32 @@ impl Focusable for ConsoleView {
     }
 }
 
+/// One draggable pane divider — a 6px hit-zone with a centered hairline that
+/// thickens/glows on hover; mouse-down arms a `DragState` the window handler reads.
+fn split_divider(path: Vec<usize>, left: usize, dir: Dir, cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let row = matches!(dir, Dir::Row);
+    let key = path.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("_");
+    let mut zone = div()
+        .id(SharedString::from(format!("divider-{key}-{left}")))
+        .flex_none()
+        .occlude()
+        .flex()
+        .items_center()
+        .justify_center()
+        .cursor(if row { CursorStyle::ResizeLeftRight } else { CursorStyle::ResizeUpDown })
+        .hover(|s| s.bg(rgb(current_theme().accent)));
+    zone = if row { zone.w(px(6.0)).h_full() } else { zone.h(px(6.0)).w_full() };
+    let mut line = div().bg(rgb(current_theme().line));
+    line = if row { line.w(px(1.0)).h_full() } else { line.h(px(1.0)).w_full() };
+    zone.child(line).on_mouse_down(
+        MouseButton::Left,
+        cx.listener(move |this, _ev, _window, cx| {
+            this.dragging = Some(DragState { path: path.clone(), left, dir });
+            cx.notify();
+        }),
+    )
+}
+
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // ── Flag motion. Derive horizontal pole velocity from this frame's
@@ -1632,7 +1698,7 @@ impl Render for ConsoleView {
             Some((zid, surf)) => self.render_leaf(zid, &surf, true, cx),
             None => {
                 let root = self.ws().root.clone();
-                self.render_node(&root, focused, cx)
+                self.render_node(&root, focused, &[], cx)
             }
         };
         // The pane launcher overlay (when open) is the last child so it paints on top.
@@ -1655,6 +1721,27 @@ impl Render for ConsoleView {
             .track_focus(&self.focus_handle)
             .relative()
             .size_full()
+            // Grab-the-rope: while a divider drag is live, map the global mouse
+            // position to the split's weight fraction and resize that boundary.
+            .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
+                if let Some(d) = this.dragging.clone() {
+                    let b = this.split_bounds.borrow().get(&d.path).copied();
+                    if let Some(b) = b {
+                        let (origin, len, pos) = match d.dir {
+                            Dir::Row => (f32::from(b.origin.x), f32::from(b.size.width), f32::from(ev.position.x)),
+                            Dir::Col => (f32::from(b.origin.y), f32::from(b.size.height), f32::from(ev.position.y)),
+                        };
+                        let frac = ((pos - origin) / len.max(1.0)).clamp(0.03, 0.97);
+                        this.ws_mut().resize_pair(&d.path, d.left, frac);
+                        cx.notify();
+                    }
+                }
+            }))
+            .on_mouse_up(MouseButton::Left, cx.listener(|this, _ev: &MouseUpEvent, _window, cx| {
+                if this.dragging.take().is_some() {
+                    cx.notify();
+                }
+            }))
             .bg(rgb(current_theme().bg))
             .flex()
             .flex_col()
