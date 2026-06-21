@@ -808,6 +808,7 @@ export function BracketAnchor({
 export function DocsNoteCard({
   label,
   title,
+  titleId,
   tone = 'paper',
   className,
   children,
@@ -818,6 +819,7 @@ export function DocsNoteCard({
 }: {
   label?: string
   title?: string
+  titleId?: string
   tone?: AccentTone
   className?: string
   children?: ReactNode
@@ -841,7 +843,7 @@ export function DocsNoteCard({
         </BracketLabel>
       ) : null}
       {title ? (
-        <PanelTitle size={titleSize} tone={panelTone} className={titleClassName}>
+        <PanelTitle id={titleId} size={titleSize} tone={panelTone} className={titleClassName}>
           {title}
         </PanelTitle>
       ) : null}
