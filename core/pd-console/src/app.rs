@@ -1658,6 +1658,14 @@ fn split_divider(path: Vec<usize>, left: usize, dir: Dir, cx: &mut Context<Conso
             cx.notify();
         }),
     )
+    .on_mouse_up(
+        MouseButton::Left,
+        cx.listener(|this, _ev, _window, cx| {
+            if this.dragging.take().is_some() {
+                cx.notify();
+            }
+        }),
+    )
 }
 
 impl Render for ConsoleView {
@@ -1725,6 +1733,15 @@ impl Render for ConsoleView {
             // position to the split's weight fraction and resize that boundary.
             .on_mouse_move(cx.listener(|this, ev: &MouseMoveEvent, _window, cx| {
                 if let Some(d) = this.dragging.clone() {
+                    // The mooring line tracks the boundary, so the cursor sits over
+                    // the occluding divider at release and the mouse-up can be
+                    // swallowed there. Bulletproof release: any move where Left is
+                    // no longer held ends the drag.
+                    if ev.pressed_button != Some(MouseButton::Left) {
+                        this.dragging = None;
+                        cx.notify();
+                        return;
+                    }
                     let b = this.split_bounds.borrow().get(&d.path).copied();
                     if let Some(b) = b {
                         let (origin, len, pos) = match d.dir {
