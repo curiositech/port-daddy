@@ -13,6 +13,7 @@
 import type Database from 'better-sqlite3';
 import { EventEmitter } from 'events';
 import { patternToSql } from './identity.js';
+import { getDeadThresholdForStatus, getStaleThresholdForStatus } from './agents.js';
 
 export type SalvageQueueStatus = 'pending' | 'stale' | 'dead' | 'resurrecting';
 
@@ -161,24 +162,14 @@ export function createResurrection(db: Database.Database, deps: ResurrectionDeps
 
   const emitter = new EventEmitter();
 
-  // Adaptive thresholds by agent status
-  const DEAD_THRESHOLDS: Record<string, number> = {
-    starting: 15 * 60 * 1000,
-    ready: 20 * 60 * 1000,
-    busy: 30 * 60 * 1000,
-    draining: 5 * 60 * 1000,
-  };
-  const DEFAULT_DEAD_THRESHOLD = 20 * 60 * 1000;
+  // Adaptive thresholds by agent status — imported from lib/agents.ts, the single
+  // source of truth for the dead/stale ladder. Previously resurrection defined its
+  // own legacy 20m/30m ladder, which disagreed with the live reaper's ~4h ladder in
+  // agents.cleanup(). Aliased locally to preserve this module's call sites.
+  const getDeadThreshold = getDeadThresholdForStatus;
+  const getStaleThreshold = getStaleThresholdForStatus;
 
-  function getDeadThreshold(status?: string): number {
-    return DEAD_THRESHOLDS[status || ''] || DEFAULT_DEAD_THRESHOLD;
-  }
-
-  function getStaleThreshold(status?: string): number {
-    return Math.round(getDeadThreshold(status) * 0.6);
-  }
-
-  // Legacy fixed thresholds (backward compat)
+  // Fixed thresholds for the default/ready status (exposed for testing/config)
   const STALE_THRESHOLD = getStaleThreshold('ready');
   const DEAD_THRESHOLD = getDeadThreshold('ready');
   const noteLimit = deps.noteLimit ?? 200;
