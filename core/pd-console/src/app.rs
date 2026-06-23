@@ -187,6 +187,16 @@ fn toggle_theme() {
     THEME_MODE.store(next, Ordering::Relaxed);
 }
 
+/// Honour a reduced-motion preference (`PD_CONSOLE_REDUCED_MOTION=1`). gpui has
+/// no `@media (prefers-reduced-motion)`, so this is the native opt-out: when set,
+/// motion resolves to its final state instantly (orientation cues like the hover
+/// glow stay; only the travel is dropped).
+fn reduced_motion() -> bool {
+    std::env::var("PD_CONSOLE_REDUCED_MOTION")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 /// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
 /// Call once at startup before the window opens.
 pub fn init_theme_from_env() {
@@ -440,6 +450,9 @@ pub struct ConsoleView {
     dispatch_head: Option<DispatchHead>,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
+    /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
+    /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
+    launcher_open: bool,
 }
 
 impl ConsoleView {
@@ -479,6 +492,9 @@ impl ConsoleView {
             control_flash: None,
             dispatch_head: None,
             reject_target: None,
+            // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
+            // so capture tooling can grab it without injecting a keystroke.
+            launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
         }
     }
 
@@ -591,6 +607,8 @@ impl ConsoleView {
             "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
             // Insert a new pane of a chosen kind (the add-pane picker).
             "i" => self.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() }),
+            // The visual pane launcher — an animated grid of surface tiles.
+            "space" => self.launcher_open = true,
             // Any nav key swaps the focused pane's surface — "hop context".
             other => {
                 if let Some(item) = NAV.iter().find(|n| n.key == other) {
@@ -681,6 +699,163 @@ impl ConsoleView {
             // AddPane is handled locally above (early return) — never reaches here.
             CmdKind::AddPane => {}
         }
+    }
+
+    /// The pane launcher overlay (Ctrl-A Space / the ⊞ button): an animated grid
+    /// of surface tiles. Click — or press a tile's Ctrl-A key — to swap the
+    /// focused pane to that surface. Motion discipline (rust-gpui-motion): no
+    /// transforms — entrance is a one-shot staggered opacity fade (one owner per
+    /// tile, no repeat()); hover "lift" is a BoxShadow glow; reduced-motion
+    /// renders tiles at full opacity but keeps the hover glow for orientation.
+    fn render_launcher(&self, cx: &mut Context<Self>) -> AnyElement {
+        let t = current_theme();
+        let reduced = reduced_motion();
+        let current = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
+        let n = NAV.len().max(1);
+        let cols = 5usize; // tiles per row — explicit grid (flex_wrap height isn't summed).
+
+        let mut tiles: Vec<AnyElement> = NAV.iter().enumerate().map(|(i, nav)| {
+            let id = nav.id;
+            let is_current = current.as_deref() == Some(nav.id);
+            let tile = div()
+                .id(SharedString::from(format!("launch-{id}")))
+                .w(px(112.0))
+                .h(px(96.0))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(6.0))
+                .rounded(px(12.0))
+                .border_1()
+                .border_color(rgb(if is_current { t.accent_ink } else { t.line }))
+                .bg(rgb(t.raised))
+                .cursor_pointer()
+                // The focused pane's current surface gets a standing glow ring.
+                .when(is_current, |s| s.shadow(motion::glow(t.accent, 0.30, 14.0, 1.0)))
+                // Hover "lift" = a brighter card + a wider/softer glow (no scale()).
+                .hover(move |s| {
+                    let t = current_theme();
+                    s.bg(rgb(t.panel))
+                        .border_color(rgb(t.accent_ink))
+                        .shadow(motion::glow(t.accent, 0.42, 22.0, 2.0))
+                })
+                .child(
+                    svg()
+                        .path(nav.icon)
+                        .w(px(30.0))
+                        .h(px(30.0))
+                        .text_color(rgb(if is_current { t.accent_ink } else { t.ink })),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(14.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(nav.label),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(11.0))
+                        .child(format!("⌃A {}", nav.key)),
+                )
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.ws_mut().swap_surface(surface_for_nav_id(id));
+                    this.launcher_open = false;
+                    this.control_flash = Some(format!("→ {id}"));
+                    cx.notify();
+                }));
+
+            if reduced {
+                tile.into_any_element()
+            } else {
+                // One-shot staggered fade — the stagger lives in the opacity
+                // curve, so each tile remains its own single animation owner.
+                let start = (i as f32 / n as f32) * 0.5;
+                tile.with_animation(
+                    SharedString::from(format!("launch-in-{id}")),
+                    Animation::new(Duration::from_millis(320)).with_easing(ease_in_out),
+                    move |el, delta| {
+                        let o = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
+                        el.opacity(o)
+                    },
+                )
+                .into_any_element()
+            }
+        })
+        .collect();
+
+        // Group tiles into explicit rows. flex_wrap's wrapped height isn't summed
+        // back into the parent in Taffy here, so the card bg stopped short of the
+        // last row; rows stacked in a flex_col measure correctly and the bg fits.
+        let mut rows: Vec<AnyElement> = Vec::new();
+        while !tiles.is_empty() {
+            let take = tiles.len().min(cols);
+            let row: Vec<AnyElement> = tiles.drain(0..take).collect();
+            rows.push(div().flex().gap(px(10.0)).children(row).into_any_element());
+        }
+
+        div()
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full()
+            .flex()
+            .items_center()
+            .justify_center()
+            // Scrim: a full-size sibling behind the card. Clicking it (i.e.
+            // anywhere outside the card) dismisses; clicks on the card don't
+            // reach it (siblings don't bubble into each other).
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .size_full()
+                    .bg(rgba(0x05060acc))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|this, _ev, _window, cx| {
+                            this.launcher_open = false;
+                            cx.notify();
+                        }),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(14.0))
+                    .p(px(22.0))
+                    .max_w(px(760.0))
+                    .rounded(px(16.0))
+                    .bg(rgb(t.panel))
+                    .border_1()
+                    .border_color(rgb(t.line))
+                    .shadow(motion::glow(t.accent, 0.22, 30.0, 1.0))
+                    .child(
+                        div()
+                            .text_color(rgb(t.accent_ink))
+                            .text_size(px(16.0))
+                            .font_weight(FontWeight::BOLD)
+                            .child("Jump to a pane"),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(10.0))
+                            .children(rows),
+                    )
+                    .child(
+                        div()
+                            .text_color(rgb(t.muted))
+                            .text_size(px(12.0))
+                            .child("click a tile · press its ⌃A key · Esc to close"),
+                    ),
+            )
+            .into_any_element()
     }
 
     /// Push fresh data for all panes from the background refresh loop.
@@ -1225,10 +1400,17 @@ impl Render for ConsoleView {
                 self.render_node(&root, focused, cx)
             }
         };
+        // The pane launcher overlay (when open) is the last child so it paints on top.
+        let launcher = if self.launcher_open {
+            Some(self.render_launcher(cx))
+        } else {
+            None
+        };
 
         div()
             .key_context("console")
             .track_focus(&self.focus_handle)
+            .relative()
             .size_full()
             .bg(rgb(current_theme().bg))
             .flex()
@@ -1240,7 +1422,19 @@ impl Render for ConsoleView {
                 let key = ev.keystroke.key.clone();
                 let key_char = ev.keystroke.key_char.clone();
                 let ctrl = ev.keystroke.modifiers.control;
-                if this.command.is_some() {
+                if this.launcher_open {
+                    // The launcher owns the keyboard while open: Esc closes; a
+                    // tile's key jumps straight to that surface (and sidesteps the
+                    // Ctrl-A g theme-toggle collision — here g picks Lineage).
+                    if key == "escape" {
+                        this.launcher_open = false;
+                    } else if let Some(item) = NAV.iter().find(|n| n.key == key) {
+                        this.ws_mut().swap_surface(surface_for_nav_id(item.id));
+                        this.launcher_open = false;
+                        this.control_flash = Some(format!("→ {}", item.label));
+                    }
+                    cx.notify();
+                } else if this.command.is_some() {
                     // A command line is open: type into it.
                     this.handle_command_key(key.as_str(), key_char.as_deref(), cx);
                 } else if this.leader_armed {
@@ -1308,6 +1502,28 @@ impl Render for ConsoleView {
                                 this.new_tab();
                                 cx.notify();
                             })),
+                    )
+                    // ⊞ — open the pane launcher (the animated surface grid).
+                    .child(
+                        div()
+                            .id("open-launcher")
+                            .px(px(8.0))
+                            .py(px(3.0))
+                            .rounded(px(5.0))
+                            .text_size(px(15.0))
+                            .text_color(rgb(current_theme().muted))
+                            .cursor_pointer()
+                            .hover(|s| {
+                                let t = current_theme();
+                                s.bg(rgb(t.raised))
+                                    .text_color(rgb(t.accent_ink))
+                                    .shadow(motion::glow(t.accent, 0.30, 10.0, 0.0))
+                            })
+                            .child("⊞")
+                            .on_click(cx.listener(|this, _ev, _window, cx| {
+                                this.launcher_open = true;
+                                cx.notify();
+                            })),
                     ),
             )
             // The pane tree (or a maximized pane) fills the window.
@@ -1370,11 +1586,13 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_family("IBM Plex Mono")
                             .child(format!(
-                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → n new-job · t cartographer · i insert-pane · | split  ·  {}",
+                                "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → space launcher · n new-job · i insert-pane · | split  ·  {}",
                                 build_stamp()
                             ))
                     }),
             )
+            // Pane launcher overlay — last child, paints over everything.
+            .children(launcher)
     }
 }
 
