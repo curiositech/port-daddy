@@ -1,53 +1,42 @@
 /**
- * GitHub App Webhook Receiver — Cloudflare Worker
+ * GitHub App Webhook Receiver + Cloud Fleet Executor — Cloudflare Worker
  *
- * Receives webhook POSTs from GitHub, verifies the HMAC-SHA256 signature
- * against GITHUB_WEBHOOK_SECRET (constant-time compare), normalizes the
- * payload into an envelope, and forwards to the operator's Port Daddy
- * daemon via DAEMON_FORWARD_URL.
+ * Receives GitHub webhook POSTs, verifies the HMAC-SHA256 signature, and
+ * dispatches fleet ships entirely in the cloud using Cloudflare Workers AI.
  *
- * The daemon-side fleet generalization (see PR #137) subscribes to
- * `github:webhook:<event-type>` tube channels and dispatches the relevant
- * ships defined in the target repo's pd-fleet.yml.
+ * No tunnel. No local daemon. No Anthropic API key.
+ *
+ * Ships that do pure analysis (code-reviewer, qa, red-team) run via Workers
+ * AI (Qwen/Llama). Ships that need execution (file writes, npm test) are
+ * dispatched as GitHub Actions workflows.
  *
  * Response codes:
- *   204 - signature verified, envelope forwarded successfully
- *   400 - malformed JSON body or missing required headers
+ *   202 - webhook accepted; fleet dispatch running in background (ctx.waitUntil)
+ *   400 - malformed JSON body or missing required GitHub headers
  *   401 - missing or invalid X-Hub-Signature-256
  *   405 - non-POST request
- *   502 - forward to daemon failed (after retry)
+ *   500 - worker misconfigured (missing required env vars)
  *
- * Environment (bound via wrangler.toml / wrangler secret):
+ * Environment (wrangler.toml vars + wrangler secret):
  *   GITHUB_WEBHOOK_SECRET   (secret) HMAC shared secret with the GitHub App
- *   DAEMON_FORWARD_URL      (var)    HTTPS URL the daemon (or its tunnel) listens on
- *   FORWARD_AUTH_TOKEN      (secret) REQUIRED bearer token the daemon validates
- *   FORWARD_TIMEOUT_MS      (var)    optional, default 8000
+ *   GITHUB_APP_ID           (var)    numeric App ID
+ *   GITHUB_APP_PRIVATE_KEY  (secret) RSA private key PEM (raw or base64)
  */
 
-import {
-  buildEnvelope,
-  forwardEnvelope,
-  type WebhookEnvelope,
-} from './forward.js';
+import { buildEnvelope } from './forward.js';
+import { executeFleet } from './execute.js';
 
-export interface Env {
+export interface ExecutorEnv {
   GITHUB_WEBHOOK_SECRET: string;
-  DAEMON_FORWARD_URL: string;
-  FORWARD_AUTH_TOKEN: string;
-  FORWARD_TIMEOUT_MS?: string;
+  GITHUB_APP_ID: string;
+  GITHUB_APP_PRIVATE_KEY: string;
+  AI: Ai;
 }
 
 const SIGNATURE_HEADER = 'x-hub-signature-256';
 const EVENT_HEADER = 'x-github-event';
 const DELIVERY_HEADER = 'x-github-delivery';
 
-/**
- * Constant-time string comparison.
- *
- * Both inputs must be the same length to avoid early-exit timing leaks.
- * If lengths differ we still walk the longer string so the time-to-false
- * does not depend on where the mismatch occurs.
- */
 export function timingSafeEqual(a: string, b: string): boolean {
   const len = Math.max(a.length, b.length);
   let mismatch = a.length === b.length ? 0 : 1;
@@ -59,12 +48,6 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
-/**
- * Compute the expected GitHub signature for a raw body string.
- *
- * GitHub prefixes the hex digest with `sha256=`. The HMAC key is the
- * webhook secret encoded as UTF-8.
- */
 export async function computeSignature(secret: string, body: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -83,12 +66,6 @@ export async function computeSignature(secret: string, body: string): Promise<st
   return `sha256=${hex}`;
 }
 
-/**
- * Verify the X-Hub-Signature-256 header.
- *
- * Returns true only if the header is present and matches the HMAC of the
- * raw body computed under the shared secret.
- */
 export async function verifySignature(
   secret: string,
   body: string,
@@ -100,55 +77,23 @@ export async function verifySignature(
   return timingSafeEqual(headerValue, expected);
 }
 
-interface ParsedPayload {
-  parsed: Record<string, unknown>;
-  raw: string;
-}
-
-function parseJson(raw: string): ParsedPayload | null {
+function parseJson(raw: string): Record<string, unknown> | null {
   try {
     const parsed = JSON.parse(raw);
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return null;
-    }
-    return { parsed: parsed as Record<string, unknown>, raw };
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
   } catch {
     return null;
   }
 }
 
-/**
- * Inner request handler — pure of the ExportedHandler shape so it can be
- * unit-tested with a plain Fetch API Request (no need to construct a
- * Cloudflare-specific IncomingRequest type).
- */
-export async function handleRequest(request: Request, env: Env): Promise<Response> {
-  // Only forward to /msg/* — reject everything else so the daemon's other
-  // routes are not reachable through this public-facing Worker. Configure
-  // your GitHub App webhook URL under a /msg/* path (e.g. /msg/fleet:github:webhook).
-  const url = new URL(request.url);
-  if (!url.pathname.startsWith('/msg/')) {
-    return new Response('not found', { status: 404 });
-  }
-
+export async function handleRequest(request: Request, env: ExecutorEnv, ctx: ExecutionContext): Promise<Response> {
   if (request.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
   }
 
   if (!env.GITHUB_WEBHOOK_SECRET) {
-    return new Response('worker misconfigured: GITHUB_WEBHOOK_SECRET unset', {
-      status: 500,
-    });
-  }
-  if (!env.DAEMON_FORWARD_URL) {
-    return new Response('worker misconfigured: DAEMON_FORWARD_URL unset', {
-      status: 500,
-    });
-  }
-  if (!env.FORWARD_AUTH_TOKEN) {
-    return new Response('worker misconfigured: FORWARD_AUTH_TOKEN unset', {
-      status: 500,
-    });
+    return new Response('worker misconfigured: GITHUB_WEBHOOK_SECRET unset', { status: 500 });
   }
 
   const event = request.headers.get(EVENT_HEADER);
@@ -170,38 +115,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     return new Response('malformed JSON', { status: 400 });
   }
 
-  const envelope: WebhookEnvelope = buildEnvelope({
-    event,
-    delivery,
-    payload: parsed.parsed,
-    // Carry the exact signed bytes + signature so the daemon re-verifies
-    // GitHub origin before dispatching. The receiver's forward token is then
-    // only a transport credential — its leak cannot forge fleet events.
-    rawPayload: rawBody,
-    signature,
-  });
+  const envelope = buildEnvelope({ event, delivery, payload: parsed, rawPayload: rawBody, signature });
 
-  const forwardTimeoutMs = Number(env.FORWARD_TIMEOUT_MS ?? '8000');
-  const result = await forwardEnvelope(envelope, {
-    url: env.DAEMON_FORWARD_URL,
-    authToken: env.FORWARD_AUTH_TOKEN,
-    timeoutMs: Number.isFinite(forwardTimeoutMs) ? forwardTimeoutMs : 8000,
-    fetcher: globalThis.fetch.bind(globalThis),
-  });
-
-  if (!result.ok) {
-    return new Response(`forward failed: ${result.error}`, { status: 502 });
+  // Respond immediately; fleet dispatch runs in the background
+  if (env.AI && env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY) {
+    ctx.waitUntil(
+      executeFleet(envelope, env).catch(err =>
+        console.error('fleet-executor error', err instanceof Error ? err.message : String(err)),
+      ),
+    );
   }
 
-  return new Response(null, { status: 204 });
+  return new Response(null, { status: 202 });
 }
 
-/**
- * Worker entrypoint.
- */
-const worker: ExportedHandler<Env> = {
-  async fetch(request, env, _ctx): Promise<Response> {
-    return handleRequest(request as unknown as Request, env);
+const worker: ExportedHandler<ExecutorEnv> = {
+  async fetch(request, env, ctx): Promise<Response> {
+    return handleRequest(request as unknown as Request, env, ctx);
   },
 };
 

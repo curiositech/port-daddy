@@ -1,0 +1,199 @@
+/**
+ * Cloud fleet executor.
+ *
+ * Receives a verified GitHub webhook envelope and dispatches the repo's
+ * fleet ships that match the event trigger — entirely in the cloud.
+ *
+ * For analytical ships (code-reviewer, qa, red-team): calls Cloudflare
+ * Workers AI and posts the result as a PR comment.
+ *
+ * For execution ships (ships with allowedTools that include non-gh bash):
+ * dispatches a GitHub Actions workflow instead (ships that need bash run
+ * in a real container via GHA, not in a Worker).
+ *
+ * No tunnel. No local daemon. No Anthropic API key.
+ */
+
+import type { WebhookEnvelope } from './forward.js';
+import type { ExecutorEnv } from './worker.js';
+import {
+  getInstallationToken,
+  fetchPRContext,
+  fetchRepoFile,
+  postShipComment,
+  createCheckRun,
+  completeCheckRun,
+  type PRContext,
+} from './github.js';
+import { parseFleetShips, defaultPRShips, type ShipConfig } from './fleet.js';
+
+// ---------------------------------------------------------------------------
+
+const DIFF_CHAR_LIMIT = 24_000;
+
+export async function executeFleet(envelope: WebhookEnvelope, env: ExecutorEnv): Promise<void> {
+  if (!env.AI) return;
+
+  const { event, action, payload, installation_id, repository } = envelope;
+
+  // Only handle pull_request:opened and pull_request:synchronize for now
+  if (event !== 'pull_request') return;
+  if (action !== 'opened' && action !== 'synchronize') return;
+  if (!repository || !installation_id) return;
+
+  const [owner, repo] = repository.full_name.split('/');
+  const pr = payload.pull_request as Record<string, unknown>;
+  const prNumber = (pr?.number as number) ?? 0;
+  if (!prNumber) return;
+
+  // Get installation token
+  const token = await getInstallationToken(
+    env.GITHUB_APP_ID,
+    env.GITHUB_APP_PRIVATE_KEY,
+    installation_id,
+  ).catch(() => null);
+  if (!token) return;
+
+  // Fetch PR context (diff + file list) and fleet config in parallel
+  const [prCtx, fleetYaml] = await Promise.all([
+    fetchPRContext(owner, repo, prNumber, pr, token),
+    fetchRepoFile(owner, repo, 'pd-fleet.yml', 'main', token),
+  ]);
+
+  // Determine which ships to run
+  let ships: ShipConfig[];
+  if (fleetYaml) {
+    ships = (await parseFleetShips(fleetYaml, 'pull_request:opened', env.AI)) ?? defaultPRShips();
+  } else {
+    ships = defaultPRShips();
+  }
+
+  // Filter to cloud-executable ships only (skip execution ships for now)
+  const cloudShips = ships.filter(s => !s.needsExecution);
+
+  if (cloudShips.length === 0) return;
+
+  // Create an umbrella check run
+  const checkRunId = await createCheckRun(
+    owner,
+    repo,
+    'Port Daddy Fleet',
+    prCtx.headSha,
+    token,
+  ).catch(() => 0);
+
+  const results: Array<{ ship: string; status: 'ok' | 'empty' | 'error' }> = [];
+
+  // Run ships sequentially to avoid hammering Workers AI rate limits
+  for (const ship of cloudShips) {
+    const result = await runShip(ship, prCtx, token, env.AI);
+    results.push({ ship: ship.name, status: result });
+  }
+
+  const summary = results
+    .map(r => `- **pd-${r.ship}**: ${r.status === 'ok' ? '✓ posted' : r.status === 'empty' ? '(clean — no comment)' : '✗ error'}`)
+    .join('\n');
+
+  await completeCheckRun(
+    owner,
+    repo,
+    checkRunId,
+    results.every(r => r.status !== 'error') ? 'success' : 'neutral',
+    summary,
+    token,
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+async function runShip(
+  ship: ShipConfig,
+  prCtx: PRContext,
+  token: string,
+  ai: Ai,
+): Promise<'ok' | 'empty' | 'error'> {
+  try {
+    // Fetch ship contract file if it exists
+    const contractPath = `fleet/ships/${ship.name}.md`;
+    const contract = await fetchRepoFile(
+      prCtx.owner,
+      prCtx.repo,
+      contractPath,
+      'main',
+      token,
+    ).catch(() => null);
+
+    const systemPrompt = buildSystemPrompt(ship, contract);
+    const userMessage = buildUserMessage(prCtx);
+
+    const res = (await ai.run(ship.cfModel as Parameters<typeof ai.run>[0], {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage },
+      ],
+    })) as { response?: string };
+
+    const output = (res.response ?? '').trim();
+    if (!output || output.length < 10) return 'empty';
+
+    await postShipComment(
+      prCtx.owner,
+      prCtx.repo,
+      prCtx.prNumber,
+      ship.name,
+      ship.role,
+      output,
+      token,
+    );
+
+    return 'ok';
+  } catch {
+    return 'error';
+  }
+}
+
+function buildSystemPrompt(ship: ShipConfig, contract: string | null): string {
+  const parts: string[] = [];
+
+  if (contract) {
+    parts.push(`# Ship Contract\n\n${contract}`);
+    parts.push('---');
+  }
+
+  parts.push(ship.prompt);
+
+  if (ship.telos) {
+    parts.push(`\nYour telos: ${ship.telos}`);
+  }
+
+  parts.push(
+    '\nYou are running as a Cloudflare Worker with no filesystem or shell access. ' +
+      'Analyze the PR diff provided and respond with your findings only. ' +
+      'If you find nothing worth noting, respond with exactly: CLEAN',
+  );
+
+  return parts.join('\n\n');
+}
+
+function buildUserMessage(prCtx: PRContext): string {
+  const fileList = prCtx.files
+    .map(f => `- ${f.filename} (+${f.additions}/-${f.deletions})`)
+    .join('\n');
+
+  const diff = prCtx.diff.length > DIFF_CHAR_LIMIT
+    ? prCtx.diff.slice(0, DIFF_CHAR_LIMIT) + '\n\n[diff truncated — ' + prCtx.diff.length + ' chars total]'
+    : prCtx.diff;
+
+  return `# PR #${prCtx.prNumber}: ${prCtx.title}
+
+## Changed files
+${fileList || '(none)'}
+
+## PR description
+${prCtx.body || '(none)'}
+
+## Diff
+\`\`\`diff
+${diff}
+\`\`\``;
+}
