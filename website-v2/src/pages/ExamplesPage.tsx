@@ -9,7 +9,7 @@ import {
   PanelList,
   PanelTitle,
 } from '@/components/site/primitives'
-import { FEATURED_EXAMPLE, SECONDARY_EXAMPLES } from '@/data/examples'
+import { EXAMPLE_GROUPS, FEATURED_EXAMPLE, examplesForGroup } from '@/data/examples'
 
 export function ExamplesPage() {
   return (
@@ -85,78 +85,98 @@ export function ExamplesPage() {
           </DocsNoteCard>
         </section>
 
-        <section className="grid gap-[var(--panel-gap)] lg:grid-cols-12" aria-labelledby="examples-list">
-          <div className="lg:col-span-4">
-            <DocsNoteCard label="More examples" title="Each one runs as-is." elevation="quiet" padding="compact" titleSize="nav">
-              <PanelBody size="compact" className="max-w-none">
-                Open any card for the full source, the commands to run it, and notes on how to adapt it into your own tool. Nothing here is a snippet you have to finish yourself.
-              </PanelBody>
-            </DocsNoteCard>
-          </div>
+        {EXAMPLE_GROUPS.map((group) => {
+          const groupExamples = examplesForGroup(group)
+          if (groupExamples.length === 0) return null
+          const headingId = `examples-group-${group.id}`
+          return (
+            <section
+              key={group.id}
+              className="grid gap-[var(--panel-gap)] lg:grid-cols-12"
+              aria-labelledby={headingId}
+            >
+              <div className="lg:col-span-4">
+                <DocsNoteCard
+                  label={group.label}
+                  title={group.title}
+                  titleId={headingId}
+                  elevation="quiet"
+                  padding="compact"
+                  titleSize="nav"
+                >
+                  <PanelBody size="compact" className="max-w-none">
+                    {group.blurb}
+                  </PanelBody>
+                  <div className="pt-[var(--panel-gap-tight)]">
+                    <PanelEyebrow>
+                      {groupExamples.length} example{groupExamples.length === 1 ? '' : 's'}
+                    </PanelEyebrow>
+                  </div>
+                </DocsNoteCard>
+              </div>
 
-          <div className="grid gap-[var(--panel-gap)] lg:col-span-8">
-            <h2 id="examples-list" className="sr-only">
-              Example catalogue
-            </h2>
-            {SECONDARY_EXAMPLES.map((example, index) => (
-              <DocsNoteCard
-                key={example.slug}
-                label={example.eyebrow}
-                title={example.title}
-                titleSize="card"
-                elevation="quiet"
-                padding="compact"
-              >
-                <div className="grid gap-[var(--panel-gap)] md:grid-cols-[minmax(13rem,0.36fr)_minmax(0,1fr)]">
-                  <ExampleArtwork example={example} />
-                  <div className="space-y-[var(--space-2)]">
-                    <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
-                    <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
-                    <div className="space-y-[var(--space-1)] pt-[var(--space-1)]">
-                      <PanelEyebrow>What it builds</PanelEyebrow>
-                      <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
-                        {example.builds}
-                      </PanelBody>
+              <div className="grid gap-[var(--panel-gap)] lg:col-span-8">
+                {groupExamples.map((example, index) => (
+                  <DocsNoteCard
+                    key={example.slug}
+                    label={example.eyebrow}
+                    title={example.title}
+                    titleSize="card"
+                    elevation="quiet"
+                    padding="compact"
+                  >
+                    <div className="grid gap-[var(--panel-gap)] md:grid-cols-[minmax(13rem,0.36fr)_minmax(0,1fr)]">
+                      <ExampleArtwork example={example} />
+                      <div className="space-y-[var(--space-2)]">
+                        <PanelBody className="max-w-[58rem]">{example.summary}</PanelBody>
+                        <PanelBody className="max-w-[58rem] text-[var(--text-secondary)]">{example.surveyPlain}</PanelBody>
+                        <div className="space-y-[var(--space-1)] pt-[var(--space-1)]">
+                          <PanelEyebrow>What it builds</PanelEyebrow>
+                          <PanelBody size="compact" className="max-w-[58rem] text-[var(--text-secondary)]">
+                            {example.builds}
+                          </PanelBody>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
-                  <div className="space-y-[var(--panel-gap-tight)]">
-                    <PanelEyebrow>Files</PanelEyebrow>
-                    <div className="grid gap-[var(--space-2)]">
-                      {example.files.map((file) => (
-                        <code
-                          key={file}
-                          className="!block min-w-0 break-all !whitespace-normal border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)]"
-                        >
-                          {file}
-                        </code>
-                      ))}
+                    <div className="grid gap-[var(--panel-gap)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)] md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
+                      <div className="space-y-[var(--panel-gap-tight)]">
+                        <PanelEyebrow>Files</PanelEyebrow>
+                        <div className="grid gap-[var(--space-2)]">
+                          {example.files.map((file) => (
+                            <code
+                              key={file}
+                              className="!block min-w-0 break-all !whitespace-normal border border-[var(--border-default)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)] font-mono text-[length:var(--type-meta-size)] text-[var(--text-primary)]"
+                            >
+                              {file}
+                            </code>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-[var(--panel-gap-tight)]">
+                        <PanelEyebrow>What you get</PanelEyebrow>
+                        <PanelList
+                          items={[
+                            `${example.time} guided read`,
+                            `${example.sourceFiles.length} full source file${example.sourceFiles.length === 1 ? '' : 's'}`,
+                            `${example.commands.length} runnable command${example.commands.length === 1 ? '' : 's'}`,
+                          ]}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-[var(--panel-gap-tight)]">
-                    <PanelEyebrow>What you get</PanelEyebrow>
-                    <PanelList
-                      items={[
-                        `${example.time} guided read`,
-                        `${example.sourceFiles.length} full source file${example.sourceFiles.length === 1 ? '' : 's'}`,
-                        `${example.commands.length} runnable command${example.commands.length === 1 ? '' : 's'}`,
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
-                  <BracketLink to={`/examples/${example.slug}`} tone={index % 2 === 0 ? 'blue' : 'accent'} side="left">
-                    Open full example
-                  </BracketLink>
-                </div>
-              </DocsNoteCard>
-            ))}
-          </div>
-        </section>
+                    <div className="flex flex-wrap gap-[var(--panel-gap-tight)] border-t-2 border-[var(--border-strong)]/12 pt-[var(--panel-gap)]">
+                      <BracketLink to={`/examples/${example.slug}`} tone={index % 2 === 0 ? 'blue' : 'accent'} side="left">
+                        Open full example
+                      </BracketLink>
+                    </div>
+                  </DocsNoteCard>
+                ))}
+              </div>
+            </section>
+          )
+        })}
       </main>
 
       <Footer />

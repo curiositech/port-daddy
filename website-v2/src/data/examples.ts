@@ -255,7 +255,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'test-failure-to-agent',
-    title: 'Build a test reporter that asks the agent for help',
+    title: 'Turn a failing test into an agent request',
     eyebrow: 'Test runner',
     level: 'Intermediate',
     time: '20 min',
@@ -347,7 +347,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'editor-lightbulb-to-agent',
-    title: 'Build an editor lightbulb that asks the local agent',
+    title: 'Send an editor selection to your local agent',
     eyebrow: 'Editor extension',
     level: 'Beginner',
     time: '16 min',
@@ -434,7 +434,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'webhook-to-local-agent',
-    title: 'Build a webhook adapter backed by your workstation',
+    title: 'Route webhooks to an agent on your machine',
     eyebrow: 'Bot adapter',
     level: 'Advanced',
     time: '24 min',
@@ -526,7 +526,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'leader-election',
-    title: 'Build a one-leader worker loop with Port Daddy locks',
+    title: 'Elect one leader from a local agent swarm',
     eyebrow: 'Locks',
     level: 'Intermediate',
     time: '14 min',
@@ -618,7 +618,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'ephemeral-ci-db',
-    title: 'Build an ephemeral CI database port claim',
+    title: 'Claim a throwaway database port for CI',
     eyebrow: 'CI services',
     level: 'Beginner',
     time: '12 min',
@@ -701,7 +701,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'p2p-webrtc',
-    title: 'Build WebRTC signaling over agent inboxes',
+    title: 'Carry WebRTC signaling over agent inboxes',
     eyebrow: 'P2P signaling',
     level: 'Advanced',
     time: '22 min',
@@ -779,7 +779,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'agent-topologies',
-    title: 'Build an inspectable agent topology trace',
+    title: 'Trace how your agents actually talk',
     eyebrow: 'Swarm patterns',
     level: 'Beginner',
     time: '15 min',
@@ -1152,7 +1152,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'war-room-incident',
-    title: 'Run a three-agent incident war room',
+    title: 'Stand up a three-agent incident war room',
     eyebrow: 'Incident response',
     level: 'Intermediate',
     time: '15 min',
@@ -1223,4 +1223,60 @@ export const SECONDARY_EXAMPLES = EXAMPLE_DOCS.slice(1)
 
 export function findExampleDoc(slug: string | undefined): ExampleDoc | undefined {
   return EXAMPLE_DOCS.find((example) => example.slug === slug)
+}
+
+/**
+ * The catalogue, grouped by what the reader is actually trying to do. The flat
+ * list buried the point: coordination (agents not stepping on each other) is the
+ * core of Port Daddy, so it leads. PD Tube stays the page's featured lede — it is
+ * the smallest version of the whole idea — so it is intentionally NOT repeated in
+ * a group here. `slugs` are resolved through EXAMPLE_BY_SLUG; an unknown slug is
+ * dropped rather than throwing, so reordering data never breaks the page.
+ */
+export interface ExampleGroup {
+  id: string
+  label: string
+  title: string
+  blurb: string
+  slugs: string[]
+}
+
+export const EXAMPLE_GROUPS: ExampleGroup[] = [
+  {
+    id: 'coordination',
+    label: 'Coordination',
+    title: 'Keep agents out of each other’s way',
+    blurb:
+      'The reason Port Daddy exists: many agents on one machine, none clobbering another’s files, port, or turn. Claims, locks, a shared board, and a recoverable trail.',
+    slugs: [
+      'coordination-file-guard',
+      'swarm-coordination-board',
+      'leader-election',
+      'war-room-incident',
+      'agent-topologies',
+    ],
+  },
+  {
+    id: 'agent-loop',
+    label: 'The agent loop',
+    title: 'Turn an event into agent work',
+    blurb:
+      'The PD Tube pattern from the lede, pointed at real triggers — a failing test, an editor selection, an inbound webhook. The event enters the daemon; the agent in your terminal answers.',
+    slugs: ['test-failure-to-agent', 'editor-lightbulb-to-agent', 'webhook-to-local-agent'],
+  },
+  {
+    id: 'services',
+    label: 'Services & connectivity',
+    title: 'Wire local services together',
+    blurb:
+      'The plumbing underneath: deterministic ports, name-based discovery, throwaway CI databases, a managed tunnel, and peer links brokered through durable inboxes.',
+    slugs: ['services-dns', 'ephemeral-ci-db', 'preview-tunnel', 'p2p-webrtc'],
+  },
+]
+
+const EXAMPLE_BY_SLUG = new Map(EXAMPLE_DOCS.map((example) => [example.slug, example]))
+
+/** Resolve a group's slugs to its ExampleDocs, dropping any that no longer exist. */
+export function examplesForGroup(group: ExampleGroup): ExampleDoc[] {
+  return group.slugs.map((slug) => EXAMPLE_BY_SLUG.get(slug)).filter((doc): doc is ExampleDoc => Boolean(doc))
 }
