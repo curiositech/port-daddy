@@ -14,7 +14,7 @@ That is a very different developer experience. It feels less like asking a chatb
 
 Chat is an excellent human interface for intent. It is a weak system of record.
 
-A chat transcript can say "I fixed the auth flow." It cannot, by itself, prove which files were touched, whether another agent already claimed the same module, whether the local daemon that will serve the app is the daemon you think it is, or whether the selected model backend can account for spend.
+A chat transcript can say "I fixed the auth flow." It cannot, by itself, prove which files were touched, whether another agent already claimed the same module, whether the local daemon that will serve the app is the daemon you think it is, or whether the selected model backend can [account for spend](/blog/telemetry-is-a-launch-gate).
 
 Software teams solved this class of problem before. We do not use only Slack to deploy production. We use CI, logs, ownership, rollbacks, issue trackers, tracing, locks, and release gates. Agentic software work needs the same seriousness, but scaled down to the local machine where the work is actually happening.
 
@@ -24,9 +24,9 @@ Port Daddy's control plane answers operational questions that chat-centric tools
 | --- | --- |
 | What project is this work attached to? | The same developer can have five repos open and several local services running. |
 | Which agent or human owns this file right now? | Concurrent edits without ownership are how good work gets overwritten. |
-| Is this backend actually launchable? | An API key is not the same as a working SDK, model catalog, and telemetry path. |
+| Is this backend actually launchable? | An API key is not the same as a [working SDK, model catalog, and telemetry path](/blog/backend-readiness-is-dependency-truth). |
 | What event caused this agent to wake up? | Background automation without provenance becomes spooky action at a distance. |
-| What changed since I last looked? | Recovery depends on evidence, not a hopeful status label. |
+| What changed since I last looked? | Recovery depends on [evidence, not a hopeful status label](/blog/recovery-roadmap-map-truth). |
 
 The control plane exists because these are not edge cases. They are the normal shape of agent-assisted development in 2026.
 
@@ -88,7 +88,7 @@ Your development environment has facts that a hosted runner usually cannot infer
 - which local services are actually bound;
 - which app build is being served in the browser;
 - whether a native companion app is looking at the same daemon;
-- whether a generated artifact is stale;
+- whether [a generated artifact is stale](/blog/running-is-not-current);
 - which file claims and notes exist from earlier work;
 - whether the current repo has its own policy about agent launch and commit boundaries.
 

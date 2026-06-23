@@ -12,7 +12,7 @@ In 2026, model choice is an engineering decision. A low-tier model may be perfec
 
 The operator should see those differences before launch.
 
-The mistake is treating cost as accounting. It is not. Cost is a control-plane primitive:
+The mistake is treating cost as accounting. It is not. Cost is a [control-plane primitive](/blog/control-plane-is-the-product):
 
 - it determines which work can run unattended;
 - it determines whether a failed launch should retry;
@@ -217,7 +217,7 @@ This is especially important for local fleets. A background agent that wakes up 
 
 ## Spend Policy Is Also A Safety Policy
 
-Cost gates are not only about dollars. They limit blast radius. A runaway watcher with a two-dollar daily ceiling is annoying. The same watcher without a ceiling can become an incident. A high-tier model behind a manual gate can be an excellent architecture reviewer. The same model behind a noisy trigger can become a liability.
+Cost gates are not only about dollars. They [limit blast radius](/blog/bond-pricing-is-a-market). A runaway watcher with a two-dollar daily ceiling is annoying. The same watcher without a ceiling can become an incident. A high-tier model behind a manual gate can be an excellent architecture reviewer. The same model behind a noisy trigger can become a liability.
 
 Port Daddy's launch gate treats those as the same design problem:
 
