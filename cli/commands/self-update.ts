@@ -27,6 +27,7 @@ import { appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { DEFAULT_DAEMON_PORT } from '../../shared/daemon-discovery.js';
+import { compareSemver } from '../../lib/latest-manifest.js';
 
 const FORMULA = 'port-daddy';
 const FLEETBAR_APP = join(homedir(), 'Applications', 'Port Daddy', 'FleetBar.app');
@@ -57,6 +58,47 @@ export function isUpgradeAvailable(brewOutdatedStdout: string): boolean {
       const leaf = firstToken.split('/').pop(); // bare name OR last segment of tap/name
       return leaf === FORMULA;
     });
+}
+
+/**
+ * PURE: extract the formula's available stable version from `brew info --json=v2`.
+ * A second opinion that does NOT depend on `brew outdated`'s text format — the
+ * format whose drift deadlocked v3.20.0 ("already current" for days).
+ */
+export function parseAvailableVersion(brewInfoJsonStdout: string): string | null {
+  try {
+    const d = JSON.parse(brewInfoJsonStdout);
+    const f = Array.isArray(d?.formulae) ? d.formulae[0] : undefined;
+    const stable = f?.versions?.stable;
+    return typeof stable === 'string' && stable.length > 0 ? stable : null;
+  } catch {
+    return null;
+  }
+}
+
+/** PURE: extract the running daemon's version from its /status JSON. */
+export function parseDaemonVersion(statusJson: string): string | null {
+  try {
+    const v = JSON.parse(statusJson)?.version;
+    return typeof v === 'string' && v.length > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PURE, deadlock-proof: a newer version is available iff both parse and
+ * `available` > `installed` by semver. Unlike text-matching `brew outdated`,
+ * a direct comparison cannot silently no-op on an output-format change. Returns
+ * false when either version is unknown (missing data never forces an upgrade).
+ */
+export function isNewerVersionAvailable(installed: string | null, available: string | null): boolean {
+  if (!installed || !available) return false;
+  try {
+    return compareSemver(installed, available) < 0;
+  } catch {
+    return false;
+  }
 }
 
 function logPath(): string {
@@ -118,6 +160,12 @@ function daemonUp(): boolean {
     .stdout.trim() === '200';
 }
 
+/** The running daemon's reported version via /status, or null if unreachable. */
+function runningDaemonVersion(): string | null {
+  const r = sh('curl', ['-s', '-m', '3', `http://127.0.0.1:${DEFAULT_DAEMON_PORT}/status`], 8_000);
+  return r.code === 0 ? parseDaemonVersion(r.stdout) : null;
+}
+
 /** True when the FleetBar GUI process is running. */
 function fleetbarRunning(): boolean {
   return sh('pgrep', ['-f', 'FleetBar.app/Contents/MacOS/FleetBar'], 8_000).code === 0;
@@ -147,20 +195,34 @@ export async function handleSelfUpdate(options: SelfUpdateOptions = {}): Promise
     return;
   }
 
-  // 1. Refresh the tap + check for a newer release. A failed/timed-out `brew
-  //    update` leaves the local formula cache stale, so `brew outdated` reports
-  //    nothing and the upgrade silently never fires — masquerading as "already
-  //    current". That is the exact failure that kept this machine on an old
-  //    release through a published bump. Give it room (a busy machine with many
-  //    outdated formulae routinely takes >120s) and log when it fails so a stuck
-  //    refresh is visible instead of passing as healthy.
+  // 1. Refresh the tap + check for a newer release with TWO independent signals,
+  //    so one source's format drift can't deadlock the self-heal. v3.20.0 sat
+  //    behind for days because `brew outdated` emits the TAP-QUALIFIED name in
+  //    non-TTY and the text matcher missed it — and the broken tick could never
+  //    upgrade off the broken version (the bug blocked its own fix).
+  //      (a) `brew outdated` text  — fast, but format-fragile
+  //      (b) installed-vs-available semver — authoritative, format-independent
+  //    A failed/timed-out `brew update` also leaves the tap cache stale, so both
+  //    signals read old data — give it room (>120s on a busy machine) and log a
+  //    failure so a stuck refresh is visible instead of masquerading as healthy.
   const updated = sh('brew', ['update'], 300_000);
   if (updated.code !== 0) {
     log(`brew update failed (code ${updated.code}) — tap may be stale this tick, version check unreliable: ${updated.stderr.trim()}`);
   }
   const outdated = sh('brew', ['outdated', FORMULA], 60_000);
+  const installedNow = installedVersion();
+  const infoProbe = sh('brew', ['info', '--json=v2', FORMULA], 60_000);
+  const availableNow = infoProbe.code === 0 ? parseAvailableVersion(infoProbe.stdout) : null;
+  const outdatedSignal = isUpgradeAvailable(outdated.stdout);
+  const versionSignal = isNewerVersionAvailable(installedNow, availableNow);
 
-  if (isUpgradeAvailable(outdated.stdout)) {
+  if (versionSignal && !outdatedSignal) {
+    // The fallback caught an upgrade the text matcher missed — the deadlock
+    // class. Log it loudly so any future `brew outdated` drift is visible.
+    log(`brew-outdated text missed it; version compare caught ${installedNow} < ${availableNow}`);
+  }
+
+  if (outdatedSignal || versionSignal) {
     // Record what we're moving off of, so the log names the actual version
     // transition whenever the daemon is updated (not just "upgraded").
     const fromVersion = installedVersion();
@@ -193,6 +255,17 @@ export async function handleSelfUpdate(options: SelfUpdateOptions = {}): Promise
   if (!daemonUp()) {
     log('daemon down → starting');
     sh('brew', ['services', 'start', FORMULA]);
+  }
+
+  // 3b. Binary drift: the running daemon is OLDER than the installed keg (a brew
+  //     upgrade happened out-of-band, or the restart above didn't take). Restart
+  //     so the live daemon actually runs the installed code — the exact symptom
+  //     that left a 3.20.0 daemon serving for hours while 3.21.0 was installed.
+  const running = runningDaemonVersion();
+  const keg = installedVersion();
+  if (running && keg && isNewerVersionAvailable(running, keg)) {
+    log(`binary drift: daemon running ${running} but keg is ${keg} → restarting`);
+    sh('brew', ['services', 'restart', FORMULA]);
   }
 
   // 4. Ensure FleetBar is running.

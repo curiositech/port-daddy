@@ -93,3 +93,50 @@ describe('install-daemon freshness LaunchAgent cadence', () => {
     expect(plist).toContain('<key>RunAtLoad</key>');
   });
 });
+
+describe('cli/commands/self-update parseAvailableVersion (brew info --json=v2)', () => {
+  test('extracts versions.stable from the formula entry', async () => {
+    const { parseAvailableVersion } = await import('../../cli/commands/self-update.js');
+    const json = JSON.stringify({ formulae: [{ name: 'port-daddy', versions: { stable: '3.21.0' } }] });
+    expect(parseAvailableVersion(json)).toBe('3.21.0');
+  });
+
+  test('null on malformed JSON, missing fields, or empty', async () => {
+    const { parseAvailableVersion } = await import('../../cli/commands/self-update.js');
+    expect(parseAvailableVersion('not json')).toBe(null);
+    expect(parseAvailableVersion('{}')).toBe(null);
+    expect(parseAvailableVersion(JSON.stringify({ formulae: [] }))).toBe(null);
+    expect(parseAvailableVersion(JSON.stringify({ formulae: [{ versions: {} }] }))).toBe(null);
+  });
+});
+
+describe('cli/commands/self-update parseDaemonVersion (/status)', () => {
+  test('extracts version from the daemon status JSON', async () => {
+    const { parseDaemonVersion } = await import('../../cli/commands/self-update.js');
+    expect(parseDaemonVersion(JSON.stringify({ version: '3.21.0', pid: 123 }))).toBe('3.21.0');
+  });
+
+  test('null on malformed/empty status', async () => {
+    const { parseDaemonVersion } = await import('../../cli/commands/self-update.js');
+    expect(parseDaemonVersion('')).toBe(null);
+    expect(parseDaemonVersion('<html>502</html>')).toBe(null);
+    expect(parseDaemonVersion('{}')).toBe(null);
+  });
+});
+
+describe('cli/commands/self-update isNewerVersionAvailable (deadlock-proof signal)', () => {
+  test('true iff available > installed by semver', async () => {
+    const { isNewerVersionAvailable } = await import('../../cli/commands/self-update.js');
+    expect(isNewerVersionAvailable('3.20.0', '3.21.0')).toBe(true);
+    expect(isNewerVersionAvailable('3.20.0', '3.20.1')).toBe(true);
+    expect(isNewerVersionAvailable('3.21.0', '3.21.0')).toBe(false); // equal
+    expect(isNewerVersionAvailable('3.21.0', '3.20.0')).toBe(false); // older
+  });
+
+  test('false (never upgrade on missing/unparseable data)', async () => {
+    const { isNewerVersionAvailable } = await import('../../cli/commands/self-update.js');
+    expect(isNewerVersionAvailable(null, '3.21.0')).toBe(false);
+    expect(isNewerVersionAvailable('3.20.0', null)).toBe(false);
+    expect(isNewerVersionAvailable('garbage', '3.21.0')).toBe(false);
+  });
+});
