@@ -27,9 +27,25 @@ describe('hasNpmVersionPin', () => {
   test('scoped + unpinned → false (the leading scope @ is not a version)', () => {
     expect(hasNpmVersionPin('@modelcontextprotocol/server-filesystem')).toBe(false);
   });
-  test('unscoped + pinned (range / tag) → true', () => {
+  test('unscoped + concrete version / range → true', () => {
     expect(hasNpmVersionPin('some-mcp@^1')).toBe(true);
-    expect(hasNpmVersionPin('some-mcp@latest')).toBe(true);
+    expect(hasNpmVersionPin('some-mcp@~1.2')).toBe(true);
+    expect(hasNpmVersionPin('some-mcp@1.2.3')).toBe(true);
+    expect(hasNpmVersionPin('some-mcp@1.x')).toBe(true);
+    expect(hasNpmVersionPin('some-mcp@>=1')).toBe(true);
+    expect(hasNpmVersionPin('some-mcp@v1.2.3')).toBe(true);
+  });
+  test('dist-tags are NOT pins — they are moving targets (A7 typosquat vector)', () => {
+    expect(hasNpmVersionPin('some-mcp@latest')).toBe(false);
+    expect(hasNpmVersionPin('some-mcp@next')).toBe(false);
+    expect(hasNpmVersionPin('some-mcp@canary')).toBe(false);
+    expect(hasNpmVersionPin('some-mcp@beta')).toBe(false);
+    expect(hasNpmVersionPin('some-mcp@*')).toBe(false);
+    expect(hasNpmVersionPin('some-mcp@')).toBe(false);
+  });
+  test('scoped + dist-tag → false (scope @ is not a version, latest is not a pin)', () => {
+    expect(hasNpmVersionPin('@scope/some-mcp@latest')).toBe(false);
+    expect(hasNpmVersionPin('@scope/some-mcp@next')).toBe(false);
   });
   test('unscoped + unpinned → false', () => {
     expect(hasNpmVersionPin('some-mcp')).toBe(false);
@@ -55,6 +71,13 @@ describe('npxIsUnpinned — structured args walk', () => {
   });
   test('npx -p <pkg>@version → pinned (value-flag form)', () => {
     expect(npxIsUnpinned(['-p', 'tool@2.0.0', 'run'])).toBe(false);
+  });
+  test('npx <pkg>@<dist-tag> → UNPINNED (latest/next are moving targets)', () => {
+    expect(npxIsUnpinned(['pkg@latest'])).toBe(true);
+    expect(npxIsUnpinned(['-y', 'pkg@next'])).toBe(true);
+  });
+  test('npx <pkg>@<concrete version> → pinned (not flagged)', () => {
+    expect(npxIsUnpinned(['pkg@1.2.3'])).toBe(false);
   });
   test('npx ./local-path → not a registry fetch → not flagged', () => {
     expect(npxIsUnpinned(['./dist/server.js'])).toBe(false);

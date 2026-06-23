@@ -122,15 +122,44 @@ function isPathSpec(spec: string): boolean {
 }
 
 /**
- * Does an npm package spec carry a version pin? `pkg@1.2.3`, `@scope/pkg@1.2.3`,
- * `pkg@^1`, `pkg@latest`. The leading `@` of a scope is NOT a version separator —
- * so we look for an `@version` AFTER the (optionally-scoped) name.
+ * Does an npm package spec carry a version pin? PINNED means a concrete version
+ * or semver range — `pkg@1.2.3`, `@scope/pkg@1.2.3`, `pkg@^1`, `pkg@~1.2`,
+ * `pkg@1.x`. A dist-tag (`pkg@latest`, `pkg@next`, `pkg@canary`, `pkg@beta`),
+ * `pkg@*`, or an empty `pkg@` is NOT a pin: dist-tags are moving targets that
+ * resolve to whatever the registry currently points them at — exactly the
+ * typosquat / tool-poisoning vector (A7) this inventory exists to catch, no
+ * different from leaving the package unversioned.
+ *
+ * The leading `@` of a scope is NOT a version separator, so we read the
+ * `@version` token AFTER the (optionally-scoped) name.
  */
 export function hasNpmVersionPin(spec: string): boolean {
   // Strip a leading scope `@scope/` so its `@` isn't mistaken for a version.
   const afterScope = spec.startsWith('@') ? spec.replace(/^@[^/]+\//, '') : spec;
-  // A version pin is an `@<something>` in the remaining name. `pkg@1`, `pkg@latest`.
-  return /@[^@/]+$/.test(afterScope);
+  // Read the `@version` token (everything after the last `@`), if any.
+  const at = afterScope.indexOf('@');
+  if (at < 0) return false; // no `@version` at all → unpinned
+  const version = afterScope.slice(at + 1);
+  return isConcreteNpmVersion(version);
+}
+
+/**
+ * A concrete npm version or semver range — NOT a moving dist-tag. Pure.
+ *
+ * Pinned: starts with a digit (`1.2.3`, `1`, `1.x`) or a range operator
+ * (`^1`, `~1.2`, `>=1`, `=1.0.0`, `v1.2.3`).
+ * Unpinned: empty, `*`/`x`/`X` (wildcard-all), or a dist-tag label
+ * (`latest`, `next`, `canary`, `beta`, or any other alphabetic tag).
+ */
+function isConcreteNpmVersion(version: string): boolean {
+  if (version.length === 0) return false; // `pkg@` → unpinned
+  // A bare wildcard resolves to "newest" — a moving target, like `latest`.
+  if (version === '*' || version === 'x' || version === 'X') return false;
+  // Range operators and a leading `v` introduce a concrete version/range.
+  if (/^[v=^~><]/.test(version)) return true;
+  // Otherwise it must START with a digit to be a version (`1`, `1.2.3`, `1.x`).
+  // Anything else (`latest`, `next`, `beta`, `canary`, …) is a dist-tag.
+  return /^[0-9]/.test(version);
 }
 
 /** Does a uvx package spec carry a version pin? `pkg==1.2.3`, `pkg>=1`. */

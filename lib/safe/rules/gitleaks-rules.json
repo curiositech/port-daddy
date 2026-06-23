@@ -1,6 +1,6 @@
 {
   "source": "https://github.com/gitleaks/gitleaks",
-  "upstreamCommit": "55a3ad8fbb6e3c7e84c0f432e1f3b5a9d2c8e7b1",
+  "upstreamCommit": "09242ce9c8a60d9b051fc2d166f9e849b88c7ac0",
   "refreshedAt": "2026-06-23",
   "license": "MIT",
   "_note": "Build-time conversion of gitleaks' config/gitleaks.toml structured-format rules to JSON. These are KEY-FORMAT anchors (regex over the credential's fixed shape), NOT free-text keyword classifiers. The `keyword` pre-filter stanzas from upstream are intentionally dropped — reading them as a verdict would violate the no-keyword-NLP rule (ADR-0088). Refresh on a schedule against upstream; this is a maintained dependency, not a constant.",
