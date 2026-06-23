@@ -39,7 +39,10 @@ import type {
   ScanResult,
 } from './types.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// Uniquely-named to avoid colliding with the CommonJS `__dirname` jest injects
+// when it transforms this ESM module (repo convention — cf. `__spawner_dirname`
+// in lib/spawner.ts). A bare `const __dirname` throws "already declared".
+const __scannerDirname = dirname(fileURLToPath(import.meta.url));
 
 // ── Rule corpus load ────────────────────────────────────────────────────────
 
@@ -49,7 +52,7 @@ let _compiled: { rule: GitleaksRule; re: RegExp }[] | null = null;
 /** Load + cache the vendored gitleaks rule pack. */
 export function loadRulePack(): GitleaksRulePack {
   if (_rulePack) return _rulePack;
-  const raw = readFileSync(join(__dirname, 'rules', 'gitleaks-rules.json'), 'utf8');
+  const raw = readFileSync(join(__scannerDirname, 'rules', 'gitleaks-rules.json'), 'utf8');
   _rulePack = JSON.parse(raw) as GitleaksRulePack;
   return _rulePack;
 }

@@ -157,3 +157,219 @@ export interface BaselinedScanResult {
   /** All findings the raw scan produced (for totals; still no raw values). */
   allFindings: SecretFinding[];
 }
+
+// ════════════════════════════════════════════════════════════════════════
+//  A3 — crown-jewel permission audit (lib/safe/perms-audit.ts)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Severity of a permission finding. `exposed` = a secret path the group/other
+ * bits can read (the dangerous case). `loose` = group/other have non-read bits
+ * (write/exec) on a secret path or its parent dir. `ok` = locked down.
+ */
+export type PermSeverity = 'ok' | 'loose' | 'exposed';
+
+/**
+ * One crown-jewel path's `stat`-derived permission posture. Read-only — the
+ * `priorMode` field is what A9's opt-in reversible `fix --auto` records before a
+ * `chmod`, so the change can be rolled back. No secret content is ever read here;
+ * this is a metadata (mode/owner) audit only.
+ */
+export interface PermFinding {
+  /** Absolute path audited. */
+  path: string;
+  /** True when the path exists and was `stat`-able. */
+  exists: boolean;
+  /** True when the path is a directory (vs a file). */
+  isDir: boolean;
+  /** Octal mode string, e.g. `0600`, `0644`, `0700`. Empty when not stat-able. */
+  mode: string;
+  /** True when group-readable (mode & 0o040). */
+  groupReadable: boolean;
+  /** True when world/other-readable (mode & 0o004). */
+  worldReadable: boolean;
+  /** True when group OR world has write/exec on a secret path (a looser leak). */
+  groupOrWorldWritable: boolean;
+  severity: PermSeverity;
+  /**
+   * The tightened mode A9's `fix --auto` would set (e.g. `0600` for a key file,
+   * `0700` for a dir), or null when nothing to fix. The current `mode` is the
+   * value to record as `priorMode` before applying.
+   */
+  recommendedMode: string | null;
+}
+
+/** The A3 audit result: per-path permission findings + the Coast Guard posture. */
+export interface PermsAuditResult {
+  findings: PermFinding[];
+  /**
+   * Whether the Coast Guard deny-list is actually in force on this machine
+   * (from `coastGuardStatus()` in lib/coast-guard.ts). A path can be `0600` yet
+   * still readable by a same-UID agent if the guard is off — both facts matter.
+   */
+  coastGuard: {
+    onByDefault: boolean;
+    confinementAvailable: boolean;
+    mechanism: string;
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  A4/A5 — binary trust (lib/safe/binary-trust.ts, trust-ledger.ts)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Code-signing classification buckets, most-trusted → least. `platform` = an
+ * Apple platform binary (`/bin`, `/usr/bin`). `dev-id-notarized` = signed with a
+ * Developer ID cert AND notarized by Apple. `dev-id-unnotarized` = Developer ID
+ * signed but Apple never stapled a notarization. `ad-hoc` = signed with no
+ * identity (the `adhoc` flag — anyone can produce one). `unsigned` = no signature
+ * at all. `unknown` = `codesign` could not be run / output unparseable.
+ */
+export type BinaryTrustClass =
+  | 'platform'
+  | 'dev-id-notarized'
+  | 'dev-id-unnotarized'
+  | 'ad-hoc'
+  | 'unsigned'
+  | 'unknown';
+
+/**
+ * Where a binary came from. `quarantine` = it carries `com.apple.quarantine`
+ * (browser/AirDrop download — Gatekeeper saw it). `no-quarantine` = the xattr is
+ * ABSENT, which is the DANGEROUS path (curl|bash, scp, git-clone, npm/pip leave
+ * none) → provenance is UNKNOWN, never assumed safe.
+ */
+export type QuarantineOrigin = 'quarantine' | 'no-quarantine' | 'unknown';
+
+/** A path-origin tag for where the binary was found on disk. */
+export type BinaryPathOrigin =
+  | 'running-process'
+  | 'downloads'
+  | 'tmp'
+  | 'npm-global'
+  | 'pip-global'
+  | 'system'
+  | 'other';
+
+/**
+ * One binary's trust posture. Built from `codesign --verify/--display` +
+ * `codesign --check-notarization` + the quarantine xattr. No file CONTENT is
+ * read; this is signature + provenance metadata only.
+ */
+export interface BinaryTrust {
+  /** Absolute path to the binary. */
+  path: string;
+  /** The classification bucket. */
+  trustClass: BinaryTrustClass;
+  /** Where on disk it was found. */
+  pathOrigin: BinaryPathOrigin;
+  /** Quarantine provenance — missing xattr → `no-quarantine` (UNKNOWN, not safe). */
+  quarantine: QuarantineOrigin;
+  /** Apple Team Identifier from the signature, or null. */
+  teamId: string | null;
+  /** The signing identifier (`Identifier=` from `codesign -dv`), or null. */
+  signingId: string | null;
+  /** The Authority chain (leaf → root) from `codesign -dv`, top-first. */
+  authority: string[];
+  /** Code Directory Hash (the cdhash) — the ledger key when present. */
+  cdhash: string | null;
+  /** True when the signature is ad-hoc (`flags=…0x2` / `Signature=adhoc`). */
+  adhoc: boolean;
+  /** True when `codesign --verify --deep --strict` succeeded. */
+  verified: boolean;
+  /** True when `codesign --check-notarization` reports notarized. */
+  notarized: boolean;
+  /** Optional PID when this binary was found as a running process. */
+  pid?: number;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  A6 — egress snapshot (lib/safe/egress-snapshot.ts)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * A minimal view of a known PD-managed agent, used to correlate an egress flow
+ * to a real sortie/agent instead of a bare PID. The daemon supplies a lookup
+ * `pid -> KnownSpawn | null` from its in-memory spawn registry (lib/spawner.ts);
+ * tests inject a map.
+ */
+export interface KnownSpawn {
+  agentId: string;
+  name: string;
+  identity: string | null;
+  pid: number;
+}
+
+/**
+ * One point-in-time egress flow. `nettop -P -m route -l 1` (no sudo) gives the
+ * per-PID byte counters + remote host; `lsof -i -nP` (own-UID) gives the
+ * pid↔binary↔remote mapping. Volumetric + destination EVIDENCE only — TLS bodies
+ * are opaque; this is NOT enforcement.
+ */
+export interface EgressFlow {
+  pid: number;
+  /** The process command/binary name (from lsof / nettop), or null. */
+  binary: string | null;
+  /** Remote host (IP or resolved name) the flow talks to, or null. */
+  remoteHost: string | null;
+  /** Remote port when known. */
+  remotePort: number | null;
+  /** Bytes the flow has moved (in+out where available), or null. */
+  bytes: number | null;
+  /** The correlated known PD agent, when the PID is in the spawn registry. */
+  agent: KnownSpawn | null;
+}
+
+/** The A6 snapshot: correlated flows + whether each tool produced any output. */
+export interface EgressSnapshot {
+  flows: EgressFlow[];
+  /** True when `nettop` produced parseable rows (vs absent/empty). */
+  nettopAvailable: boolean;
+  /** True when `lsof` produced parseable rows. */
+  lsofAvailable: boolean;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  A7 — MCP / skill supply-chain inventory (lib/safe/mcp-inventory.ts)
+// ════════════════════════════════════════════════════════════════════════
+
+/** Which config file an MCP server entry came from. */
+export type McpConfigSource =
+  | 'project-mcp-json'
+  | 'cursor-mcp-json'
+  | 'claude-config'
+  | 'other';
+
+/**
+ * Why an MCP server entry was flagged. `unpinned-npx` / `unpinned-uvx` = the
+ * command fetches a package at run time with no pinned version (the typosquat /
+ * tool-poisoning vector). Determined by STRUCTURED inspection of the `command`
+ * array, never NLP over a description string.
+ */
+export type McpFlagReason = 'unpinned-npx' | 'unpinned-uvx';
+
+/**
+ * One configured MCP server. `command` + `args` are the structured fields
+ * inspected; `flags` lists the structural reasons it was flagged (empty = clean).
+ */
+export interface McpServerEntry {
+  /** The server key/name in the config. */
+  name: string;
+  source: McpConfigSource;
+  /** Absolute path of the config file this entry came from. */
+  configPath: string;
+  /** The launch command (e.g. `npx`, `uvx`, `node`, an abs path), or null. */
+  command: string | null;
+  /** The argument array (structured — never free-text classified). */
+  args: string[];
+  /** Structural flags; empty array = nothing structurally wrong. */
+  flags: McpFlagReason[];
+}
+
+/** The A7 inventory: every configured server + which configs were found. */
+export interface McpInventoryResult {
+  servers: McpServerEntry[];
+  /** Absolute paths of the config files that existed and parsed. */
+  configsScanned: string[];
+}
