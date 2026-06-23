@@ -343,8 +343,8 @@ pd spawned
 # Kill a running agent
 pd spawn kill <agent-id>
 
-# Watch a logical channel and auto-trigger scripts
-pd watch git:committed --exec './fleet/qa-adversary.sh'
+# Watch a logical channel and auto-trigger a command
+pd watch git:committed --exec 'npm test'
 ```
 
 #### 🛡️ The Coast Guard (ADR-0050) — confinement is the default
