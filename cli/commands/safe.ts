@@ -34,8 +34,13 @@ import {
   triage,
   fingerprint,
 } from '../../lib/safe/baseline.js';
+import { planCorral, applyCorralItem } from '../../lib/safe/corral.js';
+import { scanStagedDiff, formatStagedFinding } from '../../lib/safe/staged-guard.js';
+import { CORRAL_HONEST_LIMIT, corralStorageStatus } from '../../lib/secret-env.js';
+import { parseAssignment } from '../../lib/safe/corral.js';
+import { readFileSync } from 'node:fs';
 import type { CLIOptions } from '../types.js';
-import type { SecretFinding } from '../../lib/safe/types.js';
+import type { SecretFinding, CorralPlanItem } from '../../lib/safe/types.js';
 
 interface SafeScanResponse {
   success?: boolean;
@@ -244,6 +249,163 @@ function handleFix(options: CLIOptions): void {
 }
 
 // ════════════════════════════════════════════════════════════════════════
+//  pd safe corral <key> | --all   (ADR-0088 Phase B)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Build the corral candidate findings: the A1 host scan's findings, optionally
+ * narrowed to a single dotenv KEY (the `<key>` arg). The scan is in-process
+ * (corral is a local file+vault op; no daemon needed). NO RAW VALUE leaves here.
+ */
+function corralCandidates(key: string | undefined): SecretFinding[] {
+  const raw = scanHost({});
+  if (!key) return raw.findings;
+  // Narrow to findings whose source line is a `KEY=value` assignment for <key>.
+  return raw.findings.filter((f) => {
+    try {
+      const lines = readFileSync(f.path, 'utf8').split('\n');
+      const assign = parseAssignment(lines[f.line - 1] ?? '');
+      return assign?.key === key;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function printPlanItem(item: CorralPlanItem): void {
+  if (item.corralable) {
+    process.stdout.write(`  CORRAL  ${item.path}:${item.line}  ${item.ruleId}  (…${item.last4})\n`);
+    process.stdout.write(`          ${item.key}=… -> ${item.key}=${item.ref}\n`);
+  } else {
+    process.stdout.write(
+      `  SKIP    ${item.path}:${item.line}  ${item.ruleId}  (…${item.last4})  [${item.skipReason}]\n`,
+    );
+  }
+}
+
+async function handleCorral(key: string | undefined, options: CLIOptions): Promise<void> {
+  const all = options.all === true || (options.all as unknown) === 'true';
+  const apply = options.apply === true || options.apply === 'true';
+
+  if (!key && !all) {
+    process.stderr.write(
+      'Usage: pd safe corral <key>            corral one detected secret\n' +
+        '       pd safe corral --all           corral every detected secret\n' +
+        '       (add --apply to write; default is a DRY RUN that prints the plan)\n',
+    );
+    process.exit(2);
+    return;
+  }
+
+  const findings = corralCandidates(all ? undefined : key);
+  if (findings.length === 0) {
+    process.stdout.write(
+      key
+        ? `No detected secret matches key "${key}" in a KEY=value source line.\n`
+        : 'No detected secrets to corral.\n',
+    );
+    process.stdout.write(`\n${CORRAL_HONEST_LIMIT}\n`);
+    process.exit(0);
+    return;
+  }
+
+  const plan = planCorral(findings);
+  const storage = corralStorageStatus();
+
+  if (!apply) {
+    process.stdout.write('pd safe corral — DRY RUN (nothing written). Plan:\n\n');
+    for (const item of plan.items) printPlanItem(item);
+    process.stdout.write(`\nVault: ${storage.storage} (${storage.location})\n`);
+    process.stdout.write(`Backups would be written under: ${plan.backupDir}\n`);
+    process.stdout.write('\nRe-run with --apply to corral (reversible: a .bak is kept and the\n');
+    process.stdout.write('source is rewritten to a pd-secret:// reference resolved at exec time).\n');
+    process.stdout.write(`\n${CORRAL_HONEST_LIMIT}\n`);
+    if (options.json) {
+      process.stdout.write('\n' + JSON.stringify({ dryRun: true, plan, storage, honestLimit: CORRAL_HONEST_LIMIT }, null, 2) + '\n');
+    }
+    process.exit(0);
+    return;
+  }
+
+  if (!storage.available) {
+    process.stderr.write(
+      'pd safe corral --apply: no encrypted secret storage is available on this\n' +
+        'machine (Keychain unavailable). Refusing to corral — it would leave a\n' +
+        'plaintext copy. Nothing was written.\n',
+    );
+    process.exit(1);
+    return;
+  }
+
+  const results = plan.items.map((item) => applyCorralItem(item));
+  const applied = results.filter((r) => r.applied);
+  const skipped = results.filter((r) => !r.applied);
+
+  if (options.json) {
+    process.stdout.write(JSON.stringify({ applied, skipped, storage, honestLimit: CORRAL_HONEST_LIMIT }, null, 2) + '\n');
+  } else {
+    for (const r of applied) {
+      process.stdout.write(
+        `corralled ${r.ruleId} at ${r.path}:${r.line} (…${r.last4}) -> pd-secret://${r.key}\n` +
+          `  round-trip verified, backup at ${r.backupPath}\n`,
+      );
+    }
+    for (const r of skipped) {
+      process.stdout.write(`SKIPPED   ${r.path}:${r.line} (…${r.last4}): ${r.error}\n`);
+    }
+    process.stdout.write(
+      `\nResolve at run time with: pd env exec -- <command>\n` +
+        `(pd-secret:// refs are injected into the child env only; no plaintext at rest).\n`,
+    );
+    process.stdout.write(`\n${CORRAL_HONEST_LIMIT}\n`);
+  }
+  process.exit(skipped.length > 0 && applied.length === 0 ? 1 : 0);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  pd safe guard --staged   (ADR-0088 Phase B / ADR-0053 surface)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Reuse the A1 scanner against `git diff --staged` so a NEW secret is caught at
+ * the commit/push boundary. Exit 1 (blocking) when a staged secret is found.
+ * NO RAW VALUE printed — path/line/ruleId/last4 only.
+ */
+function handleGuard(options: CLIOptions): void {
+  const result = scanStagedDiff();
+
+  if (!result.diffAvailable) {
+    process.stderr.write('pd safe guard: could not read the staged diff (is this a git repo with staged changes?).\n');
+    process.exit(0);
+    return;
+  }
+
+  if (result.findings.length === 0) {
+    if (options.json) {
+      process.stdout.write(JSON.stringify({ clean: true, files: result.files }, null, 2) + '\n');
+    } else if (!options.quiet && !options.q) {
+      process.stdout.write(`pd safe guard: no secrets in ${result.files.length} staged file(s). Clean.\n`);
+    }
+    process.exit(0);
+    return;
+  }
+
+  if (options.json) {
+    process.stdout.write(JSON.stringify({ clean: false, findings: result.findings }, null, 2) + '\n');
+  } else {
+    process.stderr.write('pd safe guard BLOCKED: staged changes add secret(s):\n\n');
+    for (const f of result.findings) {
+      process.stderr.write(`  ${formatStagedFinding(f)}\n`);
+    }
+    process.stderr.write(
+      '\nUn-stage the secret, or corral it first: pd safe corral <KEY> --apply,\n' +
+        'then stage the pd-secret:// reference instead. (Raw value never shown.)\n',
+    );
+  }
+  process.exit(1);
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  Dispatch
 // ════════════════════════════════════════════════════════════════════════
 
@@ -267,10 +429,17 @@ export async function handleSafe(positional: string[], options: CLIOptions): Pro
     case 'fix':
       handleFix(options);
       return;
+    case 'corral':
+      await handleCorral(positional[1], options);
+      return;
+    case 'guard':
+      handleGuard(options);
+      return;
     default:
       process.stderr.write(
         `Unknown subcommand: pd safe ${sub}\n` +
-          'Usage: pd safe scan [--json] | pd safe baseline accept <id> | pd safe fix [--auto]\n',
+          'Usage: pd safe scan [--json] | pd safe baseline accept <id> | pd safe fix [--auto]\n' +
+          '       | pd safe corral <key>|--all [--apply] | pd safe guard [--staged]\n',
       );
       process.exit(2);
   }

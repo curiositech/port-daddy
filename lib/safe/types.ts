@@ -373,3 +373,76 @@ export interface McpInventoryResult {
   /** Absolute paths of the config files that existed and parsed. */
   configsScanned: string[];
 }
+
+// ════════════════════════════════════════════════════════════════════════
+//  PHASE B — secret corral (lib/safe/corral.ts)
+// ════════════════════════════════════════════════════════════════════════
+
+/**
+ * Why a finding could NOT be corralled. The plan stage is fail-safe: a finding
+ * it cannot confidently rewrite is SKIPPED with a reason, never guessed at.
+ * `not-keyed` = the source line is not a `KEY=value` dotenv assignment, so there
+ * is no env-var name to rewrite to a `pd-secret://KEY` ref (e.g. a bare PEM body,
+ * a JSON-embedded token, shell history) — those need a later, format-aware path.
+ * `value-mismatch` = the value re-read at the finding's line no longer matches
+ * the scanner's `last4` (the file changed under us — TOCTOU safety).
+ * `already-ref` = the line already holds a `pd-secret://` reference (idempotent).
+ * `unreadable` = the source file could not be read.
+ */
+export type CorralSkipReason =
+  | 'not-keyed'
+  | 'value-mismatch'
+  | 'already-ref'
+  | 'unreadable'
+  | 'key-collision';
+
+/**
+ * One planned corral action. Built from a {@link SecretFinding} plus the
+ * re-read source line. THE RAW VALUE IS NEVER STORED ON THIS OBJECT — only the
+ * env-var `key` it would be corralled under, the source coordinates, and the
+ * `last4` for operator legibility. The value lives in a closure passed straight
+ * to the vault at apply time; it never crosses a serializable boundary.
+ */
+export interface CorralPlanItem {
+  /** Absolute path of the source file. */
+  path: string;
+  /** 1-based line of the assignment. */
+  line: number;
+  /** The env-var key the value is corralled under (the rewrite target name). */
+  key: string;
+  /** The rule that detected it. */
+  ruleId: string;
+  /** Last 4 of the value (identifier only — never the value). */
+  last4: string;
+  /** The `pd-secret://KEY` reference the source line becomes. */
+  ref: string;
+  /** True when this item can be applied; false → see {@link skipReason}. */
+  corralable: boolean;
+  /** Why an item is not corralable (only when `corralable === false`). */
+  skipReason?: CorralSkipReason;
+}
+
+/** The dry-run plan over a set of findings. NO RAW VALUES anywhere. */
+export interface CorralPlan {
+  items: CorralPlanItem[];
+  /** Absolute path of the `.bak` directory writes would land under. */
+  backupDir: string;
+}
+
+/** The outcome of applying ONE corral item. NO RAW VALUE present. */
+export interface CorralApplyResult {
+  path: string;
+  line: number;
+  key: string;
+  ruleId: string;
+  last4: string;
+  /** True only when: vault save succeeded, resolver round-tripped, .bak written,
+   *  AND the source was rewritten — all four, in that order. */
+  applied: boolean;
+  /** Absolute path of the `.bak` written (when applied). */
+  backupPath?: string;
+  /** True when the resolver round-trip was verified before the rewrite. */
+  roundTripVerified: boolean;
+  /** Failure reason when `applied === false`. NEVER a raw value. */
+  error?: string;
+}

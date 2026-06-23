@@ -345,6 +345,11 @@ _port_daddy() {
           # shellcheck disable=SC2207
           COMPREPLY=( $(compgen -f -- "$cur") )
           ;;
+        env)
+          # `pd env <here>` — offer the `exec` subcommand alongside services.
+          COMPREPLY=( $(compgen -W "exec" -- "$cur") )
+          _pd_complete_service '--file'
+          ;;
         *)
           _pd_complete_service '--file'
           ;;
@@ -1782,7 +1787,7 @@ _port_daddy() {
     # safe  scan|baseline accept <id>|fix [--auto]  (ADR-0088 host-safety)
     # -----------------------------------------------------------------------
     safe)
-      local safe_subcommands='scan baseline fix'
+      local safe_subcommands='scan baseline fix corral guard'
       local subcmd=""
       for (( i = 1; i < cword; i++ )); do
         local w="${words[$i]}"
@@ -1802,6 +1807,10 @@ _port_daddy() {
         _pd_opts '--json --allow --quiet'
       elif [[ "$subcmd" == "fix" ]]; then
         _pd_opts '--auto --json'
+      elif [[ "$subcmd" == "corral" ]]; then
+        _pd_opts '--all --apply --json'
+      elif [[ "$subcmd" == "guard" ]]; then
+        _pd_opts '--staged --json --quiet'
       fi
       ;;
 

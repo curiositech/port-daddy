@@ -42,7 +42,7 @@ import PKG from '../package.json' with { type: 'json' };
 // Command modules (extracted from this file)
 import {
   // Services
-  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, autoIdentityFromPackageJson,
+  handleClaim, handleRelease, handleFind, handleUrl, handleEnv, handleEnvExec, autoIdentityFromPackageJson,
   // Locks
   handleLock, handleUnlock, handleLocks,
   // Messaging
@@ -2523,7 +2523,14 @@ export async function main(): Promise<void> {
         break;
 
       case 'env':
-        await handleEnv(positional[0], options);
+        if (positional[0] === 'exec') {
+          // `pd env exec -- <cmd>` resolves pd-secret:// refs into the child env
+          // only (ADR-0088 Phase B access path). `--` flattens the command into
+          // positional, so everything after `exec` is the command + its args.
+          await handleEnvExec(positional.slice(1), options);
+        } else {
+          await handleEnv(positional[0], options);
+        }
         break;
 
       // Agent coordination

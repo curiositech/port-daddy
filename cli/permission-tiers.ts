@@ -234,6 +234,16 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'safe baseline': 'silent',        // bare form is a usage hint
   'safe baseline accept': 'notify', // writes .pd-secrets-baseline.json
   'safe fix': 'approval',           // chmod of crown-jewel perms (opt-in, reversible)
+  // safe corral: dry-run (default) is read-only; --apply writes the vault AND
+  // rewrites a source file (reversible — a .bak is kept) → a host write → approval.
+  'safe corral': 'silent',          // dry-run plan only by default
+  'safe corral --apply': 'approval',// packs secret into vault + rewrites source
+  'safe guard': 'silent',           // read-only scan of the staged diff
+
+  // env exec runs an arbitrary child command (with pd-secret:// refs resolved
+  // into its env). Running an arbitrary command is a notify-tier action; the
+  // plain `pd env` listing stays silent via TIER_REGISTRY.
+  'env exec': 'notify',
 
   // release: bare release of caller's own port is notify; --expired is global
   'release --expired': 'destructive',

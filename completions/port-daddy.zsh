@@ -311,7 +311,30 @@ _pd_cmd_env() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
-    '1:service identity:_pd_complete_services'
+    '1:env subcommand or service identity:((exec\:"run a command with pd-secret\:// refs resolved into its env"))'
+}
+
+# pd safe scan|baseline|fix|corral|guard  (ADR-0088 host-safety)
+_pd_cmd_safe() {
+  local -a safe_subs
+  safe_subs=(
+    'scan:read-only posture audit (0-100 score + blast radius)'
+    'baseline:triage a finding into .pd-secrets-baseline.json'
+    'fix:opt-in reversible chmod of world/group-readable crown jewels'
+    'corral:pack a detected secret into the vault + rewrite source to pd-secret://'
+    'guard:scan the staged diff for NEW secrets (--staged)'
+  )
+  if (( CURRENT == 2 )); then
+    _describe 'safe subcommand' safe_subs
+    return
+  fi
+  case "${words[2]}" in
+    scan)   _arguments '--json[structured report]' '--allow[allowlisted hosts]:hosts:' ;;
+    fix)    _arguments '--auto[apply the reversible chmod]' '--json[structured output]' ;;
+    corral) _arguments '--all[corral every detected secret]' '--apply[write (default is dry-run)]' '--json[structured output]' ;;
+    guard)  _arguments '--staged[scan the staged diff]' '--json[structured output]' '(-q --quiet)'{-q,--quiet}'[suppress output]' ;;
+    baseline) _arguments '1:action:(accept)' ;;
+  esac
 }
 
 _pd_cmd_pub() {
@@ -2239,6 +2262,7 @@ _port_daddy() {
         l|list|ps|services)  _pd_cmd_list ;;
         url)                _pd_cmd_url ;;
         env)                _pd_cmd_env ;;
+        safe)               _pd_cmd_safe ;;
         tunnel)             _pd_cmd_tunnel ;;
         dns)                _pd_cmd_dns ;;
         pub|publish|broadcast) _pd_cmd_pub ;;

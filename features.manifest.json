@@ -76,7 +76,7 @@
       }
     },
     "endpoints": {
-      "description": "Service endpoint URLs and environment variable export",
+      "description": "Service endpoint URLs and environment variable export. `pd env exec -- <cmd>` additionally resolves pd-secret:// env refs (ADR-0088 Phase B corral) into the child process env only — never to disk.",
       "cli": [
         "url",
         "env"
@@ -1055,7 +1055,7 @@
       }
     },
     "safe": {
-      "description": "Host-safety posture audit (ADR-0088 Phase A) — pd safe scan|baseline|fix / GET /safe/scan / safe_scan. Read-only secret-at-rest + crown-jewel-perm + binary-trust + egress + MCP-supply-chain scan; opt-in reversible chmod fix.",
+      "description": "Host-safety layer (ADR-0088) — pd safe scan|baseline|fix|corral|guard / GET /safe/scan / safe_scan. Phase A: read-only secret-at-rest + crown-jewel-perm + binary-trust + egress + MCP-supply-chain scan; opt-in reversible chmod fix. Phase B: `corral` packs a detected secret into the Keychain/broker vault + rewrites the source to a pd-secret:// ref (dry-run default, --apply to write, resolver round-trip verified before rewrite); `guard --staged` scans the staged diff for NEW secrets. Resolve corralled refs at run time with `pd env exec -- <cmd>`.",
       "cli": [
         "safe"
       ],
