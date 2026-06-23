@@ -99,6 +99,11 @@
   Use exactly one of:
     Roadmap-Item: <slug>
     Roadmap-Item: none — <reason>     (chore/docs/hotfix)
+
+  PLANNING DOCS (a new ADR, a PLAN/ROADMAP file, a docs/ proposal) must ALSO
+  enumerate the downstream items they spawn — a plan exists to create work:
+    Roadmap-Spawns: <slug-a>, <slug-b>
+    Roadmap-Spawns: none — <reason>   (supersedes/clarifies only, no new work)
 -->
 
 Roadmap-Item:

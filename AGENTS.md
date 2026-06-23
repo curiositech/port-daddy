@@ -402,6 +402,13 @@ tracked work instead of vanishing. The mechanism:
 - **A broken roadmap is loud, not silent.** If the snapshot is missing, empty,
   or stale, the gate shouts (🔴 comment + step summary) and tells you to
   regenerate it — a stale mirror must never read as "all clear".
+- **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
+  `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
+  items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or
+  `Roadmap-Spawns: none — <reason>` when it only supersedes/clarifies). A plan
+  exists to generate work; without the spawn line the PR gets
+  `needs-roadmap-spawn` and waits for a human. Detection is by file path, so it
+  fires on the actual document, not on prose.
 
 ### Shell gotchas (real and recurring)
 

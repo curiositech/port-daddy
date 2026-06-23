@@ -18,9 +18,16 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { classify, type RoadmapSnapshot, type LinkResult } from '../lib/roadmap-link-core';
+import {
+  classify,
+  classifyPlanningSpawn,
+  type RoadmapSnapshot,
+  type LinkResult,
+  type SpawnResult,
+} from '../lib/roadmap-link-core';
 
 const LABEL = 'needs-roadmap-link';
+const SPAWN_LABEL = 'needs-roadmap-spawn';
 const COMMENT_MARKER = '<!-- roadmap-link-gate -->';
 const SNAPSHOT_PATH = resolve('docs/roadmap/roadmap.snapshot.json');
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -29,6 +36,7 @@ interface PrInfo {
   number: number;
   body: string;
   labels: string[];
+  files: string[];
 }
 
 function gh(args: string[]): string {
@@ -39,11 +47,12 @@ function gh(args: string[]): string {
 function resolvePr(): PrInfo | null {
   const argNum = process.argv.find((a) => /^\d+$/.test(a));
   if (argNum) {
-    const json = JSON.parse(gh(['pr', 'view', argNum, '--json', 'number,body,labels']));
+    const json = JSON.parse(gh(['pr', 'view', argNum, '--json', 'number,body,labels,files']));
     return {
       number: json.number,
       body: json.body ?? '',
       labels: (json.labels ?? []).map((l: { name: string }) => l.name),
+      files: (json.files ?? []).map((f: { path: string }) => f.path),
     };
   }
   const eventPath = process.env.GITHUB_EVENT_PATH;
@@ -51,10 +60,20 @@ function resolvePr(): PrInfo | null {
   const event = JSON.parse(readFileSync(eventPath, 'utf8'));
   const pr = event.pull_request;
   if (!pr) return null;
+  // The pull_request event payload has no file list; ask gh for it.
+  let files: string[] = [];
+  try {
+    files = gh(['pr', 'view', String(pr.number), '--json', 'files', '-q', '.files[].path'])
+      .split('\n')
+      .filter(Boolean);
+  } catch {
+    /* file-derived rules just won't fire */
+  }
   return {
     number: pr.number,
     body: pr.body ?? '',
     labels: (pr.labels ?? []).map((l: { name: string }) => l.name),
+    files,
   };
 }
 
@@ -116,6 +135,27 @@ function buildComment(r: LinkResult): string {
   return lines.join('\n');
 }
 
+function spawnSection(s: SpawnResult): string[] {
+  if (!s.isPlanning) return [];
+  const lines: string[] = ['', '### 📐 Planning-doc spawn check', ''];
+  const files = s.planningFiles.map((f) => `\`${f.split('/').pop()}\``).join(', ');
+  switch (s.reason) {
+    case 'spawns-declared':
+      lines.push(`✅ Declares ${s.spawnedSlugs.length} downstream item(s): ${s.spawnedSlugs.map((x) => `\`${x}\``).join(', ')}.`);
+      break;
+    case 'spawn-opt-out':
+      lines.push(`✅ ${s.headline}`);
+      break;
+    case 'missing-spawns':
+      lines.push(`⚠️ This PR changes a planning doc (${files}) but **declares no downstream roadmap items.**`, '');
+      lines.push('A plan/ADR exists to create work. List the items it spawns:', '');
+      lines.push('```', 'Roadmap-Spawns: <slug-a>, <slug-b>, <slug-c>', '# or, if it only supersedes/clarifies with no new work:', 'Roadmap-Spawns: none — <reason>', '```');
+      lines.push('', `Until then this PR carries \`${SPAWN_LABEL}\` and **needs a human to approve the land.**`);
+      break;
+  }
+  return lines;
+}
+
 function writeStepSummary(r: LinkResult, pr: PrInfo): void {
   const summaryFile = process.env.GITHUB_STEP_SUMMARY;
   if (!summaryFile) return;
@@ -140,22 +180,27 @@ function writeStepSummary(r: LinkResult, pr: PrInfo): void {
   }
 }
 
-function syncLabel(pr: PrInfo, want: boolean): void {
-  const has = pr.labels.includes(LABEL);
+const LABEL_DESC: Record<string, string> = {
+  [LABEL]: 'PR does not link a roadmap item — needs human approval to land',
+  [SPAWN_LABEL]: 'Planning doc declares no downstream roadmap items — needs human approval to land',
+};
+
+function syncLabel(pr: PrInfo, label: string, want: boolean): void {
+  const has = pr.labels.includes(label);
   if (want === has) return;
   const flag = want ? '--add-label' : '--remove-label';
   if (DRY_RUN) {
-    console.log(`[dry-run] gh pr edit ${pr.number} ${flag} ${LABEL}`);
+    console.log(`[dry-run] gh pr edit ${pr.number} ${flag} ${label}`);
     return;
   }
   try {
-    gh(['pr', 'edit', String(pr.number), flag, LABEL]);
+    gh(['pr', 'edit', String(pr.number), flag, label]);
   } catch {
     // Label may not exist yet on a fresh repo; create then retry add.
     if (want) {
       try {
-        gh(['label', 'create', LABEL, '--color', 'B60205', '--description', 'PR does not link a roadmap item — needs human approval to land', '--force']);
-        gh(['pr', 'edit', String(pr.number), '--add-label', LABEL]);
+        gh(['label', 'create', label, '--color', 'B60205', '--description', LABEL_DESC[label] ?? '', '--force']);
+        gh(['pr', 'edit', String(pr.number), '--add-label', label]);
       } catch { /* non-fatal */ }
     }
   }
@@ -195,18 +240,26 @@ function main(): void {
   }
   const snapshot = loadSnapshot();
   const result = classify(pr.body, snapshot);
+  const spawn = classifyPlanningSpawn(pr.body, pr.files);
 
-  console.log(`PR #${pr.number}: ${result.verdict} (${result.reason}) — ${result.headline}`);
+  console.log(`PR #${pr.number}: link=${result.verdict}(${result.reason}) spawn=${spawn.reason} — ${result.headline}`);
   writeStepSummary(result, pr);
 
-  const passed = result.verdict === 'pass';
-  // Only nag with a comment when there's something to fix or shout about.
-  if (!passed) upsertComment(pr, buildComment(result));
-  syncLabel(pr, result.labelShouldBePresent);
+  const linkPass = result.verdict === 'pass';
+  const spawnPass = spawn.verdict === 'pass';
+  const passed = linkPass && spawnPass;
+
+  // Comment when there's something to fix or shout about (link or spawn).
+  if (!passed) {
+    const body = [buildComment(result), ...spawnSection(spawn)].join('\n');
+    upsertComment(pr, body);
+  }
+  syncLabel(pr, LABEL, result.labelShouldBePresent);
+  syncLabel(pr, SPAWN_LABEL, spawn.labelShouldBePresent);
 
   // Non-blocking: a red check here is a visible signal, but this job is NOT in
-  // the required-checks list, so it cannot stop a merge on its own. The label
-  // is what makes the land wait for a human.
+  // the required-checks list, so it cannot stop a merge on its own. The labels
+  // are what make the land wait for a human.
   process.exit(passed ? 0 : 1);
 }
 

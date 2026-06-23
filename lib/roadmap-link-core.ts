@@ -74,6 +74,7 @@ export interface LinkResult {
 }
 
 const TRAILER_KEYS = ['roadmap-item', 'roadmap'];
+const SPAWN_KEYS = ['roadmap-spawns', 'roadmap-spawn'];
 const OPT_OUT_TOKEN = 'none';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -110,6 +111,134 @@ export function parseRoadmapTrailer(body: string | null | undefined): {
     }
   }
   return { slug, optOutReason };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Planning-doc spawn rule
+//
+// A planning document (an ADR, a PLAN/ROADMAP file, a docs/ proposal/RFC) exists
+// to *generate downstream work*. Merely linking it to one roadmap item is not
+// enough — the gate also asks it to enumerate the items it spawns, via a trailer:
+//
+//     Roadmap-Spawns: slug-a, slug-b, slug-c
+//     Roadmap-Spawns: none — <reason>     (e.g. supersedes-only, no new work)
+//
+// Detection is by FILE PATH (structured), never by reading prose — so it cannot
+// suffer the recall problems of content keyword-matching.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** True when a changed path is a planning document that should spawn work. */
+export function isPlanningDoc(path: string): boolean {
+  const p = path.replace(/^\.\//, '');
+  return (
+    /^docs\/adr\/\d{3,4}[-.].*\.md$/i.test(p) || // a numbered ADR
+    /^(PLAN|ROADMAP|[A-Z0-9]+-(ROADMAP|PLAN|DAG))\.md$/.test(p) || // top-level plans
+    /^docs\/.*\b(plan|roadmap|proposal|rfc)\b[^/]*\.md$/i.test(p) // docs/ proposals
+  );
+}
+
+/** The planning docs among a PR's changed files. */
+export function planningDocsIn(changedFiles: string[] | null | undefined): string[] {
+  return (changedFiles ?? []).filter(isPlanningDoc);
+}
+
+/** Parse the `Roadmap-Spawns:` trailer into slugs (or an opt-out reason). */
+export function parseSpawns(body: string | null | undefined): {
+  slugs: string[];
+  optOutReason: string | null;
+} {
+  if (!body) return { slugs: [], optOutReason: null };
+  let slugs: string[] = [];
+  let optOutReason: string | null = null;
+  for (const rawLine of body.split(/\r?\n/)) {
+    const m = rawLine.trim().match(/^([A-Za-z][A-Za-z-]*)\s*:\s*(.+)$/);
+    if (!m) continue;
+    if (!SPAWN_KEYS.includes(m[1].toLowerCase())) continue;
+    const value = m[2].trim();
+    if (value.split(/[\s—–:-]/)[0]?.toLowerCase() === OPT_OUT_TOKEN) {
+      optOutReason = value.slice(OPT_OUT_TOKEN.length).replace(/^[\s—–:-]+/, '').trim() || 'unspecified';
+      slugs = [];
+    } else {
+      slugs = value
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      optOutReason = null;
+    }
+  }
+  return { slugs, optOutReason };
+}
+
+export interface SpawnResult {
+  /** Whether the PR touches any planning doc (rule only applies if so). */
+  isPlanning: boolean;
+  planningFiles: string[];
+  verdict: Verdict;
+  reason: 'not-planning' | 'spawns-declared' | 'spawn-opt-out' | 'missing-spawns';
+  spawnedSlugs: string[];
+  requiresHumanApproval: boolean;
+  labelShouldBePresent: boolean;
+  headline: string;
+}
+
+/**
+ * Planning-doc spawn check. If a PR adds/edits a planning doc, it must declare
+ * the downstream roadmap items it spawns (or opt out with a reason).
+ */
+export function classifyPlanningSpawn(
+  body: string | null | undefined,
+  changedFiles: string[] | null | undefined,
+): SpawnResult {
+  const planningFiles = planningDocsIn(changedFiles);
+  if (planningFiles.length === 0) {
+    return {
+      isPlanning: false,
+      planningFiles: [],
+      verdict: 'pass',
+      reason: 'not-planning',
+      spawnedSlugs: [],
+      requiresHumanApproval: false,
+      labelShouldBePresent: false,
+      headline: 'Not a planning-doc PR — spawn rule does not apply.',
+    };
+  }
+  const { slugs, optOutReason } = parseSpawns(body);
+  if (optOutReason) {
+    return {
+      isPlanning: true,
+      planningFiles,
+      verdict: 'pass',
+      reason: 'spawn-opt-out',
+      spawnedSlugs: [],
+      requiresHumanApproval: false,
+      labelShouldBePresent: false,
+      headline: `Planning doc with no new work declared — ${optOutReason}.`,
+    };
+  }
+  if (slugs.length > 0) {
+    return {
+      isPlanning: true,
+      planningFiles,
+      verdict: 'pass',
+      reason: 'spawns-declared',
+      spawnedSlugs: slugs,
+      requiresHumanApproval: false,
+      labelShouldBePresent: false,
+      headline: `Planning doc spawns ${slugs.length} roadmap item(s): ${slugs.join(', ')}.`,
+    };
+  }
+  return {
+    isPlanning: true,
+    planningFiles,
+    verdict: 'needs-approval',
+    reason: 'missing-spawns',
+    spawnedSlugs: [],
+    requiresHumanApproval: true,
+    labelShouldBePresent: true,
+    headline: `This PR changes a planning doc (${planningFiles
+      .map((f) => f.split('/').pop())
+      .join(', ')}) but declares no downstream roadmap items.`,
+  };
 }
 
 /** A snapshot is broken when absent, malformed, or carries no items. */

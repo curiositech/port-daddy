@@ -2,6 +2,10 @@ import {
   parseRoadmapTrailer,
   snapshotBrokenReason,
   classify,
+  isPlanningDoc,
+  planningDocsIn,
+  parseSpawns,
+  classifyPlanningSpawn,
   type RoadmapSnapshot,
 } from '../../lib/roadmap-link-core';
 
@@ -137,5 +141,79 @@ describe('classify', () => {
     const r = classify('Roadmap-Item: maybe-new', snap(FRESH.items, 40), { now: NOW });
     expect(r.verdict).toBe('broken');
     expect(r.loud).toBe(true);
+  });
+});
+
+describe('isPlanningDoc / planningDocsIn', () => {
+  test('numbered ADRs and top-level plans are planning docs', () => {
+    expect(isPlanningDoc('docs/adr/0044-shadow-db-path-consolidation.md')).toBe(true);
+    expect(isPlanningDoc('PLAN.md')).toBe(true);
+    expect(isPlanningDoc('V4-DAG.md')).toBe(true);
+    expect(isPlanningDoc('docs/marketing/launch-proposal.md')).toBe(true);
+  });
+  test('ordinary code and non-planning docs are not', () => {
+    expect(isPlanningDoc('lib/roadmap-items.ts')).toBe(false);
+    expect(isPlanningDoc('docs/operations/daemon-and-supervision.md')).toBe(false);
+    expect(isPlanningDoc('README.md')).toBe(false);
+  });
+  test('planningDocsIn filters a changed-file list', () => {
+    expect(
+      planningDocsIn(['lib/x.ts', 'docs/adr/0090-thing.md', 'README.md']),
+    ).toEqual(['docs/adr/0090-thing.md']);
+  });
+});
+
+describe('parseSpawns', () => {
+  test('comma/space separated slug list', () => {
+    expect(parseSpawns('Roadmap-Spawns: a-slug, b-slug c-slug').slugs).toEqual([
+      'a-slug',
+      'b-slug',
+      'c-slug',
+    ]);
+  });
+  test('opt-out with reason', () => {
+    const r = parseSpawns('Roadmap-Spawns: none — supersedes ADR-0050, no new work');
+    expect(r.slugs).toEqual([]);
+    expect(r.optOutReason).toContain('supersedes');
+  });
+  test('absent trailer yields empty', () => {
+    expect(parseSpawns('no trailer here')).toEqual({ slugs: [], optOutReason: null });
+  });
+});
+
+describe('classifyPlanningSpawn', () => {
+  test('non-planning PR is a pass and inert', () => {
+    const r = classifyPlanningSpawn('Roadmap-Item: x', ['lib/a.ts', 'src/b.ts']);
+    expect(r.isPlanning).toBe(false);
+    expect(r.verdict).toBe('pass');
+    expect(r.labelShouldBePresent).toBe(false);
+  });
+
+  test('planning PR WITHOUT spawns needs approval', () => {
+    const r = classifyPlanningSpawn('Roadmap-Item: x', ['docs/adr/0091-new-thing.md']);
+    expect(r.isPlanning).toBe(true);
+    expect(r.reason).toBe('missing-spawns');
+    expect(r.verdict).toBe('needs-approval');
+    expect(r.requiresHumanApproval).toBe(true);
+    expect(r.labelShouldBePresent).toBe(true);
+  });
+
+  test('planning PR WITH declared spawns passes', () => {
+    const r = classifyPlanningSpawn(
+      'Roadmap-Item: x\nRoadmap-Spawns: adr-0091-phase-0, adr-0091-phase-1',
+      ['docs/adr/0091-new-thing.md'],
+    );
+    expect(r.verdict).toBe('pass');
+    expect(r.reason).toBe('spawns-declared');
+    expect(r.spawnedSlugs).toEqual(['adr-0091-phase-0', 'adr-0091-phase-1']);
+  });
+
+  test('planning PR with explicit spawn opt-out passes', () => {
+    const r = classifyPlanningSpawn(
+      'Roadmap-Spawns: none — supersedes ADR-0050 only',
+      ['docs/adr/0091-new-thing.md'],
+    );
+    expect(r.verdict).toBe('pass');
+    expect(r.reason).toBe('spawn-opt-out');
   });
 });
