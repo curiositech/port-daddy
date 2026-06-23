@@ -2064,7 +2064,9 @@
       "routes": [
         "POST /dispatches",
         "GET /dispatches",
+        "GET /dispatches/worker/status",
         "GET /dispatches/:id",
+        "POST /dispatches/:id/run",
         "POST /dispatches/:id/accept",
         "POST /dispatches/:id/reject",
         "POST /dispatches/:id/cancel"
