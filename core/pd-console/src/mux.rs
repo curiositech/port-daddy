@@ -60,7 +60,7 @@ impl SurfaceKind {
         match self {
             SurfaceKind::AgentTranscript { agent_id: Some(id) } => format!("agent {id}"),
             SurfaceKind::AgentTranscript { agent_id: None } => "agent (newest)".into(),
-            SurfaceKind::Roadmap => "roadmap".into(),
+            SurfaceKind::Roadmap => "planner".into(),
             SurfaceKind::CartographerChat => "cartographer".into(),
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),

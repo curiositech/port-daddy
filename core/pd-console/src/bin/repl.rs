@@ -30,6 +30,7 @@
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../peek_pane.rs"]      mod peek_pane;
+#[path = "../planner_pane.rs"]   mod planner_pane;
 #[path = "../prs_pane.rs"]       mod prs_pane;
 #[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
