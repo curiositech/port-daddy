@@ -277,6 +277,19 @@ describe('GET /msg/:channel/lineage', () => {
     expect(body.digest.byRelationship.contradicts).toBe(1);
     expect(body.digest.unresolvedContradictions).toHaveLength(1);
     expect(body.tree).toContain('#1 alice [act=propose]: do X');
+    // RCP-2a parley decision: 1 unresolved × default waste 2 > default cost 1 → convene.
+    expect(body.parley.convene).toBe(true);
+    expect(body.parley.shape).toBe('debate-with-judge');
+    expect(body.parley.unresolved).toBe(1);
+  });
+
+  test('parley holds when waste does not beat the cost (?parleyCost high)', async () => {
+    app = await buildApp([
+      { id: 1, sender: 'a', createdAt: 1, payload: env('claim') },
+      { id: 2, sender: 'b', createdAt: 2, payload: env('wrong', { inReplyTo: 1, relationship: 'contradicts' }) },
+    ]);
+    const res = await app.inject({ method: 'GET', url: '/msg/chan/lineage?parleyCost=100' });
+    expect(res.json().parley.convene).toBe(false);
   });
 
   test('scopes to a single conversationId when provided', async () => {

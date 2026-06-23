@@ -34,6 +34,7 @@
 #[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
 #[path = "../substrate_pane.rs"] mod substrate_pane;
+#[path = "../parley_pane.rs"]    mod parley_pane;
 #[path = "../suggest_pane.rs"]   mod suggest_pane;
 #[path = "../term.rs"]           mod term;
 #[path = "../theme.rs"]          mod theme;
@@ -46,6 +47,7 @@ use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::PaneRegistry;
 use substrate_pane::SubstratePane;
+use parley_pane::ParleyPane;
 use std::io::{self, Write};
 use std::time::Duration;
 use term::{ColorMode, Sem, TermStyle};
@@ -70,7 +72,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · :lineage · :substrate · <text> · :quit",
+            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · :lineage · :substrate · :parley · <text> · :quit",
             Sem::Muted
         )
     );
@@ -95,6 +97,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(LanePane::new()));
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
+    reg.register(Box::new(ParleyPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -158,6 +161,15 @@ async fn main() -> Result<()> {
             // RCP-7a/12 pheromone substrate — coverage + active signals (raw →
             // effective). Refresh + render one tick of the substrate surface.
             reg.active = reg.panes.iter().position(|p| p.id() == "substrate").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":parley" {
+            // RCP-2a convene decision over the channel's unresolved contradictions.
+            reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }

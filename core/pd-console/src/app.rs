@@ -161,6 +161,7 @@ const NAV: &[NavItem] = &[
     NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
     NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
     NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
+    NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
 ];
 
