@@ -67,8 +67,18 @@ export async function handleBegin(
   // Flag takes precedence over positional
   purpose = purpose || (options.purpose as string) || undefined;
 
-  if (!purpose && canPrompt()) {
-    // Interactive wizard
+  // Any of these flags signals a deliberate non-interactive `pd begin`: a caller
+  // who supplied a scoping argument is scripting, not driving a wizard. Treat
+  // their presence (alongside non-TTY / CI) as a hard "do not prompt" signal so
+  // the `--files` / `--identity` / `--lifecycle` forms can NEVER drop into an
+  // interactive prompt and hang on stdin even when one piece (e.g. purpose) is
+  // missing — that was the begin-hang. The wizard runs ONLY when invoked bare.
+  const hasScopingArgs = Boolean(
+    options.identity || options.agent || options.files || options.lifecycle || options.name,
+  );
+
+  if (!purpose && canPrompt() && !hasScopingArgs) {
+    // Interactive wizard — only reached for a bare `pd begin` in a real TTY.
     purpose = await promptText({ label: 'What are you working on?', required: true }) || undefined;
     if (!purpose) {
       ui.error('Purpose is required');

@@ -334,6 +334,14 @@ const TOOLS = [
           items: { type: 'string' },
           description: 'Files to claim for this session (advisory — shows conflicts to other agents)',
         },
+        lifecycle: {
+          type: 'string',
+          enum: ['durable', 'ephemeral'],
+          description:
+            'Session lifecycle. "durable" (default) is ordinary agent work that persists until you end it; ' +
+            '"ephemeral" is a heartbeat-bound process session that the daemon may reap when the process goes away. ' +
+            'Defaults to "durable" if omitted.',
+        },
       },
       required: ['purpose'],
     },
@@ -3215,6 +3223,14 @@ async function handleTool(
       if (args.agent_id) body.agentId = args.agent_id;
       if (args.type) body.type = args.type;
       if (args.files) body.files = args.files;
+      // The daemon's /sugar/begin requires an explicit lifecycle and rejects the
+      // request with SESSION_LIFECYCLE_REQUIRED when it is absent. Default to
+      // "durable" so an MCP-driven agent can start a session without having to
+      // know the daemon-internal contract, while still honoring an explicit
+      // "ephemeral" when the caller asks for a heartbeat-bound session.
+      const rawLifecycle =
+        typeof args.lifecycle === 'string' ? args.lifecycle.trim().toLowerCase() : '';
+      body.lifecycle = rawLifecycle === 'ephemeral' ? 'ephemeral' : 'durable';
       res = await POST('/sugar/begin', body);
 
       // Attach salvage context — check if any dead agents share this project

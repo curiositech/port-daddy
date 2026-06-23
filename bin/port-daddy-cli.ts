@@ -2278,6 +2278,14 @@ export async function main(): Promise<void> {
   // (e.g. `--files A --files B`).
   const REPEATABLE_FLAGS: Set<string> = new Set(['files']);
 
+  // Flags that greedily consume EVERY following non-dash token, not just one
+  // (e.g. `--files a b c` → ['a','b','c']). Without this, `--files a b c`
+  // captured only `a` and leaked `b c` into positional args — which, for
+  // `pd begin "purpose" --files a b c`, scrambled the purpose/file split and
+  // contributed to the begin confusion. Repeatable still applies, so
+  // `--files a b --files c` also works.
+  const VARIADIC_FLAGS: Set<string> = new Set(['files']);
+
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {
       const existing = options[key];
@@ -2312,8 +2320,16 @@ export async function main(): Promise<void> {
         const key: string = arg.slice(2);
         const next: string | undefined = args[i + 1];
         if (next && !next.startsWith('-')) {
-          assignOption(key, next);
-          i++;
+          if (VARIADIC_FLAGS.has(key)) {
+            // Greedily swallow every following non-dash token.
+            while (args[i + 1] !== undefined && !args[i + 1].startsWith('-') && args[i + 1] !== '--') {
+              assignOption(key, args[i + 1]);
+              i++;
+            }
+          } else {
+            assignOption(key, next);
+            i++;
+          }
         } else {
           assignOption(key, true);
         }

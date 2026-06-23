@@ -575,6 +575,109 @@ describe('CLI Integration Tests', () => {
     });
   });
 
+  // ===========================================================================
+  // pd-session-coordination-hardening: non-interactive begin → note →
+  // session files add round-trip across a divergent context slot.
+  // ===========================================================================
+  describe('Session coordination hardening', () => {
+    // Defect #1: a fully-specified, non-interactive begin must never prompt and
+    // must capture every --files token (variadic) plus --lifecycle.
+    test('non-interactive begin with --files a b c --lifecycle durable does not hang and claims all files', () => {
+      const slot = `coord-begin-${Date.now()}`;
+      try {
+        const result = runCli(
+          [
+            'begin', 'Coordination hardening begin',
+            '--identity', 'test-project:api:coord',
+            '--files', 'coord/a.ts', 'coord/b.ts', 'coord/c.ts',
+            '--lifecycle', 'durable',
+            '--json',
+          ],
+          { env: { PORT_DADDY_CONTEXT_SLOT: slot } },
+        );
+
+        expect(result.success).toBe(true);
+        const data = JSON.parse(result.stdout);
+        expect(data.success).toBe(true);
+        expect(data.sessionId).toBeTruthy();
+        expect(data.lifecycle).toBe('durable');
+        // All three --files tokens must be claimed (variadic flag), not just the first.
+        expect(data.fileClaims).toEqual(
+          expect.arrayContaining(['coord/a.ts', 'coord/b.ts', 'coord/c.ts']),
+        );
+
+        runCli(['done', '--json', '--skip-origin-check', '--reason', 'coord begin test'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: slot } });
+      } finally {
+        clearTestCurrentContext(slot);
+      }
+    }, 30000);
+
+    // Defect #2 (resolver divergence): begin writes context under one slot;
+    // the next `pd note` / `pd session files add` runs in a process that
+    // computes a DIFFERENT slot (no matching slot file). They must still
+    // resolve begin's session via the legacy pointer — NOT silently fall
+    // through to an auto-created quick-notes session.
+    test('note and session files add resolve begin session across a divergent slot', async () => {
+      const beginSlot = `coord-rt-begin-${Date.now()}`;
+      const followupSlot = `coord-rt-follow-${Date.now()}`;
+      try {
+        // 1. begin under beginSlot
+        const beginResult = runCli(
+          [
+            'begin', 'Round-trip resolver test',
+            '--identity', 'test-project:api:roundtrip',
+            '--lifecycle', 'durable',
+            '--json',
+          ],
+          { env: { PORT_DADDY_CONTEXT_SLOT: beginSlot } },
+        );
+        expect(beginResult.success).toBe(true);
+        const beginData = JSON.parse(beginResult.stdout);
+        const sessionId = beginData.sessionId;
+        expect(sessionId).toBeTruthy();
+
+        // 2. note under a DIFFERENT slot (no followupSlot file exists). The
+        //    legacy current.json (written by begin) is the cross-process anchor.
+        const noteResult = runCli(
+          ['note', 'Note from a divergent slot', '--json'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: followupSlot } },
+        );
+        expect(noteResult.success).toBe(true);
+        const noteData = JSON.parse(noteResult.stdout);
+        // Must land on begin's session, not an auto-created quick-notes session.
+        expect(noteData.sessionId).toBe(sessionId);
+
+        // 3. session files add under the same divergent slot resolves too.
+        const filesResult = runCli(
+          ['session', 'files', 'add', 'roundtrip/x.ts', '--json'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: followupSlot } },
+        );
+        expect(filesResult.success).toBe(true);
+
+        // 4. Confirm the note + file claim actually landed on begin's session
+        //    (query the daemon directly, not via a CLI subcommand).
+        const detail = await requestWithRetry(`/sessions/${encodeURIComponent(sessionId)}`);
+        expect(detail.ok).toBe(true);
+        const files = (detail.data.files || detail.data.session?.files || []);
+        const filePaths = Array.isArray(files)
+          ? files.map(f => f.filePath || f.file_path || f.path)
+          : [];
+        expect(filePaths).toEqual(expect.arrayContaining(['roundtrip/x.ts']));
+
+        const notes = detail.data.notes || [];
+        expect(notes.some(n => typeof n.content === 'string'
+          && n.content.includes('Note from a divergent slot'))).toBe(true);
+
+        runCli(['done', '--json', '--skip-origin-check', '--reason', 'roundtrip test'],
+          { env: { PORT_DADDY_CONTEXT_SLOT: beginSlot } });
+      } finally {
+        clearTestCurrentContext(beginSlot);
+        clearTestCurrentContext(followupSlot);
+      }
+    }, 45000);
+  });
+
   describe('Bug Regression Tests', () => {
     // Bug #1: Channels CLI was showing "-" for all channel names
     // because it expected { name, messageCount, subscriberCount }

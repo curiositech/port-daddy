@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **`pd begin` no longer hangs on interactive input when invoked non-interactively (begin-hang).** The interactive wizard now runs only for a bare `pd begin` in a real TTY. Supplying any scoping flag (`--identity`, `--agent`, `--files`, `--lifecycle`, `--name`) — or running in a non-TTY / CI shell — forces non-interactive mode, so the scripted `--files`/`--lifecycle` form can never drop into a stdin prompt and block.
+- **`--files a b c` now claims all listed files (variadic).** The CLI arg parser previously captured only the first token after `--files` and leaked the rest into positional args, which scrambled the purpose/file split for `pd begin "purpose" --files a b c`. `--files` is now greedily variadic (and still repeatable: `--files a b --files c`).
+- **`pd note` / `pd session files add` resolve the active session across process-slot divergence (resolver divergence).** The CLI context slot is derived from volatile process identity (TTY path / `TERM_SESSION_ID` / `process.ppid`), which routinely differs between the process that ran `pd begin` and the next command in the same logical shell (subshells, pipelines, `eval $(pd begin)`, linked worktrees). When no slot-specific context file matched, `readCurrentContext` returned null and the daemon silently auto-created a separate "quick notes" session — so the note landed on the wrong session while the Coordination Guard still saw the real session active. It now falls back to the per-cwd legacy `current.json` anchor; downstream `/sugar/whoami` validation still fails closed on a stale record.
+- **MCP `begin_session` can now actually start a session (lifecycle parity).** The daemon's `/sugar/begin` requires an explicit `lifecycle`, but the MCP tool exposed no such parameter and was always rejected with `SESSION_LIFECYCLE_REQUIRED`. `begin_session` now accepts an optional `lifecycle` (`durable` | `ephemeral`) and defaults to `durable`, matching the CLI/daemon contract.
+
 ## [3.22.0] - 2026-06-23
 
 The **dev-daemon** release: feature-branch daemons become first-class and

@@ -568,6 +568,46 @@ describe('Sugar Integration Tests', () => {
       expect(res.data.success).toBe(false);
       expect(res.data.code).toBe('SESSION_LIFECYCLE_REQUIRED');
     });
+
+    // Regression: pd-session-coordination-hardening defect #3 (MCP parity gap).
+    // The MCP begin_session tool defaults lifecycle to 'durable' and forwards it
+    // to this route. Prove the exact body an MCP-driven begin_session produces is
+    // accepted by the daemon, so an MCP agent can actually start a session.
+    test('begin with the MCP default lifecycle "durable" succeeds', async () => {
+      const res = await request('/sugar/begin', {
+        method: 'POST',
+        body: {
+          purpose: 'MCP begin_session parity',
+          identity: 'test-project:api:mcp-parity',
+          lifecycle: 'durable', // exactly what the MCP handler now sends
+        },
+      });
+
+      expect(res.ok).toBe(true);
+      expect(res.data.success).toBe(true);
+      expect(res.data.sessionId).toBeTruthy();
+      expect(res.data.lifecycle).toBe('durable');
+
+      if (res.data.agentId) createdAgents.push(res.data.agentId);
+      await sugarDone({ sessionId: res.data.sessionId });
+    });
+
+    test('begin with the MCP explicit lifecycle "ephemeral" succeeds', async () => {
+      const res = await request('/sugar/begin', {
+        method: 'POST',
+        body: {
+          purpose: 'MCP begin_session ephemeral parity',
+          lifecycle: 'ephemeral',
+        },
+      });
+
+      expect(res.ok).toBe(true);
+      expect(res.data.success).toBe(true);
+      expect(res.data.lifecycle).toBe('ephemeral');
+
+      if (res.data.agentId) createdAgents.push(res.data.agentId);
+      await sugarDone({ sessionId: res.data.sessionId });
+    });
   });
 
   // ===========================================================================

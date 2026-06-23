@@ -868,3 +868,50 @@ describe('MCP salvage and agent routes (previously-known bugs, now fixed)', () =
     }
   });
 });
+
+// ============================================================================
+// 6. begin_session lifecycle parity (pd-session-coordination-hardening defect #3)
+// ============================================================================
+
+describe('begin_session lifecycle parameter parity', () => {
+  /**
+   * Extract the `begin_session` tool object's inputSchema source from the TOOLS
+   * array. The daemon's POST /sugar/begin hard-requires lifecycle and rejects
+   * the request with SESSION_LIFECYCLE_REQUIRED when it is absent, so the MCP
+   * tool MUST expose a lifecycle parameter AND the handler MUST send one (with
+   * a sane default) — otherwise an MCP-driven agent can never start a session.
+   */
+  function beginSessionToolBlock() {
+    // Slice from the begin_session tool name to the start of the next tool
+    // (end_session_full) so we only inspect begin_session's own schema.
+    const startIdx = mcpContent.indexOf("name: 'begin_session'");
+    expect(startIdx).toBeGreaterThan(-1);
+    const afterStart = mcpContent.slice(startIdx);
+    const nextToolIdx = afterStart.indexOf("name: 'end_session_full'");
+    return nextToolIdx > -1 ? afterStart.slice(0, nextToolIdx) : afterStart;
+  }
+
+  function beginSessionCaseBlock() {
+    const startIdx = mcpContent.indexOf("case 'begin_session':");
+    expect(startIdx).toBeGreaterThan(-1);
+    const afterStart = mcpContent.slice(startIdx);
+    const nextCaseIdx = afterStart.indexOf("case 'end_session_full':");
+    return nextCaseIdx > -1 ? afterStart.slice(0, nextCaseIdx) : afterStart;
+  }
+
+  it('begin_session inputSchema exposes a lifecycle parameter', () => {
+    const block = beginSessionToolBlock();
+    expect(block).toContain('lifecycle');
+    // It should be a constrained enum of durable | ephemeral.
+    expect(block).toMatch(/enum:\s*\[\s*'durable'\s*,\s*'ephemeral'\s*\]/);
+  });
+
+  it('begin_session handler forwards lifecycle to /sugar/begin with a default', () => {
+    const block = beginSessionCaseBlock();
+    // The handler must set body.lifecycle (so the daemon does not reject with
+    // SESSION_LIFECYCLE_REQUIRED) and default to durable when unspecified.
+    expect(block).toMatch(/body\.lifecycle\s*=/);
+    expect(block).toContain("'durable'");
+    expect(block).toContain("'ephemeral'");
+  });
+});

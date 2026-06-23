@@ -95,11 +95,20 @@ describe('current-context helper', () => {
 
     clearCurrentContext(projectDir);
 
-    const legacySlot = process.env.PORT_DADDY_CONTEXT_SLOT;
+    // Clearing slot shell-b removes its slot file and rewrites the legacy
+    // pointer to the surviving slot (shell-a / session-a). Reading under
+    // shell-a finds its own slot file directly.
     process.env.PORT_DADDY_CONTEXT_SLOT = 'shell-a';
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
-    process.env.PORT_DADDY_CONTEXT_SLOT = legacySlot;
-    expect(readCurrentContext(projectDir)).toBeNull();
+
+    // Reading under the now-cleared shell-b slot has no slot file, so it falls
+    // back to the legacy pointer (the surviving session-a). This is the
+    // cross-process anchor that prevents the begin/note resolver divergence:
+    // a follow-up command whose volatile slot differs must still resolve the
+    // most-recent active session for the cwd rather than returning null (which
+    // would silently route writes to an auto-created quick-notes session).
+    process.env.PORT_DADDY_CONTEXT_SLOT = 'shell-b';
+    expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
   });
 
   it('uses Codex thread identity as the stable non-interactive slot', () => {
@@ -117,7 +126,18 @@ describe('current-context helper', () => {
     expect(readCurrentContext(projectDir)?.sessionId).toBe('session-a');
   });
 
-  it('does not reuse another ppid slot through the legacy pointer', () => {
+  // Regression: pd-session-coordination-hardening defect #2 (resolver divergence).
+  // `pd begin` writes the legacy current.json with the slot it computed
+  // (e.g. ppid-<beginShell>). The next `pd note` / `pd session files add` runs
+  // in a different process whose slot differs (different ppid / TTY /
+  // TERM_SESSION_ID — routine across subshells, pipelines, `eval $(pd begin)`,
+  // and linked worktrees). When no slot file matches the reader's slot, it MUST
+  // fall back to the legacy pointer so the follow-up command resolves begin's
+  // session. The previous behavior returned null here, which made the daemon
+  // auto-create a separate "quick notes" session — the note landed on the wrong
+  // session while the Coordination Guard (reading the same legacy file) still
+  // saw the real session active.
+  it('reuses the legacy pointer when the reader computes a different ppid slot', () => {
     delete process.env.PORT_DADDY_CONTEXT_SLOT;
 
     writeCurrentContext({
@@ -128,7 +148,12 @@ describe('current-context helper', () => {
       contextSlot: 'ppid-previous-shell',
     }, projectDir);
 
-    expect(readCurrentContext(projectDir)).toBeNull();
+    // The reader's slot (resolveContextSlot()) will NOT be 'ppid-previous-shell',
+    // so there is no matching slot file — yet the legacy pointer must resolve.
+    const resolved = readCurrentContext(projectDir);
+    expect(resolved).not.toBeNull();
+    expect(resolved?.sessionId).toBe('session-a');
+    expect(resolved?.agentId).toBe('agent-a');
   });
 
   it('returns env-var context when PD_AGENT_ID is set, ignoring filesystem', () => {

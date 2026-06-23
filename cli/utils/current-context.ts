@@ -127,9 +127,27 @@ export function readCurrentContext(cwd: string = process.cwd()): CurrentContext 
   const slot = resolveContextSlot();
   const slotRecord = readContextFile(getContextPathForSlot(slot, cwd));
   if (slotRecord) return slotRecord;
+
+  // No slot-specific context for the slot THIS process computed. The slot is
+  // derived from volatile process identity (PORT_DADDY_CONTEXT_SLOT, codex
+  // thread, TTY path, TERM_SESSION_ID, then a process.ppid fallback). Those
+  // routinely differ between the process that ran `pd begin` and the next
+  // `pd note` / `pd session files add` in the SAME logical shell — e.g. when
+  // either runs inside a subshell, a pipeline, an `eval $(pd begin ...)`, or a
+  // linked git worktree. When that happens we MUST NOT return null: callers
+  // that get null silently fall through to an auto-created "quick notes"
+  // session on the daemon, so the note lands on the wrong session while the
+  // Coordination Guard (which reads the same legacy file) still sees the real
+  // session active — the begin/note resolver divergence.
+  //
+  // The legacy current.json is the per-cwd anchor: it is rewritten by every
+  // `pd begin` to point at the most-recent session for this directory. Trust
+  // it as the cross-process fallback regardless of the slot recorded inside
+  // it. Liveness is still enforced downstream: `pd note` / `pd session files
+  // add` validate the resolved session via /sugar/whoami before writing, so a
+  // stale legacy record fails closed rather than writing to a dead session.
   const legacy = readContextFile(getLegacyContextPath(cwd));
   if (!legacy) return null;
-  if (!canUseLegacyContextForSlot(legacy, slot)) return null;
   return legacy;
 }
 
