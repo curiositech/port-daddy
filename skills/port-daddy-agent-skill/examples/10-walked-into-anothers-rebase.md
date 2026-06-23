@@ -78,7 +78,7 @@ git am /tmp/my-work.patch
 #   apply your changes manually, the patch is just a backup
 
 # 8. Re-run tests + coordination.
-pd begin "<your task>" --identity ...
+pd begin "<your task>" --identity ... --lifecycle durable
 pd note "Scope: ..."
 # claim files, work, commit, push
 ```

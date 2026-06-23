@@ -8,6 +8,19 @@ import { CLOUDFLARE_BACKEND_SETUP_LINKS, type BackendSetupLink } from './backend
 export interface BackendReadiness {
   backend: string;
   status: 'ready' | 'needs_setup' | 'manual_check' | 'unknown';
+  /**
+   * True when the daemon may attempt a spawn even though `status` is not
+   * `ready`. Set for installed local CLI backends whose auth genuinely cannot
+   * be verified offline (the `cli:*` tube backends): the binary is present,
+   * and a missing/expired token surfaces as a real non-zero-exit error at
+   * runtime — `lib/spawner/backends/cli-tube.ts` maps auth-failure stderr to an
+   * actionable message and enforces a kill-timeout, so there is no silent hang.
+   * Deliberately NOT set for probed-and-degraded `manual_check` states such as
+   * ollama with its server down, where a launch cannot succeed. The launch gate
+   * (`lib/spawn-preflight.ts`) treats `ready || launchableUnverified` as
+   * launchable; everything else stays blocked.
+   */
+  launchableUnverified?: boolean;
   summary: string;
   nextStep?: string;
   credentialKeys?: string[];
@@ -27,24 +40,13 @@ const require = createRequire(import.meta.url);
 // this readiness check used the bare PATH and fail-closed BEFORE the executor ran,
 // reporting "Claude CLI binary not found" for an install that works in the user's
 // shell. Resolve the same locations the executor does so the gate matches reality.
-// Standard per-user CLI install dirs, plus an operator override
-// (PD_CLI_BIN_DIRS, colon-separated). Computed per-call so the override is
-// honored at runtime (and testable). Operators whose agent CLI lives somewhere
-// unusual can point the daemon at it without touching launchd's PATH.
-function cliBinDirs(): string[] {
-  const home = process.env.HOME || '';
-  const override = process.env.PD_CLI_BIN_DIRS
-    ? process.env.PD_CLI_BIN_DIRS.split(':').filter(Boolean)
-    : [];
-  return [
-    ...override,
-    join(home, '.local', 'bin'), // claude-code + many per-user installs
-    join(home, '.claude', 'local'), // claude-code alternate install path
-    join(home, '.codex', 'bin'), // codex
-    '/opt/homebrew/bin',
-    '/usr/local/bin',
-  ];
-}
+// Standard per-user CLI install dirs live in lib/cli-bin-dirs.ts, shared
+// with the spawn path (lib/spawner/backends/cli-tube.ts) so this readiness
+// gate and the actual spawn resolve binaries against the SAME locations —
+// otherwise readiness can say "binary exists" while the spawn fails under
+// launchd's bare PATH.
+import { cliBinDirs } from './cli-bin-dirs.js';
+export { cliBinDirs };
 
 export function commandExists(command: string): boolean {
   const augmentedPath = [process.env.PATH || '', ...cliBinDirs()].filter(Boolean).join(':');
@@ -94,6 +96,9 @@ function applyTelemetryPolicy(
     status: 'needs_setup',
     summary,
     nextStep: nextStep || undefined,
+    // A telemetry-policy block must override the launchable-unverified opt-in:
+    // never let an installed CLI backend launch past a data-egress refusal.
+    launchableUnverified: false,
   };
 }
 
@@ -291,6 +296,7 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Claude Code CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `claude -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=claude-code forces all spawns through this CLI.',
         setupCommand: 'claude -p "hello"',
@@ -311,9 +317,73 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        launchableUnverified: true,
         summary: 'Codex CLI binary found; auth cannot be verified non-interactively',
         nextStep: 'Run `codex exec "hello"` once to confirm auth. PD_USE_CLI_BACKEND=codex forces all spawns through this CLI.',
         setupCommand: 'codex exec "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:gemini': {
+      const bin = process.env.PD_CLI_GEMINI_BIN || 'gemini';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Gemini CLI binary "${bin}" not found`,
+          nextStep: 'Install the Gemini CLI (npm install -g @google/gemini-cli) and run `gemini` once to authenticate.',
+          setupCommand: 'npm install -g @google/gemini-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Gemini CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `gemini -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=gemini forces all spawns through this CLI.',
+        setupCommand: 'gemini -p "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:groq': {
+      const bin = process.env.PD_CLI_GROQ_BIN || 'groq';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Groq CLI binary "${bin}" not found`,
+          nextStep: 'Install the Groq Code CLI (npm install -g groq-code-cli) and run `groq` once to authenticate.',
+          setupCommand: 'npm install -g groq-code-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Groq CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `groq -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=groq forces all spawns through this CLI.',
+        setupCommand: 'groq -p "hello"',
+      }, telemetryPolicy);
+    }
+
+    case 'cli:grok': {
+      const bin = process.env.PD_CLI_GROK_BIN || 'grok';
+      if (!commandExists(bin)) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'needs_setup',
+          summary: `Grok CLI binary "${bin}" not found`,
+          nextStep: 'Install the Grok CLI (npm install -g @vibe-kit/grok-cli) and authenticate before using this backend.',
+          setupCommand: 'npm install -g @vibe-kit/grok-cli',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'manual_check',
+        launchableUnverified: true,
+        summary: 'Grok CLI binary found; auth cannot be verified non-interactively',
+        nextStep: 'Run `grok -p "hello"` once to confirm auth. PD_USE_CLI_BACKEND=grok forces all spawns through this CLI.',
+        setupCommand: 'grok -p "hello"',
       }, telemetryPolicy);
     }
 

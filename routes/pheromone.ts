@@ -68,6 +68,30 @@ export const pheromonePlugin: FastifyPluginAsync<{ deps: PheromoneRouteDeps }> =
     return { success: true, table, id, key, strength: str, pheromones: result.pheromones };
   });
 
+  // POST /pheromone/resolve — deposit a RESOLUTION trace (RCP-7a): mark a key on
+  // an entity as resolved so its pheromone is damped on effective reads.
+  fastify.post('/pheromone/resolve', async (request, reply) => {
+    const { table, id, key, strength } = request.body as any;
+    if (!table || typeof table !== 'string') { reply.code(400); return { success: false, error: 'table is required' }; }
+    if (!id || typeof id !== 'string') { reply.code(400); return { success: false, error: 'id is required' }; }
+    if (!key || typeof key !== 'string') { reply.code(400); return { success: false, error: 'key is required' }; }
+    const str = typeof strength === 'number' ? strength : parseFloat(String(strength ?? 1));
+    if (isNaN(str) || str < 0 || str > 1) { reply.code(400); return { success: false, error: 'strength must be 0-1' }; }
+
+    const result = pheromones.sprayResolution(table, id, key, str);
+    if (!result.success) { reply.code(404); return { success: false, error: `Entity not found: ${table}/${id}` }; }
+    return { success: true, table, id, key, strength: str, resolutions: result.resolutions };
+  });
+
+  // GET /pheromone/coverage/:table — RCP-12: fraction of a table's entities that
+  // carry any pheromone ("seen"), plus the unseen set, for an innate scan.
+  fastify.get('/pheromone/coverage/:table', async (request, reply) => {
+    const { table } = request.params as any;
+    const result = pheromones.coverage(table);
+    if (!result.success) { reply.code(400); return { success: false, error: `Invalid table: ${table}` }; }
+    return result;
+  });
+
   // GET /pheromone/files?path=src/&depth=3
   fastify.get('/pheromone/files', async (request, reply) => {
     const pathPrefix = ((request.query as any).path as string) || '';
@@ -184,14 +208,16 @@ export const pheromonePlugin: FastifyPluginAsync<{ deps: PheromoneRouteDeps }> =
     }
   });
 
-  // GET /pheromone/:table/:id
+  // GET /pheromone/:table/:id[?effective=1] — raw heat, or (effective) heat with
+  // anti-inflammatory resolution damping applied (RCP-7a).
   fastify.get('/pheromone/:table/:id', async (request, reply) => {
     const { table, id } = request.params as any;
-    const result = pheromones.sniff(table, id);
+    const effective = ['1', 'true', 'yes'].includes(String((request.query as any).effective ?? '').toLowerCase());
+    const result = effective ? pheromones.sniffEffective(table, id) : pheromones.sniff(table, id);
     if (!result.success) {
       reply.code(404); return { success: false, error: `Entity not found: ${table}/${id}` };
     }
-    return { success: true, table, id, pheromones: result.pheromones };
+    return { success: true, table, id, effective, pheromones: result.pheromones };
   });
 
   // GET /pheromone

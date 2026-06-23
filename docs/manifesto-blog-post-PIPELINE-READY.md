@@ -186,7 +186,7 @@ It starts, unglamorously, with not losing an hour of work to a file collision. E
 
 ```bash
 brew install curiositech/tap/port-daddy
-pd begin --identity myapp:auth --purpose "refactoring token refresh"
+pd begin --identity myapp:auth --purpose "refactoring token refresh" --lifecycle durable
 pd session files claim src/auth.ts
 # If another agent reaches for that file, the institution already said no.
 ```

@@ -1,0 +1,364 @@
+STATS:
+ bin/port-daddy-cli.ts               |  12 +
+ cli/commands/index.ts               |   2 +
+ cli/commands/morning.ts             | 181 +++++++++++++
+ cli/commands/nightshift.ts          | 365 +++++++++++++++++++++++++
+ completions/port-daddy.bash         |   2 +
+ completions/port-daddy.fish         |  14 +-
+ completions/port-daddy.zsh          |   2 +
+ docs/proposals/pd-nightshift.md     | 176 ++++++++++++
+ lib/nightshift/queue.ts             | 527 ++++++++++++++++++++++++++++++++++++
+ lib/nightshift/runner.ts            | 293 ++++++++++++++++++++
+ pd-fleet.yml                        |  23 ++
+ tests/unit/nightshift-queue.test.js | 332 +++++++++++++++++++++++
+ tests/unit/nightshift-slug.test.js  | 266 ++++++++++++++++++
+ 13 files changed, 2194 insertions(+), 1 deletion(-)
+
+---
+LAST COMMIT:
+db40a23e4e303e5ccd37add73db7269d87a1c8bb
+Erich Owens <[redacted]>
+2026-05-20 12:28:20 -0700
+feat(nightshift): autonomous overnight feature-level dev -- first cut
+
+Add the pd nightshift queue and runner: operator drops vague hopes into a
+SQLite-backed intent queue; a runner pops them, plans an autonomous spawn
+in a fresh worktree under ~/coding/tmp/nightshift/<id>, and (in this first
+cut) prints the plan rather than actually invoking the bypass-mode agent.
+The flip from dry-run to really-run is opt-in and requires the wrapper
+deny-list to be wired -- documented in docs/proposals/pd-nightshift.md.
+
+Wired end-to-end:
+- nightshift_intents SQL table (self-initializing CREATE IF NOT EXISTS)
+- lib/nightshift/queue.ts: propose, queue, next (atomic pop), markRunning,
+  markComplete, cancel, markReviewed
+- lib/nightshift/runner.ts: planRunFor + runNext; builds argv for claude
+  --dangerously-skip-permissions and codex --full-auto --sandbox
+  workspace-write without ever shelling out the intent text
+- cli/commands/nightshift.ts: propose, queue, list, show, run, review,
+  cancel
+- cli/commands/morning.ts: start-of-day summary table
+- pd-fleet.yml: commented nightshift-runner ship for the cron path
+- bash/zsh/fish completions for the new commands
+- 61 unit tests; tsc clean; bijective-parity 414/414 still pass
+
+Stubbed deliberately:
+- The 'really-run' path needs a spawnAdapter that the daemon does not yet
+  provide; runner.ts ships the interface, callers print the plan
+- The claude pre-tool-use deny-list hook for forbidding push-to-main is
+  NOT wired in this PR; codex's --sandbox workspace-write is the only
+  enforced bound for the codex backend today
+- The pd morning TUI is a plain table; the Bostock-density variant is
+  follow-up
+
+Operator-input decisions called out in the proposal:
+1. Default backend (recommended: codex, because the sandbox is enforced
+   by codex itself, not by a wrapper)
+2. Whether the agent opens a PR as it goes, or commits to the branch
+   only and waits for pd morning to push (current default: branch-only)
+
+
+---
+DIFF (first 300 lines):
+diff --git a/bin/port-daddy-cli.ts b/bin/port-daddy-cli.ts
+index 2349beb5..3ca3fbb6 100755
+--- a/bin/port-daddy-cli.ts
++++ b/bin/port-daddy-cli.ts
+@@ -86,6 +86,8 @@ import {
+   handleHistory,
+   // Spawn + Watch
+   handleSpawn, handleSpawned, handleWatch, handleSortie,
++  // Nightshift -- autonomous overnight feature dev
++  handleNightshift, handleMorning,
+   // Harbors
+   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
+   // Demo
+@@ -1207,6 +1209,7 @@ const ALL_COMMANDS: string[] = [
+   'quorum',
+   'feedback',
+   'cockpit',
++  'nightshift', 'morning',
+ ];
+ 
+ /** Simple Levenshtein distance for short strings */
+@@ -2676,6 +2679,15 @@ export async function main(): Promise<void> {
+         await handleSortie(positional, options);
+         break;
+ 
++      // Nightshift -- autonomous overnight feature dev queue
++      case 'nightshift':
++        await handleNightshift(positional, options);
++        break;
++
++      case 'morning':
++        await handleMorning(positional, options);
++        break;
++
+       // Watch — ambient agent kernel (SSE subscriber)
+       case 'watch':
+         await handleWatch(positional[0], options);
+diff --git a/cli/commands/index.ts b/cli/commands/index.ts
+index c689012a..71e8ec0c 100644
+--- a/cli/commands/index.ts
++++ b/cli/commands/index.ts
+@@ -50,3 +50,5 @@ export * from './add.js';
+ export * from './snapshots.js';
+ export * from './shipwright.js';
+ export * from './cockpit.js';
++export * from './nightshift.js';
++export * from './morning.js';
+diff --git a/cli/commands/morning.ts b/cli/commands/morning.ts
+new file mode 100644
+index 00000000..074fbd8a
+--- /dev/null
++++ b/cli/commands/morning.ts
+@@ -0,0 +1,181 @@
++/**
++ * pd morning -- start-of-day summary of overnight nightshift completions.
++ *
++ * The Bostock-density variant (small multiples, sparkline of cost vs cap,
++ * inline transcript previews) is a follow-up. This first cut prints a
++ * plain-text table that is honest about what ran, what cost it, and what
++ * needs operator attention.
++ *
++ * Default time window is the last 18 hours (covers an overnight from
++ * yesterday evening through breakfast). Override with --since <iso|ms>.
++ */
++
++import { initDatabase } from '../../lib/db.js';
++import { createNightshiftQueue, type NightshiftIntent } from '../../lib/nightshift/queue.js';
++
++import type { CLIOptions } from '../types.js';
++import { isJson, isQuiet } from '../types.js';
++import * as ui from '../utils/ui.js';
++
++const DEFAULT_LOOKBACK_HOURS = 18;
++
++function parseSince(value: unknown): number {
++  if (typeof value === 'number' && Number.isFinite(value)) return value;
++  if (typeof value === 'string' && value.trim()) {
++    // Try ISO first
++    const iso = Date.parse(value);
++    if (Number.isFinite(iso)) return iso;
++    const numeric = Number.parseInt(value, 10);
++    if (Number.isFinite(numeric) && numeric > 0) return numeric;
++  }
++  return Date.now() - DEFAULT_LOOKBACK_HOURS * 60 * 60 * 1000;
++}
++
++function statusGlyph(status: NightshiftIntent['status']): string {
++  switch (status) {
++    case 'succeeded': return '+';
++    case 'failed':
++    case 'aborted':
++    case 'timeout': return 'x';
++    case 'cancelled': return '-';
++    case 'running': return '>';
++    case 'queued':
++    case 'proposed': return '.';
++    default: return '?';
++  }
++}
++
++function formatDuration(ms: number | null): string {
++  if (ms == null || !Number.isFinite(ms) || ms <= 0) return '   --';
++  const totalSec = Math.round(ms / 1000);
++  const hours = Math.floor(totalSec / 3600);
++  const minutes = Math.floor((totalSec % 3600) / 60);
++  if (hours > 0) return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
++  if (minutes > 0) return `${minutes} min`;
++  return `${totalSec}s`;
++}
++
++function formatCost(usd: number | null): string {
++  if (usd == null || !Number.isFinite(usd)) return '   --';
++  return `$${usd.toFixed(2)}`;
++}
++
++interface MorningSummary {
++  windowStart: number;
++  windowEnd: number;
++  intents: NightshiftIntent[];
++  totals: {
++    completed: number;
++    succeeded: number;
++    failed: number;
++    inFlight: number;
++    cancelled: number;
++    totalCostUsd: number;
++  };
++}
++
++export function summarize(intents: NightshiftIntent[], windowStart: number, windowEnd: number): MorningSummary {
++  let succeeded = 0;
++  let failed = 0;
++  let inFlight = 0;
++  let cancelled = 0;
++  let totalCostUsd = 0;
++  for (const intent of intents) {
++    if (intent.status === 'succeeded') succeeded += 1;
++    else if (intent.status === 'failed' || intent.status === 'aborted' || intent.status === 'timeout') failed += 1;
++    else if (intent.status === 'running') inFlight += 1;
++    else if (intent.status === 'cancelled') cancelled += 1;
++    if (intent.costUsd != null && Number.isFinite(intent.costUsd)) totalCostUsd += intent.costUsd;
++  }
++  return {
++    windowStart,
++    windowEnd,
++    intents,
++    totals: {
++      completed: succeeded + failed + cancelled,
++      succeeded,
++      failed,
++      inFlight,
++      cancelled,
++      totalCostUsd,
++    },
++  };
++}
++
++export async function handleMorning(args: string[], options: CLIOptions): Promise<void> {
++  // args may carry --since-relative shorthand later; not used today.
++  void args;
++  const windowStart = parseSince(options.since);
++  const windowEnd = Date.now();
++
++  const db = initDatabase();
++  const queue = createNightshiftQueue({ db });
++  const intents = queue.list({ since: windowStart });
++  const summary = summarize(intents, windowStart, windowEnd);
++
++  if (isJson(options)) {
++    console.log(JSON.stringify(summary, null, 2));
++    return;
++  }
++
++  if (isQuiet(options)) {
++    console.log(
++      `${summary.totals.succeeded} succeeded, ${summary.totals.failed} failed, ` +
++        `${summary.totals.inFlight} in flight, ${formatCost(summary.totals.totalCostUsd)} total`,
++    );
++    return;
++  }
++
++  const startIso = new Date(windowStart).toISOString();
++  const endIso = new Date(windowEnd).toISOString();
++  ui.intro('pd morning');
++  console.log(`Window: ${startIso} -> ${endIso}`);
++  console.log('');
++
++  if (summary.intents.length === 0) {
++    console.log('Nothing ran in this window.');
++    console.log('');
++    console.log('Drop an intent for tonight:');
++    console.log('  pd nightshift propose "<what you wish was done by morning>"');
++    return;
++  }
++
++  console.log('  id        status       slug                              duration   cost   pr/branch');
++  console.log('  --------  -----------  --------------------------------  ---------  -----  ----------');
++  for (const intent of summary.intents) {
++    const idShort = intent.id.slice(0, 8);
++    const glyph = statusGlyph(intent.status);
++    const status = `${glyph} ${intent.status}`.padEnd(11);
++    const slug = intent.slug.slice(0, 32).padEnd(32);
++    const dur = formatDuration(intent.durationMs).padEnd(9);
++    const cost = formatCost(intent.costUsd).padEnd(5);
++    const trailer = intent.prUrl
++      ? intent.prUrl
++      : intent.branchName
++        ? `branch:${intent.branchName}`
++        : '(no branch yet)';
++    console.log(`  ${idShort}  ${status}  ${slug}  ${dur}  ${cost}  ${trailer}`);
++  }
++
++  console.log('');
++  console.log(
++    `${summary.totals.succeeded} succeeded  ` +
++      `${summary.totals.failed} failed  ` +
++      `${summary.totals.inFlight} in flight  ` +
++      `${summary.totals.cancelled} cancelled  ` +
++      `total cost ${formatCost(summary.totals.totalCostUsd)}`,
++  );
++
++  const needsReview = summary.intents.filter(
++    (i) =>
++      (i.status === 'succeeded' || i.status === 'failed' || i.status === 'aborted' || i.status === 'timeout') &&
++      i.reviewedAt == null,
++  );
++  if (needsReview.length > 0) {
++    console.log('');
++    console.log(`${needsReview.length} intent(s) need review:`);
++    for (const intent of needsReview) {
++      console.log(`  pd nightshift review ${intent.id}`);
++    }
++  }
++}
+diff --git a/cli/commands/nightshift.ts b/cli/commands/nightshift.ts
+new file mode 100644
+index 00000000..fd9bc588
+--- /dev/null
++++ b/cli/commands/nightshift.ts
+@@ -0,0 +1,365 @@
++/**
++ * pd nightshift -- operator queue for autonomous overnight feature dev.
++ *
++ * First cut is intentionally direct-DB: propose / queue / show / cancel /
++ * review all operate against the same SQLite file the daemon uses. The
++ * `run` subcommand prints a plan but does not invoke the autonomous agent
++ * unless --really-run is passed AND the operator has acknowledged the
++ * blast-radius caveats (claude wrapper deny-list is not yet wired).
++ *
++ * No daemon HTTP route exists for nightshift yet. That is the next
++ * follow-up PR once the cron path lands.
++ */
++
++import { initDatabase } from '../../lib/db.js';
++import {
++  createNightshiftQueue,
++  type NightshiftIntent,
++  type NightshiftStatus,
++} from '../../lib/nightshift/queue.js';
++import {
++  planRunFor,
++  runNext,
++  type NightshiftBackend,
++} from '../../lib/nightshift/runner.js';
++
++import type { CLIOptions } from '../types.js';
++import { isJson, isQuiet } from '../types.js';
++import * as ui from '../utils/ui.js';
++
++function usage(): never {
++  console.error('Usage: pd nightshift <subcommand> [args]');
++  console.error('');
++  console.error('Subcommands:');
++  console.error('  propose <intent text>   Drop an intent into the queue (status=proposed)');
++  console.error('  queue [id]              Promote a proposed intent to queued; with no id, list all queued');
++  console.error('  list                    List intents (default: all)');
++  console.error('  show <id>               Show one intent in detail');
++  console.error('  run <id>                Run a specific intent (default --dry-run)');
++  console.error('  run --next              Run the next queued intent (default --dry-run)');
++  console.error('  review <id>             Stamp the operator review timestamp + print PR / branch');
++  console.error('  cancel <id> [--reason]  Cancel a non-terminal intent');
++  console.error('  help                    Show this help');
++  console.error('');
++  console.error('Options:');
++  console.error('  --tags a,b,c            Comma-separated tags for propose');
++  console.error('  --backend <name>        cli:claude-code | cli:codex (default: cli:codex)');
++  console.error('  --budget <usd>          Per-intent budget ceiling (default 5, max 25)');
++  console.error('  --timeout <seconds>     Per-intent timeout (default 10800 = 3h, max 21600 = 6h)');
++  console.error('  --status <status>       Filter list: proposed|queued|running|open|terminal|all');
++  console.error('  --limit <n>             Limit list results');
++  console.error('  --auto-queue            propose: skip the proposed step, go straight to queued');
++  console.error('  --really-run            run: actually spawn (default is dry-run -- prints plan only)');
++  console.error('  --reason <text>         cancel: record a reason');
++  console.error('  -j, --json              JSON output');
++  console.error('  -q, --quiet             Quiet output');
++  process.exit(1);
++}
++
++function parseBackend(value: unknown): NightshiftBackend | undefined {
++  if (value === 'cli:claude-code' || value === 'cli:codex') return value;
+
+... [2022 more lines truncated]

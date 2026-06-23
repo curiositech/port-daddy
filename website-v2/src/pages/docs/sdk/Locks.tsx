@@ -19,14 +19,15 @@ export default function LocksSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="gold">Current</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Locks Module
         </h1>
         <p className="text-xl text-[var(--text-secondary)] leading-relaxed">
-          Distributed locks for preventing conflicts in multi-agent environments.
-          Use locks when multiple agents might modify the same files or resources.
+          Advisory locks for coordinating work in multi-agent environments.
+          A lock announces that an agent intends to touch a resource; it signals intent
+          rather than blocking other processes at the OS level. Use locks to coordinate
+          when multiple agents might modify the same files or resources.
         </p>
       </div>
 
@@ -48,28 +49,28 @@ export default function LocksSdk() {
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Unique name for this lock</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
-                <span className="text-xs text-[var(--text-muted)]">number</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">number</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Time-to-live in seconds (default: 60)</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.wait</code>
-                <span className="text-xs text-[var(--text-muted)]">boolean</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">boolean</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Wait for lock instead of failing immediately</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.timeout</code>
-                <span className="text-xs text-[var(--text-muted)]">number</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">number</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Max wait time in milliseconds (when wait=true)</p>
             </div>
@@ -153,7 +154,7 @@ if (!lock) {
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">The lock name to release</p>
             </div>
@@ -193,7 +194,7 @@ console.log(released) // true`}
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">name</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Lock name</p>
             </div>
@@ -201,14 +202,14 @@ console.log(released) // true`}
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">fn</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">() =&gt; Promise&lt;T&gt;</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">() =&gt; Promise&lt;T&gt;</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Function to execute while holding the lock</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options</code>
-                <span className="text-xs text-[var(--text-muted)]">LockOptions</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">LockOptions</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Same options as acquireLock</p>
             </div>
@@ -271,7 +272,7 @@ if (result === null) {
           <div>
             <h3 className="font-medium text-[var(--text-primary)] mb-2">File Modifications</h3>
             <p className="text-sm text-[var(--text-muted)]">
-              Prevent multiple agents from editing the same file simultaneously.
+              Signal that an agent is editing a file so others can hold off until it releases.
             </p>
           </div>
           <div>

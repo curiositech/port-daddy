@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, FileDown, FileText, Github, MonitorCheck, ShieldCheck, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import {
   PageContainer,
   PanelBody,
@@ -13,21 +14,21 @@ import { WHITE_PAPERS } from '@/data/whitePapers'
 
 const START_PATHS = [
   {
-    label: 'Human path',
+    label: 'For you',
     title: 'Open FleetBar first',
-    detail: 'Select the project, check daemon health, inspect agents, and see guard posture before asking for more automation.',
+    detail: 'Pick a project, check that the background service is running, and see which agents are working and what they have claimed.',
     icon: MonitorCheck,
   },
   {
-    label: 'Agent path',
-    title: 'Let agents write state',
-    detail: 'The CLI remains the substrate for sessions, notes, claims, and handoffs. It belongs in agent workflows and docs with real output.',
+    label: 'For your agents',
+    title: 'Let agents write to the shared workspace',
+    detail: 'Agents use the terminal to start sessions, leave notes, claim files, and hand work to each other. That is where they live.',
     icon: Terminal,
   },
   {
-    label: 'Proof path',
-    title: 'Verify before shipping',
-    detail: 'Guard checks staged files against active sessions and claims, so coordinated work can fail closed at commit time.',
+    label: 'Before you commit',
+    title: 'Check the work first',
+    detail: 'The guard fails closed at the commit: it blocks any commit whose staged files are not claimed by an active session. The commit is the one hard gate — file claims before it are advisory.',
     icon: ShieldCheck,
   },
 ] as const
@@ -39,16 +40,16 @@ export function CTABanner() {
         <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.96fr)_minmax(24rem,0.74fr)] lg:items-start">
           <div className="grid gap-[var(--space-5)]">
             <div className="space-y-[var(--space-4)]">
-              <PanelEyebrow>Signed Mac build</PanelEyebrow>
-              <PanelTitle as="h2" size="display" className="max-w-[13ch]">
-                Install the coordination layer, then drive it from FleetBar.
+              <PanelEyebrow>Install Port Daddy</PanelEyebrow>
+              <PanelTitle as="h2" size="display" className="max-w-[15ch]">
+                Install it, then run your fleet from FleetBar.
               </PanelTitle>
               <PanelBody className="max-w-[46rem]">
-                Port Daddy is still open-source infrastructure. The product surface is now the Mac
-                app, Fleet Control Center, <RoleTerm role="shipwright">Shipwright</RoleTerm>,{' '}
-                <RoleTerm role="sortie">sorties</RoleTerm>, resource controls, backend readiness,
-                and agent-to-agent handoffs. Agents can use the CLI; humans should not have to infer
-                the product from command fragments.
+                Port Daddy is open source and free. You run it from the Mac app: pick a project,
+                start a <RoleTerm role="shipwright">Shipwright</RoleTerm> to plan a fleet of agents,
+                launch a one-off <RoleTerm role="sortie">sortie</RoleTerm>, set spending limits, and
+                hand work between agents. Agents stay in the terminal. You should not have to read
+                command output to know what is going on.
               </PanelBody>
             </div>
 
@@ -79,62 +80,65 @@ export function CTABanner() {
               <Button asChild variant="primary" size="lg">
                 <Link to="/mac-preview#download">
                   <MonitorCheck size={16} />
-                  Mac Preview
+                  Get the Mac app
                 </Link>
               </Button>
               <Button asChild variant="secondary" size="lg">
                 <Link to="/whitepaper">
                   <FileText size={16} />
-                  Read both papers
+                  Read the papers
                 </Link>
               </Button>
               <Button asChild variant="secondary" size="lg">
                 <a href="https://github.com/curiositech/port-daddy" target="_blank" rel="noreferrer">
                   <Github size={16} />
-                  GitHub
+                  View source on GitHub
                 </a>
               </Button>
             </div>
           </div>
 
           <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-4)]">
-            <div className="flex items-center justify-between gap-[var(--space-3)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
-              <div className="inline-flex items-center gap-[var(--space-2)]">
-                <MonitorCheck size={17} className="text-[var(--brand-primary)]" />
-                <PanelEyebrow>FleetBar first</PanelEyebrow>
-              </div>
-              <span className="border-2 border-[var(--border-strong)] bg-[var(--brand-primary)] px-2 py-1 font-mono text-[12px] font-black uppercase tracking-[0.16em] text-[var(--brand-primary-foreground)]">
-                Human surface
-              </span>
+            <div className="flex items-center gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] pb-[var(--space-3)]">
+              <MonitorCheck size={17} className="text-[var(--brand-primary)]" />
+              <PanelEyebrow>What you see in FleetBar</PanelEyebrow>
             </div>
             <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-              <source srcSet="/img/app-screens/fleetbar-native-shell-dark.png" media="(prefers-color-scheme: dark)" />
+              <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
               <img
-                src="/img/app-screens/fleetbar-native-shell-light.png"
+                src="/img/app-screens/fleetbar-native-shell-light.webp"
                 alt="FleetBar macOS shell showing the Fleet Control Center"
                 className="aspect-[4/3] w-full object-cover object-left-top"
                 loading="lazy"
               />
             </picture>
             <PanelBody size="compact" className="max-w-none">
-              Open FleetBar for daemon health, project selection, agents, resources, handoffs, and
-              guard state. The install command can live in docs; the homepage should show what the
-              operator gets after it runs.
+              FleetBar shows whether the background service is running, which project you are on,
+              the agents at work, what they have claimed, and where spending stands. Install it,
+              then this is what you get.
             </PanelBody>
+            <div className="grid gap-[var(--space-2)]">
+              <CodeBlock language="bash" showHeaderLabel={false}>
+                {`brew install curiositech/tap/port-daddy`}
+              </CodeBlock>
+              <CodeBlock language="bash" showHeaderLabel={false}>
+                {`npm install -g port-daddy`}
+              </CodeBlock>
+            </div>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
               {[
-                ['Open', 'Fleet Control Center'],
-                ['Inspect', 'Agents + claims'],
-                ['Enforce', 'Coordination Guard'],
+                ['Open', 'the Fleet Control Center'],
+                ['See', 'agents and their claimed files'],
+                ['Block', 'commits that skip a claim'],
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-2 last:border-b-0 last:pb-0"
+                  className="flex items-center justify-between gap-[var(--space-3)] border-b border-[var(--border-default)] pb-[var(--space-2)] last:border-b-0 last:pb-0"
                 >
-                  <span className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
                     {label}
                   </span>
-                  <span className="text-right font-mono text-[12px] font-black uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                  <span className="text-right text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)]">
                     {value}
                   </span>
                 </div>

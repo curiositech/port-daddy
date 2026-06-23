@@ -35,13 +35,14 @@
 
 import { spawn as spawnChild, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { cliBinDirs } from '../../cli-bin-dirs.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type CliTubeTool = 'claude-code' | 'codex';
+export type CliTubeTool = 'claude-code' | 'codex' | 'gemini' | 'groq' | 'grok';
 
 export interface CliTubeOptions {
   /** Which local CLI to drive. */
@@ -75,6 +76,25 @@ export interface CliTubeOptions {
   tubeSender?: string;
   /** Hook for tests / observers to capture the underlying ChildProcess. */
   onChild?: (child: ChildProcess) => void;
+  /**
+   * Live per-line hook. Both wrapped CLIs emit JSONL on stdout (claude-code
+   * `stream-json`, codex `--json`); stdout arrives in arbitrary chunks that may
+   * split a line or carry several. This hook is called ONCE per COMPLETE line
+   * (newline-terminated) as it arrives — so the caller can map each event to a
+   * live transcript delta the cockpit sees mid-run, instead of waiting for the
+   * full `rawStdout` at completion. A trailing partial line (no terminating
+   * newline) is flushed when the child closes. Fail-soft: a throwing hook is
+   * swallowed so it can never break the spawn.
+   */
+  onStreamLine?: (line: string) => void;
+  /**
+   * Optional permission mode forwarded to claude-code as `--permission-mode
+   * <mode>` (only when set). `acceptEdits` lets a spawned agent edit files in
+   * its workdir non-interactively; `bypassPermissions` removes all gating.
+   * Unset = the CLI's default (interactive prompts), preserving prior behavior.
+   * Ignored for CLIs that don't support the flag.
+   */
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
 }
 
 export interface CliTubeResult {
@@ -84,6 +104,10 @@ export interface CliTubeResult {
   tube: string | null;
   /** Wall-clock duration of the CLI invocation in ms. */
   durationMs: number;
+  /** Unmodified stdout. For codex (`--json`) and claude-code (`stream-json`)
+   *  this is the JSONL event stream the caller parses into full-depth
+   *  transcript turns; `output` is the extracted final answer. */
+  rawStdout: string;
 }
 
 /**
@@ -113,6 +137,9 @@ const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
   'claude-code': 'claude',
   codex: 'codex',
+  gemini: 'gemini',
+  groq: 'groq',
+  grok: 'grok',
 };
 
 // Environment override key per tool — operators can swap the binary
@@ -120,6 +147,9 @@ const DEFAULT_BINARIES: Record<CliTubeTool, string> = {
 const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
   'claude-code': 'PD_CLI_CLAUDE_CODE_BIN',
   codex: 'PD_CLI_CODEX_BIN',
+  gemini: 'PD_CLI_GEMINI_BIN',
+  groq: 'PD_CLI_GROQ_BIN',
+  grok: 'PD_CLI_GROK_BIN',
 };
 
 // Auth-error sentinels we surface verbatim so the operator sees
@@ -128,6 +158,9 @@ const BINARY_ENV_OVERRIDE: Record<CliTubeTool, string> = {
 const AUTH_NEXT_STEP: Record<CliTubeTool, string> = {
   'claude-code': 'Run `claude setup-token` or `claude auth` to authenticate.',
   codex: 'Set OPENAI_API_KEY in ~/.codex/config or `codex auth login`.',
+  gemini: 'Run `gemini` once interactively to sign in, or set GEMINI_API_KEY.',
+  groq: 'Run `groq` once interactively to sign in, or set GROQ_API_KEY.',
+  grok: 'Run `grok` once interactively to sign in, or set GROK_API_KEY / XAI_API_KEY.',
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -150,14 +183,35 @@ export function buildArgs(
   prompt: string,
   outputPath?: string,
   model?: string,
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
 ): { args: string[]; stdin: string | null } {
+  // A model equal to the backend/CLI's own name is a placeholder that leaked
+  // from default resolution (backend "cli:claude-code" → model "claude-code").
+  // The CLIs reject it with "model not supported". Map the placeholder to a real
+  // per-CLI default so spawns get EXACT, billable telemetry instead of an
+  // estimate (which the cost gate then rejects); for CLIs without a known good
+  // default, drop `--model` so the CLI uses its authenticated account's default.
+  const PLACEHOLDER_MODELS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
+    'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
+  };
+  const isPlaceholder = !model || PLACEHOLDER_MODELS.has(model);
+  const effModel = isPlaceholder ? CLI_DEFAULT_MODEL[cli] : model;
+
   if (cli === 'claude-code') {
-    // `claude -p <prompt>` runs non-interactively and prints the
-    // response to stdout. We pass --output-format=text for stable
-    // parsing; JSON-streaming is reserved for future bidirectional
-    // tube wiring.
-    const args = ['-p', '--output-format=text'];
-    if (model) args.push('--model', model);
+    // `claude -p` runs non-interactively. `--output-format stream-json
+    // --verbose` emits one JSON object per line, including thinking /
+    // tool_use / tool_result blocks, so the spawner can record the FULL
+    // conversation (not just the final answer). The caller recovers the
+    // final answer from the terminal `result` line (extractClaudeCodeFinal).
+    // OAuth-safe: works with no ANTHROPIC_API_KEY (spawnViaCliTube strips it).
+    const args = ['-p', '--output-format', 'stream-json', '--verbose'];
+    if (effModel) args.push('--model', effModel);
+    // `--permission-mode acceptEdits` lets the spawned agent edit files in its
+    // workdir without an interactive prompt (non-interactive `-p` runs would
+    // otherwise block on the permission gate). Only forwarded when set, so the
+    // default spawn keeps the CLI's default gating.
+    if (permissionMode) args.push('--permission-mode', permissionMode);
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -175,7 +229,18 @@ export function buildArgs(
       '--json',
     ];
     if (outputPath) args.push('--output-last-message', outputPath);
-    if (model) args.push('--model', model);
+    if (effModel) args.push('--model', effModel);
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+
+  if (cli === 'gemini' || cli === 'groq' || cli === 'grok') {
+    // All three agent CLIs share the claude-code-style headless surface:
+    // `-p <prompt>` runs one non-interactive turn and prints the response
+    // to stdout; `--model` overrides the model. (Gemini CLI, Groq Code
+    // CLI, and Grok CLI all follow this convention.)
+    const args = ['-p'];
+    if (effModel) args.push('--model', effModel);
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -198,21 +263,44 @@ export async function spawnViaCliTube(
   opts: CliTubeOptions,
 ): Promise<CliTubeResult> {
   const cli = opts.cli;
-  const env = { ...process.env, ...(opts.env || {}), OTEL_SDK_DISABLED: 'true' } as Record<string, string>;
-  const binary = env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Binary override is OPERATOR-scoped: read PD_CLI_*_BIN from process.env
+  // only, never from per-spawn opts.env/spec.env — a caller-supplied env
+  // must not be able to redirect which executable runs.
+  const binary = process.env[BINARY_ENV_OVERRIDE[cli]] || DEFAULT_BINARIES[cli];
+  // Augment PATH with the same per-user install dirs backend-readiness
+  // checks, so a binary the readiness gate found is also findable at spawn
+  // time under launchd's bare PATH.
+  const basePath = (opts.env?.PATH as string | undefined) ?? process.env.PATH ?? '';
+  const augmentedPath = [basePath, ...cliBinDirs()].filter(Boolean).join(':');
+  const env = {
+    ...process.env,
+    ...(opts.env || {}),
+    PATH: augmentedPath,
+    OTEL_SDK_DISABLED: 'true',
+  } as Record<string, string>;
+  // claude-code manages its own OAuth (Claude Max). An ANTHROPIC_API_KEY in
+  // the environment overrides OAuth and breaks auth ("Invalid API key"), so
+  // strip it for this CLI — mirrors runClaudeCli's handling.
+  if (cli === 'claude-code') {
+    delete env.ANTHROPIC_API_KEY;
+  }
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const tubeChannel = opts.tube === null ? null : (opts.tube ?? generateTubeChannel(cli));
 
   // For codex, we use --output-last-message to capture a clean final
-  // payload (just like the spawner.ts codex backend already does).
+  // payload (just like the spawner.ts codex backend already does). Scratch
+  // goes under ~/.port-daddy (NOT the OS temp dir, which macOS purges on a
+  // timer and could yank the file out from under an in-flight run).
   let tempDir: string | null = null;
   let outputPath: string | undefined;
   if (cli === 'codex') {
-    tempDir = mkdtempSync(join(tmpdir(), `pd-cli-tube-codex-`));
+    const scratchRoot = join(homedir(), '.port-daddy', 'cli-tube-scratch');
+    mkdirSync(scratchRoot, { recursive: true });
+    tempDir = mkdtempSync(join(scratchRoot, 'codex-'));
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model);
+  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode);
 
   const startedAt = Date.now();
 
@@ -228,7 +316,37 @@ export async function spawnViaCliTube(
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
 
-  child.stdout?.on('data', (d: Buffer) => stdoutChunks.push(d.toString()));
+  // Live per-line dispatch. stdout arrives in arbitrary chunks (a chunk may
+  // split a JSONL line or carry several), so buffer partial lines and emit each
+  // COMPLETE (newline-terminated) line to onStreamLine as it lands. The
+  // trailing partial (if any) is flushed on close. Fail-soft: a throwing hook
+  // never breaks the spawn.
+  const emitLine = opts.onStreamLine;
+  let lineBuffer = '';
+  function pumpStdout(text: string): void {
+    if (!emitLine) return;
+    lineBuffer += text;
+    let nl: number;
+    while ((nl = lineBuffer.indexOf('\n')) !== -1) {
+      const line = lineBuffer.slice(0, nl);
+      lineBuffer = lineBuffer.slice(nl + 1);
+      try { emitLine(line); } catch { /* hook must never break the spawn */ }
+    }
+  }
+  function flushStdout(): void {
+    if (!emitLine) return;
+    if (lineBuffer.length > 0) {
+      const line = lineBuffer;
+      lineBuffer = '';
+      try { emitLine(line); } catch { /* swallow */ }
+    }
+  }
+
+  child.stdout?.on('data', (d: Buffer) => {
+    const text = d.toString();
+    stdoutChunks.push(text);
+    pumpStdout(text);
+  });
   child.stderr?.on('data', (d: Buffer) => stderrChunks.push(d.toString()));
 
   const result = await new Promise<{ code: number; timedOut: boolean; spawnErr: string | null }>((resolve) => {
@@ -254,6 +372,10 @@ export async function spawnViaCliTube(
       resolve({ code: -1, timedOut: false, spawnErr: err.message });
     });
   });
+
+  // Flush any trailing partial line (a final JSONL line without a terminating
+  // newline) so the last event is still delivered live.
+  flushStdout();
 
   const durationMs = Date.now() - startedAt;
   const rawStdout = stdoutChunks.join('');
@@ -318,6 +440,7 @@ export async function spawnViaCliTube(
     error,
     tube: tubeChannel,
     durationMs,
+    rawStdout,
   };
 }
 

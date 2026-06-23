@@ -132,6 +132,7 @@ describe('Demo 2 — agents (pd begin / pd note / pd pub / pd salvage / pd lock 
     const { stdout, status } = runCli([
       'begin', 'Building OAuth integration',
       '--identity', `${PREFIX}:api`,
+      '--lifecycle', 'durable',
       '--json',
     ], cliOptions);
     expect(status).toBe(0);

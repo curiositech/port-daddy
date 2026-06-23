@@ -27,7 +27,7 @@ export default function DoneCommand() {
         },
         {
           description: 'Typical workflow - begin work, then finish',
-          code: `pd begin --identity myapp:api --purpose "Fix auth bug"
+          code: `pd begin --identity myapp:api --purpose "Fix auth bug" --lifecycle durable
 # ... do work ...
 pd note "Fixed JWT validation"
 pd done`,
@@ -40,7 +40,7 @@ Note added to session abc123
           description: 'Error - no active session',
           code: 'pd done',
           output: `[pd] Error: No active session found
-[pd] Run 'pd begin' to start a new session`
+[pd] Run 'pd begin "next task" --lifecycle durable' to start a new session`
         },
       ]}
       seeAlso={[

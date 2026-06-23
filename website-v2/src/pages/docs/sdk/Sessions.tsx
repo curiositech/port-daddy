@@ -19,7 +19,6 @@ export default function SessionsSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="success">Core</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Sessions Module
@@ -47,21 +46,21 @@ export default function SessionsSdk() {
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.identity</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Semantic identity in format <code>project:stack:context</code></p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.purpose</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Description of what this agent is working on</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Project name (inferred from identity if not provided)</p>
             </div>
@@ -126,21 +125,21 @@ export default function SessionsSdk() {
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">sessionId</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">The session ID to complete</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.summary</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Summary of work completed</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.outcome</code>
-                <span className="text-xs text-[var(--text-muted)]">'success' | 'failure' | 'cancelled'</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">'success' | 'failure' | 'cancelled'</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Session outcome status</p>
             </div>
@@ -181,21 +180,21 @@ await pd.sessions.done(session.id)`}
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">content</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Note content</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.sessionId</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Optional target session ID. Omit it to use the current session.</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.type</code>
-                <span className="text-xs text-[var(--text-muted)]">NoteType</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">NoteType</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">
                 Note type: 'thought', 'decision', 'progress', 'blocker', 'handoff'
@@ -246,21 +245,21 @@ await pd.note('Waiting for database migration', {
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.sessionId</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Filter by session ID</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.type</code>
-                <span className="text-xs text-[var(--text-muted)]">NoteType</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">NoteType</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Filter by note type</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.limit</code>
-                <span className="text-xs text-[var(--text-muted)]">number</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">number</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Maximum number of notes to return</p>
             </div>

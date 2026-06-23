@@ -503,7 +503,7 @@ describe('predictConflicts', () => {
     expect(conflicts[0].confidence).toBe(1.0);
   });
 
-  test('detects direct conflict — one modify one read', async () => {
+  test('detects direct conflict — one modify one read (warning per the claim-type matrix)', async () => {
     const filePath = join(tempDir, 'conflict-rw.ts');
     writeFileSync(filePath, 'export function shared() { return 42; }');
     await symbolIndex.parseFile(filePath);
@@ -516,7 +516,27 @@ describe('predictConflicts', () => {
     expect(conflicts.length).toBeGreaterThanOrEqual(1);
     const direct = conflicts.find(c => c.type === 'direct');
     expect(direct).toBeDefined();
-    expect(direct!.severity).toBe('blocking');
+    // modify×read on the same symbol is a WARNING (the reader may break), not a hard
+    // block — only modify×modify blocks. See lib/symbol-conflict-matrix.ts.
+    expect(direct!.severity).toBe('warning');
+  });
+
+  test('claim-type matrix: rename/delete block, two adds are safe', async () => {
+    const filePath = join(tempDir, 'conflict-types.ts');
+    writeFileSync(filePath, 'export function shared() { return 42; }');
+    await symbolIndex.parseFile(filePath);
+
+    const rename = symbolIndex.predictConflicts(
+      [{ filePath, symbolPath: 'shared', type: 'rename' }],
+      [{ filePath, symbolPath: 'shared', type: 'read' }],
+    ).find(c => c.type === 'direct');
+    expect(rename!.severity).toBe('blocking'); // rename clobbers a reader
+
+    const twoAdds = symbolIndex.predictConflicts(
+      [{ filePath, symbolPath: 'shared', type: 'add-sibling' }],
+      [{ filePath, symbolPath: 'shared', type: 'add-sibling' }],
+    );
+    expect(twoAdds.find(c => c.type === 'direct')).toBeUndefined(); // two siblings are safe
   });
 
   test('no conflict when both read', async () => {

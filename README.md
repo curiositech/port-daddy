@@ -29,7 +29,7 @@ While individual agents are brilliant, **coordination** is the bottleneck. Port 
 
 ```bash
 # Start working (registers agent + claims port + starts session)
-pd begin "Building the auth layer" --identity myapp:api
+pd begin "Building the auth layer" --identity myapp:api --lifecycle durable
 
 # Log progress, coordinate with other agents
 pd note "JWT validation passing all tests"
@@ -181,6 +181,9 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd spawn kill <id>` — terminates a running spawned agent mid-run
 - `pd fleet down` — SIGTERMs the running fleet
 - `pd fleet panic --reason "<text>"` — SIGTERMs every running fleet agent (also requires typing `YES`)
+- `pd fleet halt [--root <id>]` — Conductor total stop: SIGKILLs a scope and refunds (never slashes) its bonds (ADR-0060)
+- `pd fleet pause [--root <id>]` / `pd fleet resume [--root <id>]` — soft stop / reopen admission for a Conductor scope
+- `pd fleet inspect <rootId>` / `pd fleet tree <rootId>` — render a Conductor lineage tree
 - `pd guard install` — writes git hooks; merges existing ones
 - `pd guard install-shim` / `uninstall-shim` — alters how `git` behaves system-wide
 - `pd guard enable` / `disable` — changes enforcement mode for the whole worktree
@@ -408,6 +411,8 @@ Use the right surface for the job:
 Canonical operator explanation: [docs/DELEGATION-MODES.md](docs/DELEGATION-MODES.md)
 
 For Port Daddy itself, the release boundary is the signed-binary cut. Tagging `v<version>` and publishing a GitHub Release triggers the `release.yml` workflow, which rebuilds the daemon, CLI, and MCP server as signed/notarized binaries (per [ADR-0028](docs/adr/0028-signed-binary-distribution.md)). The brew tap (`curiositech/homebrew-tap`) is then bumped via the manual `publish.yml` workflow. Documentarian/Lookout reviews README, docs, website docs/tutorials, Mac app/FleetBar install and product copy, SDK/CLI references, OpenAPI/MCP surfaces, and the distributed agent skill around the same tag, since those surfaces become live operator truth at the moment users run `brew upgrade port-daddy`.
+
+Each Release also publishes a `latest.json` update feed (version + per-artifact download URL + SHA-256 + signed flag; schema in [ADR-0057](docs/adr/0057-unified-distribution.md) phase 7). Run `pd upgrade` to check the feed against your installed version and see the verified daemon asset; `pd upgrade --apply` runs `brew upgrade port-daddy` for a Homebrew install (privileged self-replace is deferred to brew by design). This is the interactive sibling of the unattended hourly `pd self-update` freshness LaunchAgent ([ADR-0062](docs/adr/0062-auto-freshness-self-heal.md)).
 
 ```bash
 # Preferred single-agent delegation
@@ -670,6 +675,17 @@ The daemon-served control plane now has an explicit `Agents` surface alongside t
 
 Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spawns that breach their daily budget. Spend is observable (cost-tracker); enforcement is separate (bonds). You top up a project wallet; every spawn debits a small bond; clean exits refund it; misbehavior slashes it. `pd fleet panic` arms a two-step global kill-switch that **refunds** (not slashes) every running bond — operator action is not agent misbehavior.
 
+**Fleet Conductor cost gates (ADR-0060).** The daemon routes every sortie and reactive-orchestrator spawn through one `conductor.launch` chokepoint that reserves against a global ceiling and a per-subtree lineage ceiling *before* admission. These are armed at daemon startup and env-overridable:
+
+| Env var | Default | Effect |
+|---|---|---|
+| `PD_FLEET_GLOBAL_CEILING_USD` | `25` | Total aggregate fleet spend cap (`off`/`0` = unbounded, logged loudly) |
+| `PD_FLEET_LINEAGE_CEILING_USD` | `5` | Per-subtree (per-root) spend cap stamped on launches without their own |
+| `PD_FLEET_DEFAULT_BOND_USD` | `0.01` | Reservation floor so the breaker accrues even when a launch omits a bond |
+| `PD_FLEET_MAX_DEPTH` | `3` | Max recursion depth (agents launching agents) |
+
+Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree` (see Destructive Operations above). `halt` is total (SIGKILL + refund); `pause` is soft (stop admitting, leave agents running).
+
 **What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
@@ -823,6 +839,15 @@ We maintain an extreme standard of reliability for the control plane:
 - **Test Suite:** 3,700+ passing tests.
 - **Formal Verification:** Roadmap includes **ProVerif** modeling for the Anchor Protocol.
 - **Benchmarking:** `pd bench` measures atomic commit latency.
+
+### Contributing
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Every PR is filled out against
+[`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) and is held to
+the contract in [AGENTS.md](AGENTS.md): an exhaustive summary and a non-trivial test
+plan (enforced by the `pr-requirements-guard` CI job), screenshots + a GIF/recording
+for any visual change, surface parity for new CLI verbs (`npm run parity`), new tests
+for new code, and a `CHANGELOG.md` entry. A neutral adversarial reviewer runs on every
+PR and posts a `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict.
 
 ---
 

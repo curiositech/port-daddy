@@ -1,0 +1,262 @@
+STATS:
+ docs/adr/0037-harbormaster.md | 227 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 227 insertions(+)
+
+---
+LAST COMMIT:
+57a47ef27d66f475e78e8d4684293e16e30f39e7
+Erich Owens <[redacted]>
+2026-05-20 11:49:56 -0700
+docs(adr): draft ADR-0037 — harbormaster serialized merge ownership
+
+Q6.2 sister to ADR-0035-dispatches. Defines the canonical actor that
+owns the merge queue for dispatched work (Path B fix #2: narrowed
+scope — operator PRs merge as today).
+
+Builds on existing lib/merge-queue.ts (submit → approve → order →
+execute → inspect lifecycle already wired). Adds: canonical actor
+seed entry, fleet/harbormaster.sh body (Phase A), pd merge CLI
+escape hatches (force-now, pause, enqueue), dispatch_id-tied scope
+enforcement.
+
+Trust model explicit: harbormaster runs on operator's machine, uses
+operator's gh auth, merges locally. No remote merge, no relay.
+
+[draft] — opens for redteam review.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/adr/0037-harbormaster.md b/docs/adr/0037-harbormaster.md
+new file mode 100644
+index 00000000..d70985fb
+--- /dev/null
++++ b/docs/adr/0037-harbormaster.md
+@@ -0,0 +1,227 @@
++# 0037. Harbormaster — Serialized Merge Ownership for Dispatched Work
++
++## Status
++
++Draft (Q6.2 sister ADR to 0035-dispatches). Defines the canonical actor
++that owns the merge queue for work that originated from a `pd dispatch`.
++Narrowed scope per Path B fix #2: operator-authored PRs continue to
++merge through the operator's normal workflow (today: `gh pr merge` by
++hand). Harbormaster does not touch them.
++
++## Context
++
++`lib/merge-queue.ts` already exists in the repo. It accepts merge
++submissions, maintains a SQLite priority queue, delegates ordering to
++the active orchestrator plugin, and exposes a `MergeExecutor` interface
++that does the actual git work. The submit → approve → order → execute
++→ inspect lifecycle is wired; what is missing is **who** holds the
++authority to drive that lifecycle.
++
++Today's answer to "who merges?" depends on the day:
++
++- The operator types `gh pr merge` when they remember.
++- A fleet body sometimes opens a PR and a different fleet body sometimes
++  merges it (or doesn't).
++- PR #23 needed three rebase retries because `main` moved under it; no
++  single actor noticed.
++- PR #52 was merged ad-hoc by a Claude CLI session with no record of
++  why or when.
++
++For *operator-authored* work the human is the obvious authority. For
++*dispatched* work (ADR-0035), the operator's whole point of dispatching
++was to walk away. Hand-merging defeats the verb.
++
++Two failure modes the dispatch model exposes:
++
++1. **Concurrent merge race**: two dispatches whose worker bodies both
++   finish at 14:32 both try to merge against `main`. One wins, the
++   other gets a stale-rebase failure. Without serialization, retries
++   loop until one gives up.
++2. **Conflict resolution loss**: a dispatched PR rebases dirty; the
++   conflict needs human (or actor) attention; the dispatch row has no
++   "stuck on conflict" state because nobody is watching the merge.
++
++Harbormaster is the named actor that owns both problems: serialize
++merges of dispatched work, route conflicts back to the worker via a
++sub-dispatch.
++
++## Decision
++
++Add a new canonical actor: `harbormaster`. Capabilities, body,
++scope explicitly bounded.
++
++### Identity
++
++- **Actor record**: rows in the `actors` table introduced by migration
++  082 (ADR-0022 amendment), `is_canonical=1`, `kind='embodied'`,
++  `project_scope='*'`.
++- **Mailbox**: `actor:harbormaster`. Other actors send merge requests
++  here; the operator can also `pd note --to harbormaster` to override.
++- **Key**: Ed25519 keypair in macOS Keychain via `lib/actor-keys.ts`
++  (Phase A). The private key never leaves the Keychain; harbormaster's
++  body signs lease attestations only.
++- **Capabilities** (closed enum from the seed): `merge:approve`,
++  `merge:execute`, `merge:queue-manage`, `conflict:resolve`,
++  `gh:write`. The Arbiter's `LEASE_VALID_FOR_ACTOR` invariant gates
++  every merge-queue write on these tokens being present.
++
++### Body
++
++`fleet/harbormaster.sh` (new, Phase A). Long-running shell wrapper that:
++
++1. Polls `merge_queue` table every 30s via `pd merge queue` (a thin CLI
++   over `lib/merge-queue.ts`'s `inspect()` method).
++2. For each entry in `state='queued'` whose dispatch row has
++   `state='human_approved'`:
++   - Acquire the actor lease (`lib/body-lease.ts`).
++   - `git fetch origin && git rebase origin/main` inside the dispatch
++     worktree.
++   - On clean rebase: `gh pr merge --squash` (or `--merge`/`--rebase`
++     per the dispatch's `merge_style`).
++   - On conflict: open a sub-dispatch (ADR-0035 `parent_dispatch_id`)
++     addressed to the original worker actor with goal "resolve
++     conflicts in `<files>`; same intent as `<quoted goal>`."
++3. On success, mark `merge_queue.state='merged'` and trigger the
++   dispatch teardown reconciler (ADR-0035 §Worktree lifecycle).
++4. Maintain serialization: at most one merge for a given `base_branch`
++   at a time. `merge_queue` already has an index on `(base_branch,
++   state, queued_at)` per `lib/merge-queue.ts`; harbormaster respects
++   FIFO within that index.
++
++### Scope narrowing (Path B fix #2)
++
++Harbormaster **only** processes merge_queue entries that are tied to a
++dispatch row. An entry is "dispatched" iff `merge_queue.dispatch_id IS
++NOT NULL`. Operator-authored PRs do not create a merge_queue entry
++unless the operator explicitly opts in with `pd merge enqueue <pr>`.
++
++This narrowing is load-bearing:
++
++- The bootstrap PRs for ADR-0035/0036/0037 themselves (this one
++  included) are operator-authored, **not** dispatched. They cannot be
++  required to flow through harbormaster — harbormaster is the actor
++  this PR introduces.
++- The "three signatures (worker + qa + harbormaster) before merging
++  to main" rule the source plan's Q5 section described would have
++  made every bootstrap PR a self-rule-breaking exception. Narrowing
++  fixes that without giving up the property where it matters
++  (dispatched work).
++
++The narrowing is enforced by code, not policy: harbormaster's
++body queries `WHERE dispatch_id IS NOT NULL` and refuses to touch
++anything else. The operator's `gh pr merge` continues to work for
++operator-authored PRs; there is no daemon-side block.
++
++### Manual override
++
++The operator has three escape hatches:
++
++- `pd merge enqueue <pr> [--dispatch <id>]` — submit a non-dispatched
++  PR into the harbormaster queue voluntarily.
++- `pd merge force-now <dispatch-id>` — bypass the queue and merge a
++  single dispatch immediately (used when harbormaster itself needs
++  redeploying).
++- `pd merge pause` / `pd merge resume` — halt the harbormaster body's
++  polling. Dispatches accumulate in `human_approved`; the operator
++  can drain by hand or wait.
++
++### Dispatch dependency ordering
++
++`merge_queue` rows can declare `depends_on` (existing column per
++ADR-0023's roadmap-pop schema and the plan's Q2 spec). Harbormaster
++merges in topological order: a dispatch whose `depends_on` points at
++another dispatch waits until that one is `merged`. This handles
++stacked PRs (`d-a3f2` depends on `d-b9c8` depends on `main`)
++naturally — the queue is a DAG, not a flat FIFO.
++
++A cycle in `depends_on` is rejected at enqueue time (`pd merge
++enqueue` walks the graph). Detection is cheap; let it die at submit.
++
++### Trust model
++
++Harbormaster runs **on the operator's machine**. Its `gh` calls use
++the operator's `gh auth` token. The merge authority is the operator's
++GitHub identity; harbormaster is a process that performs `gh pr merge`
++on the operator's behalf within the constraints of its capability
++tokens and the Arbiter's gates. No remote merge, no relay,
++no off-machine actor signs anything.
++
++Future: a relay (ADR-0027) could expose harbormaster to other agents,
++but the merge call still terminates locally. The remote-merge problem
++is a federation problem, not a harbormaster problem.
++
++## Consequences
++
++### Positive
++
++- Concurrent dispatch merges no longer race. The serialized queue is
++  the answer; `lib/merge-queue.ts`'s index makes it cheap.
++- Stale-rebase loops become a sub-dispatch back to the worker — the
++  loop is named and bounded instead of silent.
++- Operator's "walk away" promise (ADR-0035) actually delivers a
++  merged PR, not a `human_approved` row that sits forever.
++
++### Negative
++
++- Harbormaster's body dying stalls the queue. Resurrection (Phase A's
++  rekey-on-actor-id) brings a new body up but only for actors with
++  attached leases. If `RESURRECTION_BUDGET` (Arbiter invariant, Phase
++  A) is exhausted, the queue halts and the operator must `pd merge
++  pause` and resume manually.
++- The narrow scope (dispatched work only) leaves operator PRs
++  outside the merge ordering. Two operator PRs racing is the
++  operator's problem to notice. Today's behavior; no regression.
++- Adding a new canonical actor adds capability tokens to the seed
++  enum; every future grant of `merge:execute` is now reviewable.
++  Discipline cost, not a code cost.
++
++### Neutral
++
++- The `lib/merge-queue.ts` module already exists; harbormaster does
++  not invent new merge infrastructure. The ADR is about the *actor
++  that drives the existing module*, not the queue itself.
++- `fleet/harbormaster.sh` is a thin script — most of the logic lives
++  in `lib/merge-queue.ts` and `cli/commands/merge.ts`. The shell
++  wrapper exists because every fleet body is a shell wrapper.
++
++## Alternatives considered
++
++1. **No serialized merge — let dispatches race**. Tried implicitly via
++   today's "fleet bodies sometimes merge" behavior; PR #23's three
++   retries are the evidence this doesn't scale. Rejected.
++2. **Daemon owns merges, no dedicated actor**. The daemon already runs
++   too much; adding `git rebase` shells to its process tree is a
++   reliability concern. The dispatch model needs an actor that can be
++   resurrected independently. Rejected.
++3. **Operator merges everything**. Defeats `pd dispatch`'s "walk
++   away" promise. Rejected.
++4. **Three signatures absolute (worker + qa + harbormaster) on every
++   PR**. The original plan suggested this; bootstrap PRs (including
++   ADR-0037 itself) would be self-rule-breaking exceptions. Replaced
++   with the dispatched-work narrowing.
++
++## Related ADRs
++
++- **0022** (in-place amendment, Phase A): actor identities + leases
++  that harbormaster inherits.
++- **0028**: three-layer actor/fleet-agent/session model;
++  harbormaster is one actor across all three layers.
++- **0035** (draft): dispatches — what the queue is full of.
++- **0038** (draft): qa-gate — runs before harbormaster sees a dispatch.
++- **0039** (draft): windags-routing — does not route to harbormaster
++  (harbormaster is summoned by dispatch lifecycle, not by goal text).
++- **`lib/merge-queue.ts`**: existing module that harbormaster drives.
++
++## Notes
++
++- The `gh` CLI version is pinned via the install path; harbormaster
++  checks `gh --version` at body startup and refuses to start if the
++  pin is missed. Merge behavior changes between `gh` versions are not
++  acceptable for a serialized merger.
++- The 30-second poll interval is generous; SQLite NOTIFY would be
++  lower-latency but adds infra for negligible benefit (a dispatch's
++  rebase-and-merge takes 10s+ anyway).
++- Harbormaster's mailbox is appendable by `documentarian` and
++  `cartographer` for write-amplification opt-outs (e.g., "do not
++  re-merge this PR until docs land") — those messages are advisory;
++  harbormaster's queue is still authoritative.

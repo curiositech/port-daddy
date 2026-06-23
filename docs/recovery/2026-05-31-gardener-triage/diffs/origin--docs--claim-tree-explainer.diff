@@ -1,0 +1,344 @@
+STATS:
+ docs/concepts/claim-tree.md | 673 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 673 insertions(+)
+
+---
+LAST COMMIT:
+fb6fe37ecf0af230d06723f70967f4ce37b41355
+Erich Owens <[redacted]>
+2026-05-19 23:45:14 -0700
+docs(concepts): reader's guide to the claim tree with 10-mode visualization gallery
+
+Companion explainer doc for ADR-0038. ADR is the specification; this is
+the explanation.
+
+Structure:
+- Mental model (filesystem tree + AST tree, joined at file)
+- Node kinds with stability guarantees per kind
+- Claim modes (MGL: S / X / IS / IX / SIX) with compatibility matrix
+- Push-down vs bubble-up query semantics with ASCII walks
+- Visualization gallery — 10 distinct modes on one running example:
+  A. ASCII tree (CLI default)
+  B. Annotated file tree (web sidebar) + detail pane
+  C. Squarified treemap (whole-repo at a glance)
+  C-alt. Sunburst / icicle for deep trees
+  D. Force-directed graph with imports
+  E. Per-session Gantt ribbon (retrospective)
+  F. Topographic contour map (claim density)
+  G. Calendar heatmap (per-day activity)
+  H. Sankey flow (claim lifecycle)
+  I. Streamgraph (claim depth over time)
+  J. Aggregated dependency wheel
+- Five worked examples covering: racing same file, real overlap,
+  escalation, contest-driven pruning, distributed move (CRDT)
+- When the tree is + isn't the right model
+- Cross-references to ADR-0038, ADR-0037, ROADMAP § 8, pheromone vocab
+
+Each viz includes ASCII art mockup so readers can see the shape without
+running the renderer. Color encodings explained in legend.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/concepts/claim-tree.md b/docs/concepts/claim-tree.md
+new file mode 100644
+index 00000000..6fc9b303
+--- /dev/null
++++ b/docs/concepts/claim-tree.md
+@@ -0,0 +1,673 @@
++# The Claim Tree
++
++> A reader's guide to Port Daddy's multi-granularity coordination structure.
++> The formal specification lives at [ADR-0038](../adr/0038-claim-tree.md);
++> this is the explanation.
++
++The **claim tree** is the data structure Port Daddy uses to answer questions
++like:
++
++- *"Anything claimed under `lib/auth/` right now?"*
++- *"Does this commit touch a symbol another agent is editing?"*
++- *"Two of us want to edit `auth.ts` — are we on different functions or the same one?"*
++- *"Show me where the swarm is concentrating in this repo."*
++
++These are inherently **hierarchical** questions. Directories nest. Files
++contain regions. Regions contain symbols. Symbols import other symbols.
++The claim tree mirrors that hierarchy and attaches per-session claims to
++each node, so a single SQL join can answer them all.
++
++---
++
++## The mental model
++
++Picture your repo as two overlapping trees:
++
++```
++  ┌─ Filesystem tree ─────────────────────┐    ┌─ AST tree (per file) ──────────────┐
++  │                                       │    │                                    │
++  │  port-daddy/                          │    │  lib/auth.ts                       │
++  │  ├── lib/                             │    │  ├── ClassDeclaration AuthService  │
++  │  │   ├── auth.ts ─────────────────────┼────┼─→  │   ├── Method signToken         │
++  │  │   ├── tuples.ts                    │    │  │   ├── Method refreshToken       │
++  │  │   └── pheromone.ts                 │    │  │   └── Method validateToken      │
++  │  ├── routes/                          │    │  ├── FunctionDeclaration hashPepper│
++  │  └── tests/                           │    │  └── ConstantDeclaration MAX_AGE   │
++  └───────────────────────────────────────┘    └────────────────────────────────────┘
++```
++
++The claim tree **joins them at the file**: every file node has children
++from its AST, and those children can themselves have claims attached.
++
++You don't need to think about AST when you `pd add lib/auth.ts` — the
++tree degrades gracefully to file-level. But when symbol-index data is
++available, the tree exposes a much sharper coordination granularity:
++*"you can claim the `signToken` function specifically, leaving `refreshToken`
++free for someone else."*
++
++---
++
++## Node kinds
++
++Every node in the tree has a kind that determines what it represents:
++
++| Kind | Example identifier | What it represents |
++|---|---|---|
++| `repo` | `repo:port-daddy` | The root of a single repository |
++| `dir` | `dir:lib/auth/` | A directory; descendants are its files and subdirs |
++| `file` | `file:lib/auth.ts` | One file; descendants are its symbols, blocks, fences |
++| `symbol` | `symbol:lib/auth.ts:AuthService.signToken` | A named function / class / method |
++| `block` | `block:lib/auth.ts:AuthService.signToken.body.if[0]` | An unnamed AST block inside a symbol |
++| `fenced` | `fenced:lib/auth.ts:auth-validation` | A region marked with `// PD-CLAIM-BEGIN auth-validation` ... `// PD-CLAIM-END` |
++| `region` | `region:lib/auth.ts:120-180` | **Fallback** for languages without AST support — line-range only |
++
++The first three are stable by path; rename a dir and the daemon migrates
++the claims via the file-move event. `symbol` is stable across line
++shifts and reformatting (tree-sitter tracks symbol rename / removal).
++`block` is stable when the AST path is short and unique. `fenced` is as
++stable as the operator's markers stay in place. `region` is the
++degraded path and is expected to soft-expire on file edits.
++
++**Why not just line ranges?** Line numbers are the wrong frame of
++reference for code. Add an import at the top of a file and every line
++shifts. Two agents that *should* be coordinating end up with overlapping
++line ranges that no longer touch the same code. The AST-anchored model
++treats `AuthService.signToken` as the stable identity; whether it lives
++on lines 120-180 today or 130-190 tomorrow, claims still point at the
++same thing.
++
++---
++
++## Claim modes (MGL)
++
++When a session claims a node, it picks a mode that signals what it
++intends to do. Modes mirror **multi-granularity locking** from database
++systems (Gray, 1976):
++
++| Mode | Long name | Meaning | Compatible with |
++|---|---|---|---|
++| `S` | shared | "I'll read this; others may read too" | S, IS |
++| `X` | exclusive | "I'm writing this; nobody else should" | (nothing) |
++| `IS` | intention-shared | "I have S somewhere below me" | IS, IX, S |
++| `IX` | intention-exclusive | "I have X somewhere below me" | IS, IX |
++| `SIX` | shared + intention-exclusive | "I read this whole node + write some descendants" | IS |
++
++For most PD work, the pattern is **IX on the directory → IX on the file
++→ X on the symbol**. That way:
++
++- *"Anything claimed under `lib/`?"* — query bubbles up; finds the IX
++  on `lib/` immediately. O(1).
++- *"Can I exclusively claim `lib/utils.ts`?"* — query checks IX on
++  `lib/` (compatible with another IX, fine), looks for X on
++  `lib/utils.ts` (none, fine), proceeds.
++- *"Can I also exclusively claim `signToken`?"* — query bubbles up from
++  `signToken`, finds existing X already there → conflict.
++
++The agent never sees the modes unless they're debugging. `pd add
++lib/auth.ts:signToken` sets the right intention modes automatically.
++
++---
++
++## The two query directions
++
++The tree's value is that one structure supports both directions of
++question:
++
++### Push-down: "what's claimed under here?"
++
++```
++                                 ?
++                                  
++                                lib/                   ← start here
++                                / | \
++                           auth   tuples   pheromone
++                          /  |  \
++                  signToken  refresh  validate
++                       ▲        ▲
++                       │        └── claimed by session-Y (X)
++                       └── claimed by session-X (X)
++```
++
++Walk the subtree from a starting node; collect every active claim at any
++descendant. Returns "two sessions are active under `lib/auth/`".
++
++### Bubble-up: "is this thing claimed anywhere?"
++
++```
++                                /
++                             lib/  ← walk up
++                              │
++                       auth.ts   ← walk up
++                              │
++                       signToken ← start here
++                          ▲
++                          └── claim found at ancestor `lib/` (IX)
++                              → narrow to specific descendant claims
++```
++
++Walk from a leaf upward; the first ancestor with a non-IS/IX claim is
++the most specific match. Returns the most-specific session holding a
++claim on or above the target.
++
++Both directions are O(depth × claims), single SQL query with an index
++on `parent_id`.
++
++---
++
++## Visualization gallery
++
++The same claim-tree data renders many ways depending on what you want to
++see. Below: ten distinct visualizations on a small running example.
++
++### Running example
++
++The repo has been busy. Three sessions are active:
++
++```
++session-12abc (gardener)  — refactoring AuthService.signToken
++session-56def (you)       — adding AuthService.refreshToken
++session-78ghi (qa)        — writing tests under tests/unit/auth/
++```
++
++The claim tree state:
++
++```
++repo:port-daddy
++├── dir:lib/                                        [IX × 2]
++│   ├── file:auth.ts                                [IX × 2]
++│   │   ├── symbol:AuthService.signToken            [X by session-12abc]
++│   │   └── symbol:AuthService.refreshToken         [X by session-56def]
++│   └── file:tuples.ts                              [S by session-12abc]
++└── dir:tests/
++    └── dir:unit/
++        └── dir:auth/                               [IX]
++            ├── file:signToken.test.ts              [X by session-78ghi]
++            └── file:refreshToken.test.ts           [X by session-78ghi]
++```
++
++### Mode A — ASCII tree (CLI default: `pd claims tree`)
++
++The terminal-native view. Glyphs encode kind; ANSI color encodes
++conflict severity.
++
++```
++$ pd claims tree
++
++repo:port-daddy                              [3 sessions, 6 claims]
++├── lib/                                     [2 sessions, IX]
++│   ├─● auth.ts                              [2 sessions, MEDIUM]
++│   │   ├─◆ AuthService.signToken           [session-12abc gardener, X, 8m]
++│   │   └─◆ AuthService.refreshToken        [session-56def you, X, NOW]
++│   └─● tuples.ts                            [session-12abc, S]
++└── tests/
++    └── unit/
++        └── auth/                            [session-78ghi, IX]
++            ├─● signToken.test.ts            [session-78ghi qa, X, 3m]
++            └─● refreshToken.test.ts         [session-78ghi qa, X, 3m]
++
++Glyphs:  ● file   ▪ region   ◆ symbol   ◆▾ block-inside-symbol   ⌗ fenced
++Colors:  green = S/IS    amber = IX/SIX    red = X    bold red = conflict
++```
++
++`--json` for machines; `--mine` to show only your session's claims;
++`--at <path>` to narrow to a subtree.
++
++### Mode B — Annotated file tree (web sidebar)
++
++The web console default. Standard collapsible tree component; each row
++shows:
++
++```
++┌─ Files ──────────────────────────────────────────────────┐
++│ ▾ lib/                              [2 ● 6 ◆]             │ ← claim counts
++│   ▾ auth.ts                         [2 sessions ⚠ MED]    │ ← chip + risk
++│       ◆ AuthService.signToken       [gardener  8m  X]     │
++│       ◆ AuthService.refreshToken    [you       NOW X]     │
++│     tuples.ts                       [gardener  S]         │
++│   helpers.ts                                              │
++│ ▸ routes/                                                 │
++│ ▸ tests/                            [1 session  IX]       │
++└──────────────────────────────────────────────────────────┘
++       │
++       │ Click row → detail pane (right side)
++       ▼
++┌─ lib/auth.ts ────────────────────────────────────────────┐
++│ Path:    lib/auth.ts                                     │
++│ Status:  2 active claims · MEDIUM overlap                │
++│                                                          │
++│ Active claims:                                           │
++│  • AuthService.signToken                                 │
++│    Owner:    session-12abc (gardener)                    │
++│    Identity: port-daddy:cartographer                     │
++│    Started:  8 min ago    Heartbeat: 30s ago             │
++│    Intent:   "Refactor signing to RS256"                 │
++│    [Diff] [Subscribe] [DM] [Open in editor]              │
++│                                                          │
++│  • AuthService.refreshToken                              │
++│    Owner:    session-56def (you)                         │
++│    [Release] [Edit intent] [Convert to fenced region]    │
++│                                                          │
++│ Overlap risk: MEDIUM (transitive: both touch              │
++│ AuthService class shape).                                │
++└──────────────────────────────────────────────────────────┘
++```
++
++### Mode C — Squarified treemap (whole-repo at a glance)
++
++When you want to see "where is the swarm right now?" in one screen. Each
++file is a rectangle; rectangle area is proportional to LOC; color
++encodes ownership:
++
++```
++┌────────────────────────────────────────────────────────────────┐
++│ lib/                                          tests/           │
++│ ┌──────────────────────┐ ┌────────┐ ┌───────┐ ┌──────────────┐ │
++│ │       auth.ts        │ │tuples  │ │pherom │ │ unit/auth/   │ │
++│ │  ┌────────┬────────┐ │ │  .ts   │ │  .ts  │ │ ┌──────────┐ │ │
++│ │  │signTok │refreshT│ │ │ ░░░░░░ │ │       │ │ │signTest  │ │ │
++│ │  │ ▓▓▓▓▓▓ │ ███████│ │ │ shared │ │       │ │ │ ████████ │ │ │
++│ │  │ gard X │ you X  │ │ │  gard  │ │       │ │ └──────────┘ │ │
++│ │  └────────┴────────┘ │ │        │ │       │ │ ┌──────────┐ │ │
++│ │                      │ │        │ │       │ │ │refrTest  │ │ │
++│ └──────────────────────┘ └────────┘ └───────┘ │ │ ████████ │ │ │
++│ ┌──────────────────────────────────────┐      │ └──────────┘ │ │
++│ │       helpers.ts (unclaimed)         │      │  qa X        │ │
++│ └──────────────────────────────────────┘      └──────────────┘ │
++│ routes/                                                        │
++│ ┌──────────┬──────────────────┬────────┐                       │
++│ │  api.ts  │      whois.ts    │ home.ts│                       │
++│ └──────────┴──────────────────┴────────┘                       │
++└────────────────────────────────────────────────────────────────┘
++
++   Legend:  ░░ shared/S    ▓▓ session-12abc    ██ session-56def
++            ██ session-78ghi (qa)  ░░ unclaimed
++```
++
++Color is **discrete ownership** (one hue per session, gray for
++unclaimed). Border thickness is conflict severity. Hover for tooltip;
++click to zoom into a subtree.
++
++### Mode C-alt — Sunburst / icicle
++
++A radial alternative when the tree is deep. Center is the repo root;
++each ring outward is one level deeper. Slice angle proportional to LOC.
++
+
+... [380 more lines truncated]

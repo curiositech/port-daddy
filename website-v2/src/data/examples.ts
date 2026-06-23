@@ -14,6 +14,16 @@ import p2pWebrtcReadme from '../../../examples/p2p-webrtc/README.md?raw'
 import p2pWebrtcSource from '../../../examples/p2p-webrtc/webrtc-signaling.ts?raw'
 import agentTopologiesReadme from '../../../examples/agent-topologies/README.md?raw'
 import agentTopologiesSource from '../../../examples/agent-topologies/topology-pubsub.ts?raw'
+import swarmReadme from '../../../examples/swarm/README.md?raw'
+import swarmSource from '../../../examples/swarm/coordination-board.ts?raw'
+import tunnelReadme from '../../../examples/tunnel/README.md?raw'
+import tunnelSource from '../../../examples/tunnel/share-preview.ts?raw'
+import warRoomReadme from '../../../examples/war-room/README.md?raw'
+import warRoomSource from '../../../examples/war-room/run.sh?raw'
+import coordinationReadme from '../../../examples/coordination/README.md?raw'
+import coordinationSource from '../../../examples/coordination/file-edit-guard.ts?raw'
+import servicesReadme from '../../../examples/services/README.md?raw'
+import servicesSource from '../../../examples/services/api-server.ts?raw'
 
 export type ExampleLevel = 'Beginner' | 'Intermediate' | 'Advanced'
 export type ExampleLanguage = 'cli' | 'text' | 'typescript'
@@ -74,6 +84,31 @@ export interface ExampleDoc {
 }
 
 const EXAMPLE_VISUALS = {
+  'swarm-coordination-board': {
+    src: '/img/generated/example-swarm-coordination.jpg',
+    webpSrc: '/img/generated/example-swarm-coordination.webp',
+    alt: 'A paper-craft coordination board: four felt agent tiles connected left to right by glowing tubes, with paper padlock tokens on the links and a tray of index-card chips beside it.',
+  },
+  'preview-tunnel': {
+    src: '/img/generated/example-tunnel-preview.jpg',
+    webpSrc: '/img/generated/example-tunnel-preview.webp',
+    alt: 'A paper-craft scene: a blue felt local-service box with a glowing tube arcing through a paper globe to a distant paper screen, a padlock token riding the tube.',
+  },
+  'war-room-incident': {
+    src: '/img/generated/example-war-room.jpg',
+    webpSrc: '/img/generated/example-war-room.webp',
+    alt: 'A paper-craft circular war-room board: three felt agent tiles around a coral-red incident card, linked by glowing tubes, with handwritten note cards beside each.',
+  },
+  'coordination-file-guard': {
+    src: '/img/generated/example-coordination-guard.jpg',
+    webpSrc: '/img/generated/example-coordination-guard.webp',
+    alt: 'A paper-craft scene: two felt robot hands reach for one paper file, but a padlock token between them holds one back — one writer at a time.',
+  },
+  'services-dns': {
+    src: '/img/generated/example-services-dns.jpg',
+    webpSrc: '/img/generated/example-services-dns.webp',
+    alt: 'A paper-craft scene: three felt service boxes with folded port-number tags and paper signpost arrows pointing to each other, linked by glowing tubes.',
+  },
   'pd-tube-button-to-agent': {
     src: '/img/generated/example-pd-tube-button-to-agent.jpg',
     webpSrc: '/img/generated/example-pd-tube-button-to-agent.webp',
@@ -136,7 +171,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     visual: EXAMPLE_VISUALS['pd-tube-button-to-agent'],
     uiScreenshots: [
       {
-        src: '/img/examples/pd-tube-button-to-agent-ui.png',
+        src: '/img/examples/pd-tube-button-to-agent-ui.webp',
         alt: 'Screenshot of the PD Tube button-to-agent HTML demo with daemon URL, three action buttons, and the waiting tube command.',
         title: 'The local button publisher.',
         caption:
@@ -220,7 +255,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'test-failure-to-agent',
-    title: 'Build a test reporter that asks the agent for help',
+    title: 'Turn a failing test into an agent request',
     eyebrow: 'Test runner',
     level: 'Intermediate',
     time: '20 min',
@@ -312,7 +347,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'editor-lightbulb-to-agent',
-    title: 'Build an editor lightbulb that asks the local agent',
+    title: 'Send an editor selection to your local agent',
     eyebrow: 'Editor extension',
     level: 'Beginner',
     time: '16 min',
@@ -329,7 +364,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     visual: EXAMPLE_VISUALS['editor-lightbulb-to-agent'],
     uiScreenshots: [
       {
-        src: '/img/examples/editor-lightbulb-to-agent-ui.png',
+        src: '/img/examples/editor-lightbulb-to-agent-ui.webp',
         alt: 'Screenshot of the editor lightbulb HTML demo with daemon URL, file path, range, selected code, and an ask-agent button.',
         title: 'The extension-shaped publisher.',
         caption:
@@ -399,7 +434,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'webhook-to-local-agent',
-    title: 'Build a webhook adapter backed by your workstation',
+    title: 'Route webhooks to an agent on your machine',
     eyebrow: 'Bot adapter',
     level: 'Advanced',
     time: '24 min',
@@ -491,7 +526,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'leader-election',
-    title: 'Build a one-leader worker loop with Port Daddy locks',
+    title: 'Elect one leader from a local agent swarm',
     eyebrow: 'Locks',
     level: 'Intermediate',
     time: '14 min',
@@ -583,7 +618,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'ephemeral-ci-db',
-    title: 'Build an ephemeral CI database port claim',
+    title: 'Claim a throwaway database port for CI',
     eyebrow: 'CI services',
     level: 'Beginner',
     time: '12 min',
@@ -666,7 +701,7 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
   },
   {
     slug: 'p2p-webrtc',
-    title: 'Build WebRTC signaling over agent inboxes',
+    title: 'Carry WebRTC signaling over agent inboxes',
     eyebrow: 'P2P signaling',
     level: 'Advanced',
     time: '22 min',
@@ -739,12 +774,12 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
     related: [
       { title: 'Inbox tutorial', href: '/tutorials/inbox' },
       { title: 'Agent command', href: '/docs/cli/agent' },
-      { title: 'Remote harbors', href: '/tutorials/remote-harbors' },
+      { title: 'pd tube playground', href: '/pd-tube' },
     ],
   },
   {
     slug: 'agent-topologies',
-    title: 'Build an inspectable agent topology trace',
+    title: 'Trace how your agents actually talk',
     eyebrow: 'Swarm patterns',
     level: 'Beginner',
     time: '15 min',
@@ -820,6 +855,367 @@ export const EXAMPLE_DOCS: ExampleDoc[] = [
       { title: 'Agents view', href: '/agents' },
     ],
   },
+  {
+    slug: 'swarm-coordination-board',
+    title: 'Run a four-agent swarm that hands off cleanly',
+    eyebrow: 'Multi-agent',
+    level: 'Advanced',
+    time: '20 min',
+    summary:
+      'Four agents — scout, builder, verifier, integrator — run in one process and pass work down a chain without ever clobbering each other.',
+    surveyPlain:
+      'Watch a scout find work, a builder claim a lock and propose a patch, a verifier prove it, and an integrator declare convergence — all coordinated through shared Port Daddy state.',
+    builds:
+      'A runnable four-stage workflow where each stage waits for the previous one\'s published result, takes an exclusive lock for its critical section, and leaves a permanent note.',
+    whyItMatters:
+      'This is the flagship "this is what Port Daddy is for" example. It uses every core coordination primitive together — sessions, channels, pub/sub, the tuple space, locks, and notes — to turn four independent agents into a pipeline that cannot step on itself.',
+    lastReviewed: '2026-06-19',
+    tags: ['swarm', 'coordination', 'tuples', 'locks', 'pub/sub'],
+    visual: EXAMPLE_VISUALS['swarm-coordination-board'],
+    prerequisites: [
+      'A running Port Daddy daemon.',
+      'Node.js with npx/tsx available.',
+      'No API keys — the example coordinates real agents but the demo drives the four stages in one process.',
+    ],
+    files: [
+      'examples/swarm/coordination-board.ts',
+      'examples/swarm/README.md',
+    ],
+    commands: [
+      {
+        title: 'Run the swarm',
+        command: '$ npx tsx examples/swarm/coordination-board.ts',
+        notes: ['Four stages run in one process: scout publishes, builder claims the implementation lock, verifier claims the test lock, integrator declares convergence.'],
+      },
+      {
+        title: 'Run it in its own harbor',
+        command: '$ PD_EXAMPLE_HARBOR=my-demo npx tsx examples/swarm/coordination-board.ts',
+        notes: ['Scopes the channels, tuples, and locks to a named harbor so you can run it without touching your real coordination state.'],
+      },
+      {
+        title: 'Inspect the shared state it left behind',
+        command: '$ pd tuple scan --harbor my-demo',
+        notes: ['Every handoff is a real tuple you can read after the run — the swarm leaves an inspectable trail, not just logs.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A four-stage relay where each agent waits for real evidence before it acts.',
+        paragraphs: [
+          'Scout publishes a finding. Builder waits for it, claims the implementation lock, and publishes a patch plan. Verifier waits for the plan, claims the test lock, and publishes test evidence. Integrator waits for the evidence and publishes convergence.',
+          'Nothing is faked or sequenced by a sleep. Each stage genuinely blocks on the previous stage\'s published result, so the order is enforced by the coordination layer, not by timing.',
+        ],
+      },
+      {
+        id: 'why-it-matters',
+        label: 'Why it matters',
+        title: 'This is the whole point of Port Daddy in one file.',
+        paragraphs: [
+          'A swarm without coordination is four agents racing for the same files. Here, the implementation lock means only the builder writes while it holds it; the test lock means the verifier runs alone; the tuple space carries the structured handoff; and the notes leave a permanent record of who did what.',
+          'Pull any one primitive out and the pipeline breaks down into a scramble. Together they make four agents behave like a team.',
+        ],
+      },
+      {
+        id: 'inspect-it',
+        label: 'Inspect it',
+        title: 'The coordination is readable after the fact, not buried in logs.',
+        paragraphs: [
+          'Because every handoff is a tuple and every decision is a note, you can scan the harbor after the run and reconstruct exactly what happened: the finding, the plan, the evidence, the convergence.',
+          'That inspectability is the difference between "the agents did something" and "here is the claim-backed trail of what they did and why."',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/swarm/coordination-board.ts', language: 'typescript', code: swarmSource },
+      { path: 'examples/swarm/README.md', language: 'text', code: swarmReadme },
+    ],
+    adapt: [
+      'Swap the four scripted stages for real agent backends to run an actual scout/builder/verifier/integrator team.',
+      'Add a fifth stage (for example, a release gate) by subscribing it to the integrator\'s convergence channel.',
+      'Replace the locks with finer-grained file claims if two stages can safely touch different files at once.',
+    ],
+    related: [
+      { title: 'Tuples reference', href: '/docs/features/tuples' },
+      { title: 'Fleet tutorial', href: '/tutorials/fleet' },
+      { title: 'Agents view', href: '/agents' },
+    ],
+  },
+  {
+    slug: 'coordination-file-guard',
+    title: 'Stop two agents from clobbering the same file',
+    eyebrow: 'Coordination',
+    level: 'Intermediate',
+    time: '15 min',
+    summary:
+      'The canonical Port Daddy story: two agents reach for one file, and only one writes at a time — claims, locks, and notes instead of a silent overwrite.',
+    surveyPlain:
+      'See the small set of durable primitives — sessions, channels, tuples, locks, notes — that turn "please coordinate" into something the system actually enforces.',
+    builds:
+      'A file-edit guard where an agent announces a claim, takes an exclusive lock around the write, and leaves a note — so a second agent waits instead of stomping the first.',
+    whyItMatters:
+      'This is the 3 a.m. collision, solved. The lock makes the critical section exclusive; the claim makes ownership visible; the note leaves a trail. It is the smallest honest demonstration of why coordination is a substrate, not a prompt.',
+    lastReviewed: '2026-06-19',
+    tags: ['locks', 'claims', 'coordination', 'notes'],
+    visual: EXAMPLE_VISUALS['coordination-file-guard'],
+    prerequisites: ['A running Port Daddy daemon.', 'Node.js with npx/tsx.'],
+    files: ['examples/coordination/file-edit-guard.ts', 'examples/coordination/README.md'],
+    commands: [
+      {
+        title: 'Run the guard',
+        command: '$ npx tsx examples/coordination/file-edit-guard.ts',
+        notes: ['An agent claims the file, takes an exclusive lock for the write, and records a note; a competing agent sees the claim and waits.'],
+      },
+      {
+        title: 'Watch the claims',
+        command: '$ pd session files add tests/checkout.test.ts',
+        notes: ['Claims are advisory — they announce intent so another agent can see contention before it collides.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A guard that turns a would-be overwrite into an orderly wait.',
+        paragraphs: [
+          'One agent begins a session, claims the file, and takes an exclusive lock around the actual write. A second agent that wants the same file sees the claim and the lock and waits its turn instead of racing.',
+          'The primitives are small on purpose: sessions for identity, channels for notification, tuples for shared state, locks for the short critical section, notes for the trail.',
+        ],
+      },
+      {
+        id: 'why-it-matters',
+        label: 'Why it matters',
+        title: 'Coordination is a substrate, not a polite request.',
+        paragraphs: [
+          'Without the lock, two agents both read, both write, and the second silently erases the first — and the merge still looks clean. With it, the write is exclusive and the contention is visible.',
+          'That is the whole product in one example: the boring, load-bearing layer that keeps a swarm from becoming a knife fight.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/coordination/file-edit-guard.ts', language: 'typescript', code: coordinationSource },
+      { path: 'examples/coordination/README.md', language: 'text', code: coordinationReadme },
+    ],
+    adapt: [
+      'Swap the exclusive lock for finer-grained file claims when two agents can safely touch different files.',
+      'Publish the claim to a channel so a dashboard or teammate sees contention live.',
+      'Add a note on release so the trail records who edited what and when.',
+    ],
+    related: [
+      { title: 'Claim tree concept', href: '/docs/concepts/claim-tree' },
+      { title: 'Locks reference', href: '/docs/cli/with-lock' },
+      { title: 'Agents view', href: '/agents' },
+    ],
+  },
+  {
+    slug: 'preview-tunnel',
+    title: 'Share a local preview over a managed tunnel',
+    eyebrow: 'Tunnels',
+    level: 'Intermediate',
+    time: '12 min',
+    summary:
+      'Claim a local service, open a public tunnel only when you ask for it, and publish the URL for other agents — then tear it down cleanly.',
+    surveyPlain:
+      'Expose a localhost service to the outside through ngrok, cloudflared, or localtunnel, with the public URL written into shared state so the rest of your fleet can reach it.',
+    builds:
+      'A safe preview-sharing workflow: inspect provider readiness, claim a service identity, start a managed tunnel on demand, write its URL to the tuple space, and stop it.',
+    whyItMatters:
+      'This is the one shipped way Port Daddy reaches across machines today: a single operator exposing their own local service. No federation, no accounts — just a managed tunnel and a URL the fleet can read.',
+    lastReviewed: '2026-06-19',
+    tags: ['tunnel', 'claim', 'tuples', 'preview'],
+    visual: EXAMPLE_VISUALS['preview-tunnel'],
+    prerequisites: ['A running Port Daddy daemon.', 'A tunnel provider installed (ngrok, cloudflared, or localtunnel).'],
+    files: ['examples/tunnel/share-preview.ts', 'examples/tunnel/README.md'],
+    commands: [
+      {
+        title: 'Check provider readiness',
+        command: '$ npx tsx examples/tunnel/share-preview.ts inspect',
+        notes: ['Lists which tunnel providers are installed before you try to expose anything. Also: pd tunnel providers.'],
+      },
+      {
+        title: 'Claim a service without exposing it',
+        command: '$ npx tsx examples/tunnel/share-preview.ts claim --identity demo:web --port 5173',
+        notes: ['Claims a stable identity for the local service first; exposure is a separate, explicit step.'],
+      },
+      {
+        title: 'Start a managed tunnel',
+        command: '$ pd tunnel start demo:web --provider cloudflared',
+        notes: ['The public URL is written to the tuple space so other agents can read it; pd tunnel stop tears it down.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'A deliberate, revocable bridge from a local port to a public URL.',
+        paragraphs: [
+          'The workflow refuses to expose anything until you ask: inspect readiness, claim the identity, then explicitly start the tunnel. The URL lands in the tuple space so the rest of the fleet can pick it up without you pasting it around.',
+          'When you are done, stopping the tunnel releases the claim. Nothing stays exposed by accident.',
+        ],
+      },
+      {
+        id: 'honest-scope',
+        label: 'Honest scope',
+        title: 'This is single-operator reach, not federation.',
+        paragraphs: [
+          'A tunnel exposes your own machine\'s service. It is not two independent operators federating with shared trust and bonds — that is the Federated Harbor, still on the roadmap.',
+          'What ships today is exactly this: you, exposing your local preview safely, with the URL coordinated through Port Daddy.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/tunnel/share-preview.ts', language: 'typescript', code: tunnelSource },
+      { path: 'examples/tunnel/README.md', language: 'text', code: tunnelReadme },
+    ],
+    adapt: [
+      'Publish the tunnel URL to a channel so a teammate gets it the moment it opens.',
+      'Gate tunnel start behind a confirmation so exposure is always deliberate.',
+      'Rotate providers (ngrok / cloudflared / localtunnel) based on what is installed.',
+    ],
+    related: [
+      { title: 'Tunnel command', href: '/docs/cli/tunnel' },
+      { title: 'Ports + identities', href: '/docs/features/ports' },
+      { title: 'Agents view', href: '/agents' },
+    ],
+  },
+  {
+    slug: 'services-dns',
+    title: 'Let services find each other by name',
+    eyebrow: 'Ports + discovery',
+    level: 'Beginner',
+    time: '12 min',
+    summary:
+      'An API, a frontend, and a worker each claim a stable port and discover one another by name — no hardcoded ports, no race for 3000.',
+    surveyPlain:
+      'Claim semantic port identities for three tiny services and resolve them by hostname, so the frontend always finds the API without anyone hardcoding a number.',
+    builds:
+      'Three minimal services that claim port identities on startup and look each other up through Port Daddy\'s DNS-style discovery.',
+    whyItMatters:
+      'Hardcoded ports are the smallest, most constant friction in local multi-service dev. Semantic identities plus name resolution remove it — the same name always resolves to the same service.',
+    lastReviewed: '2026-06-19',
+    tags: ['ports', 'dns', 'discovery', 'services'],
+    visual: EXAMPLE_VISUALS['services-dns'],
+    prerequisites: ['A running Port Daddy daemon.', 'Node.js with npx/tsx.'],
+    files: ['examples/services/api-server.ts', 'examples/services/README.md'],
+    commands: [
+      {
+        title: 'Start the API (claims a port)',
+        command: '$ npx tsx examples/services/api-server.ts',
+        notes: ['The service claims a semantic identity; the same name maps to the same port every run.'],
+      },
+      {
+        title: 'Start the frontend and worker',
+        command: '$ npx tsx examples/services/frontend.ts & npx tsx examples/services/worker.ts',
+        notes: ['Each claims its own identity and resolves the others by name rather than a hardcoded port.'],
+      },
+      {
+        title: 'See who is registered',
+        command: '$ pd services',
+        notes: ['Lists the live services and the ports their identities resolved to.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'Three services that never fight over a port number.',
+        paragraphs: [
+          'Each service claims a semantic identity at startup (for example myapp:api). The identity hashes to a stable port, so the same name always lands on the same place and two services never collide on 3000.',
+          'The frontend looks up the API by name, not by a number it had to guess. Add or move services and the names keep resolving.',
+        ],
+      },
+      {
+        id: 'why-it-matters',
+        label: 'Why it matters',
+        title: 'The most boring friction in local dev, removed.',
+        paragraphs: [
+          'Hardcoded ports break the moment two projects want the same one, or a teammate runs a different stack. Names that resolve consistently make local multi-service dev stop being a coordination problem.',
+          'It is the same coordination substrate as the rest of Port Daddy, applied to the humblest thing: which port is which.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/services/api-server.ts', language: 'typescript', code: servicesSource },
+      { path: 'examples/services/README.md', language: 'text', code: servicesReadme },
+    ],
+    adapt: [
+      'Add a database service with its own identity and resolve it from the API.',
+      'Use pd claim in a shell script to wrap an existing dev server without code changes.',
+      'Publish a ready signal on a channel so dependents start only once the API is up.',
+    ],
+    related: [
+      { title: 'Ports feature', href: '/docs/features/ports' },
+      { title: 'Semantic identities tutorial', href: '/tutorials/semantic-identities' },
+      { title: 'Agents view', href: '/agents' },
+    ],
+  },
+  {
+    slug: 'war-room-incident',
+    title: 'Stand up a three-agent incident war room',
+    eyebrow: 'Incident response',
+    level: 'Intermediate',
+    time: '15 min',
+    summary:
+      'Three agents investigate a production bug over one shared channel, record findings as notes, and one of them proposes the root-cause fix.',
+    surveyPlain:
+      'A scripted incident where an incident lead, a database investigator, and a log analyst coordinate through pub/sub and leave a permanent, claim-backed trail.',
+    builds:
+      'A scripted war room: three agents share a channel, each posts findings as session notes, and the trail records who found the root cause and what they proposed.',
+    whyItMatters:
+      'Incident response is where "what did the agents actually do?" matters most. Because every finding is a note and every message a channel event, the war room leaves an auditable record instead of a lost chat.',
+    lastReviewed: '2026-06-19',
+    tags: ['incident', 'pub/sub', 'notes', 'sessions'],
+    visual: EXAMPLE_VISUALS['war-room-incident'],
+    prerequisites: ['A running Port Daddy daemon.'],
+    files: ['examples/war-room/run.sh', 'examples/war-room/README.md'],
+    commands: [
+      {
+        title: 'Start the daemon',
+        command: '$ pd start',
+        notes: ['The three agents coordinate through the local daemon\'s channels and notes.'],
+      },
+      {
+        title: 'Run the war room',
+        command: '$ ./examples/war-room/run.sh',
+        notes: ['Alpha leads, Bravo checks the database and deploys, Charlie reads the logs; they talk over bridge:warroom:incident and one proposes the fix.'],
+      },
+    ],
+    sections: [
+      {
+        id: 'what-you-build',
+        label: 'What you build',
+        title: 'Three roles on one channel, leaving a trail as they go.',
+        paragraphs: [
+          'The incident lead coordinates; the database investigator checks health and recent deploys; the log analyst reads stack traces. They communicate over a single pub/sub channel and write what they find as session notes.',
+          'One agent connects the dots, names the root cause, and proposes a fix — and the whole exchange is recoverable afterward.',
+        ],
+      },
+      {
+        id: 'why-it-matters',
+        label: 'Why it matters',
+        title: 'The record is the deliverable.',
+        paragraphs: [
+          'An incident handled in a chat window evaporates. Here, the channel events and notes are the postmortem — who looked at what, what they found, and why the fix was chosen.',
+          'For a queryable, tuple-backed version of the same idea, the swarm coordination board is the next step up.',
+        ],
+      },
+    ],
+    sourceFiles: [
+      { path: 'examples/war-room/run.sh', language: 'text', code: warRoomSource },
+      { path: 'examples/war-room/README.md', language: 'text', code: warRoomReadme },
+    ],
+    adapt: [
+      'Swap the scripted steps for real agent backends to run a live incident drill.',
+      'Page a human by publishing to a channel a notifier watches.',
+      'Promote the notes into a postmortem document at the end of the run.',
+    ],
+    related: [
+      { title: 'Messaging reference', href: '/docs/cli/pub' },
+      { title: 'Swarm coordination board', href: '/examples/swarm-coordination-board' },
+      { title: 'Agents view', href: '/agents' },
+    ],
+  },
 ]
 
 export const FEATURED_EXAMPLE = EXAMPLE_DOCS[0]
@@ -827,4 +1223,60 @@ export const SECONDARY_EXAMPLES = EXAMPLE_DOCS.slice(1)
 
 export function findExampleDoc(slug: string | undefined): ExampleDoc | undefined {
   return EXAMPLE_DOCS.find((example) => example.slug === slug)
+}
+
+/**
+ * The catalogue, grouped by what the reader is actually trying to do. The flat
+ * list buried the point: coordination (agents not stepping on each other) is the
+ * core of Port Daddy, so it leads. PD Tube stays the page's featured lede — it is
+ * the smallest version of the whole idea — so it is intentionally NOT repeated in
+ * a group here. `slugs` are resolved through EXAMPLE_BY_SLUG; an unknown slug is
+ * dropped rather than throwing, so reordering data never breaks the page.
+ */
+export interface ExampleGroup {
+  id: string
+  label: string
+  title: string
+  blurb: string
+  slugs: string[]
+}
+
+export const EXAMPLE_GROUPS: ExampleGroup[] = [
+  {
+    id: 'coordination',
+    label: 'Coordination',
+    title: 'Keep agents out of each other’s way',
+    blurb:
+      'The reason Port Daddy exists: many agents on one machine, none clobbering another’s files, port, or turn. Claims, locks, a shared board, and a recoverable trail.',
+    slugs: [
+      'coordination-file-guard',
+      'swarm-coordination-board',
+      'leader-election',
+      'war-room-incident',
+      'agent-topologies',
+    ],
+  },
+  {
+    id: 'agent-loop',
+    label: 'The agent loop',
+    title: 'Turn an event into agent work',
+    blurb:
+      'The PD Tube pattern from the lede, pointed at real triggers — a failing test, an editor selection, an inbound webhook. The event enters the daemon; the agent in your terminal answers.',
+    slugs: ['test-failure-to-agent', 'editor-lightbulb-to-agent', 'webhook-to-local-agent'],
+  },
+  {
+    id: 'services',
+    label: 'Services & connectivity',
+    title: 'Wire local services together',
+    blurb:
+      'The plumbing underneath: deterministic ports, name-based discovery, throwaway CI databases, a managed tunnel, and peer links brokered through durable inboxes.',
+    slugs: ['services-dns', 'ephemeral-ci-db', 'preview-tunnel', 'p2p-webrtc'],
+  },
+]
+
+const EXAMPLE_BY_SLUG = new Map(EXAMPLE_DOCS.map((example) => [example.slug, example]))
+
+/** Resolve a group's slugs to its ExampleDocs, dropping any that no longer exist. */
+export function examplesForGroup(group: ExampleGroup): ExampleDoc[] {
+  return group.slugs.map((slug) => EXAMPLE_BY_SLUG.get(slug)).filter((doc): doc is ExampleDoc => Boolean(doc))
 }

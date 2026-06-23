@@ -88,7 +88,7 @@ export const getStartedSection: DocsContentSection = {
           title: 'Verify the running app before you debug',
           paragraphs: [
             'If Port Daddy looks wrong, first make sure you are talking to the running install you think you are. The CLI, browser dashboard, and shell command can drift if an old daemon or shim is still around.',
-            'These checks keep you from chasing a missing feature or broken page when the real problem is simply that an older process is serving the app.',
+            'These checks keep you from chasing a missing feature or broken page when the real problem is that an older process is serving the app.',
           ],
         },
         {
@@ -164,7 +164,7 @@ export const getStartedSection: DocsContentSection = {
         {
           type: 'command',
           title: 'Start the session',
-          command: 'pd begin --identity myapp:api --purpose "Building the auth layer"',
+          command: 'pd begin --identity myapp:api --purpose "Building the auth layer" --lifecycle durable',
           notes: [
             'Use `--identity` and `--purpose` explicitly in docs examples.',
             'This is the recommended way to start coordinated work in the current CLI docs.',
