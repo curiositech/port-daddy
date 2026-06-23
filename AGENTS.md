@@ -392,6 +392,38 @@ The numbered flow above is the *review contract*. This subsection is the
   uncommitted work. Never `git reset` or otherwise clobber the main
   checkout — it carries WIP that is not yours.
 
+### Roadmap link gate (every PR declares its roadmap item)
+
+Every PR must say which roadmap item it advances, so a merge writes back to
+tracked work instead of vanishing. The mechanism:
+
+- **Declare it.** Put one trailer line in the PR description:
+  `Roadmap-Item: <slug>` — or, for a chore/docs/hotfix, the explicit opt-out
+  `Roadmap-Item: none — <reason>`. The PR template carries the prompt.
+- **No item yet? Create + stamp in one step** (runs locally — the roadmap
+  lives in the daemon's SQLite, which CI can't reach):
+  `npx tsx scripts/roadmap-link.ts <pr-number>`. It POSTs a real
+  `roadmap_items` row (`POST /roadmap/items`) and edits the trailer into the
+  PR body. Then `npx tsx scripts/export-roadmap-snapshot.ts` and commit so CI
+  sees it.
+- **The check is non-blocking by design.** `.github/workflows/roadmap-link.yml`
+  reads the committed mirror `docs/roadmap/roadmap.snapshot.json` (via the pure,
+  unit-tested `lib/roadmap-link-core.ts`). It is **NOT** a required status check
+  — never add it to branch protection. A red check is a loud signal, not a wall.
+- **Its teeth are the label.** A PR with no valid link gets `needs-roadmap-link`.
+  The land/auto-merge flow must treat that label as *hold for a human* — do not
+  auto-merge a PR carrying it; a human approves the land or adds the link.
+- **A broken roadmap is loud, not silent.** If the snapshot is missing, empty,
+  or stale, the gate shouts (🔴 comment + step summary) and tells you to
+  regenerate it — a stale mirror must never read as "all clear".
+- **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
+  `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
+  items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or
+  `Roadmap-Spawns: none — <reason>` when it only supersedes/clarifies). A plan
+  exists to generate work; without the spawn line the PR gets
+  `needs-roadmap-spawn` and waits for a human. Detection is by file path, so it
+  fires on the actual document, not on prose.
+
 ### Shell gotchas (real and recurring)
 
 These bite every contributor session; they are not theoretical.
