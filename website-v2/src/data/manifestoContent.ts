@@ -228,15 +228,15 @@ export const cryptoPapers: CryptoPaperSpec[] = [
   {
     title: 'The Bonded Commons',
     paperId: 'bonded-commons',
-    checker: 'Kani',
+    checker: 'TLA⁺ + ProVerif',
     underwrites: 'L3',
-    blurb: 'Proves value cannot be conjured or vanished in a settlement — the bond ledger conserves.',
+    blurb: 'Proves value cannot be conjured or vanished in a settlement — the bond ledger conserves (TLA⁺).',
   },
   {
     title: 'The Federated Harbor',
     paperId: 'federated-harbor',
-    checker: 'ProVerif',
+    checker: 'ProVerif (escrow only)',
     underwrites: 'L3',
-    blurb: 'Proves trust can cross between machines that do not trust each other, and a deposit held in the middle cannot be stolen.',
+    blurb: 'Specifies trust crossing between machines that do not trust each other. ProVerif proves the optional escrow-recovery secrecy; the convergence bound and settlement escrow are named, not yet machine-checked.',
   },
 ]
