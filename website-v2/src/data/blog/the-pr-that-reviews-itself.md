@@ -68,7 +68,7 @@ The fan-out is the whole shape of it. One push, six critics, one operator at the
 The fleet is six members because six is the number of axes that empirically matter when somebody opens a non-trivial pull request. Fewer than six and you miss a class. More than six and reviewers stop reading. The names are deliberately *human*: a ship is not a bot, it is a role in a kitchen, a role in a courtroom, a role in a chorus. Each ship has a job, a fire-condition, and a voice.
 
 <!-- sidenote: 2 -->
-> Every ship runs on the same fleet primitive that runs the personal agents elsewhere in Port Daddy. The substrate is identical. The *opinions* are the differentiator. See [the personal fleet post](#) for the morning-briefing variant of the same pattern.
+> Every ship runs on the same fleet primitive that runs the personal agents elsewhere in Port Daddy. The substrate is identical. The *opinions* are the differentiator. See [the personal fleet post](/blog/your-ai-subscription-powers-the-fleet) for the morning-briefing variant of the same pattern.
 
 ### code-reviewer — the opinionated senior who actually read your code
 
@@ -261,7 +261,7 @@ Three properties the operator has to be able to rely on:
 
 1. **Dismiss with reason.** Every finding has a "dismiss" button. The dismiss requires a one-line reason. The reason is stored, and the ship reads it the next time it runs on this repo. False positives get rarer, on the schedule of the operator's own annotations, not on a vendor's release cycle.
 2. **Daily cost cap.** The fleet has a single hard daily spend cap, set at install. If the fleet would cost more than the cap, it falls back to running only `code-reviewer` and `tautology-sniffer` — the two cheapest ships — and posts a small note explaining why the others didn't run. The cap is a *floor on safety*, not a budget for optimism.
-3. **The chat transcripts are visible.** Every ship's reasoning trail lands in the Port Daddy dashboard, attached to the PR. If you want to know *why* `red-team` thought your auth change was attackable, you click into the transcript. The ship can be wrong; it cannot be opaque.
+3. **The chat transcripts are visible.** Every ship's reasoning trail lands in [the Port Daddy dashboard](/blog/control-plane-is-the-product), attached to the PR. If you want to know *why* `red-team` thought your auth change was attackable, you click into the transcript. The ship can be wrong; it cannot be opaque.
 
 The civility property is also load-bearing. The ships are opinionated — that's the whole point — but they are *not* cruel. The system prompt for `code-reviewer` includes the instruction to write the comment a senior engineer would write to a colleague they respected: blunt, citing evidence, calling the change wrong when it's wrong, and *not* sneering. A paid critic is allowed to disagree. A paid critic is not allowed to be a dick.
 
@@ -275,7 +275,7 @@ Everything in this post runs on the same fleet primitive that runs the personal 
 <!-- sidenote: 12 -->
 > The unified fleet is the bet. Personal agents and dev-repo agents look like different products, but they are the same animal eating different food. Sharing the substrate means the cost model, the cap, the dashboard, and the dismiss-with-reason loop are all one system instead of six.
 
-If you want the morning-briefing version, see the [personal-fleet post](#) (sibling, in flight). If you want the CLI-backed view of how the GitHub fleet is wired into push events, see [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) and the [`/cli-backend` reference](/cli-backend).
+If you want the morning-briefing version, see the [personal-fleet post](/blog/your-ai-subscription-powers-the-fleet) (sibling, in flight). If you want the CLI-backed view of how the GitHub fleet is wired into push events, see [The CLI Is For The Robots](/blog/the-cli-is-for-the-robots) and the [`/cli-backend` reference](/cli-backend).
 
 ## Try it
 

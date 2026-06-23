@@ -20,7 +20,7 @@ A human you hire can be fired. A human contractor can be sued. A human with mali
 
 An immortal AI agent is none of those things. It has no body, no career to wreck, no reputation outside the one you keep for it. If it does something destructive, the only thing it loses is the next reward signal. And if it's already been paid, it has lost nothing at all.
 
-This is fine when the worst the agent can do is overspend its API budget. It is not fine when the agent can hold every file in your repository hostage, walk away from a half-finished migration, or quietly delete an auth module on its way out the door.
+This is fine when the worst the agent can do is overspend its API budget. It is not fine when the agent can hold every file in your repository hostage, walk away from a half-finished migration, or quietly [delete an auth module on its way out the door](/blog/the-macaroon-gate).
 
 The Bonded Commons paper calls the thing it can lose its **bond** — a stake the agent posts before working, slashable on breach. The headline of v2 is that the *size* of that stake should not be a daily-budget number. It should be priced against what the agent could actually cost you.
 
