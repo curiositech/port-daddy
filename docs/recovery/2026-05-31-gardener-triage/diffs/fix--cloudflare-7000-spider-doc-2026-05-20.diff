@@ -1,0 +1,31 @@
+STATS:
+
+---
+LAST COMMIT:
+a52547c42d7b0840eda5fccc67fa694306db1f0a
+Erich Owens <[redacted]>
+2026-05-20 22:25:30 -0700
+fixup: correct plist-regen prose (HIGH); promote to top-level section (MEDIUM); link followup (LOW) (#133)
+
+Adversarial review caught the technical claim inverted: `brew services restart` does
+regenerate the plist, but from the installed keg (under Cellar/), not from the tap's
+current formula. `brew services` doesn't track the tap. So the right invariant is
+'plist regenerates from the keg' — `brew reinstall` is needed to swap the keg first.
+
+Also calls out the version-bump caveat: `brew upgrade` replaces the keg automatically
+(plist follows), but a tap PR that changes the service block without a version bump
+won't propagate via `brew update` (keg unchanged).
+
+Promoted from a subsection under § Migration to its own top-level section so it stays
+discoverable for non-migrating operators (every future tap service-block change).
+
+Added a direct link to the followup roadmap item (`pd-doctor-detect-drift-between-live`)
+in the doc body so the followup pointer survives the merge.
+
+Sources cited in the review:
+  https://github.com/Homebrew/homebrew-services/issues/71
+  https://github.com/orgs/Homebrew/discussions/6196
+  https://github.com/Homebrew/homebrew-services/issues/376
+
+---
+DIFF (first 300 lines):

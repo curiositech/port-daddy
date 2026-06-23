@@ -28,7 +28,7 @@ echo "-----------------"
 echo "Agent: $AGENT_ID"
 echo ""
 
-SESSION_ID="$(pd session start "Example session phase lifecycle" --agent "$AGENT_ID" -q)"
+SESSION_ID="$(pd session start "Example session phase lifecycle" --agent "$AGENT_ID" --lifecycle durable -q)"
 
 echo "Session: $SESSION_ID"
 

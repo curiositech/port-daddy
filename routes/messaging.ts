@@ -18,6 +18,8 @@ import {
   untrackConnection,
   connectionLimits
 } from '../shared/connection-tracking.js';
+import { decodeMessage, type RawDaemonMessage } from '../lib/tube.js';
+import { buildLineage, summarizeThread, renderLineageTree } from '../lib/discourse-lineage.js';
 
 interface MessagingRouteDeps {
   logger: {
@@ -185,6 +187,50 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
         limit: safeLimit,
         after: after ? parseInt(after as string, 10) : null
       });
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /msg/:channel/lineage - Argument graph (RCP-14) over a channel's backlog.
+  // Decodes the typed tube envelopes, builds the inReplyTo graph typed by
+  // `relationship`, and returns a digest (zoom-out) + tree (zoom-in) so any
+  // surface (CLI, MCP, pd-console) can render the same reasoning provenance.
+  fastify.get('/msg/:channel/lineage', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const channelValidation = validateChannel((request.params as any).channel);
+      if (!channelValidation.valid) {
+        reply.code(400);
+        return { error: channelValidation.error };
+      }
+
+      const { limit, conversationId } = request.query as any;
+      const MAX_MESSAGE_LIMIT = 2000;
+      const requestedLimit = limit ? parseInt(limit as string, 10) : MAX_MESSAGE_LIMIT;
+      const safeLimit = Math.min(Math.max(1, requestedLimit), MAX_MESSAGE_LIMIT);
+
+      const result = messaging.getMessages((request.params as any).channel, { limit: safeLimit, after: null }) as
+        { success?: boolean; messages?: Array<{ id: number; payload: unknown; contentType?: string; sender: string | null; createdAt: number }> };
+
+      if (!result || result.success === false || !Array.isArray(result.messages)) {
+        return { ok: true, channel: (request.params as any).channel, digest: summarizeThread(buildLineage([])), tree: '' };
+      }
+
+      let decoded = result.messages.map((m) => decodeMessage(m as RawDaemonMessage));
+      if (typeof conversationId === 'string' && conversationId) {
+        decoded = decoded.filter((m) => m.conversationId === conversationId);
+      }
+
+      const graph = buildLineage(decoded);
+      return {
+        ok: true,
+        channel: (request.params as any).channel,
+        ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
+        digest: summarizeThread(graph),
+        tree: renderLineageTree(graph),
+      };
     } catch (error) {
       metrics.errors++;
       reply.code(500);

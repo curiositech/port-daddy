@@ -1,0 +1,243 @@
+STATS:
+ docs/adr/0036-bosun-supervisor.md | 206 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 206 insertions(+)
+
+---
+LAST COMMIT:
+9d6d5a9955ad0ae52059e1b3f0cb7f8974cb46f0
+Erich Owens <[redacted]>
+2026-05-20 10:47:07 -0700
+docs(adr): draft ADR-0036 — pd-bosun minimalist daemon supervisor
+
+Q6.2 sister to ADR-0035-dispatches. Documents shipped Rust binary at
+core/pd-bosun/ (854 LOC, zero-deps, ships hand-rolled JSON parsing
+and Unix syscalls via extern "C") and the Phase C gap (launchctl
+kickstart integration, exponential backoff, displacement honor,
+second launchd plist).
+
+Note: Path B fix #4 in the source plan ("launchd plist + zsh script
+for v1; Rust is v2") was based on incomplete repo inspection. The
+Rust crate already exists. ADR describes shipped reality; plan note
+to be revised in a follow-up.
+
+Enumerates what bosun is NOT (no HTTP, no SQLite, no keys, no
+mailbox, no LLM) as the load-bearing constraint — the constraint is
+enforced by the Cargo.toml having zero dependencies.
+
+[draft] — opens for redteam review.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/adr/0036-bosun-supervisor.md b/docs/adr/0036-bosun-supervisor.md
+new file mode 100644
+index 00000000..cccd5187
+--- /dev/null
++++ b/docs/adr/0036-bosun-supervisor.md
+@@ -0,0 +1,206 @@
++# 0036. pd-bosun — Minimalist Daemon Supervisor
++
++## Status
++
++Draft (Q6.2 sister ADR to 0035-dispatches). Documents shipped Rust binary
++at `core/pd-bosun/`; the Path B plan note ("launchd plist + zsh script
++for v1; Rust is a v2 conversation") was based on incomplete inspection of
++the repo. The Rust crate already exists.
++
++## Context
++
++The Port Daddy daemon is a long-running TypeScript Express server that
++holds the SQLite database, the message broker, the actor mailboxes, the
++spawner, and increasingly the dispatch state machine (ADR-0035). When
++the daemon dies — sleep wake-ups losing the SQLite file lock, port
++takeover from a stale process, OS sandbox kill, or just an unhandled
++promise rejection — every coordination surface goes dark.
++
++The fragility was tolerable when "coordination" meant "one human writing
++notes for one agent." The dispatch model (ADR-0035) makes daemon death
++**the** failure mode that breaks the operator's "walk away and come
++back to a PR" promise. A worker actor mid-dispatch with a dead daemon
++has nowhere to mark `review_ready`; a stuck `human_review_ready` row
++never fires the notification.
++
++A small in-daemon heartbeat writer already exists (`lib/bosun-heartbeat.ts`,
++ADR-prior). It periodically renders an atomic JSON document at
++`~/.port-daddy/heartbeat` containing pid, write timestamp, version, code
++hash, and install dir. The writer self-stops on displacement (PR #32),
++so a daemon that loses the canonical PID file does not spam errors.
++
++What was missing was the **other side**: a process outside the daemon
++that reads the heartbeat, detects staleness or pid death, and triggers
++restart. That is `pd-bosun`.
++
++## Decision
++
++Ship `pd-bosun` as a small Rust binary at `core/pd-bosun/`. The
++constraints — explicitly enumerated so future PRs do not slide:
++
++1. **No HTTP client.** Reads only the filesystem heartbeat. If the
++   daemon's HTTP stack is dead, bosun must still work.
++2. **No SQLite.** No DB access of any kind. State is the heartbeat
++   file plus `/tmp` ephemeral process probe results (and `/tmp` is the
++   ONE allowed exception because it is genuinely ephemeral diagnostics,
++   not data preservation).
++3. **No keys, no mailbox, no decryption.** Bosun is not an actor and
++   does not participate in the actor system. The Arbiter does not gate
++   bosun.
++4. **No fleet awareness.** Bosun supervises one process: the daemon.
++   Fleet bodies are the daemon's problem via `lib/fleet-engine.ts`.
++5. **No agentic behavior.** No LLM calls. No prompts. Deterministic
++   state machine: read → classify → act → sleep.
++
++These constraints define what bosun IS by enumerating what it isn't.
++"Two turtles, no more" — the daemon is one supervisor (it manages fleet
++bodies); bosun is the other (it manages the daemon). Adding a third
++layer is a load-bearing decision that needs its own ADR.
++
++### Shipped surface (verified at `core/pd-bosun/src/main.rs`)
++
++- **Commands**: `pd-bosun status` (one-shot inspection, prints JSON),
++  `pd-bosun watch` (loop: inspect → enforce → sleep `interval_ms`).
++- **Heartbeat schema check**: hard-fails on schema mismatch. The
++  schema string `port-daddy.bosun.heartbeat.v1` is duplicated between
++  TypeScript and Rust intentionally — version bumps require touching
++  both files, which is the safety property.
++- **Pid liveness**: `kill(pid, 0)` syscall. ESRCH means dead; success
++  or EPERM means alive. No fork-and-wait, no `ps` parse.
++- **Staleness threshold**: `stale_after_ms` (default 30s); writes
++  older than threshold are flagged.
++- **Dry-run**: `PORT_DADDY_BOSUN_DRY_RUN=1` suppresses any
++  state-mutating action; bosun logs what it would have done. Used in
++  tests and for first-time operators.
++- **No-deps Rust**: zero external crates. JSON is parsed by hand
++  (string finds + slice math); Unix syscalls via `extern "C"`. Build
++  is reproducible without a network. Binary is ~200kB.
++
++### Gap Phase C fills
++
++The shipped binary detects daemon stalls but the restart path is
++half-wired. Phase C (per the plan) adds:
++
++- **launchctl integration**. `pd-bosun watch` already classifies stalls;
++  the restart action is `launchctl kickstart -k system/<label>` on a
++  configurable label (default `com.portdaddy.daemon`). The kickstart
++  call is intentionally one shell call away from "the user could have
++  typed it" — fragility budget stays small.
++- **Backoff**. Exponential `30s → 1m → 2m → 5m` cap; reset on
++  successful heartbeat resumption. Hard cap of 5 consecutive failed
++  restart attempts before bosun writes `~/.port-daddy/bosun.alert` and
++  stops trying. The alert file is the only state bosun writes outside
++  `/tmp`-like ephemeral scratch.
++- **Displacement honor**. PR #32 logic in `lib/bosun-heartbeat.ts`
++  detects "another daemon owns the canonical pid file." Bosun must
++  honor this: if the heartbeat shows displacement and the new pid is
++  responsive, stand down and exit (the new daemon's writer takes over).
++  Bosun does not arbitrate between two daemons.
++
++### Installation
++
++Phase C also lands a second launchd plist at
++`~/Library/LaunchAgents/com.portdaddy.bosun.plist` alongside the
++existing `com.portdaddy.daemon.plist`. Bosun is set
++`RunAtLoad=true, KeepAlive=true` because bosun crashing must itself be
++recovered — by launchd. Three layers: launchd → bosun → daemon.
++launchd is the trust anchor that doesn't need its own supervisor.
++
++The plist references the bosun binary at the install dir's
++`core/pd-bosun/target/release/pd-bosun`. `pd install` builds the
++release binary if missing (`cargo build --release -p pd-bosun`). The
++Rust toolchain becomes a build-time dependency of installation but not
++a runtime dependency of the daemon — bosun ships as a compiled binary
++on Homebrew (similar to `core/pd-fleet`'s pattern, when that exists).
++
++### What bosun does NOT do (the v2 conversation, deferred)
++
++- **Multi-daemon orchestration**. One daemon, one bosun. The relay
++  mesh (ADR-0027) is a separate problem.
++- **Heartbeat encryption**. The heartbeat file is plaintext JSON. Anyone
++  with read access to `~/.port-daddy/` already has full daemon access;
++  encrypting the heartbeat would be performative.
++- **Crash forensics**. Bosun does not capture core dumps or stack
++  traces. The daemon's `port-daddy-error.log` (per launchd plist) is
++  the source of truth.
++- **Self-update**. Bosun does not check for new versions. Homebrew
++  (or `pd install`) bumps the binary; bosun reads the next launchctl
++  load.
++
++## Consequences
++
++### Positive
++
++- The daemon being dead becomes a notification, not a permanent outage.
++  Operator can walk away from a `pd dispatch` knowing the supervisor
++  layer catches transient daemon deaths.
++- The "no HTTP, no SQLite, no keys" rule is enforceable in code review
++  because the Rust crate has zero dependencies — adding any of those
++  shows up as a Cargo.toml diff.
++- The Rust binary is small enough to read end-to-end (~850 LOC). The
++  whole supervisor fits in one file; complexity has a hard upper
++  bound.
++
++### Negative
++
++- A second launchd plist means installation has two failure modes
++  (plist loaded but binary missing, plist not loaded, binary stale).
++  `pd install` and `pd uninstall` must both manage the pair atomically;
++  the uninstall path that orphans `com.portdaddy.bosun` is a bug.
++- Rust toolchain becomes a build-time dependency for source installs.
++  Homebrew binary distribution avoids this for end users; dev installs
++  pay the price.
++- The "no HTTP" rule prevents bosun from exposing its own status over
++  HTTP. The operator must `pd-bosun status` from a shell. FleetBar
++  reads the bosun status by spawning the binary, not by calling an
++  endpoint.
++
++### Neutral
++
++- The launchd-bosun-daemon trust chain mirrors macOS conventions; on
++  Linux, an equivalent is systemd user units, but the Port Daddy
++  primary target remains macOS for now (per Path B fix #4's spirit,
++  even though its letter — "v1 is zsh" — turned out to be wrong).
++- The shipped binary's hand-rolled JSON parser is a deliberate
++  no-deps choice. It is uglier than `serde_json` but is in scope for
++  one human to audit; any deviation needs an ADR amendment.
++
++## Alternatives considered
++
++1. **Use launchd's `KeepAlive` directly** (no bosun). Tried; the
++   `KeepAlive` "successful exit" check doesn't capture the failure
++   mode bosun is built for: the daemon's process is alive but its
++   heartbeat is stale (event loop blocked, deadlock, slow GC).
++   launchd cannot see inside the daemon's progress; bosun can.
++2. **Bosun in TypeScript inside the daemon**. Defeats the purpose —
++   if the daemon's runtime is wedged, in-process supervision is
++   wedged with it. Rejected at first principles.
++3. **A shell script supervisor (zsh)**. The Path B plan note suggested
++   this for v1. In practice the Rust binary is already done and is
++   simpler than the equivalent shell would be (Unix signal handling
++   in shell is fragile; the kill(pid, 0) probe and the schema check
++   are awkward). Rejected post-inspection.
++
++## Related ADRs
++
++- **0035** (draft): dispatches — the product surface whose "walk away"
++  promise depends on bosun.
++- **0027**: relay-harbor-mesh — multi-daemon federation; explicitly
++  out of scope for bosun.
++- **PR #32** (merged): bosun heartbeat displacement detection on the
++  writer side; bosun reads what that writer produces.
++
++## Notes
++
++- The heartbeat schema string `port-daddy.bosun.heartbeat.v1` lives in
++  two places: `lib/bosun-heartbeat.ts:48` and
++  `core/pd-bosun/src/main.rs:25`. Both must change together. A future
++  schema bump should ship a v2 reader in bosun before the writer
++  emits v2.
++- `pd-bosun status` output is a small JSON object designed for
++  scraping by FleetBar and tests, not for direct operator reading.
++  Operator-facing status goes through `pd status`, which spawns the
++  binary and pretty-prints.
++- The crate uses `extern "C"` for `kill()` and `getuid()` to avoid
++  pulling in `libc` or `nix`. Both functions are POSIX, stable, and
++  trivial to bind by hand.

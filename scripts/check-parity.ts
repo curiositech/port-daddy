@@ -135,7 +135,7 @@ function extractRoutes(): Set<string> {
   const routesDir = join(ROOT, 'routes');
   const routes = new Set<string>();
 
-  const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
+  const routePattern = /\.(get|post|put|delete|patch)\s*(?:<[^)]*>)?\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
   for (const file of readdirSync(routesDir)) {
     if (!file.endsWith('.ts')) continue;

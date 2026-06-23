@@ -144,6 +144,7 @@ describe('pd agent autopilot', () => {
       purpose: 'review the diff',
       identity: 'port-daddy:repo:cli',
       type: 'pd-agent',
+      lifecycle: 'ephemeral',
     });
 
     const spawnBody = JSON.parse(mockPdFetch.mock.calls[2][1].body);

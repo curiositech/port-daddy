@@ -663,6 +663,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `purpose` | string | yes | What you're working on |
+| `lifecycle` | `'durable' | 'ephemeral'` | yes | Explicit session lifecycle. Use `durable` for ordinary agent work contexts; use `ephemeral` only for heartbeat-bound process sessions. |
 | `identity` | string | no | Semantic identity (auto-detected from package.json) |
 | `agentId` | string | no | Agent ID (auto-generated if not provided) |
 | `name` | string | no | Human-readable display name stored beside the technical agent ID |
@@ -679,6 +680,7 @@ Register agent + start session atomically. Rolls back agent registration on fail
   "sessionId": "session-uuid",
   "identity": "myapp:api",
   "purpose": "Implementing auth",
+  "lifecycle": "durable",
   "agentRegistered": true,
   "sessionStarted": true,
   "salvageHint": "1 dead agent(s) found in project"

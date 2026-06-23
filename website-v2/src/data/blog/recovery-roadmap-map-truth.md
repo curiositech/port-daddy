@@ -1,12 +1,10 @@
 # Keeping The Map Honest
 
-Large codebases do not have one source of truth. They have commits, docs, issues, test output, local services, feature flags, generated assets, design screenshots, session notes, and the human memory of what happened ten minutes ago.
+The roadmap says the blog renderer is "next." You open the file to start it and find a commit from three weeks ago that already shipped it — GFM tables, the lot. Except the deployed site still serves the old bundle, so a screenshot in the issue shows the previous styling, which makes it look unstarted, which is why the roadmap still says "next." You are now doing archaeology: digging through commits, browser hashes, and a screenshot's timestamp to reconstruct a fact the team knew clearly the day it happened and has since forgotten.
 
-Agent-assisted work adds more surfaces. Now there are background runs, handoffs, file claims, channel messages, failed launches, model decisions, and partial attempts. If those surfaces drift, the team loses trust quickly.
+That dig is the tax a stale map charges, and it compounds. Large codebases never had one source of truth to begin with — they have commits, docs, issues, test output, local services, feature flags, generated assets, design screenshots, session notes, and the human memory of what happened ten minutes ago. Agent-assisted work piles on more surfaces: background runs, handoffs, file claims, channel messages, failed launches, model decisions, half-finished attempts. When those surfaces drift apart, trust evaporates fast. Port Daddy's map work exists to stop the archaeology: make the current state legible enough that the next human or agent can act on it directly.
 
-Port Daddy's map work is about one thing: make the current state legible enough that the next human or agent can act without archaeology.
-
-![Roadmap and recovery projection in the control plane](/media/landing-live-glory/live-roadmap-light.png)
+![A control-plane roadmap panel where each slice carries its evidence inline — commits, build status, screenshots — so a feature that shipped reads as shipped instead of still saying "next"](/media/landing-live-glory/live-roadmap-light.webp)
 
 ## Why Roadmaps Drift
 
@@ -29,6 +27,7 @@ That is a different job from writing a roadmap. It is reconciliation.
 
 Port Daddy does not need every piece of truth in one file. It needs a projection that can cite the underlying evidence.
 
+<!-- figure: The operator map as a projection — git, notes, claims, tests, screenshots, and daemon state all feeding one current-enough view that cites its sources, which is what lets a human or agent act without re-digging the evidence. -->
 ```mermaid
 flowchart LR
   Git["git history"] --> Projection["operator map"]
@@ -43,7 +42,7 @@ flowchart LR
 
 A useful map is not a perfect database. It is a current-enough explanation of where work stands and why.
 
-![Flow graph view showing connected work state](/media/landing-live-glory/live-flow-graph-light.png)
+![The flow-graph view rendering work as connected slices with their dependencies, so an engineer can see what is on main, what is in flight, and what was abandoned without reading every commit by hand](/media/landing-live-glory/live-flow-graph-light.webp)
 
 ## How The Projection Gets Built
 

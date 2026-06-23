@@ -1,0 +1,18 @@
+[package]
+name = "pd-mesh"
+description = "Anchor-authenticated mesh daemon primitives for Port Daddy kernel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+pd-anchor = { path = "../pd-anchor" }
+pd-core = { path = "../pd-core" }
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

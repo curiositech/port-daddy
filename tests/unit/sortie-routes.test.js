@@ -179,4 +179,73 @@ describe('sortie routes', () => {
     await app.close();
     db.close();
   });
+
+  test('POST /sorties routed through the Conductor reaches spawner.spawn byte-identically (ADR-0060 chokepoint)', async () => {
+    const { createConductor } = await import('../../lib/fleet/conductor.js');
+    const app = Fastify();
+    const db = createTestDb();
+    const sorties = createSorties(db);
+    const spawner = {
+      spawn: jest.fn(async () => ({
+        agentId: 'spawned-sortie-via-conductor',
+        backend: 'codex',
+        model: 'gpt-5.4-mini',
+        status: 'completed',
+        output: 'mission done',
+        error: null,
+        startedAt: 1,
+        completedAt: 2,
+      })),
+      kill: jest.fn(),
+    };
+    // A real Conductor over the test spawner — the daemon's one spawn primitive.
+    const conductor = createConductor({ db, spawner });
+    await app.register(sortiesPlugin, {
+      deps: {
+        spawner,
+        sorties,
+        conductor,
+        costTracker: { budgetStatus: jest.fn() },
+        metrics: { errors: 0 },
+        logger: { info: jest.fn(), error: jest.fn() },
+      },
+    });
+    const project = basename(process.cwd());
+
+    const createRes = await app.inject({
+      method: 'POST',
+      url: '/sorties',
+      payload: {
+        goal: 'Investigate flaky auth tests',
+        backend: 'codex',
+        modelTier: 'low',
+        budgetUsd: 0.75,
+        projectDir: process.cwd(),
+        expectedOutput: 'Root-cause memo',
+      },
+    });
+
+    expect(createRes.statusCode).toBe(200);
+    const created = createRes.json();
+    expect(created.success).toBe(true);
+    expect(created.sortie.status).toBe('completed');
+    // The Conductor reached the spawner exactly once, with the legacy spec shape.
+    expect(spawner.spawn).toHaveBeenCalledTimes(1);
+    const spec = spawner.spawn.mock.calls[0][0];
+    expect(spec).toEqual(expect.objectContaining({
+      backend: 'codex',
+      model: 'gpt-5.4-mini',
+      modelTier: 'low',
+      identity: `${project}:sortie:${created.sortie.id}:coordinator`,
+      task: expect.any(String),
+      workdir: process.cwd(),
+    }));
+    // The chokepoint did not leak Conductor-internal fields into the spawn spec.
+    expect(spec).not.toHaveProperty('lineageCeilingUsd');
+    expect(spec).not.toHaveProperty('allowSharedCheckout');
+    expect(spec).not.toHaveProperty('mergePolicy');
+
+    await app.close();
+    db.close();
+  });
 });

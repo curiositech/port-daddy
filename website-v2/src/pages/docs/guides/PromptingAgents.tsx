@@ -14,7 +14,7 @@ const promptTemplate = `You are agent myrepo:docs:redesign.
 Session purpose: redesign docs IA and styling.
 
 Before edits:
-1. Run: pd begin --identity myrepo:docs:redesign
+1. Run: pd begin --identity myrepo:docs:redesign --purpose "Redesign docs IA" --lifecycle durable
 2. Leave: pd note "Scope: docs IA, docs styling, no runtime files."
 3. Claim: pd session files add website-v2/src/pages/docs/DocsOverview.tsx
 
@@ -56,7 +56,7 @@ export default function PromptingAgents() {
 
       <DocsNoteCard label="Template" title="Start with identity, scope, claims, and evidence." elevation="quiet" padding="compact" titleSize="nav">
         <SiteDocsCodeBlock code={promptTemplate} language="text" label="Prompt body" />
-        <DocsCodeBlock code="pd begin --identity myrepo:docs:redesign && pd note 'Scope: docs IA, docs styling, no runtime files.'" output={promptResult} label="Expected Port Daddy trace" />
+        <DocsCodeBlock code="pd begin --identity myrepo:docs:redesign --purpose 'Redesign docs IA' --lifecycle durable && pd note 'Scope: docs IA, docs styling, no runtime files.'" output={promptResult} label="Expected Port Daddy trace" />
       </DocsNoteCard>
 
       <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--panel-gap)]">

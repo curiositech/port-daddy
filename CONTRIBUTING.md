@@ -89,8 +89,8 @@ port-daddy/
 | CLI | Separate shell scripts (`get-port`, `release-port`, `list-ports`) | Unified `port-daddy` command with subcommands |
 | Naming | Flat project names | Semantic identities: `project:stack:context` |
 | Routes | All handlers in `server.js` | Modular `routes/` directory |
-| Validation | Inline in route handlers | Centralized in `shared/validation.js` |
-| SDK | None | `lib/client.js` (PortDaddy class) |
+| Validation | Inline in route handlers | Centralized in `shared/types.ts` |
+| SDK | None | `lib/client.ts` (PortDaddy class) |
 | Config | Just `config.json` | Per-project `.portdaddyrc` with auto-detection |
 | Coordination | Port assignment only | Pub/sub, distributed locks, agent registry, webhooks |
 | Tests | Integration only | Unit + integration (1255 tests, 21 suites) |
@@ -114,7 +114,7 @@ port-daddy/
 
 **3. Modular Routes** (`routes/`)
 - Each domain gets its own route file
-- `routes/index.js` aggregates all routes and mounts them on the Express app
+- `routes/index.ts` aggregates all routes and mounts them on the Express app
 - Route handlers are thin: validate input, call lib module, return response
 
 **4. Library Modules** (`lib/`)
@@ -164,6 +164,34 @@ port-daddy/
 5. Commit with clear, descriptive messages
 6. Push and open a pull request against `main`
 
+### Pull Request Requirements
+
+Every PR is filled out against [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md)
+and goes through skeptical adversarial review before merge. The full doctrine
+lives in [`AGENTS.md` § Pull Request Operating Procedure](AGENTS.md); the load-bearing rules:
+
+- **Exhaustive Summary + non-trivial Test Plan.** Not "ran the tests" — show the
+  evidence (commands, output, edge cases), ideally turned into new test cases.
+  Enforced by `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`):
+  an empty or too-thin Summary/Test Plan fails the check (and the merge queue once
+  the operator marks `pr-requirements-guard` a required check). Run it locally
+  with `npm run check:pr-requirements -- --body-file <your-draft.md>`.
+- **Visual proof for visual changes.** A PR touching `core/pd-console/`,
+  `website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`,
+  or `apps/FleetBar/` must ship screenshots **and** a GIF/recording of the actual
+  change. The guard fails the PR without them (escape hatch: a
+  `<!-- visual-exempt: <reason> -->` marker for a genuinely non-visual diff).
+- **Surface parity for new CLI verbs.** Every new CLI command needs a matching MCP
+  tool, SDK method, route, shell completions, and docs. `npm run parity`
+  (`scripts/check-parity.ts`, against `features.manifest.json`) enforces this.
+- **New code, new coverage.** New lines/functions/classes get new tests; the full
+  build and suite must pass and existing behavior must still work.
+- **Changelog + parsimony.** Update `CHANGELOG.md`, and don't introduce a second
+  system that duplicates an existing surface — consolidate instead, and say so.
+- **Adversarial review.** The `claude-adversarial-review` workflow runs on every
+  PR assuming laziness/slop/lies/corner-cutting and ends with a
+  `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict; address every HIGH finding.
+
 ### Adding New Features Checklist
 
 When adding a new capability to Port Daddy, follow this sequence:
@@ -172,12 +200,12 @@ When adding a new capability to Port Daddy, follow this sequence:
 2. **Import and wire up** the module in `server.js`
 3. **Add routes** in the `routes/` directory -- create a new file or extend an existing one
 4. **Code hash is automatic** -- `server.js` uses dynamic `readdirSync` to hash all source files, so new `lib/` and `routes/` files are included automatically
-5. **Add shared validation** in `shared/validation.js` if the feature takes user input
+5. **Add shared validation** in `shared/types.ts` if the feature takes user input
 6. **Update the dashboard** in `public/index.html`
 7. **Write unit tests** in `tests/unit/` (mock dependencies, no daemon needed)
 8. **Write integration tests** in `tests/integration/` (test against live daemon)
 9. **Update README.md** with API docs and usage examples
-10. **Add SDK methods** to `lib/client.js` so programmatic users get the feature too
+10. **Add SDK methods** to `lib/client.ts` so programmatic users get the feature too
 
 ## Testing
 

@@ -18,6 +18,10 @@ import RoadmapPanel from './components/RoadmapPanel';
 import CockpitMissionsPanel from './components/CockpitMissionsPanel';
 import ResourceGovernancePanel from './components/ResourceGovernancePanel';
 import TubeConsolePanel from './components/TubeConsolePanel';
+import TubeMessagePanel from './components/TubeMessagePanel';
+import DispatchPanel from './components/DispatchPanel';
+import CoastGuardPanel from './components/CoastGuardPanel';
+import CockpitControlPanel from './components/CockpitControlPanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
 import { MetricsPanel } from './components/MetricsPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
@@ -61,8 +65,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Shipwright' | 'YAML';
-type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'shipwright' | 'yaml';
+type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
+type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -74,11 +78,15 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'activity':
     case 'channels':
     case 'tube':
+    case 'tubebrowser':
     case 'events':
     case 'inbox':
     case 'sorties':
     case 'memory':
     case 'metrics':
+    case 'dispatch':
+    case 'coastguard':
+    case 'cockpit':
     case 'roadmap':
     case 'shipwright':
     case 'yaml':
@@ -109,6 +117,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Channels';
     case 'tube':
       return 'Tube';
+    case 'tubebrowser':
+      return 'TubeBrowser';
     case 'events':
       return 'Events';
     case 'inbox':
@@ -119,6 +129,12 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Memory';
     case 'metrics':
       return 'Metrics';
+    case 'dispatch':
+      return 'Dispatch';
+    case 'coastguard':
+      return 'CoastGuard';
+    case 'cockpit':
+      return 'Cockpit';
     case 'shipwright':
       return 'Shipwright';
     case 'yaml':
@@ -136,11 +152,15 @@ function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Activity') return 'activity';
   if (activeTab === 'Channels') return 'channels';
   if (activeTab === 'Tube') return 'tube';
+  if (activeTab === 'TubeBrowser') return 'tubebrowser';
   if (activeTab === 'Events') return 'events';
   if (activeTab === 'Inbox') return 'inbox';
   if (activeTab === 'Sorties') return 'sorties';
   if (activeTab === 'Memory') return 'memory';
   if (activeTab === 'Metrics') return 'metrics';
+  if (activeTab === 'Dispatch') return 'dispatch';
+  if (activeTab === 'CoastGuard') return 'coastguard';
+  if (activeTab === 'Cockpit') return 'cockpit';
   if (activeTab === 'Shipwright') return 'shipwright';
   if (activeTab === 'YAML') return 'yaml';
   return 'flow';
@@ -1453,10 +1473,9 @@ export default function App() {
     (!!fleet.status && !fleet.error) ||
     (!!operatorStateHook.state && !operatorStateHook.error);
 
-  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Shipwright', 'YAML'];
-  // Metrics are daemon-wide (request volume, latency, seasonality), so they're useful even
-  // before a project is picked. Shipwright is the other daemon-level tab.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Metrics', 'Shipwright'];
+  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
+  // Metrics/Dispatch/CoastGuard/Cockpit are daemon-wide, useful even without a project.
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Metrics', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1586,6 +1605,22 @@ export default function App() {
                   Loading operator state…
                 </div>
               )}
+            </motion.div>
+          ) : activeTab === 'TubeBrowser' ? (
+            <motion.div key="tubebrowser-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <TubeMessagePanel />
+            </motion.div>
+          ) : activeTab === 'Dispatch' ? (
+            <motion.div key="dispatch-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <DispatchPanel />
+            </motion.div>
+          ) : activeTab === 'CoastGuard' ? (
+            <motion.div key="coastguard-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <CoastGuardPanel />
+            </motion.div>
+          ) : activeTab === 'Cockpit' ? (
+            <motion.div key="cockpit-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <CockpitControlPanel />
             </motion.div>
           ) : (
           <motion.div key="all" className="flex-1 overflow-y-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
@@ -1929,6 +1964,18 @@ export default function App() {
                     )}
                     {activeTab === 'Metrics' && (
                       <MetricsPanel theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
+                    )}
+                    {activeTab === 'TubeBrowser' && (
+                      <TubeMessagePanel />
+                    )}
+                    {activeTab === 'Dispatch' && (
+                      <DispatchPanel />
+                    )}
+                    {activeTab === 'CoastGuard' && (
+                      <CoastGuardPanel />
+                    )}
+                    {activeTab === 'Cockpit' && (
+                      <CockpitControlPanel projectDir={selectedProjectId ?? undefined} />
                     )}
                     {activeTab === 'Shipwright' && (
                       <ShipwrightPanel

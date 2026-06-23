@@ -1,0 +1,85 @@
+(*
+ * Port Daddy: GitHub-App-via-Relay — ORIGIN AUTHENTICATION (FIXED)
+ * ================================================================
+ *
+ * Backs the security claim of the daemon-side origin re-verification shipped in
+ * routes/github-webhook.ts (PR #431): a webhook is dispatched to the fleet ONLY
+ * if GitHub signed it, even though the FORWARDER (receiver Worker / relay) is
+ * authenticated only by a shared transport token.
+ *
+ * This is the piece relay_e2e_secrecy.pv does NOT cover: there the publisher IS
+ * the origin (it signs with its own key). Here the publisher (receiver/relay) is
+ * NOT the origin (GitHub). The trust boundary moves: the forwarder's credential
+ * proves "allowed to transport", NOT "GitHub sent this". Origin must be
+ * re-established from GitHub's own MAC.
+ *
+ * THREAT MODEL: the relay + receiver are the Dolev-Yao attacker (controls c,
+ * adversaries A2 malicious relay + A4 compromised publisher). The attacker even
+ * HOLDS the forward token (we publish it on c). It must still be unable to make
+ * the daemon dispatch an event GitHub did not sign — otherwise a leaked forward
+ * token / relay publish capability is RCE-by-webhook against the fleet.
+ *
+ * CRYPTO ASSUMPTION (computational soundness): GitHub's X-Hub-Signature-256 is
+ * HMAC-SHA256, modeled here as a symbolic MAC keyed by the secret shared
+ * GitHub<->daemon. HMAC is EUF-CMA under the PRF assumption, so symbolic
+ * unforgeability transfers to origin-authentication to a shared-key holder. It
+ * is a MAC, not a digital signature: it gives origin auth to the daemon, NOT
+ * third-party non-repudiation. That is exactly what this property needs.
+ *
+ * EXPECTED RESULTS:
+ *   query event(Dispatched(m)) ==> event(GitHubSigned(m))   is TRUE  (origin auth)
+ *   query event(Dispatched(m))                              is TRUE  (non-vacuous)
+ *
+ * SCOPE (honest): this proves ORIGIN authentication (non-injective agreement).
+ * It does NOT prove replay-freedom — a MAC alone lets the attacker re-deliver a
+ * genuine (payload, mac) pair, so inj-event would FAIL. Replay-freedom requires
+ * dedup on GitHub's X-GitHub-Delivery UUID (antagonist's A2 reorder/replay
+ * point); that is a NAMED next obligation, modeled in a future file, not claimed.
+ *)
+
+type mackey.
+
+free c: channel.
+
+(* HMAC-SHA256 as a symbolic MAC, keyed by the secret shared GitHub<->daemon. *)
+fun mac(bitstring, mackey): bitstring.
+reduc forall m: bitstring, k: mackey; checkmac(m, k, mac(m, k)) = true.
+
+(* The webhook secret. The attacker never holds it. *)
+free gh_secret: mackey [private].
+
+(* The receiver's forward/relay credential. PUBLIC to the attacker on purpose:
+ * holding it must grant transport only, never the power to forge origin. *)
+free fwd_token: bitstring.
+
+event GitHubSigned(bitstring).   (* GitHub MAC'd this exact webhook payload *)
+event Dispatched(bitstring).     (* daemon published this payload to the fleet bus *)
+
+(* Origin authentication: every dispatched event was genuinely signed by GitHub. *)
+query m: bitstring; event(Dispatched(m)) ==> event(GitHubSigned(m)).
+
+(* Non-vacuity (quality gate): Dispatched is actually reachable in an honest run,
+ * so the implication above is not vacuously true. *)
+query m: bitstring; event(Dispatched(m)).
+
+(* GitHub signs a fresh webhook payload and emits it. The receiver/relay (the
+ * attacker channel) carries it onward. *)
+let GitHub() =
+    new payload: bitstring;
+    event GitHubSigned(payload);
+    out(c, (payload, mac(payload, gh_secret))).
+
+(* Daemon /webhooks/github: a forwarder presents (payload, sig, token).
+ *   - token check = transport auth (the bearer/forward credential)
+ *   - checkmac    = ORIGIN auth (re-verify GitHub's HMAC over the exact bytes)
+ * Dispatch only when BOTH hold. This is the PR #431 logic: the token alone is
+ * never sufficient. *)
+let Daemon() =
+    in(c, (payload: bitstring, sig: bitstring, tok: bitstring));
+    if tok = fwd_token then
+    if checkmac(payload, gh_secret, sig) = true then
+        event Dispatched(payload).
+
+process
+    out(c, fwd_token);                 (* attacker is handed the forward token *)
+    ( (! GitHub()) | (! Daemon()) )

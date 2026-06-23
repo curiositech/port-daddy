@@ -1,0 +1,77 @@
+Process 0 (that is, the initial process):
+{1}out(c, pk(relay_sk));
+(
+    {2}!
+    {3}out(c, sign((daemonD,harborA),relay_sk))
+) | (
+    {4}!
+    {5}in(c, (sub: bitstring,harbor: bitstring,mcred: bitstring));
+    {6}if (checksign((sub,harbor),pk(relay_sk),mcred) = true) then
+    {7}event AcceptPublish(harbor,sub)
+) | (
+    {8}!
+    {9}in(c, mcred_1: bitstring);
+    {10}out(c, (daemonD,harborA,mcred_1))
+)
+
+-- Query not event(AcceptPublish(harborB[],d)) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(AcceptPublish(harborB[],d))
+RESULT not event(AcceptPublish(harborB[],d)) is true.
+-- Query not event(AcceptPublish(harborA[],daemonD[])) in process 0.
+Translating the process into Horn clauses...
+Completing...
+Starting query not event(AcceptPublish(harborA[],daemonD[]))
+goal reachable: event(AcceptPublish(harborA[],daemonD[]))
+
+Derivation:
+
+1. The message sign((daemonD[],harborA[]),relay_sk[]) may be sent to the attacker at output {3}.
+attacker(sign((daemonD[],harborA[]),relay_sk[])).
+
+2. The attacker initially knows harborA[].
+attacker(harborA[]).
+
+3. The attacker initially knows daemonD[].
+attacker(daemonD[]).
+
+4. By 3, the attacker may know daemonD[].
+By 2, the attacker may know harborA[].
+By 1, the attacker may know sign((daemonD[],harborA[]),relay_sk[]).
+Using the function 3-tuple the attacker may obtain (daemonD[],harborA[],sign((daemonD[],harborA[]),relay_sk[])).
+attacker((daemonD[],harborA[],sign((daemonD[],harborA[]),relay_sk[]))).
+
+5. The message (daemonD[],harborA[],sign((daemonD[],harborA[]),relay_sk[])) that the attacker may have by 4 may be received at input {5}.
+So event AcceptPublish(harborA[],daemonD[]) may be executed at {7}.
+event(AcceptPublish(harborA[],daemonD[])).
+
+6. By 5, event(AcceptPublish(harborA[],daemonD[])).
+The goal is reached, represented in the following fact:
+event(AcceptPublish(harborA[],daemonD[])).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+out(c, ~M) with ~M = pk(relay_sk) at {1}
+
+out(c, ~M_1) with ~M_1 = sign((daemonD,harborA),relay_sk) at {3} in copy a
+
+in(c, (daemonD,harborA,~M_1)) with ~M_1 = sign((daemonD,harborA),relay_sk) at {5} in copy a_1
+
+event AcceptPublish(harborA,daemonD) at {7} in copy a_1 (goal)
+
+The event AcceptPublish(harborA,daemonD) is executed at {7} in copy a_1.
+A trace has been found.
+RESULT not event(AcceptPublish(harborA[],daemonD[])) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not event(AcceptPublish(harborB[],d)) is true.
+
+Query not event(AcceptPublish(harborA[],daemonD[])) is false.
+
+--------------------------------------------------------------
+

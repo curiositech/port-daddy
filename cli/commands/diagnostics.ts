@@ -10,6 +10,21 @@ import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
 import { ANSI as marANSI } from '../../lib/maritime.js';
+// SQLite via the runtime adapter — NOT better-sqlite3 directly. The `pd`
+// CLI is compiled to a single Bun binary (ADR-0028), where a
+// `better-sqlite3` import cannot resolve its native binding inside the
+// read-only /$bunfs/ virtual filesystem (the same blocker that grounded
+// the daemon). The adapter picks bun:sqlite under Bun and better-sqlite3
+// under Node, so `pd doctor` works in both the compiled binary and dev.
+import Database from '../../lib/sqlite-runtime.js';
+// Canonical DB-path resolver. handleDoctor used to derive the registry path
+// as join(__dirname, '..', '..', 'port-registry.db'); inside the compiled `pd`
+// binary __dirname resolves into the read-only /$bunfs/ virtual filesystem, so
+// existsSync() was always false and the SQLite-integrity probe was SILENTLY
+// SKIPPED ('No database file yet') against the real registry. resolveDbPath()
+// honours PORT_DADDY_DB and otherwise anchors on the distribution root, so it
+// finds <project-root>/port-registry.db under both dev and the binary.
+import { resolveDbPath } from '../../lib/db.js';
 import { pdFetch, PORT_DADDY_URL, SOCK_PATH, getDaemonUrl } from '../utils/fetch.js';
 import { CLIOptions, isJson } from '../types.js';
 import { separator, tableHeader } from '../utils/output.js';
@@ -509,7 +524,9 @@ export async function handleDoctor(): Promise<void> {
   // 3. Database exists and is writable
   // -------------------------------------------------------------------------
   try {
-    const dbPath: string = join(libDir, 'port-registry.db');
+    // resolveDbPath() so this check sees the real registry in the compiled
+    // binary too (join(__dirname,...) resolves into read-only /$bunfs/).
+    const dbPath: string = resolveDbPath();
     if (existsSync(dbPath)) {
       // Check if writable by trying to open for writing
       try {
@@ -718,9 +735,10 @@ export async function handleDoctor(): Promise<void> {
   // SQLite integrity
   // -------------------------------------------------------------------------
   try {
-    const dbPath: string = join(libDir, 'port-registry.db');
+    // resolveDbPath() (not join(__dirname, ...)) so the probe runs against the
+    // real registry inside the compiled binary too — see import note above.
+    const dbPath: string = resolveDbPath();
     if (existsSync(dbPath)) {
-      const Database = (await import('better-sqlite3')).default;
       let testDb;
       try {
         testDb = new Database(dbPath, { readonly: true });

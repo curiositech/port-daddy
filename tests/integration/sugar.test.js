@@ -18,7 +18,10 @@ const createdSessions = [];
  * Helper: POST /sugar/begin
  */
 async function sugarBegin(body) {
-  const res = await request('/sugar/begin', { method: 'POST', body });
+  const finalBody = body && typeof body === 'object' && body.purpose && body.lifecycle === undefined
+    ? { lifecycle: 'durable', ...body }
+    : body;
+  const res = await request('/sugar/begin', { method: 'POST', body: finalBody });
   if (res.ok && res.data.agentId) createdAgents.push(res.data.agentId);
   if (res.ok && res.data.sessionId) createdSessions.push(res.data.sessionId);
   return res;
@@ -541,6 +544,29 @@ describe('Sugar Integration Tests', () => {
 
       // Route validation or sugar module should reject
       expect(res.data.success).toBe(false);
+    });
+
+    test('begin without lifecycle returns 400', async () => {
+      const res = await request('/sugar/begin', {
+        method: 'POST',
+        body: { purpose: 'Missing lifecycle test' },
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.data.success).toBe(false);
+      expect(res.data.code).toBe('SESSION_LIFECYCLE_REQUIRED');
+      expect(res.data.error).toContain('lifecycle');
+    });
+
+    test('begin with invalid lifecycle returns 400', async () => {
+      const res = await request('/sugar/begin', {
+        method: 'POST',
+        body: { purpose: 'Invalid lifecycle test', lifecycle: 'sticky' },
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.data.success).toBe(false);
+      expect(res.data.code).toBe('SESSION_LIFECYCLE_REQUIRED');
     });
   });
 

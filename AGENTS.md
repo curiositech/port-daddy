@@ -129,7 +129,86 @@ You are explicitly invited to fix errors, sharpen inefficient passages, and add 
 - If a command exists in source but the installed CLI gets `Not Found`, suspect a stale daemon or stale `dist/` before assuming the feature is imaginary.
 - Very long daemon uptime after runtime-route work is a smell. If the daemon has been up for hours and new routes/surfaces are “missing,” verify build + restart first.
 
+## Agent Operating Expectations
+
+How you are expected to *work* a slice here — the standing posture, not a per-task
+checklist. These extend (don't repeat) `## Port Daddy First`, `## Skill maintenance
+is part of every slice`, `## Operator UX Expectations`, and `## Writing Technical
+Documents`.
+
+- **Coordinate, and pay rent.** Work in a clean linked worktree off
+  `origin/main` (§ Create / Update / Land), never the operator's main checkout.
+  `pd begin --identity … --lifecycle durable` → scope `pd note` → `pd session
+  files add` before editing → `pd done` at the end. Rent is real: every commit
+  carries a `pd note` (the Coordination Guard's `requireNotePerCommit` /
+  Coast Guard). A silent agent is a non-durable agent.
+- **Dogfood, and dogfood *novelly*.** Reach deep into the CLI, MCP, and SDK each
+  slice; deliberately exercise a surface you have not used before instead of
+  living on `claim`/`note`/`done`. File feature feedback as you go. When a
+  genuinely novel gambit finally works — especially after a run of failures —
+  write it down: the public `skills/port-daddy-agent-skill` if any agent on any
+  project could reuse it, the internal `skills/port-daddy-internal-dev` if it is
+  repo-specific. A win nobody recorded did not happen.
+- **Assume every feature is broken until you watch it work.** A zero exit code is
+  not proof. Confirm the write landed where you think (right DB, right harbor,
+  right channel, right worktree-scoped name), then that it is read back from that
+  same place, then that it survives the hard cases: cold start (daemon down → the
+  first command must *instruct the operator elegantly*, not stack-trace), git
+  operations, linked worktrees, a second user on the same box, and GitHub
+  round-trips. Read the row back before you believe it.
+- **Confirm the telemetry trail.** A call you cannot see did not durably happen.
+  Check that CLI / MCP / SDK / tool calls land in both raw usage statistics
+  (`pd usage`) and explicit transcript saves (`lib/transcripts.ts`), and that
+  durable state rides the intended Cloudflare fabric (relay / R2 / D1 / KV via
+  `lib/relay-client.ts`) so posterity is stable and cheap. Prove the read-back
+  from durable storage; do not assume persistence.
+- **Build for any repo, not just this one.** Port Daddy is not a tsx/Rust tool and
+  not a port-daddy-only tool. A new feature must generalize to other languages,
+  other machines, remote harbors, shared users, and GitHub-mediated teams. If a
+  design only works in this checkout, it is wrong — same root as the Agent-neutral
+  killer item.
+- **GUIs: assume you are bad at them.** Claude and Codex ship clumsy UI by
+  default. Before committing pixels to any FleetBar / console / website surface,
+  go get reference, the house design system, and human feedback, and make it feel
+  professional and hand-built. The visual-artifact gate proves it *renders*, not
+  that it is *good* (§ Operator UX Expectations).
+- **Avoid AI tropes; humanize.** No "Certainly!", no hedge-everything prose, no
+  manufactured confidence, no em-dash confetti. Use the `make-human` skill and
+  keep the customer-personae skill in agreement. Write like the person who
+  maintains this repo.
+- **Mind the whitepapers.** Before shipping coordination/kernel work, check it
+  against the seven Port Daddy whitepapers — the canon registered in
+  `website-v2/src/data/whitePapers.ts` (Legible Swarm, Single-Writer Kernel, Spawn
+  to Person, Harbor Economy, Anchor Protocol, Bonded Commons, Federated Harbor;
+  sources + PDFs under `website-v2/public/whitepaper/`): have you drifted from the
+  model, or built something a paper should now describe? They need not be 1:1 — the
+  papers are the lofty theory, the code is what we actually shipped — but each
+  should correct the other. Note drift in the PR.
+- **Work at maximal tool + skill access, and pause to find the right skill.** Start
+  with the broadest toolset you can reach. If you catch yourself working without a
+  matching skill, stop and do skill research before improvising what a skill
+  already encodes. Skill matching is meant to live in a **seamanship** module
+  (proposed, not yet built): a match-cascade-and-graft selector modelled on the
+  windags repo's `windags_skill_induct` / `windags_skill_graft` cascade. Until it
+  lands, match by hand against `skills/`.
+- **Launch other agents *through* Port Daddy.** When you need more hands, spawn
+  them through PD's own fabric — `pd agent` / `pd sortie` / `pd dispatch` and the
+  tube → spawner router (conductor) — never a raw side-channel, so the work is
+  registered, sandboxed (Coast Guard), budgeted, and salvageable.
+- **Keep the README current.** When a slice changes a surface an operator or
+  contributor reads about, update `README.md` in the same PR — a stale README is a
+  caught lie just like a stale citation.
+
 ## Pull Request Operating Procedure
+
+**This lifecycle is autonomous — never gated on operator confirmation.**
+Once you open a PR, you drive it all the way to merge without pausing to
+ask "should I push?" or "should I merge?". Solicit bot reviews, run the
+adversarial agent review, respond to every comment, add unit tests wired
+into CI, get CI green the right way, and merge. The only legitimate pause
+is a real red you cannot fix unilaterally (missing secrets, infra outage).
+Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
+every Claude this?" — don't be the Claude that has to be told.
 
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
@@ -138,7 +217,12 @@ flow is:
 1. **Open the PR.** Branch claimed via `pd begin --identity` + `pd session
    files add ...`. CI must be green (or you must explicitly justify each
    red check in the PR body).
-2. **Spawn a skeptical reviewer agent.** Use the `feature-dev:code-reviewer`
+2. **Spawn a skeptical reviewer agent.** An always-on neutral adversary already
+   runs in CI on every PR — the `claude-adversarial-review` workflow, which
+   assumes laziness/slop/lies/corner-cutting and ends with a
+   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict (note: GitHub's action-validation
+   rule skips it on the PR that first introduces it — run your own there). For
+   non-trivial changes, ALSO spawn your own: use the `feature-dev:code-reviewer`
    subagent type (or `auditor` for whole-codebase concerns). Brief it with
    the PR's context, the change's invariants, the failure modes you're
    worried about, and SPECIFIC hunting prompts ("could this leak X? does
@@ -177,6 +261,91 @@ you don't brief it on.
 For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
+
+### Visual artifacts for UI diffs (hard requirement — forever)
+
+Every PR that touches a **GPUI** surface (`core/pd-console` window), the
+**console** (any pd-console pane / renderer), or the **website / dashboard**
+(`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) MUST ship comprehensive
+visual artifacts in its Test Plan: **screenshots, a GIF, and a short screen
+recording** of the actual change. A green build proves it compiles, not that it
+renders correctly — the operator reviews these surfaces by looking at the
+artifacts, so a UI PR without them is incomplete and must not merge. Operator,
+2026-06-11: *"I demand all GPUI diffs and console and website diffs include
+comprehensive screenshot artifacts, GIFs and screen recording in the test plan.
+Forever."*
+
+`[M]` This is now machine-enforced. `scripts/check-pr-requirements.mjs` (the
+`pr-requirements-guard` check, its own `pr-requirements.yml` workflow) fails the PR
+when a change under a visual surface (`core/pd-console/`, `website-v2/`,
+`fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`, `apps/FleetBar/`)
+ships without at least one screenshot AND one motion artifact (GIF / recording) in
+the body — committed media in the diff or embedded `raw.githubusercontent` links
+both count. The escape hatch for a genuinely non-visual change is an explicit
+`<!-- visual-exempt: <reason> -->` (a reason is required). The guard checks
+*presence*; whether the artifacts actually show ideal behavior (vs. an error or
+loading state) is judged by the `claude-adversarial-review` workflow, which presumes
+failure on sparse evidence.
+
+- **TUI / pd-console panes**: record with `vhs` (tape committed under
+  `core/pd-console/docs/artifacts/`) — capture per-pane stills + a tour GIF.
+- **GPUI native window**: `cargo build --release --features gpui --bin pd-console`,
+  launch it, and capture window stills + a recording with `screencapture`
+  (`core/pd-console/scripts/capture-gpui.sh` automates a representative pane set).
+  This needs macOS **Screen Recording** permission for the capturing process — a
+  headless/background host is denied by TCC (`screencapture` prints "could not
+  create image from display"); run the capture from a permitted Terminal.
+
+### Building, installing & running pd-console (don't relearn this the hard way)
+
+`core/pd-console` ships **two** binaries from one crate, on **crates.io gpui 0.2.2**
+(NOT the Zed git pin — published, versioned, reproducible; the git pin rots):
+- `pd-console` — the GPU-native window (Metal/macOS), gated behind `--features gpui`.
+- `pd-console-repl` — headless TUI of the same panes; builds everywhere; the CI/Linux gate.
+
+**Build** (from `core/pd-console`): GPU = `cargo build --release --bin pd-console --features gpui`
+(clean build pulls gpui + deps, ~5 min; incremental ~secs). REPL = `cargo build --release --bin pd-console-repl`.
+
+**Install — there are TWO launch surfaces, keep BOTH current or you'll demo a stale build:**
+1. `cp core/target/release/pd-console ~/.port-daddy/bin/pd-console` — the PATH binary (`which pd-console`).
+2. `cp core/target/release/pd-console ~/Applications/pd-console.app/Contents/MacOS/pd-console`
+   — the **`.app` double-clickers launch; it has its OWN embedded binary and does NOT use PATH**,
+   so updating only `~/.port-daddy/bin` leaves GUI launches on the old build (the "old POS" trap).
+   **After replacing the .app binary you MUST re-sign or macOS rejects the bundle:**
+   `codesign --force --deep --sign - ~/Applications/pd-console.app`. (The re-signed binary's
+   hash differs from the unsigned source — that's the embedded signature, expected.)
+
+**Run:** `pd-console` (PATH) or double-click the .app. Daemon discovery: `PORT_DADDY_URL` env →
+`~/.port-daddy/daemon.port` → default; if discovery fails it **panics**, so launch with
+`PORT_DADDY_URL=http://127.0.0.1:9876` when the port file is absent.
+
+**Theme:** `PD_CONSOLE_THEME=light|dark` seeds startup; `Ctrl-A g` toggles live. Palette lives in
+`core/pd-console/src/palette.rs` (light+dark, maritime/neobrutalism). `theme.rs` is the *REPL's*
+OKLCH system — distinct module, don't conflate. All colors are guard-safe (no cinnabar/brass/patina;
+`scripts/check-brand-colors.mjs` fails CI on those, hex AND rgb, comments included).
+
+**Spawning agents from the console** (`POST /spawn`) clears real daemon guards — the console must send
+`task` + `identity` + `budgetUsd>0` + `model` (for ollama) + a worktree `workdir` (the daemon BLOCKS
+main-checkout spawns), and the **operator must fund the project wallet** (`pd wallet top-up <project>
+--usd N`) + set a daily budget (`pd wallet budget <project> --usd-per-day N`). One-shot backends (ollama)
+return output inline in the spawn response (not on the tube). Missing any of these = "spawn looks
+wired but does nothing" — the historical hollowness.
+
+**gpui 0.2.2 idioms** (no fluent transform exists): express "lift/glow/spring" via `shadow(vec![BoxShadow{
+color:Hsla, offset:point(px,px), blur_radius, spread_radius}])` + hover color, and `with_animation(id,
+Animation::new(dur).with_easing(f) [.repeat()], |el,delta| el.opacity(delta))` for timelines
+(`pulsating_between`, `ease_out_quint` available). **Inside a `.hover(|s| …)` closure pass bare `rgb(x)`
+to `bg`/`text_color`/`border_color` — NOT `.into()` (Rgba has 4 `Into` targets → E0283 ambiguity).**
+A one-shot replays only when its `ElementId` changes (suffix a nonce); a stable id + `.repeat()` loops
+without restarting each render.
+
+Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design slices are in
+`docs/design/fleetbar-mockups/v12-feelpass-slices/`.
+- **Website / dashboard**: headless Playwright (`headless=True`), dark + light
+  pairs, 100% and 200% zoom where layout matters. Read the PNGs back to confirm a
+  settled render (not a loading state) before attaching.
+- Embed artifacts in the PR body Test Plan (commit them and reference
+  `raw.githubusercontent.com/<repo>/<sha>/<path>` URLs so they survive the squash).
 
 ### Create / Update / Land mechanics
 

@@ -225,3 +225,73 @@ describe('POST /msg/:channel — webhook forward token auth', () => {
     expect(JSON.parse(res.body).success).toBe(true);
   });
 });
+
+// GET /msg/:channel/lineage — RCP-14 argument graph. Uses a stub messaging dep
+// (no DB) so the route's decode → buildLineage logic is unit-tested directly.
+describe('GET /msg/:channel/lineage', () => {
+  let app;
+
+  function stubMessaging(messages) {
+    const noop = () => ({});
+    return {
+      listChannels: () => [],
+      publish: noop,
+      getMessages: () => ({ success: true, channel: 'c', messages, count: messages.length }),
+      poll: noop,
+      subscribe: () => null,
+      clear: noop,
+      discoverChannels: noop,
+      ensureChannel: noop,
+      resolveChannel: noop,
+    };
+  }
+
+  async function buildApp(messages) {
+    const a = Fastify();
+    await a.register(messagingPlugin, {
+      deps: {
+        logger: { info: () => {}, error: () => {} },
+        metrics: { errors: 0, messages_published: 0 },
+        messaging: stubMessaging(messages),
+      },
+    });
+    await a.ready();
+    return a;
+  }
+
+  afterEach(async () => { if (app) await app.close(); });
+
+  const env = (body, extra = {}) => ({ v: 1, kind: 'tube.msg', body, ...extra });
+
+  test('builds the typed argument graph + digest from the backlog', async () => {
+    app = await buildApp([
+      { id: 1, sender: 'alice', createdAt: 1, payload: env('do X', { performative: 'propose', conversationId: 'cv' }) },
+      { id: 2, sender: 'bob', createdAt: 2, payload: env('no Y', { inReplyTo: 1, relationship: 'contradicts', conversationId: 'cv' }) },
+    ]);
+    const res = await app.inject({ method: 'GET', url: '/msg/chan/lineage' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.ok).toBe(true);
+    expect(body.conversationId).toBe('cv');
+    expect(body.digest.total).toBe(2);
+    expect(body.digest.byRelationship.contradicts).toBe(1);
+    expect(body.digest.unresolvedContradictions).toHaveLength(1);
+    expect(body.tree).toContain('#1 alice [act=propose]: do X');
+  });
+
+  test('scopes to a single conversationId when provided', async () => {
+    app = await buildApp([
+      { id: 1, sender: 'a', createdAt: 1, payload: env('one', { conversationId: 'keep' }) },
+      { id: 2, sender: 'a', createdAt: 2, payload: env('two', { conversationId: 'drop' }) },
+    ]);
+    const res = await app.inject({ method: 'GET', url: '/msg/chan/lineage?conversationId=keep' });
+    expect(res.json().digest.total).toBe(1);
+  });
+
+  test('returns an empty graph when the channel has no messages', async () => {
+    app = await buildApp([]);
+    const res = await app.inject({ method: 'GET', url: '/msg/chan/lineage' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().digest.total).toBe(0);
+  });
+});

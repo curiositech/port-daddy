@@ -29,7 +29,7 @@ Sleep 500ms
 Type "# Start a session - registers you and tracks your work"
 Enter
 Sleep 800ms
-Type `pd begin "Building the payment API"`
+Type `pd begin "Building the payment API" --lifecycle durable`
 Enter
 Sleep 2s
 

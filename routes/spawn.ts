@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex']);
+const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
 
 
 // ==========================================================================
@@ -78,6 +78,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         timeout,
         allowedTools,
         maxTokens,
+        permissionMode,
         budgetUsd: rawBudgetUsd,
       } = request.body as any;
 
@@ -192,6 +193,12 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
       if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
+      // File-edit permission mode for the cli:claude-code backend. Only the three
+      // CLI-recognised modes are accepted; anything else is ignored (the spawner
+      // forwards it verbatim as --permission-mode, so the boundary validates it).
+      if (permissionMode === 'default' || permissionMode === 'acceptEdits' || permissionMode === 'bypassPermissions') {
+        spec.permissionMode = permissionMode;
+      }
 
       logger.info('spawn_start', {
         backend,

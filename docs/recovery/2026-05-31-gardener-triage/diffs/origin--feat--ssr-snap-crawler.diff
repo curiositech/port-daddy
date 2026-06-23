@@ -1,0 +1,341 @@
+STATS:
+ .github/workflows/deploy-website-v2.yml | 113 ++++++++++++
+ website-v2/package.json                 |   2 +
+ website-v2/scripts/snap-routes.mjs      | 317 ++++++++++++++++++++++++++++++++
+ 3 files changed, 432 insertions(+)
+
+---
+LAST COMMIT:
+a9e8daf6b1c5f1b2d422c67514b85682f48f77a4
+Erich Owens <[redacted]>
+2026-05-20 10:44:35 -0700
+ci(website): GitHub Actions workflow runs build:full + deploys snap to prod
+
+CF Pages git integration can't run snap (no chromium in its
+build image). This workflow takes the deploy:
+
+  - runs on push to main affecting website-v2/**
+  - installs chromium via playwright install
+  - runs build:full (the existing build + snap-routes)
+  - hard-fails if dist/<route>/index.html still has an empty root
+    (defense in depth — refuses to deploy empty bodies)
+  - deploys dist/ to the existing 'port-daddy' Cloudflare Pages
+    project via wrangler-action
+
+Concurrency-grouped so two pushes don't race. Manual
+workflow_dispatch with a --branch input for previews.
+
+Required secrets (operator action if not set yet):
+  - CLOUDFLARE_API_TOKEN: Pages:Edit on the port-daddy project
+  - CLOUDFLARE_ACCOUNT_ID: from the Pages dashboard URL
+
+The CF Pages git integration may still fire on the same push and
+ship empty-body HTML first. This workflow runs afterward and
+overwrites with snapped HTML — last-writer-wins outcome: full
+content reaches Google.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/.github/workflows/deploy-website-v2.yml b/.github/workflows/deploy-website-v2.yml
+new file mode 100644
+index 00000000..a1fe0f2e
+--- /dev/null
++++ b/.github/workflows/deploy-website-v2.yml
+@@ -0,0 +1,113 @@
++name: Deploy website-v2 (snap + wrangler)
++
++# Why this workflow exists:
++#   Cloudflare Pages' git integration runs `npm run build` in a Node
++#   image that doesn't ship the Playwright chromium binary. That makes
++#   the snap step impossible there. This workflow runs the FULL build
++#   (build:full = vite build + inject-route-html + snap-routes) on a
++#   GitHub-hosted Ubuntu runner (which DOES have chromium), then
++#   deploys the resulting dist/ directly to the existing Cloudflare
++#   Pages project via wrangler.
++#
++#   The CF Pages git integration still fires on push to main and may
++#   produce an empty-body deploy as a safety net. This workflow runs
++#   afterward and overwrites the deployment with snapped HTML, so the
++#   last-writer-wins outcome is: full content shipped to Google.
++#
++# Required repository secrets:
++#   - CLOUDFLARE_API_TOKEN — a token with Pages:Edit on the port-daddy
++#     project. Create in CF dashboard → My Profile → API Tokens →
++#     "Create Custom Token" → permission "Account > Cloudflare Pages > Edit".
++#   - CLOUDFLARE_ACCOUNT_ID — visible in the Pages dashboard URL.
++
++on:
++  push:
++    branches: [main]
++    paths:
++      - 'website-v2/**'
++      - '.github/workflows/deploy-website-v2.yml'
++  workflow_dispatch:
++    inputs:
++      branch:
++        description: 'Deploy target branch on Cloudflare Pages'
++        required: false
++        default: 'main'
++
++permissions:
++  contents: read
++  deployments: write
++
++concurrency:
++  # Serialize deploys against the same Pages project so two pushes in
++  # rapid succession don't race to overwrite each other.
++  group: deploy-website-v2-${{ github.ref }}
++  cancel-in-progress: false
++
++jobs:
++  build-and-deploy:
++    runs-on: ubuntu-latest
++    timeout-minutes: 25
++
++    steps:
++      - uses: actions/checkout@v4
++
++      - uses: actions/setup-node@v4
++        with:
++          node-version: '24'
++          cache: npm
++          cache-dependency-path: website-v2/package-lock.json
++
++      - name: Install website-v2 dependencies
++        working-directory: website-v2
++        run: npm ci
++
++      - name: Install Playwright chromium
++        working-directory: website-v2
++        # --with-deps grabs apt packages chromium needs on Ubuntu runners.
++        run: npx playwright install --with-deps chromium
++
++      - name: Build + snap rendered HTML
++        working-directory: website-v2
++        # build:full = `npm run build` + `npm run snap:routes`.
++        # snap-routes spins up vite preview, walks every indexable
++        # route in a headless chromium, captures the post-mount HTML,
++        # and writes it back into dist/<route>/index.html.
++        run: npm run build:full
++
++      - name: Assert snap landed real content (defense in depth)
++        working-directory: website-v2
++        # If snap silently no-op'd, dist/index.html would still have an
++        # empty <div id="root">. Hard-fail rather than deploy an empty
++        # site that pretends to ship full content.
++        run: |
++          set -euo pipefail
++          for route in dist/index.html dist/blog/control-plane-is-the-product/index.html dist/docs/quickstart/index.html; do
++            if [ ! -f "$route" ]; then
++              echo "Missing post-snap file: $route" >&2
++              exit 1
++            fi
++            if grep -q '<div id="root"></div>' "$route"; then
++              echo "Empty root in $route — snap did not run or failed silently" >&2
++              exit 1
++            fi
++            size=$(wc -c < "$route")
++            if [ "$size" -lt 10000 ]; then
++              echo "Suspiciously small file: $route ($size bytes)" >&2
++              exit 1
++            fi
++            echo "  ok: $route ($size bytes)"
++          done
++
++      - name: Deploy to Cloudflare Pages
++        uses: cloudflare/wrangler-action@v3
++        env:
++          # The dispatch-input branch is validated indirectly: wrangler
++          # only accepts plain ASCII branch names; anything weird will
++          # fail the deploy. Keeping it in env (not interpolated into a
++          # run: string) protects against shell injection if a future
++          # editor switches this to a script step.
++          DEPLOY_BRANCH: ${{ github.event.inputs.branch || 'main' }}
++        with:
++          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
++          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
++          command: pages deploy website-v2/dist --project-name=port-daddy --branch=$DEPLOY_BRANCH --commit-dirty=true
+diff --git a/website-v2/package.json b/website-v2/package.json
+index 0f2fd251..3a26c797 100644
+--- a/website-v2/package.json
++++ b/website-v2/package.json
+@@ -8,6 +8,8 @@
+     "prebuild": "npm run generate:seo",
+     "build": "tsc -b && vite build",
+     "postbuild": "tsx scripts/inject-route-html.mjs",
++    "snap:routes": "tsx scripts/snap-routes.mjs",
++    "build:full": "npm run build && npm run snap:routes",
+     "lint": "eslint .",
+     "preview": "vite preview",
+     "generate:visuals": "node scripts/generate-gemini-assets.mjs",
+diff --git a/website-v2/scripts/snap-routes.mjs b/website-v2/scripts/snap-routes.mjs
+new file mode 100644
+index 00000000..a84c8c5b
+--- /dev/null
++++ b/website-v2/scripts/snap-routes.mjs
+@@ -0,0 +1,317 @@
++#!/usr/bin/env node
++/**
++ * Snap every indexable route into static HTML with rendered body
++ * content, so Googlebot (and every other crawler that doesn't
++ * patiently execute JS) sees prose, not an empty `<div id="root">`.
++ *
++ * Why this exists:
++ *   `vite build` produces a single index.html with an empty
++ *   `<div id="root"></div>` body. `scripts/inject-route-html.mjs`
++ *   then copies that file to `dist/<route>/index.html` per route,
++ *   stamping per-route `<head>` metadata. That fixes meta tags but
++ *   leaves the body empty. Crawlers that don't execute JS index a
++ *   page with no content.
++ *
++ * Why a Puppeteer-style crawler instead of a SSG framework:
++ *   `vite-react-ssg` is the natural choice but its 0.9.x peer deps
++ *   still require react-router-dom ^6, and this repo runs v7. Until
++ *   upstream adds RR7 support we render via a real browser against
++ *   `vite preview` and capture the post-mount HTML. Zero changes to
++ *   application code beyond the already-shipped SSR-safety prep
++ *   (theme.tsx + Mermaid dynamic import in PR #107).
++ *
++ * Pipeline:
++ *   1. Spawn `vite preview` on a random local port.
++ *   2. For every route in `siteMetadataRoutes`, navigate the
++ *      Playwright browser, wait for `<main id="main-content">` or
++ *      another route-shaped marker, then capture `document.documentElement.outerHTML`.
++ *   3. Replace the empty `<div id="root">` in
++ *      `dist/<route>/index.html` with the captured `<div id="root">`,
++ *      preserving the `<head>` that `inject-route-html.mjs` already
++ *      injected (so per-route metadata stays correct).
++ *   4. Shut down `vite preview` and the browser.
++ *
++ * `inject-route-html.mjs` MUST run before this script. The build
++ * pipeline chains them: prebuild → vite build → inject-route-html
++ * → snap-routes.
++ */
++
++import { mkdir, readFile, writeFile } from 'node:fs/promises'
++import { dirname, resolve } from 'node:path'
++import { existsSync } from 'node:fs'
++import { fileURLToPath } from 'node:url'
++import { spawn } from 'node:child_process'
++import { createServer } from 'node:net'
++import { chromium } from 'playwright'
++import {
++  canonicalUrlForRoute,
++  isIndexableRoute,
++  siteMetadataRoutes,
++} from '../src/data/siteMetadata.ts'
++
++const scriptDir = dirname(fileURLToPath(import.meta.url))
++const websiteRoot = resolve(scriptDir, '..')
++const distDir = resolve(websiteRoot, 'dist')
++
++const CONCURRENCY = Number(process.env.SNAP_CONCURRENCY ?? 4)
++const NAV_TIMEOUT_MS = Number(process.env.SNAP_NAV_TIMEOUT_MS ?? 30_000)
++const SETTLE_TIMEOUT_MS = Number(process.env.SNAP_SETTLE_TIMEOUT_MS ?? 20_000)
++const ROOT_MARKER = '<div id="root"></div>'
++// Some deploy environments (notably Cloudflare Pages' default build
++// image) don't bundle the Playwright chromium binary. When set, this
++// flag converts a browser-launch failure into a warning + exit 0,
++// so the deploy still ships — with the un-snapped empty bodies. The
++// SEO regression is the cost; the alternative is "deploy fails, no
++// site updates at all" which is worse. CI runners that DO have
++// chromium should leave this unset so genuine breakage surfaces.
++//
++// Cloudflare Pages sets CF_PAGES=1 during build. Auto-skip there
++// until chromium is installed in the Pages build env (see PR comment).
++const SKIP_ON_BROWSER_ERROR =
++  process.env.SNAP_SKIP_ON_BROWSER_ERROR === '1' ||
++  process.env.CF_PAGES === '1'
++// The Suspense fallback (in main.tsx → RouteFallback) renders this
++// while lazy chunks load. If we capture before chunks resolve, we
++// snap "Loading route..." into the static HTML — useless to crawlers.
++const SUSPENSE_FALLBACK_RE = /Loading route\.\.\./i
++
++async function reservePort() {
++  return new Promise((resolvePort, reject) => {
++    const server = createServer()
++    server.on('error', reject)
++    server.listen(0, '127.0.0.1', () => {
++      const address = server.address()
++      const port = typeof address === 'object' && address ? address.port : 0
++      server.close(() => resolvePort(port))
++    })
++  })
++}
++
++async function waitForServer(url, attempts = 60, intervalMs = 250) {
++  for (let i = 0; i < attempts; i += 1) {
++    try {
++      const res = await fetch(url, { method: 'HEAD' })
++      if (res.ok || res.status === 404) return
++    } catch {
++      // Keep polling until the server binds.
++    }
++    await new Promise(r => setTimeout(r, intervalMs))
++  }
++  throw new Error(`vite preview never became reachable at ${url}`)
++}
++
++/**
++ * Routes we want to snap. Filtered to indexable, deduplicated by
++ * canonical URL, sorted for log stability.
++ */
++function targetRoutes() {
++  const seen = new Map()
++  for (const route of siteMetadataRoutes) {
++    if (!isIndexableRoute(route)) continue
++    // Skip dynamic param routes — they cannot be enumerated this way.
++    if (route.path.includes(':')) continue
++    if (!seen.has(route.path)) seen.set(route.path, route)
++  }
++  return Array.from(seen.values()).sort((a, b) => a.path.localeCompare(b.path))
++}
++
++function routeOutputPath(routePath) {
++  if (routePath === '/') return resolve(distDir, 'index.html')
++  return resolve(distDir, routePath.replace(/^\/+/, ''), 'index.html')
++}
++
++/**
++ * Replace the empty `<div id="root">` in the pre-existing per-route
++ * HTML with the rendered version captured from the live browser.
++ * The browser's full document <head> is discarded — we keep the
++ * head that `inject-route-html.mjs` already wrote, since it carries
++ * per-route canonical, OG, JSON-LD, robots, etc.
++ */
++async function snapOne(browser, baseUrl, route) {
++  const outputPath = routeOutputPath(route.path)
++  if (!existsSync(outputPath)) {
++    return { route: route.path, status: 'skip', reason: 'no per-route HTML to update' }
++  }
++
++  const existing = await readFile(outputPath, 'utf8')
++  if (!existing.includes(ROOT_MARKER)) {
++    return { route: route.path, status: 'skip', reason: 'root marker not found (already snapped?)' }
++  }
++
++  const page = await browser.newPage()
++  try {
++    await page.goto(`${baseUrl}${route.path}`, { waitUntil: 'networkidle', timeout: NAV_TIMEOUT_MS })
++    // Wait until BOTH (a) the Suspense fallback "Loading route..."
++    // is no longer in the DOM AND (b) the root has real content
++    // beyond a thin wrapper. Without (a) we capture the loading
++    // state and ship "Loading route..." as snapped HTML — exactly
++    // what the first dry-run produced.
++    try {
++      await page.waitForFunction(
++        () => {
++          const root = document.getElementById('root')
++          if (!root) return false
++          const html = root.innerHTML
++          if (/Loading route\.\.\./i.test(html)) return false
++          // Real content: at least a few hundred chars OR a heading/main element rendered.
++          if (root.querySelector('main, h1, article, [data-rendered]')) return true
++          return root.innerText.trim().length > 200
++        },
++        { timeout: SETTLE_TIMEOUT_MS },
++      )
++    } catch {
+
+... [156 more lines truncated]

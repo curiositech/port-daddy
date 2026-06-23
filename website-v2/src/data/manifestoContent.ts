@@ -46,15 +46,51 @@ export const manifestoContent: string = (() => {
  * the visible <figcaption> and keeps the long alt text on the <img> for AT.
  */
 export const manifestoCaptions: Record<string, string> = {
-  '/img/manifesto/hero-harbor.png':
+  '/img/manifesto/hero-harbor.webp':
     'The fix is structural, not behavioural: give every agent its own berth and one office that hands them out.',
-  '/img/manifesto/collision.png':
+  '/img/manifesto/collision.webp':
     'The lost-write collision. Two agents read the same file, both save, the second erases the first — and the result still looks finished.',
-  '/img/manifesto/legibility-zoom.png':
+  '/img/manifesto/legibility-zoom.webp':
     'Legibility is one picture you can zoom into: a calm summary up top, the exact change, test, and line one click down.',
-  '/img/manifesto/seven-papers.png':
+  '/img/manifesto/seven-papers.webp':
     'Seven papers: four explain the system in prose, three hand the safety claims to a proof-checker.',
 }
+
+/**
+ * The harbor-evolution figure — one drawing, three stages, in the site's flat
+ * blueprint house style. Shared between the manifesto and the library so the
+ * I → II → III arc reads the same wherever a reader meets it. The caption
+ * re-states the three stages in words so the figure does not have to be decoded
+ * from the roman numerals alone.
+ */
+export const harborEvolutionFigure = {
+  src: '/img/generated/manifesto/trilogy-arc.webp',
+  alt: 'A blueprint-style line drawing in three stages connected by a rising arrow. Stage I: a single small hut on pilings. Stage II: a taller house on pilings beside a dockside crane, one machine doing its own loading. Stage III: a full shipyard and harbor with many berths, cranes, and ships.',
+  stages: [
+    { numeral: 'I', label: 'A single process on one machine — one hut, one job, no one to coordinate with.' },
+    { numeral: 'II', label: 'A single machine coordinating its own work — one house, its own crane, keeping its own logbook.' },
+    { numeral: 'III', label: 'A harbor coordinating many machines and agents — many berths, one office that hands them out.' },
+  ],
+  caption:
+    'One process → one machine → many machines. The same arc the three papers climb, drawn once: a hut becomes a house with its own crane becomes a harbor that gives every ship a berth.',
+} as const
+
+/**
+ * The olog / functor figure plus the plain-language gloss the manifesto needs
+ * next to it. Authored here so the prose around the image stays legible to a
+ * reader who has never met category theory.
+ */
+export const ologFunctorFigure = {
+  src: '/img/generated/manifesto/functor-transport.webp',
+  alt: 'A blueprint-style pen drawing on cream graph paper. On the left, a small panel labelled "one machine": a box "a claim" with two arrows leaving it — "is held by" to a box "an agent", and "is on" to a box "a file". A large arrow labelled "functor" fans that same shape across to a larger panel labelled "the harbor", which holds three copies (claim A, B, C, each held by an agent and on a file). One "is on" arrow is highlighted in red on both sides.',
+  caption:
+    'A functor in one picture: the same structure — a claim is held by an agent and sits on a file — transports from one machine to the whole harbor, and the arrows come too. What holds on the left already holds on the right.',
+  explainer: [
+    'An olog — short for ontology log — is a labeled diagram of the concepts in some domain and the relationships between them, with one strict rule: every arrow is functional, mapping each source to exactly one target. "A claim is held by an agent" is an olog arrow (one agent per claim); "an agent holds claims" is not (many claims per agent) — you write the functional direction. The boxes are the ideas; the arrows are how they relate.',
+    'A functor is a structure-preserving map from one olog to another. It does not merely pair up boxes; it carries the arrows — the relationships — so the shape of one domain lands intact inside the other. That is the difference between a loose metaphor and a transport you can check.',
+    'That is why it matters here: Port Daddy moves a coordination structure faithfully across contexts — one machine, then many — the way a functor carries a domain across without dropping the relationships that made it work.',
+  ],
+} as const
 
 // ─── Concept sections (the "technology we sell") ────────────────────────────
 // These are designed React sections on the page, not markdown. They surface
@@ -76,7 +112,7 @@ export interface PrimitiveSpec {
 export const technologyPrimitives: PrimitiveSpec[] = [
   {
     name: 'Single-writer claims',
-    does: 'One agent holds a file at a time. The second one waits instead of stomping the first.',
+    does: 'An agent announces it holds a file, so a second one sees the claim and can wait instead of silently stomping the first.',
     command: 'pd session files add src/auth.ts',
     source: 'lib/claims.ts',
     docHref: '/docs/concepts/claim-tree',
