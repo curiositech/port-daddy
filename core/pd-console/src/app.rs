@@ -22,6 +22,7 @@ use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
 use crate::tokens;
+use crate::conductor_pane::ConductorHead;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -438,6 +439,7 @@ pub struct ConsoleView {
     control_flash: Option<String>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
+    conductor_head: Option<ConductorHead>,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
 }
@@ -478,6 +480,7 @@ impl ConsoleView {
             control_tx,
             control_flash: None,
             dispatch_head: None,
+            conductor_head: None,
             reject_target: None,
         }
     }
@@ -690,6 +693,7 @@ impl ConsoleView {
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
+        conductor_head: Option<ConductorHead>,
     ) {
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
@@ -697,6 +701,7 @@ impl ConsoleView {
             }
         }
         self.dispatch_head = dispatch_head;
+        self.conductor_head = conductor_head;
     }
 
     /// Recursively render the pane tree. Splits become weighted flex
@@ -743,6 +748,18 @@ impl ConsoleView {
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
         let dispatch_head = self.dispatch_head.clone();
+        let conductor_head = self.conductor_head.clone();
+        let cond_head_root = conductor_head.as_ref().map(|h| h.root_id.clone());
+        let (cond_gate_title, cond_gate_sub) = match &conductor_head {
+            Some(h) => (
+                format!("\u{2388} Halt lineage: {} ({} running)", h.label.chars().take(34).collect::<String>(), h.running),
+                format!("targets root {} \u{00b7} {} active root(s) \u{00b7} halt = SIGTERM\u{2192}SIGKILL + refund", h.root_id, h.roots),
+            ),
+            None => (
+                "\u{2388} Fleet control \u{2014} no active lineage".to_string(),
+                "whole-fleet scope \u{00b7} halt = SIGTERM\u{2192}SIGKILL + refund bonds".to_string(),
+            ),
+        };
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
@@ -976,21 +993,21 @@ impl ConsoleView {
                                 .text_color(rgb(current_theme().accent_ink))
                                 .text_size(px(14.0))
                                 .font_weight(FontWeight::SEMIBOLD)
-                                .child("\u{2388} Fleet control \u{2014} grab the wheel (ADR-0060)"),
+                                .child(cond_gate_title.clone()),
                         )
                         .child(
                             div()
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(13.0))
-                                .child("whole-fleet scope \u{00b7} halt SIGTERM\u{2192}SIGKILL, refunds bonds"),
+                                .child(cond_gate_sub.clone()),
                         )
                         .child(
                             div()
                                 .flex()
                                 .gap(px(8.0))
-                                .child(conductor_gate_btn("halt", "\u{23fb} Halt Fleet", current_theme().conflict, cx))
-                                .child(conductor_gate_btn("pause", "\u{23f8} Pause", current_theme().gated, cx))
-                                .child(conductor_gate_btn("resume", "\u{25b6} Resume", current_theme().landed, cx)),
+                                .child(conductor_gate_btn("halt", "\u{23fb} Halt", current_theme().conflict, cond_head_root.clone(), cx))
+                                .child(conductor_gate_btn("pause", "\u{23f8} Pause", current_theme().gated, cond_head_root.clone(), cx))
+                                .child(conductor_gate_btn("resume", "\u{25b6} Resume", current_theme().landed, cond_head_root.clone(), cx)),
                         )
                         .when_some(cond_flash, |c, flash| {
                             c.child(
@@ -1074,24 +1091,31 @@ fn conductor_gate_btn(
     action: &'static str,
     label: &'static str,
     color: u32,
+    root_id: Option<String>,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
+    let scope = root_id;
     gate_btn(format!("fleet-{action}"), label, color, cx, move |this, _cx| {
         if let Some(tx) = &this.control_tx {
+            let r = scope.clone();
             let msg = match action {
-                "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
-                "pause" => Some(ControlMsg::FleetPause { root_id: None }),
-                "resume" => Some(ControlMsg::FleetResume { root_id: None }),
+                "halt" => Some(ControlMsg::FleetHalt { root_id: r }),
+                "pause" => Some(ControlMsg::FleetPause { root_id: r }),
+                "resume" => Some(ControlMsg::FleetResume { root_id: r }),
                 _ => None,
             };
             if let Some(m) = msg {
                 let _ = tx.send(m);
             }
         }
+        let target = scope
+            .as_deref()
+            .map(|r| format!("lineage {r}"))
+            .unwrap_or_else(|| "whole fleet".to_string());
         this.control_flash = Some(match action {
-            "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
-            "pause" => "fleet paused \u{2192} no new admissions".to_string(),
-            "resume" => "fleet resumed".to_string(),
+            "halt" => format!("halt sent \u{2192} {target}: SIGTERM\u{2192}SIGKILL, bonds refunded"),
+            "pause" => format!("paused {target} \u{2192} no new admissions"),
+            "resume" => format!("resumed {target}"),
             _ => String::new(),
         });
     })

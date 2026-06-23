@@ -70,6 +70,17 @@ fn is_terminal(state: &str) -> bool {
     matches!(state, "settled" | "halted" | "refused")
 }
 
+/// The active lineage the operator's fleet-control gate acts on — the Conductor
+/// analogue of `DispatchHead`. `head()` picks the first root with a non-terminal
+/// launch, so Halt/Pause/Resume target *that* lineage, not the whole fleet.
+#[derive(Debug, Clone)]
+pub struct ConductorHead {
+    pub root_id: String,
+    pub label: String,
+    pub running: usize,
+    pub roots: usize,
+}
+
 pub struct ConductorPane {
     pub launches: Vec<LaunchEntry>,
     last_error: Option<String>,
@@ -92,6 +103,35 @@ impl ConductorPane {
             Some(x) => format!("${x:.2}"),
             None => "—".into(),
         }
+    }
+
+    /// The active lineage the operator gate should target — the first root with a
+    /// non-terminal launch. `None` when the fleet is idle (gate falls back to
+    /// whole-fleet scope).
+    pub fn head(&self) -> Option<ConductorHead> {
+        let mut roots: Vec<String> = Vec::new();
+        for l in &self.launches {
+            if !roots.contains(&l.root_id) {
+                roots.push(l.root_id.clone());
+            }
+        }
+        for root in &roots {
+            let running = self
+                .launches
+                .iter()
+                .filter(|l| &l.root_id == root && !is_terminal(&l.state))
+                .count();
+            if running > 0 {
+                let label = self
+                    .launches
+                    .iter()
+                    .find(|l| &l.root_id == root && l.depth == 0)
+                    .map(|l| if l.goal.is_empty() { l.id.clone() } else { l.goal.clone() })
+                    .unwrap_or_else(|| root.clone());
+                return Some(ConductorHead { root_id: root.clone(), label, running, roots: roots.len() });
+            }
+        }
+        None
     }
 }
 
@@ -269,6 +309,23 @@ mod tests {
         assert!(blocks.iter().any(|b| matches!(b, Block::KeyVal(k, _) if k.contains("refused"))));
         // footer chip reports active count (running = 1 active; settled/refused terminal)
         assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("1 active"))));
+    }
+
+    #[test]
+    fn head_targets_the_first_active_lineage() {
+        let mut p = ConductorPane::new();
+        p.launches = arr(&sample(), "launches").iter().map(LaunchEntry::from_value).collect();
+        let h = p.head().expect("an active lineage exists");
+        assert_eq!(h.root_id, "L-root");           // the running root
+        assert_eq!(h.label, "ship the conductor"); // its depth-0 goal
+        assert_eq!(h.running, 1);                  // one non-terminal (the root; child is settled)
+        assert_eq!(h.roots, 1);
+    }
+
+    #[test]
+    fn head_is_none_when_idle() {
+        let p = ConductorPane::new();
+        assert!(p.head().is_none());
     }
 
     #[test]

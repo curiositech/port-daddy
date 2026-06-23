@@ -177,7 +177,7 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate
         let (tx, rx) =
-            mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
+            mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>, Option<conductor_pane::ConductorHead>)>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -334,7 +334,7 @@ fn main() {
                         (20, conductor.view()),
                     ];
 
-                    if tx.send((all, dispatch.head())).is_err() {
+                    if tx.send((all, dispatch.head(), conductor.head())).is_err() {
                         break; // window closed
                     }
                 }
@@ -348,10 +348,10 @@ fn main() {
             .spawn(async move {
                 loop {
                     bg.timer(Duration::from_millis(500)).await;
-                    while let Ok((panes, dispatch_head)) = rx.try_recv() {
+                    while let Ok((panes, dispatch_head, conductor_head)) = rx.try_recv() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
-                                view.update_panes(panes.clone(), dispatch_head.clone());
+                                view.update_panes(panes.clone(), dispatch_head.clone(), conductor_head.clone());
                                 cx.notify();
                             });
                         });
