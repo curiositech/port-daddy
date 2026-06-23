@@ -633,6 +633,9 @@ bash scripts/package-console.sh --devbuild parley-pane # YOUR isolated build —
   so dev builds never overwrite prod/latest icon caches or Dock entries.
 - **When a pd-console change lands on `main`, rebuild the latest lane** (`bash scripts/package-console.sh`)
   so `-latest.app` actually reflects main. A stale `-latest` is the bug, not a cosmetic.
+  **Automate it once:** `bash core/pd-console/scripts/install-console-hooks.sh` installs a
+  `post-merge` git hook that rebuilds the latest lane (detached, no window-steal) whenever a
+  pull into `main` touches `core/pd-console/`. Idempotent; chains onto any existing hook.
 - **Prod is owned by the Homebrew cut.** `release.yml` builds, signs (Developer ID, reusing
   `scripts/sign-and-notarize.mjs`), and ships `pd-console-prod.app` alongside `pd`/`port-daddy`.
   Set `PD_CONSOLE_SIGN_IDENTITY` for a real-signed local prod build; default is ad-hoc.
