@@ -117,6 +117,52 @@ else
   echo "WARN: could not stamp FleetBar version (PlistBuddy or package.json version missing); app reports 'unknown'" >&2
 fi
 
+# Developer ID sign + notarize when an identity is provided. The release CI sets
+# PORT_DADDY_SIGN_IDENTITY (+ a temp keychain + notary profile) the same way it
+# does for the daemon and pd-console (same APPLE_* secrets, PR #447). Without it
+# the build stays ad-hoc — fine for local dev, but Gatekeeper QUARANTINES an
+# unsigned downloaded .app on a real user's machine, so the release path must sign
+# (enforced by the adhoc-rejection guard in .github/workflows/release.yml).
+#
+# This bundle is NOT a single Mach-O like pd-console: it embeds the Port Daddy
+# payload (Contents/Resources/PortDaddy/{pd,port-daddy}) — bun-compiled binaries
+# that need bun's JIT entitlements (scripts/entitlements/port-daddy.plist), the
+# same ones the daemon release signs with. So sign INSIDE-OUT: nested bun binaries
+# first (with bun entitlements), then the SwiftUI host (empty entitlements), which
+# seals the whole bundle. --deep is wrong here (it would mis-apply one entitlement
+# set to every binary); --verify --strict below proves nothing was left unsigned.
+FLEETBAR_ENTITLEMENTS="$ROOT_DIR/scripts/entitlements/fleetbar.plist"
+PAYLOAD_ENTITLEMENTS="$ROOT_DIR/scripts/entitlements/port-daddy.plist"
+IDENTITY="${PORT_DADDY_SIGN_IDENTITY:-}"
+SIGNED="false"
+if [[ -z "$IDENTITY" ]]; then
+  echo "::warning::PORT_DADDY_SIGN_IDENTITY unset — FleetBar.app is UNSIGNED (ad-hoc). Gatekeeper will quarantine it on download. Set the Developer ID secrets to sign."
+else
+  KEYCHAIN_ARGS=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && KEYCHAIN_ARGS=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
+  for nested in "$PORT_DADDY_PAYLOAD_DIR/port-daddy" "$PORT_DADDY_PAYLOAD_DIR/pd"; do
+    codesign --force --options runtime --timestamp \
+      --entitlements "$PAYLOAD_ENTITLEMENTS" \
+      --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$nested"
+  done
+  codesign --force --options runtime --timestamp \
+    --entitlements "$FLEETBAR_ENTITLEMENTS" \
+    --sign "$IDENTITY" "${KEYCHAIN_ARGS[@]}" "$APP_BUNDLE"
+  codesign --verify --strict --verbose=2 "$APP_BUNDLE"
+  SIGNED="true"
+  echo "Signed $APP_NAME (host + embedded Port Daddy payload) with $IDENTITY"
+
+  if [[ "${PORT_DADDY_SKIP_NOTARIZE:-}" != "1" && -n "${PORT_DADDY_NOTARY_PROFILE:-}" ]]; then
+    NOTARY_ZIP="$(mktemp -d)/fleetbar-notary.zip"
+    ditto -c -k --keepParent "$APP_BUNDLE" "$NOTARY_ZIP"
+    NOTARY_KC=(); [[ -n "${PORT_DADDY_NOTARY_KEYCHAIN:-}" ]] && NOTARY_KC=(--keychain "$PORT_DADDY_NOTARY_KEYCHAIN")
+    xcrun notarytool submit "$NOTARY_ZIP" --keychain-profile "$PORT_DADDY_NOTARY_PROFILE" "${NOTARY_KC[@]}" --wait --timeout 20m
+    xcrun stapler staple "$APP_BUNDLE"
+    echo "Notarized + stapled $APP_NAME"
+  else
+    echo "::warning::notary profile absent or skipped — $APP_NAME is signed but NOT notarized."
+  fi
+fi
+
 ZIP_PATH="$OUT_DIR/$ZIP_NAME"
 rm -f "$ZIP_PATH" "$ZIP_PATH.sha256"
 
@@ -149,6 +195,7 @@ BUNDLED_PORT_DADDY_JSON="$(node -e '
   }));
 ' "$PORT_DADDY_PAYLOAD_DIR/port-daddy-manifest.json")"
 
+UNSIGNED_FLAG="true"; [[ "$SIGNED" == "true" ]] && UNSIGNED_FLAG="false"
 cat > "$OUT_DIR/fleetbar-preview-manifest.json" <<JSON
 {
   "name": "Port Daddy FleetBar",
@@ -157,7 +204,7 @@ cat > "$OUT_DIR/fleetbar-preview-manifest.json" <<JSON
   "arch": "$ARCH",
   "artifact": "$ZIP_NAME",
   "sha256": "$SHA",
-  "unsigned": true,
+  "unsigned": $UNSIGNED_FLAG,
   "bundledPortDaddy": $BUNDLED_PORT_DADDY_JSON,
   "generatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
