@@ -37,15 +37,26 @@ const DAEMON_HEALTH = `http://127.0.0.1:${DEFAULT_DAEMON_PORT}/health`;
 
 /**
  * PURE decision: given `brew outdated <formula>`'s stdout, is an upgrade available?
- * `brew outdated <formula>` prints the formula name (optionally with versions) when
- * outdated, and nothing when current. Extracted so the upgrade trigger is unit-tested
- * without shelling out.
+ * `brew outdated <formula>` prints the formula when outdated and nothing when current.
+ *
+ * CRITICAL: for a *tapped* formula brew prints the TAP-QUALIFIED name
+ * (`curiositech/tap/port-daddy`), not the bare `port-daddy` — and that is exactly
+ * what the unattended freshness tick sees (non-TTY pipe). The original matcher only
+ * accepted the bare name, so every tick after a release logged "already current" and
+ * never upgraded. Match the formula as the last `/`-segment of the line's first token,
+ * which accepts both the bare and tap-qualified forms, with or without trailing
+ * version info ("… (3.20.0) < 3.21.0"). Extracted so this is unit-tested without shelling.
  */
 export function isUpgradeAvailable(brewOutdatedStdout: string): boolean {
   return brewOutdatedStdout
     .split('\n')
     .map((l) => l.trim())
-    .some((l) => l === FORMULA || l.startsWith(`${FORMULA} `) || l.startsWith(`${FORMULA} (`));
+    .filter((l) => l.length > 0)
+    .some((l) => {
+      const firstToken = l.split(/\s+/)[0] ?? '';
+      const leaf = firstToken.split('/').pop(); // bare name OR last segment of tap/name
+      return leaf === FORMULA;
+    });
 }
 
 function logPath(): string {
@@ -65,6 +76,27 @@ interface ShResult { code: number; stdout: string; stderr: string }
 function sh(cmd: string, args: string[], timeoutMs = 600_000): ShResult {
   const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: timeoutMs });
   return { code: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+}
+
+/**
+ * The currently-installed keg version of the formula, or null if unknown.
+ * `brew list --versions port-daddy` → "port-daddy 3.21.0"; we take the last token.
+ * PURE-ish: only reads, never mutates. Parser extracted + tested via {@link parseInstalledVersion}.
+ */
+function installedVersion(): string | null {
+  const r = sh('brew', ['list', '--versions', FORMULA], 30_000);
+  return r.code === 0 ? parseInstalledVersion(r.stdout) : null;
+}
+
+/** PURE: extract the version from `brew list --versions <formula>` stdout. */
+export function parseInstalledVersion(brewListVersionsStdout: string): string | null {
+  const line = brewListVersionsStdout
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.startsWith(`${FORMULA} `));
+  if (!line) return null;
+  const tokens = line.split(/\s+/);
+  return tokens.length > 1 ? tokens[tokens.length - 1] : null;
 }
 
 /** True when the daemon answers /health. */
@@ -108,14 +140,19 @@ export async function handleSelfUpdate(options: SelfUpdateOptions = {}): Promise
   const outdated = sh('brew', ['outdated', FORMULA], 60_000);
 
   if (isUpgradeAvailable(outdated.stdout)) {
-    log(`newer ${FORMULA} available → upgrading`);
+    // Record what we're moving off of, so the log names the actual version
+    // transition whenever the daemon is updated (not just "upgraded").
+    const fromVersion = installedVersion();
+    log(`newer ${FORMULA} available (on ${fromVersion ?? 'unknown'}) → upgrading`);
     say(`Upgrading ${FORMULA}…`);
     // 2. Upgrade + restart the daemon onto current code.
     const up = sh('brew', ['upgrade', FORMULA]);
     if (up.code === 0) {
       sh('brew', ['services', 'restart', FORMULA]);
-      log('daemon upgraded + restarted');
-      say('Daemon upgraded + restarted.');
+      const toVersion = installedVersion();
+      const transition = `${fromVersion ?? '?'} → ${toVersion ?? '?'}`;
+      log(`daemon upgraded ${transition} + restarted`);
+      say(`Daemon upgraded ${transition} + restarted.`);
       // Relaunch FleetBar onto the new version (kill; step 4 below brings it back).
       sh('pkill', ['-f', 'FleetBar.app/Contents/MacOS/FleetBar'], 8_000);
     } else {

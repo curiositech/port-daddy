@@ -98,7 +98,7 @@ set -l __pd_commands \
     'session' 'sessions' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
     'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
-    'say' 'look' 'sitrep' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
+    'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
@@ -197,6 +197,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_needs_command" -a 'relay status' -d 'Check relay connectivity and latency'
     complete -c $prog -n "__pd_needs_command" -a 'relay exchange' -d 'Publish/subscribe events via the relay worker'
     complete -c $prog -n __pd_needs_command -a dispatch -d 'Queue and run autonomous feature dev (ADR-0035; renames nightshift)'
+    complete -c $prog -n __pd_needs_command -a whois -d 'Semantic skill-router — rank agents by capability x freshness'
     complete -c $prog -n "__pd_using_command dispatch" -x -a 'propose queue list show run review cancel help' -d 'Dispatch subcommand'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l really-run -d 'Actually spawn the autonomous agent (default is dry-run)'
     complete -c $prog -n "__pd_using_command dispatch; and __fish_seen_subcommand_from run" -l next -d 'Pop and run the next proposed dispatch'

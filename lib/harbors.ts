@@ -159,6 +159,11 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
     setEnvelope: db.prepare('UPDATE harbors SET envelope = ? WHERE name = ?'),
   };
 
+  // Capability listener — fires when an agent enters a harbor with declared
+  // capabilities. Wired by server.ts to ferry phrases into the whois sidecar
+  // embedder without coupling harbors.ts to that module. (PR #122)
+  let capabilityListener: ((agentId: string, harborName: string, phrases: string[]) => void) | null = null;
+
   // Shared envelope read so both getEnvelope() and assertWithinEnvelope() use
   // the same fail-closed parsing, and neither depends on `this` binding.
   function readEnvelope(name: string): HarborEnvelope | null {
@@ -192,6 +197,15 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
   }
 
   return {
+    /**
+     * Register a listener invoked when an agent enters a harbor with declared
+     * capabilities. Used by the whois sidecar to embed capability phrases for
+     * skill-routing lookup. (PR #122)
+     */
+    setCapabilityListener(fn: (agentId: string, harborName: string, phrases: string[]) => void): void {
+      capabilityListener = fn;
+    },
+
     /**
      * Create or update a harbor.
      */
@@ -295,6 +309,13 @@ export function createHarbors(db: Database.Database, deps: HarborsDeps = {}) {
         options.capabilities ? JSON.stringify(options.capabilities) : null,
         Date.now()
       );
+
+      // Notify capability listener — wired by server.ts to embed phrases into
+      // the whois sidecar. Errors here are not fatal to harbor entry. (PR #122)
+      if (capabilityListener && options.capabilities && options.capabilities.length > 0) {
+        try { capabilityListener(agentId, harborName, options.capabilities); }
+        catch { /* listener errors are not fatal */ }
+      }
 
       const members = stmts.listMembers.all(harborName) as HarborMemberRow[];
       const harbor = parseHarbor(row, members);
