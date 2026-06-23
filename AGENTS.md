@@ -590,3 +590,36 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - **Delete rule (operator-updated):** never-delete is demote-by-default, BUT you may
   **delete** a thing once its value is merged into its near twin — consolidation is the
   licensed exception. Coordinate the delete on the bus first; never solo-delete live-fleet code.
+
+## pd-console — build LANES (prod / latest / dev). Read before building the console.
+
+There is **no longer one `~/Applications/pd-console.app`** that every agent clobbers.
+That single bundle is why you could hit `Ctrl-A Space` on a month-old build and see
+nothing. The console now ships in three lanes, each a distinct bundle with a distinct
+icon colour + label so you can tell them apart in the Dock at a glance:
+
+| Lane | Bundle | Built from | Icon | PATH shim |
+|------|--------|-----------|------|-----------|
+| **prod** | `~/Applications/pd-console-prod.app` | the Homebrew cut | **blue**, `vX.Y.Z` badge | yes |
+| **latest** | `~/Applications/pd-console-latest.app` | `main` | **green**, `latest` badge | yes |
+| **dev** | `~/Applications/pd-console-dev-apps/pd-console_dev-<name>.app` | your worktree | **amber**, `dev·<name>` badge | no |
+
+The one tool is `core/pd-console/scripts/package-console.sh`:
+
+```bash
+bash scripts/package-console.sh                       # latest (default)
+bash scripts/package-console.sh --prod                # version-stamped prod (Homebrew cut)
+bash scripts/package-console.sh --devbuild parley-pane # YOUR isolated build — never touches prod/latest
+```
+
+**Rules for everyone:**
+- **Working on the console in Rust? Build your own dev lane** (`--devbuild <feature>`) and
+  test against *that* window. Never rebuild `-latest`/`-prod` to try a half-finished change —
+  that is the shared-bundle trap this replaced. Each lane is a separate `CFBundleIdentifier`,
+  so dev builds never overwrite prod/latest icon caches or Dock entries.
+- **When a pd-console change lands on `main`, rebuild the latest lane** (`bash scripts/package-console.sh`)
+  so `-latest.app` actually reflects main. A stale `-latest` is the bug, not a cosmetic.
+- **Prod is owned by the Homebrew cut.** `release.yml` builds, signs (Developer ID, reusing
+  `scripts/sign-and-notarize.mjs`), and ships `pd-console-prod.app` alongside `pd`/`port-daddy`.
+  Set `PD_CONSOLE_SIGN_IDENTITY` for a real-signed local prod build; default is ad-hoc.
+- Dev lane never touches the `~/.port-daddy/bin/pd-console` PATH shim — only prod/latest do.
