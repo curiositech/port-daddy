@@ -352,13 +352,27 @@ Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design 
 The numbered flow above is the *review contract*. This subsection is the
 *mechanical contract* — the exact command sequence each phase resolves to.
 
-- **Create.** Branch in a linked Git worktree off `origin/main` under
-  `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
-  carries the operator's WIP). Then `pd begin "<purpose>" --identity
-  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
-  <files>` *before* editing → edit → `pd guard check --staged` → commit
-  (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
-  create` → `pd done`.
+- **Create.** Branch in a linked Git worktree under `~/coding/tmp/wt-<slug>`
+  (never the main checkout — the main checkout carries the operator's WIP).
+  **Pick the base by dependency, not reflex:**
+  - *Independent change* → branch off `origin/main`.
+  - **Stacked / dependent change** (it needs code from an open PR that has not
+    landed) → **branch off that PR's branch, not `origin/main`**, and open with
+    `gh pr create --base <prior-pr-branch>`. Each PR in a stack bases on the one
+    before it, so reviewers see a minimal diff and the dependency is explicit.
+    When the base PR squash-merges, retarget the dependent (`gh pr edit <n>
+    --base main`) and rebase onto the post-merge `main` — mergeability flips the
+    instant the base lands (see **Land**). Do NOT rebuild a feature on
+    `origin/main` when it actually depends on an unmerged PR; that strands the
+    work on the wrong base (the v0.2.0-console-vs-v0.3.0-mux trap, 2026-06-20:
+    a console pane was built on stale `main` while the mux it needed sat in an
+    open PR, forcing a full rebuild).
+
+  Then `pd begin "<purpose>" --identity port-daddy:<type>:<slug>` → a scope
+  `pd note` → `pd session files add <files>` *before* editing → edit →
+  `pd guard check --staged` → commit (no Claude co-author trailer) →
+  `git push -u origin <branch>` → `gh pr create [--base <prior-pr-branch>]` →
+  `pd done`.
 - **Update** (review + CI). Pull bot review comments with `gh api
   repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
   Address every HIGH adversarial-review finding as a named fixup commit.
