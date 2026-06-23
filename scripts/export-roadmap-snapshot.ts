@@ -16,11 +16,12 @@
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
 const SNAPSHOT_PATH = resolve(
   process.argv[2] ?? 'docs/roadmap/roadmap.snapshot.json',
 );
-const BASE = (process.env.PORT_DADDY_URL ?? 'http://127.0.0.1:9876').replace(/\/$/, '');
+const BASE = resolveDaemonUrl().replace(/\/$/, '');
 const HARBOR = process.env.PD_HARBOR ?? 'port-daddy';
 
 interface DaemonItem {

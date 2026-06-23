@@ -15,8 +15,9 @@
  * `scripts/export-roadmap-snapshot.ts` and commit so CI sees the new item.
  */
 import { execFileSync } from 'node:child_process';
+import { resolveDaemonUrl } from '../shared/daemon-discovery.js';
 
-const BASE = (process.env.PORT_DADDY_URL ?? 'http://127.0.0.1:9876').replace(/\/$/, '');
+const BASE = resolveDaemonUrl().replace(/\/$/, '');
 const HARBOR = process.env.PD_HARBOR ?? 'port-daddy';
 
 function gh(args: string[]): string {
