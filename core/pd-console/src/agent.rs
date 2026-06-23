@@ -157,11 +157,23 @@ pub struct SseParser {
     buf: String,
     /// `data:` lines accumulated for the frame currently being assembled.
     data: Vec<String>,
+    /// The most recent SSE `id:` seen. Per the SSE spec this is sticky — it
+    /// persists across events until a new `id:` arrives — and is the value the
+    /// client echoes back as `Last-Event-ID` on reconnect so the daemon can
+    /// resume the stream instead of replaying from the head (or dropping the
+    /// gap). Without capturing this, a dropped connection silently loses or
+    /// duplicates frames — the interchange "idempotency gap".
+    last_id: Option<String>,
 }
 
 impl SseParser {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The last event id seen so far, for `Last-Event-ID` resume on reconnect.
+    pub fn last_id(&self) -> Option<&str> {
+        self.last_id.as_deref()
     }
 
     /// Feed a chunk of bytes; returns any `data:` payloads that completed
@@ -188,8 +200,11 @@ impl SseParser {
             } else if let Some(rest) = line.strip_prefix("data:") {
                 // SSE spec: a single leading space after the colon is stripped.
                 self.data.push(rest.strip_prefix(' ').unwrap_or(rest).to_string());
+            } else if let Some(rest) = line.strip_prefix("id:") {
+                // Sticky last-event-id for resumable reconnect.
+                self.last_id = Some(rest.strip_prefix(' ').unwrap_or(rest).to_string());
             }
-            // `event:`, `id:`, `:comment` (heartbeat) lines are ignored — the
+            // `event:` and `:comment` (heartbeat) lines are ignored — the
             // envelope's own `kind` is authoritative.
         }
         out
@@ -426,36 +441,67 @@ impl DaemonClient {
         let http = self.http.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            let resp = match http.get(&url).send().await {
-                Ok(r) => r,
-                Err(_) => return, // discovery/connection failure — caller reconnects
-            };
-            if !resp.status().is_success() {
-                return; // 404 unknown agent etc. — nothing to stream
-            }
-            let mut parser = SseParser::new();
-            let mut body = resp.bytes_stream();
-            while let Some(chunk) = body.next().await {
-                let bytes = match chunk {
-                    Ok(b) => b,
-                    Err(_) => break, // stream error — end the task, caller reconnects
+            use tokio::time::{sleep, Duration};
+            // Resumable, self-healing stream. A transient network blip or a daemon
+            // restart used to silently kill the lane (the task just returned and
+            // nothing re-opened it unless the WATCH TARGET changed). Now we
+            // reconnect with capped exponential backoff and resume from the last
+            // event id via `Last-Event-ID`, so the live surface survives drops
+            // instead of going dark mid-run.
+            let mut last_id: Option<String> = None;
+            let mut backoff = Duration::from_millis(500);
+            const MAX_BACKOFF: Duration = Duration::from_secs(10);
+            loop {
+                let mut req = http.get(&url);
+                if let Some(id) = &last_id {
+                    req = req.header("Last-Event-ID", id.as_str());
+                }
+                let resp = match req.send().await {
+                    Ok(r) if r.status().is_success() => r,
+                    // 404 = unknown agent: nothing will ever stream, so stop
+                    // (don't spin reconnecting against a permanent error).
+                    Ok(_) => return,
+                    Err(_) => {
+                        // Connection failure — back off and retry (daemon may be
+                        // restarting, e.g. a freshness self-heal).
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
                 };
-                // SSE is UTF-8; tolerate a split multibyte char across chunks by
-                // lossy-decoding (rare, and a single glyph is not worth dropping
-                // the whole feed for).
-                let text = String::from_utf8_lossy(&bytes);
-                for data in parser.feed(&text) {
-                    let val: serde_json::Value = match serde_json::from_str(&data) {
-                        Ok(v) => v,
-                        Err(_) => continue, // skip a malformed frame, keep streaming
+                backoff = Duration::from_millis(500); // reset on a healthy connect
+                let mut parser = SseParser::new();
+                let mut body = resp.bytes_stream();
+                while let Some(chunk) = body.next().await {
+                    let bytes = match chunk {
+                        Ok(b) => b,
+                        Err(_) => break, // stream error — fall through to reconnect
                     };
-                    if let Some(env) = StreamEnvelope::from_value(&val) {
-                        // Receiver dropped → stop streaming.
-                        if tx.send(env).await.is_err() {
-                            return;
+                    // SSE is UTF-8; tolerate a split multibyte char across chunks by
+                    // lossy-decoding (rare, and a single glyph is not worth dropping
+                    // the whole feed for).
+                    let text = String::from_utf8_lossy(&bytes);
+                    for data in parser.feed(&text) {
+                        // Track the resume point as each event is processed.
+                        if let Some(id) = parser.last_id() {
+                            last_id = Some(id.to_string());
+                        }
+                        let val: serde_json::Value = match serde_json::from_str(&data) {
+                            Ok(v) => v,
+                            Err(_) => continue, // skip a malformed frame, keep streaming
+                        };
+                        if let Some(env) = StreamEnvelope::from_value(&val) {
+                            // Receiver dropped (pane closed / retargeted) → stop.
+                            if tx.send(env).await.is_err() {
+                                return;
+                            }
                         }
                     }
                 }
+                // Stream ended without the receiver being dropped (EOF or error):
+                // reconnect with backoff, resuming from `last_id`.
+                sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
             }
         });
         rx
@@ -647,6 +693,20 @@ mod tests {
         let mut p = SseParser::new();
         let out = p.feed("data: line1\ndata: line2\n\n");
         assert_eq!(out, vec!["line1\nline2"]);
+    }
+
+    #[test]
+    fn sse_parser_captures_sticky_last_event_id() {
+        let mut p = SseParser::new();
+        assert_eq!(p.last_id(), None);
+        // An `id:` line sets the resume point; it is sticky across later events
+        // until a new `id:` arrives (the SSE Last-Event-ID contract).
+        p.feed("id: 42\ndata: {\"kind\":\"agent.transcript\"}\n\n");
+        assert_eq!(p.last_id(), Some("42"));
+        p.feed("data: {\"kind\":\"agent.transcript\"}\n\n");
+        assert_eq!(p.last_id(), Some("42"), "id is sticky without a new id: line");
+        p.feed("id: 99\ndata: {\"kind\":\"agent.status\"}\n\n");
+        assert_eq!(p.last_id(), Some("99"));
     }
 
     #[test]
