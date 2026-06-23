@@ -214,7 +214,7 @@ fn main() {
                 let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
                 let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
-                let mut conductor  = ConductorPane::new();     // 20 — Fleet Conductor (ADR-0060)
+                let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -335,7 +335,7 @@ fn main() {
                         (18, lineage.view()),
                         (19, substrate.view()),
                         (20, parley.view()),
-                        (20, conductor.view()),
+                        (21, conductor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {
