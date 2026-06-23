@@ -354,22 +354,39 @@ async fn ensure_success(resp: reqwest::Response, op: &str) -> Result<reqwest::Re
 
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
-        let base = if let Ok(url) = std::env::var("PORT_DADDY_URL") {
-            url.trim_end_matches('/').to_string()
-        } else {
-            let port = dirs::home_dir()
-                .map(|h| h.join(".port-daddy/daemon.port"))
-                .and_then(|p| std::fs::read_to_string(p).ok())
-                .and_then(|s| s.trim().parse::<u16>().ok())
-                .ok_or_else(|| {
-                    anyhow!(
-                        "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, \
-                         or start the daemon (it writes ~/.port-daddy/daemon.port)"
-                    )
-                })?;
-            format!("http://127.0.0.1:{port}")
-        };
-        Ok(Self { base, http: reqwest::Client::new() })
+        // Resolution order, highest priority first:
+        //   1. `PORT_DADDY_URL` env — explicit override for one launch.
+        //   2. `~/.port-daddy/console-daemon.url` — the operator's selected daemon
+        //      (a one-line URL). This is the console's "use this daemon" switch:
+        //      point it at a dev berth (e.g. http://127.0.0.1:9886) WITHOUT
+        //      clobbering the canonical daemon.port. Delete the file to fall back
+        //      to stable. The status bar shows which URL is live.
+        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon.
+        if let Ok(url) = std::env::var("PORT_DADDY_URL") {
+            return Ok(Self::new(url));
+        }
+        let home = dirs::home_dir();
+        if let Some(url) = home
+            .as_ref()
+            .map(|h| h.join(".port-daddy/console-daemon.url"))
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+        {
+            return Ok(Self::new(url));
+        }
+        let port = home
+            .map(|h| h.join(".port-daddy/daemon.port"))
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .and_then(|s| s.trim().parse::<u16>().ok())
+            .ok_or_else(|| {
+                anyhow!(
+                    "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, write \
+                     ~/.port-daddy/console-daemon.url, or start the daemon (it writes \
+                     ~/.port-daddy/daemon.port)"
+                )
+            })?;
+        Ok(Self::new(format!("http://127.0.0.1:{port}")))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value
