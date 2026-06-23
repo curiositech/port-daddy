@@ -257,7 +257,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'harbors': {
     description: 'Named permission namespaces — list harbors, inspect membership/envelope, and dry-run a capability decision before you act',
-    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope'],
+    tools: ['list_harbors', 'get_harbor', 'check_harbor_envelope', 'whois'],
   },
   'signals': {
     description: 'Pheromone trail — leave and read stigmergic signals on entities/files so the swarm coordinates without direct messaging',
@@ -444,6 +444,22 @@ const TOOLS = [
         },
       },
       required: ['name', 'agent_id', 'action'],
+    },
+  },
+  {
+    name: 'whois',
+    description:
+      'Skill-routing phonebook: given a capability query, returns ranked agents by semantic match × heartbeat freshness. ' +
+      'Usage: whois({ "query": "react server components", "kind": "agent", "limit": 5 })',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        query: { type: 'string', description: 'Capability query phrase to route on' },
+        kind: { type: 'string', enum: ['agent', 'human', 'any'], description: 'Entity kind filter (default agent)' },
+        fresh_min: { type: 'number', description: 'Minimum freshness in seconds; excludes agents whose last heartbeat is older' },
+        limit: { type: 'number', description: 'Max ranked hits to return (default 10)' },
+      },
+      required: ['query'],
     },
   },
 
@@ -3272,6 +3288,16 @@ async function handleTool(
         agentId: args.agent_id,
         action: args.action,
       });
+      break;
+    }
+
+    case 'whois': {
+      const params = new URLSearchParams();
+      params.set('q', String(args.query));
+      if (args.kind) params.set('kind', String(args.kind));
+      if (args.fresh_min !== undefined) params.set('fresh_min', String(args.fresh_min));
+      if (args.limit !== undefined) params.set('limit', String(args.limit));
+      res = await GET(`/whois?${params.toString()}`);
       break;
     }
 

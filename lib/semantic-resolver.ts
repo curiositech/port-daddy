@@ -362,6 +362,21 @@ export interface SemanticResolver {
   }): SemanticResolutionEvent;
 
   /**
+   * Embed a single text into its raw normalized vector.
+   *
+   * Unlike `search`, this does not touch the persisted term inventory — it is
+   * a thin pass-through to the underlying embedder so callers (e.g. the whois
+   * phonebook) can build their own sidecar embedding stores.
+   *
+   * Example:
+   * ```ts
+   * const vector = await semanticResolver.embed('react server components');
+   * // vector.length === 384 for all-MiniLM-L6-v2
+   * ```
+   */
+  embed(text: string): Promise<number[]>;
+
+  /**
    * Run semantic nearest-neighbor search over the known term inventory.
    *
    * Example input:
@@ -1128,6 +1143,19 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   }
 
   /**
+   * Embed a single text into its raw normalized vector via the underlying
+   * embedder, bypassing the persisted term inventory. Used by sidecar stores
+   * such as the whois phonebook.
+   */
+  async function embed(text: string): Promise<number[]> {
+    const trimmed = text.trim();
+    if (!trimmed) return [];
+    const embedder = await getEmbedder();
+    const [vector] = await embedder.embed([trimmed]);
+    return vector ?? [];
+  }
+
+  /**
    * Run semantic nearest-neighbor search across all known canonical terms.
    */
   async function search(query: string, options: { limit?: number } = {}): Promise<SemanticSearchResult[]> {
@@ -1310,6 +1338,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
     observeAliases,
     listResolutions,
     review,
+    embed,
     search,
     stats,
     flush,

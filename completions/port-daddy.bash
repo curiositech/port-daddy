@@ -132,7 +132,7 @@ _port_daddy() {
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     harbormaster hm
     # Harbors (named permission namespaces)
-    harbor harbors
+    harbor harbors whois
     # Tuple space
     tuple
     # Semantic graph + episodic memory

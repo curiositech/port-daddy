@@ -993,7 +993,7 @@
       }
     },
     "tutorial": {
-      "description": "Interactive tutorial \u2014 learn Port Daddy step by step",
+      "description": "Interactive tutorial — learn Port Daddy step by step",
       "cli": [
         "learn",
         "tutorial"
@@ -1030,7 +1030,7 @@
       ]
     },
     "attest": {
-      "description": "Honest self-report + loud-fail invariants (ADR-0045) \u2014 pd attest / GET /attest",
+      "description": "Honest self-report + loud-fail invariants (ADR-0045) — pd attest / GET /attest",
       "cli": [
         "attest"
       ],
@@ -1076,7 +1076,7 @@
       }
     },
     "cockpit": {
-      "description": "App-Native Development Cockpit \u2014 read roadmap/recovery markdown into typed mission cards with live coordination cross-ref",
+      "description": "App-Native Development Cockpit — read roadmap/recovery markdown into typed mission cards with live coordination cross-ref",
       "cli": [
         "cockpit"
       ],
@@ -1102,7 +1102,7 @@
       }
     },
     "popper": {
-      "description": "Autonomous roadmap-to-dispatch task puller \u2014 produces dispatch.state='proposed' rows from nightshift-eligible roadmap items. Operator override + FleetBar Nightshift surface via pd popper / HTTP.",
+      "description": "Autonomous roadmap-to-dispatch task puller — produces dispatch.state='proposed' rows from nightshift-eligible roadmap items. Operator override + FleetBar Nightshift surface via pd popper / HTTP.",
       "cli": [
         "popper"
       ],
@@ -1122,7 +1122,7 @@
       }
     },
     "recovery": {
-      "description": "Magic-link account recovery \u2014 single-use token issue + atomic consume (single-use enforced at the DB layer per proofs/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
+      "description": "Magic-link account recovery — single-use token issue + atomic consume (single-use enforced at the DB layer per proofs/bonded/recovery/magic-link.pv). API-only surface consumed by out-of-band recovery flows.",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1136,7 +1136,7 @@
       }
     },
     "harbormaster": {
-      "description": "Canonical merge-owning actor body (ADR-0037) \u2014 serializes merges of dispatched work, routes conflicts back as sub-dispatches, blocks on branch-protection / CI-red failures. Two-key safety: dispatch.state='accepted' AND merge_queue.state='queued'.",
+      "description": "Canonical merge-owning actor body (ADR-0037) — serializes merges of dispatched work, routes conflicts back as sub-dispatches, blocks on branch-protection / CI-red failures. Two-key safety: dispatch.state='accepted' AND merge_queue.state='queued'.",
       "cli": [
         "harbormaster",
         "hm"
@@ -1193,7 +1193,7 @@
       }
     },
     "fleet": {
-      "description": "Always-on fleet management \u2014 daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
+      "description": "Always-on fleet management — daemon auto-starts fleet runners from pd-fleet.yml on boot; hot-reload on config change; resource limits (max_concurrent_spawns, max_spawns_per_hour); lifecycle events on fleet:events channel",
       "cli": [
         "fleet"
       ],
@@ -1246,7 +1246,7 @@
       }
     },
     "harbors": {
-      "description": "Named permission namespaces for agent coordination \u2014 agents enter/leave harbors and declare capabilities",
+      "description": "Named permission namespaces for agent coordination — agents enter/leave harbors and declare capabilities",
       "cli": [
         "harbor",
         "harbors"
@@ -1288,7 +1288,7 @@
       ]
     },
     "bonds": {
-      "description": "Bond escrow state machine \u2014 daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
+      "description": "Bond escrow state machine — daemon escrows money before spawn, refunds on clean exit, slashes on violation. Enforcement half of the cost-tracker/bonds split.",
       "module": "lib/bonds.ts",
       "cli": [
         "bond",
@@ -1337,7 +1337,7 @@
       }
     },
     "panic": {
-      "description": "Daemon-wide panic kill-switch. Two-step arm (POST without confirm \u2192 POST with confirm:true) SIGTERMs every running spawn and refunds their bonds (operator action, not misbehavior).",
+      "description": "Daemon-wide panic kill-switch. Two-step arm (POST without confirm → POST with confirm:true) SIGTERMs every running spawn and refunds their bonds (operator action, not misbehavior).",
       "module": "routes/panic.ts",
       "cli": [],
       "sdk": [
@@ -1402,7 +1402,7 @@
       }
     },
     "arbiter": {
-      "description": "Runtime invariant enforcement \u2014 the sovereign's sword",
+      "description": "Runtime invariant enforcement — the sovereign's sword",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1417,7 +1417,7 @@
       }
     },
     "pheromone": {
-      "description": "Stigmergic evaporation system \u2014 agents spray/sniff numeric signals on entities; signals decay over time",
+      "description": "Stigmergic evaporation system — agents spray/sniff numeric signals on entities; signals decay over time",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1463,7 +1463,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet"
+      "_note": "API-only — accessed via curl or SDK; no CLI commands yet"
     },
     "symbols": {
       "description": "AST-based symbol extraction, dependency tracking, and conflict prediction",
@@ -1483,7 +1483,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 accessed via curl or SDK; no CLI commands yet",
+      "_note": "API-only — accessed via curl or SDK; no CLI commands yet",
       "mcp": [
         "find_symbols",
         "symbol_stats",
@@ -1491,7 +1491,7 @@
       ]
     },
     "tuples": {
-      "description": "Linda-style tuple space \u2014 shared coordination data structure for agent swarms with pattern matching and harbor scoping",
+      "description": "Linda-style tuple space — shared coordination data structure for agent swarms with pattern matching and harbor scoping",
       "cli": [
         "tuple"
       ],
@@ -1533,7 +1533,7 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "API-only \u2014 Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
+      "_note": "API-only — Phase 0 substrate. CLI/SDK surfaces follow in Phase 1."
     },
     "graph": {
       "description": "Semantic graph edges and aggregate graph stats for merge queue and symbol-index relationships",
@@ -1642,7 +1642,7 @@
       }
     },
     "coordination_judge": {
-      "description": "Backend-agnostic LLM yes/no for the coordination-pipeline audit's borderline cases. Pure transport-injection design: 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). No transport injected \u2192 judge stays implicitly disabled. Coxswain stays quiet rather than fire the wrong DM.",
+      "description": "Backend-agnostic LLM yes/no for the coordination-pipeline audit's borderline cases. Pure transport-injection design: 3s hard timeout, 1h LRU cache, 30/min rate limit, fallback-deny on every failure mode (auth missing, transport error, malformed JSON, timeout). No transport injected → judge stays implicitly disabled. Coxswain stays quiet rather than fire the wrong DM.",
       "module": "lib/coordination-judge.ts",
       "cli": [],
       "sdk": [],
@@ -1654,7 +1654,7 @@
       }
     },
     "llm_call": {
-      "description": "Single source of LLM call infrastructure. Owns the per-backend HTTP adapters (cloudflare, ollama) \u2014 both lib/spawner.ts (spawn-shape) and lib/llm-backend-resolver.ts (request-shape) delegate here. Also owns createLLMClient: cache (LRU + TTL) + rolling rate limit + hard timeout (AbortController) + fallback-deny, configurable per actor. Judge is the first consumer; future request-shape actors compose on top with their own ttl/perMinute settings. Spawn-shape callers skip the client wrapper since fleet-engine already does cost-budget kill + per-project rate limiting.",
+      "description": "Single source of LLM call infrastructure. Owns the per-backend HTTP adapters (cloudflare, ollama) — both lib/spawner.ts (spawn-shape) and lib/llm-backend-resolver.ts (request-shape) delegate here. Also owns createLLMClient: cache (LRU + TTL) + rolling rate limit + hard timeout (AbortController) + fallback-deny, configurable per actor. Judge is the first consumer; future request-shape actors compose on top with their own ttl/perMinute settings. Spawn-shape callers skip the client wrapper since fleet-engine already does cost-budget kill + per-project rate limiting.",
       "module": "lib/llm-call.ts",
       "cli": [],
       "sdk": [],
@@ -1666,7 +1666,7 @@
       }
     },
     "llm_backend_resolver": {
-      "description": "Env cascade for backend selection. options.backend \u2192 PD_<ACTOR>_BACKEND \u2192 PD_FLEET_DEFAULT_BACKEND \u2192 PORT_DADDY_FLEET_DEFAULT_BACKEND \u2192 null. Spawn-shape (fleet engine) calls resolveRawBackendName (preserves claude-vs-claude-cli); request-shape (judge + future actors) calls resolveLLMBackend which materializes a transport delegating to lib/llm-call adapters. Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so exactly one place reads backend env.",
+      "description": "Env cascade for backend selection. options.backend → PD_<ACTOR>_BACKEND → PD_FLEET_DEFAULT_BACKEND → PORT_DADDY_FLEET_DEFAULT_BACKEND → null. Spawn-shape (fleet engine) calls resolveRawBackendName (preserves claude-vs-claude-cli); request-shape (judge + future actors) calls resolveLLMBackend which materializes a transport delegating to lib/llm-call adapters. Per-backend default models come from lib/backend-telemetry-policy's operator tier. fleet-engine.getFleetRuntimeDefaults delegates here so exactly one place reads backend env.",
       "module": "lib/llm-backend-resolver.ts",
       "cli": [],
       "sdk": [],
@@ -1714,7 +1714,7 @@
       }
     },
     "db_backup": {
-      "description": "Durable snapshots of port-registry.db with online-Backup-API atomicity, gzipped artifacts + sha256-verified manifests, and GFS retention. `pd backup` runs a snapshot; `pd backup list/show/prune` inspect and trim. URI-addressed backend interface (file:// in PR-\u03b1; s3:// and gcs:// in PR-\u03b3). Encryption-at-rest lands in PR-\u03b2. See ADR-0037.",
+      "description": "Durable snapshots of port-registry.db with online-Backup-API atomicity, gzipped artifacts + sha256-verified manifests, and GFS retention. `pd backup` runs a snapshot; `pd backup list/show/prune` inspect and trim. URI-addressed backend interface (file:// in PR-α; s3:// and gcs:// in PR-γ). Encryption-at-rest lands in PR-β. See ADR-0037.",
       "module": "lib/backup.ts",
       "cli": [
         "backup"
@@ -1761,7 +1761,7 @@
       }
     },
     "roadmap": {
-      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` reads the table; `pd roadmap upsert/touch` leaves actor-attributed receipts; `POST /roadmap/promote` is the atomic feedback\u2192item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex",
+      "description": "Tuple-backed roadmap_items DB-of-record + cartographer roadmap projection. `pd roadmap` reads the table; `pd roadmap upsert/touch` leaves actor-attributed receipts; `POST /roadmap/promote` is the atomic feedback→item linkage cartographer (and humans) call instead of editing docs/ROADMAP.md prose by regex",
       "cli": [
         "roadmap"
       ],
@@ -1821,7 +1821,7 @@
       ]
     },
     "quorum": {
-      "description": "Tuple-backed propose/vote primitive for swarm decisions \u2014 agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
+      "description": "Tuple-backed propose/vote primitive for swarm decisions — agents propose roles, others vote, threshold-cross emits a `quorum:passed` tuple subscribers can react to",
       "cli": [
         "quorum"
       ],
@@ -1841,7 +1841,7 @@
       }
     },
     "parley": {
-      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED\u2192CONVENED\u2192COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface.",
+      "description": "Tuple-backed forced reconciliation primitive for overlapping agents. `pd parley fit` evaluates whether a task deserves multi-agent decomposition; `pd parley call/respond/resolve/list/show` records a bounded SUMMONED→CONVENED→COLLAPSED|ESCALATED|VOIDED dialogue around a contested surface.",
       "cli": [
         "parley"
       ],
@@ -1869,7 +1869,7 @@
       }
     },
     "feedback": {
-      "description": "Central agentic-feedback primitive \u2014 agents drop structured findings; cartographer (or any subscriber) harvests them into the roadmap. Tuple-backed, harbor-scoped, severity-sorted",
+      "description": "Central agentic-feedback primitive — agents drop structured findings; cartographer (or any subscriber) harvests them into the roadmap. Tuple-backed, harbor-scoped, severity-sorted",
       "cli": [
         "feedback"
       ],
@@ -1890,7 +1890,7 @@
       }
     },
     "cost_tracker": {
-      "description": "LLM cost recording per spawn \u2014 model pricing, project budgets, burn rate tracking",
+      "description": "LLM cost recording per spawn — model pricing, project budgets, burn rate tracking",
       "cli": [],
       "sdk": [],
       "routes": [],
@@ -1899,10 +1899,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+      "_note": "Library-only — HTTP surface provided by observability routes module"
     },
     "counters": {
-      "description": "ODS-style time-bucketed operational metrics \u2014 in-memory batching with minute/hour rollups",
+      "description": "ODS-style time-bucketed operational metrics — in-memory batching with minute/hour rollups",
       "cli": [],
       "sdk": [],
       "routes": [],
@@ -1911,10 +1911,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Library-only \u2014 HTTP surface provided by observability routes module"
+      "_note": "Library-only — HTTP surface provided by observability routes module"
     },
     "observability": {
-      "description": "Golden signals (RED method) and aggregated metrics \u2014 rate, errors, duration, cost/hr",
+      "description": "Golden signals (RED method) and aggregated metrics — rate, errors, duration, cost/hr",
       "cli": [],
       "sdk": [],
       "routes": [
@@ -1930,7 +1930,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "Composite feature \u2014 routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
+      "_note": "Composite feature — routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
     "metricsprom": {
       "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer, skill freshness/distribution gauges, and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
@@ -1968,7 +1968,7 @@
       "_note": "API-only telemetry surface consumed by the Fleet Console developer pane."
     },
     "orchestrator_plugins": {
-      "description": "Hot-swappable merge orchestrator plugins \u2014 default FIFO, custom priority/scheduling",
+      "description": "Hot-swappable merge orchestrator plugins — default FIFO, custom priority/scheduling",
       "cli": [],
       "sdk": [],
       "routes": [],
@@ -1977,10 +1977,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Library-only \u2014 used internally by merge-queue; no HTTP surface yet"
+      "_note": "Library-only — used internally by merge-queue; no HTTP surface yet"
     },
     "init": {
-      "description": "Project onboarding \u2014 scan stack, create fleet, configure MCP, install git hook",
+      "description": "Project onboarding — scan stack, create fleet, configure MCP, install git hook",
       "cli": [
         "init"
       ],
@@ -1995,7 +1995,7 @@
       }
     },
     "setup": {
-      "description": "One-command onboarding \u2014 install daemon, configure MCP, install FleetBar, init project",
+      "description": "One-command onboarding — install daemon, configure MCP, install FleetBar, init project",
       "cli": [
         "setup"
       ],
@@ -2011,7 +2011,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "CLI plus local daemon onboarding surface \u2014 orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
+      "_note": "CLI plus local daemon onboarding surface — orchestrates daemon install, MCP config, FleetBar install, and project init in one step. Daemon setup routes are loopback-only; mutating actions require a setup capability token from /setup/overview."
     },
     "cut": {
       "description": "Cut a release (ADR-0084 Phase 3): build the daemon binary + Rust cdylib + FleetBar.app, collect into dist/release/<version>/, hash each, and write a manifest. Signing (ADR-0057) is opt-in via --sign; an unsigned cut is recorded as such. Verb is `pd cut` (pd release is port release).",
@@ -2030,7 +2030,7 @@
       "_note": "CLI / CI-only release engineering \u2014 a deliberate human or pipeline act, not an agent action, so no daemon routes or MCP surface (MCP_EXEMPT)."
     },
     "secrets": {
-      "description": "Managed provider secret store \u2014 keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
+      "description": "Managed provider secret store — keychain-backed CRUD over allow-listed provider keys (generalizes /fleet/backend-secrets)",
       "cli": [
         "secret",
         "secrets"
@@ -2084,7 +2084,7 @@
       "_note": "pd nightshift is preserved as a deprecation alias for one minor version. HTTP surface landed in PR #163 (routes/dispatches.ts): propose/list over the dispatch queue. routes/dispatches.ts also serves GET /dispatches/:id and POST /dispatches/:id/{accept,reject,cancel}; those use generic-typed fastify handlers (fastify.get<{Params}>) that the manifest route-parser does not extract, so they are intentionally omitted here to keep the manifest<->code bijection clean."
     },
     "operator_periscope": {
-      "description": "Operator loop SIGHT stage \u2014 pd periscope (aliases sight, scope) raises the periscope in one command: fetches daemon truth from GET /status and renders the current state plus the next recommended cut. Pure read-only glance over existing daemon state; introduces no new route.",
+      "description": "Operator loop SIGHT stage — pd periscope (aliases sight, scope) raises the periscope in one command: fetches daemon truth from GET /status and renders the current state plus the next recommended cut. Pure read-only glance over existing daemon state; introduces no new route.",
       "cli": [
         "periscope",
         "sight",
@@ -2101,10 +2101,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Read-only: reuses GET /status (owned by the core status feature). No dedicated route, so routes:[] is intentional \u2014 same pattern as coordination_guard."
+      "_note": "Read-only: reuses GET /status (owned by the core status feature). No dedicated route, so routes:[] is intentional — same pattern as coordination_guard."
     },
     "operator_coast_guard": {
-      "description": "Coast Guard read path \u2014 pd coast-guard status (alias cg) shows the operator whether spawned agents are confined on this machine (the OS sandbox mechanism in force), plus the secret broker, dotenv denial, hard egress cap, and the protected directories. Pure local read-only legibility over ADR-0050; introduces no new route.",
+      "description": "Coast Guard read path — pd coast-guard status (alias cg) shows the operator whether spawned agents are confined on this machine (the OS sandbox mechanism in force), plus the secret broker, dotenv denial, hard egress cap, and the protected directories. Pure local read-only legibility over ADR-0050; introduces no new route.",
       "cli": [
         "coast-guard",
         "cg"
@@ -2119,10 +2119,10 @@
         "readme": false,
         "sdk": false
       },
-      "_note": "Read-only local capability read (computed from lib/coast-guard.ts, no daemon round-trip). Route + MCP follow on the same coastGuardStatus() accessor \u2014 same read-only pattern as operator_periscope."
+      "_note": "Read-only local capability read (computed from lib/coast-guard.ts, no daemon round-trip). Route + MCP follow on the same coastGuardStatus() accessor — same read-only pattern as operator_periscope."
     },
     "transcripts": {
-      "description": "Fleet ship-run transcript records \u2014 operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
+      "description": "Fleet ship-run transcript records — operator-facing surface for inspecting what a spawned worker did, what it cost, and its produced outputs. Read views (list/show/cost/stream) plus a delete for pruning old runs.",
       "cli": [
         "transcripts",
         "transcript"
@@ -2163,7 +2163,10 @@
         "get_task_ledger"
       ],
       "completions": [],
-      "docs": { "readme": false, "sdk": false },
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
       "_note": "Phase 1/3 context economics. routes/context.ts, lib/context-window-tracker.ts."
     },
     "harvest": {
@@ -2179,7 +2182,10 @@
         "find_related_work"
       ],
       "completions": [],
-      "docs": { "readme": false, "sdk": false },
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
       "_note": "Phase 2/3 session harvest. routes/harvest.ts, lib/session-harvest.ts."
     },
     "custodian": {
@@ -2198,11 +2204,14 @@
         "resolve_approval"
       ],
       "completions": [],
-      "docs": { "readme": false, "sdk": false },
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
       "_note": "Phase 3 knowledge custodian. routes/custodian.ts, lib/knowledge-custodian.ts, lib/operator-permissions.ts."
     },
     "relay": {
-      "description": "Cloud relay \u2014 zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
+      "description": "Cloud relay — zero-trust event fabric for cross-machine pub/sub (ADR-0049)",
       "cli": [
         "relay"
       ],
@@ -2224,6 +2233,26 @@
         "sdk": false
       },
       "_note": "Relay Worker in apps/relay/. Daemon routes in routes/relay.ts. CLI in cli/commands/relay.ts. lib/relay-client.ts manages outbound SSE. Subcommands: relay url <url>|--clear, relay status, relay exchange."
+    },
+    "whois": {
+      "description": "Semantic agent-directory / skill-router — ranks agents and humans by capability match × heartbeat freshness",
+      "cli": [
+        "whois"
+      ],
+      "sdk": [],
+      "routes": [
+        "GET /whois"
+      ],
+      "completions": [
+        "whois"
+      ],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "mcp": [
+        "whois"
+      ]
     }
   }
 }

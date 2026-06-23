@@ -37,6 +37,7 @@ import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
 import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
+import { whoisPlugin } from './whois.js';
 import { sortiesPlugin } from './sorties.js';
 import { orchestratorPlugin } from './orchestrator.js';
 import { briefingPlugin } from './briefing.js';
@@ -159,6 +160,9 @@ export async function registerAllRoutes(
   await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);
+  if ((deps as any).whois) {
+    await fastify.register(whoisPlugin, { deps } as any);
+  }
   await fastify.register(orchestratorPlugin, { deps } as any);
   await fastify.register(briefingPlugin, { deps } as any);
   await fastify.register(sitrepPlugin, { deps } as any);

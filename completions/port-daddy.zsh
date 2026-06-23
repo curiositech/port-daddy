@@ -2109,6 +2109,7 @@ _port_daddy() {
     'hm:alias for harbormaster'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
+    'whois:semantic skill-router — rank agents by capability × freshness'
     'harbors:list all active harbors'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'
