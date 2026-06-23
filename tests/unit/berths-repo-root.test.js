@@ -2,7 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { resolveRepoRoot } from '../../cli/commands/berths.js';
+import { resolveRepoRoot, defaultFrom } from '../../cli/commands/berths.js';
 
 // Regression for `pd dev up` crashing with
 //   "build script missing in source tree: /scripts/build-daemon-binary.mjs"
@@ -26,5 +26,26 @@ describe('resolveRepoRoot (pd dev up source-tree resolution)', () => {
   test('never yields a bogus /scripts path (the original bug)', () => {
     const root = resolveRepoRoot('/', repoTop);
     expect(join(root, 'scripts', 'build-daemon-binary.mjs')).not.toBe('/scripts/build-daemon-binary.mjs');
+  });
+});
+
+describe('defaultFrom (the --label-without---from footgun fix)', () => {
+  const ROOT = '/Users/me/coding/tmp/add-webhooks';
+
+  test('explicit --from always wins (even empty string / main)', () => {
+    expect(defaultFrom('main', 'some-branch', ROOT)).toBe('main');
+    expect(defaultFrom('/other/worktree', 'feat-x', ROOT)).toBe('/other/worktree');
+  });
+
+  test('no --from on a feature branch → codebase berth for this worktree (root path)', () => {
+    expect(defaultFrom(undefined, 'feat/add-webhooks', ROOT)).toBe(ROOT);
+    expect(defaultFrom(undefined, 'fix/freshness', ROOT)).toBe(ROOT);
+  });
+
+  test('no --from on main/master/detached → shared dev-latest (unchanged behaviour)', () => {
+    expect(defaultFrom(undefined, 'main', ROOT)).toBe('main');
+    expect(defaultFrom(undefined, 'master', ROOT)).toBe('main');
+    expect(defaultFrom(undefined, 'HEAD', ROOT)).toBe('main');
+    expect(defaultFrom(undefined, null, ROOT)).toBe('main');
   });
 });

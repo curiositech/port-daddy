@@ -3,6 +3,10 @@ import {
   resolveDaemonBerthIdentity,
   resolveBerthTargetUrl,
   isCanonicalTier,
+  classifyBerth,
+  describeVerdict,
+  shouldReap,
+  BERTH_IDLE_TTL_MS,
   BERTH_ENV,
   BERTH_COLORS,
   DEV_LATEST_PORT,
@@ -104,5 +108,55 @@ describe('isCanonicalTier', () => {
     expect(isCanonicalTier('stable')).toBe(true);
     expect(isCanonicalTier('dev-latest')).toBe(false);
     expect(isCanonicalTier('codebase')).toBe(false);
+  });
+});
+
+describe('classifyBerth (GC decision)', () => {
+  const NOW = 1_000_000_000_000;
+  const rec = (over = {}) => ({
+    label: 'add-webhooks', tier: 'codebase', port: 3155, sourceDir: '/wt/add-webhooks',
+    pid: 42, gitRev: 'abc1234', color: '#A855F7',
+    startedAt: new Date(NOW - 60_000).toISOString(), ...over,
+  });
+  const live = { pidAlive: true, worktreeExists: true, lastActivityMs: NOW - 1000 };
+
+  test('dead process → reap-dead (highest precedence)', () => {
+    // dead beats everything, even a missing worktree.
+    expect(classifyBerth(rec(), { ...live, pidAlive: false, worktreeExists: false }, NOW)).toBe('reap-dead');
+  });
+
+  test('worktree deleted → reap-orphaned', () => {
+    expect(classifyBerth(rec(), { ...live, worktreeExists: false }, NOW)).toBe('reap-orphaned');
+  });
+
+  test('codebase berth idle past TTL → reap-idle', () => {
+    const stale = NOW - (BERTH_IDLE_TTL_MS + 60_000);
+    expect(classifyBerth(rec({ startedAt: new Date(stale).toISOString() }),
+      { pidAlive: true, worktreeExists: true, lastActivityMs: stale }, NOW)).toBe('reap-idle');
+  });
+
+  test('recent activity keeps an otherwise-stale berth live', () => {
+    const oldStart = NOW - (BERTH_IDLE_TTL_MS + 60_000);
+    expect(classifyBerth(rec({ startedAt: new Date(oldStart).toISOString() }),
+      { pidAlive: true, worktreeExists: true, lastActivityMs: NOW - 5_000 }, NOW)).toBe('live');
+  });
+
+  test('freshly-started quiet berth gets a grace period (startedAt counts)', () => {
+    // no activity yet, but started 1 min ago → not idle.
+    expect(classifyBerth(rec(), { pidAlive: true, worktreeExists: true, lastActivityMs: null }, NOW)).toBe('live');
+  });
+
+  test('dev-latest / stable are NEVER idle-reaped (standing lanes)', () => {
+    const stale = NOW - (BERTH_IDLE_TTL_MS + 60_000);
+    const sig = { pidAlive: true, worktreeExists: true, lastActivityMs: stale };
+    expect(classifyBerth(rec({ tier: 'dev-latest', startedAt: new Date(stale).toISOString() }), sig, NOW)).toBe('live');
+    // ...but a dead dev-latest is still reaped.
+    expect(classifyBerth(rec({ tier: 'dev-latest' }), { ...sig, pidAlive: false }, NOW)).toBe('reap-dead');
+  });
+
+  test('shouldReap + describeVerdict', () => {
+    expect(shouldReap('live')).toBe(false);
+    expect(shouldReap('reap-idle')).toBe(true);
+    expect(describeVerdict('reap-orphaned')).toMatch(/worktree/i);
   });
 });
