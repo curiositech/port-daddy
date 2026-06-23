@@ -171,13 +171,13 @@ Static project state is not enough. A local control plane also needs runtime evi
 - which backend launches are blocked;
 - which generated bundle is being served.
 
-Runtime drift is one of the fastest ways to waste time. A source file can be correct while the browser still serves an old build. A daemon can be alive while pointing at the wrong checkout. A UI can show stale project state because it is connected to the wrong runtime.
+Runtime drift is one of the fastest ways to waste time. A source file can be correct while [the browser still serves an old build](/blog/running-is-not-current). A daemon can be alive while pointing at the wrong checkout. A UI can show stale project state because it is connected to the wrong runtime.
 
 That is why Port Daddy treats runtime provenance as part of the map.
 
 ## How This Differs From A Project Board
 
-A project board tracks work items. Port Daddy's map tracks operational truth.
+A project board tracks work items. Port Daddy's map tracks [operational truth](/blog/control-plane-is-the-product).
 
 A project board might say:
 

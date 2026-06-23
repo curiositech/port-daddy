@@ -56,6 +56,7 @@ import {
   handleChangelog,
   // Inbox
   handleInbox,
+  handleSent,
   // Tunnel
   handleTunnel,
   // Activity
@@ -624,7 +625,7 @@ function readCurrentSession(): { sessionId: string; agentId?: string; purpose?: 
 // the help-topic-aliases unit test.
 export const HELP_TOPIC_ALIASES: Record<string, string> = {
   // messaging family: durable directed (inbox/send) + ephemeral pub/sub
-  inbox: 'messaging', send: 'messaging', tube: 'messaging',
+  inbox: 'messaging', send: 'messaging', sent: 'messaging', tube: 'messaging',
   pub: 'messaging', publish: 'messaging', broadcast: 'messaging',
   sub: 'messaging', subscribe: 'messaging', listen: 'messaging',
   channels: 'messaging', wait: 'messaging',
@@ -675,6 +676,7 @@ function buildHelp(): string {
     `  ${G}pd feedback${Z} "message"    ${tag('notify')} Drop structured feedback (auto-slug, agent from context)`,
     `  ${G}pd send${Z} <agent> "msg"    ${tag('notify')} Send a durable direct message to one agent`,
     `  ${G}pd inbox${Z}                 ${tag('silent')} Read direct messages sent to you`,
+    `  ${G}pd sent${Z}                  ${tag('silent')} Read receipts: messages you sent + if/when read`,
     '',
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
@@ -951,6 +953,7 @@ Examples:
 Direct durable messages (RELIABLE \u2014 survives the recipient being offline):
   pd send <agent> <message>       Send a durable direct message to one agent
   pd inbox [list|stats|read-all]  Read messages others sent you (default: list)
+  pd sent [--unread]              Read receipts: messages YOU sent + if/when read
 
 Reliability:
   The pub/sub below is an EPHEMERAL SSE stream \u2014 it times out and is only
@@ -1300,7 +1303,7 @@ const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
   'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
-  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
+  'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
@@ -2544,6 +2547,11 @@ export async function main(): Promise<void> {
       // recipient being offline, unlike ephemeral pub/sub.
       case 'send':
         await handleInbox('send', positional, options);
+        break;
+
+      // `pd sent` — read receipts: messages YOU sent + whether/when each was read.
+      case 'sent':
+        await handleSent(options);
         break;
 
       // Tunnel

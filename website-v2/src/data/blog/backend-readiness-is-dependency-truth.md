@@ -111,7 +111,7 @@ The UI should not translate that into a vague red dot. It should show the failed
 
 ## Readiness Belongs To The Daemon Runtime
 
-One subtle bug class comes from checking readiness in the wrong process. A developer shell may have an API key and a package installed, while the daemon that actually launches agents does not. The UI should not mark a backend ready because the browser, shell, or build script can see something. It should ask the runtime that will perform the launch.
+One subtle bug class comes from checking readiness in [the wrong process](/blog/running-is-not-current). A developer shell may have an API key and a package installed, while the daemon that actually launches agents does not. The UI should not mark a backend ready because the browser, shell, or build script can see something. It should ask the runtime that will perform the launch.
 
 ```ts
 async function readBackendReadiness(backend: string) {
@@ -212,7 +212,7 @@ The readiness matrix is therefore part of engineering quality:
 - it prevents a release task from running on an unauthenticated CLI;
 - it prevents a background fleet from using a backend with no ledger;
 - it helps local models participate without pretending they are cloud APIs;
-- it gives setup flows a concrete list of missing work.
+- it gives [setup flows](/blog/fleet-designer-cold-start) a concrete list of missing work.
 
 That is the bigger idea. Backend readiness is not a preferences page. It is the dependency graph for agent execution.
 
