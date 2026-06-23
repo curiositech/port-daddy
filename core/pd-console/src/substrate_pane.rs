@@ -166,8 +166,14 @@ impl Pane for SubstratePane {
             return blocks;
         }
 
+        // One-line orientation: what this surface is for.
+        blocks.push(Block::KeyVal(
+            "reads".into(),
+            "where agents left signals · what's still unseen · what's been resolved".into(),
+        ));
+
         // ── RCP-12 coverage ──────────────────────────────────────────────
-        blocks.push(Block::Header("Coverage (RCP-12)".into()));
+        blocks.push(Block::Header("Coverage — who's been looked at (RCP-12)".into()));
         if self.coverage.is_empty() {
             blocks.push(Block::KeyVal("status".into(), "no tracked entities".into()));
         }
@@ -184,7 +190,7 @@ impl Pane for SubstratePane {
 
         // ── RCP-7a active signals (raw → effective) ──────────────────────
         blocks.push(Block::Gap);
-        blocks.push(Block::Header("Active signals (RCP-7a)".into()));
+        blocks.push(Block::Header("Active signals — heat, raw→resolved (RCP-7a)".into()));
         if self.signals.is_empty() {
             blocks.push(Block::KeyVal(
                 "status".into(),
