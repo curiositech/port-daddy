@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.22.0] - 2026-06-23
+
+The **dev-daemon** release: feature-branch daemons become first-class and
+self-cleaning, and the auto-upgrade path that quietly stopped working is fixed.
+
+### Added
+- **Feature-branch dev daemons + smart GC (ADR-0084).** `pd dev up` on a feature branch (no `--from`) now launches a `codebase` berth for *that worktree* — its own claimed port, isolated DB/socket — instead of the shared `dev-latest` lane (the `--label`-without-`--from` footgun). Many coexist, each named. New **`pd dev gc`** (auto-swept on `dev up`/`dev list`) reaps berths that are dead, worktree-orphaned, or idle past a 24h TTL (codebase only — `stable`/`dev-latest` are standing lanes), and clears the orphaned profile-dir graveyard.
+- **`pd whois` — semantic agent directory / skill router** (#453): find the right agent or skill by capability, not exact name.
+- **Inbox read receipts** (#525): `read_at` + `pd sent` so a sender can see whether a message was read.
+- **pd-console animated pane launcher** + clearer Substrate pane (#516).
+- **Bespoke OG art** for six top-level marketing routes (#536), plus examples friction/appeal surfacing on cards (#521).
+
+### Fixed
+- **Auto-freshness now actually auto-upgrades (#535).** The hourly `pd self-update --tick` logged "daemon already current" for hours while a newer release sat in the tap: `brew outdated` prints the *tap-qualified* `curiositech/tap/port-daddy` for a tapped formula in the unattended pipe, but the matcher only accepted the bare name. It now matches both forms, and logs the actual version transition (`daemon upgraded 3.21.0 → 3.22.0 + restarted`) whenever the daemon is updated.
+- **`pd dev up` works from the compiled binary (#532):** resolves the source tree from the git checkout instead of the bundle's virtual FS (which yielded a bogus `/scripts/...`).
+- **Dispatch worker observability** restored + a SIGKILL publish-timeout post-fold-in (#538).
+- **Dead-agent timeout** ladders reconciled to a single source of truth (#459).
+
 ## [3.21.0] - 2026-06-21
 
 This release makes **cutting a release** a first-class, tested command and teaches the
