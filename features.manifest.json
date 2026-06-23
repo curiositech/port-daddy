@@ -295,7 +295,8 @@
       "description": "Agent inbox messaging",
       "cli": [
         "inbox",
-        "send"
+        "send",
+        "sent"
       ],
       "sdk": [
         "inboxSend",
@@ -311,11 +312,13 @@
         "DELETE /agents/:param/inbox",
         "GET /agents/:param/inbox/stats",
         "PUT /agents/:param/inbox/:param/read",
-        "PUT /agents/:param/inbox/read-all"
+        "PUT /agents/:param/inbox/read-all",
+        "GET /agents/:param/sent"
       ],
       "completions": [
         "inbox",
-        "send"
+        "send",
+        "sent"
       ],
       "docs": {
         "readme": true,

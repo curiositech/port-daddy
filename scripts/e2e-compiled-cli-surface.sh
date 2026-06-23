@@ -201,6 +201,7 @@ run_read "attention"         attention   -- attention --agent surface:smoke:ci
 run_read "nudge"             nudge       -- nudge --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
 run_read "send (usage)"      send        -- send
+run_read "sent"              sent        -- sent
 run_read "hints"             hints       -- hints
 # ADR-0084 Daemon Berths: `pd use <tier>` emits a shell snippet (read-only, no
 # daemon mutation); `pd dev list` probes berths read-only. Both exit 0 + print.

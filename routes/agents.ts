@@ -36,6 +36,7 @@ interface AgentsRouteDeps {
   agentInbox: {
     send(agentId: string, content: string, opts?: { from?: string; type?: string }): { success: boolean; messageId?: number; error?: string };
     list(agentId: string, opts?: { unreadOnly?: boolean; limit?: number; since?: number }): { success: boolean; messages: InboxMessage[]; count: number };
+    listSent(fromAgent: string, opts?: { unreadOnly?: boolean; limit?: number }): { success: boolean; messages: InboxMessage[]; count: number };
     markRead(agentId: string, messageId: number): { success: boolean };
     markAllRead(agentId: string): { success: boolean; marked: number };
     clear(agentId: string): { success: boolean; deleted: number };
@@ -348,6 +349,23 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         unreadOnly: unread === 'true',
         limit: limit ? parseInt(limit as string, 10) : undefined,
         since: since ? parseInt(since as string, 10) : undefined
+      });
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /agents/:id/sent - Read receipts: messages this agent SENT, with read + readAt
+  fastify.get('/agents/:id/sent', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const agentId = (request.params as any).id as string;
+      const { unread, limit } = request.query as any;
+
+      return agentInbox.listSent(agentId, {
+        unreadOnly: unread === 'true',
+        limit: limit ? parseInt(limit as string, 10) : undefined
       });
     } catch (error) {
       metrics.errors++;
