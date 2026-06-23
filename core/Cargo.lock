@@ -3993,6 +3993,7 @@ name = "pd-anchor"
 version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
+ "getrandom 0.2.17",
  "hex",
  "hmac",
  "pd-core",

@@ -75,6 +75,18 @@ impl CmdKind {
             CmdKind::AddPane => "add pane",
         }
     }
+
+    /// Ghost text shown in the input when empty — the GUI must never demand
+    /// syntax the operator has to guess. This is the discoverability the hidden
+    /// leader-key command line never had.
+    fn placeholder(&self) -> &'static str {
+        match self {
+            CmdKind::Spawn => "claude: summarize the open PRs   (backend: task — try claude · gemini · ollama)",
+            CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…",
+            CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.",
+            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…",
+        }
+    }
 }
 
 /// Version + build-freshness of the running binary, for the status bar.
@@ -675,7 +687,9 @@ impl ConsoleView {
             }
             return;
         }
-        let Some(tx) = &self.control_tx else { return };
+        // Clone the sender (owned) so we can also mutate the workspace below
+        // without holding an immutable borrow of `self` across `ws_mut()`.
+        let Some(tx) = self.control_tx.clone() else { return };
         match cmd.kind {
             CmdKind::Spawn => {
                 let (backend, prompt) = split_backend(&text);
@@ -683,11 +697,22 @@ impl ConsoleView {
                     backend: backend.clone(),
                     prompt,
                 });
-                self.control_flash = Some(format!("spawning a {backend} agent…"));
+                self.control_flash =
+                    Some(format!("spawning a {backend} agent — streaming live below"));
+                // Immediately surface the live agent lane so the operator SEES the
+                // streaming response to the command they just issued. This closes
+                // the GUI loop: click Spawn → type → Send → watch it run. The lane
+                // auto-targets the newest active agent on its next refresh.
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
             }
             CmdKind::Cartographer => {
                 let _ = tx.send(ControlMsg::Cartographer { text });
-                self.control_flash = Some("sent to cartographer — watch the lane".into());
+                self.control_flash = Some("sent to cartographer — streaming the reply below".into());
+                // Same loop for the cartographer: jump to the lane to watch the
+                // reply stream rather than leaving the operator guessing where it went.
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
             }
             CmdKind::DispatchReject => {
                 if let Some(id) = self.reject_target.take() {
@@ -1045,6 +1070,39 @@ impl ConsoleView {
     }
 }
 
+/// One always-visible operator-toolbar button. Clicking it opens the matching
+/// GUI input (placeholder-guided, no leader key, no memorized syntax) — the
+/// discoverable face of the spawn / cartographer / add-pane commands. This is
+/// the difference between an operator console and a CLI with hidden options.
+fn command_bar_btn(
+    kind: CmdKind,
+    label: &'static str,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let accent = current_theme().accent;
+    div()
+        .id(SharedString::from(format!("cmdbar-{}", kind.prompt())))
+        .px(px(11.0))
+        .py(px(5.0))
+        .rounded(px(6.0))
+        .border_1()
+        .border_color(rgb(current_theme().line))
+        .text_color(rgb(current_theme().ink2))
+        .text_size(px(13.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| {
+            s.border_color(rgb(accent))
+                .text_color(rgb(current_theme().accent_ink))
+                .shadow(motion::glow(accent, 0.20, 8.0, 0.0))
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.command = Some(CommandLine { kind, buffer: String::new() });
+            cx.notify();
+        }))
+}
+
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
 /// Reject opens a reason command line (the human-gate "why" path) targeting `id`.
 fn dispatch_gate_btn(
@@ -1357,7 +1415,12 @@ impl Render for ConsoleView {
             .child(
                 div()
                     .h(px(28.0))
-                    .px(px(6.0))
+                    // The window titlebar is transparent (traffic lights drawn at
+                    // x≈12–64), so the tab strip must start clear of them or the
+                    // first tab + "+" hide behind the OS controls. Inset the left
+                    // edge past the light cluster; this whole bar is the drag region.
+                    .pl(px(78.0))
+                    .pr(px(6.0))
                     .flex()
                     .items_center()
                     .gap(px(4.0))
@@ -1414,6 +1477,31 @@ impl Render for ConsoleView {
             )
             // The pane tree (or a maximized pane) fills the window.
             .child(div().flex_1().overflow_hidden().child(body))
+            // ── Operator toolbar: always-visible GUI affordances. No leader keys,
+            // no memorized syntax — click a button, a placeholder-guided input
+            // opens, type, hit Send. This is what makes the console an operator
+            // surface instead of a CLI with hidden options. ──
+            .child(
+                div()
+                    .h(px(36.0))
+                    .px(px(12.0))
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .bg(rgb(current_theme().panel))
+                    .border_t_1()
+                    .border_color(rgb(current_theme().line))
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(rgb(current_theme().muted))
+                            .child("ACT"),
+                    )
+                    .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
+                    .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
+                    .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx)),
+            )
             // ── Command / status bar ──
             .child(
                 div()
@@ -1433,30 +1521,68 @@ impl Render for ConsoleView {
                             .flex()
                             .gap(px(8.0))
                             .items_center()
+                            .w_full()
                             .child(
                                 div()
                                     .text_color(rgb(current_theme().accent_ink))
                                     .text_size(px(14.0))
                                     .font_weight(FontWeight::SEMIBOLD)
-                                    .child(format!("{}", cmd.kind.prompt())),
+                                    .child(cmd.kind.prompt().to_string()),
                             )
-                            .child(
-                                div()
+                            // The input field. Empty → ghost placeholder telling the
+                            // operator exactly what to type; typing → live buffer + caret.
+                            .child({
+                                let field = div()
                                     .flex_1()
-                                    .text_color(rgb(current_theme().ink))
                                     .text_size(px(14.0))
-                                    .font_family("IBM Plex Mono")
-                                    .child(format!("› {}▏", cmd.buffer)),
+                                    .font_family("IBM Plex Mono");
+                                if cmd.buffer.is_empty() {
+                                    field
+                                        .text_color(rgb(current_theme().muted))
+                                        .child(cmd.kind.placeholder().to_string())
+                                } else {
+                                    field
+                                        .text_color(rgb(current_theme().ink))
+                                        .child(format!("› {}▏", cmd.buffer))
+                                }
+                            })
+                            // Visible Send button — the GUI equivalent of Enter, so the
+                            // operator never has to know a keystroke to act.
+                            .child(
+                                div()
+                                    .id("cmd-send")
+                                    .px(px(12.0))
+                                    .py(px(4.0))
+                                    .rounded(px(6.0))
+                                    .bg(rgb(current_theme().accent))
+                                    .text_color(rgb(current_theme().bg))
+                                    .text_size(px(13.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|s| s.shadow(motion::glow(current_theme().accent, 0.30, 10.0, 0.0)))
+                                    .child("Send")
+                                    .on_click(cx.listener(|this, _ev, _window, cx| {
+                                        if let Some(cmd) = this.command.take() {
+                                            this.submit_command(cmd);
+                                        }
+                                        cx.notify();
+                                    })),
                             )
                             .child(
                                 div()
+                                    .id("cmd-cancel")
+                                    .px(px(8.0))
+                                    .py(px(4.0))
+                                    .rounded(px(6.0))
                                     .text_color(rgb(current_theme().muted))
                                     .text_size(px(13.0))
-                                    .child(if cmd.kind == CmdKind::AddPane {
-                                        "fleet·cost·roadmap·lane·dispatch·chat·files… ⏎ add".to_string()
-                                    } else {
-                                        "⏎ send · esc cancel".to_string()
-                                    }),
+                                    .cursor_pointer()
+                                    .hover(|s| s.text_color(rgb(current_theme().ink2)))
+                                    .child("Cancel")
+                                    .on_click(cx.listener(|this, _ev, _window, cx| {
+                                        this.command = None;
+                                        cx.notify();
+                                    })),
                             )
                     } else if armed {
                         div()
