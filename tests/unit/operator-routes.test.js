@@ -18,6 +18,9 @@ jest.unstable_mockModule('node:child_process', () => ({
   spawnSync: mockSpawnSync,
   execSync: mockExecSync,
   execFileSync: jest.fn(),
+  // lib/fleet/outputs/notify-macos.ts (transitively imported via fleet-engine)
+  // uses execFile for macOS notification delivery.
+  execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
 }));
 
 const { operatorPlugin, __resetGuardCachesForTest } = await import('../../routes/operator.js');
