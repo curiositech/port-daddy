@@ -23,8 +23,13 @@ BUNDLE_DIR="$CONSOLE_DIR/bundle"
 # dylib-injection / W^X regression (PR #493 review finding 2). The file has no XML
 # comment because codesign's AMFI parser rejects them.
 ENTITLEMENTS="$REPO_ROOT/scripts/entitlements/pd-console.plist"
-ICON_SRC="$REPO_ROOT/apps/github-app-fleet/icons/A-lighthouse/icon-1024.png"
+# Shared ship's-wheel brand mark (same master the local lanes use, so prod / latest
+# / dev are one mark in three colours — see core/pd-console/scripts/package-console.sh).
+ICON_SRC="$REPO_ROOT/core/pd-console/assets/branding/pd-console-icon-1024.png"
 ARCH="$(uname -m)"
+# The build artifact stays pd-console.app (scripts/check-version-drift.mjs --deep reads
+# it by that path). The Homebrew cask installs it AS pd-console-prod.app on the user's
+# machine — see Casks/pd-console.rb (`app … target: "pd-console-prod.app"`).
 APP_NAME="pd-console.app"
 mkdir -p "$OUT_DIR"
 
@@ -39,11 +44,31 @@ else
 fi
 [[ -f "$BIN" ]] || { echo "pd-console binary not found: $BIN" >&2; exit 1; }
 
-# 2. Icon: regenerate the .icns from the lighthouse brand mark (reproducible).
-ICONSET="$(mktemp -d)/pd-console.iconset"; mkdir -p "$ICONSET"
+# 2. Icon: the PROD lane brand mark — the shared master with a BLUE frame + a
+#    vX.Y.Z version badge, so pd-console-prod reads distinct from latest (green) and
+#    dev (amber) in the Dock. Mirrors the badging in package-console.sh's lanes.
+PD_VERSION_FOR_BADGE="$(node -p "require('$REPO_ROOT/package.json').version")"
+WORK="$(mktemp -d)"
+PROD_TINT="#2563eb"
+FONT=""
+for f in "/System/Library/Fonts/Supplemental/Arial Bold.ttf" "/System/Library/Fonts/Helvetica.ttc"; do
+  [ -f "$f" ] && { FONT="$f"; break; }
+done
+MAGICK="$(command -v magick || command -v convert || true)"
+ICON_FOR_SET="$ICON_SRC"
+if [[ -n "$MAGICK" ]] && "$MAGICK" "$ICON_SRC" -resize 976x976^ -gravity center -extent 976x976 \
+     -bordercolor "$PROD_TINT" -border 24 \
+     -fill "$PROD_TINT" -draw "rectangle 0,860 1024,1010" \
+     ${FONT:+-font "$FONT"} -fill white -pointsize 110 -gravity South -annotate +0+18 "v$PD_VERSION_FOR_BADGE" \
+     "$WORK/prod-icon.png" 2>/dev/null; then
+  ICON_FOR_SET="$WORK/prod-icon.png"
+else
+  echo "::warning::imagemagick unavailable — pd-console-prod ships the unbadged master."
+fi
+ICONSET="$WORK/pd-console.iconset"; mkdir -p "$ICONSET"
 for s in 16 32 128 256 512; do
-  sips -z "$s" "$s" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  sips -z "$((s*2))" "$((s*2))" "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+  sips -z "$s" "$s" "$ICON_FOR_SET" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+  sips -z "$((s*2))" "$((s*2))" "$ICON_FOR_SET" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$BUNDLE_DIR/PortDaddyConsole.icns"
 
