@@ -91,6 +91,10 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   name:           StringNode;
   prompt?:        StringNode;
   trigger?:       ChannelRefNode;
+  /** Additive plural trigger list (kind:type grammar or legacy channels). */
+  triggers?:      StringNode[];
+  /** Additive output target list (kind:type grammar). */
+  outputs?:       StringNode[];
   schedule?:      CronNode;
   triggerTuple?:  TupleNode;
   backend?:       EnumNode<Backend>;
@@ -220,6 +224,17 @@ function extractTuple(node: unknown, gr: GetRange): TupleNode | undefined {
   };
 }
 
+function extractStringList(node: unknown, gr: GetRange): StringNode[] | undefined {
+  if (!isSeq(node)) return undefined;
+  const items = (node as { items: unknown[] }).items;
+  const results: StringNode[] = [];
+  for (const item of items) {
+    const s = extractString(item, gr);
+    if (s && s.value.trim()) results.push(s);
+  }
+  return results.length > 0 ? results : undefined;
+}
+
 function extractRuntimeTargets(node: unknown, gr: GetRange): RuntimeTargetNode[] | undefined {
   if (!isSeq(node)) return undefined;
   const items = (node as { items: unknown[] }).items;
@@ -294,6 +309,8 @@ function parseAgentMap(
     name:          { kind: 'string', range: nameRange, value: name },
     prompt:        gStr(m, 'prompt', gr),
     trigger:       extractChannelRef(gNode(m, 'trigger'),   gr),
+    triggers:      extractStringList(gNode(m, 'triggers'),  gr),
+    outputs:       extractStringList(gNode(m, 'outputs'),   gr),
     schedule:      (() => {
       const n = gNode(m, 'schedule');
       const str = extractString(n, gr);
@@ -550,10 +567,27 @@ export function astToConfig(ast: FleetAst): FleetConfig {
       return out.length > 0 ? out : undefined;
     })();
 
+    // Additive plural triggers/outputs. Fold a singular `trigger:` in as
+    // the first element so both shapes coexist; dedupe to avoid a singular
+    // trigger that is also listed in `triggers:` firing twice.
+    const triggerList = (() => {
+      const explicit = a.triggers?.map((s) => s.value.trim()).filter(Boolean) ?? [];
+      const singular = a.trigger?.channel?.trim();
+      const combined = singular ? [singular, ...explicit] : explicit;
+      const deduped = [...new Set(combined)];
+      return deduped.length > 0 ? deduped : undefined;
+    })();
+    const outputList = (() => {
+      const explicit = a.outputs?.map((s) => s.value.trim()).filter(Boolean) ?? [];
+      return explicit.length > 0 ? explicit : undefined;
+    })();
+
     agents.push({
       name,
       schedule:       a.schedule?.expression,
       trigger:        a.trigger?.channel,
+      triggers:       triggerList,
+      outputs:        outputList,
       triggerTuple:   a.triggerTuple?.elements,
       backend,
       model,

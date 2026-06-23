@@ -25,13 +25,31 @@ import type { Tuple, TupleSpace } from './tuples.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { buildPortDaddyShellCommand, resolvePortDaddyInvocation } from './port-daddy-command.js';
 import { resolveRawBackendName } from './llm-backend-resolver.js';
+import { IoDispatch, type DispatchOutputResult } from './fleet/io-dispatch.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
-  trigger?: string;        // channel name
+  trigger?: string;        // channel name (singular sugar; also folded into `triggers`)
+  /**
+   * Plural trigger list (additive). Each entry is a trigger-spec string in
+   * the `kind:type(filters)` grammar (e.g. `file:changed(~/notes/)`) OR a
+   * legacy coordination channel name. Registry-kind specs (file/webhook/
+   * email/sms/calendar) are dispatched through the pluggable trigger
+   * registry; legacy/coordination kinds (pd/git/github/schedule) stay on
+   * the engine's existing channel/cron path. A singular `trigger:` is
+   * folded in as the first element so both shapes coexist.
+   */
+  triggers?: string[];
+  /**
+   * Output target list (additive). Each entry is an output-target string in
+   * the `kind:type(arg)` grammar (e.g. `file:append(~/notes/digest.md)`,
+   * `notify:os`). Dispatched through the pluggable output registry on agent
+   * completion. Consent gating happens inside each sink.
+   */
+  outputs?: string[];
   triggerTuple?: unknown[]; // tuple pattern in harbor-scoped tuple space
   backend: string;         // ollama, claude, claude-cli, codex, custom
   model?: string;
@@ -665,6 +683,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     return resolveFleetChannel(channel, projectDir, project);
   }
 
+  // ─── I/O dispatch bridge (pluggable trigger/output registry) ─────────────
+  // Wires lib/fleet/triggers/* and lib/fleet/outputs/* into the engine.
+  // Phase 1 owns `file` (real, no creds) end-to-end; `webhook` is registered
+  // but inert until a receiver registerHandler dep is injected (Phase 2);
+  // `email`/`sms`/`calendar` resolve through the registry and are honestly
+  // refused at available() until their connectors ship (ROADMAP).
+  const ioDispatch = new IoDispatch({
+    channelSubscribe: options?.messaging?.subscribe,
+    resolveChannel,
+    // schedule registry kind stays on the legacy cron path (see startAgent);
+    // a no-op scheduleCron keeps the CronTriggerSource registerable for the
+    // future designer/health-board surfaces without double-firing.
+    scheduleCron: () => () => {},
+  });
+
+  /** True if the agent has any event trigger (singular, plural, or tuple). */
+  function agentIsTriggered(agent: FleetAgent): boolean {
+    return Boolean(agent.trigger || (agent.triggers && agent.triggers.length > 0) || agent.triggerTuple);
+  }
+
   function queueDepthFor(agentName: string): number {
     if (!options?.tuples) return stateFor(agentName).pendingContext ? 1 : 0;
     return options.tuples.count(['fleet:mailbox', agentName], tupleHarbor);
@@ -894,7 +932,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
 
     const record: RunningAgent = {
       name: agent.name,
-      type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
+      type: agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'triggered' : 'manual',
       startedAt: Date.now(),
     };
     const cleanupHandles: Array<() => void> = [];
@@ -907,11 +945,53 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
     }
 
-    if (agent.trigger) {
-      const physicalTriggerChannel = resolveChannel(agent.trigger);
+    // Resolve the agent's trigger list. `triggers:` is the canonical plural
+    // form (already folded with any singular `trigger:` in astToConfig); fall
+    // back to the bare singular field for configs built without the AST.
+    const triggerList = agent.triggers ?? (agent.trigger ? [agent.trigger] : []);
+    const registryTriggers: string[] = [];
+    const legacyTriggers: string[] = [];
+    for (const raw of triggerList) {
+      const classification = ioDispatch.classifyTrigger(raw);
+      (classification.kind === 'registry' ? registryTriggers : legacyTriggers).push(raw);
+    }
+
+    // ── Registry-backed triggers (file/webhook/email/sms/calendar) ─────────
+    // Started through the pluggable trigger registry. Honest about
+    // availability: a not-ready source (e.g. email/sms/calendar stub) is
+    // refused with a clear log line, never silently dropped.
+    for (const raw of registryTriggers) {
+      void ioDispatch
+        .startTrigger(raw, (event) => {
+          void requestAgentRun(agent, contextFromTriggerEvent(event));
+        })
+        .then((result) => {
+          if (result.started) {
+            const stopHandle = result.handle;
+            cleanupHandles.push(() => { void stopHandle.stop(); });
+            // If the agent record was already torn down before this async
+            // start resolved, stop the source immediately to avoid a leak.
+            if (!running.has(agent.name)) {
+              void stopHandle.stop();
+            }
+          } else {
+            const requires = result.requires?.length ? ` (requires: ${result.requires.join(', ')})` : '';
+            console.error(
+              `[Fleet] Trigger "${raw}" for agent "${agent.name}" not started: ${result.reason}${requires}`,
+            );
+          }
+        })
+        .catch((err: Error) => {
+          console.error(`[Fleet] Trigger "${raw}" for agent "${agent.name}" failed to start:`, err.message);
+        });
+    }
+
+    // ── Legacy coordination-channel triggers (pd/git/github + bare names) ──
+    for (const legacyTrigger of legacyTriggers) {
+      const physicalTriggerChannel = resolveChannel(legacyTrigger);
       // Prefer in-process subscriptions so trigger payload survives into the spawned task.
       const unsubscribe = options?.messaging?.subscribe(physicalTriggerChannel, (message: unknown) => {
-        void requestAgentRun(agent, contextFromMessage(agent.trigger!, message));
+        void requestAgentRun(agent, contextFromMessage(legacyTrigger, message));
       });
 
       if (unsubscribe) {
@@ -981,7 +1061,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       };
     }
 
-    if (!agent.schedule && !agent.trigger && !agent.triggerTuple) {
+    if (!agent.schedule && !agentIsTriggered(agent)) {
       void requestAgentRun(agent, { source: 'manual' });
     }
 
@@ -1258,6 +1338,54 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     }
   }
 
+  /**
+   * Dispatch an agent's declared `outputs:` through the pluggable output
+   * registry on successful completion. Fire-and-forget and never throws —
+   * each sink result/error is logged independently so one broken output
+   * does not affect the agent run or the other outputs.
+   *
+   * Phase-1 honesty: the spawn returns `status: 'spawned'` (the agent runs
+   * asynchronously), so the dispatched body reports the run that fired the
+   * output rather than the agent's final text. Sinks that need the full
+   * agent transcript will be fed it in a later phase once the engine
+   * collects completion output.
+   */
+  function dispatchAgentOutputs(
+    agent: FleetAgent,
+    runMeta: { status?: string; agentId?: string; backend?: string | null },
+  ): void {
+    const targets = agent.outputs;
+    if (!targets || targets.length === 0) return;
+    const status = runMeta.status ?? 'completed';
+    const body = [
+      `Fleet agent "${agent.name}" ${status}.`,
+      runMeta.agentId ? `agentId: ${runMeta.agentId}` : null,
+      runMeta.backend ? `backend: ${runMeta.backend}` : null,
+    ].filter(Boolean).join('\n');
+    void ioDispatch
+      .dispatchOutputs(targets, {
+        title: `${agent.name} ${status}`,
+        body,
+        // Default-deny posture: agent-run summaries are operator-local
+        // metadata, not third-party PII. Real PII-bearing outputs are a
+        // later phase and will set pii explicitly.
+        pii: 'low',
+      })
+      .then((results: DispatchOutputResult[]) => {
+        for (const r of results) {
+          if (!r.ok) {
+            const requires = r.requires?.length ? ` (requires: ${r.requires.join(', ')})` : '';
+            console.error(
+              `[Fleet] Output "${r.target}" for agent "${agent.name}" not dispatched: ${r.reason}${requires}`,
+            );
+          }
+        }
+      })
+      .catch((err: Error) => {
+        console.error(`[Fleet] Output dispatch failed for agent "${agent.name}":`, err.message);
+      });
+  }
+
   function trimMessage(message: string, maxChars = 4000): string {
     if (message.length <= maxChars) return message;
     return `${message.slice(0, maxChars)}\n\n[truncated ${message.length - maxChars} chars]`;
@@ -1271,6 +1399,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     } catch {
       return String(message);
     }
+  }
+
+  /**
+   * Convert a registry FleetTriggerEvent (file/webhook/email/...) into the
+   * engine's FleetRunContext so the spawned agent sees the trigger payload.
+   */
+  function contextFromTriggerEvent(event: {
+    source: string;
+    type: string;
+    timestamp: number;
+    payload: unknown;
+    metadata?: { correlation_id?: string; sender?: string; subject?: string; [k: string]: unknown };
+  }): FleetRunContext {
+    const messageContent = trimMessage(serializeMessage(event.payload));
+    return {
+      source: 'trigger',
+      channel: `${event.source}:${event.type}`,
+      from: event.metadata?.sender ?? null,
+      message: event.payload,
+      messageContent,
+    };
   }
 
   function contextFromMessage(channel: string, message: unknown): FleetRunContext {
@@ -1557,6 +1706,13 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           if (agent.onSuccess) {
             fireHook(agent.onSuccess, `${agent.name} spawned`);
           }
+          // Dispatch declared registry outputs (file/notify/webhook/...).
+          // Fire-and-forget: a failing sink must not fail the agent run.
+          dispatchAgentOutputs(agent, {
+            status: outcome.data.status,
+            agentId: outcome.data.agentId,
+            backend: runtime.backend,
+          });
           agentState.consecutiveFailures = 0;
           agentState.backoffUntil = undefined;
           return { success: true };
@@ -1830,11 +1986,11 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       } else if (paused) {
         status = 'paused';
       } else if (record) {
-        status = agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'armed' : 'idle';
+        status = agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'armed' : 'idle';
       }
       return {
         name: agent.name,
-        type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
+        type: agent.schedule ? 'scheduled' : agentIsTriggered(agent) ? 'triggered' : 'manual',
         status,
         running: activeRun,
         paused,
