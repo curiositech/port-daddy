@@ -33,6 +33,12 @@ export const OG_SOURCE_IMAGES = {
   salvageLedger: '/img/generated/salvage-ledger.jpg',
   shipwrightProposal: '/img/generated/shipwright-proposal.jpg',
   exampleArchetypes: '/img/generated/example-agent-archetypes.jpg',
+  home: '/img/generated/home-og.jpg',
+  manifesto: '/img/generated/manifesto-og.jpg',
+  pdTube: '/img/generated/pd-tube-og.jpg',
+  blog: '/img/generated/blog-og.jpg',
+  library: '/img/generated/library-og.jpg',
+  landscape: '/img/generated/landscape-og.jpg',
 } as const
 
 export type SiteMetadataSection =
@@ -137,6 +143,15 @@ const sectionLabels: Record<SiteMetadataSection, string> = {
 }
 
 function sourceImageForRoute(path: string, section: SiteMetadataSection) {
+  // Bespoke route-level OG art for the top-level pages that previously shared
+  // the generic control-plane fallback. Exact matches so individual sub-routes
+  // (e.g. a /blog/<slug> that mentions "guard") keep their topical image below.
+  if (path === '/') return OG_SOURCE_IMAGES.home
+  if (path === '/manifesto') return OG_SOURCE_IMAGES.manifesto
+  if (path === '/pd-tube') return OG_SOURCE_IMAGES.pdTube
+  if (path === '/blog') return OG_SOURCE_IMAGES.blog
+  if (path === '/library') return OG_SOURCE_IMAGES.library
+  if (path === '/landscape') return OG_SOURCE_IMAGES.landscape
   if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
   if (path === '/mcp' || path.startsWith('/docs/mcp')) return OG_SOURCE_IMAGES.agentRuntime
   if (path.startsWith('/agents') || path.includes('fleet') || path.includes('spawn')) return OG_SOURCE_IMAGES.virtualActors
