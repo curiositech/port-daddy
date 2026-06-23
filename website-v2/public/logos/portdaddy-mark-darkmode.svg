@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%" role="img" aria-label="Port Daddy">
+  <!-- Distinct monogram, dark-surface variant. Interlocked P·d glyph in one
+       clean static ring — no radar grid, no sweep, no animation. Brightened
+       seafoam/amber for dark backgrounds; readable down to favicon size. -->
+  <defs>
+    <mask id="pd-mark-int-dark" maskContentUnits="userSpaceOnUse">
+      <rect width="300" height="300" fill="white" />
+      <g stroke="black" stroke-width="22" stroke-linecap="butt" fill="none">
+        <line x1="118" y1="118" x2="118" y2="205" />
+        <circle cx="143" cy="143" r="27" />
+      </g>
+    </mask>
+  </defs>
+  <circle cx="150" cy="150" r="132" fill="transparent" stroke="#243247" stroke-width="6" />
+  <g stroke="#2076FE" stroke-width="22" stroke-linecap="butt" fill="none">
+    <line x1="118" y1="118" x2="118" y2="205" />
+    <circle cx="143" cy="143" r="27" />
+  </g>
+  <g stroke="#20DEB0" stroke-width="22" stroke-linecap="butt" fill="none">
+    <line x1="182" y1="182" x2="182" y2="95" />
+    <circle cx="157" cy="157" r="27" />
+  </g>
+  <g stroke="#FFB505" stroke-width="22" stroke-linecap="butt" fill="none" mask="url(#pd-mark-int-dark)">
+    <line x1="182" y1="182" x2="182" y2="95" />
+    <circle cx="157" cy="157" r="27" />
+  </g>
+</svg>
