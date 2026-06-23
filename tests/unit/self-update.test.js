@@ -72,3 +72,24 @@ describe('cli/commands/self-update parseInstalledVersion', () => {
     expect(parseInstalledVersion('node 22.0.0\nripgrep 14.1.0')).toBe(null);
   });
 });
+
+// The freshness LaunchAgent cadence is the lever that makes a published brew
+// release a *necessary* (prompt) consequence on the running machine rather than
+// an eventual one. Regression-lock it so it can't silently drift back to hourly.
+describe('install-daemon freshness LaunchAgent cadence', () => {
+  test('interval is 15 min (900s), tightened from hourly', async () => {
+    const { FRESHNESS_INTERVAL_SECONDS } = await import('../../install-daemon.js');
+    expect(FRESHNESS_INTERVAL_SECONDS).toBe(900);
+  });
+
+  test('generated plist wires `pd self-update --tick` at the 900s interval, RunAtLoad', async () => {
+    const { generateFreshnessPlist, FRESHNESS_INTERVAL_SECONDS } = await import('../../install-daemon.js');
+    const plist = generateFreshnessPlist('/opt/homebrew/bin/pd');
+    expect(plist).toContain('<string>/opt/homebrew/bin/pd</string>');
+    expect(plist).toContain('<string>self-update</string>');
+    expect(plist).toContain('<string>--tick</string>');
+    expect(plist).toContain(`<integer>${FRESHNESS_INTERVAL_SECONDS}</integer>`);
+    expect(plist).toContain('<integer>900</integer>');
+    expect(plist).toContain('<key>RunAtLoad</key>');
+  });
+});

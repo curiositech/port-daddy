@@ -99,6 +99,18 @@ export function parseInstalledVersion(brewListVersionsStdout: string): string | 
   return tokens.length > 1 ? tokens[tokens.length - 1] : null;
 }
 
+/**
+ * Best-effort macOS notification so an auto-upgrade — especially a FAILED one —
+ * is loud rather than silent. A silent failure is the difference between "the
+ * machine self-heals" and "the machine has been stale for a week and nobody
+ * knew". Escapes `osascript` string syntax; never throws.
+ */
+function notify(title: string, message: string): void {
+  if (process.platform !== 'darwin') return;
+  const esc = (s: string): string => s.replace(/["\\]/g, '\\$&');
+  sh('osascript', ['-e', `display notification "${esc(message)}" with title "${esc(title)}"`], 8_000);
+}
+
 /** True when the daemon answers /health. */
 function daemonUp(): boolean {
   // curl is always present on macOS; -m caps the probe.
@@ -135,8 +147,17 @@ export async function handleSelfUpdate(options: SelfUpdateOptions = {}): Promise
     return;
   }
 
-  // 1. Refresh the tap + check for a newer release.
-  sh('brew', ['update'], 120_000);
+  // 1. Refresh the tap + check for a newer release. A failed/timed-out `brew
+  //    update` leaves the local formula cache stale, so `brew outdated` reports
+  //    nothing and the upgrade silently never fires — masquerading as "already
+  //    current". That is the exact failure that kept this machine on an old
+  //    release through a published bump. Give it room (a busy machine with many
+  //    outdated formulae routinely takes >120s) and log when it fails so a stuck
+  //    refresh is visible instead of passing as healthy.
+  const updated = sh('brew', ['update'], 300_000);
+  if (updated.code !== 0) {
+    log(`brew update failed (code ${updated.code}) — tap may be stale this tick, version check unreliable: ${updated.stderr.trim()}`);
+  }
   const outdated = sh('brew', ['outdated', FORMULA], 60_000);
 
   if (isUpgradeAvailable(outdated.stdout)) {
@@ -153,11 +174,15 @@ export async function handleSelfUpdate(options: SelfUpdateOptions = {}): Promise
       const transition = `${fromVersion ?? '?'} → ${toVersion ?? '?'}`;
       log(`daemon upgraded ${transition} + restarted`);
       say(`Daemon upgraded ${transition} + restarted.`);
+      notify('Port Daddy upgraded', `${FORMULA} ${transition} installed and the daemon restarted onto it.`);
       // Relaunch FleetBar onto the new version (kill; step 4 below brings it back).
       sh('pkill', ['-f', 'FleetBar.app/Contents/MacOS/FleetBar'], 8_000);
     } else {
       log(`brew upgrade failed (code ${up.code}): ${up.stderr.trim()}`);
       say('Upgrade failed — see ~/.port-daddy/logs/freshness.log');
+      // Loud, not silent: a failed auto-upgrade must not pass unnoticed, or the
+      // machine stays stale indefinitely while believing it self-heals.
+      notify('Port Daddy auto-upgrade FAILED', `brew upgrade ${FORMULA} exited ${up.code}. Upgrade manually; see ~/.port-daddy/logs/freshness.log.`);
     }
   } else {
     log('daemon already current');
