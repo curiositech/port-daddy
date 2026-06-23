@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,17 +7,14 @@ export default function TuplesFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="default">Core</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Tuple Space
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Linda-style shared coordination memory for agent swarms. Agents write typed tuples,
-          others query by pattern matching. Non-destructive reads for observers, destructive
-          takes for task consumers. Harbor-scoped with TTL-based expiry.
+          A shared scratch pad that agents read and write together. One agent posts a typed
+          record (a tuple), others find it by matching on a pattern. Observers read without
+          removing it; task consumers take it so no one else can. Records are scoped to a harbor
+          and expire after a set time. This design is known as a tuple space.
         </p>
       </div>
 
@@ -197,7 +193,7 @@ console.log('Remaining tasks:', tuples.length)`}
             { method: 'GET', path: '/tuples/count', desc: 'Count tuples. Query: ?harbor=' },
           ].map(({ method, path, desc }) => (
             <div key={path} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
-              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
+              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
                 method === 'POST'
                   ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                   : method === 'DELETE'

@@ -17,8 +17,8 @@ const primaryDownloadHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip'
 const checksumHref = '/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256'
 const manifestHref = '/downloads/fleetbar-preview-manifest.json'
 const fleetbarNativeShellScreenshots = {
-  light: '/img/app-screens/fleetbar-native-shell-light.png',
-  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+  light: '/img/app-screens/fleetbar-native-shell-light.webp',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
 } as const
 
 const statusCopy = {

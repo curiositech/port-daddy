@@ -24,6 +24,7 @@
  * shape as `lib/suggestion-broker.ts`'s `runOverlapScan`.
  */
 
+import { isAbsolute, join } from 'node:path';
 import { parseUnifiedDiffHunks, computeTouchedRegions, type DiffHunk } from './surface-map.js';
 import type { TouchedRegion } from './surface-map.js';
 import type { Suggestions, SuggestionKind } from './suggestions.js';
@@ -129,12 +130,17 @@ async function claimsForSession(s: SurfaceScanSession, deps: RunSurfaceScanDeps)
 
   const symbolsByFile = new Map<string, Array<{ symbolPath: string; symbolType: string; startLine: number; endLine: number }>>();
   for (const file of byFile.keys()) {
+    // The diff paths are relative to the session's WORKTREE — resolve against it so we
+    // parse the worktree's edited copy, not whatever sits at the daemon's cwd. (A diff
+    // that already yields absolute paths is used as-is.) Key by the relative `file` so
+    // computeTouchedRegions matches the hunk paths.
+    const resolved = isAbsolute(file) ? file : join(s.worktreePath, file);
     try {
-      await deps.symbolIndex.parseFile(file);
+      await deps.symbolIndex.parseFile(resolved);
     } catch {
       // unparseable / brand-new file → no symbols, falls through to whole-file (dropped)
     }
-    symbolsByFile.set(file, deps.symbolIndex.getSymbols(file));
+    symbolsByFile.set(file, deps.symbolIndex.getSymbols(resolved));
   }
 
   // computeTouchedRegions wants the symbol-index Symbol shape; getSymbols returns it.

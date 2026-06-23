@@ -926,8 +926,8 @@ export const WHITE_PAPERS: WhitePaper[] = defineWhitePapers([
     group: 'prove',
     layer: 'proof — federation across machines',
     claim:
-      'Trust crossing between machines that do not trust each other, with revocation that converges in bounded time and an escrow that cannot steal — TLA⁺ and ProVerif.',
-    maturity: 'verified · TLA⁺ + ProVerif (names the unbuilt keystone)',
+      'Trust crossing between machines that do not trust each other, with revocation that converges in bounded time and an escrow that cannot steal — the cross-machine secrecy proven in ProVerif, the convergence bound named but not yet machine-checked.',
+    maturity: 'ProVerif secrecy proven · convergence bound + escrow theorem named, not yet machine-checked',
     crossRefs: {
       proves: [
         { chapter: 'IV', why: 'proves the federation of the market' },

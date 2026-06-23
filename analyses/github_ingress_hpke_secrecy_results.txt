@@ -1,0 +1,43 @@
+Process 0 (that is, the initial process):
+{1}new dsk: skey;
+{2}let dpk: pkey = pk(dsk) in
+{3}out(c, dpk);
+(
+    {4}!
+    {5}out(c, aenc(webhook_payload,dpk))
+) | (
+    {6}!
+    {7}let dsk_1: skey = dsk in
+    {8}in(c, ct: bitstring);
+    {9}let m: bitstring = adec(ct,dsk_1) in
+    0
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new dsk: skey;
+{2}let dpk: pkey = pk(dsk) in
+{3}out(c, dpk);
+(
+    {4}!
+    {5}out(c, aenc(webhook_payload,dpk))
+) | (
+    {6}!
+    {8}in(c, ct: bitstring);
+    {7}let dsk_1: skey = dsk in
+    {9}let m: bitstring = adec(ct,dsk_1) in
+    0
+)
+
+-- Query not attacker(webhook_payload[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(webhook_payload[])
+RESULT not attacker(webhook_payload[]) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(webhook_payload[]) is true.
+
+--------------------------------------------------------------
+

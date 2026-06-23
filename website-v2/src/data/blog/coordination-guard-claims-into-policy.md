@@ -10,7 +10,7 @@ I had. In fact, those other primitives are the main system.
 
 So the original framing was a little backwards. Git was not the beautiful first principle. Git was where the mess became impossible to ignore.
 
-![Coordination guard commit policy illustration](/img/generated/blog-coordination-guard-policy.jpg)
+![Two agents reaching for the same repo at a Git checkpoint while a small gate inspects the staged files against their session claims — the boundary where Coordination Guard does its one job](/img/generated/blog-coordination-guard-policy.jpg)
 
 ## What Actually Happened
 
@@ -61,6 +61,7 @@ Here is the boring table, because the blog still needs to be useful.
 
 So the picture is not "Git runs policy." It is more like this:
 
+<!-- figure: The runtime primitives — sessions, claims, locks, channels, salvage — feed into Coordination Guard, and Git's index and commit paths only reach repo history by passing through it; Git is the door, the runtime is the guest list. -->
 ```mermaid
 flowchart LR
   Runtime["Port Daddy runtime"] --> Session["sessions + notes"]
@@ -120,7 +121,7 @@ pass: staged files are covered by active session claims
 
 The interesting thing is not the command spelling. It is the invariant: before the commit exists, the staged paths should line up with live coordination state.
 
-![Coordination terminal recording](/gifs/agents/coordination.gif)
+![Terminal session showing the right path: pd add --dry-run previews the staged files, pd add stages only the claimed ones, and pd guard check --staged confirms the commit has a coordination story before history changes](/gifs/agents/coordination.gif)
 
 ## Worktrees Would Have Helped
 
@@ -134,6 +135,7 @@ They do not say which session owns the integration commit. They do not tell you 
 
 So I now think the default should be:
 
+<!-- figure: The default I landed on the expensive way — worktrees isolate each session's dirty buffer, runtime primitives record intent, and the guard at the Git boundary protects history; all three converge on a safe integration commit because no one of them is enough alone. -->
 ```mermaid
 flowchart LR
   Worktree["one worktree per session"] --> Isolation["protect local edits"]

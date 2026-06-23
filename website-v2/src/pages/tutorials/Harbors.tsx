@@ -11,7 +11,7 @@ export function Harbors() {
       total={21}
       level="Beginner"
       readTime="8 min read"
-      next={{ title: "Install the Local Control Plane", href: "/tutorials/getting-started" }}
+      next={{ title: "Install and Verify the Daemon", href: "/tutorials/getting-started" }}
     >
       <div className="space-y-[var(--section-space-y)]">
         <section className="space-y-[var(--space-6)]">

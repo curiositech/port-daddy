@@ -293,11 +293,57 @@ appropriate phase section below and delete it here.
   `slo-alerts-and-outlier-detection`.
 - **`slo-alerts-and-outlier-detection`** — PR #44 ships percentiles but no
   alerting. Phase 1: per-route SLO config in `config.json`,
-  `lib/slo-evaluator.ts` that emits to `coordination:inconsistency` SSE +
+  `lib/slo-evaluator.ts` <!-- cite-exempt: phase-1 build target, not yet shipped --> that emits to `coordination:inconsistency` SSE +
   session notes + navigator inbox, dashboard `slo_violation` pins. Phase 2:
   z-score outlier detection against same-hour-last-week (depends on
   histogram persistence) with sustained-breach gating and an escalation
   ladder.
+
+### Recursive Control Plane kernels (from Ledger § D, 2026-06-19)
+
+The **PORTABLE** rows of `docs/research/north-star/00-THE-LEDGER-open-problems.md`
+§ D — the recursive-control-plane kernels that a source repo already ships
+(`erichowens/soma`, `curiositech/windags`), verified in
+`docs/research/grafts/2026-06-19-soma-windags-source-audit.md` and mapped to the
+port-daddy surface they lift onto. These are lift-and-adapt builds, not research.
+The OPEN / ABSENT / DESIGN-ONLY rows stay in the Ledger until a source repo builds
+them.
+
+- **`rcp-discourse-typed-bus`** (RCP-3b) — the tube envelope (`lib/tube.ts`,
+  `lib/messaging.ts`) is untyped today (`kind: 'tube.msg'`, opaque body). Add a
+  FIPA-style `act` performative enum (inform / propose / counter / refine /
+  synthesize / query) + a `relationship` field (supports / contradicts / extends
+  / narrows / synthesizes) on the envelope, back-compat, surfaced through
+  `pd tube` and the `publish_message` MCP tool. Ports windags' `SwarmDiscourse`
+  (`packages/core/src/topologies/swarm.ts`). The substrate RCP-3 (parley) and
+  RCP-14 (lineage) build on.
+- **`rcp-parley-trigger`** (RCP-2a) — port windags' economic gate
+  (`P(fail) × waste > cost`, `packages/core/src/observability/evaluation-engine.ts`)
+  as the decision to escalate a detected work-overlap into a structured parley
+  rather than convene eagerly (resists MAS-overhead Goodhart). Shares the Signal
+  Detection spine with Ledger RQ-7.
+- **`rcp-convergence-cascade`** (RCP-1a) — adapt the existing semantic infra
+  (`lib/semantic-resolver.ts` MiniLM embeddings + `lib/ideas-search.ts` BM25) into
+  a task-shape similarity cascade (BM25 → cosine-RRF → rerank), the plan-time half
+  of the convergence detector. (Runtime-overlap RCP-1b stays OPEN in the Ledger.)
+- **`rcp-argumentative-lineage`** (RCP-14) — record Toulmin discourse spans
+  (claim / data / warrant) keyed to the cost/outcome ledger (`lib/cost-ledger.ts`)
+  so reasoning provenance is zoomable. Ports windags' `SwarmTracer`. Consumes
+  `rcp-discourse-typed-bus`.
+- **`rcp-coverage-epistemic-scan`** (RCP-12) — an innate coverage drive over the
+  pheromone blackboard (`lib/pheromone.ts`): fire on under-visited entities
+  (P ∝ unseen/total) so no surface stays permanently invisible. Ports soma's
+  epistemic scan. Relates to Ledger RQ-2 (forced-zoom sampling).
+- **`rcp-resolution-traces`** (RCP-7a) — inverse-pheromone damping on
+  `lib/pheromone.ts`: deposit a "resolved — stop converging here" trace after a fix
+  so agents stop piling onto solved work. Ports soma's anti-inflammatory
+  resolution traces.
+- **`rcp-wave-reconvention`** (RCP-3a) — schedule parleys at natural turn / wave
+  boundaries when tentative or premortem-risky work is in flight, not ad-hoc.
+  Ports windags' wave-by-wave reconvention.
+- **`rcp-halt-gate`** (RCP-10) — a pre-coordination validity check that must pass
+  before work decomposes or a bond is written (a problem must be well-defined
+  before it can be coordinated or traded). Ports windags' Polya halt gate.
 
 ### Substrate Activation Track (2026-05-19 audit + research)
 

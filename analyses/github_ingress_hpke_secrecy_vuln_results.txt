@@ -1,0 +1,83 @@
+Process 0 (that is, the initial process):
+{1}new dsk: skey;
+{2}let dpk: pkey = pk(dsk) in
+{3}out(c, dpk);
+(
+    {4}!
+    {5}in(c, dpk_1: pkey);
+    {6}out(c, aenc(webhook_payload,dpk_1))
+) | (
+    {7}!
+    {8}let dsk_1: skey = dsk in
+    {9}in(c, ct: bitstring);
+    {10}let m: bitstring = adec(ct,dsk_1) in
+    0
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new dsk: skey;
+{2}let dpk: pkey = pk(dsk) in
+{3}out(c, dpk);
+(
+    {4}!
+    {5}in(c, dpk_1: pkey);
+    {6}out(c, aenc(webhook_payload,dpk_1))
+) | (
+    {7}!
+    {9}in(c, ct: bitstring);
+    {8}let dsk_1: skey = dsk in
+    {10}let m: bitstring = adec(ct,dsk_1) in
+    0
+)
+
+-- Query not attacker(webhook_payload[]) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query not attacker(webhook_payload[])
+goal reachable: attacker(webhook_payload[])
+
+Derivation:
+
+1. The attacker has some term k.
+attacker(k).
+
+2. By 1, the attacker may know k.
+Using the function pk the attacker may obtain pk(k).
+attacker(pk(k)).
+
+3. The message pk(k) that the attacker may have by 2 may be received at input {5}.
+So the message aenc(webhook_payload[],pk(k)) may be sent to the attacker at output {6}.
+attacker(aenc(webhook_payload[],pk(k))).
+
+4. By 3, the attacker may know aenc(webhook_payload[],pk(k)).
+By 1, the attacker may know k.
+Using the function adec the attacker may obtain webhook_payload[].
+attacker(webhook_payload[]).
+
+5. By 4, attacker(webhook_payload[]).
+The goal is reached, represented in the following fact:
+attacker(webhook_payload[]).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new dsk: skey creating dsk_2 at {1}
+
+out(c, ~M) with ~M = pk(dsk_2) at {3}
+
+in(c, pk(a)) at {5} in copy a_1
+
+out(c, ~M_1) with ~M_1 = aenc(webhook_payload,pk(a)) at {6} in copy a_1
+
+The attacker has the message adec(~M_1,a) = webhook_payload.
+A trace has been found.
+RESULT not attacker(webhook_payload[]) is false.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query not attacker(webhook_payload[]) is false.
+
+--------------------------------------------------------------
+

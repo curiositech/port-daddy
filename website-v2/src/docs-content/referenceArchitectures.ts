@@ -62,7 +62,7 @@ const relayComputeRequest = String.raw`flowchart TB
   Proposal["01 MacBook Pro<br/>publishes compute proposal"]
   Phone["02 Phone approves<br/>request:compute:low-risk"]
   Request["03 Relay delivers<br/>encrypted request<br/>to home PC"]
-  Gate["04 Home PC checks<br/>card, budget, worktree,<br/>model readiness"]
+  Gate["04 Home PC checks<br/>card, budget, worktree,<br/>model ready"]
   Result["05 Home PC returns<br/>encrypted result event<br/>+ blob refs"]
   Summary["06 Phone and MacBook<br/>see fresh summary"]
   Handoff["07 Colleague sees<br/>only scoped handoff<br/>if card allows"]
@@ -158,7 +158,7 @@ const delegationChoiceMap = String.raw`flowchart TB
 const sortieMissionPath = String.raw`flowchart TB
   Brief["Mission brief<br/>goal + expected output<br/>context"]
   Record["Sortie record<br/>id, project, harbor<br/>budget"]
-  Preflight["Spawn preflight<br/>backend readiness<br/>budget gate"]
+  Preflight["Spawn preflight<br/>backend ready<br/>budget gate"]
   Blocked["blocked<br/>nothing launched"]
   Running["running<br/>single coordinator<br/>spawn today"]
   Events["event log<br/>created, planned,<br/>started, completed"]
@@ -192,7 +192,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
         'The local baseline: one daemon owns coordination truth while many tools and agent runtimes come and go.',
       truth: 'source-backed',
       goals: [
-        'Separate execution workers from the coordination control plane.',
+        'Separate the agents doing work from the daemon that tracks coordination.',
         'Know which state belongs in the daemon instead of in terminal lore.',
         'Use the same model for CLI, FleetBar, dashboard, SDK, and MCP clients.',
       ],
@@ -203,12 +203,12 @@ export const referenceArchitecturesSection: DocsContentSection = {
           paragraphs: [
             'The single-machine architecture is intentionally boring in the best way: the agent runtime does the work, but the daemon owns the coordination facts. A Codex process, a Claude session, a FleetBar webview, and an MCP client should all read and write the same sessions, notes, claims, locks, harbors, tuples, and salvage records.',
             'That split matters because agent processes are disposable. They crash, restart, fork into worktrees, lose stdout, or get replaced by a different backend. The daemon is the place where the operator can still ask what happened, who owns which files, what locks are live, which channels fired, and what work needs salvage.',
-            'Treat the daemon as a local control plane, not just a helper server. The control plane should be narrow enough to run on a laptop, strict enough to coordinate concurrent agents, and visible enough that FleetBar and the web dashboard do not become decorative wrappers around stale assumptions.',
+            'Treat the daemon as the one place that tracks coordination, not just a helper server. It should be narrow enough to run on a laptop, strict enough to coordinate concurrent agents, and visible enough that FleetBar and the web dashboard do not become decorative wrappers around stale assumptions.',
           ],
         },
         {
           type: 'mermaid',
-          title: 'Local control-plane boundary',
+          title: 'Where the coordination boundary sits',
           chart: singleMachineControlPlane,
           caption:
             'The important boundary is not "CLI versus UI". It is execution workers versus daemon-owned coordination state. Every surface should tell the same story because every surface resolves through the same daemon.',
@@ -238,13 +238,13 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           type: 'command',
-          title: 'Live local control-plane proof',
+          title: 'Live proof the daemon owns the truth',
           command: 'pd status\npd sessions --all-worktrees',
           output:
             'Port Daddy is running\n  Version: 3.12.0 (f3b4f7d40d8c)\n  Runtime: nominal\n  Fleet: 1 project(s), 8 agent(s), 3/8 launchable\n\nID              PURPOSE                    STATUS    FILES  NOTES  AGE\nsession-add-source-backed-operator-examples-to-reference-fba539e7dcb2Add source-backed opera... active        0      0  1m',
           notes: [
             'This was captured from the isolated reference-architecture worktree while editing this page.',
-            'The important observable is not the exact age or PID. It is that the CLI can see daemon runtime state and the active docs session from the same local control plane.',
+            'The important observable is not the exact age or PID. It is that the CLI can see daemon runtime state and the active docs session from the same local daemon.',
           ],
         },
         {
@@ -297,7 +297,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
           paragraphs: [
             'The design I would ship is a shared harbor mesh with four explicit roles. Your MacBook Pro is the primary local authority for the repo, sessions, claims, locks, notes, and ordinary agent work. Your phone is a thin approval and reply surface. Your home PC is a second full daemon with compute capabilities such as GPU, Ollama, Docker, or a heavy checkout. A colleague\'s MacBook is a collaborator with its own device key and a narrower card.',
             'All four devices join the same harbor fingerprint, but full daemon state stays local to the machines that own it. The relay federates encrypted events, not SQLite tables, process state, lock rows, or raw filesystem access. The MacBook Pro can ask the home PC to do compute work; the home PC can accept only the request classes its card allows; the phone can approve or reject side effects without becoming a daemon.',
-            'This is the useful ergonomic compromise: no inbound port at home, no VPN setup required for the first demo, no owner credential sharing with a colleague, and no fake promise that a phone can safely mutate a repo directly. The phone gets short-lived caps for status, inbox, approvals, replies, and low-risk requests. The MacBook Pro and home PC keep their local operator policies, budgets, model readiness checks, and worktree rules.',
+            'This is the useful ergonomic compromise: no inbound port at home, no VPN setup required for the first demo, no owner credential sharing with a colleague, and no fake promise that a phone can safely mutate a repo directly. The phone gets short-lived caps for status, inbox, approvals, replies, and low-risk requests. The MacBook Pro and home PC keep their local operator policies, budgets, checks that the model is ready, and worktree rules.',
           ],
         },
         {
@@ -312,7 +312,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
           title: 'Device-role contract',
           tone: 'accent',
           items: [
-            'MacBook Pro: primary daemon and owner control plane. It owns repo-local sessions, file claims, locks, notes, secrets, ordinary agent launches, and final publish decisions.',
+            'MacBook Pro: primary daemon and owner control panel. It owns repo-local sessions, file claims, locks, notes, secrets, ordinary agent launches, and final publish decisions.',
             'Phone: thin control client. It can read filtered status, receive inbox/approval cards, reply to threads, revoke its own device, and approve predeclared low-risk actions.',
             'Home PC: secondary daemon and compute worker. It advertises resources, accepts only approved request classes, and applies local budget/model/worktree policy before doing work.',
             'Colleague MacBook: scoped collaborator. It gets project channels, coordination tuples, and handoff rights without owner-only revocation, secrets, local filesystem, or home-PC compute authority by default.',
@@ -382,7 +382,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
             'The zero-trust rule is simple: connection proves reachability, not authority. Identity should follow the OIDC-first hybrid from the relay PKI ADR, with admin-approved web-of-trust for self-hosted or harbor-local deployments and ACME later for name-bound daemon identity. The relay registry tracks proof method, device public key, accepted subscriptions, expiry, revocation state, and harbor memberships.',
             'Authorization belongs in Port Daddy cards. A phone card is short-lived and narrow; a home-PC card can advertise compute and accept selected requests; a colleague card can publish into project channels but cannot spawn agents, read private notes, revoke owner devices, or inherit home-PC compute. Capability attenuation must never expand rights, and the UI should show rejected capabilities as first-class feedback rather than hiding them.',
             'The relay stores event envelopes, chain heads, revocations, and routing metadata, not decrypted task content. Application payloads are end-to-end encrypted to harbor members; per-publisher event chains make rewrite or broken-history detection possible. Relay metadata is still sensitive, so channel names, payload sizes, retention, source IP handling, and audit export need explicit product policy.',
-            'The home PC must be treated like a powerful but local resource, not a cloud worker that anyone can drive. It can finish already-accepted local work offline, but new remote request acceptance waits for live card and policy checks. The phone can show cached stale status, but it must never pretend stale authority is live authority.',
+            'The home PC must be treated like a capable but local resource, not a cloud worker that anyone can drive. It can finish already-accepted local work offline, but new remote request acceptance waits for live card and policy checks. The phone can show cached stale status, but it must never pretend stale authority is live authority.',
           ],
         },
         {
@@ -430,7 +430,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           path: 'lib/messaging.ts',
-          rationale: 'Current local pub/sub substrate that relay export/import should wrap as event federation instead of replacing.',
+          rationale: 'Current local pub/sub shared memory that relay export/import should wrap as event federation instead of replacing.',
         },
         {
           path: 'lib/tuples.ts',
@@ -518,7 +518,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
           tone: 'warning',
           title: 'Do not make fleet magic',
           body:
-            'The failure mode is automation that looks impressive until something goes wrong. Fleet work should be dull to inspect: the same project directory, physical channel, budget decision, backend readiness, run id, and result should show up in every surface.',
+            'The failure mode is automation that looks impressive until something goes wrong. Fleet work should be dull to inspect: the same project directory, physical channel, budget decision, backend ready state, run id, and result should show up in every surface.',
         },
         {
           type: 'paragraph',
@@ -553,11 +553,11 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           path: 'routes/fleet.ts',
-          rationale: 'Fleet routes expose status, lifecycle controls, config editing, budget updates, backend readiness, and SSE events on the daemon.',
+          rationale: 'Fleet routes expose status, lifecycle controls, config editing, budget updates, backend ready state, and SSE events on the daemon.',
         },
         {
           path: 'routes/projects.ts',
-          rationale: 'Project readiness uses fleet config state to tell operators whether to create, validate, budget, or start a fleet.',
+          rationale: 'Project status uses fleet config state to tell operators whether to create, validate, budget, or start a fleet.',
         },
       ],
     },
@@ -599,7 +599,7 @@ export const referenceArchitecturesSection: DocsContentSection = {
             'Treat `pd sortie` as a mission record first: id, project, harbor, goal, recipe, status, budget, event log, and result lookup.',
             'Do not describe `pd fleet` like a one-shot task; it is long-lived project automation from `pd-fleet.yml`.',
             'Auto-provision or require harbors for fleets, sorties, and explicit multi-agent workflows instead of letting coordinated work float in the global namespace.',
-            'Surface blocked, failed, waiting, completed, and cancelled as different states. Do not flatten launch readiness and runtime failure into one generic error.',
+            'Surface blocked, failed, waiting, completed, and cancelled as different states. Do not flatten "could not launch" and "failed while running" into one generic error.',
           ],
         },
         {
@@ -652,9 +652,9 @@ export const referenceArchitecturesSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Future-facing recommendation',
           paragraphs: [
-            'The next version of this architecture should make `pd agent` boringly dependable and `pd sortie` visibly mission-shaped. For `pd agent`, keep the wrapper narrow: preflight, budget, begin, spawn, done, output. For `pd sortie`, build the mission workspace: goal, recipe, roster preview, readiness blockers, approval gates, artifacts, timeline, cost, and final briefing.',
+            'The next version of this architecture should make `pd agent` boringly dependable and `pd sortie` visibly mission-shaped. For `pd agent`, keep the wrapper narrow: preflight, budget, begin, spawn, done, output. For `pd sortie`, build the mission workspace: goal, recipe, roster preview, what is blocking launch, approval gates, artifacts, timeline, cost, and final briefing.',
             'Sorties should create ephemeral harbors by default: `project:sortie:<id>`. The harbor gives the mission a namespace for channels, tuples, file claims, notes, and approval messages. When a sortie later grows into multiple agents, the coordination boundary is already there.',
-            'Saved templates should be the eventual bridge between one-off prompts and fleet automation. A release-readiness sortie template can run on demand with human gates; if it becomes routine, promote the behavior into `pd-fleet.yml`. That keeps the system understandable as it grows.',
+            'Saved templates should be the eventual bridge between one-off prompts and fleet automation. A release-check sortie template can run on demand with human gates; if it becomes routine, promote the behavior into `pd-fleet.yml`. That keeps the system understandable as it grows.',
           ],
         },
       ],
@@ -677,11 +677,11 @@ export const referenceArchitecturesSection: DocsContentSection = {
         },
         {
           path: 'routes/spawn.ts',
-          rationale: 'Spawn routes define low-level preflight, launch, list, and kill behavior plus validation and launch-readiness failures.',
+          rationale: 'Spawn routes define low-level preflight, launch, list, and kill behavior plus validation and could-not-launch failures.',
         },
         {
           path: 'routes/sorties.ts',
-          rationale: 'Sortie routes create persisted missions, validate project/backend/budget, add events, preflight spawn readiness, and launch the current coordinating spawned agent.',
+          rationale: 'Sortie routes create persisted missions, validate project/backend/budget, add events, preflight whether the spawn can launch, and launch the current coordinating spawned agent.',
         },
         {
           path: 'lib/sorties.ts',

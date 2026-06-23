@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ShieldCheck } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -7,16 +6,14 @@ export default function RelayPkiFeature() {
   return (
     <div className="space-y-10">
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="gold">Preview</Badge>
-          <Badge variant="success">Zero trust</Badge>
-        </div>
         <h1 className="text-4xl font-semibold tracking-tight text-[var(--text-primary)]">
           Relay PKI
         </h1>
         <p className="max-w-3xl text-lg leading-relaxed text-[var(--text-secondary)]">
-          Port Daddy&apos;s relay identity decision is OIDC-first for managed bootstrap, with ACME reserved as a
-          first-class proof method and Web-of-Trust limited to self-hosted, harbor-local deployments.
+          How Port Daddy decides which agents to trust when they connect through a relay. The
+          managed setup uses OIDC sign-in first; ACME certificate proofs are a supported
+          alternative; and a self-vouching trust network is allowed only for self-hosted,
+          harbor-local deployments.
         </p>
       </div>
 

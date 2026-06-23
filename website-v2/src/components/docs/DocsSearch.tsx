@@ -213,7 +213,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
       >
         <Search size={16} />
         <span className="flex-1 text-left">{variant === 'full' ? 'Search documentation...' : 'Search docs...'}</span>
-        <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5 font-mono text-xs sm:inline-block">
+        <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5 font-mono text-[length:var(--type-meta-size)] sm:inline-block">
           {shortcut}
         </kbd>
       </button>
@@ -251,7 +251,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                   <X size={16} />
                 </button>
               )}
-              <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-xs text-[var(--text-muted)] sm:inline-block">
+              <kbd className="hidden border border-[var(--border-default)] bg-[var(--surface-base)] px-2 py-1 font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)] sm:inline-block">
                 ESC
               </kbd>
             </div>
@@ -265,7 +265,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                   </div>
                 ) : (
                   <div className="px-4 py-6">
-                    <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">
+                    <p className="text-[length:var(--type-meta-size)] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
                       Quick Links
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -292,7 +292,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                 <div className="py-2">
                   {Object.entries(groupedResults).map(([category, items]) => (
                     <div key={category}>
-                      <div className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+                      <div className="px-4 py-2 text-[length:var(--type-meta-size)] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                         {category}
                       </div>
                       {items.map((item) => {
@@ -319,7 +319,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
                                 {item.title}
                               </div>
                               {item.description && (
-                                <div className="text-xs text-[var(--text-muted)] truncate">
+                                <div className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] truncate">
                                   {item.description}
                                 </div>
                               )}
@@ -335,7 +335,7 @@ export function DocsSearch({ variant = 'full', className }: DocsSearchProps) {
             </div>
             
             {/* Footer */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)]">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-subtle)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <kbd className="border border-[var(--border-default)] bg-[var(--surface-base)] px-1.5 py-0.5">↑↓</kbd>

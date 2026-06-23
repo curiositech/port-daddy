@@ -44,10 +44,84 @@ export const TUBE_ENVELOPE_VERSION = 1;
 export const TUBE_ENVELOPE_KIND = 'tube.msg';
 
 /**
+ * Communicative-act performative (ADR-0047 Phase 0; FIPA ACL narrowed to what
+ * Port Daddy's coordination actually needs). A message's performative is its
+ * INTENT + OWNERSHIP — `request` blocks the receiver until they act/refuse;
+ * `escalate`/`distress` blocks until a human/owner acts; `inform` is fire-and-
+ * forget. The Attention Queue + living-harbor viz render messages BY performative.
+ */
+export type Performative =
+  | 'inform'
+  | 'request'
+  | 'propose'
+  | 'accept'
+  | 'reject'
+  | 'refuse'
+  | 'failure'
+  | 'cancel'
+  | 'query'
+  | 'not-understood'
+  | 'escalate'
+  | 'distress';
+
+export const PERFORMATIVES: readonly Performative[] = [
+  'inform', 'request', 'propose', 'accept', 'reject', 'refuse',
+  'failure', 'cancel', 'query', 'not-understood', 'escalate', 'distress',
+] as const;
+
+function asPerformative(v: unknown): Performative | undefined {
+  return typeof v === 'string' && (PERFORMATIVES as readonly string[]).includes(v)
+    ? (v as Performative)
+    : undefined;
+}
+
+/**
+ * Argumentative stance of one message toward the message it answers (its
+ * `inReplyTo` / `conversationId` context). Where the `performative` types a
+ * message's INTENT (FIPA act — request / propose / inform), the `relationship`
+ * types its DISCOURSE MOVE — how this contribution relates to the prior one.
+ * This is the missing half of windags' `SwarmDiscourse` (port-daddy already
+ * ships the act half via ADR-0047 Phase 0) and the substrate RCP-14
+ * (argumentative lineage / digest-with-zoom for reasoning provenance) builds on:
+ * a thread of `inReplyTo` edges typed by relationship IS the argument graph.
+ */
+export type DiscourseRelationship =
+  | 'supports'
+  | 'contradicts'
+  | 'extends'
+  | 'narrows'
+  | 'synthesizes';
+
+export const DISCOURSE_RELATIONSHIPS: readonly DiscourseRelationship[] = [
+  'supports', 'contradicts', 'extends', 'narrows', 'synthesizes',
+] as const;
+
+function asRelationship(v: unknown): DiscourseRelationship | undefined {
+  return typeof v === 'string' && (DISCOURSE_RELATIONSHIPS as readonly string[]).includes(v)
+    ? (v as DiscourseRelationship)
+    : undefined;
+}
+
+/** Typed conversation metadata carried on every tube envelope (ADR-0047 Phase 0). */
+export interface ConversationMeta {
+  /** The communicative act — the message's intent + ownership. */
+  performative?: Performative;
+  /**
+   * The argumentative stance toward the answered message — the discourse move
+   * (RCP-14 argumentative lineage). Meaningful alongside `inReplyTo`.
+   */
+  relationship?: DiscourseRelationship;
+  /** Groups messages into one dialogue/thread across hops. */
+  conversationId?: string;
+  /** Ordered actor ids this task was delegated through — loop detection (Phase 2). */
+  delegationChain?: string[];
+}
+
+/**
  * Wire format we publish through `/msg/:channel`. Wrapped in a tiny
  * envelope so threading metadata survives the daemon's untyped `payload`.
  */
-export interface TubeEnvelope {
+export interface TubeEnvelope extends ConversationMeta {
   v: typeof TUBE_ENVELOPE_VERSION;
   kind: typeof TUBE_ENVELOPE_KIND;
   body: string;
@@ -69,7 +143,7 @@ export interface RawDaemonMessage {
 /**
  * Decoded tube message — daemon row + parsed envelope.
  */
-export interface TubeMessage {
+export interface TubeMessage extends ConversationMeta {
   id: number;
   sender: string | null;
   createdAt: number;
@@ -154,14 +228,24 @@ export interface ListenResult {
 
 export interface SendOptions {
   sender?: string;
+  /**
+   * Optional typed conversation metadata (performative / relationship /
+   * conversationId / delegationChain) to carry on the envelope. Omitting it
+   * preserves the pre-Phase-0 wire format exactly.
+   */
+  meta?: ConversationMeta;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Envelope helpers (pure)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Build the tube envelope to send over the daemon. */
-export function buildEnvelope(body: string, inReplyTo?: number): TubeEnvelope {
+/**
+ * Build the tube envelope to send over the daemon. `meta` carries the optional
+ * ADR-0047 conversation fields (performative / conversationId / delegationChain);
+ * omitting it preserves the pre-Phase-0 wire format exactly (back-compatible).
+ */
+export function buildEnvelope(body: string, inReplyTo?: number, meta?: ConversationMeta): TubeEnvelope {
   const env: TubeEnvelope = {
     v: TUBE_ENVELOPE_VERSION,
     kind: TUBE_ENVELOPE_KIND,
@@ -170,7 +254,28 @@ export function buildEnvelope(body: string, inReplyTo?: number): TubeEnvelope {
   if (typeof inReplyTo === 'number' && Number.isFinite(inReplyTo)) {
     env.inReplyTo = inReplyTo;
   }
+  if (meta?.performative) env.performative = meta.performative;
+  if (meta?.relationship) env.relationship = meta.relationship;
+  if (typeof meta?.conversationId === 'string' && meta.conversationId) env.conversationId = meta.conversationId;
+  if (Array.isArray(meta?.delegationChain) && meta.delegationChain.length > 0) {
+    env.delegationChain = meta.delegationChain.filter((s) => typeof s === 'string');
+  }
   return env;
+}
+
+/** Pull the typed conversation fields out of a parsed envelope object (validated). */
+function readConversationMeta(obj: Record<string, unknown>): ConversationMeta {
+  const meta: ConversationMeta = {};
+  const perf = asPerformative(obj.performative);
+  if (perf) meta.performative = perf;
+  const rel = asRelationship(obj.relationship);
+  if (rel) meta.relationship = rel;
+  if (typeof obj.conversationId === 'string' && obj.conversationId) meta.conversationId = obj.conversationId;
+  if (Array.isArray(obj.delegationChain)) {
+    const chain = obj.delegationChain.filter((s): s is string => typeof s === 'string');
+    if (chain.length > 0) meta.delegationChain = chain;
+  }
+  return meta;
 }
 
 /**
@@ -183,6 +288,7 @@ export function decodeMessage(row: RawDaemonMessage): TubeMessage {
   let body: string;
   let inReplyTo: number | undefined;
   let envelope = false;
+  let meta: ConversationMeta = {};
 
   const p = row.payload;
   if (p && typeof p === 'object' && !Array.isArray(p)) {
@@ -193,6 +299,7 @@ export function decodeMessage(row: RawDaemonMessage): TubeMessage {
       if (typeof obj.inReplyTo === 'number' && Number.isFinite(obj.inReplyTo)) {
         inReplyTo = obj.inReplyTo;
       }
+      meta = readConversationMeta(obj);
     } else {
       body = JSON.stringify(p);
     }
@@ -207,6 +314,7 @@ export function decodeMessage(row: RawDaemonMessage): TubeMessage {
         if (typeof parsed.inReplyTo === 'number' && Number.isFinite(parsed.inReplyTo)) {
           inReplyTo = parsed.inReplyTo;
         }
+        meta = readConversationMeta(parsed as Record<string, unknown>);
       } else {
         body = p;
       }
@@ -223,6 +331,7 @@ export function decodeMessage(row: RawDaemonMessage): TubeMessage {
     createdAt: row.createdAt,
     body,
     ...(inReplyTo !== undefined ? { inReplyTo } : {}),
+    ...meta,
     envelope,
     raw: row.payload,
   };
@@ -472,9 +581,17 @@ export function formatProse(msg: TubeMessage, channel: string): string {
   const sender = msg.sender || 'unknown';
   const reTag = msg.inReplyTo !== undefined ? `  ↩ ${msg.inReplyTo}` : '';
   const indentedBody = (msg.body || '').split('\n').map((line) => `  ${line}`).join('\n');
+  // Surface the typed conversation move when present, so the act + argumentative
+  // stance are legible without parsing the raw envelope (RCP-14 digest-with-zoom).
+  const actBits = [
+    msg.performative ? `act=${msg.performative}` : '',
+    msg.relationship ? `relationship=${msg.relationship}` : '',
+  ].filter(Boolean);
+  const actLine = actBits.length > 0 ? [`Discourse: ${actBits.join(' · ')}`] : [];
   return [
     `──── event id=${msg.id} · channel ${channel}${reTag} ────`,
     `From: ${sender} · ${ts}`,
+    ...actLine,
     'Body:',
     indentedBody,
     '',
@@ -501,7 +618,7 @@ export async function send(
   if (!body || !body.trim()) {
     throw new Error('tube: refusing to send empty body');
   }
-  const env = buildEnvelope(body);
+  const env = buildEnvelope(body, undefined, opts.meta);
   const res = await client.publish(channel, env, { sender: opts.sender });
   if (!res.ok || typeof res.id !== 'number') {
     throw new Error(res.error || `Failed to publish to ${channel}`);
@@ -526,7 +643,7 @@ export async function reply(
   if (!body || !body.trim()) {
     throw new Error('tube: refusing to send empty reply body');
   }
-  const env = buildEnvelope(body, parentId);
+  const env = buildEnvelope(body, parentId, opts.meta);
   const res = await client.publish(channel, env, { sender: opts.sender });
   if (!res.ok || typeof res.id !== 'number') {
     throw new Error(res.error || `Failed to reply on ${channel}`);

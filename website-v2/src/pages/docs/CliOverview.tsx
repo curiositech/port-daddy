@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { TerminalGif } from '@/components/site/TerminalGif'
 import {
-  BracketLabel,
   BracketLink,
   DocsNoteCard,
   PanelBody,
@@ -37,7 +36,6 @@ function CommandRow({
           {command.name}
         </code>
         <div className="min-w-0 space-y-[var(--space-2)]">
-          <BracketLabel>API spec</BracketLabel>
           <PanelBody size="compact" className="max-w-none">{command.description}</PanelBody>
           {command.aliases?.length ? (
             <div className="flex flex-wrap gap-[var(--panel-gap-tight)]">
@@ -72,18 +70,13 @@ export default function CliOverview() {
   return (
     <div className="space-y-[var(--space-7)]">
       <div className="space-y-[var(--space-4)]">
-        <div className="flex flex-wrap items-center gap-[var(--panel-gap-tight)]">
-          <BracketLabel>CLI</BracketLabel>
-          <BracketLabel>v{PORT_DADDY_VERSION}</BracketLabel>
-          <BracketLabel>source-backed</BracketLabel>
-        </div>
         <SectionIntro
           eyebrow="Command line reference"
-          title="Every command should show what happens next."
+          title="Every command shows what happens next."
           description={
             <>
-              The routed <code>pd</code> surface in this checkout. Each command links to a detail page with syntax,
-              options, examples, aliases, source provenance, and the output contract agents and humans can verify.
+              The full <code>pd</code> command set. Each command links to a detail page with syntax,
+              options, examples, aliases, where it lives in the source, and the output agents and humans can check.
             </>
           }
           titleAs="h1"

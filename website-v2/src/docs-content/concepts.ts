@@ -204,7 +204,7 @@ export const conceptsSection: DocsContentSection = {
             title: 'Sessions, notes, and file or symbol claims',
             summary: 'Work has an identity, immutable notes, and advisory edit claims before Git sees the final diff.',
             websiteDocs: [
-              site('Sessions', '/docs/features/sessions', 'every note is append-only, and file claims prevent conflicts before they happen'),
+              site('Sessions', '/docs/features/sessions', 'every note is append-only, and file claims announce edit intent so overlaps are visible early'),
               site('Session file claims', '/docs/features/sessions', 'File claims are advisory locks that warn agents about overlapping edits'),
             ],
             runtimeCode: [repo('lib/sessions.ts', '1-7'), repo('lib/sessions.ts', '54-77'), repo('lib/sessions.ts', '156-282'), repo('lib/sessions.ts', '1047-1089'), repo('lib/sessions.ts', '1272-1395'), repo('routes/sessions.ts'), repo('cli/commands/sessions.ts')],
@@ -538,7 +538,7 @@ export const conceptsSection: DocsContentSection = {
         },
         {
           type: 'command',
-          title: 'Signal readiness and declare a dependency',
+          title: 'Signal what is ready and declare a dependency',
           command:
             'pd integration ready myapp:api "Auth endpoints live at :3401"\npd integration needs myapp:frontend "Waiting for API auth endpoints"',
           output:
