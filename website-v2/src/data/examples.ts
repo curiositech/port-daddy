@@ -1247,7 +1247,7 @@ export const EXAMPLE_GROUPS: ExampleGroup[] = [
     label: 'Coordination',
     title: 'Keep agents out of each other’s way',
     blurb:
-      'The reason Port Daddy exists: many agents on one machine, none clobbering another’s files, port, or turn. Claims, locks, a shared board, and a recoverable trail.',
+      'The reason Port Daddy exists. Two agents grab the same file, the second write wins, and an hour of work disappears into a clean-looking merge. These stop that: claims, locks, a shared board, and a trail you can recover from.',
     slugs: [
       'coordination-file-guard',
       'swarm-coordination-board',
