@@ -1054,6 +1054,26 @@
         "sdk": false
       }
     },
+    "safe": {
+      "description": "Host-safety posture audit (ADR-0088 Phase A) — pd safe scan|baseline|fix / GET /safe/scan / safe_scan. Read-only secret-at-rest + crown-jewel-perm + binary-trust + egress + MCP-supply-chain scan; opt-in reversible chmod fix.",
+      "cli": [
+        "safe"
+      ],
+      "sdk": [],
+      "mcp": [
+        "safe_scan"
+      ],
+      "routes": [
+        "GET /safe/scan"
+      ],
+      "completions": [
+        "safe"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "spawn": {
       "description": "Launch AI agents (Ollama, Claude, Gemini, Aider) with Port Daddy coordination",
       "cli": [

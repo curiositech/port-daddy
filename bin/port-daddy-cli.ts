@@ -132,6 +132,8 @@ import {
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
+  // Host-safety posture audit — `pd safe scan|baseline|fix` (ADR-0088 Phase A)
+  handleSafe,
   // Shipwright — survey/propose/apply for fleet authoring
   handleShipwright,
   // App-Native Development Cockpit
@@ -2897,6 +2899,13 @@ export async function main(): Promise<void> {
 
       case 'attest':
         await handleAttest(positional, options, PKG.version);
+        break;
+
+      // Host-safety layer — the read-only posture audit + opt-in reversible
+      // perm-fix (ADR-0088 Phase A). `pd safe scan` defaults; `pd safe baseline
+      // accept <id>` triages a finding; `pd safe fix --auto` tightens perms.
+      case 'safe':
+        await handleSafe(positional, options);
         break;
 
       case 'restore':

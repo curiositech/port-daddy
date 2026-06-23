@@ -36,6 +36,7 @@ import { suggestionsPlugin } from './suggestions.js';
 import { launchPlugin } from './launch.js';
 import { spawnPlugin } from './spawn.js';
 import { attestPlugin } from './attest.js';
+import { safePlugin } from './safe.js';
 import { transcriptsPlugin } from './transcripts.js';
 import { harborsPlugin } from './harbors.js';
 import { whoisPlugin } from './whois.js';
@@ -161,6 +162,10 @@ export async function registerAllRoutes(
   await fastify.register(launchPlugin, { deps } as any);
   await fastify.register(spawnPlugin, { deps } as any);
   await fastify.register(attestPlugin, { deps } as any);
+  // ADR-0088 Phase A: GET /safe/scan — the read-only host-safety posture audit.
+  // The A5 trust ledger it records into is daemon-resident (bun:sqlite), so the
+  // scan lives behind the daemon and the CLI/MCP both hit this one route.
+  await fastify.register(safePlugin, { deps } as any);
   await fastify.register(transcriptsPlugin, { deps } as any);
   await fastify.register(sortiesPlugin, { deps } as any);
   await fastify.register(harborsPlugin, { deps } as any);

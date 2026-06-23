@@ -193,6 +193,31 @@ run_read "sitrep"            sitrep      -- sitrep
 run_read "look"              look        -- look
 run_read "periscope"         periscope   -- periscope
 run_read "coast-guard status" coast-guard -- coast-guard status
+# ADR-0088 host-safety: `pd safe scan --json` is 100% read-only — it scans the
+# operator's own UID's files + shells unprivileged trust/net CLIs, never mutating
+# host state. It prefers the daemon route and falls back to an in-process scan,
+# so it returns a report regardless of whether THIS scratch binary has the route.
+# Assert the JSON report parses (score + state + verbatim HONEST_LIMITS footer)
+# and never carries a raw secret value field.
+__safe_out="$(cli safe scan --json 2>/dev/null || true)"
+if printf '%s' "$__safe_out" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+r = d.get("report", d)
+assert isinstance(r.get("score"), (int, float)), "score"
+assert r.get("state") in ("green", "amber", "red"), "state"
+assert "honestLimits" in r and r["honestLimits"], "honestLimits"
+# No raw secret leaks: a finding/blast-radius line must never carry a "value"/"secret"/"raw" key.
+blob = json.dumps(r)
+for forbidden in ("\"value\":", "\"secret\":", "\"rawValue\":"):
+    assert forbidden not in blob, forbidden
+sys.exit(0)
+' 2>/dev/null; then
+  pass "safe scan --json (parses; score+state+honestLimits; no raw-secret field)"
+else
+  fail "safe scan --json" "not a valid posture report: $(printf '%s' "$__safe_out" | head -c 200)"
+fi
+covered safe
 run_read "relay status"      relay       -- relay status
 run_read "health"            health      -- health
 run_read "doctor"            doctor      -- doctor
