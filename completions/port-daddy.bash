@@ -156,9 +156,9 @@ _port_daddy() {
     # Project (+ alias)
     scan s projects p doctor diagnose hints
     # Project onboarding
-    setup init
+    setup init cut
     # Daemon lifecycle
-    start stop restart install uninstall dev use daemon ci-gate mcp
+    start stop restart install uninstall dev use daemon ci-gate self-update upgrade mcp
     # Bonds / Wallets — FleetControl hardening
     wallet bond
     # Info
@@ -1928,12 +1928,12 @@ _port_daddy() {
       esac
       ;;
 
-    # fleet  init|up|down|status|run|panic|unpanic|validate|prompt|help  [agent-name]
+    # fleet  init|up|down|status|run|panic|unpanic|halt|pause|resume|inspect|tree|validate|prompt|help  [agent-name|rootId]
     fleet)
       local subcmd="${words[2]:-}"
       case "$subcmd" in
         '')
-          COMPREPLY=( $(compgen -W "init up down status run panic unpanic validate prompt help" -- "$cur") )
+          COMPREPLY=( $(compgen -W "init up down status run panic unpanic halt pause resume inspect tree validate prompt help" -- "$cur") )
           ;;
         run)
           COMPREPLY=()  # agent names from pd-fleet.yml — no live lookup
@@ -1943,6 +1943,15 @@ _port_daddy() {
           ;;
         unpanic)
           _pd_opts '--reason --json --quiet'
+          ;;
+        halt)
+          _pd_opts '--root --yes --json --quiet'
+          ;;
+        pause|resume)
+          _pd_opts '--root --json --quiet'
+          ;;
+        inspect|tree)
+          _pd_opts '--root --json'  # rootId is positional; --root also accepted
           ;;
         *) _pd_opts '' ;;
       esac

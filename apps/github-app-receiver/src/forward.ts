@@ -30,12 +30,31 @@ export interface WebhookEnvelope {
   sender: { login: string; id: number | null } | null;
   /** Raw GitHub payload, untouched. */
   payload: Record<string, unknown>;
+  /**
+   * The exact raw request body bytes GitHub signed, verbatim. Carried so the
+   * daemon can RE-VERIFY GitHub's origin HMAC over the exact bytes (a JSON
+   * round-trip would change them and break the signature). This makes the
+   * receiver's forward credential a transport credential, not an authorization
+   * one: holding it does not let an attacker forge fleet-triggering events,
+   * because they still cannot produce a valid GitHub signature.
+   */
+  raw_payload: string;
+  /**
+   * GitHub's `X-Hub-Signature-256` over `raw_payload` (`sha256=<hex>`), passed
+   * through unmodified so the daemon can re-establish GitHub origin. Null only
+   * if GitHub omitted it (it never does for a secret-configured App).
+   */
+  signature: string | null;
 }
 
 interface BuildEnvelopeArgs {
   event: string;
   delivery: string;
   payload: Record<string, unknown>;
+  /** Exact raw body bytes GitHub signed (verbatim). */
+  rawPayload: string;
+  /** GitHub's `X-Hub-Signature-256` header value, passed through. */
+  signature: string | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -54,7 +73,7 @@ function asString(value: unknown): string | null {
 }
 
 export function buildEnvelope(args: BuildEnvelopeArgs): WebhookEnvelope {
-  const { event, delivery, payload } = args;
+  const { event, delivery, payload, rawPayload, signature } = args;
 
   const repoObj = asRecord(payload.repository);
   const repository = repoObj
@@ -85,6 +104,8 @@ export function buildEnvelope(args: BuildEnvelopeArgs): WebhookEnvelope {
     installation_id,
     sender,
     payload,
+    raw_payload: rawPayload,
+    signature,
   };
 }
 

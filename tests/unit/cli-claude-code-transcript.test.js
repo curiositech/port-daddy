@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from '@jest/globals';
 
-const { parseClaudeCodeTranscript } = await import('../../lib/spawner/cli-claude-code-transcript.js');
+const { parseClaudeCodeTranscript, mapClaudeCodeStreamLine } = await import('../../lib/spawner/cli-claude-code-transcript.js');
 
 // ── Live capture: simple "What is 2+2? Think briefly first." (no tools) ──────
 // Verbatim assistant (thinking), assistant (text), and result lines. The full
@@ -146,5 +146,65 @@ describe('parseClaudeCodeTranscript', () => {
       { type: 'text', text: 'match one' },
       { type: 'text', text: ' match two' },
     ]);
+  });
+});
+
+// ── Per-line mapper (live streaming path) ────────────────────────────────────
+// mapClaudeCodeStreamLine is what lib/spawner.ts onStreamLine calls per stdout
+// line to emit transcript deltas mid-run. It must give the same per-block turns
+// as the batch parser, with the ONE documented difference: no cross-line state,
+// so a tool_result is emitted as its own tool turn rather than folded onto its
+// originating tool_use turn.
+describe('mapClaudeCodeStreamLine (per-line live mapper)', () => {
+  it('maps a thinking block to a single thinking turn', () => {
+    const line =
+      '{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Let me reason about this.","signature":"sig"}]}}';
+    const turns = mapClaudeCodeStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('thinking');
+    expect(turns[0].content).toBe('Let me reason about this.');
+  });
+
+  it('maps a text block to an assistant turn', () => {
+    const line = '{"type":"assistant","message":{"content":[{"type":"text","text":"Hello there."}]}}';
+    const turns = mapClaudeCodeStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('assistant');
+    expect(turns[0].content).toBe('Hello there.');
+  });
+
+  it('maps a tool_use block to a tool turn carrying name + args', () => {
+    const line =
+      '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"Write","input":{"file_path":"/x"}}]}}';
+    const turns = mapClaudeCodeStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('tool');
+    expect(turns[0].content).toBe('[tool_use:Write]');
+    expect(turns[0].toolCalls?.[0]).toEqual({ name: 'Write', args: { file_path: '/x' } });
+  });
+
+  it('maps a tool_result block to its OWN tool turn (no cross-line folding)', () => {
+    const line =
+      '{"type":"user","message":{"content":[{"tool_use_id":"toolu_1","type":"tool_result","content":"wrote file"}]}}';
+    const turns = mapClaudeCodeStreamLine(line);
+    expect(turns).toHaveLength(1);
+    expect(turns[0].role).toBe('tool');
+    expect(turns[0].content).toBe('[tool_result] wrote file');
+    expect(turns[0].toolCalls?.[0].result).toBe('wrote file');
+  });
+
+  it('emits multiple turns when one line carries several content blocks', () => {
+    const line =
+      '{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"hmm"},{"type":"tool_use","id":"t","name":"Bash","input":{"command":"ls"}}]}}';
+    const turns = mapClaudeCodeStreamLine(line);
+    expect(turns.map((t) => t.role)).toEqual(['thinking', 'tool']);
+  });
+
+  it('returns [] for metadata / non-JSON / unrelated lines (never throws)', () => {
+    expect(mapClaudeCodeStreamLine('{"type":"system","subtype":"init"}')).toEqual([]);
+    expect(mapClaudeCodeStreamLine('{"type":"result","subtype":"success","result":"4"}')).toEqual([]);
+    expect(mapClaudeCodeStreamLine('not json at all')).toEqual([]);
+    expect(mapClaudeCodeStreamLine('{ broken')).toEqual([]);
+    expect(mapClaudeCodeStreamLine('')).toEqual([]);
   });
 });

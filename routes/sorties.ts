@@ -15,11 +15,22 @@ import type { Sorties } from '../lib/sorties.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import type { FleetModelTier } from '../lib/fleet-engine.js';
+import type { Conductor } from '../lib/fleet/conductor.js';
 import { validateProjectRoot } from '../lib/utils.js';
 
 interface SortieRouteDeps {
   spawner: Spawner;
   sorties: Sorties;
+  /**
+   * The Daemon Fleet Conductor (ADR-0060). When present, the sortie POST routes
+   * its spawn through `conductor.launch(intent)` — the one spawn primitive — so
+   * the sortie inherits the bond/lineage/breaker/halt envelope and the daemon
+   * has a single chokepoint reaching `spawner.spawn`. The conductor builds the
+   * byte-identical spawn spec (pinned by the golden test in fleet-conductor),
+   * so behavior is unchanged. When absent (unit tests, legacy wiring), we fall
+   * back to the direct `spawner.spawn` call this route used before the Conductor.
+   */
+  conductor?: Conductor;
   costTracker?: CostTracker;
   metrics: { errors: number };
   logger: {
@@ -47,7 +58,7 @@ function buildSortieTask(body: Record<string, unknown>): string {
 }
 
 export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = async (fastify, opts) => {
-  const { spawner, sorties, costTracker, metrics, logger } = opts.deps;
+  const { spawner, sorties, conductor, costTracker, metrics, logger } = opts.deps;
 
   fastify.get('/sorties', async (request, reply) => {
     try {
@@ -220,18 +231,72 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
         harbor,
       });
 
-      const spawnResult = await spawner.spawn({
-        backend: backend as any,
-        model: running.model || undefined,
-        modelTier: running.modelTier as FleetModelTier | undefined,
-        identity: typeof body.identity === 'string' ? body.identity : `${project}:sortie:${running.id}:coordinator`,
-        purpose: typeof body.purpose === 'string' ? body.purpose : `Sortie: ${goal.slice(0, 120)}`,
-        task,
-        workdir: projectDir,
-        allowedTools: typeof body.allowedTools === 'string' ? body.allowedTools : undefined,
-        timeout: typeof body.timeout === 'number' ? body.timeout : undefined,
-        maxTokens: typeof body.maxTokens === 'number' ? body.maxTokens : undefined,
-      });
+      // The exact spawn arguments the legacy sortie path produced. The Conductor
+      // rebuilds this byte-for-byte via intentToSpawnSpec (golden-tested), so the
+      // observable spawn is identical whether we route through the chokepoint or
+      // (fallback) call the spawner directly.
+      const identity = typeof body.identity === 'string'
+        ? body.identity
+        : `${project}:sortie:${running.id}:coordinator`;
+      const purpose = typeof body.purpose === 'string'
+        ? body.purpose
+        : `Sortie: ${goal.slice(0, 120)}`;
+      const allowedTools = typeof body.allowedTools === 'string' ? body.allowedTools : undefined;
+      const timeout = typeof body.timeout === 'number' ? body.timeout : undefined;
+      const maxTokens = typeof body.maxTokens === 'number' ? body.maxTokens : undefined;
+
+      let spawnResult;
+      if (conductor) {
+        // Route through the ONE spawn primitive (ADR-0060). A sortie is a
+        // worktree:'inherit', mergePolicy:'never' intent — run in place, settle
+        // immediately, no review gate — matching the legacy sortie lifecycle.
+        const launchResult = await conductor.launch({
+          source: 'sortie',
+          goal,
+          task,
+          backend,
+          model: running.model || undefined,
+          modelTier: running.modelTier as ('low' | 'mid' | 'high') | undefined,
+          identity,
+          purpose,
+          workdir: projectDir,
+          allowedTools,
+          timeoutMs: timeout,
+          maxTokens,
+          worktree: 'inherit',
+          mergePolicy: 'never',
+          // The spawner's own assessSpawnIsolation (spawner.ts) remains the
+          // authoritative main-checkout gate — exactly as the legacy sortie path
+          // relied on. The Conductor's default isMainCheckout probe returns false
+          // so it does NOT double-refuse, and we pass no `allowSharedCheckout` so
+          // the spawn spec stays byte-identical to the legacy one.
+        });
+        if (!launchResult.admitted || !launchResult.spawn) {
+          const reason = launchResult.refusedReason || 'sortie refused by conductor';
+          const blocked = sorties.update(running.id, {
+            status: 'failed',
+            error: reason,
+            completedAt: Date.now(),
+          })!;
+          sorties.addEvent(blocked.id, 'sortie:failed', reason, { conductor: true });
+          reply.code(400);
+          return { success: false, error: reason, sortie: blocked };
+        }
+        spawnResult = launchResult.spawn;
+      } else {
+        spawnResult = await spawner.spawn({
+          backend: backend as any,
+          model: running.model || undefined,
+          modelTier: running.modelTier as FleetModelTier | undefined,
+          identity,
+          purpose,
+          task,
+          workdir: projectDir,
+          allowedTools,
+          timeout,
+          maxTokens,
+        });
+      }
 
       const finalStatus = spawnResult.status === 'completed' ? 'completed' : 'failed';
       const finalSortie = sorties.update(running.id, {
@@ -239,7 +304,7 @@ export const sortiesPlugin: FastifyPluginAsync<{ deps: SortieRouteDeps }> = asyn
         spawnAgentId: spawnResult.agentId,
         resultOutput: spawnResult.output,
         error: spawnResult.error,
-        completedAt: spawnResult.completedAt || Date.now(),
+        completedAt: (typeof spawnResult.completedAt === 'number' ? spawnResult.completedAt : undefined) || Date.now(),
       })!;
       sorties.addEvent(finalSortie.id, spawnResult.status === 'completed' ? 'sortie:completed' : 'sortie:failed', spawnResult.status === 'completed' ? 'Mission completed' : 'Mission failed', {
         spawnAgentId: spawnResult.agentId,
