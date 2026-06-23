@@ -97,7 +97,7 @@ set -l __pd_commands \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
     'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
-    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
+    'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'safe' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \

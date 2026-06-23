@@ -1353,6 +1353,7 @@ const ALL_COMMANDS: string[] = [
   'backend',
   'periscope', 'sight', 'scope',
   'coast-guard', 'cg',
+  'safe',
   'relay',
 ];
 
