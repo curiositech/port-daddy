@@ -71,9 +71,12 @@ interface ModelAdapter {
 
 `'interrupt'` is first-class: because we own the loop, a turn can be pre-empted (for
 high-priority steering) and resumed, rather than fought against an SDK's control flow.
-This contract is the runtime embodiment of the already-decided provider×tier decoupling
-(`lib/llm-backend-resolver.ts`): provider and model are resolved by config injected at
-spawn time, never baked into the loop.
+This contract is a genuine **superset** of the existing thin completion seam
+(`LLMTransport.complete()` in `lib/llm-backend-resolver.ts`, which is `prompt → text`
+with no tool-calling and no structured stop reason) — `ModelAdapter` is an extension, not
+a rename. It is also the runtime embodiment of the already-decided provider×tier
+decoupling: provider and model are resolved by config injected at spawn time, never baked
+into the loop.
 
 ### 2. The Tube adapters (the Speaking Tube)
 
@@ -81,9 +84,27 @@ spawn time, never baked into the loop.
 terminal-bound binary) route `generate()` through `pd tube` to a **single-turn completion**
 — not the backend's own agent loop. The existing `lib/spawner/backends/{cli-tube,groq,
 openai}.ts` are refactored to sit behind the `ModelAdapter` contract; the tube grows a
-raw-completion proxy mode (the enabling slice — see the Matrix). Honest open nut: whether a
-Pro/Max CLI will act as a *bare* single-turn completion server, or whether the local
-open-weights path is the reliable floor and the CLI a best-effort fast lane.
+raw-completion proxy mode (the enabling slice — see the Matrix).
+
+**The feasibility nut — the single most important decision in this ADR, stated honestly.**
+`codex exec --full-auto` and `claude -p` run the backend's **own agent loop** (read files,
+call their tools, iterate); neither exposes a documented *bare single-turn completion with
+our tool schemas* mode today. Wrapping them as a `TubeProcessAdapter` would re-introduce
+exactly the loss of loop-ownership this ADR exists to kill. Therefore:
+
+- **Local open-weights are the guarantee-bearing substrate.** `TubeHttpAdapter` →
+  ollama / llama.cpp / a local OpenAI-compatible server *can* be driven as a true single
+  model step, so the deterministic every-turn injection guarantee is **fully real** there.
+- **Pro/Max CLIs are opaque sub-voyages (posture A).** Treat `tube:codex` / `tube:claude-
+  code` as a single *tool the loop can delegate to* ("run this sub-task on the flat-rate
+  Max seat"), accept that injection does **not** reach inside that sub-voyage, and
+  re-assert the envelope on its return. This keeps the Pro/Max seat as a real
+  zero-marginal-cost lever without pretending it bears the universal guarantee. A backend
+  is promoted to a true Universal adapter only if/when it ships a bare-completion mode.
+
+So "reject the metered cloud SDK in favor of local compute" is precise: the rejection
+*fully* pays off on local weights; the Pro/Max tube path is a genuine cost optimization
+but an opaque one, not a guarantee-bearing backend.
 
 ### 3. The harness loop (`commandVoyage`)
 
@@ -97,22 +118,25 @@ locally in the workspace → checkpoint ("Heave the Log") → repeat until `fini
 Each turn, the harness compiles a small envelope from the **already-shipped** primitives —
 it is a *renderer/injector*, not a new aggregator:
 
-- **stigmergic pheromones** from `lib/pheromone.ts` (RCP-7a/12),
-- the merged inbox + channels from `lib/attention.ts`,
-- DMs from `lib/agent-inbox.ts`,
+- the merged inbox + channels from `lib/attention.ts` (`AttentionItem[]`) — **the source**,
+- DMs from `lib/agent-inbox.ts` (the steering/priority lane),
+- **weighted** by the decay kernel in `lib/pheromone.ts` (`createPheromoneManager`,
+  `decayRate`) so stale signals lose salience — pheromone is a *weight*, not the source,
 - a **Parley Alert** (forced alignment) when the claim-overlap / nudge detector
   ([ADR-0039](0039-suggestibility-layer.md)) sees two agents approaching one file.
 
-Two hard rules (correcting the draft spec):
+Three hard rules (correcting the draft spec):
 
-1. **Never `/tmp`.** The pheromone substrate is `lib/pheromone.ts`; tube state lives under
-   `~/.port-daddy/`. The envelope reads the real kernel, never a `grep` over a `/tmp`
-   env-matrix file (macOS purges `/tmp`; it is banned here).
-2. **Re-stamp, never accrete.** The envelope occupies a dedicated system-reminder slot the
+1. **Never `/tmp`.** The envelope source is the daemon's attention/inbox state (reached over
+   vsock; history under `~/.port-daddy/`), never a `grep` over a `/tmp` env-matrix file
+   (macOS purges `/tmp`; it is banned here).
+2. **Re-stamp, never accrete.** The envelope occupies a single dedicated system message the
    harness *replaces* each turn — never `content += envelope` on the last message, which
-   bloats context and corrupts the transcript that Salvage later summarizes. Suppression
-   (confidence floor, cooldown, per-hour budget, mute) is inherited from ADR-0039, not
-   re-implemented.
+   bloats context and corrupts the transcript that Salvage later summarizes.
+3. **The slot is `ephemeral`.** That system message is marked `ephemeral: true` and is
+   **stripped before Drydock summarization** — so the summarized/RAG-encoded transcript is
+   never polluted by N copies of decayed coordination chatter. Suppression (confidence
+   floor, cooldown, per-hour budget, mute) is inherited from ADR-0039, not re-implemented.
 
 ### 5. DMs and the steering-enforcement lever
 
@@ -131,12 +155,18 @@ is the one lever loop-ownership grants that an SDK does not.
 - **Float Plan** — the master state contract: mission directive, working memory, and the
   active child-execution arrays. Persisted each turn.
 - **Binnacle** — telemetry middleware: context-window size, tool latency, token rate.
-  Largely already present in `lib/usage-telemetry.ts`; the loop reads it to decide Drydock.
-- **Drydock → Salvage → Refloat** — when context nears its limit: halt; stream the raw
-  transcript to a summarizer; RAG-encode the file-mutation history + technical findings
-  (the weaver RAG infra); clear context; refloat a fresh window of {root Float Plan,
-  Drydock summary, relevant Salvage RAG}. Resilience across long voyages without unbounded
-  context growth.
+  This is the **real** `lib/usage-telemetry.ts` (`createUsageTelemetry`,
+  `UsageTelemetryRecordInput`) — wire into it, do not build a second telemetry store. The
+  loop reads it to decide Drydock; an interrupted turn's wasted tokens get their own
+  category so the cost is *visible*, not hidden.
+- **Drydock → Salvage → Refloat** — when context nears its limit: **Drydock** (halt the
+  voyage); **Salvage** (summarize the stripped transcript into a `SelfSalvageCapsule` via
+  the real `lib/telos-salvage.ts` — the same capsule format `pd salvage` already consumes);
+  **Refloat** (rebuild a fresh window of {root Float Plan, Salvage capsule}). **v1 is
+  summary-only.** A *diff-RAG* index over file-mutation history (so a refloated voyage can
+  retrieve "when/why did I touch `auth.ts`") is genuinely useful but **net-new** — there is
+  no shipped embedding lib (no a `lib/weaver` module; "weaver" is a subagent), so it is a
+  separable follow-up, not existing infrastructure to lean on.
 
 ### 7. Where it runs, and the honest boundary (composes ADR-0087 phase 8)
 
@@ -152,6 +182,14 @@ split is load-bearing and honest:
   kernel. The guest harness *proposes*; the host *disposes* (re-validates every brokered
   call). The authoritative audit is the host's view of the vsock, not the guest harness's
   self-report.
+
+Two phase-8 decisions remain open for the operator: **(a) per-VM vs multiplex agent
+identity** — one-agent-per-VM makes `agentId` host-trusted (clean, heavier); multiplexing
+makes it guest-asserted and therefore spoofable, which weakens the `hard` steering gate's
+host-side re-validation; **(b)** confirmation that the **authoritative receipt is the
+host's vsock view** (it can rebuild the Binnacle without trusting the guest, at the cost of
+not seeing the agent's internal reasoning). The ADR leans host-trusted identity + host-side
+audit, but these are operator calls at phase 8.
 
 ## Considered Options
 
@@ -173,12 +211,12 @@ Each phase promotes to a `roadmap_items` row (`adr-0089-<slug>`).
 | Phase | Slug | Depends on | What ships |
 |---|---|---|---|
 | 1 | adr-0089-universal-modeladapter | — | Universal types + the `ModelAdapter` contract; hoist `cli-tube`/`groq`/`openai` behind it; reconcile with `lib/llm-backend-resolver.ts`. |
-| 2 | adr-0089-tube-completion-proxy | 1 | **The enabling slice.** A raw single-turn completion-proxy mode on `pd tube`; `TubeHttpAdapter`/`TubeProcessAdapter`; resolve the Pro/Max-as-completion-server feasibility (local-weights as the floor). |
+| 2 | adr-0089-tube-completion-proxy | 1 | **The enabling slice.** `TubeHttpAdapter` over local open-weights (the guarantee-bearing substrate); `TubeProcessAdapter` treats Pro/Max CLIs as **opaque sub-voyages** (posture A) until they ship a bare-completion mode. |
 | 3 | adr-0089-harness-loop | 1, 2 | `commandVoyage` — the harness owns the loop; local tool execution; per-turn checkpoint. The deterministic-every-turn substrate. |
 | 4 | adr-0089-suggestibility-envelope | 3 | The envelope from `lib/pheromone.ts` + `lib/attention.ts` + `lib/agent-inbox.ts`, re-stamped each turn; Parley Alert from the ADR-0039 detector. (No `/tmp`; replace-don't-accrete.) |
 | 5 | adr-0089-steering-dms-enforced | 3, 4 | DM injection with delivered/acked dedup; the in-loop steering-enforcement lever, backed by the host vsock gate. |
 | 6 | adr-0089-floatplan-binnacle | 3 | The Float Plan state contract + the Binnacle telemetry middleware (from `lib/usage-telemetry.ts`). |
-| 7 | adr-0089-drydock-refloat | 6 | Truncation-with-RAG: Drydock → Salvage (weaver RAG) → Refloat. |
+| 7 | adr-0089-drydock-refloat | 6 | Truncation: Drydock → Salvage (summary-only v1, into a `SelfSalvageCapsule` via `lib/telos-salvage.ts`) → Refloat. Diff-RAG over file-mutation history is a separable follow-up (net-new, no shipped lib). |
 | 8 | adr-0089-vm-substrate-integration | 3, 5 + ADR-0087 ph8 | Run the harness in the VM guest; vsock to the host daemon/vault/broker; the advisory-vs-enforced split; host-side audit. Operator-owned. |
 
 ## Consequences
@@ -192,19 +230,24 @@ Each phase promotes to a `roadmap_items` row (`adr-0089-<slug>`).
   (tool-call parsing across providers, streaming, ret/backoff, token accounting) — real
   work, phased. The tube completion-proxy's Pro/Max feasibility is unproven and must be
   de-risked first (phase 2), with local-weights as the reliable floor.
-- **What this does NOT claim:** the in-band suggestibility layer is advisory — it
-  guarantees *presence*, not *compliance*. Only the host-side vsock boundary (secrets,
-  egress) is enforcement. The honesty of the design is keeping those two guarantees
-  distinct (the ADR-0087/0088 posture).
+- **What this does NOT claim:** (1) the in-band suggestibility layer is advisory — it
+  guarantees *presence*, not *compliance*; only the host-side vsock boundary (secrets,
+  egress) is enforcement. (2) "Deterministic every-turn injection for every backend" is
+  *literally* true only for backends drivable as a single model step — **local
+  open-weights**; for Pro/Max CLIs it is best-effort with re-assertion-on-return (opaque
+  sub-voyages). (3) Salvage v1 is summary-only; diff-RAG is unbuilt. The honesty of the
+  design is keeping these distinctions visible, not papering over them (the ADR-0087/0088
+  posture).
 
 ## References
 
 - `lib/tube.ts` — the tube transport (history under `~/.port-daddy/`) the Speaking Tube extends.
 - `lib/spawner/backends/cli-tube.ts`, `lib/spawner/backends/groq.ts`, `lib/spawner/backends/openai.ts` — the backends hoisted behind `ModelAdapter`.
-- `lib/llm-backend-resolver.ts` — the provider×tier→model resolver the adapter contract embodies.
-- `lib/pheromone.ts` — the stigmergic kernel (RCP-7a/12) the envelope reads (NOT a `/tmp` grep).
-- `lib/attention.ts`, `lib/agent-inbox.ts` — the merged attention stream + DM substrate the envelope renders.
-- `lib/usage-telemetry.ts` — the token/latency telemetry the Binnacle formalizes.
+- `lib/llm-backend-resolver.ts` — the provider×tier→model resolver + the thin `LLMTransport.complete()` seam the `ModelAdapter` supersets.
+- `lib/attention.ts`, `lib/agent-inbox.ts` — the merged attention stream + DM substrate; **the envelope source**.
+- `lib/pheromone.ts` — a **decay kernel** (`createPheromoneManager`, `decayRate`) that *weights* envelope salience; NOT the source, NOT a `/tmp` grep.
+- `lib/usage-telemetry.ts` — the real Binnacle (`createUsageTelemetry`, `UsageTelemetryRecordInput`); wire in, don't rebuild.
+- `lib/telos-salvage.ts` — the `SelfSalvageCapsule` / `normalizeSelfSalvage` format Salvage reuses (summary-only v1; diff-RAG is net-new — there is no a `lib/weaver` module).
 - ADR-0039 — the suggestion-broker / attention engine + its suppression stack and the claim-overlap detector behind the Parley Alert.
 - ADR-0050 — the Coast Guard confine/meter/receipt boundary the host side composes with.
 - ADR-0086 — parley (agent-to-agent dialogue) the interception envelope surfaces.
