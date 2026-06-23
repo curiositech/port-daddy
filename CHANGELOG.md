@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.21.1] - 2026-06-23
+
+A small but consequential patch: **the auto-freshness self-heal actually fires now.**
+The hourly LaunchAgent (ADR-0062) was supposed to `brew upgrade` + restart the daemon
+onto each new release hands-off, but a machine could sit on an old release through a
+published bump while the log cheerfully read `daemon already current`. Because the
+running binary's own `pd self-update` carries this fix, **one** `brew upgrade port-daddy`
+to this release makes every subsequent upgrade self-sustaining.
+
+### Fixed
+- **Auto-upgrade detection — `pd self-update` now recognizes the tap-qualified formula name (#535).** In the unattended tick (a non-TTY pipe) `brew outdated` prints the *tap-qualified* name `curiositech/tap/port-daddy`, not bare `port-daddy`. The original matcher only accepted the bare name, so every tick after a release logged `already current` and never upgraded. The matcher now compares the last `/`-segment, accepting both bare and tap-qualified forms (with or without trailing version columns) and without false-positiving on sibling formulae.
+
+### Changed
+- **Auto-upgrade is now prompt and loud (#546).** Freshness cadence tightened from hourly to **15 minutes**; the `brew update` refresh timeout raised 120s → 300s and logged on failure (a busy machine's slow refresh no longer masquerades as `already current`); and a macOS notification now fires on upgrade **success and failure**, so a stuck auto-upgrade is visible instead of silently leaving the machine stale. Upgrade logs name the actual version transition (`3.21.0 → 3.21.1`).
+
 ## [3.21.0] - 2026-06-21
 
 This release makes **cutting a release** a first-class, tested command and teaches the
