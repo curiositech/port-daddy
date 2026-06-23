@@ -1,0 +1,99 @@
+{
+  "source": "https://github.com/gitleaks/gitleaks",
+  "upstreamCommit": "55a3ad8fbb6e3c7e84c0f432e1f3b5a9d2c8e7b1",
+  "refreshedAt": "2026-06-23",
+  "license": "MIT",
+  "_note": "Build-time conversion of gitleaks' config/gitleaks.toml structured-format rules to JSON. These are KEY-FORMAT anchors (regex over the credential's fixed shape), NOT free-text keyword classifiers. The `keyword` pre-filter stanzas from upstream are intentionally dropped — reading them as a verdict would violate the no-keyword-NLP rule (ADR-0088). Refresh on a schedule against upstream; this is a maintained dependency, not a constant.",
+  "rules": [
+    {
+      "id": "aws-access-token",
+      "description": "AWS Access Key ID",
+      "regex": "(?:A3T[A-Z0-9]|AKIA|ASIA|ABIA|ACCA)[A-Z2-7]{16}",
+      "entropy": 3.0
+    },
+    {
+      "id": "github-pat",
+      "description": "GitHub Personal Access Token (classic)",
+      "regex": "ghp_[0-9A-Za-z]{36}",
+      "entropy": 3.0
+    },
+    {
+      "id": "github-oauth",
+      "description": "GitHub OAuth Access Token",
+      "regex": "gho_[0-9A-Za-z]{36}",
+      "entropy": 3.0
+    },
+    {
+      "id": "github-app-token",
+      "description": "GitHub App / Refresh / Server-to-Server Token",
+      "regex": "gh[usr]_[0-9A-Za-z]{36}",
+      "entropy": 3.0
+    },
+    {
+      "id": "github-fine-grained-pat",
+      "description": "GitHub Fine-Grained Personal Access Token",
+      "regex": "github_pat_[0-9a-zA-Z_]{82}",
+      "entropy": 3.0
+    },
+    {
+      "id": "openai-api-key",
+      "description": "OpenAI API Key",
+      "regex": "sk-(?:proj|svcacct|admin)?-?[A-Za-z0-9_-]{20,}T3BlbkFJ[A-Za-z0-9_-]{20,}",
+      "entropy": 3.5
+    },
+    {
+      "id": "openai-api-key-legacy",
+      "description": "OpenAI API Key (legacy sk- shape)",
+      "regex": "sk-[A-Za-z0-9]{48}",
+      "entropy": 3.5
+    },
+    {
+      "id": "anthropic-api-key",
+      "description": "Anthropic API Key",
+      "regex": "sk-ant-(?:api03|admin01)-[A-Za-z0-9_-]{80,120}AA",
+      "entropy": 3.5
+    },
+    {
+      "id": "slack-bot-token",
+      "description": "Slack Bot/User/App/Refresh Token",
+      "regex": "xox[baprs]-[0-9A-Za-z-]{10,}",
+      "entropy": 3.0
+    },
+    {
+      "id": "gcp-api-key",
+      "description": "Google (GCP) API Key",
+      "regex": "AIza[0-9A-Za-z_-]{35}",
+      "entropy": 3.0
+    },
+    {
+      "id": "stripe-secret-key",
+      "description": "Stripe Secret/Restricted Key",
+      "regex": "(?:sk|rk)_(?:test|live|prod)_[0-9A-Za-z]{10,99}",
+      "entropy": 3.0
+    },
+    {
+      "id": "private-key",
+      "description": "PEM Private Key block header",
+      "regex": "-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY(?: BLOCK)?-----",
+      "entropy": 0
+    },
+    {
+      "id": "jwt",
+      "description": "JSON Web Token",
+      "regex": "eyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}",
+      "entropy": 3.5
+    },
+    {
+      "id": "gitlab-pat",
+      "description": "GitLab Personal Access Token",
+      "regex": "glpat-[0-9a-zA-Z_-]{20}",
+      "entropy": 3.0
+    },
+    {
+      "id": "npm-access-token",
+      "description": "npm Access Token",
+      "regex": "npm_[0-9a-zA-Z]{36}",
+      "entropy": 3.0
+    }
+  ]
+}
