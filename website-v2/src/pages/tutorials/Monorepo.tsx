@@ -1,15 +1,7 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { Badge } from "@/components/ui/Badge";
-import {
-  Box,
-  Layers,
-  Zap,
-  Shield,
-  Activity,
-  Anchor,
-  ArrowRight,
-} from "lucide-react";
+import { Box, Layers, Zap, Activity, Anchor, ArrowRight } from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 
 export function Monorepo() {
@@ -86,10 +78,7 @@ export function Monorepo() {
             {`$ pd scan ./services\n\n✓ Found 12 services in 1.4s\n  - services/auth (Next.js)\n  - services/api (Express)\n  - services/worker (Go)`}
           </CodeBlock>
 
-          <p
-            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <p className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4 text-[var(--text-secondary)]">
             Port Daddy creates a local SQLite registry of your services,
             allowing agents to query the fleet status at any time.
           </p>
@@ -154,19 +143,12 @@ export function Monorepo() {
 
         {/* Resilience Callout */}
         <section className="p-6 text-center space-y-4">
-          <p
-            className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <p className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto text-[var(--text-secondary)]">
             Fleet management isn't just about starting scripts -- it's about
             building a <strong>shared environment</strong>. When your frontend
             agent needs the API, it doesn't search for a port. It asks the Port
             Daddy mesh for the API identity.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-accent)]">
-            <Shield size={14} />
-            Service Mesh Active
-          </div>
         </section>
       </div>
     </TutorialLayout>

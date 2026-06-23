@@ -727,7 +727,8 @@
         "use",
         "mcp",
         "daemon",
-        "self-update"
+        "self-update",
+        "upgrade"
       ],
       "sdk": [],
       "routes": [
@@ -742,6 +743,7 @@
         "dev",
         "use",
         "self-update",
+        "upgrade",
         "mcp",
         "daemon"
       ],
@@ -749,7 +751,7 @@
         "readme": true,
         "sdk": false
       },
-      "_note": "Daemon management is CLI-only. `pd dev up/down/list` runs tiered berths (ADR-0084); `pd use`/`pd --daemon` target a berth; GET /whoami reports the daemon's berth identity."
+      "_note": "Daemon management is CLI-only. `pd dev up/down/list` runs tiered berths (ADR-0084); `pd use`/`pd --daemon` target a berth; GET /whoami reports the daemon's berth identity. `pd upgrade` (ADR-0057 phase 7) checks the latest.json update feed and reports/performs an update."
     },
     "diagnostics": {
       "description": "Environment diagnostics (CLI-only)",
@@ -1764,6 +1766,7 @@
       "routes": [
         "POST /roadmap/items",
         "GET /roadmap/items",
+        "GET /roadmap/board",
         "GET /roadmap/items/:slug",
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",

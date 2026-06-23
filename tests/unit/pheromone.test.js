@@ -735,3 +735,16 @@ describe('coverage (RCP-12)', () => {
     expect(mgr.coverage('DROP TABLE services;--').success).toBe(false);
   });
 });
+
+describe('list includes resolutions (RCP-7a, for the console)', () => {
+  test('each entry carries its resolutions map (empty when none)', () => {
+    const now = Date.now();
+    db.prepare(`INSERT INTO services (id, port, status, created_at, last_seen) VALUES ('list-res', 7100, 'assigned', ?, ?)`).run(now, now);
+    const mgr = createPheromoneManager(db);
+    mgr.spray('services', 'list-res', 'heat', 0.7);
+    mgr.sprayResolution('services', 'list-res', 'heat', 0.5);
+    const entry = mgr.list().find((e) => e.id === 'list-res');
+    expect(entry.pheromones.heat).toBe(0.7);
+    expect(entry.resolutions.heat).toBe(0.5);
+  });
+});

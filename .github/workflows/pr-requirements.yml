@@ -1,0 +1,40 @@
+name: PR Requirements
+
+# The machine half of AGENTS.md § Pull Request Operating Procedure +
+# § Visual artifacts for UI diffs. Split out of ci.yml into its own cheap workflow
+# specifically so it can listen to `edited` — the full CI matrix deliberately does
+# NOT re-run on a description edit, but this gate must, or an author could pass it at
+# synchronize time and then gut the Summary / remove the screenshots from the PR body
+# afterward. This job is seconds, so re-running it on every body edit is free.
+#
+# NOTE: a green/red job is only a *blocking* gate if the operator adds the
+# `pr-requirements-guard` status check to branch protection / the merge queue's
+# required-checks list. This workflow provides the check; branch protection makes it
+# required. Until then it is advisory.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  # Merge queue: no PR body exists on a merge_group head, so the script no-ops
+  # (exit 0) — the substantive check already ran at pull_request time. Reporting
+  # here keeps it a valid required check that never hangs the queue.
+  merge_group:
+
+concurrency:
+  group: pr-requirements-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  pr-requirements-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Ensure origin/main ref for the changed-files diff
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+      - name: PR-requirements guard (summary, test plan, visual artifacts)
+        run: node scripts/check-pr-requirements.mjs --event-path "$GITHUB_EVENT_PATH"

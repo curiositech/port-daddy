@@ -1,10 +1,10 @@
 # Passkey Identity Across Machines
 
-For a long time the right answer for "how does Port Daddy handle a user who has a laptop, a desktop, and a CI runner?" was "it doesn't, that's out of scope." The original Bonded Commons paper said exactly that, in a paragraph titled *Single-node scope*. v2 deletes that paragraph and replaces it with the **Federated Sovereign**.
+You bought a new laptop. You want it to see the same harbors as your desktop. So you go looking for the part of the docs that tells you how to enroll a second machine — and the honest answer, for a long time, was a paragraph titled *Single-node scope* that amounted to "you don't; that's not supported." One machine, one daemon, one database. The work was already spread across your desktop, your laptop, and your CI, and the paper's official position was that this situation did not exist.
 
-This post is what that change means for users, and why we are anchoring it on passkeys instead of passwords.
+That paragraph is gone in v2, replaced by something with a grander name than it has any right to: the **Federated Sovereign**. It is the answer to the new-laptop question — how a second device joins without anyone typing a master secret into a chat window — and the reason we anchor it on passkeys instead of passwords is the rest of this post.
 
-![Federated identity across machines](/img/generated/blog-daemon-provenance.jpg)
+![Federated identity across a laptop, desktop, and phone — each device holds its own passkey, and a new one joins by pairing rather than by copying a password between machines](/img/generated/blog-daemon-provenance.jpg)
 
 ## What "Single-Node Scope" Was Quietly Conceding
 
@@ -99,7 +99,7 @@ await pdAuth.confirmPairing({ token: pairingToken, accept: true })
 
 There is no shared secret transmitted. The pairing token authorizes a specific rewrap, the new device contributes its passkey-bound public key, and the existing device gates the rewrap with a final confirmation signed by its own passkey.
 
-![Identity surface in the FleetBar shipwright control](/img/app-screens/shipwright-control-light.png)
+![The FleetBar identity surface mid-pairing — a QR code on the trusted device and a confirm step that gates the rewrap, so a new machine joins without a shared secret crossing the wire](/img/app-screens/shipwright-control-light.webp)
 
 ## Recovery and Its Honest Limits
 

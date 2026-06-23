@@ -91,19 +91,33 @@ if [ "$fail" -eq 0 ]; then
   fi
 fi
 
-# 3. Multi-subscriber fan-out: two listeners (distinct --as) must BOTH receive
-#    one send. Keeps the 3.16.2 fan-out working AND exercises tube live.
+# 3. Multi-subscriber fan-out: two listeners (distinct --as) must BOTH receive a
+#    send. Keeps the 3.16.2 fan-out working AND exercises tube live.
 if [ "$fail" -eq 0 ]; then
   echo "--- pd tube fan-out (2 listeners, 1 send) ---"
   "${CLI_ENV[@]}" "$BIN" tube fan:ci --tail --json --as la >"$SCRATCH/la.out" 2>&1 &
   L1=$!
   "${CLI_ENV[@]}" "$BIN" tube fan:ci --tail --json --as lb >"$SCRATCH/lb.out" 2>&1 &
   L2=$!
-  sleep 3
-  printf %s 'fan-out smoke' | "${CLI_ENV[@]}" "$BIN" tube fan:ci --send --as snd >/dev/null 2>&1 || true
-  sleep 4
+  # The listeners subscribe asynchronously, and in --json mode they print no
+  # readiness banner to wait on — so a blind pre-send `sleep` races their
+  # subscription, and a slow listener misses a single live send (the historical
+  # flake: `la` got it, `lb` was empty). Fan-out is live pub/sub, so a listener that
+  # subscribes late still receives the NEXT send. Re-send until BOTH have a copy (or
+  # time out ~15s): proves "every subscriber receives" without depending on timing,
+  # while a genuine fan-out regression still fails after the full window.
+  sleep 1
+  got=0
+  for _ in $(seq 1 20); do
+    printf %s 'fan-out smoke' | "${CLI_ENV[@]}" "$BIN" tube fan:ci --send --as snd >/dev/null 2>&1 || true
+    if grep -q "fan-out smoke" "$SCRATCH/la.out" && grep -q "fan-out smoke" "$SCRATCH/lb.out"; then
+      got=1
+      break
+    fi
+    sleep 0.75
+  done
   kill "$L1" "$L2" 2>/dev/null || true
-  if grep -q "fan-out smoke" "$SCRATCH/la.out" && grep -q "fan-out smoke" "$SCRATCH/lb.out"; then
+  if [ "$got" -eq 1 ]; then
     echo "OK: both listeners received the message (fan-out intact)."
   else
     echo "FAIL: fan-out regression — not both listeners received the message." >&2

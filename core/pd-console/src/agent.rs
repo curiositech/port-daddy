@@ -392,6 +392,26 @@ impl DaemonClient {
         Ok(())
     }
 
+    /// Conductor operator control (ADR-0060): `POST /fleet/{halt|pause|resume}`.
+    /// `root_id` scopes to one lineage; `None` = the whole fleet (global stop).
+    /// halt = SIGTERM->SIGKILL the scope + refund (never slash) bonds; pause =
+    /// stop admitting new launches; resume = reopen a halted/paused scope.
+    pub async fn fleet_action(&self, verb: &str, root_id: Option<&str>) -> Result<()> {
+        let body = match root_id {
+            Some(r) => serde_json::json!({ "rootId": r }),
+            None => serde_json::json!({}),
+        };
+        let resp = self
+            .http
+            .post(format!("{}/fleet/{verb}", self.base))
+            .json(&body)
+            .send()
+            .await
+            .with_context(|| format!("POST /fleet/{verb}"))?;
+        ensure_success(resp, "fleet_action").await?;
+        Ok(())
+    }
+
     /// Open the live SSE feed `GET /agents/:id/stream` and yield parsed
     /// `StreamEnvelope`s on an mpsc channel. Spawns a tokio task that owns the
     /// HTTP body stream; it runs until the daemon closes the stream, the agent

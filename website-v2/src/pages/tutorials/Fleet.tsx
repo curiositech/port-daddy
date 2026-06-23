@@ -66,12 +66,6 @@ export function Fleet() {
               radius="none"
               className="p-6 text-center space-y-3"
             >
-              <Badge
-                variant="teal"
-                className="text-[8px] font-black uppercase tracking-widest"
-              >
-                Reactive
-              </Badge>
               <motion.p className="text-[length:var(--type-meta-size)] font-bold m-0">
                 Trigger on Events
               </motion.p>
@@ -84,12 +78,6 @@ export function Fleet() {
               radius="none"
               className="p-6 text-center space-y-3"
             >
-              <Badge
-                variant="gold"
-                className="text-[8px] font-black uppercase tracking-widest"
-              >
-                Scheduled
-              </Badge>
               <motion.p className="text-[length:var(--type-meta-size)] font-bold m-0">
                 Run on a Timer
               </motion.p>
@@ -102,12 +90,6 @@ export function Fleet() {
               radius="none"
               className="p-6 text-center space-y-3"
             >
-              <Badge
-                variant="red"
-                className="text-[8px] font-black uppercase tracking-widest"
-              >
-                Chained
-              </Badge>
               <motion.p className="text-[length:var(--type-meta-size)] font-bold m-0">
                 Agents Talk to Agents
               </motion.p>
@@ -352,8 +334,8 @@ exit 0`}</CodeBlock>
           </motion.div>
 
           <motion.p>
-            The real magic: one agent&apos;s output becomes another agent&apos;s
-            trigger.
+            The useful part: one agent&apos;s output becomes another
+            agent&apos;s trigger.
           </motion.p>
 
           <Surface depth="raised" radius="none" className="p-8 space-y-4">

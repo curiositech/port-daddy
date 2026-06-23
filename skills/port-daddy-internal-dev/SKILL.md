@@ -58,6 +58,39 @@ roadmap before the CLI-only path ships to operators. Examples in flight:
 `fleetbar-secret-management-with-provider-deeplinks`,
 `fleetbar-console-must-support-zoom-and-text-scaling`.
 
+## How to work a slice (operating expectations)
+
+The full posture lives in `AGENTS.md` § Agent Operating Expectations. The
+repo-specific mechanics:
+
+- **Coordinate + pay rent.** Clean linked worktree off `origin/main`,
+  `pd begin … --lifecycle durable`, `pd session files add` before editing, a
+  `pd note` per commit (the Coordination Guard enforces it), `pd done` at the end.
+- **Assume broken; verify both ends.** After any write, read it back from the
+  surface that should serve it, and prove cold start (daemon down → elegant
+  operator instruction, never a stack trace), worktrees, a second user, and the
+  GitHub round-trip. A green exit code is not evidence.
+- **Confirm the telemetry trail.** Calls must show up in `pd usage` AND in the
+  transcript saves (`lib/transcripts.ts`), and durable state must ride the
+  Cloudflare fabric (`lib/relay-client.ts`) so posterity is cheap and survives the
+  container — verify the read-back, don't assume it.
+- **Dogfood novelly + capture wins.** Exercise a CLI/MCP/SDK surface you haven't
+  before each slice; when a hard-won gambit lands, write it into this skill (or the
+  public `port-daddy-agent-skill` if it generalizes).
+- **Generalize.** Features must work for non-tsx/non-Rust repos, remote harbors,
+  other machines, and shared GitHub teams — not just this checkout.
+- **Whitepaper check.** Reconcile coordination/kernel work against the seven
+  whitepapers registered in `website-v2/src/data/whitePapers.ts` (Legible Swarm,
+  Single-Writer Kernel, Spawn to Person, Harbor Economy, Anchor Protocol, Bonded
+  Commons, Federated Harbor); note drift in the PR.
+- **Skill matching.** If you're missing a matching skill, pause and do skill
+  research. The intended home is a **seamanship** match-cascade/graft selector
+  (proposed, not yet built — modelled on windags `windags_skill_induct` /
+  `windags_skill_graft`); until it lands, match by hand against `skills/`.
+- **Launch agents through PD** (`pd agent` / `pd sortie` / `pd dispatch` / conductor),
+  never a raw side-channel — so the work is registered, sandboxed, budgeted, salvageable.
+- **Keep `README.md` current** in the same PR when a slice changes a documented surface.
+
 ## Core Decision Tree
 
 ```mermaid
@@ -206,9 +239,15 @@ calling a branch ready, inspect and close the full PR surface:
 - Inline bot comments from Copilot, Claude review, Cloudflare Pages, CodeQL,
   package/release jobs, or deploy previews count as review findings. Reply to
   each actionable thread with fixed / deferred / contested-because.
-- Run a skeptical reviewer agent for non-trivial changes and require a
-  `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. Fix high-confidence findings
+- A neutral adversarial reviewer runs in CI on **every** PR (the
+  `claude-adversarial-review` workflow — assumes laziness/slop/lies/corner-cutting,
+  ends with a `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict). Also run your own
+  skeptical reviewer agent for non-trivial changes. Fix high-confidence findings
   as named fixup commits on the branch.
+- **The PR description is gated.** `.github/PULL_REQUEST_TEMPLATE.md` is the form,
+  and `scripts/check-pr-requirements.mjs` (CI job `pr-requirements-guard`) fails the
+  merge queue on an empty/boilerplate Summary or Test Plan, or a visual diff with no
+  artifacts. Draft-check locally: `npm run check:pr-requirements -- --body-file <draft.md>`.
 - Treat GitHub CI, external deploy checks, release-package jobs, and Cloudflare
   Pages as one CI/CD surface. If one is red, inspect the linked logs. Only call
   it external after proving the branch is not the cause, and record that proof
@@ -216,11 +255,13 @@ calling a branch ready, inspect and close the full PR surface:
 - Do not leave a PR with "CI green except..." as an unresolved aside. Either
   make it green, file/assign the external blocker with evidence, or hand off the
   exact next action to an active Port Daddy session.
-- **UI diffs ship visual artifacts — forever.** A PR touching a GPUI surface
-  (`core/pd-console` window), the console (any pane/renderer), or the
-  website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`) is
-  incomplete without screenshots + a GIF + a short screen recording of the real
-  change in its Test Plan. Green CI proves compilation, not rendering. TUI panes →
+- **UI diffs ship visual artifacts — forever (now `[M]`).** A PR touching a GPUI
+  surface (`core/pd-console` window), the console (any pane/renderer), or the
+  website/dashboard (`website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`,
+  `public/`, `dashboard/`, `apps/FleetBar/`) is incomplete without screenshots + a
+  GIF + a short screen recording of the real change in its Test Plan, and
+  `pr-requirements-guard` now fails the PR without at least a screenshot + a motion
+  artifact. Green CI proves compilation, not rendering. TUI panes →
   `vhs` (tape under `core/pd-console/docs/artifacts/`); GPUI window →
   `cargo build --release --features gpui` then `core/pd-console/scripts/capture-gpui.sh`
   (needs macOS Screen Recording permission — a headless host is TCC-denied);

@@ -177,9 +177,14 @@ machinery is already built:
 - You **price by categorical fidelity.** A full equivalence is worth more than a faithful
   functor is worth more than a Galois connection is worth more than a bare span. The
   market can grade its merchandise.
-- And you **bond it.** Post collateral against the claim. If the receipt fails an audit —
-  if your "functor" turns out to be a leaky span dressed up — the bond is slashed and
-  the conservation law makes sure no value evaporated quietly in the process.
+- And you **bond it** — honestly about what the bond is for. The receipt is *checkable*:
+  a buyer verifies the witness themselves, so no trusted auditor sits in the middle to
+  bribe, and that structural check, not the collateral, is what kills the market for
+  lemons. The bond is the residual backstop, covering the damage a claim that *passes* the
+  check can still do downstream; if the bonded claim turns out to be a leaky span dressed
+  up, it is slashed and the conservation law keeps any value from evaporating quietly.
+  Sizing that bond — high enough to deter, low enough not to price out honest sellers — is
+  its own open problem, not a detail I get to wave past.
 
 That is the whole trick. The boring permit office — bonds, evidence chains, a
 conservation theorem, structurally-bounded settlement — turns out to be the missing
@@ -201,7 +206,7 @@ true to *earn* the sentence instead of merely shouting it:
    not the solution and not the marketplace — it is the **verified functor**, and those
    are hard-won. *(The caveat, kept in the load-bearing position where it belongs.)*
 
-Get those three and the fantasy stops being a fantasy and starts being plumbing. Elliott
+Get those three and the fantasy stops being a fantasy and starts being plumbing. Elinor
 Ostrom spent a career showing that commons don't need a tyrant *or* a tragedy — they
 need rules, monitoring, and graduated stakes.[^ostrom] That is what we are building, for
 the strangest commons yet: the space of ideas, traded by machines, priced by how much

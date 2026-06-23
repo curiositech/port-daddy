@@ -104,7 +104,7 @@ set -l __pd_commands \
     'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
-    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'mcp' \
+    'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
     'setup' 'init' 'cut' \
     'version' 'help'
 
@@ -449,7 +449,11 @@ for prog in port-daddy pd
     complete -c $prog -n __pd_needs_command -a daemon -d 'Daemon lifecycle subcommands (status, log, doctor)'
     complete -c $prog -n __pd_needs_command -a ci-gate -d 'Exit non-zero if daemon is stale'
     complete -c $prog -n __pd_needs_command -a self-update -d 'Brew-upgrade + restart daemon and FleetBar onto the current release'
+    complete -c $prog -n __pd_needs_command -a upgrade -d 'Check the latest.json feed and report/perform an update (--apply)'
     complete -c $prog -n __pd_needs_command -a mcp -d 'Start MCP server for Claude Code'
+    complete -c $prog -n '__fish_seen_subcommand_from upgrade' -l apply -d 'Perform the upgrade via brew'
+    complete -c $prog -n '__fish_seen_subcommand_from upgrade' -l json -d 'Emit machine-readable JSON'
+    complete -c $prog -n '__fish_seen_subcommand_from upgrade' -l feed -d 'Override the latest.json feed URL'
     complete -c $prog -n '__pd_is_cmd mcp' -a install -d 'Configure MCP for all detected AI editors'
     complete -c $prog -n __pd_needs_command -a setup -d 'Install daemon, MCP, FleetBar, and init a project'
     complete -c $prog -n __pd_needs_command -a init -d 'Set up Port Daddy for this project (scan, fleet, MCP, git hook)'

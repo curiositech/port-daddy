@@ -1,12 +1,10 @@
 # Cold Start Without Surprise Launches
 
-The first-run problem for agent tools is not "how fast can we spawn something?" It is "how do we know this repository is ready for agents at all?"
+First run, fresh install. The tool asks for a prompt, you type one, you pick a model, you hit go — and an agent walks into a repository it has never seen. It does not know the test command is `pnpm test` and not `npm test`. It does not know `dist/` is generated and shouldn't be hand-edited. It does not know `main` is protected, that the deploy script expects checksums, that half the secrets live in a `.env` it cannot read. It just starts typing. Ten minutes later you are cleaning up after a confident stranger.
 
-That sounds less glamorous, but it is the difference between a useful developer tool and a slot machine with a terminal theme. A repo has conventions, test commands, secrets, generated artifacts, package managers, branch rules, deployment scripts, and human expectations. If an agent launcher ignores those facts, it starts by manufacturing cleanup work.
+That is the standard first run for agent tools, and it optimizes for exactly one thing: demo speed. It treats "how fast can we spawn something?" as the question, when the question that actually matters is "how do we know this repository is ready for an agent at all?" Less glamorous, sure — but it is the line between a useful developer tool and a slot machine with a terminal theme. A repo carries conventions, test commands, secrets, generated artifacts, package managers, branch rules, deployment scripts, and human expectations. A launcher that ignores those facts begins its life by manufacturing cleanup work. So Port Daddy's cold start runs the other order: inspect first, propose second, launch last.
 
-Port Daddy's cold-start philosophy is simple: inspect first, propose second, launch last.
-
-![Fleet designer and control plane view](/img/app-screens/shipwright-control-light.png)
+![The fleet-designer surface showing a repo survey and a proposed plan side by side — roles, triggers, budgets, and file boundaries laid out for editing before any agent is allowed to run](/img/app-screens/shipwright-control-light.webp)
 
 ## The Wrong First Run
 
@@ -29,6 +27,7 @@ An agent cannot responsibly operate a codebase until those questions have answer
 
 A serious cold start should look more like a preflight.
 
+<!-- figure: The cold start reshaped as a preflight — survey, detect, infer policy, check backends, simulate spend, draft, human review, then activate — so the first output is an editable plan rather than a running agent. -->
 ```mermaid
 flowchart TD
   Repo["repo survey"] --> Commands["detect scripts + package manager"]
@@ -106,7 +105,7 @@ Most tools ask whether an API key exists. Port Daddy needs more than that.
 | Usage telemetry | A launch should prove tokens and cost. |
 | Project policy | Some repos require claims, tests, or human gates before mutation. |
 
-![Resources and readiness surface](/media/landing-live-glory/live-resources-light.png)
+![The readiness surface showing each backend's status beyond a key check — SDK present, model tiers mapped, pricing known, telemetry exact — so a backend can sit in the catalog while still blocked for unattended work](/media/landing-live-glory/live-resources-light.webp)
 
 That readiness surface is where Port Daddy starts to feel different from a typical agent launcher. A blocked launch is not a failure of the demo. It is the system refusing to lie.
 
@@ -202,7 +201,7 @@ In a Port Daddy cold start, the human should be able to review the actual operat
 - how it reports failure;
 - how to stop it.
 
-![Focused fleet proposal surface](/media/landing-live-glory/live-shipwright-focus-light.png)
+![A single proposed role expanded for review — its trigger, budget ceiling, claimable files, mutate-or-notes-only mode, and stop control all visible — the actual operating model the human signs off on, not a confirmation box](/media/landing-live-glory/live-shipwright-focus-light.webp)
 
 A first-run flow is successful when the user feels more in control after enabling automation, not less.
 
