@@ -1,0 +1,222 @@
+/**
+ * Roadmap-link gate — pure classification core (no I/O).
+ *
+ * A PR must declare which roadmap item it advances. The declaration is a body
+ * trailer:
+ *
+ *     Roadmap-Item: <slug>             # links to a live roadmap item
+ *     Roadmap-Item: none — <reason>    # explicit opt-out (chore/docs/hotfix)
+ *
+ * This module is the *decision* layer: given a PR body and a committed roadmap
+ * snapshot, it decides whether the PR passes, needs a human to approve the land,
+ * or whether the roadmap itself is broken/stale (which must be surfaced LOUDLY).
+ *
+ * It is deliberately I/O-free so it is trivially unit-testable. The CI script
+ * (`scripts/check-roadmap-link.ts`) wraps it with GitHub plumbing (event JSON,
+ * `gh` labels/comments, step summary); the snapshot is produced by
+ * `scripts/export-roadmap-snapshot.ts` from the daemon's `/roadmap/items`.
+ *
+ * Why a committed snapshot at all: CI runners cannot reach the local daemon's
+ * SQLite, so the roadmap's truth has to be mirrored into the repo. The daemon
+ * stays the only *writer*; this snapshot is a read replica. The same shape can
+ * later be served by the Cloudflare Relay without changing this file.
+ */
+
+/** One roadmap item as mirrored into the committed snapshot. */
+export interface SnapshotItem {
+  slug: string;
+  status: string;
+  summaryMd?: string;
+}
+
+/** The committed snapshot file shape (`docs/roadmap/roadmap.snapshot.json`). */
+export interface RoadmapSnapshot {
+  /** Epoch ms the snapshot was exported. Drives the staleness check. */
+  generatedAt: number;
+  harbor?: string;
+  source?: string;
+  items: SnapshotItem[];
+}
+
+export type Verdict = 'pass' | 'needs-approval' | 'broken';
+
+export interface ClassifyOptions {
+  /** Snapshots older than this read as broken/stale and shout. Default 21 days. */
+  staleAfterDays?: number;
+  /** "now" injectable for tests. Default Date.now(). */
+  now?: number;
+}
+
+export interface LinkResult {
+  /** Terminal verdict for the gate. */
+  verdict: Verdict;
+  /** Machine reason code. */
+  reason:
+    | 'linked'
+    | 'opt-out'
+    | 'missing-trailer'
+    | 'unknown-slug'
+    | 'snapshot-missing'
+    | 'snapshot-empty'
+    | 'snapshot-stale';
+  /** The slug parsed from the trailer, if any. */
+  slug: string | null;
+  /** Opt-out reason, if the trailer was `none — …`. */
+  optOutReason: string | null;
+  /** True when a human must approve before this can land. */
+  requiresHumanApproval: boolean;
+  /** True when something is wrong with the roadmap itself (be loud). */
+  loud: boolean;
+  /** Whether the `needs-roadmap-link` label should be present after this run. */
+  labelShouldBePresent: boolean;
+  /** One-line human summary. */
+  headline: string;
+}
+
+const TRAILER_KEYS = ['roadmap-item', 'roadmap'];
+const OPT_OUT_TOKEN = 'none';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Pull the roadmap trailer out of a PR body. Tolerant of `:` spacing, key case,
+ * and CRLF. Returns the *last* matching trailer (so an edited PR's final word
+ * wins). `slug` and `optOutReason` are mutually exclusive.
+ */
+export function parseRoadmapTrailer(body: string | null | undefined): {
+  slug: string | null;
+  optOutReason: string | null;
+} {
+  if (!body) return { slug: null, optOutReason: null };
+  let slug: string | null = null;
+  let optOutReason: string | null = null;
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const m = line.match(/^([A-Za-z][A-Za-z-]*)\s*:\s*(.+)$/);
+    if (!m) continue;
+    const key = m[1].toLowerCase();
+    if (!TRAILER_KEYS.includes(key)) continue;
+    const value = m[2].trim();
+    const firstWord = value.split(/[\s—–-]/)[0]?.toLowerCase();
+    if (firstWord === OPT_OUT_TOKEN) {
+      // `none — reason` / `none - reason` / `none: reason` / bare `none`
+      const reason = value.slice(OPT_OUT_TOKEN.length).replace(/^[\s—–:-]+/, '').trim();
+      optOutReason = reason || 'unspecified';
+      slug = null;
+    } else {
+      // First token is the slug (allow a trailing "— note").
+      const candidate = value.split(/[\s—–]/)[0].trim();
+      slug = candidate || null;
+      optOutReason = null;
+    }
+  }
+  return { slug, optOutReason };
+}
+
+/** A snapshot is broken when absent, malformed, or carries no items. */
+export function snapshotBrokenReason(
+  snapshot: RoadmapSnapshot | null,
+): 'snapshot-missing' | 'snapshot-empty' | null {
+  if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot.items)) {
+    return 'snapshot-missing';
+  }
+  if (snapshot.items.length === 0) return 'snapshot-empty';
+  return null;
+}
+
+/**
+ * Classify a PR against the roadmap snapshot. Pure: no labels, no comments, no
+ * network — just the verdict the CI wrapper acts on.
+ */
+export function classify(
+  body: string | null | undefined,
+  snapshot: RoadmapSnapshot | null,
+  opts: ClassifyOptions = {},
+): LinkResult {
+  const now = opts.now ?? Date.now();
+  const staleAfterDays = opts.staleAfterDays ?? 21;
+  const { slug, optOutReason } = parseRoadmapTrailer(body);
+
+  // 1. Roadmap broken — can't validate anything. Loud + human approval.
+  const broken = snapshotBrokenReason(snapshot);
+  if (broken) {
+    return {
+      verdict: 'broken',
+      reason: broken,
+      slug,
+      optOutReason,
+      requiresHumanApproval: true,
+      loud: true,
+      labelShouldBePresent: true,
+      headline:
+        broken === 'snapshot-missing'
+          ? 'Roadmap snapshot is missing or unreadable — the gate cannot verify links.'
+          : 'Roadmap snapshot has zero items — the roadmap export is broken.',
+    };
+  }
+
+  // Snapshot present: is it stale? (overlay — still validates the link below)
+  const ageDays = (now - (snapshot as RoadmapSnapshot).generatedAt) / DAY_MS;
+  const stale = ageDays > staleAfterDays;
+  const items = (snapshot as RoadmapSnapshot).items;
+
+  // 2. Explicit opt-out always passes (but a stale snapshot still shouts).
+  if (optOutReason) {
+    return {
+      verdict: stale ? 'needs-approval' : 'pass',
+      reason: stale ? 'snapshot-stale' : 'opt-out',
+      slug: null,
+      optOutReason,
+      requiresHumanApproval: stale,
+      loud: stale,
+      labelShouldBePresent: stale,
+      headline: stale
+        ? `Roadmap snapshot is ${Math.round(ageDays)}d stale — regenerate before landing.`
+        : `Opt-out accepted: ${optOutReason}`,
+    };
+  }
+
+  // 3. No trailer at all → must be linked or explicitly opted out.
+  if (!slug) {
+    return {
+      verdict: 'needs-approval',
+      reason: 'missing-trailer',
+      slug: null,
+      optOutReason: null,
+      requiresHumanApproval: true,
+      loud: false,
+      labelShouldBePresent: true,
+      headline: 'No `Roadmap-Item:` trailer — link a roadmap item or opt out explicitly.',
+    };
+  }
+
+  // 4. Trailer present — does the slug exist?
+  const item = items.find((i) => i.slug === slug);
+  if (!item) {
+    return {
+      verdict: stale ? 'broken' : 'needs-approval',
+      reason: stale ? 'snapshot-stale' : 'unknown-slug',
+      slug,
+      optOutReason: null,
+      requiresHumanApproval: true,
+      loud: stale,
+      labelShouldBePresent: true,
+      headline: stale
+        ? `Slug "${slug}" not in a ${Math.round(ageDays)}d-stale snapshot — regenerate, it may already exist.`
+        : `Slug "${slug}" is not a known roadmap item — create it or fix the typo.`,
+    };
+  }
+
+  // 5. Linked to a real item. Pass (a stale snapshot still nudges).
+  return {
+    verdict: stale ? 'needs-approval' : 'pass',
+    reason: stale ? 'snapshot-stale' : 'linked',
+    slug,
+    optOutReason: null,
+    requiresHumanApproval: stale,
+    loud: stale,
+    labelShouldBePresent: stale,
+    headline: stale
+      ? `Linked to "${slug}" but snapshot is ${Math.round(ageDays)}d stale — regenerate.`
+      : `Linked to roadmap item "${slug}" (${item.status}).`,
+  };
+}
