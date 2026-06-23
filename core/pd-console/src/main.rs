@@ -177,6 +177,11 @@ fn main() {
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate
         let (tx, rx) =
             mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
+        // Alert bus: the bg thread captures the daemon's REAL rejection from any
+        // operator action and pushes it here instead of swallowing it (`let _ =`).
+        // The fg drains it alongside pane updates — the keystone that turns
+        // "nothing happens" into "spawn rejected: <why>".
+        let (alert_tx, alert_rx) = mpsc::channel::<pane::Alert>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -225,41 +230,88 @@ fn main() {
                     // Operator control: drain any Interrupt requests from the UI and
                     // perform them against the agent the lane is watching.
                     while let Ok(msg) = control_rx.try_recv() {
+                        // Every arm captures the daemon's outcome and, on failure,
+                        // pushes a full-detail Alert up the bus. No `let _ =` swallow.
                         match msg {
                             app::ControlMsg::InterruptLane => {
-                                let _ = lane
+                                if let Err(e) = lane
                                     .mutate(&client, SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
-                                    .await;
+                                    .await
+                                {
+                                    let _ = alert_tx.send(pane::Alert::error("interrupt failed", e.to_string()));
+                                }
                             }
                             // Kick off a new top-level agent on the live daemon.
                             app::ControlMsg::Spawn { backend, prompt, model } => {
-                                if let Some(b) = agent::Backend::parse(&backend) {
-                                    let _ = client.spawn(b, &prompt, "operator", model.as_deref()).await;
+                                match agent::Backend::parse(&backend) {
+                                    None => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "spawn failed",
+                                            format!("unknown backend '{backend}'"),
+                                        ));
+                                    }
+                                    Some(b) => match client.spawn(b, &prompt, "operator", model.as_deref()).await {
+                                        Err(e) => {
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                format!("spawn rejected ({backend})"),
+                                                e.to_string(),
+                                            ));
+                                        }
+                                        // The daemon can return 2xx with an embedded refusal
+                                        // (preflight block) — surface that too, never as success.
+                                        Ok(outcome) => {
+                                            if let Some(err) = outcome.error {
+                                                let _ = alert_tx.send(pane::Alert::error(
+                                                    format!("spawn blocked ({backend})"),
+                                                    err,
+                                                ));
+                                            } else {
+                                                let _ = alert_tx.send(pane::Alert::info(
+                                                    format!("spawned {backend} agent {}", outcome.id),
+                                                    outcome.status,
+                                                ));
+                                            }
+                                        }
+                                    },
                                 }
                             }
                             // Send a turn to the cartographer over its tube channel.
                             app::ControlMsg::Cartographer { text } => {
-                                let _ = client.tube_send("cartographer", &text, "operator").await;
+                                if let Err(e) = client.tube_send("cartographer", &text, "operator").await {
+                                    let _ = alert_tx.send(pane::Alert::error("cartographer send failed", e.to_string()));
+                                }
                             }
                             // Operator review-gate verdicts on a dispatch.
                             app::ControlMsg::DispatchAccept { id } => {
-                                let _ = client.dispatch_action(&id, "accept", None).await;
+                                if let Err(e) = client.dispatch_action(&id, "accept", None).await {
+                                    let _ = alert_tx.send(pane::Alert::error("dispatch accept failed", e.to_string()));
+                                }
                             }
                             app::ControlMsg::DispatchReject { id, reason } => {
-                                let _ = client.dispatch_action(&id, "reject", Some(&reason)).await;
+                                if let Err(e) = client.dispatch_action(&id, "reject", Some(&reason)).await {
+                                    let _ = alert_tx.send(pane::Alert::error("dispatch reject failed", e.to_string()));
+                                }
                             }
                             app::ControlMsg::DispatchCancel { id } => {
-                                let _ = client.dispatch_action(&id, "cancel", Some("operator cancelled")).await;
+                                if let Err(e) = client.dispatch_action(&id, "cancel", Some("operator cancelled")).await {
+                                    let _ = alert_tx.send(pane::Alert::error("dispatch cancel failed", e.to_string()));
+                                }
                             }
                             // Conductor operator control (ADR-0060): grab the wheel on the fleet.
                             app::ControlMsg::FleetHalt { root_id } => {
-                                let _ = client.fleet_action("halt", root_id.as_deref()).await;
+                                if let Err(e) = client.fleet_action("halt", root_id.as_deref()).await {
+                                    let _ = alert_tx.send(pane::Alert::error("fleet halt failed", e.to_string()));
+                                }
                             }
                             app::ControlMsg::FleetPause { root_id } => {
-                                let _ = client.fleet_action("pause", root_id.as_deref()).await;
+                                if let Err(e) = client.fleet_action("pause", root_id.as_deref()).await {
+                                    let _ = alert_tx.send(pane::Alert::error("fleet pause failed", e.to_string()));
+                                }
                             }
                             app::ControlMsg::FleetResume { root_id } => {
-                                let _ = client.fleet_action("resume", root_id.as_deref()).await;
+                                if let Err(e) = client.fleet_action("resume", root_id.as_deref()).await {
+                                    let _ = alert_tx.send(pane::Alert::error("fleet resume failed", e.to_string()));
+                                }
                             }
                         }
                     }
@@ -351,6 +403,16 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.update_panes(panes.clone(), dispatch_head.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the alert bus: every captured action failure/outcome
+                    // lands in the view (flash + accumulated HITL log).
+                    while let Ok(alert) = alert_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.push_alert(alert.clone());
                                 cx.notify();
                             });
                         });

@@ -12,7 +12,7 @@ use crate::theme::Oklch;
 use anyhow::Result;
 
 /// Semantic tone — color = MEANING only (resolved to theme OKLCH by the renderer).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tone {
     Default,
     Accent,
@@ -50,6 +50,66 @@ pub enum Block {
     Flag { letter: char, label: String, tone: Tone },
     Spark(Vec<f32>),
     Gap,
+    /// Full, wrapped, never-truncated text — for alert/HITL detail the operator
+    /// must read in full (a daemon rejection, a stack of blocked reasons). The
+    /// renderer wraps it; it never ellipsizes. (HCD: bridge the Gulf of Evaluation.)
+    WrappedText { text: String, tone: Tone },
+}
+
+/// Severity of an [`Alert`] — drives tone + ordering on the HITL surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlertLevel {
+    /// An action the operator took was REFUSED (spawn rejected, dispatch failed).
+    Error,
+    /// Something the operator should know but isn't a hard block.
+    Warn,
+    /// Confirmation / success (a validated model, a landed action).
+    Info,
+}
+
+impl AlertLevel {
+    pub fn tone(self) -> Tone {
+        match self {
+            AlertLevel::Error => Tone::Conflicted,
+            AlertLevel::Warn => Tone::Gated,
+            AlertLevel::Info => Tone::Landed,
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            AlertLevel::Error => "error",
+            AlertLevel::Warn => "warn",
+            AlertLevel::Info => "ok",
+        }
+    }
+}
+
+/// A captured action outcome surfaced to the operator instead of being swallowed.
+/// `detail` is the FULL daemon message — never truncated at the source; the
+/// renderer may show a short head with the full text expandable (the DLQ entry).
+#[derive(Debug, Clone)]
+pub struct Alert {
+    pub level: AlertLevel,
+    pub title: String,
+    pub detail: String,
+    /// epoch-ms; the bg thread stamps it. 0 in tests that don't care.
+    pub ts: i64,
+}
+
+impl Alert {
+    pub fn new(level: AlertLevel, title: impl Into<String>, detail: impl Into<String>) -> Self {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
+        Self { level, title: title.into(), detail: detail.into(), ts }
+    }
+    pub fn error(title: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self::new(AlertLevel::Error, title, detail)
+    }
+    pub fn info(title: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self::new(AlertLevel::Info, title, detail)
+    }
 }
 
 /// A mutation an operator can ask a surface to perform against the daemon. This
@@ -204,6 +264,20 @@ impl Pane for CoastGuardPane {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn alert_carries_full_detail_and_maps_to_tone() {
+        let a = Alert::error("spawn rejected (claude-cli)", "login cannot be verified non-interactively");
+        assert_eq!(a.level, AlertLevel::Error);
+        // Detail is preserved in full — never truncated at the source.
+        assert!(a.detail.contains("non-interactively"));
+        assert!(a.ts > 0, "error() stamps a real timestamp");
+        // Level → tone is the renderer's severity color.
+        assert_eq!(AlertLevel::Error.tone(), Tone::Conflicted);
+        assert_eq!(AlertLevel::Info.tone(), Tone::Landed);
+        assert_eq!(AlertLevel::Warn.tone(), Tone::Gated);
+        assert_eq!(Alert::info("ok", "").level, AlertLevel::Info);
+    }
 
     #[test]
     fn pane_is_object_safe_and_emits_blocks() {

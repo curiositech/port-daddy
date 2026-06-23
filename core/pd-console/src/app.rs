@@ -21,7 +21,7 @@ use gpui::*;
 use crate::agent::{Backend, ModelCatalog, Tier};
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
-use crate::pane::{Block, Tone};
+use crate::pane::{Alert, AlertLevel, Block, Tone};
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::cell::RefCell;
@@ -448,6 +448,17 @@ fn render_block(block: Block) -> impl IntoElement {
         Block::Gap => {
             div().h(px(8.0)).into_any_element()
         }
+        Block::WrappedText { text, tone } => {
+            // Full, wrapping, never-truncated — the operator reads it all.
+            div()
+                .px(px(16.0))
+                .py(px(6.0))
+                .text_color(rgb(current_theme().tone(&tone)))
+                .text_size(px(14.0))
+                .font_family("IBM Plex Mono")
+                .child(text)
+                .into_any_element()
+        }
     }
 }
 
@@ -528,6 +539,11 @@ pub struct ConsoleView {
     control_tx: Option<mpsc::Sender<ControlMsg>>,
     /// Transient confirmation shown after a control action ("interrupt sent").
     control_flash: Option<String>,
+    /// The accumulated alert log (the HITL dead-letter queue): every captured
+    /// action failure/outcome, newest first, bounded so an all-day session can't
+    /// leak memory (Release It! steady state). The status bar shows the head;
+    /// the HITL surface shows the full list untruncated.
+    alerts: Vec<Alert>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
@@ -575,6 +591,7 @@ impl ConsoleView {
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
+            alerts: Vec::new(),
             dispatch_head: None,
             reject_target: None,
             dragging: None,
@@ -908,6 +925,26 @@ impl ConsoleView {
     /// Push fresh data for all panes from the background refresh loop.
     /// Each entry is (nav_index, blocks_for_that_pane); `dispatch_head` is the
     /// head-of-queue dispatch for the review gate (None when the queue is empty).
+    /// Accept one captured alert from the bus: flash it immediately (the truthful
+    /// replacement for the old optimistic "spawning…" lie) and accumulate it in
+    /// the bounded HITL log, newest first.
+    pub fn push_alert(&mut self, alert: Alert) {
+        // Immediate feedback: a short head; the full detail lives in the log /
+        // HITL surface (never truncated at the source).
+        let head: String = alert.detail.lines().next().unwrap_or(&alert.detail).chars().take(120).collect();
+        self.control_flash = Some(match alert.level {
+            AlertLevel::Error => format!("✕ {} — {head}", alert.title),
+            AlertLevel::Warn => format!("⚑ {} — {head}", alert.title),
+            AlertLevel::Info => format!("✓ {}", alert.title),
+        });
+        self.alerts.insert(0, alert);
+        // Steady state: cap the log so a long session can't leak memory.
+        const ALERT_CAP: usize = 100;
+        if self.alerts.len() > ALERT_CAP {
+            self.alerts.truncate(ALERT_CAP);
+        }
+    }
+
     pub fn update_panes(
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
