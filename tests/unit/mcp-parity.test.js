@@ -38,6 +38,8 @@ const TOOL_FEATURE_MAP = {
 
   // Pheromone signals — #199
   'spray_pheromone': 'pheromone',
+  'resolve_pheromone': 'pheromone',
+  'pheromone_coverage': 'pheromone',
   'read_pheromones': 'pheromone',
   'read_entity_pheromones': 'pheromone',
 
@@ -96,6 +98,7 @@ const TOOL_FEATURE_MAP = {
   // Messaging
   'publish_message': 'messaging',
   'get_messages': 'messaging',
+  'discourse_lineage': 'messaging',
 
   // Agents
   'register_agent': 'agents',
@@ -309,6 +312,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
+  'cut',            // CLI/CI-only release engineering (pd cut) — a human/pipeline act, not an agent action; no routes, no MCP.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
   'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+

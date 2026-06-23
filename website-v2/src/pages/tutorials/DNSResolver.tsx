@@ -1,13 +1,13 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
-import { Globe, Search, Zap, Shield, Network, Anchor } from "lucide-react";
+import { Globe, Search, Zap, Network, Anchor } from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 
 export function DNSResolver() {
   return (
     <TutorialLayout
       title="Identity Discovery"
-      description="Stop hardcoding addresses. Resolve harbor-local services by semantic identity across your local control plane."
+      description="Stop hardcoding addresses. Look up local services by name instead of by port number."
       number={8}
       total={21}
       level="Intermediate"
@@ -70,10 +70,7 @@ export function DNSResolver() {
             {`# Step 1: Claim a port for your service\n$ pd claim my-swarm:api\n\n✓ Port 3102 assigned to my-swarm:api\n\n# Step 2: Register a DNS hostname\n$ pd dns register --hostname auth.pd.local --port 3102 --service my-swarm:api\n\n✓ DNS Registered: auth.pd.local -> localhost:3102`}
           </CodeBlock>
 
-          <p
-            className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
-            style={{ color: "var(--text-secondary)" }}
-          >
+          <p className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4 text-[var(--text-secondary)]">
             The daemon manages DNS records in SQLite. Use{" "}
             <code>pd dns list</code> to see all registered hostnames and{" "}
             <code>pd dns cleanup</code> to remove stale entries.
@@ -109,7 +106,7 @@ export function DNSResolver() {
             </p>
             <div className="flex items-center justify-between text-[length:var(--type-meta-size)] font-mono">
               <span>
-                <span className="text-[10px] font-black uppercase text-[var(--text-muted)] mr-2">
+                <span className="text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.1em] text-[var(--text-muted)] mr-2">
                   Identity
                 </span>
                 <code className="font-bold text-[var(--brand-primary)]">
@@ -117,7 +114,7 @@ export function DNSResolver() {
                 </code>
               </span>
               <span>
-                <span className="text-[10px] font-black uppercase text-[var(--text-muted)] mr-2">
+                <span className="text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.1em] text-[var(--text-muted)] mr-2">
                   Resolved
                 </span>
                 <code className="font-bold">127.0.0.1:5432</code>
@@ -133,10 +130,6 @@ export function DNSResolver() {
             hardcode port numbers -- they register semantic hostnames, and the
             daemon handles the resolution.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
-            <Shield size={14} />
-            Local DNS Resolution
-          </div>
         </section>
       </div>
     </TutorialLayout>

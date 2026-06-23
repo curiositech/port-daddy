@@ -9,8 +9,10 @@
 //! null/length/utf8/parse — a panic must never unwind across the boundary (UB), and
 //! malformed input returns a clean error JSON, never a crash. Fail closed.
 
-use crate::macaroon::{check_caveat, verify, Macaroon, RequestContext};
+use crate::keystore;
+use crate::macaroon::{check_caveat, verify, Macaroon, RentVerdict, RequestContext, DISCHARGE_TTL_MS};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::ffi::{c_char, CString};
 use std::panic::catch_unwind;
@@ -120,6 +122,213 @@ pub unsafe extern "C" fn pd_macaroon_verify_json(req: *const c_char, len: usize)
     result.unwrap_or_else(|_| respond(false, "internal error"))
 }
 
+// ─── Planner scheduler (ADR-0086) ────────────────────────────────────────────
+
+use crate::schedule::{schedule, ScheduleResult, SchedEdge, SchedNode};
+
+#[derive(Deserialize)]
+struct FfiScheduleRequest {
+    #[serde(default)]
+    nodes: Vec<SchedNode>,
+    #[serde(default)]
+    edges: Vec<SchedEdge>,
+}
+
+/// Serialize any value to a heap C string (caller frees with `pd_string_free`).
+/// Mirrors `respond`'s NUL/encoding safety so null is unreachable on encodable input.
+fn respond_json<T: Serialize>(v: &T) -> *mut c_char {
+    let body = serde_json::to_string(v)
+        .unwrap_or_else(|_| "{\"ok\":false,\"reason\":\"serialize error\"}".to_string());
+    CString::new(body)
+        .or_else(|_| CString::new("{\"ok\":false,\"reason\":\"response encoding error\"}"))
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+fn schedule_error(reason: impl Into<String>) -> ScheduleResult {
+    ScheduleResult {
+        ok: false,
+        reason: reason.into(),
+        cyclic: false,
+        makespan: 0,
+        order: Vec::new(),
+        nodes: Vec::new(),
+        critical_path: Vec::new(),
+    }
+}
+
+/// Schedule a dependency DAG (Critical Path Method). Input JSON:
+/// `{ nodes:[{id,estimate?}], edges:[{from,to}] }` (an edge means `from` finishes before `to`
+/// starts). Output JSON is the full `ScheduleResult` (ok/cyclic/makespan/order/nodes/criticalPath).
+/// Returns null only on catastrophic allocation failure; every other path returns a JSON result
+/// (fail closed — malformed input yields `ok:false`).
+/// # Safety
+/// `req` must be null or a valid pointer to `len` readable bytes (the C-ABI contract koffi
+/// upholds). The guards below enforce the rest; the body never panics across the boundary.
+#[no_mangle]
+pub unsafe extern "C" fn pd_schedule_dag_json(req: *const c_char, len: usize) -> *mut c_char {
+    let result = catch_unwind(|| {
+        if req.is_null() || len == 0 || len > MAX_REQUEST_BYTES {
+            return respond_json(&schedule_error("malformed request (null/empty/oversized)"));
+        }
+        let bytes = unsafe { std::slice::from_raw_parts(req as *const u8, len) };
+        let s = match std::str::from_utf8(bytes) {
+            Ok(s) => s,
+            Err(_) => return respond_json(&schedule_error("request is not valid UTF-8")),
+        };
+        let parsed: FfiScheduleRequest = match serde_json::from_str(s) {
+            Ok(p) => p,
+            Err(e) => return respond_json(&schedule_error(format!("request parse error: {e}"))),
+        };
+        respond_json(&schedule(&parsed.nodes, &parsed.edges))
+    });
+    result.unwrap_or_else(|_| respond_json(&schedule_error("internal error")))
+}
+
+// ===========================================================================
+// Key-custody surface (ADR-0057 enforcement slice 1). UNLIKE
+// `pd_macaroon_verify_json` above — which takes caller-supplied keys and exists
+// for the byte-parity fallback — these route through `crate::keystore`, where
+// the root + caveat keys live. NO key ever appears in a request or response
+// here: the daemon asks the kernel to issue/authorize and never sees the
+// forging material. (Slice 2 migrates the daemon onto these and deprecates the
+// key-taking verify path.)
+// ===========================================================================
+
+/// Serialize any JSON value into a heap C string, fail-closed on encode error.
+fn respond_value(v: serde_json::Value) -> *mut c_char {
+    let body = serde_json::to_string(&v)
+        .unwrap_or_else(|_| "{\"ok\":false,\"reason\":\"serialize error\"}".to_string());
+    CString::new(body)
+        .or_else(|_| CString::new("{\"ok\":false,\"reason\":\"response encoding error\"}"))
+        .map(|c| c.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+fn read_request(req: *const c_char, len: usize) -> Result<String, *mut c_char> {
+    if req.is_null() || len == 0 || len > MAX_REQUEST_BYTES {
+        return Err(respond(false, "malformed request (null/empty/oversized)"));
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(req as *const u8, len) };
+    std::str::from_utf8(bytes)
+        .map(|s| s.to_string())
+        .map_err(|_| respond(false, "request is not valid UTF-8"))
+}
+
+fn parse_verdict(s: &str) -> Option<RentVerdict> {
+    match s {
+        "paid" => Some(RentVerdict::Paid),
+        "rent-due" | "rent_due" => Some(RentVerdict::RentDue),
+        "idle" => Some(RentVerdict::Idle),
+        "stale" => Some(RentVerdict::Stale),
+        _ => None,
+    }
+}
+
+#[derive(Deserialize)]
+struct FfiIssueGrant {
+    repo: String,
+    session: String,
+    expires_ms: i64,
+    protected_branch: String,
+}
+
+/// Issue a push grant. In: `{repo, session, expires_ms, protected_branch}`.
+/// Out: `{ok, grant_id, macaroon}` — the keys stay in the kernel store.
+/// # Safety
+/// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
+#[no_mangle]
+pub unsafe extern "C" fn pd_keystore_issue_grant_json(req: *const c_char, len: usize) -> *mut c_char {
+    catch_unwind(|| {
+        let s = match read_request(req, len) {
+            Ok(s) => s,
+            Err(p) => return p,
+        };
+        let r: FfiIssueGrant = match serde_json::from_str(&s) {
+            Ok(r) => r,
+            Err(e) => return respond(false, format!("request parse error: {e}")),
+        };
+        match keystore::issue_grant(&r.repo, &r.session, r.expires_ms, &r.protected_branch) {
+            Ok((m, grant_id)) => respond_value(json!({"ok": true, "grant_id": grant_id, "macaroon": m})),
+            Err(e) => respond(false, format!("issue_grant failed: {e}")),
+        }
+    })
+    .unwrap_or_else(|_| respond(false, "internal error"))
+}
+
+#[derive(Deserialize)]
+struct FfiIssueDischarge {
+    grant_id: String,
+    verdict: String,
+    now_ms: i64,
+    ttl_ms: Option<i64>,
+}
+
+/// Issue a discharge for a stored grant — only when verdict == "paid". In:
+/// `{grant_id, verdict, now_ms, ttl_ms?}`. Out: `{ok, discharge|null, reason}`.
+/// # Safety
+/// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
+#[no_mangle]
+pub unsafe extern "C" fn pd_keystore_issue_discharge_json(req: *const c_char, len: usize) -> *mut c_char {
+    catch_unwind(|| {
+        let s = match read_request(req, len) {
+            Ok(s) => s,
+            Err(p) => return p,
+        };
+        let r: FfiIssueDischarge = match serde_json::from_str(&s) {
+            Ok(r) => r,
+            Err(e) => return respond(false, format!("request parse error: {e}")),
+        };
+        let Some(verdict) = parse_verdict(&r.verdict) else {
+            return respond(false, "unknown rent verdict");
+        };
+        match keystore::issue_discharge(&r.grant_id, verdict, r.now_ms, r.ttl_ms.unwrap_or(DISCHARGE_TTL_MS)) {
+            Ok(Some(d)) => respond_value(json!({"ok": true, "discharge": d, "reason": "discharged"})),
+            Ok(None) => respond_value(json!({"ok": false, "discharge": serde_json::Value::Null, "reason": "no discharge (rent not paid, or unknown/revoked grant)"})),
+            Err(e) => respond(false, format!("issue_discharge failed: {e}")),
+        }
+    })
+    .unwrap_or_else(|_| respond(false, "internal error"))
+}
+
+#[derive(Deserialize)]
+struct FfiAuthorize {
+    macaroon: Macaroon,
+    #[serde(default)]
+    discharges: Vec<Macaroon>,
+    ctx: FfiCtx,
+}
+
+/// Authorize a push using the kernel-held keys (looked up by the grant's own
+/// identifier). In: `{macaroon, discharges, ctx}` — NO keys. Out: `{ok, reason}`.
+/// # Safety
+/// `req` must be null or point to `len` readable bytes (the koffi C-ABI contract).
+#[no_mangle]
+pub unsafe extern "C" fn pd_keystore_authorize_json(req: *const c_char, len: usize) -> *mut c_char {
+    catch_unwind(|| {
+        let s = match read_request(req, len) {
+            Ok(s) => s,
+            Err(p) => return p,
+        };
+        let r: FfiAuthorize = match serde_json::from_str(&s) {
+            Ok(r) => r,
+            Err(e) => return respond(false, format!("request parse error: {e}")),
+        };
+        let ctx = RequestContext {
+            op: r.ctx.op,
+            repo: r.ctx.repo,
+            branch: r.ctx.branch,
+            host: r.ctx.host,
+            spend_usd: r.ctx.spend_usd,
+            session: r.ctx.session,
+            now_ms: r.ctx.now_ms,
+        };
+        let out = keystore::authorize(&r.macaroon, &r.discharges, &ctx);
+        respond(out.ok, out.reason)
+    })
+    .unwrap_or_else(|_| respond(false, "internal error"))
+}
+
 /// Reclaim a string returned by this library. The caller MUST call this exactly
 /// once for every non-null pointer received.
 /// # Safety
@@ -147,11 +356,75 @@ fn verify_via_ffi(req_json: &str) -> String {
     out
 }
 
+// Call any of the JSON-in/JSON-out exports in-process (no dlopen).
+#[cfg(test)]
+fn call_export(f: unsafe extern "C" fn(*const c_char, usize) -> *mut c_char, req: &str) -> String {
+    let c = CString::new(req).unwrap();
+    let ptr = unsafe { f(c.as_ptr(), req.len()) };
+    assert!(!ptr.is_null());
+    let out = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_str().unwrap().to_string();
+    unsafe { pd_string_free(ptr) };
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::macaroon::*;
     use serde_json::json;
+
+    // The custody surface proves itself end-to-end WITHOUT any key in any payload:
+    // issue a grant, discharge it (rent paid), bind, authorize — all over the FFI,
+    // and assert no "root_key"/"caveat_key" ever crosses the boundary.
+    #[test]
+    fn keystore_custody_roundtrip_carries_no_keys() {
+        let now = 2_000_000i64;
+        let issue_req =
+            json!({"repo":"acme/api","session":"sess-ffi","expires_ms": now+60_000,"protected_branch":"main"})
+                .to_string();
+        assert!(!issue_req.contains("key"), "issue request must carry no key");
+        let issued: serde_json::Value =
+            serde_json::from_str(&call_export(pd_keystore_issue_grant_json, &issue_req)).unwrap();
+        assert_eq!(issued["ok"], true);
+        let grant_id = issued["grant_id"].as_str().unwrap().to_string();
+        let grant: Macaroon = serde_json::from_value(issued["macaroon"].clone()).unwrap();
+
+        let disc_req = json!({"grant_id": grant_id, "verdict":"paid", "now_ms": now}).to_string();
+        let discharged: serde_json::Value =
+            serde_json::from_str(&call_export(pd_keystore_issue_discharge_json, &disc_req)).unwrap();
+        assert_eq!(discharged["ok"], true);
+        let discharge: Macaroon = serde_json::from_value(discharged["discharge"].clone()).unwrap();
+
+        let bound = grant.prepare_for_request(&discharge).unwrap();
+        let auth_req = json!({
+            "macaroon": grant,
+            "discharges": [bound],
+            "ctx": {"op":"push","repo":"acme/api","branch":"feat/x","session":"sess-ffi","now_ms": now}
+        })
+        .to_string();
+        assert!(!auth_req.contains("root_key") && !auth_req.contains("caveat_key"),
+            "authorize request must carry NO keys");
+        let authorized: serde_json::Value =
+            serde_json::from_str(&call_export(pd_keystore_authorize_json, &auth_req)).unwrap();
+        assert_eq!(authorized["ok"], true, "paid+bound must authorize: {}", authorized["reason"]);
+    }
+
+    // Rent not paid → the discharge export returns no discharge → push refused.
+    #[test]
+    fn keystore_unpaid_yields_no_discharge_over_ffi() {
+        let now = 2_000_000i64;
+        let issued: serde_json::Value = serde_json::from_str(&call_export(
+            pd_keystore_issue_grant_json,
+            &json!({"repo":"acme/api","session":"s2","expires_ms": now+60_000,"protected_branch":"main"}).to_string(),
+        )).unwrap();
+        let grant_id = issued["grant_id"].as_str().unwrap();
+        let discharged: serde_json::Value = serde_json::from_str(&call_export(
+            pd_keystore_issue_discharge_json,
+            &json!({"grant_id": grant_id, "verdict":"rent-due", "now_ms": now}).to_string(),
+        )).unwrap();
+        assert_eq!(discharged["ok"], false);
+        assert!(discharged["discharge"].is_null(), "rent-due must yield no discharge");
+    }
 
     const ROOT: &[u8] = b"pd-canonical-root-key-0000000001";
     const CKEY: &[u8] = b"pd-canonical-caveat-key-00000001";

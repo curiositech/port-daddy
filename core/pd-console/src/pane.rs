@@ -44,6 +44,10 @@ pub enum Block {
     KeyVal(String, String),
     Row(Vec<String>),
     Chip { label: String, tone: Tone },
+    /// A maritime ICS signal flag: a colored square bearing the single letter,
+    /// followed by a label (e.g. the agent identity + state). The console paints
+    /// the square in the flag's semantic tone — a real flag, not `[A]` text.
+    Flag { letter: char, label: String, tone: Tone },
     Spark(Vec<f32>),
     Gap,
 }

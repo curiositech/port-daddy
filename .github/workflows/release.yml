@@ -49,7 +49,77 @@ jobs:
       - name: Build binary
         run: |
           node scripts/build-single-binary.mjs --target=${{ matrix.target }} --outfile=dist/pd
-          cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
+
+      # Sign the macOS daemon + launcher with the Curiositech LLC (P5H9P59X2M)
+      # Developer ID, reusing scripts/sign-and-notarize.mjs — the same proven path
+      # FleetBar uses (ADR-0057 phase dist-ci-signing-secrets; closes ADR-0028's
+      # "daemon ships unsigned" gap). Locally verified 2026-06-17: the shipped
+      # adhoc-signed `pd` re-signs to a valid hardened-runtime Developer ID binary.
+      #
+      # Required repo secrets (set once by the operator; until then this step
+      # no-ops and the binary ships adhoc as before — the build never breaks):
+      #   APPLE_CERT_P12_BASE64   base64 of the Developer ID Application .p12
+      #   APPLE_CERT_PASSWORD     the .p12 export password
+      # Optional — when present, the binary is also NOTARIZED + stapled; absent,
+      # it is signed only (still a Gatekeeper improvement over adhoc):
+      #   APPLE_NOTARY_KEY_P8_BASE64  base64 of the App Store Connect API .p8 key
+      #   APPLE_NOTARY_KEY_ID         the API key id
+      #   APPLE_NOTARY_KEY_ISSUER     the API key issuer uuid
+      - name: Sign macOS binary (Developer ID)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERT_P12_BASE64:-}" ]; then
+            echo "::warning::APPLE_CERT_P12_BASE64 not set — shipping adhoc-signed (unsigned) daemon. Add the Developer ID secrets to sign."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
+          KCPASS="$(openssl rand -hex 24)"
+          security create-keychain -p "$KCPASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+          echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+          # Notarize only if the notary credentials are present AND actually
+          # authenticate. A bad/expired/rotated App Store Connect key must NOT
+          # break a release — it degrades to a signed-but-not-notarized binary
+          # (still a Gatekeeper improvement over adhoc). store-credentials does a
+          # live validation call, so it's the right gate. (Verified 2026-06-20 via
+          # the _sign-smoke workflow: signing is independent of notary auth.)
+          export PORT_DADDY_SKIP_NOTARIZE=1
+          if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
+            echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+            if xcrun notarytool store-credentials pd-notary \
+                 --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+                 --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"; then
+              unset PORT_DADDY_SKIP_NOTARIZE
+              export PORT_DADDY_NOTARY_PROFILE=pd-notary
+              # read the profile from the temp keychain, not the default login one
+              export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+            else
+              echo "::warning::notary credentials failed validation — signing only, not notarizing. Check APPLE_NOTARY_KEY_ID / _ISSUER / _P8_BASE64."
+            fi
+          else
+            echo "::warning::notary secrets absent — signing only, not notarizing."
+          fi
+          node scripts/sign-and-notarize.mjs dist/port-daddy
+          node scripts/sign-and-notarize.mjs dist/pd
+          codesign --verify --strict --verbose=2 dist/port-daddy
+          codesign --verify --strict --verbose=2 dist/pd
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" || true
+          security delete-keychain "$KEYCHAIN" || true
+
+      - name: Package binary
+        run: cd dist && tar -czf ${{ matrix.artifact }}.tar.gz pd port-daddy port-daddy-manifest.json
 
       - name: Upload binary to release
         uses: softprops/action-gh-release@v2
@@ -89,6 +159,162 @@ jobs:
             dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip
             dist/fleetbar/PortDaddy-FleetBar-macOS-*.zip.sha256
             dist/fleetbar/fleetbar-preview-manifest.json
+
+  build-pd-console-app:
+    # Bundle the GPU-native pd-console (core/pd-console, --features gpui) into a
+    # signed + notarized pd-console.app (ADR-0057 phase dist-console-app-bundle).
+    # Reuses the exact Developer ID signing path proven for the daemon in #447;
+    # locally verified 2026-06-20 (the real pd-console binary bundles to a valid
+    # hardened-runtime Developer ID .app). Same APPLE_* secrets; no-ops unsigned
+    # if the cert secret is absent so the build never breaks.
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core/pd-console
+
+      - name: Build pd-console (--release --features gpui)
+        run: cargo build --release --features gpui --bin pd-console
+        working-directory: core/pd-console
+
+      - name: Package + sign + notarize pd-console.app
+        env:
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_KEY_ISSUER: ${{ secrets.APPLE_NOTARY_KEY_ISSUER }}
+        run: |
+          set -euo pipefail
+          export PORT_DADDY_SKIP_NOTARIZE=1
+          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then
+            KEYCHAIN="$RUNNER_TEMP/pd-signing.keychain-db"
+            KCPASS="$(openssl rand -hex 24)"
+            security create-keychain -p "$KCPASS" "$KEYCHAIN"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN"
+            security unlock-keychain -p "$KCPASS" "$KEYCHAIN"
+            echo "$APPLE_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+            security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$APPLE_CERT_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple: -k "$KCPASS" "$KEYCHAIN" >/dev/null
+            security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+            export PORT_DADDY_SIGN_IDENTITY="Developer ID Application: Curiositech LLC (P5H9P59X2M)"
+            export PORT_DADDY_NOTARY_KEYCHAIN="$KEYCHAIN"
+            if [ -n "${APPLE_NOTARY_KEY_P8_BASE64:-}" ]; then
+              echo "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+              if xcrun notarytool store-credentials pd-notary \
+                   --key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_NOTARY_KEY_ID" \
+                   --issuer "$APPLE_NOTARY_KEY_ISSUER" --keychain "$KEYCHAIN"; then
+                unset PORT_DADDY_SKIP_NOTARIZE
+                export PORT_DADDY_NOTARY_PROFILE=pd-notary
+              else
+                echo "::warning::notary creds failed validation — signing pd-console.app only."
+              fi
+            fi
+          else
+            echo "::warning::APPLE_CERT_P12_BASE64 unset — pd-console.app ships unsigned."
+          fi
+          scripts/package-pd-console.sh dist/console
+          rm -f "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/notary.p8" 2>/dev/null || true
+
+      - name: Version drift guard — deep (embedded artifact versions must match)
+        # ADR-0057 §Consequences: a source-only gate can be Goodharted by bumping
+        # the version string without rebuilding a surface. Now that the pd-console
+        # binary + .app exist, --deep reads the version EMBEDDED in the built
+        # artifact (the .app's CFBundleShortVersionString and the binary's build
+        # stamp) and fails the release if it disagrees with package.json.
+        # --require-artifacts: the .app was just built here, so its absence is a
+        # real failure, not a skip.
+        run: node scripts/check-version-drift.mjs --deep --require-artifacts
+
+      - name: Upload pd-console.app to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: |
+            dist/console/PortDaddy-Console-macOS-*.zip
+            dist/console/PortDaddy-Console-macOS-*.zip.sha256
+
+  build-latest-json:
+    # ADR-0057 phase 7 (dist-update-channel): publish a latest.json update feed
+    # alongside each Release. Runs AFTER the artifact jobs so the checksums match
+    # exactly what shipped. Downloads the uploaded Release assets, computes their
+    # SHA-256, and uploads latest.json back to the same Release — so
+    # `releases/latest/download/latest.json` always resolves to the newest feed
+    # that `pd upgrade` (and the GUI apps) poll. Gated on the daemon + FleetBar
+    # builds succeeding (the same ESSENTIAL gate update-homebrew uses); the
+    # console job is best-effort and may be absent from the feed if it failed.
+    needs: [build-binaries, build-fleetbar-preview, build-pd-console-app]
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Resolve release tag
+        id: tag
+        env:
+          REF_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: echo "tag=${REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      # Pull the assets that the build jobs uploaded to this Release so the feed's
+      # checksums are computed from the EXACT bytes that ship (not a rebuild).
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Daemon tars, FleetBar zip, console zip — whatever this release has.
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist \
+            --pattern 'pd-*.tar.gz' \
+            --pattern 'PortDaddy-FleetBar-macOS-*.zip' \
+            --pattern 'PortDaddy-Console-macOS-*.zip' || true
+          ls -la dist
+
+      # When the Apple cert secret is present the mac artifacts shipped signed +
+      # notarized, so mark them signed in the feed. Absent → unsigned (the feed
+      # tells the truth either way; `pd upgrade` surfaces the signed flag).
+      - name: Generate latest.json
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          APPLE_CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+        run: |
+          set -euo pipefail
+          SIGNED_FLAG=""
+          if [ -n "${APPLE_CERT_P12_BASE64:-}" ]; then SIGNED_FLAG="--signed"; fi
+          node scripts/build-latest-json.mjs \
+            --tag "$TAG" \
+            --dist dist \
+            --out dist/latest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            $SIGNED_FLAG
+          echo "---- latest.json ----"
+          cat dist/latest.json
+
+      - name: Upload latest.json to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          files: dist/latest.json
 
   publish-npm:
     # Run on real release events and on operator-triggered workflow_dispatch.
@@ -135,15 +361,15 @@ jobs:
 
   update-homebrew:
     runs-on: ubuntu-latest
-    # The Homebrew formula ships the CLI + daemon binaries ONLY. It must roll
-    # whenever those binaries build — it must NOT be gated on the FleetBar Swift
-    # preview (a separate cask, no Swift toolchain guarantee) or publish-npm
-    # (a known-flaky non-essential job). Gating the tap on either of those meant
-    # a FleetBar compile failure silently stranded an entire CLI release at the
-    # old version (v3.17.0: binaries built + uploaded, tap left at 3.16.2). Only
-    # gate on build-binaries.
-    needs: [build-binaries]
-    if: always() && needs.build-binaries.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    # FleetBar is now ESSENTIAL (operator directive 2026-06-18): a release ships
+    # the daemon AND its GUI together, so the tap MUST NOT roll if the FleetBar
+    # preview failed to build. This reverses the prior "binaries-only" gate — that
+    # let FleetBar rot silently across releases. The tradeoff is deliberate: a
+    # flaky FleetBar build now blocks the release, which forces FleetBar to be
+    # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
+    # distribution channel, not part of the daemon+GUI bundle).
+    needs: [build-binaries, build-fleetbar-preview]
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Set release version
         id: release

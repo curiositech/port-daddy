@@ -1,6 +1,6 @@
 # Bond Pricing Is a Market, Not a Constant
 
-![A motionless AI agent locked into a server rack, chains on the filing cabinets, papers frozen in mid-air — the immortal worker that cannot be fired](/img/generated/bond-pricing/bond-pricing-hero.png)
+![A motionless AI agent locked into a server rack, chains on the filing cabinets, papers frozen in mid-air — the immortal worker that cannot be fired](/img/generated/bond-pricing/bond-pricing-hero.webp)
 
 **TL;DR.** Daily budgets stop your AI agents from spending money they don't have. They don't stop them from doing damage. The [Bonded Commons whitepaper](/whitepaper) v2 replaces the static budget with a real market for agent insurance — where the cost of a job is priced against the cost of cleaning it up, and an insurer eats the loss when the agent goes rogue. This post is the product walkthrough.
 
@@ -26,7 +26,7 @@ The Bonded Commons paper calls the thing it can lose its **bond** — a stake th
 
 ## A rogues' gallery, or: how agents really break things
 
-![Four AI robot villains in a 2x2 gallery — the Hoarder, the Slow Walker, the Nuker, and the Quitter](/img/generated/bond-pricing/bond-pricing-villains.png)
+![Four AI robot villains in a 2x2 gallery — the Hoarder, the Slow Walker, the Nuker, and the Quitter](/img/generated/bond-pricing/bond-pricing-villains.webp)
 
 Forget "overspending" for a minute. Here are the four ways an agent damages a project that a daily budget does not catch.
 
@@ -64,6 +64,7 @@ A daily budget is a guess at "what's the worst this agent can spend on tokens." 
 
 The Bonded Commons paper makes the cleanup cost a first-class thing. Call it `c` — the average human-plus-compute cost of recovering from one breach. Every project has its own `c`, and a healthy project tracks it the same way it tracks build time or deploy duration.
 
+<!-- figure: The same agent job priced two ways — today's flat $5/day cap that leaves cleanup cost unanswered, versus tomorrow's bond built up from the cleanup floor, scope multiplier, and reputation discount; the right column is the whole argument. -->
 ```mermaid
 flowchart LR
   Agent["AI agent starts a job"] --> Today
@@ -157,6 +158,7 @@ Over time, advisors who price well charge for their proposals. Advisors who pric
 
 The most ambitious move in v2 is in §8.4, contributed by **Thomas Youle** (Indiana University, Business Economics & Public Policy). Instead of the commons authority picking a bond size, allow a market of *insurer agents* to bid on underwriting each transaction.
 
+<!-- figure: How an insurer-agent auction runs against the bond ledger — the principal solicits quotes, picks one, and the daemon settles the bond three ways depending on whether breach stays inside the insurer's ceiling; this is the market discovering the price the authority used to guess. -->
 ```mermaid
 sequenceDiagram
   participant Pr as Principal

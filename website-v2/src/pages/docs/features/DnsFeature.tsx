@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,16 +7,12 @@ export default function DnsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Networking</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Service DNS
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Semantic identity resolution — find any service by name. Register human-readable names
-          that resolve to <code>host:port</code> pairs, so agents never hardcode addresses.
+          Find any service by name instead of by address. Register a readable name that points
+          to a <code>host:port</code> pair, so agents never hardcode where a service lives.
         </p>
       </div>
 
@@ -82,17 +77,17 @@ myapp:worker     -> localhost:3002   8s ago`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Exact Match</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Resolve a specific service</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">e.g., myapp:api:main</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., myapp:api:main</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Prefix Match</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Discover all services in a project</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">e.g., myapp:* returns all</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., myapp:* returns all</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Cross-Machine</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Works across networked hosts</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">e.g., 192.168.1.10:3001</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., 192.168.1.10:3001</p>
           </div>
         </div>
       </div>

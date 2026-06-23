@@ -56,6 +56,7 @@ import { createDns } from './lib/dns.js';
 import { createResolver } from './lib/resolver.js';
 import { createSpawner } from './lib/spawner.js';
 import { createTranscripts } from './lib/transcripts.js';
+import { createJsonlTranscriptArchive } from './lib/transcript-archive.js';
 import { createBriefing } from './lib/briefing.js';
 import { createSugar } from './lib/sugar.js';
 import { createHarbors } from './lib/harbors.js';
@@ -63,8 +64,19 @@ import { createHarborTokens } from './lib/harbor-tokens.js';
 import { createSorties } from './lib/sorties.js';
 import { createPheromoneManager } from './lib/pheromone.js';
 import { createReactiveOrchestrator } from './lib/orchestrator.js';
+import { createConductor } from './lib/fleet/conductor.js';
+import { createDispatchQueue } from './lib/dispatch/queue.js';
+import { createDispatchWorker } from './lib/dispatch/worker.js';
+import { createConductorSpawnAdapter } from './lib/dispatch/conductor-adapter.js';
+import {
+  gitWorktreeAdd,
+  gitPushBranch,
+  openDraftPr,
+  disableGuardInWorktree,
+} from './lib/dispatch/spawn-adapter.js';
 import { createCorrelationEngine } from './lib/correlation.js';
 import { createArbiter } from './lib/arbiter.js';
+import { createJsonlForensicsArchive } from './lib/forensics-archive.js';
 import { createSemanticIndex } from './lib/semantic-index.js';
 import { createTupleSpace } from './lib/tuples.js';
 import { createBlobStore } from './lib/blob.js';
@@ -99,8 +111,8 @@ import { createRoadmapPop } from './lib/roadmap-pop.js';
 import { launchFleetBarIfEnabled } from './lib/fleetbar-launcher.js';
 import { createGraphEdges } from './lib/graph-edges.js';
 import { createEpisodicMemory } from './lib/episodic-memory.js';
-import { createSemanticResolver } from './lib/semantic-resolver.js';
-import { createBosunHeartbeat } from './lib/bosun-heartbeat.js';
+import { createSemanticResolver, defaultTransformersCacheDir } from './lib/semantic-resolver.js';
+import { createBosunHeartbeat, createSocketHealthProbe } from './lib/bosun-heartbeat.js';
 import { decideTakeover, probePortOwner } from './lib/port-takeover.js';
 import { createResourceGovernance } from './lib/resource-governance.js';
 
@@ -165,7 +177,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.19.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.21.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -400,7 +412,9 @@ const blobs = createBlobStore();
 const counters = createCounters(db);
 const metricsRegistry = createMetricsRegistry();
 const semanticResolver = createSemanticResolver(db, {
-  cacheDir: join(REPO_ROOT, '.cache', 'transformers'),
+  // Stable, daemon-portable cache (~/.port-daddy/transformers-cache) shared with
+  // the install-time prefetch — NOT a repo/cwd-relative dir (ADR-0061).
+  cacheDir: defaultTransformersCacheDir(),
   counters,
   graphEdges,
   tuples,
@@ -532,13 +546,190 @@ const contextTracker = createContextWindowTracker(db);
 // (critically) makes every spawn record its full conversation. The spawner is
 // constructed with enforceTranscriptPolicy:true, so wiring this is mandatory:
 // without it createSpawner throws rather than run agents whose work vanishes.
-const transcripts = createTranscripts(db);
+//
+// archiveSink: every finalized transcript is ALSO written, in full, to an
+// always-on append-only JSONL archive OUTSIDE the live DB (~/.port-daddy/
+// transcripts/), so the record survives DB loss/corruption/reset. This is the
+// retention floor (ADR-0058); external warehouses plug in behind the same sink.
+// Opt out with PD_TRANSCRIPT_ARCHIVE=off (durability is on by default).
+const transcriptArchive =
+  process.env.PD_TRANSCRIPT_ARCHIVE === 'off' ? undefined : createJsonlTranscriptArchive();
+const transcripts = createTranscripts(db, { archiveSink: transcriptArchive });
 const spawner = createSpawner({
   costTracker, counters, bonds, harbors, transcripts,
   enforceTelemetryPolicy: true,
   enforceTranscriptPolicy: true,
+  // Live observability seam (ADR-0060): give the spawner the daemon's messaging
+  // layer as a tube client so cli-tube spawns that carry a stable channel (a
+  // folded dispatch stamps `dispatch:<id>`) publish their exchange there. This is
+  // what restores `pd tube dispatch:<id>` after the fold-in routed dispatch
+  // through conductor → spawner.spawn → runCliTube. Adapter shape: messaging's
+  // `publish` returns `{ success, id, error }`; the cli-tube TubeClientLike wants
+  // `{ ok, id?, error? }`, so we translate. Best-effort — never throws.
+  tubeClient: {
+    publish: async (channel, payload, opts) => {
+      try {
+        const r = messaging.publish(channel, payload, opts?.sender ? { sender: opts.sender } : {});
+        return r.success
+          ? { ok: true, id: r.id }
+          : { ok: false, error: r.error };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  },
 });
 spawnerRef = spawner;
+
+// The Daemon Fleet Conductor (ADR-0060) — the ONE spawn primitive. Every surface
+// that used to call `spawner.spawn` directly (the sortie POST, the reactive
+// orchestrator) now routes through `conductor.launch(intent)`, so the daemon has
+// a single chokepoint owning the bond/lineage/breaker/halt envelope. The
+// conductor rebuilds the byte-identical spawn spec (golden-tested), so behavior
+// at the spawner boundary is unchanged.
+// Fleet cost-safety config (ADR-0060). These ARM the conductor's budget gates on
+// the LIVE sortie/orchestrator paths. Without them the breaker governs nothing:
+// no global ceiling, no per-launch reservation → I4/I5 admit everything. All are
+// env-overridable; the defaults are deliberately conservative so the daemon is
+// "safe to walk away" out of the box.
+function parsePositiveFloat(raw: string | undefined, fallback: number): number {
+  const n = raw != null ? Number.parseFloat(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const n = raw != null ? Number.parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+// $0 / 'off' / 'none' / 'unbounded' disables the global ceiling (explicit opt-out).
+const _rawGlobalCeiling = process.env.PD_FLEET_GLOBAL_CEILING_USD?.trim().toLowerCase();
+const FLEET_GLOBAL_CEILING_USD: number | null =
+  _rawGlobalCeiling === 'off' || _rawGlobalCeiling === 'none' || _rawGlobalCeiling === 'unbounded' || _rawGlobalCeiling === '0'
+    ? null
+    : parsePositiveFloat(process.env.PD_FLEET_GLOBAL_CEILING_USD, 25);
+const FLEET_LINEAGE_CEILING_USD = parsePositiveFloat(process.env.PD_FLEET_LINEAGE_CEILING_USD, 5);
+const FLEET_DEFAULT_BOND_USD = parsePositiveFloat(process.env.PD_FLEET_DEFAULT_BOND_USD, 0.01);
+const FLEET_MAX_DEPTH = parsePositiveInt(process.env.PD_FLEET_MAX_DEPTH, 3);
+// Upper bound (ms) on the dispatch PR publish (git push + gh pr create). A hung
+// publish must not pin a dispatch's in-flight slot until the OS TCP timeout; the
+// Conductor abandons the await past this bound (resultArtifact null, run stays
+// produced). Default 2 min; raise for slow remotes, never make it unbounded for
+// an autonomous/overnight dispatch.
+const FLEET_PUBLISH_TIMEOUT_MS = parsePositiveInt(process.env.PD_FLEET_PUBLISH_TIMEOUT_MS, 120_000);
+
+const conductor = createConductor({
+  db,
+  // The real Spawner / bonds satisfy the Conductor's minimal duck-typed
+  // interfaces at runtime; the casts bridge a nominal seam only (the real
+  // spawn spec requires backend+task and the real bonds' `state` is the
+  // BondState enum, vs the Conductor's structural `Record`/`string`). Shapes
+  // are verified by the fleet-conductor golden + gate tests.
+  spawner: spawner as unknown as Parameters<typeof createConductor>[0]['spawner'],
+  bonds: bonds as unknown as Parameters<typeof createConductor>[0]['bonds'],
+  broadcast: (channel: string, event: unknown) => messaging.publish(channel, event),
+  maxDepth: FLEET_MAX_DEPTH,
+  // ARM I4 on the live paths: every root launch without its own ceiling gets this
+  // per-subtree cap, and every launch without a bond reserves this floor — so the
+  // breaker actually accrues committed spend instead of reserving $0.
+  defaultLineageCeilingUsd: FLEET_LINEAGE_CEILING_USD,
+  defaultBondUsd: FLEET_DEFAULT_BOND_USD,
+  // FIX 3 (ADR-0060): bound the dispatch publish so a wedged push/PR can't hold
+  // the launch's in-flight slot indefinitely.
+  publishTimeoutMs: FLEET_PUBLISH_TIMEOUT_MS,
+  // ADR-0060 dispatch fold-in: the Conductor owns the dispatch worktree mint +
+  // draft-PR publish so dispatch becomes a `worktree:'create', mergePolicy:'review'`
+  // LaunchIntent (see lib/dispatch/conductor-adapter.ts). These hooks are only
+  // exercised by `source:'dispatch'` launches (they carry worktreePath/branch/
+  // baseRef); every other launch leaves them untouched.
+  mintWorktree: async (_launch, intent) => {
+    // I2 NO_SPAWN_ON_MAIN is satisfied here: carve a fresh off-main worktree on
+    // the dispatch branch, then scope-disable the Coordination Guard inside it so
+    // the autonomous agent can commit without an interactive `pd begin` session.
+    if (!intent.worktreePath || !intent.worktreeBranch || !intent.worktreeBaseRef) {
+      // Not a dispatch-shaped intent — fall back to the intent's own workdir.
+      return intent.workdir;
+    }
+    await gitWorktreeAdd(intent.worktreePath, intent.worktreeBranch, intent.worktreeBaseRef);
+    disableGuardInWorktree(intent.worktreePath);
+    return intent.worktreePath;
+  },
+  publishArtifact: async (launch, intent) => {
+    // Push the dispatch branch and open a draft PR; return its URL. Runs OUTSIDE
+    // the cost breaker/bonds (Conductor guarantees this). A throw is swallowed by
+    // the Conductor (resultArtifact stays null, launch not lost), but we also
+    // catch here so the log message is dispatch-specific.
+    if (!intent.worktreePath || !intent.worktreeBranch) return null;
+    try {
+      await gitPushBranch(intent.worktreePath, intent.worktreeBranch);
+      // worktreeBaseRef is `<remote>/<branch>` (e.g. origin/main); the PR base is
+      // the branch name with the remote prefix stripped.
+      const baseRef = intent.worktreeBaseRef ?? 'origin/main';
+      const slash = baseRef.indexOf('/');
+      const baseBranch = slash >= 0 ? baseRef.slice(slash + 1) : baseRef;
+      return await openDraftPr({
+        branch: intent.worktreeBranch,
+        baseBranch,
+        goal: launch.goal,
+        dispatchId: launch.id,
+        worktreePath: intent.worktreePath,
+      });
+    } catch (e) {
+      console.error('[Conductor] dispatch PR publish failed:', e);
+      return null;
+    }
+  },
+});
+// ARM I5: register the GLOBAL ceiling so aggregate fleet spend is bounded. Without
+// this the global breaker has a null ceiling = unbounded and never trips.
+conductor.setGlobalCeiling(FLEET_GLOBAL_CEILING_USD);
+if (FLEET_GLOBAL_CEILING_USD == null) {
+  console.error('[Conductor] WARNING: PD_FLEET_GLOBAL_CEILING_USD disabled — aggregate fleet spend is UNBOUNDED.');
+} else {
+  console.error(`[Conductor] Fleet cost gates ARMED: global=$${FLEET_GLOBAL_CEILING_USD}, lineage=$${FLEET_LINEAGE_CEILING_USD}, bond floor=$${FLEET_DEFAULT_BOND_USD}, maxDepth=${FLEET_MAX_DEPTH}.`);
+}
+
+// ── Dispatch worker (ADR-0060 — the FOURTH spawn surface, folded into the Conductor) ──
+// Before this, dispatch execution was bound to the foreground CLI for up to 6h;
+// an interrupted CLI stranded the dispatch `in_progress` forever. The worker is a
+// background poll loop that claims `proposed` dispatches and runs them — fully
+// detached from any terminal — and recovers dispatches stranded by a previous
+// daemon on start. Disable with PD_DISPATCH_WORKER=false.
+//
+// THE FOLD-IN: rather than the legacy inline spawn adapter (which did worktree +
+// raw spawn + cost parse + PR itself), the worker is injected with the
+// CONDUCTOR-backed adapter. Every dispatch therefore spawns through the ONE
+// `conductor.launch` primitive — bond-gated, ceiling-gated, depth-capped,
+// halt-able, capability-scoped, and refused on a main checkout — and the
+// Conductor owns the worktree mint + cost pricing + draft-PR publish via its
+// hooks above. The dispatch `costFn` is no longer threaded through (the Conductor
+// prices the run), so it is omitted here. Live tube observability is preserved at
+// the SPAWNER layer: the conductor stamps `dispatch:<id>` onto the spawn spec
+// (intentToSpawnSpec) and the spawner — wired with `tubeClient: messaging` above —
+// publishes the cli-tube exchange there, so `pd tube dispatch:<id>` still works.
+const dispatchQueue = createDispatchQueue({ db });
+const DISPATCH_WORKER_ENABLED = process.env.PD_DISPATCH_WORKER !== 'false';
+const _dispatchConcurrency = parseInt(process.env.PD_DISPATCH_CONCURRENCY ?? '2', 10);
+const DISPATCH_CONCURRENCY = Number.isFinite(_dispatchConcurrency) && _dispatchConcurrency >= 1
+  ? Math.min(_dispatchConcurrency, 5)
+  : 2;
+const _dispatchPollMs = parseInt(process.env.PD_DISPATCH_POLL_MS ?? '5000', 10);
+const DISPATCH_POLL_MS = Number.isFinite(_dispatchPollMs) && _dispatchPollMs >= 500
+  ? _dispatchPollMs
+  : 5000;
+// Optional model pin for dispatch work. Absent → the CLI's authenticated default.
+const DISPATCH_MODEL = process.env.PD_DISPATCH_MODEL?.trim() || undefined;
+const dispatchWorker = DISPATCH_WORKER_ENABLED
+  ? createDispatchWorker({
+      queue: dispatchQueue,
+      logger,
+      maxConcurrency: DISPATCH_CONCURRENCY,
+      pollIntervalMs: DISPATCH_POLL_MS,
+      model: DISPATCH_MODEL,
+      // THE INJECTION POINT: spawn every dispatch through the Conductor.
+      spawnAdapter: createConductorSpawnAdapter(conductor),
+    })
+  : null;
+if (dispatchWorker) dispatchWorker.start();
+
 const resourceGovernance = createResourceGovernance({ repoRoot: REPO_ROOT, startedAt: STARTED_AT });
 
 function resolveArbiterStrictMode(value: string | undefined): boolean {
@@ -548,11 +739,17 @@ function resolveArbiterStrictMode(value: string | undefined): boolean {
 
 semanticIndex.initialize();
 const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITER_STRICT);
+// Durable forensics journal — every Arbiter security event is written, in full,
+// to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
+// so it survives the 7-day activity_log prune. Default on; opt out with
+// PD_FORENSICS_ARCHIVE=off. (ADR-0060.)
+const forensicsSink =
+  process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
 const arbiter = createArbiter(
-  { activityLog, agents, sessions, locks, resurrection, bonds },
+  { activityLog, agents, sessions, locks, resurrection, bonds, forensicsSink },
   { strictMode: arbiterStrictMode }
 );
-console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode})`);
+console.error(`[Arbiter] Runtime invariant enforcement active (6 rules, strictMode=${arbiterStrictMode}, forensicsJournal=${forensicsSink ? 'on' : 'off'})`);
 const pheromones = createPheromoneManager(db);
 pheromones.start();
 
@@ -595,10 +792,14 @@ const bosunHeartbeat = createBosunHeartbeat({
   pidFile: PID_FILE,
   portFile: PORT_FILE,
   requirePidFileMatch: true,
+  // Loopback probe of our own request pipeline over the primary Unix socket.
+  // If HTTP wedges while the event loop keeps turning, the heartbeat halts and
+  // Bosun restarts us (Bosun is HTTP-free by design and can't see this itself).
+  selfProbe: createSocketHealthProbe({ socketPath: SOCK_PATH }),
   logger,
 });
 
-const orchestrator = createReactiveOrchestrator(db, messaging, spawner);
+const orchestrator = createReactiveOrchestrator(db, messaging, spawner, conductor);
 const correlationEngine = createCorrelationEngine(activityLog, sessions);
 
 // Fleet daemon — always-on fleet subsystem (multi-project)
@@ -1061,7 +1262,7 @@ await registerAllRoutes(
     routeRegistry,
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
-    harbors, sorties, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
+    harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
@@ -1186,6 +1387,7 @@ function shutdown(signal: string): void {
   try { bosunHeartbeat.stop(); } catch {}
   // Stop fleet runners before closing DB (graceful drain)
   try { fleetDaemon.stop(); } catch {}
+  try { dispatchWorker?.stop(); } catch {}
   systemPortsRefresh.stop();
   if (ipcServer) ipcServer.stop().catch(() => {});
   closeDatabase(db);

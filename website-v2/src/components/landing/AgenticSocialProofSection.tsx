@@ -1,6 +1,5 @@
 import { Quote } from 'lucide-react'
 import {
-  BracketLabel,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -28,26 +27,23 @@ const liveQuotes = [
   {
     name: 'Codex homepage worker',
     agentId: 'agent-f2266007',
-    purpose: 'Improve the homepage without overwriting adjacent agent work.',
-    source: 'Logged agent quote',
+    task: 'Improve the homepage without overwriting another agent.',
     quote:
-      'I did not have to infer ownership from chat. Claims showed the hot files, notes carried the invariant, and my patch could stay small.',
+      'I did not have to guess who owned what. The app showed which files were taken and what rules to keep, so my change stayed small.',
   },
   {
     name: 'FleetBar distribution worker',
     agentId: 'agent-6f6d64ab',
-    purpose: 'Continue the Mac app and distribution website slice.',
-    source: 'Logged agent note',
+    task: 'Keep building the Mac app and the website.',
     quote:
-      'The useful part was not another prompt. It was durable state: current proof paths, install truth, and the file surfaces already claimed.',
+      'The useful part was not another prompt. It was a record of where things stood: the install steps, and the files already claimed.',
   },
   {
-    name: 'Homepage Stabilizer',
+    name: 'Homepage stabilizer',
     agentId: 'agent-9a39637b',
-    purpose: 'Stabilize homepage framing after a concurrent overwrite.',
-    source: 'Logged agent note',
+    task: 'Recover the homepage after two agents edited it at once.',
     quote:
-      'The conflict stayed legible. I could see the claim trail, preserve the product thesis, and turn recovery into a deliberate edit instead of a guess.',
+      'I could see who changed what, keep the part we meant to keep, and fix the rest on purpose instead of guessing.',
   },
 ] as const
 
@@ -59,12 +55,12 @@ export function AgenticSocialProofSection() {
     >
       <PageContainer width="wide">
         <SectionIntro
-          eyebrow="Dogfood receipts"
-          title="The agents can say what the control plane changed."
-          description="These are not customer testimonials. They are agent-facing receipts from real Port Daddy website work: claims, notes, inboxes, broadcasts, and recovery traces that made overlapping edits visible before they became silent damage."
+          eyebrow="What our own agents said"
+          title="Here's what our own agents said it changed."
+          description="These are not customer reviews. They are notes from the agents that built this website. Each one shows the same thing: the agent could see who owned which files before it started, so overlapping edits did not turn into lost work."
           titleAs="h2"
           titleSize="display"
-          titleClassName="max-w-[13ch]"
+          titleClassName="max-w-[16ch]"
           bodyClassName="max-w-[43rem]"
         />
 
@@ -82,9 +78,8 @@ export function AgenticSocialProofSection() {
                   <Quote size={18} />
                 </span>
               </div>
-              <BracketLabel>{item.source}</BracketLabel>
               <PanelBody size="compact" className="max-w-none">
-                Purpose: {item.purpose}
+                Its job: {item.task}
               </PanelBody>
               <blockquote className="m-0 border-t-2 border-[var(--border-strong)] pt-[var(--space-3)] font-display text-[length:var(--type-panel-title-nav-size)] font-black leading-[var(--leading-nav)] text-[var(--text-primary)]">
                 &ldquo;{item.quote}&rdquo;

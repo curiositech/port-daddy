@@ -33,9 +33,13 @@ const {
 } = await import('../../lib/spawner/backends/cli-tube.js');
 
 // Helper: build a fake ChildProcess that we can drive from the test.
+// `stdout` may be a string (emitted as one chunk) or an array of strings
+// (emitted as SEPARATE chunks) so line-buffering across chunk boundaries can be
+// exercised — stdout in real life arrives in arbitrary chunks.
 function fakeChild({ stdout = '', stderr = '', exitCode = 0, error = null, delay = 0 } = {}) {
   const ee = new EventEmitter();
-  ee.stdout = Readable.from([stdout]);
+  const stdoutChunks = Array.isArray(stdout) ? stdout : [stdout];
+  ee.stdout = Readable.from(stdoutChunks);
   ee.stderr = Readable.from([stderr]);
   ee.kill = jest.fn();
   ee.pid = 4242;
@@ -107,8 +111,71 @@ describe('buildArgs', () => {
     expect(args[idx + 1]).toBe('some-model');
   });
 
+  test('claude-code forwards --permission-mode only when set', () => {
+    // Unset → no flag (preserves the CLI's default interactive gating).
+    expect(buildArgs('claude-code', 'hi').args).not.toContain('--permission-mode');
+    // Set → flag with the mode, letting a spawned agent edit files non-interactively.
+    const { args } = buildArgs('claude-code', 'hi', undefined, undefined, 'acceptEdits');
+    const idx = args.indexOf('--permission-mode');
+    expect(idx).toBeGreaterThan(-1);
+    expect(args[idx + 1]).toBe('acceptEdits');
+    // Prompt still goes last.
+    expect(args[args.length - 1]).toBe('hi');
+  });
+
   test('throws on unknown tool', () => {
     expect(() => buildArgs('bogus-tool', 'hi')).toThrow(/unknown cli tool/);
+  });
+});
+
+describe('spawnViaCliTube — onStreamLine (live per-line buffering)', () => {
+  test('emits one COMPLETE line per newline, buffering across chunk boundaries', async () => {
+    const lines = [];
+    // Three JSONL lines split awkwardly across four stdout chunks: a line is
+    // split mid-content, and one chunk carries the tail of one line + the head
+    // of the next. The buffer must reassemble them into exactly 3 lines.
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: ['{"a":1}\n{"b":', '2}\n{"c"', ':3}', '\n'],
+      exitCode: 0,
+    }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onStreamLine: (line) => lines.push(line),
+    });
+    expect(lines).toEqual(['{"a":1}', '{"b":2}', '{"c":3}']);
+  });
+
+  test('flushes a trailing partial line (no terminating newline) on close', async () => {
+    const lines = [];
+    mockSpawn.mockReturnValue(fakeChild({
+      stdout: ['{"a":1}\n{"b":2}'], // second line has NO trailing newline
+      exitCode: 0,
+    }));
+    await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onStreamLine: (line) => lines.push(line),
+    });
+    expect(lines).toEqual(['{"a":1}', '{"b":2}']);
+  });
+
+  test('a throwing onStreamLine hook never breaks the spawn', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: ['line1\nline2\n'], exitCode: 0 }));
+    const res = await spawnViaCliTube({
+      cli: 'claude-code',
+      prompt: 'hi',
+      onStreamLine: () => { throw new Error('hook blew up'); },
+    });
+    expect(res.error).toBeNull();
+    // rawStdout still fully captured despite the throwing hook.
+    expect(res.rawStdout).toBe('line1\nline2\n');
+  });
+
+  test('no onStreamLine: stdout still fully captured (no-op buffering)', async () => {
+    mockSpawn.mockReturnValue(fakeChild({ stdout: ['a\nb\n'], exitCode: 0 }));
+    const res = await spawnViaCliTube({ cli: 'claude-code', prompt: 'hi' });
+    expect(res.rawStdout).toBe('a\nb\n');
   });
 });
 

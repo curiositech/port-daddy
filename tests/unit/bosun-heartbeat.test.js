@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import http from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   BOSUN_HEARTBEAT_SCHEMA,
   createBosunHeartbeat,
+  createSocketHealthProbe,
   readBosunHeartbeat,
 } from '../../lib/bosun-heartbeat.js';
 
@@ -210,5 +212,150 @@ describe('Bosun heartbeat writer', () => {
       ownerPid: 4242,
       writeCount: 1,
     }));
+  });
+});
+
+describe('Bosun heartbeat HTTP self-probe (wedge detection)', () => {
+  test('no selfProbe configured: heartbeat never halts (back-compat)', () => {
+    const writer = createWriter();
+    // Even if the counter were somehow non-zero, shouldHalt is gated on a
+    // configured probe, so the tick always writes.
+    writer.recordProbeResult(false);
+    writer.recordProbeResult(false);
+    writer.recordProbeResult(false);
+    writer.heartbeatTick();
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      state: 'healthy',
+      writeCount: 1,
+    }));
+  });
+
+  test('probe failures below threshold are tolerated (still writes)', () => {
+    const writer = createWriter({ selfProbe: () => false, probeFailureThreshold: 3 });
+    writer.recordProbeResult(false);
+    writer.recordProbeResult(false); // 2 < 3
+    writer.heartbeatTick();
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      state: 'healthy',
+      writeCount: 1,
+      consecutiveProbeFailures: 2,
+    }));
+  });
+
+  test('probe failures at threshold halt the heartbeat (wedged)', () => {
+    const errors = [];
+    const writer = createWriter({
+      selfProbe: () => false,
+      probeFailureThreshold: 3,
+      logger: { error: (msg, meta) => errors.push({ msg, meta }) },
+    });
+
+    // Prime a healthy write so writeCount is observable.
+    writer.heartbeatTick();
+    expect(writer.getStatus().writeCount).toBe(1);
+
+    writer.recordProbeResult(false);
+    writer.recordProbeResult(false);
+    writer.recordProbeResult(false); // 3 >= 3 -> wedged
+
+    writer.heartbeatTick();
+    writer.heartbeatTick(); // idempotent: logs once, never advances
+    const status = writer.getStatus();
+    expect(status.state).toBe('wedged');
+    expect(status.writeCount).toBe(1); // heartbeat frozen -> Bosun staleness restarts
+    expect(status.lastProbeOk).toBe(false);
+    expect(errors.filter((e) => e.msg === 'bosun_heartbeat_wedged')).toHaveLength(1);
+  });
+
+  test('a recovered probe resumes the heartbeat and self-heals to healthy', () => {
+    const writer = createWriter({ selfProbe: () => true, probeFailureThreshold: 2 });
+    writer.recordProbeResult(false);
+    writer.recordProbeResult(false); // wedged
+    writer.heartbeatTick();
+    expect(writer.getStatus().state).toBe('wedged');
+    expect(writer.getStatus().writeCount).toBe(0);
+
+    writer.recordProbeResult(true); // probe recovers -> counter resets
+    writer.heartbeatTick();
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      state: 'healthy',
+      writeCount: 1,
+      consecutiveProbeFailures: 0,
+    }));
+  });
+
+  test('probeNow folds an async probe result into the failure counter', async () => {
+    let alive = false;
+    const writer = createWriter({ selfProbe: async () => alive, probeFailureThreshold: 2 });
+
+    expect(await writer.probeNow()).toBe(false);
+    expect(await writer.probeNow()).toBe(false);
+    expect(writer.getStatus().consecutiveProbeFailures).toBe(2);
+
+    alive = true;
+    expect(await writer.probeNow()).toBe(true);
+    expect(writer.getStatus()).toEqual(expect.objectContaining({
+      consecutiveProbeFailures: 0,
+      lastProbeOk: true,
+    }));
+  });
+
+  test('a throwing probe counts as a failure', async () => {
+    const writer = createWriter({
+      selfProbe: () => {
+        throw new Error('connection refused');
+      },
+    });
+    expect(await writer.probeNow()).toBe(false);
+    expect(writer.getStatus().consecutiveProbeFailures).toBe(1);
+  });
+});
+
+describe('createSocketHealthProbe', () => {
+  const servers = [];
+
+  afterEach(async () => {
+    await Promise.all(
+      servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve))),
+    );
+  });
+
+  function listenOnSocket(handler) {
+    const socketPath = join(mkdtempSync(join(tmpdir(), 'pd-probe-')), 'daemon.sock');
+    const server = http.createServer(handler);
+    servers.push(server);
+    return new Promise((resolve) => server.listen(socketPath, () => resolve(socketPath)));
+  }
+
+  test('returns true when the socket answers any HTTP response', async () => {
+    const socketPath = await listenOnSocket((_req, res) => {
+      res.writeHead(200);
+      res.end('ok');
+    });
+    const probe = createSocketHealthProbe({ socketPath });
+    expect(await probe()).toBe(true);
+  });
+
+  test('counts a 5xx response as alive (pipeline answered)', async () => {
+    const socketPath = await listenOnSocket((_req, res) => {
+      res.writeHead(503);
+      res.end('degraded');
+    });
+    const probe = createSocketHealthProbe({ socketPath });
+    expect(await probe()).toBe(true);
+  });
+
+  test('returns false when the socket does not exist (refused/hang-up)', async () => {
+    const socketPath = join(mkdtempSync(join(tmpdir(), 'pd-probe-')), 'missing.sock');
+    const probe = createSocketHealthProbe({ socketPath, timeoutMs: 200 });
+    expect(await probe()).toBe(false);
+  });
+
+  test('returns false when the request exceeds the timeout (wedged)', async () => {
+    const socketPath = await listenOnSocket(() => {
+      // Never respond — simulate a wedged request pipeline.
+    });
+    const probe = createSocketHealthProbe({ socketPath, timeoutMs: 150 });
+    expect(await probe()).toBe(false);
   });
 });

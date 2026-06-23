@@ -1,9 +1,7 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
-import { Badge } from "@/components/ui/Badge";
 import {
   Globe,
-  Shield,
   Terminal,
   Network,
   Anchor,
@@ -30,17 +28,10 @@ export function RemoteHarbors() {
           className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-accent)] pl-4"
           style={{ color: "var(--text-secondary)" }}
         >
-          <Badge
-            variant="gold"
-            className="px-3 py-0.5 text-[10px] font-black uppercase tracking-widest mr-2"
-          >
-            Coming in v4
-          </Badge>
-          Remote Harbors are a <strong>planned feature</strong> for Port Daddy
-          v4. None of the commands on this page exist yet. This tutorial
-          describes the design vision and planned syntax for cross-machine agent
-          coordination. Today, Port Daddy runs as a single-machine daemon on
-          localhost:9876.
+          <strong>Planned for v4:</strong> Remote Harbors do not exist yet. None
+          of the commands on this page run today. This page describes the
+          planned syntax for coordinating agents across machines. Today, Port
+          Daddy runs as a single-machine daemon on localhost:9876.
         </p>
 
         {/* Intro Section */}
@@ -76,7 +67,7 @@ export function RemoteHarbors() {
               />
               <p className="m-0 text-[length:var(--type-panel-body-compact-size)]">
                 <strong>Compute Routing</strong> -- Planned: route intensive
-                agent tasks to remote harbors with more powerful hardware.
+                agent tasks to remote harbors with faster hardware.
               </p>
             </div>
           </div>
@@ -153,7 +144,7 @@ Watching deploy:events...`}
               <div className="w-12 h-12 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
                 <Terminal size={20} className="text-[var(--brand-secondary)]" />
               </div>
-              <span className="text-[10px] font-black uppercase text-[var(--text-muted)]">
+              <span className="text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.1em] text-[var(--text-muted)]">
                 Local Dev
               </span>
             </div>
@@ -166,7 +157,7 @@ Watching deploy:events...`}
               <div className="w-12 h-12 flex items-center justify-center  border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
                 <Cpu size={20} className="text-[var(--brand-accent)]" />
               </div>
-              <span className="text-[10px] font-black uppercase text-[var(--text-muted)]">
+              <span className="text-[length:var(--type-meta-size)] font-black uppercase tracking-[0.1em] text-[var(--text-muted)]">
                 GPU Cluster (v4)
               </span>
             </div>
@@ -179,29 +170,19 @@ Watching deploy:events...`}
           radius="none"
           className="p-6 text-center space-y-4 relative overflow-hidden"
         >
-          <Badge
-            variant="gold"
-            className="px-4 py-1 text-[10px] font-black uppercase tracking-widest"
-          >
-            Coming in v4
-          </Badge>
           <p
             className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
-            Global Intelligence.
+            Coordination across machines, planned for v4
           </p>
           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-            Port Daddy v4 will extend the daemon model across machines, enabling
-            agents to cooperate across any network. Today, all coordination
-            happens through your local daemon on localhost:9876. Remote harbors
-            will bring the same primitives -- ports, sessions, pub/sub, salvage
-            -- to a distributed mesh.
+            In v4, the daemon model will extend across machines, so agents can
+            work together over a network. Today, all coordination happens
+            through your local daemon on localhost:9876. Remote harbors will
+            bring the same primitives -- ports, sessions, pub/sub, salvage -- to
+            a distributed mesh.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
-            <Shield size={14} />
-            Planned for v4
-          </div>
         </Surface>
       </div>
     </TutorialLayout>

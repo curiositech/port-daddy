@@ -75,6 +75,72 @@ function unknownItemArgs(item: CodexItem): Record<string, unknown> {
 }
 
 /**
+ * Map ONE codex `--json` JSONL line to its transcript turns. The single-line
+ * cousin of {@link parseCodexTranscript}: the batch parser walks every line
+ * through this mapper, and the LIVE streaming path (lib/spawner.ts `onStreamLine`)
+ * calls it per line as the child emits stdout — so each reasoning / command /
+ * message item becomes a transcript delta the cockpit sees mid-run.
+ *
+ * Codex carries no cross-line state for transcript content (only `item.completed`
+ * events are consumed, each self-contained), so this mapper is loss-free vs. the
+ * batch parser. Returns [] for non-JSON / non-`item.completed` lines. Never throws.
+ */
+export function mapCodexStreamLine(line: string): StructuredTurn[] {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('{')) return [];
+
+  let event: { type?: unknown; item?: CodexItem };
+  try {
+    event = JSON.parse(trimmed);
+  } catch {
+    return []; // interleaved non-JSON log line
+  }
+
+  if (event.type !== 'item.completed' || !event.item || typeof event.item !== 'object') {
+    return [];
+  }
+
+  const item = event.item;
+  const itemType = asString(item.type);
+
+  switch (itemType) {
+    case 'reasoning': {
+      const text = asString(item.text);
+      return text ? [{ role: 'thinking', content: text }] : [];
+    }
+    case 'agent_message': {
+      const text = asString(item.text);
+      return text ? [{ role: 'assistant', content: text }] : [];
+    }
+    case 'command_execution': {
+      const command = asString(item.command);
+      const output = asString(item.aggregated_output);
+      const exitCode = typeof item.exit_code === 'number' ? item.exit_code : null;
+      const status = asString(item.status) || null;
+      return [{
+        role: 'tool',
+        content: command ? `$ ${command}` : '[command_execution]',
+        toolCalls: [{
+          name: 'shell',
+          args: { command },
+          result: { output, exit_code: exitCode, status },
+        }],
+      }];
+    }
+    default: {
+      // Capture, never drop. A new codex item kind shows up as a labelled
+      // tool note carrying its full payload for forensics.
+      if (!itemType) return [];
+      return [{
+        role: 'tool',
+        content: `[codex:${itemType}]`,
+        toolCalls: [{ name: itemType, args: unknownItemArgs(item) }],
+      }];
+    }
+  }
+}
+
+/**
  * Parse a codex `--json` JSONL stream into ordered transcript turns.
  * Returns [] for empty / unparseable input (caller falls back to the final
  * output blob). Never throws on malformed lines.
@@ -84,61 +150,8 @@ export function parseCodexTranscript(raw: string): StructuredTurn[] {
   const turns: StructuredTurn[] = [];
 
   for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith('{')) continue;
-
-    let event: { type?: unknown; item?: CodexItem };
-    try {
-      event = JSON.parse(trimmed);
-    } catch {
-      continue; // interleaved non-JSON log line
-    }
-
-    if (event.type !== 'item.completed' || !event.item || typeof event.item !== 'object') {
-      continue;
-    }
-
-    const item = event.item;
-    const itemType = asString(item.type);
-
-    switch (itemType) {
-      case 'reasoning': {
-        const text = asString(item.text);
-        if (text) turns.push({ role: 'thinking', content: text });
-        break;
-      }
-      case 'agent_message': {
-        const text = asString(item.text);
-        if (text) turns.push({ role: 'assistant', content: text });
-        break;
-      }
-      case 'command_execution': {
-        const command = asString(item.command);
-        const output = asString(item.aggregated_output);
-        const exitCode = typeof item.exit_code === 'number' ? item.exit_code : null;
-        const status = asString(item.status) || null;
-        turns.push({
-          role: 'tool',
-          content: command ? `$ ${command}` : '[command_execution]',
-          toolCalls: [{
-            name: 'shell',
-            args: { command },
-            result: { output, exit_code: exitCode, status },
-          }],
-        });
-        break;
-      }
-      default: {
-        // Capture, never drop. A new codex item kind shows up as a labelled
-        // tool note carrying its full payload for forensics.
-        if (!itemType) break;
-        turns.push({
-          role: 'tool',
-          content: `[codex:${itemType}]`,
-          toolCalls: [{ name: itemType, args: unknownItemArgs(item) }],
-        });
-        break;
-      }
+    for (const turn of mapCodexStreamLine(line)) {
+      turns.push(turn);
     }
   }
 

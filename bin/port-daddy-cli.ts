@@ -127,6 +127,7 @@ import {
   handleSnapshots,
   // Durable backups of port-registry.db (ADR-0037)
   handleBackup,
+  handleCut,
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
@@ -151,6 +152,8 @@ import { handleRelay } from '../cli/commands/relay.js';
 import { handleWhois } from '../cli/commands/whois.js';
 // Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
 import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
+import { handleSelfUpdate } from '../cli/commands/self-update.js';
+import { handleUpgrade } from '../cli/commands/upgrade.js';
 import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
 import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
@@ -1297,14 +1300,14 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
+  'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
@@ -2625,6 +2628,26 @@ export async function main(): Promise<void> {
         await ciGateCheck();
         break;
 
+      case 'self-update':
+        // ADR-0062: auto-freshness self-heal. The hourly com.portdaddy.freshness
+        // LaunchAgent runs `pd self-update --tick`; humans can run `pd self-update`.
+        await handleSelfUpdate({ tick: !!options.tick });
+        break;
+
+      case 'upgrade': {
+        // ADR-0057 phase 7 (dist-update-channel): fetch the published latest.json
+        // feed, compare to THIS binary's embedded version, report or (--apply)
+        // perform the brew-upgrade path. Distinct from `self-update` (unattended
+        // freshness): this is the interactive "is there a newer release" command.
+        const upgradeResult = await handleUpgrade(PKG.version, {
+          feed: typeof options.feed === 'string' ? options.feed : undefined,
+          apply: !!options.apply,
+          json: !!(options.json ?? options.j),
+        });
+        if (upgradeResult.exitCode !== 0) process.exitCode = upgradeResult.exitCode;
+        break;
+      }
+
       case 'doctor':
       case 'diagnose':
         await handleDoctor();
@@ -2762,6 +2785,10 @@ export async function main(): Promise<void> {
 
       case 'backup':
         await handleBackup(positional, options);
+        break;
+
+      case 'cut':
+        await handleCut(positional, options);
         break;
 
       case 'attest':

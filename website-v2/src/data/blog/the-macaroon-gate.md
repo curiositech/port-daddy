@@ -5,7 +5,7 @@ Here is the uncomfortable part of letting an agent work in your repo: it has you
 What stops it? Usually one thing: the sentence in the prompt that said *be careful*. That is not a control. It is a hope wearing a control's clothes.
 
 <!-- sidenote: 1 -->
-> This post assumes nothing about Port Daddy. It's a coordination daemon for fleets of coding agents — but you only need to know that it sits between your agents and the irreversible things they can do. Everything else is defined as it comes up.
+> Port Daddy is the daemon that ends up holding the other end of this problem: a coordination service for fleets of coding agents that sits between them and the irreversible things they can do. The rest of the vocabulary gets defined as it shows up.
 
 The instinct, once you feel this, is to reach for a wrapper. Put a shim in front of `git`. Have it check a rule — "no pushes to `main` unless the session is in good standing" — and refuse the bad ones. We built exactly that. It worked, in the sense that it printed a stern message and exited non-zero. It also had an environment variable that turned it off, because of course it did: the wrapper runs as the agent, with the agent's privileges, inside the agent's process. Anything the agent is told it can bypass, it will bypass, because some future turn will read the error text, find the escape hatch named right there in the message, and take it.
 
@@ -36,6 +36,7 @@ The shape of the thing:
 
 Here is the same idea as control flow. The push only happens when the daemon, not the agent, signs off:
 
+<!-- figure: The gate authorizes a push only on the "yes" branch, where the daemon issues a discharge bound to this grant — every other path dead-ends at refused. -->
 ```mermaid
 flowchart TD
   A["agent wants to push"] --> B["present grant + discharge to the gate"]
@@ -52,6 +53,7 @@ flowchart TD
 
 Compare that to the old picture, where the only thing between the agent and `main` was the prompt:
 
+<!-- figure: The old design — the agent holds the real token and reaches main directly, with "be careful" hanging off to the side as a dotted, advisory-only line. -->
 ```mermaid
 flowchart LR
   A["agent"] -->|"holds the real token"| T["push token"]

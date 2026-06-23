@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,17 +7,13 @@ export default function RemoteFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="gold">Coming in v4</Badge>
-          <Badge variant="default">Distributed</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Remote Harbors (v4)
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Cross-machine coordination for multi-agent development. Remote Harbors will connect
-          Port Daddy instances across your network, enabling shared port claims, sessions,
-          and messaging between machines.
+          Coordination across more than one machine. Remote Harbors will connect Port Daddy
+          instances over your network so port claims, sessions, and messages are shared between
+          machines.
         </p>
       </div>
 
@@ -65,17 +60,17 @@ export default function RemoteFeature() {
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Lighthouse</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Discovery and rendezvous server</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Peers register and find each other</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Peers register and find each other</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">Encrypted Tunnels</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Secure peer-to-peer channels</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">All traffic encrypted in transit</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">All traffic encrypted in transit</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">State Sync</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Distributed state replication</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Claims, sessions, messages flow across machines</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Claims, sessions, messages flow across machines</p>
           </div>
         </div>
       </div>

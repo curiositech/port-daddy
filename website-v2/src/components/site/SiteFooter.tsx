@@ -7,23 +7,24 @@ const SITE_LINKS = [
   { label: 'Mac Preview', href: '/mac-preview' },
   { label: 'Examples', href: '/examples' },
   { label: 'Agents', href: '/agents' },
-  { label: 'Skill + MCP', href: '/mcp' },
+  { label: 'Install & MCP', href: '/mac-preview' },
+  { label: 'Manifesto', href: '/manifesto' },
 ] as const
 
 const LEARN_LINKS = [
   { label: 'Docs', href: '/docs' },
   { label: 'Tutorials', href: '/tutorials' },
   { label: 'Templates', href: '/agents/templates' },
-  { label: 'Blog', href: '/blog' },
+  { label: 'Harbor Blog', href: '/blog' },
 ] as const
 
 const REFERENCE_LINKS = [
-  { label: 'Getting started', href: '/docs/get-started' },
+  { label: 'Getting started', href: '/docs/quickstart' },
   { label: 'CLI reference', href: '/docs/cli' },
   { label: 'SDK reference', href: '/docs/sdk' },
   { label: 'MCP tools', href: '/docs/mcp' },
   { label: 'REST API', href: '/docs/api' },
-  { label: 'Whitepaper', href: '/whitepaper' },
+  { label: 'Library', href: '/library' },
 ] as const
 
 export function SiteFooter() {
@@ -38,14 +39,14 @@ export function SiteFooter() {
                 Port Daddy
               </div>
               <div className="font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                agent communication layer
+                coordination for AI coding agents
               </div>
             </div>
           </div>
           <p className="max-w-[34rem] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-            Port Daddy gives coding agents a shared local substrate for notes, file claims, actor messages,
-            readiness, budgets, and recoverable handoffs. The Mac app and daemon make that ambient conversation
-            visible before work drifts.
+            Port Daddy is shared memory for AI coding agents — the notes they leave each other, the
+            files each one has claimed, and the work you can recover when one crashes. The Mac app
+            makes all of it visible before anything drifts.
           </p>
         </div>
 

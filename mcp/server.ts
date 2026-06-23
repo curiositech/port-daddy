@@ -176,7 +176,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'messaging': {
     description: 'Pub/sub messaging between agents',
-    tools: ['publish_message', 'get_messages', 'list_channels', 'clear_channel'],
+    tools: ['publish_message', 'get_messages', 'discourse_lineage', 'list_channels', 'clear_channel'],
   },
   'agents': {
     description: 'Agent registry, heartbeats, salvage/resurrection',
@@ -261,7 +261,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'signals': {
     description: 'Pheromone trail — leave and read stigmergic signals on entities/files so the swarm coordinates without direct messaging',
-    tools: ['spray_pheromone', 'read_pheromones', 'read_entity_pheromones'],
+    tools: ['spray_pheromone', 'resolve_pheromone', 'pheromone_coverage', 'read_pheromones', 'read_entity_pheromones'],
   },
   'roadmap': {
     description: 'Tuple-backed roadmap of record — read progress/claims (cartographer projection), list/get items, and promote feedback into a roadmap item',
@@ -489,14 +489,42 @@ const TOOLS = [
   {
     name: 'read_entity_pheromones',
     description:
-      '[Signals] Read the signals on one specific entity. Usage: read_entity_pheromones({table: "sessions", id: "sess-1"})',
+      '[Signals] Read the signals on one specific entity. Usage: read_entity_pheromones({table: "sessions", id: "sess-1"}). Pass effective:true to apply anti-inflammatory resolution damping (RCP-7a).',
     inputSchema: {
       type: 'object' as const,
       properties: {
         table: { type: 'string', description: 'Entity table' },
         id: { type: 'string', description: 'Entity id' },
+        effective: { type: 'boolean', description: 'Apply resolution damping (RCP-7a)' },
       },
       required: ['table', 'id'],
+    },
+  },
+  {
+    name: 'resolve_pheromone',
+    description:
+      '[Signals] Deposit a RESOLUTION trace (RCP-7a): mark a signal on an entity as resolved so it is damped on effective reads — stop agents piling onto solved work. Usage: resolve_pheromone({table: "services", id: "svc-1", key: "heat", strength: 1})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        table: { type: 'string', description: 'Entity table' },
+        id: { type: 'string', description: 'Entity id' },
+        key: { type: 'string', description: 'Signal key to resolve' },
+        strength: { type: 'number', description: 'Resolution strength 0-1 (default 1)' },
+      },
+      required: ['table', 'id', 'key'],
+    },
+  },
+  {
+    name: 'pheromone_coverage',
+    description:
+      '[Signals] Coverage of a table (RCP-12): the fraction of entities that carry any pheromone ("seen") plus the unseen set — what an innate scan should target so no entity stays invisible. Usage: pheromone_coverage({table: "services"})',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        table: { type: 'string', description: 'Entity table (services, projects, sessions, agents)' },
+      },
+      required: ['table'],
     },
   },
 
@@ -1360,6 +1388,24 @@ const TOOLS = [
         limit: {
           type: 'number',
           description: 'Maximum number of messages to return',
+        },
+      },
+      required: ['channel'],
+    },
+  },
+  {
+    name: 'discourse_lineage',
+    description: '[Advanced] Argument graph (RCP-14) over a channel: builds the typed inReplyTo lineage of the conversation and returns a digest (counts by stance/act, participants, and the contradiction edges — flagging which look unresolved) plus an indented tree. Use to see who answered whom and where agents disagree.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        channel: {
+          type: 'string',
+          description: 'Channel name to analyze',
+        },
+        conversationId: {
+          type: 'string',
+          description: 'Optional: scope the lineage to a single conversationId',
         },
       },
       required: ['channel'],
@@ -3273,9 +3319,22 @@ async function handleTool(
     }
 
     case 'read_entity_pheromones': {
+      const eff = args.effective ? '?effective=1' : '';
       res = await GET(
-        `/pheromone/${encodeURIComponent(args.table as string)}/${encodeURIComponent(args.id as string)}`,
+        `/pheromone/${encodeURIComponent(args.table as string)}/${encodeURIComponent(args.id as string)}${eff}`,
       );
+      break;
+    }
+
+    case 'resolve_pheromone': {
+      const body: Record<string, unknown> = { table: args.table, id: args.id, key: args.key };
+      if (args.strength !== undefined) body.strength = args.strength;
+      res = await POST('/pheromone/resolve', body);
+      break;
+    }
+
+    case 'pheromone_coverage': {
+      res = await GET(`/pheromone/coverage/${encodeURIComponent(args.table as string)}`);
       break;
     }
 
@@ -3711,6 +3770,14 @@ async function handleTool(
     case 'get_messages': {
       const qs = args.limit ? `?limit=${args.limit}` : '';
       res = await GET(`/msg/${encodeURIComponent(args.channel as string)}${qs}`);
+      break;
+    }
+
+    case 'discourse_lineage': {
+      const params = new URLSearchParams();
+      if (args.conversationId) params.set('conversationId', args.conversationId as string);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      res = await GET(`/msg/${encodeURIComponent(args.channel as string)}/lineage${qs}`);
       break;
     }
 
@@ -4733,7 +4800,7 @@ async function handleTool(
 const server = new Server(
   {
     name: 'port-daddy',
-    version: '3.19.0',
+    version: '3.21.0',
   },
   {
     capabilities: {
