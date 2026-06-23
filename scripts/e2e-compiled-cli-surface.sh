@@ -182,6 +182,7 @@ run_read "activity"          activity    -- activity
 run_read "log"               log         -- log
 run_read "projects"          projects    -- projects
 run_read "find"              find        -- find 'no-such:service:ever'
+run_read "whois"             whois       -- whois 'no-such-capability'
 run_read "services/list"     services    -- services
 run_read "dns list"          dns         -- dns list
 run_read "roadmap"           roadmap     -- roadmap
