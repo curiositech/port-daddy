@@ -21,6 +21,7 @@ use gpui::*;
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
+use crate::tokens;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -1005,6 +1006,38 @@ impl ConsoleView {
     }
 }
 
+/// The one place an operator-action button's visual state machine lives —
+/// default / hover / active (press), on the 8pt token grid (`tokens.rs`). The
+/// dispatch review gate and the Conductor fleet gate both build on this; they
+/// differ only in the click handler they pass. (Per-button keyboard
+/// focus-visible is a GPUI focus-group follow-up; the actions stay reachable via
+/// the focused pane.)
+fn gate_btn(
+    id: impl Into<SharedString>,
+    label: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+    on_click: impl Fn(&mut ConsoleView, &mut Context<ConsoleView>) + 'static,
+) -> impl IntoElement {
+    div()
+        .id(id.into())
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_1))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(tokens::TEXT_BODY))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .active(|s| s.bg(rgb(current_theme().sunken)))
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            on_click(this, cx);
+            cx.notify();
+        }))
+}
+
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
 /// Reject opens a reason command line (the human-gate "why" path) targeting `id`.
 fn dispatch_gate_btn(
@@ -1014,85 +1047,54 @@ fn dispatch_gate_btn(
     id: String,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    div()
-        .id(SharedString::from(format!("gate-{action}")))
-        .px(px(12.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
-        .border_color(rgb(color))
-        .text_color(rgb(color))
-        .text_size(px(14.0))
-        .font_weight(FontWeight::SEMIBOLD)
-        .cursor_pointer()
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
-        .child(label)
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
-            match action {
-                "approve" => {
-                    if let Some(tx) = &this.control_tx {
-                        let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
-                    }
-                    this.control_flash = Some("dispatch approved → landing".into());
-                }
-                "cancel" => {
-                    if let Some(tx) = &this.control_tx {
-                        let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
-                    }
-                    this.control_flash = Some("dispatch cancelled".into());
-                }
-                "reject" => {
-                    // Don't reject blind — open a reason line targeting this dispatch.
-                    this.reject_target = Some(id.clone());
-                    this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
-                }
-                _ => {}
+    gate_btn(format!("gate-{action}"), label, color, cx, move |this, _cx| match action {
+        "approve" => {
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
             }
-            cx.notify();
-        }))
+            this.control_flash = Some("dispatch approved \u{2192} landing".into());
+        }
+        "cancel" => {
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
+            }
+            this.control_flash = Some("dispatch cancelled".into());
+        }
+        "reject" => {
+            this.reject_target = Some(id.clone());
+            this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
+        }
+        _ => {}
+    })
 }
 
-/// One conductor fleet-control button (ADR-0060). Fires the verb immediately
-/// against the whole fleet (global scope) — the operator's emergency wheel.
+/// One Conductor fleet-control button (ADR-0060): halt/pause/resume the whole
+/// fleet (global scope) — the operator's emergency wheel.
 fn conductor_gate_btn(
     action: &'static str,
     label: &'static str,
     color: u32,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    div()
-        .id(SharedString::from(format!("fleet-{action}")))
-        .px(px(12.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
-        .border_color(rgb(color))
-        .text_color(rgb(color))
-        .text_size(px(14.0))
-        .font_weight(FontWeight::SEMIBOLD)
-        .cursor_pointer()
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
-        .child(label)
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
-            if let Some(tx) = &this.control_tx {
-                let msg = match action {
-                    "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
-                    "pause" => Some(ControlMsg::FleetPause { root_id: None }),
-                    "resume" => Some(ControlMsg::FleetResume { root_id: None }),
-                    _ => None,
-                };
-                if let Some(m) = msg {
-                    let _ = tx.send(m);
-                }
+    gate_btn(format!("fleet-{action}"), label, color, cx, move |this, _cx| {
+        if let Some(tx) = &this.control_tx {
+            let msg = match action {
+                "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
+                "pause" => Some(ControlMsg::FleetPause { root_id: None }),
+                "resume" => Some(ControlMsg::FleetResume { root_id: None }),
+                _ => None,
+            };
+            if let Some(m) = msg {
+                let _ = tx.send(m);
             }
-            this.control_flash = Some(match action {
-                "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
-                "pause" => "fleet paused \u{2192} no new admissions".to_string(),
-                "resume" => "fleet resumed".to_string(),
-                _ => String::new(),
-            });
-            cx.notify();
-        }))
+        }
+        this.control_flash = Some(match action {
+            "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
+            "pause" => "fleet paused \u{2192} no new admissions".to_string(),
+            "resume" => "fleet resumed".to_string(),
+            _ => String::new(),
+        });
+    })
 }
 
 /// Split a spawn command into `(backend, prompt)`. If the first whitespace
