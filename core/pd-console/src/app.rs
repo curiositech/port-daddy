@@ -18,6 +18,7 @@
 use gpui::prelude::*;
 use gpui::*;
 
+use crate::agent::{Backend, Tier};
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
@@ -36,8 +37,9 @@ use std::time::Duration;
 pub enum ControlMsg {
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
-    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt.
-    Spawn { backend: String, prompt: String },
+    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt +
+    /// an optional resolved model id (from the capability tier the operator picked).
+    Spawn { backend: String, prompt: String, model: Option<String> },
     /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
     Cartographer { text: String },
     /// Operator review-gate verdicts on the head dispatch.
@@ -128,11 +130,70 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         .map(|n| surface_for_nav_id(n.id))
 }
 
-/// An open command line: a prompt kind plus the text typed so far.
+/// An open command line: a prompt kind plus the text typed so far. For `Spawn`
+/// it also carries the structured picker state (chosen backend + tier) the
+/// operator selects from inline chips before typing the free-text prompt.
 #[derive(Debug, Clone)]
 pub struct CommandLine {
     kind: CmdKind,
     buffer: String,
+    /// Spawn picker: chosen backend (None → still choosing).
+    backend: Option<Backend>,
+    /// Spawn picker: chosen capability tier (None → still choosing).
+    tier: Option<Tier>,
+}
+
+/// Which step of the Spawn structured picker is active.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SpawnStep {
+    Backend,
+    Tier,
+    Prompt,
+}
+
+impl CommandLine {
+    fn new(kind: CmdKind) -> Self {
+        Self { kind, buffer: String::new(), backend: None, tier: None }
+    }
+
+    /// The active step for a Spawn command: pick a backend, then a tier, then
+    /// type the prompt. CLI backends skip the tier step (it's advisory there).
+    fn spawn_step(&self) -> SpawnStep {
+        if self.backend.is_none() {
+            SpawnStep::Backend
+        } else if self.tier.is_none() && self.backend.map(|b| b.tier_selects_model()).unwrap_or(false) {
+            SpawnStep::Tier
+        } else {
+            SpawnStep::Prompt
+        }
+    }
+
+    /// True once the picker is done and we're typing the prompt.
+    fn spawn_ready(&self) -> bool {
+        self.kind != CmdKind::Spawn || self.spawn_step() == SpawnStep::Prompt
+    }
+}
+
+/// Backends matching the picker filter (case-insensitive prefix on label or id).
+fn filtered_backends(filter: &str) -> Vec<Backend> {
+    let f = filter.trim().to_lowercase();
+    Backend::ALL
+        .into_iter()
+        .filter(|b| {
+            f.is_empty()
+                || b.as_str().to_lowercase().starts_with(&f)
+                || b.label().to_lowercase().contains(&f)
+        })
+        .collect()
+}
+
+/// Tiers matching the picker filter.
+fn filtered_tiers(filter: &str) -> Vec<Tier> {
+    let f = filter.trim().to_lowercase();
+    Tier::ALL
+        .into_iter()
+        .filter(|t| f.is_empty() || t.as_str().starts_with(&f) || t.label().to_lowercase().contains(&f))
+        .collect()
 }
 
 /// An in-flight pane-divider drag (grab-the-rope resize): which split (by tree
@@ -617,10 +678,10 @@ impl ConsoleView {
             "]" => self.switch_tab(1),
             "[" => self.switch_tab(-1),
             // Open command lines.
-            "n" => self.command = Some(CommandLine { kind: CmdKind::Spawn, buffer: String::new() }),
-            "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
+            "n" => self.command = Some(CommandLine::new(CmdKind::Spawn)),
+            "t" => self.command = Some(CommandLine::new(CmdKind::Cartographer)),
             // Insert a new pane of a chosen kind (the add-pane picker).
-            "i" => self.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() }),
+            "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
             // Any nav key swaps the focused pane's surface — "hop context".
             other => {
                 if let Some(item) = NAV.iter().find(|n| n.key == other) {
@@ -635,6 +696,20 @@ impl ConsoleView {
     /// (for enter/escape/backspace/space); `typed` is the actual character for
     /// printable input (case-preserving via `keystroke.key_char`).
     fn handle_command_key(&mut self, key: &str, typed: Option<&str>, cx: &mut Context<Self>) {
+        // The Spawn structured picker intercepts keys while choosing a backend or
+        // tier: digits 1-9 pick the Nth visible chip, Enter takes the first,
+        // typing filters, Backspace steps back. Once a prompt is being typed it
+        // falls through to the normal command-line handling below.
+        if self
+            .command
+            .as_ref()
+            .map(|c| !c.spawn_ready())
+            .unwrap_or(false)
+        {
+            self.handle_spawn_pick_key(key, typed);
+            cx.notify();
+            return;
+        }
         match key {
             "enter" => {
                 if let Some(cmd) = self.command.take() {
@@ -665,6 +740,79 @@ impl ConsoleView {
         cx.notify();
     }
 
+    /// Key handling while the Spawn picker is choosing a backend or tier.
+    fn handle_spawn_pick_key(&mut self, key: &str, typed: Option<&str>) {
+        match key {
+            "escape" => self.command = None,
+            "backspace" => {
+                // Refine the filter, else step back: tier → backend → cancel.
+                if let Some(cmd) = self.command.as_mut() {
+                    if !cmd.buffer.is_empty() {
+                        cmd.buffer.pop();
+                    } else if cmd.tier.is_some() {
+                        cmd.tier = None;
+                    } else if cmd.backend.is_some() {
+                        cmd.backend = None;
+                    } else {
+                        self.command = None;
+                    }
+                }
+            }
+            "enter" => self.spawn_pick_index(0), // take the first visible chip
+            _ => {
+                if let Some(ch) = typed {
+                    // A digit is a hotkey for the Nth visible chip (backend/tier
+                    // labels carry no digits, so this never clashes with filtering).
+                    if let Ok(n) = ch.trim().parse::<usize>() {
+                        if n >= 1 {
+                            self.spawn_pick_index(n - 1);
+                            return;
+                        }
+                    }
+                    if let Some(cmd) = self.command.as_mut() {
+                        cmd.buffer.push_str(ch);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Select the Nth currently-visible chip for the active picker step.
+    fn spawn_pick_index(&mut self, idx: usize) {
+        let Some(cmd) = self.command.as_mut() else { return };
+        match cmd.spawn_step() {
+            SpawnStep::Backend => {
+                if let Some(b) = filtered_backends(&cmd.buffer).get(idx).copied() {
+                    cmd.backend = Some(b);
+                    cmd.buffer.clear();
+                }
+            }
+            SpawnStep::Tier => {
+                if let Some(t) = filtered_tiers(&cmd.buffer).get(idx).copied() {
+                    cmd.tier = Some(t);
+                    cmd.buffer.clear();
+                }
+            }
+            SpawnStep::Prompt => {}
+        }
+    }
+
+    /// Click-select a specific backend chip.
+    fn spawn_pick_backend(&mut self, b: Backend) {
+        if let Some(cmd) = self.command.as_mut() {
+            cmd.backend = Some(b);
+            cmd.buffer.clear();
+        }
+    }
+
+    /// Click-select a specific tier chip.
+    fn spawn_pick_tier(&mut self, t: Tier) {
+        if let Some(cmd) = self.command.as_mut() {
+            cmd.tier = Some(t);
+            cmd.buffer.clear();
+        }
+    }
+
     /// Dispatch a submitted command to the background thread (which owns the
     /// daemon client and performs the POST).
     fn submit_command(&mut self, cmd: CommandLine) {
@@ -692,13 +840,29 @@ impl ConsoleView {
         let Some(tx) = self.control_tx.clone() else { return };
         match cmd.kind {
             CmdKind::Spawn => {
-                let (backend, prompt) = split_backend(&text);
+                // Structured picker result: backend chosen from chips, tier
+                // resolved to a model id. Fall back to free-text `backend: prompt`
+                // only if no backend was picked (e.g. a future headless caller).
+                let (backend, prompt, model) = if let Some(b) = cmd.backend {
+                    let model = cmd.tier.and_then(|t| t.model_for(b)).map(str::to_string);
+                    (b.as_str().to_string(), text.clone(), model)
+                } else {
+                    let (b, p) = split_backend(&text);
+                    (b, p, None)
+                };
+                let label = match cmd.tier {
+                    Some(t) if cmd.backend.map(|b| b.tier_selects_model()).unwrap_or(false) => {
+                        format!("{backend}·{}", t.as_str())
+                    }
+                    _ => backend.clone(),
+                };
                 let _ = tx.send(ControlMsg::Spawn {
                     backend: backend.clone(),
                     prompt,
+                    model,
                 });
                 self.control_flash =
-                    Some(format!("spawning a {backend} agent — streaming live below"));
+                    Some(format!("spawning a {label} agent — streaming live below"));
                 // Immediately surface the live agent lane so the operator SEES the
                 // streaming response to the command they just issued. This closes
                 // the GUI loop: click Spawn → type → Send → watch it run. The lane
@@ -1098,9 +1262,191 @@ fn command_bar_btn(
         })
         .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
-            this.command = Some(CommandLine { kind, buffer: String::new() });
+            this.command = Some(CommandLine::new(kind));
             cx.notify();
         }))
+}
+
+/// Render the open command line. For a Spawn still choosing backend/tier it
+/// shows the inline chip picker; otherwise the prompt field + Send/Cancel.
+fn render_open_command(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyElement {
+    if cmd.kind == CmdKind::Spawn && !cmd.spawn_ready() {
+        return render_spawn_picker(cmd, cx);
+    }
+    // Prompt step (or any non-Spawn command): label + input + Send/Cancel.
+    let prompt_label = if cmd.kind == CmdKind::Spawn {
+        // Breadcrumb of the picked backend (+ tier) so the operator sees exactly
+        // what Send will launch.
+        let b = cmd.backend.map(|b| b.as_str()).unwrap_or("spawn");
+        match cmd.tier {
+            Some(t) => format!("{b}·{}", t.as_str()),
+            None => b.to_string(),
+        }
+    } else {
+        cmd.kind.prompt().to_string()
+    };
+    let placeholder = if cmd.kind == CmdKind::Spawn {
+        "describe the task for this agent — Send to launch & stream"
+    } else {
+        cmd.kind.placeholder()
+    };
+    div()
+        .flex()
+        .gap(px(8.0))
+        .items_center()
+        .w_full()
+        .child(
+            div()
+                .text_color(rgb(current_theme().accent_ink))
+                .text_size(px(14.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(prompt_label),
+        )
+        .child({
+            let field = div().flex_1().text_size(px(14.0)).font_family("IBM Plex Mono");
+            if cmd.buffer.is_empty() {
+                field.text_color(rgb(current_theme().muted)).child(placeholder.to_string())
+            } else {
+                field.text_color(rgb(current_theme().ink)).child(format!("› {}▏", cmd.buffer))
+            }
+        })
+        .child(
+            div()
+                .id("cmd-send")
+                .px(px(12.0))
+                .py(px(4.0))
+                .rounded(px(6.0))
+                .bg(rgb(current_theme().accent))
+                .text_color(rgb(current_theme().bg))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .cursor_pointer()
+                .hover(|s| s.shadow(motion::glow(current_theme().accent, 0.30, 10.0, 0.0)))
+                .child("Send")
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    if let Some(cmd) = this.command.take() {
+                        this.submit_command(cmd);
+                    }
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .id("cmd-cancel")
+                .px(px(8.0))
+                .py(px(4.0))
+                .rounded(px(6.0))
+                .text_color(rgb(current_theme().muted))
+                .text_size(px(13.0))
+                .cursor_pointer()
+                .hover(|s| s.text_color(rgb(current_theme().ink2)))
+                .child("Cancel")
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    this.command = None;
+                    cx.notify();
+                })),
+        )
+        .into_any_element()
+}
+
+/// The inline Spawn picker: a breadcrumb, a step hint, and a row of option chips
+/// (`N  Label`) for the discrete known set — backends, then capability tiers.
+/// Type to filter, press the digit to pick, or click. This is the "dropdown that
+/// expands as you type with hotkeys" pattern instead of free-text syntax.
+fn render_spawn_picker(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyElement {
+    let step = cmd.spawn_step();
+    let chosen = cmd.backend.map(|b| b.as_str()).unwrap_or("");
+    let hint = match step {
+        SpawnStep::Backend => "pick a backend — type to filter, digit = hotkey",
+        SpawnStep::Tier => "pick a tier — high / mid / low",
+        SpawnStep::Prompt => "",
+    };
+    let mut row = div()
+        .flex()
+        .flex_wrap()
+        .gap(px(6.0))
+        .items_center()
+        .w_full()
+        .child(
+            div()
+                .text_color(rgb(current_theme().accent_ink))
+                .text_size(px(14.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(format!("spawn {chosen}").trim().to_string()),
+        )
+        .child(
+            div()
+                .text_color(rgb(current_theme().muted))
+                .text_size(px(13.0))
+                .child(hint),
+        );
+    match step {
+        SpawnStep::Backend => {
+            for (i, b) in filtered_backends(&cmd.buffer).into_iter().enumerate() {
+                let hot = i + 1;
+                row = row.child(
+                    div()
+                        .id(SharedString::from(format!("pick-b-{}", b.as_str())))
+                        .px(px(9.0))
+                        .py(px(4.0))
+                        .rounded(px(6.0))
+                        .border_1()
+                        .border_color(rgb(current_theme().line))
+                        .text_color(rgb(current_theme().ink2))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .cursor_pointer()
+                        .hover(|s| {
+                            s.border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                        })
+                        .child(format!("{hot}  {}", b.label()))
+                        .on_click(cx.listener(move |this, _ev, _window, cx| {
+                            this.spawn_pick_backend(b);
+                            cx.notify();
+                        })),
+                );
+            }
+        }
+        SpawnStep::Tier => {
+            for (i, t) in filtered_tiers(&cmd.buffer).into_iter().enumerate() {
+                let hot = i + 1;
+                row = row.child(
+                    div()
+                        .id(SharedString::from(format!("pick-t-{}", t.as_str())))
+                        .px(px(9.0))
+                        .py(px(4.0))
+                        .rounded(px(6.0))
+                        .border_1()
+                        .border_color(rgb(current_theme().line))
+                        .text_color(rgb(current_theme().ink2))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .cursor_pointer()
+                        .hover(|s| {
+                            s.border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                        })
+                        .child(format!("{hot}  {}", t.label()))
+                        .on_click(cx.listener(move |this, _ev, _window, cx| {
+                            this.spawn_pick_tier(t);
+                            cx.notify();
+                        })),
+                );
+            }
+        }
+        SpawnStep::Prompt => {}
+    }
+    if !cmd.buffer.is_empty() {
+        row = row.child(
+            div()
+                .text_color(rgb(current_theme().ink))
+                .text_size(px(13.0))
+                .font_family("IBM Plex Mono")
+                .child(format!("/{}", cmd.buffer)),
+        );
+    }
+    row.into_any_element()
 }
 
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
@@ -1142,7 +1488,7 @@ fn dispatch_gate_btn(
                 "reject" => {
                     // Don't reject blind — open a reason line targeting this dispatch.
                     this.reject_target = Some(id.clone());
-                    this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
+                    this.command = Some(CommandLine::new(CmdKind::DispatchReject));
                 }
                 _ => {}
             }
@@ -1255,7 +1601,7 @@ fn pane_ctrl(
                 // the surface picker (same flow as Ctrl-A i).
                 "addpane" => {
                     this.ws_mut().focus(id);
-                    this.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() });
+                    this.command = Some(CommandLine::new(CmdKind::AddPane));
                 }
                 _ => {}
             }
@@ -1516,74 +1862,8 @@ impl Render for ConsoleView {
                     // PREFIX / command mode glows unmistakably.
                     .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
                     .child(if let Some(cmd) = command.as_ref() {
-                        // Open command line — type, Enter submits, Esc cancels.
-                        div()
-                            .flex()
-                            .gap(px(8.0))
-                            .items_center()
-                            .w_full()
-                            .child(
-                                div()
-                                    .text_color(rgb(current_theme().accent_ink))
-                                    .text_size(px(14.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child(cmd.kind.prompt().to_string()),
-                            )
-                            // The input field. Empty → ghost placeholder telling the
-                            // operator exactly what to type; typing → live buffer + caret.
-                            .child({
-                                let field = div()
-                                    .flex_1()
-                                    .text_size(px(14.0))
-                                    .font_family("IBM Plex Mono");
-                                if cmd.buffer.is_empty() {
-                                    field
-                                        .text_color(rgb(current_theme().muted))
-                                        .child(cmd.kind.placeholder().to_string())
-                                } else {
-                                    field
-                                        .text_color(rgb(current_theme().ink))
-                                        .child(format!("› {}▏", cmd.buffer))
-                                }
-                            })
-                            // Visible Send button — the GUI equivalent of Enter, so the
-                            // operator never has to know a keystroke to act.
-                            .child(
-                                div()
-                                    .id("cmd-send")
-                                    .px(px(12.0))
-                                    .py(px(4.0))
-                                    .rounded(px(6.0))
-                                    .bg(rgb(current_theme().accent))
-                                    .text_color(rgb(current_theme().bg))
-                                    .text_size(px(13.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .cursor_pointer()
-                                    .hover(|s| s.shadow(motion::glow(current_theme().accent, 0.30, 10.0, 0.0)))
-                                    .child("Send")
-                                    .on_click(cx.listener(|this, _ev, _window, cx| {
-                                        if let Some(cmd) = this.command.take() {
-                                            this.submit_command(cmd);
-                                        }
-                                        cx.notify();
-                                    })),
-                            )
-                            .child(
-                                div()
-                                    .id("cmd-cancel")
-                                    .px(px(8.0))
-                                    .py(px(4.0))
-                                    .rounded(px(6.0))
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(13.0))
-                                    .cursor_pointer()
-                                    .hover(|s| s.text_color(rgb(current_theme().ink2)))
-                                    .child("Cancel")
-                                    .on_click(cx.listener(|this, _ev, _window, cx| {
-                                        this.command = None;
-                                        cx.notify();
-                                    })),
-                            )
+                        // Open command line — chip picker (Spawn) or prompt + Send.
+                        render_open_command(cmd, cx)
                     } else if armed {
                         div()
                             .text_color(rgb(current_theme().accent_ink))
@@ -1592,6 +1872,7 @@ impl Render for ConsoleView {
                             .child(
                                 "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · [1-9…] surface",
                             )
+                            .into_any_element()
                     } else {
                         div()
                             .text_color(rgb(current_theme().muted))
@@ -1601,6 +1882,7 @@ impl Render for ConsoleView {
                                 "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → n new-job · t cartographer · i insert-pane · | split  ·  {}",
                                 build_stamp()
                             ))
+                            .into_any_element()
                     }),
             )
     }

@@ -57,6 +57,85 @@ impl Backend {
     pub fn parse(s: &str) -> Option<Backend> {
         Backend::ALL.into_iter().find(|b| b.as_str() == s)
     }
+
+    /// Human label for the inline picker chips (the operator never types the
+    /// wire id; they pick a labelled option).
+    pub fn label(self) -> &'static str {
+        match self {
+            Backend::Ollama => "Ollama (local)",
+            Backend::Claude => "Claude (API)",
+            Backend::ClaudeCli => "Claude Code",
+            Backend::Gemini => "Gemini",
+            Backend::Cloudflare => "Cloudflare",
+            Backend::Codex => "Codex",
+            Backend::Aider => "Aider",
+            Backend::Custom => "Custom",
+        }
+    }
+
+    /// Whether choosing a capability tier (high/mid/low) changes the model the
+    /// daemon launches. API/local model-backends honour a model id; the CLI
+    /// agents (Claude Code, Codex, Aider) run whatever model they're configured
+    /// with, so the tier is advisory there.
+    pub fn tier_selects_model(self) -> bool {
+        matches!(self, Backend::Claude | Backend::Gemini | Backend::Ollama)
+    }
+}
+
+/// A capability/cost tier the operator picks instead of memorising model ids.
+/// `model_for` resolves it to the concrete model the daemon's `/spawn` accepts.
+/// The canonical mapping should ultimately live in the daemon (it knows what's
+/// configured); this is the console's best-known default so the picker is real
+/// today rather than a dead dropdown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tier {
+    High,
+    Mid,
+    Low,
+}
+
+impl Tier {
+    pub const ALL: [Tier; 3] = [Tier::High, Tier::Mid, Tier::Low];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tier::High => "high",
+            Tier::Mid => "mid",
+            Tier::Low => "low",
+        }
+    }
+
+    /// The chip label — tier plus a hint at what it buys.
+    pub fn label(self) -> &'static str {
+        match self {
+            Tier::High => "High · most capable",
+            Tier::Mid => "Mid · balanced",
+            Tier::Low => "Low · fast & cheap",
+        }
+    }
+
+    /// Resolve (backend, tier) → the concrete model id for `/spawn`, or `None`
+    /// to let the daemon pick its default (CLI backends, custom, cloudflare).
+    pub fn model_for(self, backend: Backend) -> Option<&'static str> {
+        match backend {
+            Backend::Claude => Some(match self {
+                Tier::High => "claude-opus-4-8",
+                Tier::Mid => "claude-sonnet-4-6",
+                Tier::Low => "claude-haiku-4-5",
+            }),
+            Backend::Gemini => Some(match self {
+                Tier::High => "gemini-3-pro",
+                Tier::Mid => "gemini-2.5-flash",
+                Tier::Low => "gemini-2.5-flash-lite",
+            }),
+            Backend::Ollama => Some(match self {
+                Tier::High => "llama3.1:70b",
+                Tier::Mid => "llama3.1:8b",
+                Tier::Low => "llama3.2:3b",
+            }),
+            _ => None,
+        }
+    }
 }
 
 /// One message off the tube.
@@ -280,7 +359,13 @@ impl DaemonClient {
     /// worktree); the daemon blocks main-checkout spawns by design.
     /// Returns the outcome incl. one-shot inline `output` (ollama et al. reply in
     /// the spawn response, not on the tube).
-    pub async fn spawn(&self, backend: Backend, prompt: &str, channel: &str) -> Result<SpawnOutcome> {
+    pub async fn spawn(
+        &self,
+        backend: Backend,
+        prompt: &str,
+        channel: &str,
+        model: Option<&str>,
+    ) -> Result<SpawnOutcome> {
         let mut body = serde_json::json!({
             "backend": backend.as_str(),
             "task": prompt,
@@ -289,8 +374,11 @@ impl DaemonClient {
             "tubeChannel": channel,
             "budgetUsd": 0.25,
         });
-        // Model-backends (ollama) require an explicit model.
-        if matches!(backend, Backend::Ollama) {
+        // An operator-chosen capability tier resolves to a model id; honour it.
+        if let Some(m) = model {
+            body["model"] = serde_json::json!(m);
+        } else if matches!(backend, Backend::Ollama) {
+            // Model-backends (ollama) require an explicit model even with no tier.
             let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
             body["model"] = serde_json::json!(m);
         }
@@ -569,7 +657,7 @@ impl AgentManager {
         let local = self.next;
         self.next += 1;
         let channel = format!("console-agent-{local}");
-        let outcome = self.client.spawn(backend, prompt, &channel).await?;
+        let outcome = self.client.spawn(backend, prompt, &channel, None).await?;
         self.agents.insert(local, TopLevelAgent { id: outcome.id.clone(), backend, channel, cursor: 0 });
         self.active = Some(local);
         Ok((local, outcome))
@@ -693,6 +781,22 @@ mod tests {
         let mut p = SseParser::new();
         let out = p.feed("data: line1\ndata: line2\n\n");
         assert_eq!(out, vec!["line1\nline2"]);
+    }
+
+    #[test]
+    fn tier_resolves_model_for_model_backends_only() {
+        // Model-backends resolve a concrete id per tier…
+        assert_eq!(Tier::High.model_for(Backend::Claude), Some("claude-opus-4-8"));
+        assert_eq!(Tier::Low.model_for(Backend::Claude), Some("claude-haiku-4-5"));
+        assert_eq!(Tier::High.model_for(Backend::Gemini), Some("gemini-3-pro"));
+        assert!(Tier::Mid.model_for(Backend::Ollama).is_some());
+        // …CLI/other backends defer to the daemon default (tier is advisory).
+        assert_eq!(Tier::High.model_for(Backend::ClaudeCli), None);
+        assert_eq!(Tier::High.model_for(Backend::Codex), None);
+        assert!(!Backend::ClaudeCli.tier_selects_model());
+        assert!(Backend::Claude.tier_selects_model());
+        // Every backend has a non-empty picker label.
+        assert!(Backend::ALL.iter().all(|b| !b.label().is_empty()));
     }
 
     #[test]

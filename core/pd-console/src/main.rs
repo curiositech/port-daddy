@@ -232,9 +232,9 @@ fn main() {
                                     .await;
                             }
                             // Kick off a new top-level agent on the live daemon.
-                            app::ControlMsg::Spawn { backend, prompt } => {
+                            app::ControlMsg::Spawn { backend, prompt, model } => {
                                 if let Some(b) = agent::Backend::parse(&backend) {
-                                    let _ = client.spawn(b, &prompt, "operator").await;
+                                    let _ = client.spawn(b, &prompt, "operator", model.as_deref()).await;
                                 }
                             }
                             // Send a turn to the cartographer over its tube channel.
