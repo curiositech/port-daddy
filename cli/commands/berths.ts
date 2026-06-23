@@ -60,16 +60,46 @@ function pruneRegistry(): DevDaemonRecord[] {
   return live;
 }
 
-function repoRoot(): string {
-  // Walk up from this module to the dir containing scripts/build-daemon-binary.mjs.
-  let dir = __dirname;
+/**
+ * Resolve the Port Daddy source-tree root (the dir containing
+ * scripts/build-daemon-binary.mjs). Robust across two runtimes:
+ *   - tsx/dev: `moduleDir` is inside the real tree, so the upward walk finds it.
+ *   - bun-compiled binary: `moduleDir` points inside the bundle's virtual FS
+ *     (e.g. "/"), so the walk fails. Previously this fell through to
+ *     resolve(moduleDir,'..','..') → "/", yielding a bogus
+ *     "/scripts/build-daemon-binary.mjs" and breaking `pd dev up` entirely.
+ *     The operator runs `pd dev up` from inside their checkout, so we resolve
+ *     from the cwd's git toplevel, then by walking up from cwd.
+ * Exported for unit testing the compiled-binary fallback (pass a bogus moduleDir).
+ */
+export function resolveRepoRoot(moduleDir: string, cwd: string): string {
+  // 1) Walk up from the module dir (works when running from the source tree).
+  let dir = moduleDir;
   for (let i = 0; i < 6; i++) {
     if (existsSync(join(dir, 'scripts', 'build-daemon-binary.mjs'))) return dir;
     const parent = resolve(dir, '..');
     if (parent === dir) break;
     dir = parent;
   }
-  return resolve(__dirname, '..', '..');
+  // 2) Compiled binary: resolve from the cwd's git checkout.
+  try {
+    const r = spawnSync('git', ['rev-parse', '--show-toplevel'], { cwd, encoding: 'utf-8', timeout: 2000 });
+    const top = r.status === 0 ? r.stdout.trim() : '';
+    if (top && existsSync(join(top, 'scripts', 'build-daemon-binary.mjs'))) return top;
+  } catch { /* not a git checkout */ }
+  // 3) Last resort: walk up from cwd looking for the build script.
+  let here = cwd;
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(here, 'scripts', 'build-daemon-binary.mjs'))) return here;
+    const parent = resolve(here, '..');
+    if (parent === here) break;
+    here = parent;
+  }
+  return cwd;
+}
+
+function repoRoot(): string {
+  return resolveRepoRoot(__dirname, process.cwd());
 }
 
 function gitRevOf(dir: string): string | null {
