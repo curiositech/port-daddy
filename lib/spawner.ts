@@ -22,16 +22,17 @@ import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
 import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
-import { parseCodexTranscript, type StructuredTurn } from './spawner/codex-transcript.js';
-import { parseClaudeCodeTranscript, extractClaudeCodeFinal } from './spawner/cli-claude-code-transcript.js';
+import { parseCodexTranscript, mapCodexStreamLine, type StructuredTurn } from './spawner/codex-transcript.js';
+import { parseClaudeCodeTranscript, mapClaudeCodeStreamLine, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
 import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
 import { parseCloudflareTranscript } from './spawner/cloudflare-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { resolveModel } from './model-registry.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
-import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
+import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
 import { coastGuardStatus } from './coast-guard.js';
@@ -140,6 +141,23 @@ export interface SpawnSpec {
   maxBytes?: number | null; // optional hard egress byte cap
   /** Estimated input prompt token count — used to gate spawn if it would exceed effective context. */
   estimatedPromptTokens?: number;
+  /**
+   * File-edit permission mode for the `cli:claude-code` backend. Forwarded to
+   * the CLI as `--permission-mode <mode>` (only when set). `acceptEdits` lets a
+   * spawned agent edit files in its `workdir` non-interactively;
+   * `bypassPermissions` removes all gating. Unset = current behavior (the CLI's
+   * default interactive gating). Ignored by backends that don't support it.
+   */
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+  /**
+   * Optional stable tube channel the cli-tube backend publishes the agent
+   * exchange on, so an operator can watch the run live (`pd tube <channel>`).
+   * Dispatch sets this to `dispatch:<id>` (ADR-0060) so a folded dispatch keeps
+   * the live observability the legacy inline adapter provided. When unset, the
+   * cli-tube backend falls back to its per-invocation `cli:<tool>:<uuid>`
+   * channel — same default sortie/orchestrator spawns have always used.
+   */
+  tubeChannel?: string;
 }
 
 export interface SpawnResult {
@@ -211,6 +229,16 @@ interface SpawnerDeps {
    *  fail-closed posture: untracked work is not allowed to look like success. */
   enforceTranscriptPolicy?: boolean;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
+  /**
+   * Optional tube client (the daemon's messaging layer). When wired, cli-tube
+   * spawns that carry a `spec.tubeChannel` publish their agent exchange on that
+   * channel so an operator can watch the run live (`pd tube <channel>`). This is
+   * the single seam that gives a folded dispatch back the live observability the
+   * legacy inline dispatch adapter provided (ADR-0060): the conductor stamps
+   * `dispatch:<id>` onto the spec, and this client is what actually publishes it.
+   * Absent → no publishing (the spawn still runs); same posture as before.
+   */
+  tubeClient?: TubeClientLike;
 }
 
 const ANSI_RESET = '\x1b[0m';
@@ -470,6 +498,26 @@ interface BackendRunResult {
 
 interface BackendRunContext {
   onChildProcess?: (child: ChildProcess) => void;
+  /**
+   * Live transcript-delta sink. A backend that streams events (the cli-tube
+   * backends parse claude-code `stream-json` / codex `--json` per line) calls
+   * this ONCE per event AS IT ARRIVES, so each thinking / tool_use / tool_result
+   * / assistant turn lands in fleet_transcripts mid-run and the cockpit SSE
+   * (`agent.transcript` `update`) renders it live instead of all-at-once at the
+   * end. When a backend streams deltas, the spawn loop records THESE and skips
+   * the batched final re-append (avoiding duplicates). Backends that only yield
+   * a final answer leave it unwired.
+   */
+  onTranscriptDelta?: (msg: TranscriptMessage) => void;
+  /**
+   * Tube client + stable channel for live observability. Threaded from
+   * `SpawnerDeps.tubeClient` + `spec.tubeChannel` into the cli-tube backend so a
+   * folded dispatch keeps `pd tube dispatch:<id>` working (ADR-0060). Both must
+   * be present for publishing to occur; otherwise the cli-tube backend uses its
+   * default per-invocation channel and (without a client) publishes nothing.
+   */
+  tubeClient?: TubeClientLike;
+  tubeChannel?: string;
 }
 
 interface CodexUsage {
@@ -605,11 +653,42 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
  * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
  * Pro) for cost accounting at the wallet layer.
  */
+/** Map one backend StructuredTurn to a transcript message (live deltas + batch
+ *  recording share this so a streamed turn and its end-of-run twin are identical). */
+function turnToMessage(turn: StructuredTurn, ts: number): TranscriptMessage {
+  const message: TranscriptMessage = {
+    role: turn.role,
+    content: turn.content,
+    timestamp: ts,
+  };
+  if (turn.toolCalls && turn.toolCalls.length > 0) {
+    message.tool_calls = turn.toolCalls;
+  }
+  return message;
+}
+
 async function runCliTube(
   spec: SpawnSpec,
   cli: CliTubeTool,
   context?: BackendRunContext,
 ): Promise<BackendRunResult> {
+  // Live per-line streaming: map each JSONL event the child emits to a
+  // transcript delta AS IT ARRIVES, so the cockpit sees thinking / tool calls /
+  // assistant text mid-run. Only wired when the spawn loop provided a delta
+  // sink (it does whenever a transcript row is open).
+  const onTranscriptDelta = context?.onTranscriptDelta;
+  const mapLine =
+    cli === 'codex' ? mapCodexStreamLine
+    : cli === 'claude-code' ? mapClaudeCodeStreamLine
+    : null;
+  const onStreamLine = onTranscriptDelta && mapLine
+    ? (line: string) => {
+        for (const turn of mapLine(line)) {
+          onTranscriptDelta(turnToMessage(turn, Date.now()));
+        }
+      }
+    : undefined;
+
   const result = await spawnViaCliTube({
     cli,
     prompt: spec.task,
@@ -618,26 +697,68 @@ async function runCliTube(
     env: { ...spec.env },
     model: spec.model,
     onChild: context?.onChildProcess,
+    onStreamLine,
+    permissionMode: spec.permissionMode,
+    // Live observability (ADR-0060): publish the exchange on the operator-
+    // discoverable channel (dispatch:<id>) when both a channel and a tube client
+    // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
+    // its own `cli:<tool>:<uuid>` default — unchanged for sortie/orchestrator
+    // spawns. The publish is best-effort inside spawnViaCliTube and never blocks.
+    tube: context?.tubeChannel,
+    tubeClient: context?.tubeClient,
   });
 
   // Full-depth capture from the raw event stream. Both wrapped CLIs emit
   // structured JSONL: codex → `--json` (reasoning/command/message items),
   // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
   if (cli === 'codex') {
+    // Codex `--json` emits a terminal `turn.completed` carrying exact usage.
+    // The tube path previously dropped it (only the legacy runCodexCli parsed
+    // it), so every `cli:codex` spawn returned no tokens and fail-closed the
+    // exact-telemetry gate. Recover it here; estimate only when truly absent.
+    const cu = parseCodexUsage(result.rawStdout || result.output || '');
+    const codexExact = typeof cu.inputTokens === 'number' && cu.inputTokens > 0
+      && typeof cu.outputTokens === 'number' && cu.outputTokens > 0;
     return {
       output: result.output,                          // final message (from --output-last-message)
       error: result.error,
       transcript: parseCodexTranscript(result.rawStdout || ''),
+      ...(codexExact
+        ? {
+            inputTokens: cu.inputTokens,
+            outputTokens: cu.outputTokens,
+            ...(typeof cu.cachedInputTokens === 'number' ? { cachedInputTokens: cu.cachedInputTokens } : {}),
+          }
+        : {
+            inputTokens: estimateTokensFromText(spec.task),
+            outputTokens: estimateTokensFromText(result.output || ''),
+            estimatedTelemetry: true,
+          }),
     };
   }
   // claude-code: raw stdout is the stream-json; recover the final answer from
-  // the terminal `result` line (falling back to raw if absent), and parse the
-  // stream into thinking / tool / assistant turns.
+  // the terminal `result` line (falling back to raw if absent), parse the stream
+  // into thinking / tool / assistant turns, and recover the exact token usage the
+  // CLI reported on that same `result` line (previously dropped → fail-closed).
   const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
+  const ccu = extractClaudeCodeUsage(result.rawStdout || '');
+  const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
+    && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
   return {
     output: finalAnswer ?? result.output,
     error: result.error,
     transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+    ...(ccExact
+      ? {
+          inputTokens: ccu.inputTokens,
+          outputTokens: ccu.outputTokens,
+          ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
+        }
+      : {
+          inputTokens: estimateTokensFromText(spec.task),
+          outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
+          estimatedTelemetry: true,
+        }),
   };
 }
 
@@ -958,14 +1079,14 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
 // =============================================================================
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
-  ollama: 'llama3.1:8b',
-  claude: 'claude-haiku-4-5-20251001',
+  ollama: 'llama3.1:8b',  // local ollama model name, not an API id
+  claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
-  gemini: 'gemini-2.5-flash',  // gemini-2.0-flash was shut down 2026-06-01
-  cloudflare: '@cf/zai-org/glm-4.7-flash',
+  gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),
+  cloudflare: resolveModel({ backend: 'cloudflare', capability: 'cheap' }),
   openai: DEFAULT_OPENAI_MODEL,
   groq: DEFAULT_GROQ_MODEL,
-  codex: 'gpt-5.4-mini',
+  codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
   'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
@@ -1060,6 +1181,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     enforceTranscriptPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
+    tubeClient,
   } = deps;
 
   // ── Transcript helpers ──────────────────────────────────────────────────
@@ -1145,16 +1267,19 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     if (!transcripts || !transcriptId) return;
     recordOrThrow('messages', () => {
       for (const turn of turns) {
-        const message: TranscriptMessage = {
-          role: turn.role,
-          content: turn.content,
-          timestamp: ts,
-        };
-        if (turn.toolCalls && turn.toolCalls.length > 0) {
-          message.tool_calls = turn.toolCalls;
-        }
-        transcripts.appendMessage(transcriptId, message);
+        transcripts.appendMessage(transcriptId, turnToMessage(turn, ts));
       }
+    });
+  }
+
+  /** Append ONE live transcript delta mid-run (the cli-tube `onTranscriptDelta`
+   *  path). Mirrors txMessages' enforcement, but per-message: a live delta that
+   *  can't be recorded under enforcement is loud, just like the batch path.
+   *  Best-effort mode swallows internally. */
+  function txDelta(transcriptId: string | null, message: TranscriptMessage): void {
+    if (!transcripts || !transcriptId) return;
+    recordOrThrow('delta', () => {
+      transcripts.appendMessage(transcriptId, message);
     });
   }
 
@@ -1600,6 +1725,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      lifecycle: 'ephemeral',
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
@@ -1619,6 +1745,10 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let telemetry: SpawnTelemetry | null = null;
     let coastGuardReceipt: CoastGuardReceipt | null = null;
     let structuredTurns: StructuredTurn[] | null = null;
+    // Set by the backend's live onTranscriptDelta sink (cli-tube streaming).
+    // When true, the conversation is ALREADY persisted turn-by-turn, so the
+    // end-of-run path skips the batched re-append to avoid duplicating it.
+    let streamedLiveDeltas = false;
 
     try {
       // Recording is a precondition: if the transcript row could not be opened
@@ -1647,6 +1777,21 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               }, { pid });
             }
           },
+          // Live transcript streaming: each event a streaming backend parses is
+          // appended to the open transcript AS IT ARRIVES, so the cockpit SSE
+          // (`agent.transcript` `update`) renders thinking / tool calls / text
+          // mid-run. Only meaningful when a row is open (transcriptId set).
+          onTranscriptDelta: transcriptId
+            ? (msg) => {
+                streamedLiveDeltas = true;
+                txDelta(transcriptId, msg);
+              }
+            : undefined,
+          // Live observability seam (ADR-0060): when the daemon wired a tube
+          // client and this spawn carries a stable channel (dispatch:<id>), the
+          // cli-tube backend publishes the exchange there for `pd tube`.
+          tubeClient,
+          tubeChannel: spec.tubeChannel,
         };
         // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
         // every spawn through the local CLI tube, regardless of yml config.
@@ -1781,10 +1926,15 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // conversation. Under enforcement a recording failure here is loud: it
     // flips the spawn to 'failed' (untracked work must not look successful).
     try {
-      if (structuredTurns && !wasKilled) {
-        // Full-depth path (codex): reasoning + tool calls + each message turn.
-        // The final agent_message is already the last structured turn, so we
-        // do NOT also append `output` — that would duplicate it.
+      if (streamedLiveDeltas) {
+        // Live path (cli-tube streaming): every thinking / tool / assistant turn
+        // was already appended mid-run via onTranscriptDelta, so re-appending
+        // `structuredTurns` or `output` here would duplicate the whole
+        // conversation. Record nothing extra — the error turn below still fires.
+      } else if (structuredTurns && !wasKilled) {
+        // Full-depth path (codex / non-streamed): reasoning + tool calls + each
+        // message turn. The final agent_message is already the last structured
+        // turn, so we do NOT also append `output` — that would duplicate it.
         txMessages(transcriptId, structuredTurns, completedAt);
       } else if (output && !wasKilled) {
         // Final-answer-only backends (API calls): one assistant turn.

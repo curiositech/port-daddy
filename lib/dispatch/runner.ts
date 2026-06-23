@@ -28,8 +28,28 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
-import type { Dispatch, DispatchQueue } from './queue.js';
+import type { Dispatch, DispatchQueue, DispatchBackend } from './queue.js';
 import { deriveBranchName } from './queue.js';
+import type { TubeClientLike } from '../spawner/backends/cli-tube.js';
+
+// Re-export the canonical DispatchBackend (defined in ./queue.js to avoid an
+// import cycle) so existing importers of `runner.js` keep working unchanged.
+export type { DispatchBackend } from './queue.js';
+
+/**
+ * Compute a run's USD cost from the exact token usage the backend reported.
+ * Injected from the daemon (built on the cost tracker's rate table) so dispatch
+ * uses the SAME pricing path as every other spawn — no parallel parser. When no
+ * cost function is wired (e.g. the CLI foreground path with no daemon), the
+ * adapter records `costUsd: null` rather than inventing a number.
+ */
+export type DispatchCostFn = (params: {
+  backend: DispatchBackend;
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+}) => number | undefined;
 
 export const DEFAULT_BUDGET_USD = 5;
 export const DEFAULT_TIMEOUT_MS = 3 * 60 * 60 * 1000; // 3 hours
@@ -43,7 +63,16 @@ export function deriveWorktreePath(id: string): string {
   return join(DISPATCH_WORKTREE_ROOT, `port-daddy-dispatch-${shortId}`);
 }
 
-export type DispatchBackend = 'cli:claude-code' | 'cli:codex';
+// `DispatchBackend` is the full cli-tube backend set (ADR-0060 fold-in widened
+// it from the original claude-code/codex pair). It is defined canonically in
+// ./queue.js and re-exported above; the runtime allow-list below mirrors it.
+const SUPPORTED_BACKENDS: ReadonlySet<DispatchBackend> = new Set<DispatchBackend>([
+  'cli:claude-code',
+  'cli:codex',
+  'cli:gemini',
+  'cli:groq',
+  'cli:grok',
+]);
 
 export const DEFAULT_BACKEND: DispatchBackend = 'cli:codex';
 
@@ -57,6 +86,13 @@ export interface RunnerPlan {
   /** Command + args. Pass to spawnChild WITHOUT a shell. */
   command: string;
   args: string[];
+  /**
+   * Optional model override forwarded to the cli-tube spawn (`--model`). Absent
+   * → the CLI uses its authenticated account's default (claude-code → `sonnet`
+   * via cli-tube buildArgs). Set by RunnerOptions.model (e.g. a cheap
+   * `claude-haiku-4-5` for trivial dispatches).
+   */
+  model?: string;
   /** Environment overrides for the spawn. */
   env: Record<string, string>;
   /** Effective timeout for the spawn. */
@@ -76,15 +112,37 @@ export interface RunnerOptions {
   dryRun?: boolean;
   /** Backend override. Falls back to the dispatch's stored backend, then to DEFAULT_BACKEND. */
   backend?: DispatchBackend;
+  /**
+   * Model override forwarded to the cli-tube spawn (`--model`). Absent → the CLI
+   * default. Use to pin a cheap model (e.g. `claude-haiku-4-5`) for trivial work.
+   */
+  model?: string;
   /** Override the remote whose base-branch the worktree branches from. Default: 'origin'. */
   remote?: string;
   /** Spawn adapter -- a thin wrapper around pd sortie / pd spawn. */
   spawnAdapter?: SpawnAdapter;
+  /**
+   * Optional tube client. When provided, the dispatch's claude/codex exchange
+   * is published on a tube channel so the operator can watch it live with
+   * `pd tube dispatch:<id>`. Best-effort: a publish failure never fails the
+   * dispatch. Absent on the CLI foreground path (no daemon) — the run still
+   * happens, just without tube transparency.
+   */
+  tubeClient?: TubeClientLike;
+  /**
+   * Optional cost function. Converts the backend's exact token usage into USD
+   * via the daemon's shared rate table (cost tracker). Absent → costUsd null.
+   */
+  costFn?: DispatchCostFn;
 }
 
 export interface SpawnAdapterInput {
   plan: RunnerPlan;
   queue: DispatchQueue;
+  /** Forwarded from RunnerOptions so the adapter can publish on a tube. */
+  tubeClient?: TubeClientLike;
+  /** Forwarded from RunnerOptions so the adapter prices the run. */
+  costFn?: DispatchCostFn;
 }
 
 export interface SpawnAdapterResult {
@@ -128,22 +186,35 @@ export function buildSpawnArgv(
     if (model) args.push('--model', model);
     return { command: 'claude', args };
   }
-  // `codex exec` is non-interactive by construction. We pass `--sandbox
-  // workspace-write` for blast-radius (writes confined to the worktree) and
-  // NOT the legacy `--full-auto` flag, which recent codex deprecates in favor
-  // of `--sandbox` ("warning: `--full-auto` is deprecated; use `--sandbox
-  // workspace-write` instead"). The deprecation warning was polluting the
-  // captured transcript and the redundant flag bought nothing.
-  const args = [
-    'exec',
-    '--skip-git-repo-check',
-    '--sandbox', 'workspace-write',
-    '-C', worktreePath,
-    '--json',
-  ];
+  if (backend === 'cli:codex') {
+    // `codex exec` is non-interactive by construction. We pass `--sandbox
+    // workspace-write` for blast-radius (writes confined to the worktree) and
+    // NOT the legacy `--full-auto` flag, which recent codex deprecates in favor
+    // of `--sandbox` ("warning: `--full-auto` is deprecated; use `--sandbox
+    // workspace-write` instead"). The deprecation warning was polluting the
+    // captured transcript and the redundant flag bought nothing.
+    const args = [
+      'exec',
+      '--skip-git-repo-check',
+      '--sandbox', 'workspace-write',
+      '-C', worktreePath,
+      '--json',
+    ];
+    if (model) args.push('--model', model);
+    args.push(goal);
+    return { command: 'codex', args };
+  }
+  // gemini / groq / grok — all three share the claude-code-style headless
+  // surface: `-p <prompt>` runs one non-interactive turn, `--model` overrides
+  // the model (mirrors cli-tube.ts buildArgs). NOTE: this argv is only used for
+  // the dry-run rationale display; the real spawn goes through the Conductor's
+  // cli-tube spawner (which builds its own stream/tube-aware argv). The command
+  // name is the CLI binary (gemini/groq/grok), stripped of the `cli:` prefix.
+  const cliName = backend.slice('cli:'.length);
+  const args = ['-p'];
   if (model) args.push('--model', model);
   args.push(goal);
-  return { command: 'codex', args };
+  return { command: cliName, args };
 }
 
 /**
@@ -152,7 +223,7 @@ export function buildSpawnArgv(
  */
 export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): RunnerPlan {
   const backend = opts.backend ?? (dispatch.backend as DispatchBackend | null) ?? DEFAULT_BACKEND;
-  if (backend !== 'cli:claude-code' && backend !== 'cli:codex') {
+  if (!SUPPORTED_BACKENDS.has(backend)) {
     throw new Error(`planRunFor: unsupported backend ${backend}`);
   }
   const remote = opts.remote ?? 'origin';
@@ -161,7 +232,8 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
   const worktreePath = deriveWorktreePath(dispatch.id);
   const timeoutMs = clampTimeout(dispatch.timeoutMs);
   const budgetUsd = clampBudget(dispatch.budgetUsd);
-  const { command, args } = buildSpawnArgv(backend, worktreePath, dispatch.goal);
+  const model = opts.model;
+  const { command, args } = buildSpawnArgv(backend, worktreePath, dispatch.goal, model);
 
   const rationale: string[] = [];
   rationale.push(`backend = ${backend}`);
@@ -174,9 +246,17 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
   if (backend === 'cli:claude-code') {
     rationale.push('claude bypass = --dangerously-skip-permissions');
     rationale.push('blast-radius = wrapper deny-list (PR #161 destructive-op shim is the floor)');
-  } else {
+  } else if (backend === 'cli:codex') {
     rationale.push('codex sandbox = --sandbox workspace-write (self-confining; not double-wrapped)');
     rationale.push('blast-radius = codex sandbox enforces workspace-write');
+  } else {
+    // gemini / groq / grok have no built-in OS sandbox; the isolated worktree
+    // under ~/coding/tmp is the blast-radius boundary (same as claude-code).
+    rationale.push(`${backend.slice('cli:'.length)} headless = -p <goal> (one non-interactive turn)`);
+    rationale.push('blast-radius = isolated worktree (no built-in CLI sandbox)');
+  }
+  if (model) {
+    rationale.push(`model = ${model}`);
   }
   if (dispatch.mergePolicy === 'auto') {
     rationale.push('WARNING: merge_policy=auto requires harbormaster (PR #141) -- not yet wired');
@@ -190,6 +270,7 @@ export function planRunFor(dispatch: Dispatch, opts: RunnerOptions = {}): Runner
     baseRef,
     command,
     args,
+    model,
     env: {
       PD_DISPATCH_ID: dispatch.id,
       PD_DISPATCH_SLUG: dispatch.slug,
@@ -240,10 +321,45 @@ export async function runNext(
   if (!claimed) {
     return null;
   }
+  return runClaimedDispatch(queue, claimed, opts);
+}
+
+/**
+ * Run a dispatch that has ALREADY been claimed (state === 'claimed'), invoking
+ * the spawn adapter and closing the lifecycle. Pure-ish: deterministic given
+ * the dispatch + adapter.
+ *
+ * This is the seam the daemon-side worker uses: the worker claims work
+ * atomically via `queue.nextProposed(...)` (so two workers never grab the same
+ * row), then hands the claimed dispatch here to actually run it. `runNext`
+ * delegates to this after its own claim so both paths share one code path.
+ *
+ * Requires `opts.spawnAdapter`. Settles the dispatch to the adapter's terminal
+ * state (or `failed` on adapter exception) if the adapter did not already.
+ */
+export async function runClaimedDispatch(
+  queue: DispatchQueue,
+  claimed: Dispatch,
+  opts: RunnerOptions = {},
+): Promise<{ plan: RunnerPlan; result: SpawnAdapterResult }> {
+  if (!opts.spawnAdapter) {
+    throw new Error('runClaimedDispatch: requires a spawnAdapter');
+  }
+  if (claimed.state !== 'claimed') {
+    throw new Error(
+      `runClaimedDispatch: dispatch ${claimed.id} must be 'claimed', got '${claimed.state}'`,
+    );
+  }
+  const plan = planRunFor(claimed, opts);
   const planWithClaimed: RunnerPlan = { ...plan, dispatch: claimed };
   let result: SpawnAdapterResult;
   try {
-    result = await opts.spawnAdapter({ plan: planWithClaimed, queue });
+    result = await opts.spawnAdapter({
+      plan: planWithClaimed,
+      queue,
+      tubeClient: opts.tubeClient,
+      costFn: opts.costFn,
+    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     queue.settle({ id: claimed.id, state: 'failed', errorMessage });

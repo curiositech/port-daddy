@@ -5,6 +5,11 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use thiserror::Error;
 
+pub mod ffi;
+pub mod keystore;
+pub mod macaroon;
+pub mod schedule;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AnchorSubject {
     pub id: String,

@@ -9,6 +9,8 @@ import { createTestDb } from '../setup-unit.js';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createMessaging } from '../../lib/messaging.js';
 import { createAttention } from '../../lib/attention.js';
+import { createTupleSpace } from '../../lib/tuples.js';
+import { createParley } from '../../lib/parley.js';
 
 function setup() {
   const db = createTestDb();
@@ -46,6 +48,35 @@ describe('attention.compose', () => {
     const second = attention.compose('agent-x');
     expect(second.counts.inbox).toBe(0);
     expect(second.items).toEqual([]);
+  });
+
+  test('parley summons are delivered through inbox and surface in attention', () => {
+    const { db, attention, inbox } = setup();
+    const tuples = createTupleSpace(db);
+    const parley = createParley({ tuples, agentInbox: inbox, now: () => 1_700_000_000_000 });
+
+    const opened = parley.call({
+      surface: 'lib/sessions.ts',
+      reason: 'overlapping ownership',
+      parties: ['agent-x', 'agent-y'],
+      calledBy: 'operator',
+    });
+
+    const result = attention.compose('agent-x', { peek: true });
+    expect(result.counts.inbox).toBe(1);
+    expect(result.items[0]).toMatchObject({
+      source: 'inbox',
+      agentId: 'agent-x',
+      from: 'operator',
+      type: 'parley_summons',
+      contentType: 'json',
+    });
+    expect(result.items[0].content).toMatchObject({
+      kind: 'parley_summons',
+      parleyId: opened.parleyId,
+      surface: 'lib/sessions.ts',
+      channel: `parley:${opened.parleyId}`,
+    });
   });
 
   test('peek does NOT mark inbox read', () => {

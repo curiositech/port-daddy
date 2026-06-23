@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type { GraphEdges } from './graph-edges.js';
 import type { Counters } from './counters.js';
 import type { TupleSpace } from './tuples.js';
@@ -14,6 +15,21 @@ import type { SemanticAlias } from './semantic-terms.js';
  * tradeoff for local-first Port Daddy installations.
  */
 export const DEFAULT_SEMANTIC_MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
+
+/**
+ * The ONE stable cache dir for the local embedding model, shared by every reader
+ * (the resolver, the daemon, the shipwright skill index) and the install-time
+ * prefetch (scripts/prefetch-embedding-model.ts). Under `~/.port-daddy/` so it
+ * survives reinstalls and is identical whether the caller's cwd is the repo, a
+ * worktree, or the launchd daemon's bare dir — prefetch writes here, runtime reads
+ * here. Overridable via `PD_TRANSFORMERS_CACHE_DIR`. (ADR-0061.)
+ */
+export function defaultTransformersCacheDir(): string {
+  return (
+    process.env.PD_TRANSFORMERS_CACHE_DIR?.trim() ||
+    join(homedir(), '.port-daddy', 'transformers-cache')
+  );
+}
 export const DEFAULT_SEMANTIC_AUTO_THRESHOLD = 0.88;
 export const DEFAULT_SEMANTIC_REVIEW_THRESHOLD = 0.8;
 export const DEFAULT_SEMANTIC_BOUNDARY_MARGIN = 0.02;
@@ -464,9 +480,11 @@ function toResolutionOverride(row: SemanticOverrideRow): SemanticResolutionOverr
  * Compute cosine similarity for normalized vectors.
  *
  * The embedder already returns normalized vectors, so cosine similarity reduces
- * to a dot product here.
+ * to a dot product here. Exported so other reusers of the local embedder (e.g.
+ * the LLM semantic response cache, lib/llm-call.ts) share the exact same metric
+ * instead of reinventing it.
  */
-function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length === 0 || a.length !== b.length) return 0;
   let total = 0;
   for (let i = 0; i < a.length; i += 1) {
@@ -511,6 +529,35 @@ function extractVector(result: EmbeddingPipelineResult | unknown): number[] {
     return flattenUnknownArray(result.tolist());
   }
   return flattenUnknownArray(result);
+}
+
+/** A minimal local embedder: text → normalized vectors, no DB, no remote service. */
+export interface LocalEmbedder {
+  modelId: string;
+  embed(texts: string[]): Promise<number[][]>;
+}
+
+/**
+ * Public, standalone local embedder — the same `Xenova/all-MiniLM-L6-v2`
+ * pipeline the semantic resolver uses, but without needing a DB or the full
+ * resolver. Reusers (e.g. the LLM semantic response cache, lib/llm-call.ts) get
+ * the operator's existing local embedding model instead of standing up a new
+ * embedding service or an external vector DB. Lazy: the model loads on first
+ * `embed()`.
+ */
+export function createLocalEmbedder(
+  options: { cacheDir?: string; modelId?: string } = {},
+): LocalEmbedder {
+  const cacheDir = options.cacheDir ?? join(process.cwd(), '.cache', 'transformers');
+  const modelId = options.modelId ?? DEFAULT_SEMANTIC_MODEL_ID;
+  let inner: { modelId: string; embed(texts: string[]): Promise<number[][]> } | null = null;
+  return {
+    modelId,
+    async embed(texts: string[]): Promise<number[][]> {
+      if (!inner) inner = await createDefaultEmbedder(cacheDir, modelId);
+      return inner.embed(texts);
+    },
+  };
 }
 
 /**
@@ -565,7 +612,7 @@ export function createSemanticResolver(db: Database.Database, options: SemanticR
   const reviewThreshold = options.reviewThreshold ?? DEFAULT_SEMANTIC_REVIEW_THRESHOLD;
   const boundaryMargin = options.boundaryMargin ?? DEFAULT_SEMANTIC_BOUNDARY_MARGIN;
   const candidateLimit = options.candidateLimit ?? DEFAULT_SEMANTIC_CANDIDATE_LIMIT;
-  const cacheDir = options.cacheDir ?? join(process.cwd(), '.cache', 'transformers');
+  const cacheDir = options.cacheDir ?? defaultTransformersCacheDir();
   const counters = options.counters;
   const graphEdges = options.graphEdges;
   const tuples = options.tuples;

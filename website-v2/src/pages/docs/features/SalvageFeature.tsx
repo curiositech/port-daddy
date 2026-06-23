@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,17 +7,14 @@ export default function SalvageFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Resilience</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Agent Salvage
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          When an agent dies mid-task, its work context is preserved in the resurrection queue.
-          Another agent can claim the dead agent's sessions, notes, and file claims to continue
-          exactly where it left off.
+          When an agent dies mid-task, its work context survives in the salvage queue — this is
+          recovery after let-it-crash, not a guarantee of clean resumption. Another agent claims
+          the dead agent's sessions, notes, and file claims, then resumes from the last note instead
+          of starting cold. In-flight state is not restored; the notes are the handoff.
         </p>
       </div>
 
@@ -49,20 +45,23 @@ export default function SalvageFeature() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
         <p className="text-[var(--text-secondary)] leading-relaxed">
-          Agents register with an identity and send periodic heartbeats. When heartbeats stop,
-          the daemon marks the agent as stale (10 min), then dead (20 min). Dead agents with
-          active sessions enter the resurrection queue, where another agent can claim their work.
+          Agents register with an identity and send periodic heartbeats — a liveness signal. When
+          heartbeats stop, the daemon applies a status-aware timeout ladder — short for a starting
+          or draining agent, longer for one mid-task — then marks it dead. Dead agents with active
+          sessions enter the salvage queue, where another agent can claim the surviving notes and
+          file claims and carry on.
         </p>
 
         <DocsCodeBlock
           code={`# Agent registers on startup
 $ pd agent register --identity myapp:api:auth --purpose "Building JWT refresh"
 
-# Agent sends heartbeats every 5 minutes (automated by SDK)
+# Agent sends heartbeats on an interval (automated by SDK)
 $ pd agent heartbeat --agent agent-abc123
 
 # Agent dies... heartbeats stop...
-# After 20 minutes, the daemon adds it to the salvage queue
+# Once it misses heartbeats past the dead threshold, the daemon
+# adds it to the salvage queue
 
 # New agent checks the salvage queue
 $ pd salvage --project myapp

@@ -4,6 +4,12 @@
 
 Proposed (2026-06-12)
 
+> Reconciled by [ADR-0087](0087-trusted-computing-base-broker.md) (2026-06-20):
+> this ADR's three layers converge on one object — a separate-UID Rust broker.
+> Layer 3 (separate-UID/VM + `pf` forced egress) is ADR-0087's phases 5–6;
+> Layers 1–2 (branch protection + credential broker) are its phase 4. ADR-0087
+> does not supersede this — it concretizes the spine.
+
 > Note: ADR number 0051 is taken by *The Marketplace Protocol* (`docs/adr/0051-marketplace-protocol.md`) and 0052 by *Trajectory Export* (`docs/adr/0052-trajectory-export-and-rl-loop.md`); this ADR takes the next free number, 0053. Add the corresponding row to `docs/adr/README.md`.
 
 ## Context
@@ -124,9 +130,13 @@ three things the imperative gate does not:
 2. **Attenuation is free and one-directional.** An agent can narrow a push
    macaroon to a single branch or a short TTL; it can never broaden one. The
    enforcement half is **already built** — `feat/cap-attenuation-monitor` enforces
-   `CAP_ESCALATION` (no-broadening) in pure TS, and `defense/anchor-attenuation-soundness`
-   has the **per-hop** attenuation **proven in ProVerif** (the naive
-   final-vs-root verifier was unsound; per-hop is sound).
+   `CAP_ESCALATION` (no-broadening) in pure TS, and the **per-hop** discipline is
+   machine-checked: `analyses/macaroon_discharge_v1.pv` proves the discharge
+   construction unforgeable + request-bound (Q1 `true`), and the card branch
+   `defense/anchor-attenuation-soundness` proves the analogous naive-verifier-is-
+   unsound result for Ed25519 cards. The per-hop-vs-naive *regression* for macaroons
+   (Q2) is `analyses/macaroon_discharge_v2_naive_unsound.pv` — the naive verifier is
+   `false` (attack found) under cross-grant replay, justifying the binding check.
 3. **It splits Layer 1 into two independently-shippable halves** (see the matrix):
    the crypto **gate** — the daemon/Relay refuses to push without a valid
    rent-paid discharge — lands **before** the egress **confinement** (the GitHub
@@ -176,7 +186,7 @@ merely-confused agent that runs plain `git push origin feature-x` today succeeds
 via the inherited global credential. So the null helper raises the bar for the
 *repo-local default path* only; the ambient credential is removed only by Layer 3.
 
-**Pushing routes through `pd push`.** A new command (`cli/commands/push.ts`,
+**Pushing routes through `pd push`.** A new command, not yet shipped (`cli/commands/push.ts`,
 following the pattern of the existing `cli/commands/dispatch.ts`) asks the daemon
 to push on the agent's behalf, with the broker holding the credential
 out-of-process.
@@ -378,7 +388,7 @@ confinement upgrade**, and the caveat schema is its own artifact row. The old
 |-------|--------------|--------|------------|-------------|
 | 0b | adr-0053-tripwire-bypass-line-removal | merge | — | **Shipped in PR #367 (open, green, pending merge).** Removed the `PD_SHIM_OFF=1` advertisement from `cli/utils/git-shim.ts` agent-facing stderr; override still works + still audited; bumped `SHIM_VERSION` 3→4 + regression test. A guardrail must not advertise its bypass. |
 | 1-schema | adr-0053-macaroon-caveat-schema | merge | — | **Drafted in Appendix A of this PR (#366).** The caveat schema: macaroon structure, first-party attenuation grammar, the third-party "rent-paid for session S" discharge protocol (reuses `evaluateLeaseRent`), TTL + renewal + revocation. Authored in **Appendix A** by `port-daddy:dom-daddy-enforcement` after the original owner (`…:dom-daddy-design-sync`) went offline. Design text in this ADR — not a new ADR. Unblocks Phase 1. |
-| 1 | adr-0053-macaroon-discharge-gate | now | adr-0053-macaroon-caveat-schema | **The crypto gate (new highest-leverage rail).** Push/key grant = a macaroon whose third-party caveat is "PD daemon attests rent-paid for session S" (session + claims + note-per-commit + rebased). The daemon/Relay (`apps/relay`, ADR-0049) rejects any push lacking a valid discharge. Reuses **already-built** `feat/cap-attenuation-monitor` (CAP_ESCALATION no-broadening) + `defense/anchor-attenuation-soundness` (per-hop attenuation ProVerif-proven). **Wall property holds even while the push still flows through the operator's `gh` token** — corrective-only refusal copy, never names a bypass. Subsumes the old `layer-1a-push-gate`. |
+| 1 | adr-0053-macaroon-discharge-gate | now | adr-0053-macaroon-caveat-schema | **The crypto gate (new highest-leverage rail).** Push/key grant = a macaroon whose third-party caveat is "PD daemon attests rent-paid for session S" (session + claims + note-per-commit + rebased). The daemon/Relay (`apps/relay`, ADR-0049) rejects any push lacking a valid discharge. Reuses **already-built** `feat/cap-attenuation-monitor` (CAP_ESCALATION no-broadening); the discharge construction is machine-checked in `analyses/macaroon_discharge_v1.pv` (Q1 unforgeability+binding `true`), with the card branch `defense/anchor-attenuation-soundness` carrying the analogous per-hop result for Ed25519 cards. **Wall property holds even while the push still flows through the operator's `gh` token** — corrective-only refusal copy, never names a bypass. Subsumes the old `layer-1a-push-gate`. |
 | 1-bp | adr-0053-branch-protection-app-only-push | now | — | **Operator-gated.** Server-side GitHub branch protection on `main`/release glob (no direct push/force/delete, required PR + checks) + null `credential.helper` (empty `helper =` reset line) on agent repo-local config. Independent server-side wall for the protected refs. **Outward-facing settings change that can disrupt the auto-merge bots — needs explicit operator go.** |
 | 0a | adr-0053-github-app-egress-auth | backlog | adr-0053-macaroon-discharge-gate | **Demoted from prerequisite to confinement upgrade.** GitHub App **egress** auth: App registration, private-key storage, `@octokit/auth-app` `createAppAuth` + installation-token exchange (the "sibling work in flight" `lib/fleet/github-output.ts` references). **No longer a prerequisite** — it upgrades the Phase-1 gate from gates+audits to true credential **confinement** ("a token the agent never sees"). NOT yet built; webhook ingress only today. |
 | 1b | adr-0053-tripwire-demotion | backlog | adr-0053-macaroon-discharge-gate | Demote `cli/utils/git-shim.ts` from wall to tripwire: keep audit to `activity_log` + `~/.port-daddy/destructive-ops.log`. (Bypass-line removal already shipped in 0b.) |
@@ -533,10 +543,14 @@ daemon attested rent-paid for `session`. Discharge protocol:
 3. If they hold, the daemon mints a discharge macaroon bound to `nonce`, with its
    own short `expires` (default **20 min**, matching the rent TTL).
 4. The Relay (ADR-0049) verifies: root signature valid → every first-party caveat
-   satisfied → a valid, unexpired discharge for the third-party caveat. Per-hop
-   attenuation soundness is the property **proven in ProVerif** on
-   `defense/anchor-attenuation-soundness` (the naive final-vs-root verifier was
-   unsound; verification is per-hop).
+   satisfied → a valid, unexpired discharge for the third-party caveat. The
+   discharge construction's unforgeability + request-binding (Q1) is **proven in
+   ProVerif** in `analyses/macaroon_discharge_v1.pv`; the analogous per-hop-vs-naive
+   result on the Ed25519 *card* construction lives on
+   `defense/anchor-attenuation-soundness`. The per-hop-vs-naive regression for the
+   macaroon chain (Q2) is proven in `analyses/macaroon_discharge_v2_naive_unsound.pv`
+   (the naive verifier is unsound under cross-grant replay). Residual gap: first-party
+   caveat soundness + the MAX_DISCHARGE_DEPTH bound.
 
 ### A.4 TTL, renewal, and revocation
 
@@ -587,8 +601,13 @@ so the schema is never mistaken for the vault.
 - **Built prior art (unmerged branches) the matrix reuses rather than rebuilds:**
   `feat/cap-attenuation-monitor` (pure-TS `CAP_ESCALATION` no-broadening monitor —
   the macaroon attenuation enforcement); `defense/anchor-attenuation-soundness`
-  (**per-hop** attenuation **proven in ProVerif** — the naive final-vs-root
-  verifier was unsound); `verify-claim-signaling-tla` (TLA+ claim-signaling
+  (**per-hop** attenuation **proven in ProVerif** for the Ed25519 *card*
+  construction — the naive final-vs-root verifier was unsound). The macaroon
+  discharge construction itself is separately proven in
+  `analyses/macaroon_discharge_v1.pv` (Q1 unforgeability + request-binding `true`) and
+  `analyses/macaroon_discharge_v2_naive_unsound.pv` (Q2: the naive verifier is unsound
+  under cross-grant replay, `false`/attack-found).
+  `verify-claim-signaling-tla` (TLA+ claim-signaling
   model); `paper/identity-reputation` (the *From Spawn to Person* reputation
   estimator — the home of the Phase 2-rep semantic-good-faith layer);
   `docs/coordination-cookbook` (the topology/pattern catalog the coordinated

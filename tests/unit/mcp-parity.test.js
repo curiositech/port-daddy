@@ -37,6 +37,8 @@ const TOOL_FEATURE_MAP = {
 
   // Pheromone signals — #199
   'spray_pheromone': 'pheromone',
+  'resolve_pheromone': 'pheromone',
+  'pheromone_coverage': 'pheromone',
   'read_pheromones': 'pheromone',
   'read_entity_pheromones': 'pheromone',
 
@@ -56,12 +58,20 @@ const TOOL_FEATURE_MAP = {
   'list_nudges': 'suggestions',
   'respond_nudge': 'suggestions',
 
+  // Parley (ADR-0055)
+  'call_parley': 'parley',
+  'list_parleys': 'parley',
+  'get_parley': 'parley',
+  'respond_parley': 'parley',
+  'resolve_parley': 'parley',
+
   // Knowledge: semantic search + symbol index — #199
   'semantic_search': 'semantic',
   'semantic_resolve': 'semantic',
   'find_symbols': 'symbols',
   'symbol_stats': 'symbols',
   'predict_conflicts': 'symbols',
+  'blast_radius': 'symbols',
 
   // Port management
   'claim_port': 'claim',
@@ -77,6 +87,7 @@ const TOOL_FEATURE_MAP = {
   'list_sessions': 'sessions',
   'list_notes': 'notes',
   'claim_files': 'sessions',
+  'claim_symbols': 'sessions',
 
   // Locks
   'acquire_lock': 'locks',
@@ -86,6 +97,7 @@ const TOOL_FEATURE_MAP = {
   // Messaging
   'publish_message': 'messaging',
   'get_messages': 'messaging',
+  'discourse_lineage': 'messaging',
 
   // Agents
   'register_agent': 'agents',
@@ -299,6 +311,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.
   'quorum',         // New propose/vote primitive; agents drive consensus via SDK calls in v1, MCP wrapper deferred to v4
   'shipwright',     // Survey + propose + apply for fleet authoring; CLI-driven workflow (long-running, interactive review). MCP wrapper deferred until the propose/apply step is non-interactive.
+  'cut',            // CLI/CI-only release engineering (pd cut) — a human/pipeline act, not an agent action; no routes, no MCP.
   'setup',          // Local machine onboarding can run installer commands; daemon routes require loopback + GUI capability token, not MCP exposure.
   'usage',          // Local developer-pane telemetry ingestion; not a user-facing MCP tool.
   'blob',           // Phase 0 tube-as-coordination-substrate: content-addressed object storage; agents use the SDK or HTTP directly, MCP wrapper deferred to Phase 1+
@@ -308,6 +321,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'dispatch',       // PR #163 operator queue for autonomous feature dev (ADR-0035). Operator-driven: `pd dispatch/nightshift/review/morning` + POST/GET /dispatches over the daemon queue. Workers are spawned by the daemon, not by an agent calling a tool mid-turn; accept/reject is a human/operator decision. CLI/HTTP-only, MCP wrapper deferred (same posture as popper).
   'transcripts',    // Fleet ship-run records. Operator-facing read/delete surface (`pd transcripts`, routes/transcripts.ts) consumed by the FleetBar/dashboard ship-run views. Read-only telemetry browsing, not an agent-driving tool; MCP wrapper deferred.
   'relay',          // Cloud relay config/status (ADR-0049). CLI `pd relay url/status/exchange` + HTTP daemon routes for relay config. Relay exchange is an operator/CI token operation; agents use the relay channel directly, not a tool that calls /relay/exchange. MCP wrapper deferred.
+  'agent_cockpit',  // "Watch + Grab the Wheel" Phase 0. GET /agents/:id/stream is a long-lived SSE feed consumed by the operator console — streams are not MCP-shaped (MCP is request/response, not a held-open subscription; an MCP-driving agent would already use the in-process messaging.subscribe / transcripts.subscribe primitives this route merges). POST /agents/:id/interrupt is the operator grabbing the wheel from a console (same human-decision posture as dispatch accept/reject); a cooperating agent that wants to steer a peer publishes the same control.interrupt envelope onto the `agent:<id>` channel via the existing messaging surface. MCP wrapper deferred.
 ]);
 
 // ============================================================================
@@ -755,7 +769,7 @@ describe('MCP tiered tool loading', () => {
     'messaging', 'agents', 'actors', 'inbox', 'webhooks', 'integration', 'dns', 'briefing',
     'tunnels', 'projects', 'changelog', 'activity', 'system', 'tuples', 'sorties',
     'fleet-control', 'semantic', 'feedback', 'cockpit',
-    'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'knowledge',
+    'harbors', 'signals', 'roadmap', 'commitments', 'suggestions', 'parley', 'knowledge',
     'context', 'harvest', 'custodian',
   ];
 

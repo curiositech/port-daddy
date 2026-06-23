@@ -282,19 +282,19 @@ Returns `true` if daemon is reachable, `false` otherwise.
 
 ## Sugar (Compound Operations)
 
-### `pd.begin(options)`
+### `pd.begin(purpose, options)`
 Register agent + start session atomically. Recommended entry point for every session.
 
 | Option | Type | Description |
 |--------|------|-------------|
-| `purpose` | string | What you're working on (required) |
+| `lifecycle` | `'durable' | 'ephemeral'` | Required. Use `'durable'` for ordinary agent work contexts; use `'ephemeral'` only for heartbeat-bound process sessions. |
 | `identity` | string | Semantic identity (auto-detected from package.json) |
 | `agentId` | string | Agent ID (auto-generated if not provided) |
 | `type` | string | Agent type (e.g., 'claude-code') |
 | `files` | string[] | Files to claim |
 | `force` | boolean | Force file claims even if conflicts |
 
-Returns `{ success, agentId, sessionId, identity, purpose, salvageHint? }`.
+Returns `{ success, agentId, sessionId, identity, purpose, lifecycle, salvageHint? }`.
 
 ### `pd.done(options?)`
 End session + unregister agent atomically.
@@ -319,8 +319,8 @@ Returns `{ success, active, agentId?, sessionId?, purpose?, identity?, noteCount
 const pd = new PortDaddy()
 
 // Start session
-const { agentId, sessionId } = await pd.begin({
-  purpose: 'Implementing dark mode',
+const { agentId, sessionId } = await pd.begin('Implementing dark mode', {
+  lifecycle: 'durable',
   identity: 'myapp:frontend',
   files: ['src/theme.ts', 'src/components/ThemeProvider.tsx']
 })

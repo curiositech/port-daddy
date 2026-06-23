@@ -322,7 +322,7 @@ export const bestPracticesSection: DocsContentSection = {
         'Run parallel agent write work in isolated git worktrees, not in the main working tree.',
         'Commit current changes before launching any worktree-based agent.',
         'Fetch and rebase against origin/main before every push.',
-        'Run the full test gate and use the promotion script before claiming release readiness.',
+        'Run the full test gate and use the promotion script before claiming the release is ready.',
       ],
       blocks: [
         {
@@ -375,7 +375,7 @@ export const bestPracticesSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Test gate and promotion',
           paragraphs: [
-            '`npm test` is the minimum repo-health gate. Run it before claiming any release readiness. A green exit code is not a clean result if Jest prints "A worker process has failed to exit gracefully" — chase worker-exit warnings before treating the run as done.',
+            '`npm test` is the minimum repo-health gate. Run it before claiming a release is ready. A green exit code is not a clean result if Jest prints "A worker process has failed to exit gracefully" — chase worker-exit warnings before treating the run as done.',
             'When promoting to stable, use `./scripts/promote-stable.sh`. Never hand-roll daemon promotion with ad hoc launchctl commands.',
           ],
         },

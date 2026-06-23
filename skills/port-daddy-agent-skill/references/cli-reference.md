@@ -69,7 +69,7 @@ pd dns <command>
 Sessions, notes, recovery, and evidence:
 
 ```bash
-pd begin "purpose"
+pd begin "purpose" --lifecycle durable
 pd done "summary"
 pd whoami
 pd session <command>

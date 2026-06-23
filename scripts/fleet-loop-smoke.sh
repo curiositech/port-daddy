@@ -143,7 +143,7 @@ fi
 # Session presence (whoami).  If no session, this script can still run --
 # pd dispatch propose does not require an open session today.
 if pd whoami 2>&1 | grep -qi "no active session"; then
-  warn "no active pd session — start one with 'pd begin --identity loop-smoke:test'"
+  warn "no active pd session — start one with 'pd begin --identity loop-smoke:test --lifecycle durable'"
 else
   ok "active pd session"
 fi

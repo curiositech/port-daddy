@@ -11,7 +11,7 @@ export function Harbors() {
       total={21}
       level="Beginner"
       readTime="8 min read"
-      next={{ title: "Install the Local Control Plane", href: "/tutorials/getting-started" }}
+      next={{ title: "Install and Verify the Daemon", href: "/tutorials/getting-started" }}
     >
       <div className="space-y-[var(--section-space-y)]">
         <section className="space-y-[var(--space-6)]">
@@ -57,7 +57,7 @@ pd harbor show my-app:main
             project harbor.
           </p>
           <CodeBlock copyable={false} language="bash">
-            {`pd begin "Add password reset flow" --identity my-app:codex:auth
+            {`pd begin "Add password reset flow" --identity my-app:codex:auth --lifecycle durable
 pd harbor enter my-app:main
 pd note "Reset email template is implemented; API handler remains."
 # Expected result: the session, note, and agent identity are attached to my-app:main.`}

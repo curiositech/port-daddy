@@ -4,6 +4,13 @@
 
 Accepted
 
+> Reconciled by [ADR-0087](0087-trusted-computing-base-broker.md) (2026-06-20):
+> this ADR's deferred phase 4 (the malicious same-UID case — "a secret a process
+> can use, it can copy", needs separate-UID/VM + `pf` forced egress) is ADR-0087's
+> phases 5–6. The rent **policy** (`evaluateLeaseRent`, `lib/coast-guard/`) stays
+> here, outside the TCB; ADR-0087 only adds that the daemon *signs* its verdict so
+> the broker can verify rather than be told it.
+
 ## Context
 
 This ADR was forced by a real incident **in this repository, this week**: the

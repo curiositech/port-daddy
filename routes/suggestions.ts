@@ -20,19 +20,31 @@ import {
   type BrokerInbox,
   type BrokerActivityLog,
 } from '../lib/suggestion-broker.js';
+import { runLiveSurfaceScan, type RunLiveSurfaceScanDeps } from '../lib/surface-live.js';
+
+/** The full sessions module also exposes `list` (active sessions w/ worktreeId) — the
+ *  route receives it at runtime even though the overlap path only needs the claim source. */
+interface SessionsListSource {
+  list?(options?: { status?: string }): {
+    sessions?: Array<{ id: string; agentId: string | null; purpose: string; worktreeId: string | null }>;
+  };
+}
 
 interface SuggestionsRouteDeps {
   suggestions: Suggestions;
-  sessions: SessionsClaimSource;
+  sessions: SessionsClaimSource & SessionsListSource;
   agentInbox: BrokerInbox;
   activityLog?: BrokerActivityLog;
+  /** Present in the daemon — enables the real-edit semantic-conflict scan alongside the
+   *  declared-claim overlap scan. Absent in minimal/test wiring (overlap only). */
+  symbolIndex?: RunLiveSurfaceScanDeps['symbolIndex'];
 }
 
 export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps }> = async (
   fastify,
   opts,
 ) => {
-  const { suggestions, sessions, agentInbox, activityLog } = opts.deps;
+  const { suggestions, sessions, agentInbox, activityLog, symbolIndex } = opts.deps;
 
   fastify.get('/suggestions', async (request: FastifyRequest) => {
     const q = (request.query ?? {}) as Record<string, string>;
@@ -46,8 +58,31 @@ export const suggestionsPlugin: FastifyPluginAsync<{ deps: SuggestionsRouteDeps 
   });
 
   fastify.post('/suggestions/scan', async () => {
+    // 1) declared-claim overlap (file/region claims an agent ran `pd session files add` for)
     const result = runOverlapScan({ sessions, suggestions, inbox: agentInbox, activityLog });
-    return { success: true, ...result };
+    // 2) real-edit semantic conflicts (signature/dependency/transitive, from each live
+    //    session's actual git diff) — fires only when the symbol index is wired in.
+    let semantic = null;
+    if (symbolIndex && typeof sessions.list === 'function') {
+      try {
+        semantic = await runLiveSurfaceScan({
+          listActiveSessions: () =>
+            (sessions.list!({ status: 'active' }).sessions ?? []).map((s) => ({
+              id: s.id,
+              agentId: s.agentId,
+              purpose: s.purpose,
+              worktreeId: s.worktreeId,
+            })),
+          symbolIndex,
+          suggestions,
+          inbox: agentInbox,
+          activityLog,
+        });
+      } catch (err) {
+        activityLog?.log('surface_scan.error', { error: (err as Error).message });
+      }
+    }
+    return { success: true, ...result, semantic };
   });
 
   fastify.post('/suggestions/:id/accept', async (request: FastifyRequest, reply: FastifyReply) => {

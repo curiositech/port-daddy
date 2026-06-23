@@ -102,9 +102,102 @@ function toolResultText(content: unknown): string {
 }
 
 /**
+ * Map ONE `claude -p --output-format stream-json --verbose` JSONL line to its
+ * ordered transcript turns. The single-line cousin of {@link parseClaudeCodeTranscript}:
+ * the batch parser walks every line through this same mapper, and the LIVE
+ * streaming path (lib/spawner.ts `onStreamLine`) calls it per line as the child
+ * emits stdout — so each thinking / tool_use / tool_result / text block becomes
+ * a transcript delta the cockpit sees mid-run instead of all-at-once at the end.
+ *
+ * Because a single line carries no cross-line state, `tool_result` blocks are
+ * emitted as their OWN tool turns here (the batch parser folds them onto the
+ * originating `tool_use` turn by id — see parseClaudeCodeTranscript — but live
+ * the originating turn was already streamed, so a standalone result turn is the
+ * honest live representation). Returns [] for non-JSON / metadata / unrelated
+ * lines. Never throws on a malformed line.
+ */
+export function mapClaudeCodeStreamLine(line: string): StructuredTurn[] {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('{')) return [];
+
+  let event: StreamEvent;
+  try {
+    event = JSON.parse(trimmed);
+  } catch {
+    return []; // interleaved non-JSON log line
+  }
+
+  const type = asString(event.type);
+  // Only assistant/user envelopes carry conversation content. Everything else
+  // (system/init, system/thinking_tokens, hooks, result, rate_limit_event) is
+  // metadata, telemetry, or the duplicate final answer — not a turn.
+  if (type !== 'assistant' && type !== 'user') return [];
+
+  const content = event.message?.content;
+  if (!Array.isArray(content)) return [];
+
+  const turns: StructuredTurn[] = [];
+  for (const rawBlock of content) {
+    if (!rawBlock || typeof rawBlock !== 'object') continue;
+    const block = rawBlock as ContentBlock;
+    const blockType = asString(block.type);
+
+    switch (blockType) {
+      case 'thinking': {
+        const text = asString(block.thinking);
+        if (text) turns.push({ role: 'thinking', content: text });
+        break;
+      }
+      case 'text': {
+        const text = asString(block.text);
+        if (text) turns.push({ role: 'assistant', content: text });
+        break;
+      }
+      case 'tool_use': {
+        const name = asString(block.name) || 'tool';
+        turns.push({
+          role: 'tool',
+          content: `[tool_use:${name}]`,
+          toolCalls: [{ name, args: block.input ?? null }],
+        });
+        break;
+      }
+      case 'tool_result': {
+        const id = asString(block.tool_use_id);
+        const resultText = toolResultText(block.content);
+        // No cross-line state in the per-line mapper: emit the result as its own
+        // tool turn (the batch parser folds it onto the matching tool_use turn).
+        turns.push({
+          role: 'tool',
+          content: resultText ? `[tool_result] ${resultText}` : '[tool_result]',
+          toolCalls: [{ name: 'tool_result', args: { tool_use_id: id || null }, result: block.content ?? null }],
+        });
+        break;
+      }
+      default: {
+        // Unknown content-block kind (image, redacted_thinking, server_tool_use, …).
+        // Capture, never drop.
+        if (!blockType) break;
+        turns.push({
+          role: 'tool',
+          content: `[claude:${blockType}]`,
+          toolCalls: [{ name: blockType, args: rawBlock }],
+        });
+        break;
+      }
+    }
+  }
+  return turns;
+}
+
+/**
  * Parse a `claude -p --output-format stream-json --verbose` JSONL stream into
  * ordered transcript turns. Returns [] for empty / unparseable input (caller
  * falls back to the final output blob). Never throws on malformed lines.
+ *
+ * Unlike the per-line {@link mapClaudeCodeStreamLine}, this batch parser keeps
+ * cross-line state to correlate `tool_result` blocks back onto the originating
+ * `tool_use` turn by `tool_use_id` (folded into that turn's `toolCalls[0].result`).
  */
 export function parseClaudeCodeTranscript(raw: string): StructuredTurn[] {
   if (!raw) return [];
@@ -228,4 +321,55 @@ export function extractClaudeCodeFinal(raw: string): string | null {
     }
   }
   return final;
+}
+
+/** Exact token counts the Claude Code CLI reports on its terminal `result`
+ * line. With `--output-format stream-json` the raw stdout is JSONL whose final
+ * `{"type":"result",…,"usage":{…}}` event carries `input_tokens`,
+ * `output_tokens`, and the cache counters — the same numbers the legacy
+ * `--output-format json` path parses. The cli-tube backend previously dropped
+ * these (it only recovered the text), so every `cli:claude-code` spawn returned
+ * no token counts and fail-closed the exact-telemetry gate. Returns `{}` when no
+ * usage is present (caller then estimates). Never throws. */
+export function extractClaudeCodeUsage(raw: string): {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+} {
+  if (!raw) return {};
+  let usage: { inputTokens?: number; outputTokens?: number; cachedInputTokens?: number } = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    let event: {
+      type?: unknown;
+      usage?: {
+        input_tokens?: unknown;
+        output_tokens?: unknown;
+        cache_read_input_tokens?: unknown;
+        cache_creation_input_tokens?: unknown;
+      };
+    };
+    try {
+      event = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    // Take the last result line's usage (matches extractClaudeCodeFinal).
+    if (event.type === 'result' && event.usage) {
+      const u = event.usage;
+      const inTok = typeof u.input_tokens === 'number' ? u.input_tokens : undefined;
+      const outTok = typeof u.output_tokens === 'number' ? u.output_tokens : undefined;
+      // Cache creation is freshly-written (billed) input; fold it into the
+      // input count so a heavily-cached call doesn't report ~0 input tokens.
+      const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+      const cacheRead = typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : undefined;
+      usage = {
+        inputTokens: inTok != null ? inTok + cacheCreate : undefined,
+        outputTokens: outTok,
+        ...(cacheRead != null ? { cachedInputTokens: cacheRead } : {}),
+      };
+    }
+  }
+  return usage;
 }

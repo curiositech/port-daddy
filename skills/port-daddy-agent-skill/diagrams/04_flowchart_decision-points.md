@@ -5,7 +5,7 @@ flowchart TD
   A[Incoming repo task] --> B[pd status and pd briefing]
   B --> C{Crash residue or abandoned work likely?}
   C -->|Yes| D[pd salvage --project]
-  C -->|No| E[pd begin with identity]
+  C -->|No| E[pd begin with identity and lifecycle]
   D --> E
   E --> F[pd advise likely files]
   F --> G[pd note scope and risks]

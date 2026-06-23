@@ -10,7 +10,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import type { ChildProcess, SpawnSyncReturns } from 'node:child_process';
 
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
@@ -109,6 +109,7 @@ import {
   // Durable commitments (ADR-0041)
   handleCommit, handleObligations,
   handleQuorum,
+  handleParley,
   handleFeedback,
   // Consolidated read/write verbs + sitrep + pheromone (3.8.4)
   handleSitrep, handleSay, handleLook, handlePheromone,
@@ -126,6 +127,7 @@ import {
   handleSnapshots,
   // Durable backups of port-registry.db (ADR-0037)
   handleBackup,
+  handleCut,
   handleRestore,
   // Honest attestation / loud-fail invariants (ADR-0045)
   handleAttest,
@@ -147,6 +149,12 @@ import {
 // over the older semantic.ts export. See docs/adr/0035-three-tier-memory-vocabulary.md
 import { handleMemory } from '../cli/commands/memory.js';
 import { handleRelay } from '../cli/commands/relay.js';
+// Daemon Berths (ADR-0084): `pd dev up/down/list` + `pd use` per-shell targeting.
+import { handleDevBerth, handleUse } from '../cli/commands/berths.js';
+import { handleSelfUpdate } from '../cli/commands/self-update.js';
+import { handleUpgrade } from '../cli/commands/upgrade.js';
+import { resolveBerthTargetUrl } from '../shared/daemon-berths.js';
+import { readDevDaemonRegistry } from '../cli/utils/berth-registry.js';
 import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON_PORT } from '../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
@@ -649,7 +657,7 @@ function buildHelp(): string {
   lines.push(
     `${A}Get started:${Z}`,
     `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
-    `  ${G}pd begin${Z} "purpose"       ${tag('notify')} I'll set up your agent + session`,
+    `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
     `  ${G}pd attention${Z}             ${tag('notify')} What other agents queued for you (run first thing!)`,
@@ -729,7 +737,7 @@ Commands:
   session start <purpose>    Start a new session
     --agent <id>             Associate with an agent
     --force                  Force start even if another session is active
-    --durable                Session survives without a live heartbeat; never abandoned by the orphan reaper
+    --lifecycle <mode>       Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --files <paths...>       Claim files at session start
     --allow-main-worktree    Explicitly allow an integration session in the main worktree
 
@@ -769,7 +777,7 @@ Commands:
   feedback summary           Counts by severity + surface
 
 Examples:
-  pd session start "Building auth module" --agent agent-42
+  pd session start "Building auth module" --agent agent-42 --lifecycle durable
   pd note "Finished login endpoint" --type progress
   pd notes --limit 10
   pd feedback "tests dropped from 1638 to 1620 — investigate" --severity high
@@ -1042,6 +1050,7 @@ They manage agent registration, sessions, and local context together.
 Commands:
   begin "purpose"          Register agent + start session atomically
                            Writes context to .portdaddy/current.json
+    --lifecycle <mode>     Required: durable for work contexts, ephemeral for heartbeat-bound process sessions
     --allow-main-worktree  Explicitly allow an integration session in the main worktree
 
   done "summary"           End session + unregister agent atomically
@@ -1062,7 +1071,7 @@ Aliases:
   d                        Alias for "down"
 
 Examples:
-  pd begin "Building auth module"
+  pd begin "Building auth module" --lifecycle durable
   pd note "Login endpoint done"
   pd done "Auth module complete"
   pd done --self-salvage --telos-verdict not-fulfilled --doable yes --why-stopped "Tests still red" --next-plan "Fix parser fixture and rerun npm test"
@@ -1190,15 +1199,23 @@ Examples:
   roadmap: `Roadmap Projection \u2014 Cartographer-curated work for agents
 
 Commands:
-  roadmap                   Show Next Cuts, curated now items, live feedback, and dogfood feedback
+  roadmap                   Show roadmap_items DB-of-record entries
     --dir <path>            Project directory (defaults to cwd)
     --limit <n>             Limit rows per section (default: 8)
-    --feedback-status <s>   Live tuple feedback status: open|harvested|wontfix|all
-    --feedback-harbor <h>   Harbor scope for live tuple feedback
-    --feedback-limit <n>    Max live feedback rows to fetch
-    --no-excerpts           Hide CURRENT-WORK and Cartographer status excerpts
-    -q, --quiet             Print machine-readable section:slug lines
-    -j, --json              Output the raw Cartographer projection
+    --status <s>            now|backlog|parked|merge|done|all
+    --harbor <h>            Harbor scope
+    -q, --quiet             Print one slug per line
+    -j, --json              Output raw roadmap_items rows
+
+  roadmap upsert <slug>     Create/update a durable roadmap item receipt
+    --summary <md>          Roadmap summary markdown
+    --status <s>            now|backlog|parked|merge|done
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Receipt note attached to the item
+
+  roadmap touch <slug>      Append a roadmap receipt note to an existing item
+    --as <agentId>          Actor recorded on the receipt
+    --note <text>           Why this slice touched the roadmap
 
   roadmap ack <feedbackId>  Harvest/ack live feedback through the feedback primitive
     --as <agentId>          Harvester id (default: operator-cli)
@@ -1206,8 +1223,10 @@ Commands:
 
 Examples:
   pd roadmap
-  pd roadmap --limit 3 --no-excerpts
+  pd roadmap --limit 3 --status now
   pd roadmap --dir /Users/you/coding/port-daddy --json
+  pd roadmap upsert swarm-coordination --summary "Governed swarm coordination" --status now
+  pd roadmap touch swarm-coordination --note "Phase 0 parley implementation"
   pd roadmap ack 5a8e37de --as cartographer --into coordination-guard`,
 
   secret: `Managed Secrets \u2014 keychain-backed provider credentials
@@ -1280,14 +1299,14 @@ Run: pd learn`,
 const ALL_COMMANDS: string[] = [
   'claim', 'c', 'release', 'r', 'find', 'f', 'list', 'l', 'ps', 'url', 'env',
   'pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'tube', 'wait', 'lock', 'unlock', 'locks',
-  'up', 'down', 'setup', 'init', 'scan', 's', 'projects', 'p',
+  'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'log', 'activity',
   'wallet', 'bond',
   'session', 'sessions', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
-  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'daemon', 'ci-gate',
+  'start', 'stop', 'restart', 'status', 'install', 'uninstall', 'dev', 'use', 'daemon', 'ci-gate', 'self-update', 'upgrade',
   'doctor', 'diagnose', 'hints', 'mcp', 'version', 'help', 'bench', 'benchmark', 'look', 'sitrep', 'roadmap',
   'advise', 'preflight', 'compass', 'guard',
   'salvage', 'resurrection', 'changelog', 'tunnel',
@@ -1295,7 +1314,7 @@ const ALL_COMMANDS: string[] = [
   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'attest', 'shipwright',
   'spawn', 'spawned', 'watch', 'transcripts', 'transcript', 'relay',
   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
-  'quorum',
+  'quorum', 'parley',
   'feedback',
   'commit', 'obligations',
   'secret', 'secrets',
@@ -1342,6 +1361,36 @@ function suggestCommand(input: string): string | undefined {
 }
 
 let autoStartAttempted: boolean = false;
+
+function maybeRelaunchShortBinary(): void {
+  if (process.env.PORT_DADDY_DISABLE_SHORT_REEXEC === '1') return;
+
+  const execPath = process.execPath || '';
+  const argv0 = process.argv[0] || '';
+  const invokedAsPd = basename(execPath) === 'pd' || basename(argv0) === 'pd';
+  if (!invokedAsPd) return;
+
+  const sibling = join(dirname(execPath), 'port-daddy');
+  if (sibling === execPath || !existsSync(sibling)) return;
+
+  const result = spawnSync(sibling, process.argv.slice(2), {
+    stdio: 'inherit',
+    env: {
+      ...process.env,
+      PORT_DADDY_DISABLE_SHORT_REEXEC: '1',
+    },
+  });
+
+  if (result.error) {
+    ui.error(`Failed to relaunch sibling port-daddy binary: ${result.error.message}`);
+    process.exit(127);
+  }
+  if (result.signal) {
+    const signalNumber = result.signal === 'SIGINT' ? 2 : result.signal === 'SIGTERM' ? 15 : 1;
+    process.exit(128 + signalNumber);
+  }
+  process.exit(result.status ?? 0);
+}
 
 // =============================================================================
 // Direct-DB Mode — Tier 1 command execution without the daemon
@@ -1737,7 +1786,13 @@ async function executeDirectMode(
         case 'start': {
           const purpose = rest[0];
           if (!purpose) {
-            console.error('Usage: port-daddy session start <purpose> [--agent AGENT_ID] [--force]');
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
+            process.exit(1);
+          }
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+            console.error('Usage: port-daddy session start <purpose> --lifecycle durable|ephemeral [--agent AGENT_ID] [--force]');
             process.exit(1);
           }
 
@@ -1748,6 +1803,7 @@ async function executeDirectMode(
             : current?.agentId || `cli-${process.pid}`;
           if (agentId) startOpts.agentId = agentId;
           if (options.force) startOpts.force = true;
+          startOpts.durable = lifecycle === 'durable';
 
           // Collect files: --files may appear as a single string (one occurrence)
           // or an array (repeated --files flags). Positional tail also accepted.
@@ -2098,7 +2154,30 @@ async function executeDirectMode(
 }
 
 export async function main(): Promise<void> {
-  const args: string[] = process.argv.slice(2);
+  maybeRelaunchShortBinary();
+
+  const rawArgs: string[] = process.argv.slice(2);
+
+  // GLOBAL `--daemon <tier|label|url>` flag (ADR-0084): it may appear BEFORE the
+  // subcommand (`pd --daemon dev status`). Extract it up front so `command` is
+  // the real verb, then stash the target for the resolver below. Supports both
+  // `--daemon dev` and `--daemon=dev`. (It is also tolerated mid-args by the
+  // normal option parser, which sets options.daemon for the post-parse resolver.)
+  let preDaemonTarget: string | undefined;
+  const args: string[] = [];
+  for (let i = 0; i < rawArgs.length; i++) {
+    const a = rawArgs[i];
+    if (a === '--daemon' && i + 1 < rawArgs.length && !rawArgs[i + 1].startsWith('-')) {
+      preDaemonTarget = rawArgs[i + 1];
+      i++;
+      continue;
+    }
+    if (a.startsWith('--daemon=')) {
+      preDaemonTarget = a.slice('--daemon='.length);
+      continue;
+    }
+    args.push(a);
+  }
   const command: string | undefined = args[0];
 
   if (!command || command === '--help' || command === '-h') {
@@ -2267,6 +2346,27 @@ export async function main(): Promise<void> {
       }
     } else {
       positional.push(arg);
+    }
+  }
+
+  // --daemon <tier|label|url>: GLOBAL targeting flag (ADR-0084). Resolves to a
+  // daemon URL via the fixed berth lanes (stable→canonical, dev-latest→DEV_LATEST_PORT)
+  // + the dev-berth registry, then overrides PORT_DADDY_URL for THIS command only by mutating the
+  // process env before dispatch. pdFetch reads PORT_DADDY_URL live (and clearing
+  // PORT_DADDY_SOCK forces it off the canonical socket onto the chosen berth).
+  // Precedence: --daemon flag wins over PORT_DADDY_URL / `pd use` env.
+  const daemonTarget = preDaemonTarget ?? (options.daemon ? String(options.daemon) : undefined);
+  if (daemonTarget && command !== 'use' && command !== 'dev') {
+    const targetArg = daemonTarget;
+    const resolved = resolveBerthTargetUrl(targetArg, readDevDaemonRegistry());
+    if (!resolved) {
+      console.error(`--daemon: unknown target "${targetArg}". Known: stable, dev, dev-latest, a label from \`pd dev list\`, or a URL.`);
+      process.exit(1);
+    }
+    process.env.PORT_DADDY_URL = resolved.url;
+    delete process.env.PORT_DADDY_SOCK;
+    if (!resolved.url.includes(`:${DEFAULT_DAEMON_PORT}`)) {
+      process.env.PD_ACTIVE_DAEMON = resolved.label;
     }
   }
 
@@ -2510,146 +2610,42 @@ export async function main(): Promise<void> {
         await handleDaemon('uninstall', options);
         break;
 
-      case 'dev': {
-        const devSubcmd = positional[0] || 'start';
-        const { mkdirSync: devMkdir, existsSync: devExists, readFileSync: devRead, writeFileSync: devWrite, unlinkSync: devUnlink } = await import('node:fs');
-        const { tmpdir: devTmpdir } = await import('node:os');
-        const { spawn: devSpawnFn } = await import('node:child_process');
-
-        const devDir = join(devTmpdir(), 'port-daddy-dev');
-        const devStateFile = join(devDir, 'dev-state.json');
-        const devServerPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'server.ts');
-        const devTsxPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules', '.bin', 'tsx');
-
-        if (devSubcmd === 'start') {
-          devMkdir(devDir, { recursive: true });
-
-          // Check if already running
-          if (devExists(devStateFile)) {
-            try {
-              const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-              process.kill(st.pid, 0);
-              ui.warn(`Dev daemon already running (PID ${st.pid}, port ${st.port})`);
-              ui.info(`  PD_URL=http://localhost:${st.port}`);
-              ui.info(`  pd dev stop   — to stop it`);
-              process.exit(0);
-            } catch {
-              try { devUnlink(devStateFile); } catch {}
-            }
-          }
-
-          const devPort = parseInt(process.env.PORT_DADDY_PORT as string) || 9877;
-
-          ui.info(`Starting isolated dev daemon from ${process.cwd()}`);
-          ui.info(`  Port: ${devPort} (stable stays on ${DEFAULT_DAEMON_PORT})`);
-          ui.info(`  DB: ${join(devDir, 'port-daddy.db')} (isolated)`);
-
-          const child = devSpawnFn(devTsxPath, [devServerPath], {
-            env: {
-              ...process.env,
-              PORT_DADDY_PREFIX: devDir,
-              PORT_DADDY_PORT: String(devPort),
-              NODE_ENV: 'development',
-            },
-            stdio: ['ignore', 'pipe', 'pipe'],
-            detached: true,
-          });
-          child.unref();
-
-          // Wait for health check
-          let devReady = false;
-          const devDeadline = Date.now() + 15000;
-          while (Date.now() < devDeadline) {
-            try {
-              const res = await fetch(`http://localhost:${devPort}/health`);
-              if (res.ok) { devReady = true; break; }
-            } catch { /* not ready yet */ }
-            await new Promise(r => setTimeout(r, 200));
-          }
-
-          if (!devReady) {
-            ui.error(`Dev daemon failed to start within 15s`);
-            child.kill();
-            process.exit(1);
-          }
-
-          devWrite(devStateFile, JSON.stringify({
-            pid: child.pid,
-            port: devPort,
-            prefix: devDir,
-            startedAt: new Date().toISOString(),
-            cwd: process.cwd(),
-          }));
-
-          // Fetch version to confirm
-          try {
-            const vRes = await fetch(`http://localhost:${devPort}/version`);
-            const vData = await vRes.json() as any;
-            ui.success(`Dev daemon v${vData.version} running (PID ${child.pid})`);
-          } catch {
-            ui.success(`Dev daemon running (PID ${child.pid})`);
-          }
-
-          ui.info('');
-          ui.info(`  Test commands:`);
-          ui.info(`    PD_URL=http://localhost:${devPort} pd status`);
-          ui.info(`    curl http://localhost:${devPort}/arbiter/status`);
-          ui.info(`    curl http://localhost:${devPort}/version`);
-          ui.info('');
-          ui.info(`  Stop: pd dev stop`);
-
-        } else if (devSubcmd === 'stop') {
-          if (!devExists(devStateFile)) {
-            ui.warn('No dev daemon running');
-            process.exit(0);
-          }
-          const okDev = await requireConfirmation({
-            summary: 'Dev stop will SIGTERM the isolated dev daemon. Its in-memory DB is preserved in the prefix dir but live connections drop.',
-            args: options as Record<string, unknown>,
-          });
-          if (!okDev) process.exit(DESTRUCTIVE_EXIT_CODE);
-          try {
-            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-            process.kill(st.pid, 'SIGTERM');
-            devUnlink(devStateFile);
-            ui.success(`Dev daemon stopped (was PID ${st.pid})`);
-          } catch {
-            ui.warn(`Dev daemon not running (stale state cleaned up)`);
-            try { devUnlink(devStateFile); } catch {}
-          }
-
-        } else if (devSubcmd === 'status') {
-          if (!devExists(devStateFile)) {
-            ui.info('No dev daemon running');
-            process.exit(0);
-          }
-          try {
-            const st = JSON.parse(devRead(devStateFile, 'utf-8'));
-            process.kill(st.pid, 0);
-            const res = await fetch(`http://localhost:${st.port}/version`);
-            const ver = await res.json() as any;
-            ui.success(`Dev daemon running`);
-            ui.info(`  PID: ${st.pid}`);
-            ui.info(`  Port: ${st.port}`);
-            ui.info(`  Version: ${ver.version}`);
-            ui.info(`  Prefix: ${st.prefix}`);
-            ui.info(`  Started: ${st.startedAt}`);
-          } catch {
-            ui.warn('Dev daemon not running (stale state cleaned up)');
-            try { devUnlink(devStateFile); } catch {}
-          }
-
-        } else {
-          ui.error(`Unknown: pd dev ${devSubcmd}`);
-          ui.info('Usage: pd dev start | stop | status');
-          process.exit(1);
-        }
+      case 'dev':
+        // ADR-0084 Daemon Berths: pd dev up/down/list (+ back-compat
+        // start/stop/status). Builds the daemon BINARY (never tsx) and runs
+        // tiered, colour-coded berths beside the canonical stable daemon.
+        await handleDevBerth(positional, options);
         break;
-      }
+
+      case 'use':
+        // ADR-0084: per-shell targeting. Emits a shell snippet to eval:
+        //   eval "$(pd use dev)"  → exports PORT_DADDY_URL + PD_ACTIVE_DAEMON.
+        await handleUse(positional, options);
+        break;
 
       case 'ci-gate':
         await ciGateCheck();
         break;
+
+      case 'self-update':
+        // ADR-0062: auto-freshness self-heal. The hourly com.portdaddy.freshness
+        // LaunchAgent runs `pd self-update --tick`; humans can run `pd self-update`.
+        await handleSelfUpdate({ tick: !!options.tick });
+        break;
+
+      case 'upgrade': {
+        // ADR-0057 phase 7 (dist-update-channel): fetch the published latest.json
+        // feed, compare to THIS binary's embedded version, report or (--apply)
+        // perform the brew-upgrade path. Distinct from `self-update` (unattended
+        // freshness): this is the interactive "is there a newer release" command.
+        const upgradeResult = await handleUpgrade(PKG.version, {
+          feed: typeof options.feed === 'string' ? options.feed : undefined,
+          apply: !!options.apply,
+          json: !!(options.json ?? options.j),
+        });
+        if (upgradeResult.exitCode !== 0) process.exitCode = upgradeResult.exitCode;
+        break;
+      }
 
       case 'doctor':
       case 'diagnose':
@@ -2788,6 +2784,10 @@ export async function main(): Promise<void> {
 
       case 'backup':
         await handleBackup(positional, options);
+        break;
+
+      case 'cut':
+        await handleCut(positional, options);
         break;
 
       case 'attest':
@@ -3037,6 +3037,10 @@ export async function main(): Promise<void> {
 
       case 'quorum':
         await handleQuorum(positional, options);
+        break;
+
+      case 'parley':
+        await handleParley(positional, options);
         break;
 
       case 'feedback':

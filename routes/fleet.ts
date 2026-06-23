@@ -21,6 +21,7 @@ import { basename } from 'node:path';
 import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import type { createFleetDaemon } from '../lib/fleet-daemon.js';
+import type { Conductor } from '../lib/fleet/conductor.js';
 import {
   BUILTIN_MODEL_TIERS,
   findFleetConfigPath,
@@ -54,6 +55,12 @@ interface FleetRouteDeps {
   messaging: {
     subscribe(channel: string, callback: (msg: unknown) => void): (() => void) | null;
   };
+  /**
+   * The Daemon Fleet Conductor (ADR-0060). Optional — when present, the operator
+   * control surface (`POST /fleet/halt|pause|resume`, `GET /fleet/tree/:rootId`)
+   * is wired to the in-process conductor methods. Absent in legacy/test setups.
+   */
+  conductor?: Conductor;
 }
 
 // Backend catalog is shared with the CLI and FleetBar/dashboard surfaces;
@@ -201,7 +208,69 @@ function setFleetYamlRuntime(yaml: string, update: FleetRuntimeYamlUpdate): Flee
 }
 
 export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (fastify, opts) => {
-  const { fleetDaemon, messaging, projects } = opts.deps;
+  const { fleetDaemon, messaging, projects, conductor } = opts.deps;
+
+  // ── Conductor operator control surface (ADR-0060) ──────────────────────────
+  // halt = total (SIGTERM→SIGKILL the scope, refund-not-slash); pause = soft
+  // (stop admitting, leave running agents alive); resume = reopen; tree/inspect
+  // = render the lineage tree for a rootId. All call the in-process conductor
+  // methods that already exist; they no-op gracefully (503) if no conductor is
+  // wired (legacy / test setups without ADR-0060).
+  function requireConductor(reply: FastifyReply): Conductor | null {
+    if (!conductor) {
+      reply.code(503).send({ success: false, error: 'Fleet Conductor not wired (ADR-0060)' });
+      return null;
+    }
+    return conductor;
+  }
+  function scopeFromBody(body: unknown): { rootId?: string } {
+    const b = (body as Record<string, unknown>) || {};
+    const rootId = typeof b.rootId === 'string' && b.rootId.trim() ? b.rootId.trim() : undefined;
+    return rootId ? { rootId } : {};
+  }
+
+  fastify.post('/fleet/halt', async (request: FastifyRequest, reply: FastifyReply) => {
+    const c = requireConductor(reply);
+    if (!c) return;
+    const scope = scopeFromBody(request.body);
+    const result = c.halt(scope);
+    return { success: true, scope: scope.rootId ?? 'global', halted: result.halted, count: result.halted.length };
+  });
+
+  fastify.post('/fleet/pause', async (request: FastifyRequest, reply: FastifyReply) => {
+    const c = requireConductor(reply);
+    if (!c) return;
+    const scope = scopeFromBody(request.body);
+    c.pause(scope);
+    return { success: true, scope: scope.rootId ?? 'global', paused: true };
+  });
+
+  fastify.post('/fleet/resume', async (request: FastifyRequest, reply: FastifyReply) => {
+    const c = requireConductor(reply);
+    if (!c) return;
+    const scope = scopeFromBody(request.body);
+    c.resume(scope);
+    return { success: true, scope: scope.rootId ?? 'global', resumed: true };
+  });
+
+  fastify.get('/fleet/tree/:rootId', async (request: FastifyRequest, reply: FastifyReply) => {
+    const c = requireConductor(reply);
+    if (!c) return;
+    const { rootId } = request.params as { rootId: string };
+    const nodes = c.tree(rootId);
+    return { success: true, rootId, count: nodes.length, tree: nodes };
+  });
+
+  // GET /fleet/conductor — every launch across all roots (newest first, bounded).
+  // Powers the operator console's Conductor pane (ADR-0060).
+  fastify.get('/fleet/conductor', async (request: FastifyRequest, reply: FastifyReply) => {
+    const c = requireConductor(reply);
+    if (!c) return;
+    const q = (request.query as { limit?: string }) || {};
+    const limit = q.limit ? Number.parseInt(q.limit, 10) : 200;
+    const launches = c.allLaunches(Number.isFinite(limit) ? limit : 200);
+    return { success: true, count: launches.length, launches };
+  });
 
   function resolveFleetRecord(projectOrDir: string, reply: FastifyReply) {
     const fleets = fleetDaemon.getStatus().fleets;
@@ -743,17 +812,28 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     });
     raw.write('data: {"type":"connected"}\n\n');
 
-    // Subscribe to the fleet-wide event channel
-    const unsub = messaging.subscribe('fleet:events', (msg: unknown) => {
+    // Subscribe to the fleet-wide event channel AND the Conductor's lifecycle
+    // channels (ADR-0060). The conductor broadcasts admission / state-transition /
+    // breaker-trip / halt events on `fleet:launch` + `fleet:state`; without a
+    // consumer those broadcasts went nowhere. Forward them all onto this SSE so
+    // an operator (or the console pane) sees the live fleet, including halts.
+    const write = (type: string, msg: unknown): void => {
       try {
-        const payload = typeof msg === 'string' ? msg : JSON.stringify(msg);
-        raw.write(`data: ${payload}\n\n`);
+        const body = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        // fleet:events already carries its own shape; conductor channels are
+        // tagged so a consumer can distinguish them.
+        raw.write(`data: ${type === 'fleet:events' ? body : JSON.stringify({ channel: type, ...(typeof msg === 'object' && msg ? msg : { value: msg }) })}\n\n`);
       } catch {
         // Client disconnected
       }
-    });
+    };
+    const unsubEvents = messaging.subscribe('fleet:events', (msg) => write('fleet:events', msg));
+    const unsubState = messaging.subscribe('fleet:state', (msg) => write('fleet:state', msg));
+    const unsubLaunch = messaging.subscribe('fleet:launch', (msg) => write('fleet:launch', msg));
 
-    if (!unsub) {
+    if (!unsubEvents) {
+      unsubState?.();
+      unsubLaunch?.();
       untrackConnection(clientIp, 'sse', raw as any);
       raw.end();
       return;
@@ -766,7 +846,9 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
 
     request.raw.on('close', () => {
       clearInterval(heartbeat);
-      unsub();
+      unsubEvents();
+      unsubState?.();
+      unsubLaunch?.();
       untrackConnection(clientIp, 'sse', raw as any);
     });
   });

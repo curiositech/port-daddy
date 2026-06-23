@@ -32,7 +32,7 @@ Sleep 500ms
 Type "# Start a session with an identity"
 Enter
 Sleep 800ms
-Type `pd begin "Building the payment API" --identity myapp:api`
+Type `pd begin "Building the payment API" --identity myapp:api --lifecycle durable`
 Enter
 Sleep 2s
 

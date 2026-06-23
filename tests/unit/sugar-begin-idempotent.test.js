@@ -34,10 +34,10 @@ function setup() {
 describe('begin idempotency — resume, do not fork', () => {
   test('re-begin with the same identity in the same worktree RESUMES the same session', () => {
     const { sugar } = setup();
-    const first = sugar.begin({ identity: 'demo:test:ctx', purpose: 'first call' });
+    const first = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'first call' });
     expect(first.success).toBe(true);
 
-    const second = sugar.begin({ identity: 'demo:test:ctx', purpose: 'second call, same identity' });
+    const second = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'second call, same identity' });
     expect(second.success).toBe(true);
     expect(second.resumed).toBe(true);
     expect(second.agentId).toBe(first.agentId);
@@ -46,8 +46,8 @@ describe('begin idempotency — resume, do not fork', () => {
 
   test('force: true mints a fresh session even for the same identity', () => {
     const { sugar } = setup();
-    const first = sugar.begin({ identity: 'demo:test:ctx', purpose: 'work' });
-    const forced = sugar.begin({ identity: 'demo:test:ctx', purpose: 'work', force: true });
+    const first = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'work' });
+    const forced = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'work', force: true });
     expect(forced.success).toBe(true);
     expect(forced.resumed).toBeFalsy();
     expect(forced.sessionId).not.toBe(first.sessionId);
@@ -55,16 +55,16 @@ describe('begin idempotency — resume, do not fork', () => {
 
   test('a different identity does NOT resume — it gets its own session', () => {
     const { sugar } = setup();
-    const a = sugar.begin({ identity: 'demo:test:alpha', purpose: 'work' });
-    const b = sugar.begin({ identity: 'demo:test:beta', purpose: 'work' });
+    const a = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:alpha', purpose: 'work' });
+    const b = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:beta', purpose: 'work' });
     expect(b.resumed).toBeFalsy();
     expect(b.sessionId).not.toBe(a.sessionId);
   });
 
   test('an explicit agentId opts out of resume (caller owns identity)', () => {
     const { sugar } = setup();
-    const first = sugar.begin({ identity: 'demo:test:ctx', purpose: 'work' });
-    const explicit = sugar.begin({ identity: 'demo:test:ctx', purpose: 'work', agentId: 'agent-explicit-xyz' });
+    const first = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'work' });
+    const explicit = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'work', agentId: 'agent-explicit-xyz' });
     expect(explicit.resumed).toBeFalsy();
     expect(explicit.agentId).toBe('agent-explicit-xyz');
     expect(explicit.sessionId).not.toBe(first.sessionId);
@@ -72,8 +72,8 @@ describe('begin idempotency — resume, do not fork', () => {
 
   test('resume claims newly-passed files onto the existing session', () => {
     const { sugar, sessions } = setup();
-    const first = sugar.begin({ identity: 'demo:test:ctx', purpose: 'work' });
-    const second = sugar.begin({ identity: 'demo:test:ctx', purpose: 'work', files: ['lib/widget.ts'] });
+    const first = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'work' });
+    const second = sugar.begin({ lifecycle: 'ephemeral', identity: 'demo:test:ctx', purpose: 'work', files: ['lib/widget.ts'] });
     expect(second.resumed).toBe(true);
     const got = sessions.get(first.sessionId);
     expect(JSON.stringify(got)).toContain('lib/widget.ts');
@@ -81,8 +81,8 @@ describe('begin idempotency — resume, do not fork', () => {
 
   test('begin without an identity is unaffected (still creates)', () => {
     const { sugar } = setup();
-    const a = sugar.begin({ purpose: 'no identity A' });
-    const b = sugar.begin({ purpose: 'no identity B' });
+    const a = sugar.begin({ lifecycle: 'ephemeral', purpose: 'no identity A' });
+    const b = sugar.begin({ lifecycle: 'ephemeral', purpose: 'no identity B' });
     expect(a.success && b.success).toBe(true);
     expect(b.resumed).toBeFalsy();
     expect(b.sessionId).not.toBe(a.sessionId);

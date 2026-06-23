@@ -92,6 +92,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   spawned: 'silent',
   feedback: 'silent',       // default form is `feedback list/show/summary`; writes are `notify`
   quorum: 'silent',
+  parley: 'approval',       // summons/resolves other agents; read-only forms refined below
   tuple: 'silent',
   pheromone: 'silent',
   ph: 'silent',
@@ -146,6 +147,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
+  cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -178,9 +180,12 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   start: 'notify',                  // starts the daemon, not destructive
   restart: 'destructive',           // kills the running daemon
   install: 'notify',                // installs launchd plist; not destructive on its own
+  'self-update': 'notify',          // ADR-0062: opt-in hands-off brew-upgrade + restart; notify, not gated (must run unattended via the freshness LaunchAgent)
+  upgrade: 'notify',                // ADR-0057 phase 7: bare form is a read-only feed check; `--apply` shells brew upgrade. notify (not gated) so the report path is frictionless.
   uninstall: 'destructive',
   guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
-  dev: 'approval',                  // refined: `dev stop` is destructive
+  dev: 'approval',                  // refined: `dev down` stops a berth (destructive); see SUBCOMMAND_TIERS
+  use: 'silent',                    // emits a shell snippet to eval; read-only, no daemon mutation (ADR-0084)
   daemon: 'silent',                 // refined: subcommands vary
 
   restore: 'destructive',           // overwrites the live registry DB from a snapshot
@@ -253,6 +258,25 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'agent inbox clear': 'destructive',
   'agent inbox read-all': 'notify',
 
+  // parley: list/show/fit are reads; call/respond/resolve mutate shared reconciliation state
+  'parley list': 'silent',
+  'parley show': 'silent',
+  'parley fit': 'silent',
+  'parley call': 'approval',
+  'parley respond': 'approval',
+  'parley resolve': 'approval',
+
+  // roadmap: default/list/show are reads; upsert/touch/promote mutate the roadmap DB-of-record
+  'roadmap upsert': 'notify',
+  'roadmap add': 'notify',
+  'roadmap touch': 'notify',
+  'roadmap promote': 'notify',
+  'roadmap ack': 'notify',
+  'roadmap harvest': 'notify',
+  'roadmap render': 'notify',
+  'roadmap import': 'notify',
+  'roadmap import-markdown': 'notify',
+
   // harbor subcommands
   'harbor create': 'notify',
   'harbor enter': 'notify',
@@ -294,8 +318,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'guard shim-uninstall': 'destructive',
   'guard help': 'silent',
 
-  // dev subcommands
-  'dev start': 'approval',
+  // dev (berths) subcommands (ADR-0084). up = build+launch a berth (notify);
+  // down = stop a berth (destructive); list = read-only.
+  'dev up': 'notify',
+  'dev down': 'destructive',
+  'dev list': 'silent',
+  // back-compat aliases for the legacy verbs
+  'dev start': 'notify',
   'dev stop': 'destructive',
   'dev status': 'silent',
 

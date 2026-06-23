@@ -396,7 +396,7 @@ notes. If it crashes, the reaper detects it and enqueues it for salvage:
 ```bash
 pd agent register --agent arbiter-001 \
   --identity myproject:arbiter:main --purpose "Invariant monitoring"
-pd begin --agent arbiter-001 --purpose "Monitoring against formal invariants"
+pd begin --agent arbiter-001 --purpose "Monitoring against formal invariants" --lifecycle durable
 ```
 
 The recursion terminates because the reaper is a simple timer with no
