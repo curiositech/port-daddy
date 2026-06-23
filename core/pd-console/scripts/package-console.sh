@@ -56,6 +56,16 @@ mkdir -p "$(dirname "$BIN_PATH")"
 cp -f "$REL" "$APP/Contents/MacOS/pd-console"
 cp -f "$REL" "$BIN_PATH"
 
+# 4b. Seed the editable model-tier config (the single source of truth for the
+# Spawn picker's provider→tier→model map). Never clobber an operator-edited file
+# — only drop the default if it's missing, so edits survive upgrades.
+MODEL_TIERS_DST="$HOME/.port-daddy/model-tiers.json"
+MODEL_TIERS_SRC="$(cd "$(dirname "$0")/.." && pwd)/config/model-tiers.json"
+if [[ ! -f "$MODEL_TIERS_DST" && -f "$MODEL_TIERS_SRC" ]]; then
+  cp "$MODEL_TIERS_SRC" "$MODEL_TIERS_DST"
+  echo "▸ seeded model-tier config → $MODEL_TIERS_DST (edit it; no rebuild needed)"
+fi
+
 # 5. Re-sign (ad-hoc) so Gatekeeper accepts the mutated bundle.
 echo "▸ codesign (ad-hoc)"
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || echo "⚠ codesign warning (non-fatal)"

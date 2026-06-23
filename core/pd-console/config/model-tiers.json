@@ -1,0 +1,36 @@
+{
+  "_comment": "Single source of truth for provider capability tiers. The console reads this at spawn time and resolves (provider, tier) -> model id; nothing is compiled into the binary. Edit this file (or ~/.port-daddy/model-tiers.json, which overrides it) and the change takes effect on the next spawn — no rebuild. Every model id MUST exist in the daemon's cost-rate registry (lib/cost-tracker MODEL_RATES) or the launch fails closed with a 'no cost rate entry' message; when that happens, fix the id here. The 'low' tier of each provider mirrors the daemon's DEFAULT_OPERATOR_*_MODEL, which is guaranteed priced.",
+  "_tiers": ["high = most capable", "mid = balanced", "low = fast & cheap (daemon operator default)"],
+  "providers": {
+    "claude": {
+      "high": "claude-opus-4-8",
+      "mid": "claude-sonnet-4-6",
+      "low": "claude-haiku-4-5-20251001"
+    },
+    "gemini": {
+      "high": "gemini-3-pro",
+      "mid": "gemini-2.5-flash",
+      "low": "gemini-2.5-flash"
+    },
+    "groq": {
+      "high": "llama-3.3-70b-versatile",
+      "mid": "llama-3.3-70b-versatile",
+      "low": "llama-3.1-8b-instant"
+    },
+    "openai": {
+      "high": "gpt-5",
+      "mid": "gpt-5-mini",
+      "low": "gpt-5-mini"
+    },
+    "cloudflare": {
+      "high": "@cf/zai-org/glm-4.7-flash",
+      "mid": "@cf/zai-org/glm-4.7-flash",
+      "low": "@cf/zai-org/glm-4.7-flash"
+    },
+    "ollama": {
+      "high": "llama3.1:70b",
+      "mid": "llama3.1:8b",
+      "low": "llama3.2:3b"
+    }
+  }
+}

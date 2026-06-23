@@ -18,7 +18,7 @@
 use gpui::prelude::*;
 use gpui::*;
 
-use crate::agent::{Backend, Tier};
+use crate::agent::{Backend, ModelCatalog, Tier};
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
@@ -141,6 +141,9 @@ pub struct CommandLine {
     backend: Option<Backend>,
     /// Spawn picker: chosen capability tier (None → still choosing).
     tier: Option<Tier>,
+    /// Whether the chosen backend offers tiers (set from the ModelCatalog when
+    /// the backend is picked, so `spawn_step` stays catalog-free).
+    tier_applies: bool,
 }
 
 /// Which step of the Spawn structured picker is active.
@@ -153,15 +156,15 @@ enum SpawnStep {
 
 impl CommandLine {
     fn new(kind: CmdKind) -> Self {
-        Self { kind, buffer: String::new(), backend: None, tier: None }
+        Self { kind, buffer: String::new(), backend: None, tier: None, tier_applies: false }
     }
 
     /// The active step for a Spawn command: pick a backend, then a tier, then
-    /// type the prompt. CLI backends skip the tier step (it's advisory there).
+    /// type the prompt. Backends with no tiers in the config skip the tier step.
     fn spawn_step(&self) -> SpawnStep {
         if self.backend.is_none() {
             SpawnStep::Backend
-        } else if self.tier.is_none() && self.backend.map(|b| b.tier_selects_model()).unwrap_or(false) {
+        } else if self.tier.is_none() && self.tier_applies {
             SpawnStep::Tier
         } else {
             SpawnStep::Prompt
@@ -187,11 +190,13 @@ fn filtered_backends(filter: &str) -> Vec<Backend> {
         .collect()
 }
 
-/// Tiers matching the picker filter.
-fn filtered_tiers(filter: &str) -> Vec<Tier> {
+/// Tiers the config defines for this backend, matching the picker filter. Only
+/// tiers with a resolved model are shown — the set is data, not hard-coded.
+fn filtered_tiers(catalog: &ModelCatalog, backend: Backend, filter: &str) -> Vec<Tier> {
     let f = filter.trim().to_lowercase();
     Tier::ALL
         .into_iter()
+        .filter(|t| catalog.resolve(backend, *t).is_some())
         .filter(|t| f.is_empty() || t.as_str().starts_with(&f) || t.label().to_lowercase().contains(&f))
         .collect()
 }
@@ -511,6 +516,9 @@ pub struct ConsoleView {
     command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
+    /// Provider→tier→model map, loaded from config (not compiled-in), so the
+    /// Spawn picker resolves models that can change without a rebuild.
+    catalog: ModelCatalog,
     /// Stable focus handle — created once and focused on open. Recreating it per
     /// render (the old `cx.focus_handle()` in render) meant nothing stayed
     /// focused, so the keyboard nav never received key events.
@@ -563,6 +571,7 @@ impl ConsoleView {
             command: None,
             pane_blocks,
             daemon_url,
+            catalog: ModelCatalog::load(),
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
@@ -779,18 +788,22 @@ impl ConsoleView {
 
     /// Select the Nth currently-visible chip for the active picker step.
     fn spawn_pick_index(&mut self, idx: usize) {
+        let catalog = &self.catalog;
         let Some(cmd) = self.command.as_mut() else { return };
         match cmd.spawn_step() {
             SpawnStep::Backend => {
                 if let Some(b) = filtered_backends(&cmd.buffer).get(idx).copied() {
                     cmd.backend = Some(b);
+                    cmd.tier_applies = catalog.has_tiers(b);
                     cmd.buffer.clear();
                 }
             }
             SpawnStep::Tier => {
-                if let Some(t) = filtered_tiers(&cmd.buffer).get(idx).copied() {
-                    cmd.tier = Some(t);
-                    cmd.buffer.clear();
+                if let Some(bk) = cmd.backend {
+                    if let Some(t) = filtered_tiers(catalog, bk, &cmd.buffer).get(idx).copied() {
+                        cmd.tier = Some(t);
+                        cmd.buffer.clear();
+                    }
                 }
             }
             SpawnStep::Prompt => {}
@@ -799,8 +812,10 @@ impl ConsoleView {
 
     /// Click-select a specific backend chip.
     fn spawn_pick_backend(&mut self, b: Backend) {
+        let applies = self.catalog.has_tiers(b);
         if let Some(cmd) = self.command.as_mut() {
             cmd.backend = Some(b);
+            cmd.tier_applies = applies;
             cmd.buffer.clear();
         }
     }
@@ -844,16 +859,16 @@ impl ConsoleView {
                 // resolved to a model id. Fall back to free-text `backend: prompt`
                 // only if no backend was picked (e.g. a future headless caller).
                 let (backend, prompt, model) = if let Some(b) = cmd.backend {
-                    let model = cmd.tier.and_then(|t| t.model_for(b)).map(str::to_string);
+                    // Resolve the model from the runtime config at the moment of
+                    // spawn — never compiled-in, so it can't go stale in the binary.
+                    let model = cmd.tier.and_then(|t| self.catalog.resolve(b, t));
                     (b.as_str().to_string(), text.clone(), model)
                 } else {
                     let (b, p) = split_backend(&text);
                     (b, p, None)
                 };
                 let label = match cmd.tier {
-                    Some(t) if cmd.backend.map(|b| b.tier_selects_model()).unwrap_or(false) => {
-                        format!("{backend}·{}", t.as_str())
-                    }
+                    Some(t) if cmd.tier_applies => format!("{backend}·{}", t.as_str()),
                     _ => backend.clone(),
                 };
                 let _ = tx.send(ControlMsg::Spawn {
@@ -1269,9 +1284,13 @@ fn command_bar_btn(
 
 /// Render the open command line. For a Spawn still choosing backend/tier it
 /// shows the inline chip picker; otherwise the prompt field + Send/Cancel.
-fn render_open_command(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyElement {
+fn render_open_command(
+    cmd: &CommandLine,
+    catalog: &ModelCatalog,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
     if cmd.kind == CmdKind::Spawn && !cmd.spawn_ready() {
-        return render_spawn_picker(cmd, cx);
+        return render_spawn_picker(cmd, catalog, cx);
     }
     // Prompt step (or any non-Spawn command): label + input + Send/Cancel.
     let prompt_label = if cmd.kind == CmdKind::Spawn {
@@ -1353,7 +1372,11 @@ fn render_open_command(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyE
 /// (`N  Label`) for the discrete known set — backends, then capability tiers.
 /// Type to filter, press the digit to pick, or click. This is the "dropdown that
 /// expands as you type with hotkeys" pattern instead of free-text syntax.
-fn render_spawn_picker(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyElement {
+fn render_spawn_picker(
+    cmd: &CommandLine,
+    catalog: &ModelCatalog,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
     let step = cmd.spawn_step();
     let chosen = cmd.backend.map(|b| b.as_str()).unwrap_or("");
     let hint = match step {
@@ -1409,7 +1432,8 @@ fn render_spawn_picker(cmd: &CommandLine, cx: &mut Context<ConsoleView>) -> AnyE
             }
         }
         SpawnStep::Tier => {
-            for (i, t) in filtered_tiers(&cmd.buffer).into_iter().enumerate() {
+            let backend = cmd.backend.unwrap_or(Backend::Claude);
+            for (i, t) in filtered_tiers(catalog, backend, &cmd.buffer).into_iter().enumerate() {
                 let hot = i + 1;
                 row = row.child(
                     div()
@@ -1863,7 +1887,7 @@ impl Render for ConsoleView {
                     .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
                     .child(if let Some(cmd) = command.as_ref() {
                         // Open command line — chip picker (Spawn) or prompt + Send.
-                        render_open_command(cmd, cx)
+                        render_open_command(cmd, &self.catalog, cx)
                     } else if armed {
                         div()
                             .text_color(rgb(current_theme().accent_ink))

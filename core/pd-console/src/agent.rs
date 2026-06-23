@@ -19,36 +19,42 @@ use std::collections::BTreeMap;
 /// Every backend the daemon's spawner accepts (mirrors routes/spawn.ts VALID_BACKENDS).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
-    Ollama,
     Claude,
-    ClaudeCli,
     Gemini,
-    Cloudflare,
+    Groq,
+    Openai,
+    ClaudeCli,
     Codex,
+    Cloudflare,
+    Ollama,
     Aider,
     Custom,
 }
 
 impl Backend {
-    pub const ALL: [Backend; 8] = [
-        Backend::Ollama,
+    pub const ALL: [Backend; 10] = [
         Backend::Claude,
-        Backend::ClaudeCli,
         Backend::Gemini,
-        Backend::Cloudflare,
+        Backend::Groq,
+        Backend::Openai,
+        Backend::ClaudeCli,
         Backend::Codex,
+        Backend::Cloudflare,
+        Backend::Ollama,
         Backend::Aider,
         Backend::Custom,
     ];
 
     pub fn as_str(self) -> &'static str {
         match self {
-            Backend::Ollama => "ollama",
             Backend::Claude => "claude",
-            Backend::ClaudeCli => "claude-cli",
             Backend::Gemini => "gemini",
-            Backend::Cloudflare => "cloudflare",
+            Backend::Groq => "groq",
+            Backend::Openai => "openai",
+            Backend::ClaudeCli => "claude-cli",
             Backend::Codex => "codex",
+            Backend::Cloudflare => "cloudflare",
+            Backend::Ollama => "ollama",
             Backend::Aider => "aider",
             Backend::Custom => "custom",
         }
@@ -62,31 +68,24 @@ impl Backend {
     /// wire id; they pick a labelled option).
     pub fn label(self) -> &'static str {
         match self {
-            Backend::Ollama => "Ollama (local)",
             Backend::Claude => "Claude (API)",
-            Backend::ClaudeCli => "Claude Code",
             Backend::Gemini => "Gemini",
-            Backend::Cloudflare => "Cloudflare",
+            Backend::Groq => "Groq",
+            Backend::Openai => "OpenAI",
+            Backend::ClaudeCli => "Claude Code",
             Backend::Codex => "Codex",
+            Backend::Cloudflare => "Cloudflare",
+            Backend::Ollama => "Ollama (local)",
             Backend::Aider => "Aider",
             Backend::Custom => "Custom",
         }
     }
-
-    /// Whether choosing a capability tier (high/mid/low) changes the model the
-    /// daemon launches. API/local model-backends honour a model id; the CLI
-    /// agents (Claude Code, Codex, Aider) run whatever model they're configured
-    /// with, so the tier is advisory there.
-    pub fn tier_selects_model(self) -> bool {
-        matches!(self, Backend::Claude | Backend::Gemini | Backend::Ollama)
-    }
 }
 
-/// A capability/cost tier the operator picks instead of memorising model ids.
-/// `model_for` resolves it to the concrete model the daemon's `/spawn` accepts.
-/// The canonical mapping should ultimately live in the daemon (it knows what's
-/// configured); this is the console's best-known default so the picker is real
-/// today rather than a dead dropdown.
+/// A capability tier the operator picks instead of memorising model ids. The
+/// tier is provider-agnostic; the concrete model is resolved at spawn time from
+/// the [`ModelCatalog`] config — never hard-coded — so the model list never goes
+/// stale in the binary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tier {
     High,
@@ -113,28 +112,66 @@ impl Tier {
             Tier::Low => "Low · fast & cheap",
         }
     }
+}
 
-    /// Resolve (backend, tier) → the concrete model id for `/spawn`, or `None`
-    /// to let the daemon pick its default (CLI backends, custom, cloudflare).
-    pub fn model_for(self, backend: Backend) -> Option<&'static str> {
-        match backend {
-            Backend::Claude => Some(match self {
-                Tier::High => "claude-opus-4-8",
-                Tier::Mid => "claude-sonnet-4-6",
-                Tier::Low => "claude-haiku-4-5",
-            }),
-            Backend::Gemini => Some(match self {
-                Tier::High => "gemini-3-pro",
-                Tier::Mid => "gemini-2.5-flash",
-                Tier::Low => "gemini-2.5-flash-lite",
-            }),
-            Backend::Ollama => Some(match self {
-                Tier::High => "llama3.1:70b",
-                Tier::Mid => "llama3.1:8b",
-                Tier::Low => "llama3.2:3b",
-            }),
-            _ => None,
+/// The seed shipped with the binary, overridden by any on-disk config. Kept as
+/// raw JSON (data, not Rust logic) so it reads like the editable file.
+const BUNDLED_MODEL_TIERS: &str = include_str!("../config/model-tiers.json");
+
+/// Provider capability tiers loaded from a JSON config — NOT compiled-in logic —
+/// so the tier→model map can change without a rebuild. Load order:
+///   `$PD_CONSOLE_MODEL_TIERS` → `~/.port-daddy/model-tiers.json` → bundled seed.
+/// The on-disk file (the installer writes it; the operator edits it) wins. A
+/// model id absent from the daemon's cost-rate registry fails the launch closed,
+/// which is the signal to fix the id in the config.
+#[derive(Debug, Clone, Default)]
+pub struct ModelCatalog {
+    providers: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+}
+
+impl ModelCatalog {
+    pub fn load() -> ModelCatalog {
+        let raw = std::env::var("PD_CONSOLE_MODEL_TIERS")
+            .ok()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .or_else(|| {
+                dirs::home_dir()
+                    .map(|h| h.join(".port-daddy/model-tiers.json"))
+                    .and_then(|p| std::fs::read_to_string(p).ok())
+            })
+            .unwrap_or_else(|| BUNDLED_MODEL_TIERS.to_string());
+        Self::parse(&raw).unwrap_or_default()
+    }
+
+    /// Parse the `{ "providers": { "<backend>": { "<tier>": "<model>" } } }` shape.
+    pub fn parse(raw: &str) -> Option<ModelCatalog> {
+        let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+        let mut providers = std::collections::HashMap::new();
+        if let Some(obj) = v.get("providers").and_then(|p| p.as_object()) {
+            for (backend, tiers) in obj {
+                if let Some(tobj) = tiers.as_object() {
+                    let map = tobj
+                        .iter()
+                        .filter_map(|(t, m)| Some((t.clone(), m.as_str()?.to_string())))
+                        .collect();
+                    providers.insert(backend.clone(), map);
+                }
+            }
         }
+        Some(ModelCatalog { providers })
+    }
+
+    /// Whether this backend offers capability tiers (i.e. the config maps it).
+    /// CLI backends (Claude Code, Codex, Aider) are intentionally absent — they
+    /// run whatever model they're configured with, so a tier would be a lie.
+    pub fn has_tiers(&self, backend: Backend) -> bool {
+        self.providers.get(backend.as_str()).map(|m| !m.is_empty()).unwrap_or(false)
+    }
+
+    /// Resolve (backend, tier) → model id from the config, or `None` to let the
+    /// daemon pick its own per-backend default.
+    pub fn resolve(&self, backend: Backend, tier: Tier) -> Option<String> {
+        self.providers.get(backend.as_str())?.get(tier.as_str()).cloned()
     }
 }
 
@@ -784,18 +821,27 @@ mod tests {
     }
 
     #[test]
-    fn tier_resolves_model_for_model_backends_only() {
-        // Model-backends resolve a concrete id per tier…
-        assert_eq!(Tier::High.model_for(Backend::Claude), Some("claude-opus-4-8"));
-        assert_eq!(Tier::Low.model_for(Backend::Claude), Some("claude-haiku-4-5"));
-        assert_eq!(Tier::High.model_for(Backend::Gemini), Some("gemini-3-pro"));
-        assert!(Tier::Mid.model_for(Backend::Ollama).is_some());
-        // …CLI/other backends defer to the daemon default (tier is advisory).
-        assert_eq!(Tier::High.model_for(Backend::ClaudeCli), None);
-        assert_eq!(Tier::High.model_for(Backend::Codex), None);
-        assert!(!Backend::ClaudeCli.tier_selects_model());
-        assert!(Backend::Claude.tier_selects_model());
-        // Every backend has a non-empty picker label.
+    fn model_catalog_resolves_from_config_not_hardcode() {
+        // The catalog is parsed from JSON data, never compiled-in logic.
+        let cat = ModelCatalog::parse(
+            r#"{ "providers": {
+                   "claude": { "high": "claude-opus-4-8", "low": "claude-haiku-4-5-20251001" },
+                   "groq":   { "high": "llama-3.3-70b-versatile" }
+                 } }"#,
+        )
+        .expect("valid catalog");
+        assert_eq!(cat.resolve(Backend::Claude, Tier::High).as_deref(), Some("claude-opus-4-8"));
+        assert_eq!(cat.resolve(Backend::Groq, Tier::High).as_deref(), Some("llama-3.3-70b-versatile"));
+        // A tier absent from the config → None (daemon picks its default).
+        assert_eq!(cat.resolve(Backend::Claude, Tier::Mid), None);
+        // A backend absent from the config offers no tiers (CLI backends, etc.).
+        assert!(cat.has_tiers(Backend::Claude));
+        assert!(!cat.has_tiers(Backend::ClaudeCli));
+        // The bundled seed is valid JSON and maps the model-backends.
+        let seed = ModelCatalog::parse(BUNDLED_MODEL_TIERS).expect("bundled seed parses");
+        assert!(seed.has_tiers(Backend::Claude));
+        assert!(seed.resolve(Backend::Gemini, Tier::Low).is_some());
+        // Every backend still has a non-empty picker label.
         assert!(Backend::ALL.iter().all(|b| !b.label().is_empty()));
     }
 
