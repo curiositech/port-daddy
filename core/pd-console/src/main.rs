@@ -10,6 +10,7 @@
 
 mod activity_pane;
 mod adrs_pane;
+mod begin_flakiness_pane;
 mod agent;
 mod app;
 mod claims_pane;
@@ -40,6 +41,7 @@ mod util;
 
 use activity_pane::ActivityPane;
 use adrs_pane::AdrsPane;
+use begin_flakiness_pane::BeginFlakinessPane;
 use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
@@ -212,6 +214,7 @@ fn main() {
                 let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
                 let mut conductor  = ConductorPane::new();     // 20 — Fleet Conductor (ADR-0060)
+                let mut flakiness  = BeginFlakinessPane::new();// 21 — pd begin flakiness
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -286,6 +289,7 @@ fn main() {
                     let _ = lineage.refresh(&client).await;
                     let _ = substrate.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
+                    let _ = flakiness.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -331,6 +335,7 @@ fn main() {
                         (18, lineage.view()),
                         (19, substrate.view()),
                         (20, conductor.view()),
+                        (21, flakiness.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

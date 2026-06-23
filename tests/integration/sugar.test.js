@@ -647,6 +647,48 @@ describe('Sugar Integration Tests', () => {
   });
 
   // ===========================================================================
+  // Begin flakiness recorder — problems that enter the human suggestion layer
+  // get recorded durably and surfaced via GET /sugar/begin/flakiness.
+  // ===========================================================================
+  describe('Begin flakiness telemetry', () => {
+    test('a failed begin is recorded and surfaced on the flakiness endpoint', async () => {
+      // Bad lifecycle => SESSION_LIFECYCLE_REQUIRED (400). This is exactly the
+      // kind of problem that previously vanished with the HTTP response.
+      const bad = await request('/sugar/begin', {
+        method: 'POST',
+        body: { purpose: 'flaky telemetry probe', lifecycle: 'not-a-real-lifecycle' },
+      });
+      expect(bad.ok).toBe(false);
+      expect(bad.data.code).toBe('SESSION_LIFECYCLE_REQUIRED');
+
+      const flak = await request('/sugar/begin/flakiness?limit=20');
+      expect(flak.ok).toBe(true);
+      expect(flak.data.success).toBe(true);
+      expect(Array.isArray(flak.data.entries)).toBe(true);
+
+      // The probe we just triggered is present and classified as validation.
+      const recorded = flak.data.entries.find(
+        (e) => e.code === 'SESSION_LIFECYCLE_REQUIRED' && e.purpose === 'flaky telemetry probe'
+      );
+      expect(recorded).toBeDefined();
+      expect(recorded.class).toBe('validation');
+      expect(recorded.httpStatus).toBe(400);
+
+      // Summary rollup includes the validation bucket and a sparkline.
+      expect(flak.data.summary).toBeTruthy();
+      expect(flak.data.summary.byClass.validation).toBeGreaterThanOrEqual(1);
+      expect(Array.isArray(flak.data.summary.sparkline)).toBe(true);
+    });
+
+    test('flakiness stats endpoint reports totals', async () => {
+      const res = await request('/sugar/begin/flakiness/stats');
+      expect(res.ok).toBe(true);
+      expect(res.data.success).toBe(true);
+      expect(res.data.stats.totalEntries).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // ===========================================================================
   // Server health after all sugar operations
   // ===========================================================================
   describe('Post-test health', () => {

@@ -43,6 +43,7 @@ import { createLocks } from './lib/locks.js';
 import { createHealth } from './lib/health.js';
 import { createAgents } from './lib/agents.js';
 import { createActivityLog, ActivityType } from './lib/activity.js';
+import { createBeginFlakinessLog } from './lib/begin-flakiness.js';
 import { createWebhooks, WebhookEvent } from './lib/webhooks.js';
 import { createProjects } from './lib/projects.js';
 import { createSessions } from './lib/sessions.js';
@@ -433,6 +434,11 @@ const locks = createLocks(db);
 const health = createHealth(db, services as Parameters<typeof createHealth>[1]);
 const agents = createAgents(db, { semanticIndex });
 const activityLog = createActivityLog(db);
+// Durable record of every `pd begin` problem at the moment it becomes a
+// human-facing suggestion (crowded gate, registration/session rollback,
+// validation, internal/race-shaped 500s). Surfaced via GET /sugar/begin/flakiness
+// and the core/pd-console begin-flakiness pane.
+const beginFlakiness = createBeginFlakinessLog(db);
 // Durable commitments + obligation monitor (ADR-0041 first slice). The
 // obligation half of accountability: resurrection watches heartbeats, this
 // watches promises. The monitor is a PURE runtime check over SQLite (Law 4 —
@@ -994,6 +1000,7 @@ function cleanupStale(): ReturnType<typeof services.cleanup> {
   }
 
   activityLog.cleanup();
+  beginFlakiness.cleanup();
   webhooks.cleanup();
   sessions.cleanup();
   agentInbox.cleanup();
@@ -1260,7 +1267,7 @@ await registerAllRoutes(
   {
     db, logger, metrics, config,
     routeRegistry,
-    services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
+    services, messaging, locks, health, agents, activityLog, beginFlakiness, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
     orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,

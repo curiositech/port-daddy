@@ -109,6 +109,38 @@ surface. Spark/Spider do not touch this lane — they own
   - `.spark/feedback/2026-04-28-coordination-guard-bypassed-by-cherry-pick.md`
 - roadmap: `docs/ROADMAP.md#next-cuts-from-curated-trove`
 
+### `begin-flakiness-observability`
+
+- status: `backlog`
+- surface: daemon | cli | rust-console
+- friction:
+  - agents reported `pd begin` as intermittently flaky (crowded main worktree,
+    registration/session rollback, the documented SELECT-then-INSERT race in
+    `lib/sugar.ts`, transport hiccups), but every failure was returned to the
+    operator and then forgotten — `routes/sugar.ts` only logged *successful*
+    begins, so the flakiness left no durable trace and could not be quantified.
+- shipped cut:
+  - `lib/begin-flakiness.ts` records every begin failure at the moment it
+    enters the human suggestion layer (the `error` + optional `hint` the
+    operator sees), classified into coarse buckets (crowded, worktree-policy,
+    registration, session-start, validation, internal, other).
+  - `routes/sugar.ts` records on every failure path (validation early-returns,
+    `sugar.begin()` failures, and thrown 500s) and exposes
+    `GET /sugar/begin/flakiness` (+ `/stats`) with a per-class rollup and a
+    rate sparkline.
+  - `core/pd-console` gains a **Flakiness** pane (`begin_flakiness_pane.rs`,
+    nav key `f`) that polls the endpoint and visualises class chips, the rate
+    sparkline, and the most recent suggestions.
+- next cut:
+  - close the underlying SELECT-then-INSERT race itself (atomic tx / unique
+    index), now that the `internal`/`crowded` buckets make its frequency
+    measurable.
+- provenance:
+  - `lib/begin-flakiness.ts`, `routes/sugar.ts`,
+    `core/pd-console/src/begin_flakiness_pane.rs`
+  - tests: `tests/unit/begin-flakiness.test.js`,
+    `tests/integration/sugar.test.js` (Begin flakiness telemetry)
+
 ### `session-context-cwd-reset`
 
 - status: `backlog`

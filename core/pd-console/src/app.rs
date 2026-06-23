@@ -162,6 +162,7 @@ const NAV: &[NavItem] = &[
     NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
     NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
+    NavItem { id: "flakiness",label: "Flakiness",icon: "icons/nav/health.svg",   key: "f" },
 ];
 
 // ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──

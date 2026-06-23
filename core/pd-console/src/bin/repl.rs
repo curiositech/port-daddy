@@ -15,6 +15,7 @@
 
 #[path = "../activity_pane.rs"]  mod activity_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
+#[path = "../begin_flakiness_pane.rs"] mod begin_flakiness_pane;
 #[path = "../agent.rs"]          mod agent;
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
@@ -41,6 +42,7 @@
 
 use agent::{AgentManager, Backend};
 use anyhow::Result;
+use begin_flakiness_pane::BeginFlakinessPane;
 use dispatch_pane::DispatchQueuePane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
@@ -95,6 +97,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(LanePane::new()));
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
+    reg.register(Box::new(BeginFlakinessPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
