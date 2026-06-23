@@ -1,33 +1,25 @@
+/* Recursive (default type system) — one variable file, all axes
+   (MONO 0→1, CASL, wght 300–1000, slnt, CRSV). Registered twice: once as
+   the sans ("Recursive", MONO=0 default) and once as the mono
+   ("Recursive Mono", MONO pinned to 1 via the font-variation-settings
+   descriptor). Same 305KB woff2, fetched once. */
 @font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+  font-family: "Recursive";
+  src: url("/fonts/recursive/recursive-latin-full-normal.woff2")
+    format("woff2-variations");
   font-style: normal;
-  font-weight: 400;
+  font-weight: 300 1000;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+  font-family: "Recursive Mono";
+  src: url("/fonts/recursive/recursive-latin-full-normal.woff2")
+    format("woff2-variations");
   font-style: normal;
-  font-weight: 500;
+  font-weight: 300 1000;
   font-display: swap;
-}
-
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Bold.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Radnika";
-  src: url("/fonts/radnika/Radnika-Black.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 900;
-  font-display: swap;
+  font-variation-settings: "MONO" 1, "CASL" 0;
 }
 
 :root {
@@ -67,13 +59,27 @@
   --text-4xl: 2.25rem;
   --text-5xl: 3rem;
 
-  --font-sans: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Default type system: Fraunces display serif + Source Sans 3 body +
+     JetBrains Mono. Loaded globally in index.html. Radnika/Recursive/others
+     remain as opt-in previews via the type switcher. */
+  --font-sans: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-mono:
-    "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 
-  --type-meta-size: 0.875rem; /* a11y: bumped 13px→14px per vision rule */
-  --type-code-size: 0.875rem; /* a11y: bumped 13px→14px per vision rule */
+  /* Diagram "paper" palette — deliberately theme-INDEPENDENT (not overridden in
+     the dark theme) so Mermaid sequence/flow diagrams render as a legible
+     light card in both light and dark mode. Consumed by Mermaid.tsx. */
+  --diagram-ink: #1a1a2e;
+  --diagram-paper: #f7f3eb;
+  --diagram-paper-2: #f2eee6;
+  --diagram-signal: #003fb8;
+  --diagram-lifeline: #9a948a;
+  --diagram-seq-num: #fbf7ef;
+  --diagram-note: #fff3d6;
+
+  --type-meta-size: 0.875rem; /* a11y: 14px floor per vision rule — do not revert to 13px */
+  --type-code-size: 0.875rem; /* a11y: 14px floor per vision rule — do not revert to 13px */
   --type-panel-body-size: 1.125rem;
   --type-panel-body-compact-size: 1.0625rem;
   --type-section-title-size: clamp(2rem, 3vw, 3rem);
@@ -132,4 +138,46 @@
     --radnika-opsz-small: 13;
     --radnika-opsz-display: 64;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Type-theme switcher (see TypeThemeSwitcher.tsx).
+   The DEFAULT (no attribute) is Fraunces + Source Sans 3 + JetBrains Mono, set
+   in :root above. The single opt-in below (Recursive) is self-hosted; no
+   external webfonts are loaded. The old grab-bag of CDN font themes was removed.
+--------------------------------------------------------------------------- */
+
+/* Recursive — opt-in preview. Self-hosted (see @font-face above). Its upper
+   weights run heavy/wide and its large x-height wants slightly negative display
+   tracking, so cap display weight at 800, tighten tracking, and normalize
+   apparent size with font-size-adjust. Scoped to the theme so Radnika (default)
+   is untouched. */
+html[data-type-theme="recursive"] {
+  --font-sans: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono:
+    "Recursive Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --tracking-display-tight: -0.02em;
+  --tracking-display-card: -0.015em;
+  --tracking-display-nav: -0.01em;
+}
+
+html[data-type-theme="recursive"] .font-black {
+  font-weight: 800;
+}
+
+html[data-type-theme="recursive"] body {
+  font-size-adjust: 0.526;
+}
+
+html[data-type-theme="recursive"] :is(pre, code, kbd, samp) {
+  font-size-adjust: none;
+}
+
+/* Fraunces display tuning — large optical size for headings on the default
+   (no-attribute) type system. */
+html:not([data-type-theme]) .display,
+html:not([data-type-theme]) h1,
+html:not([data-type-theme]) h2 {
+  font-variation-settings: "opsz" 120, "SOFT" 0, "WONK" 0;
 }

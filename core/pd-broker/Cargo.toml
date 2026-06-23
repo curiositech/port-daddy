@@ -1,0 +1,40 @@
+# pd-broker — the credential broker process (ADR-0087 Phase 4, the TCB slice).
+#
+# This is an isolated process that holds a raw credential internally and NEVER
+# lets it cross the socket. It reuses the kernel `pd-anchor` macaroon library
+# (the canonical verifier — ADR-0054) as a dependency rather than duplicating
+# any discharge/verification logic. On an authorized macaroon+discharge it mints
+# a scoped, short-lived capability *ticket* — a signed handle, not the secret.
+[package]
+name = "pd-broker"
+description = "Isolated credential broker: macaroon-gated, scoped-ticket issuance, raw-secret-never-leaks (ADR-0087)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# A library (so tests and future daemon embedders can drive the protocol in
+# process) plus the broker binary that listens on the Unix socket.
+[lib]
+name = "pd_broker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pd-broker"
+path = "src/main.rs"
+
+[dependencies]
+pd-anchor = { path = "../kernel/pd-anchor" }
+pd-core = { path = "../kernel/pd-core" }
+hmac.workspace = true
+sha2.workspace = true
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+libc.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

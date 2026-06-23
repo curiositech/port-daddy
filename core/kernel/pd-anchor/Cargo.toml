@@ -15,6 +15,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 ed25519-dalek.workspace = true
+getrandom.workspace = true
 hex.workspace = true
 hmac.workspace = true
 pd-core = { path = "../pd-core" }

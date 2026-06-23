@@ -136,6 +136,21 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   return false;
 }
 
+const PREFETCH_MODEL_SCRIPT = join(PROJECT_ROOT, 'scripts', 'prefetch-embedding-model.ts');
+
+/**
+ * Pre-download the local embedding model (Xenova/all-MiniLM-L6-v2, ~27 MB) so the
+ * first semantic operation isn't blocked on a network fetch. Idempotent (skips if
+ * cached) and best-effort — a failure (offline install) never fails setup; the
+ * runtime fetches lazily later. (ADR-0061.)
+ */
+function prefetchEmbeddingModel(): void {
+  ui.step('Pre-downloading local embedding model (one-time, ~27 MB)');
+  const r = spawnSync(TSX_BIN, [PREFETCH_MODEL_SCRIPT], { cwd: PROJECT_ROOT, stdio: 'inherit' });
+  if ((r.status ?? 0) === 0) ui.success('Embedding model ready');
+  else ui.info('Embedding model will download on first use (prefetch skipped)');
+}
+
 /**
  * Resolve the canonical agent skill source directory.
  *
@@ -349,6 +364,12 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     }
   } else {
     ui.info('Skipping daemon install (--no-daemon)');
+  }
+
+  if (!options['no-prefetch']) {
+    prefetchEmbeddingModel();
+  } else {
+    ui.info('Skipping embedding-model prefetch (--no-prefetch)');
   }
 
   if (!options['no-mcp']) {

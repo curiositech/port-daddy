@@ -299,6 +299,19 @@ export const CORE_SCHEMA_SQL = `
     notes_json TEXT NOT NULL DEFAULT '[]',
     harbor TEXT NOT NULL,
     created_at INTEGER NOT NULL,
+    -- PD Planner (ADR-0086): Jira-like issue fields. kind is the fixed-ladder
+    -- issue type; priority is urgency, ORTHOGONAL to status (the workflow lane).
+    -- Hierarchy / dependencies / artifact links live in graph_edges, not here.
+    -- Existing DBs get these via the PRAGMA-guarded ALTER in initDatabase.
+    kind TEXT NOT NULL DEFAULT 'task'
+      CHECK(kind IN ('project','epic','story','task','subtask','bug','chore')),
+    priority INTEGER NOT NULL DEFAULT 3
+      CHECK(priority BETWEEN 1 AND 5),
+    assignee_id TEXT,
+    description_md TEXT,
+    started_at INTEGER,
+    due_at INTEGER,
+    estimate INTEGER,
     UNIQUE(slug, harbor)
   );
   CREATE INDEX IF NOT EXISTS idx_roadmap_items_harbor_status
@@ -449,6 +462,32 @@ export function initDatabase(options: InitDbOptions = {}): DatabaseInstance {
   } catch (err) {
     console.warn(
       `[port-daddy] WARNING: Could not migrate harbors scope column: ${(err as Error).message}`
+    );
+  }
+
+  // PD Planner (ADR-0086, migration 085): give roadmap_items the Jira-like issue
+  // fields. Existing DBs predate the columns in CORE_SCHEMA_SQL above; add them
+  // here (idempotent — guarded by PRAGMA inspection). `kind` is the sentinel:
+  // if it's missing, all seven are. CHECK constraints can't be added by ALTER in
+  // SQLite, so the app layer (lib/roadmap-items.ts) enforces kind/priority on
+  // write; fresh DBs still get the CHECKs from CORE_SCHEMA_SQL.
+  try {
+    const roadmapColumns = db.prepare("PRAGMA table_info(roadmap_items)").all() as Array<{ name: string }>;
+    const hasKind = roadmapColumns.some(column => column.name === 'kind');
+    if (!hasKind) {
+      db.prepare("ALTER TABLE roadmap_items ADD COLUMN kind TEXT NOT NULL DEFAULT 'task'").run();
+      db.prepare("ALTER TABLE roadmap_items ADD COLUMN priority INTEGER NOT NULL DEFAULT 3").run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN assignee_id TEXT').run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN description_md TEXT').run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN started_at INTEGER').run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN due_at INTEGER').run();
+      db.prepare('ALTER TABLE roadmap_items ADD COLUMN estimate INTEGER').run();
+    }
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_roadmap_items_kind_priority ON roadmap_items(kind, priority)').run();
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_roadmap_items_assignee ON roadmap_items(assignee_id)').run();
+  } catch (err) {
+    console.warn(
+      `[port-daddy] WARNING: Could not migrate roadmap_items planner columns: ${(err as Error).message}`
     );
   }
 

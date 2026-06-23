@@ -1,6 +1,6 @@
 # The PR That Reviews Itself
 
-![A hooded contributor opens a laptop and finds a kitchen brigade of six chefs already at work on their pull request, each labeled with the name of a Port Daddy review ship](/img/generated/pr-reviews-itself/hero.png)
+![A hooded contributor opens a laptop and finds a kitchen brigade of six chefs already at work on their pull request, each labeled with the name of a Port Daddy review ship](/img/generated/pr-reviews-itself/hero.webp)
 
 It is eleven at night. You have rebased twice. You have written the commit message that you wish you had written first. You squint at the diff, run the tests one more time because the universe owes you a green, and you push.
 
@@ -29,6 +29,7 @@ A repo is the same kind of room. You wrote the PR. CI is the bench clerk. Withou
 
 The GitHub fleet is six paid critics. They do not replace your human reviewers. They get to the easy findings first, so the humans can spend their attention on the genuinely hard calls.
 
+<!-- figure: One `git push` fans out to six opinionated critics — code-reviewer, red-team, tautology-sniffer, test-author, tenderfoot, and augur — each producing its own kind of finding, all funneling back to the one operator at the bottom; the fan-out is the whole shape of it. -->
 ```mermaid
 flowchart LR
   Push["git push"] --> Open["Open PR"]
@@ -71,7 +72,7 @@ The fleet is six members because six is the number of axes that empirically matt
 
 ### code-reviewer — the opinionated senior who actually read your code
 
-![A chef with a magnifying glass examining a recipe, labeled 'code-reviewer'](/img/generated/pr-reviews-itself/code-reviewer.png)
+![A chef with a magnifying glass examining a recipe, labeled 'code-reviewer'](/img/generated/pr-reviews-itself/code-reviewer.webp)
 
 The `code-reviewer` ship is the one that posts the single, severity-ranked PR comment. It is loaded with **operator-priors** — your `AGENTS.md`, your project ADRs, your house style for that repo — and it reviews the diff the way a senior engineer reviews it: as someone who already has opinions and is unafraid to use them.
 
@@ -100,7 +101,7 @@ That is the format. The voice is the senior who actually read the diff. The bloc
 
 ### red-team — the chef who tastes the dish for poison
 
-![A chef in dark apron holding a small mallet and a clipboard with a red mark, labeled 'red-team'](/img/generated/pr-reviews-itself/red-team.png)
+![A chef in dark apron holding a small mallet and a clipboard with a red mark, labeled 'red-team'](/img/generated/pr-reviews-itself/red-team.webp)
 
 `red-team` is sampled — not on every PR, but on every PR that touches an adversarial surface. Auth code, file-claim mutations, token issuance, anything that crosses a trust boundary. The ship's job is not to *think* about attacks. It is to **construct them**.
 
@@ -113,7 +114,7 @@ The line between this ship and the `code-reviewer` is the line between *opinion*
 
 ### test-author — the chef who notices the missing dish
 
-![A chef with a notepad and small pencil, labeled 'test-author', sketching plate diagrams](/img/generated/pr-reviews-itself/test-author.png)
+![A chef with a notepad and small pencil, labeled 'test-author', sketching plate diagrams](/img/generated/pr-reviews-itself/test-author.webp)
 
 The `test-author` ship is downstream of `test-hunter` (which lives in the local fleet and runs continuously against `main`). When test-hunter flags an uncovered code path that the current PR has *added* code to, `test-author` opens a draft *sibling* PR with proposed tests for the path.
 
@@ -126,7 +127,7 @@ The reason this is a separate ship and not part of `code-reviewer` is that *writ
 
 ### tautology-sniffer — the chef who notices the dish tastes like the cookbook
 
-![A chef with a measuring scale, holding a small mirror up to a plate, labeled 'tautology-sniffer'](/img/generated/pr-reviews-itself/tautology-sniffer.png)
+![A chef with a measuring scale, holding a small mirror up to a plate, labeled 'tautology-sniffer'](/img/generated/pr-reviews-itself/tautology-sniffer.webp)
 
 This is the most interesting ship and the one most likely to save you from yourself. `tautology-sniffer` scores every *changed test* in the PR on a single axis:
 
@@ -140,7 +141,7 @@ This is the ship that catches the bug below.
 
 ### tenderfoot — the chef who reads the recipe from page one
 
-![A chef with no apron yet, clipboard and clean hat, labeled 'tenderfoot', reading the README binder](/img/generated/pr-reviews-itself/tenderfoot.png)
+![A chef with no apron yet, clipboard and clean hat, labeled 'tenderfoot', reading the README binder](/img/generated/pr-reviews-itself/tenderfoot.webp)
 
 `tenderfoot` is the new-developer auditor. On any PR that touches the README, the install path, the docs, or any onboarding surface, this ship spins up a *fresh* worktree — no shell history, no cached credentials, no operator memory — and tries to follow the docs from scratch. End to end. Until something breaks or it gets all the way to a working setup.
 
@@ -153,7 +154,7 @@ The single most valuable property of `tenderfoot` is that it *cannot* lie to you
 
 ### augur — the chef who reads the receipts
 
-![A chef with a compass and an open ledger, labeled 'augur', staring at conflicting receipts](/img/generated/pr-reviews-itself/augur.png)
+![A chef with a compass and an open ledger, labeled 'augur', staring at conflicting receipts](/img/generated/pr-reviews-itself/augur.webp)
 
 `augur` (the name is sibling-pending; it may end up as `unspider` instead) is the contradiction-finder. Its input is not just the PR diff — it's the PR diff *plus* the roadmap docs, the recent commit history, the open issues, and the ADRs. Its job is to spot **contradictions between what the PR claims and what other documents in the repo claim is true**.
 
@@ -185,7 +186,7 @@ A recent PR in this repo added a salvageable-sessions count to a briefing endpoi
 
 The count was structurally always zero.
 
-The new code computed the count from an in-memory map that the live daemon never populated, because the daemon writes salvageable sessions to a separate table in SQLite and the in-memory map was a vestigial cache from an earlier iteration. The tests passed because *they used the same in-memory map* — every fixture in the test suite seeded the map directly, asserted the count, and tore the map down. The test author had not lied. They had simply tested the only thing they had wired up.
+The new code computed the count from an in-memory map that the live daemon never populated, because the daemon writes salvageable sessions to a separate table in SQLite and the in-memory map was a vestigial cache from an earlier iteration. The tests passed because *they used the same in-memory map* — every fixture in the test suite seeded the map directly, asserted the count, and tore the map down. The test author had not lied. They had tested the only thing they had wired up.
 
 <!-- sidenote: 8 -->
 > This is the textbook tautology. The test pinned the function's behavior to a data structure (`in-memory map → count`) that the production daemon did not use. Production reality lived in a SQLite table containing, at the time of the bug's discovery, **181 salvageable agent sessions** — none of which the new endpoint ever saw.
@@ -241,6 +242,7 @@ The arithmetic that matters is on step 6. *Most* of what a senior engineer used 
 
 A paid critic that you can't fire is a hostage situation. The fleet is built so it never becomes one.
 
+<!-- figure: The triage loop that keeps the operator in charge — every finding can be merged, fixed, or dismissed with a one-line reason, and a dismissal feeds back into the ship's priors so false positives get rarer on the operator's own schedule, not a vendor's. -->
 ```mermaid
 flowchart TB
   PR["Opened PR"] --> Fleet["Fleet posts findings"]

@@ -48,7 +48,7 @@ describe('runSurfaceScan under bun:sqlite', () => {
     const inbox = { send: (agentId: string) => (sent.push({ agentId }), { success: true }) };
     const symbolIndex = {
       async parseFile() {},
-      getSymbols: (f: string) => symbolsByFile[f] ?? [],
+      getSymbols: (f: string) => symbolsByFile[Object.keys(symbolsByFile).find((k) => f.endsWith(k))] ?? [],
       predictConflicts: (a: unknown[], b: unknown[]) =>
         a.length && b.length ? [{ type: 'signature', severity: 'blocking', confidence: 0.9, a: (a as any)[0], b: (b as any)[0] }] : [],
     };

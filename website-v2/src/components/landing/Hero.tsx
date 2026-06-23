@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
+import { CodeBlock } from '@/components/ui/CodeBlock'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
-import { ArrowRight, Download, Terminal } from 'lucide-react'
+import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 
 export function Hero() {
@@ -21,83 +22,89 @@ export function Hero() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-5)]"
+            className="space-y-[var(--space-6)]"
           >
             <SectionIntro
-              eyebrow="For AI engineering teams"
+              eyebrow="Fleet coordination for coding agents"
               title={
                 <>
-                  A local control plane for{' '}
+                  Run a fleet of coding agents{' '}
                   <span className="text-[var(--brand-primary)]">
-                    coding agents.
+                    without losing track.
                   </span>
                 </>
               }
-              description="Port Daddy gives Claude Code, Codex, Cursor, Gemini CLI, Aider, and local model agents a shared-state substrate: sessions, claims, notes, channels, readiness, budgets, and salvage records that survive the terminal that created them."
+              description="Point Claude Code, Codex, and Cursor at the same project and they step on each other — two agents edit one file, a crash takes its work with it, and you find out too late. Port Daddy keeps the record: every agent can see who is working where, read what the others learned, and pick up tasks that died mid-run. Nothing happens silently."
               titleAs="h1"
               titleSize="hero"
-              titleClassName="max-w-[14ch]"
-              bodyClassName="max-w-[34rem]"
+              titleClassName="max-w-[18ch]"
+              bodyClassName="max-w-[44rem]"
             />
 
-            {/* CLI-backend pitch — the operator's load-bearing line. */}
-            <Link
-              to="/cli-backend"
-              className="group block max-w-[34rem] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] no-underline transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
-            >
-              <div className="flex items-start justify-between gap-[var(--space-3)]">
-                <div className="space-y-[var(--space-2)]">
-                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] group-hover:text-[color:var(--brand-primary-foreground-muted)]">
-                    Already pay for Claude Max or ChatGPT Pro?
-                  </span>
-                  <p className="font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary-foreground)]">
-                    <strong>The fleet rides on your subscription at $0 marginal cost.</strong>{' '}
-                    Claude Code and Codex as first-class backends — setup takes two minutes.
-                  </p>
-                </div>
-                <ArrowRight
-                  size={18}
-                  aria-hidden="true"
-                  className="mt-1 shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand-primary-foreground)]"
-                />
+            {/* Co-primary actions: install in one line, or take the Mac app.
+                The load-bearing BYO-subscription line sits beneath as a quiet
+                link (the full pitch is the next section). */}
+            <div className="space-y-[var(--space-3)]">
+              <div className="max-w-[26rem]">
+                <CodeBlock language="bash" showHeaderLabel={false}>
+                  {`brew install curiositech/tap/port-daddy`}
+                </CodeBlock>
               </div>
-            </Link>
-
-            {/* Feature pills */}
-            <div className="flex max-w-[34rem] flex-wrap gap-2">
-              {[
-                'Shared state substrate',
-                'Visible ownership',
-                'Fail-closed launches',
-              ].map((label) => (
-                <span
-                  key={label}
-                  className="rounded-[var(--radius-sm)] px-3 py-1 text-[length:var(--type-meta-size)] font-semibold"
-                  style={{
-                    background: 'color-mix(in srgb, var(--brand-secondary) 10%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--brand-secondary) 20%, transparent)',
-                    color: 'var(--text-secondary)',
-                  }}
-                >
-                  {label}
-                </span>
-              ))}
+              <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+                <Button asChild variant="primary" size="lg">
+                  <Link to="/mac-preview#download">
+                    <Download size={16} />
+                    Get the Mac app
+                    <ArrowRight size={16} />
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                  <Link to="/docs/">
+                    <Terminal size={16} />
+                    Read the docs
+                  </Link>
+                </Button>
+              </div>
+              <Link
+                to="/cli-backend"
+                className="group inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+              >
+                Already pay for Claude Max or ChatGPT Pro? The fleet runs on it.
+                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
 
-            <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-              <Button asChild variant="primary" size="lg">
-                <Link to="/mac-preview#download">
-                  <Download size={16} />
-                  Evaluate Mac preview
-                  <ArrowRight size={16} />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                <Link to="/docs/">
-                  <Terminal size={16} />
-                  Technical Docs
-                </Link>
-              </Button>
+            {/* Trust strip — the engineer's risk-reducers (the weakest vertex on
+                the appeal triangle): local-first, no account, inspectable, broad
+                tool support. Every line is a verifiable fact, not a guarantee. */}
+            <div className="space-y-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
+              <div className="flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                <span className="inline-flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
+                  <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+                  Runs on your machine
+                </span>
+                <span>No account, no cloud</span>
+                <a
+                  href="https://github.com/curiositech/port-daddy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group inline-flex items-center gap-[var(--space-1)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
+                >
+                  Read the source on GitHub
+                  <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                </a>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-[var(--space-3)] gap-y-[var(--space-1)] text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                <span className="font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                  Works with
+                </span>
+                {['Claude Code', 'Codex', 'Cursor', 'Windsurf', 'Cline'].map((tool, i) => (
+                  <span key={tool} className="inline-flex items-center gap-[var(--space-3)]">
+                    {i > 0 && <span aria-hidden="true">·</span>}
+                    {tool}
+                  </span>
+                ))}
+              </div>
             </div>
           </motion.div>
 
@@ -108,17 +115,6 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <picture aria-hidden="true" className="pointer-events-none absolute -right-[6%] -top-[18%] hidden h-[56%] w-[76%] overflow-hidden border opacity-35 min-[1100px]:block dark:opacity-25" style={{ borderColor: 'var(--border-subtle)' }}>
-              <source srcSet="/img/generated/agent-runtime-map.webp" type="image/webp" />
-              <img
-                alt=""
-                loading="lazy"
-                decoding="async"
-                fetchPriority="low"
-                className="h-full w-full object-cover"
-                src="/img/generated/agent-runtime-map.jpg"
-              />
-            </picture>
             <div className="relative z-10">
               <LiveGloryVideo />
             </div>

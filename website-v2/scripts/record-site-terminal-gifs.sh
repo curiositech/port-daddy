@@ -220,6 +220,41 @@ play_recording() {
       run_cmd "npx tsx examples/agent-topologies/topology-pubsub.ts"
       run_cmd "pd channels | sed -n '1,12p'"
       ;;
+    examples/swarm-coordination-board)
+      intro
+      run_cmd "pd status"
+      run_cmd "pd pub examples:swarm '{\"stage\":\"research\",\"status\":\"done\",\"next\":\"build\"}' --raw-channel"
+      run_cmd "pd pub examples:swarm '{\"stage\":\"build\",\"status\":\"running\"}' --raw-channel"
+      run_cmd "pd tube examples:swarm --once --limit=2"
+      ;;
+    examples/coordination-file-guard)
+      intro
+      run_cmd "pd status"
+      run_cmd "pd claim demo:auth:main --json"
+      run_cmd "pd find demo:auth:main"
+      run_cmd "pd release demo:auth:main"
+      ;;
+    examples/preview-tunnel)
+      intro
+      run_cmd "pd status"
+      run_cmd "npx tsx examples/tunnel/share-preview.ts inspect"
+      run_cmd "pd tunnel --help || true"
+      ;;
+    examples/services-dns)
+      intro
+      run_cmd "pd status"
+      run_cmd "pd claim shop:api:main --json"
+      run_cmd "pd find shop:api:main"
+      run_cmd "pd dns --help || true"
+      run_cmd "pd release shop:api:main"
+      ;;
+    examples/war-room-incident)
+      intro
+      run_cmd "pd status"
+      run_cmd "pd pub examples:war-room '{\"agent\":\"db\",\"finding\":\"connection pool exhausted\"}' --raw-channel"
+      run_cmd "pd pub examples:war-room '{\"agent\":\"api\",\"finding\":\"5xx spike confirmed\"}' --raw-channel"
+      run_cmd "pd tube examples:war-room --once --limit=2"
+      ;;
     docs/cli-overview)
       intro
       run_cmd "pd status"
@@ -291,6 +326,11 @@ if [[ "${1:-}" == "--all" || $# -eq 0 ]]; then
     examples/ephemeral-ci-db \
     examples/p2p-webrtc \
     examples/agent-topologies \
+    examples/swarm-coordination-board \
+    examples/coordination-file-guard \
+    examples/preview-tunnel \
+    examples/services-dns \
+    examples/war-room-incident \
     docs/cli-overview \
     docs/pheromone; do
     record_one "$id"

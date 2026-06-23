@@ -144,16 +144,27 @@ if (!notaryProfile) {
 
 // 2. Zip for notarytool submission. Apple wants a .zip / .pkg / .dmg, not a
 //    raw Mach-O. ditto preserves codesign metadata across the archive.
-const zipDir = mkdirSync(join(tmpdir(), `pd-notarize-${process.pid}`), { recursive: true });
-const zipPath = join(zipDir || tmpdir(), `${binaryPath.split('/').pop()}.zip`);
+// mkdirSync(..., {recursive:true}) returns undefined when the dir already exists
+// (and always-undefined on Node <18), so capture the path explicitly rather than
+// trusting the return value — otherwise the zip silently lands in tmpdir() and the
+// notarize zip leaks. (PR #447 review finding 5.)
+const zipDir = join(tmpdir(), `pd-notarize-${process.pid}`);
+mkdirSync(zipDir, { recursive: true });
+const zipPath = join(zipDir, `${binaryPath.split('/').pop()}.zip`);
 process.stderr.write(`Packaging ${binaryPath} -> ${zipPath}\n`);
 run('ditto', ['-c', '-k', '--keepParent', binaryPath, zipPath]);
 
 // 3. Submit to notarytool, blocking until Apple returns a verdict.
 process.stderr.write(`Submitting to notarytool (profile: ${notaryProfile})...\n`);
+// When the notary profile was stored into a non-default keychain (CI uses a temp
+// keychain), notarytool must be told which keychain to read it from — otherwise it
+// searches only the default login keychain and fails "profile not found" on a clean
+// runner. (PR #447 review finding 1.)
+const notaryKeychain = process.env.PORT_DADDY_NOTARY_KEYCHAIN;
 const submit = run('xcrun', [
   'notarytool', 'submit', zipPath,
   '--keychain-profile', notaryProfile,
+  ...(notaryKeychain ? ['--keychain', notaryKeychain] : []),
   '--wait',
   '--output-format', 'plist',
 ], { allowFail: true });

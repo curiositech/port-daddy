@@ -361,6 +361,8 @@ pub enum MacaroonError {
     Malformed,
     #[error(transparent)]
     Hex(#[from] hex::FromHexError),
+    #[error("rng failure: {0}")]
+    Rng(String),
 }
 
 // ===========================================================================
@@ -518,7 +520,11 @@ const RENT_LOCATION: &str = "pd://daemon/rent";
 pub struct PushGrant {
     pub macaroon: Macaroon,
     pub rent_caveat_id: String,
-    pub caveat_key: Vec<u8>,
+    /// The discharge root key. `pub(crate)` so external/FFI code can't read it
+    /// out of the struct — key custody is the keystore's job (PR #496 review
+    /// finding). Within the crate, `keystore` ignores it (it stores the key it
+    /// generated) and the parity tests still read it.
+    pub(crate) caveat_key: Vec<u8>,
 }
 
 /// Options for minting a push grant.

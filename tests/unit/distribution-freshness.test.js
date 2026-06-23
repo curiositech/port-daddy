@@ -118,6 +118,21 @@ describe('Version consistency', () => {
     expect(publicSamplesManifest).not.toBeNull();
     expect(publicSamplesManifest.packageVersion).toBe(pkgVersion);
   });
+
+  it('VERSION file matches package.json (ADR-0057 dist-version-authority)', () => {
+    const versionFile = readFile('VERSION');
+    expect(versionFile).not.toBeNull();
+    expect(versionFile.trim()).toBe(pkgVersion);
+  });
+
+  it('pd-console crate version matches package.json (its CARGO_PKG_VERSION → pd-console --version)', () => {
+    const cargo = readFile('core/pd-console/Cargo.toml');
+    expect(cargo).not.toBeNull();
+    // The [package] version is the first line-anchored `version = "..."`.
+    const match = cargo.match(/^version\s*=\s*['"](\d+\.\d+\.\d+[\w.\-+]*)['"]/m);
+    expect(match).not.toBeNull();
+    expect(match[1]).toBe(pkgVersion);
+  });
 });
 
 // ============================================================================

@@ -33,11 +33,12 @@ pd session files add package.json package-lock.json mcp-server.json \
 
 # C. Bump
 npm version minor --no-git-tag-version       # patch / minor / major
-npx tsx scripts/sync-version.ts              # syncs the JSON surfaces
+npx tsx scripts/sync-version.ts              # syncs EVERY version surface
 #
-# Until sync-version.ts is taught about them, mcp/server.ts:3791 and
-# website-v2/src/data/referenceCatalog.ts:18 must be bumped by hand.
-# distribution-freshness.test.js will catch you if you miss mcp/server.ts.
+# sync-version.ts now stamps all of them — the JSON manifests AND mcp/server.ts
+# (MCP version), server.ts (EMBEDDED_PACKAGE_VERSION bun-bundle fallback), and
+# website-v2/src/data/referenceCatalog.ts (PORT_DADDY_VERSION). No hand-bumps.
+# distribution-freshness.test.js fails CI if any surface drifts.
 
 # D. CHANGELOG.md
 # Rename [Unreleased] → [3.15.0] - YYYY-MM-DD, prepend a fresh [Unreleased].
@@ -102,10 +103,40 @@ pd done "v3.15.0 shipped"
 | Symptom | Cause | Fix |
 |---|---|---|
 | `Could not resolve: "@clack/prompts"` (and friends) in `release.yml` | Workflow ran `bun build --compile` without first running `bun install`. `node_modules` empty in the checkout. | `release.yml` must have a `bun install` step between `setup-bun` and `bun build`. Validated in the workflow today. |
-| `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | `mcp/server.ts` has a hardcoded version literal that `sync-version.ts` doesn't touch. | Bump `mcp/server.ts:3791` by hand. Same fix for `website-v2/src/data/referenceCatalog.ts:18`. |
+| `distribution-freshness.test.js` fails with `Expected: "3.15.0" / Received: "3.14.0"` | A version surface drifted — usually you forgot to run `sync-version.ts` after `npm version`. | Run `npx tsx scripts/sync-version.ts` (it stamps every surface, incl. `mcp/server.ts` + `referenceCatalog.ts`), restage, recommit. |
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
 | `brew upgrade port-daddy` still serves the old version | The `update-homebrew` job in `release.yml` hasn't run or failed (common after a `workflow_dispatch` re-run, which skips that job). | Manually dispatch: `gh api repos/curiositech/homebrew-tap/dispatches --input - <<<'{"event_type":"update-formula","client_payload":{"version":"vX.Y.Z"}}'`. Until the commit lands in the tap, the bottle URL points at the previous release. |
+
+---
+
+### Code signing (Apple Developer ID)
+
+Every macOS artifact `release.yml` produces is signed with the **Developer ID
+Application: Curiositech LLC (P5H9P59X2M)** identity, and notarized + stapled by
+Apple — the daemon (`pd` + `port-daddy`), the `pd-console.app`, and FleetBar.
+This is automatic on every release; **nothing to do per-release** once the secrets
+below are set. (ADR-0057; the daemon path is ADR-0028's signing recipe, finally wired.)
+
+**Repo secrets** (set once, in `Settings → Secrets and variables → Actions`):
+
+| Secret | What it is | Required? |
+|---|---|---|
+| `APPLE_CERT_P12_BASE64` | base64 of the Developer ID Application `.p12` (cert **+ private key** — export from Keychain Access › *My Certificates*, which prompts for an export password) | **yes** — without it, binaries ship adhoc/unsigned |
+| `APPLE_CERT_PASSWORD` | the `.p12` export password | **yes** |
+| `APPLE_NOTARY_KEY_P8_BASE64` | base64 of the App Store Connect API `.p8` key (Users and Access › Integrations › App Store Connect API, role *Developer*) | optional — absent ⇒ signed but **not** notarized |
+| `APPLE_NOTARY_KEY_ID` | the API Key ID (10 chars) | with the `.p8` |
+| `APPLE_NOTARY_KEY_ISSUER` | the API Issuer ID (a UUID — note the top-of-page UUID, NOT the Key ID) | with the `.p8` |
+
+**Graceful degradation:** the signing step is gated and fail-soft. No `APPLE_CERT_*`
+⇒ the build still ships an (adhoc) binary with a `::warning::`. Notary creds present
+but failing validation ⇒ the binary is **signed-only** with a warning, never a broken
+release. So a rotated/expired notary key cannot block shipping a signed daemon.
+
+**Verify it yourself** (no destructive release needed): the `_sign-smoke` pattern —
+import the cert into a temp keychain, sign + notarize a trivial Mach-O — is how this
+was validated end-to-end (2026-06-20). `xcrun notarytool store-credentials … ` failing
+locally is the fastest way to catch a bad Key ID / Issuer / `.p8` triple.
 
 ---
 

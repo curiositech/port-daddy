@@ -147,6 +147,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   commit: 'notify',         // records a caller-scoped commitment/obligation; `commit close` finalizes one
   backend: 'notify',        // sets the active CLI/subscription backend (caller config); status form is read-only
   backup: 'notify',         // writes a durable snapshot of the registry DB; reversible, caller-scoped
+  cut: 'notify',            // cuts a release: runs builds, writes dist/release/<v>, optional sign — local, caller-scoped
   benchmark: 'notify',      // `benchmark run` makes paid multi-backend LLM calls; refined: list-models/list-conditions/report are silent reads
   // ── approval: mutates another agent's state, no data loss ────────────────
   // Top-level entries; subcommand refinement may downgrade.
@@ -179,6 +180,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   start: 'notify',                  // starts the daemon, not destructive
   restart: 'destructive',           // kills the running daemon
   install: 'notify',                // installs launchd plist; not destructive on its own
+  'self-update': 'notify',          // ADR-0062: opt-in hands-off brew-upgrade + restart; notify, not gated (must run unattended via the freshness LaunchAgent)
+  upgrade: 'notify',                // ADR-0057 phase 7: bare form is a read-only feed check; `--apply` shells brew upgrade. notify (not gated) so the report path is frictionless.
   uninstall: 'destructive',
   guard: 'silent',                  // refined: `guard install`, `guard enable/disable` are destructive
   dev: 'approval',                  // refined: `dev down` stops a berth (destructive); see SUBCOMMAND_TIERS
