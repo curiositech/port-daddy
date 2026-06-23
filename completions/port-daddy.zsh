@@ -1869,7 +1869,7 @@ _pd_cmd_secret() {
 
 _pd_cmd_roadmap() {
   _arguments \
-    '1:subcommand:(ack harvest promote upsert add touch render pop release claims)' \
+    '1:subcommand:(ack harvest promote upsert add touch render pop release claims delete rm)' \
     '2:feedback id:' \
     '--dir[project directory]:path:_files -/' \
     '--root[project root]:path:_files -/' \

@@ -63,3 +63,25 @@ test('POST /roadmap/items persists structured receipt notes', async () => {
   expect(show.statusCode).toBe(200);
   expect(JSON.parse(show.body).item.notes[0].text).toBe('receipt: roadmap updated before commit');
 });
+
+test('DELETE /roadmap/items/:slug removes an item, then 404s on a second delete', async () => {
+  await app.inject({
+    method: 'POST',
+    url: '/roadmap/items',
+    payload: { slug: 'stray-dupe', summaryMd: 'remove me', status: 'backlog', harbor: 'fleet' },
+  });
+
+  const del = await app.inject({ method: 'DELETE', url: '/roadmap/items/stray-dupe?harbor=fleet' });
+  expect(del.statusCode).toBe(200);
+  const body = del.json();
+  expect(body.success).toBe(true);
+  expect(body.removed).toBe(true);
+  expect(body.item.slug).toBe('stray-dupe');
+
+  const gone = await app.inject({ method: 'GET', url: '/roadmap/items/stray-dupe?harbor=fleet' });
+  expect(gone.statusCode).toBe(404);
+
+  const again = await app.inject({ method: 'DELETE', url: '/roadmap/items/stray-dupe?harbor=fleet' });
+  expect(again.statusCode).toBe(404);
+  expect(again.json().success).toBe(false);
+});

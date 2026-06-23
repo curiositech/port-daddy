@@ -1893,7 +1893,7 @@ _port_daddy() {
           if [[ "$cur" == -* ]]; then
             _pd_opts '--dir --root --projectDir --limit --feedback-status --feedback-harbor --feedback-limit --no-excerpts --json --quiet'
           else
-            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "ack harvest promote upsert add touch render pop release claims delete rm help" -- "$cur") )
           fi
           ;;
       esac
