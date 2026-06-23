@@ -14,6 +14,14 @@
  *     when __dirname-relative package.json read fails)
  *   - website-v2/src/data/referenceCatalog.ts
  *   - public/samples/manifest.json
+ *   - VERSION (plain-text product version stamp, read by no code but a
+ *     human-facing authority surface — keep it honest or delete it)
+ *   - core/pd-console/Cargo.toml (the GPU-native app's CARGO_PKG_VERSION, which
+ *     becomes `pd-console --version` / the in-app build stamp AND is stamped into
+ *     pd-console.app's CFBundleShortVersionString by scripts/package-pd-console.sh).
+ *     This is the ONE Rust crate that is a user-facing product surface; the kernel
+ *     library crates (core/kernel/*, core/Cargo.toml workspace.package) keep their
+ *     own independent library semver and are deliberately NOT touched here.
  */
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -86,5 +94,29 @@ const samplesManifest = JSON.parse(readFileSync(samplesManifestPath, 'utf-8'));
 samplesManifest.packageVersion = version;
 writeFileSync(samplesManifestPath, JSON.stringify(samplesManifest, null, 2) + '\n');
 console.log(`  ✓ public/samples/manifest.json packageVersion → ${version}`);
+
+// VERSION — plain-text product stamp. No code reads it, but it is a human-facing
+// authority surface (and used to lie at 3.7.0). Keep it byte-honest with a trailing
+// newline so `cat VERSION` matches `pd --version`.
+const versionFilePath = join(ROOT, 'VERSION');
+writeFileSync(versionFilePath, `${version}\n`);
+console.log(`  ✓ VERSION → ${version}`);
+
+// core/pd-console/Cargo.toml — the GPU-native app's crate version. This is the
+// ONLY Rust crate that is a user-facing product surface: env!("CARGO_PKG_VERSION")
+// becomes `pd-console`'s in-app build stamp, and package-pd-console.sh stamps the
+// same package.json version into the .app's CFBundleShortVersionString. Sync the
+// crate version so the embedded `--version` agrees with the bundle and the daemon.
+// The kernel library crates (core/kernel/*, core/Cargo.toml [workspace.package])
+// keep their own independent semver and are intentionally left alone.
+const consoleCargoPath = join(ROOT, 'core', 'pd-console', 'Cargo.toml');
+const consoleCargoVersionRe = /^(version\s*=\s*")[\w.\-+]+(")/m;
+let consoleCargo = readFileSync(consoleCargoPath, 'utf-8');
+if (!consoleCargoVersionRe.test(consoleCargo)) {
+  throw new Error(`sync-version.ts: package version literal not found in core/pd-console/Cargo.toml — pd-console's CARGO_PKG_VERSION would silently drift from the product version.`);
+}
+consoleCargo = consoleCargo.replace(consoleCargoVersionRe, `$1${version}$2`);
+writeFileSync(consoleCargoPath, consoleCargo);
+console.log(`  ✓ core/pd-console/Cargo.toml version → ${version}`);
 
 console.log(`\nVersion ${version} synced to all surfaces.`);

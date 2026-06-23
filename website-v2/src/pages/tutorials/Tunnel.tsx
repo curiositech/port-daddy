@@ -4,7 +4,6 @@ import {
   Globe,
   Zap,
   Share2,
-  Activity,
   Network,
   Lock as LockIcon,
 } from "lucide-react";
@@ -125,15 +124,11 @@ export function Tunnel() {
         {/* Security Callout */}
         <section className="p-6 text-center space-y-4">
           <p className="text-[length:var(--type-panel-title-nav-size)] max-w-xl mx-auto text-[var(--text-secondary)]">
-            Unlike standard VPNs, Port Daddy tunnels are{" "}
-            <strong>per-identity</strong>. You don't expose your entire network
-            -- only the specific semantic identities you've explicitly claimed
-            in your harbor.
+            Unlike a VPN, Port Daddy tunnels are{" "}
+            <strong>per-identity</strong>. You don't expose your whole network --
+            only the specific semantic identities you have claimed in your
+            harbor.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-secondary)]">
-            <Activity size={14} />
-            Provider Detection Active
-          </div>
         </section>
       </div>
     </TutorialLayout>

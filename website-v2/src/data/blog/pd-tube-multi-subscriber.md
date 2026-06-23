@@ -6,7 +6,7 @@ The third listener got nothing. Neither did the second, sometimes. Whichever ter
 
 This post is about that bug — why a "broadcast" channel was quietly behaving like a vending machine, and the one-line-of-cursor-logic fix that turned it into an actual fan-out. It shipped in **Port Daddy v3.16.2**.
 
-![One broadcast node fanning out over cobalt wires to four identical listener terminals, each showing the same messages and each holding its own little bookmark card](/img/generated/tube-multiplex/hero.png)
+![One broadcast node fanning out over cobalt wires to four identical listener terminals, each showing the same messages and each holding its own little bookmark card](/img/generated/tube-multiplex/hero.webp)
 
 <!-- sidenote: what's pd tube? -->
 **`pd tube`** is Port Daddy's local event-reply channel (`lib/tube.ts`). A producer posts a structured message to a named channel; a listener subscribes from the terminal with one command, does work, and replies — and the command *returns* instead of holding the terminal hostage. If you've never seen it, start with [PD Tube Turns UI Events Into Agent Work](/blog/pd-tube-event-reply-loop).
@@ -41,6 +41,7 @@ The diagnostic that cracked it: running both listeners with **`--no-history`** m
 
 The cursor was keyed by **channel**. One file per channel. And that's the whole bug in one sentence: *two listeners on the same channel shared one bookmark.*
 
+<!-- figure: A shared per-channel cursor turns a broadcast into a race — alice reads the bookmark, advances it to 7, and bob asks for "messages after 7" and hears nothing. First poll wins, the rest get an empty mailbox. -->
 ```mermaid
 sequenceDiagram
   participant A as alice --tail
@@ -55,11 +56,10 @@ sequenceDiagram
   B->>D: getMessages after=7 → []
   Note over B: bob sees nothing.<br/>alice already moved the bookmark.
 ```
-<!-- figure: A shared per-channel cursor turns a broadcast into a race — first poll wins, the rest get an empty result. -->
 
 Whoever polled first advanced the shared bookmark; everyone else asked the daemon for "messages after 7," and the daemon — correctly, honestly — said *there are none*. A broadcast channel had quietly become a work queue with exactly one winner. No error. No warning. Just a silent single-consumer pretending to be a bus.
 
-![Diptych: on the left three listeners fight over one shared bookmark and two get an empty mailbox; on the right each listener holds its own bookmark and all three read the same message tape](/img/generated/tube-multiplex/cursor-fanout.png)
+![Diptych: on the left three listeners fight over one shared bookmark and two get an empty mailbox; on the right each listener holds its own bookmark and all three read the same message tape](/img/generated/tube-multiplex/cursor-fanout.webp)
 
 <!-- sidenote: queue vs bus -->
 A **work queue** delivers each message to *one* consumer (that's the point — don't do the job twice). A **bus** delivers each message to *every* subscriber. Tube was sold as a bus and implemented, accidentally, as a queue. The two are a config flag apart — and that flag was the cursor's filename.
@@ -77,6 +77,7 @@ The cursor is the right idea. Sharing it across distinct listeners is the wrong 
 pd tube standup:demo --tail --as you
 ```
 
+<!-- figure: The same exchange with per-listener cursors — alice and bob each hold their own bookmark, both advance to 7 independently, and both print message 7. Same channel, two readers, no race. -->
 ```mermaid
 sequenceDiagram
   participant A as alice (cursor::alice)
@@ -86,7 +87,6 @@ sequenceDiagram
   D-->>B: getMessages after=6 → [7]
   Note over A,B: independent bookmarks.<br/>both advance to 7. both print.
 ```
-<!-- figure: Per-listener cursors: distinct identities keep independent bookmarks, so every listener receives every message. -->
 
 That's the entire fix. Two consequences fall straight out of it, and they're the part I actually like:
 

@@ -1,6 +1,5 @@
 import { TutorialLayout } from "@/components/tutorials/TutorialLayout";
 import { CodeBlock } from "@/components/ui/CodeBlock";
-import { Badge } from "@/components/ui/Badge";
 import { History, Activity, Search } from "lucide-react";
 import { Surface } from "@/components/ui/Surface";
 
@@ -37,11 +36,6 @@ export function TimeTravel() {
             notes, lock acquisitions, and heartbeats all go into the same
             timeline.
           </p>
-          <div className="flex gap-4 pt-2">
-            <Badge variant="teal">Port Claims</Badge>
-            <Badge variant="gold">Pub/sub + SSE</Badge>
-            <Badge variant="default">Agent Notes</Badge>
-          </div>
         </section>
 
         {/* Step 1: Querying */}
@@ -113,9 +107,9 @@ $ curl http://localhost:9876/activity/stats
             className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-secondary)] pl-4"
             style={{ color: "var(--text-secondary)" }}
           >
-            <strong>Post-Mortem Integrity:</strong> Since the database is
-            immutable, agents can't "delete their mistakes" to hide errors. This
-            ensures a 100% audit trail for your autonomous organization.
+            <strong>Post-mortem integrity:</strong> the log is append-only, so an
+            agent cannot delete an event to hide a mistake. What happened stays
+            on the record for later inspection.
           </p>
         </section>
 
@@ -125,23 +119,16 @@ $ curl http://localhost:9876/activity/stats
           radius="none"
           className="p-6 text-center space-y-4 relative overflow-hidden"
         >
-          <Badge
-            variant="teal"
-            className="px-4 py-1 text-[10px] font-black uppercase tracking-widest"
-          >
-            Design Principle
-          </Badge>
           <p
             className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
-            Append-Only Log
+            An append-only log
           </p>
           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-            The timeline isn't just a log--it's a <strong>ledger</strong>. It
-            provides the historical evidence needed to train agents on
-            "coordination failures," allowing your swarms to learn from their
-            own race conditions over time.
+            Because events are never rewritten, the timeline is a durable record
+            of what each agent did and when. You can replay a sequence to see how
+            two agents collided, and use that record to tune how they coordinate.
           </p>
         </Surface>
       </div>

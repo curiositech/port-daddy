@@ -149,6 +149,64 @@ function highlightTSStrings(text: string): React.ReactNode {
   return <>{parts}</>;
 }
 
+/** Highlight one YAML scalar value: quoted string, number, bool/null, block
+ *  indicator, colon-separated identity (git:committed), or a bare scalar. */
+function highlightYamlValue(value: string): React.ReactNode {
+  const v = value.trim();
+  if (!v) return value || null;
+  const lead = value.slice(0, value.length - value.trimStart().length);
+  let node: React.ReactNode;
+  if (/^["'].*["']$/.test(v)) node = <span style={{ color: "var(--code-string)" }}>{v}</span>;
+  else if (/^-?\d+(\.\d+)?$/.test(v) || /^(true|false|null)$/.test(v))
+    node = <span style={{ color: "var(--code-flag)" }}>{v}</span>;
+  else if (v === "|" || v === ">" || v === "|-" || v === ">-")
+    node = <span style={{ color: "var(--code-operator)" }}>{v}</span>;
+  else if (/^[\w@.{}-]+:[\w@./{}-]+$/.test(v)) node = highlightIdentity(v);
+  else node = <span style={{ color: "var(--code-text)" }}>{v}</span>;
+  return (
+    <>
+      {lead}
+      {node}
+    </>
+  );
+}
+
+/** Highlight one line of YAML: comment, or `[indent][- ]key: value`. */
+function highlightYaml(line: string): React.ReactNode {
+  if (!line.trim()) return " ";
+  const indent = line.match(/^(\s*)/)?.[1] ?? "";
+  const trimmed = line.slice(indent.length);
+  if (trimmed.startsWith("#"))
+    return <span style={{ color: "var(--code-comment)" }}>{line}</span>;
+  let dash = "";
+  let rest = trimmed;
+  const dashMatch = /^(-\s+)/.exec(trimmed);
+  if (dashMatch) {
+    dash = dashMatch[1];
+    rest = trimmed.slice(dash.length);
+  }
+  const kv = /^([A-Za-z0-9_.-]+)(:)(.*)$/.exec(rest);
+  if (!kv) {
+    return (
+      <>
+        {indent}
+        {dash && <span style={{ color: "var(--code-operator)" }}>{dash}</span>}
+        <span style={{ color: "var(--code-text)" }}>{rest}</span>
+      </>
+    );
+  }
+  const [, key, colon, value] = kv;
+  return (
+    <>
+      {indent}
+      {dash && <span style={{ color: "var(--code-operator)" }}>{dash}</span>}
+      <span style={{ color: "var(--code-command)", fontWeight: 600 }}>{key}</span>
+      <span style={{ color: "var(--code-operator)" }}>{colon}</span>
+      {highlightYamlValue(value)}
+    </>
+  );
+}
+
 /* ── Component ───────────────────────────────────────────────────────────── */
 
 interface CodeBlockProps {
@@ -246,7 +304,11 @@ export function CodeBlock({
             ? textContent
                 .split("\n")
                 .map((line, i) => <div key={i}>{highlightTS(line)}</div>)
-            : textContent}
+            : language === "yaml" || language === "yml"
+              ? textContent
+                  .split("\n")
+                  .map((line, i) => <div key={i}>{highlightYaml(line)}</div>)
+              : textContent}
       </pre>
     </div>
   );

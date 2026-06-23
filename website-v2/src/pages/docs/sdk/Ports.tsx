@@ -19,7 +19,6 @@ export default function PortsSdk() {
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <Badge variant="teal">SDK</Badge>
-          <Badge variant="success">Core</Badge>
         </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Ports Module
@@ -48,7 +47,7 @@ export default function PortsSdk() {
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">identity</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">
                 Semantic identity in format <code>project:stack:context</code>
@@ -57,21 +56,21 @@ export default function PortsSdk() {
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Project name (optional, inferred from identity)</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.ttl</code>
-                <span className="text-xs text-[var(--text-muted)]">number</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">number</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Time-to-live in seconds (optional)</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.preferredPort</code>
-                <span className="text-xs text-[var(--text-muted)]">number</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">number</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Preferred port number (optional, best effort)</p>
             </div>
@@ -137,7 +136,7 @@ console.log(claim1.port === claim2.port) // true`}
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">identity</code>
                 <Badge variant="default" size="sm">required</Badge>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">The identity to release</p>
             </div>
@@ -201,14 +200,14 @@ if (claim) {
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.project</code>
-                <span className="text-xs text-[var(--text-muted)]">string</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">string</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Filter by project name (optional)</p>
             </div>
             <div className="p-4 bg-[var(--surface-raised)]">
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono text-[var(--brand-primary)]">options.status</code>
-                <span className="text-xs text-[var(--text-muted)]">'active' | 'expired' | 'all'</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">'active' | 'expired' | 'all'</span>
               </div>
               <p className="text-sm text-[var(--text-muted)] mt-1">Filter by status (default: 'active')</p>
             </div>

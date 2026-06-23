@@ -88,7 +88,7 @@ export const getStartedSection: DocsContentSection = {
           title: 'Verify the running app before you debug',
           paragraphs: [
             'If Port Daddy looks wrong, first make sure you are talking to the running install you think you are. The CLI, browser dashboard, and shell command can drift if an old daemon or shim is still around.',
-            'These checks keep you from chasing a missing feature or broken page when the real problem is simply that an older process is serving the app.',
+            'These checks keep you from chasing a missing feature or broken page when the real problem is that an older process is serving the app.',
           ],
         },
         {

@@ -255,19 +255,74 @@ export async function handlePheromone(
     case 'show':
     case 'read':
       return handleShow(args, options);
+    case 'resolve':
+      return handleResolve(args, options);
+    case 'coverage':
+      return handleCoverage(args, options);
     case 'ls':
     case 'list':
       return handleLs(options);
     default:
-      console.log('Usage: pd pheromone <spray|file|files|show|ls> [args]');
+      console.log('Usage: pd pheromone <spray|file|files|show|resolve|coverage|ls> [args]');
       console.log('');
       console.log('Subcommands:');
       console.log('  spray <table> <id> <key> <strength>   Set a pheromone (0..1)');
       console.log('  file <path> <strength>                Sugar for files/<path>/heat');
       console.log('  files [--path P] [--depth N]          File heat map');
       console.log('  show <table> <id>                     Read pheromones for entity');
+      console.log('  resolve <table> <id> <key> [strength] Mark a signal resolved (RCP-7a)');
+      console.log('  coverage <table>                      Seen/unseen coverage (RCP-12)');
       console.log('  ls                                    List all non-zero pheromones');
       console.log('');
       console.log('Tables: files, services, projects, sessions, agents');
+  }
+}
+
+/** `pd pheromone resolve <table> <id> <key> [strength]` — RCP-7a resolution trace. */
+async function handleResolve(args: string[], options: CLIOptions): Promise<void> {
+  if (args.length < 3) {
+    ui.error('Usage: pd pheromone resolve <table> <id> <key> [strength]');
+    process.exit(1);
+  }
+  const [table, id, key, strengthArg] = args;
+  const strength = strengthArg !== undefined ? parseStrength(strengthArg) : 1;
+  if (strength === null) {
+    ui.error('strength must be a number between 0 and 1');
+    process.exit(1);
+  }
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/pheromone/resolve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ table, id, key, strength }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Resolve failed');
+    process.exit(1);
+  }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (!isQuiet(options)) ui.success(`resolved ${table}/${id}/${key} (strength ${strength})`);
+}
+
+/** `pd pheromone coverage <table>` — RCP-12 epistemic-scan coverage. */
+async function handleCoverage(args: string[], options: CLIOptions): Promise<void> {
+  if (args.length < 1) {
+    ui.error('Usage: pd pheromone coverage <table>');
+    process.exit(1);
+  }
+  const [table] = args;
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/pheromone/coverage/${encodeURIComponent(table)}`);
+  const data = await res.json();
+  if (!res.ok) {
+    ui.error((data.error as string) || 'Coverage failed');
+    process.exit(1);
+  }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  const pct = ((data.coverage as number) * 100).toFixed(0);
+  console.log('');
+  console.log(`${table}: ${data.seen}/${data.total} seen (${pct}% coverage)`);
+  const unseen = (data.unseen as string[]) || [];
+  if (unseen.length > 0) {
+    console.log(ui.dim(`  unseen: ${unseen.slice(0, 20).join(', ')}${unseen.length > 20 ? ` … +${unseen.length - 20}` : ''}`));
   }
 }

@@ -194,31 +194,21 @@ describe('design system contracts', () => {
     }
   })
 
-  test('MCP proof route consumes shared primitives and tokenized color roles', () => {
-    const mcpPage = read('./pages/MCPPage.tsx')
+  test('install surface (merged from the retired MCP page) uses shared primitives and tokenized color roles', () => {
+    // The standalone /mcp page was retired; its install + skill + MCP story now
+    // lives in MacInstallSection on the Mac app page. This contract follows it.
+    const install = read('./components/landing/MacInstallSection.tsx')
     const colorLiteral = /#[0-9a-fA-F]{3,8}\b|(?:rgb|hsl)a?\(|oklch\(/
 
-    expect(mcpPage).toContain("from '@/components/site/primitives'")
-    expect(mcpPage).toContain('PageContainer')
-    expect(mcpPage).toContain('SwissGrid')
-    expect(mcpPage).toContain('SwissGridItem')
-    expect(mcpPage).toContain('SectionIntro')
-    expect(mcpPage).toContain('SurfacePanel')
-    expect(mcpPage).toContain('DocsCodeBlock')
-    expect(mcpPage).toContain('onKeyDown')
-    expect(mcpPage).toContain('aria-orientation="vertical"')
-    expect(mcpPage).toContain('tabIndex={activeIndex === index ? 0 : -1}')
-    expect(mcpPage).toContain("event.key === 'ArrowDown'")
-    expect(mcpPage).toContain("event.key === 'End'")
-    expect(mcpPage).toContain('focus-visible:outline-[var(--interactive-focus)]')
-    expect(mcpPage).not.toContain("import { Surface }")
-    expect(mcpPage).not.toContain('grid-cols-[1.05fr,0.95fr]')
-    expect(mcpPage).not.toContain('grid-cols-[0.9fr,1.1fr]')
-    expect(mcpPage).not.toContain('grid-cols-[1fr,1fr]')
-    expect(mcpPage).not.toContain('grid-cols-[1fr,1fr,1.3fr]')
-    expect(mcpPage).not.toContain('grid-cols-[18rem,1fr]')
-    expect(mcpPage).not.toMatch(/style=\{\{[^}]*\b(?:color|background|border|boxShadow):/)
-    expect(mcpPage).not.toMatch(colorLiteral)
+    expect(install).toContain("from '@/components/site/primitives'")
+    expect(install).toContain('PageContainer')
+    expect(install).toContain('SurfacePanel')
+    expect(install).toContain('DocsCodeBlock')
+    expect(install).toContain('CopyableCommandBlock')
+    expect(install).not.toContain('import { Surface }')
+    // No raw color literals or inline color styles — tokenized roles only.
+    expect(install).not.toMatch(/style=\{\{[^}]*\b(?:color|background|border|boxShadow):/)
+    expect(install).not.toMatch(colorLiteral)
   })
 
   test('storybook covers the normalized website layout primitives', () => {
@@ -236,7 +226,6 @@ describe('design system contracts', () => {
     const packageJson = read('../package.json')
     const storybookMain = read('../.storybook/main.ts')
     const storybookPreview = read('../.storybook/preview.ts')
-    const mcpStory = read('./pages/MCPPage.stories.tsx')
     const a11yScript = read('../scripts/check-mcp-a11y.mjs')
     const stateMatrixStories = [
       read('./components/ui/Button.stories.tsx'),
@@ -252,8 +241,6 @@ describe('design system contracts', () => {
     expect(storybookPreview).toContain("test: 'error'")
     expect(storybookPreview).toContain("'wcag2aaa'")
     expect(storybookPreview).toContain("'color-contrast-enhanced': { enabled: true }")
-    expect(mcpStory).toContain("title: 'Pages/MCP Proof Route'")
-    expect(mcpStory).toContain('MobileAuditFrame')
     expect(a11yScript).toContain('wcag2aaa')
     expect(a11yScript).toContain('assertNoHorizontalOverflow')
     expect(a11yScript).toContain('runKeyboardChecks')
@@ -297,7 +284,7 @@ describe('design system contracts', () => {
     expect(codeBlock).toContain('var(--code-channel-scope)')
     expect(codeBlock).toContain('var(--code-channel-sep)')
     expect(primitives).not.toContain('className="opacity-80"')
-    expect(blogPage).toContain('Engineering notes')
+    expect(blogPage).toContain('Harbor Blog')
     expect(blogPage).not.toMatch(colorLiteral)
   })
 

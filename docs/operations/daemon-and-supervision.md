@@ -41,7 +41,7 @@ release + `brew upgrade`, not rebuild the repo.**
 created *on top of* the brew service (the brew `KeepAlive` already supervises the daemon; `pd install`
 should detect and not duplicate it). Its `.plist.bak-*` was also deleted.
 
-**Retired (per ADR-0021), must not reappear in runtime:** `bin/watchdog.ts` (legacy TS `/health` poller);
+**Retired (per ADR-0021), must not reappear in runtime:** `bin/watchdog.ts` <!-- cite-exempt: deliberately-removed file, named so it does not return --> (legacy TS `/health` poller);
 **Barnacle** (legacy V3 Rust reciprocal sidecar on `:9875`). "Bosun" is the single watchdog name.
 
 ## Why liveness ≠ freshness (the watchdog's blind spot)
@@ -128,8 +128,12 @@ above. Cutting the stable release ("RC cut") is a deliberate manual act (a futur
      (`pd --daemon`). The brew daemon remains the single canonical *stable* install on `:9876`.
 2. **`pd redeploy`** — a supervisor-aware command that stands the supervisor down, rebuilds/upgrades,
    restarts, verifies `/health` + a route, restores supervision.
-3. **Code-hash drift → restart trigger** — make bosun (or doctor) treat stale-code as restart-worthy,
-   so freshness self-heals like liveness.
+3. ~~**Code-hash drift → restart trigger** — make bosun (or doctor) treat stale-code as
+   restart-worthy, so freshness self-heals like liveness.~~ **Delivered (ADR-0062, auto-freshness
+   self-heal).** An hourly `com.portdaddy.freshness` LaunchAgent runs `pd self-update --tick`:
+   `brew upgrade` + `brew services restart` onto the current release and relaunch FleetBar,
+   hands-off. This finally *acts* on the `binary_drift_detected` warning instead of only logging it.
+   (Linux/systemd `.timer` equivalent is the remaining slice.)
 4. **`:9876` regiment** — single `DEFAULT_DAEMON_PORT` + `resolveDaemonUrl()` + a CI guard that fails
    on any literal `9876` outside the one definition.
 5. **Purge legacy** — remove Barnacle/`watchdog` runtime references (ADR-0021 compliance).

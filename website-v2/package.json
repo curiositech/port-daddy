@@ -27,6 +27,7 @@
     "test:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts",
     "fix:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts --fix",
     "test:figure-palette": "node scripts/check-figure-palette.mjs",
+    "test:install-commands": "node scripts/check-install-commands.mjs",
     "record:gifs": "bash scripts/record-site-terminal-gifs.sh --all && bash scripts/record-agent-terminal-gifs.sh --all",
     "test:gifs": "node scripts/check-terminal-recordings.mjs"
   },

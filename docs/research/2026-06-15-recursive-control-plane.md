@@ -2,7 +2,7 @@
 
 > Status: **research / exploratory.** Not canon. A landing pad for the bolder
 > cross-cutting ideas generated alongside the four-paper rewrite
-> (`docs/research/north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target**
+> (`docs/research/north-star/00-THE-FOUR-PAPERS.md`, pending in #378), and the **graft target** <!-- cite-exempt: pending in #378 -->
 > for `erichowens/soma` and `curiositech/windags` once those repos are added to
 > the session scope. The "Open research items" list at the bottom is meant to be
 > promoted into `docs/research/north-star/00-THE-LEDGER-open-problems.md` (research) and/or the Cartographer
@@ -146,12 +146,31 @@ already exists: the `research/evolutionary-agent-coordination-sandbox` branch
 
 ## Open research items (promote to the Ledger / roadmap)
 
+> **Promoted 2026-06-19** into the Ledger as
+> `docs/research/north-star/00-THE-LEDGER-open-problems.md` § D (Recursive control
+> plane), with source-verified maturity and cross-links to the PRV/RQ/IMP rows.
+> The list below remains the prose source; the Ledger is the authoritative registry.
+
+> **Source-audit correction (2026-06-19).** The RCP items below were grafted from
+> summary memos. A read-only audit of the two source repos as they actually stand
+> — `docs/research/grafts/2026-06-19-soma-windags-source-audit.md` — corrected
+> several maturity claims before they harden into roadmap commitments. In short:
+> soma's "sheaf" is a **graph Laplacian** (cohomology/restriction-maps **absent**,
+> not "the math is there" → RCP-8, RCP-5b are aspirational); windags' **Thompson**
+> trust signal was **rejected as a "category error"** and replaced by
+> attribution-kNN (re-attribute RCP-4a/6a); monster-barring (RCP-6b) and
+> io-contract runtime validation (RCP-13) are **design-only**; the coverage delta
+> (RCP-12) and the 34.78%→4.35% figure are **not benchmarked on the source repos**.
+> What *is* shipped and portable: soma's graph-diffusion + expected-free-energy
+> agent, and windags' retrieval cascade + economic eval gate + typed discourse bus.
+> See the audit for `path:line` and the port plan.
+
 - **RCP-1 — Convergence detector.** Semantic task-shape similarity for "another
   agent is doing a similar thing," without keyword matching. *(Hard; gates the
   parley. Both source repos match at task-PLAN time; neither detects RUNTIME
   overlap between active agents — the real gap.)*
   - *1a (windags):* BM25 → cosine-RRF → cross-encoder → attribution-kNN cascade
-    (`core/skill-matcher.ts`), adapted from skill-matching to task-shape.
+    (`packages/core/src/core/skill-matcher.ts`), adapted from skill-matching to task-shape.
   - *1b (windags):* run that cascade on live **agent outputs**, not task
     descriptions, to catch two agents converging on the same claim. *(open)*
 - **RCP-2 — Parley trigger.** Cost-aware (Signal-Detection) threshold for when to

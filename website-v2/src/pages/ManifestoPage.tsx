@@ -11,18 +11,20 @@ import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
 import {
   cryptoPapers,
+  harborEvolutionFigure,
   layerPapers,
   manifestoCaptions,
   manifestoContent,
   manifestoMeta,
+  ologFunctorFigure,
   technologyPrimitives,
 } from '@/data/manifestoContent'
 import { findWhitePaperById } from '@/data/whitePapers'
 
 // Figures that should float so prose wraps around them, and the side they go on.
 const WRAP_FIGURES: Record<string, 'right' | 'left'> = {
-  '/img/manifesto/collision.png': 'right',
-  '/img/manifesto/legibility-zoom.png': 'left',
+  '/img/manifesto/collision.webp': 'right',
+  '/img/manifesto/legibility-zoom.webp': 'left',
 }
 
 interface MarkdownCodeElementProps {
@@ -48,7 +50,68 @@ function consumeSidenoteSentinel(children: ReactNode): { label: string; stripped
   return { label, stripped: arr }
 }
 
+/** Flatten an H2's React children to plain text so we can match the heading. */
+function headingText(children: ReactNode): string {
+  const parts: string[] = []
+  const walk = (node: ReactNode): void => {
+    if (typeof node === 'string' || typeof node === 'number') {
+      parts.push(String(node))
+    } else if (Array.isArray(node)) {
+      node.forEach(walk)
+    } else if (isValidElement<{ children?: ReactNode }>(node)) {
+      walk(node.props.children)
+    }
+  }
+  walk(children)
+  return parts.join('').trim()
+}
+
+// Diagrams/figures are placed at the prose anchor where the text first discusses
+// them — keyed by the H2 they should appear *before*. The single ReactMarkdown
+// render is preserved (so footnotes resolve), and the custom `h2` renderer emits
+// the matching figure immediately ahead of its heading.
+const DIAGRAMS_BEFORE_HEADING: Record<string, () => ReactElement> = {
+  // The state of nature — agents colliding over one file — opens the piece as an
+  // establishing drawing right before the "3 a.m." scene it illustrates.
+  'Start with the file': () => <StateOfNatureFigure />,
+  // The file collision is laid out in "Start with the file"; the drawn race and
+  // the single-writer fix belong as the reader turns to the economics framing.
+  'Agents are becoming economic actors. They have no economy.': () => <CollisionDiagram />,
+  // The harbor-master that ends the scramble — order you can check, not trust.
+  'The Leviathan you can check': () => <LeviathanHarborFigure />,
+  // "The Leviathan you can check" ends on "one process → one machine → many
+  // machines" — the harbor-evolution drawing makes that arc literal.
+  'Now the part that sounds insane': () => <HarborEvolutionFigure />,
+  // The olog/functor idea is introduced just above; the figure + plain-language
+  // gloss meet the reader before the honest caveat reins the claim back in.
+  'The honest caveat is the entire load-bearing beam': () => <OlogFunctorFigure />,
+  // The operad/wiring-diagram figure grounds the abstract category theory back
+  // in Port Daddy's mechanics (the claim is load-bearing by type), then
+  // Myerson–Satterthwaite (the impossibility wall) underwrites the market design
+  // the "bonded commons" section builds on.
+  'The bonded commons is the missing market microstructure': () => (
+    <>
+      <OperadWiringFigure />
+      <MathSection />
+    </>
+  ),
+  // The verifiable bond — collateral plus a receipt anyone can check — is what
+  // lets the big claim be earned rather than asserted.
+  'Earn the big claim': () => <BondReceiptFigure />,
+}
+
 const markdownComponents: Components = {
+  h2({ children }) {
+    const text = headingText(children)
+    const Diagram = DIAGRAMS_BEFORE_HEADING[text]
+    return (
+      <>
+        {Diagram ? <Diagram /> : null}
+        <h2>{children}</h2>
+      </>
+    )
+  },
+
   pre({ children }) {
     const codeChild = Array.isArray(children) ? children[0] : children
     if (isCodeElement(codeChild)) {
@@ -136,7 +199,7 @@ const FIX_DIAGRAM = `sequenceDiagram
     PD-->>B: held — wait
     A->>PD: release (work saved)
     PD-->>B: granted
-    Note over A,B: One writer at a time. Nothing is lost.`
+    Note over A,B: One writer at a time — the overwrite is visible and recoverable, not silent.`
 
 // How the seven papers relate: the four explainers form one dependency ladder
 // (market rests on trust rests on reputation rests on memory rests on the
@@ -167,7 +230,7 @@ function SectionEyebrow({ children }: { children: ReactNode }) {
 
 function CollisionDiagram() {
   return (
-    <section aria-labelledby="collision-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+    <section aria-labelledby="collision-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[64rem]">
       <SectionEyebrow>The race, drawn</SectionEyebrow>
       <h2
         id="collision-heading"
@@ -175,21 +238,221 @@ function CollisionDiagram() {
       >
         One file, two writers, one survivor
       </h2>
-      <p className="mt-[var(--space-2)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
-        Read the two timelines side by side. The only structural difference is who keeps the logbook.
+      <p className="mt-[var(--space-2)] max-w-[60ch] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+        Same two agents, same file, read top to bottom. The only structural difference is who keeps the logbook.
       </p>
-      <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-2">
+      <div className="mt-[var(--space-6)] flex flex-col gap-[var(--space-6)]">
         <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
           <div className="mb-[var(--space-3)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--status-error)]">
-            Without a harbor-master
+            Without a harbor-master — both think they own the file
           </div>
           <Mermaid chart={COLLISION_DIAGRAM} />
         </div>
         <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
           <div className="mb-[var(--space-3)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-            With Port Daddy
+            With Port Daddy — one writer at a time, the other sees it
           </div>
           <Mermaid chart={FIX_DIAGRAM} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+/** A single full-width manifesto plate: one house-style drawing + a meaning
+ *  caption. Used for the establishing figures that sit before a section heading,
+ *  so the manifesto carries its argument in pictures as well as prose. */
+function ManifestoPlate({ src, alt, caption }: { src: string; alt: string; caption: string }) {
+  return (
+    <figure className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+      />
+      <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+        {caption}
+      </figcaption>
+    </figure>
+  )
+}
+
+/** Establishing image for "Start with the file" — the war of all against all. */
+function StateOfNatureFigure() {
+  return (
+    <ManifestoPlate
+      src="/img/generated/manifesto/hero-state-of-nature.webp"
+      alt="A blueprint-style pen drawing on cream graph paper: five or six small tugboats all crowd the same stone berth at once with no harbor-master, bumping and knocked askew, while an open logbook sits ignored on a pedestal at the pier's edge. A small spilled crate in red ink marks the lost work."
+      caption="The state of nature: every agent races for the same berth, no one keeps the logbook, and the work that gets erased still looks finished."
+    />
+  )
+}
+
+/** Establishing image for "The Leviathan you can check" — order without trust. */
+function LeviathanHarborFigure() {
+  return (
+    <ManifestoPlate
+      src="/img/generated/manifesto/leviathan-harbor.webp"
+      alt="A blueprint-style pen drawing on cream graph paper: a tall lighthouse — the harbor-master — sweeps a ruled beam across calm water where many small tugboats move in tidy parallel lanes, each heading to its own numbered berth, with no collisions."
+      caption="The Leviathan you can check: one office hands out berths, every lane is visible to all, and order replaces the scramble — without anyone having to be trusted."
+    />
+  )
+}
+
+/** Establishing image for "Earn the big claim" — the verifiable bond. */
+function BondReceiptFigure() {
+  return (
+    <ManifestoPlate
+      src="/img/generated/manifesto/verified-bond-receipt.webp"
+      alt="A blueprint-style pen drawing on cream graph paper: a hand-drawn BOND RECEIPT certificate with a red wax seal, a stack of coins labelled as posted collateral, and a magnifying glass held over a check-mark verifying the signature."
+      caption="A bond posts collateral and a receipt anyone can verify: slashed if the agent misbehaves, returned if it behaves. Skin in the game, made checkable."
+    />
+  )
+}
+
+/** The harbor-evolution drawing (I → II → III) with the three stages re-stated in words. */
+function HarborEvolutionFigure() {
+  return (
+    <figure className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+      <img
+        src={harborEvolutionFigure.src}
+        alt={harborEvolutionFigure.alt}
+        loading="lazy"
+        className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+      />
+      <div className="mt-[var(--space-4)] grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-3">
+        {harborEvolutionFigure.stages.map((stage) => (
+          <div key={stage.numeral} className="flex flex-col gap-[var(--space-2)] bg-[var(--surface-raised)] p-[var(--space-4)]">
+            <span className="font-mono text-[length:var(--text-2xl)] font-black leading-none text-[var(--brand-primary)]">
+              {stage.numeral}
+            </span>
+            <span className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">{stage.label}</span>
+          </div>
+        ))}
+      </div>
+      <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+        {harborEvolutionFigure.caption}
+      </figcaption>
+    </figure>
+  )
+}
+
+/** The olog/functor drawing with a plain-language gloss for non-mathematicians. */
+function OlogFunctorFigure() {
+  return (
+    <section
+      aria-labelledby="functor-heading"
+      className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]"
+    >
+      <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+        <img
+          src={ologFunctorFigure.src}
+          alt={ologFunctorFigure.alt}
+          loading="lazy"
+          className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+        />
+        <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+          {ologFunctorFigure.caption}
+        </figcaption>
+      </figure>
+      <figure className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+        <img
+          src="/img/generated/manifesto/olog-exchange.webp"
+          alt="A blueprint-style pen drawing on cream graph paper: two ologs of labelled boxes joined by a functor F. Left (olog A): a person is born in a city, a city is in a country, a person is a citizen of a country. Right (olog B): a class is declared in a file, a file lives in a package, a class belongs to a package. F maps person to class, city to file, country to package, and each arrow to its match; the 'is in' / 'lives in' pair is highlighted in red."
+          loading="lazy"
+          className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+        />
+        <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+          The same move in the abstract: an olog is a diagram of labelled boxes and arrows, and a functor between two
+          ologs carries every arrow across, not just the boxes — that is what makes the structure travel. The catch the
+          rest of this section insists on: a functor like this is exactly what is hard to find. Most analogies are leaky
+          spans wearing a functor&rsquo;s coat.
+        </figcaption>
+      </figure>
+      <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
+        <SectionEyebrow>Functors on ologs, in plain words</SectionEyebrow>
+        <h2
+          id="functor-heading"
+          className="mt-[var(--space-3)] font-display text-[length:var(--text-xl)] font-black leading-tight text-[var(--text-primary)]"
+        >
+          What the picture is saying
+        </h2>
+        <div className="mt-[var(--space-3)] flex flex-col gap-[var(--space-3)]">
+          {ologFunctorFigure.explainer.map((para) => (
+            <p key={para.slice(0, 24)} className="text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+              {para}
+            </p>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ManifestoMono({ children }: { children: ReactNode }) {
+  return <code className="font-mono text-[0.92em] text-[var(--brand-primary)]">{children}</code>
+}
+
+/**
+ * The operad / wiring-diagram figure: the 3 a.m. collision drawn as a typed task
+ * decomposition where `merge` structurally requires the Claim. This is the other
+ * half of Spivak's category theory the manifesto leans on — functors say *what*
+ * transports between domains; operads say *how* one domain's work composes — and
+ * it is the formalism that actually describes a harbor coordinating agents.
+ */
+function OperadWiringFigure() {
+  return (
+    <section aria-labelledby="operad-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+      <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-5)]">
+        <img
+          src="/img/generated/manifesto/operad-wiring.webp"
+          alt="A blueprint-style wiring diagram on cream graph paper. Boxes wired left to right: 'claim' takes a Task and emits a Claim; 'implement' takes a Task and the Claim and emits a Patch; the Patch forks to 'test' (emitting Tests) and 'review' (emitting Review) running in parallel; 'merge' takes Patch, Tests, Review and the Claim and emits a Merge. The Claim wire is drawn in red the whole way from claim to merge, annotated 'no Claim, no Merge'."
+          loading="lazy"
+          className="block w-full border border-[var(--border-default)] bg-[var(--surface-base)]"
+        />
+        <figcaption className="mt-[var(--space-3)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-muted)]">
+          The 3 a.m. collision, drawn as types. Each box is an operation with typed inputs and one typed output;
+          <ManifestoMono>test</ManifestoMono> and <ManifestoMono>review</ManifestoMono> run in parallel; and
+          <ManifestoMono>merge</ManifestoMono> takes the Claim as an input — the contract the harbor recommends. The claim
+          is advisory, made credible by an observable history, not a hard lock.
+        </figcaption>
+      </figure>
+      <div className="mt-[var(--space-5)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-6)]">
+        <SectionEyebrow>Operads, or how the harbor composes</SectionEyebrow>
+        <h2
+          id="operad-heading"
+          className="mt-[var(--space-3)] font-display text-[length:var(--text-xl)] font-black leading-tight text-[var(--text-primary)]"
+        >
+          Functors say what transports. Operads say how it composes.
+        </h2>
+        <div className="mt-[var(--space-3)] flex flex-col gap-[var(--space-3)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+          <p>
+            An <strong>operad</strong> is Spivak&rsquo;s other construction: the algebra of typed boxes wired together —
+            a thing decomposes into simpler things, and the decomposition itself composes. It is the exact formalism for
+            a harbor that coordinates many agents, where each box has typed input and output ports and you may only wire
+            ports whose types match.
+          </p>
+          <p>
+            Read the diagram as the opening collision, made honest. <ManifestoMono>claim</ManifestoMono> hands out a
+            single-writer <ManifestoMono>Claim</ManifestoMono>; <ManifestoMono>implement</ManifestoMono> turns a{' '}
+            <ManifestoMono>Task</ManifestoMono> and that <ManifestoMono>Claim</ManifestoMono> into a{' '}
+            <ManifestoMono>Patch</ManifestoMono>; <ManifestoMono>test</ManifestoMono> and{' '}
+            <ManifestoMono>review</ManifestoMono> run in parallel on it; <ManifestoMono>merge</ManifestoMono> combines the{' '}
+            <ManifestoMono>Patch</ManifestoMono>, the <ManifestoMono>Tests</ManifestoMono>, the{' '}
+            <ManifestoMono>Review</ManifestoMono> — and the <ManifestoMono>Claim</ManifestoMono> — into a committed{' '}
+            <ManifestoMono>Merge</ManifestoMono>.
+          </p>
+          <p>
+            The whole argument is the red wire — kept honest. Port Daddy&rsquo;s file claims are{' '}
+            <em>advisory</em>, not a hard lock: an agent technically can merge without one. What holds the contract
+            together is not enforcement but incentives — with an observable, immutable history and a persistent
+            identity, defecting from the wiring costs more than complying (the folk-theorem result for repeated games),
+            and where the stakes demand a real wall, Anchor&rsquo;s capability tokens supply one cryptographically. So{' '}
+            <ManifestoMono>merge</ManifestoMono> &ldquo;needs&rdquo; the <ManifestoMono>Claim</ManifestoMono> is a
+            contract the harbor makes legible and self-enforcing — institutions, not cleverness — without pretending the
+            wiring physically forbids the merge.
+          </p>
         </div>
       </div>
     </section>
@@ -275,7 +538,7 @@ function MathSection() {
           { t: 'Budget-balanced', d: 'The mechanism neither prints money nor quietly skims it.' },
         ].map((c) => (
           <div key={c.t} className="bg-[var(--surface-raised)] p-[var(--space-5)]">
-            <h3 className="font-display text-[length:var(--text-base)] font-black uppercase tracking-[0.06em] text-[var(--text-primary)]">
+            <h3 className="font-display text-[length:var(--text-base)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
               {c.t}
             </h3>
             <p className="mt-[var(--space-2)] text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">{c.d}</p>
@@ -310,16 +573,16 @@ function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
       </div>
 
       <h3 className="font-display text-[length:var(--text-xl)] font-black text-[var(--text-primary)]">{spec.title}</h3>
-      <p className="text-[length:var(--text-base)] leading-relaxed text-[var(--text-secondary)]">
+      <p className="max-w-[46ch] text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-secondary)]">
         {paper?.thesis ?? spec.blurb}
       </p>
 
       {sectionTitles.length > 0 && (
-        <ul className="flex flex-col gap-[var(--space-1)]">
+        <ul className="flex flex-col gap-[var(--space-2)]">
           {sectionTitles.map((t) => (
             <li
               key={t}
-              className="flex items-start gap-[var(--space-2)] text-[length:var(--text-base)] text-[var(--text-secondary)]"
+              className="flex items-start gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
             >
               <span aria-hidden="true" className="mt-[0.55em] h-[6px] w-[6px] shrink-0 bg-[var(--brand-primary)]" />
               {t}
@@ -354,7 +617,7 @@ function ShippedPaperCard({ spec }: { spec: (typeof cryptoPapers)[number] }) {
 
 function PapersSection() {
   return (
-    <section aria-labelledby="papers-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[80ch]">
+    <section aria-labelledby="papers-heading" className="mx-auto mt-[var(--blog-section-break)] w-full max-w-[104ch]">
       <SectionEyebrow>The jewel</SectionEyebrow>
       <h2
         id="papers-heading"
@@ -362,7 +625,7 @@ function PapersSection() {
       >
         Seven papers that work it out
       </h2>
-      <p className="mt-[var(--space-2)] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
+      <p className="mt-[var(--space-2)] max-w-[80ch] text-[length:var(--text-lg)] leading-relaxed text-[var(--text-secondary)]">
         Four explain the system, climbing one ladder from the machine to the market. Three hand the safety
         claims to a proof-checker — the same family of tools used to verify TLS 1.3 and the Signal protocol.
       </p>
@@ -377,11 +640,13 @@ function PapersSection() {
         </figcaption>
       </figure>
 
-      {/* Three crypto deep dives — shipped, real content surfaced in-line. */}
+      {/* Three crypto deep dives — shipped, real content surfaced in-line.
+          One column on narrow, two on wide: each card keeps a comfortable
+          ~40ch+ measure instead of the three cramped columns it used to be. */}
       <div className="mt-[var(--blog-subsection-break)] flex items-center gap-2 text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--signal-charlie)]">
         <Stamp size={15} aria-hidden="true" /> Three crypto deep dives · proof-checked
       </div>
-      <div className="mt-[var(--space-3)] grid gap-[var(--space-4)] lg:grid-cols-3">
+      <div className="mt-[var(--space-3)] grid gap-[var(--space-4)] sm:grid-cols-2">
         {cryptoPapers.map((p) => (
           <ShippedPaperCard key={p.title} spec={p} />
         ))}
@@ -497,11 +762,13 @@ export function ManifestoPage() {
           </motion.article>
         </div>
 
-        {/* Designed technical band: the diagram, the technology, the math, the
-            papers. Placed after the prose so the markdown footnotes stay intact. */}
-        <CollisionDiagram />
+        {/* The race diagram, the harbor-evolution figure, the olog/functor figure,
+            and the impossibility wall are now interleaved INLINE at their prose
+            anchors (see DIAGRAMS_BEFORE_HEADING). What stays at the close is the
+            "what you install" band and "the jewel" — the seven-paper grid — which
+            the final prose section sets up. The single markdown render keeps the
+            footnotes intact. */}
         <TechnologySection />
-        <MathSection />
         <PapersSection />
 
         <div className="mx-auto mt-16 w-full max-w-[80ch]">

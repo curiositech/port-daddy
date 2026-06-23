@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, ShieldAlert, AlertTriangle, CheckCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,18 +7,16 @@ export default function ArbiterFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="default">Security</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Arbiter
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Runtime invariant enforcement for agent swarms. The Arbiter subscribes to the
-          activity log and checks every state transition against formally verified rules.
-          Violations are recorded, broadcast via pub/sub, and — in strict mode — trigger
-          automatic agent salvage.
+          A rule checker for agent swarms. The Arbiter watches the activity log and checks
+          every change against a set of rules. When a rule is broken it records the violation
+          and announces it over pub/sub. In strict mode, a serious violation fails closed for that
+          agent: it stops the responsible agent and hands its work to salvage. That stop is a real
+          boundary, not just a warning — but it is the only Arbiter action that blocks; everything
+          else logs and alerts.
         </p>
       </div>
 
@@ -38,7 +35,7 @@ export default function ArbiterFeature() {
             <CheckCircle size={16} className="text-[var(--brand-primary)] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">LOG (always)</p>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] leading-relaxed">
                 Every violation is recorded with timestamp, rule name, severity, and agent ID.
                 Available at <code className="text-[var(--brand-primary)] font-mono">/arbiter/violations</code>.
               </p>
@@ -48,7 +45,7 @@ export default function ArbiterFeature() {
             <AlertTriangle size={16} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">ALERT (default)</p>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] leading-relaxed">
                 Violations are published to the{' '}
                 <code className="text-[var(--brand-primary)] font-mono">security.violation</code>{' '}
                 activity channel. Subscribers can react without blocking the offending agent.
@@ -59,7 +56,7 @@ export default function ArbiterFeature() {
             <ShieldAlert size={16} className="text-[var(--text-secondary)] mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-bold text-[var(--text-primary)] mb-0.5">HALT (strictMode: true)</p>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] leading-relaxed">
                 Critical violations emit a{' '}
                 <code className="text-[var(--brand-primary)] font-mono">system.man_overboard</code>{' '}
                 activity entry, signalling the resurrection system to queue the agent for salvage.
@@ -119,7 +116,7 @@ export default function ArbiterFeature() {
             <div key={name} className="border-l-4 border-[var(--border-subtle)] pl-4 py-2">
               <div className="flex items-center gap-2 mb-1">
                 <code className="text-sm font-mono text-[var(--text-primary)] font-bold">{name}</code>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase ${
+                <span className={`text-[length:var(--type-meta-size)] px-1.5 py-0.5 rounded font-semibold uppercase ${
                   severity === 'critical'
                     ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                     : severity === 'violation'
@@ -128,7 +125,7 @@ export default function ArbiterFeature() {
                 }`}>
                   {severity}
                 </span>
-                <span className="text-xs text-[var(--text-muted)]">on {trigger}</span>
+                <span className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">on {trigger}</span>
               </div>
               <p className="text-sm text-[var(--text-secondary)]">{desc}</p>
             </div>
@@ -159,7 +156,7 @@ export default function ArbiterFeature() {
             },
           ].map(({ method, path, desc }) => (
             <div key={path} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
-              <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
+              <span className={`text-[length:var(--type-meta-size)] font-mono font-bold px-2 py-0.5 rounded shrink-0 mt-0.5 ${
                 method === 'POST'
                   ? 'bg-[var(--badge-teal-bg)] text-[var(--badge-teal-text)]'
                   : 'bg-[var(--badge-green-bg)] text-[var(--badge-green-text)]'
