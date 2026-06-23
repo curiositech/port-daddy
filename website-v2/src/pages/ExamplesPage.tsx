@@ -75,7 +75,7 @@ export function ExamplesPage() {
                 </PanelBody>
                 <PanelList
                   items={[
-                    `${FEATURED_EXAMPLE.time} guided read`,
+                    `${FEATURED_EXAMPLE.level} · ${FEATURED_EXAMPLE.time} guided read`,
                     `${FEATURED_EXAMPLE.sourceFiles.length} full source files`,
                     `${FEATURED_EXAMPLE.commands.length} runnable commands`,
                   ]}
@@ -158,7 +158,7 @@ export function ExamplesPage() {
                         <PanelEyebrow>What you get</PanelEyebrow>
                         <PanelList
                           items={[
-                            `${example.time} guided read`,
+                            `${example.level} · ${example.time} guided read`,
                             `${example.sourceFiles.length} full source file${example.sourceFiles.length === 1 ? '' : 's'}`,
                             `${example.commands.length} runnable command${example.commands.length === 1 ? '' : 's'}`,
                           ]}
