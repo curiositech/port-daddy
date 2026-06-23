@@ -116,9 +116,7 @@ impl Backend {
 pub fn backend_for_tier(model_tier: &str) -> Backend {
     match model_tier.trim().to_ascii_lowercase().as_str() {
         // Claude capability tiers + the bare vendor name → Claude Code (Max).
-        "opus" | "sonnet" | "haiku" | "claude" | "claude-cli" | "claude-code" => {
-            Backend::ClaudeCli
-        }
+        "opus" | "sonnet" | "haiku" | "claude" | "claude-cli" | "claude-code" => Backend::ClaudeCli,
         "gemini" | "google" => Backend::Gemini,
         "codex" => Backend::Codex,
         "groq" => Backend::Groq,
@@ -217,13 +215,19 @@ impl ModelCatalog {
     /// CLI backends (Claude Code, Codex, Aider) are intentionally absent — they
     /// run whatever model they're configured with, so a tier would be a lie.
     pub fn has_tiers(&self, backend: Backend) -> bool {
-        self.providers.get(backend.as_str()).map(|m| !m.is_empty()).unwrap_or(false)
+        self.providers
+            .get(backend.as_str())
+            .map(|m| !m.is_empty())
+            .unwrap_or(false)
     }
 
     /// Resolve (backend, tier) → model id from the config, or `None` to let the
     /// daemon pick its own per-backend default.
     pub fn resolve(&self, backend: Backend, tier: Tier) -> Option<String> {
-        self.providers.get(backend.as_str())?.get(tier.as_str()).cloned()
+        self.providers
+            .get(backend.as_str())?
+            .get(tier.as_str())
+            .cloned()
     }
 }
 
@@ -262,7 +266,9 @@ impl SpawnOpts {
     /// coordination (lock-gating + pheromones via the injected pd-hook-*
     /// tentacles). The conjurer's vendor agents always dispatch with this on.
     pub fn squid() -> Self {
-        SpawnOpts { inject_squid_hooks: true }
+        SpawnOpts {
+            inject_squid_hooks: true,
+        }
     }
 }
 
@@ -398,7 +404,8 @@ impl SseParser {
                 }
             } else if let Some(rest) = line.strip_prefix("data:") {
                 // SSE spec: a single leading space after the colon is stripped.
-                self.data.push(rest.strip_prefix(' ').unwrap_or(rest).to_string());
+                self.data
+                    .push(rest.strip_prefix(' ').unwrap_or(rest).to_string());
             } else if let Some(rest) = line.strip_prefix("id:") {
                 // Sticky last-event-id for resumable reconnect.
                 self.last_id = Some(rest.strip_prefix(' ').unwrap_or(rest).to_string());
@@ -475,7 +482,10 @@ impl DaemonClient {
     /// Construct a client against an already-resolved base URL (e.g. the value
     /// `discover().base()` returned, handed to a background refresh thread).
     pub fn new(base: String) -> Self {
-        Self { base: base.trim_end_matches('/').to_string(), http: reqwest::Client::new() }
+        Self {
+            base: base.trim_end_matches('/').to_string(),
+            http: reqwest::Client::new(),
+        }
     }
 
     pub fn base(&self) -> &str {
@@ -564,7 +574,11 @@ impl DaemonClient {
                 max = max.max(id);
                 out.push(TubeMsg {
                     id,
-                    sender: m.get("sender").and_then(|s| s.as_str()).unwrap_or("?").to_string(),
+                    sender: m
+                        .get("sender")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("?")
+                        .to_string(),
                     text: extract_text(m.get("payload")),
                 });
             }
@@ -601,7 +615,12 @@ impl DaemonClient {
     /// `accept` needs no body; `reject` REQUIRES a `reason` (>=3 chars, daemon-enforced);
     /// `cancel` takes an optional reason. The single seat where the operator vetoes/lands
     /// agent work (the supervisor-worker blocking gate).
-    pub async fn dispatch_action(&self, id: &str, action: &str, reason: Option<&str>) -> Result<()> {
+    pub async fn dispatch_action(
+        &self,
+        id: &str,
+        action: &str,
+        reason: Option<&str>,
+    ) -> Result<()> {
         let body = match reason {
             Some(r) => serde_json::json!({ "reason": r }),
             None => serde_json::json!({}),
@@ -634,6 +653,192 @@ impl DaemonClient {
             .await
             .with_context(|| format!("POST /fleet/{verb}"))?;
         ensure_success(resp, "fleet_action").await?;
+        Ok(())
+    }
+
+    /// Add an operator note: `POST /notes` with `{ content, agentId }`. The
+    /// daemon's note write needs a session SCOPE — without one it returns
+    /// `NO_ACTIVE_SESSION_SCOPE`. We pass a stable `agentId` (`console-operator`)
+    /// so the daemon auto-creates/reuses a "Quick notes" session and the write
+    /// always lands. The route's body field is `content` (NOT `text`). The note
+    /// surfaces in the Notes/Memory pane (`GET /notes`) on the next refresh.
+    pub async fn add_note(&self, content: &str) -> Result<()> {
+        let body = serde_json::json!({ "content": content, "agentId": "console-operator" });
+        let resp = self
+            .http
+            .post(format!("{}/notes", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /notes")?;
+        ensure_success(resp, "add_note").await?;
+        Ok(())
+    }
+
+    /// Begin a coordination session: `POST /sugar/begin`. The daemon REQUIRES a
+    /// non-empty `purpose` and an explicit `lifecycle` (`durable`|`ephemeral`) —
+    /// omit either and it 400s. We default `lifecycle` to `durable` (ordinary
+    /// work context, matching `pd begin`'s interactive default) and reuse the
+    /// operator-supplied identity as the purpose when no distinct purpose is
+    /// given. `allowMainWorktree` is set so a console launched outside a linked
+    /// worktree is not bounced by the worktree gate. Sessions pane reads
+    /// `/sessions`, so the new session appears on the next refresh.
+    pub async fn begin_session(&self, identity: &str, purpose: Option<&str>) -> Result<()> {
+        let purpose = purpose.filter(|p| !p.trim().is_empty()).unwrap_or(identity);
+        let mut body = serde_json::json!({
+            "purpose": purpose,
+            "lifecycle": "durable",
+            "allowMainWorktree": true,
+        });
+        if !identity.trim().is_empty() {
+            body["identity"] = serde_json::json!(identity);
+        }
+        let resp = self
+            .http
+            .post(format!("{}/sugar/begin", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sugar/begin")?;
+        ensure_success(resp, "begin_session").await?;
+        Ok(())
+    }
+
+    /// End the active coordination session: `POST /sugar/done`. The optional
+    /// `summary` becomes the session's closing `note`. The daemon resolves the
+    /// active session from worktree/agent scope when no id is passed; a 404
+    /// (`NO_ACTIVE_SESSION`) surfaces here as an error rather than a silent
+    /// no-op. Status defaults daemon-side to `completed`.
+    pub async fn end_session(&self, summary: Option<&str>) -> Result<()> {
+        let body = match summary.filter(|s| !s.trim().is_empty()) {
+            Some(s) => serde_json::json!({ "note": s }),
+            None => serde_json::json!({}),
+        };
+        let resp = self
+            .http
+            .post(format!("{}/sugar/done", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sugar/done")?;
+        ensure_success(resp, "end_session").await?;
+        Ok(())
+    }
+
+    /// Propose a dispatch: `POST /dispatches` with `{ goal, requestedBy,
+    /// mergePolicy, baseBranch }`. The daemon requires a non-empty `goal` string
+    /// and returns 201 with the queued dispatch. `requestedBy` defaults to
+    /// `operator` (matching the route default) so the proposal is attributed to
+    /// the console operator. The new proposal lands in the Dispatch pane's
+    /// `review_pending` queue on the next refresh.
+    pub async fn propose_dispatch(&self, goal: &str) -> Result<()> {
+        let goal = goal.trim();
+        if goal.is_empty() {
+            return Err(anyhow!("propose_dispatch needs a non-empty goal"));
+        }
+        let body = serde_json::json!({ "goal": goal, "requestedBy": "operator" });
+        let resp = self
+            .http
+            .post(format!("{}/dispatches", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /dispatches")?;
+        ensure_success(resp, "propose_dispatch").await?;
+        Ok(())
+    }
+
+    /// Launch a sortie: `POST /sorties` with `{ goal, projectDir, backend,
+    /// budgetUsd }`. The daemon validates ALL four — `projectDir` must exist and
+    /// pass the project-root guard, `backend` must be a known runtime, and
+    /// `budgetUsd` must be a positive ceiling. `projectDir` comes from
+    /// `PD_CONSOLE_WORKDIR` (the same operator-provided worktree `spawn` uses);
+    /// without it the launch is refused loudly rather than guessing a directory.
+    /// `backend` defaults to `claude-cli` and the budget to $0.25. Sortie pane
+    /// reads `/sorties`, so the mission appears on the next refresh.
+    pub async fn launch_sortie(&self, goal: &str) -> Result<()> {
+        let project_dir = std::env::var("PD_CONSOLE_WORKDIR").map_err(|_| {
+            anyhow!(
+                "launch_sortie needs a project directory: set PD_CONSOLE_WORKDIR \
+                 to the worktree the sortie should run in (the daemon refuses an \
+                 unknown/main checkout)"
+            )
+        })?;
+        let backend =
+            std::env::var("PD_CONSOLE_SORTIE_BACKEND").unwrap_or_else(|_| "claude-cli".into());
+        let budget: f64 = std::env::var("PD_CONSOLE_SORTIE_BUDGET")
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+            .filter(|b: &f64| *b > 0.0)
+            .unwrap_or(0.25);
+        let body = serde_json::json!({
+            "goal": goal,
+            "projectDir": project_dir,
+            "backend": backend,
+            "budgetUsd": budget,
+        });
+        let resp = self
+            .http
+            .post(format!("{}/sorties", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sorties")?;
+        ensure_success(resp, "launch_sortie").await?;
+        Ok(())
+    }
+
+    /// Claim a port: `POST /claim` with `{ id }` where `id` is the semantic
+    /// identity (`project:stack:context`). Port Daddy's core verb — same identity
+    /// always maps to the same port (deterministic hashing). The route's body
+    /// field is `id` (NOT `identity`). Returns the assigned port so the operator
+    /// sees what they got. Services/Claims surfaces reflect it on next refresh.
+    pub async fn claim_port(&self, identity: &str) -> Result<u16> {
+        let body = serde_json::json!({ "id": identity });
+        let resp = self
+            .http
+            .post(format!("{}/claim", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /claim")?;
+        let resp = ensure_success(resp, "claim_port").await?;
+        let v: serde_json::Value = resp.json().await.context("claim response")?;
+        v.get("port")
+            .and_then(|p| p.as_u64())
+            .map(|p| p as u16)
+            .ok_or_else(|| anyhow!("claim succeeded but response carried no port: {v}"))
+    }
+
+    /// Release a claimed port: `DELETE /release` with `{ id }` (the identity).
+    /// The release route keys on the service identity, not the port number — so
+    /// the operator passes the identity they claimed. A `SERVICE_NOT_FOUND`
+    /// (unknown identity) surfaces as an error.
+    pub async fn release_port(&self, identity: &str) -> Result<()> {
+        let body = serde_json::json!({ "id": identity });
+        let resp = self
+            .http
+            .delete(format!("{}/release", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("DELETE /release")?;
+        ensure_success(resp, "release_port").await?;
+        Ok(())
+    }
+
+    /// Kill (unregister) an agent: `DELETE /agents/:id`. Removes the agent from
+    /// the fleet roster and publishes an `unregistered` event. A 400 (unknown
+    /// agent / already gone) surfaces as an error rather than a silent no-op.
+    /// Fleet/Cockpit panes read `/agents`, so the roster updates on next refresh.
+    pub async fn kill_agent(&self, agent_id: &str) -> Result<()> {
+        let resp = self
+            .http
+            .delete(format!("{}/agents/{agent_id}", self.base))
+            .send()
+            .await
+            .context("DELETE /agents/:id")?;
+        ensure_success(resp, "kill_agent").await?;
         Ok(())
     }
 
@@ -817,7 +1022,12 @@ pub struct AgentManager {
 
 impl AgentManager {
     pub fn new() -> Result<Self> {
-        Ok(Self { client: DaemonClient::discover()?, agents: BTreeMap::new(), active: None, next: 1 })
+        Ok(Self {
+            client: DaemonClient::discover()?,
+            agents: BTreeMap::new(),
+            active: None,
+            next: 1,
+        })
     }
 
     pub fn daemon(&self) -> &DaemonClient {
@@ -837,28 +1047,49 @@ impl AgentManager {
             .client
             .spawn(backend, prompt, &channel, None, opts)
             .await?;
-        self.agents.insert(local, TopLevelAgent { id: outcome.id.clone(), backend, channel, cursor: 0 });
+        self.agents.insert(
+            local,
+            TopLevelAgent {
+                id: outcome.id.clone(),
+                backend,
+                channel,
+                cursor: 0,
+            },
+        );
         self.active = Some(local);
         Ok((local, outcome))
     }
 
     /// Create a NEW top-level agent on `backend`. The thing iterm2 was for.
-    pub async fn create_agent(&mut self, backend: Backend, prompt: &str) -> Result<(u64, SpawnOutcome)> {
+    pub async fn create_agent(
+        &mut self,
+        backend: Backend,
+        prompt: &str,
+    ) -> Result<(u64, SpawnOutcome)> {
         // Plain spawn: no squid hooks. Use create_harnessed_agent for the
         // Port-Daddy-compliant launch posture.
-        self.create_agent_with_opts(backend, prompt, SpawnOpts::default()).await
+        self.create_agent_with_opts(backend, prompt, SpawnOpts::default())
+            .await
     }
 
     /// Create a top-level agent under the Giant Squid harness. This keeps the
     /// same tube-bound conversation path as create_agent, but requests hook
     /// injection at daemon spawn time so turn-start/tool/post-tool affordances
     /// can reach the vendor CLI loop.
-    pub async fn create_harnessed_agent(&mut self, backend: Backend, prompt: &str) -> Result<(u64, SpawnOutcome)> {
-        self.create_agent_with_opts(backend, prompt, SpawnOpts::squid()).await
+    pub async fn create_harnessed_agent(
+        &mut self,
+        backend: Backend,
+        prompt: &str,
+    ) -> Result<(u64, SpawnOutcome)> {
+        self.create_agent_with_opts(backend, prompt, SpawnOpts::squid())
+            .await
     }
 
     pub async fn send(&mut self, text: &str) -> Result<()> {
-        let a = self.active.and_then(|i| self.agents.get(&i)).ok_or_else(|| anyhow!("no active agent"))?;
+        let a = self
+            .active
+            .and_then(|i| self.agents.get(&i))
+            .ok_or_else(|| anyhow!("no active agent"))?;
         self.client.tube_send(&a.channel, text, "operator").await
     }
 
@@ -873,7 +1104,10 @@ impl AgentManager {
             a.cursor = new_cursor;
         }
         // Don't echo the operator's own turns back as replies.
-        Ok(msgs.into_iter().filter(|m| m.sender != "operator").collect())
+        Ok(msgs
+            .into_iter()
+            .filter(|m| m.sender != "operator")
+            .collect())
     }
 }
 
@@ -907,10 +1141,22 @@ mod tests {
             .map(|b| b.as_str())
             .collect::<Vec<_>>()
             .join(" · ");
-        assert!(hint.contains("deepseek"), "spawn hint must advertise deepseek: {hint}");
-        assert!(hint.contains("xai"), "spawn hint must advertise xai: {hint}");
-        assert!(hint.contains("groq"), "spawn hint must still advertise groq: {hint}");
-        assert!(!hint.contains("custom"), "spawn hint must exclude custom: {hint}");
+        assert!(
+            hint.contains("deepseek"),
+            "spawn hint must advertise deepseek: {hint}"
+        );
+        assert!(
+            hint.contains("xai"),
+            "spawn hint must advertise xai: {hint}"
+        );
+        assert!(
+            hint.contains("groq"),
+            "spawn hint must still advertise groq: {hint}"
+        );
+        assert!(
+            !hint.contains("custom"),
+            "spawn hint must exclude custom: {hint}"
+        );
     }
 
     #[test]
@@ -942,8 +1188,14 @@ mod tests {
     #[test]
     fn extract_text_handles_shapes() {
         assert_eq!(extract_text(Some(&serde_json::json!("hi"))), "hi");
-        assert_eq!(extract_text(Some(&serde_json::json!({ "text": "yo" }))), "yo");
-        assert_eq!(extract_text(Some(&serde_json::json!({ "content": "c" }))), "c");
+        assert_eq!(
+            extract_text(Some(&serde_json::json!({ "text": "yo" }))),
+            "yo"
+        );
+        assert_eq!(
+            extract_text(Some(&serde_json::json!({ "content": "c" }))),
+            "c"
+        );
         assert_eq!(extract_text(None), "");
     }
 
@@ -953,7 +1205,10 @@ mod tests {
     fn stream_kind_round_trips_and_falls_back() {
         assert_eq!(StreamKind::parse("agent.status"), StreamKind::Status);
         assert_eq!(StreamKind::parse("agent.tube"), StreamKind::Tube);
-        assert_eq!(StreamKind::parse("agent.transcript"), StreamKind::Transcript);
+        assert_eq!(
+            StreamKind::parse("agent.transcript"),
+            StreamKind::Transcript
+        );
         assert_eq!(StreamKind::Status.as_str(), "agent.status");
         // Unknown kinds are preserved, never dropped.
         match StreamKind::parse("agent.future") {
@@ -977,7 +1232,10 @@ mod tests {
         assert_eq!(env.kind, StreamKind::Transcript);
         assert_eq!(env.agent_id, "agent-xyz");
         assert_eq!(env.ts, 1781561557841);
-        assert_eq!(env.body.get("text").and_then(|t| t.as_str()), Some("compiling…"));
+        assert_eq!(
+            env.body.get("text").and_then(|t| t.as_str()),
+            Some("compiling…")
+        );
     }
 
     #[test]
@@ -1039,12 +1297,30 @@ mod tests {
                  } }"#,
         )
         .expect("valid catalog");
-        assert_eq!(cat.resolve(Backend::Claude, Tier::High).as_deref(), Some("claude-opus-4-8"));
-        assert_eq!(cat.resolve(Backend::Groq, Tier::High).as_deref(), Some("llama-3.3-70b-versatile"));
-        assert_eq!(cat.resolve(Backend::Deepseek, Tier::High).as_deref(), Some("deepseek-reasoner"));
-        assert_eq!(cat.resolve(Backend::Deepseek, Tier::Low).as_deref(), Some("deepseek-chat"));
-        assert_eq!(cat.resolve(Backend::Xai, Tier::High).as_deref(), Some("grok-2-latest"));
-        assert_eq!(cat.resolve(Backend::Xai, Tier::Low).as_deref(), Some("grok-code-fast-1"));
+        assert_eq!(
+            cat.resolve(Backend::Claude, Tier::High).as_deref(),
+            Some("claude-opus-4-8")
+        );
+        assert_eq!(
+            cat.resolve(Backend::Groq, Tier::High).as_deref(),
+            Some("llama-3.3-70b-versatile")
+        );
+        assert_eq!(
+            cat.resolve(Backend::Deepseek, Tier::High).as_deref(),
+            Some("deepseek-reasoner")
+        );
+        assert_eq!(
+            cat.resolve(Backend::Deepseek, Tier::Low).as_deref(),
+            Some("deepseek-chat")
+        );
+        assert_eq!(
+            cat.resolve(Backend::Xai, Tier::High).as_deref(),
+            Some("grok-2-latest")
+        );
+        assert_eq!(
+            cat.resolve(Backend::Xai, Tier::Low).as_deref(),
+            Some("grok-code-fast-1")
+        );
         // A tier absent from the config → None (daemon picks its default).
         assert_eq!(cat.resolve(Backend::Claude, Tier::Mid), None);
         // A backend absent from the config offers no tiers (CLI backends, etc.).
@@ -1104,7 +1380,11 @@ mod tests {
         p.feed("id: 42\ndata: {\"kind\":\"agent.transcript\"}\n\n");
         assert_eq!(p.last_id(), Some("42"));
         p.feed("data: {\"kind\":\"agent.transcript\"}\n\n");
-        assert_eq!(p.last_id(), Some("42"), "id is sticky without a new id: line");
+        assert_eq!(
+            p.last_id(),
+            Some("42"),
+            "id is sticky without a new id: line"
+        );
         p.feed("id: 99\ndata: {\"kind\":\"agent.status\"}\n\n");
         assert_eq!(p.last_id(), Some("99"));
     }
@@ -1124,6 +1404,9 @@ mod tests {
         // The `connected` frame yields no envelope; the tube frame does.
         assert_eq!(envs.len(), 1);
         assert_eq!(envs[0].kind, StreamKind::Tube);
-        assert_eq!(envs[0].body.get("text").and_then(|t| t.as_str()), Some("control.interrupt"));
+        assert_eq!(
+            envs[0].body.get("text").and_then(|t| t.as_str()),
+            Some("control.interrupt")
+        );
     }
 }
