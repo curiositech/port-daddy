@@ -261,6 +261,42 @@ fn main() {
                             app::ControlMsg::FleetResume { root_id } => {
                                 let _ = client.fleet_action("resume", root_id.as_deref()).await;
                             }
+                            // Add an operator note (POST /notes).
+                            app::ControlMsg::AddNote { content } => {
+                                let _ = client.add_note(&content).await;
+                            }
+                            // Begin a coordination session (POST /sugar/begin).
+                            app::ControlMsg::BeginSession { identity } => {
+                                let _ = client.begin_session(&identity, None).await;
+                            }
+                            // End the active session (POST /sugar/done).
+                            app::ControlMsg::EndSession { summary } => {
+                                let _ = client.end_session(summary.as_deref()).await;
+                            }
+                            // Propose a dispatch into the review queue (POST /dispatches).
+                            app::ControlMsg::ProposeDispatch { goal } => {
+                                let _ = client.propose_dispatch(&goal).await;
+                            }
+                            // Launch a sortie mission (POST /sorties).
+                            app::ControlMsg::LaunchSortie { goal } => {
+                                let _ = client.launch_sortie(&goal).await;
+                            }
+                            // Claim a port for an identity (POST /claim).
+                            app::ControlMsg::ClaimPort { identity } => {
+                                let _ = client.claim_port(&identity).await;
+                            }
+                            // Release a claimed port by identity (DELETE /release).
+                            app::ControlMsg::ReleasePort { identity } => {
+                                let _ = client.release_port(&identity).await;
+                            }
+                            // Kill (unregister) an agent (DELETE /agents/:id).
+                            app::ControlMsg::KillAgent { agent_id } => {
+                                let _ = client.kill_agent(&agent_id).await;
+                            }
+                            // Interrupt a specific agent (POST /agents/:id/interrupt).
+                            app::ControlMsg::InterruptAgent { agent_id } => {
+                                let _ = client.interrupt(&agent_id, Some("operator stop")).await;
+                            }
                         }
                     }
 
