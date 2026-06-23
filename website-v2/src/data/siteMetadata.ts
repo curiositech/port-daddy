@@ -303,6 +303,12 @@ const productRoutes: SiteMetadata[] = [
     { section: 'whitepaper' },
   ),
   metadata(
+    '/security',
+    'Cryptography',
+    'What stops an agent you never authorized from touching your code — and the proofs behind it. Capability attenuation, signed envelopes, collateralized work, and Ostrom-style commons governance, with the Anchor Protocol verified in ProVerif.',
+    { section: 'whitepaper' },
+  ),
+  metadata(
     '/library',
     'The Harbor Library',
     'The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.',
