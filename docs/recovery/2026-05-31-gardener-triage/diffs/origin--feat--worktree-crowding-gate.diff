@@ -1,0 +1,289 @@
+STATS:
+ cli/utils/session-worktree-policy.ts | 19 ++++++-
+ lib/sugar.ts                         | 59 ++++++++++++++++++++++
+ routes/sugar.ts                      |  3 ++
+ tests/unit/sugar.test.js             | 98 ++++++++++++++++++++++++++++++++++++
+ 4 files changed, 178 insertions(+), 1 deletion(-)
+
+---
+LAST COMMIT:
+86d9229827e0a6ca0169f92a9b73d53365ca8ba5
+Erich Owens <[redacted]>
+2026-05-22 06:49:10 -0700
+Merge branch 'main' into feat/worktree-crowding-gate
+
+
+
+---
+DIFF (first 300 lines):
+diff --git a/cli/utils/session-worktree-policy.ts b/cli/utils/session-worktree-policy.ts
+index 23b36a1a..f71eb59f 100644
+--- a/cli/utils/session-worktree-policy.ts
++++ b/cli/utils/session-worktree-policy.ts
+@@ -11,6 +11,14 @@ interface CliSessionWorktreePolicy {
+   success: boolean;
+   requireLinkedWorktree: boolean;
+   allowMainWorktree: boolean;
++  /**
++   * True when allowMainWorktree was triggered by the env var
++   * (PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION), not by the explicit
++   * --allow-main-worktree CLI flag. The daemon uses this to skip the
++   * crowded-main-worktree collision check for CI / single-user setups
++   * while still enforcing it against interactive opt-in.
++   */
++  bypassCrowdedGate: boolean;
+   worktree: SessionWorktreeContext | null;
+   error?: string;
+   hint?: string;
+@@ -30,7 +38,13 @@ export function resolveCliSessionWorktreePolicy(
+   options: CLIOptions,
+   cwd: string = process.cwd(),
+ ): CliSessionWorktreePolicy {
+-  const allowMainWorktree = optionEnabled(options['allow-main-worktree']) || envAllowsMainWorktree();
++  const flagAllow = optionEnabled(options['allow-main-worktree']);
++  const envAllow = envAllowsMainWorktree();
++  const allowMainWorktree = flagAllow || envAllow;
++  // Env-only allow = long-standing config (CI / single-user) — bypass
++  // the crowded-main collision gate. Explicit --allow-main-worktree from
++  // a human interactively still gets the gate.
++  const bypassCrowdedGate = envAllow && !flagAllow;
+   const info = getWorktreeInfo(cwd);
+ 
+   if (!info) {
+@@ -38,6 +52,7 @@ export function resolveCliSessionWorktreePolicy(
+       success: true,
+       requireLinkedWorktree: false,
+       allowMainWorktree,
++      bypassCrowdedGate,
+       worktree: null,
+     };
+   }
+@@ -53,6 +68,7 @@ export function resolveCliSessionWorktreePolicy(
+     success: result.success,
+     requireLinkedWorktree: true,
+     allowMainWorktree,
++    bypassCrowdedGate,
+     worktree: result.worktree,
+     error: result.error,
+     hint: result.hint,
+@@ -67,6 +83,7 @@ export function attachCliSessionWorktreePolicy(
+   if (policy.worktree) body.worktree = policy.worktree;
+   if (policy.requireLinkedWorktree) body.requireLinkedWorktree = true;
+   if (policy.allowMainWorktree) body.allowMainWorktree = true;
++  if (policy.bypassCrowdedGate) body.bypassCrowdedGate = true;
+   body.metadata = mergeSessionWorktreeMetadata(
+     body.metadata as Record<string, unknown> | null | undefined,
+     policy.worktree,
+diff --git a/lib/sugar.ts b/lib/sugar.ts
+index ab851b34..06cce703 100644
+--- a/lib/sugar.ts
++++ b/lib/sugar.ts
+@@ -60,6 +60,14 @@ interface BeginOptions {
+   worktree?: SessionWorktreeContext;
+   requireLinkedWorktree?: boolean;
+   allowMainWorktree?: boolean;
++  /**
++   * Skip the crowded-main-worktree collision check. Set by the CLI when
++   * allowMainWorktree was triggered by the long-standing env var
++   * (PORT_DADDY_ALLOW_MAIN_WORKTREE_SESSION) rather than the
++   * --allow-main-worktree flag. CI / single-user setups don't need the
++   * interactive collision check; humans opting in explicitly still do.
++   */
++  bypassCrowdedGate?: boolean;
+ }
+ 
+ interface DoneOptions {
+@@ -141,6 +149,57 @@ export function createSugar(deps: SugarDeps) {
+       };
+     }
+ 
++    // Crowded-main-worktree gate. `--allow-main-worktree` survives only
++    // when the operator is alone in the main worktree. As soon as another
++    // live session exists in the same main worktree, both must move to
++    // linked worktrees — concurrent agents in one tree corrupt each
++    // other's edits via shared `.git` state (branch switches, rebases,
++    // unstaged-file wipes).
++    //
++    // Known gaps (acceptable for v1, follow-ups tracked):
++    //   - SELECT-then-INSERT race: two begin() calls within ~ms both
++    //     see 0 collisions and both register. Window is small; atomic
++    //     fix would need a tx around sessions.start or a unique idx.
++    //   - Zombie sessions (active row, dead process) block legitimate
++    //     next agents until reaped. Same pattern in sessions.ts:1199.
++    //   - sessions.start() called via routes/sessions.ts:351 bypasses
++    //     this gate. Tracked as a follow-up; users hitting /sessions/start
++    //     directly are aware of the policy already.
++    if (
++      worktreePolicy.worktree
++      && worktreePolicy.worktree.isMain
++      && options.allowMainWorktree === true
++      && options.bypassCrowdedGate !== true
++    ) {
++      // Yes/no collision check — limit: 1 keeps it cheap. We deliberately
++      // don't surface a count because list() with a low limit would
++      // under-report; senders just need to know they're not alone.
++      const colliding = sessions.list({
++        status: 'active',
++        worktreeId: worktreePolicy.worktree.id,
++        allWorktrees: false,
++        limit: 1,
++      });
++      const rows = (colliding && typeof colliding === 'object' && 'sessions' in colliding
++        ? (colliding as { sessions?: unknown[] }).sessions
++        : Array.isArray(colliding) ? colliding : null);
++      const hasCollision = Array.isArray(rows) && rows.length > 0;
++      if (hasCollision) {
++        return {
++          success: false,
++          error:
++            `Refusing main-worktree session: another active session is already in this worktree (${worktreePolicy.worktree.root}). `
++            + `Concurrent agents on the same main worktree corrupt each other via shared .git state.`,
++          code: 'MAIN_WORKTREE_CROWDED',
++          hint:
++            `Create a linked worktree and run pd begin there:\n`
++            + `  git worktree add ~/coding/tmp/${(options.identity ?? options.name ?? 'work').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 40) || 'work'} -b <branch>\n`
++            + `then cd into it before calling pd begin. --allow-main-worktree is only honored when no one else is on this main worktree.`,
++          worktree: worktreePolicy.worktree,
++        };
++      }
++    }
++
+     const metadata = mergeSessionWorktreeMetadata(options.metadata, worktreePolicy.worktree, {
+       requireLinkedWorktree: options.requireLinkedWorktree,
+       allowMainWorktree: options.allowMainWorktree,
+diff --git a/routes/sugar.ts b/routes/sugar.ts
+index 7745e9d6..1e1141e8 100644
+--- a/routes/sugar.ts
++++ b/routes/sugar.ts
+@@ -44,6 +44,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
+         worktree,
+         requireLinkedWorktree,
+         allowMainWorktree,
++        bypassCrowdedGate,
+       } = request.body as any;
+ 
+       if (!purpose || typeof purpose !== 'string') {
+@@ -67,12 +68,14 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
+         worktree,
+         requireLinkedWorktree,
+         allowMainWorktree,
++        bypassCrowdedGate,
+       });
+ 
+       if (!result.success) {
+         const status = result.code === 'AGENT_REGISTRATION_FAILED'
+           || result.code === 'WORKTREE_REQUIRED'
+           || result.code === 'MAIN_WORKTREE_SESSION_FORBIDDEN'
++          || result.code === 'MAIN_WORKTREE_CROWDED'
+           ? 400
+           : 500;
+         reply.code(status);
+diff --git a/tests/unit/sugar.test.js b/tests/unit/sugar.test.js
+index 11335ec2..7c834ed5 100644
+--- a/tests/unit/sugar.test.js
++++ b/tests/unit/sugar.test.js
+@@ -146,6 +146,104 @@ describe('sugar.begin', () => {
+     expect(result.code).toBe('MAIN_WORKTREE_SESSION_FORBIDDEN');
+   });
+ 
++  test('refuses main-worktree session when another agent is already there even with --allow-main-worktree', () => {
++    const { sugar } = setup();
++    const worktree = {
++      id: 'main1234',
++      root: '/repo/port-daddy',
++      name: 'port-daddy',
++      branch: 'main',
++      isMain: true,
++    };
++
++    // First solo session on main with explicit allow — fine (no one else here).
++    const first = sugar.begin({
++      purpose: 'Solo on main',
++      requireLinkedWorktree: true,
++      allowMainWorktree: true,
++      worktree,
++    });
++    expect(first.success).toBe(true);
++
++    // Second agent arrives. --allow-main-worktree no longer saves them.
++    const second = sugar.begin({
++      purpose: 'Second agent piling onto main',
++      requireLinkedWorktree: true,
++      allowMainWorktree: true,
++      worktree,
++    });
++    expect(second.success).toBe(false);
++    expect(second.code).toBe('MAIN_WORKTREE_CROWDED');
++    expect(second.error).toMatch(/other active session/);
++    expect(second.hint).toContain('git worktree add');
++  });
++
++  test('bypassCrowdedGate=true skips the crowded check (env-sourced allow)', () => {
++    const { sugar } = setup();
++    const worktree = {
++      id: 'main1234',
++      root: '/repo/port-daddy',
++      name: 'port-daddy',
++      branch: 'main',
++      isMain: true,
++    };
++
++    const first = sugar.begin({
++      purpose: 'CI session 1',
++      requireLinkedWorktree: true,
++      allowMainWorktree: true,
++      bypassCrowdedGate: true,
++      worktree,
++    });
++    expect(first.success).toBe(true);
++
++    // Second CI/single-user session would normally be refused, but the
++    // bypass flag (env-sourced allow) skips the gate so existing CI
++    // suites keep working.
++    const second = sugar.begin({
++      purpose: 'CI session 2',
++      requireLinkedWorktree: true,
++      allowMainWorktree: true,
++      bypassCrowdedGate: true,
++      worktree,
++    });
++    expect(second.success).toBe(true);
++  });
++
++  test('main-worktree gate releases once the first session ends', () => {
++    const { sugar } = setup();
++    const worktree = {
++      id: 'main1234',
++      root: '/repo/port-daddy',
++      name: 'port-daddy',
++      branch: 'main',
++      isMain: true,
++    };
++
++    const first = sugar.begin({
++      purpose: 'Solo on main',
++      requireLinkedWorktree: true,
++      allowMainWorktree: true,
++      worktree,
++    });
++    expect(first.success).toBe(true);
++
++    const ended = sugar.done({ sessionId: first.sessionId });
++    expect(ended.success).toBe(true);
++
++    // After the first session ends a second solo agent should be able
++    // to take over the main worktree. Without this guarantee the gate
++    // would degrade into "main is permanently poisoned by any past
++    // session", breaking the solo-developer path.
++    const second = sugar.begin({
++      purpose: 'New solo agent after handoff',
++      requireLinkedWorktree: true,
++      allowMainWorktree: true,
++      worktree,
++    });
++    expect(second.success).toBe(true);
++  });
++
+   test('stores linked worktree context on agent, session, and metadata', () => {
+     const { sugar, agents, sessions } = setup();
+     const worktree = {

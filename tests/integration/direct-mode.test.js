@@ -115,7 +115,7 @@ describe('Direct-Mode Integration Tests', () => {
 
   describe('Sessions & Notes (--direct flag)', () => {
     test('session start works', () => {
-      const result = runDirect(['session', 'start', 'Direct mode session test', '-q']);
+      const result = runDirect(['session', 'start', 'Direct mode session test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toMatch(/session-/);
     });
@@ -127,7 +127,7 @@ describe('Direct-Mode Integration Tests', () => {
     });
 
     test('notes lists recent notes after explicit session-targeted note', () => {
-      const started = runDirect(['session', 'start', 'list-test-session', '-q']);
+      const started = runDirect(['session', 'start', 'list-test-session', '--lifecycle', 'durable', '-q']);
       expect(started.success).toBe(true);
       const sessionId = started.stdout.trim();
 
@@ -142,7 +142,7 @@ describe('Direct-Mode Integration Tests', () => {
     });
 
     test('session done works', () => {
-      runDirect(['session', 'start', 'done-test', '-q']);
+      runDirect(['session', 'start', 'done-test', '--lifecycle', 'durable', '-q']);
       const result = runDirect(['session', 'done', 'Test complete']);
       expect(result.success).toBe(true);
       expect(result.stdout).toContain('Ended session');

@@ -1,4 +1,5 @@
 import { hasExactModelRate } from './cost-tracker.js';
+import { resolveModel } from './model-registry.js';
 
 export interface BackendTelemetryPolicy {
   backend: string;
@@ -8,12 +9,15 @@ export interface BackendTelemetryPolicy {
   effectiveModel?: string | null;
 }
 
-export const DEFAULT_OPERATOR_CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
-export const DEFAULT_OPERATOR_CODEX_MODEL = 'gpt-5.4-mini';
-export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = '@cf/zai-org/glm-4.7-flash';
-export const DEFAULT_OPERATOR_OPENAI_MODEL = 'gpt-5-mini';
-export const DEFAULT_OPERATOR_GEMINI_MODEL = 'gemini-2.5-flash';
-export const DEFAULT_OPERATOR_GROQ_MODEL = 'llama-3.3-70b-versatile';
+// Operator-default models are the registry's `cheap` tier per backend — resolved
+// at load time, NOT hardcoded. Change the IDs in lib/model-registry-data.ts; the
+// names below stay stable for back-compat with importers.
+export const DEFAULT_OPERATOR_CLAUDE_MODEL = resolveModel({ backend: 'claude', capability: 'cheap' });
+export const DEFAULT_OPERATOR_CODEX_MODEL = resolveModel({ backend: 'codex', capability: 'cheap' });
+export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = resolveModel({ backend: 'cloudflare', capability: 'cheap' });
+export const DEFAULT_OPERATOR_OPENAI_MODEL = resolveModel({ backend: 'openai', capability: 'cheap' });
+export const DEFAULT_OPERATOR_GEMINI_MODEL = resolveModel({ backend: 'gemini', capability: 'cheap' });
+export const DEFAULT_OPERATOR_GROQ_MODEL = resolveModel({ backend: 'groq', capability: 'cheap' });
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {
@@ -165,7 +169,10 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
     }
 
     case 'cli:claude-code':
-    case 'cli:codex': {
+    case 'cli:codex':
+    case 'cli:gemini':
+    case 'cli:groq':
+    case 'cli:grok': {
       // CLI-tube backends route through the operator's local Claude
       // Code / Codex CLI. Auth + billing live in that CLI; this app
       // doesn't see per-token cost. We mark these as flat-rate
@@ -173,7 +180,7 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
       // assumption the operator pays for Claude Max / ChatGPT Pro.
       // Operators MUST still set a daily project budget; the kill-switch
       // monitors call count and per-spawn timeouts.
-      const effectiveModel = model?.trim() || (backend === 'cli:claude-code' ? 'claude-code' : 'codex');
+      const effectiveModel = model?.trim() || backend.slice('cli:'.length);
       return {
         backend,
         launchAllowed: true,

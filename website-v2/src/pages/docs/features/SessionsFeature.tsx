@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,16 +7,13 @@ export default function SessionsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Core</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Sessions & Notes
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Structured work tracking with an immutable audit trail. Every agent session is logged,
-          every note is append-only, and file claims prevent conflicts before they happen.
+          A record of what each agent is working on, with a history that can't be rewritten. Every
+          session is logged and every note is append-only. File claims announce which files an agent
+          intends to touch — they surface likely conflicts early, but they advise rather than lock.
         </p>
       </div>
 
@@ -55,13 +51,13 @@ export default function SessionsFeature() {
 
         <DocsCodeBlock
           code={`# Begin a session
-$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh"
+$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh" --lifecycle durable
 
 # Add notes as you work (immutable, append-only)
 $ pd note "Added refresh token endpoint at /api/auth/refresh"
 $ pd note "Updated middleware to check token expiry"
 
-# Claim files to prevent conflicts
+# Claim files to flag likely conflicts (advisory)
 $ pd session files add src/auth/refresh.ts
 
 # Complete the session
@@ -86,17 +82,17 @@ Session s-a1b2c3 completed (3 notes, 1 file claim)`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">active</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Work in progress</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Notes and file claims accepted</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Notes and file claims accepted</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">completed</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Work finished normally</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Read-only, audit trail preserved</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Read-only, audit trail preserved</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">abandoned</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Agent crashed or timed out</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Eligible for salvage by another agent</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Eligible for salvage by another agent</p>
           </div>
         </div>
       </div>
@@ -110,7 +106,7 @@ Session s-a1b2c3 completed (3 notes, 1 file claim)`}
             <code className="font-mono text-[var(--brand-primary)]">pd begin</code>
             <p className="text-[var(--text-secondary)] text-sm mt-1 mb-2">Start a new session with an identity and purpose. Returns a session ID for subsequent commands.</p>
             <DocsCodeBlock
-              code={`$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh"`}
+              code={`$ pd begin --identity myapp:api:auth --purpose "Implement JWT refresh" --lifecycle durable`}
               output={`Session s-a1b2c3 started`}
             />
           </div>

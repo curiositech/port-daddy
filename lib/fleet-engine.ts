@@ -10,6 +10,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
+import { DEFAULT_OPERATOR_CLAUDE_MODEL, DEFAULT_OPERATOR_CODEX_MODEL } from './backend-telemetry-policy.js';
+import { resolveModel } from './model-registry.js';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { get as httpGet } from 'node:http';
 import { parse as parseYaml } from 'yaml';
@@ -261,26 +263,35 @@ function getTemplateVars(projectDir: string, projectName?: string, includeGitVar
 
 const FLEET_CONFIG_NAMES = ['pd-fleet.yml', 'pd-fleet.yaml', '.portdaddy/fleet.yml', '.portdaddy/fleet.yaml'];
 const MODEL_TIERS = new Set<FleetModelTier>(['low', 'mid', 'high']);
-export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
-  claude: {
-    low: 'claude-haiku-4-5-20251001',
-    mid: 'claude-sonnet-4-5-20250929',
-    high: 'claude-opus-4-1-20250805',
-  },
+
+// API-backed backends derive their low/mid/high tiers from the declarative
+// registry (lib/model-registry-data.ts) via resolveModel — NO hardcoded model
+// IDs here (operator directive 2026-06-15; see lib/model-registry.ts + ADR-0057).
+// The map shape is preserved for back-compat with routes/fleet.ts importers.
+const REGISTRY_TIER_BACKENDS = ['claude', 'codex', 'gemini', 'openai', 'groq', 'cloudflare', 'aider'] as const;
+
+// Genuinely-special forms the registry does NOT govern: claude-cli takes the
+// CLI's short aliases (`--model sonnet`), ollama takes LOCAL model names, custom
+// is a placeholder triple. These are stable CLI/local identifiers, not churning
+// API model IDs, so they stay literal (and are allowlisted in the
+// no-hardcoded-model-ids guard).
+const SPECIAL_FORM_MODEL_TIERS: Record<string, Record<FleetModelTier, string>> = {
   'claude-cli': { low: 'haiku', mid: 'sonnet', high: 'opus' },
-  codex: { low: 'gpt-5.4-mini', mid: 'gpt-5.3-codex', high: 'gpt-5.4' },
-  // gemini-2.0-flash was shut down 2026-06-01; low tier uses 2.5-flash-lite.
-  gemini: { low: 'gemini-2.5-flash-lite', mid: 'gemini-2.5-flash', high: 'gemini-2.5-pro' },
-  openai: { low: 'gpt-5-nano', mid: 'gpt-5-mini', high: 'gpt-5' },
-  groq: { low: 'llama-3.1-8b-instant', mid: 'llama-3.3-70b-versatile', high: 'openai/gpt-oss-120b' },
-  cloudflare: {
-    low: '@cf/zai-org/glm-4.7-flash',
-    mid: '@cf/openai/gpt-oss-120b',
-    high: '@cf/moonshotai/kimi-k2.6',
-  },
   ollama: { low: 'qwen2.5-coder:7b', mid: 'llama3.1:8b', high: 'qwen2.5-coder:14b' },
-  aider: { low: 'gpt-4.1-mini', mid: 'gpt-4.1', high: 'gpt-5' },
   custom: { low: 'custom-low', mid: 'custom-mid', high: 'custom-high' },
+};
+
+function tierMapFromRegistry(backend: string): Record<FleetModelTier, string> {
+  return {
+    low: resolveModel({ backend, tier: 'low' }),
+    mid: resolveModel({ backend, tier: 'mid' }),
+    high: resolveModel({ backend, tier: 'high' }),
+  };
+}
+
+export const BUILTIN_MODEL_TIERS: Partial<Record<string, Record<FleetModelTier, string>>> = {
+  ...Object.fromEntries(REGISTRY_TIER_BACKENDS.map((b) => [b, tierMapFromRegistry(b)])),
+  ...SPECIAL_FORM_MODEL_TIERS,
 };
 
 function cleanEnvValue(value: string | undefined): string | undefined {
@@ -357,7 +368,23 @@ export function resolveFleetAgentRuntime(agent: Pick<FleetAgent, 'backend' | 'mo
   const explicitModelTier = parseModelTier(agent.modelTier);
   const backend = explicitBackend || defaults.backend || null;
   const tierModel = backend && explicitModelTier ? resolveTierModel(backend, explicitModelTier) : undefined;
-  const model = explicitModel || tierModel || defaults.model;
+  let model = explicitModel || tierModel || defaults.model;
+
+  // A local-CLI backend with no real model resolves its model to the backend's
+  // own bare name ("cli:claude-code" → "claude-code"). That placeholder has no
+  // cost-rate entry, so pricing falls back to an estimate and the exact-telemetry
+  // gate blocks the launch — and the CLI itself rejects it ("model not
+  // supported"). Substitute the rate-backed operator default so the CLI
+  // invocation and the cost calculation agree on a real, priceable model.
+  const CLI_MODEL_PLACEHOLDERS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  if (backend && (!model || CLI_MODEL_PLACEHOLDERS.has(model))) {
+    if (backend === 'cli:claude-code' || backend === 'claude-cli' || backend === 'claude') {
+      model = DEFAULT_OPERATOR_CLAUDE_MODEL;
+    } else if (backend === 'cli:codex' || backend === 'codex') {
+      model = DEFAULT_OPERATOR_CODEX_MODEL;
+    }
+  }
+
   const warnings: string[] = [];
 
   if (!backend) {

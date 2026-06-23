@@ -16,6 +16,7 @@ import type { NoteEncryption } from './note-encryption.js';
 import type { SemanticIndex } from './semantic-index.js';
 import type { EpisodicMemory } from './episodic-memory.js';
 import type { Symbol as IndexedSymbol, SymbolIndex } from './symbol-index.js';
+import { createClaimForest, type ClaimForestClaim } from './claim-forest.js';
 
 const MAX_NOTES_PER_SESSION = 500;
 
@@ -49,6 +50,7 @@ interface SessionRow {
   updated_at: number;
   completed_at: number | null;
   metadata: string | null;
+  is_durable?: number | null;
 }
 
 interface SessionFileRow {
@@ -96,6 +98,8 @@ interface StartOptions {
   project?: string | null;
   files?: string[];
   metadata?: Record<string, unknown> | null;
+  /** Durable sessions survive indefinitely without a live heartbeat process. */
+  durable?: boolean;
 }
 
 interface EndOptions {
@@ -247,6 +251,15 @@ export function createSessions(
     if (!hasWrappedKey) {
       db.prepare("ALTER TABLE sessions ADD COLUMN wrapped_session_key TEXT").run();
     }
+
+    // Migration: add is_durable flag (v3.19+)
+    // Durable sessions survive indefinitely without a live heartbeat process.
+    // The orphan reaper skips them; whoami returns active=true regardless of
+    // agent liveness. Only ended by pd done, worktree removal, or branch merge.
+    const hasDurable = columns.some(c => c.name === 'is_durable');
+    if (!hasDurable) {
+      db.prepare("ALTER TABLE sessions ADD COLUMN is_durable INTEGER NOT NULL DEFAULT 0").run();
+    }
   } catch {
     // Column already exists or table doesn't exist yet
   }
@@ -292,6 +305,8 @@ export function createSessions(
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_session ON session_files(session_id)`).run();
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_region ON session_files(file_path, start_line, end_line)`).run();
   db.prepare(`CREATE INDEX IF NOT EXISTS idx_session_files_symbol_path ON session_files(file_path, symbol_path)`).run();
+  const claimForest = createClaimForest(db);
+  claimForest.backfillFromSessionFiles();
 
   // Enable foreign key enforcement (needed for CASCADE)
   db.pragma('foreign_keys = ON');
@@ -313,8 +328,8 @@ export function createSessions(
     // Sessions
     getById: db.prepare('SELECT * FROM sessions WHERE id = ?'),
     insert: db.prepare(`
-      INSERT INTO sessions (id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, completed_at, metadata)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sessions (id, purpose, status, agent_id, worktree_id, identity_project, created_at, updated_at, completed_at, metadata, is_durable)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     updateStatus: db.prepare(`
       UPDATE sessions SET status = ?, updated_at = ?, completed_at = ? WHERE id = ?
@@ -379,11 +394,16 @@ export function createSessions(
     mostRecentActiveByAgentAndWorktree: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' AND agent_id = ? AND worktree_id = ? ORDER BY updated_at DESC LIMIT 1
     `),
+    // Abandoned durable sessions are suspended work contexts, not garbage —
+    // they must survive cleanup until pd done completes them. Completed
+    // durable sessions are fair game (pd done is final).
     cleanupOld: db.prepare(`
       DELETE FROM sessions WHERE status = ? AND updated_at < ?
+        AND NOT (is_durable = 1 AND status = 'abandoned')
     `),
     cleanupOldAny: db.prepare(`
       DELETE FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
+        AND NOT (is_durable = 1 AND status = 'abandoned')
     `),
     listOrphanedActive: db.prepare(hasAgentsTable ? `
         SELECT s.*
@@ -394,6 +414,7 @@ export function createSessions(
           AND s.agent_id != ''
           AND a.id IS NULL
           AND s.updated_at < ?
+          AND (s.is_durable IS NULL OR s.is_durable = 0)
         ORDER BY s.updated_at ASC
       ` : `
         SELECT *
@@ -508,6 +529,9 @@ export function createSessions(
       FROM session_notes sn
       JOIN sessions s ON s.id = sn.session_id
       WHERE sn.session_id = ? AND sn.type = ? ORDER BY sn.created_at ASC
+    `),
+    countActiveFilesBySession: db.prepare(`
+      SELECT COUNT(*) as count FROM session_files WHERE session_id = ? AND released_at IS NULL
     `),
     getRecentNotes: db.prepare(`
       SELECT sn.*, s.purpose as session_purpose, s.agent_id as session_agent_id, s.identity_project as identity_project FROM session_notes sn
@@ -628,6 +652,8 @@ export function createSessions(
   }
 
   function formatSession(row: SessionRow) {
+    const fileCount = (stmts.countActiveFilesBySession.get(row.id) as { count: number }).count;
+    const noteCount = (stmts.countNotesBySession.get(row.id) as { count: number }).count;
     return {
       id: row.id,
       purpose: row.purpose,
@@ -636,10 +662,13 @@ export function createSessions(
       agentId: row.agent_id,
       worktreeId: row.worktree_id,
       identityProject: row.identity_project,
+      fileCount,
+      noteCount,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       completedAt: row.completed_at,
       metadata: safeJsonParse(row.metadata),
+      durable: row.is_durable === 1,
     };
   }
 
@@ -673,6 +702,23 @@ export function createSessions(
       symbolPath: row.symbol_path ?? null,
       claimedAt: row.claimed_at,
       releasedAt: row.released_at,
+    };
+  }
+
+  function formatClaimForestFile(row: ClaimForestClaim) {
+    return {
+      sessionId: row.sessionId,
+      filePath: row.filePath,
+      startLine: row.startLine,
+      endLine: row.endLine,
+      symbol: row.symbol,
+      symbolPath: row.symbolPath,
+      claimedAt: row.claimedAt,
+      releasedAt: row.releasedAt,
+      repoId: row.repoId,
+      worldKind: row.worldKind,
+      worldId: row.worldId,
+      nodeId: row.nodeId,
     };
   }
 
@@ -867,6 +913,7 @@ export function createSessions(
       project = null,
       files = [],
       metadata = null,
+      durable = false,
     } = options;
 
     // Auto-detect worktree if not explicitly provided
@@ -910,7 +957,8 @@ export function createSessions(
         now,
         now,
         null,
-        metadata ? JSON.stringify(metadata) : null
+        metadata ? JSON.stringify(metadata) : null,
+        durable ? 1 : 0
       );
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -1021,6 +1069,7 @@ export function createSessions(
     // Release all active file claims
     const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
     stmts.releaseAllFiles.run(now, sessionId);
+    claimForest.releaseAllBySession(sessionId, now);
     const releasedFiles = activeFiles.map(f => f.file_path);
 
     // Keep the coarse lifecycle status and operator-facing phase coherent.
@@ -1381,30 +1430,36 @@ export function createSessions(
     const now = Date.now();
     const claimed: string[] = [];
     const conflicts: FileConflict[] = [];
+    const claimScope = claimForest.scopeForSession(session);
 
     // Process whole-file claims
     for (const filePath of filePaths) {
-      const activeClaims = stmts.getActiveClaimsForFileExcludingSession.all(
-        filePath,
-        sessionId,
-      ) as Array<SessionFileRow & { purpose: string; agent_id: string | null }>;
+      const activeClaims = claimForest.getActiveClaimsForFileExcludingSession(filePath, sessionId, claimScope);
 
       for (const claim of activeClaims) {
         conflicts.push({
           filePath,
-          sessionId: claim.session_id,
+          sessionId: claim.sessionId,
           purpose: claim.purpose,
-          claimedAt: claim.claimed_at,
-          startLine: claim.start_line,
-          endLine: claim.end_line,
+          claimedAt: claim.claimedAt,
+          startLine: claim.startLine,
+          endLine: claim.endLine,
           symbol: claim.symbol,
-          symbolPath: claim.symbol_path,
+          symbolPath: claim.symbolPath,
         });
       }
 
       // Release any existing whole-file claim from this session first, then insert new
       stmts.releaseFile.run(now, sessionId, filePath);
-      stmts.claimFile.run(sessionId, filePath, now);
+      claimForest.releaseByFilePath(sessionId, filePath, now);
+      const legacyResult = stmts.claimFile.run(sessionId, filePath, now);
+      claimForest.claim(claimForest.addressForSessionClaim(session, { path: filePath }), {
+        sessionId,
+        agentId: session.agent_id,
+        claimedAt: now,
+        observedBy: 'sessions.claimFiles',
+        legacySessionFileId: Number(legacyResult.lastInsertRowid),
+      });
       if (!claimed.includes(filePath)) claimed.push(filePath);
     }
 
@@ -1416,17 +1471,14 @@ export function createSessions(
       }
 
       const { startLine, endLine, symbol, symbolPath } = resolved.claim;
-      const activeClaims = stmts.getActiveClaimsForFileExcludingSession.all(
-        region.path,
-        sessionId,
-      ) as Array<SessionFileRow & { purpose: string; agent_id: string | null }>;
+      const activeClaims = claimForest.getActiveClaimsForFileExcludingSession(region.path, sessionId, claimScope);
 
       for (const claim of activeClaims) {
         if (!claimsConflict(
           {
-            startLine: claim.start_line,
-            endLine: claim.end_line,
-            symbolPath: claim.symbol_path,
+            startLine: claim.startLine,
+            endLine: claim.endLine,
+            symbolPath: claim.symbolPath,
           },
           {
             startLine,
@@ -1438,17 +1490,30 @@ export function createSessions(
         }
         conflicts.push({
           filePath: region.path,
-          sessionId: claim.session_id,
+          sessionId: claim.sessionId,
           purpose: claim.purpose,
-          claimedAt: claim.claimed_at,
-          startLine: claim.start_line,
-          endLine: claim.end_line,
+          claimedAt: claim.claimedAt,
+          startLine: claim.startLine,
+          endLine: claim.endLine,
           symbol: claim.symbol,
-          symbolPath: claim.symbol_path,
+          symbolPath: claim.symbolPath,
         });
       }
 
-      stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, symbolPath, now);
+      const legacyResult = stmts.claimRegion.run(sessionId, region.path, startLine, endLine, symbol, symbolPath, now);
+      claimForest.claim(claimForest.addressForSessionClaim(session, {
+        path: region.path,
+        startLine,
+        endLine,
+        symbol,
+        symbolPath,
+      }), {
+        sessionId,
+        agentId: session.agent_id,
+        claimedAt: now,
+        observedBy: 'sessions.claimFiles',
+        legacySessionFileId: Number(legacyResult.lastInsertRowid),
+      });
       if (!claimed.includes(region.path)) claimed.push(region.path);
     }
 
@@ -1513,7 +1578,8 @@ export function createSessions(
     // Release all claims for specified file paths (any region)
     for (const filePath of filePaths) {
       const result = stmts.releaseFile.run(now, sessionId, filePath);
-      if (result.changes > 0) {
+      const forestReleased = claimForest.releaseByFilePath(sessionId, filePath, now);
+      if (result.changes > 0 || forestReleased > 0) {
         released.push(filePath);
       }
     }
@@ -1522,7 +1588,8 @@ export function createSessions(
     for (const region of regions) {
       if (region.symbolPath) {
         const result = stmts.releaseRegionBySymbolPath.run(now, sessionId, region.path, region.symbolPath);
-        if (result.changes > 0) {
+        const forestReleased = claimForest.releaseBySymbolPath(sessionId, region.path, region.symbolPath, now);
+        if (result.changes > 0 || forestReleased > 0) {
           released.push(`${region.path}#${region.symbolPath}`);
         }
         continue;
@@ -1531,7 +1598,8 @@ export function createSessions(
       const endLine = region.endLine ?? null;
       if (startLine !== null && endLine !== null) {
         const result = stmts.releaseRegion.run(now, sessionId, region.path, startLine, endLine);
-        if (result.changes > 0) {
+        const forestReleased = claimForest.releaseByRange(sessionId, region.path, startLine, endLine, now);
+        if (result.changes > 0 || forestReleased > 0) {
           released.push(`${region.path}:${startLine}-${endLine}`);
         }
       }
@@ -1568,17 +1636,17 @@ export function createSessions(
     const conflicts: FileConflict[] = [];
 
     for (const filePath of filePaths) {
-      const activeClaims = stmts.getActiveClaimsForPaths.all(filePath) as Array<SessionFileRow & { purpose: string }>;
+      const activeClaims = claimForest.getActiveClaimsForFile(filePath);
       for (const claim of activeClaims) {
         conflicts.push({
           filePath,
-          sessionId: claim.session_id,
+          sessionId: claim.sessionId,
           purpose: claim.purpose,
-          claimedAt: claim.claimed_at,
-          startLine: claim.start_line,
-          endLine: claim.end_line,
+          claimedAt: claim.claimedAt,
+          startLine: claim.startLine,
+          endLine: claim.endLine,
           symbol: claim.symbol,
-          symbolPath: claim.symbol_path,
+          symbolPath: claim.symbolPath,
         });
       }
     }
@@ -1667,13 +1735,13 @@ export function createSessions(
     }
 
     const notes = stmts.getNotesBySession.all(sessionId) as SessionNoteRow[];
-    const files = stmts.getFilesBySession.all(sessionId) as SessionFileRow[];
+    const files = claimForest.listClaimsForSession(sessionId, { includeReleased: true });
 
     return {
       success: true,
       session: formatSession(session),
       notes: notes.map(formatNote),
-      files: files.map(formatFile),
+      files: files.map(formatClaimForestFile),
     };
   }
 
@@ -1716,6 +1784,7 @@ export function createSessions(
     if (normalizedPhase === 'completed' || normalizedPhase === 'abandoned') {
       stmts.updateStatus.run(normalizedPhase, now, now, sessionId);
       stmts.releaseAllFiles.run(now, sessionId);
+      claimForest.releaseAllBySession(sessionId, now);
     }
 
     if (activityLog) {
@@ -1744,53 +1813,37 @@ export function createSessions(
   /**
    * List active file claims across all sessions (global view)
    */
-  function listAllActiveClaims(options: { path?: string; symbol?: string; symbolPath?: string; agentId?: string; purpose?: string } = {}) {
-    const { path, symbol, symbolPath, agentId, purpose } = options;
+  function listAllActiveClaims(options: {
+    path?: string;
+    symbol?: string;
+    symbolPath?: string;
+    agentId?: string;
+    purpose?: string;
+    repoId?: string | null;
+    worldKind?: 'worktree' | 'ref' | 'commit' | 'harbor' | null;
+    worldId?: string | null;
+  } = {}) {
+    const { path, symbol, symbolPath, agentId, purpose, repoId, worldKind, worldId } = options;
     
-    let rows: Array<{
-      session_id: string;
-      file_path: string;
-      start_line: number | null;
-      end_line: number | null;
-      symbol: string | null;
-      symbol_path: string | null;
-      claimed_at: number;
-      purpose: string;
-      agent_id: string | null;
-      phase: string | null;
-    }>;
-
-    if (path || symbol || symbolPath || agentId || purpose) {
-      const pathPattern = path ? (path.includes('*') ? path.replace(/\*/g, '%') : '%' + path + '%') : null;
-      const symbolPattern = symbol ? (symbol.includes('*') ? symbol.replace(/\*/g, '%') : '%' + symbol + '%') : null;
-      const symbolPathPattern = symbolPath ? (symbolPath.includes('*') ? symbolPath.replace(/\*/g, '%') : '%' + symbolPath + '%') : null;
-      const agentPattern = agentId ? (agentId.includes('*') ? agentId.replace(/\*/g, '%') : agentId) : null;
-      const purposePattern = purpose ? (purpose.includes('*') ? purpose.replace(/\*/g, '%') : '%' + purpose + '%') : null;
-
-      rows = stmts.listActiveClaimsByPattern.all(
-        pathPattern, pathPattern,
-        symbolPattern, symbolPattern,
-        symbolPathPattern, symbolPathPattern,
-        agentPattern, agentPattern,
-        purposePattern, purposePattern
-      ) as typeof rows;
-    } else {
-      rows = stmts.listAllActiveClaims.all() as typeof rows;
-    }
+    const rows = claimForest.listActiveClaims({ path, symbol, symbolPath, agentId, purpose, repoId, worldKind, worldId });
 
     return {
       success: true,
       claims: rows.map(r => ({
-        filePath: r.file_path,
-        sessionId: r.session_id,
+        filePath: r.filePath,
+        sessionId: r.sessionId,
         purpose: r.purpose,
-        agentId: r.agent_id,
-        phase: r.phase || 'in_progress',
-        claimedAt: r.claimed_at,
-        startLine: r.start_line,
-        endLine: r.end_line,
+        agentId: r.agentId,
+        phase: r.phase,
+        claimedAt: r.claimedAt,
+        startLine: r.startLine,
+        endLine: r.endLine,
         symbol: r.symbol,
-        symbolPath: r.symbol_path,
+        symbolPath: r.symbolPath,
+        repoId: r.repoId,
+        worldKind: r.worldKind,
+        worldId: r.worldId,
+        nodeId: r.nodeId,
       })),
       count: rows.length,
     };
@@ -1816,7 +1869,7 @@ export function createSessions(
       agent_id: string | null;
       phase: string | null;
     };
-    const rows = stmts.getClaimOwner.all(filePath) as ClaimOwnerRow[];
+    const rows = claimForest.getActiveClaimsForFile(filePath);
     const resolvedSymbol = range?.symbolPath
       ? getIndexedSymbols(filePath).find(symbol => symbol.symbolPath === range.symbolPath)
       : undefined;
@@ -1827,14 +1880,14 @@ export function createSessions(
       if (!range?.symbolPath && queryStartLine == null && queryEndLine == null) {
         return true;
       }
-      if (isWholeFileClaim({ startLine: row.start_line, endLine: row.end_line })) {
+      if (isWholeFileClaim({ startLine: row.startLine, endLine: row.endLine })) {
         return true;
       }
-      if (range?.symbolPath && row.symbol_path) {
-        return row.symbol_path === range.symbolPath;
+      if (range?.symbolPath && row.symbolPath) {
+        return row.symbolPath === range.symbolPath;
       }
       if (queryStartLine != null && queryEndLine != null) {
-        return rangesOverlap(row.start_line, row.end_line, queryStartLine, queryEndLine);
+        return rangesOverlap(row.startLine, row.endLine, queryStartLine, queryEndLine);
       }
       return false;
     });
@@ -1843,15 +1896,19 @@ export function createSessions(
       success: true,
       filePath,
       owners: owners.map(r => ({
-        sessionId: r.session_id,
+        sessionId: r.sessionId,
         purpose: r.purpose,
-        agentId: r.agent_id,
-        phase: r.phase || 'in_progress',
-        claimedAt: r.claimed_at,
-        startLine: r.start_line,
-        endLine: r.end_line,
+        agentId: r.agentId,
+        phase: r.phase,
+        claimedAt: r.claimedAt,
+        startLine: r.startLine,
+        endLine: r.endLine,
         symbol: r.symbol,
-        symbolPath: r.symbol_path,
+        symbolPath: r.symbolPath,
+        repoId: r.repoId,
+        worldKind: r.worldKind,
+        worldId: r.worldId,
+        nodeId: r.nodeId,
       })),
       claimed: owners.length > 0,
     };
@@ -1892,10 +1949,12 @@ export function createSessions(
 
     for (const session of orphaned) {
       const activeFiles = stmts.getActiveFilesBySession.all(session.id) as SessionFileRow[];
+      const forestReleased = claimForest.releaseAllBySession(session.id, now);
       if (activeFiles.length > 0) {
         stmts.releaseAllFiles.run(now, session.id);
-        releasedClaims += activeFiles.length;
       }
+      const releasedFileCount = Math.max(activeFiles.length, forestReleased);
+      releasedClaims += releasedFileCount;
 
       stmts.setPhase.run('abandoned', now, session.id);
       stmts.updateStatus.run('abandoned', now, now, session.id);
@@ -1915,7 +1974,7 @@ export function createSessions(
             orphaned: true,
             orphanedAgentId: session.agent_id || undefined,
             identityProject: session.identity_project || undefined,
-            releasedFiles: activeFiles.length,
+            releasedFiles: releasedFileCount,
           } as unknown as Record<string, unknown>,
         });
       }
@@ -1929,6 +1988,20 @@ export function createSessions(
       count: abandoned.length,
       releasedClaims,
     };
+  }
+
+  /**
+   * Flip an abandoned durable session back to active (called by whoami).
+   *
+   * Note: abandonment released the session's file claims, and resurrection
+   * does NOT restore them — the agent must re-claim files it still needs.
+   */
+  function resurrect(sessionId: string): void {
+    // Abandonment writes set phase='abandoned' and completed_at — reset both
+    // so the resurrected session is coherent (active, in progress, not done).
+    db.prepare(
+      "UPDATE sessions SET status = 'active', phase = 'in_progress', completed_at = NULL, updated_at = ? WHERE id = ? AND is_durable = 1 AND status = 'abandoned'"
+    ).run(Date.now(), sessionId);
   }
 
   return {
@@ -1951,5 +2024,6 @@ export function createSessions(
     cleanup,
     abandonOrphanedActive,
     setActivityLog,
+    resurrect,
   };
 }

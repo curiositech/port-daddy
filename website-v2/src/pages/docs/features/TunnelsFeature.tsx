@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,10 +7,6 @@ export default function TunnelsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Networking</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Tunnels
         </h1>
@@ -90,17 +85,17 @@ myapp:web   -> https://def456.ngrok.io   ngrok   2m uptime`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">ngrok</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Stable URLs, auth, dashboard</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Best for webhooks and APIs</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Best for webhooks and APIs</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">cloudflared</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Cloudflare network, free tier</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Best for web previews</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Best for web previews</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">localtunnel</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Zero config, no signup</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Best for quick sharing</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Best for quick sharing</p>
           </div>
         </div>
       </div>

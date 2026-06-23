@@ -17,7 +17,7 @@ Sleep 500ms
 Show
 
 # 1. Agent starts work
-Type "pd begin 'Refactoring payment flow' --identity payments:api"
+Type "pd begin 'Refactoring payment flow' --identity payments:api --lifecycle durable"
 Enter
 Sleep 2s
 

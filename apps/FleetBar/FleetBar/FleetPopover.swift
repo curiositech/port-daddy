@@ -39,6 +39,7 @@ struct FleetPopover: View {
     @ObservedObject var secretsStore: SecretsStore
     @ObservedObject var backendStore: BackendStore
     @StateObject private var budgetStore = BudgetPauseStore()
+    @StateObject private var berthStore = BerthStore()
     @AppStorage("fleet.control.theme") private var selectedThemeRaw = "dark"
     @State private var appeared = false
     @State private var showingSettings = false
@@ -101,10 +102,18 @@ struct FleetPopover: View {
     @ViewBuilder
     private var popoverContent: some View {
         VStack(spacing: 0) {
+            if store.versionSkew.needsAttention {
+                versionSkewBanner(store.versionSkew)
+                Divider().opacity(0.5)
+            }
             if !budgetStore.pendingKills.isEmpty {
                 budgetPauseBanner
                 Divider().opacity(0.5)
             }
+            // Berth switcher (ADR-0084): always available — switch to a live berth
+            // even when the current connection is down.
+            BerthManagerView(store: store, berthStore: berthStore)
+            Divider().opacity(0.5)
             if store.isDaemonRunning {
                 BackendStatusRow(store: backendStore)
                 Divider().opacity(0.5)
@@ -278,6 +287,11 @@ struct FleetPopover: View {
                 HStack(spacing: Fleet.Space.m) {
                     daemonReportRow(label: "Runtime", value: status.runtime?.state ?? status.status, color: runtimeColor)
                     daemonReportRow(label: "Version", value: status.daemon?.version ?? status.version, color: Fleet.Color.active)
+                    daemonReportRow(
+                        label: "Berth",
+                        value: status.daemon?.berth?.label ?? "stable",
+                        color: status.daemon?.berth.flatMap { Fleet.Color.hex($0.color) } ?? Fleet.Color.warning
+                    )
                     daemonReportRow(label: "Code hash", value: status.daemon?.codeHash ?? "unknown")
                 }
                 daemonReportDiagnostic(label: "Bosun", value: bosun?.reason ?? bosun?.state ?? "n/a", color: bosunColor)
@@ -454,6 +468,13 @@ struct FleetPopover: View {
                             .frame(width: 6, height: 6)
                             .opacity(store.totalActive > 0 ? 1 : 0.4)
                     }
+
+                    // Berth identity (ADR-0084): which daemon am I talking to —
+                    // stable / dev-latest / codebase. Always shown when running so
+                    // the operator never confuses a dev daemon for the canonical one.
+                    if store.isDaemonRunning {
+                        berthChip
+                    }
                 }
 
                 if store.isDaemonRunning {
@@ -523,6 +544,70 @@ struct FleetPopover: View {
         }
         .padding(.horizontal, Fleet.Space.l)
         .padding(.vertical, Fleet.Space.m)
+    }
+
+    // The berth this FleetBar is connected to (ADR-0084). A daemon that predates
+    // berth self-identity reports no `berth`; we treat that as the canonical
+    // stable berth so the chip is always meaningful.
+    private var berth: DaemonBerthResponse? {
+        store.daemonStatus?.daemon?.berth
+    }
+
+    // Color-coded berth pill. Canonical `stable` renders quietly (it's the
+    // expected default); a non-canonical `dev-latest` / `codebase` berth renders
+    // with a filled, higher-contrast pill — "heads up, this isn't stable".
+    @ViewBuilder
+    private var berthChip: some View {
+        let b = berth
+        let tier = b?.tier ?? "stable"
+        let label = b?.label ?? "stable"
+        let canonical = b?.canonical ?? true
+        let tint = b.flatMap { Fleet.Color.hex($0.color) } ?? berthFallbackColor(tier)
+        let tooltip = berthTooltip(b)
+
+        HStack(spacing: 4) {
+            Circle()
+                .fill(tint)
+                .frame(width: 6, height: 6)
+            Text(label.uppercased())
+                .font(.system(size: 11, weight: .bold))
+                .tracking(0.6)
+                .foregroundStyle(canonical ? AnyShapeStyle(.secondary) : AnyShapeStyle(tint))
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 2)
+        .background(
+            Capsule().fill(tint.opacity(canonical ? 0.10 : 0.20))
+        )
+        .overlay(
+            Capsule().strokeBorder(tint.opacity(canonical ? 0.0 : 0.55), lineWidth: 1)
+        )
+        .help(tooltip)
+        .accessibilityLabel("Connected to \(label) berth")
+    }
+
+    // Fallback colours mirror `BERTH_COLORS` in shared/daemon-berths.ts for the
+    // legacy-daemon (no berth reported) path; the live path uses the daemon's hex.
+    private func berthFallbackColor(_ tier: String) -> Color {
+        switch tier {
+        case "dev-latest": return Fleet.Color.active   // blue — bleeding edge
+        case "codebase":   return Color(red: 0.66, green: 0.33, blue: 0.97) // purple
+        default:           return Fleet.Color.warning  // amber — stable "as ever"
+        }
+    }
+
+    private func berthTooltip(_ b: DaemonBerthResponse?) -> String {
+        // Resolve the canonical port through DaemonLocation rather than hardcoding
+        // it — the no-hardcoded-daemon-port guard (and ADR-0084) keep the literal
+        // in exactly one place.
+        guard let b else { return "Connected to the stable berth (port \(DaemonLocation.canonicalPreferredPort))" }
+        var parts = ["\(b.label) berth · port \(b.port)"]
+        if let branch = b.gitBranch, !branch.isEmpty {
+            let rev = b.gitRev.map { " @ \($0)" } ?? ""
+            parts.append("\(branch)\(rev)")
+        }
+        if let dir = b.sourceDir, !dir.isEmpty { parts.append(dir) }
+        return parts.joined(separator: "\n")
     }
 
     private var headerAccent: Color {
@@ -623,6 +708,91 @@ struct FleetPopover: View {
     //
     // The harbor is empty. Lighthouse pulsing.
     // One icon, one line, one action.
+
+    /// Surfaces a version mismatch between the running FleetBar app and the
+    /// daemon. The app is a separately-downloaded `.app`; `brew upgrade
+    /// port-daddy` moves the daemon but never the menu bar app, so the two drift
+    /// and the operator needs a nudge plus the exact remediation.
+    @ViewBuilder
+    private func versionSkewBanner(_ skew: FleetVersionSkew) -> some View {
+        switch skew {
+        case .upToDate:
+            EmptyView()
+
+        case let .appBehindDaemon(app, daemon):
+            versionSkewCard(
+                icon: "arrow.down.circle.fill",
+                tint: Fleet.Color.warning,
+                title: "FleetBar is out of date",
+                detail: "This app is \(app); the daemon is already \(daemon). Download the latest FleetBar to match.",
+                versionLine: "app \(app)  →  daemon \(daemon)",
+                primaryLabel: "Download FleetBar \(daemon)",
+                primaryAction: { NSWorkspace.shared.open(FleetVersion.downloadPageURL) },
+                footnote: "Unsigned build — the download page lists the checksum to verify."
+            )
+
+        case let .daemonBehindApp(app, daemon):
+            // FleetBar can't run `brew` or kill a live daemon itself, so we hand
+            // the operator the exact command rather than a button that pretends
+            // to restart (startDaemon() no-ops when a daemon is already running).
+            versionSkewCard(
+                icon: "exclamationmark.arrow.triangle.2.circlepath",
+                tint: Fleet.Color.active,
+                title: "Daemon is behind this app",
+                detail: "FleetBar is \(app) but the running daemon is \(daemon). Upgrade Port Daddy, then restart the daemon, so they match.",
+                versionLine: "app \(app)  →  daemon \(daemon)",
+                primaryLabel: "Copy `brew upgrade port-daddy`",
+                primaryAction: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("brew upgrade port-daddy", forType: .string)
+                },
+                footnote: "Run the copied command in a terminal, then restart the daemon from the menu."
+            )
+        }
+    }
+
+    private func versionSkewCard(
+        icon: String,
+        tint: Color,
+        title: String,
+        detail: String,
+        versionLine: String,
+        primaryLabel: String,
+        primaryAction: @escaping () -> Void,
+        footnote: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            HStack(spacing: Fleet.Space.s) {
+                Image(systemName: icon)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Text(versionLine)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+            Text(detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: Fleet.Space.s) {
+                Button(action: primaryAction) {
+                    Text(primaryLabel)
+                        .font(.caption.weight(.medium))
+                }
+                .controlSize(.small)
+                .tint(tint)
+            }
+            Text(footnote)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Fleet.Space.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.10))
+    }
 
     private var budgetPauseBanner: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -826,6 +996,9 @@ struct FleetPopover: View {
             .foregroundStyle(Fleet.Color.active)
             .help("Manage daemon secrets and credentials")
             .accessibilityLabel("Open secrets manager")
+
+            LaunchOperatorConsoleButton()
+                .font(.caption2)
 
             Button {
                 withAnimation(Fleet.Motion.snappy) {

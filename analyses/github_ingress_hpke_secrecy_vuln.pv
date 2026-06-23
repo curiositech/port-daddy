@@ -1,0 +1,52 @@
+(*
+ * Port Daddy: GitHub-App-via-Relay — HPKE PAYLOAD SECRECY (VULNERABLE)
+ * ====================================================================
+ *
+ * NEGATIVE CONTROL for github_ingress_hpke_secrecy.pv, mechanizing the
+ * antagonist's B2 key-substitution MITM. The ONLY change from the fixed model:
+ * the receiver learns the daemon's "public key" FROM THE RELAY (the attacker
+ * channel) instead of using a pinned/authenticated key.
+ *
+ * The malicious relay substitutes its OWN public key. The receiver seals the
+ * webhook to it, the relay decrypts, (re-seals to the real daemon to stay
+ * invisible). "E2E" is defeated not by breaking the crypto but by sitting in the
+ * key-discovery path. This is why the daemon X25519 key MUST be authenticated
+ * out-of-band — never trusted from a relay-served /v1/keys response.
+ *
+ * EXPECTED RESULT:
+ *   query attacker(webhook_payload)   is TRUE  (secrecy broken)
+ *   i.e. ProVerif prints: RESULT not attacker(webhook_payload[]) is false,
+ *   with an attack trace where the attacker's key is used for the seal.
+ *
+ * Pairing this FALSE against the fixed model's TRUE also rules out vacuous
+ * secrecy: identical payload and processes, yet the key-discovery change alone
+ * flips the result — so the payload is genuinely in play in both.
+ *)
+
+type skey.  type pkey.
+
+free c: channel.
+
+fun pk(skey): pkey.
+fun aenc(bitstring, pkey): bitstring.
+reduc forall m: bitstring, k: skey; adec(aenc(m, pk(k)), k) = m.
+
+free webhook_payload: bitstring [private].
+
+query attacker(webhook_payload).
+
+(* VULNERABLE receiver: takes whatever the relay claims is the daemon pubkey. *)
+let ReceiverVuln() =
+    in(c, dpk: pkey);                  (* key discovery via the attacker channel *)
+    out(c, aenc(webhook_payload, dpk)).
+
+let Daemon(dsk: skey) =
+    in(c, ct: bitstring);
+    let m = adec(ct, dsk) in
+    0.
+
+process
+    new dsk: skey;
+    let dpk = pk(dsk) in
+    out(c, dpk);
+    ( (! ReceiverVuln()) | (! Daemon(dsk)) )

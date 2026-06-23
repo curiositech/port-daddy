@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/Badge";
 import {
   Zap,
   Terminal,
-  Shield,
   Layers,
   RefreshCw,
   ArrowDown,
@@ -33,16 +32,10 @@ export function Pipelines() {
           className="m-0 text-[length:var(--type-panel-body-compact-size)] border-l-4 border-[var(--brand-accent)] pl-4"
           style={{ color: "var(--text-secondary)" }}
         >
-          <Badge
-            variant="gold"
-            className="px-3 py-0.5 text-[10px] font-black uppercase tracking-widest mr-2"
-          >
-            Coming in v4
-          </Badge>
-          Declarative reactive pipelines (channel-to-action rules managed by the
-          orchestrator) are planned for v4. Today, you can achieve similar
-          results with <code>pd watch</code> and <code>pd spawn</code>, which
-          are shipping now.
+          <strong>Planned for v4:</strong> declarative reactive pipelines, where
+          you map a channel to an action and the app manages the rule. Today you
+          get the same result with <code>pd watch</code> and{" "}
+          <code>pd spawn</code>, which both ship now.
         </p>
 
         {/* Intro Section */}
@@ -146,7 +139,7 @@ Watching test:fail...
               </Badge>
               <div className="flex-1">
                 <p className="font-bold m-0 text-[length:var(--type-panel-body-compact-size)]">Agent publishes result</p>
-                <code className="text-[10px]">
+                <code className="text-[length:var(--type-meta-size)]">
                   pd pub task:ready "auth module complete"
                 </code>
               </div>
@@ -164,7 +157,7 @@ Watching test:fail...
               </Badge>
               <div className="flex-1">
                 <p className="font-bold m-0 text-[length:var(--type-panel-body-compact-size)]">Watcher triggers spawn</p>
-                <code className="text-[10px]">
+                <code className="text-[length:var(--type-meta-size)]">
                   pd watch task:ready --exec 'pd spawn --backend aider --
                   "Review $PD_MESSAGE_CONTENT"'
                 </code>
@@ -193,29 +186,18 @@ pd pub code:ready "src/auth/login.ts"
           radius="none"
           className="p-6 text-center space-y-4 relative overflow-hidden"
         >
-          <Badge
-            variant="gold"
-            className="px-4 py-1 text-[10px] font-black uppercase tracking-widest"
-          >
-            v4 Roadmap
-          </Badge>
           <p
             className="text-[length:var(--type-panel-title-nav-size)] font-bold m-0"
             style={{ color: "var(--text-primary)" }}
           >
-            Declarative Pipelines.
+            Declarative pipelines, planned for v4
           </p>
           <p className="max-w-xl mx-auto text-[var(--text-secondary)] m-0">
-            In v4, you will be able to define pipeline rules declaratively --
-            mapping channels to actions in a configuration file. The
-            orchestrator will manage health checks and prevent runaway spawning.
-            Until then, <code>pd watch</code> and <code>pd spawn</code> give you
-            the same reactive power with shell scripts.
+            In v4, you will define pipeline rules in a config file -- mapping
+            channels to actions. The app will run health checks and stop runaway
+            spawning. Until then, <code>pd watch</code> and <code>pd spawn</code>{" "}
+            do the same job with shell scripts.
           </p>
-          <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-primary)]">
-            <Shield size={14} />
-            Available Today: pd watch + pd spawn
-          </div>
         </Surface>
       </div>
     </TutorialLayout>

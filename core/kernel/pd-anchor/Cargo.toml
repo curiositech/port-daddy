@@ -1,0 +1,25 @@
+[package]
+name = "pd-anchor"
+description = "Anchor identity, signed cards, capability envelopes, and evidence roots"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+# rlib for in-Rust use + tests; cdylib for the C ABI the TS daemon loads via koffi
+# (ADR-0054 — the kernel is the canonical macaroon impl). Mirrors harbor-card-rs.
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+hex.workspace = true
+hmac.workspace = true
+pd-core = { path = "../pd-core" }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true

@@ -152,6 +152,117 @@ describe('pd roadmap', () => {
     expect(JSON.parse(opts.body)).toMatchObject({ rootDir: '/Users/test/port-daddy' });
   });
 
+  test('upsert writes a roadmap item receipt into the table', async () => {
+    pdFetch.mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        success: true,
+        item: {
+          id: 'r3',
+          slug: 'swarm-coordination',
+          summaryMd: 'Make swarm coordination governed and enforceable.',
+          status: 'now',
+          promotedFromFeedbackId: null,
+          promotedByAgentId: 'agent-1',
+          promotedAt: 1,
+          lastTouchedAt: 2,
+          dependencies: [],
+          notes: [],
+          harbor: 'fleet',
+        },
+      }),
+    });
+
+    await handleRoadmap(['upsert', 'swarm-coordination'], {
+      summary: 'Make swarm coordination governed and enforceable.',
+      status: 'now',
+      as: 'agent-1',
+      note: 'phase 0 implementation',
+      json: true,
+    });
+
+    expect(pdFetch).toHaveBeenCalledWith(
+      '/roadmap/items',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+    const body = JSON.parse(pdFetch.mock.calls[0][1].body);
+    expect(body).toMatchObject({
+      slug: 'swarm-coordination',
+      summaryMd: 'Make swarm coordination governed and enforceable.',
+      status: 'now',
+      promotedByAgentId: 'agent-1',
+    });
+    expect(body.notes[0]).toMatchObject({ by: 'agent-1', text: 'phase 0 implementation' });
+  });
+
+  test('touch preserves the existing summary and appends a roadmap receipt note', async () => {
+    pdFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          success: true,
+          item: {
+            id: 'r4',
+            slug: 'swarm-coordination',
+            summaryMd: 'Existing summary.',
+            status: 'now',
+            promotedFromFeedbackId: null,
+            promotedByAgentId: 'agent-old',
+            promotedAt: 1,
+            lastTouchedAt: 2,
+            dependencies: ['parley'],
+            notes: [{ at: 1, by: 'agent-old', text: 'old' }],
+            harbor: 'fleet',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({
+          success: true,
+          item: {
+            id: 'r4',
+            slug: 'swarm-coordination',
+            summaryMd: 'Existing summary.',
+            status: 'now',
+            promotedFromFeedbackId: null,
+            promotedByAgentId: 'agent-1',
+            promotedAt: 1,
+            lastTouchedAt: 3,
+            dependencies: ['parley'],
+            notes: [],
+            harbor: 'fleet',
+          },
+        }),
+      });
+
+    await handleRoadmap(['touch', 'swarm-coordination'], {
+      as: 'agent-1',
+      note: 'guard receipt',
+      json: true,
+    });
+
+    expect(pdFetch.mock.calls[0][0]).toBe('/roadmap/items/swarm-coordination');
+    expect(pdFetch.mock.calls[1][0]).toBe('/roadmap/items');
+    const body = JSON.parse(pdFetch.mock.calls[1][1].body);
+    expect(body).toMatchObject({
+      slug: 'swarm-coordination',
+      summaryMd: 'Existing summary.',
+      status: 'now',
+      dependencies: ['parley'],
+      promotedByAgentId: 'agent-1',
+    });
+    expect(body.notes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ by: 'agent-old', text: 'old' }),
+      expect.objectContaining({ by: 'agent-1', text: 'guard receipt' }),
+    ]));
+  });
+
   test('ack harvests live feedback from the roadmap surface', async () => {
     pdFetch.mockResolvedValue({
       ok: true,

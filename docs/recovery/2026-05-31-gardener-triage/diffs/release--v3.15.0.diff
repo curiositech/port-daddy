@@ -1,0 +1,64 @@
+STATS:
+ CHANGELOG.md | 18 ++++++++++++++++--
+ package.json |  2 +-
+ 2 files changed, 17 insertions(+), 3 deletions(-)
+
+---
+LAST COMMIT:
+ee2c148711c0f7e9342936607e25426511261e11
+Erich Owens <[redacted]>
+2026-05-31 02:54:42 -0700
+wip: preserve uncommitted edits from 2026-05-31 batch-merge re-triage
+
+Preserved by automated steward sweep. 2 modified file(s) on branch release/v3.15.0.
+Steward: [redacted]
+
+Files:
+  - CHANGELOG.md
+  - package.json
+
+
+---
+DIFF (first 300 lines):
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 7550d25c..01493ce1 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+ 
+ ## [Unreleased]
+ 
++## [3.15.0] - 2026-05-19
++
++The "DB is the source of record" release. Five primitives that together turn the roadmap from prose-edited markdown into a queryable tuple stream:
++
+ ### Added
+-- **`pd roadmap pop` — atomic claim from the curated pile** (proposed **3.15.0**, minor: new workflow surface + new durable API + new SQL table). Pops one entry from the roadmap pile (live feedback → next-cut → ideas-now → dogfood feedback by default, override with `--kind`), writes a `roadmap_claims` row, and returns the entry. Atomicity is enforced by a partial UNIQUE index `ON roadmap_claims(slug) WHERE released_at IS NULL` — two racers, one INSERT wins, the loser gets `SQLITE_CONSTRAINT` and the daemon picks the next candidate. Companion verbs: `pd roadmap release <slug>` lifts the claim; `pd roadmap claims [--mine]` shows the active claim map. Optional `--begin` flag chains into `pd begin` so a session opens with the claim's slug + summary as purpose. New routes: `POST /cartographer/roadmap-pop`, `POST /cartographer/roadmap-release`, `GET /cartographer/roadmap-claims`. Rationale + alternatives in [ADR-0033](docs/adr/0033-roadmap-pop-atomic-claim.md).
+-- **Roadmap claims now link to sessions + agents** (rolls into proposed **3.15.0**, ADR-0034). `roadmap_claims` grew nullable `session_id` and `agent_id` columns plus an idempotent `ALTER TABLE` migration. `pd roadmap pop --begin` now writes the new session/agent IDs back onto the claim row, so `pd roadmap claims` surfaces "session: <id>" and a future `pd whois <slug>` can resolve cleanly. New route `POST /cartographer/roadmap-claim-link` exposes the rebind operation (idempotent; refuses to overwrite an existing link without `force: true`). New CLI verb `pd roadmap claim-link <slug> [--session <id>] [--agent <id>] [--force]` for manually attaching or rebinding a session to a claim after the fact. Schema migration is safe for existing claims (legacy rows have NULL session/agent and stay valid). Rationale in [ADR-0034](docs/adr/0034-roadmap-claim-session-link.md).
++- **`pd roadmap pop` — atomic claim from the curated pile** (minor: new workflow surface + new durable API + new SQL table). Pops one entry from the roadmap pile (live feedback → next-cut → ideas-now → dogfood feedback by default, override with `--kind`), writes a `roadmap_claims` row, and returns the entry. Atomicity is enforced by a partial UNIQUE index `ON roadmap_claims(slug) WHERE released_at IS NULL` — two racers, one INSERT wins, the loser gets `SQLITE_CONSTRAINT` and the daemon picks the next candidate. Companion verbs: `pd roadmap release <slug>` lifts the claim; `pd roadmap claims [--mine]` shows the active claim map. Optional `--begin` flag chains into `pd begin` so a session opens with the claim's slug + summary as purpose. New routes: `POST /cartographer/roadmap-pop`, `POST /cartographer/roadmap-release`, `GET /cartographer/roadmap-claims`. Rationale + alternatives in [ADR-0033](docs/adr/0033-roadmap-pop-atomic-claim.md).
++- **Roadmap claims now link to sessions + agents** (ADR-0034). `roadmap_claims` grew nullable `session_id` and `agent_id` columns plus an idempotent `ALTER TABLE` migration. `pd roadmap pop --begin` now writes the new session/agent IDs back onto the claim row, so `pd roadmap claims` surfaces "session: <id>" and a future `pd whois <slug>` can resolve cleanly. New route `POST /cartographer/roadmap-claim-link` exposes the rebind operation (idempotent; refuses to overwrite an existing link without `force: true`). New CLI verb `pd roadmap claim-link <slug> [--session <id>] [--agent <id>] [--force]` for manually attaching or rebinding a session to a claim after the fact. Schema migration is safe for existing claims (legacy rows have NULL session/agent and stay valid). Rationale in [ADR-0034](docs/adr/0034-roadmap-claim-session-link.md).
++- **`roadmap_items` — tuple-backed roadmap entries as first-class data** (Slice A of the DB-of-record arc, `943ff2a5`). New `lib/roadmap-items.ts` exposes `createRoadmapItems({tuples})` with `upsert / get / list / updateStatus / touch`. Status enum is `now | backlog | parked | merge | done` (five buckets, vs the nine semi-overlapping status tags the markdown parser used to derive). Tuple-backed (no SQLite table), so every status transition is preserved as a `roadmap:upserted` / `roadmap:status` / `roadmap:touched` tuple — the stream is the durable history and queries fold over it. Harbor-scoped via `harborForProject` so multi-project trees stay isolated. Mirrors `lib/feedback.ts` shape so the rest of the codebase can compose with it the same way. 14 unit tests.
++- **`lib/roadmap-promote.ts` — atomic feedback→roadmap_items promotion** (Slice B/1, `16ee354f`). Single call performs the two-sided link: (1) `roadmap_items.upsert` stamps `promotedFromFeedbackId / promotedByAgentId / promotedAt` on the new item; (2) `feedback.harvest` stamps `harvestedAt / harvestedIntoSlug` on the feedback row. Today's cartographer rewrites `docs/ROADMAP.md` prose and never updates the feedback row's harvested fields — the linkage was lost. This module is the atomic shape `pd roadmap promote` and `POST /roadmap/items` route both call. Operational atomicity (not SQLite-transaction): tuples are append-only, so we write the item first (idempotent on slug) and a partial failure leaves the feedback unharvested for safe retry. 9 unit tests cover provenance stamping, summary fallback chain, override slug != feedback slug, idempotent re-promotion, harbor inheritance, default status, error paths.
++- **`pd roadmap promote` CLI + `/roadmap/*` HTTP surface** (Slice B/2, `d1617726`). Six new routes mounted when `roadmapItems` + `roadmapPromote` deps are present: `POST /roadmap/items` (upsert), `GET /roadmap/items` (list, filter by status/harbor), `GET /roadmap/items/:slug` (get), `POST /roadmap/items/:slug/status` (audit-trailed update), `POST /roadmap/items/:slug/touch` (refresh `last_touched_at`), `POST /roadmap/promote` (atomic feedback→item linkage). CLI: `pd roadmap promote <feedbackId> [--slug s] [--summary md] [--status now|backlog|parked|merge|done] [--as agentId] [--harbor h]`. Falls back to active session agent id when `--as` omitted, and to `feedback.suggested` / `feedback.summary` when `--summary` omitted. Wiring: `server.ts` adds `createRoadmapItems({tuples})` + `createRoadmapPromote({feedback, roadmapItems})` to the dep graph; `routes/index.ts` mounts the plugin conditionally; `features.manifest.json` declares all 6 routes (was an empty placeholder); bash/zsh/fish completions get `promote` + flag completions.
++- **`pd roadmap render` — projects `docs/ROADMAP.md` from the tuple stream** (Slice C, `0d06df72`). Closes the DB-of-record loop: `feedback:dropped (high/critical)` → cartographer runs `pd roadmap promote` → `roadmap_items` tuple written → cartographer runs `pd roadmap render --write` → `docs/ROADMAP.md` projected from the tuple stream. New `lib/roadmap-render.ts` exposes `renderNextCutsMarkdown(items, {status, limit})` (pure, no I/O) and `applyRoadmapMarkdown(rootDir, items, opts)` (splices the rendered block between `<!-- pd-roadmap:items-start -->` and `<!-- pd-roadmap:items-end -->` markers; first run inserts the markers under `## Next Cuts (From Curated Trove)` preserving any intro paragraph; idempotent; appends a fresh section if no markers or header exist). New route `POST /roadmap/render` returns the rendered markdown and optionally writes the file. New CLI `pd roadmap render [--write] [--rootDir <dir>] [--status now|backlog|parked|merge|done|all] [--harbor <h>] [--project <p>] [--limit <n>]`. `pd-fleet.yml`'s cartographer prompt rewritten: it now runs `pd roadmap promote` instead of editing `docs/ROADMAP.md` with regex, then runs `pd roadmap render --write` to project the tuple stream back into the marker-bounded block. Falls back to the legacy markdown-edit path when running against an older daemon (and files a high-severity FleetBar feedback entry tracking the gap). 11 new render tests.
++
++### Changed
++- **`docs/ROADMAP.md` is now a projection, not a source.** Anything outside the `<!-- pd-roadmap:items-start -->` / `<!-- pd-roadmap:items-end -->` markers is preserved as-is on every render; anything inside is overwritten from `roadmap_items` tuples. Hand-edits to the bullet block will not survive the next `pd roadmap render --write`. Use `pd roadmap promote` or `POST /roadmap/items` to add or update an entry.
++
++### Fixed
++- **`features.manifest.json` roadmap feature is no longer an empty placeholder.** Declares all 6 `/roadmap/*` routes + the 4 new CLI verbs (`pop`, `release`, `claims`, `promote`, `render`, `claim-link`).
+ 
+ ## [3.14.1] - 2026-05-16
+ 
+diff --git a/package.json b/package.json
+index 4b80b5f5..59850861 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "port-daddy",
+-  "version": "3.14.1",
++  "version": "3.15.0",
+   "description": "Authoritative port management and service orchestration for multi-agent development — port-daddy up/down, atomic assignment, pub/sub messaging, distributed locks, agent registry, and project:stack:context semantic identities",
+   "main": "./dist/server.js",
+   "type": "module",

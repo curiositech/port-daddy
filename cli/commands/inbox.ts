@@ -77,7 +77,7 @@ export async function handleInbox(subcommand: string | undefined, args: string[]
     const message = args.slice(1).join(' ');
 
     if (!targetAgent || !message) {
-      console.error('Usage: pd inbox send <agent-id> <message>');
+      console.error('Usage: pd send <agent-id> <message>   (alias: pd inbox send …)');
       process.exit(1);
     }
 

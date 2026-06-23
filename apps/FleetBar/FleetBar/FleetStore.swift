@@ -329,6 +329,25 @@ struct DaemonBuildResponse: Decodable {
     let startedAt: Double
     let installDir: String
     let nodeVersion: String
+    /// Which berth this daemon is (ADR-0084): stable / dev-latest / codebase.
+    /// Optional — an older daemon that predates berth self-identity omits it,
+    /// in which case the UI treats the connection as the canonical stable berth.
+    /// Defaulted so the synthesized memberwise init stays source-compatible.
+    var berth: DaemonBerthResponse? = nil
+}
+
+/// The daemon's self-reported berth identity (ADR-0084). Mirrors the TS
+/// `DaemonBerthIdentity` in `shared/daemon-berths.ts`; only the fields the menu
+/// bar surfaces are decoded.
+struct DaemonBerthResponse: Decodable {
+    let tier: String        // "stable" | "dev-latest" | "codebase"
+    let label: String
+    let color: String       // "#RRGGBB"
+    let canonical: Bool
+    let port: Int
+    let gitBranch: String?
+    let gitRev: String?
+    let sourceDir: String?
 }
 
 struct DaemonMetricsResponse: Decodable {
@@ -470,9 +489,16 @@ class FleetStore: ObservableObject {
 
     private var sseTask: Task<Void, Never>?
     private nonisolated(unsafe) var pollTimer: Timer?
-    private let baseURL: String
+    /// Mutable so the operator can switch berths live via `rebind(to:)`. Switching
+    /// is in-memory only — FleetBar returns to the canonical berth on next launch,
+    /// per the ADR-0084 rail that a dev berth must never be the implicit default.
+    private var baseURL: String
 
     var daemonURL: String { baseURL }
+
+    /// The port FleetBar is currently bound to, for matching against discovered
+    /// berths in the manager UI.
+    var activePort: Int? { URL(string: baseURL)?.port }
 
     var daemonLabel: String {
         guard let url = URL(string: baseURL) else { return baseURL }
@@ -515,6 +541,16 @@ class FleetStore: ObservableObject {
     var totalActive: Int { projects.reduce(0) { $0 + $1.activeCount } }
     var totalFailed: Int { projects.reduce(0) { $0 + $1.failedCount } }
     var projectsNeedingBudget: Int { projects.filter(\.needsBudget).count }
+
+    /// How the running FleetBar app compares to the daemon it is talking to.
+    /// Drives the staleness banner. `.upToDate` whenever the daemon is offline
+    /// or either version is unknown, so the banner only appears on a real, live
+    /// mismatch.
+    var versionSkew: FleetVersionSkew {
+        guard isDaemonRunning else { return .upToDate }
+        let daemonVersion = daemonStatus?.daemon?.version ?? daemonStatus?.version
+        return FleetVersion.evaluate(appVersion: FleetBarBuild.version, daemonVersion: daemonVersion)
+    }
 
     init(autoStart: Bool = true) {
         self.preferences = FleetBarPreferenceStore.load()
@@ -568,6 +604,29 @@ class FleetStore: ObservableObject {
 
             settingsMessage = "Daemon did not respond"
             isStartingDaemon = false
+        }
+    }
+
+    /// Switch the live connection to a different daemon berth (ADR-0084). Tears
+    /// down the current SSE stream, repoints `baseURL`, clears stale state, and
+    /// reconnects. In-memory only: not persisted, so a relaunch returns to the
+    /// canonical berth and a dev berth never becomes the silent default.
+    func rebind(to url: String) {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = trimmed.hasSuffix("/") ? String(trimmed.dropLast()) : trimmed
+        guard !normalized.isEmpty, normalized != baseURL else { return }
+
+        sseTask?.cancel()
+        baseURL = normalized
+        isConnected = false
+        isDaemonRunning = false
+        daemonStatus = nil
+        projects = []
+        settingsMessage = nil
+
+        Task {
+            await refresh()
+            connectSSE()
         }
     }
 

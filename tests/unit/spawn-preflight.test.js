@@ -263,4 +263,87 @@ describe('assessSpawnPreflight', () => {
     expect(result.launchReady).toBe(false);
     expect(result.blockedReasons.join('\n')).toContain('codex:gpt-5.4-mini — manual_check');
   });
+
+  test('launches an installed CLI backend whose auth is only unverifiable (launchableUnverified)', async () => {
+    // cli:claude-code: the binary is present, auth merely cannot be checked
+    // offline, so readiness is manual_check + launchableUnverified. A missing
+    // token surfaces as a real non-zero-exit error at runtime (cli-tube maps
+    // it), not a silent hang — so the control plane lets the operator launch.
+    mockAssessBackendReadiness.mockResolvedValue({
+      backend: 'cli:claude-code',
+      status: 'manual_check',
+      launchableUnverified: true,
+      summary: 'Claude Code CLI binary found; auth cannot be verified non-interactively',
+      nextStep: 'Run `claude -p "hello"` once to confirm auth.',
+    });
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'cli:claude-code',
+      model: undefined,
+      modelTier: undefined,
+      backendSource: 'agent',
+      modelSource: 'unset',
+      warnings: [],
+    });
+
+    const result = await assessSpawnPreflight({
+      backend: 'cli:claude-code',
+      identity: 'port-daddy:sortie:test',
+      budgetUsd: 5,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 5,
+          spentUsd: 0,
+          remainingUsd: 5,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(result.launchReady).toBe(true);
+    expect(result.blockedReasons).toEqual([]);
+    // The operator must still be told auth was not proven.
+    expect(result.warnings.join('\n')).toMatch(/auth.*not.*verif|could not be verified/i);
+  });
+
+  test('still blocks a degraded manual_check backend that lacks launchableUnverified (e.g. ollama with its server down)', async () => {
+    mockAssessBackendReadiness.mockResolvedValue({
+      backend: 'ollama',
+      status: 'manual_check',
+      // no launchableUnverified — the API was probed and is unreachable.
+      summary: 'Ollama CLI found, but local API is not reachable',
+      nextStep: 'Start `ollama serve`.',
+    });
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'ollama',
+      model: 'llama3.1',
+      modelTier: undefined,
+      backendSource: 'agent',
+      modelSource: 'agent',
+      warnings: [],
+    });
+
+    const result = await assessSpawnPreflight({
+      backend: 'ollama',
+      model: 'llama3.1',
+      identity: 'port-daddy:sortie:test',
+      budgetUsd: 5,
+    }, {
+      costTracker: {
+        budgetStatus: jest.fn(() => ({
+          project: 'port-daddy',
+          budgetUsdPerDay: 5,
+          spentUsd: 0,
+          remainingUsd: 5,
+          percentUsed: 0,
+          overBudget: false,
+        })),
+      },
+    });
+
+    expect(result.launchReady).toBe(false);
+    expect(result.blockedReasons.join('\n')).toContain('ollama:llama3.1 — manual_check');
+  });
 });

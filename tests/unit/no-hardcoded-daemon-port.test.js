@@ -32,6 +32,8 @@ const ALLOWED_FILES = new Set([
   'shared/daemon-discovery.ts',
   // Canonical Swift constant — every Swift caller uses DaemonLocation.resolveBaseURL().
   'apps/FleetBar/FleetBar/DaemonLocation.swift',
+  // pd-timeline-proto R&D window: PORT_DADDY_URL-first, localhost fallback only.
+  'core/pd-timeline-proto/src/main.rs',
   // Web dashboard config UI's intentional fallback constant when env discovery fails.
   'fleet-config-ui/src/api.ts',
   // Canonical web-side resolver — the JS analogue of shared/daemon-discovery.ts.
