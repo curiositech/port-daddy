@@ -28,8 +28,6 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 import { defaultCrownJewels } from '../coast-guard.js';
 import type {
   GitleaksRule,
@@ -38,11 +36,11 @@ import type {
   ScanOptions,
   ScanResult,
 } from './types.js';
-
-// Uniquely-named to avoid colliding with the CommonJS `__dirname` jest injects
-// when it transforms this ESM module (repo convention — cf. `__spawner_dirname`
-// in lib/spawner.ts). A bare `const __dirname` throws "already declared".
-const __scannerDirname = dirname(fileURLToPath(import.meta.url));
+// Static import so Bun's `--compile` bundles the JSON into the binary.
+// readFileSync + import.meta.url does NOT work in Bun compiled executables
+// because import.meta.url resolves to the bundle-time source path, which
+// doesn't exist on the target machine.
+import BUNDLED_RULE_PACK from './rules/gitleaks-rules.json' with { type: 'json' };
 
 // ── Rule corpus load ────────────────────────────────────────────────────────
 
@@ -52,8 +50,7 @@ let _compiled: { rule: GitleaksRule; re: RegExp }[] | null = null;
 /** Load + cache the vendored gitleaks rule pack. */
 export function loadRulePack(): GitleaksRulePack {
   if (_rulePack) return _rulePack;
-  const raw = readFileSync(join(__scannerDirname, 'rules', 'gitleaks-rules.json'), 'utf8');
-  _rulePack = JSON.parse(raw) as GitleaksRulePack;
+  _rulePack = BUNDLED_RULE_PACK as unknown as GitleaksRulePack;
   return _rulePack;
 }
 
