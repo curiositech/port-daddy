@@ -2,7 +2,7 @@
 
 I edited an `.env.local` file today. Wrong one. Three directories away from the one the daemon actually reads. The fleet sat there 401'ing against Cloudflare for an hour while I edited the wrong file and felt productive.
 
-That is a product failure, not a user error. Port Daddy ships agents that work concurrently, claim files, coordinate through tuples, restart themselves, and write notes to durable storage. It also ships, apparently, the expectation that I will know — by archaeology, by `grep -rn "loadDotenv"`, by reading the spawner's source — which of four candidate `.env` paths the running daemon prefers and why.
+That is a product failure, not a user error. Port Daddy ships agents that work concurrently, claim files, coordinate through tuples, restart themselves, and write notes to durable storage. It also ships, apparently, the expectation that I will know — by archaeology, by `grep -rn "loadDotenv"`, by reading the spawner's source — which of four candidate `.env` paths [the running daemon prefers](/blog/running-is-not-current) and why.
 
 No.
 
@@ -13,7 +13,7 @@ The CLI is for the robots. The operator gets buttons.
 There is a clean line, and Port Daddy needs to stay on the right side of it:
 
 - **Agents** read `AGENTS.md`. They run `pd whoami`, `pd begin`, `pd note`, `pd guard check`. They tail logs. They kickstart launchd jobs. They live in a terminal because they *are* a terminal-shaped thing.
-- **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a green dot or a red dot. They press "restart daemon" if something looks angry. They never type `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon` because that string is *not a thing a human should ever produce by hand* — it is a string you copy-paste with mild horror.
+- **The operator** opens FleetBar in the menu bar. They click. They paste an API token into a panel that already knows which provider scope it needs and deep-links the right page. They see a [green dot or a red dot](/blog/backend-readiness-is-dependency-truth). They press "restart daemon" if something looks angry. They never type `launchctl kickstart -k gui/$(id -u)/com.portdaddy.daemon` because that string is *not a thing a human should ever produce by hand* — it is a string you copy-paste with mild horror.
 
 If a routine operator action (configure a credential, restart the daemon, see what the fleet is failing on, harvest a roadmap entry, accept a salvage item, ack a coordination conflict) does not have a button in FleetBar or a panel in the dashboard at `localhost:9876`, that is a *roadmap item*, not a "well, just run this command for now."
 
@@ -60,7 +60,7 @@ These do not move. They are not what this post is about. This post is about the 
 
 ## Coda
 
-Port Daddy started as a port manager, became a coordination substrate, and is now becoming a control plane. Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."
+Port Daddy started as a port manager, became a coordination substrate, and is now [becoming a control plane](/blog/control-plane-is-the-product). Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."
 
 Today the operator edited the wrong `.env.local`. Tomorrow they shouldn't have to know `.env.local` exists.
 

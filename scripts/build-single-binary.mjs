@@ -42,6 +42,82 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
+function launcherSource(binaryName) {
+  return `#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
+static int executable_path(char *buffer, size_t size) {
+#ifdef __APPLE__
+  uint32_t required = (uint32_t)size;
+  if (_NSGetExecutablePath(buffer, &required) != 0) return -1;
+  return 0;
+#else
+  ssize_t len = readlink("/proc/self/exe", buffer, size - 1);
+  if (len < 0) return -1;
+  buffer[len] = '\\0';
+  return 0;
+#endif
+}
+
+int main(int argc, char **argv) {
+  char self[PATH_MAX];
+  if (executable_path(self, sizeof(self)) != 0) {
+    fprintf(stderr, "pd launcher: could not resolve executable path\\n");
+    return 127;
+  }
+
+  char *slash = strrchr(self, '/');
+  if (slash == NULL) {
+    fprintf(stderr, "pd launcher: executable path has no directory: %s\\n", self);
+    return 127;
+  }
+
+  char target[PATH_MAX];
+  size_t dir_len = (size_t)(slash - self);
+  int written = snprintf(target, sizeof(target), "%.*s/${binaryName}", (int)dir_len, self);
+  if (written < 0 || (size_t)written >= sizeof(target)) {
+    fprintf(stderr, "pd launcher: sibling binary path is too long\\n");
+    return 127;
+  }
+
+  char **child_argv = calloc((size_t)argc + 1, sizeof(char *));
+  if (child_argv == NULL) {
+    fprintf(stderr, "pd launcher: out of memory\\n");
+    return 127;
+  }
+
+  child_argv[0] = target;
+  for (int i = 1; i < argc; i += 1) {
+    child_argv[i] = argv[i];
+  }
+  child_argv[argc] = NULL;
+
+  execv(target, child_argv);
+  fprintf(stderr, "pd launcher: failed to exec %s: %s\\n", target, strerror(errno));
+  return 127;
+}
+`;
+}
+
+function writePdLauncher(launcherPath, binaryName) {
+  const sourcePath = `${launcherPath}.launcher.c`;
+  writeFileSync(sourcePath, launcherSource(binaryName));
+  try {
+    run('cc', [sourcePath, '-O2', '-o', launcherPath], { stdio: 'pipe' });
+  } finally {
+    rmSync(sourcePath, { force: true });
+  }
+  chmodSync(launcherPath, 0o755);
+}
+
 function targetPlatform(target) {
   if (!target) return process.platform;
   if (target.includes('darwin')) return 'darwin';
@@ -220,7 +296,7 @@ async function waitForText(url, child, stderrChunks, timeoutMs = 15000) {
   throw new Error(`single binary static smoke failed for ${url}${stderr ? `\n${stderr}` : ''}`);
 }
 
-async function smokeSelfHostedDaemon(outfile) {
+async function smokeSelfHostedDaemon(outfile, companionFiles = []) {
   const port = await reservePort();
   const prefix = join(tmpdir(), `pd-sb-${process.pid}`);
   const isolatedBinDir = join(prefix, 'isolated-bin');
@@ -231,6 +307,11 @@ async function smokeSelfHostedDaemon(outfile) {
   mkdirSync(resourceDir, { recursive: true });
   copyFileSync(outfile, isolatedOutfile);
   chmodSync(isolatedOutfile, 0o755);
+  for (const companion of companionFiles) {
+    const isolatedCompanion = join(isolatedBinDir, basename(companion));
+    copyFileSync(companion, isolatedCompanion);
+    chmodSync(isolatedCompanion, statSync(companion).mode | 0o755);
+  }
 
   const stderrChunks = [];
   const child = spawn(isolatedOutfile, ['__daemon'], {
@@ -262,6 +343,18 @@ async function smokeSelfHostedDaemon(outfile) {
     if (!fleetHtml.includes('<!doctype html>') && !fleetHtml.includes('<!DOCTYPE html>')) {
       throw new Error('single binary daemon smoke failed: embedded Fleet UI index was not HTML');
     }
+    const cliAttention = run(isolatedOutfile, ['attention', '--agent', 'pd-single-binary-smoke-agent', '--json'], {
+      timeout: 15_000,
+      env: {
+        PORT_DADDY_URL: `http://127.0.0.1:${port}`,
+        PORT_DADDY_PORT_FILE: join(prefix, 'missing.port'),
+        PORT_DADDY_SKIP_FRESHNESS_CHECK: '1',
+      },
+    });
+    const attention = JSON.parse(cliAttention.stdout);
+    if (attention?.success !== true || attention?.agentId !== 'pd-single-binary-smoke-agent') {
+      throw new Error('single binary CLI smoke failed: pd attention did not return the expected summary');
+    }
     return {
       status: health?.status ?? 'unknown',
       pid: health?.pid ?? null,
@@ -273,6 +366,7 @@ async function smokeSelfHostedDaemon(outfile) {
       isolatedBinaryDir: isolatedBinDir,
       samples: { count: samples.count },
       fleetUi: { indexHtmlBytes: Buffer.byteLength(fleetHtml) },
+      cli: { attention: attention.success === true },
     };
   } finally {
     if (child.exitCode === null) {
@@ -285,9 +379,14 @@ async function smokeSelfHostedDaemon(outfile) {
 
 mkdirSync(DIST_DIR, { recursive: true });
 
-const outfile = resolve(readArg('--outfile') || DEFAULT_OUTFILE);
+const requestedOutfile = resolve(readArg('--outfile') || DEFAULT_OUTFILE);
 const target = readArg('--target');
 const canSmokeTarget = !target || (targetPlatform(target) === process.platform && targetArch(target) === process.arch);
+const needsPdLauncher = process.platform !== 'win32' && basename(requestedOutfile) === 'pd';
+const binaryOutfile = needsPdLauncher ? join(dirname(requestedOutfile), 'port-daddy') : requestedOutfile;
+const launcherOutfile = needsPdLauncher ? requestedOutfile : null;
+const entrypointOutfile = launcherOutfile ?? binaryOutfile;
+const companionFiles = launcherOutfile ? [binaryOutfile] : [];
 
 run(process.execPath, ['scripts/build-public-samples.mjs'], { stdio: 'inherit' });
 const embeddedNativeCore = writeEmbeddedNativeCoreModule(target);
@@ -299,18 +398,25 @@ if (canSmokeTarget && embeddedNativeCore.status !== 'embedded') {
 
 const bunArgs = ['build', '--compile'];
 if (target) bunArgs.push(`--target=${target}`);
-bunArgs.push('bin/port-daddy-bundle.ts', '--outfile', outfile);
+bunArgs.push('bin/port-daddy-bundle.ts', '--outfile', binaryOutfile);
 
 run('bun', bunArgs, { stdio: 'inherit' });
 
-if (!existsSync(outfile)) {
-  throw new Error(`Expected single binary at ${outfile}`);
+if (!existsSync(binaryOutfile)) {
+  throw new Error(`Expected single binary at ${binaryOutfile}`);
+}
+
+if (launcherOutfile) {
+  writePdLauncher(launcherOutfile, basename(binaryOutfile));
+  if (!existsSync(launcherOutfile)) {
+    throw new Error(`Expected pd launcher at ${launcherOutfile}`);
+  }
 }
 
 let smoke = { status: 'skipped', reason: 'cross-target build' };
 if (canSmokeTarget) {
   const smokePrefix = join(tmpdir(), `pd-single-binary-smoke-${process.pid}`);
-  const result = run(outfile, ['help'], {
+  const result = run(entrypointOutfile, ['help'], {
     timeout: 15_000,
     env: {
       PORT_DADDY_URL: 'http://127.0.0.1:1',
@@ -323,7 +429,7 @@ if (canSmokeTarget) {
     command: 'help',
     target: target || null,
     stdout: result.stdout.trim(),
-    daemon: await smokeSelfHostedDaemon(outfile),
+    daemon: await smokeSelfHostedDaemon(entrypointOutfile, companionFiles),
   };
 }
 
@@ -331,12 +437,15 @@ const manifest = {
   version: 1,
   artifact: 'port-daddy',
   entrypoint: 'bin/port-daddy-bundle.ts',
-  outfile,
+  outfile: entrypointOutfile,
+  binaryOutfile,
+  launcherOutfile,
   platform: process.platform,
   arch: process.arch,
   target: target || null,
-  sizeBytes: statSync(outfile).size,
-  sha256: sha256(outfile),
+  sizeBytes: statSync(binaryOutfile).size,
+  sha256: sha256(binaryOutfile),
+  launcherSha256: launcherOutfile ? sha256(launcherOutfile) : null,
   builtAt: new Date().toISOString(),
   builder: `bun ${bunArgs.join(' ')}`,
   bunVersion: run('bun', ['--version']).stdout.trim(),
@@ -353,6 +462,6 @@ const manifest = {
   smoke,
 };
 
-const manifestPath = join(dirname(outfile), 'port-daddy-manifest.json');
+const manifestPath = join(dirname(entrypointOutfile), 'port-daddy-manifest.json');
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
 console.log(`Single binary manifest: ${manifestPath}`);

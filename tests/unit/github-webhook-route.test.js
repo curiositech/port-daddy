@@ -7,6 +7,7 @@ const GITHUB_ENV_KEYS = [
   'PD_GITHUB_FORWARD_TOKEN',
   'PD_GITHUB_WEBHOOK_SECRET',
   'PD_GITHUB_WEBHOOK_ALLOW_UNAUTH',
+  'PD_GITHUB_REQUIRE_ORIGIN_HMAC',
 ];
 
 function snapshotEnv() {
@@ -56,6 +57,21 @@ function envelope(overrides = {}) {
     },
     ...overrides,
   };
+}
+
+/**
+ * A forwarded envelope that carries the exact signed bytes + a GitHub signature
+ * computed under `secret`, the way an origin-aware receiver sends them.
+ */
+function signedEnvelope(secret, overrides = {}) {
+  const rawPayload = JSON.stringify({
+    action: 'opened',
+    pull_request: { number: 7, title: 'Add X' },
+    repository: { full_name: 'curiositech/port-daddy' },
+    sender: { login: 'octocat' },
+  });
+  const signature = 'sha256=' + createHmac('sha256', secret).update(rawPayload).digest('hex');
+  return envelope({ raw_payload: rawPayload, signature, ...overrides });
 }
 
 async function buildApp(deps) {
@@ -180,6 +196,92 @@ describe('POST /webhooks/github — inbound GitHub webhook → fleet channel', (
     });
     expect(res.statusCode).toBe(401);
     expect(deps.published).toHaveLength(0);
+    await app.close();
+  });
+
+  // --- GitHub origin re-verification on the forwarded (bearer) path ---------
+  // A trusted forward token proves the FORWARDER, not GitHub. These tests pin
+  // that a valid forward token alone cannot forge fleet-triggering events.
+
+  test('SECURITY: valid forward token but FORGED payload (bad signature) is rejected — no dispatch', async () => {
+    process.env.PD_GITHUB_FORWARD_TOKEN = 'sekret-forward-token';
+    process.env.PD_GITHUB_WEBHOOK_SECRET = 'hmac-secret';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    // Attacker holds the forward token and crafts an envelope, but cannot
+    // produce a valid GitHub signature over their forged body.
+    const forged = envelope({
+      raw_payload: JSON.stringify({ action: 'closed', pull_request: { number: 666 } }),
+      signature: 'sha256=' + 'de'.repeat(32), // not a real HMAC under the secret
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      headers: { authorization: 'Bearer sekret-forward-token' },
+      payload: forged,
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(deps.published).toHaveLength(0);
+    await app.close();
+  });
+
+  test('forwarded envelope with a VALID GitHub signature re-verifies and dispatches (204)', async () => {
+    process.env.PD_GITHUB_FORWARD_TOKEN = 'sekret-forward-token';
+    process.env.PD_GITHUB_WEBHOOK_SECRET = 'hmac-secret';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      headers: { authorization: 'Bearer sekret-forward-token' },
+      payload: signedEnvelope('hmac-secret'),
+    });
+
+    expect(res.statusCode).toBe(204);
+    expect(deps.published.map((p) => p.channel)).toEqual(expect.arrayContaining([
+      'github:webhook:pull_request',
+    ]));
+    await app.close();
+  });
+
+  test('strict mode (PD_GITHUB_REQUIRE_ORIGIN_HMAC=1) rejects a forwarded envelope that carries no signature', async () => {
+    process.env.PD_GITHUB_FORWARD_TOKEN = 'sekret-forward-token';
+    process.env.PD_GITHUB_WEBHOOK_SECRET = 'hmac-secret';
+    process.env.PD_GITHUB_REQUIRE_ORIGIN_HMAC = '1';
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      headers: { authorization: 'Bearer sekret-forward-token' },
+      payload: envelope(), // legacy envelope, no raw_payload/signature
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(deps.published).toHaveLength(0);
+    await app.close();
+  });
+
+  test('non-strict back-compat: legacy receiver (no signature, no secret) still dispatches on bearer', async () => {
+    process.env.PD_GITHUB_FORWARD_TOKEN = 'sekret-forward-token';
+    // No PD_GITHUB_WEBHOOK_SECRET, not strict: an old receiver keeps working.
+    const deps = buildDeps();
+    const app = await buildApp(deps);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/webhooks/github',
+      headers: { authorization: 'Bearer sekret-forward-token' },
+      payload: envelope(),
+    });
+
+    expect(res.statusCode).toBe(204);
+    expect(deps.published.length).toBeGreaterThan(0);
     await app.close();
   });
 

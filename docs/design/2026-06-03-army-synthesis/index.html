@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Six Returns · Port Daddy · 2026-06-03</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --hue-neutral: 270; --hue-accent: 240; --hue-success: 165;
+  --hue-warning: 85; --hue-danger: 15; --hue-architect: 240;
+  --hue-research: 320; --hue-cartographer: 165; --hue-creative: 35;
+  --bg-dark:     oklch(0.184 0.005 var(--hue-neutral));
+  --bg-sidebar:  oklch(0.205 0.005 var(--hue-neutral));
+  --bg-input:    oklch(0.220 0.008 var(--hue-neutral));
+  --bg-card:     oklch(0.245 0.007 var(--hue-neutral));
+  --bg-elevated: oklch(0.290 0.009 var(--hue-neutral));
+  --text-label:  oklch(0.700 0.020 var(--hue-neutral));
+  --text-muted:  oklch(0.800 0.015 var(--hue-neutral));
+  --text-dim:    oklch(0.900 0.010 var(--hue-neutral));
+  --text:        oklch(0.985 0 0);
+  --accent:      oklch(0.745 0.140 var(--hue-accent));
+  --accent-soft: oklch(0.820 0.110 var(--hue-accent));
+  --accent-glow: oklch(0.745 0.140 var(--hue-accent) / 0.16);
+  --success:     oklch(0.770 0.155 var(--hue-success));
+  --warning:     oklch(0.835 0.155 var(--hue-warning));
+  --danger:      oklch(0.700 0.180 var(--hue-danger));
+  --border:      oklch(0.310 0.008 var(--hue-neutral));
+  --border-strong: oklch(0.380 0.010 var(--hue-neutral));
+  --agent-arch:  oklch(0.745 0.140 var(--hue-architect));
+  --agent-arch-bg: oklch(0.745 0.140 var(--hue-architect) / 0.16);
+  --agent-res:   oklch(0.745 0.150 var(--hue-research));
+  --agent-res-bg: oklch(0.745 0.150 var(--hue-research) / 0.16);
+  --agent-cart:  oklch(0.770 0.155 var(--hue-cartographer));
+  --agent-cart-bg: oklch(0.770 0.155 var(--hue-cartographer) / 0.16);
+  --agent-cre:   oklch(0.770 0.180 var(--hue-creative));
+  --agent-cre-bg: oklch(0.770 0.180 var(--hue-creative) / 0.16);
+}
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+a { color: var(--accent-soft); text-decoration: none; }
+a:hover { color: var(--accent); text-decoration: underline; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 48px 24px 96px; }
+
+/* Hero */
+.hero { margin-bottom: 56px; }
+.hero h1 { font-size: 38px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 12px; }
+.hero h1 .accent { color: var(--accent); }
+.hero .sub { font-size: 17px; color: var(--text-dim); max-width: 720px; line-height: 1.55; }
+.hero .meta { margin-top: 18px; font-size: 14px; color: var(--text-muted); display: flex; gap: 18px; flex-wrap: wrap; }
+.hero .meta span::before { content: '·'; margin-right: 16px; color: var(--text-label); }
+.hero .meta span:first-child::before { content: none; }
+
+/* Section heading */
+h2 { font-size: 22px; font-weight: 700; margin: 56px 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+h2 .num { color: var(--text-label); font-weight: 500; margin-right: 12px; font-size: 18px; }
+h3 { font-size: 17px; font-weight: 600; margin: 22px 0 8px; }
+
+/* Agent cards */
+.agents { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 720px) { .agents { grid-template-columns: 1fr; } }
+.agent {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+.agent .head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.agent .badge {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.agent.architect .badge { background: var(--agent-arch-bg); color: var(--agent-arch); }
+.agent.researcher .badge { background: var(--agent-res-bg); color: var(--agent-res); }
+.agent.cartographer .badge { background: var(--agent-cart-bg); color: var(--agent-cart); }
+.agent.creative .badge { background: var(--agent-cre-bg); color: var(--agent-cre); }
+.agent .title { font-size: 16px; font-weight: 600; color: var(--text); }
+.agent .pr {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  color: var(--accent-soft);
+  margin-left: auto;
+}
+.agent p { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+.agent .delivered {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  margin-top: 8px;
+  word-break: break-all;
+}
+.agent .question {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border-left: 2px solid var(--warning);
+  border-radius: 0 6px 6px 0;
+}
+.agent .question strong { color: var(--warning); font-weight: 700; }
+
+/* Convergence + disagreement */
+.points { display: grid; gap: 14px; margin-top: 12px; }
+.point {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--success);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+.point.disagree { border-left-color: var(--warning); }
+.point .lbl {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--success); margin-bottom: 6px;
+}
+.point.disagree .lbl { color: var(--warning); }
+.point h3 { margin: 0 0 6px; color: var(--text); font-size: 16px; }
+.point p { color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+.point .voices { margin-top: 10px; font-size: 13px; color: var(--text-muted); font-style: italic; }
+
+/* Roadmap */
+.roadmap { display: grid; gap: 0; margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.lane {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  border-bottom: 1px solid var(--border);
+}
+.lane:last-child { border-bottom: none; }
+.lane .when {
+  background: var(--bg-input);
+  padding: 14px 16px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-label);
+  letter-spacing: 0.04em;
+  border-right: 1px solid var(--border);
+  display: flex; align-items: flex-start;
+}
+.lane .body {
+  padding: 14px 18px;
+  background: var(--bg-card);
+}
+.lane .body h3 { margin: 0 0 4px; font-size: 15px; color: var(--text); }
+.lane .body p { color: var(--text-dim); font-size: 13px; line-height: 1.55; }
+.lane .body .tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.lane .body .tag {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+.lane .body .tag.first { background: var(--success); color: var(--bg-dark); font-weight: 700; }
+
+/* Decision queue */
+.decision {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+.decision h3 { font-size: 15px; margin-bottom: 6px; color: var(--text); }
+.decision .src { font-size: 12px; color: var(--text-muted); font-family: ui-monospace, monospace; margin-bottom: 6px; }
+.decision p { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+
+/* Confession */
+.confession {
+  background: var(--bg-card);
+  border-left: 4px solid var(--danger);
+  border-radius: 0 10px 10px 0;
+  padding: 16px 20px;
+  margin-top: 12px;
+}
+.confession h3 { color: var(--danger); font-size: 15px; margin-bottom: 8px; }
+.confession p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+.confession code { background: var(--bg-input); padding: 1px 6px; border-radius: 3px; font-family: ui-monospace, monospace; font-size: 13px; color: var(--text); }
+
+/* ASCII brief */
+pre.brief {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  overflow-x: auto;
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <h1>The Six Returns<br><span class="accent">— a synthesis</span></h1>
+  <p class="sub">Five PRs and one inline doc, six independent agents converging and disagreeing about how to build Port Daddy's next year. Steel-manned, parsimoniously, with the things the operator must actually decide.</p>
+  <div class="meta">
+    <span>2026-06-03</span>
+    <span>6 agents</span>
+    <span>5 PRs landed (#227, #228, #229, #230, #231) + 1 inline (coordination bake-in)</span>
+    <span>~5,000 LOC of design</span>
+  </div>
+</header>
+
+<h2><span class="num">01</span>The returns</h2>
+<div class="agents">
+
+  <div class="agent architect">
+    <div class="head">
+      <span class="badge">architect</span>
+      <span class="title">Suggestibility briefing spec</span>
+      <a href="https://github.com/curiositech/port-daddy/pull/227" class="pr">#227</a>
+    </div>
+    <p><strong>pd attention answers ~25% of the question.</strong> Defines <code>GET /briefing</code> aggregator composing attention + sitrep + pheromone + actor-roster + health + salvage into an 800-token ASCII block. Embeds via <code>UserPromptSubmit</code> (Claude Code), <code>developer_instructions</code> (Codex), preRequestHooks (Gemini), <code>pd brief</code> subprocess (SDK). 10s cache, ~$0/turn, fail-soft.</p>
+    <div class="delivered">docs/architecture/2026-06-03-suggestibility-briefing-spec.md</div>
+    <div class="question"><strong>OPEN ↑</strong> Cadence default (every turn vs --throttle changed) · Per-slot mute granularity · "16 dead agents" line: show, drop, or threshold-gate?</div>
+  </div>
+
+  <div class="agent researcher">
+    <div class="head">
+      <span class="badge">researcher</span>
+      <span class="title">Coordination bake-in (Q3-2026 lit synthesis)</span>
+      <a href="#bake-in" class="pr">inline</a>
+    </div>
+    <p><strong>5 canon mechanisms already half-baked in PD; work left is wiring, not theory.</strong> Cohen-Levesque (commitments), Ostrom (bonds), Bratman (arbiter), stigmergy (pheromone), runtime verification (Arbiter). Biggest unbaked historical: GPGP negotiability + 4-phase ContractNet. Biggest 2024-26: lightweight VET-family signed evidence (NOT zkLLM, 10⁴-10⁵× overhead).</p>
+    <div class="delivered">~/coding/tmp/pd-coord-research/ (file write blocked; full body in conversation history)</div>
+    <div class="question"><strong>OPEN ↑</strong> Per-primitive policy: daemon refuses (hard gate) vs daemon coaches (soft note + override)?</div>
+  </div>
+
+  <div class="agent architect">
+    <div class="head">
+      <span class="badge">architect</span>
+      <span class="title">Evolutionary RL sandbox</span>
+      <a href="https://github.com/curiositech/port-daddy/pull/228" class="pr">#228</a>
+    </div>
+    <p><strong>Evolve artifacts, not weights.</strong> N=8 × M=20 × P={3,7,15} sweeping (persona, skills, MCPs) triples. 7 trial families with deterministic pass/fail (no LLM judging the score it's evolving against). Four scarcity channels reuse existing primitives. Line-level skill attention as survival signal. Honest answer on frontier rivalry: <strong>+4.5pp, not exponential</strong>. Pareto-distinct product.</p>
+    <div class="delivered">docs/research/2026-06-03-evolutionary-agent-coordination-sandbox.md (683 lines)</div>
+    <div class="question"><strong>OPEN ↑</strong> Budget ($400 for one vs $1200-1500 for 3) · Trigger (manual vs daemon nightly) · Winner placement (overwrite vs parallel vs --persona selector)?</div>
+  </div>
+
+  <div class="agent cartographer">
+    <div class="head">
+      <span class="badge">cartographer</span>
+      <span class="title">Cartographer as approver</span>
+      <a href="https://github.com/curiositech/port-daddy/pull/229" class="pr">#229</a>
+    </div>
+    <p><strong>Cartographer today is a librarian, not an approver.</strong> Renders state; never writes "I don't know whether X." Gap closes in 5 reversible PRs anchored on one new <code>cartographer_questions</code> SQLite table. Architecture pick: event-driven primary + cron sweeper, <strong>no long-lived process</strong>. Two rules: cartographer never executes git, release-engineer never opens a question.</p>
+    <div class="delivered">docs/architecture/2026-06-03-cartographer-as-approver.md (319 lines)</div>
+    <div class="question"><strong>OPEN ↑</strong> Soul split (recommended: cartographer surfaces, release-engineer ships) or soul merge (per your memory: one approver)?</div>
+  </div>
+
+  <div class="agent architect">
+    <div class="head">
+      <span class="badge">architect</span>
+      <span class="title">Hive-mind realism check</span>
+      <a href="https://github.com/curiositech/port-daddy/pull/230" class="pr">#230</a>
+    </div>
+    <p><strong>"Exponentially gifted outcomes" has no published support.</strong> Strongest documented multi-agent lift: Sakana AB-MCTS +4.5pp on ARC-AGI-2. Swarms-of-300× compute & 4 orders of magnitude latency overhead. PD-on-Cloudflare-rivals-Opus = 24-month moonshot. Higher-leverage bet: <strong>PD as coordination substrate composing frontier via AB-MCTS-style inference-time search.</strong> Buildable in weeks.</p>
+    <div class="delivered">docs/research/2026-06-03-hive-mind-realism-check.md</div>
+    <div class="question"><strong>ONE REFACTOR REGARDLESS ↑</strong> Symbol-region claims as a first-class PD primitive. Wire <code>lib/symbol-index.ts</code> into claim resolution. ~5 days.</div>
+  </div>
+
+  <div class="agent creative">
+    <div class="head">
+      <span class="badge">creative-design-virtuoso</span>
+      <span class="title">Pheromone viz + WYSIWYG</span>
+      <a href="https://github.com/curiositech/port-daddy/pull/231" class="pr">#231</a>
+    </div>
+    <p><strong>Pheromone viz = pd sniff made spatial.</strong> Heat-tree + per-line gutter heatmap + 60-bucket time scrubber + cross-file stigmergic trails. Read-only over <code>lib/pheromone.ts</code>. <strong>Operator editor justified ONLY by the pheromone sidecar</strong> — without it, fork Marktext. Stack: Tauri 2.x + comrak + CodeMirror 6 in webview (Iced/Egui/Slint rejected, bidi-aware soft-wrap is a 3-year fight in pure-Rust).</p>
+    <div class="delivered">docs/design/2026-06-03-pheromone-viz/mock.html (1119 lines) — open in browser, click theme pill</div>
+    <div class="question"><strong>OPEN ↑</strong> Read-only MVP first (two-phase) or full Tauri scoped as one chunk? · <code>relevance:operator-pinned</code> as new pheromone kind or tuple + synthetic (vocab v1 §7.2 flagged this)?</div>
+  </div>
+
+</div>
+
+<h2><span class="num">02</span>Where they agreed</h2>
+<div class="points">
+
+  <div class="point">
+    <div class="lbl">Convergence — the one refactor under every other</div>
+    <h3>Symbol-region claims, finally</h3>
+    <p>The realism check called this out as "the one refactor worth doing regardless." The bake-in roadmap put it at item #4. The cartographer's event-driven detectors implicitly need it to distinguish conflicts at the right granularity. The git-index collision I produced while dispatching the agents (see §05 below) is the exact failure mode it would mitigate. <code>session_files</code> already has <code>start_line</code>, <code>end_line</code>, <code>symbol</code> columns — the work is wiring <code>lib/symbol-index.ts</code> into claim resolution. ~5 days. Five agents on different missions all pointed at the same primitive.</p>
+    <div class="voices">— realism (#230) "regardless" · bake-in (inline) #4 · cartographer (#229) implicit · suggestibility (#227) claim-column dep · evolutionary (#228) trial-isolation assumption</div>
+  </div>
+
+  <div class="point">
+    <div class="lbl">Convergence — eval metric</div>
+    <h3>Hollow-compliance rate beats task-completion rate</h3>
+    <p>The bake-in researcher named it explicitly (Law 2 of accountability, sample <em>against</em> the proxy). The evolutionary sandbox builds it into the secondary score next to task-completion. Both reject "did the test pass" as the load-bearing metric because both saw the Goodhart shape: an LLM optimizing against a graded test will produce a test-passing artifact that didn't discharge the promise.</p>
+    <div class="voices">— bake-in (inline) §1.10 + §4 · evolutionary (#228) §eval-harness</div>
+  </div>
+
+  <div class="point">
+    <div class="lbl">Convergence — composition &gt; weight training</div>
+    <h3>Inference-time search beats fine-tuning for the Cloudflare path</h3>
+    <p>The realism check explicitly endorses AB-MCTS-style inference-time search as the cheaper, higher-leverage bet than fine-tuning a custom PD model. The evolutionary sandbox agrees: it evolves <em>artifacts</em> (prompts, skill sets, MCP exposures) not <em>weights</em> precisely because Cloudflare Workers AI doesn't support fine-tuning. Both point at the same conclusion: PD's edge is in coordination + composition, not custom weights.</p>
+    <div class="voices">— realism (#230) §best-case · evolutionary (#228) §why-not-fine-tune</div>
+  </div>
+
+  <div class="point">
+    <div class="lbl">Convergence — stigmergy is the unifier</div>
+    <h3>Pheromone substrate ties four agents together</h3>
+    <p>The bake-in says BAKE the stigmergy second half (vocab v1 + read/write verbs). The viz visualizes it. The suggestibility briefing heats it into the per-turn ASCII block. The evolutionary sandbox uses skill-attention-as-pheromone for the survival signal. Four different agents on four different missions land on the same primitive as load-bearing.</p>
+    <div class="voices">— bake-in §1.7 · viz (#231) entire artifact · suggestibility (#227) HEAT panel · evolutionary (#228) §line-level-skill-attention</div>
+  </div>
+
+  <div class="point">
+    <div class="lbl">Convergence — honest realism over hype</div>
+    <h3>No one tried to sell the moonshot</h3>
+    <p>Every agent that touched the "exponentially gifted swarm" framing pushed back. Evolutionary: "+4.5pp lift, not exponential." Realism: "no published support." Bake-in: "PD's substrate is the building department, not the inspector general." The shared spine across all six is operator-respecting honesty. The wow happens in the substrate, not the marketing.</p>
+    <div class="voices">— all six</div>
+  </div>
+
+</div>
+
+<h2><span class="num">03</span>Where they disagreed</h2>
+<div class="points">
+
+  <div class="point disagree">
+    <div class="lbl">Disagreement #1 — soul</div>
+    <h3>Cartographer + release-engineer: one soul or two?</h3>
+    <p><strong>Split (cartographer + viz agents).</strong> Shipping discipline is mechanical; surfacing discipline is judgment. Conflating them risks a release-engineer that hesitates on every push because it's running detectors. Two souls, one teeth-mechanism: cartographer writes <code>blocking_pr</code>, release-engineer refuses to merge.</p>
+    <p style="margin-top:8px"><strong>Merge (your memory, project_single_approver_agent).</strong> "ONE PR-approver agent. Holds entire roadmap. Aware of all in-flight agent work via pd-spawn." The unified version exists in your memory note and is implicit in some of the architect doc framing.</p>
+    <p style="margin-top:8px"><em>Steel-man of split:</em> Cohen-Levesque persistent goals (commitments) and Bratman intention-as-filter (arbiter) are already two separate modules in PD. Split is the existing architectural shape; merge would be the novel move. Cartographer's argument: don't merge what the substrate already keeps apart.</p>
+    <div class="voices">— cartographer (#229) recommends split · your memory recommends one approver · this decision gates everything downstream of cartographer PR-2</div>
+  </div>
+
+  <div class="point disagree">
+    <div class="lbl">Disagreement #2 — vocab</div>
+    <h3>Pheromone-as-write-surface vs tuple + synthetic pheromone</h3>
+    <p><strong>Pheromone-as-write (bake-in).</strong> "Add a <code>deposit(table, id, key, strength)</code> verb." The bake-in researcher's stigmergy plan treats the pheromone table as the structured-write API; everything else is a read view.</p>
+    <p style="margin-top:8px"><strong>Tuple + synthetic (viz agent + vocab v1 §7.2).</strong> Operator intent IS a fact, and per the typing rule it belongs in <code>lib/tuples.ts</code>, not <code>lib/pheromone.ts</code>. The right pattern is: operator pins a passage → writes a tuple → cartographer / pheromone-deriver emits a <code>relevance:operator-pinned</code> synthetic pheromone for the heat-strip view.</p>
+    <p style="margin-top:8px"><em>Steel-man of tuple+synthetic:</em> facts and traces are different ontological layers. Conflating them at the substrate makes garbage collection / decay incoherent (tuples should persist; pheromones should evaporate). This is the more careful answer.</p>
+    <div class="voices">— bake-in (inline) §1.7 implicit · viz (#231) §pre-mortem makes the explicit tuple-first argument</div>
+  </div>
+
+  <div class="point disagree">
+    <div class="lbl">Disagreement #3 — spend</div>
+    <h3>Sandbox v0: $400 single-shot vs $1200-1500 for three runs vs "do composition first"</h3>
+    <p><strong>$400 single-shot (evolutionary recommend baseline).</strong> Quickest possible test, sets up harness, expect first run to surface bugs.</p>
+    <p style="margin-top:8px"><strong>$1200-1500 for 3 (evolutionary actually-recommend).</strong> First runs always burn half the spend on harness bugs. Three runs lets the first die for harness and the next two be real.</p>
+    <p style="margin-top:8px"><strong>Defer (realism worst-case).</strong> Operator builds the wrong abstraction first if they sandbox before symbol claims + composition substrate ship. The honest worst case is "three swarms run, two produce lower-quality output than a single Opus 4.8 call at the same cost." Realism's recommendation: build the composition layer FIRST, sandbox AFTER.</p>
+    <p style="margin-top:8px"><em>Steel-man of defer:</em> the evolutionary sandbox needs a coordination substrate to evolve <em>over</em>. If symbol-region claims, suggestibility briefing, and ContractNet aren't in place, the sandbox is evolving over a broken substrate and the answers won't transfer when the substrate fixes ship.</p>
+    <div class="voices">— evolutionary (#228) wants spend · realism (#230) wants substrate-first · the operator-respecting synthesis: substrate first, sandbox second</div>
+  </div>
+
+</div>
+
+<h2><span class="num">04</span>Integrated roadmap</h2>
+<div class="roadmap">
+
+  <div class="lane">
+    <div class="when">W1-2</div>
+    <div class="body">
+      <h3>Symbol-region claims as first-class</h3>
+      <p>Wire <code>lib/symbol-index.ts</code> (tree-sitter WASM, built 2026-03-30) into claim resolution. Conflict semantics: whole-file claim subsumes symbol claims; symbol claims compose until a whole-file claim arrives. ~5 days.</p>
+      <div class="tags"><span class="tag first">ship first</span><span class="tag">realism #1</span><span class="tag">bake-in #4</span><span class="tag">5 agents converged</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">W2-3</div>
+    <div class="body">
+      <h3>Suggestibility briefing endpoint + Claude Code hook</h3>
+      <p><code>GET /briefing</code> aggregator composing existing routes. <code>UserPromptSubmit</code> hook embeds the 800-token ASCII brief at top of every turn. Codex / Gemini / SDK wrappers follow.</p>
+      <div class="tags"><span class="tag">suggestibility (#227)</span><span class="tag">PR-sized</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">W3-4</div>
+    <div class="body">
+      <h3>Cartographer questions: PR-1 schema + PR-2 read-only surface</h3>
+      <p>New <code>cartographer_questions</code> table + CRUD + read routes + <code>pd cartographer questions</code> CLI + read-only cockpit panel. Hand-author questions to pilot UX. (Soul split/merge decision gates PR-3 onward.)</p>
+      <div class="tags"><span class="tag">cartographer (#229) PR-1+2</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">W4-6</div>
+    <div class="body">
+      <h3>Pheromone viz PR A + read-only Tauri editor shell</h3>
+      <p>Viz PR A: ring buffer + SSE + the heat-tree mock. Editor PR A: Tauri 2.x + comrak + CodeMirror 6 read-only shell. Both running in parallel = honest test of whether the sidecar earns the build before any write surface.</p>
+      <div class="tags"><span class="tag">viz (#231) recommended phase</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">W6-8</div>
+    <div class="body">
+      <h3>Negotiability index on commitments (Decker-Lesser 1995)</h3>
+      <p>Two columns on <code>lib/commitments.ts</code>: <code>negotiability_index REAL DEFAULT 0.5</code>, <code>dependent_claim_ids TEXT</code>. <code>abandon()</code> becomes two-phase when negotiability &lt; 0.3 + dependents exist: notify each, await ack or 30-min timeout.</p>
+      <div class="tags"><span class="tag">bake-in #2</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">W8-10</div>
+    <div class="body">
+      <h3>ContractNet replaces <code>pd roadmap pop</code> (Smith 1980)</h3>
+      <p>New <code>lib/contract-net.ts</code> (~150 LOC) + refactor of <code>lib/roadmap-pop.ts</code> + three CLI verbs (<code>announce</code>, <code>bid</code>, daemon awards). Award is the moment a claim becomes an obligation: escrows bond, creates persistent-goal row.</p>
+      <div class="tags"><span class="tag">bake-in #3</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">W10-12</div>
+    <div class="body">
+      <h3>Evolutionary sandbox v0 — single $400 baseline</h3>
+      <p>All-Sonnet baseline. 63 trials/generation × 20 generations. Now the substrate (symbol claims + suggestibility + ContractNet) exists, so what evolves transfers. First run dies for harness bugs; second run is real.</p>
+      <div class="tags"><span class="tag">evolutionary (#228)</span><span class="tag">post-substrate</span></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="when">M3-6</div>
+    <div class="body">
+      <h3>AB-MCTS-style composition layer</h3>
+      <p>The realism check's best-case path. PD as the substrate composing frontier models via inference-time tree search. <code>pd swarm</code> command, opinionated, refuses to fan out untyped. 20-40% quality gains over single-model baselines on verticals at 2-5× token cost.</p>
+      <div class="tags"><span class="tag">realism (#230) best-case</span><span class="tag">composition &gt; weights</span></div>
+    </div>
+  </div>
+
+</div>
+
+<h2><span class="num">05</span>Confession + lessons</h2>
+<div class="confession">
+  <h3>I reproduced the very anti-pattern the realism check was warning about.</h3>
+  <p>While I had three architect agents in flight, all three were editing the same git index in the same worktree. Each <code>git add</code> from the realism check was overwritten by <code>git reset</code> from the evolutionary sandbox within seconds, three times in a row. The realism check called it out: literally the "Shared Working Directory" anti-pattern documented in <code>multi-agent-coordination/SKILL.md</code>. The agent stubbed its toe on the failure mode it was writing about.</p>
+  <p style="margin-top:10px">Symbol-region claims wouldn't fully fix this (the conflict was at git-index level, not file level), but they're the right direction. The cleaner fix is to dispatch parallel agents with <code>isolation: "worktree"</code> — the harness supports it; I should have used it. I owe better coordination on future fans-out.</p>
+  <p style="margin-top:10px"><strong>Filed as PD note 9255:</strong> <code>pd guard check --staged --hook</code> exits 1 silently across multiple agents' attempts, while <code>pd guard check --staged</code> (no <code>--hook</code>) exits 0. <code>/guard/status</code> returns 404. Silent-fail guards violate ADR-0045 (loud-fail invariants). Worth a fix in the binary.</p>
+</div>
+
+<h2><span class="num">06</span>Decisions awaiting you</h2>
+
+<div class="decision">
+  <h3>D1 · Soul split or merge (cartographer + release-engineer)?</h3>
+  <div class="src">gates everything downstream of cartographer PR-2</div>
+  <p>Two souls coordinating via <code>blocking_pr</code> (recommended by cartographer + viz agents + architect doc) OR one approver soul per your memory <code>project_single_approver_agent</code>. The agents argued for split with concrete reasoning. Your memory is older. Your call.</p>
+</div>
+
+<div class="decision">
+  <h3>D2 · Hard gate or soft override per primitive?</h3>
+  <div class="src">bake-in researcher's top question</div>
+  <p>Where does PD draw "daemon refuses" vs "daemon coaches"? Per-primitive: ContractNet award = hard, dependent-notification = hard at low negotiability, budget gate = soft with override. Researcher's strong recommendation: hard per Law 4 (fail closed). Your call on the exceptions.</p>
+</div>
+
+<div class="decision">
+  <h3>D3 · Suggestibility briefing UX (3 sub-questions)</h3>
+  <div class="src">suggestibility briefing #227</div>
+  <p>Cadence default (every turn with <code>--throttle changed</code> opt-in?) · Per-slot mute (CLI flag vs <code>pd-fleet.yml</code> config?) · "16 dead agents" surface (show total / drop / threshold-gate?). Agent leans every-turn + ship-one-size + threshold-gate.</p>
+</div>
+
+<div class="decision">
+  <h3>D4 · Pheromone vocab v1.1 amendment</h3>
+  <div class="src">viz #231 + vocab v1 §7.2</div>
+  <p><code>relevance:operator-pinned</code> as a new pheromone kind (simpler) OR tuple + synthetic pheromone (architecturally cleaner — operator intent IS a fact). The agent flagged the ambiguity already exists in your vocab v1 §7.2.</p>
+</div>
+
+<div class="decision">
+  <h3>D5 · Sandbox spend &amp; timing</h3>
+  <div class="src">evolutionary #228 + realism #230</div>
+  <p>$400 single-shot, $1200-1500 for three, or defer-until-substrate-ships? Evolutionary wants the spend; realism wants the substrate first. The synthesis answer: substrate first (W1-W10 of the roadmap above) and sandbox second (W10-12). But you decide.</p>
+</div>
+
+<div class="decision">
+  <h3>D6 · Where do evolutionary winners land in production?</h3>
+  <div class="src">evolutionary #228</div>
+  <p>Overwrite <code>lib/actor-roster.ts</code>, parallel <code>&lt;persona&gt;-evo-v1/v2/v3</code>, or <code>pd begin --persona &lt;id&gt;</code> selector? Agent leans parallel then selector, never overwrite without explicit review. Your call.</p>
+</div>
+
+<div class="decision">
+  <h3>D7 · WYSIWYG MVP scope</h3>
+  <div class="src">viz #231</div>
+  <p>Read-only Tauri shell first (two-phase, honest test of whether sidecar earns the build) or full Tauri editor scoped as one chunk? Agent leans read-only first.</p>
+</div>
+
+</div>
+</body>
+</html>

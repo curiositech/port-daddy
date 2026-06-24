@@ -19,6 +19,7 @@ import { join, extname, resolve } from 'path';
 import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
+import { matrixConflict, isContractChanging, type ClaimType } from './symbol-conflict-matrix.js';
 
 // =============================================================================
 // Types
@@ -69,7 +70,8 @@ export interface ParseResult {
 export interface SymbolClaim {
   filePath: string;
   symbolPath: string;
-  type: 'read' | 'modify';
+  /** read | modify | add-sibling | add-child | delete | rename (see symbol-conflict-matrix). */
+  type: ClaimType;
 }
 
 export interface ConflictPrediction {
@@ -734,7 +736,12 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
   // Dependency extraction
   // ───────────────────────────────────────────────────────────────────────────
 
-  function extractDependencies(rootNode: TSNode, language: SupportedLanguage): ExtractedDep[] {
+  function extractDependencies(
+    rootNode: TSNode,
+    language: SupportedLanguage,
+    absPath: string,
+    symbols: ExtractedSymbol[],
+  ): ExtractedDep[] {
     const deps: ExtractedDep[] = [];
 
     if (language === 'python') {
@@ -743,7 +750,93 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       extractTSDeps(rootNode, deps);
     }
 
+    // Intra-file `calls` edges — the reverse-dependency closure that powers
+    // blast-radius needs these (see extractCallEdges). The import/heritage
+    // extractors above never produced them, so blast-radius came back empty for
+    // a same-file caller (ADR-0084 / issue #468).
+    deps.push(...extractCallEdges(rootNode, absPath, symbols));
+
     return deps;
+  }
+
+  /**
+   * Intra-file `calls` edges — the dependency kind that powers blast-radius.
+   *
+   * `extractTSDeps`/`extractPythonDeps` capture imports + class heritage, but the
+   * reverse-dependency closure (`computeBlastRadius`) also needs `calls`: if
+   * `registerRoutes` calls `createRoutes`, changing `createRoutes` can break
+   * `registerRoutes`, so `createRoutes` must report `registerRoutes` as a
+   * dependent. Tree-sitter gives us call_expression (TS/JS) / call (Python) nodes;
+   * for each we resolve:
+   *   - the CALLEE to a function/method DEFINED IN THIS FILE (cross-file call
+   *     resolution needs import tracking — a separate concern; unresolved/external
+   *     callees are skipped), and
+   *   - the enclosing SOURCE symbol by line-containment against the already-
+   *     extracted symbols (innermost function/method whose line span contains the
+   *     call), which is language-agnostic and handles nested/method scopes.
+   * Emits one `{sourceSymbol, targetFile: thisFile, targetSymbol, type:'calls'}`
+   * per resolved intra-file call — deduped, self-recursion skipped, and ambiguous
+   * callee names (same simple name defined twice in the file) skipped rather than
+   * guessed (a wrong advisory edge is worse than a missing one).
+   */
+  function extractCallEdges(
+    rootNode: TSNode,
+    absPath: string,
+    symbols: ExtractedSymbol[],
+  ): ExtractedDep[] {
+    // Callable targets defined in this file, by simple name → path. A name seen
+    // twice maps to null (ambiguous, un-resolvable without scope analysis).
+    const callableByName = new Map<string, string | null>();
+    const fnRanges: Array<{ path: string; start: number; end: number }> = [];
+    for (const s of symbols) {
+      if (s.type !== 'function' && s.type !== 'method') continue;
+      callableByName.set(s.name, callableByName.has(s.name) ? null : s.path);
+      fnRanges.push({ path: s.path, start: s.startLine, end: s.endLine });
+    }
+    if (callableByName.size === 0) return [];
+
+    // Innermost function/method symbol whose line span contains `line`.
+    const enclosingOf = (line: number): string | null => {
+      let best: { path: string; span: number } | null = null;
+      for (const r of fnRanges) {
+        if (line < r.start || line > r.end) continue;
+        const span = r.end - r.start;
+        if (!best || span < best.span) best = { path: r.path, span };
+      }
+      return best ? best.path : null;
+    };
+
+    // Callee simple-name from a call node: bare `foo()` → identifier; `obj.foo()`
+    // / `self.foo()` → the member/attribute property name.
+    const calleeName = (callNode: TSNode): string | null => {
+      const fn = callNode.childForFieldName('function');
+      if (!fn) return null;
+      if (fn.type === 'identifier') return fn.text;
+      const prop = fn.childForFieldName('property') ?? fn.childForFieldName('attribute');
+      return prop?.text ?? null;
+    };
+
+    const out: ExtractedDep[] = [];
+    const seen = new Set<string>();
+    const walk = (node: TSNode): void => {
+      if (node.type === 'call_expression' || node.type === 'call') {
+        const name = calleeName(node);
+        const targetPath = name != null ? callableByName.get(name) : undefined;
+        if (targetPath) {
+          const caller = enclosingOf(node.startPosition.row + 1);
+          if (caller && caller !== targetPath) {
+            const key = `${caller} ${targetPath}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              out.push({ sourceSymbol: caller, targetFile: absPath, targetSymbol: targetPath, type: 'calls' });
+            }
+          }
+        }
+      }
+      for (const child of node.namedChildren) walk(child);
+    };
+    walk(rootNode);
+    return out;
   }
 
   function extractTSDeps(node: TSNode, deps: ExtractedDep[]): void {
@@ -973,7 +1066,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       ? extractPythonSymbols(rootNode, fileContent)
       : extractTSSymbols(rootNode, fileContent);
 
-    const extractedDeps = extractDependencies(rootNode, language);
+    const extractedDeps = extractDependencies(rootNode, language, absPath, extractedSymbols);
     const graphScope = `symbols:file:${absPath}`;
 
     // Store in SQLite (transactionally)
@@ -1229,72 +1322,45 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
 
     for (const a of claimsA) {
       for (const b of claimsB) {
-        // 1. Direct conflict: same symbol, at least one modify
-        if (
-          a.filePath === b.filePath &&
-          a.symbolPath === b.symbolPath &&
-          (a.type === 'modify' || b.type === 'modify')
-        ) {
-          conflicts.push({
-            type: 'direct',
-            severity: 'blocking',
-            confidence: 1.0,
-            a,
-            b,
-          });
+        // 1. Direct conflict: same symbol — severity from the claim-type matrix
+        //    (modify×modify=blocking, modify×read=warning, add-sibling×add-sibling=safe,
+        //    delete/rename×anything=blocking, …). 'safe' pairs produce no conflict.
+        if (a.filePath === b.filePath && a.symbolPath === b.symbolPath) {
+          const severity = matrixConflict(a.type, b.type);
+          if (severity !== 'safe') {
+            conflicts.push({ type: 'direct', severity, confidence: 1.0, a, b });
+          }
           continue;
         }
 
-        // 2. Dependency conflict: A modifies X, B reads/uses X (or vice versa)
-        if (a.type === 'modify' && b.type === 'read') {
+        // 2. Dependency conflict: A changes a contract (modify/delete/rename), B reads/uses
+        //    the changed symbol (or vice versa). add-sibling/add-child don't change contracts.
+        if (isContractChanging(a.type) && b.type === 'read') {
           if (isDependencyOf(b, a, allDepsFrom)) {
-            conflicts.push({
-              type: 'dependency',
-              severity: 'warning',
-              confidence: 0.8,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'dependency', severity: 'warning', confidence: 0.8, a, b });
           }
         }
-        if (b.type === 'modify' && a.type === 'read') {
+        if (isContractChanging(b.type) && a.type === 'read') {
           if (isDependencyOf(a, b, allDepsFrom)) {
-            conflicts.push({
-              type: 'dependency',
-              severity: 'warning',
-              confidence: 0.8,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'dependency', severity: 'warning', confidence: 0.8, a, b });
           }
         }
 
-        // 3. Signature conflict: A modifies a function, B calls that function
-        if (a.type === 'modify' && hasSignature(a)) {
+        // 3. Signature conflict: A changes the contract of a function, B calls that function.
+        //    A delete/rename of a called function breaks every caller, same as a signature change.
+        if (isContractChanging(a.type) && hasSignature(a)) {
           if (callsSymbol(b, a, allDepsFrom)) {
-            conflicts.push({
-              type: 'signature',
-              severity: 'blocking',
-              confidence: 0.9,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'signature', severity: 'blocking', confidence: 0.9, a, b });
           }
         }
-        if (b.type === 'modify' && hasSignature(b)) {
+        if (isContractChanging(b.type) && hasSignature(b)) {
           if (callsSymbol(a, b, allDepsFrom)) {
-            conflicts.push({
-              type: 'signature',
-              severity: 'blocking',
-              confidence: 0.9,
-              a,
-              b,
-            });
+            conflicts.push({ type: 'signature', severity: 'blocking', confidence: 0.9, a, b });
           }
         }
 
         // 4. Transitive conflicts (up to depth 3)
-        if (a.type === 'modify' || b.type === 'modify') {
+        if (isContractChanging(a.type) || isContractChanging(b.type)) {
           const transitives = findTransitiveConflicts(a, b, 3, allDepsFrom);
           for (const t of transitives) {
             conflicts.push({

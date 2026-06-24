@@ -1,0 +1,374 @@
+STATS:
+ .github/workflows/release.yml                      |   9 +-
+ apps/FleetBar/FleetBar/FleetPopover.swift          |  49 ++++-
+ .../Tests/FleetBarTests/FleetPopoverTests.swift    |  81 ++++++++
+ cli/commands/fleet.ts                              | 122 ++++++++++--
+ docs/ROADMAP.md                                    |  44 +++++
+ docs/recovery/CURRENT-WORK.md                      |   8 +
+ lib/binary-drift-detector.ts                       | 182 +++++++++++++++++
+ lib/fleet-running-state.ts                         | 161 +++++++++++++++
+ routes/info.ts                                     |  26 +++
+ server.ts                                          |  28 +++
+ tests/unit/binary-drift-detector.test.js           | 195 ++++++++++++++++++
+ tests/unit/fleet-running-state.test.js             | 220 +++++++++++++++++++++
+ 12 files changed, 1097 insertions(+), 28 deletions(-)
+
+---
+LAST COMMIT:
+2f1b51d40fafece5a83792228314b489e088e972
+Erich Owens <[redacted]>
+2026-05-31 12:02:39 -0700
+fix(fleet): brew-upgrade drift detector + Start fleet affordance + CLI lie
+
+Three coupled fixes for the failure mode where `brew upgrade port-daddy`
+lands a newer binary at the canonical `pd` path while the running
+daemon keeps executing the old in-memory binary. Symptoms:
+
+  1. Fleet Control Center 404s on /fleet-ui because the embedded
+     static assets were added after the running daemon was built.
+  2. FleetBar "Start fleet" remediation button looks like static text
+     next to the SF Symbol "Open console" button, so the user can't
+     tell it's clickable; even when the click reaches the daemon, the
+     old build's status payload may not reflect the change.
+  3. `pd fleet status` reports "Fleet defined in pd-fleet.yml but not
+     running" whenever the always-on daemon (not the legacy standalone
+     fork) supervises the fleet — a flat-out lie when 8 agents are
+     armed and waiting on triggers.
+
+A. lib/binary-drift-detector.ts
+   Snapshot SHA-256 of process.execPath at boot; compare against the
+   hash of whatever `command -v pd` currently resolves to. Wired into
+   /health (so FleetBar / dashboards can surface "restart needed") and
+   into the boot log (so `tail -f port-daddy.log` after brew upgrade
+   sees the drift warning immediately). 12 unit tests.
+
+B. apps/FleetBar/FleetBar/FleetPopover.swift
+   Remediation button rewritten as a capsule with chrome border,
+   SF Symbol per-action (play.fill / dollarsign.circle / wrench /
+   plus.circle / magnifyingglass), .callout font + semibold weight,
+   project.statusColor tint. Replaces the previous .borderless +
+   .caption2 combo that violated the 14pt floor and disappeared
+   visually. 2 new ViewInspector tests pin the icon mapping and the
+   tap-fires-action contract.
+
+C. lib/fleet-running-state.ts + cli/commands/fleet.ts
+   New pure resolver that consults BOTH the standalone-fork state file
+   AND the daemon's /fleet API. Daemon-supervised wins when both
+   claim ownership. New describeFleetRunningState() renders honest
+   labels like "running (daemon-supervised) · 8 armed". pd fleet up,
+   pd fleet down, and pd fleet status all rewired to call it. 13
+   tests for the resolver, including a regression test pinning that
+   8 armed agents are NOT reported as "fleet stopped".
+
+Test counts:
+  - tests/unit/binary-drift-detector.test.js: 12 passing
+  - tests/unit/fleet-running-state.test.js:   13 passing
+  - apps/FleetBar Swift tests:                11 passing (2 new)
+  - npx tsc --noEmit:                         clean
+  - jest fleet-routes-projects + fleet-cli-models suites: passing
+
+
+---
+DIFF (first 300 lines):
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 6ee025e6..e62262c8 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -17,12 +17,15 @@ jobs:
+           - os: macos-latest
+             target: bun-darwin-arm64
+             artifact: pd-darwin-arm64
+-          - os: macos-13
+-            target: bun-darwin-x64
+-            artifact: pd-darwin-x64
+           - os: ubuntu-latest
+             target: bun-linux-x64
+             artifact: pd-linux-x64
++          # darwin-x64 (Intel Mac) was dropped 2026-05-22. macos-13 runners in
++          # the GHA pool routinely queue for 24+ hours (wedged v3.14.1 +
++          # v3.15.0). The brew formula already ships only darwin-arm64 +
++          # linux-x64, so the artifact was dead weight. Intel Mac users can
++          # install from npm or build from source until we add it back via
++          # a different runner pool.
+     runs-on: ${{ matrix.os }}
+     permissions:
+       contents: write
+diff --git a/apps/FleetBar/FleetBar/FleetPopover.swift b/apps/FleetBar/FleetBar/FleetPopover.swift
+index 93bc6ef0..3375123f 100644
+--- a/apps/FleetBar/FleetBar/FleetPopover.swift
++++ b/apps/FleetBar/FleetBar/FleetPopover.swift
+@@ -979,11 +979,29 @@ struct ProjectSection: View {
+     }
+ }
+ 
+-private struct ProjectReadinessRow: View {
++// Internal (not private) so @testable FleetBar can inspect the row directly.
++// The remediation button's affordance regressed once before (caption2 +
++// borderless); pinning it via unit tests is worth the broader visibility.
++struct ProjectReadinessRow: View {
+     let project: FleetProject
+     let onOpenProject: () -> Void
+     let onRemediateProject: () -> Void
+ 
++    /// SF Symbol for each remediation action. Picked so the icon reinforces
++    /// the verb (a play-glyph for "Start fleet", a dollar-sign for "Set
++    /// budget", a wrench for "Fix YAML", etc.) and the button reads as a
++    /// button at a glance, not as static text.
++    private func remediationIcon(for action: String) -> String {
++        switch action {
++        case "start_fleet":  return "play.fill"
++        case "set_budget":   return "dollarsign.circle"
++        case "fix_yaml":     return "wrench.adjustable"
++        case "create_fleet": return "plus.circle"
++        case "run_scan":     return "magnifyingglass"
++        default:             return "arrow.right.circle"
++        }
++    }
++
+     var body: some View {
+         HStack(alignment: .top, spacing: Fleet.Space.s) {
+             Image(systemName: project.statusIcon)
+@@ -1015,10 +1033,33 @@ private struct ProjectReadinessRow: View {
+             .help("Open console")
+ 
+             if let remediation = project.remediation {
+-                Button(remediation.title, action: onRemediateProject)
+-                    .buttonStyle(.borderless)
+-                    .font(.caption2.weight(.semibold))
++                // Remediation calls (Start fleet, Set budget, etc.) used to be
++                // borderless caption2 text — they looked like static labels and
++                // disappeared next to the SF Symbol "Open console" button.
++                // Capsule + chrome border + semibold callout makes it obvious
++                // this is a button and respects the 14pt-equivalent floor for
++                // interactive text. Icon picked per remediation action so the
++                // affordance is reinforced visually.
++                Button(action: onRemediateProject) {
++                    HStack(spacing: 4) {
++                        Image(systemName: remediationIcon(for: remediation.action))
++                            .font(.system(size: 11, weight: .semibold))
++                        Text(remediation.title)
++                            .font(.callout.weight(.semibold))
++                    }
++                    .padding(.horizontal, Fleet.Space.s)
++                    .padding(.vertical, 4)
++                    .background(
++                        project.statusColor.opacity(0.12),
++                        in: Capsule()
++                    )
++                    .overlay(
++                        Capsule().stroke(project.statusColor.opacity(0.55), lineWidth: 1)
++                    )
+                     .foregroundStyle(project.statusColor)
++                }
++                .buttonStyle(.plain)
++                .help(remediation.detail.isEmpty ? remediation.title : remediation.detail)
+             }
+         }
+         .padding(.horizontal, Fleet.Space.l)
+diff --git a/apps/FleetBar/Tests/FleetBarTests/FleetPopoverTests.swift b/apps/FleetBar/Tests/FleetBarTests/FleetPopoverTests.swift
+index 731d6cb0..c1e1f522 100644
+--- a/apps/FleetBar/Tests/FleetBarTests/FleetPopoverTests.swift
++++ b/apps/FleetBar/Tests/FleetBarTests/FleetPopoverTests.swift
+@@ -234,6 +234,87 @@ final class FleetPopoverTests: XCTestCase {
+         XCTAssertNoThrow(try inspected.find(text: purpose))
+     }
+ 
++    /// Regression test for the "Start fleet" affordance bug.
++    /// The old layout used `.borderless` + `.caption2` for remediation
++    /// buttons, which made them look like static text and disappear next
++    /// to the SF Symbol "Open console" button. This test pins that:
++    ///   - the remediation button renders both an SF Symbol and the title,
++    ///   - the action handler fires when the button is tapped,
++    ///   - the help string surfaces the remediation detail for VoiceOver
++    ///     and hover-tooltip discovery.
++    func testRemediationButtonRendersIconLabelAndFiresAction() throws {
++        let remediation = ProjectRemediation(
++            action: "start_fleet",
++            title: "Start fleet",
++            detail: "Starts this pd-fleet.yml on the current daemon.",
++            command: nil,
++            suggestedBudgetUsdPerDay: nil
++        )
++        var fired = false
++        let row = ProjectReadinessRow(
++            project: projectWithRemediation(remediation),
++            onOpenProject: {},
++            onRemediateProject: { fired = true }
++        )
++
++        let inspected = try row.inspect()
++
++        // Title and icon must both appear — the icon is what tells the user
++        // this is a button at a glance, not a static label.
++        XCTAssertNoThrow(try inspected.find(text: "Start fleet"))
++        XCTAssertNoThrow(try inspected.find(ViewType.Image.self, where: { image in
++            (try? image.actualImage().name() == "play.fill") ?? false
++        }))
++
++        let button = try inspected.find(button: "Start fleet")
++        try button.tap()
++        XCTAssertTrue(fired, "Remediation button must invoke onRemediateProject when tapped")
++    }
++
++    func testRemediationButtonIconMapsActionToVerb() throws {
++        // The icon picker is private to ProjectReadinessRow but the user-
++        // visible contract is "the glyph reinforces the verb". Spot-check a
++        // few of the mappings via rendered output so a refactor that breaks
++        // the picker is caught.
++        let mappings: [(action: String, glyph: String, title: String)] = [
++            ("start_fleet",  "play.fill",          "Start fleet"),
++            ("set_budget",   "dollarsign.circle",  "Set $5/day budget"),
++            ("fix_yaml",     "wrench.adjustable",  "Fix YAML"),
++            ("create_fleet", "plus.circle",        "Create starter fleet"),
++            ("run_scan",     "magnifyingglass",    "Scan project"),
++        ]
++        for mapping in mappings {
++            let remediation = ProjectRemediation(
++                action: mapping.action,
++                title: mapping.title,
++                detail: "",
++                command: nil,
++                suggestedBudgetUsdPerDay: nil
++            )
++            let row = ProjectReadinessRow(
++                project: projectWithRemediation(remediation),
++                onOpenProject: {},
++                onRemediateProject: {}
++            )
++            let inspected = try row.inspect()
++            XCTAssertNoThrow(
++                try inspected.find(ViewType.Image.self, where: { image in
++                    (try? image.actualImage().name() == mapping.glyph) ?? false
++                }),
++                "Expected SF Symbol \(mapping.glyph) for action \(mapping.action)"
++            )
++        }
++    }
++
++    private func projectWithRemediation(_ remediation: ProjectRemediation) -> FleetProject {
++        var p = project(agents: [])
++        p.operatorState = .ready
++        p.operatorSummary = "8 agents configured and budgeted; fleet is stopped."
++        p.operatorNextAction = "Start this fleet on the current daemon."
++        p.remediation = remediation
++        return p
++    }
++
+     private func project(agents: [FleetAgent]) -> FleetProject {
+         FleetProject(
+             id: "/tmp/port-daddy-test",
+diff --git a/cli/commands/fleet.ts b/cli/commands/fleet.ts
+index 46994e9a..3100af7f 100644
+--- a/cli/commands/fleet.ts
++++ b/cli/commands/fleet.ts
+@@ -26,6 +26,11 @@ import { assessBackendReadiness } from '../../lib/backend-readiness.js';
+ import { resolveFleetChannel } from '../../lib/fleet-channels.js';
+ import { ensureStarterFleetProject } from '../../lib/fleet-bootstrap.js';
+ import { DEFAULT_IPC } from '../../shared/paths.js';
++import {
++  resolveFleetRunningState,
++  describeFleetRunningState,
++  type FleetRunningState,
++} from '../../lib/fleet-running-state.js';
+ 
+ // ─── Load .env.local / .env for API keys ────────────────────────────────────
+ // Searches: cwd, parent dir, home directory. Later files overwrite earlier ones,
+@@ -121,19 +126,70 @@ async function getFleetPromptLineViaIpc(project: string, since?: number): Promis
+   }
+ }
+ 
+-function isFleetRunning(): { running: boolean; pid: number | null; name: string | null } {
+-  const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
+-  if (!existsSync(stateFile)) return { running: false, pid: null, name: null };
++/**
++ * Standalone-fork state reader for `resolveFleetRunningState`. Encapsulates
++ * the historic .portdaddy/fleet-state.json contract — alive PID = running.
++ * Also opportunistically cleans up the state file when its PID is dead, so
++ * stale state from a crashed standalone fleet doesn't persist forever.
++ */
++const STANDALONE_STATE_READER = {
++  readState(cwd: string): { pid: number; name?: string } | null {
++    const stateFile = join(cwd, '.portdaddy', 'fleet-state.json');
++    if (!existsSync(stateFile)) return null;
++    try {
++      const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
++      return { pid: state.pid, name: state.name };
++    } catch {
++      return null;
++    }
++  },
++  isPidAlive(pid: number): boolean {
++    try {
++      process.kill(pid, 0); // throws if not running
++      return true;
++    } catch {
++      return false;
++    }
++  },
++};
++
++/**
++ * Fetch the daemon's per-project fleet status for `resolveFleetRunningState`.
++ * Returns null when the daemon is unreachable so the resolver falls back to
++ * the standalone-fork view; never throws.
++ */
++async function fetchDaemonFleetStatus(): Promise<Parameters<typeof resolveFleetRunningState>[0]['daemonFleetStatus']> {
+   try {
+-    const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
+-    process.kill(state.pid, 0); // throws if not running
+-    return { running: true, pid: state.pid, name: state.name };
++    const res = await pdFetch('/fleet');
++    if (!res.ok) return null;
++    const body = await res.json() as any;
++    return body && typeof body === 'object' ? body : null;
+   } catch {
+-    try { unlinkSync(stateFile); } catch {}
+-    return { running: false, pid: null, name: null };
++    return null;
+   }
+ }
+ 
++async function getFleetRunningState(): Promise<FleetRunningState> {
++  const daemonFleetStatus = await fetchDaemonFleetStatus();
++  const state = resolveFleetRunningState({
++    cwd: process.cwd(),
++    standalone: STANDALONE_STATE_READER,
++    daemonFleetStatus,
++  });
++  // Opportunistic cleanup of dead-PID state files. Kept here (not in the
++  // pure resolver) so the resolver stays side-effect-free.
++  if (!state.running) {
++    const stateFile = join(process.cwd(), '.portdaddy', 'fleet-state.json');
++    if (existsSync(stateFile)) {
++      const standaloneRecord = STANDALONE_STATE_READER.readState(process.cwd());
++      if (standaloneRecord && !STANDALONE_STATE_READER.isPidAlive(standaloneRecord.pid)) {
++        try { unlinkSync(stateFile); } catch {}
++      }
++    }
++  }
++  return state;
++}
++
+ async function getFleetAgents(config: ReturnType<typeof loadFleetConfig>): Promise<Array<{ id: string; purpose: string; status: string }>> {
+   if (!config) return [];
+   const harbor = config.harbor || `${config.name}:fleet`;
+@@ -328,11 +384,17 @@ async function fleetUp(): Promise<void> {
+     process.exit(1);
+   }
+ 
+-  const { running, pid } = isFleetRunning();
+-  if (running) {
+-    ui.warn(`Fleet already running (Dock Master PID ${pid})`);
+-    ui.info('  Status: pd fleet status');
+-    ui.info('  Stop:   pd fleet down');
++  const state = await getFleetRunningState();
++  if (state.running) {
++    if (state.source === 'daemon-supervised') {
++      ui.warn(`Fleet "${state.name}" already supervised by the daemon (${describeFleetRunningState(state)})`);
++      ui.info('  Status: pd fleet status');
++      ui.info('  Stop:   pd fleet down');
++    } else {
++      ui.warn(`Fleet already running (Dock Master PID ${state.pid})`);
++      ui.info('  Status: pd fleet status');
+
+... [1031 more lines truncated]

@@ -19,7 +19,7 @@ const STEPS: Step[] = [
     description:
       'Summon a session. Port Daddy assigns a stable port and semantic identity, checking for orphaned work from previous swarms.',
     code: [
-      '$ pd begin "Analyzing data" --identity swarm:analyst',
+      '$ pd begin "Analyzing data" --identity swarm:analyst --lifecycle durable',
       '  Agent agent-7f3a ready',
       '  Session started · port 3102 · identity swarm:analyst',
       '  Salvage: No dead agents detected',
@@ -75,7 +75,7 @@ export function HowItWorks() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-center mb-16 flex flex-col items-center gap-8"
         >
-          <Badge variant="teal" className="mb-10 px-6 py-2 text-[12px] font-black uppercase tracking-[0.25em]">The Lifecycle</Badge>
+          <Badge variant="teal" className="mb-10 px-6 py-2 text-[11px] font-black uppercase tracking-[0.25em]">The Lifecycle</Badge>
           <motion.h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold font-display tracking-tight leading-[0.9] mb-10" style={{ color: 'var(--text-primary)' }}>
             One daemon. <br />
             <motion.span style={{ color: 'var(--brand-primary)' }}>Infinite Swarms.</motion.span>
@@ -137,7 +137,7 @@ export function HowItWorks() {
         {/* Self-Healing / Always-On Highlight */}
         <Surface depth="raised" radius="4xl" padding="xl" className="relative overflow-hidden flex flex-col items-center gap-12 w-full text-center p-6 sm:p-12 lg:p-16">
            <div className="flex-1 space-y-8 relative z-10 flex flex-col items-center">
-              <Badge variant="teal" className="px-6 py-2 text-[12px] font-black uppercase tracking-widest">Autonomous Resilience</Badge>
+              <Badge variant="teal" className="px-6 py-2 text-[11px] font-black uppercase tracking-widest">Autonomous Resilience</Badge>
               <motion.h3 className="text-4xl sm:text-6xl font-display font-black leading-[0.95] m-0" style={{ color: 'var(--text-primary)' }}>
                 The <span style={{ color: 'var(--brand-primary)' }}>Self-Healing</span> <br /> Swarm.
               </motion.h3>
@@ -169,7 +169,7 @@ export function HowItWorks() {
               <motion.div className="absolute inset-0 opacity-[0.05] blur-[140px] rounded-full" style={{ background: 'var(--brand-primary)' }} />
               <Surface depth="inset" radius="4xl" padding="xl" className="relative space-y-10 p-6 sm:p-8 lg:p-12">
                  <div className="flex items-center justify-between">
-                    <motion.span className="text-[12px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Resurrection Queue</motion.span>
+                    <motion.span className="text-[11px] font-black uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Resurrection Queue</motion.span>
                     <Badge variant="teal" className="px-3 py-1">Escrow Active</Badge>
                  </div>
                  <div className="space-y-6">
@@ -178,10 +178,10 @@ export function HowItWorks() {
                           <RefreshCw size={24} className="animate-spin-slow" style={{ color: 'var(--brand-primary)' }} />
                           <div className="flex flex-col">
                              <motion.span className="text-base font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>Refactor-Agent</motion.span>
-                             <motion.span className="text-[12px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>State Preserved</motion.span>
+                             <motion.span className="text-[11px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>State Preserved</motion.span>
                           </div>
                        </div>
-                       <motion.span className="text-[12px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>2m ago</motion.span>
+                       <motion.span className="text-[11px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>2m ago</motion.span>
                     </Surface>
                     <motion.div
                       className="p-6 rounded-[var(--radius-3xl)] opacity-40 flex items-center justify-between"
@@ -194,10 +194,10 @@ export function HowItWorks() {
                           <Shield size={24} style={{ color: 'var(--text-muted)' }} />
                           <div className="flex flex-col">
                              <motion.span className="text-base font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>Harbor Scopes</motion.span>
-                             <motion.span className="text-[12px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>Tokens Locked</motion.span>
+                             <motion.span className="text-[11px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>Tokens Locked</motion.span>
                           </div>
                        </div>
-                       <motion.span className="text-[12px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>Active</motion.span>
+                       <motion.span className="text-[11px] font-mono font-bold" style={{ color: 'var(--text-muted)' }}>Active</motion.span>
                     </motion.div>
                  </div>
               </Surface>

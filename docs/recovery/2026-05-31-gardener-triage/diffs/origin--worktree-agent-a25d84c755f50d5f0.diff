@@ -1,0 +1,357 @@
+STATS:
+ bin/port-daddy-cli.ts                  |  12 +-
+ cli/commands/index.ts                  |   1 +
+ cli/commands/transcripts.ts            | 482 ++++++++++++++++++++++
+ docs/fleet-transcripts.md              | 130 ++++++
+ lib/spawner.ts                         | 144 +++++++
+ lib/transcripts.ts                     | 721 +++++++++++++++++++++++++++++++++
+ public/index.html                      | 230 ++++++++++-
+ routes/index.ts                        |   2 +
+ routes/transcripts.ts                  | 286 +++++++++++++
+ tests/unit/spawner-transcripts.test.js | 152 +++++++
+ tests/unit/transcripts-routes.test.js  | 162 ++++++++
+ tests/unit/transcripts.test.js         | 465 +++++++++++++++++++++
+ 12 files changed, 2782 insertions(+), 5 deletions(-)
+
+---
+LAST COMMIT:
+8a6491c0d02964c01b6b456898cf734de0fc9981
+Erich Owens <[redacted]>
+2026-05-20 10:57:18 -0700
+feat(transcripts): record every fleet ship's full conversation, surface in dashboard + CLI
+
+New lib/transcripts.ts owns one fleet_transcripts row per spawn with
+child fleet_transcript_messages + fleet_transcript_outputs tables. The
+spawner now records start/messages/finalize transparently when a
+transcripts dep is provided; existing call sites that don't pass one
+keep their current behavior (back-compat).
+
+Surfaces:
+- pd transcripts list / show / watch / cost / delete (cli/commands/transcripts.ts)
+- /transcripts*, /transcripts/stream (SSE) routes
+- Fleet Transcripts panel in the dashboard with live SSE updates and a
+  cost rollup header
+
+Security:
+- Common secret patterns (API_KEY=, Bearer, gh*_, sk-, sk-ant-, stripe,
+  AWS AKIA) scrubbed from message content and tool-call args before
+  storage. Last 4 chars preserved for audit reference.
+- Tool-call string fields > 10KB truncated to 1KB + sha256 hash.
+- DELETE gated by destructive-confirm at the CLI layer.
+
+NOTE: server.ts wiring is intentionally NOT in this commit. server.ts is
+currently claimed by another in-flight session (cockpit-phase-2-commit).
+The wiring is a 3-line additive change (import createTranscripts,
+instantiate transcripts module, add to deps). It will land in a follow-up
+once the cockpit session merges, OR can be cherry-picked into the
+cockpit branch by that agent. Without this wiring, /transcripts returns
+501 - the new module exists but is dormant.
+
+Tests: 47 new (transcripts unit 31, transcripts routes 12, spawner
+integration 4). 170 total in related suites pass. tsc clean.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/bin/port-daddy-cli.ts b/bin/port-daddy-cli.ts
+index 8892ded0..391987ef 100755
+--- a/bin/port-daddy-cli.ts
++++ b/bin/port-daddy-cli.ts
+@@ -88,6 +88,8 @@ import {
+   handleHistory,
+   // Spawn + Watch
+   handleSpawn, handleSpawned, handleWatch, handleSortie,
++  // Transcripts
++  handleTranscripts,
+   // Harbors
+   handleHarborCreate, handleHarborEnter, handleHarborLeave, handleHarborShow, handleHarborDestroy, handleHarbors,
+   // Demo
+@@ -391,7 +393,7 @@ function traceCategoryForCommand(command: string): string {
+   if (['pub', 'publish', 'broadcast', 'sub', 'subscribe', 'listen', 'channels', 'tube'].includes(command)) return 'channels';
+   if (['agent', 'agents', 'spawn', 'spawned'].includes(command)) return 'agents';
+   if (['session', 'begin', 'done', 'whoami', 'note', 'notes', 'files', 'who-owns', 'advise'].includes(command)) return 'sessions';
+-  if (['fleet', 'watch', 'sortie'].includes(command)) return 'fleet';
++  if (['fleet', 'watch', 'sortie', 'transcripts'].includes(command)) return 'fleet';
+   if (['lock', 'unlock', 'locks', 'with-lock'].includes(command)) return 'locks';
+   if (['claim', 'c', 'release', 'r', 'find', 'list', 'ps', 'services', 'url', 'env', 'ports'].includes(command)) return 'ports';
+   if (['salvage'].includes(command)) return 'salvage';
+@@ -1205,7 +1207,7 @@ const ALL_COMMANDS: string[] = [
+   'salvage', 'resurrection', 'changelog', 'tunnel',
+   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
+   'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
+-  'spawn', 'spawned', 'watch',
++  'spawn', 'spawned', 'watch', 'transcripts',
+   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+   'quorum',
+   'feedback',
+@@ -2688,6 +2690,12 @@ export async function main(): Promise<void> {
+         await handleWatch(positional[0], options);
+         break;
+ 
++      // Fleet transcripts — chat-record viewer for every ship run
++      case 'transcripts':
++      case 'transcript':
++        await handleTranscripts(positional, options);
++        break;
++
+       // Harbors — named permission namespaces
+       case 'harbor': {
+         const sub = positional[0];
+diff --git a/cli/commands/index.ts b/cli/commands/index.ts
+index d2d4e810..9e3ae327 100644
+--- a/cli/commands/index.ts
++++ b/cli/commands/index.ts
+@@ -26,6 +26,7 @@ export * from './attention.js';
+ export * from './tutorial.js';
+ export * from './inbox.js';
+ export * from './spawn.js';
++export * from './transcripts.js';
+ export * from './sortie.js';
+ export * from './harbors.js';
+ export * from './bench.js';
+diff --git a/cli/commands/transcripts.ts b/cli/commands/transcripts.ts
+new file mode 100644
+index 00000000..3cb041fe
+--- /dev/null
++++ b/cli/commands/transcripts.ts
+@@ -0,0 +1,482 @@
++/**
++ * CLI Transcripts Commands — fleet ship-run conversation viewer.
++ *
++ * Subcommands:
++ *   pd transcripts list                 List recent ship runs
++ *   pd transcripts show <id>            Render a single transcript as a conversation
++ *   pd transcripts watch                Live-tail new transcripts (SSE)
++ *   pd transcripts cost [--since <dur>] Cost rollup by ship and day
++ *   pd transcripts delete <id>          Delete a transcript (destructive — confirmed)
++ */
++
++import { pdFetch } from '../utils/fetch.js';
++import { CLIOptions, isQuiet, isJson } from '../types.js';
++import { IS_TTY, relativeTime } from '../utils/output.js';
++import type { PdFetchResponse } from '../utils/fetch.js';
++import * as ui from '../utils/ui.js';
++import { promptConfirm } from '../utils/prompt.js';
++import { getDaemonTcpUrl } from '../../shared/daemon-discovery.js';
++
++interface TranscriptListRow {
++  id: string;
++  ship: string;
++  spawned_agent_id: string;
++  trigger: string;
++  backend: string;
++  model: string;
++  status: 'running' | 'completed' | 'failed' | 'killed';
++  started_at: number;
++  ended_at: number | null;
++  cost_usd: number | null;
++  tokens_in: number | null;
++  tokens_out: number | null;
++  pr_number: number | null;
++  error: string | null;
++}
++
++interface TranscriptMessage {
++  role: 'system' | 'user' | 'assistant' | 'tool';
++  content: string;
++  timestamp: number;
++  tool_calls?: Array<{ name: string; args: unknown; result?: unknown }>;
++}
++
++interface TranscriptOutput {
++  type: string;
++  url?: string;
++  summary: string;
++}
++
++interface TranscriptFull extends TranscriptListRow {
++  messages: TranscriptMessage[];
++  outputs: TranscriptOutput[];
++}
++
++function parseDuration(value: unknown): number | null {
++  if (typeof value !== 'string') return null;
++  const m = value.trim().match(/^(\d+)\s*([smhd]?)$/i);
++  if (!m) return null;
++  const n = parseInt(m[1], 10);
++  if (!Number.isFinite(n)) return null;
++  const unit = (m[2] || 's').toLowerCase();
++  const mult: Record<string, number> = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 };
++  return n * (mult[unit] ?? 1000);
++}
++
++// =============================================================================
++// pd transcripts (router)
++// =============================================================================
++
++export async function handleTranscripts(args: string[], options: CLIOptions): Promise<void> {
++  const sub = args[0];
++  const rest = args.slice(1);
++  switch (sub) {
++    case undefined:
++    case 'list':
++      return handleTranscriptsList(rest, options);
++    case 'show':
++      return handleTranscriptsShow(rest, options);
++    case 'watch':
++      return handleTranscriptsWatch(rest, options);
++    case 'cost':
++      return handleTranscriptsCost(rest, options);
++    case 'delete':
++    case 'rm':
++      return handleTranscriptsDelete(rest, options);
++    default:
++      console.error(`Unknown subcommand: ${sub}`);
++      console.error('Usage: pd transcripts <list|show|watch|cost|delete>');
++      process.exit(1);
++  }
++}
++
++// =============================================================================
++// list
++// =============================================================================
++
++export async function handleTranscriptsList(args: string[], options: CLIOptions): Promise<void> {
++  const params = new URLSearchParams();
++  if (options.ship && typeof options.ship === 'string') params.set('ship', options.ship);
++  if (options.pr) params.set('pr', String(options.pr));
++  if (options.status && typeof options.status === 'string') params.set('status', options.status);
++  if (options.since) {
++    const ms = parseDuration(options.since);
++    if (ms != null) params.set('since', String(Date.now() - ms));
++  }
++  const limit = options.limit ? parseInt(String(options.limit), 10) : 20;
++  if (Number.isFinite(limit)) params.set('limit', String(limit));
++
++  // Positional arg can also be a ship name
++  if (args[0] && !params.has('ship')) params.set('ship', args[0]);
++
++  const qs = params.toString();
++  const res: PdFetchResponse = await pdFetch(`/transcripts${qs ? `?${qs}` : ''}`, { method: 'GET' });
++  const data = await res.json();
++
++  if (!res.ok) {
++    ui.error((data.error as string) || 'Failed to list transcripts');
++    process.exit(1);
++  }
++
++  const rows = (data.transcripts || []) as TranscriptListRow[];
++
++  if (isJson(options)) {
++    console.log(JSON.stringify(data, null, 2));
++    return;
++  }
++
++  if (rows.length === 0) {
++    if (!isQuiet(options)) console.error('No transcripts');
++    return;
++  }
++
++  if (isQuiet(options)) {
++    for (const r of rows) {
++      console.log(`${r.id}\t${r.ship}\t${r.status}\t${r.backend}\t${(r.cost_usd ?? 0).toFixed(4)}`);
++    }
++    return;
++  }
++
++  console.error('');
++  console.error(
++    'ID'.padEnd(24) +
++    'SHIP'.padEnd(20) +
++    'STATUS'.padEnd(11) +
++    'BACKEND'.padEnd(12) +
++    'PR'.padEnd(8) +
++    'COST'.padEnd(10) +
++    'AGE'
++  );
++  console.error('─'.repeat(95));
++  const nowTs = Date.now();
++  for (const r of rows) {
++    const age = relativeTime(nowTs - r.started_at);
++    const cost = r.cost_usd != null ? `$${r.cost_usd.toFixed(4)}` : '—';
++    const pr = r.pr_number != null ? `#${r.pr_number}` : '—';
++    console.error(
++      r.id.slice(0, 23).padEnd(24) +
++      r.ship.slice(0, 19).padEnd(20) +
++      r.status.padEnd(11) +
++      r.backend.slice(0, 11).padEnd(12) +
++      pr.padEnd(8) +
++      cost.padEnd(10) +
++      age
++    );
++  }
++  console.error('');
++  console.error(`Total: ${rows.length} transcript(s)`);
++  if (rows.length > 0) {
++    console.error(`Open one: pd transcripts show ${rows[0].id}`);
++  }
++}
++
++// =============================================================================
++// show
++// =============================================================================
++
++export async function handleTranscriptsShow(args: string[], options: CLIOptions): Promise<void> {
++  const id = args[0];
++  if (!id) {
++    console.error('Usage: pd transcripts show <id>');
++    process.exit(1);
++  }
++
++  const res: PdFetchResponse = await pdFetch(`/transcripts/${encodeURIComponent(id)}`, { method: 'GET' });
++  const data = await res.json();
++  if (!res.ok) {
++    ui.error((data.error as string) || 'Failed to load transcript');
++    process.exit(1);
++  }
++
++  const tx = data.transcript as TranscriptFull | undefined;
++  if (!tx) {
++    ui.error('No transcript in response');
++    process.exit(1);
++  }
++
++  if (isJson(options)) {
++    console.log(JSON.stringify(tx, null, 2));
++    return;
++  }
++
++  const colorize = IS_TTY;
++  const dim = (s: string): string => (colorize ? `\x1b[2m${s}\x1b[0m` : s);
++  const bold = (s: string): string => (colorize ? `\x1b[1m${s}\x1b[0m` : s);
++  const cyan = (s: string): string => (colorize ? `\x1b[36m${s}\x1b[0m` : s);
++  const green = (s: string): string => (colorize ? `\x1b[32m${s}\x1b[0m` : s);
++  const yellow = (s: string): string => (colorize ? `\x1b[33m${s}\x1b[0m` : s);
++  const red = (s: string): string => (colorize ? `\x1b[31m${s}\x1b[0m` : s);
++
++  const statusColor = tx.status === 'completed' ? green : tx.status === 'failed' ? red : tx.status === 'killed' ? yellow : cyan;
++
++  console.log(bold(`Transcript ${tx.id}`));
++  console.log(dim(`  Ship:      `) + tx.ship);
++  console.log(dim(`  Status:    `) + statusColor(tx.status));
++  console.log(dim(`  Trigger:   `) + tx.trigger);
++  console.log(dim(`  Backend:   `) + `${tx.backend} (${tx.model})`);
++  console.log(dim(`  Agent ID:  `) + tx.spawned_agent_id);
++  console.log(dim(`  Started:   `) + new Date(tx.started_at).toISOString());
++  if (tx.ended_at) {
++    const dur = relativeTime(tx.ended_at - tx.started_at);
++    console.log(dim(`  Ended:     `) + new Date(tx.ended_at).toISOString() + dim(` (took ${dur})`));
++  }
++  if (tx.pr_number != null) console.log(dim(`  PR:        `) + `#${tx.pr_number}`);
++  if (tx.cost_usd != null) console.log(dim(`  Cost:      `) + `$${tx.cost_usd.toFixed(6)}`);
++  if (tx.tokens_in != null || tx.tokens_out != null) {
++    console.log(dim(`  Tokens:    `) + `in=${tx.tokens_in ?? 0}  out=${tx.tokens_out ?? 0}`);
++  }
++  if (tx.error) console.log(dim(`  Error:     `) + red(tx.error));
++
++  console.log('');
++  console.log(bold('── Conversation ──'));
++  for (const m of tx.messages) {
++    const ts = dim(`[${new Date(m.timestamp).toISOString().slice(11, 19)}]`);
++    const label = m.role === 'system'
++      ? yellow('system')
++      : m.role === 'user'
++        ? cyan('user')
++        : m.role === 'assistant'
+
+... [2702 more lines truncated]

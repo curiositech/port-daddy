@@ -63,6 +63,21 @@ enum Fleet {
 
         /// Dead agents — faded version of failure
         static let dead    = SwiftUI.Color(red: 0.78, green: 0.28, blue: 0.24).opacity(0.4)
+
+        /// Parse a `#RRGGBB` / `#RGB` hex string (as the daemon reports a berth
+        /// colour, ADR-0084) into a Color. Returns nil on a malformed string so
+        /// callers fall back to a tier-derived default rather than rendering wrong.
+        static func hex(_ raw: String) -> SwiftUI.Color? {
+            var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if s.hasPrefix("#") { s.removeFirst() }
+            if s.count == 3 { s = s.map { "\($0)\($0)" }.joined() } // #RGB → #RRGGBB
+            guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
+            return SwiftUI.Color(
+                red:   Double((v >> 16) & 0xFF) / 255.0,
+                green: Double((v >> 8) & 0xFF) / 255.0,
+                blue:  Double(v & 0xFF) / 255.0
+            )
+        }
     }
 
     // MARK: - Agent Icons

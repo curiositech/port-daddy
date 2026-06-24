@@ -12,7 +12,7 @@ interface ReplayStep {
 const REPLAY_SCRIPT: ReplayStep[] = [
   { type: 'comment', text: '# Two agents in the same project, zero collisions' },
   { type: 'blank', text: '' },
-  { type: 'command', text: 'pd begin --identity myapp:api --purpose "Refactor auth module"' },
+  { type: 'command', text: 'pd begin --identity myapp:api --purpose "Refactor auth module" --lifecycle durable' },
   { type: 'output', text: '[pd] Session started · myapp:api · agent-7f3a' },
   { type: 'output', text: '  No dead agents in myapp:* — clear skies' },
   { type: 'blank', text: '' },
@@ -24,7 +24,7 @@ const REPLAY_SCRIPT: ReplayStep[] = [
   { type: 'blank', text: '' },
   { type: 'comment', text: '# Meanwhile, Agent 2 arrives...' },
   { type: 'blank', text: '' },
-  { type: 'command', text: 'pd begin --identity myapp:frontend --purpose "Wire auth UI"' },
+  { type: 'command', text: 'pd begin --identity myapp:frontend --purpose "Wire auth UI" --lifecycle durable' },
   { type: 'output', text: '[pd] Session started · myapp:frontend · agent-9c2b' },
   { type: 'output', text: '  [!] 1 agent active in myapp:* → agent-7f3a owns src/auth/*.ts' },
   { type: 'blank', text: '' },

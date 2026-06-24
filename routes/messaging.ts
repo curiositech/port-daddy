@@ -18,6 +18,9 @@ import {
   untrackConnection,
   connectionLimits
 } from '../shared/connection-tracking.js';
+import { decodeMessage, type RawDaemonMessage } from '../lib/tube.js';
+import { buildLineage, summarizeThread, renderLineageTree } from '../lib/discourse-lineage.js';
+import { shouldConvene } from '../lib/parley-trigger.js';
 
 interface MessagingRouteDeps {
   logger: {
@@ -185,6 +188,60 @@ export const messagingPlugin: FastifyPluginAsync<{ deps: MessagingRouteDeps }> =
         limit: safeLimit,
         after: after ? parseInt(after as string, 10) : null
       });
+    } catch (error) {
+      metrics.errors++;
+      reply.code(500);
+      return { error: 'internal server error' };
+    }
+  });
+
+  // GET /msg/:channel/lineage - Argument graph (RCP-14) over a channel's backlog.
+  // Decodes the typed tube envelopes, builds the inReplyTo graph typed by
+  // `relationship`, and returns a digest (zoom-out) + tree (zoom-in) so any
+  // surface (CLI, MCP, pd-console) can render the same reasoning provenance.
+  fastify.get('/msg/:channel/lineage', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const channelValidation = validateChannel((request.params as any).channel);
+      if (!channelValidation.valid) {
+        reply.code(400);
+        return { error: channelValidation.error };
+      }
+
+      const { limit, conversationId, parleyCost, wastePerContradiction } = request.query as any;
+      const MAX_MESSAGE_LIMIT = 2000;
+      const requestedLimit = limit ? parseInt(limit as string, 10) : MAX_MESSAGE_LIMIT;
+      const safeLimit = Math.min(Math.max(1, requestedLimit), MAX_MESSAGE_LIMIT);
+      // Parley costs (RCP-2a). Tunable via query; unit-scaled defaults.
+      const costs = {
+        parleyCost: Number.isFinite(parseFloat(parleyCost)) ? parseFloat(parleyCost) : 1,
+        wastePerUnresolved: Number.isFinite(parseFloat(wastePerContradiction)) ? parseFloat(wastePerContradiction) : 2,
+      };
+
+      const result = messaging.getMessages((request.params as any).channel, { limit: safeLimit, after: null }) as
+        { success?: boolean; messages?: Array<{ id: number; payload: unknown; contentType?: string; sender: string | null; createdAt: number }> };
+
+      if (!result || result.success === false || !Array.isArray(result.messages)) {
+        const emptyDigest = summarizeThread(buildLineage([]));
+        return { ok: true, channel: (request.params as any).channel, digest: emptyDigest, parley: shouldConvene(emptyDigest, costs), tree: '' };
+      }
+
+      let decoded = result.messages.map((m) => decodeMessage(m as RawDaemonMessage));
+      if (typeof conversationId === 'string' && conversationId) {
+        decoded = decoded.filter((m) => m.conversationId === conversationId);
+      }
+
+      const graph = buildLineage(decoded);
+      const digest = summarizeThread(graph);
+      return {
+        ok: true,
+        channel: (request.params as any).channel,
+        ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
+        digest,
+        // RCP-2a: should the swarm convene a parley over the unresolved
+        // contradictions? P(fail)·waste·|unresolved| > parleyCost.
+        parley: shouldConvene(digest, costs),
+        tree: renderLineageTree(graph),
+      };
     } catch (error) {
       metrics.errors++;
       reply.code(500);

@@ -124,7 +124,7 @@ export const conceptsSection: DocsContentSection = {
             links: [{ label: 'sessions', href: '/docs/features/sessions' }, { label: 'notes', href: '/docs/cli/note' }],
             example: {
               command:
-                'pd begin "repair docs primitives" --identity port-daddy:docs:main\npd note "Scope: docs/concepts/primitives.md and website-v2 docs content."',
+                'pd begin "repair docs primitives" --identity port-daddy:docs:main --lifecycle durable\npd note "Scope: docs/concepts/primitives.md and website-v2 docs content."',
               output:
                 'SUCCESS: Agent repair docs primitives ready\n  Session: session-repair-docs-primitives\nSUCCESS: Note added',
             },
@@ -204,7 +204,7 @@ export const conceptsSection: DocsContentSection = {
             title: 'Sessions, notes, and file or symbol claims',
             summary: 'Work has an identity, immutable notes, and advisory edit claims before Git sees the final diff.',
             websiteDocs: [
-              site('Sessions', '/docs/features/sessions', 'every note is append-only, and file claims prevent conflicts before they happen'),
+              site('Sessions', '/docs/features/sessions', 'every note is append-only, and file claims announce edit intent so overlaps are visible early'),
               site('Session file claims', '/docs/features/sessions', 'File claims are advisory locks that warn agents about overlapping edits'),
             ],
             runtimeCode: [repo('lib/sessions.ts', '1-7'), repo('lib/sessions.ts', '54-77'), repo('lib/sessions.ts', '156-282'), repo('lib/sessions.ts', '1047-1089'), repo('lib/sessions.ts', '1272-1395'), repo('routes/sessions.ts'), repo('cli/commands/sessions.ts')],
@@ -444,7 +444,7 @@ export const conceptsSection: DocsContentSection = {
           type: 'paragraph',
           title: 'Sessions: durable records of intent',
           paragraphs: [
-            'A Port Daddy session ties identity, purpose, file claims, and notes together into a durable record. `pd begin "<purpose>"` creates the session. `pd note` appends immutable evidence — notes are append-only and cannot be edited or deleted individually, which is what makes them trustworthy as handoff context. `pd done "<summary>"` closes it cleanly, releases file claims, and marks the session completed.',
+            'A Port Daddy session ties identity, purpose, lifecycle, file claims, and notes together into a durable record. `pd begin "<purpose>" --lifecycle durable` creates an ordinary agent work session. `pd note` appends immutable evidence — notes are append-only and cannot be edited or deleted individually, which is what makes them trustworthy as handoff context. `pd done "<summary>"` closes it cleanly, releases file claims, and marks the session completed.',
             'The session record in `lib/sessions.ts` stores a `status` of `active`, `completed`, or `abandoned`, and a `phase` (such as `in_progress`, `planning`, or `reviewing`). On top of these, the Coordination Guard and skill references define a derived lifecycle view: a freshly created session with no claims or notes yet, an active session that has been observed recently, an idle session whose heartbeat window has lapsed, an abandoned session that has entered the salvage queue, a salvaged session being continued by a new agent, and a completed session. Knowing these derived states matters for interpreting guard check output and salvage queue entries.',
           ],
         },
@@ -452,7 +452,7 @@ export const conceptsSection: DocsContentSection = {
           type: 'command',
           title: 'The basic session loop',
           command:
-            'pd begin "Add rate limiting to the auth API" --identity myapp:api:main\npd note "Scope: lib/auth.ts, routes/auth.ts. Using sliding-window limiter."\npd session files add lib/auth.ts\npd done "Rate limiting added, tests passing."',
+            'pd begin "Add rate limiting to the auth API" --identity myapp:api:main --lifecycle durable\npd note "Scope: lib/auth.ts, routes/auth.ts. Using sliding-window limiter."\npd session files add lib/auth.ts\npd done "Rate limiting added, tests passing."',
           output:
             'SUCCESS: Agent Add rate limiting to the auth API ready\n  Session: session-add-rate-limiting-to-the-auth-api\n  Identity: myapp:api:main\nSUCCESS: Note added\nSUCCESS: lib/auth.ts claimed\nSUCCESS: Session completed',
           notes: [
@@ -538,7 +538,7 @@ export const conceptsSection: DocsContentSection = {
         },
         {
           type: 'command',
-          title: 'Signal readiness and declare a dependency',
+          title: 'Signal what is ready and declare a dependency',
           command:
             'pd integration ready myapp:api "Auth endpoints live at :3401"\npd integration needs myapp:frontend "Waiting for API auth endpoints"',
           output:
@@ -638,7 +638,7 @@ export const conceptsSection: DocsContentSection = {
             'SUCCESS: myapp:api claimed port 3401\nmyapp:api        3401  running\nmyapp:frontend   3402  running',
           notes: [
             'Use quotes around wildcard patterns in the shell to prevent glob expansion.',
-            'pd begin --identity myapp:api:main attaches the session to that identity for salvage and briefing filters.',
+            'pd begin --identity myapp:api:main --lifecycle durable attaches the session to that identity for salvage and briefing filters.',
           ],
         },
         {

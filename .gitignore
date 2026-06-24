@@ -76,3 +76,13 @@ agentsd_mocks/
 
 # Ephemeral scratch for scripts/smoke-compiled-daemon.sh
 .smoke-tmp/
+
+# Local scratch/probe scripts and generated artifact lists
+**/.scratch/
+
+# Xcode/SwiftPM user-specific and generated workspace files
+xcuserdata/
+**/.swiftpm/xcode/package.xcworkspace/
+
+# Ephemeral runtime lock files
+.claude/scheduled_tasks.lock

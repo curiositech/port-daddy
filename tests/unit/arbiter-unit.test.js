@@ -862,3 +862,49 @@ describe('CAP_ESCALATION runtime monitor fallback', () => {
     expect(arbiter.getViolationsCount()).toBe(0);
   });
 });
+
+// ─── Forensics sink (ADR-0089) ─────────────────────────────────────────────────
+
+describe('forensics sink — durable security retention', () => {
+  function capturingSink() {
+    const recorded = [];
+    return { recorded, record: (e) => recorded.push(e) };
+  }
+
+  test('every recorded violation is mirrored to the forensics sink (full event)', () => {
+    const sink = capturingSink();
+    const arbiter = createArbiter({ ...buildDeps(), forensicsSink: sink });
+    const v = arbiter.injectTestViolation('PID_SQUATTING');
+    expect(v).not.toBeNull();
+    expect(sink.recorded).toHaveLength(1);
+    expect(sink.recorded[0].rule).toBe('PID_SQUATTING');
+    expect(sink.recorded[0].severity).toBe('critical');
+    expect(sink.recorded[0].details).toMatch(/PID squatting/i);
+  });
+
+  test('a throwing sink never breaks violation recording (fire-and-forget)', () => {
+    const arbiter = createArbiter({
+      ...buildDeps(),
+      forensicsSink: { record: () => { throw new Error('disk full'); } },
+    });
+    expect(() => arbiter.injectTestViolation('PID_SQUATTING')).not.toThrow();
+    expect(arbiter.getViolationsCount()).toBe(1); // recording still succeeded
+  });
+
+  test('no sink configured → recording unaffected (back-compat)', () => {
+    const arbiter = createArbiter(buildDeps());
+    expect(() => arbiter.injectTestViolation('NOTE_MONOTONICITY')).not.toThrow();
+    expect(arbiter.getViolationsCount()).toBe(1);
+  });
+
+  test('the forensics sink also fires when activity_log would later prune the event', () => {
+    // The sink is written BEFORE activityLog.log, so it is independent of the
+    // 7-day activity prune — that independence is the whole point.
+    const sink = capturingSink();
+    const activityLog = createMockActivityLog();
+    const arbiter = createArbiter({ ...buildDeps({ activityLog }), forensicsSink: sink });
+    arbiter.injectTestViolation('PID_SQUATTING');
+    expect(sink.recorded).toHaveLength(1);
+    expect(activityLog.getLogged().some((e) => e.type === 'security.violation')).toBe(true);
+  });
+});

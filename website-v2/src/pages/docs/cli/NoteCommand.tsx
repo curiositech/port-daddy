@@ -53,7 +53,7 @@ Note added to session xyz789`
         },
         {
           description: 'Typical workflow with multiple note types',
-          code: `pd begin --identity myapp:api --purpose "Add rate limiting"
+          code: `pd begin --identity myapp:api --purpose "Add rate limiting" --lifecycle durable
 pd note "Started rate limiting implementation" --type progress
 pd note "Decided to use sliding window algorithm" --type decision
 pd note "Basic rate limiter working for single instance" --type milestone

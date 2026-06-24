@@ -48,7 +48,7 @@ flowchart TD
 ### Example 1: Adding a feature to one file
 
 ```bash
-pd begin "Add /examples/leader-election to website-v2 examples list"
+pd begin "Add /examples/leader-election to website-v2 examples list" --lifecycle durable
 pd note "Scope: website-v2/src/data/examples.ts"
 pd session files claim website-v2/src/data/examples.ts
 # edit
@@ -61,7 +61,7 @@ Session ✓, claim ✓, no lock needed (no exclusive resource).
 ### Example 2: Promote-stable
 
 ```bash
-pd begin "Promote main@<sha> to stable"
+pd begin "Promote main@<sha> to stable" --lifecycle durable
 pd lock acquire stable-promotion --ttl 600     # exclusive
 pd session files claim port-daddy-stable/CURRENT-SHA
 # build, test, install
@@ -76,7 +76,7 @@ Session ✓, claim ✓, lock ✓ — because two simultaneous promotions would c
 
 ```bash
 # Parent:
-pd begin "Add 3 endpoints to routes/fleet.ts"
+pd begin "Add 3 endpoints to routes/fleet.ts" --lifecycle durable
 pd session files claim routes/fleet.ts        # broad parent claim
 
 # Spawn 3 sub-agents, each with symbol-scoped claim:

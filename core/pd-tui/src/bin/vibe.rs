@@ -14,7 +14,7 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use pd_tui::{active_theme, flags};
+use pd_tui::{active_theme, flags, logo::AnimatedLogo};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout, Rect},
@@ -34,6 +34,8 @@ struct App {
     input: String,
     cursor_blink_on: bool,
     last_tick: Instant,
+    started: Instant,
+    splash: bool,
     quit: bool,
 }
 
@@ -43,11 +45,26 @@ impl App {
             input: String::new(),
             cursor_blink_on: true,
             last_tick: Instant::now(),
+            started: Instant::now(),
+            splash: true,
             quit: false,
         }
     }
 
+    /// Animation frame for the splash logo — one frame per 100ms.
+    fn logo_frame(&self) -> u64 {
+        self.started.elapsed().as_millis() as u64 / 100
+    }
+
     fn on_key(&mut self, key: KeyCode) {
+        if self.splash {
+            // Any key docks into the main screen; q/Esc still quits.
+            match key {
+                KeyCode::Char('q') | KeyCode::Esc => self.quit = true,
+                _ => self.splash = false,
+            }
+            return;
+        }
         match key {
             KeyCode::Char('q') | KeyCode::Esc => self.quit = true,
             KeyCode::Char(c) => self.input.push(c),
@@ -115,6 +132,29 @@ fn run(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result<()> {
 
 fn draw(frame: &mut Frame, app: &App) {
     let theme = active_theme();
+
+    // Splash: the animated logo — glints, winks, melts into waves and a
+    // sun, then reassembles. Any key docks into the main screen.
+    if app.splash {
+        frame.render_widget(AnimatedLogo::new(app.logo_frame()), frame.area());
+        // The splash forces a dark backdrop (see AnimatedLogo), so the hint
+        // resolves its color from the dark theme regardless of PD_THEME.
+        let splash_theme: &dyn pd_tui::tokens::Theme = &pd_tui::tokens::dark::THEME;
+        let hint = Line::from(Span::styled(
+            "any key to dock · q to quit",
+            Style::default().fg(splash_theme.text_body_subtle()),
+        ))
+        .centered();
+        let area = frame.area();
+        let hint_area = Rect {
+            x: area.x,
+            y: area.y + area.height.saturating_sub(2),
+            width: area.width,
+            height: 1,
+        };
+        frame.render_widget(Paragraph::new(hint), hint_area);
+        return;
+    }
 
     // Layout: 3-row vertical — top hero cost strip, chat scrollback, input.
     let chunks = Layout::default()

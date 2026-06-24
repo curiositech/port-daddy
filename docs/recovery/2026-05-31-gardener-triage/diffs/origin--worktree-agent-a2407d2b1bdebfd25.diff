@@ -1,0 +1,346 @@
+STATS:
+ .../public/img/generated/cli-backend-hero.png      | Bin 0 -> 842759 bytes
+ .../img/generated/cli-backend-howitworks.png       | Bin 0 -> 615570 bytes
+ .../public/img/generated/cli-backend-math.png      | Bin 0 -> 667010 bytes
+ website-v2/src/App.tsx                             |   2 +
+ .../src/components/landing/CliBackendValueProp.tsx |  94 +++++
+ website-v2/src/components/landing/Hero.tsx         |  23 ++
+ website-v2/src/components/site/SiteHeader.tsx      |   1 +
+ website-v2/src/data/docs.ts                        |   6 +-
+ website-v2/src/main.tsx                            |   3 +
+ website-v2/src/pages/cli-backend/index.tsx         | 439 +++++++++++++++++++++
+ .../src/pages/docs/features/FleetFeature.tsx       |  15 +-
+ 11 files changed, 576 insertions(+), 7 deletions(-)
+
+---
+LAST COMMIT:
+d73963379f423a4265c69ae2fca8d02e722ca704
+Erich Owens <[redacted]>
+2026-05-20 11:10:50 -0700
+feat(website): cli-backend pitch — hero callout, /cli-backend page, landing tile
+
+Operator framing: your $20/mo ChatGPT Pro or $200/mo Claude Max powers the
+entire fleet at zero marginal cost. Lands in three places.
+
+- Hero: new prominent callout box under the H1, links to /cli-backend.
+- /cli-backend: full page with hero, pd-tube cutaway, honest math table,
+  100-PR worked example, 3-command setup, use/skip matrix, fine print,
+  bottom CTA. Three bespoke nano-banana figures on the blueprint
+  brand voice: fig.1 (the subscription, multiplied), fig.2 (pd-tube
+  wraps the CLI), fig.3 (the math, honestly).
+- Landing tile: CliBackendValueProp between Hero and TubeShowcase. Three
+  numbers — $0.00 / 2 min / claude-cli + codex first-class.
+- SiteHeader: "CLI Backend" overflow nav with $0 badge.
+- Reordered backends list in docs (claude-cli + codex lead; cloudflare
+  and API direct framed as fallback rungs). Updated spawn example.
+
+Voice: cathedral build, em-dashes, high-low collisions per user_voice_website.
+
+Validation: npm run build clean (302 routes), headless Playwright
+screenshots captured in both light and dark themes.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/website-v2/public/img/generated/cli-backend-hero.png b/website-v2/public/img/generated/cli-backend-hero.png
+new file mode 100644
+index 00000000..fc164ad4
+Binary files /dev/null and b/website-v2/public/img/generated/cli-backend-hero.png differ
+diff --git a/website-v2/public/img/generated/cli-backend-howitworks.png b/website-v2/public/img/generated/cli-backend-howitworks.png
+new file mode 100644
+index 00000000..3dc36232
+Binary files /dev/null and b/website-v2/public/img/generated/cli-backend-howitworks.png differ
+diff --git a/website-v2/public/img/generated/cli-backend-math.png b/website-v2/public/img/generated/cli-backend-math.png
+new file mode 100644
+index 00000000..fdcfc50a
+Binary files /dev/null and b/website-v2/public/img/generated/cli-backend-math.png differ
+diff --git a/website-v2/src/App.tsx b/website-v2/src/App.tsx
+index bd29faef..a8d1ad46 100644
+--- a/website-v2/src/App.tsx
++++ b/website-v2/src/App.tsx
+@@ -1,5 +1,6 @@
+ import './App.css'
+ import { Hero } from '@/components/landing/Hero'
++import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
+ import { TubeShowcase } from '@/components/landing/TubeShowcase'
+ import { CoordinationEnforcementSection } from '@/components/landing/CoordinationEnforcementSection'
+ import { AgentConversationSection } from '@/components/landing/AgentConversationSection'
+@@ -32,6 +33,7 @@ export default function App() {
+             7. Features        — catalog after the reader has context
+         */}
+         <Hero />
++        <CliBackendValueProp />
+         <TerminalDemos />
+         <CoordinationEnforcementSection />
+         <AgentConversationSection />
+diff --git a/website-v2/src/components/landing/CliBackendValueProp.tsx b/website-v2/src/components/landing/CliBackendValueProp.tsx
+new file mode 100644
+index 00000000..beb3e5f7
+--- /dev/null
++++ b/website-v2/src/components/landing/CliBackendValueProp.tsx
+@@ -0,0 +1,94 @@
++import { ArrowRight } from 'lucide-react'
++import { Link } from 'react-router-dom'
++import {
++  BracketLabel,
++  PageContainer,
++  PanelBody,
++  PanelEyebrow,
++  PanelTitle,
++  SurfacePanel,
++} from '@/components/site/primitives'
++
++/**
++ * Landing value-prop tile for the CLI backend pitch.
++ * The operator's exact framing: your $20/mo Pro or $200/mo Max
++ * powers the entire fleet at zero marginal cost. Lives between
++ * the hero and the deeper sections; links to /cli-backend for
++ * the full pitch.
++ */
++export function CliBackendValueProp() {
++  return (
++    <section
++      id="cli-backend"
++      className="border-t-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]"
++    >
++      <PageContainer width="wide">
++        <SurfacePanel className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
++          <div className="space-y-[var(--space-5)]">
++            <BracketLabel>The fleet wallet</BracketLabel>
++            <PanelTitle as="h2" size="display" className="max-w-[18ch]">
++              Your AI subscription, but better.
++            </PanelTitle>
++            <PanelBody className="max-w-[44rem]">
++              Bring your Claude Max or ChatGPT Pro. The fleet rides for free.{' '}
++              <strong className="text-[var(--text-primary)]">
++                Your $20/month ChatGPT Pro or $200/month Claude Max subscription powers the entire
++                fleet at zero marginal cost.
++              </strong>{' '}
++              Same login, same model, more hours of work per day — the difference between a
++              tireless coworker and a metered API connection turns out to be one environment
++              variable.
++            </PanelBody>
++            <div className="grid gap-[var(--space-3)] sm:grid-cols-3">
++              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
++                <PanelEyebrow>Marginal cost</PanelEyebrow>
++                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--brand-primary)]">
++                  $0.00
++                </p>
++                <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
++                  per spawn, on the seat you already pay for
++                </p>
++              </div>
++              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
++                <PanelEyebrow>Setup time</PanelEyebrow>
++                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--brand-primary)]">
++                  2 min
++                </p>
++                <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
++                  brew install, one env var, fleet up
++                </p>
++              </div>
++              <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
++                <PanelEyebrow>Backends</PanelEyebrow>
++                <p className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--brand-primary)]">
++                  claude-cli · codex
++                </p>
++                <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
++                  first-class — Cloudflare and API direct are the fallback rungs
++                </p>
++              </div>
++            </div>
++            <div className="pt-[var(--space-2)]">
++              <Link
++                to="/cli-backend"
++                className="group inline-flex items-center gap-2 border-2 border-[var(--border-strong)] bg-[var(--text-primary)] px-[var(--space-4)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--surface-base)] no-underline transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
++              >
++                Read the pitch
++                <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" />
++              </Link>
++            </div>
++          </div>
++
++          <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
++            <img
++              src="/img/generated/cli-backend-hero.png"
++              alt="Blueprint illustration of a single AI subscription card distributing pipelines to a fleet of small sailing ships, each labeled with a Port Daddy fleet agent name."
++              className="block h-full w-full object-cover"
++              loading="lazy"
++            />
++          </div>
++        </SurfacePanel>
++      </PageContainer>
++    </section>
++  )
++}
+diff --git a/website-v2/src/components/landing/Hero.tsx b/website-v2/src/components/landing/Hero.tsx
+index a4e2fd88..8c8601d5 100644
+--- a/website-v2/src/components/landing/Hero.tsx
++++ b/website-v2/src/components/landing/Hero.tsx
+@@ -40,6 +40,29 @@ export function Hero() {
+               bodyClassName="max-w-[34rem]"
+             />
+ 
++            {/* CLI-backend pitch — the operator's load-bearing line. */}
++            <Link
++              to="/cli-backend"
++              className="group block max-w-[34rem] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)] no-underline transition-colors hover:bg-[var(--brand-primary)] hover:text-[var(--brand-primary-foreground)]"
++            >
++              <div className="flex items-start justify-between gap-[var(--space-3)]">
++                <div className="space-y-[var(--space-2)]">
++                  <span className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] group-hover:text-[color:var(--brand-primary-foreground-muted)]">
++                    Already pay for Claude Max or ChatGPT Pro?
++                  </span>
++                  <p className="font-sans text-[length:var(--type-panel-body-size)] leading-[var(--leading-body)] text-[var(--text-primary)] group-hover:text-[var(--brand-primary-foreground)]">
++                    <strong>The fleet rides on your subscription at $0 marginal cost.</strong>{' '}
++                    Claude Code and Codex as first-class backends — setup takes two minutes.
++                  </p>
++                </div>
++                <ArrowRight
++                  size={18}
++                  aria-hidden="true"
++                  className="mt-1 shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--brand-primary-foreground)]"
++                />
++              </div>
++            </Link>
++
+             {/* Feature pills */}
+             <div className="flex max-w-[34rem] flex-wrap gap-2">
+               {[
+diff --git a/website-v2/src/components/site/SiteHeader.tsx b/website-v2/src/components/site/SiteHeader.tsx
+index 80e7b48c..45954ba5 100644
+--- a/website-v2/src/components/site/SiteHeader.tsx
++++ b/website-v2/src/components/site/SiteHeader.tsx
+@@ -32,6 +32,7 @@ const PRIMARY_NAV_ITEMS = [
+ ] satisfies readonly NavItem[];
+ 
+ const OVERFLOW_NAV_ITEMS = [
++  { label: "CLI Backend", href: "/cli-backend", end: true, badge: "$0" },
+   { label: "Examples", href: "/examples", end: false },
+   { label: "Tutorials", href: "/tutorials", end: false },
+   { label: "Templates", href: "/agents/templates", end: true },
+diff --git a/website-v2/src/data/docs.ts b/website-v2/src/data/docs.ts
+index 521cd7f3..528d13a2 100644
+--- a/website-v2/src/data/docs.ts
++++ b/website-v2/src/data/docs.ts
+@@ -217,15 +217,15 @@ export const CLI_COMMANDS: CliCommand[] = [
+     cmd: 'pd spawn',
+     description: 'Launch an AI agent with Port Daddy coordination pre-wired. The agent auto-registers, sends heartbeats, writes notes, and gets salvaged if it crashes.',
+     flags: [
+-      '--backend <type>      AI backend: ollama | cloudflare | claude | claude-cli | codex | gemini | aider | custom (only ready backends launch)',
++      '--backend <type>      AI backend: claude-cli | codex | cloudflare | claude | ollama | gemini | aider | custom. claude-cli and codex ride your Claude Max / ChatGPT Pro at $0 marginal.',
+       "--model <name>        Model to use (e.g. '@cf/qwen/qwen3-30b-a3b-fp8', claude-haiku-4-5)",
+       '--identity <id>       Semantic identity for this agent',
+       '--purpose <text>      What this agent should do',
+       '--harbor <name>       Run agent inside a harbor (scoped permissions)',
+       '-- <prompt>           Prompt to send (last argument)',
+     ],
+-    example: 'pd spawn --backend claude --model claude-haiku-4-5 \\\n  --identity myapp:reviewer \\\n  -- "Review src/auth/ for security vulnerabilities"',
+-    output: '[pd] Spawned agent myapp:reviewer (session def456)\n[pd] Backend: claude · Model: claude-haiku-4-5\n[pd] Running...',
++    example: 'pd spawn --backend claude-cli \\\n  --identity myapp:reviewer \\\n  -- "Review src/auth/ for security vulnerabilities"',
++    output: '[pd] Spawned agent myapp:reviewer (session def456)\n[pd] Backend: claude-cli · ride: your Claude Max seat · marginal: $0.00\n[pd] Running...',
+   },
+   {
+     group: 'Agents',
+diff --git a/website-v2/src/main.tsx b/website-v2/src/main.tsx
+index 97aa5ec6..b0303ed6 100644
+--- a/website-v2/src/main.tsx
++++ b/website-v2/src/main.tsx
+@@ -24,6 +24,7 @@ const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPa
+ const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
+ const McpPage = lazy(() => import('@/pages/MCPPage'))
+ const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
++const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
+ const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
+ const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
+ const LandscapePage = lazy(() => import('@/pages/landscape'))
+@@ -234,6 +235,8 @@ createRoot(document.getElementById('root')!).render(
+               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
+ 
+               <Route path="/landscape" element={<LandscapePage />} />
++
++              <Route path="/cli-backend" element={<CliBackendPage />} />
+             </Route>
+ 
+             <Route path="/docs" element={<DocsLayout />}>
+diff --git a/website-v2/src/pages/cli-backend/index.tsx b/website-v2/src/pages/cli-backend/index.tsx
+new file mode 100644
+index 00000000..e3c16fd7
+--- /dev/null
++++ b/website-v2/src/pages/cli-backend/index.tsx
+@@ -0,0 +1,439 @@
++import { Link } from 'react-router-dom'
++import {
++  BracketLabel,
++  BracketLink,
++  CommandBlock,
++  DocsHero,
++  DocsNoteCard,
++  PageContainer,
++  PanelBody,
++  PanelEyebrow,
++  PanelTitle,
++  SectionIntro,
++  SurfacePanel,
++  SwissGrid,
++  SwissGridItem,
++} from '@/components/site/primitives'
++
++/**
++ * /cli-backend — the operator's pitch for using Claude Max / ChatGPT Pro
++ * subscriptions as the fleet's execution backend. Voice: cathedral build,
++ * cream-blueprint imagery, real numbers, honest fine print.
++ */
++export default function CliBackendPage() {
++  return (
++    <div className="space-y-[var(--space-8)] py-[var(--space-7)] lg:space-y-[var(--space-9)] lg:py-[var(--space-8)]">
++      {/* Hero */}
++      <PageContainer width="wide">
++        <DocsHero
++          eyebrow="The shape of the deal"
++          title="Your AI subscription, but it pays for itself by running the fleet."
++          titleClassName="!max-w-[22ch]"
++          summary="Already pay $20/month for ChatGPT Pro? $200 for Claude Max? Port Daddy treats those CLIs as first-class execution backends. The same fleet of background agents that lints, reviews, summarizes, and ships rides on the license you already bought, at zero marginal cost per spawn."
++          paragraphs={[
++            <>
++              Most agent platforms hand you the bill twice — once for the chat seat you use as a
++              person, again for the API tokens the agents burn at night. That feels backwards. The
++              license is already paid. The model is already there. The CLI is already on your
++              <code>PATH</code>. Port Daddy just hands the local fleet the same handle you reach
++              for, and lets it work in the slack hours between your interactive turns.
++            </>,
++            <>
++              Setup is two minutes — install <code>pd</code>, make sure <code>claude</code> or{' '}
++              <code>codex</code> is logged in, set one environment variable, start the fleet. The
++              honest fine print is at the bottom of this page; the math is in the middle. Read in
++              any order — the punchline doesn&apos;t move.
++            </>,
++          ]}
++          aside={
++            <SurfacePanel>
++              <div className="space-y-[var(--panel-gap)]">
++                <BracketLabel>Two-minute setup</BracketLabel>
++                <CommandBlock
++                  title="brew install pd"
++                  command={`# 1. Daemon + CLI\nbrew install curiositech/tap/port-daddy\n\n# 2. Make sure your subscription CLI is logged in\nclaude --version       # or: codex --version\n\n# 3. Tell the fleet to ride your subscription\nexport PD_USE_CLI_BACKEND=claude-cli\npd fleet up`}
++                  hideLabel
++                />
++                <PanelBody size="compact" tone="default">
++                  That is the whole setup. The fleet now drafts PR reviews, lints commits, and
++                  drafts release notes against the same model you have open in the editor.
++                </PanelBody>
++              </div>
++            </SurfacePanel>
++          }
++        />
++      </PageContainer>
++
++      {/* Hero figure */}
++      <PageContainer width="wide">
++        <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
++          <img
++            src="/img/generated/cli-backend-hero.png"
++            alt="Blueprint diagram of a single AI subscription card distributing cobalt-blue pipelines down to seven small sailing ships, each labeled with a fleet agent name: gardener, qa, spider, tenderfoot, cartographer, spark, augur."
++            className="block w-full"
+
+... [395 more lines truncated]

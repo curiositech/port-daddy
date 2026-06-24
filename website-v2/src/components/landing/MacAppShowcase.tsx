@@ -26,34 +26,34 @@ type ThemedScreenshot = {
 }
 
 const fleetbarNativeShellScreenshots: ThemedScreenshot = {
-  light: '/img/app-screens/fleetbar-native-shell-light.png',
-  dark: '/img/app-screens/fleetbar-native-shell-dark.png',
+  light: '/img/app-screens/fleetbar-native-shell-light.webp',
+  dark: '/img/app-screens/fleetbar-native-shell-dark.webp',
 }
 
 const surfaceScreenshots: Record<string, ThemedScreenshot> = {
   'fleet-flow': {
-    light: '/img/app-screens/fleet-flow-light.png',
-    dark: '/img/app-screens/fleet-flow-dark.png',
+    light: '/img/app-screens/fleet-flow-light.webp',
+    dark: '/img/app-screens/fleet-flow-dark.webp',
   },
   resources: {
-    light: '/img/app-screens/resources-light.png',
-    dark: '/img/app-screens/resources-dark.png',
+    light: '/img/app-screens/resources-light.webp',
+    dark: '/img/app-screens/resources-dark.webp',
   },
   sorties: {
-    light: '/img/app-screens/sorties-light.png',
-    dark: '/img/app-screens/sorties-dark.png',
+    light: '/img/app-screens/sorties-light.webp',
+    dark: '/img/app-screens/sorties-dark.webp',
   },
   'shipwright-harbor': {
-    light: '/img/app-screens/shipwright-harbor-light.png',
-    dark: '/img/app-screens/shipwright-harbor-dark.png',
+    light: '/img/app-screens/shipwright-harbor-light.webp',
+    dark: '/img/app-screens/shipwright-harbor-dark.webp',
   },
   'shipwright-focus': {
-    light: '/img/app-screens/shipwright-focus-light.png',
-    dark: '/img/app-screens/shipwright-focus-dark.png',
+    light: '/img/app-screens/shipwright-focus-light.webp',
+    dark: '/img/app-screens/shipwright-focus-dark.webp',
   },
   'shipwright-control': {
-    light: '/img/app-screens/shipwright-control-light.png',
-    dark: '/img/app-screens/shipwright-control-dark.png',
+    light: '/img/app-screens/shipwright-control-light.webp',
+    dark: '/img/app-screens/shipwright-control-dark.webp',
   },
 }
 

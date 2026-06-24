@@ -1,0 +1,53 @@
+(*
+ * Port Daddy: GitHub-App-via-Relay — HPKE PAYLOAD SECRECY (FIXED)
+ * ===============================================================
+ *
+ * Proves the design of the NEXT surface before it is built: the receiver Worker
+ * HPKE-seals each webhook to the SUBSCRIBING DAEMON's X25519 public key, so the
+ * relay (Dolev-Yao attacker, A2) routes ciphertext only and never sees payload
+ * plaintext (invariant I1). HPKE/X25519 modeled as asymmetric encryption to the
+ * daemon's keypair, matching relay_e2e_secrecy.pv's primitive.
+ *
+ * THE LOAD-BEARING DETAIL (antagonist's B2): secrecy holds ONLY IF the receiver
+ * seals to the daemon's AUTHENTICATED public key — pinned at enrollment or signed
+ * under the harbor key — NOT a key it learned from the relay. Here the receiver
+ * uses the pinned key (passed as a parameter, never read from the attacker
+ * channel). The companion _vuln file shows what breaks when the key comes from
+ * the relay instead.
+ *
+ * CRYPTO ASSUMPTION: HPKE base mode (RFC 9180, X25519 + AES-256-GCM) is IND-CCA2;
+ * symbolic secrecy transfers to computational confidentiality.
+ *
+ * EXPECTED RESULT:
+ *   query attacker(webhook_payload)   is FALSE   (relay never learns plaintext)
+ *   i.e. ProVerif prints: RESULT not attacker(webhook_payload[]) is true.
+ *)
+
+type skey.  type pkey.   (* daemon HPKE recipient keypair *)
+
+free c: channel.          (* relay-controlled channel == the Dolev-Yao attacker *)
+
+fun pk(skey): pkey.
+fun aenc(bitstring, pkey): bitstring.
+reduc forall m: bitstring, k: skey; adec(aenc(m, pk(k)), k) = m.
+
+free webhook_payload: bitstring [private].
+
+(* I1: the malicious relay (= attacker) cannot learn the webhook plaintext. *)
+query attacker(webhook_payload).
+
+(* Receiver seals to the daemon's PINNED, authenticated pubkey (parameter dpk),
+ * never a key read off the relay channel. *)
+let Receiver(dpk: pkey) =
+    out(c, aenc(webhook_payload, dpk)).
+
+let Daemon(dsk: skey) =
+    in(c, ct: bitstring);
+    let m = adec(ct, dsk) in
+    0.
+
+process
+    new dsk: skey;
+    let dpk = pk(dsk) in
+    out(c, dpk);                       (* daemon pubkey is public — that is fine *)
+    ( (! Receiver(dpk)) | (! Daemon(dsk)) )

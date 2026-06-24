@@ -1,12 +1,10 @@
 # Running Is Not the Same as Current
 
-Local-first developer tools have a failure mode that cloud products often hide: the process can be alive and still be the wrong process.
+You fixed the bug an hour ago. You changed `ProjectPicker.tsx`, the daemon answers `pd status` with a cheerful "reachable," and the browser tab in front of you still shows the old, broken picker. So you fix it again. Same edit, slightly different. Still broken in the tab. You start to doubt your own diff — until you notice the daemon is serving a bundle it built before lunch, and the tab you have been staring at was never going to show your work no matter how many times you wrote it.
 
-A daemon can respond to health checks while serving an older bundle. A CLI can be on your path while pointing at a different install root. A browser tab can show a working UI while connected to the wrong TCP port. A native companion app can be open while embedded against stale assets. From the user's point of view, everything is "running." From an operator's point of view, the state is not current.
+Nothing in that scene was *down*. The daemon was alive. The CLI was on your path. The browser rendered a perfectly good UI. Every health check was green, and every one of them was answering the wrong question. That is the failure mode local-first tools quietly carry that cloud products hide: a process can be alive and still be the wrong process. A daemon serves an older bundle. A CLI points at a different install root. A tab talks to the wrong TCP port. A native companion app embeds stale assets. From the user's seat, everything is "running." From an operator's seat, the state is not current — and the gap between those two words is where an hour goes to die. That is why Port Daddy treats runtime provenance as a product feature: agent work is only as trustworthy as the local substrate underneath it.
 
-Port Daddy treats runtime provenance as a product feature because agent work depends on trusting the local substrate.
-
-![Daemon provenance diagram](/img/generated/blog-daemon-provenance.jpg)
+![Five stacked runtime layers — source, built bundle, daemon, transport, client — with the bundle layer lit red to show an alive daemon serving assets that predate the latest source](/img/generated/blog-daemon-provenance.jpg)
 
 ## Alive Is A Low Bar
 
@@ -29,12 +27,13 @@ That's useful, but it's not sufficient. Reachable only answers one question: can
 - whether a stale process survived a restart;
 - whether the shell shim points at the expected binary.
 
-In a system that coordinates agents, those details matter. An agent can make the correct edit in source while the operator keeps looking at an old UI. A background watcher can publish events into the wrong project. A guard can appear missing because the installed CLI is stale.
+In a system that coordinates agents, those details matter. An agent can make the correct edit in source while the operator keeps looking at an old UI. A background watcher can publish events into the wrong project. A guard can appear missing because [the installed CLI is stale](/blog/backend-readiness-is-dependency-truth).
 
 ## The Provenance Stack
 
 Runtime truth has layers. Port Daddy needs to expose all of them clearly.
 
+<!-- figure: The provenance stack from source checkout down to live sessions, showing the layers a runtime mismatch can hide in — a bug can sit at any one of them while every layer above reports "fine." -->
 ```mermaid
 flowchart TD
   Source["source checkout"] --> Build["built assets"]
@@ -71,7 +70,7 @@ The output should let a developer answer four questions:
 
 If those answers disagree, the tool should say so. Nobody should have to read five commands and infer the mismatch. A provenance panel should tell the operator exactly which layer is stale.
 
-![Daemon runtime terminal recording](/gifs/agents/daemon-runtime.gif)
+![A terminal session walking the portable provenance checks — pd status --json, launchctl, the daemon port file, command -v port-daddy — to answer who launched the daemon and which binary the shell is really invoking](/gifs/agents/daemon-runtime.gif)
 
 ## Socket Truth And Browser Truth Can Diverge
 
@@ -116,7 +115,7 @@ The control plane should surface enough information to make stale bundles obviou
 
 That is boring metadata until it saves an hour.
 
-![FleetBar top bar and embedded control plane context](/media/landing-live-glory/topbar-crop.png)
+![The FleetBar top bar carrying its own provenance — the daemon pid it is embedded against and the project it believes it is viewing — so a split-brain between client and server is visible in the chrome instead of buried](/media/landing-live-glory/topbar-crop.webp)
 
 ## Clients Should Carry Provenance Too
 
@@ -219,4 +218,4 @@ Process success is not visual success. Runtime truth is not source truth. The co
 
 As agent tooling gets more local and more parallel, provenance becomes a trust boundary. Developers will not accept mystery automation running from unknown state. They will want the system to say what is alive, what is current, and what is safe to trust.
 
-Port Daddy makes that a core product concern. Running is table stakes. Current is the thing that matters.
+Port Daddy makes that a [core product concern](/blog/control-plane-is-the-product). Running is table stakes. Current is the thing that matters.

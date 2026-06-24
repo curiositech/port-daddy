@@ -1,17 +1,13 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
+import { AgentAnatomy } from '@/components/agents/AgentAnatomy'
 
 export default function FleetFeature() {
   return (
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="default">New</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Fleet Agents
         </h1>
@@ -73,10 +69,9 @@ pd fleet down    # Stop`}
           <div className="border border-[var(--border-subtle)] rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-[var(--text-primary)]">Daemon Mode</span>
-              <Badge variant="teal">v3.13.0</Badge>
             </div>
             <p className="text-sm text-[var(--text-secondary)]">
-              The Port Daddy daemon auto-discovers <code className="font-mono text-xs text-[var(--brand-primary)]">pd-fleet.yml</code> in
+              The Port Daddy daemon auto-discovers <code className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">pd-fleet.yml</code> in
               all registered projects on boot. Fleets survive terminal close, system sleep,
               and restarts. Editing the config file triggers a hot-reload automatically.
             </p>
@@ -91,6 +86,9 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
           </div>
         </div>
       </div>
+
+      {/* One real agent, labeled — the visual lead-in to the schema reference. */}
+      <AgentAnatomy />
 
       {/* Fleet YAML */}
       <div className="space-y-4">
@@ -183,18 +181,18 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
             <div className="font-semibold text-[var(--text-primary)]">Scheduled agents</div>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
               Run on a cron interval. Use simplified cron syntax:
-              <code className="ml-2 text-[var(--brand-primary)] font-mono text-xs">*/10 * * * *</code>
+              <code className="ml-2 text-[var(--brand-primary)] font-mono text-[length:var(--type-meta-size)]">*/10 * * * *</code>
             </p>
-            <p className="text-xs text-[var(--text-muted)]">Minimum interval: 1 minute</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">Minimum interval: 1 minute</p>
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <div className="font-semibold text-[var(--text-primary)]">Triggered agents</div>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
               Subscribe to a pub/sub channel and run each time a message arrives.
-              Uses <code className="text-[var(--brand-primary)] font-mono text-xs">pd watch</code> internally.
+              Uses <code className="text-[var(--brand-primary)] font-mono text-[length:var(--type-meta-size)]">pd watch</code> internally.
             </p>
-            <p className="text-xs text-[var(--text-muted)]">Message payload available as env var PD_MESSAGE</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">Message payload available as env var PD_MESSAGE</p>
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
@@ -203,17 +201,17 @@ curl "$PD_URL/fleet/events"   # SSE stream`}
               Like triggered agents but run a raw shell command instead of an AI backend.
               Good for notifications, git operations, or lightweight automation.
             </p>
-            <p className="text-xs text-[var(--text-muted)]">exec runs in project directory</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">exec runs in project directory</p>
           </div>
 
           <div className="border-l-4 border-[var(--brand-primary)] pl-4">
             <div className="font-semibold text-[var(--text-primary)]">Singletons</div>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Add <code className="text-[var(--brand-primary)] font-mono text-xs">singleton: true</code> to prevent
+              Add <code className="text-[var(--brand-primary)] font-mono text-[length:var(--type-meta-size)]">singleton: true</code> to prevent
               multiple concurrent runs of the same agent — useful for expensive agents
               that should not overlap.
             </p>
-            <p className="text-xs text-[var(--text-muted)]">Skips if already running</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">Skips if already running</p>
           </div>
         </div>
       </div>

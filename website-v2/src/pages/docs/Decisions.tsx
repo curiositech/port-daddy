@@ -248,7 +248,7 @@ function AdrCard({ adr }: { adr: Adr }) {
       data-testid="adr-card"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-xs font-semibold text-[var(--text-muted)]">ADR-{adr.number}</span>
+        <span className="font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--text-muted)]">ADR-{adr.number}</span>
         <Badge variant={badge.variant}>{badge.label}</Badge>
       </div>
 
@@ -264,7 +264,7 @@ function AdrCard({ adr }: { adr: Adr }) {
         href={githubUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-1 inline-flex items-center gap-1.5 font-mono text-xs font-medium text-[var(--brand-primary)] transition-opacity hover:opacity-75"
+        className="mt-1 inline-flex items-center gap-1.5 font-mono text-[length:var(--type-meta-size)] font-semibold text-[var(--brand-primary)] transition-opacity hover:opacity-75"
       >
         Read full ADR on GitHub
         <ExternalLink size={12} />

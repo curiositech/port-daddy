@@ -1,0 +1,126 @@
+{
+  "_comment": "Cross-runtime byte-parity vectors for the PD Planner scheduler (ADR-0086 / ADR-0054). The canonical Rust kernel impl (core/kernel/pd-anchor/src/schedule.rs) and the TS byte-parity fallback (lib/planner-schedule.ts) BOTH assert they reproduce these hand-computed values. CPM = Critical Path Method. An edge {from,to} means `from` finishes before `to` starts.",
+  "schedule_cases": [
+    {
+      "name": "linear_chain",
+      "nodes": [{ "id": "a", "estimate": 2 }, { "id": "b", "estimate": 3 }, { "id": "c", "estimate": 1 }],
+      "edges": [{ "from": "a", "to": "b" }, { "from": "b", "to": "c" }],
+      "expected": {
+        "ok": true,
+        "cyclic": false,
+        "makespan": 6,
+        "order": ["a", "b", "c"],
+        "criticalPath": ["a", "b", "c"],
+        "nodes": [
+          { "id": "a", "earliestStart": 0, "earliestFinish": 2, "latestStart": 0, "latestFinish": 2, "slack": 0, "critical": true },
+          { "id": "b", "earliestStart": 2, "earliestFinish": 5, "latestStart": 2, "latestFinish": 5, "slack": 0, "critical": true },
+          { "id": "c", "earliestStart": 5, "earliestFinish": 6, "latestStart": 5, "latestFinish": 6, "slack": 0, "critical": true }
+        ]
+      }
+    },
+    {
+      "name": "diamond",
+      "nodes": [{ "id": "a", "estimate": 1 }, { "id": "b", "estimate": 2 }, { "id": "c", "estimate": 4 }, { "id": "d", "estimate": 1 }],
+      "edges": [{ "from": "a", "to": "b" }, { "from": "a", "to": "c" }, { "from": "b", "to": "d" }, { "from": "c", "to": "d" }],
+      "expected": {
+        "ok": true,
+        "cyclic": false,
+        "makespan": 6,
+        "order": ["a", "b", "c", "d"],
+        "criticalPath": ["a", "c", "d"],
+        "nodes": [
+          { "id": "a", "earliestStart": 0, "earliestFinish": 1, "latestStart": 0, "latestFinish": 1, "slack": 0, "critical": true },
+          { "id": "b", "earliestStart": 1, "earliestFinish": 3, "latestStart": 3, "latestFinish": 5, "slack": 2, "critical": false },
+          { "id": "c", "earliestStart": 1, "earliestFinish": 5, "latestStart": 1, "latestFinish": 5, "slack": 0, "critical": true },
+          { "id": "d", "earliestStart": 5, "earliestFinish": 6, "latestStart": 5, "latestFinish": 6, "slack": 0, "critical": true }
+        ]
+      }
+    },
+    {
+      "name": "two_roots_join",
+      "nodes": [{ "id": "a", "estimate": 2 }, { "id": "b", "estimate": 1 }, { "id": "c", "estimate": 2 }],
+      "edges": [{ "from": "a", "to": "c" }, { "from": "b", "to": "c" }],
+      "expected": {
+        "ok": true,
+        "cyclic": false,
+        "makespan": 4,
+        "order": ["a", "b", "c"],
+        "criticalPath": ["a", "c"],
+        "nodes": [
+          { "id": "a", "earliestStart": 0, "earliestFinish": 2, "latestStart": 0, "latestFinish": 2, "slack": 0, "critical": true },
+          { "id": "b", "earliestStart": 0, "earliestFinish": 1, "latestStart": 1, "latestFinish": 2, "slack": 1, "critical": false },
+          { "id": "c", "earliestStart": 2, "earliestFinish": 4, "latestStart": 2, "latestFinish": 4, "slack": 0, "critical": true }
+        ]
+      }
+    },
+    {
+      "name": "single_zero_estimate",
+      "nodes": [{ "id": "n", "estimate": 0 }],
+      "edges": [],
+      "expected": {
+        "ok": true,
+        "cyclic": false,
+        "makespan": 0,
+        "order": ["n"],
+        "criticalPath": ["n"],
+        "nodes": [
+          { "id": "n", "earliestStart": 0, "earliestFinish": 0, "latestStart": 0, "latestFinish": 0, "slack": 0, "critical": true }
+        ]
+      }
+    },
+    {
+      "name": "missing_estimate_defaults_zero",
+      "nodes": [{ "id": "x" }, { "id": "y", "estimate": 3 }],
+      "edges": [{ "from": "x", "to": "y" }],
+      "expected": {
+        "ok": true,
+        "cyclic": false,
+        "makespan": 3,
+        "order": ["x", "y"],
+        "criticalPath": ["x", "y"],
+        "nodes": [
+          { "id": "x", "earliestStart": 0, "earliestFinish": 0, "latestStart": 0, "latestFinish": 0, "slack": 0, "critical": true },
+          { "id": "y", "earliestStart": 0, "earliestFinish": 3, "latestStart": 0, "latestFinish": 3, "slack": 0, "critical": true }
+        ]
+      }
+    },
+    {
+      "name": "cycle_fails_closed",
+      "nodes": [{ "id": "a", "estimate": 1 }, { "id": "b", "estimate": 1 }],
+      "edges": [{ "from": "a", "to": "b" }, { "from": "b", "to": "a" }],
+      "expected": { "ok": false, "cyclic": true, "makespan": 0, "order": [], "criticalPath": [], "nodes": [] }
+    }
+  ],
+  "ladder_cases": [
+    {
+      "name": "valid_full_ladder",
+      "nodes": [{ "id": "p", "kind": "project" }, { "id": "e", "kind": "epic" }, { "id": "s", "kind": "story" }, { "id": "t", "kind": "task" }, { "id": "u", "kind": "subtask" }],
+      "parents": [{ "parent": "p", "child": "e" }, { "parent": "e", "child": "s" }, { "parent": "s", "child": "t" }, { "parent": "t", "child": "u" }],
+      "expected": { "ok": true, "violationChildren": [] }
+    },
+    {
+      "name": "bug_at_story_rank_ok",
+      "nodes": [{ "id": "e", "kind": "epic" }, { "id": "b", "kind": "bug" }, { "id": "t", "kind": "task" }],
+      "parents": [{ "parent": "e", "child": "b" }, { "parent": "b", "child": "t" }],
+      "expected": { "ok": true, "violationChildren": [] }
+    },
+    {
+      "name": "rank_skip_rejected",
+      "nodes": [{ "id": "p", "kind": "project" }, { "id": "t", "kind": "task" }],
+      "parents": [{ "parent": "p", "child": "t" }],
+      "expected": { "ok": false, "violationChildren": ["t"] }
+    },
+    {
+      "name": "project_cannot_have_parent",
+      "nodes": [{ "id": "e", "kind": "epic" }, { "id": "p", "kind": "project" }],
+      "parents": [{ "parent": "e", "child": "p" }],
+      "expected": { "ok": false, "violationChildren": ["p"] }
+    },
+    {
+      "name": "single_parent_only",
+      "nodes": [{ "id": "e1", "kind": "epic" }, { "id": "e2", "kind": "epic" }, { "id": "s", "kind": "story" }],
+      "parents": [{ "parent": "e1", "child": "s" }, { "parent": "e2", "child": "s" }],
+      "expected": { "ok": false, "violationChildren": ["s"] }
+    }
+  ]
+}

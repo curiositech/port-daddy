@@ -1,0 +1,349 @@
+STATS:
+ website-v2/src/main.tsx                            |    2 +
+ .../src/pages/whitepaper/HowWeProveGameTheory.tsx  | 1199 ++++++++++++++++++++
+ .../src/pages/whitepaper/PaperDetailPage.tsx       |   22 +-
+ website-v2/src/pages/whitepaper/index.tsx          |   21 +-
+ 4 files changed, 1241 insertions(+), 3 deletions(-)
+
+---
+LAST COMMIT:
+5a870c54932e37319b48c1eac04f4a743fa04009
+Erich Owens <[redacted]>
+2026-05-20 10:05:08 -0700
+docs(whitepaper): patient expository page on how we prove game theory
+
+Adds /whitepaper/how-we-prove-game-theory — a long-form public-facing page
+for readers who took game theory once in college and never saw the
+computational side. Walks the commitment problem from Hobbes/Hume/Schelling
+to Aumann's correlated equilibrium (1974), pins how the Port Daddy daemon
+plays the role of the trusted referee, then opens the hood on TLA+, TLC,
+Apalache, and Z3 — what each does, what it actually closes, where the
+honest gaps still are.
+
+Structure: six sections with their own Mermaid figure, plus 7 right-gutter
+sidenotes (Tufte-style), 5 pull-quotes, and a runnable six-line Z3 SMT
+sample the reader can copy into their terminal. Includes a sketched
+claim-signaling.tla artifact marked [planned, v2.6] — because the paper
+today uses TLC + ProVerif + Kani + EasyCrypt + fast-check, not Apalache
+or Z3 yet, and the page is candid about which proofs are landed vs.
+planned. Limitations section names spec-faithfulness, tool trust, and
+state explosion as the honest places to be skeptical.
+
+Wires the route into main.tsx, adds a sibling tile on the whitepaper
+landing page (now a 3-column grid on lg+), and a conditional tile on
+the agent-transactions PaperDetailPage. SiteMetadata registration is
+intentionally deferred until the OG-card generator is healthy upstream
+(currently broken on a missing blog-control-plane.jpg from other WIP).
+
+Validation: tsc --noEmit clean, vite build clean (49.65 kB chunk gzipped
+to 14.45 kB), eslint clean. Vitest pass/fail count unchanged at 118/12 —
+every pre-existing failure pre-dates this change. Voice audited against
+user_voice_website.md: cathedral build, em-dash asides, cross-domain
+analogies (four-way stops, Cardano, the kitchen chemist), self-deprecation
+as ballast, no corporate evenness.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/website-v2/src/main.tsx b/website-v2/src/main.tsx
+index c231dfa0..99c28a32 100644
+--- a/website-v2/src/main.tsx
++++ b/website-v2/src/main.tsx
+@@ -26,6 +26,7 @@ const McpPage = lazy(() => import('@/pages/MCPPage'))
+ const WhitepaperPage = lazy(() => import('@/pages/whitepaper'))
+ const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
+ const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
++const WhitepaperHowWeProvePage = lazy(() => import('@/pages/whitepaper/HowWeProveGameTheory'))
+ const LandscapePage = lazy(() => import('@/pages/landscape'))
+ const BlogPage = lazyNamed(() => import('@/pages/BlogPage'), 'BlogPage')
+ const BlogPostPage = lazyNamed(() => import('@/pages/BlogPostPage'), 'BlogPostPage')
+@@ -230,6 +231,7 @@ createRoot(document.getElementById('root')!).render(
+ 
+               <Route path="/whitepaper" element={<WhitepaperPage />} />
+               <Route path="/whitepaper/rounds" element={<WhitepaperRoundsPage />} />
++              <Route path="/whitepaper/how-we-prove-game-theory" element={<WhitepaperHowWeProvePage />} />
+               <Route path="/whitepaper/:paperSlug" element={<WhitepaperDetailPage />} />
+ 
+               <Route path="/landscape" element={<LandscapePage />} />
+diff --git a/website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx b/website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx
+new file mode 100644
+index 00000000..21f859bb
+--- /dev/null
++++ b/website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx
+@@ -0,0 +1,1199 @@
++import { motion } from 'framer-motion'
++import { Link } from 'react-router-dom'
++import {
++  ArrowLeft,
++  ArrowRight,
++  BookOpen,
++  CircleAlert,
++  Coins,
++  Cpu,
++  Dices,
++  FileCode2,
++  Gavel,
++  Layers,
++  Lightbulb,
++  ScrollText,
++  type LucideIcon,
++} from 'lucide-react'
++import { Footer } from '@/components/layout/Footer'
++import {
++  BracketLabel,
++  DocsCodeBlock,
++  PageContainer,
++  PanelBody,
++  PanelEyebrow,
++  PanelTitle,
++} from '@/components/site/primitives'
++import { Mermaid } from '@/components/ui/Mermaid'
++
++// ────────────────────────────────────────────────────────────────────────────
++// Mermaid diagrams. Each one renders through the site's themed Mermaid wrapper,
++// which reads the brand tokens at render time.
++// ────────────────────────────────────────────────────────────────────────────
++
++const COMMITMENT_PROBLEM_CHART = `flowchart LR
++  A["Agent A wants the file"] --> Q{"Who moves first?"}
++  B["Agent B wants the file"] --> Q
++  Q -->|"both grab"| Crash["Collision: both lose"]
++  Q -->|"both wait"| Stall["Deadlock: both lose"]
++  Q -->|"need: trusted referee<br/>(Aumann, 1974)"| Daemon["Port Daddy<br/>recommends"]
++  Daemon -->|"Agent A: claim"| WorkA["A works, B yields"]
++  Daemon -->|"Agent B: claim"| WorkB["B works, A yields"]`
++
++const TLA_PIPELINE_CHART = `flowchart TD
++  Spec["Hand-written TLA+ spec<br/>(state machine + properties)"] --> Check{"Model<br/>checker"}
++  Check -->|"TLC: explicit-state<br/>(in use, 2026-Q1)"| Result1["Yes / No + counterexample trace"]
++  Check -->|"Apalache: symbolic SMT<br/>(planned, 2026-Q3)"| Result2["Yes / No + counterexample trace<br/>over larger state spaces"]
++  Result1 --> Read["Read the trace. Fix the model.<br/>Or trust the YES."]
++  Result2 --> Read`
++
++const VERIFICATION_STACK_CHART = `flowchart LR
++  Algebra["Closed-form proof<br/>(pen and paper)"] -->|"discharge with"| Z3["Z3 / SMT<br/>(numeric and symbolic)"]
++  StateMachine["Coordination lifecycle<br/>(TLA+ spec)"] -->|"discharge with"| TLC["TLC / Apalache"]
++  Protocol["Cryptographic exchange<br/>(applied pi calculus)"] -->|"discharge with"| ProVerif["ProVerif"]
++  Implementation["Rust capability check"] -->|"discharge with"| Kani["Kani"]
++  Z3 --> Bond["Bond pricing claims survive"]
++  TLC --> Bond
++  ProVerif --> Bond
++  Kani --> Bond`
++
++const GAME_PAYOFF_CHART = `flowchart TB
++  Start(["Both agents want file F"]) --> Pick["Each picks: claim or defer"]
++  Pick --> CC["A claim, B claim<br/>payoff (1, 1) — collision"]
++  Pick --> CD["A claim, B defer<br/>payoff (3, 1) — A wins, Pareto-OK"]
++  Pick --> DC["A defer, B claim<br/>payoff (1, 3) — B wins, Pareto-OK"]
++  Pick --> DD["A defer, B defer<br/>payoff (0, 0) — wasted turn"]
++  CD -.->|"good outcome,<br/>but who agrees first?"| Problem["The commitment problem"]
++  DC -.->|"good outcome,<br/>but who agrees first?"| Problem`
++
++// ────────────────────────────────────────────────────────────────────────────
++// Authored, runnable code samples. Z3 SMT script is verbatim; the TLA+ snippet
++// is a near-complete sketch of the planned claim-signaling.tla artifact.
++// ────────────────────────────────────────────────────────────────────────────
++
++const Z3_SMT_SAMPLE = `; cubic-root.smt2 — verify that the discount factor cutoff exists.
++; A toy stand-in for a future Proposition 7.1 in the bonded-commons paper.
++(set-logic QF_NRA)
++(declare-const d Real)
++(assert (and (> d 0) (< d 1)))
++(assert (= (+ (* 3 d d d) (* 3 d d) (* 3 d) -1) 0))
++(check-sat)
++(get-model)
++; Expected: sat, with d ≈ 0.2541. Z3 returns in about 100ms.`
++
++const TLA_CLAIM_SIGNALING_SAMPLE = `\\* claim-signaling.tla [planned, v2.6]
++\\* A two-agent, two-action stage game over a shared file. The model
++\\* asks: under what discount factor delta is no one-shot deviation
++\\* profitable, given a publicly-known recommendation device?
++
++EXTENDS Naturals, Reals
++CONSTANTS Agents, Files
++VARIABLES turn, strategy, score
++
++\\* Stage payoff: collision is (1,1); off-diagonal is (3,1) or (1,3);
++\\* both-defer is (0,0). The numbers are the same as Figure 2 of the
++\\* bonded-commons paper.
++Payoff(actA, actB) ==
++  CASE actA = "claim" /\\ actB = "claim" -> <<1, 1>>
++    [] actA = "claim" /\\ actB = "defer" -> <<3, 1>>
++    [] actA = "defer" /\\ actB = "claim" -> <<1, 3>>
++    [] OTHER                              -> <<0, 0>>
++
++\\* The daemon's correlating device. A publicly-known distribution
++\\* over recommended action profiles. (No agent is told the other's
++\\* recommendation — that is what makes this a *correlated* eq.)
++RecommendedProfile == \\* mu from the paper's Figure 2
++  IF turn = "A_priority" THEN <<"claim", "defer">>
++                         ELSE <<"defer", "claim">>
++
++\\* Safety: under fairness, no agent's accumulated payoff falls below
++\\* what it would receive by always following the daemon's hint.
++NoProfitableDeviation ==
++  \\A a \\in Agents, delta \\in {2/10, 25/100, 26/100, 28/100, 3/10}:
++    Follow(a, delta) >= Deviate(a, delta)
++
++Spec == Init /\\ [][Next]_<<turn, strategy, score>>
++THEOREM Spec => []NoProfitableDeviation`
++
++// ────────────────────────────────────────────────────────────────────────────
++// Small reusable bits.
++// ────────────────────────────────────────────────────────────────────────────
++
++function SectionHeader({
++  eyebrow,
++  title,
++  icon: Icon,
++  number,
++}: {
++  eyebrow: string
++  title: string
++  icon: LucideIcon
++  number: string
++}) {
++  return (
++    <div className="space-y-[var(--space-3)] border-b-2 border-[var(--border-default)] pb-[var(--space-4)]">
++      <div className="flex items-center gap-[var(--space-3)]">
++        <span className="font-mono text-[length:var(--text-xl)] font-black leading-none text-[var(--brand-primary)]">
++          {number}
++        </span>
++        <BracketLabel>{eyebrow}</BracketLabel>
++      </div>
++      <div className="flex items-start gap-[var(--space-3)]">
++        <span
++          aria-hidden="true"
++          className="mt-[var(--space-1)] flex h-[var(--space-6)] w-[var(--space-6)] shrink-0 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]"
++        >
++          <Icon size={18} aria-hidden="true" className="text-[var(--brand-primary)]" />
++        </span>
++        <PanelTitle as="h2" size="section" className="max-w-[28ch]">
++          {title}
++        </PanelTitle>
++      </div>
++    </div>
++  )
++}
++
++function Sidenote({
++  label,
++  children,
++}: {
++  label: string
++  children: React.ReactNode
++}) {
++  return (
++    <aside
++      className="float-none lg:float-right lg:-mr-[18rem] lg:ml-[var(--space-5)] lg:w-[16rem] lg:clear-right my-[var(--space-4)] border-l-4 border-[var(--brand-primary)] bg-[var(--surface-raised)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]"
++      role="note"
++    >
++      <div className="mb-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
++        {label}
++      </div>
++      <div className="space-y-[var(--space-2)]">{children}</div>
++    </aside>
++  )
++}
++
++function PullQuote({ children, attribution }: { children: React.ReactNode; attribution?: string }) {
++  return (
++    <figure className="my-[var(--space-6)] border-y-2 border-[var(--border-strong)] bg-[var(--surface-strong)] px-[var(--space-5)] py-[var(--space-5)]">
++      <blockquote className="font-display text-[length:var(--type-panel-title-card-size)] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
++        &ldquo;{children}&rdquo;
++      </blockquote>
++      {attribution ? (
++        <figcaption className="mt-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
++          — {attribution}
++        </figcaption>
++      ) : null}
++    </figure>
++  )
++}
++
++function Prose({ children }: { children: React.ReactNode }) {
++  return (
++    <div className="prose-area max-w-none space-y-[var(--space-4)] text-[length:var(--text-base)] leading-[var(--leading-body)] text-[var(--text-primary)]">
++      {children}
++    </div>
++  )
++}
++
++// ────────────────────────────────────────────────────────────────────────────
++// The page.
++// ────────────────────────────────────────────────────────────────────────────
++
++export default function HowWeProveGameTheoryPage() {
++  return (
++    <motion.div
++      initial={{ opacity: 0 }}
++      animate={{ opacity: 1 }}
++      className="min-h-screen bg-[var(--surface-base)] font-sans selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]"
++    >
++      <main id="main-content">
++        {/* HEADER */}
++        <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
++          <PageContainer width="wide">
++            <Link
++              to="/whitepaper"
++              className="mb-[var(--space-4)] inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] transition-colors hover:text-[var(--brand-primary)] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[var(--interactive-focus)]"
++            >
++              <ArrowLeft aria-hidden="true" size={14} />
++              Back to the papers
++            </Link>
++
++            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.66fr)_minmax(0,0.34fr)] lg:items-start">
++              <div className="space-y-[var(--space-5)]">
++                <PanelEyebrow>For the reader who took game theory once</PanelEyebrow>
++                <PanelTitle as="h1" size="hero" className="max-w-[18ch]">
++                  How our whitepapers use — and prove — game theory.
++                </PanelTitle>
++                <PanelBody size="default" className="max-w-[62ch] text-[length:var(--text-lg)]">
++                  Two programs want the same file. Neither will move first
++                  without an assurance. That is a four-hundred-year-old problem
++                  in political philosophy and a five-second problem on a laptop
++                  with two AI agents on it, and it has the same shape in both
++                  rooms. The bonded-commons paper makes a precise claim about
++                  when local coordination is a <em>correlated equilibrium</em>
++                  {' '}— Aumann&apos;s 1974 generalization of Nash — and the
++                  claim is not the kind of thing you should take on the
++                  author&apos;s word. Below: what the game is, where it came
++                  from, how a machine can confirm the proof in milliseconds,
++                  and where the honest gaps still are.
++                </PanelBody>
++                <PanelBody className="max-w-[62ch] text-[length:var(--text-base)] text-[var(--text-secondary)]">
++                  No prior exposure to TLA+, model checking, or SMT solvers
++                  required. One undergraduate course in game theory is plenty.
++                  The page assumes you have heard the name &ldquo;Nash&rdquo;
++                  and seen a 2&times;2 payoff matrix, and that you have not yet
++                  watched a piece of software accept or reject one of your
++                  proofs.
++                </PanelBody>
++              </div>
++
++              <aside className="grid gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-4)]">
++                <PanelEyebrow>At a glance</PanelEyebrow>
++                <dl className="grid gap-[var(--space-2)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
++                  <div className="border-b-2 border-[var(--border-default)] pb-[var(--space-2)]">
++                    <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
++                      Reading time
++                    </dt>
++                    <dd className="font-mono text-[var(--text-primary)]">about 22 minutes</dd>
++                  </div>
++                  <div className="border-b-2 border-[var(--border-default)] pb-[var(--space-2)]">
++                    <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
++                      Prerequisites
++                    </dt>
++                    <dd>one undergrad game-theory course; willingness to skim a state machine</dd>
++                  </div>
++                  <div className="border-b-2 border-[var(--border-default)] pb-[var(--space-2)]">
++                    <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
++                      What you&apos;ll meet
++                    </dt>
++                    <dd>Aumann, Schelling, Hobbes, TLA+, ProVerif, Z3, the price of anarchy, and exactly one cubic</dd>
++                  </div>
++                  <div>
++                    <dt className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
++                      You will try yourself
+
+... [1011 more lines truncated]

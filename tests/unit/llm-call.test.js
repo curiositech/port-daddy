@@ -34,12 +34,15 @@ describe('cloudflareAdapter', () => {
     );
     try {
       const r = await cloudflareAdapter({ prompt: 'p', model: '@cf/test', maxTokens: 200, env });
-      expect(r).toEqual({
+      // `raw` (the parsed result object) is now also surfaced for transcript
+      // reconstruction — assert the stable fields, not exact object equality.
+      expect(r).toMatchObject({
         ok: true,
         text: 'hello',
         inputTokens: 10,
         outputTokens: 5,
       });
+      expect(r.raw).toBeDefined();
       const [url, opts] = fetchSpy.mock.calls[0];
       expect(url).toBe('https://api.cloudflare.com/client/v4/accounts/a/ai/run/@cf/test');
       expect(opts.headers.Authorization).toBe('Bearer t');

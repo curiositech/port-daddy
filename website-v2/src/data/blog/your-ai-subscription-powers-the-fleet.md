@@ -36,6 +36,7 @@ Port Daddy ships with a primitive called `pd tube`. It is, mechanically, a thin 
 
 The crucial trick is the *authentication boundary*. The `claude` CLI is logged in **as you**, the human, with your Claude Max subscription. It hits Anthropic's API the same way the desktop app does. When Port Daddy invokes it as a subprocess, the API call is billed against your subscription's flat-rate plan, not against a per-token developer key. Your wallet doesn't move. Your *capacity sharing* does.
 
+<!-- figure: pd-tube routes fleet spawns and your interactive session through the same CLI binary, against the same hourly budget — same wallet, same auth, two streams of consumption. -->
 ```mermaid
 flowchart LR
   W[Your wallet: $200/mo flat] --> S[Claude Max subscription]
@@ -48,8 +49,6 @@ flowchart LR
   Fleet[Fleet of small agents] --> PD
   You[You, in your editor] --> CLI
 ```
-
-<!-- figure: pd-tube routes fleet spawns and your interactive session through the same CLI binary, against the same hourly budget — same wallet, same auth, two streams of consumption -->
 
 The wrapper is intentionally boring. It talks to the same binary your terminal already talks to, with a payload format Port Daddy understands on the other end. No clever API client, no protocol reimplementation.
 
@@ -127,6 +126,7 @@ That same workload on the developer-key API would be $1,080/month. The subscript
 
 The shape of the cost curve, drawn as a flow:
 
+<!-- figure: As spawns/day climb, the flat subscription's per-spawn cost asymptotes toward zero while the developer-key cost stays constant per call — so the two routes cross near 450 spawns/day and the subscription saves $880/mo by 2,000. -->
 ```mermaid
 flowchart LR
   W["$200/mo flat subscription"] --> S["6,000 spawns/mo at 200/day"]
@@ -142,8 +142,6 @@ flowchart LR
   X --> E["~450/day: break-even"]
   X --> R["2000/day: sub saves $880/mo"]
 ```
-
-<!-- figure: subscription savings scale super-linearly past ~450 spawns/day, because the per-spawn cost asymptotes to zero while the developer-key cost is constant per call -->
 
 Here is the same trajectory laid out as a table, with the numbers checked against the live rate sheet in `docs/fleet/backend-costs.md`:
 

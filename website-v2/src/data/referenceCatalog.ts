@@ -15,7 +15,7 @@ export interface ReferenceGroup {
   items: ReferenceItem[]
 }
 
-export const PORT_DADDY_VERSION = '3.16.0'
+export const PORT_DADDY_VERSION = '3.22.0'
 
 export function referenceAnchor(name: string): string {
   return name
@@ -137,7 +137,7 @@ export const CLI_REFERENCE_GROUPS: ReferenceGroup[] = [
     description: 'Create the audit trail: sessions, file claims, notes, activity, briefing, salvage, and catch-up commands.',
     source: 'cli/commands/sugar.ts, cli/commands/sessions.ts, cli/commands/say.ts, cli/commands/look.ts, cli/commands/sitrep.ts, cli/commands/resurrection.ts',
     items: [
-      { name: 'pd begin "purpose"', href: '/docs/cli/begin', description: 'Register an agent, start a session, and write local context in one command.', aliases: ['pd b'], flags: ['--identity', '--agent', '--type', '--files'] },
+      { name: 'pd begin "purpose"', href: '/docs/cli/begin', description: 'Register an agent, start a session, and write local context in one command.', aliases: ['pd b'], flags: ['--lifecycle', '--identity', '--agent', '--type', '--files'] },
       { name: 'pd done "summary"', href: '/docs/cli/done', description: 'End the active session, leave a final note, and unregister the agent.' },
       { name: 'pd whoami', href: '/docs/cli/whoami', description: 'Show the current agent, active session, purpose, notes, and claimed files.', aliases: ['pd w'] },
       { name: 'pd session <command>', description: 'Manual session lifecycle: start, end, done, abandon, rm, and files add/rm.', flags: ['--agent', '--force', '--files'] },

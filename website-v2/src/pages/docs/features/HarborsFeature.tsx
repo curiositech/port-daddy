@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,16 +7,13 @@ export default function HarborsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Security</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Harbors
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Named capability scopes for multi-agent coordination. Harbors let you declare what each
-          agent role is intended to do, enabling discovery and structured collaboration.
+          A named role that says what an agent is meant to do — its allowed scope of work. Other
+          agents can see these roles and coordinate around them. Port Daddy calls a role like this
+          a harbor.
         </p>
       </div>
 
@@ -91,17 +87,17 @@ observer   sessions:read,notes:read,activity:read  0 agents`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">code:read</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Read source files</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Scan, list projects, view configs</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Scan, list projects, view configs</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">notes:write</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Append session notes</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Add notes, quick notes</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Add notes, quick notes</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">ports:write</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Manage port claims</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Claim, release, cleanup ports</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">Claim, release, cleanup ports</p>
           </div>
         </div>
       </div>

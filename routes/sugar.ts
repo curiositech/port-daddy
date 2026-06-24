@@ -21,6 +21,14 @@ interface SugarRouteDeps {
   };
 }
 
+type BeginLifecycle = 'durable' | 'ephemeral';
+
+function parseBeginLifecycle(value: unknown): BeginLifecycle | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'durable' || normalized === 'ephemeral' ? normalized : null;
+}
+
 
 // =============================================================================
 // Fastify plugin export
@@ -45,6 +53,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         requireLinkedWorktree,
         allowMainWorktree,
         bypassCrowdedGate,
+        lifecycle: rawLifecycle,
       } = request.body as any;
 
       if (!purpose || typeof purpose !== 'string') {
@@ -53,6 +62,16 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
           success: false,
           error: 'purpose must be a non-empty string',
           code: 'VALIDATION_ERROR',
+        };
+      }
+
+      const lifecycle = parseBeginLifecycle(rawLifecycle);
+      if (!lifecycle) {
+        reply.code(400);
+        return {
+          success: false,
+          error: 'lifecycle must be explicitly set to "durable" or "ephemeral"',
+          code: 'SESSION_LIFECYCLE_REQUIRED',
         };
       }
 
@@ -69,6 +88,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         requireLinkedWorktree,
         allowMainWorktree,
         bypassCrowdedGate,
+        lifecycle,
       });
 
       if (!result.success) {
@@ -86,6 +106,7 @@ export const sugarPlugin: FastifyPluginAsync<{ deps: SugarRouteDeps }> = async (
         agentId: result.agentId,
         sessionId: result.sessionId,
         identity,
+        lifecycle,
         purpose,
       });
 

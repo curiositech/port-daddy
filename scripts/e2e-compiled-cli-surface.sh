@@ -182,6 +182,7 @@ run_read "activity"          activity    -- activity
 run_read "log"               log         -- log
 run_read "projects"          projects    -- projects
 run_read "find"              find        -- find 'no-such:service:ever'
+run_read "whois"             whois       -- whois 'no-such-capability'
 run_read "services/list"     services    -- services
 run_read "dns list"          dns         -- dns list
 run_read "roadmap"           roadmap     -- roadmap
@@ -198,8 +199,24 @@ run_read "doctor"            doctor      -- doctor
 run_read "diagnose"          diagnose    -- diagnose
 run_read "ideas"             ideas       -- ideas
 run_read "attention"         attention   -- attention --agent surface:smoke:ci
+run_read "nudge"             nudge       -- nudge --agent surface:smoke:ci
 run_read "inbox"             inbox       -- inbox
+run_read "send (usage)"      send        -- send
+run_read "sent"              sent        -- sent
 run_read "hints"             hints       -- hints
+# ADR-0084 Daemon Berths: `pd use <tier>` emits a shell snippet (read-only, no
+# daemon mutation); `pd dev list` probes berths read-only. Both exit 0 + print.
+run_ok   "use stable"        use         -- use stable
+run_ok   "dev list"          dev         -- dev list
+
+# --help routing regression (HELP_TOPIC_ALIASES): a messaging-family command must
+# resolve to the messaging TOPIC, not silently fall through to the global help.
+__help_out="$(cli inbox --help 2>&1 || true)"
+if printf '%s' "$__help_out" | grep -q 'Direct durable messages'; then
+  pass "inbox --help -> messaging topic (not global help)"
+else
+  fail "inbox --help -> messaging topic" "got: $(printf '%s' "$__help_out" | head -1)"
+fi
 run_read "compass"           compass     -- compass
 run_read "advise"            advise      -- advise
 run_read "preflight"         preflight   -- preflight
@@ -226,6 +243,7 @@ run_read "changelog"         changelog    -- changelog
 run_read "shipwright (usage)" shipwright  -- shipwright
 run_read "pheromone list"    pheromone    -- pheromone list
 run_read "quorum list"       quorum       -- quorum list
+run_read "parley list"       parley       -- parley list
 run_read "obligations"       obligations  -- obligations
 run_read "who-owns"          who-owns     -- who-owns README.md
 run_read "guard status"      guard        -- guard status
@@ -281,7 +299,7 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 
 # begin -> whoami(active) -> note -> notes -> done
 # (--allow-main-worktree: CI runs on the main worktree)
-run_ok  "begin"              begin    -- begin e2e:surface:ci --allow-main-worktree
+run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
@@ -341,13 +359,16 @@ covered listen;    skip "listen"    "alias of sub — blocking subscriber"
 covered wait;      skip "wait"      "blocks until a matching message arrives"
 covered mcp;       skip "mcp"       "boots a stdio MCP server that blocks reading stdin"
 covered dashboard; skip "dashboard" "web form opens a browser via 'open'; TUI form is interactive (tsx) — both unsafe in CI"
-covered dev;       skip "dev"       "spawns an isolated dev daemon via tsx (mutating, needs node_modules)"
+covered dev;       skip "dev"       "ADR-0084 berths: 'dev list' is read-tested above; 'dev up/down' build+launch/stop a real berth (mutating)"
 covered setup;     skip "setup"     "interactive onboarding; writes .portdaddyrc — covered indirectly by scan/init paths"
+covered cut;       skip "cut"       "ADR-0084 release cut: runs the daemon/Rust/FleetBar build scripts + writes dist/release (heavy, mutating) — orchestration is unit-tested in tests/unit/release.test.js"
 covered init;      skip "init"      "writes project config to cwd; covered by the scan read instead"
 covered learn;     skip "learn"     "requires an interactive TTY; refuses in CI by design"
 covered tutorial;  skip "tutorial"  "alias of learn — requires a TTY"
 covered tunnel;    skip "tunnel"    "tunnel <create> opens a network tunnel; only 'tunnel list' is read-tested above"
 covered ci-gate;   skip "ci-gate"   "runs the full feature-parity gate (heavy); exercised by its own CI job"
+covered self-update; skip "self-update" "ADR-0062: runs brew upgrade + restarts the daemon/GUI — mutating + macOS/Homebrew-only; the pure isUpgradeAvailable() is unit-tested"
+covered upgrade;   skip "upgrade"   "ADR-0057 phase 7: fetches the real GitHub latest.json feed over the network (non-hermetic) and --apply shells brew upgrade; the pure decision (decideUpgrade/verifyChecksum/compareSemver) is unit-tested in tests/unit/latest-manifest.test.js + tests/unit/upgrade.test.js"
 covered guard;     skip "guard"     "guard install/check mutate hooks; only 'guard status' is read-tested above"
 covered harbor;    skip "harbor"    "harbor create/enter/leave/destroy mutate permission namespaces; usage read-tested above"
 covered add;       skip "add"       "git staging wrapper; mutates the index — not run in the surface gate"

@@ -1,10 +1,10 @@
 # Evidence That Survives Multiple Machines
 
-A note that only your laptop can verify is half a record. The original Bonded Commons paper said "Merkle root commits to the evidence trail" and treated that as enough. For one daemon, it is. For two, it is not --- and the moment you have a laptop, a desktop, and a CI runner all touching the same project, you have two daemons.
+You open last week's harbor on your other laptop — the desktop did the work, this machine is just looking — and you want to confirm a settlement happened the way the receipt claims. The receipt says it did. But the only thing that *knows* is a SQLite database on a machine that is currently asleep in another room. This laptop cannot check the claim. It can only believe it. That is the moment a note that only one machine can verify reveals itself as half a record.
 
-The v2 paper reworks §4.2 to fix this, and adds a new §4.3 that does something the original was silent on: it makes coordination signals revocable without erasing them. Both changes are about making evidence portable and auditable across machines. This post is what that means for the product.
+The original Bonded Commons paper said "Merkle root commits to the evidence trail" and treated that as enough. For one daemon, it is. For two, it is not --- and the moment you have a laptop, a desktop, and a CI runner all touching the same project, you have two daemons. The v2 paper reworks §4.2 to close that gap, and adds a new §4.3 that does something the original was silent on: it makes coordination signals revocable without erasing them. Both changes pull in the same direction --- evidence you can carry to another machine and still verify.
 
-![Evidence across machines](/img/generated/blog-map-truth.jpg)
+![Evidence portable across three machines — a laptop, a desktop, and a CI runner each holding a short signed proof they can check without phoning home to the daemon that wrote it](/img/generated/blog-map-truth.jpg)
 
 ## What "Immutable" Was Quietly Missing
 
@@ -127,7 +127,7 @@ So an agent that sprays a hint, later realizes the hint was wrong, and revokes i
 
 This matters for the product: notes and tuples can become richer without becoming dangerous. Today, the rule is "notes are immutable --- once written, they cannot be edited or deleted." That rule is correct for audit but blunt for coordination. With the mutable-signal ledger, the public record is *"this note was deposited; this revocation was deposited; the current view is the diff."* You get retraction without rewriting history.
 
-![Cross-machine verification surface in FleetBar](/img/app-screens/shipwright-harbor-light.png)
+![The harbor surface in FleetBar with a retract affordance on a note — retraction appends a revocation event and updates the public view while the original signal stays in the chain for audit](/img/app-screens/shipwright-harbor-light.webp)
 
 ## What This Lets the Product Do
 

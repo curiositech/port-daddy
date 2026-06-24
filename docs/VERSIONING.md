@@ -12,7 +12,7 @@ This document covers **what to bump and when**. For **how to actually cut a rele
 
 ## Version surfaces
 
-A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` handles the JSON ones automatically; the rest must currently be bumped by hand (see [Known gaps](#known-gaps-in-sync-versionts) below).
+A bump must update **every file** the build, MCP, and plugin metadata read from. `scripts/sync-version.ts` now handles **all** of them — the JSON manifests, the MCP/server TypeScript constants, and the website reference constant. The only manual surface left is `CHANGELOG.md` (see [Known gaps](#known-gaps-in-sync-versionts) below).
 
 | Surface | Updated by | Notes |
 |---|---|---|
@@ -21,26 +21,39 @@ A bump must update **every file** the build, MCP, and plugin metadata read from.
 | `mcp-server.json` (`version`) | `sync-version.ts` | MCP manifest published to consumers |
 | `.claude-plugin/plugin.json` (`version`) | `sync-version.ts` | Claude plugin metadata |
 | `.gemini/extensions/port-daddy/gemini-extension.json` (`version`) | `sync-version.ts` | Gemini CLI extension manifest |
-| `mcp/server.ts` (`version: '...'` literal at the `Server()` constructor) | **manual** | Gated by `tests/unit/distribution-freshness.test.js` |
-| `website-v2/src/data/referenceCatalog.ts` (`PORT_DADDY_VERSION`) | **manual** | Display constant for `/reference` pages |
+| `mcp/server.ts` (`version: '...'` literal at the `Server()` constructor) | `sync-version.ts` | Gated by `tests/unit/distribution-freshness.test.js` |
+| `server.ts` (`EMBEDDED_PACKAGE_VERSION`) | `sync-version.ts` | Binary fallback version when package.json is unavailable in the Bun bundle |
+| `website-v2/src/data/referenceCatalog.ts` (`PORT_DADDY_VERSION`) | `sync-version.ts` | Display constant for `/reference` pages |
+| `public/samples/manifest.json` (`packageVersion`) | `sync-version.ts` | Bundled sample manifest version |
+| `VERSION` (plain text) | `sync-version.ts` | Human-facing product stamp. No code reads it, but it used to lie at `3.7.0`; now kept honest |
+| `core/pd-console/Cargo.toml` (`[package] version`) | `sync-version.ts` | The GPU-native app's `CARGO_PKG_VERSION` → `pd-console`'s in-app build stamp AND its `.app` `CFBundleShortVersionString`. The **only** Rust crate that is a user-facing product surface |
 | `CHANGELOG.md` | manual | Rename `[Unreleased]` → `[<version>] - YYYY-MM-DD`, prepend a fresh `[Unreleased]` |
+
+The kernel library crates (`core/kernel/*`, `core/Cargo.toml` `[workspace.package]`) keep their **own independent library semver** — they ride *inside* the daemon/console and are not user-facing version surfaces, so `sync-version.ts` deliberately does not touch them.
+
+## The drift gate (`scripts/check-version-drift.mjs`)
+
+`package.json` is the sole authority; `sync-version.ts` stamps it everywhere; **`scripts/check-version-drift.mjs` is the gate that fails the build when any surface drifts.** Run it locally with `npm run check:version-drift`. CI runs it two ways (ADR-0057 phase `dist-version-authority`):
+
+- **`ci.yml` → `version-drift-guard`** runs it in *source mode* on every PR/push/merge-queue: every version literal in the repo must equal `package.json`. This is the regression that catches "bumped the version but forgot a surface" or a hand-edit.
+- **`release.yml`** runs it `--deep --require-artifacts` after the `pd-console.app` is built: it reads the version *embedded* in the built artifact (the `.app`'s `CFBundleShortVersionString` and the binary's build stamp), not just the source literal — closing the Goodhart hole where someone bumps the string without rebuilding (ADR-0057 §Consequences).
 
 ### Known gaps in `sync-version.ts`
 
-`scripts/sync-version.ts` currently only touches the JSON surfaces. The two TypeScript constants (`mcp/server.ts`, `referenceCatalog.ts`) must be bumped by hand. `tests/unit/distribution-freshness.test.js` catches a missed `mcp/server.ts` — the website constant is invisible to CI and goes stale silently.
+`scripts/sync-version.ts` now touches the plugin/MCP/Gemini JSON surfaces, the MCP/server TypeScript constants, the website reference constant, and the public samples manifest. `tests/unit/distribution-freshness.test.js` gates those surfaces against `package.json`.
 
-Fixing `sync-version.ts` to cover both is a small, welcome follow-up.
+The remaining manual surface is `CHANGELOG.md`: pick the version section and release date deliberately so humans can read what changed.
 
 ## A release without a version bump is a release bug
 
 The release tag, the binary `--version` output, the brew formula version, and the CHANGELOG entry must all agree. If they don't, the `--version` users see after `brew upgrade port-daddy` lies about what's installed, and rollback diagnostics get harder.
 
-`tests/unit/distribution-freshness.test.js` enforces the package.json / mcp-server.json / plugin.json / mcp/server.ts agreement in CI. The remaining surfaces are unenforced and rely on the recipe in [`RELEASING.md`](RELEASING.md).
+`tests/unit/distribution-freshness.test.js` enforces the package.json / mcp-server.json / plugin.json / mcp/server.ts agreement in CI. `scripts/check-version-drift.mjs` (run by the `version-drift-guard` CI job and `tests/unit/version-drift-gate.test.js`) extends that to **every** surface in the table above incl. `VERSION` and `core/pd-console/Cargo.toml`, and adds the deep (embedded-artifact) check at release time. The remaining surface is `CHANGELOG.md`, which relies on the recipe in [`RELEASING.md`](RELEASING.md).
 
 ## What you do NOT do anymore
 
 - There is no `~/port-daddy-stable` worktree.
-- There is no `scripts/promote-stable.sh`.
+- There is no `promote-stable.sh` script (it was removed with the stable-worktree flow).
 - Do not `npm link` from a working checkout — the `port-daddy` and `pd` CLIs are the Homebrew-installed binaries. Local source work is for development only; users get the signed bottle.
 - Do not hand-roll daemon promotion with `launchctl` commands. The brew formula installs the launchd service definition; `brew services restart port-daddy` is the supported operator action.
 

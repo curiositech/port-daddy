@@ -1,7 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
-  BracketLabel,
   PageContainer,
   PanelBody,
   PanelEyebrow,
@@ -25,15 +24,13 @@ export function CliBackendValueProp() {
       <PageContainer width="wide">
         <SurfacePanel className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
           <div className="space-y-[var(--space-5)]">
-            <BracketLabel>The fleet wallet</BracketLabel>
             <PanelTitle as="h2" size="display" className="max-w-[18ch]">
               Your AI subscription, but it runs a fleet.
             </PanelTitle>
             <PanelBody className="max-w-[44rem]">
-              Bring your Claude Max or ChatGPT Pro. The fleet rides for free.{' '}
+              Bring your Claude Max or ChatGPT Pro login.{' '}
               <strong className="text-[var(--text-primary)]">
-                Your $20/month ChatGPT Pro or $200/month Claude Max subscription powers the entire
-                fleet at zero marginal cost.
+                Every agent in the fleet runs on that one seat — no metered API bill.
               </strong>{' '}
               Same login, same model, more hours of work per day — the difference between a
               coworker who never clocks out and a metered API connection turns out to be one environment
@@ -64,7 +61,7 @@ export function CliBackendValueProp() {
                   claude-cli · codex
                 </p>
                 <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                  first-class — Cloudflare and API direct are the fallback rungs
+                  first-class; Cloudflare and direct API are fallbacks
                 </p>
               </div>
             </div>
@@ -81,7 +78,7 @@ export function CliBackendValueProp() {
 
           <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
             <img
-              src="/img/generated/cli-backend-hero.png"
+              src="/img/generated/cli-backend-hero.webp"
               alt="Blueprint illustration of a single AI subscription card distributing pipelines to a fleet of small sailing ships, each labeled with a Port Daddy fleet agent name."
               className="block h-full w-full object-cover"
               loading="lazy"

@@ -81,12 +81,17 @@ describe('lib/db.ts', () => {
       expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS sessions');
       expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS session_files');
       expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS session_notes');
+      expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS claim_forest_nodes');
+      expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS claim_forest_edges');
+      expect(CORE_SCHEMA_SQL).toContain('CREATE TABLE IF NOT EXISTS claim_forest_claims');
     });
 
     it('includes necessary indexes', () => {
       expect(CORE_SCHEMA_SQL).toContain('idx_services_port');
       expect(CORE_SCHEMA_SQL).toContain('idx_sessions_status');
       expect(CORE_SCHEMA_SQL).toContain('idx_session_notes_session');
+      expect(CORE_SCHEMA_SQL).toContain('idx_claim_forest_nodes_repo_world');
+      expect(CORE_SCHEMA_SQL).toContain('idx_claim_forest_claims_node_active');
     });
   });
 
@@ -129,6 +134,9 @@ describe('lib/db.ts', () => {
       expect(tables).toContain('sessions');
       expect(tables).toContain('session_files');
       expect(tables).toContain('session_notes');
+      expect(tables).toContain('claim_forest_nodes');
+      expect(tables).toContain('claim_forest_edges');
+      expect(tables).toContain('claim_forest_claims');
     });
 
     it('is idempotent - can be called multiple times', () => {

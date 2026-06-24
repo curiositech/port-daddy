@@ -174,6 +174,11 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
     event,
     delivery,
     payload: parsed.parsed,
+    // Carry the exact signed bytes + signature so the daemon re-verifies
+    // GitHub origin before dispatching. The receiver's forward token is then
+    // only a transport credential — its leak cannot forge fleet events.
+    rawPayload: rawBody,
+    signature,
   });
 
   const forwardTimeoutMs = Number(env.FORWARD_TIMEOUT_MS ?? '8000');

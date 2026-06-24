@@ -7,6 +7,7 @@
 
 import { createTestDb } from '../setup-unit.js';
 import { createSymbolIndex } from '../../lib/symbol-index.js';
+import { computeBlastRadius } from '../../lib/blast-radius.js';
 import type Database from 'better-sqlite3';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
@@ -227,6 +228,69 @@ export function load() {
     expect(fsDep).toBeDefined();
     expect(fsDep!.dependencyType).toBe('imports');
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Intra-file call edges → blast-radius (issue #468).
+  //
+  // Before the fix, parseFile extracted imports/heritage but NOT `calls`, so the
+  // reverse-dependency closure came back empty for a same-file caller. These
+  // tests pin the real extractor (not a mocked getDependents) so the gap stays
+  // closed and the daemon-level blast-radius is trustworthy.
+  // ───────────────────────────────────────────────────────────────────────────
+  test('extracts intra-file calls edges (registerRoutes -> createRoutes)', async () => {
+    const filePath = join(tempDir, 'routes.ts');
+    writeFileSync(filePath, `
+export function createRoutes(app: any, db: any) {
+  return { app, db };
+}
+
+export function registerRoutes(app: any) {
+  return createRoutes(app, {});
+}
+`);
+
+    const result = await symbolIndex.parseFile(filePath);
+    expect(result.skipped).toBe(false);
+
+    // createRoutes' reverse-deps must include registerRoutes via a `calls` edge.
+    const dependents = symbolIndex.getDependents(filePath, 'createRoutes');
+    const caller = dependents.find(d => d.sourceSymbol === 'registerRoutes');
+    expect(caller).toBeDefined();
+    expect(caller!.dependencyType).toBe('calls');
+
+    // ...and the reverse: createRoutes is NOT reported as depending on registerRoutes.
+    expect(symbolIndex.getDependents(filePath, 'registerRoutes')
+      .some(d => d.sourceSymbol === 'createRoutes')).toBe(false);
+  });
+
+  test('blast-radius returns the reverse-dep closure over a real parse', async () => {
+    const filePath = join(tempDir, 'chain.ts');
+    writeFileSync(filePath, `
+export function leaf() { return 1; }
+export function mid() { return leaf(); }
+export function top() { return mid(); }
+`);
+    await symbolIndex.parseFile(filePath);
+
+    const radius = computeBlastRadius(symbolIndex, { filePath, symbolPath: 'leaf' }, 3);
+    const names = radius.map(n => n.symbolPath).sort();
+    expect(names).toEqual(['mid', 'top']);
+    // mid is the direct (distance-1) caller of leaf.
+    expect(radius.find(n => n.symbolPath === 'mid')!.distance).toBe(1);
+    expect(radius.find(n => n.symbolPath === 'top')!.distance).toBe(2);
+  });
+
+  test('does not emit a self-edge for direct recursion', async () => {
+    const filePath = join(tempDir, 'recursive.ts');
+    writeFileSync(filePath, `
+export function fact(n: number): number {
+  return n <= 1 ? 1 : n * fact(n - 1);
+}
+`);
+    await symbolIndex.parseFile(filePath);
+    expect(symbolIndex.getDependents(filePath, 'fact')
+      .some(d => d.sourceSymbol === 'fact')).toBe(false);
+  });
 });
 
 // =============================================================================
@@ -293,6 +357,23 @@ MAX_USERS = 100
     const variable = symbols.find(s => s.symbolName === 'MAX_USERS');
     expect(variable).toBeDefined();
     expect(variable!.symbolType).toBe('variable');
+  });
+
+  test('extracts intra-file calls edges (issue #468)', async () => {
+    const filePath = join(tempDir, 'calls.py');
+    writeFileSync(filePath, `
+def build():
+    return 1
+
+def boot():
+    return build()
+`);
+    await symbolIndex.parseFile(filePath);
+
+    const caller = symbolIndex.getDependents(filePath, 'build')
+      .find(d => d.sourceSymbol === 'boot');
+    expect(caller).toBeDefined();
+    expect(caller!.dependencyType).toBe('calls');
   });
 });
 
@@ -503,7 +584,7 @@ describe('predictConflicts', () => {
     expect(conflicts[0].confidence).toBe(1.0);
   });
 
-  test('detects direct conflict — one modify one read', async () => {
+  test('detects direct conflict — one modify one read (warning per the claim-type matrix)', async () => {
     const filePath = join(tempDir, 'conflict-rw.ts');
     writeFileSync(filePath, 'export function shared() { return 42; }');
     await symbolIndex.parseFile(filePath);
@@ -516,7 +597,27 @@ describe('predictConflicts', () => {
     expect(conflicts.length).toBeGreaterThanOrEqual(1);
     const direct = conflicts.find(c => c.type === 'direct');
     expect(direct).toBeDefined();
-    expect(direct!.severity).toBe('blocking');
+    // modify×read on the same symbol is a WARNING (the reader may break), not a hard
+    // block — only modify×modify blocks. See lib/symbol-conflict-matrix.ts.
+    expect(direct!.severity).toBe('warning');
+  });
+
+  test('claim-type matrix: rename/delete block, two adds are safe', async () => {
+    const filePath = join(tempDir, 'conflict-types.ts');
+    writeFileSync(filePath, 'export function shared() { return 42; }');
+    await symbolIndex.parseFile(filePath);
+
+    const rename = symbolIndex.predictConflicts(
+      [{ filePath, symbolPath: 'shared', type: 'rename' }],
+      [{ filePath, symbolPath: 'shared', type: 'read' }],
+    ).find(c => c.type === 'direct');
+    expect(rename!.severity).toBe('blocking'); // rename clobbers a reader
+
+    const twoAdds = symbolIndex.predictConflicts(
+      [{ filePath, symbolPath: 'shared', type: 'add-sibling' }],
+      [{ filePath, symbolPath: 'shared', type: 'add-sibling' }],
+    );
+    expect(twoAdds.find(c => c.type === 'direct')).toBeUndefined(); // two siblings are safe
   });
 
   test('no conflict when both read', async () => {

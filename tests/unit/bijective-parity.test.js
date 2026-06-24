@@ -297,6 +297,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
     locks: ['lock', 'unlock', 'locks'],
     agents: ['agent', 'agents'],
     actors: ['actor', 'actors'],
+    // agentcockpit: "Watch + Grab the Wheel" SSE stream + soft interrupt
+    // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
+    // `pd agent stream <id>` + `pd agent interrupt <id> [--reason]`.
+    agentcockpit: ['agent'],
     health: ['health'],
     activity: ['log', 'activity'],
     webhooks: ['webhook'],
@@ -311,6 +315,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     briefing: ['briefing'],
     sugar: ['begin', 'done', 'whoami'],
     attention: ['attention'],
+    suggestions: ['nudge'],
     sitrep: ['sitrep'],
     advisor: ['advise', 'preflight', 'compass'],
     launch: ['hints'],
@@ -319,6 +324,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     spawn: ['spawn', 'spawned'],
     fleet: ['fleet'],
     harbors: ['harbor', 'harbors'],
+    whois: ['whois'],
     orchestrator: ['up', 'down'],
     tuples: ['tuple'],
     sorties: ['sortie'],
@@ -330,6 +336,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
     commitments: ['commit', 'obligations'],
     secrets: ['secret', 'secrets'],
     quorum: ['quorum'],
+    parley: ['parley'],
     feedback: ['feedback'],
     bonds: ['bond'],
     wallets: ['wallet'],

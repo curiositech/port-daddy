@@ -6,7 +6,7 @@ That is PD Tube.
 
 PD Tube is Port Daddy's local event-reply loop for developer tools. A button, test reporter, browser prototype, editor helper, or webhook adapter publishes a structured event. An agent subscribes in the terminal with a single command, inspects the repo, does real work, and replies — with the same single command.
 
-![PD Tube browser example with a local button asking an agent for help](/img/examples/pd-tube-button-to-agent-ui.png)
+![PD Tube browser example with a local button asking an agent for help](/img/examples/pd-tube-button-to-agent-ui.webp)
 
 ## Why This Exists
 
@@ -19,6 +19,7 @@ Both are useful. Neither is ideal when you are building local developer workflow
 
 PD Tube keeps the loop small and inspectable.
 
+<!-- figure: The whole event-reply loop on one channel — a local UI POSTs an event, the agent blocks on `pd tube`, does real work in the repo, and replies with the same command, while the browser polls the channel and reads the threaded answer back; no hosted queue anywhere in the path. -->
 ```mermaid
 sequenceDiagram
   participant UI as Local UI
@@ -121,7 +122,7 @@ That shape is boring in the best way. It means simple local tools can build usef
 
 A prototype page exposes a button that asks an agent to inspect the current route, run an accessibility check, or explain a failing state.
 
-![Button-to-agent workflow recording](/demos/pd-tube/pd-tube-real-output.gif)
+![Screen recording of a prototype page where clicking a button publishes a ui:clicks event, the terminal agent picks it up and inspects the route, and the threaded reply renders back next to the button that asked](/demos/pd-tube/pd-tube-real-output.gif)
 
 ### 2. Failing Test To Agent
 
@@ -142,7 +143,7 @@ publishTubeEvent({
 
 A VS Code lens publishes a selected range and asks for a structured explanation on `editor:explain`. The agent answers with citations to local code and suggested commands.
 
-![Editor lightbulb example UI](/img/examples/editor-lightbulb-to-agent-ui.png)
+![A VS Code lightbulb lens over a selected code range, publishing the selection on editor:explain so the agent can answer with citations to local code and suggested commands](/img/examples/editor-lightbulb-to-agent-ui.webp)
 
 ### 4. Webhook To Local Agent
 
@@ -233,7 +234,7 @@ async function publishFailedTest(result: FailedTestResult) {
 }
 ```
 
-In a production integration the URL should come from daemon discovery rather than a literal. The important product point is that the reporter remains tiny. It publishes the failure and lets the local control plane decide how agents, budgets, claims, and replies should work.
+In a production integration the URL should come from daemon discovery rather than a literal. The important product point is that the reporter remains tiny. It publishes the failure and lets the [local control plane](/blog/control-plane-is-the-product) decide how agents, budgets, claims, and replies should work.
 
 ## What The UI Should Render
 
@@ -251,7 +252,7 @@ That is the payoff of keeping replies structured. The browser does not have to g
 
 ## The Product Bet
 
-Giant autonomous runs get the attention, but the next wave of useful agent features is dozens of small local loops:
+Giant autonomous runs get the attention, but the next wave of useful agent features is [dozens of small local loops](/blog/your-ai-subscription-powers-the-fleet):
 
 - explain this UI state;
 - inspect this failing test;

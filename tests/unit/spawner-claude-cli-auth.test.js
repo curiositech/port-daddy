@@ -68,11 +68,12 @@ const TEST_TELEMETRY_BYPASS = {
 
 function createSpawner(deps = {}) {
   if (deps.enforceTelemetryPolicy === true) {
-    return createSpawnerBase(deps);
+    return createSpawnerBase({ enforceTranscriptPolicy: false, ...deps });
   }
   return createSpawnerBase({
     ...deps,
     enforceTelemetryPolicy: false,
+    enforceTranscriptPolicy: deps.enforceTranscriptPolicy ?? false,
     telemetryBypassApproval: deps.telemetryBypassApproval ?? TEST_TELEMETRY_BYPASS,
   });
 }

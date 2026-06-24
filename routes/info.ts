@@ -14,6 +14,7 @@ import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
+import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
 
 interface SystemPort {
   port: number;
@@ -71,6 +72,14 @@ interface InfoRouteDeps {
     runningHash: string | null;
     runningSizeBytes: number | null;
   };
+  /**
+   * This daemon's berth identity (ADR-0084): tier/label/colour/source + git
+   * snapshot. Surfaced on `GET /health` and `GET /whoami` so FleetBar, the
+   * console, and `pd dev list` can colour-code and address each berth. Optional
+   * so older route wirings stay compatible — when absent the daemon is treated
+   * as the stable, canonical berth.
+   */
+  daemonBerth?: DaemonBerthIdentity;
   cleanupStale: () => unknown[];
   getSystemPorts: () => SystemPort[];
   fleetDaemon?: ReturnType<typeof createFleetDaemon>;
@@ -301,6 +310,18 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
     };
   });
 
+  // GET /whoami — daemon berth self-identity (ADR-0084). Distinct from the
+  // session `pd whoami` (which answers "which agent am I"); this answers "which
+  // berth is this daemon". Returns the same `daemon` object embedded in /health.
+  fastify.get('/whoami', async (_request: FastifyRequest, _reply: FastifyReply) => {
+    return {
+      service: 'port-daddy',
+      version: VERSION,
+      pid: process.pid,
+      daemon: deps.daemonBerth ?? null,
+    };
+  });
+
   // GET /metrics
   fastify.get('/metrics', async (_request: FastifyRequest, _reply: FastifyReply) => {
     const uptime_seconds = Math.floor((Date.now() - metrics.uptime_start) / 1000);
@@ -348,6 +369,9 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       } : undefined,
       routes: routeHealth ?? undefined,
       runtime,
+      // Berth self-identity (ADR-0084). Always present: defaults to the stable,
+      // canonical berth when PD_DAEMON_* env is unset.
+      daemon: deps.daemonBerth ?? undefined,
       binaryDrift: binaryDrift ? {
         drifted: binaryDrift.drifted,
         runningHash: binaryDrift.runningHash,
@@ -383,6 +407,11 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
         startedAt: STARTED_AT,
         installDir: __dirname,
         nodeVersion: process.version,
+        // Berth self-identity (ADR-0084) embedded here so a single `/status`
+        // poll (FleetBar, dashboards) carries which berth this daemon is —
+        // stable / dev-latest / codebase — without a second `/whoami` round-trip.
+        // Defaults to the stable, canonical berth when PD_DAEMON_* is unset.
+        berth: deps.daemonBerth ?? undefined,
       },
       metrics: {
         ...metrics,

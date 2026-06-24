@@ -1,5 +1,7 @@
 import './App.css'
 import { Hero } from '@/components/landing/Hero'
+import { ScopeLadderSection } from '@/components/landing/ScopeLadderSection'
+import { FeaturedMarquee } from '@/components/landing/FeaturedMarquee'
 import { CliBackendValueProp } from '@/components/landing/CliBackendValueProp'
 import { TubeShowcase } from '@/components/landing/TubeShowcase'
 import { TubeMultiplexSection } from '@/components/landing/TubeMultiplexSection'
@@ -8,6 +10,7 @@ import { AgentConversationSection } from '@/components/landing/AgentConversation
 import { AgenticSocialProofSection } from '@/components/landing/AgenticSocialProofSection'
 import { Features } from '@/components/landing/Features'
 import { TerminalDemos } from '@/components/landing/TerminalDemos'
+import { InstallCTASection } from '@/components/landing/InstallCTASection'
 import { CTABanner } from '@/components/landing/CTABanner'
 import { Footer } from '@/components/layout/Footer'
 
@@ -34,6 +37,8 @@ export default function App() {
             7. Features        — catalog after the reader has context
         */}
         <Hero />
+        <ScopeLadderSection />
+        <FeaturedMarquee />
         <CliBackendValueProp />
         <TerminalDemos />
         <CoordinationEnforcementSection />
@@ -42,6 +47,7 @@ export default function App() {
         <TubeMultiplexSection />
         <AgenticSocialProofSection />
         <Features />
+        <InstallCTASection />
       </main>
 
       <CTABanner />

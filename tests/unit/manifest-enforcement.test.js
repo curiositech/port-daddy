@@ -48,7 +48,13 @@ function extractServerRoutes() {
   const routesDir = join(ROOT, 'routes');
   const routes = [];
 
-  const routePattern = /\.(get|post|put|delete|patch)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
+  // Tolerate an optional Fastify TypeScript generic between the method and the
+  // call, e.g. `fastify.get<{ Params: { id: string } }>('/path', ...)`. Without
+  // this the extractor silently drops every generic-form route (dispatches.ts,
+  // custodian.ts, harvest.ts, cockpit.ts), so a manifested generic route reads
+  // as a ghost. The generic is balanced-brace-free at this depth, so `<[^(]*>`
+  // (lazy, stopping before the opening paren) is sufficient.
+  const routePattern = /\.(get|post|put|delete|patch)\s*(?:<[^(]*>)?\s*\(\s*['"`]([^'"`]+)['"`]/gi;
 
   // routes/test-hooks.ts mounts only when NODE_ENV=test (see
   // routes/test-hooks.ts + routes/index.ts). Intentionally absent from
@@ -508,7 +514,10 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_harbors': 'harbors',
       'get_harbor': 'harbors',
       'check_harbor_envelope': 'harbors',
+      'whois': 'whois',
       'spray_pheromone': 'pheromone',
+      'resolve_pheromone': 'pheromone',
+      'pheromone_coverage': 'pheromone',
       'read_pheromones': 'pheromone',
       'read_entity_pheromones': 'pheromone',
       'roadmap_progress': 'cartographer',
@@ -516,14 +525,22 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'roadmap_list': 'roadmap',
       'roadmap_get': 'roadmap',
       'roadmap_promote': 'roadmap',
+      'call_parley': 'parley',
+      'list_parleys': 'parley',
+      'get_parley': 'parley',
+      'respond_parley': 'parley',
+      'resolve_parley': 'parley',
       'commit': 'commitments',
       'list_commitments': 'commitments',
       'list_overdue_commitments': 'commitments',
+      'list_nudges': 'suggestions',
+      'respond_nudge': 'suggestions',
       'semantic_search': 'semantic',
       'semantic_resolve': 'semantic',
       'find_symbols': 'symbols',
       'symbol_stats': 'symbols',
       'predict_conflicts': 'symbols',
+      'blast_radius': 'symbols',
       'claim_port': 'claim',
       'release_port': 'release',
       'list_services': 'services',
@@ -535,11 +552,13 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'list_sessions': 'sessions',
       'list_notes': 'notes',
       'claim_files': 'sessions',
+      'claim_symbols': 'sessions',
       'acquire_lock': 'locks',
       'release_lock': 'locks',
       'list_locks': 'locks',
       'publish_message': 'messaging',
       'get_messages': 'messaging',
+      'discourse_lineage': 'messaging',
       'register_agent': 'agents',
       'agent_heartbeat': 'agents',
       'list_agents': 'agents',
