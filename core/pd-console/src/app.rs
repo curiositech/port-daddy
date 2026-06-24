@@ -824,6 +824,12 @@ impl ConsoleView {
             )
             .child(
                 div()
+                    // Occlude so a press on the card (a tile) can't fall through to
+                    // the scrim's on_mouse_down — without this the scrim closes the
+                    // launcher on press, the re-render drops the tiles, and the
+                    // tile's on_click (needs the release) never fires: "Jump to a
+                    // pane" looked like it did nothing.
+                    .occlude()
                     .flex()
                     .flex_col()
                     .gap(px(14.0))
