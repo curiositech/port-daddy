@@ -33,7 +33,7 @@ JWKS_FAIL_SOFT_SECONDS = "3600"
 REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
 RATE_LIMIT_WINDOW_MS = "60000"
 
-[d1_databases]
+[[d1_databases]]
 binding = "DB"
 database_name = "port-daddy-relay"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
@@ -47,7 +47,7 @@ bindings = [
 tag = "v0001"
 new_classes = ["HarborChannel"]
 
-[kv_namespaces]
+[[kv_namespaces]]
 # JWKS cache and pinned relay key cache
 binding = "KV"
 id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
