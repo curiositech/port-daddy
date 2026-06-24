@@ -9,6 +9,7 @@ import {
   PanelEyebrow,
   PanelTitle,
 } from '@/components/site/primitives'
+import { useTheme } from '@/lib/theme-context'
 import { AnchorFourPhases } from '@/components/library/AnchorFourPhases'
 import { AnchorCapabilityAttenuation } from '@/components/library/AnchorCapabilityAttenuation'
 import { AnchorRevocationGossip } from '@/components/library/AnchorRevocationGossip'
@@ -37,6 +38,14 @@ function ClosesPill({ children }: { children: React.ReactNode }) {
 }
 
 export default function SecurityPage() {
+  const { theme } = useTheme()
+  // Theme-aware hero illustration in the "PR that reviews itself" line-art voice:
+  // a row of harbor gatekeepers checking each agent's signed capability card and
+  // turning away a forged one — the page's thesis rendered as a picture.
+  const heroArt =
+    theme === 'dark'
+      ? '/img/generated/security/hero-dark.webp'
+      : '/img/generated/security/hero-light.webp'
   return (
     <div className="bg-[var(--surface-base)]">
       <main id="main-content">
@@ -64,6 +73,21 @@ export default function SecurityPage() {
                 closes.
               </PanelBody>
             </div>
+
+            <figure className="mt-[var(--space-6)] m-0">
+              <img
+                src={heroArt}
+                alt="A row of harbor gatekeepers at a customs counter, each inspecting a small signed capability card held up by a hooded coding agent; at the far gate one gatekeeper raises a hand and turns away an agent whose card is crossed out and forged."
+                width={1376}
+                height={768}
+                loading="eager"
+                decoding="async"
+                className="w-full border-2 border-[var(--border-strong)]"
+              />
+              <figcaption className="mt-[var(--space-3)] max-w-[58ch] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                Every action carries a signed card that says what it may do. The card is checked at every door, cannot be forged, and can only ever grant less than the one it came from.
+              </figcaption>
+            </figure>
           </PageContainer>
         </section>
 
