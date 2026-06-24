@@ -45,15 +45,35 @@ The `-l<CGWindowID>` (looked up via Quartz `CGWindowListCopyWindowInfo`, keyed o
 
 Fully background. **Available for the Vello/wgpu surface** (`pd-timeline-proto` and any future T3 surface), because that surface renders through our own `wgpu` stack — redirect it from the windowed swapchain to an offscreen texture and you no longer need a window, a compositor, or TCC permission. This is the CI-able, bit-reproducible path.
 
-### Shape
-1. **Render target is an offscreen texture, not a surface.** `wgpu::Texture`, sized to the artifact, usage `RENDER_ATTACHMENT | COPY_SRC`, format matched to the pipeline (`Bgra8UnormSrgb` is typical on Metal — note **BGRA** order).
-2. **Drive a synthetic clock, not `CADisplayLink`.** Advance `t += 1.0/fps` per frame and render the Vello scene at each `t`. This is the whole win: deterministic, golden-frame-safe, decoupled from vsync jitter. (Reuse the autoplay path `pd-timeline-proto` already exposes via `PD_TIMELINE_AUTOPLAY=1`, but tick it from your loop instead of the display link.)
-3. **Copy texture → buffer.** `encoder.copy_texture_to_buffer(...)`. **`bytes_per_row` must be padded to `wgpu::COPY_BYTES_PER_ROW_ALIGNMENT` (256)** — un-pad each row on readback or every frame shears diagonally.
-4. **Map + read.** `buffer.slice(..).map_async(MapMode::Read)`, then `device.poll(Maintain::Wait)` (mandatory — without it you read stale/garbage pixels), copy bytes out, `unmap()`.
-5. **Encode** — pipe raw frames to ffmpeg over stdin:
+### Run it (wired in `pd-timeline-proto`)
+
+```bash
+cd core/pd-timeline-proto
+PD_TIMELINE_RENDER_OFFSCREEN=docs/timeline-headless.mp4 cargo run --release
+```
+
+No window opens; frames stream straight to ffmpeg. Tunables (all optional):
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `PD_TIMELINE_RENDER_OFFSCREEN` | _(unset)_ | Output path. **Setting it selects the headless path** and bypasses winit entirely. |
+| `PD_TIMELINE_RENDER_SECS` | `6.0` | Clip length; the playhead sweeps 0→1 across it. |
+| `PD_TIMELINE_RENDER_FPS` | `60` | Frame rate. |
+| `PD_TIMELINE_RENDER_W` / `_H` | `2560` / `1440` | Physical pixels. |
+| `PD_TIMELINE_RENDER_SCALE` | `2.0` | Logical→physical scale (2× ≈ retina; layout is computed in logical px). |
+
+Requires `ffmpeg` on `PATH` (`brew install ffmpeg`). The whole thing runs in CI / a detached agent — no window, no compositor, no Screen-Recording (TCC) permission.
+
+### Shape (what the implementation does — see `src/main.rs::render_offscreen`)
+1. **Headless device.** `RenderContext::device(None)` — a wgpu device with *no compatible surface*. That `None` is the headless seam (still Metal under the hood on macOS).
+2. **Offscreen texture, not a surface.** Vello's `render_to_texture` writes through a compute **storage binding**, so the target must be **`Rgba8Unorm` + `STORAGE_BINDING`** (plus `COPY_SRC` to read it back). Note: it's RGBA, *not* the BGRA you'd use for a swapchain blit — so the readback feeds ffmpeg as `-pix_fmt rgba`.
+3. **Synthetic clock, not `CADisplayLink`.** `playhead = frame / (total_frames-1)` — one deterministic sweep. Same data + size → byte-identical frames. This is the whole win over Method 0/B: golden-frame-safe, no vsync jitter.
+4. **Copy texture → buffer.** `copy_texture_to_buffer`. **`bytes_per_row` padded to `wgpu::COPY_BYTES_PER_ROW_ALIGNMENT` (256)** — un-pad each row on readback or every frame shears diagonally.
+5. **Map + read.** `slice.map_async(MapMode::Read)` then `device.poll(Maintain::Wait)` (mandatory — without it you read stale/garbage pixels), un-pad rows, `unmap()`.
+6. **Encode.** Raw RGBA streamed to ffmpeg stdin:
 
 ```
-ffmpeg -y -f rawvideo -pix_fmt bgra -s 1920x1080 -r 60 -i - \
+ffmpeg -y -f rawvideo -pix_fmt rgba -s 2560x1440 -r 60 -i - \
        -c:v libx264 -pix_fmt yuv420p -crf 16 out.mp4
 ```
 
@@ -61,12 +81,12 @@ For a GIF, encode the MP4 first, then a two-pass `palettegen`/`paletteuse` — n
 
 ### Gotchas that cost an afternoon
 - **256-byte row padding** — un-pad on readback (the usual "sheared video" cause).
-- **Channel order** — `Bgra8UnormSrgb` → `-pix_fmt bgra`. Red/blue swapped means you got this wrong.
+- **Channel order** — vello `render_to_texture` is `Rgba8Unorm` → `-pix_fmt rgba`. (A swapchain path would be BGRA; don't copy that habit here.) Red/blue swapped means you got this wrong.
+- **`STORAGE_BINDING` on the target** — omit it and vello can't write the texture at all.
 - **Premultiplied alpha** — if capturing transparency, un-premultiply before encode or edges fringe.
 - **`device.poll(Wait)`** before reading the mapped buffer is not optional.
-- **sRGB double-convert** — if the target is `*Srgb` and ffmpeg also assumes sRGB you gamma-shift; pick one place to convert.
 
-**Status:** not yet wired in `pd-timeline-proto` — its `capture.sh` is still Method 0 (live window + `screencapture`). This is the documented next step to make timeline artifacts CI-reproducible. Implementing it means adding an offscreen-render mode behind a flag (e.g. `PD_TIMELINE_RENDER_OFFSCREEN=out.mp4`) that bypasses the gpui window entirely.
+**Status: wired.** `render_offscreen` in `core/pd-timeline-proto/src/main.rs` implements all of the above behind `PD_TIMELINE_RENDER_OFFSCREEN`. The live-window `capture.sh` (Method 0) remains for interactive PR stills. For the **gpui shell** there is still no Method-A equivalent — the element tree can't render windowless (see the constraint above), so the shell uses Method B.
 
 ---
 

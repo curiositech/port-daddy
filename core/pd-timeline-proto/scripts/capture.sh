@@ -10,10 +10,12 @@
 # black or empty, run this from a Terminal that has Screen Recording permission
 # (System Settings > Privacy & Security > Screen Recording).
 #
-# This is a live-window capture (Method 0). Because this is a Vello/wgpu surface,
-# it is the natural candidate for a fully headless, CI-able, deterministic path:
-# render to an offscreen wgpu texture and pipe frames to ffmpeg — no window, no
-# TCC permission. See ../../pd-console/docs/recording-visual-artifacts.md (Method A).
+# This is a live-window capture (Method 0). For a fully headless, CI-able,
+# deterministic path (no window, no TCC permission), the binary now also supports
+# offscreen rendering straight to mp4 via ffmpeg:
+#   PD_TIMELINE_RENDER_OFFSCREEN=docs/timeline-headless.mp4 cargo run --release
+# See ../../pd-console/docs/recording-visual-artifacts.md (Method A) and
+# render_offscreen() in ../src/main.rs.
 #
 # Requires: pyobjc Quartz bindings for window-id lookup (preinstalled on most
 # macOS Pythons; `pip install pyobjc-framework-Quartz` otherwise).
