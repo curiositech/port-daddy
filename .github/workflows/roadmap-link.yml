@@ -1,0 +1,42 @@
+name: Roadmap Link Gate
+
+# Non-blocking gate: does this PR declare the roadmap item it advances?
+#
+# IMPORTANT: do NOT add this job to the branch-protection "required status
+# checks" list. It is meant to be advisory — a red check here is a loud signal,
+# not a merge block. Its teeth are the `needs-roadmap-link` label, which the
+# land/auto-merge flow treats as "hold for a human".
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# One run per PR; a fast follow-up edit cancels the in-flight check.
+concurrency:
+  group: roadmap-link-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  roadmap-link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check PR links a roadmap item
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx tsx scripts/check-roadmap-link.ts

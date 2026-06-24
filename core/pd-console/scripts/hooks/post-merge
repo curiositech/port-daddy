@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# pd-console post-merge hook — keep ~/Applications/pd-console-latest.app current.
+#
+# When a `git pull` / `git merge` into main brings in changes under core/pd-console/,
+# rebuild the LATEST lane so the operator's -latest.app actually reflects main
+# (AGENTS.md "build LANES": a stale -latest is the bug, not a cosmetic). Non-blocking:
+# the rebuild runs detached so the merge returns immediately; logs to ~/coding/tmp.
+#
+# Installed by core/pd-console/scripts/install-console-hooks.sh (idempotent).
+set -euo pipefail
+
+[ -n "${CI:-}" ] && exit 0          # never in CI
+[ -t 1 ] || exit 0                  # non-interactive (scripted merges, rebases) — skip
+BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo)"
+[ "$BRANCH" = main ] || exit 0      # only the operator's main checkout
+
+# Did this merge touch the console?
+if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^core/pd-console/'; then
+  ROOT="$(git rev-parse --show-toplevel)"
+  SCRIPT="$ROOT/core/pd-console/scripts/package-console.sh"
+  [ -f "$SCRIPT" ] || exit 0
+  LOG="$HOME/coding/tmp/pd-console-latest-rebuild.log"
+  mkdir -p "$HOME/coding/tmp"
+  echo "▸ pd-console changed on main — rebuilding the latest lane (detached). Log: $LOG"
+  # Detached + no relaunch (a pull must not steal window focus); latest is the default lane.
+  ( PD_CONSOLE_NO_LAUNCH=1 bash "$SCRIPT" --latest >"$LOG" 2>&1 & ) </dev/null
+fi
+exit 0

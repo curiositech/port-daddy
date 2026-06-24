@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {
   DEFAULT_GUARD_CONFIG,
+  describeGuardBlock,
   evaluateGuardFacts,
   extractClaimPaths,
   filterClaimsToRepo,
@@ -601,5 +602,54 @@ describe('Coordination Guard', () => {
       const result = filterClaimsToRepo(['anything.ts'], '/nonexistent-repo-root-pd-guard-test');
       expect(result).toEqual([]);
     });
+  });
+});
+
+describe('describeGuardBlock — HITL escalation policy', () => {
+  const enforce = { ...DEFAULT_GUARD_CONFIG, enabled: true, mode: 'enforce' };
+
+  test('returns null when the result is not a block', () => {
+    const result = evaluateGuardFacts({ config: enforce, active: true, agentId: 'a', sessionId: 's', files: [] });
+    expect(result.shouldBlock).toBe(false);
+    expect(describeGuardBlock(result)).toBeNull();
+  });
+
+  test('no active session → structural; notifies the operator even outside the git hook', () => {
+    const result = evaluateGuardFacts({ config: enforce, active: false, files: ['src/a.ts'] });
+    const notice = describeGuardBlock(result, { hook: false });
+    expect(notice).not.toBeNull();
+    expect(notice.severity).toBe('structural');
+    expect(notice.notifyOperator).toBe(true); // structural always escalates
+    expect(notice.title).toMatch(/COORDINATION LAYER DOWN/);
+  });
+
+  test('daemon unreachable → structural and always notifies', () => {
+    const result = evaluateGuardFacts({ config: enforce, active: false, daemonReachable: false, files: ['src/a.ts'] });
+    const notice = describeGuardBlock(result, { hook: false });
+    expect(notice.severity).toBe('structural');
+    expect(notice.notifyOperator).toBe(true);
+  });
+
+  test('file owned by another session → conflict; notifies only at real commit time (hook)', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, active: true, agentId: 'agent-self', sessionId: 'session-self',
+      files: ['src/shared.ts'],
+      ownersByFile: { 'src/shared.ts': [{ agentId: 'agent-other', sessionId: 'session-other' }] },
+    });
+    expect(describeGuardBlock(result, { hook: false }).notifyOperator).toBe(false);
+    const hooked = describeGuardBlock(result, { hook: true });
+    expect(hooked.severity).toBe('conflict');
+    expect(hooked.notifyOperator).toBe(true);
+  });
+
+  test('unclaimed file → requirement; notifies only at commit time, not on manual checks', () => {
+    const result = evaluateGuardFacts({
+      config: enforce, active: true, agentId: 'agent-self', sessionId: 'session-self',
+      files: ['src/a.ts'], ownersByFile: { 'src/a.ts': [] },
+    });
+    const manual = describeGuardBlock(result, { hook: false });
+    expect(manual.severity).toBe('requirement');
+    expect(manual.notifyOperator).toBe(false);
+    expect(describeGuardBlock(result, { hook: true }).notifyOperator).toBe(true);
   });
 });

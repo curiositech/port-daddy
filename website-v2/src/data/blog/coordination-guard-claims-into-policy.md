@@ -131,7 +131,7 @@ That would have prevented a lot of the dumbest damage. If each agent has its own
 
 But worktrees do not answer everything.
 
-They do not say which session owns the integration commit. They do not tell you whether two clean branches break the program together. They do not protect generated assets or migrations that need a lock. They do not salvage a dead agent's intent. They do not make a cherry-pick explain itself.
+They do not say which session owns the integration commit. They do not tell you whether two clean branches break the program together. They do not protect generated assets or migrations that need a lock. They do not [salvage a dead agent's intent](/blog/recovery-roadmap-map-truth). They do not make a cherry-pick explain itself.
 
 So I now think the default should be:
 
@@ -158,7 +158,7 @@ Spark and Spider kept turning up the same themes:
 - compare session notes with Git deltas, because intent and output drift;
 - write intent tuples before work begins, not after the conflict;
 - turn hot files and active claims into routing signals;
-- surface stale ownership automatically instead of hoping a human reads every note;
+- surface stale ownership automatically instead of [hoping a human reads every note](/blog/attention-is-the-first-command);
 - treat dead agents as salvage events quickly;
 - prefer symbol claims when whole-file claims are too blunt;
 - make staging and destructive Git operations claim-aware.

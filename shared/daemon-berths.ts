@@ -189,3 +189,59 @@ export interface DevDaemonRecord {
   color: string;
   startedAt: string;
 }
+
+/** Default idle window before a codebase berth is auto-reaped (24h). */
+export const BERTH_IDLE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The verdict for a single recorded dev berth during garbage collection:
+ *   - `live`           → keep it.
+ *   - `reap-dead`      → its process is gone; clean up the registry + profile dir.
+ *   - `reap-orphaned`  → its source worktree was deleted; the berth has no home.
+ *   - `reap-idle`      → a *codebase* berth with no activity past the TTL.
+ * Stable/dev-latest are standing berths and are never idle-reaped (only dead/orphaned).
+ */
+export type BerthVerdict = 'live' | 'reap-dead' | 'reap-orphaned' | 'reap-idle' | 'reap-orphan-dir';
+
+/** Why a verdict, in operator-facing words. */
+export function describeVerdict(v: BerthVerdict): string {
+  switch (v) {
+    case 'reap-dead': return 'process gone';
+    case 'reap-orphaned': return 'worktree deleted';
+    case 'reap-idle': return 'idle past TTL';
+    case 'reap-orphan-dir': return 'orphaned profile dir (no registry entry)';
+    case 'live': return 'live';
+  }
+}
+
+/** True for any verdict that should be reaped (anything but `live`). */
+export function shouldReap(v: BerthVerdict): boolean {
+  return v !== 'live';
+}
+
+/**
+ * PURE decision: classify a berth for GC from injected signals. No IO — the caller
+ * supplies liveness/worktree/activity facts so this is fully unit-tested.
+ *
+ * Precedence: dead > orphaned > idle > live. A berth is idle only when it is a
+ * `codebase` tier AND the most recent of {last daemon activity, its own start time}
+ * is older than `ttlMs` — so a freshly-launched-but-quiet berth gets a grace period
+ * (its startedAt counts as a liveness signal until the TTL elapses).
+ */
+export function classifyBerth(
+  rec: DevDaemonRecord,
+  signals: { pidAlive: boolean; worktreeExists: boolean; lastActivityMs: number | null },
+  now: number,
+  ttlMs: number = BERTH_IDLE_TTL_MS,
+): BerthVerdict {
+  if (!signals.pidAlive) return 'reap-dead';
+  if (!signals.worktreeExists) return 'reap-orphaned';
+  // Only ephemeral per-branch (codebase) berths are idle-reaped; stable/dev-latest
+  // are standing lanes meant to persist even when quiet.
+  if (rec.tier === 'codebase') {
+    const startedMs = Date.parse(rec.startedAt);
+    const lastAlive = Math.max(signals.lastActivityMs ?? 0, Number.isNaN(startedMs) ? 0 : startedMs);
+    if (now - lastAlive > ttlMs) return 'reap-idle';
+  }
+  return 'live';
+}

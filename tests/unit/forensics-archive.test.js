@@ -1,6 +1,6 @@
 // tests/unit/forensics-archive.test.js
 //
-// Durable security-forensics retention (ADR-0060): every Arbiter violation is
+// Durable security-forensics retention (ADR-0089): every Arbiter violation is
 // written to an append-only JSONL journal OUTSIDE the live DB, so it survives the
 // 7-day activity_log prune. Pure-fs tests — no DB needed.
 

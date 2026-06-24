@@ -2,19 +2,17 @@
  * Unit tests for the Cloudflare Workers AI `result` → structured transcript
  * parser (lib/spawner/cloudflare-transcript.ts).
  *
- * HONESTY NOTE: these fixtures are REPRESENTATIVE, built from Cloudflare's
- * documented Workers AI text-generation sync-output schema, NOT a live capture.
- * The operator's `CLOUDFLARE_API_TOKEN` verifies as active but lacks the
- * Workers AI Run permission — every live `POST .../ai/run/{model}` returns
- * HTTP 401 `{"code":10000,"message":"Authentication error"}`, so a real
- * `result` payload could not be captured. Schema source:
- *   - sync output: `response` (string, required), `tool_calls` (array of
- *     {name, arguments}), `usage` ({prompt_tokens, completion_tokens,
- *     total_tokens}) — Cloudflare workers-ai-models llama-3.3-70b schema.
- *   - reasoning models add a `reasoning` string (deepseek-r1-distill, glm-4.7).
- *   - OpenAI-compat shape: `choices[].message` with `content`,
- *     `reasoning_content`, and OpenAI-style `tool_calls`
- *     ({id, type, function:{name, arguments:<json-string>}}).
+ * LIVE-VERIFIED: the `LIVE_GLM_*` fixtures below are VERBATIM captures from a
+ * real `env.AI.run('@cf/zai-org/glm-4.7-flash', ...)` call (the spawner's
+ * default Cloudflare model), captured 2026-06-23 once the operator's token
+ * gained Workers AI Run access. The default model returns the OpenAI-compat
+ * shape (`choices[].message`) carrying BOTH `reasoning` and `reasoning_content`,
+ * `content`, and OpenAI-style `tool_calls`
+ * ({id, type:'function', function:{name, arguments:<json-string>}}).
+ *
+ * The other fixtures remain REPRESENTATIVE of the documented schema variants
+ * the parser must also handle (legacy flat `response`/`reasoning`/`tool_calls`
+ * with `{name, arguments}`), which other @cf/* models emit.
  */
 
 import { describe, it, expect } from '@jest/globals';
@@ -69,7 +67,63 @@ const OPENAI_COMPAT = {
   usage: { prompt_tokens: 22, completion_tokens: 18, total_tokens: 40 },
 };
 
+// VERBATIM live capture: glm-4.7-flash with a tools request (reasoning + a
+// tool_call + a content line). Trimmed reasoning text only.
+const LIVE_GLM_TOOLS = {
+  id: 'chatcmpl-aa9144b5a85f7ad2',
+  object: 'chat.completion',
+  choices: [{
+    index: 0,
+    message: {
+      role: 'assistant',
+      content: "I'll get the current weather in Paris for you.",
+      reasoning: "The user is asking for the current weather in Paris. They've explicitly told me",
+      reasoning_content: "The user is asking for the current weather in Paris. They've explicitly told me",
+      tool_calls: [{
+        id: 'chatcmpl-tool-beda2925b7e685e6',
+        type: 'function',
+        function: { name: 'get_weather', arguments: '{"city": "Paris"}' },
+      }],
+    },
+    finish_reason: 'tool_calls',
+  }],
+  usage: { prompt_tokens: 184, completion_tokens: 65, total_tokens: 249 },
+};
+
+// VERBATIM live capture: glm-4.7-flash reasoning scenario (reasoning + content,
+// empty tool_calls). Trimmed long text.
+const LIVE_GLM_REASONING = {
+  id: 'chatcmpl-99c059ae77f4b3ea',
+  object: 'chat.completion',
+  choices: [{
+    index: 0,
+    message: {
+      role: 'assistant',
+      content: 'Since 17 is greater than 1 and has no divisors other than 1 and itself, it is prime.',
+      reasoning: 'Define prime; test divisibility by 2 and 3 up to sqrt(17); none divide; therefore prime.',
+      reasoning_content: 'Define prime; test divisibility by 2 and 3 up to sqrt(17); none divide; therefore prime.',
+      tool_calls: [],
+    },
+    finish_reason: 'stop',
+  }],
+  usage: { prompt_tokens: 26, completion_tokens: 1249, total_tokens: 1275 },
+};
+
 describe('parseCloudflareTranscript', () => {
+  it('LIVE glm-4.7-flash tools capture → thinking, tool, assistant (in order)', () => {
+    const turns = parseCloudflareTranscript(LIVE_GLM_TOOLS);
+    expect(turns.map((t) => t.role)).toEqual(['thinking', 'tool', 'assistant']);
+    expect(turns[0].content).toMatch(/weather in Paris/);
+    expect(turns[1].toolCalls[0]).toEqual({ name: 'get_weather', args: { city: 'Paris' } });
+    expect(turns[2].content).toBe("I'll get the current weather in Paris for you.");
+  });
+
+  it('LIVE glm-4.7-flash reasoning capture → thinking then assistant (no tool turn)', () => {
+    const turns = parseCloudflareTranscript(LIVE_GLM_REASONING);
+    expect(turns.map((t) => t.role)).toEqual(['thinking', 'assistant']);
+    expect(turns[1].content).toMatch(/17 .* prime/);
+  });
+
   it('returns [] for null / undefined / non-object / empty', () => {
     expect(parseCloudflareTranscript(null)).toEqual([]);
     expect(parseCloudflareTranscript(undefined)).toEqual([]);

@@ -863,7 +863,7 @@ describe('CAP_ESCALATION runtime monitor fallback', () => {
   });
 });
 
-// ─── Forensics sink (ADR-0060) ─────────────────────────────────────────────────
+// ─── Forensics sink (ADR-0089) ─────────────────────────────────────────────────
 
 describe('forensics sink — durable security retention', () => {
   function capturingSink() {
