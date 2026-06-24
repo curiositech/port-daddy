@@ -19,7 +19,7 @@ compatibility_date = "2026-05-01"
 
 [vars]
 # Numeric GitHub App ID (visible on the App settings page at github.com/settings/apps)
-GITHUB_APP_ID = "YOUR_APP_ID_HERE"
+GITHUB_APP_ID = "3810450"
 
 [ai]
 binding = "AI"
