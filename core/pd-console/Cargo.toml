@@ -30,6 +30,7 @@ dirs = "5"
 anyhow = "1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 gpui = { version = "0.2.2", optional = true }
+loro = "1.13"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }
