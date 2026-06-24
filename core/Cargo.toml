@@ -32,6 +32,7 @@ exclude = [
   "harbor-card-rs",
   "pd-tui",
   "pd-timeline-proto",
+  "pd-flag-proto",
 ]
 
 [workspace.package]

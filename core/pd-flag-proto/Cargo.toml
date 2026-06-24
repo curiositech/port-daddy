@@ -1,0 +1,36 @@
+# Empty [workspace] table makes this crate its OWN workspace root with its own
+# Cargo.lock — exactly like core/pd-timeline-proto. Without it, cargo folds the
+# heavy wgpu/vello/winit tree into core/Cargo.lock and churns the Linux CI diff.
+# This crate is ALSO listed in core/Cargo.toml `exclude` so the rust-console CI
+# job never tries to compile macOS/GPU code.
+[workspace]
+
+[package]
+name = "pd-flag-proto"
+version = "0.1.0"
+edition = "2021"
+description = "Headless Vello/wgpu renderer for the pd-console waving ICS signal flags. Method-A offscreen capture (no window, TCC-free) → PNG frames → GIF. NOT wired into pd-console; it proves + records the flag-wave shader surface that later embeds via render-to-texture."
+license = "MIT"
+publish = false
+
+[[bin]]
+name = "pd-flag-proto"
+path = "src/main.rs"
+
+[dependencies]
+# GPU vector renderer (compute path rendering on wgpu) — same stack as pd-timeline-proto.
+vello = "0.3"
+# wgpu is re-exported by vello; pin the matching minor so device/texture types line up.
+wgpu = "22"
+# Color / brush helpers + 2D geometry for hand-built flag paths.
+peniko = "0.2"
+kurbo = "0.11"
+# Text shaping + layout for the ICS letter on each flag.
+parley = "0.2"
+# Block on async device/adapter acquisition (no event loop — pure offscreen).
+pollster = "0.4"
+# Write captured frames as PNGs for ffmpeg to assemble into a GIF.
+png = "0.17"
+
+[profile.release]
+opt-level = 3
