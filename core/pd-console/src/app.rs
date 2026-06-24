@@ -1771,10 +1771,78 @@ fn split_divider(path: Vec<usize>, left: usize, dir: Dir, cx: &mut Context<Conso
     )
 }
 
+/// The always-visible NAV rail — the GUI replacement for `Ctrl-A <key>` surface
+/// switching. Click a surface name to swap the focused pane to it; the active
+/// surface is highlighted. Keyboard chords still work as unadvertised
+/// accelerators, but nothing here requires them. (#32 retired: the chord is made
+/// unnecessary, not consistent — the operator hates leader-key core movement.)
+fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let active = active.map(|s| s.to_string());
+    div()
+        .id("nav-rail")
+        .flex()
+        .flex_col()
+        .flex_none()
+        .w(px(152.0))
+        .h_full()
+        .overflow_y_scroll()
+        .bg(rgb(current_theme().panel))
+        .border_r_1()
+        .border_color(rgb(current_theme().line))
+        .py(px(6.0))
+        // Eyebrow header — the allowed 12px exception (uppercase, weight ≥600).
+        .child(
+            div()
+                .px(px(12.0))
+                .pb(px(4.0))
+                .text_size(px(12.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(current_theme().muted))
+                .child("NAVIGATE"),
+        )
+        .children(NAV.iter().map(|item| {
+            let nav_id: &'static str = item.id;
+            let is_active = active.as_deref() == Some(nav_id);
+            let accent = current_theme().accent;
+            div()
+                .id(SharedString::from(format!("nav-{nav_id}")))
+                .mx(px(6.0))
+                .my(px(1.0))
+                .px(px(10.0))
+                .py(px(5.0))
+                .rounded(px(6.0))
+                .text_size(px(14.0))
+                .font_weight(if is_active { FontWeight::SEMIBOLD } else { FontWeight::MEDIUM })
+                .text_color(rgb(if is_active {
+                    current_theme().accent_ink
+                } else {
+                    current_theme().ink2
+                }))
+                .cursor_pointer()
+                .when(is_active, |s| {
+                    s.bg(rgb(current_theme().raised))
+                        .shadow(motion::glow(accent, 0.28, 10.0, 0.0))
+                })
+                .when(!is_active, |s| {
+                    s.hover(move |h| {
+                        h.bg(rgb(current_theme().raised))
+                            .text_color(rgb(current_theme().accent_ink))
+                    })
+                })
+                .child(item.label)
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.ws_mut().swap_surface(surface_for_nav_id(nav_id));
+                    cx.notify();
+                }))
+        }))
+}
+
 impl Render for ConsoleView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
+        // Which NAV surface the focused pane is showing — drives the rail highlight.
+        let active_nav = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
         let armed = self.leader_armed;
         let command = self.command.clone();
         let lit = armed || command.is_some();
@@ -1915,8 +1983,18 @@ impl Render for ConsoleView {
                             })),
                     ),
             )
-            // The pane tree (or a maximized pane) fills the window.
-            .child(div().flex_1().overflow_hidden().child(body))
+            // ── Body row: clickable NAV rail (the GUI replacement for the
+            // Ctrl-A <key> surface switch the operator hates) + the pane tree.
+            // Click a surface name to swap the focused pane — no leader key. ──
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_hidden()
+                    .flex()
+                    .flex_row()
+                    .child(render_nav_rail(active_nav.as_deref(), cx))
+                    .child(div().flex_1().overflow_hidden().child(body)),
+            )
             // ── Operator toolbar: always-visible GUI affordances. No leader keys,
             // no memorized syntax — click a button, a placeholder-guided input
             // opens, type, hit Send. This is what makes the console an operator
