@@ -1,13 +1,63 @@
 {
-  "generatedAt": 1782207043527,
+  "generatedAt": 1782285276695,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 48,
+  "count": 87,
   "items": [
+    {
+      "slug": "adr-0019-declarative-fleet-yaml",
+      "status": "done",
+      "summaryMd": "ADR-0019 SHIPPED despite PROPOSED header: fleet YAML parser in lib/fleet-engine.ts (#533,#16)."
+    },
+    {
+      "slug": "adr-0022-durable-actor-souls-body-leases",
+      "status": "now",
+      "summaryMd": "ADR-0022 'Accepted' but body_leases/actors tables NOT shipped (queue.ts:209 confirms). Build tables + lease lifecycle."
+    },
+    {
+      "slug": "adr-0026-fleet-ast-diagnostics",
+      "status": "done",
+      "summaryMd": "ADR-0026 SHIPPED despite PROPOSED header: lib/fleet-ast.ts positional AST + diagnostics (#170,#50)."
+    },
+    {
+      "slug": "adr-0029-v0-account-login-and-local-forest",
+      "status": "backlog",
+      "summaryMd": "pd account login (OIDC) + account Ed25519 key + local pairing receipts + Merkle audit (ADR-0029 v0)"
+    },
+    {
+      "slug": "adr-0029-v3-cross-device-quotas-and-rbac",
+      "status": "backlog",
+      "summaryMd": "owner/member/viewer sync card scoping + cross-device fleet quota pool (ADR-0029 v3)"
+    },
+    {
+      "slug": "adr-0037-git-access-control-pd-feature-verbs",
+      "status": "backlog",
+      "summaryMd": "ADR-0037 Proposed, ZERO impl: no pd feature verbs / git-ACL module (doc PR #112 only)."
+    },
+    {
+      "slug": "adr-0038-claim-tree-multi-granularity",
+      "status": "backlog",
+      "summaryMd": "ADR-0038 Proposed, ZERO impl: no claimTree code (doc PR #119 + website explainers only)."
+    },
+    {
+      "slug": "adr-0041-durable-commitments-obligation-monitor",
+      "status": "done",
+      "summaryMd": "ADR-0041 SHIPPED despite Proposed header: lib/commitments.ts + lib/obligation-monitor.ts (#422,#334)."
+    },
+    {
+      "slug": "adr-0042-team-secret-sharing",
+      "status": "backlog",
+      "summaryMd": "ADR-0042 Proposed, not started: lib/secret-env.ts is single-user; no team sharing/shamir/threshold."
+    },
     {
       "slug": "adr-0043-phase-0-spec-and-parser",
       "status": "now",
       "summaryMd": "ADR-0043 + matrix format + lib/adr-matrix.ts parser/transform + unit tests"
+    },
+    {
+      "slug": "adr-0043-phase-1-adr-sync-wiring",
+      "status": "now",
+      "summaryMd": "ADR-0043 partial: lib/adr-matrix.ts parser shipped (Phase 0); Phase 1 missing — no cli/commands/adr.ts, no POST /adr/sync."
     },
     {
       "slug": "adr-0043-phase-1-daemon-route-and-cli",
@@ -205,6 +255,16 @@
       "summaryMd": "Deep-research whitepapers backing the North Star (legibility/Leviathan, economy/anchor, identity->reputation, tokens/compaction, discovery/guilds), building deep skills en route. Done when each layer has a cited paper."
     },
     {
+      "slug": "adr-0049-relay-v0",
+      "status": "done",
+      "summaryMd": "ADR-0049 Relay v0 SHIPPED: apps/relay Worker+DO, lib/relay-client.ts, pd relay (#305,#336,#355). Was untracked."
+    },
+    {
+      "slug": "adr-0050-coast-guard",
+      "status": "done",
+      "summaryMd": "ADR-0050 Coast Guard SHIPPED: pd-cutter sandbox + egress cap + compulsion (#259,#281,#282,#297). Was untracked."
+    },
+    {
       "slug": "adr-0050-phase-0-pd-cutter-wrapper",
       "status": "now",
       "summaryMd": "Harden the pd-cutter wrapper: Seatbelt + Landlock/seccomp + egress request/byte cap + receipt + honest-limits disclosure. Done when pd-cutter confines secrets + hard-caps egress on macOS+Linux."
@@ -240,9 +300,144 @@
       "summaryMd": "Paid Trust tier: roll receipts up to a team policy-and-audit plane. Done when an eng lead sees every agent's signed record across the team."
     },
     {
+      "slug": "adr-0090-database-distribution",
+      "status": "now",
+      "summaryMd": "ADR-0090 DB distribution plan"
+    },
+    {
+      "slug": "adr-0090-phase-4-shared-board-db-across-profiles",
+      "status": "now",
+      "summaryMd": "Split runtime-local tables (ports/locks) from shared board tables so brew+dev daemons read ONE board DB"
+    },
+    {
+      "slug": "adr-0090-phase-5-change-event-journal",
+      "status": "backlog",
+      "summaryMd": "Per-row HLC-stamped, class-tagged change-events into a local outbox (no transport yet)"
+    },
+    {
+      "slug": "adr-0090-phase-6-roadmap-snapshot-and-ci-seed",
+      "status": "backlog",
+      "summaryMd": "pd roadmap snapshot -> committed JSON; seed CI smoke + roadmap-link gate from it"
+    },
+    {
+      "slug": "adr-0090-phase-7-r2-snapshot-backend",
+      "status": "backlog",
+      "summaryMd": "lib/backup-backends/r2.ts: encrypted VACUUM-INTO snapshot up/download keyed by account"
+    },
+    {
+      "slug": "adr-0090-phase-8-sync-channels-over-relay",
+      "status": "backlog",
+      "summaryMd": "Publish change-event envelopes to _sync:<class>; subscribe with from_seq; fold G-Set/LWW per card scope"
+    },
+    {
+      "slug": "adr-0090-phase-9-multi-machine-replica-and-bootstrap",
+      "status": "backlog",
+      "summaryMd": "Second device: pair, R2 snapshot pull, replay since HLC, revocation <=5s"
+    },
+    {
+      "slug": "ast-a0-intra-file-call-edges",
+      "status": "done",
+      "summaryMd": "SHIPPED (#468/#544): parseFile extracts intra-file calls edges so blast-radius + signature conflicts fire within a file. Cross-file is ast-a1-1."
+    },
+    {
+      "slug": "ast-a1-1-cross-file-resolution",
+      "status": "merge",
+      "summaryMd": "A1.1 cross-file import resolution — KEYSTONE. PR #576: resolveImportSpecifier (filesystem-verified relative+baseUrl; externals stay raw). Unblocks ast-a1-3/a2-1/a3-1. Follow-ups: tsconfig paths globs, Python module resolution."
+    },
+    {
+      "slug": "ast-a1-2-references-edges",
+      "status": "backlog",
+      "summaryMd": "A1.2 Produce the declared-but-empty 'references' edge (type/identifier uses that name a symbol without calling it). Done when a type-only reference yields a references dep + unit test."
+    },
+    {
+      "slug": "ast-a1-3-cross-file-call-resolution",
+      "status": "backlog",
+      "summaryMd": "A1.3 Extend extractCallEdges to resolve callees imported from other files via ast-a1-1's resolver. Done when blast-radius includes callers in other files + integration test."
+    },
+    {
+      "slug": "ast-a1-4-incremental-index-refresh",
+      "status": "backlog",
+      "summaryMd": "A1.4 Keep the symbol index current as files change (re-parse dirty files only). Done when editing one file updates only its rows and stale edges are gone."
+    },
+    {
+      "slug": "ast-a1-5-graph-integrity-auditor",
+      "status": "backlog",
+      "summaryMd": "A1.5 Check symbol_dependencies for dangling targets/orphans after deletes; counts reconcile. Done when a pd-doctor-style check flags a corrupted row."
+    },
+    {
+      "slug": "ast-a2-1-symbol-claim-isolation-validator",
+      "status": "backlog",
+      "summaryMd": "A2.1 Pre-flight: run predictConflicts vs live claims before a symbol claim; refuse/warn on blocking overlaps. Done when a 2nd modify-claim on a contended symbol is blocked/warned on the live daemon."
+    },
+    {
+      "slug": "ast-a2-2-symbol-graph-visualization",
+      "status": "backlog",
+      "summaryMd": "A2.2 Render graph_edges as a navigable symbol/dependency graph (pd-console pane + GET /symbols/graph). Done when an operator sees a symbol, its blast radius, and contended claims; visual artifact on PR."
+    },
+    {
+      "slug": "ast-a2-3-predict-conflicts-session-preflight",
+      "status": "backlog",
+      "summaryMd": "A2.3 Wire POST /conflicts/predict into the session claim flow + advisor (category:symbol) so conflicts surface in pd briefing/attention. Done when claiming overlapping symbols emits a symbol-category advice."
+    },
+    {
+      "slug": "ast-a3-1-surface-map",
+      "status": "backlog",
+      "summaryMd": "A3.1 Build lib/surface-map.ts: map a session's git diff hunks onto AST symbols, emitting the TouchedRegion[] surface-overlap.ts already consumes. Done when a real diff yields per-symbol touched regions + unit test."
+    },
+    {
+      "slug": "ast-a3-2-surface-overlap-broker",
+      "status": "backlog",
+      "summaryMd": "A3.2 Periodically run detectSymbolOverlaps across active sessions' surface maps and raise advisories. Done when two sessions editing the same function WITHOUT symbol claims get a heads-up."
+    },
+    {
+      "slug": "ast-a3-3-surface-scan-multiworktree",
+      "status": "backlog",
+      "summaryMd": "A3.3 Finish surface-scan diff-path resolution (landed in #463) for the multi-worktree case. Done when surface scan is correct across worktrees + regression test."
+    },
+    {
+      "slug": "ast-a4-1-go-rust-grammars",
+      "status": "parked",
+      "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
+    },
+    {
+      "slug": "roadmap-delete-verb-and-harbor-fix",
+      "status": "now",
+      "summaryMd": "DELETE route + pd roadmap delete + harbor default fix"
+    },
+    {
       "slug": "roadmap-link-gate",
       "status": "now",
       "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "suggest-b1-1-suggestions-table",
+      "status": "backlog",
+      "summaryMd": "B1.1 Migration for suggestions(agent_id,kind,payload,confidence,status,created_at,acted_on_at,muted_until) per ADR-0039 + CRUD. Done when schema migrates clean + unit test."
+    },
+    {
+      "slug": "suggest-b1-2-topical-classifier",
+      "status": "backlog",
+      "summaryMd": "B1.2 lib/agent-context-classifier.ts (ADR-0039 P1): periodic Haiku call over purpose+notes+claims+diff -> topic+embedding(MiniLM)+surface claims on agent:context tuple. Done when active session gets topic+embedding each tick; cost-bounded; unit test."
+    },
+    {
+      "slug": "suggest-b2-1-suggestion-broker",
+      "status": "backlog",
+      "summaryMd": "B2.1 lib/suggestion-broker.ts (ADR-0039 P2): scan classifier outputs; confidence floor, per-(agent,kind) cooldown, mute list. Done when candidates generated, deduped, respect cooldown/mute; deterministic unit test."
+    },
+    {
+      "slug": "suggest-b2-2-candidate-generators",
+      "status": "backlog",
+      "summaryMd": "B2.2 The 4 kinds: group-chat-proposal, prior-art-doc, claim-overlap-headsup, salvage-candidate. Done when each generator fires on a crafted fixture."
+    },
+    {
+      "slug": "suggest-b3-1-pd-suggestion-cli-attention",
+      "status": "backlog",
+      "summaryMd": "B3.1 Deliver via pd attention; pd suggestion {accept,decline,mute}. Done when a generated suggestion appears in attention and can be acted on end-to-end. NOTE: new CLI verb trips the 6 parity gates."
+    },
+    {
+      "slug": "suggest-b3-2-fleet-yml-optin",
+      "status": "backlog",
+      "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
     }
   ]
 }
