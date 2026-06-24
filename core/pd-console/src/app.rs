@@ -131,40 +131,10 @@ struct Tab {
 }
 
 // ── Nav items ────────────────────────────────────────────────────────────────
-
-#[allow(dead_code)] // label/icon retained for the title-bar + future surface picker
-struct NavItem {
-    id: &'static str,
-    label: &'static str,
-    /// SVG asset path (custom stroke icons — never emoji; operator rule).
-    icon: &'static str,
-    key: &'static str,
-}
-
-const NAV: &[NavItem] = &[
-    NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
-    NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
-    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
-    NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
-    NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "roadmap",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
-    NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
-    NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
-    NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
-    NavItem { id: "inbox",    label: "Inbox",    icon: "icons/nav/inbox.svg",    key: "0" },
-    NavItem { id: "suggest",  label: "Suggest",  icon: "icons/nav/suggest.svg",  key: "s" },
-    NavItem { id: "memory",   label: "Memory",   icon: "icons/nav/memory.svg",   key: "m" },
-    NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
-    NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
-    NavItem { id: "coast",    label: "C.Guard",  icon: "icons/nav/coast.svg",    key: "c" },
-    NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
-    NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/sorties.svg",  key: "l" },
-    NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
-    NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
-    NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
-    NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
-    NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
-];
+// The grid data (`NavItem`, `NAV`) and the slot map (`SLOT_PANE_IDS`) live in the
+// gpui-free `crate::grid` module so they compile into the headless REPL bin too,
+// where the 1:1 invariant tests run under the rust-console CI gate.
+use crate::grid::NAV;
 
 // ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
 // One process-global mode (a single window), flipped by `Ctrl-A g`. `current_theme()`
@@ -1911,4 +1881,7 @@ mod add_pane_tests {
         assert!(stamp.starts_with("pd-console v"), "stamp must name the app: {stamp}");
         assert!(stamp.contains(env!("CARGO_PKG_VERSION")), "stamp must carry the crate version: {stamp}");
     }
+
+    // The launcher-grid 1:1 invariant tests live in `crate::grid` (gpui-free) so
+    // they run in the headless REPL bin under the rust-console gate.
 }

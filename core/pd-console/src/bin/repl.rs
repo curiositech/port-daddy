@@ -22,6 +22,7 @@
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]     mod fleet_pane;
+#[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
 #[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
