@@ -205,9 +205,9 @@ project on the user's machine. **Every change to a public surface MUST
 update every mirror in the same coherent slice.**
 
 For the actual release ceremony (tagging, GitHub Release, `release.yml`,
-brew tap roll via `publish.yml`), follow [`docs/RELEASING.md`](../../docs/RELEASING.md).
+brew tap roll via `publish.yml`), follow `docs/RELEASING.md`.
 For semver policy and the canonical list of *version surfaces* that must
-all bump in lockstep, see [`docs/VERSIONING.md`](../../docs/VERSIONING.md).
+all bump in lockstep, see `docs/VERSIONING.md`.
 
 The list below is the broader surface area a contributor touches *before*
 the release ceremony fires — the docs, examples, manifests, and CLI help
@@ -222,9 +222,9 @@ Public surfaces, in approximate update order:
 5. The OpenAPI spec, SDK reference, MCP tool catalog.
 6. README + CHANGELOG + the eight version surfaces in `docs/VERSIONING.md`.
 7. Any plugin/extension manifests (Codex `.codex/skills/`, Gemini `.gemini/extensions/port-daddy/`, Claude `.claude/skills/`).
-8. **Binary smoke-test** (per [`RELEASING.md` §3](../../docs/RELEASING.md#3-local-feature-dev)) for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
+8. **Binary smoke-test** (per `docs/RELEASING.md` §3, "local feature dev") for any change in `lib/`, `routes/`, `server.ts`, or `mcp/`. Source-mode `tsx server.ts` lies about what users actually run.
 
-The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See [`RELEASING.md` §1](../../docs/RELEASING.md#1-public-release) step J.
+The Homebrew formula is no longer a per-PR concern — it rolls during the release ceremony via the `curiositech/homebrew-tap` repo and `publish.yml`. See `docs/RELEASING.md` §1 ("public release") step J.
 
 If you cannot land all of these in one commit, leave a `pd actor lookout`
 message naming the gaps and link the follow-up issue. Lookout is the role
@@ -512,7 +512,7 @@ pd done "<outcome>"
 pd feedback "<contributor experience report>"   # bare form; auto slug + agent
 ```
 
-**For releases** (cutting `v3.X.Y`, building binaries, rolling the brew tap): follow [`docs/RELEASING.md`](../../docs/RELEASING.md), not this loop. Tagging here is a footgun — feature branches must not push tags. The "binary smoke-test before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`" rule is in RELEASING.md §3; honor it.
+**For releases** (cutting `v3.X.Y`, building binaries, rolling the brew tap): follow `docs/RELEASING.md`, not this loop. Tagging here is a footgun — feature branches must not push tags. The "binary smoke-test before merging anything in `lib/`, `routes/`, `server.ts`, or `mcp/`" rule is in RELEASING.md §3; honor it.
 
 ## Anti-Patterns (port-daddy contributor edition)
 

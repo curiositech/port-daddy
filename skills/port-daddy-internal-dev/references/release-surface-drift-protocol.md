@@ -68,8 +68,8 @@ same coherent slice — or leave a Lookout drift report naming the gaps.
 |---|---|---|
 | package.json | `package.json` | `"version": "X.Y.Z"` |
 | Cargo.toml (if present) | `Cargo.toml` | `version = "X.Y.Z"` |
-| Mac app Info.plist | `apps/FleetBar/.../Info.plist` | `CFBundleShortVersionString` |
-| Website footer | `apps/website-v2/.../footer.tsx` | display version |
+| Mac app Info.plist | the Info.plist under `apps/FleetBar/` | `CFBundleShortVersionString` |
+| Website footer | the footer component under `apps/website-v2/` | display version |
 | `pd version` CLI output | `bin/port-daddy-cli.ts` | hard-coded or imported |
 | Brew formula version (in-repo primary) | `Formula/port-daddy.rb` | inside the version-string echo |
 | Brew formula version (tap mirror) | `homebrew-port-daddy/Formula/port-daddy.rb` | inside the version-string echo (must match in-repo primary) |
@@ -87,9 +87,9 @@ Before commit, walk this checklist:
 [ ] If this is a release, did you compute the brew sha256 and update the formula?
 ```
 
-A small script at `scripts/release-surface-audit.mjs` should automate
-most of these checks; if it doesn't exist yet, write it (it's the kind
-of internal-only tool that pays for itself within two releases).
+A small script at `scripts/release-surface-audit.mjs` (proposed — not built yet)
+should automate most of these checks; if it doesn't exist yet, write it (it's
+the kind of internal-only tool that pays for itself within two releases).
 
 ## When you can't update everything in one slice
 
