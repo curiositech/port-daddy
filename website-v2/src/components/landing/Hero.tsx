@@ -146,7 +146,7 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            {/* Animated brand mark, top-right of the hero, above the preview.
+            {/* Animated brand mark, centered over the FleetBar preview below it.
                 On wide screens its TOP is nudged down to line up with the top of
                 the headline (past the eyebrow + intro gap in the left column). */}
             <motion.img
@@ -157,7 +157,7 @@ export function Hero() {
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: 'easeOut' as const }}
-              className="pointer-events-none mb-[var(--space-4)] ml-auto block h-32 w-32 select-none rounded-[var(--radius-md)] sm:h-40 sm:w-40 lg:h-48 lg:w-48 xl:h-56 xl:w-56 min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)]"
+              className="pointer-events-none mb-[var(--space-4)] mx-auto block h-32 w-32 select-none rounded-[var(--radius-md)] sm:h-40 sm:w-40 lg:h-48 lg:w-48 xl:h-56 xl:w-56 min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)]"
             />
             <div className="relative z-10">
               <LiveGloryVideo />
