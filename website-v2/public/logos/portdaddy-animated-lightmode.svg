@@ -34,7 +34,7 @@
     }
   </style>
 
-  <rect width="300" height="300" fill="var(--bg-light)" />
+  <rect width="300" height="300" fill="none" />
   
   <g stroke="var(--radar-grid)" stroke-width="1" fill="none">
     <circle cx="150" cy="150" r="45" />

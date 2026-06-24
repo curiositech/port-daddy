@@ -24,19 +24,6 @@ export function Hero() {
         backgroundSize: '24px 24px',
       }} />
 
-      {/* Animated brand mark, upper-left corner. Additive, behind the grid's
-          z-layer edge but above the dotted field; hidden on the narrowest
-          viewports so it never crowds the headline. */}
-      <motion.img
-        src={animatedLogo}
-        alt=""
-        aria-hidden="true"
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.7, ease: 'easeOut' as const }}
-        className="pointer-events-none absolute left-[var(--space-4)] top-[var(--space-4)] z-0 hidden h-16 w-16 select-none rounded-[var(--radius-md)] opacity-90 sm:block lg:h-20 lg:w-20"
-      />
-
       <PageContainer className="relative z-10">
         <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
@@ -130,14 +117,26 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- synchronized light/dark capture */}
+          {/* Right -- the animated brand mark sitting just above the
+              synchronized light/dark capture. The mark has a transparent
+              background so it reads on the page surface in either theme;
+              hidden on the narrowest viewports so it never crowds the stack. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative flex flex-col items-start gap-[var(--space-4)] min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            <div className="relative z-10">
+            <motion.img
+              src={animatedLogo}
+              alt=""
+              aria-hidden="true"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, ease: 'easeOut' as const }}
+              className="pointer-events-none hidden h-40 w-40 select-none opacity-90 sm:block lg:h-52 lg:w-52"
+            />
+            <div className="relative z-10 w-full">
               <LiveGloryVideo />
             </div>
           </motion.div>
