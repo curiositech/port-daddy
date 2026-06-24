@@ -392,6 +392,7 @@ Do not pre-load the whole bundle.
 | You need a deeper procedural reference (theory, recovery, CLI/API/SDK, multi-agent recipes, .portdaddyrc, session lifecycle) | `references/INDEX.md` |
 | You need a machine-readable contract (semantic identity, fleet schema, tuple/note/pheromone/salvage shape, MCP catalog) | `schemas/INDEX.md` |
 | You are about to copy a starter (`.portdaddyrc`, `pd-fleet.yml`, coordination note, handoff, session note) | `templates/` |
+| You want the rendered architecture overview or this bundle's affordance self-score | `architecture.html` / `affordance-scorecard.json` |
 
 If a subdirectory has assets but no `INDEX.md`, or an `INDEX.md` is out of
 sync with what's on disk, that is a drift bug — surface it with the
@@ -567,15 +568,17 @@ the canonical answer to "is this feature in my installed `pd`?"
 
 ```bash
 python3 skills/port-daddy-agent-skill/scripts/validate_port_daddy_agent_skill.py skills/port-daddy-agent-skill
-python3 skills/skill-hygiene/scripts/audit_skill_bundle.py skills/port-daddy-agent-skill
+python3 skills/skill-hygiene/scripts/audit_skill_library.py --root skills --deterministic --no-persist
 bash skills/port-daddy-agent-skill/scripts/diagnose_port_daddy_agent_context.sh
 ```
 
 The first command checks this bundle's required shape. The second is the
-generic skill-hygiene audit — it flags orphaned files (assets no INDEX or
-SKILL.md mentions), drifted indexes (entries vs. disk), and missing INDEXes.
-The third samples the local Port Daddy context so the agent can reason from
-live state instead of memory.
+generic skill-hygiene library audit — it flags orphaned files (assets no INDEX
+or SKILL.md mentions), drifted indexes (entries vs. disk), and missing INDEXes
+across every bundle. The third samples the local Port Daddy context so the
+agent can reason from live state instead of memory. When mirrors change, also
+run `node scripts/sync-skill-mirrors.mjs --check` to confirm the agent-surface
+copies match this canonical.
 
 ---
 

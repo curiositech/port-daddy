@@ -439,6 +439,12 @@ jobs:
       - name: Auditor unit tests
         run: python3 -m unittest discover -s skills/skill-hygiene/tests -p 'test_*.py' -v
 
+      - name: Verify agent-surface skill mirrors are in sync
+        # Mirrors under .codex/.claude/.agents/.gemini must stay byte-identical
+        # to their canonical skills/<name>. If this fails, run:
+        #   npm run sync:skill-mirrors
+        run: node scripts/sync-skill-mirrors.mjs --check
+
       - name: Audit every skill bundle
         run: |
           python3 skills/skill-hygiene/scripts/audit_skill_library.py \
