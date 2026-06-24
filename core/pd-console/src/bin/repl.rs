@@ -28,6 +28,8 @@
 #[path = "../lane_pane.rs"]      mod lane_pane;
 #[allow(dead_code)]
 #[path = "../mux.rs"]            mod mux;
+#[allow(dead_code)]
+#[path = "../operator_pane.rs"]  mod operator_pane;
 #[path = "../lineage_pane.rs"]   mod lineage_pane;
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;

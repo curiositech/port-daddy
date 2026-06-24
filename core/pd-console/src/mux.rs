@@ -45,6 +45,9 @@ pub enum SurfaceKind {
     /// (the seam P1 authorship color and P3 claim bands paint into). P0 has no
     /// buffer, no CRDT, no networking — it reads the file and renders it.
     Editor { path: String, region: Option<(u32, u32)> },
+    /// The operator control plane — the NEEDS-YOU triage + guard + dispatch +
+    /// budget dashboard. The default top surface on launch.
+    Operator,
     /// Daemon health / runtime state.
     DaemonHealth,
     /// All running fleet agents at a glance.
@@ -74,6 +77,7 @@ impl SurfaceKind {
                 let base = path.rsplit(['/', '\\']).next().filter(|s| !s.is_empty()).unwrap_or(path);
                 format!("edit {base}")
             }
+            SurfaceKind::Operator => "operator".into(),
             SurfaceKind::DaemonHealth => "daemon".into(),
             SurfaceKind::Fleet => "fleet".into(),
             SurfaceKind::Sessions => "sessions".into(),

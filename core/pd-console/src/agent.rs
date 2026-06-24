@@ -347,6 +347,36 @@ impl DaemonClient {
         Ok((max, out))
     }
 
+    /// Fetch the operator control-plane snapshot: `GET /operator/state?projectDir=<dir>`.
+    /// This is the single endpoint behind the Operator pane — it folds the
+    /// NEEDS-YOU triage, the coordination-guard status, the dispatch queue, and
+    /// the budget ledger into one `OperatorState` object. We return the parsed
+    /// `serde_json::Value` and let the pane index tolerantly into
+    /// `needsYou`/`dispatch`/`budget`/`guard` (the daemon sends epoch-ms numbers,
+    /// nulls, and drift — strict serde would turn one stray field into a whole-
+    /// response decode failure).
+    ///
+    /// `projectDir` is taken from `PD_CONSOLE_WORKDIR` when set; otherwise it is
+    /// omitted and the daemon resolves its own default project context. A non-2xx
+    /// surfaces as an error via `ensure_success` (the daemon may predate this
+    /// route) rather than reading as an empty snapshot.
+    pub async fn operator_state(&self) -> Result<serde_json::Value> {
+        let url = format!("{}/operator/state", self.base);
+        let mut req = self.http.get(&url);
+        // reqwest's query builder percent-encodes for us, so a path with
+        // spaces/specials stays a valid query string.
+        if let Ok(dir) = std::env::var("PD_CONSOLE_WORKDIR") {
+            let dir = dir.trim().to_string();
+            if !dir.is_empty() {
+                req = req.query(&[("projectDir", dir)]);
+            }
+        }
+        let resp = req.send().await.context("GET /operator/state")?;
+        let resp = ensure_success(resp, "operator_state").await?;
+        let v: serde_json::Value = resp.json().await.context("operator_state response")?;
+        Ok(v)
+    }
+
     // ── Console-facing MUTATION verbs (the cockpit, not just polling) ─────────
 
     /// Interrupt a running agent: `POST /agents/:id/interrupt` with an optional

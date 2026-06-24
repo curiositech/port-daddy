@@ -165,6 +165,11 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     if q.is_empty() {
         return None;
     }
+    // The operator control plane is the default top surface; make "operator"/"op"
+    // resolve to it explicitly (ahead of the generic NAV prefix scan).
+    if q == "op" || "operator".starts_with(&q) {
+        return Some(SurfaceKind::Operator);
+    }
     if "chat".starts_with(&q) || "cartographer".starts_with(&q) {
         return Some(SurfaceKind::CartographerChat);
     }
@@ -206,6 +211,7 @@ struct NavItem {
 }
 
 const NAV: &[NavItem] = &[
+    NavItem { id: "operator", label: "Operator", icon: "icons/nav/cockpit.svg",  key: "`" },
     NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
     NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
     NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
@@ -641,10 +647,13 @@ impl ConsoleView {
     /// roadmap column — proof of multiplex on first launch. `initial` (if a
     /// known nav id) becomes the focused pane's surface.
     fn default_workspace(initial: Option<&str>) -> Workspace {
-        let mut ws = Workspace::new(SurfaceKind::Fleet);
-        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
+        // The Operator control plane is the operator's most-wanted view, so it is
+        // the primary surface (leaf id 1) and the focused pane on launch. The
+        // fleet/lane/roadmap columns ride alongside it.
+        let mut ws = Workspace::new(SurfaceKind::Operator);
+        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // operator | lane
         ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
-        ws.focus(1); // start on the fleet pane (first leaf id)
+        ws.focus(1); // start focused on the Operator pane (first leaf id)
         if let Some(nav) = initial {
             if NAV.iter().any(|n| n.id == nav) {
                 ws.swap_surface(surface_for_nav_id(nav));
@@ -1776,6 +1785,7 @@ fn surface_for_nav_id(nav: &str) -> SurfaceKind {
         "fleet" => SurfaceKind::Fleet,
         "sessions" => SurfaceKind::Sessions,
         "dispatch" => SurfaceKind::Dispatch,
+        "operator" => SurfaceKind::Operator,
         other => SurfaceKind::Panel { nav: other.to_string() },
     }
 }
@@ -1789,6 +1799,7 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Fleet => Some("fleet"),
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
+        SurfaceKind::Operator => Some("operator"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
         SurfaceKind::CartographerChat
         | SurfaceKind::FileTree { .. }

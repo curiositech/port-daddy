@@ -27,6 +27,7 @@ mod parley_pane;
 mod conductor_pane;
 mod maritime;
 mod mux;
+mod operator_pane;
 mod palette;
 mod notes_pane;
 mod pane;
@@ -57,6 +58,7 @@ use substrate_pane::SubstratePane;
 use parley_pane::ParleyPane;
 use conductor_pane::ConductorPane;
 use notes_pane::NotesPane;
+use operator_pane::OperatorPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
 use prs_pane::PrsPane;
@@ -174,10 +176,11 @@ fn main() {
         // Producer: std thread with mini tokio runtime — refreshes all panes every 2s.
         // Sends Vec<(nav_index, Vec<Block>)> so the view can update each slot.
         //
-        // NAV order mirrors app::NAV:
-        //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
-        //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate  20=Parley
+        // NAV order mirrors app::NAV (Operator is slot 0 — the default surface):
+        //  0=Operator  1=Fleet  2=Cockpit  3=Sorties  4=Claims  5=Peek  6=Roadmap
+        //  7=ADRs  8=Activity  9=Sessions  10=Inbox  11=Suggest  12=Memory  13=PRs
+        //  14=Health  15=CoastGuard  16=Dispatch  17=Lane  18=Ledger  19=Lineage
+        //  20=Substrate  21=Parley  22=Conductor
         let (tx, rx) =
             mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         let url = daemon_url.clone();
@@ -194,28 +197,29 @@ fn main() {
                 // running/blocked/done over GET /sorties — #344). The dispatch review
                 // queue (GET /dispatches?state=review_pending) is its own slot 15 so both
                 // operator surfaces survive; folding them lost the at-a-glance view.
-                let mut fleet      = FleetPane::new();         // 0
-                let mut cockpit    = CockpitPane::new();       // 1
-                let mut sorties    = SortiePane::new();        // 2
-                let mut claims     = ClaimsPane::new();        // 3
-                let mut peek       = PeekPane::new();          // 4
-                let mut roadmap    = RoadmapPane::new();       // 5
-                let mut adrs       = AdrsPane::new();          // 6
-                let mut activity   = ActivityPane::new();      // 7
-                let mut sessions   = SessionsPane::new();      // 8
-                let mut inbox      = InboxPane::new();         // 9
-                let mut suggest    = SuggestPane::new();       // 10
-                let mut memory     = NotesPane::new();         // 11
-                let mut prs        = PrsPane::new();           // 12
-                let mut health     = HealthPane::new();        // 13
-                let mut coast      = CoastGuardPane::default();// 14
-                let mut dispatch   = DispatchQueuePane::new(); // 15
-                let mut lane       = LanePane::new();          // 16 — the LIVE one
-                let mut ledger     = LedgerPane::new();        // 17 — the money
-                let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
-                let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
-                let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
-                let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
+                let mut operator   = OperatorPane::new();      // 0 — the control plane (default surface)
+                let mut fleet      = FleetPane::new();         // 1
+                let mut cockpit    = CockpitPane::new();       // 2
+                let mut sorties    = SortiePane::new();        // 3
+                let mut claims     = ClaimsPane::new();        // 4
+                let mut peek       = PeekPane::new();          // 5
+                let mut roadmap    = RoadmapPane::new();       // 6
+                let mut adrs       = AdrsPane::new();          // 7
+                let mut activity   = ActivityPane::new();      // 8
+                let mut sessions   = SessionsPane::new();      // 9
+                let mut inbox      = InboxPane::new();         // 10
+                let mut suggest    = SuggestPane::new();       // 11
+                let mut memory     = NotesPane::new();         // 12
+                let mut prs        = PrsPane::new();           // 13
+                let mut health     = HealthPane::new();        // 14
+                let mut coast      = CoastGuardPane::default();// 15
+                let mut dispatch   = DispatchQueuePane::new(); // 16
+                let mut lane       = LanePane::new();          // 17 — the LIVE one
+                let mut ledger     = LedgerPane::new();        // 18 — the money
+                let mut lineage    = LineagePane::new();       // 19 — RCP-14 argument graph
+                let mut substrate  = SubstratePane::new();     // 20 — RCP-7a/12 pheromone substrate
+                let mut parley     = ParleyPane::new();        // 21 — RCP-2a convene decision
+                let mut conductor  = ConductorPane::new();     // 22 — Fleet Conductor (ADR-0060)
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -305,6 +309,7 @@ fn main() {
                     }
 
                     // Refresh all in parallel-ish — sequential is fine at 2s cadence
+                    let _ = operator.refresh(&client).await;
                     let _ = fleet.refresh(&client).await;
                     let _ = cockpit.refresh(&client).await;
                     let _ = sorties.refresh(&client).await;
@@ -351,28 +356,29 @@ fn main() {
                     }
 
                     let all = vec![
-                        (0,  fleet.view()),
-                        (1,  cockpit.view()),
-                        (2,  sorties.view()),
-                        (3,  claims.view()),
-                        (4,  peek.view()),
-                        (5,  roadmap.view()),
-                        (6,  adrs.view()),
-                        (7,  activity.view()),
-                        (8,  sessions.view()),
-                        (9,  inbox.view()),
-                        (10, suggest.view()),
-                        (11, memory.view()),
-                        (12, prs.view()),
-                        (13, health.view()),
-                        (14, coast.view()),
-                        (15, dispatch.view()),
-                        (16, lane.view()),
-                        (17, ledger.view()),
-                        (18, lineage.view()),
-                        (19, substrate.view()),
-                        (20, parley.view()),
-                        (21, conductor.view()),
+                        (0,  operator.view()),
+                        (1,  fleet.view()),
+                        (2,  cockpit.view()),
+                        (3,  sorties.view()),
+                        (4,  claims.view()),
+                        (5,  peek.view()),
+                        (6,  roadmap.view()),
+                        (7,  adrs.view()),
+                        (8,  activity.view()),
+                        (9,  sessions.view()),
+                        (10, inbox.view()),
+                        (11, suggest.view()),
+                        (12, memory.view()),
+                        (13, prs.view()),
+                        (14, health.view()),
+                        (15, coast.view()),
+                        (16, dispatch.view()),
+                        (17, lane.view()),
+                        (18, ledger.view()),
+                        (19, lineage.view()),
+                        (20, substrate.view()),
+                        (21, parley.view()),
+                        (22, conductor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {
