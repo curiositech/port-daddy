@@ -12,6 +12,7 @@ mod activity_pane;
 mod adrs_pane;
 mod agent;
 mod app;
+mod buffer;
 mod claims_pane;
 mod cockpit_pane;
 mod dispatch_pane;

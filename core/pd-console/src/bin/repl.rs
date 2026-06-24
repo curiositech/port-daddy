@@ -16,6 +16,8 @@
 #[path = "../activity_pane.rs"]  mod activity_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
+#[allow(dead_code)]
+#[path = "../buffer.rs"]         mod buffer;
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
