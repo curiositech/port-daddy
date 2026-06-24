@@ -13,7 +13,7 @@
 
 mod flag_scene;
 
-use flag_scene::{tone, FlagSpec, TextEngine};
+use flag_scene::{tone, FlagSpec, Movement, TextEngine};
 use vello::{
     peniko::Color,
     AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene,
@@ -25,7 +25,7 @@ use wgpu::{
 
 const WIDTH: u32 = 1000;
 const HEIGHT: u32 = 380;
-const FRAMES: u32 = 90; // 90 frames @ 30fps = a 3s seamless loop (CYCLES_PER_LOOP=2)
+const FRAMES: u32 = 120; // 4 gestures @ 30fps; starts & ends still → near-seamless
 
 fn main() {
     let out_dir = std::path::Path::new("docs/frames");
@@ -100,10 +100,30 @@ fn main() {
     let bg = flag_scene::background();
     let base_color = Color::rgb8(bg.r, bg.g, bg.b);
 
+    // Scripted 4-direction movement profile. Each gesture is a velocity impulse
+    // that decays, so the flags react then settle — idle frames have no motion.
+    // This IS the deflect(velocity) the live pane will feed real scroll/resize
+    // deltas into; here we drive it with a script to record all four directions.
+    let mut vx = 0.0f64;
+    let mut vy = 0.0f64;
+    let mut phase = 0.0f64;
+    const DECAY: f64 = 0.87;
+    // (frame, Δvx, Δvy): scroll-down, scroll-up, pan-right, pan-left.
+    let impulses = [(6u32, 0.0, 1.0), (36, 0.0, -1.0), (66, 1.0, 0.0), (96, -1.0, 0.0)];
+
     for frame in 0..FRAMES {
-        let loop_pos = frame as f64 / FRAMES as f64;
+        for (f, dvx, dvy) in impulses.iter() {
+            if *f == frame {
+                vx += *dvx;
+                vy += *dvy;
+            }
+        }
+        let speed = (vx * vx + vy * vy).sqrt();
+        phase += speed * 0.9;
+        let mv = Movement { vx, vy, phase };
+
         scene.reset();
-        flag_scene::build(&mut scene, &mut text, loop_pos, &flags, WIDTH, HEIGHT);
+        flag_scene::build(&mut scene, &mut text, &mv, &flags, WIDTH, HEIGHT);
 
         renderer
             .render_to_texture(
@@ -168,6 +188,10 @@ fn main() {
         if frame == 0 || frame == FRAMES / 2 {
             eprintln!("[flag] wrote {}", path.display());
         }
+
+        // Pole velocity bleeds off — the flag swing settles, then idles still.
+        vx *= DECAY;
+        vy *= DECAY;
     }
 
     eprintln!(

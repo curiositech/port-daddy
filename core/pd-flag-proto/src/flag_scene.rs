@@ -39,10 +39,27 @@ const STAFF: Color = Color::rgb8(0x3a, 0x44, 0x50);
 const INK: Color = Color::rgb8(0x0d, 0x14, 0x1f); // dark letter, reads on every tone
 const LABEL: Color = Color::rgb8(0xc8, 0xd2, 0xdc);
 
-const STRIPS: usize = 28; // per-flag horizontal resolution of the ripple
-const WAVES: f64 = 1.35; // wave crests across one flag's width
-const CYCLES_PER_LOOP: f64 = 2.0; // integer K → seamless loop
-const PHASE_STEP: f64 = 0.7; // radians of phase offset between adjacent flags
+const STRIPS: usize = 22; // per-flag horizontal resolution (lower-fidelity is fine)
+const RIPPLE_WAVES: f64 = 1.6; // crests across the flag when it's moving
+const RIPPLE_GAIN: f64 = 0.55; // ripple amplitude per unit speed
+const LEAN: f64 = 0.55; // how far the fly end trails per unit pole velocity
+const IDLE_DROOP: f64 = 0.12; // gentle hang at rest (never stiff/blank)
+const PHASE_STEP: f64 = 0.7; // phase offset between adjacent flags
+
+/// Per-frame pole movement that drives the wave. A flag streams OPPOSITE the
+/// pole's velocity — scroll the pane down and the cloth trails up; drag it right
+/// and the cloth trails left. Four directions fall out of the (vx, vy) sign.
+/// `vx`/`vy` are normalized to roughly [-1, 1] (±1 = a hard flick); `phase`
+/// accumulates only while moving, so a still flag does not animate at all.
+pub struct Movement {
+    pub vx: f64, // horizontal pole velocity (resize / pane-move); + = rightward
+    pub vy: f64, // vertical pole velocity (scroll); + = downward
+    pub phase: f64, // accumulated ripple phase
+}
+
+fn smoothstep(u: f64) -> f64 {
+    u * u * (3.0 - 2.0 * u)
+}
 
 fn scale_color(c: Color, f: f64) -> Color {
     let f = f.clamp(0.0, 1.4);
@@ -105,26 +122,24 @@ impl TextEngine {
     }
 }
 
-/// Build a horizontal row of waving flags for the given loop position (0..1).
-pub fn build(scene: &mut Scene, te: &mut TextEngine, loop_pos: f64, flags: &[FlagSpec], width: u32, height: u32) {
+/// Build a horizontal row of flags reacting to the current pole `Movement`.
+pub fn build(scene: &mut Scene, te: &mut TextEngine, mv: &Movement, flags: &[FlagSpec], width: u32, height: u32) {
     let w = width as f64;
     let h = height as f64;
     let n = flags.len().max(1) as f64;
 
-    // Layout: each flag gets an equal horizontal cell; the flag itself fills the
-    // upper portion, with the letter on it and a lifecycle label beneath.
     let cell_w = w / n;
     let flag_w = (cell_w * 0.62).min(220.0);
     let flag_h = flag_w * 0.66;
     let top_y = h * 0.30;
-    let amp = flag_h * 0.42; // max sway at the fly edge
+    let speed = (mv.vx * mv.vx + mv.vy * mv.vy).sqrt().min(1.6);
 
     for (i, spec) in flags.iter().enumerate() {
         let cx = cell_w * (i as f64 + 0.5);
         let hoist_x = cx - flag_w / 2.0;
         let phase_i = i as f64 * PHASE_STEP;
 
-        // The staff (flagpole): a thin vertical bar at the hoist.
+        // The staff (flagpole): a thin vertical bar at the hoist — the fixed point.
         let mut staff = BezPath::new();
         let sx = hoist_x - 6.0;
         staff.move_to(Point::new(sx, top_y - 14.0));
@@ -134,18 +149,28 @@ pub fn build(scene: &mut Scene, te: &mut TextEngine, loop_pos: f64, flags: &[Fla
         staff.close_path();
         scene.fill(Fill::NonZero, Affine::IDENTITY, &Brush::Solid(STAFF), None, &staff);
 
-        let angle = |u: f64| 2.0 * PI * WAVES * u - 2.0 * PI * CYCLES_PER_LOOP * loop_pos + phase_i;
-        let disp = |u: f64| amp * u * angle(u).sin();
+        // Cloth deflection at column u (0=hoist pinned, 1=free fly edge):
+        //   horizontal trail  — the fly streams opposite vx
+        //   vertical trail     — the fly streams opposite vy, plus a rest droop
+        //   ripple             — travels only while moving (∝ speed)
+        let dx = |u: f64| smoothstep(u) * (-mv.vx) * LEAN * flag_w;
+        let dy = |u: f64| {
+            let trail = smoothstep(u) * (-mv.vy) * LEAN * flag_h;
+            let droop = IDLE_DROOP * flag_h * u * u;
+            let ripple =
+                RIPPLE_GAIN * flag_h * speed * u * (2.0 * PI * RIPPLE_WAVES * u - mv.phase + phase_i).sin();
+            trail + droop + ripple
+        };
 
-        // The cloth: N shaded vertical strips. Lighting from cos(angle) so the
-        // ripple reads as folds; brightness also rises slightly toward the fly.
+        // The cloth as N shaded vertical strips; lighting from the ripple slope
+        // (scaled by speed) so folds appear while moving and flatten at rest.
         for j in 0..STRIPS {
             let u0 = j as f64 / STRIPS as f64;
             let u1 = (j + 1) as f64 / STRIPS as f64;
-            let x0 = hoist_x + u0 * flag_w;
-            let x1 = hoist_x + u1 * flag_w;
-            let d0 = disp(u0);
-            let d1 = disp(u1);
+            let x0 = hoist_x + u0 * flag_w + dx(u0);
+            let x1 = hoist_x + u1 * flag_w + dx(u1);
+            let d0 = dy(u0);
+            let d1 = dy(u1);
 
             let mut strip = BezPath::new();
             strip.move_to(Point::new(x0, top_y + d0));
@@ -155,17 +180,17 @@ pub fn build(scene: &mut Scene, te: &mut TextEngine, loop_pos: f64, flags: &[Fla
             strip.close_path();
 
             let um = 0.5 * (u0 + u1);
-            let light = 0.80 + 0.34 * angle(um).cos() + 0.06 * um;
+            let fold = (2.0 * PI * RIPPLE_WAVES * um - mv.phase + phase_i).cos();
+            let light = 0.82 + 0.34 * fold * (speed / 1.6) + 0.06 * um;
             scene.fill(Fill::NonZero, Affine::IDENTITY, &Brush::Solid(scale_color(spec.color, light)), None, &strip);
         }
 
         // The ICS letter, riding the cloth at the flag's middle column.
-        let mid_d = disp(0.5);
         te.draw_centered(
             scene,
             &spec.letter.to_string(),
-            cx,
-            top_y + flag_h / 2.0 + mid_d,
+            cx + dx(0.5),
+            top_y + flag_h / 2.0 + dy(0.5),
             (flag_h * 0.62) as f32,
             INK,
         );
