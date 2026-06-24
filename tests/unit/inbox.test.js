@@ -533,4 +533,79 @@ describe('Agent Inbox Module', () => {
       expect(inbox.stats('agent-1').total).toBe(0);
     });
   });
+
+  // ======================================================================
+  // READ RECEIPTS — read_at stamping + listSent (sender side)
+  // ======================================================================
+  describe('read receipts', () => {
+    it('list() reports readAt: null until the message is read', () => {
+      inbox.send('bob', 'hi', { from: 'alice' });
+      const before = inbox.list('bob').messages[0];
+      expect(before.read).toBe(false);
+      expect(before.readAt).toBeNull();
+    });
+
+    it('markRead() stamps read_at and exposes it on list()', () => {
+      const { messageId } = inbox.send('bob', 'hi', { from: 'alice' });
+      const t0 = Date.now();
+      inbox.markRead('bob', messageId);
+      const msg = inbox.list('bob').messages[0];
+      expect(msg.read).toBe(true);
+      expect(typeof msg.readAt).toBe('number');
+      expect(msg.readAt).toBeGreaterThanOrEqual(t0);
+    });
+
+    it('markRead() does not overwrite an existing read_at (COALESCE keeps first read)', () => {
+      const { messageId } = inbox.send('bob', 'hi', { from: 'alice' });
+      inbox.markRead('bob', messageId);
+      const first = inbox.list('bob').messages[0].readAt;
+      inbox.markRead('bob', messageId); // re-mark
+      const second = inbox.list('bob').messages[0].readAt;
+      expect(second).toBe(first);
+    });
+
+    it('markAllRead() stamps read_at on the newly-read messages', () => {
+      inbox.send('bob', 'one', { from: 'alice' });
+      inbox.send('bob', 'two', { from: 'alice' });
+      inbox.markAllRead('bob');
+      for (const m of inbox.list('bob').messages) {
+        expect(m.read).toBe(true);
+        expect(typeof m.readAt).toBe('number');
+      }
+    });
+
+    it('listSent() returns the SENDER\'s messages with read receipts', () => {
+      const { messageId } = inbox.send('bob', 'read me', { from: 'alice' });
+      inbox.send('carol', 'unread one', { from: 'alice' });
+      inbox.markRead('bob', messageId);
+
+      const sent = inbox.listSent('alice');
+      expect(sent.success).toBe(true);
+      expect(sent.count).toBe(2);
+      // each sent message exposes the recipient (agentId) + read receipt
+      const toBob = sent.messages.find((m) => m.agentId === 'bob');
+      const toCarol = sent.messages.find((m) => m.agentId === 'carol');
+      expect(toBob.read).toBe(true);
+      expect(typeof toBob.readAt).toBe('number');
+      expect(toCarol.read).toBe(false);
+      expect(toCarol.readAt).toBeNull();
+    });
+
+    it('listSent() does not leak other senders\' messages', () => {
+      inbox.send('bob', 'from alice', { from: 'alice' });
+      inbox.send('bob', 'from dave', { from: 'dave' });
+      const aliceSent = inbox.listSent('alice');
+      expect(aliceSent.count).toBe(1);
+      expect(aliceSent.messages[0].from).toBe('alice');
+    });
+
+    it('listSent() honors unreadOnly: true', () => {
+      const { messageId } = inbox.send('bob', 'read', { from: 'alice' });
+      inbox.send('carol', 'unread', { from: 'alice' });
+      inbox.markRead('bob', messageId);
+      const unread = inbox.listSent('alice', { unreadOnly: true });
+      expect(unread.count).toBe(1);
+      expect(unread.messages[0].agentId).toBe('carol');
+    });
+  });
 });

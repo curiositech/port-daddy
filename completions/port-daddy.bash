@@ -108,7 +108,7 @@ _port_daddy() {
     # Consolidated read/write (3.8.4)
     say look sitrep pheromone ph advise preflight compass guard snapshots snapshot backup restore attest shipwright
     # Agent Inbox
-    inbox send
+    inbox send sent
     # AI Agent Spawner + Watch
     spawn spawned sortie watch
     # Fleet ship-run transcripts
@@ -132,7 +132,7 @@ _port_daddy() {
     # Harbormaster — canonical merge-owning actor body (ADR-0037)
     harbormaster hm
     # Harbors (named permission namespaces)
-    harbor harbors
+    harbor harbors whois
     # Tuple space
     tuple
     # Semantic graph + episodic memory

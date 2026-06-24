@@ -1,6 +1,6 @@
 # Red and White Stay In Their Lanes
 
-A whitepaper sits in the repo. Someone proofread it once, a reviewer nodded at it, and then it ossified. Section 4.2 still says "the Merkle Forest binding holds" in a tone of finished confidence, and nobody in the building is paid a single cent to wake up tomorrow and try to break that sentence. The claim is true the way a bridge is sound right up until the morning a heavier truck drives across it.
+A whitepaper sits in the repo. Someone proofread it once, a reviewer nodded at it, and then it ossified. Section 4.2 still says "[the Merkle Forest binding holds](/blog/evidence-that-survives-machines)" in a tone of finished confidence, and nobody in the building is paid a single cent to wake up tomorrow and try to break that sentence. The claim is true the way a bridge is sound right up until the morning a heavier truck drives across it.
 
 That is the quiet rot we set out to stop. The two papers that govern Port Daddy's economic and cryptographic claims --- the Bonded Commons whitepaper and the Anchor Protocol whitepaper --- now have a permanent adversarial-review apparatus around them: a standing attacker fleet and a standing defender fleet, both persisted as reusable skills, and one mechanized property that keeps the whole thing honest. Neither fleet can read the other's work in progress. The rest of this post is what that costs, why we paid it, and what shows up in the changelog month over month.
 
@@ -55,7 +55,7 @@ export function encryptEnvelope(payload, opts) {
 
 ## The proof
 
-We modeled the property in ProVerif. The daemon is the Dolev-Yao adversary --- it controls the public channel, can read every ciphertext, replay them, drop them, write its own. It does not hold either fleet key. The personas hold one fleet key each plus their own signing key. `sec-eng-lead` holds both fleet keys plus its own root.
+We [modeled the property in ProVerif](/blog/the-macaroon-gate). The daemon is the Dolev-Yao adversary --- it controls the public channel, can read every ciphertext, replay them, drop them, write its own. It does not hold either fleet key. The personas hold one fleet key each plus their own signing key. `sec-eng-lead` holds both fleet keys plus its own root.
 
 Three queries:
 

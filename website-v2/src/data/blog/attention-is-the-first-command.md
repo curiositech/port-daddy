@@ -151,7 +151,7 @@ And of course, the harness ecosystem only has one hook wired today. If you adopt
 
 If you read this post backwards from the practical install instructions, it sounds like a small thing. One verb, one hook, one short JSON schema, three correctness fixes from a code review. Many days of bigger-feature work landed alongside it.
 
-But the thing I want to remember is the post office scene. We had built a coordination substrate sophisticated enough to track structured tuples, run distributed locks, replay correlation engines, and serve fleet-health metrics — and the agents the substrate was *for* could not see their own mail. The fix wasn't more substrate. The fix was a hallway with a peephole, declared as doctrine, and an automatic call to look through it.
+But the thing I want to remember is the post office scene. We had built a [coordination substrate](/blog/control-plane-is-the-product) sophisticated enough to track structured tuples, run distributed locks, replay correlation engines, and serve fleet-health metrics — and the agents the substrate was *for* could not see their own mail. The fix wasn't more substrate. The fix was a hallway with a peephole, declared as doctrine, and an automatic call to look through it.
 
 Run `pd attention` when you start. Or don't, and find out which message you wish you had read.
 
