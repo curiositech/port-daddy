@@ -13,8 +13,8 @@
       --cobalt: #2076FE;
       --seafoam: #12B88F; /* Deepened for light mode contrast */
       --amber: #F5A623;   /* Richer amber for light mode */
-      --bg-light: #F4F7FA;
-      --radar-grid: #DCE3EB; /* Soft cool-gray for the radar grid */
+      --bg-light: #f2eee6; /* matches the site's light --surface-base */
+      --radar-grid: #e2dccf; /* warm-gray radar grid, tuned to #f2eee6 */
     }
     .pivot { transform-origin: 150px 150px; }
     .pd-flip { animation: flip 6s cubic-bezier(0.77, 0, 0.17, 1) infinite; }
@@ -34,7 +34,7 @@
     }
   </style>
 
-  <rect width="300" height="300" fill="var(--bg-light)" />
+  <rect width="300" height="300" fill="transparent" />
   
   <g stroke="var(--radar-grid)" stroke-width="1" fill="none">
     <circle cx="150" cy="150" r="45" />

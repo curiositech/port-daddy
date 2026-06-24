@@ -46,7 +46,7 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
+        <div className="grid items-start gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -146,7 +146,9 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
-            {/* Animated brand mark, top-right of the hero, above the preview. */}
+            {/* Animated brand mark, top-right of the hero, above the preview.
+                On wide screens its TOP is nudged down to line up with the top of
+                the headline (past the eyebrow + intro gap in the left column). */}
             <motion.img
               ref={logoRef}
               src={animatedLogo}
@@ -155,7 +157,7 @@ export function Hero() {
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: 'easeOut' as const }}
-              className="pointer-events-none mb-[var(--space-4)] ml-auto block h-32 w-32 select-none rounded-[var(--radius-md)] sm:h-40 sm:w-40 lg:h-48 lg:w-48 xl:h-56 xl:w-56"
+              className="pointer-events-none mb-[var(--space-4)] ml-auto block h-32 w-32 select-none rounded-[var(--radius-md)] sm:h-40 sm:w-40 lg:h-48 lg:w-48 xl:h-56 xl:w-56 min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)]"
             />
             <div className="relative z-10">
               <LiveGloryVideo />
