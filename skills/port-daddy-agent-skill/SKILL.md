@@ -183,9 +183,13 @@ you explicitly hand it off in Port Daddy notes.
 
 - Read live PR comments, reviews, inline bot findings, and status checks before
   declaring the branch ready.
-- Treat Copilot, Claude review, Cloudflare Pages, CodeQL, release, and package
-  comments as review findings. Reply to every actionable thread with fixed /
-  deferred / contested-because.
+- Treat bot comments as review findings — fleetbot included. The
+  `port-daddy-fleet` bot posts `[pd-code-reviewer]` and `[pd-qa]` threads on
+  every PR; read and answer them alongside Copilot, Claude review, Cloudflare
+  Pages, CodeQL, release, package, and `roadmap-link-gate` comments. Reply to
+  every actionable thread with fixed / deferred / contested-because, and never
+  declare a PR done with a `port-daddy-fleet` (or other actionable) thread
+  unanswered.
 - Run or spawn an adversarial reviewer for non-trivial changes. Ask for a
   `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict and fix high-confidence
   findings before merge.
