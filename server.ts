@@ -742,7 +742,7 @@ const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITE
 // Durable forensics journal — every Arbiter security event is written, in full,
 // to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
 // so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0060.)
+// PD_FORENSICS_ARCHIVE=off. (ADR-0089.)
 const forensicsSink =
   process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
 const arbiter = createArbiter(
