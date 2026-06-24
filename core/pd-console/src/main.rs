@@ -13,6 +13,7 @@ mod adrs_pane;
 mod agent;
 mod app;
 mod audio;
+mod buffer;
 mod claims_pane;
 mod cockpit_pane;
 mod conjure;

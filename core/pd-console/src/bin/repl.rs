@@ -20,6 +20,8 @@
 // here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
 #[allow(dead_code)]
 #[path = "../audio.rs"]          mod audio;
+#[allow(dead_code)]
+#[path = "../buffer.rs"]         mod buffer;
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[allow(dead_code)]

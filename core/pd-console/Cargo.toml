@@ -36,6 +36,7 @@ gpui = { version = "0.2.2", optional = true }
 # behind `gpui`; `default-features = false` drops the MP3/Vorbis/FLAC decoders we
 # never use, keeping the build lean (we only synth raw f32 sample buffers).
 rodio = { version = "0.20", optional = true, default-features = false }
+loro = "1.13"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt", "macros"] }

@@ -1058,12 +1058,15 @@ impl ConsoleView {
         if matches!(surface, SurfaceKind::Conjure) {
             return crate::conjure::blocks_for_conjure(&self.conjure_dag);
         }
-        // The Harbor Editor surface reads its file from local disk and renders a
-        // gutter view. P0 reads synchronously here (the file read is bounded by
-        // EditorPane's line cap, so it can't wedge the render); P1+ swaps this for
-        // a daemon/blob fetch via the async `refresh()`.
+        // The Harbor Editor surface backs the file with a Loro CRDT buffer (P1):
+        // the opener becomes a Loro replica keyed to the operator's PD identity,
+        // and each line renders with per-PeerID authorship in the gutter. The file
+        // read is bounded by EditorPane's line cap, so this synchronous load can't
+        // wedge the render; P2+ swaps the local read for a daemon/blob fetch.
         if let SurfaceKind::Editor { path, region } = surface {
-            let mut pane = crate::editor_pane::EditorPane::new(path.clone(), *region);
+            let identity = crate::editor_pane::resolve_operator_identity();
+            let mut pane =
+                crate::editor_pane::EditorPane::new_with_identity(path.clone(), *region, identity);
             pane.load();
             return pane.view();
         }
