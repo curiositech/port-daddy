@@ -123,6 +123,9 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     if "files".starts_with(&q) || "tree".starts_with(&q) || "filetree".starts_with(&q) {
         return Some(SurfaceKind::FileTree { root: None });
     }
+    if "alerts".starts_with(&q) || "hitl".starts_with(&q) {
+        return Some(SurfaceKind::Hitl);
+    }
     NAV.iter()
         .find(|n| {
             n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q)
@@ -659,6 +662,11 @@ impl ConsoleView {
     /// for it. Existing live panels resolve through `pane_blocks`; surfaces
     /// without a backing fetcher yet render an honest placeholder.
     fn blocks_for_surface(&self, surface: &SurfaceKind) -> Vec<Block> {
+        // The HITL surface is foreground-only — it reads the in-process alert log
+        // (the DLQ), not a background-refreshed NAV pane. Render it untruncated.
+        if matches!(surface, SurfaceKind::Hitl) {
+            return self.blocks_for_hitl();
+        }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
                 .iter()
@@ -670,6 +678,30 @@ impl ConsoleView {
                 Block::KeyVal("status".into(), "live wiring lands in slice 3".into()),
             ],
         }
+    }
+
+    /// The HITL / Alerts surface: every captured action failure or outcome,
+    /// newest-first, with FULL untruncated detail (the operator finally reads
+    /// the whole daemon rejection). Each alert: a level chip + title + the
+    /// never-ellipsized detail + a separator.
+    fn blocks_for_hitl(&self) -> Vec<Block> {
+        let mut blocks = vec![Block::Header("Alerts — HITL".into())];
+        if self.alerts.is_empty() {
+            blocks.push(Block::KeyVal("status".into(), "all clear — no alerts".into()));
+            return blocks;
+        }
+        blocks.push(Block::KeyVal(
+            "total".into(),
+            format!("{} (newest first)", self.alerts.len()),
+        ));
+        blocks.push(Block::Gap);
+        for a in &self.alerts {
+            blocks.push(Block::Chip { label: a.level.label().into(), tone: a.level.tone() });
+            blocks.push(Block::KeyVal("  what".into(), a.title.clone()));
+            blocks.push(Block::WrappedText { text: a.detail.clone(), tone: a.level.tone() });
+            blocks.push(Block::Gap);
+        }
+        blocks
     }
 
     /// Handle one multiplexer command after the leader key. Disarming is done
@@ -1694,7 +1726,8 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } => None,
+        // Hitl renders from the foreground alert log, not a bg NAV pane.
+        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } | SurfaceKind::Hitl => None,
     }
 }
 
@@ -1907,7 +1940,50 @@ impl Render for ConsoleView {
                     )
                     .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
                     .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
-                    .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx)),
+                    .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
+                    // Alerts (HITL): always visible, glows red on errors, click to
+                    // open the full untruncated log — the discoverable way to read
+                    // a failure (no hidden keystroke).
+                    .child({
+                        let n = self.alerts.len();
+                        let has_err = self.alerts.iter().any(|a| a.level == AlertLevel::Error);
+                        let label = if n == 0 {
+                            "Alerts".to_string()
+                        } else if has_err {
+                            format!("⚑ Alerts ({n})")
+                        } else {
+                            format!("Alerts ({n})")
+                        };
+                        let border = if has_err { current_theme().gated } else { current_theme().line };
+                        let text = if n == 0 {
+                            current_theme().muted
+                        } else if has_err {
+                            current_theme().gated
+                        } else {
+                            current_theme().accent_ink
+                        };
+                        div()
+                            .id("act-alerts")
+                            .px(px(11.0))
+                            .py(px(5.0))
+                            .rounded(px(6.0))
+                            .border_1()
+                            .border_color(rgb(border))
+                            .text_color(rgb(text))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .cursor_pointer()
+                            .when(has_err, |s| s.shadow(motion::glow(current_theme().gated, 0.25, 8.0, 0.0)))
+                            .hover(|s| {
+                                s.text_color(rgb(current_theme().accent_ink))
+                                    .border_color(rgb(current_theme().accent))
+                            })
+                            .child(label)
+                            .on_click(cx.listener(|this, _ev, _window, cx| {
+                                this.ws_mut().swap_surface(SurfaceKind::Hitl);
+                                cx.notify();
+                            }))
+                    }),
             )
             // ── Command / status bar ──
             .child(
