@@ -10,18 +10,28 @@ import { useHeroWordmark } from '@/lib/hero-brand-context'
 
 export function Hero() {
   const { setHeroWordmarkVisible } = useHeroWordmark()
-  const heroMarkRef = useRef<HTMLDivElement>(null)
-  // Report whether the hero wordmark is on-screen so the navbar can hide its
-  // own (duplicative) wordmark. rootMargin offsets the sticky header height, so
-  // the mark counts as "gone" the moment it slides under the navbar.
+  const mobileHeroMarkRef = useRef<HTMLSpanElement>(null)
+  const desktopHeroMarkRef = useRef<HTMLDivElement>(null)
+
+  // Report whether either responsive hero wordmark is on-screen so the navbar
+  // can hide its own duplicative wordmark. rootMargin offsets the sticky header
+  // height, so the mark counts as "gone" once it slides under the navbar.
   useEffect(() => {
-    const el = heroMarkRef.current
-    if (!el) return
+    const els = [mobileHeroMarkRef.current, desktopHeroMarkRef.current].filter(
+      (el): el is Element => el != null,
+    )
+    if (els.length === 0) return
+    const visibleByElement = new WeakMap<Element, boolean>()
     const observer = new IntersectionObserver(
-      ([entry]) => setHeroWordmarkVisible(entry.isIntersecting),
+      (entries) => {
+        entries.forEach((entry) => {
+          visibleByElement.set(entry.target, entry.isIntersecting)
+        })
+        setHeroWordmarkVisible(els.some((el) => visibleByElement.get(el) ?? false))
+      },
       { rootMargin: '-80px 0px 0px 0px', threshold: 0 },
     )
-    observer.observe(el)
+    els.forEach((el) => observer.observe(el))
     return () => {
       observer.disconnect()
       setHeroWordmarkVisible(false)
@@ -37,19 +47,6 @@ export function Hero() {
 
       <PageContainer className="relative z-10">
         <div className="grid grid-cols-1 items-start gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-x-[var(--space-7)] min-[1100px]:gap-y-[var(--space-5)]">
-          {/* Brand mark — full-width at the top on mobile; up in the whitespace
-              above the video (top-right) on desktop. The radar spins; the colour
-              advances one notch per 180° flip. */}
-          <motion.div
-            ref={heroMarkRef}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-1"
-          >
-            <Wordmark variant="spin" className="w-full" />
-          </motion.div>
-
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -61,6 +58,16 @@ export function Hero() {
               eyebrow="Fleet coordination for coding agents"
               title={
                 <>
+                  <motion.span
+                    ref={mobileHeroMarkRef}
+                    aria-hidden="true"
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.7, ease: 'easeOut' as const }}
+                    className="float-right mb-[var(--space-2)] ml-[var(--space-4)] block w-[min(11rem,42vw)] min-[1100px]:hidden"
+                  >
+                    <Wordmark variant="spin" className="w-full" />
+                  </motion.span>
                   Run a fleet of coding agents{' '}
                   <span className="text-[var(--brand-primary)]">
                     without losing track.
@@ -155,13 +162,23 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- synchronized light/dark capture */}
+          {/* Right -- the big animated wordmark sits above the FleetBar capture. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-2 min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
+            <motion.div
+              ref={desktopHeroMarkRef}
+              aria-hidden="true"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, ease: 'easeOut' as const }}
+              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(28rem,42vw)] select-none min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)] min-[1100px]:block"
+            >
+              <Wordmark variant="spin" className="w-full" />
+            </motion.div>
             <div className="relative z-10">
               <LiveGloryVideo />
             </div>
