@@ -1816,12 +1816,24 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
   }
 
-  function getStatus(): Array<{ name: string; type: string; status: string; running: boolean; paused: boolean; uptime: number; queueDepth: number }> {
+  function getStatus(): Array<{
+    name: string; type: string; status: string; running: boolean; paused: boolean;
+    uptime: number; queueDepth: number;
+    // Lifecycle enrichment (P1) — powers the pd-console fleet pane. Additive: every
+    // field below is new; existing consumers that read name/status/etc. are unaffected.
+    trigger?: string; schedule?: string; backend: string; modelTier?: string;
+    maxRespawns: number; consecutiveFailures: number; backoffUntil?: number; lifecycle: string;
+  }> {
+    const now = Date.now();
     return config.agents.map((agent) => {
       const record = running.get(agent.name);
       const activeRun = activeAgentRuns.has(agent.name);
       const paused = pausedAgents.has(agent.name);
       const queueDepth = queueDepthFor(agent.name);
+      const act = activationState.get(agent.name);
+      const consecutiveFailures = act?.consecutiveFailures ?? 0;
+      const backoffUntil = act?.backoffUntil;
+      const maxRespawns = agent.maxRespawns ?? 3;
       let status = 'idle';
       if (activeRun) {
         status = 'running';
@@ -1832,6 +1844,26 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
       } else if (record) {
         status = agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'armed' : 'idle';
       }
+      // Derived lifecycle for the operator console (resolved to an ICS maritime flag
+      // in pd-console). Precedence is deliberate — a ship that is actively running
+      // reads as "sailing" even if it has failed before:
+      //   sailing  — a run is active right now
+      //   dry-dock — retries exhausted (consecutiveFailures ≥ maxRespawns); needs the operator
+      //   cooldown — backing off after a failure, not yet exhausted
+      //   paused   — operator-paused
+      //   else     — mirrors `status` (queued | armed | scheduled | idle)
+      let lifecycle: string;
+      if (activeRun) {
+        lifecycle = 'sailing';
+      } else if (maxRespawns > 0 && consecutiveFailures >= maxRespawns) {
+        lifecycle = 'dry-dock';
+      } else if (backoffUntil && backoffUntil > now) {
+        lifecycle = 'cooldown';
+      } else if (paused) {
+        lifecycle = 'paused';
+      } else {
+        lifecycle = status;
+      }
       return {
         name: agent.name,
         type: agent.schedule ? 'scheduled' : (agent.trigger || agent.triggerTuple) ? 'triggered' : 'manual',
@@ -1840,6 +1872,14 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
         paused,
         uptime: record ? Date.now() - record.startedAt : 0,
         queueDepth,
+        trigger: agent.trigger,
+        schedule: agent.schedule,
+        backend: agent.backend,
+        modelTier: agent.modelTier,
+        maxRespawns,
+        consecutiveFailures,
+        backoffUntil,
+        lifecycle,
       };
     });
   }
