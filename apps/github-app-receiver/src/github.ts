@@ -299,6 +299,40 @@ export async function completeCheckRun(
   });
 }
 
+export async function createGitHubIssue(
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+  labels: string[],
+  token: string,
+): Promise<{ number: number; html_url: string } | null> {
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+    method: 'POST',
+    headers: ghHeaders(token),
+    body: JSON.stringify({ title, body, labels }),
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as { number: number; html_url: string };
+}
+
+export async function postIssueComment(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string,
+  token: string,
+): Promise<void> {
+  await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+    {
+      method: 'POST',
+      headers: ghHeaders(token),
+      body: JSON.stringify({ body }),
+    },
+  );
+}
+
 // ---------------------------------------------------------------------------
 
 function ghHeaders(token: string): Record<string, string> {

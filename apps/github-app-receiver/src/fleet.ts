@@ -10,6 +10,13 @@
  * a full YAML library. Cloud executor only needs the `fleet.agents` section.
  */
 
+export interface IdeaCtx {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  shipName: string;
+}
+
 export interface ShipConfig {
   name: string;
   trigger: string | string[];
@@ -19,6 +26,11 @@ export interface ShipConfig {
   telos: string;
   /** When true, ship needs execution (bash/write) — dispatch to GHA instead */
   needsExecution: boolean;
+  /**
+   * Optional post-processor called on the raw model output before the comment
+   * is posted. Used by idea-generating ships to inject per-idea roadmap links.
+   */
+  postProcess?: (output: string, ctx: IdeaCtx) => string;
 }
 
 // Default Cloudflare AI model per ship if not declared in fallbacks
@@ -90,8 +102,69 @@ ${fleetYaml.slice(0, 12000)}
   }
 }
 
+// ---------------------------------------------------------------------------
+// Idea-link post-processor (used by spider + spark)
+
+interface IdeaEntry {
+  n: number;
+  title: string;
+  body: string;
+}
+
 /**
- * Built-in fallback ship configs for the four PR-review ships.
+ * Parses the <!-- pd-ideas-json ... --> block from a model's output,
+ * injects a per-idea "Add to roadmap" link after each **N. heading,
+ * and appends the hidden JSON block + a bulk-command hint.
+ */
+export function injectIdeaLinks(output: string, ctx: IdeaCtx): string {
+  const jsonMatch = /<!-- pd-ideas-json\s*([\s\S]*?)\s*-->/.exec(output);
+  if (!jsonMatch) return output;
+
+  let ideas: IdeaEntry[];
+  try {
+    ideas = JSON.parse(jsonMatch[1]) as IdeaEntry[];
+  } catch {
+    return output;
+  }
+  if (!ideas.length) return output;
+
+  // Strip the JSON block from visible text — we'll re-append it at the end
+  let processed = output.replace(/<!-- pd-ideas-json[\s\S]*?-->/, '').trim();
+
+  // Inject link after each **N. heading line
+  for (const idea of ideas) {
+    const title = encodeURIComponent(`feat: ${idea.title}`);
+    const bodyText = encodeURIComponent(
+      `**Source:** pd-${ctx.shipName} on PR #${ctx.prNumber}\n\n` +
+      `${idea.body}\n\n*Auto-surfaced by Port Daddy Fleet.*`,
+    );
+    const labels = encodeURIComponent('roadmap,from-fleet');
+    const url =
+      `https://github.com/${ctx.owner}/${ctx.repo}/issues/new` +
+      `?title=${title}&body=${bodyText}&labels=${labels}`;
+
+    // Match "**N. …" heading (possibly with em-dash suffix) and append link on new line
+    processed = processed.replace(
+      new RegExp(`(\\*\\*${idea.n}\\.[^\\n]+)`),
+      `$1\n[📌 Add to roadmap](${url})`,
+    );
+  }
+
+  const nums = ideas.map(i => i.n).join(' ');
+  processed +=
+    `\n\n---\n*Reply \`!pd roadmap add all\` to create all as roadmap issues, ` +
+    `or \`!pd roadmap add ${nums}\` for specific ones.*`;
+
+  // Re-embed JSON invisibly — the !pd roadmap handler needs it
+  processed += `\n<!-- pd-ideas-json\n${JSON.stringify(ideas)}\n-->`;
+
+  return processed;
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Built-in fallback ship configs for PR-review ships.
  * Used when pd-fleet.yml can't be fetched or parsed.
  */
 export function defaultPRShips(): ShipConfig[] {
@@ -347,6 +420,88 @@ Rules:
       role: 'Catch accessibility violations, AI-generated design tells, and visual regressions.',
       telos: 'Every pixel that ships should look intentional. No AI-defaults, no tiny text, no missing focus states.',
       needsExecution: false,
+    },
+    {
+      name: 'spider',
+      trigger: 'pull_request:opened',
+      prompt: `You are pd-spider, a territory mapper for the Port Daddy project.
+
+You always run — every diff lives somewhere with adjacent territory worth exploring.
+
+Study the PR diff and map the surrounding codebase territory. Surface 3-5 concrete ideas for what else could be done in or near the area this diff touches. Be specific: name files, commands, routes, or schema fields from the diff.
+
+Ideas should be:
+- Adjacent (close to what's already being changed, natural next steps)
+- Concrete (name the specific thing, not "improve X" but "add Y to X so that Z")
+- Varied (don't generate 5 variations of the same idea)
+
+Output exactly this format:
+
+### What else lives here
+
+**1. [Specific Idea Title]**
+[1-2 sentences: what it is and why this diff's neighborhood makes it the logical next step. Reference specific files/functions from the diff.]
+
+**2. [Specific Idea Title]**
+[1-2 sentences.]
+
+[... up to 5 ideas ...]
+
+Then end your response with this JSON block (REQUIRED — the roadmap link system depends on it):
+<!-- pd-ideas-json
+[{"n":1,"title":"Specific Idea Title","body":"3-4 sentence description of the idea suitable for a GitHub issue body. Mention the relevant files and why this matters."},{"n":2,...}]
+-->
+
+Rules:
+- Ground every idea in the actual diff — no generic suggestions
+- If the diff is trivial (typo fix, version bump), generate 1-2 ideas max and note that
+- The JSON block is always required`,
+      cfModel: DEFAULT_CF_MODEL,
+      role: 'Map the territory around this diff and surface the most natural adjacent work.',
+      telos: 'Find the work the diff points at but didn\'t do. Name it specifically.',
+      needsExecution: false,
+      postProcess: injectIdeaLinks,
+    },
+    {
+      name: 'spark',
+      trigger: 'pull_request:opened',
+      prompt: `You are pd-spark, a capability unlock analyst for the Port Daddy project.
+
+You always run — every diff either unlocks something new or combines with existing functionality in interesting ways.
+
+Port Daddy is a developer coordination tool: it tracks port claims, multi-agent sessions, fleet ships, coordination guards, transcripts, skill grafting, and daemon health. It has a CLI, HTTP routes, pub/sub channels, a SQLite schema, and a fleet engine.
+
+Study this PR diff and answer: **what does this change make possible that wasn't possible before?**
+
+Surface 3-5 ideas for capabilities, integrations, or user flows that this diff enables when combined with existing Port Daddy functionality. Reference the specific existing features (routes, CLI commands, database tables, ships, skills) that make the combination possible.
+
+Output exactly this format:
+
+### What this unlocks
+
+**1. [Capability or Flow Name]**
+[1-2 sentences: what becomes possible now, which existing pd feature it combines with, and what the user benefit is.]
+
+**2. [Capability or Flow Name]**
+[1-2 sentences.]
+
+[... up to 5 ideas ...]
+
+Then end your response with this JSON block (REQUIRED):
+<!-- pd-ideas-json
+[{"n":1,"title":"Capability or Flow Name","body":"3-4 sentence description suitable for a GitHub issue. Explain the combination: what this diff adds + which existing pd feature it unlocks + the user-facing benefit."},{"n":2,...}]
+-->
+
+Rules:
+- "Unlocked" means specifically enabled by this diff — not things that were already possible
+- Name the existing Port Daddy feature being combined (route, command, table, ship, skill)
+- If the diff is a pure refactor with no new capability surface, note that and generate 1-2 stretch ideas
+- The JSON block is always required`,
+      cfModel: DEFAULT_CF_MODEL,
+      role: 'Find what this diff unlocks when combined with existing Port Daddy functionality.',
+      telos: 'See the combinations the author didn\'t see. Surface them before the window closes.',
+      needsExecution: false,
+      postProcess: injectIdeaLinks,
     },
   ];
 }

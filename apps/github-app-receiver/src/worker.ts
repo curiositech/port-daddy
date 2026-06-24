@@ -25,6 +25,7 @@
 
 import { buildEnvelope } from './forward.js';
 import { executeFleet } from './execute.js';
+import { handleRoadmapCommand } from './roadmap.js';
 
 export interface ExecutorEnv {
   GITHUB_WEBHOOK_SECRET: string;
@@ -117,11 +118,20 @@ export async function handleRequest(request: Request, env: ExecutorEnv, ctx: Exe
 
   const envelope = buildEnvelope({ event, delivery, payload: parsed, rawPayload: rawBody, signature });
 
-  // Respond immediately; fleet dispatch runs in the background
+  // Respond immediately; dispatch runs in the background
   if (env.AI && env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY) {
     ctx.waitUntil(
       executeFleet(envelope, env).catch(err =>
         console.error('fleet-executor error', err instanceof Error ? err.message : String(err)),
+      ),
+    );
+  }
+
+  // Route issue_comment events to the roadmap command handler (no AI binding needed)
+  if (env.GITHUB_APP_ID && env.GITHUB_APP_PRIVATE_KEY) {
+    ctx.waitUntil(
+      handleRoadmapCommand(envelope, env).catch(err =>
+        console.error('roadmap-command error', err instanceof Error ? err.message : String(err)),
       ),
     );
   }

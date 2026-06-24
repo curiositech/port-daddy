@@ -96,16 +96,24 @@ export async function executeFleet(envelope: WebhookEnvelope, env: ExecutorEnv):
     })),
   );
 
+  const statusIcon = (s: string) =>
+    s === 'clean' ? '✓ clean' : s === 'findings' ? '⚠ findings' : '✗ error';
+
   const summary = resultPairs
-    .map(r => `- **pd-${r.ship}**: ${r.status === 'ok' ? '✓ posted' : '✗ error'}`)
+    .map(r => `- **pd-${r.ship}**: ${statusIcon(r.status)}`)
     .join('\n');
 
-  // Always complete the check run, even if some ships failed
+  // Fail the check when any ship has findings (so the PR must be addressed or overridden).
+  // Error/timeout → neutral (operator-visible, but doesn't block if ships are broken).
+  const hasFindings = resultPairs.some(r => r.status === 'findings');
+  const hasErrors = resultPairs.some(r => r.status === 'error');
+  const conclusion = hasFindings ? 'failure' : hasErrors ? 'neutral' : 'success';
+
   await completeCheckRun(
     owner,
     repo,
     checkRunId,
-    resultPairs.every(r => r.status !== 'error') ? 'success' : 'neutral',
+    conclusion,
     summary || 'No ships ran.',
     token,
   ).catch(err =>
@@ -120,9 +128,8 @@ async function runShip(
   prCtx: PRContext,
   token: string,
   ai: Ai,
-): Promise<'ok' | 'empty' | 'error'> {
+): Promise<'clean' | 'findings' | 'error'> {
   try {
-    // Fetch ship contract file if it exists
     const contractPath = `fleet/ships/${ship.name}.md`;
     const contract = await fetchRepoFile(
       prCtx.owner,
@@ -142,9 +149,15 @@ async function runShip(
       ],
     })) as { response?: string };
 
-    const output = (res.response ?? '').trim();
-    const isClean = !output || output.length < 10 || /^clean$/i.test(output);
-    const body = isClean ? '✓ No findings.' : output;
+    const raw = (res.response ?? '').trim();
+    const isClean = !raw || raw.length < 10 || /^clean$/i.test(raw);
+
+    // Apply post-processor (e.g. idea-link injection for spider/spark)
+    const processed = ship.postProcess
+      ? ship.postProcess(raw, { owner: prCtx.owner, repo: prCtx.repo, prNumber: prCtx.prNumber, shipName: ship.name })
+      : raw;
+
+    const body = isClean ? '✓ No findings.' : processed;
 
     await postShipComment(
       prCtx.owner,
@@ -156,7 +169,7 @@ async function runShip(
       token,
     );
 
-    return 'ok';
+    return isClean ? 'clean' : 'findings';
   } catch {
     return 'error';
   }
