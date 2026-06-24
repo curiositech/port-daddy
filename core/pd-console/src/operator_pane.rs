@@ -274,13 +274,22 @@ impl OperatorPane {
             format!("EVENTS {events}"),
         ]));
 
-        // The spend bar — only meaningful when a cap exists.
+        // The spend bar — only meaningful when a cap exists. The accompanying
+        // chip carries the bar's SEMANTIC tone (the renderer resolves Tone→OKLCH
+        // in one place — no hex here): healthy spend reads green (`Landed`),
+        // nearing the cap reads amber (`Gated`), over/at the cap reads red
+        // (`Conflicted`). `Block::KeyVal` has no tone field, so the chip is the
+        // toned affordance that travels with the bar (the ledger/dispatch idiom).
         if let Some(p) = pct {
             out.push(Block::KeyVal("spend".into(), spend_bar(p)));
-            out.push(Block::Chip {
-                label: if over { "OVER BUDGET".into() } else { format!("{p:.0}% of cap") },
-                tone: if over { Tone::Conflicted } else { Tone::Gated },
-            });
+            let (chip_label, chip_tone) = if over {
+                ("OVER BUDGET".to_string(), Tone::Conflicted)
+            } else if p >= 75.0 {
+                (format!("{p:.0}% of cap — nearing"), Tone::Gated)
+            } else {
+                (format!("{p:.0}% of cap"), Tone::Landed)
+            };
+            out.push(Block::Chip { label: chip_label, tone: chip_tone });
         }
 
         // RECENT SPEND — the latest cost events.
@@ -532,6 +541,31 @@ mod tests {
         let bar = bar.expect("spend bar present");
         assert_eq!(bar.matches('█').count(), 6, "64.8% rounds to 6/10 cells: {bar}");
         assert!(bar.contains("64.8%"), "percent label: {bar}");
+    }
+
+    #[test]
+    fn budget_chip_tones_by_threshold_no_hardcoded_color() {
+        // Healthy (<75%) → Landed (green); nearing (75–99%) → Gated (amber);
+        // over → Conflicted (red). The chip is the toned affordance; color is
+        // resolved by the renderer from the semantic Tone — never a hex here.
+        let chip_tone = |pct: f64, over: bool| -> Tone {
+            let mut state = sample_state();
+            state["budget"]["status"]["percentUsed"] = serde_json::json!(pct);
+            state["budget"]["status"]["overBudget"] = serde_json::json!(over);
+            let pane = make_pane(state);
+            pane.view()
+                .iter()
+                .find_map(|b| match b {
+                    Block::Chip { label, tone } if label.contains("cap") || label.contains("OVER") => {
+                        Some(*tone)
+                    }
+                    _ => None,
+                })
+                .expect("budget chip present")
+        };
+        assert!(matches!(chip_tone(40.0, false), Tone::Landed), "healthy spend is green");
+        assert!(matches!(chip_tone(85.0, false), Tone::Gated), "nearing the cap is amber");
+        assert!(matches!(chip_tone(120.0, true), Tone::Conflicted), "over budget is red");
     }
 
     #[test]
