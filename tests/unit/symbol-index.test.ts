@@ -230,6 +230,62 @@ export function load() {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Cross-file import resolution (ast-a1-1).
+  //
+  // Import specifiers used to be stored raw ('./b'), so a symbol's cross-file
+  // importers were invisible — every cross-file dependency chain was blind.
+  // resolveImportSpecifier now maps in-project specifiers to absolute paths
+  // (filesystem-verified), so getDependents() crosses module boundaries.
+  // ───────────────────────────────────────────────────────────────────────────
+  test('resolves a relative import to the absolute defining file', async () => {
+    const bPath = join(tempDir, 'b.ts');
+    const aPath = join(tempDir, 'a.ts');
+    writeFileSync(bPath, `export function foo() { return 1; }\n`);
+    writeFileSync(aPath, `import { foo } from './b';\nexport function useFoo() { return foo(); }\n`);
+
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    // a.ts's import edge now points at the RESOLVED absolute path of b.ts...
+    const aDeps = symbolIndex.getDependencies(aPath);
+    const fooImport = aDeps.find(d => d.targetSymbol === 'foo' && d.dependencyType === 'imports');
+    expect(fooImport).toBeDefined();
+    expect(fooImport!.targetFile).toBe(bPath);
+
+    // ...so foo's reverse-deps surface a.ts as a cross-file importer.
+    const importers = symbolIndex.getDependents(bPath, 'foo');
+    expect(importers.some(d => d.sourceFile === aPath)).toBe(true);
+  });
+
+  test('resolves a directory import to its index file', async () => {
+    const pkgDir = join(tempDir, 'pkg');
+    mkdirSync(pkgDir, { recursive: true });
+    const indexPath = join(pkgDir, 'index.ts');
+    const consumerPath = join(tempDir, 'consumer.ts');
+    writeFileSync(indexPath, `export function bar() { return 2; }\n`);
+    writeFileSync(consumerPath, `import { bar } from './pkg';\nexport const x = bar;\n`);
+
+    await symbolIndex.parseFile(indexPath);
+    await symbolIndex.parseFile(consumerPath);
+
+    const dep = symbolIndex.getDependencies(consumerPath)
+      .find(d => d.targetSymbol === 'bar' && d.dependencyType === 'imports');
+    expect(dep).toBeDefined();
+    expect(dep!.targetFile).toBe(indexPath);
+  });
+
+  test('leaves external/node_modules specifiers unresolved (raw)', async () => {
+    const filePath = join(tempDir, 'ext.ts');
+    writeFileSync(filePath, `import { weird } from 'some-external-pkg';\nexport const y = weird;\n`);
+    await symbolIndex.parseFile(filePath);
+
+    const dep = symbolIndex.getDependencies(filePath).find(d => d.targetSymbol === 'weird');
+    expect(dep).toBeDefined();
+    // Unresolved → raw specifier retained (no fabricated path).
+    expect(dep!.targetFile).toBe('some-external-pkg');
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Intra-file call edges → blast-radius (issue #468).
   //
   // Before the fix, parseFile extracted imports/heritage but NOT `calls`, so the

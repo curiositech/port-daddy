@@ -14,8 +14,8 @@
 
 import type Database from 'better-sqlite3';
 import { createHash } from 'crypto';
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname, resolve } from 'path';
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
+import { join, extname, resolve, dirname } from 'path';
 import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
@@ -741,13 +741,14 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
     language: SupportedLanguage,
     absPath: string,
     symbols: ExtractedSymbol[],
+    projectDir: string | null,
   ): ExtractedDep[] {
     const deps: ExtractedDep[] = [];
 
     if (language === 'python') {
       extractPythonDeps(rootNode, deps);
     } else {
-      extractTSDeps(rootNode, deps);
+      extractTSDeps(rootNode, deps, absPath, projectDir);
     }
 
     // Intra-file `calls` edges — the reverse-dependency closure that powers
@@ -825,7 +826,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
         if (targetPath) {
           const caller = enclosingOf(node.startPosition.row + 1);
           if (caller && caller !== targetPath) {
-            const key = `${caller} ${targetPath}`;
+            const key = `${caller} ${targetPath}`;
             if (!seen.has(key)) {
               seen.add(key);
               out.push({ sourceSymbol: caller, targetFile: absPath, targetSymbol: targetPath, type: 'calls' });
@@ -839,13 +840,66 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
     return out;
   }
 
-  function extractTSDeps(node: TSNode, deps: ExtractedDep[]): void {
+  // Extension/index candidates for resolving a TS/JS import to a real file.
+  const TS_RESOLVE_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.d.ts'];
+
+  /**
+   * Resolve an import specifier to an absolute IN-PROJECT file path, or null if
+   * it can't be resolved to a real file (bare/`node_modules` packages, or a
+   * missing target). Filesystem-verified — only ever returns a path that exists
+   * on disk, so we never fabricate a cross-file edge (ast-a1-1). Handles:
+   *   - relative `./` / `../` specifiers with extension inference + `index.*`;
+   *   - a baseUrl-style fallback: a non-relative specifier that maps to a real
+   *     file under `projectDir` (the common `tsconfig baseUrl: '.'` case).
+   * Full tsconfig `paths` glob mapping is a tracked follow-up; until then a
+   * `paths`-aliased import simply stays unresolved (raw specifier kept), which
+   * is safe — it degrades to today's file-level/unresolved behaviour.
+   */
+  function resolveImportSpecifier(
+    specifier: string,
+    importerAbsPath: string,
+    projectDir: string | null,
+  ): string | null {
+    if (!specifier) return null;
+    const tryFile = (base: string): string | null => {
+      if (extname(base) && existsSync(base) && statSync(base).isFile()) return resolve(base);
+      for (const ext of TS_RESOLVE_EXTS) {
+        const p = base + ext;
+        if (existsSync(p) && statSync(p).isFile()) return resolve(p);
+      }
+      for (const ext of TS_RESOLVE_EXTS) {
+        const p = join(base, `index${ext}`);
+        if (existsSync(p) && statSync(p).isFile()) return resolve(p);
+      }
+      return null;
+    };
+    if (specifier.startsWith('.')) {
+      return tryFile(resolve(dirname(importerAbsPath), specifier));
+    }
+    // Non-relative: probe projectDir (baseUrl). node_modules packages won't
+    // match a project file, so they stay external. We deliberately do NOT probe
+    // node_modules — those are external dependencies, not coordination surface.
+    // No project root (e.g. a loose file) → can't baseUrl-resolve; stay external.
+    if (!projectDir) return null;
+    return tryFile(join(projectDir, specifier));
+  }
+
+  function extractTSDeps(
+    node: TSNode,
+    deps: ExtractedDep[],
+    importerAbsPath: string,
+    projectDir: string | null,
+  ): void {
     for (const child of node.namedChildren) {
       if (child.type === 'import_statement' || child.type === 'import_declaration') {
         const source = child.childForFieldName('source');
         if (!source) continue;
 
-        const targetFile = source.text.replace(/['"]/g, '');
+        // Resolve the specifier to a real in-project file when we can, so
+        // dependency edges are cross-file-true; keep the raw specifier for
+        // externals/unresolved (degrades to the prior file-level behaviour).
+        const rawSpecifier = source.text.replace(/['"]/g, '');
+        const targetFile = resolveImportSpecifier(rawSpecifier, importerAbsPath, projectDir) ?? rawSpecifier;
 
         // Named imports: import { foo, bar } from './mod'
         for (const clause of child.namedChildren) {
@@ -1066,7 +1120,7 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       ? extractPythonSymbols(rootNode, fileContent)
       : extractTSSymbols(rootNode, fileContent);
 
-    const extractedDeps = extractDependencies(rootNode, language, absPath, extractedSymbols);
+    const extractedDeps = extractDependencies(rootNode, language, absPath, extractedSymbols, projectDir);
     const graphScope = `symbols:file:${absPath}`;
 
     // Store in SQLite (transactionally)
