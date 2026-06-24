@@ -862,7 +862,7 @@ test('triggered agents receive message content when subscribed in-process', asyn
   );
 });
 
-test('I/O wiring: a registry-kind trigger (file:) does NOT go through the legacy channel subscribe', () => {
+test('I/O wiring: a registry-kind trigger (file:) does NOT go through the legacy channel subscribe', async () => {
   // The engine must route file:/email:/sms:/calendar:/webhook: triggers
   // through the pluggable registry, not the coordination-channel path.
   const subscribe = jest.fn(() => jest.fn());
@@ -870,6 +870,9 @@ test('I/O wiring: a registry-kind trigger (file:) does NOT go through the legacy
   const runner = createFleetRunner(config, '/tmp/proj', { messaging: { subscribe } });
 
   runner.startAgent(config.agents[0]);
+  // Await the async registry start so nothing logs/leaks after the test.
+  await runner.whenTriggersReady();
+  runner.stopAll();
 
   // The legacy channel subscribe must NOT be called for a registry-kind
   // trigger — that would mean it was mis-routed to the coordination path.
@@ -882,12 +885,13 @@ test('I/O wiring: a legacy coordination channel trigger STILL goes through messa
   const runner = createFleetRunner(config, '/tmp/proj', { messaging: { subscribe } });
 
   runner.startAgent(config.agents[0]);
+  runner.stopAll();
 
   // git:/pd:/github: + bare channel names stay on the legacy path (no regression).
   expect(subscribe).toHaveBeenCalledTimes(1);
 });
 
-test('I/O wiring: plural triggers[] route registry vs legacy kinds independently', () => {
+test('I/O wiring: plural triggers[] route registry vs legacy kinds independently', async () => {
   const subscribe = jest.fn(() => jest.fn());
   const config = makeConfig({
     trigger: undefined,
@@ -896,6 +900,8 @@ test('I/O wiring: plural triggers[] route registry vs legacy kinds independently
   const runner = createFleetRunner(config, '/tmp/proj', { messaging: { subscribe } });
 
   runner.startAgent(config.agents[0]);
+  await runner.whenTriggersReady();
+  runner.stopAll();
 
   // Only the legacy `qa:findings` should hit messaging.subscribe; the file:
   // trigger goes through the registry (and is refused at start() for the
@@ -903,6 +909,43 @@ test('I/O wiring: plural triggers[] route registry vs legacy kinds independently
   expect(subscribe).toHaveBeenCalledTimes(1);
   const [channel] = subscribe.mock.calls[0];
   expect(channel).toContain('qa:findings');
+});
+
+test('I/O wiring: a not-ready registry trigger (email:) is refused via console.error, engine does not crash', async () => {
+  // QA gap #4: a registry-kind trigger whose available() is {ready:false}
+  // must surface a diagnostic and NOT crash or hang the engine.
+  const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const subscribe = jest.fn(() => jest.fn());
+  const config = makeConfig({ trigger: 'email:received(from:@team.com)' });
+  const runner = createFleetRunner(config, '/tmp/proj', { messaging: { subscribe } });
+
+  runner.startAgent(config.agents[0]);
+  await runner.whenTriggersReady();
+
+  // Email is a stub: refused at available(), logged, never subscribed.
+  expect(subscribe).not.toHaveBeenCalled();
+  const logged = errorSpy.mock.calls.map((c) => String(c[0])).join('\n');
+  expect(logged).toMatch(/Trigger "email:received.*not started/);
+  runner.stopAll();
+  errorSpy.mockRestore();
+});
+
+test('I/O wiring: stopAll() before an async trigger start settles disposes the handle and stays silent', async () => {
+  // Regression for the "Cannot log after tests are done" leak: if the runner
+  // is stopped while a registry trigger start is in flight, the late
+  // resolution must self-suppress (no log) and dispose any handle.
+  const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const config = makeConfig({ trigger: 'email:received(from:@team.com)' });
+  const runner = createFleetRunner(config, '/tmp/proj', {});
+
+  runner.startAgent(config.agents[0]);
+  runner.stopAll(); // stop BEFORE the async start resolves
+  await runner.whenTriggersReady();
+
+  // The late resolution self-suppressed because the runner is stopped.
+  const logged = errorSpy.mock.calls.map((c) => String(c[0])).join('\n');
+  expect(logged).not.toMatch(/not started/);
+  errorSpy.mockRestore();
 });
 
 test('tuple mailbox entries are consumed as fleet inputs', async () => {

@@ -235,6 +235,123 @@ describe('IoDispatch.dispatchOutput', () => {
   });
 });
 
+// ─── QA-gap coverage: malformed specs, empty lists, failure isolation ────────
+// Addresses pd-qa findings #1 (invalid specs), #5 (output failure isolation),
+// #7 (empty lists). Every malformed/unknown input must refuse GRACEFULLY —
+// a typed {started:false}/{ok:false} with a reason — never a throw or hang.
+
+describe('malformed trigger specs refuse gracefully (no throw, no hang)', () => {
+  const cases = [
+    ['empty string', ''],
+    ['whitespace only', '   '],
+    ['no colon', 'justaword'],
+    ['unknown kind', 'teleporter:beam'],
+    ['kind only, no type', 'file:'],
+    ['trailing junk after parens', 'file:changed(/x) extra'],
+    ['unterminated parens', 'file:changed(/x'],
+    ['uppercase reserved-but-unknown kind', 'EMAIL:received'],
+    ['numbers as kind', '123:abc'],
+  ];
+
+  it.each(cases)('startTrigger refuses %s without throwing', async (_label, raw) => {
+    const bridge = new IoDispatch();
+    let result;
+    // The promise must RESOLVE to a typed refusal, never reject.
+    await expect((async () => { result = await bridge.startTrigger(raw, () => {}); })()).resolves.toBeUndefined();
+    expect(result.started).toBe(false);
+    expect(typeof result.reason).toBe('string');
+    expect(result.reason.length).toBeGreaterThan(0);
+  });
+
+  it('classifyTrigger never throws on malformed input and falls back to legacy', () => {
+    for (const [, raw] of cases) {
+      const c = classifyTrigger(raw);
+      // Malformed/unknown → not a registry kind → legacy channel fallback.
+      expect(c.kind).toBe('legacy-channel');
+    }
+  });
+});
+
+describe('malformed output targets refuse gracefully (no throw, no hang)', () => {
+  const cases = [
+    ['empty string', ''],
+    ['whitespace only', '   '],
+    ['no colon', 'justaword'],
+    ['unknown sink', 'teleporter:beam'],
+    ['sink only, no type', 'file:'],
+    ['unterminated parens', 'file:write(/x'],
+  ];
+
+  it.each(cases)('dispatchOutput refuses %s without throwing', async (_label, raw) => {
+    const bridge = new IoDispatch();
+    let result;
+    await expect((async () => { result = await bridge.dispatchOutput(raw, { body: 'x' }); })()).resolves.toBeUndefined();
+    expect(result.ok).toBe(false);
+    expect(typeof result.reason).toBe('string');
+    expect(result.reason.length).toBeGreaterThan(0);
+  });
+});
+
+describe('empty trigger/output lists are a no-op', () => {
+  it('dispatchOutputs([]) returns [] and never throws', async () => {
+    const bridge = new IoDispatch();
+    const results = await bridge.dispatchOutputs([], { body: 'x', pii: 'low' });
+    expect(results).toEqual([]);
+  });
+});
+
+describe('concurrent dispatchOutput calls are isolated', () => {
+  it('parallel writes to distinct files all land (no cross-talk)', async () => {
+    const dir = makeScratch();
+    const bridge = new IoDispatch();
+    try {
+      // Fire several dispatches concurrently; each must complete independently.
+      const targets = Array.from({ length: 8 }, (_, i) => join(dir, `c${i}.md`));
+      const results = await Promise.all(
+        targets.map((t, i) => bridge.dispatchOutput(`file:write(${t})`, { body: `body-${i}`, pii: 'low' })),
+      );
+      expect(results.every((r) => r.ok)).toBe(true);
+      targets.forEach((t, i) => {
+        expect(readFileSync(t, 'utf8')).toBe(`body-${i}`);
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('schedule registry-kind classifies as legacy (no double-fire)', () => {
+  it('schedule:* specs are NOT routed to the registry path', () => {
+    // The engine keeps schedule on the legacy cron path. The bridge must
+    // classify it as legacy so ioDispatch never starts a CronTriggerSource
+    // alongside the engine's own cron evaluator.
+    expect(classifyTrigger('schedule:0 8 * * *').kind).toBe('legacy-channel');
+    expect(classifyTrigger('schedule:tick').kind).toBe('legacy-channel');
+  });
+});
+
+describe('output failure isolation (one bad sink does not affect others)', () => {
+  it('a failing output in the middle does not stop the surrounding outputs', async () => {
+    const dir = makeScratch();
+    const a = join(dir, 'a.md');
+    const b = join(dir, 'b.md');
+    const bridge = new IoDispatch();
+    try {
+      const results = await bridge.dispatchOutputs(
+        // good, bad (unknown sink), good
+        [`file:write(${a})`, 'teleporter:beam', `file:write(${b})`],
+        { body: 'payload', pii: 'low' },
+      );
+      expect(results.map((r) => r.ok)).toEqual([true, false, true]);
+      // Both good outputs actually wrote despite the failure between them.
+      expect(readFileSync(a, 'utf8')).toBe('payload');
+      expect(readFileSync(b, 'utf8')).toBe('payload');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 // ─── End-to-end: file trigger fires -> agent payload -> file output ──────────
 
 describe('end-to-end file -> file (the Phase-1 proof path)', () => {

@@ -672,6 +672,15 @@ export interface FleetRunnerOptions {
 
 export function createFleetRunner(config: FleetConfig, projectDir: string, options?: FleetRunnerOptions) {
   const running = new Map<string, RunningAgent>();
+  // Lifecycle guard for async I/O-registry trigger starts. `startAgent` kicks
+  // off `ioDispatch.startTrigger(...)` which resolves asynchronously; without
+  // tracking, a resolution that lands after the runner is stopped would (a)
+  // leak an open watcher and (b) log via console.error after the surrounding
+  // context (e.g. a jest test) has torn down. We track every in-flight start
+  // promise so the runner can await them, and flip `stopped` so late
+  // resolutions self-suppress.
+  let stopped = false;
+  const pendingTriggerStarts = new Set<Promise<void>>();
   const emit = options?.onEvent ?? (() => {});
   const project = config.name;
   const agentIndex = new Map(config.agents.map(agent => [agent.name, agent]));
@@ -961,20 +970,27 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     // availability: a not-ready source (e.g. email/sms/calendar stub) is
     // refused with a clear log line, never silently dropped.
     for (const raw of registryTriggers) {
-      void ioDispatch
+      const startPromise = ioDispatch
         .startTrigger(raw, (event) => {
+          // Late-firing watchers must not wake a stopped runner.
+          if (stopped || !running.has(agent.name)) return;
           void requestAgentRun(agent, contextFromTriggerEvent(event));
         })
         .then((result) => {
+          // The runner (or this agent) may have been torn down while the
+          // async start was in flight. If so, dispose any handle we got and
+          // stay silent — logging here would land after the surrounding
+          // context (e.g. a test) has finished ("Cannot log after tests are
+          // done") and a live handle would leak.
+          const aborted = stopped || !running.has(agent.name);
           if (result.started) {
             const stopHandle = result.handle;
-            cleanupHandles.push(() => { void stopHandle.stop(); });
-            // If the agent record was already torn down before this async
-            // start resolved, stop the source immediately to avoid a leak.
-            if (!running.has(agent.name)) {
+            if (aborted) {
               void stopHandle.stop();
+            } else {
+              cleanupHandles.push(() => { void stopHandle.stop(); });
             }
-          } else {
+          } else if (!aborted) {
             const requires = result.requires?.length ? ` (requires: ${result.requires.join(', ')})` : '';
             console.error(
               `[Fleet] Trigger "${raw}" for agent "${agent.name}" not started: ${result.reason}${requires}`,
@@ -982,8 +998,12 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
           }
         })
         .catch((err: Error) => {
+          if (stopped || !running.has(agent.name)) return;
           console.error(`[Fleet] Trigger "${raw}" for agent "${agent.name}" failed to start:`, err.message);
         });
+      // Track so stopAll()/whenTriggersReady() can await settlement.
+      pendingTriggerStarts.add(startPromise);
+      void startPromise.finally(() => { pendingTriggerStarts.delete(startPromise); });
     }
 
     // ── Legacy coordination-channel triggers (pd/git/github + bare names) ──
@@ -1965,11 +1985,30 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
   }
 
   function stopAll(): void {
+    stopped = true;
     respawnWatcherStopped = true;
     for (const name of [...running.keys()]) {
       stopRunningRecord(name);
     }
     emit({ type: 'fleet_stopped', project, timestamp: Date.now() });
+    // Settle any in-flight async trigger starts so a late resolution does not
+    // leak a watcher or log after teardown. Fire-and-forget: the per-promise
+    // handlers already self-suppress because `stopped` is now true; this just
+    // disposes any handle that resolves after this point.
+    void whenTriggersReady();
+  }
+
+  /**
+   * Resolve once every in-flight I/O-registry trigger start has settled. The
+   * daemon does not need this, but it makes the async trigger wiring
+   * deterministically testable: `startAgent` returns synchronously while the
+   * registry start runs in the background; tests await this to observe the
+   * outcome (or to guarantee no log/handle escapes the test).
+   */
+  async function whenTriggersReady(): Promise<void> {
+    while (pendingTriggerStarts.size > 0) {
+      await Promise.allSettled([...pendingTriggerStarts]);
+    }
   }
 
   function getStatus(): Array<{
@@ -2101,7 +2140,7 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     return { success: true };
   }
 
-  return { startAll, stopAll, startAgent, getStatus, hailAgent, pauseAgent, resumeAgent, setEnabledAgents, config };
+  return { startAll, stopAll, startAgent, getStatus, hailAgent, pauseAgent, resumeAgent, setEnabledAgents, whenTriggersReady, config };
 }
 
 // ─── Cron Helpers ───────────────────────────────────────────────────────────
