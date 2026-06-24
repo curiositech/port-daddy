@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
@@ -6,16 +7,36 @@ import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 import { useTheme } from '@/lib/theme-context'
+import { setHeroLogoVisible } from './heroLogoVisibility'
 
 export function Hero() {
   const { theme } = useTheme()
+  const logoRef = useRef<HTMLImageElement | null>(null)
   // Theme-aware animated radar mark: light artwork on light surfaces, dark on
-  // dark. Lives in the hero's upper-left corner as an additive flourish — it is
-  // absolutely positioned so it never displaces the headline/CTA grid.
+  // dark. Sits at the top of the right column, above the FleetBar preview.
   const animatedLogo =
     theme === 'dark'
       ? '/logos/portdaddy-animated-darkmode.svg'
       : '/logos/portdaddy-animated-lightmode.svg'
+
+  // While the big hero mark is on screen, the small nav mark is redundant —
+  // hide it. An IntersectionObserver broadcasts the hero logo's visibility to
+  // the SiteHeader via a tiny shared store. Always restore visibility on unmount
+  // (e.g. when navigating away from the home page).
+  useEffect(() => {
+    const el = logoRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      ([entry]) => setHeroLogoVisible(entry.isIntersecting && entry.intersectionRatio > 0.35),
+      { threshold: [0, 0.35, 1] },
+    )
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      setHeroLogoVisible(false)
+    }
+  }, [])
+
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -23,19 +44,6 @@ export function Hero() {
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
-
-      {/* Animated brand mark, upper-left corner. Additive, behind the grid's
-          z-layer edge but above the dotted field; hidden on the narrowest
-          viewports so it never crowds the headline. */}
-      <motion.img
-        src={animatedLogo}
-        alt=""
-        aria-hidden="true"
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.7, ease: 'easeOut' as const }}
-        className="pointer-events-none absolute left-[var(--space-4)] top-[var(--space-4)] z-0 hidden h-16 w-16 select-none rounded-[var(--radius-md)] opacity-90 sm:block lg:h-20 lg:w-20"
-      />
 
       <PageContainer className="relative z-10">
         <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
@@ -130,13 +138,25 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* Right -- synchronized light/dark capture */}
+          {/* Right -- the big animated mark sits at the top-right, above the
+              FleetBar capture. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
+            {/* Animated brand mark, top-right of the hero, above the preview. */}
+            <motion.img
+              ref={logoRef}
+              src={animatedLogo}
+              alt=""
+              aria-hidden="true"
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, ease: 'easeOut' as const }}
+              className="pointer-events-none mb-[var(--space-4)] ml-auto block h-32 w-32 select-none rounded-[var(--radius-md)] sm:h-40 sm:w-40 lg:h-48 lg:w-48 xl:h-56 xl:w-56"
+            />
             <div className="relative z-10">
               <LiveGloryVideo />
             </div>

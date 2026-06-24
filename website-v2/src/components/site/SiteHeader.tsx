@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import * as Popover from "@radix-ui/react-popover";
 import {
@@ -13,7 +14,22 @@ import { Button } from "@/components/ui/Button";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
 import { useTheme } from "@/lib/theme-context";
+import { cn } from "@/lib/utils";
+import {
+  getHeroLogoVisible,
+  subscribeHeroLogoVisible,
+} from "@/components/landing/heroLogoVisibility";
 import { BrandMark, PageContainer } from "./primitives";
+
+/**
+ * True while the home page's big hero brand mark is on screen, so the small,
+ * now-redundant nav mark can fade out and leave just the wordmark.
+ */
+function useHeroLogoVisible(): boolean {
+  const [visible, setVisible] = useState(getHeroLogoVisible);
+  useEffect(() => subscribeHeroLogoVisible(setVisible), []);
+  return visible;
+}
 
 type NavItem = {
   label: string;
@@ -218,6 +234,7 @@ function CompressedNavMenu() {
 
 export function SiteHeader() {
   const { theme, toggle } = useTheme();
+  const heroLogoVisible = useHeroLogoVisible();
 
   return (
     <>
@@ -239,7 +256,20 @@ export function SiteHeader() {
             to="/"
             className="inline-flex shrink-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]"
           >
-            <BrandMark className="h-10 w-10 xl:h-11 xl:w-11" />
+            {/* Hide the small nav mark while the big hero mark is on screen —
+                they'd be redundant. Fades and collapses its width so the
+                wordmark slides left smoothly. */}
+            <span
+              aria-hidden={heroLogoVisible}
+              className={cn(
+                "inline-flex overflow-hidden transition-all duration-300 ease-out",
+                heroLogoVisible
+                  ? "max-w-0 -translate-x-1 opacity-0"
+                  : "max-w-[3rem] translate-x-0 opacity-100",
+              )}
+            >
+              <BrandMark className="h-10 w-10 xl:h-11 xl:w-11" />
+            </span>
             <div className="flex flex-col">
               <span className="whitespace-nowrap font-display text-[length:var(--text-base)] font-black uppercase leading-none tracking-[var(--tracking-display-nav)] xl:text-[length:var(--text-lg)]">
                 Port Daddy
