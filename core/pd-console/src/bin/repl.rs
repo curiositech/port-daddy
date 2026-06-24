@@ -19,8 +19,10 @@
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
-// fleet_pane and maritime are excluded — they pull in GPUI derive macros
-// (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
+// maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
+// Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
+#[path = "../fleet_pane.rs"]     mod fleet_pane;
+#[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../lane_pane.rs"]      mod lane_pane;
@@ -43,6 +45,7 @@
 use agent::{AgentManager, Backend};
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
+use fleet_pane::FleetPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::PaneRegistry;
@@ -94,6 +97,7 @@ async fn main() -> Result<()> {
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
+    reg.register(Box::new(FleetPane::new()));
     reg.register(Box::new(LanePane::new()));
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
@@ -170,6 +174,16 @@ async fn main() -> Result<()> {
         } else if line == ":parley" {
             // RCP-2a convene decision over the channel's unresolved contradictions.
             reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":fleet" {
+            // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
+            // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
+            reg.active = reg.panes.iter().position(|p| p.id() == "fleet").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }

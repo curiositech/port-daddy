@@ -4,7 +4,12 @@
 //! Hover tooltip shows the full International Code of Signals meaning.
 //! Colors are pre-computed from OKLCH (no runtime conversion needed in GPUI).
 
+// Only the FlagBadge renderer needs gpui. The Flag enum + flag_for_state are pure,
+// so the ratatui REPL and Linux CI can render the fleet pane without pulling gpui
+// (whose derive macros also overflow rustc's stack in the non-gpui binary).
+#[cfg(feature = "gpui")]
 use gpui::prelude::*;
+#[cfg(feature = "gpui")]
 use gpui::*;
 
 /// One ICS single-letter flag with its Port Daddy semantic mapping.
@@ -173,11 +178,13 @@ pub fn flag_for_state(state: &str) -> Flag {
 }
 
 /// Rendered ICS flag badge — 32×20px colored block with letter, tooltip on hover.
+#[cfg(feature = "gpui")]
 #[derive(IntoElement)]
 pub struct FlagBadge {
     flag: Flag,
 }
 
+#[cfg(feature = "gpui")]
 impl FlagBadge {
     pub fn new(flag: Flag) -> Self {
         Self { flag }
@@ -188,6 +195,7 @@ impl FlagBadge {
     }
 }
 
+#[cfg(feature = "gpui")]
 impl RenderOnce for FlagBadge {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let flag = self.flag;

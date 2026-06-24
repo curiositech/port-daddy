@@ -326,7 +326,8 @@ mod tests {
         )));
         // The dry-dock ship's flag carries the Conflicted tone (attention).
         assert!(blocks.iter().any(|b| matches!(
-            b, Block::Flag { label, tone } if label.contains("qa-adversary") && *tone == Tone::Conflicted
+            b, Block::Flag { label, tone, .. }
+            if label.contains("qa-adversary") && matches!(tone, Tone::Conflicted)
         )));
     }
 }
