@@ -59,7 +59,7 @@ The relay is **already built** (`apps/relay/src/index.ts`) and is a pure ciphert
 |---|---|---|
 | Durable Object per `(harbor,channel)` (`harbor-channel.ts`) | per-harbor fan-out, monotonic `seq`, `from_seq` replay | per-account total order of change-events on reserved `_sync:<class>` channels; `from_seq` = sync cursor. No new ordering code. |
 | D1 (`events`,`chain_heads`,`identities`) | identity registry, durable ciphertext store, Merkle heads | cloud system-of-record for the replayable change-event journal (7-day hot). NOT table-state SoR — daemon SQLite stays authoritative. |
-| R2 | event archive after 7-day expiry | **encrypted snapshot blobs** via `VACUUM INTO`, keyed `account/<id>/snapshot/<hlc>.db.enc`; new device bootstraps from latest snapshot + replays since its HLC. Needs new `lib/backup-backends/r2.ts` (only `file.ts` exists). |
+| R2 | event archive after 7-day expiry | **encrypted snapshot blobs** via `VACUUM INTO`, keyed `account/<id>/snapshot/<hlc>.db.enc`; new device bootstraps from latest snapshot + replays since its HLC. Needs new `lib/backup-backends/r2.ts` (proposed — not yet built; today only `file.ts` exists). |
 | KV | JWKS cache, pinned relay key | unchanged |
 
 Critical: I1 preserved — relay never sees plaintext; all sync events AES-256-GCM under the account key (HPKE). Merge/conflict-resolution happens **only inside each daemon** after decryption. The consensus question is moot: there's an ordered ciphertext log and each replica deterministically folds it (G-Set union + HLC-LWW are order-insensitive for *correctness*; the DO seq gives liveness/cursor convenience, not safety).
