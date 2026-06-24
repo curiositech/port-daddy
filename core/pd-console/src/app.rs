@@ -549,6 +549,11 @@ pub struct ConsoleView {
     /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
     /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
     launcher_open: bool,
+    /// Pole movement driving the waving flags — scroll feeds `vy`, viewport-width
+    /// change feeds `vx`; both decay to rest each frame (see WavingFlag / pd-flag-proto).
+    flag_motion: FlagMotion,
+    /// Last viewport width, to derive horizontal (resize/pan) velocity per frame.
+    prev_viewport_w: f32,
 }
 
 impl ConsoleView {
@@ -591,6 +596,8 @@ impl ConsoleView {
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
+            flag_motion: FlagMotion::default(),
+            prev_viewport_w: 0.0,
         }
     }
 
@@ -1009,6 +1016,7 @@ impl ConsoleView {
     ) -> AnyElement {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
+        let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
@@ -1107,9 +1115,20 @@ impl ConsoleView {
                     .id(SharedString::from(format!("pane-body-{id}")))
                     .flex_1()
                     .overflow_y_scroll()
+                    // Scrolling the pane gives the flags their vertical pole velocity;
+                    // they trail the motion and settle (render() drives the decay).
+                    .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, window, cx| {
+                        let dy = match ev.delta {
+                            ScrollDelta::Pixels(p) => f32::from(p.y),
+                            ScrollDelta::Lines(p) => p.y * 18.0,
+                        };
+                        this.flag_motion.vy = (this.flag_motion.vy - dy / 50.0).clamp(-1.6, 1.6);
+                        window.request_animation_frame();
+                        cx.notify();
+                    }))
                     .flex()
                     .flex_col()
-                    .children(blocks.into_iter().map(|b| render_block(b, FlagMotion::default()))),
+                    .children(blocks.into_iter().map(move |b| render_block(b, motion))),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
@@ -1472,7 +1491,33 @@ impl Focusable for ConsoleView {
 }
 
 impl Render for ConsoleView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // ── Flag motion. Derive horizontal pole velocity from this frame's
+        // viewport-width change (resize / pane reflow); scroll feeds vy via
+        // on_scroll_wheel. Advance the ripple phase ∝ speed, decay toward rest,
+        // and keep requesting animation frames until it settles — so the flags
+        // wave WHILE moving and go perfectly still (no re-render) when idle.
+        {
+            let vw = f32::from(window.viewport_size().width);
+            if self.prev_viewport_w == 0.0 {
+                self.prev_viewport_w = vw;
+            }
+            let dvw = vw - self.prev_viewport_w;
+            self.prev_viewport_w = vw;
+            let m = &mut self.flag_motion;
+            m.vx = (m.vx + dvw / 60.0).clamp(-1.6, 1.6);
+            let speed = (m.vx * m.vx + m.vy * m.vy).sqrt();
+            m.phase += speed * 0.9;
+            if speed > 0.01 {
+                m.vx *= 0.86;
+                m.vy *= 0.86;
+                window.request_animation_frame();
+            } else {
+                m.vx = 0.0;
+                m.vy = 0.0;
+            }
+        }
+
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
         let armed = self.leader_armed;
