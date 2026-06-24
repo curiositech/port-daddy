@@ -10,6 +10,9 @@ import { useHeroWordmark } from '@/lib/hero-brand-context'
 
 export function Hero() {
   const { setHeroWordmarkVisible } = useHeroWordmark()
+  // Two placements of the same animated wordmark: a float beside the title on
+  // mobile, and a centered mark over the preview on desktop. Only one is
+  // displayed at a time, so whichever is active drives the navbar signal.
   const mobileHeroMarkRef = useRef<HTMLSpanElement>(null)
   const desktopHeroMarkRef = useRef<HTMLDivElement>(null)
 
@@ -58,6 +61,9 @@ export function Hero() {
               eyebrow="Fleet coordination for coding agents"
               title={
                 <>
+                  {/* Mobile only: the mark floats to the right of the headline so
+                      the title text wraps around it. Hidden at >=1100px, where the
+                      centered mark in the right column takes over. */}
                   <motion.span
                     ref={mobileHeroMarkRef}
                     aria-hidden="true"
@@ -169,6 +175,9 @@ export function Hero() {
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
             className="relative min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-2 min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
+            {/* Animated wordmark, centered over the FleetBar preview below it.
+                On wide screens its top is nudged down to line up with the top of
+                the headline (past the eyebrow + intro gap in the left column). */}
             <motion.div
               ref={desktopHeroMarkRef}
               aria-hidden="true"
