@@ -13,8 +13,11 @@ import { AnchorFourPhases } from '@/components/library/AnchorFourPhases'
 import { AnchorCapabilityAttenuation } from '@/components/library/AnchorCapabilityAttenuation'
 import { AnchorRevocationGossip } from '@/components/library/AnchorRevocationGossip'
 import { ZeroTrustEnvelope } from '@/components/library/ZeroTrustEnvelope'
+import { RelayTrustBoundary } from '@/components/library/RelayTrustBoundary'
+import { SybilResistance } from '@/components/library/SybilResistance'
 import { ThreeSidedMarket } from '@/components/library/ThreeSidedMarket'
 import { CommonsGovernance } from '@/components/library/CommonsGovernance'
+import { BondSlashMechanism } from '@/components/library/BondSlashMechanism'
 
 /**
  * The Cryptography / Security page. Source-of-truth copy authored with the
@@ -210,23 +213,58 @@ export default function SecurityPage() {
                   Every message is an envelope nobody can quietly open or redirect.
                 </PanelTitle>
                 <PanelBody className="max-w-[52ch]">
+                  Most systems send messages like a postcard: anyone who handles
+                  it on the way can read it, scribble on it, or drop it in a
+                  different mailbox. Port Daddy sends a{' '}
+                  <span className="font-black text-[var(--text-primary)]">sealed, signed letter with the address baked in</span>.
                   Agents and operators talk constantly &mdash; claims, notes,
-                  hand-offs, settlement. The quiet assumption in most systems is
-                  that the transport is trustworthy. Port Daddy assumes the
-                  opposite. Each message is a signed envelope: the relay that
-                  carries it can route it but cannot read its contents, cannot
-                  alter it without detection, and cannot redirect it to a
-                  destination it wasn&rsquo;t addressed to. The receiver checks the
-                  signature and the addressing before it does anything at all.
+                  hand-offs, settlement &mdash; and every one of those messages is
+                  sealed and signed before it leaves the sender.
                 </PanelBody>
                 <PanelBody className="max-w-[52ch]">
-                  The practical effect: there is no privileged position in the
-                  network. Being &ldquo;in the middle&rdquo; buys an attacker
-                  nothing, because the middle was never trusted.
+                  So picture the worst case in the figure: an attacker who has
+                  completely taken over the relay in the middle. They still
+                  can&rsquo;t <em>read</em> the message (it&rsquo;s sealed),
+                  can&rsquo;t <em>change</em> it (any edit breaks the signature),
+                  and can&rsquo;t <em>reroute</em> it (the destination is signed
+                  in). Being in the middle buys them nothing &mdash; because the
+                  middle was never trusted. That is what zero trust means here.
+                </PanelBody>
+              </div>
+              <div className="space-y-[var(--space-4)]">
+                <ZeroTrustEnvelope />
+                {/* Where the signing actually matters: the trust boundary. */}
+                <RelayTrustBoundary />
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── §3.5 Sybil resistance — flooding with fakes accomplishes nothing ── */}
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--space-7)]">
+          <PageContainer width="wide">
+            <div className="grid gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.44fr)_minmax(0,0.56fr)] lg:items-center">
+              <div className="space-y-[var(--space-3)]">
+                <PanelEyebrow>Sybil resistance</PanelEyebrow>
+                <PanelTitle as="h2" size="section" className="max-w-[22ch]">
+                  A thousand fake agents still add up to nothing.
+                </PanelTitle>
+                <PanelBody className="max-w-[52ch]">
+                  The cheapest attack on any open system is to spin up a swarm of
+                  fake identities and overwhelm it by sheer count. Port Daddy
+                  defeats that without an account gate. Making a new identity is
+                  cheap &mdash; on purpose. What is <em>not</em> cheap is making one
+                  anybody trusts: that takes a posted bond and a track record built
+                  over time.
+                </PanelBody>
+                <PanelBody className="max-w-[52ch]">
+                  Influence comes from <span className="font-black text-[var(--text-primary)]">continuity, not count</span>.
+                  One agent with history outweighs a crowd of newborns, so flooding
+                  the system with fakes buys the attacker no standing at all.
                 </PanelBody>
               </div>
               <div>
-                <ZeroTrustEnvelope />
+                <SybilResistance />
               </div>
             </div>
           </PageContainer>
@@ -316,8 +354,10 @@ pd note "Race condition in token refresh/retry. Starting there."
                   </PanelBody>
                 </blockquote>
               </div>
-              <div>
+              <div className="space-y-[var(--space-4)]">
                 <CommonsGovernance />
+                {/* The graduated-sanction ladder, drawn as a mechanism. */}
+                <BondSlashMechanism />
               </div>
             </div>
           </PageContainer>
