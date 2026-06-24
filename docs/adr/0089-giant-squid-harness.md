@@ -170,6 +170,30 @@ Each step promotes to a `roadmap_items` row (`adr-0089-<slug>`).
    here (not Windows 3.1, not neobrutalism) — the design system is built first so specifics
    stay swappable.
 
+## Success Criteria (SMART) — how we *prove* it worked, not assert it
+
+Each criterion is Specific, Measurable, Achievable, Relevant, and Time-bound — and,
+critically, produces a **showable artifact** (a live transcript, a reproducible test, a
+screen recording, a screenshot). **Time-bound is enforced concretely: a slice's PR does not
+merge until its goal's artifact is attached to that PR.** Nothing here is satisfied by
+assertion; the artifact is the gate.
+
+| # | Goal (Specific) | Measure / threshold | Showable artifact | Slice |
+|---|---|---|---|---|
+| G1 | Per-turn suggestibility injection on a **live** Claude Code voyage | an injected matrix token (a Parley Alert) appears in the model's `UserPromptSubmit` context on the intended turn in **3/3** live runs | the captured `pd transcripts` record showing the injected text in that turn's input | Tentacles |
+| G2 | **Enforced lock gate** (the load-bearing claim) | agent B's Edit of a file agent A holds locked is blocked by `PreToolUse` `exit 2`; the file content/mtime is unchanged in **10/10** trials; the block is logged | a reproducible test + the hook stderr the agent received | Tentacles |
+| G3 | Steering DM hard-stop | an operator steering DM appears in-context within the agent's **next** hook fire (≤1 turn), and a hard-stop blocks all tool calls via `exit 2` until ack, in a live run | a screen recording: operator sends DM → agent halts → acks → resumes | Tentacles + UI |
+| G4 | **Zero-marginal-cost** on the Max seat | a completed `cli:claude-code` voyage shows **$0.00** PD-wallet API spend in the live `pd transcripts` ledger, vs a metered backend showing `>$0` on the same task | the two ledger rows side by side | Config Gen |
+| G5 | Matrix concurrency (*Jamie Madrox*) | **K≥8** concurrent agents append pheromones via `flock` with **0** corrupted/torn lines, grep read latency **<5ms** over a 1k-entry matrix | the stress-test output + the intact `~/.port-daddy/matrix.env` | Ink Cloud |
+| G6 | Drydock → Salvage → Refloat | a voyage crossing the context threshold emits a `SelfSalvageCapsule` and continues correctly past `PreCompact`; the refloated context contains the directive + summary | the capsule + the pre/post-compact transcript | Tentacles |
+| G7 | Cross-vendor parity (**honest**) | Claude Code hooks verified in the Tentacles slice; codex + gemini parity either verified **or documented as a concrete gap** in the Config-Gen slice — no silent universality claim | the config-generator test matrix (pass/gap per vendor) | Config Gen |
+| G8 | UI renders from the matrix | the Binnacle + Quartermaster panels render **live** matrix state in the chosen design-system theme | screenshot **+ GIF** (per the repo's visual-artifact rule) | UI |
+
+**Definition of done for ADR-0089:** delivered only when G1–G8 each have their artifact
+checked in or linked from the slice PR that claims it. This is deliberate — the program's
+credibility has been hurt by features asserted-but-never-shown; these goals make "shown"
+the merge gate.
+
 ## References
 
 - ADR-0039 — the Attention Engine / suggestion-broker the matrix projects from.
