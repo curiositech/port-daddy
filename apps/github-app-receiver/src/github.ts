@@ -103,6 +103,8 @@ export interface PRContext {
   installationId: number;
   files: PRFile[];
   diff: string;
+  /** Previous fleet ship findings, fetched when this is a re-run (synchronize event). */
+  priorFleetFindings?: string;
 }
 
 export async function fetchPRContext(
@@ -164,9 +166,36 @@ export async function fetchRepoFile(
 }
 
 // ---------------------------------------------------------------------------
-// Commenting
+// Fleet comment fetching
 
 const SHIP_TAG_RE = /<!-- pd-ship:([\w-]+) -->/;
+
+/** Fetch all previous fleet ship comments on a PR, formatted for inclusion in a ship's context. */
+export async function fetchFleetComments(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  token: string,
+): Promise<string> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`,
+    { headers: ghHeaders(token) },
+  );
+  if (!res.ok) return '';
+  const comments = (await res.json()) as Array<{ id: number; body: string }>;
+  const fleet = comments.filter(c => SHIP_TAG_RE.test(c.body));
+  if (fleet.length === 0) return '';
+  return fleet
+    .map(c => {
+      const ship = SHIP_TAG_RE.exec(c.body)?.[1] ?? 'unknown';
+      const body = c.body.replace(/\n*<!-- pd-ship:[\w-]+ -->\s*$/, '').trim();
+      return `### Prior pd-${ship} findings\n${body}`;
+    })
+    .join('\n\n---\n\n');
+}
+
+// ---------------------------------------------------------------------------
+// Commenting
 
 export async function postShipComment(
   owner: string,

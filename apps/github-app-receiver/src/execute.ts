@@ -20,6 +20,7 @@ import {
   getInstallationToken,
   fetchPRContext,
   fetchRepoFile,
+  fetchFleetComments,
   postShipComment,
   createCheckRun,
   completeCheckRun,
@@ -54,11 +55,16 @@ export async function executeFleet(envelope: WebhookEnvelope, env: ExecutorEnv):
   ).catch(() => null);
   if (!token) return;
 
-  // Fetch PR context (diff + file list) and fleet config in parallel
-  const [prCtx, fleetYaml] = await Promise.all([
+  // Fetch PR context, fleet config, and prior fleet comments in parallel
+  const [prCtx, fleetYaml, priorFleetFindings] = await Promise.all([
     fetchPRContext(owner, repo, prNumber, pr, token),
     fetchRepoFile(owner, repo, 'pd-fleet.yml', 'main', token),
+    // On synchronize, ships read their prior findings so they can note what's addressed/still open
+    action === 'synchronize'
+      ? fetchFleetComments(owner, repo, prNumber, token)
+      : Promise.resolve(''),
   ]);
+  prCtx.priorFleetFindings = priorFleetFindings || undefined;
 
   // Determine which ships to run
   let ships: ShipConfig[];
@@ -188,16 +194,19 @@ function buildUserMessage(prCtx: PRContext): string {
     ? prCtx.diff.slice(0, DIFF_CHAR_LIMIT) + '\n\n[diff truncated — ' + prCtx.diff.length + ' chars total]'
     : prCtx.diff;
 
-  return `# PR #${prCtx.prNumber}: ${prCtx.title}
+  const parts = [
+    `# PR #${prCtx.prNumber}: ${prCtx.title}`,
+    `## Changed files\n${fileList || '(none)'}`,
+    `## PR description\n${prCtx.body || '(none)'}`,
+  ];
 
-## Changed files
-${fileList || '(none)'}
+  if (prCtx.priorFleetFindings) {
+    parts.push(
+      `## Prior fleet findings (from previous run — note what's been addressed vs. still open)\n${prCtx.priorFleetFindings}`,
+    );
+  }
 
-## PR description
-${prCtx.body || '(none)'}
+  parts.push(`## Diff\n\`\`\`diff\n${diff}\n\`\`\``);
 
-## Diff
-\`\`\`diff
-${diff}
-\`\`\``;
+  return parts.join('\n\n');
 }
