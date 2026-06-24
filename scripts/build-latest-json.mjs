@@ -123,13 +123,30 @@ function main() {
   };
   walk(distDir);
 
+  // FleetBar uploads a manifest asset under dist/fleetbar/ that records whether
+  // its .app was ACTUALLY signed (`unsigned: false` once it is). Derive the feed's
+  // FleetBar `signed` flag from that truth rather than the blanket --signed flag,
+  // which only means "the daemon was signed this release" — FleetBar's build
+  // historically shipped ad-hoc while --signed marked it signed:true, so the feed
+  // advertised a Gatekeeper-quarantined app as signed. `null` means no usable
+  // manifest truth was found, so fall back to the blanket flag.
+  let fleetbarSigned = null;
+  const fleetbarManifestPath = join(distDir, 'fleetbar', 'fleetbar-preview-manifest.json');
+  if (existsSync(fleetbarManifestPath)) {
+    try {
+      const m = JSON.parse(readFileSync(fleetbarManifestPath, 'utf8'));
+      if (typeof m.unsigned === 'boolean') fleetbarSigned = !m.unsigned;
+    } catch { /* malformed manifest → fall back to the blanket flag */ }
+  }
+
   const artifacts = [];
   for (const filePath of found) {
     const fn = basename(filePath);
     const cls = classifyArtifact(fn);
     if (!cls) continue;
     const sha256 = sha256File(filePath);
-    const signed = signedFlag && cls.macSigned;
+    let signed = signedFlag && cls.macSigned;
+    if (cls.surface === 'fleetbar' && fleetbarSigned !== null) signed = fleetbarSigned;
     artifacts.push({
       surface: cls.surface,
       filename: fn,
