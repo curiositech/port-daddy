@@ -131,16 +131,72 @@ fn main() {
         args.iter().position(|a| a == "--pane").and_then(|i| args.get(i + 1).cloned())
     };
 
+    // `--display <selector>` opens the window on a specific display instead of the
+    // primary one. `selector` is a 0-based index into the display list (see
+    // `--list-displays`) or a display UUID. The visual-proof harness uses this to
+    // render onto an off-screen virtual display so capture never intrudes on the
+    // operator's physical monitor. `--list-displays` prints the displays and exits.
+    let display_selector = {
+        let args: Vec<String> = std::env::args().collect();
+        args.iter().position(|a| a == "--display").and_then(|i| args.get(i + 1).cloned())
+    };
+    let list_displays = std::env::args().any(|a| a == "--list-displays");
+
     Application::new()
         .with_assets(FsAssets::locate())
         .run(move |cx: &mut App| {
         let daemon_url = daemon_url.clone();
 
+        // Enumerate displays once: drives `--list-displays` and `--display` resolution.
+        let displays = cx.displays();
+        if list_displays {
+            println!("pd-console: {} display(s)", displays.len());
+            for (i, d) in displays.iter().enumerate() {
+                let id: u32 = d.id().into();
+                let uuid = d.uuid().map(|u| u.to_string()).unwrap_or_else(|_| "<none>".into());
+                let b = d.bounds();
+                println!(
+                    "  [{i}] id={id} uuid={uuid} origin=({:.0},{:.0}) size={:.0}x{:.0}",
+                    b.origin.x.to_f64(),
+                    b.origin.y.to_f64(),
+                    b.size.width.to_f64(),
+                    b.size.height.to_f64()
+                );
+            }
+            cx.quit();
+            return;
+        }
+
+        // Resolve the `--display` selector → DisplayId: numeric index first, then a
+        // UUID match. An unmatched selector warns and uses the primary display (None)
+        // rather than failing the capture run.
+        let chosen_display: Option<DisplayId> = display_selector.as_ref().and_then(|sel| {
+            if let Ok(idx) = sel.parse::<usize>() {
+                if let Some(d) = displays.get(idx) {
+                    return Some(d.id());
+                }
+                eprintln!(
+                    "pd-console: --display {idx} out of range ({} display(s)); using primary",
+                    displays.len()
+                );
+                return None;
+            }
+            for d in &displays {
+                if let Ok(u) = d.uuid() {
+                    if u.to_string().eq_ignore_ascii_case(sel) {
+                        return Some(d.id());
+                    }
+                }
+            }
+            eprintln!("pd-console: --display '{sel}' matched no display; using primary");
+            None
+        });
+
         // Operator control plane: the Lane's Interrupt button (foreground) sends
         // ControlMsg to the background thread that owns the surfaces + daemon.
         let (control_tx, control_rx) = mpsc::channel::<app::ControlMsg>();
 
-        let bounds = Bounds::centered(None, size(px(1200.0), px(800.0)), cx);
+        let bounds = Bounds::centered(chosen_display, size(px(1200.0), px(800.0)), cx);
 
         let window = cx
             .open_window(
@@ -153,6 +209,7 @@ fn main() {
                     }),
                     window_background: WindowBackgroundAppearance::Opaque,
                     focus: true,
+                    display_id: chosen_display,
                     ..Default::default()
                 },
                 |window, cx| {
