@@ -7,6 +7,7 @@
 
 import { createTestDb } from '../setup-unit.js';
 import { createSymbolIndex } from '../../lib/symbol-index.js';
+import { computeBlastRadius } from '../../lib/blast-radius.js';
 import type Database from 'better-sqlite3';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
@@ -227,6 +228,69 @@ export function load() {
     expect(fsDep).toBeDefined();
     expect(fsDep!.dependencyType).toBe('imports');
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Intra-file call edges → blast-radius (issue #468).
+  //
+  // Before the fix, parseFile extracted imports/heritage but NOT `calls`, so the
+  // reverse-dependency closure came back empty for a same-file caller. These
+  // tests pin the real extractor (not a mocked getDependents) so the gap stays
+  // closed and the daemon-level blast-radius is trustworthy.
+  // ───────────────────────────────────────────────────────────────────────────
+  test('extracts intra-file calls edges (registerRoutes -> createRoutes)', async () => {
+    const filePath = join(tempDir, 'routes.ts');
+    writeFileSync(filePath, `
+export function createRoutes(app: any, db: any) {
+  return { app, db };
+}
+
+export function registerRoutes(app: any) {
+  return createRoutes(app, {});
+}
+`);
+
+    const result = await symbolIndex.parseFile(filePath);
+    expect(result.skipped).toBe(false);
+
+    // createRoutes' reverse-deps must include registerRoutes via a `calls` edge.
+    const dependents = symbolIndex.getDependents(filePath, 'createRoutes');
+    const caller = dependents.find(d => d.sourceSymbol === 'registerRoutes');
+    expect(caller).toBeDefined();
+    expect(caller!.dependencyType).toBe('calls');
+
+    // ...and the reverse: createRoutes is NOT reported as depending on registerRoutes.
+    expect(symbolIndex.getDependents(filePath, 'registerRoutes')
+      .some(d => d.sourceSymbol === 'createRoutes')).toBe(false);
+  });
+
+  test('blast-radius returns the reverse-dep closure over a real parse', async () => {
+    const filePath = join(tempDir, 'chain.ts');
+    writeFileSync(filePath, `
+export function leaf() { return 1; }
+export function mid() { return leaf(); }
+export function top() { return mid(); }
+`);
+    await symbolIndex.parseFile(filePath);
+
+    const radius = computeBlastRadius(symbolIndex, { filePath, symbolPath: 'leaf' }, 3);
+    const names = radius.map(n => n.symbolPath).sort();
+    expect(names).toEqual(['mid', 'top']);
+    // mid is the direct (distance-1) caller of leaf.
+    expect(radius.find(n => n.symbolPath === 'mid')!.distance).toBe(1);
+    expect(radius.find(n => n.symbolPath === 'top')!.distance).toBe(2);
+  });
+
+  test('does not emit a self-edge for direct recursion', async () => {
+    const filePath = join(tempDir, 'recursive.ts');
+    writeFileSync(filePath, `
+export function fact(n: number): number {
+  return n <= 1 ? 1 : n * fact(n - 1);
+}
+`);
+    await symbolIndex.parseFile(filePath);
+    expect(symbolIndex.getDependents(filePath, 'fact')
+      .some(d => d.sourceSymbol === 'fact')).toBe(false);
+  });
 });
 
 // =============================================================================
@@ -293,6 +357,23 @@ MAX_USERS = 100
     const variable = symbols.find(s => s.symbolName === 'MAX_USERS');
     expect(variable).toBeDefined();
     expect(variable!.symbolType).toBe('variable');
+  });
+
+  test('extracts intra-file calls edges (issue #468)', async () => {
+    const filePath = join(tempDir, 'calls.py');
+    writeFileSync(filePath, `
+def build():
+    return 1
+
+def boot():
+    return build()
+`);
+    await symbolIndex.parseFile(filePath);
+
+    const caller = symbolIndex.getDependents(filePath, 'build')
+      .find(d => d.sourceSymbol === 'boot');
+    expect(caller).toBeDefined();
+    expect(caller!.dependencyType).toBe('calls');
   });
 });
 

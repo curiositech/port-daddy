@@ -30,6 +30,7 @@ describe('Port Daddy skill authority', () => {
       'port-daddy-expository-writer',
       'port-daddy-internal-dev',
       'port-daddy-marketing-copy',
+      'port-daddy-user-surrogate-pm-review',
     ]);
     expect(existsSync(join(skillsDir, 'port-daddy', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(skillsDir, 'port-daddy-cli', 'SKILL.md'))).toBe(false);

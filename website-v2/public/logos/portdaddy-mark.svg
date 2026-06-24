@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="100%" height="100%" role="img" aria-label="Port Daddy">
+  <!--
+    The Port Daddy MONOGRAM — deliberately distinct from the spinning radar.
+    No radar grid, no concentric sweep rings, no animation: just the
+    interlocked P·d glyph (the brand's core form) inside a single clean
+    capability ring. Designed to read at favicon size (16px) where the
+    radar's fine grid would collapse into mud. Theme-aware: every color is a
+    CSS custom property switched by the prefers-color-scheme media block, so
+    the same file works on light and dark surfaces.
+  -->
+  <defs>
+    <mask id="pd-mark-intersection" maskContentUnits="userSpaceOnUse">
+      <rect width="300" height="300" fill="white" />
+      <g stroke="black" stroke-width="22" stroke-linecap="butt" fill="none">
+        <line x1="118" y1="118" x2="118" y2="205" />
+        <circle cx="143" cy="143" r="27" />
+      </g>
+    </mask>
+  </defs>
+
+  <style>
+    :root {
+      --cobalt: #2076FE;
+      --seafoam: #12B88F;
+      --amber: #F5A623;
+      --ring: #C7D2DE;
+      --ground: transparent;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --seafoam: #20DEB0;
+        --amber: #FFB505;
+        --ring: #243247;
+      }
+    }
+  </style>
+
+  <!-- Single clean capability ring (static, not a sweep). -->
+  <circle cx="150" cy="150" r="132" fill="var(--ground)" stroke="var(--ring)" stroke-width="6" />
+
+  <!-- Interlocked P (cobalt) and d (seafoam), the core brand glyph, enlarged. -->
+  <g>
+    <!-- P: stem + bowl, upper-left -->
+    <g stroke="var(--cobalt)" stroke-width="22" stroke-linecap="butt" fill="none">
+      <line x1="118" y1="118" x2="118" y2="205" />
+      <circle cx="143" cy="143" r="27" />
+    </g>
+    <!-- d: stem + bowl, lower-right (rotated form) -->
+    <g stroke="var(--seafoam)" stroke-width="22" stroke-linecap="butt" fill="none">
+      <line x1="182" y1="182" x2="182" y2="95" />
+      <circle cx="157" cy="157" r="27" />
+    </g>
+    <!-- Amber accent where the two glyphs cross — the "intersection". -->
+    <g stroke="var(--amber)" stroke-width="22" stroke-linecap="butt" fill="none" mask="url(#pd-mark-intersection)">
+      <line x1="182" y1="182" x2="182" y2="95" />
+      <circle cx="157" cy="157" r="27" />
+    </g>
+  </g>
+</svg>

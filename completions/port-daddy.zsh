@@ -2079,6 +2079,7 @@ _port_daddy() {
     # Agent Inbox
     'inbox:agent-to-agent direct messaging inbox'
     'send:send a durable direct message to one agent'
+    'sent:read receipts for messages you sent (read + when)'
     # AI Agent Spawner + Watch
     'spawn:launch an AI agent (Ollama/Claude/Gemini/Aider/custom)'
     'spawned:list active spawned agents'
@@ -2108,6 +2109,7 @@ _port_daddy() {
     'hm:alias for harbormaster'
     # Harbors (named permission namespaces)
     'harbor:create, enter, leave, show, or destroy a harbor'
+    'whois:semantic skill-router — rank agents by capability × freshness'
     'harbors:list all active harbors'
     # Tuple space
     'tuple:Linda-style tuple space (out, rd, in, scan, count)'

@@ -22,6 +22,7 @@ mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
 mod substrate_pane;
+mod parley_pane;
 mod conductor_pane;
 mod maritime;
 mod mux;
@@ -53,6 +54,7 @@ use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
 use substrate_pane::SubstratePane;
+use parley_pane::ParleyPane;
 use conductor_pane::ConductorPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
@@ -175,7 +177,7 @@ fn main() {
         // NAV order mirrors app::NAV:
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate
+        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate  20=Parley
         let (tx, rx) =
             mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         let url = daemon_url.clone();
@@ -212,7 +214,8 @@ fn main() {
                 let mut ledger     = LedgerPane::new();        // 17 — the money
                 let mut lineage    = LineagePane::new();       // 18 — RCP-14 argument graph
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
-                let mut conductor  = ConductorPane::new();     // 20 — Fleet Conductor (ADR-0060)
+                let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
+                let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -286,6 +289,7 @@ fn main() {
                     let _ = ledger.refresh(&client).await;
                     let _ = lineage.refresh(&client).await;
                     let _ = substrate.refresh(&client).await;
+                    let _ = parley.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
@@ -331,7 +335,8 @@ fn main() {
                         (17, ledger.view()),
                         (18, lineage.view()),
                         (19, substrate.view()),
-                        (20, conductor.view()),
+                        (20, parley.view()),
+                        (21, conductor.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

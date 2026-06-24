@@ -1,7 +1,17 @@
 # The Harbor, As an Edifice — the canonical structure of the papers
 
-> Status: **canonical**. Supersedes the linear "four explain, three prove" framing
-> in `00-HARBOR-VOLUME-ARCHITECTURE.md` and retires the "Port Daddy Trilogy"
+> ⚠️ **SUPERSEDED by `00-THE-FOUR-PAPERS.md`.** The "Floors × Beams" 4×4 grid and
+> the 8-paper roster below are retired: after a four-audit reconciliation (ADRs,
+> the open-problems Ledger, the layer dossiers, and the proof artifacts) the
+> volume collapsed to **four self-contained papers** — each carrying its proof
+> and its safety slice inline — with the partition justified by where a
+> machine-checked equilibrium (the folk-theorem boundary) stops holding.
+> Containment is **not** a separate "Beam D"; it returns to its two real homes
+> (the machine gate in the Kernel, the human gate in the Legible Swarm). This
+> document is kept for history only.
+>
+> Status (historical): superseded the linear "four explain, three prove" framing
+> in `00-HARBOR-VOLUME-ARCHITECTURE.md` and retired the "Port Daddy Trilogy"
 > (Paper I/II/III) sequence introduced in #353. Anchored in ADR-0048
 > ("What Port Daddy Is", the L0–L3 stack).
 

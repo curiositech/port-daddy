@@ -31,6 +31,7 @@ const PRIMARY_NAV_ITEMS = [
   { label: "Tube Playground", href: "/pd-tube", end: false },
   { label: "Docs", href: "/docs", end: false },
   { label: "Blog", href: "/blog", end: false },
+  { label: "Cryptography", href: "/security", end: false },
   { label: "Manifesto", href: "/manifesto", end: true },
 ] satisfies readonly NavItem[];
 
