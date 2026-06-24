@@ -38,6 +38,13 @@ impl Tone {
 }
 
 /// The render-agnostic primitives a pane emits. Both renderers paint these.
+///
+/// The first wave (`Header`..`Gap`) are flat text-ish primitives. The second
+/// wave (`Card`..`ActionRow`) are the **rich GUI vocabulary** (parley harbor
+/// 2026-06-23): the GPUI face paints them with real elevation, pill badges,
+/// filled bars and big-number metrics; the ratatui face degrades each to plain
+/// rows/chips. Both stay render-agnostic — a block carries a `Tone`, never a
+/// color. The renderer resolves `Tone → OKLCH → rgb` in ONE place.
 #[derive(Debug, Clone)]
 pub enum Block {
     Header(String),
@@ -50,6 +57,37 @@ pub enum Block {
     Flag { letter: char, label: String, tone: Tone },
     Spark(Vec<f32>),
     Gap,
+
+    // ── Rich GUI vocabulary ──────────────────────────────────────────────────
+    /// An elevated, rounded, tone-bordered container. The GPUI face gives it a
+    /// real `BoxShadow` lift and an optional bold title row; the TUI face renders
+    /// the title as a header and the children inline. `children` are themselves
+    /// `Block`s, so a Card composes any vocabulary (badges, bars, action rows).
+    Card { title: Option<String>, tone: Tone, children: Vec<Block> },
+    /// A pill — rounded-full, tone-tinted surface bg, tone-colored text. The
+    /// compact status affordance (P0/P1, guard state, review counts).
+    Badge { label: String, tone: Tone },
+    /// A REAL horizontal progress bar: a rounded track with a filled portion at
+    /// `fraction` (0..=1), tinted by `tone`. The GPUI face paints two nested
+    /// divs (track + fill); the TUI face draws a `████░░` cell bar.
+    Bar { fraction: f32, tone: Tone, label: Option<String> },
+    /// A big-number stat: `value` large & bold, `label` small & muted. Real type
+    /// hierarchy — the ledger TODAY/CAP/EVENTS numbers.
+    Metric { label: String, value: String, tone: Tone },
+    /// A horizontal row of `Metric`s (label, value, tone). The GPU face flexes
+    /// them edge-to-edge; the TUI face stacks them. Lets the budget card lay
+    /// TODAY · CAP · EVENTS side by side as one block.
+    MetricRow(Vec<(String, String, Tone)>),
+    /// A list row: optional leading flag glyph (tone-colored), a title (medium
+    /// weight) + optional muted subtitle stacked, an optional right-aligned
+    /// badge, and an optional monospace `action` chip (e.g. `pd salvage`).
+    ActionRow {
+        icon: Option<char>,
+        title: String,
+        subtitle: Option<String>,
+        action: Option<String>,
+        badge: Option<(String, Tone)>,
+    },
 }
 
 /// A mutation an operator can ask a surface to perform against the daemon. This

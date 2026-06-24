@@ -83,19 +83,17 @@ fn truncate(s: &str, n: usize) -> String {
     }
 }
 
-/// A 10-cell proportional spend bar (`████████░░ 64.8%`) for spend-vs-cap.
-/// Mirrors `ledger_pane::burn_bar` so the budget section reads identically to
-/// the dedicated ledger.
-fn spend_bar(pct: f64) -> String {
-    let filled = ((pct / 10.0).round() as i64).clamp(0, 10) as usize;
-    let mut bar = String::with_capacity(10);
-    for _ in 0..filled {
-        bar.push('█');
+/// Tone for the spend bar by threshold: healthy (<75%) reads green (`Landed`),
+/// nearing the cap (75–99%) reads amber (`Gated`), over/at the cap reads red
+/// (`Conflicted`). The renderer resolves the Tone → OKLCH — no hex here.
+fn spend_tone(pct: f64, over: bool) -> Tone {
+    if over || pct >= 100.0 {
+        Tone::Conflicted
+    } else if pct >= 75.0 {
+        Tone::Gated
+    } else {
+        Tone::Landed
     }
-    for _ in filled..10 {
-        bar.push('░');
-    }
-    format!("{bar} {pct:.1}%")
 }
 
 // ── the pane ──────────────────────────────────────────────────────────────────
@@ -117,13 +115,14 @@ impl OperatorPane {
 
     // ── section renderers (pure; take the parsed snapshot) ───────────────────
 
-    /// 1 · HEADER / GUARD STRIP — guard badge + freshness + project.
+    /// 1 · HEADER / GUARD STRIP — an elevated Card holding the title, a guard
+    /// Badge (enforcing=green / off=red), the project, freshness, and the fleet
+    /// signal flag. The polished "AGENTIC CONTROL PLANE" header.
     fn header_blocks(&self, state: &Value, out: &mut Vec<Block>) {
+        // The page title rides above the card (the section eyebrow).
         out.push(Block::Header("Operator — Agentic Control Plane".into()));
 
-        // Project context.
         let project = s(state, "project").unwrap_or_else(|| "(daemon default)".into());
-        out.push(Block::KeyVal("project".into(), project));
 
         // Guard badge: enforcing (green) / violation-prone (amber) / unavailable.
         let guard = state.get("guard");
@@ -139,26 +138,45 @@ impl OperatorPane {
                 } else if enabled {
                     (format!("Guard: {mode}"), Tone::Gated)
                 } else {
-                    ("Guard: off".to_string(), Tone::Gated)
+                    ("Guard: off".to_string(), Tone::Conflicted)
                 }
             }
             None => ("Guard: unknown".to_string(), Tone::Resting),
         };
-        out.push(Block::Chip { label: guard_label, tone: guard_tone });
 
-        // Fleet signal (the maritime coordination state), when present.
+        let mut children: Vec<Block> = vec![
+            Block::Badge { label: guard_label, tone: guard_tone },
+            Block::KeyVal("project".into(), project),
+        ];
+
+        // Snapshot freshness (epoch-ms → relative age), when present.
+        if let Some(gen_at) = i(state, "generatedAt") {
+            children.push(Block::KeyVal("snapshot".into(), crate::util::age_short(gen_at)));
+        }
+
+        // Fleet signal (the maritime coordination state) as a flagged action row.
         if let Some(sig) = state.get("fleetSignal").filter(|v| !v.is_null()) {
             if let (Some(code), Some(meaning)) = (s(sig, "code"), s(sig, "meaning")) {
-                out.push(Block::Flag {
-                    letter: code.chars().next().unwrap_or('P'),
-                    label: meaning,
-                    tone: Tone::Accent,
+                children.push(Block::ActionRow {
+                    icon: code.chars().next(),
+                    title: meaning,
+                    subtitle: Some("fleet signal".into()),
+                    action: None,
+                    badge: None,
                 });
             }
         }
+
+        out.push(Block::Card {
+            title: Some("Control Plane".into()),
+            tone: guard_tone,
+            children,
+        });
     }
 
-    /// 2 · NEEDS YOU — the prioritized triage list.
+    /// 2 · NEEDS YOU — the prioritized triage, an `ActionRow` per item inside a
+    /// Card: a P-badge by priority, the code's flag glyph, the human label, and
+    /// the `pd …` action chip in monospace.
     fn needs_you_blocks(&self, state: &Value, out: &mut Vec<Block>) {
         let items = state
             .get("needsYou")
@@ -173,30 +191,46 @@ impl OperatorPane {
         )));
 
         if items.is_empty() {
-            out.push(Block::Chip {
-                label: "No action required — fleet is clear".into(),
+            out.push(Block::Card {
+                title: Some("Needs you".into()),
                 tone: Tone::Landed,
+                children: vec![Block::Badge {
+                    label: "No action required — fleet is clear".into(),
+                    tone: Tone::Landed,
+                }],
             });
             return;
         }
 
+        // The card's overall tone tracks the loudest (lowest-priority-number) item.
+        let top_priority = items
+            .iter()
+            .filter_map(|it| i(it, "priority"))
+            .min()
+            .unwrap_or(9);
+
+        let mut rows: Vec<Block> = Vec::with_capacity(items.len());
         for item in &items {
             let code = s(item, "code").unwrap_or_else(|| "unknown".into());
             let label = s(item, "label").unwrap_or_default();
             let action = s(item, "action").unwrap_or_default();
             let priority = i(item, "priority").unwrap_or(9);
+            let tone = priority_tone(priority);
 
-            // A maritime signal flag carries the code's meaning (the glyph), and
-            // the label rides alongside it. The flag's tone tracks urgency.
-            out.push(Block::Flag {
-                letter: code_flag(&code),
-                label: format!("P{priority}  {label}"),
-                tone: priority_tone(priority),
+            rows.push(Block::ActionRow {
+                icon: Some(code_flag(&code)),
+                title: label,
+                subtitle: None,
+                action: if action.is_empty() { None } else { Some(action) },
+                badge: Some((format!("P{priority}"), tone)),
             });
-            // The action command in monospace — the operator's next keystroke.
-            // (Rendered as a Row so it sits indented under the flag.)
-            out.push(Block::Row(vec!["→".into(), action]));
         }
+
+        out.push(Block::Card {
+            title: Some("Needs you".into()),
+            tone: priority_tone(top_priority),
+            children: rows,
+        });
     }
 
     /// 3 · DISPATCH QUEUE — review-pending + open dispatches.
@@ -221,30 +255,46 @@ impl OperatorPane {
             review.len() + open.len()
         )));
 
-        let render_entry = |entry: &Value, default_state: &str, out: &mut Vec<Block>| {
+        let card_tone = if review.is_empty() { Tone::Resting } else { Tone::Engaged };
+
+        let render_entry = |entry: &Value, default_state: &str, rows: &mut Vec<Block>| {
             let title = s(entry, "title")
                 .or_else(|| s(entry, "goal"))
                 .unwrap_or_else(|| "(untitled)".into());
             let st = s(entry, "state").unwrap_or_else(|| default_state.into());
             let agent = s(entry, "agentId").unwrap_or_else(|| "-".into());
-            out.push(Block::Row(vec![st, truncate(&title, 48), agent]));
+            // Review-pending reads as the loud Gated badge; open is the neutral
+            // Engaged state — the state badge IS the right-aligned affordance.
+            let tone = if st.contains("review") { Tone::Gated } else { Tone::Engaged };
+            rows.push(Block::ActionRow {
+                icon: None,
+                title: truncate(&title, 56),
+                subtitle: Some(format!("agent {agent}")),
+                action: None,
+                badge: Some((st, tone)),
+            });
         };
 
+        let mut rows: Vec<Block> = Vec::new();
         if review.is_empty() && open.is_empty() {
-            out.push(Block::KeyVal("status".into(), "no dispatches".into()));
+            rows.push(Block::Badge { label: "no dispatches".into(), tone: Tone::Resting });
         } else {
             for e in &review {
-                render_entry(e, "awaiting_review", out);
+                render_entry(e, "awaiting_review", &mut rows);
             }
             for e in &open {
-                render_entry(e, "open", out);
+                render_entry(e, "open", &mut rows);
             }
+            rows.push(Block::Badge {
+                label: format!("{} awaiting review", review.len()),
+                tone: card_tone,
+            });
         }
 
-        let tone = if review.is_empty() { Tone::Resting } else { Tone::Engaged };
-        out.push(Block::Chip {
-            label: format!("{} awaiting review", review.len()),
-            tone,
+        out.push(Block::Card {
+            title: Some("Dispatch queue".into()),
+            tone: card_tone,
+            children: rows,
         });
     }
 
@@ -267,46 +317,56 @@ impl OperatorPane {
         let pct = status.and_then(|st| f(st, "percentUsed"));
         let over = status.and_then(|st| b(st, "overBudget")).unwrap_or(false);
 
-        let cap_str = cap.map(|c| format!("${c:.2}/day")).unwrap_or_else(|| "—".into());
-        out.push(Block::Row(vec![
-            format!("TODAY ${today:.2}"),
-            format!("CAP {cap_str}"),
-            format!("EVENTS {events}"),
-        ]));
+        let cap_str = cap.map(|c| format!("${c:.2}")).unwrap_or_else(|| "—".into());
 
-        // The spend bar — only meaningful when a cap exists. The accompanying
-        // chip carries the bar's SEMANTIC tone (the renderer resolves Tone→OKLCH
-        // in one place — no hex here): healthy spend reads green (`Landed`),
-        // nearing the cap reads amber (`Gated`), over/at the cap reads red
-        // (`Conflicted`). `Block::KeyVal` has no tone field, so the chip is the
-        // toned affordance that travels with the bar (the ledger/dispatch idiom).
+        // The three stat tiles, side by side — big numbers, muted labels. The
+        // MetricRow lets the GPU face flex TODAY · CAP · EVENTS edge-to-edge.
+        let metric_tone = pct.map(|p| spend_tone(p, over)).unwrap_or(Tone::Engaged);
+        let mut children: Vec<Block> = vec![Block::MetricRow(vec![
+            ("TODAY".into(), format!("${today:.2}"), metric_tone),
+            ("CAP".into(), cap_str, Tone::Default),
+            ("EVENTS".into(), events.to_string(), Tone::Default),
+        ])];
+
+        // The REAL filled progress bar — fraction of cap, tone by threshold. The
+        // renderer paints a track + tone-colored fill (no ████ text here).
         if let Some(p) = pct {
-            out.push(Block::KeyVal("spend".into(), spend_bar(p)));
-            let (chip_label, chip_tone) = if over {
-                ("OVER BUDGET".to_string(), Tone::Conflicted)
-            } else if p >= 75.0 {
-                (format!("{p:.0}% of cap — nearing"), Tone::Gated)
+            let frac = (p / 100.0) as f32;
+            let tone = spend_tone(p, over);
+            let label = if over {
+                format!("OVER BUDGET — {p:.0}% of cap")
             } else {
-                (format!("{p:.0}% of cap"), Tone::Landed)
+                format!("{p:.0}% of daily cap")
             };
-            out.push(Block::Chip { label: chip_label, tone: chip_tone });
+            children.push(Block::Bar { fraction: frac, tone, label: Some(label) });
         }
 
-        // RECENT SPEND — the latest cost events.
+        // RECENT SPEND — the latest cost events as action rows.
         let recent: Vec<Value> = budget
             .get("recentEvents")
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
-        if !recent.is_empty() {
-            out.push(Block::KeyVal("recent spend".into(), recent.len().to_string()));
-            for ev in recent.iter().take(5) {
-                let model = s(ev, "model").unwrap_or_else(|| "-".into());
-                let proj = s(ev, "project").unwrap_or_else(|| "-".into());
-                let cost = f(ev, "costUsd").map(|c| format!("${c:.4}")).unwrap_or_else(|| "-".into());
-                out.push(Block::Row(vec![cost, model, proj]));
-            }
+        for ev in recent.iter().take(5) {
+            let model = s(ev, "model").unwrap_or_else(|| "-".into());
+            let proj = s(ev, "project").unwrap_or_else(|| "-".into());
+            let cost = f(ev, "costUsd")
+                .map(|c| format!("${c:.4}"))
+                .unwrap_or_else(|| "-".into());
+            children.push(Block::ActionRow {
+                icon: None,
+                title: model,
+                subtitle: Some(proj),
+                action: Some(cost),
+                badge: None,
+            });
         }
+
+        out.push(Block::Card {
+            title: Some("Budget ledger".into()),
+            tone: metric_tone,
+            children,
+        });
     }
 }
 
@@ -382,6 +442,21 @@ mod tests {
         OperatorPane { state: Some(state), last_error: None }
     }
 
+    /// Flatten the block tree, descending into `Card` children, so assertions
+    /// can find a nested Badge/ActionRow/Bar regardless of which Card holds it.
+    /// (The rich vocabulary nests; the terminal/GPU faces both recurse, so the
+    /// tests recurse too.)
+    fn flatten(blocks: &[Block]) -> Vec<Block> {
+        let mut out = Vec::new();
+        for b in blocks {
+            out.push(b.clone());
+            if let Block::Card { children, .. } = b {
+                out.extend(flatten(children));
+            }
+        }
+        out
+    }
+
     /// A realistic snapshot: enforcing guard, a P0 dispatch_review, a salvage,
     /// a roadmap_now, one review-pending dispatch, and a budget section.
     fn sample_state() -> Value {
@@ -452,12 +527,13 @@ mod tests {
     #[test]
     fn guard_enforcing_badge_renders_green() {
         let pane = make_pane(sample_state());
-        let blocks = pane.view();
-        let guard_chip = blocks.iter().find_map(|b| match b {
-            Block::Chip { label, tone } if label.contains("Guard") => Some((label.clone(), *tone)),
+        let blocks = flatten(&pane.view());
+        // The guard state is now a Badge inside the Control Plane card.
+        let guard_badge = blocks.iter().find_map(|b| match b {
+            Block::Badge { label, tone } if label.contains("Guard") => Some((label.clone(), *tone)),
             _ => None,
         });
-        let (label, tone) = guard_chip.expect("guard chip present");
+        let (label, tone) = guard_badge.expect("guard badge present");
         assert_eq!(label, "Guard: enforcing");
         assert!(matches!(tone, Tone::Landed), "enforcing guard is the 'landed' (green) tone");
     }
@@ -465,31 +541,32 @@ mod tests {
     #[test]
     fn p0_item_gets_conflicted_tone_and_correct_flag() {
         let pane = make_pane(sample_state());
-        let blocks = pane.view();
-        // The dispatch_review (P0) flag: letter F, conflicted tone, P0 in label.
-        let flag = blocks.iter().find_map(|b| match b {
-            Block::Flag { letter, label, tone } if label.contains("P0") => {
-                Some((*letter, label.clone(), *tone))
+        let blocks = flatten(&pane.view());
+        // The dispatch_review (P0) item is now an ActionRow: Foxtrot flag glyph,
+        // a P0 badge in the conflicted tone, the human label as the title.
+        let row = blocks.iter().find_map(|b| match b {
+            Block::ActionRow { icon, title, badge, .. }
+                if badge.as_ref().map(|(l, _)| l == "P0").unwrap_or(false) =>
+            {
+                Some((*icon, title.clone(), badge.clone().unwrap().1))
             }
             _ => None,
         });
-        let (letter, label, tone) = flag.expect("P0 flag present");
-        assert_eq!(letter, 'F', "dispatch_review maps to Foxtrot");
-        assert!(label.contains("awaiting review"), "label carries the human text: {label}");
+        let (icon, title, tone) = row.expect("P0 action row present");
+        assert_eq!(icon, Some('F'), "dispatch_review maps to Foxtrot");
+        assert!(title.contains("awaiting review"), "title carries the human text: {title}");
         assert!(matches!(tone, Tone::Conflicted), "P0 is the loudest tone");
     }
 
     #[test]
     fn salvage_and_roadmap_actions_render_as_commands() {
         let pane = make_pane(sample_state());
-        let blocks = pane.view();
-        // Every needsYou action lands in a Row prefixed by '→'.
+        let blocks = flatten(&pane.view());
+        // Every needsYou action lands in an ActionRow's monospace action chip.
         let actions: Vec<String> = blocks
             .iter()
             .filter_map(|b| match b {
-                Block::Row(cells) if cells.first().map(|c| c == "→").unwrap_or(false) => {
-                    cells.get(1).cloned()
-                }
+                Block::ActionRow { action, .. } => action.clone(),
                 _ => None,
             })
             .collect();
@@ -507,80 +584,89 @@ mod tests {
     #[test]
     fn dispatch_row_carries_state_title_agent() {
         let pane = make_pane(sample_state());
-        let blocks = pane.view();
+        let blocks = flatten(&pane.view());
+        // The dispatch is an ActionRow: state badge, title, "agent <id>" subtitle.
         let row = blocks.iter().find_map(|b| match b {
-            Block::Row(cells) if cells.iter().any(|c| c.contains("Land the auth")) => Some(cells),
+            Block::ActionRow { title, subtitle, badge, .. }
+                if title.contains("Land the auth") =>
+            {
+                Some((title.clone(), subtitle.clone(), badge.clone()))
+            }
             _ => None,
         });
-        let cells = row.expect("dispatch row present");
-        assert_eq!(cells[0], "awaiting_review", "state chip");
-        assert!(cells[1].contains("Land the auth refactor"), "title");
-        assert_eq!(cells[2], "gardener-7", "agent id");
+        let (title, subtitle, badge) = row.expect("dispatch action row present");
+        let (state, tone) = badge.expect("state badge present");
+        assert_eq!(state, "awaiting_review", "state badge");
+        assert!(matches!(tone, Tone::Gated), "review-pending is the loud Gated tone");
+        assert!(title.contains("Land the auth refactor"), "title");
+        assert_eq!(subtitle.as_deref(), Some("agent gardener-7"), "agent subtitle");
     }
 
     #[test]
-    fn budget_bar_and_today_cap_events_render() {
+    fn budget_metrics_and_bar_render() {
         let pane = make_pane(sample_state());
-        let blocks = pane.view();
+        let blocks = flatten(&pane.view());
 
-        // TODAY · CAP · EVENTS row.
-        let summary = blocks.iter().find_map(|b| match b {
-            Block::Row(cells) if cells.iter().any(|c| c.starts_with("TODAY")) => Some(cells.clone()),
+        // TODAY · CAP · EVENTS as a MetricRow of (label, value, tone).
+        let metrics = blocks.iter().find_map(|b| match b {
+            Block::MetricRow(m) => Some(m.clone()),
             _ => None,
         });
-        let cells = summary.expect("budget summary row");
-        assert!(cells[0].contains("$3.24"), "today spend: {cells:?}");
-        assert!(cells[1].contains("$5.00/day"), "daily cap: {cells:?}");
-        assert!(cells[2].contains("47"), "event count: {cells:?}");
+        let m = metrics.expect("budget metric row");
+        let by_label = |needle: &str| -> String {
+            m.iter().find(|(l, _, _)| l == needle).map(|(_, v, _)| v.clone()).unwrap_or_default()
+        };
+        assert!(by_label("TODAY").contains("$3.24"), "today spend: {m:?}");
+        assert!(by_label("CAP").contains("$5.00"), "daily cap: {m:?}");
+        assert!(by_label("EVENTS").contains("47"), "event count: {m:?}");
 
-        // Spend bar at 64.8% → 6 filled cells + percent.
+        // The REAL progress bar at 64.8% → fraction ~0.648, label carries percent.
         let bar = blocks.iter().find_map(|b| match b {
-            Block::KeyVal(k, v) if k == "spend" => Some(v.clone()),
+            Block::Bar { fraction, label, .. } => Some((*fraction, label.clone())),
             _ => None,
         });
-        let bar = bar.expect("spend bar present");
-        assert_eq!(bar.matches('█').count(), 6, "64.8% rounds to 6/10 cells: {bar}");
-        assert!(bar.contains("64.8%"), "percent label: {bar}");
+        let (fraction, label) = bar.expect("budget bar present");
+        assert!((fraction - 0.648).abs() < 0.001, "fraction tracks percent: {fraction}");
+        assert!(label.unwrap_or_default().contains("65% of daily cap"), "percent label");
     }
 
     #[test]
-    fn budget_chip_tones_by_threshold_no_hardcoded_color() {
+    fn budget_bar_tones_by_threshold_no_hardcoded_color() {
         // Healthy (<75%) → Landed (green); nearing (75–99%) → Gated (amber);
-        // over → Conflicted (red). The chip is the toned affordance; color is
-        // resolved by the renderer from the semantic Tone — never a hex here.
-        let chip_tone = |pct: f64, over: bool| -> Tone {
+        // over → Conflicted (red). The Bar's tone is the toned affordance; color
+        // is resolved by the renderer from the semantic Tone — never a hex here.
+        let bar_tone = |pct: f64, over: bool| -> Tone {
             let mut state = sample_state();
             state["budget"]["status"]["percentUsed"] = serde_json::json!(pct);
             state["budget"]["status"]["overBudget"] = serde_json::json!(over);
             let pane = make_pane(state);
-            pane.view()
+            flatten(&pane.view())
                 .iter()
                 .find_map(|b| match b {
-                    Block::Chip { label, tone } if label.contains("cap") || label.contains("OVER") => {
-                        Some(*tone)
-                    }
+                    Block::Bar { tone, .. } => Some(*tone),
                     _ => None,
                 })
-                .expect("budget chip present")
+                .expect("budget bar present")
         };
-        assert!(matches!(chip_tone(40.0, false), Tone::Landed), "healthy spend is green");
-        assert!(matches!(chip_tone(85.0, false), Tone::Gated), "nearing the cap is amber");
-        assert!(matches!(chip_tone(120.0, true), Tone::Conflicted), "over budget is red");
+        assert!(matches!(bar_tone(40.0, false), Tone::Landed), "healthy spend is green");
+        assert!(matches!(bar_tone(85.0, false), Tone::Gated), "nearing the cap is amber");
+        assert!(matches!(bar_tone(120.0, true), Tone::Conflicted), "over budget is red");
     }
 
     #[test]
-    fn empty_needs_you_renders_clear_chip() {
+    fn empty_needs_you_renders_clear_badge() {
         let mut state = sample_state();
         state["needsYou"] = serde_json::json!([]);
         let pane = make_pane(state);
-        let blocks = pane.view();
+        let view = pane.view();
+        let blocks = flatten(&view);
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Header(h) if h.contains("NEEDS YOU — 0 items"))),
+            view.iter().any(|b| matches!(b, Block::Header(h) if h.contains("NEEDS YOU — 0 items"))),
             "zero-item header"
         );
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("clear"))),
-            "clear chip"
+            blocks.iter().any(|b| matches!(b, Block::Badge { label, .. } if label.contains("clear"))),
+            "clear badge"
         );
     }
 
@@ -603,18 +689,19 @@ mod tests {
             "needsYou": []
         });
         let pane = make_pane(state);
-        let blocks = pane.view();
+        let view = pane.view();
+        let blocks = flatten(&view);
         assert!(
-            !blocks.iter().any(|b| matches!(b, Block::Header(h) if h.contains("DISPATCH QUEUE"))),
+            !view.iter().any(|b| matches!(b, Block::Header(h) if h.contains("DISPATCH QUEUE"))),
             "no dispatch section when daemon omits it"
         );
         assert!(
-            !blocks.iter().any(|b| matches!(b, Block::Header(h) if h.contains("BUDGET LEDGER"))),
+            !view.iter().any(|b| matches!(b, Block::Header(h) if h.contains("BUDGET LEDGER"))),
             "no budget section when daemon omits it"
         );
-        // Guard unavailable badge still renders.
+        // Guard unavailable badge still renders (now a Badge inside the card).
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("unavailable"))),
+            blocks.iter().any(|b| matches!(b, Block::Badge { label, .. } if label.contains("unavailable"))),
             "guard unavailable badge"
         );
     }

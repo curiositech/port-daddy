@@ -393,6 +393,105 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 out.push('\n');
                 i += 1;
             }
+            // ── Rich GUI vocabulary — degraded to text for the terminal face ──
+            Block::Card { title, tone, children } => {
+                // The card's title becomes a toned header rule; its children are
+                // rendered inline (recursively) and indented one level so the
+                // grouping still reads in a terminal. Elevation has no TUI analog.
+                if let Some(t) = title {
+                    let sem = tone.sem();
+                    let rule_len = 44usize.saturating_sub(t.chars().count());
+                    out.push('\n');
+                    out.push_str(&format!(
+                        "  {} {} {}\n",
+                        style.paint(tone.symbol(), sem),
+                        style.bold_paint(t, sem),
+                        style.paint(&"─".repeat(rule_len), Sem::Resting),
+                    ));
+                }
+                let inner = render_blocks_width(children, style, None);
+                for line in inner.lines() {
+                    if line.is_empty() {
+                        out.push('\n');
+                    } else {
+                        out.push_str(&format!("  {line}\n"));
+                    }
+                }
+                i += 1;
+            }
+            Block::Badge { label, tone } => {
+                let sem = tone.sem();
+                out.push_str(&format!(
+                    "  {}\n",
+                    style.paint(&format!("[{label}]"), sem),
+                ));
+                i += 1;
+            }
+            Block::Bar { fraction, tone, label } => {
+                // A 24-cell █/░ bar — the terminal analog of the filled GPU bar.
+                let frac = fraction.clamp(0.0, 1.0);
+                let filled = (frac * 24.0).round() as usize;
+                let mut cells = String::with_capacity(24);
+                for _ in 0..filled {
+                    cells.push('█');
+                }
+                for _ in filled..24 {
+                    cells.push('░');
+                }
+                let sem = tone.sem();
+                let lbl = label.as_deref().unwrap_or("");
+                out.push_str(&format!(
+                    "  {} {}\n",
+                    style.paint(&cells, sem),
+                    style.paint(lbl, Sem::Muted),
+                ));
+                i += 1;
+            }
+            Block::Metric { label, value, tone } => {
+                // value (toned, "big") then the muted label beneath it.
+                out.push_str(&format!(
+                    "  {}  {}\n",
+                    style.bold_paint(value, tone.sem()),
+                    style.paint(label, Sem::Muted),
+                ));
+                i += 1;
+            }
+            Block::MetricRow(metrics) => {
+                // Lay the metrics on one line: "VALUE label · VALUE label · …".
+                let parts: Vec<String> = metrics
+                    .iter()
+                    .map(|(label, value, tone)| {
+                        format!(
+                            "{} {}",
+                            style.bold_paint(value, tone.sem()),
+                            style.paint(label, Sem::Muted),
+                        )
+                    })
+                    .collect();
+                out.push_str(&format!("  {}\n", parts.join(&style.paint("  ·  ", Sem::Resting))));
+                i += 1;
+            }
+            Block::ActionRow { icon, title, subtitle, action, badge } => {
+                let mut line = String::from("  ");
+                if let Some(g) = icon {
+                    line.push_str(&style.paint(&format!("⚑{g} "), Sem::Accent));
+                }
+                line.push_str(&style.paint(title, Sem::Ink));
+                if let Some((b_label, b_tone)) = badge {
+                    line.push(' ');
+                    line.push_str(&style.paint(&format!("[{b_label}]"), b_tone.sem()));
+                }
+                if let Some(act) = action {
+                    line.push(' ');
+                    line.push_str(&style.paint(act, Sem::Engaged));
+                }
+                out.push_str(&line);
+                out.push('\n');
+                if let Some(sub) = subtitle {
+                    out.push_str(&format!("    {}\n", style.paint(sub, Sem::Muted)));
+                }
+                i += 1;
+            }
         }
     }
     // Reflow: truncate each emitted line to the terminal width (TTY only; pipes
@@ -443,6 +542,65 @@ mod tests {
         let s = TermStyle::with_mode(ColorMode::Ansi16, &DARK);
         assert!(s.paint("e", Sem::Gated).starts_with("\x1b[31m"));   // red = error
         assert!(s.paint("ok", Sem::Landed).starts_with("\x1b[32m")); // green = success
+    }
+
+    #[test]
+    fn card_degrades_to_title_rule_and_recurses_into_children() {
+        // The TUI face has no elevation, but a Card must still render its title
+        // and ALL of its children (recursively) — not swallow them.
+        let s = plain();
+        let blocks = vec![Block::Card {
+            title: Some("Budget ledger".into()),
+            tone: Tone::Landed,
+            children: vec![
+                Block::Badge { label: "65% of cap".into(), tone: Tone::Gated },
+                Block::ActionRow {
+                    icon: None,
+                    title: "claude-opus".into(),
+                    subtitle: Some("port-daddy".into()),
+                    action: Some("$0.1234".into()),
+                    badge: None,
+                },
+            ],
+        }];
+        let out = render_blocks(&blocks, &s);
+        assert!(out.contains("Budget ledger"), "card title rule: {out:?}");
+        assert!(out.contains("[65% of cap]"), "nested badge: {out:?}");
+        assert!(out.contains("claude-opus"), "nested action row title");
+        assert!(out.contains("$0.1234"), "nested action row action chip");
+        assert!(out.contains("port-daddy"), "nested action row subtitle");
+    }
+
+    #[test]
+    fn bar_fills_proportionally_in_24_cells() {
+        // A real progress bar degrades to a █/░ cell bar; the filled count must
+        // track the fraction (50% → 12 of 24), and the label rides alongside.
+        let s = plain();
+        let half = render_blocks(
+            &[Block::Bar { fraction: 0.5, tone: Tone::Landed, label: Some("50%".into()) }],
+            &s,
+        );
+        assert_eq!(half.matches('█').count(), 12, "0.5 → 12/24 filled: {half:?}");
+        assert_eq!(half.matches('░').count(), 12, "0.5 → 12/24 empty: {half:?}");
+        assert!(half.contains("50%"), "label present");
+        // Clamps past the ends.
+        let over = render_blocks(&[Block::Bar { fraction: 1.5, tone: Tone::Conflicted, label: None }], &s);
+        assert_eq!(over.matches('█').count(), 24, "clamps to full");
+        assert_eq!(over.matches('░').count(), 0, "no empty cells when full");
+    }
+
+    #[test]
+    fn metric_row_lays_values_with_labels() {
+        let s = plain();
+        let out = render_blocks(
+            &[Block::MetricRow(vec![
+                ("TODAY".into(), "$3.24".into(), Tone::Landed),
+                ("EVENTS".into(), "47".into(), Tone::Default),
+            ])],
+            &s,
+        );
+        assert!(out.contains("$3.24") && out.contains("TODAY"), "first metric: {out:?}");
+        assert!(out.contains("47") && out.contains("EVENTS"), "second metric");
     }
 
     #[test]

@@ -234,6 +234,14 @@ const NAV: &[NavItem] = &[
     NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
     NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
+    // ── Local-surface tiles (no producer slot — they render from disk, not the
+    //    2s daemon poll). Kept AFTER the 23 producer-backed entries so the
+    //    NAV-index == producer-slot invariant (slots 0..=22 in main.rs) holds.
+    //    Editor needs a path, so its tile opens the file tree to pick one; Files
+    //    opens the file tree directly. Discoverability fix: the editor was
+    //    previously only reachable by typing a path, never from the launcher.
+    NavItem { id: "editor",   label: "Editor",   icon: "icons/nav/editor.svg",   key: "e" },
+    NavItem { id: "files",    label: "Files",    icon: "icons/nav/files.svg",    key: "f" },
 ];
 
 // ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
@@ -282,6 +290,38 @@ pub fn init_theme_from_env() {
 
 fn tone_rgb(tone: &Tone) -> u32 {
     current_theme().tone(tone)
+}
+
+/// A tone-tinted surface fill (badge / pill background): the tone color at low
+/// alpha so the pill reads as "this meaning" without shouting. Alpha rides on
+/// `Hsla` exactly like the motion glows — one place resolves Tone→OKLCH→rgb.
+fn tone_surface(color: u32, alpha: f32) -> gpui::Hsla {
+    let mut h: gpui::Hsla = gpui::rgb(color).into();
+    h.a = alpha;
+    h
+}
+
+/// A faint tone tint for a card's border — the card's meaning is legible at the
+/// edge without coloring the whole panel (hierarchy by tint, not flood).
+fn tone_border(color: u32) -> gpui::Hsla {
+    tone_surface(color, 0.45)
+}
+
+/// The standing card "lift" — a soft drop-shadow under every Card. gpui 0.2.x
+/// has no transform, so this BoxShadow IS the elevation (the design rule: real
+/// raise via shadow, not a fake scale). The shadow is the theme's darkest token
+/// (`sunken`) at low alpha — warm-dark, not a hardcoded black — so the lift
+/// reads correctly in both light and dark palettes. Offset down + blurred.
+fn card_elevation() -> Vec<gpui::BoxShadow> {
+    use gpui::{point, px, BoxShadow, Hsla};
+    let mut h: Hsla = gpui::rgb(current_theme().sunken).into();
+    h.a = 0.55;
+    vec![BoxShadow {
+        color: h,
+        offset: point(px(0.0), px(2.0)),
+        blur_radius: px(16.0),
+        spread_radius: px(0.0),
+    }]
 }
 
 // ── Motion — gpui 0.2.2 has no fluent transform, so "lift/glow/spring" reads
@@ -514,6 +554,319 @@ fn render_block(block: Block) -> impl IntoElement {
         Block::Gap => {
             div().h(px(8.0)).into_any_element()
         }
+
+        // ── Rich GUI vocabulary — the native, designed faces ─────────────────
+        Block::Card { title, tone, children } => {
+            let t = current_theme();
+            let tint = tone_rgb(&tone);
+            // Real elevation: a soft dark drop-shadow gives the card lift (gpui
+            // 0.2.x has no transform/scale, so BoxShadow IS the "raise"). The
+            // border is a faint tone tint so the card's meaning reads at a glance
+            // without coloring the whole surface.
+            let mut card = div()
+                .mx(px(16.0))
+                .my(px(8.0))
+                .p(px(16.0))
+                .flex()
+                .flex_col()
+                .gap(px(8.0))
+                .rounded(px(12.0))
+                .bg(rgb(t.panel))
+                .border_1()
+                .border_color(tone_border(tint))
+                .shadow(card_elevation());
+            if let Some(title) = title {
+                card = card.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .pb(px(4.0))
+                        // A short tone bar at the title's left edge — the card's
+                        // semantic "spine" (meaning by position + a thin accent,
+                        // never color-as-the-only-signal).
+                        .child(
+                            div()
+                                .w(px(3.0))
+                                .h(px(16.0))
+                                .rounded_full()
+                                .bg(rgb(tint)),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(16.0))
+                                .font_weight(FontWeight::BOLD)
+                                .child(title),
+                        ),
+                );
+            }
+            // Children render recursively — a Card composes any vocabulary. The
+            // inner blocks lose the outer px(16) gutter (the card supplies its own
+            // padding), so wrap them flush.
+            card.children(children.into_iter().map(render_block_flush))
+                .into_any_element()
+        }
+
+        Block::Badge { label, tone } => {
+            let tint = tone_rgb(&tone);
+            div()
+                .flex()
+                .items_center()
+                .child(
+                    div()
+                        .px(px(8.0))
+                        .py(px(4.0))
+                        .rounded_full()
+                        .bg(tone_surface(tint, 0.16))
+                        .text_color(rgb(tint))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(label),
+                )
+                .into_any_element()
+        }
+
+        Block::Bar { fraction, tone, label } => {
+            let t = current_theme();
+            let tint = tone_rgb(&tone);
+            let frac = fraction.clamp(0.0, 1.0);
+            div()
+                .px(px(16.0))
+                .py(px(6.0))
+                .flex()
+                .flex_col()
+                .gap(px(4.0))
+                .when_some(label, |c, lbl| {
+                    c.child(
+                        div()
+                            .text_color(rgb(t.muted))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .child(lbl),
+                    )
+                })
+                // The track: a full-width rounded sunken rail.
+                .child(
+                    div()
+                        .w_full()
+                        .h(px(8.0))
+                        .rounded_full()
+                        .bg(rgb(t.sunken))
+                        // The fill: a fraction of the track, tone-colored. relative()
+                        // gives a true proportional width — a REAL bar, not text.
+                        .child(
+                            div()
+                                .h_full()
+                                .w(relative(frac.max(0.02)))
+                                .rounded_full()
+                                .bg(rgb(tint)),
+                        ),
+                )
+                .into_any_element()
+        }
+
+        Block::Metric { label, value, tone } => {
+            let t = current_theme();
+            let tint = tone_rgb(&tone);
+            div()
+                .px(px(16.0))
+                .py(px(6.0))
+                .flex()
+                .flex_col()
+                .gap(px(2.0))
+                // The big number — real type hierarchy (size + weight).
+                .child(
+                    div()
+                        .text_color(rgb(tint))
+                        .text_size(px(26.0))
+                        .font_weight(FontWeight::BOLD)
+                        .font_family("IBM Plex Mono")
+                        .child(value),
+                )
+                // The label beneath — small, muted, tracked-out eyebrow.
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(label.to_uppercase()),
+                )
+                .into_any_element()
+        }
+
+        Block::MetricRow(metrics) => {
+            let t = current_theme();
+            div()
+                .flex()
+                .flex_row()
+                .gap(px(12.0))
+                .px(px(16.0))
+                .py(px(8.0))
+                .children(metrics.into_iter().map(|(label, value, tone)| {
+                    let tint = tone_rgb(&tone);
+                    div()
+                        .flex_1()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .p(px(10.0))
+                        .rounded(px(8.0))
+                        .bg(rgb(t.sunken))
+                        .child(
+                            div()
+                                .text_color(rgb(tint))
+                                .text_size(px(24.0))
+                                .font_weight(FontWeight::BOLD)
+                                .font_family("IBM Plex Mono")
+                                .child(value),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.muted))
+                                .text_size(px(12.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(label.to_uppercase()),
+                        )
+                }))
+                .into_any_element()
+        }
+
+        Block::ActionRow { icon, title, subtitle, action, badge } => {
+            let t = current_theme();
+            let mut row = div()
+                .flex()
+                .items_center()
+                .gap(px(12.0))
+                .px(px(16.0))
+                .py(px(8.0))
+                .rounded(px(8.0))
+                .hover(|s| s.bg(rgb(current_theme().raised)));
+            // Leading flag glyph — a tone-colored ICS square (never an emoji).
+            if let Some(glyph) = icon {
+                row = row.child(
+                    div()
+                        .w(px(24.0))
+                        .h(px(24.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .flex_shrink_0()
+                        .rounded(px(4.0))
+                        .border_1()
+                        .border_color(rgb(t.accent_ink))
+                        .bg(rgb(t.raised))
+                        .text_color(rgb(t.accent_ink))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::BOLD)
+                        .child(glyph.to_string()),
+                );
+            }
+            // Title + subtitle stacked, taking the available width.
+            row = row.child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .flex_1()
+                    .gap(px(2.0))
+                    .child(
+                        div()
+                            .text_color(rgb(t.ink))
+                            .text_size(px(14.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .child(title),
+                    )
+                    .when_some(subtitle, |c, sub| {
+                        c.child(
+                            div()
+                                .text_color(rgb(t.muted))
+                                .text_size(px(13.0))
+                                .child(sub),
+                        )
+                    }),
+            );
+            // Right-aligned badge pill.
+            if let Some((b_label, b_tone)) = badge {
+                let tint = tone_rgb(&b_tone);
+                row = row.child(
+                    div()
+                        .flex_shrink_0()
+                        .px(px(8.0))
+                        .py(px(3.0))
+                        .rounded_full()
+                        .bg(tone_surface(tint, 0.16))
+                        .text_color(rgb(tint))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(b_label),
+                );
+            }
+            // Monospace action chip — the operator's next keystroke.
+            if let Some(act) = action {
+                row = row.child(
+                    div()
+                        .flex_shrink_0()
+                        .px(px(8.0))
+                        .py(px(3.0))
+                        .rounded(px(6.0))
+                        .bg(rgb(t.sunken))
+                        .border_1()
+                        .border_color(rgb(t.line))
+                        .text_color(rgb(t.accent_ink))
+                        .text_size(px(13.0))
+                        .font_family("IBM Plex Mono")
+                        .child(act),
+                );
+            }
+            row.into_any_element()
+        }
+    }
+}
+
+/// Render a block flush inside a Card — Cards supply their own px(16) padding, so
+/// child blocks must drop the outer gutter to avoid double-indenting. We re-emit
+/// the rich children unchanged (they already sit at px(16), which inside the
+/// card's own px(16) reads as a clean inset) but strip the gutter from the flat
+/// text primitives so a Card's body lines up with its title spine.
+fn render_block_flush(block: Block) -> impl IntoElement {
+    match block {
+        // Flat text primitives inside a card: zero the horizontal gutter so they
+        // align with the card's title (the card already pads).
+        Block::KeyVal(key, val) => {
+            let t = current_theme();
+            div()
+                .flex()
+                .gap(px(8.0))
+                .py(px(3.0))
+                .child(
+                    div()
+                        .text_color(rgb(t.muted))
+                        .text_size(px(14.0))
+                        .w(px(140.0))
+                        .flex_shrink_0()
+                        .child(key),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(14.0))
+                        .font_family("IBM Plex Mono")
+                        .child(val),
+                )
+                .into_any_element()
+        }
+        Block::ActionRow { .. }
+        | Block::Bar { .. }
+        | Block::Metric { .. }
+        | Block::MetricRow(_)
+        | Block::Badge { .. } => {
+            // Rich children: strip the px(16) gutter the standalone renderer adds
+            // by wrapping in a negative-margin-free flush container. We re-render
+            // through the main path then pull it left via mx(-16) so it fills the
+            // card's content box edge-to-edge.
+            div().mx(px(-16.0)).child(render_block(block)).into_any_element()
+        }
+        other => render_block(other).into_any_element(),
     }
 }
 
@@ -1005,17 +1358,30 @@ impl ConsoleView {
                 }));
 
             if reduced {
+                // Reduced-motion: resolve to the FINAL state (full opacity, the
+                // standing-glow only on the current tile). Orientation cues stay;
+                // only the travel is dropped. No animation owner is created.
                 tile.into_any_element()
             } else {
-                // One-shot staggered fade — the stagger lives in the opacity
-                // curve, so each tile remains its own single animation owner.
+                // One-shot staggered fade+lift — the stagger lives in the curve
+                // (a per-tile phase offset), so each tile stays its own SINGLE
+                // animation owner with NO `.repeat()` (the idle window never
+                // re-renders once the entrance settles). Motion is composed from
+                // opacity + a growing BoxShadow glow only (gpui 0.2.x has no
+                // transform, so the "lift" IS the shadow — never a fake scale).
                 let start = (i as f32 / n as f32) * 0.5;
+                let accent = t.accent;
                 tile.with_animation(
                     SharedString::from(format!("launch-in-{id}")),
-                    Animation::new(Duration::from_millis(320)).with_easing(ease_in_out),
+                    Animation::new(Duration::from_millis(360)).with_easing(ease_in_out),
                     move |el, delta| {
-                        let o = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
-                        el.opacity(o)
+                        // Local fraction: this tile's own 0→1 progress after its
+                        // phase offset. One animated layout fraction, one owner.
+                        let p = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
+                        // Opacity rises; the lift-shadow grows from flat to raised
+                        // as the tile settles (blur 0→14, alpha 0→0.30).
+                        el.opacity(p)
+                            .shadow(motion::glow(accent, 0.30 * p, 14.0 * p, 1.0 * p))
                     },
                 )
                 .into_any_element()
@@ -1789,6 +2155,10 @@ fn surface_for_nav_id(nav: &str) -> SurfaceKind {
         "sessions" => SurfaceKind::Sessions,
         "dispatch" => SurfaceKind::Dispatch,
         "operator" => SurfaceKind::Operator,
+        // Local-disk surfaces. Editor needs a path, so its launcher tile opens
+        // the file tree to choose one (clicking a file row swaps to the Editor);
+        // Files opens the same tree directly.
+        "editor" | "files" => SurfaceKind::FileTree { root: None },
         other => SurfaceKind::Panel { nav: other.to_string() },
     }
 }
@@ -1804,9 +2174,13 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Operator => Some("operator"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        SurfaceKind::CartographerChat
-        | SurfaceKind::FileTree { .. }
-        | SurfaceKind::Editor { .. } => None,
+        // Local-disk surfaces map to their launcher tiles so the grid highlights
+        // the current one. They have NO producer slot, so `blocks_for_surface`
+        // must early-return for them (it does: FileTree/Editor are handled before
+        // the `nav_id_for_surface → pane_blocks[i]` lookup).
+        SurfaceKind::FileTree { .. } => Some("files"),
+        SurfaceKind::Editor { .. } => Some("editor"),
+        SurfaceKind::CartographerChat => None,
     }
 }
 
