@@ -16,13 +16,14 @@ import {
 } from '@/components/site/primitives'
 import { cn } from '@/lib/utils'
 import {
-  DEFAULT_DAEMON_URL,
   TUBE_KIND,
   TubeMotionProvider,
+  TubeSimBadge,
   useReducedMotion,
   usePublish,
   type TubeMessage,
 } from '@/components/tube/TubeWire'
+import { tubePoll } from '@/components/tube/tube-transport'
 import { HowItsWired } from './HowItsWired'
 
 /**
@@ -180,9 +181,6 @@ function laneForSender(sender: string | undefined): AgentName | null {
   return (AGENT_NAMES as string[]).includes(s) ? (s as AgentName) : null
 }
 
-const msgUrl = (channel: string) =>
-  `${DEFAULT_DAEMON_URL.replace(/\/$/, '')}/msg/${encodeURIComponent(channel)}`
-
 type RoomPhase = 'idle' | 'seeding' | 'watching' | 'error'
 
 export function WarRoom() {
@@ -206,11 +204,9 @@ export function WarRoom() {
     let after = cursor
     const seen = new Set<number>()
     while (!signal.aborted) {
-      let json: { messages?: TubeMessage[] }
+      let incoming: TubeMessage[]
       try {
-        const res = await fetch(`${msgUrl(WAR_CHANNEL)}?after=${after}`, { signal })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        json = (await res.json()) as { messages?: TubeMessage[] }
+        incoming = await tubePoll(WAR_CHANNEL, after, { signal })
       } catch (err) {
         if (signal.aborted) return
         // Transient transport error — surface it but keep the room open so a
@@ -220,7 +216,6 @@ export function WarRoom() {
         continue
       }
       if (signal.aborted) return
-      const incoming = json.messages ?? []
       const fresh: WarMessage[] = []
       for (const m of incoming) {
         after = Math.max(after, m.id)
@@ -465,6 +460,7 @@ function ChannelStrip({
         <span className="font-mono text-[length:var(--text-base)] font-bold text-[var(--text-primary)]">
           {channel}
         </span>
+        <TubeSimBadge channel={channel} />
       </div>
       <div className="flex items-center gap-[var(--space-2)]">
         <span
