@@ -412,6 +412,188 @@ impl DaemonClient {
         Ok(())
     }
 
+    /// Add an operator note: `POST /notes` with `{ content, agentId }`. The
+    /// daemon's note write needs a session SCOPE — without one it returns
+    /// `NO_ACTIVE_SESSION_SCOPE`. We pass a stable `agentId` (`console-operator`)
+    /// so the daemon auto-creates/reuses a "Quick notes" session and the write
+    /// always lands. The route's body field is `content` (NOT `text`). The note
+    /// surfaces in the Notes/Memory pane (`GET /notes`) on the next refresh.
+    pub async fn add_note(&self, content: &str) -> Result<()> {
+        let body = serde_json::json!({ "content": content, "agentId": "console-operator" });
+        let resp = self
+            .http
+            .post(format!("{}/notes", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /notes")?;
+        ensure_success(resp, "add_note").await?;
+        Ok(())
+    }
+
+    /// Begin a coordination session: `POST /sugar/begin`. The daemon REQUIRES a
+    /// non-empty `purpose` and an explicit `lifecycle` (`durable`|`ephemeral`) —
+    /// omit either and it 400s. We default `lifecycle` to `durable` (ordinary
+    /// work context, matching `pd begin`'s interactive default) and reuse the
+    /// operator-supplied identity as the purpose when no distinct purpose is
+    /// given. `allowMainWorktree` is set so a console launched outside a linked
+    /// worktree is not bounced by the worktree gate. Sessions pane reads
+    /// `/sessions`, so the new session appears on the next refresh.
+    pub async fn begin_session(&self, identity: &str, purpose: Option<&str>) -> Result<()> {
+        let purpose = purpose.filter(|p| !p.trim().is_empty()).unwrap_or(identity);
+        let mut body = serde_json::json!({
+            "purpose": purpose,
+            "lifecycle": "durable",
+            "allowMainWorktree": true,
+        });
+        if !identity.trim().is_empty() {
+            body["identity"] = serde_json::json!(identity);
+        }
+        let resp = self
+            .http
+            .post(format!("{}/sugar/begin", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sugar/begin")?;
+        ensure_success(resp, "begin_session").await?;
+        Ok(())
+    }
+
+    /// End the active coordination session: `POST /sugar/done`. The optional
+    /// `summary` becomes the session's closing `note`. The daemon resolves the
+    /// active session from worktree/agent scope when no id is passed; a 404
+    /// (`NO_ACTIVE_SESSION`) surfaces here as an error rather than a silent
+    /// no-op. Status defaults daemon-side to `completed`.
+    pub async fn end_session(&self, summary: Option<&str>) -> Result<()> {
+        let body = match summary.filter(|s| !s.trim().is_empty()) {
+            Some(s) => serde_json::json!({ "note": s }),
+            None => serde_json::json!({}),
+        };
+        let resp = self
+            .http
+            .post(format!("{}/sugar/done", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sugar/done")?;
+        ensure_success(resp, "end_session").await?;
+        Ok(())
+    }
+
+    /// Propose a dispatch: `POST /dispatches` with `{ goal, requestedBy,
+    /// mergePolicy, baseBranch }`. The daemon requires a non-empty `goal` string
+    /// and returns 201 with the queued dispatch. `requestedBy` defaults to
+    /// `operator` (matching the route default) so the proposal is attributed to
+    /// the console operator. The new proposal lands in the Dispatch pane's
+    /// `review_pending` queue on the next refresh.
+    pub async fn propose_dispatch(&self, goal: &str) -> Result<()> {
+        let body = serde_json::json!({ "goal": goal, "requestedBy": "operator" });
+        let resp = self
+            .http
+            .post(format!("{}/dispatches", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /dispatches")?;
+        ensure_success(resp, "propose_dispatch").await?;
+        Ok(())
+    }
+
+    /// Launch a sortie: `POST /sorties` with `{ goal, projectDir, backend,
+    /// budgetUsd }`. The daemon validates ALL four — `projectDir` must exist and
+    /// pass the project-root guard, `backend` must be a known runtime, and
+    /// `budgetUsd` must be a positive ceiling. `projectDir` comes from
+    /// `PD_CONSOLE_WORKDIR` (the same operator-provided worktree `spawn` uses);
+    /// without it the launch is refused loudly rather than guessing a directory.
+    /// `backend` defaults to `claude-cli` and the budget to $0.25. Sortie pane
+    /// reads `/sorties`, so the mission appears on the next refresh.
+    pub async fn launch_sortie(&self, goal: &str) -> Result<()> {
+        let project_dir = std::env::var("PD_CONSOLE_WORKDIR").map_err(|_| {
+            anyhow!(
+                "launch_sortie needs a project directory: set PD_CONSOLE_WORKDIR \
+                 to the worktree the sortie should run in (the daemon refuses an \
+                 unknown/main checkout)"
+            )
+        })?;
+        let backend =
+            std::env::var("PD_CONSOLE_SORTIE_BACKEND").unwrap_or_else(|_| "claude-cli".into());
+        let budget: f64 = std::env::var("PD_CONSOLE_SORTIE_BUDGET")
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+            .filter(|b: &f64| *b > 0.0)
+            .unwrap_or(0.25);
+        let body = serde_json::json!({
+            "goal": goal,
+            "projectDir": project_dir,
+            "backend": backend,
+            "budgetUsd": budget,
+        });
+        let resp = self
+            .http
+            .post(format!("{}/sorties", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /sorties")?;
+        ensure_success(resp, "launch_sortie").await?;
+        Ok(())
+    }
+
+    /// Claim a port: `POST /claim` with `{ id }` where `id` is the semantic
+    /// identity (`project:stack:context`). Port Daddy's core verb — same identity
+    /// always maps to the same port (deterministic hashing). The route's body
+    /// field is `id` (NOT `identity`). Returns the assigned port so the operator
+    /// sees what they got. Services/Claims surfaces reflect it on next refresh.
+    pub async fn claim_port(&self, identity: &str) -> Result<u16> {
+        let body = serde_json::json!({ "id": identity });
+        let resp = self
+            .http
+            .post(format!("{}/claim", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("POST /claim")?;
+        let resp = ensure_success(resp, "claim_port").await?;
+        let v: serde_json::Value = resp.json().await.context("claim response")?;
+        v.get("port")
+            .and_then(|p| p.as_u64())
+            .map(|p| p as u16)
+            .ok_or_else(|| anyhow!("claim succeeded but response carried no port: {v}"))
+    }
+
+    /// Release a claimed port: `DELETE /release` with `{ id }` (the identity).
+    /// The release route keys on the service identity, not the port number — so
+    /// the operator passes the identity they claimed. A `SERVICE_NOT_FOUND`
+    /// (unknown identity) surfaces as an error.
+    pub async fn release_port(&self, identity: &str) -> Result<()> {
+        let body = serde_json::json!({ "id": identity });
+        let resp = self
+            .http
+            .delete(format!("{}/release", self.base))
+            .json(&body)
+            .send()
+            .await
+            .context("DELETE /release")?;
+        ensure_success(resp, "release_port").await?;
+        Ok(())
+    }
+
+    /// Kill (unregister) an agent: `DELETE /agents/:id`. Removes the agent from
+    /// the fleet roster and publishes an `unregistered` event. A 400 (unknown
+    /// agent / already gone) surfaces as an error rather than a silent no-op.
+    /// Fleet/Cockpit panes read `/agents`, so the roster updates on next refresh.
+    pub async fn kill_agent(&self, agent_id: &str) -> Result<()> {
+        let resp = self
+            .http
+            .delete(format!("{}/agents/{agent_id}", self.base))
+            .send()
+            .await
+            .context("DELETE /agents/:id")?;
+        ensure_success(resp, "kill_agent").await?;
+        Ok(())
+    }
+
     /// Open the live SSE feed `GET /agents/:id/stream` and yield parsed
     /// `StreamEnvelope`s on an mpsc channel. Spawns a tokio task that owns the
     /// HTTP body stream; it runs until the daemon closes the stream, the agent

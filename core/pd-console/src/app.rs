@@ -46,6 +46,25 @@ pub enum ControlMsg {
     FleetHalt { root_id: Option<String> },
     FleetPause { root_id: Option<String> },
     FleetResume { root_id: Option<String> },
+    /// Add an operator note: `POST /notes` with `{ content }`.
+    AddNote { content: String },
+    /// Begin a coordination session: `POST /sugar/begin` (durable lifecycle).
+    BeginSession { identity: String },
+    /// End the active coordination session: `POST /sugar/done` (optional summary).
+    EndSession { summary: Option<String> },
+    /// Propose a dispatch into the review queue: `POST /dispatches`.
+    ProposeDispatch { goal: String },
+    /// Launch a sortie mission: `POST /sorties` (projectDir from PD_CONSOLE_WORKDIR).
+    LaunchSortie { goal: String },
+    /// Claim a port for an identity: `POST /claim` — Port Daddy's core verb.
+    ClaimPort { identity: String },
+    /// Release a claimed port by identity: `DELETE /release`.
+    ReleasePort { identity: String },
+    /// Kill (unregister) an agent: `DELETE /agents/:id`.
+    KillAgent { agent_id: String },
+    /// Interrupt a specific agent by id: `POST /agents/:id/interrupt`. Broadens
+    /// the Lane's interrupt to any agent named from the Fleet/Cockpit roster.
+    InterruptAgent { agent_id: String },
 }
 
 /// Which command line is open at the bottom of the console.
@@ -61,6 +80,30 @@ pub enum CmdKind {
     /// Add a new split pane of a chosen surface kind. Buffer is a surface name
     /// (nav label/id/key prefix, e.g. "cost", "fleet", "chat"). Handled locally.
     AddPane,
+    /// Add an operator note. Buffer is the note text. → `POST /notes`.
+    Note,
+    /// Begin a coordination session. Buffer is the identity. → `POST /sugar/begin`.
+    Begin,
+    /// End the active session. Buffer is an optional summary. → `POST /sugar/done`.
+    Done,
+    /// Propose a dispatch. Buffer is the goal text. → `POST /dispatches`.
+    Propose,
+    /// Launch a sortie. Buffer is the goal/prompt. → `POST /sorties`.
+    Sortie,
+    /// Claim a port for an identity. Buffer is the identity. → `POST /claim`.
+    Claim,
+    /// Release a claimed port. Buffer is the identity. → `DELETE /release`.
+    Release,
+    /// Kill (unregister) an agent. Buffer is the agent id. → `DELETE /agents/:id`.
+    Kill,
+    /// Interrupt a specific agent. Buffer is the agent id. → `POST /agents/:id/interrupt`.
+    InterruptAgent,
+    /// The operator verb palette (vim-`:` style). Buffer is `<verb> <args>`; the
+    /// first token selects an operator write, the rest are its arguments. One
+    /// keybinding (`Ctrl-A :`) reaches every write without exhausting the
+    /// single-letter leader namespace. `submit_command` re-dispatches into the
+    /// concrete verb's path.
+    Verb,
 }
 
 impl CmdKind {
@@ -70,6 +113,16 @@ impl CmdKind {
             CmdKind::Cartographer => "cartographer",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
+            CmdKind::Note => "note",
+            CmdKind::Begin => "begin (identity)",
+            CmdKind::Done => "done (summary)",
+            CmdKind::Propose => "propose (goal)",
+            CmdKind::Sortie => "sortie (goal)",
+            CmdKind::Claim => "claim (identity)",
+            CmdKind::Release => "release (identity)",
+            CmdKind::Kill => "kill (agent id)",
+            CmdKind::InterruptAgent => "interrupt (agent id)",
+            CmdKind::Verb => ":",
         }
     }
 }
@@ -607,6 +660,21 @@ impl ConsoleView {
             "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
             // Insert a new pane of a chosen kind (the add-pane picker).
             "i" => self.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() }),
+            // Operator verb palette (vim-`:`): one entry point for every write
+            // (note/begin/done/propose/sortie/claim/release/kill). `v` is an
+            // ASCII alias for terminals that swallow `:` after the leader.
+            ":" | "v" => self.command = Some(CommandLine { kind: CmdKind::Verb, buffer: String::new() }),
+            // Direct single-key shortcuts for the most-used operator writes
+            // (free letters, no NAV/leader collision):
+            //   f note · e propose · u sortie · r begin · q done · j claim · Q release · X kill
+            "f" => self.command = Some(CommandLine { kind: CmdKind::Note, buffer: String::new() }),
+            "e" => self.command = Some(CommandLine { kind: CmdKind::Propose, buffer: String::new() }),
+            "u" => self.command = Some(CommandLine { kind: CmdKind::Sortie, buffer: String::new() }),
+            "r" => self.command = Some(CommandLine { kind: CmdKind::Begin, buffer: String::new() }),
+            "q" => self.command = Some(CommandLine { kind: CmdKind::Done, buffer: String::new() }),
+            "j" => self.command = Some(CommandLine { kind: CmdKind::Claim, buffer: String::new() }),
+            "Q" => self.command = Some(CommandLine { kind: CmdKind::Release, buffer: String::new() }),
+            "X" => self.command = Some(CommandLine { kind: CmdKind::Kill, buffer: String::new() }),
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any nav key swaps the focused pane's surface — "hop context".
@@ -657,8 +725,21 @@ impl ConsoleView {
     /// daemon client and performs the POST).
     fn submit_command(&mut self, cmd: CommandLine) {
         let text = cmd.buffer.trim().to_string();
-        // Reject may submit empty (falls back to a default reason); the others need text.
-        if text.is_empty() && cmd.kind != CmdKind::DispatchReject {
+        // The verb palette (`:`) re-dispatches: its first token names a concrete
+        // write, the rest is that write's argument. Resolve it into the real
+        // CommandLine and submit THAT, so the per-verb paths below run unchanged.
+        if cmd.kind == CmdKind::Verb {
+            if let Some((kind, arg)) = parse_verb(&text) {
+                self.submit_command(CommandLine { kind, buffer: arg });
+            } else if !text.is_empty() {
+                let verb = text.split_whitespace().next().unwrap_or("");
+                self.control_flash = Some(format!("unknown verb '{verb}' — try note/begin/done/propose/sortie/claim/release/kill"));
+            }
+            return;
+        }
+        // Reject and Done may submit empty (Reject falls back to a default reason;
+        // Done's summary is optional); every other verb needs text.
+        if text.is_empty() && cmd.kind != CmdKind::DispatchReject && cmd.kind != CmdKind::Done {
             return;
         }
         // AddPane is a purely local UI mutation (split a new pane of the chosen
@@ -696,8 +777,45 @@ impl ConsoleView {
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
-            // AddPane is handled locally above (early return) — never reaches here.
-            CmdKind::AddPane => {}
+            CmdKind::Note => {
+                let _ = tx.send(ControlMsg::AddNote { content: text });
+                self.control_flash = Some("note added → check Memory".into());
+            }
+            CmdKind::Begin => {
+                let _ = tx.send(ControlMsg::BeginSession { identity: text.clone() });
+                self.control_flash = Some(format!("begin session: {text}"));
+            }
+            CmdKind::Done => {
+                let summary = if text.is_empty() { None } else { Some(text) };
+                let _ = tx.send(ControlMsg::EndSession { summary });
+                self.control_flash = Some("session ended".into());
+            }
+            CmdKind::Propose => {
+                let _ = tx.send(ControlMsg::ProposeDispatch { goal: text });
+                self.control_flash = Some("dispatch proposed → review queue".into());
+            }
+            CmdKind::Sortie => {
+                let _ = tx.send(ControlMsg::LaunchSortie { goal: text });
+                self.control_flash = Some("sortie launching → watch Sorties".into());
+            }
+            CmdKind::Claim => {
+                let _ = tx.send(ControlMsg::ClaimPort { identity: text.clone() });
+                self.control_flash = Some(format!("claiming port for {text}…"));
+            }
+            CmdKind::Release => {
+                let _ = tx.send(ControlMsg::ReleasePort { identity: text.clone() });
+                self.control_flash = Some(format!("releasing {text}…"));
+            }
+            CmdKind::Kill => {
+                let _ = tx.send(ControlMsg::KillAgent { agent_id: text.clone() });
+                self.control_flash = Some(format!("killing agent {text}…"));
+            }
+            CmdKind::InterruptAgent => {
+                let _ = tx.send(ControlMsg::InterruptAgent { agent_id: text.clone() });
+                self.control_flash = Some(format!("interrupting agent {text}…"));
+            }
+            // AddPane and Verb are handled locally above (early return) — never reach here.
+            CmdKind::AddPane | CmdKind::Verb => {}
         }
     }
 
@@ -923,9 +1041,13 @@ impl ConsoleView {
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
+        // The fleet/cockpit surfaces (focused) get the agent ops gate (kill /
+        // interrupt). Both read `/agents`, so they share the roster.
+        let is_fleet_ops = matches!(nav_id_for_surface(surface), Some("fleet") | Some("cockpit"));
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
+        let fleet_flash = self.control_flash.clone();
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
         let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
         let control_flash = self.control_flash.clone();
@@ -1183,8 +1305,91 @@ impl ConsoleView {
                         }),
                 )
             })
+            // ── Fleet/Cockpit agent ops GATE (focused roster surface) — the
+            //    operator's per-agent wheel: Kill (DELETE /agents/:id, unregister)
+            //    and Interrupt (POST /agents/:id/interrupt). Both open a targeted
+            //    command line that takes the agent id, rather than faking a row
+            //    selection the data model doesn't carry — honest, no dead button. ──
+            .when(is_fleet_ops && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(8.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("\u{2693} Agent ops \u{2014} target by id"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(13.0))
+                                .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .gap(px(8.0))
+                                .child(fleet_ops_btn("kill", "\u{2715} Kill agent\u{2026}", current_theme().conflict, cx))
+                                .child(fleet_ops_btn("interrupt", "\u{25fc} Interrupt\u{2026}", current_theme().gated, cx)),
+                        )
+                        .when_some(fleet_flash, |c, flash| {
+                            c.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
             .into_any_element()
     }
+}
+
+/// One fleet/cockpit agent-ops button. Both open a targeted command line that
+/// takes the agent id: `kill` → `CmdKind::Kill` (DELETE /agents/:id); `interrupt`
+/// → reuses the Lane's interrupt path scoped to the typed agent. Opening a
+/// command line (rather than acting on a phantom selection) keeps the trigger
+/// real — the operator names the agent, then the ControlMsg fires on submit.
+fn fleet_ops_btn(
+    action: &'static str,
+    label: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    div()
+        .id(SharedString::from(format!("fleetops-{action}")))
+        .px(px(12.0))
+        .py(px(5.0))
+        .rounded(px(6.0))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(14.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            match action {
+                "kill" => {
+                    this.command = Some(CommandLine { kind: CmdKind::Kill, buffer: String::new() });
+                }
+                "interrupt" => {
+                    this.command = Some(CommandLine { kind: CmdKind::InterruptAgent, buffer: String::new() });
+                }
+                _ => {}
+            }
+            cx.notify();
+        }))
 }
 
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
@@ -1275,6 +1480,35 @@ fn conductor_gate_btn(
             });
             cx.notify();
         }))
+}
+
+/// Parse a verb-palette line (`<verb> <args>`) into its concrete `CmdKind` plus
+/// the trimmed argument string. The verb is the first whitespace-delimited token;
+/// everything after is the argument (which may be empty for `done`). Returns
+/// `None` for an unknown verb so the caller can flash a hint. Aliases keep the
+/// muscle memory short (`spawn`/`new`, `cartographer`/`chat`).
+fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
+    let trimmed = text.trim();
+    let (verb, arg) = match trimmed.split_once(char::is_whitespace) {
+        Some((v, rest)) => (v, rest.trim().to_string()),
+        None => (trimmed, String::new()),
+    };
+    let kind = match verb.to_lowercase().as_str() {
+        "note" => CmdKind::Note,
+        "begin" => CmdKind::Begin,
+        "done" | "end" => CmdKind::Done,
+        "propose" | "dispatch" => CmdKind::Propose,
+        "sortie" => CmdKind::Sortie,
+        "claim" => CmdKind::Claim,
+        "release" => CmdKind::Release,
+        "kill" => CmdKind::Kill,
+        "interrupt" | "stop" => CmdKind::InterruptAgent,
+        "spawn" | "new" => CmdKind::Spawn,
+        "cartographer" | "chat" => CmdKind::Cartographer,
+        "pane" | "addpane" => CmdKind::AddPane,
+        _ => return None,
+    };
+    Some((kind, arg))
 }
 
 /// Split a spawn command into `(backend, prompt)`. If the first whitespace
@@ -1583,7 +1817,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · [1-9…] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · : verb-palette (note/begin/done/propose/sortie/claim/release/kill) · [1-9…] surface",
                             )
                     } else {
                         div()
@@ -1641,5 +1875,44 @@ mod add_pane_tests {
         let stamp = build_stamp();
         assert!(stamp.starts_with("pd-console v"), "stamp must name the app: {stamp}");
         assert!(stamp.contains(env!("CARGO_PKG_VERSION")), "stamp must carry the crate version: {stamp}");
+    }
+
+    #[test]
+    fn parse_verb_routes_every_write() {
+        // Each operator write resolves to its concrete CmdKind, arg preserved.
+        let cases = [
+            ("note shipped the gate", CmdKind::Note, "shipped the gate"),
+            ("begin port-daddy:console:main", CmdKind::Begin, "port-daddy:console:main"),
+            ("propose land the console PR", CmdKind::Propose, "land the console PR"),
+            ("sortie refactor the executor", CmdKind::Sortie, "refactor the executor"),
+            ("claim port-daddy:api:main", CmdKind::Claim, "port-daddy:api:main"),
+            ("release port-daddy:api:main", CmdKind::Release, "port-daddy:api:main"),
+            ("kill agent-xyz", CmdKind::Kill, "agent-xyz"),
+            ("interrupt agent-xyz", CmdKind::InterruptAgent, "agent-xyz"),
+        ];
+        for (line, kind, arg) in cases {
+            let (k, a) = parse_verb(line).unwrap_or_else(|| panic!("'{line}' must parse"));
+            assert_eq!(k, kind, "verb in '{line}' must route to {kind:?}");
+            assert_eq!(a, arg, "arg in '{line}' must be preserved");
+        }
+    }
+
+    #[test]
+    fn parse_verb_done_allows_empty_arg_and_aliases() {
+        // `done` with no summary is valid (the summary is optional).
+        assert_eq!(parse_verb("done"), Some((CmdKind::Done, String::new())));
+        assert_eq!(parse_verb("end wrapped up"), Some((CmdKind::Done, "wrapped up".to_string())));
+        // Aliases keep muscle memory short.
+        assert!(matches!(parse_verb("dispatch land it"), Some((CmdKind::Propose, _))));
+        assert!(matches!(parse_verb("chat hey carto"), Some((CmdKind::Cartographer, _))));
+        assert!(matches!(parse_verb("stop agent-1"), Some((CmdKind::InterruptAgent, _))));
+    }
+
+    #[test]
+    fn parse_verb_rejects_unknown_and_is_case_insensitive() {
+        assert!(parse_verb("frobnicate the widget").is_none());
+        assert!(parse_verb("").is_none());
+        // Case folds on the verb token.
+        assert!(matches!(parse_verb("KILL agent-7"), Some((CmdKind::Kill, _))));
     }
 }
