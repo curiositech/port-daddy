@@ -82,25 +82,28 @@ export async function executeFleet(envelope: WebhookEnvelope, env: ExecutorEnv):
     token,
   ).catch(() => 0);
 
-  const results: Array<{ ship: string; status: 'ok' | 'empty' | 'error' }> = [];
+  // Run ships in parallel — faster total wall-clock time and reduces check run timeout risk
+  const resultPairs = await Promise.all(
+    cloudShips.map(async ship => ({
+      ship: ship.name,
+      status: await runShip(ship, prCtx, token, env.AI),
+    })),
+  );
 
-  // Run ships sequentially to avoid hammering Workers AI rate limits
-  for (const ship of cloudShips) {
-    const result = await runShip(ship, prCtx, token, env.AI);
-    results.push({ ship: ship.name, status: result });
-  }
-
-  const summary = results
-    .map(r => `- **pd-${r.ship}**: ${r.status === 'ok' ? '✓ posted' : r.status === 'empty' ? '(clean — no comment)' : '✗ error'}`)
+  const summary = resultPairs
+    .map(r => `- **pd-${r.ship}**: ${r.status === 'ok' ? '✓ posted' : '✗ error'}`)
     .join('\n');
 
+  // Always complete the check run, even if some ships failed
   await completeCheckRun(
     owner,
     repo,
     checkRunId,
-    results.every(r => r.status !== 'error') ? 'success' : 'neutral',
-    summary,
+    resultPairs.every(r => r.status !== 'error') ? 'success' : 'neutral',
+    summary || 'No ships ran.',
     token,
+  ).catch(err =>
+    console.error('completeCheckRun failed', err instanceof Error ? err.message : String(err)),
   );
 }
 
@@ -134,7 +137,8 @@ async function runShip(
     })) as { response?: string };
 
     const output = (res.response ?? '').trim();
-    if (!output || output.length < 10) return 'empty';
+    const isClean = !output || output.length < 10 || /^clean$/i.test(output);
+    const body = isClean ? '✓ No findings.' : output;
 
     await postShipComment(
       prCtx.owner,
@@ -142,7 +146,7 @@ async function runShip(
       prCtx.prNumber,
       ship.name,
       ship.role,
-      output,
+      body,
       token,
     );
 
@@ -169,7 +173,7 @@ function buildSystemPrompt(ship: ShipConfig, contract: string | null): string {
   parts.push(
     '\nYou are running as a Cloudflare Worker with no filesystem or shell access. ' +
       'Analyze the PR diff provided and respond with your findings only. ' +
-      'If you find nothing worth noting, respond with exactly: CLEAN',
+      'If you find nothing worth noting, respond with exactly: CLEAN (the comment will say "✓ No findings.").',
   );
 
   return parts.join('\n\n');
