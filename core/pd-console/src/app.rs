@@ -554,11 +554,41 @@ pub struct ConsoleView {
     flag_motion: FlagMotion,
     /// Last viewport width, to derive horizontal (resize/pan) velocity per frame.
     prev_viewport_w: f32,
+    /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
+    flag_ticking: bool,
 }
 
 impl ConsoleView {
     pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
         Self::with_control(daemon_url, initial_pane, None, cx)
+    }
+
+    /// Advance the flag wave one frame and keep ticking until it settles.
+    /// Driven by `cx.on_next_frame` — safe to schedule from anywhere, unlike
+    /// `window.request_animation_frame()` which panics outside paint (it calls
+    /// `current_view()`, whose entity stack is empty in an event handler).
+    fn tick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let speed = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt();
+        self.flag_motion.phase += speed * 0.9;
+        self.flag_motion.vx *= 0.86;
+        self.flag_motion.vy *= 0.86;
+        let still_moving = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt() > 0.012;
+        if still_moving {
+            cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
+        } else {
+            self.flag_motion.vx = 0.0;
+            self.flag_motion.vy = 0.0;
+            self.flag_ticking = false;
+        }
+        cx.notify();
+    }
+
+    /// Start the settle loop if it isn't already running (idempotent).
+    fn kick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.flag_ticking {
+            self.flag_ticking = true;
+            cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
+        }
     }
 
     /// Construct with a control channel so the Lane's Interrupt button can reach
@@ -598,6 +628,7 @@ impl ConsoleView {
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
+            flag_ticking: false,
         }
     }
 
@@ -1123,8 +1154,7 @@ impl ConsoleView {
                             ScrollDelta::Lines(p) => p.y * 18.0,
                         };
                         this.flag_motion.vy = (this.flag_motion.vy - dy / 50.0).clamp(-1.6, 1.6);
-                        window.request_animation_frame();
-                        cx.notify();
+                        this.kick_flag_motion(window, cx);
                     }))
                     .flex()
                     .flex_col()
@@ -1493,10 +1523,9 @@ impl Focusable for ConsoleView {
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // ── Flag motion. Derive horizontal pole velocity from this frame's
-        // viewport-width change (resize / pane reflow); scroll feeds vy via
-        // on_scroll_wheel. Advance the ripple phase ∝ speed, decay toward rest,
-        // and keep requesting animation frames until it settles — so the flags
-        // wave WHILE moving and go perfectly still (no re-render) when idle.
+        // viewport-width change (resize / pane reflow → left/right); scrolling
+        // feeds vy via on_scroll_wheel. A width change kicks the settle loop,
+        // which decays the velocity over subsequent frames (cx.on_next_frame).
         {
             let vw = f32::from(window.viewport_size().width);
             if self.prev_viewport_w == 0.0 {
@@ -1504,17 +1533,9 @@ impl Render for ConsoleView {
             }
             let dvw = vw - self.prev_viewport_w;
             self.prev_viewport_w = vw;
-            let m = &mut self.flag_motion;
-            m.vx = (m.vx + dvw / 60.0).clamp(-1.6, 1.6);
-            let speed = (m.vx * m.vx + m.vy * m.vy).sqrt();
-            m.phase += speed * 0.9;
-            if speed > 0.01 {
-                m.vx *= 0.86;
-                m.vy *= 0.86;
-                window.request_animation_frame();
-            } else {
-                m.vx = 0.0;
-                m.vy = 0.0;
+            if dvw.abs() > 0.5 {
+                self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
+                self.kick_flag_motion(window, cx);
             }
         }
 
