@@ -49,6 +49,11 @@ export async function handleRoadmapCommand(
   const match = ROADMAP_CMD.exec(commentBody);
   if (!match) return;
 
+  // Only privileged repo members may trigger fleet commands.
+  // author_association is set by GitHub — it cannot be spoofed by the commenter.
+  const assoc = (comment.author_association as string) ?? '';
+  if (!['OWNER', 'MEMBER', 'COLLABORATOR'].includes(assoc)) return;
+
   const [owner, repo] = envelope.repository.full_name.split('/');
   const prNumber = issue.number as number;
   const triggeringCommentId = comment.id as number;
@@ -60,8 +65,8 @@ export async function handleRoadmapCommand(
   ).catch(() => null);
   if (!token) return;
 
-  // Fetch all fleet comments on this PR
-  const allComments = await fetchRawFleetComments(owner, repo, prNumber, token);
+  // Fetch all fleet comments on this PR (filtered to App-authored only)
+  const allComments = await fetchRawFleetComments(owner, repo, prNumber, token, env.GITHUB_APP_ID);
 
   // Collect ideas from spider and spark comments
   const allIdeas: Array<IdeaEntry & { ship: string }> = [];
@@ -146,13 +151,21 @@ export async function handleRoadmapCommand(
   );
 }
 
-// Fetches raw comment objects (body + id) for fleet parsing
+interface RawComment {
+  id: number;
+  body: string;
+  user: { login: string; type: string };
+  performed_via_github_app: { id: number } | null;
+}
+
+/** Fetches PR comments and returns only those authored by this GitHub App bot. */
 async function fetchRawFleetComments(
   owner: string,
   repo: string,
   prNumber: number,
   token: string,
-): Promise<Array<{ id: number; body: string }>> {
+  appId: string,
+): Promise<RawComment[]> {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments?per_page=100`,
     {
@@ -165,5 +178,14 @@ async function fetchRawFleetComments(
     },
   );
   if (!res.ok) return [];
-  return (await res.json()) as Array<{ id: number; body: string }>;
+  const all = (await res.json()) as RawComment[];
+
+  // Only trust idea JSON embedded in comments posted by this GitHub App.
+  // A human or third-party bot could otherwise inject arbitrary idea content.
+  const numericAppId = parseInt(appId, 10);
+  return all.filter(
+    c =>
+      c.user?.type === 'Bot' &&
+      c.performed_via_github_app?.id === numericAppId,
+  );
 }
