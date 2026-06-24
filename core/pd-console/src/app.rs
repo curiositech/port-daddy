@@ -252,7 +252,119 @@ mod motion {
 
 // ── Block renderer ───────────────────────────────────────────────────────────
 
-fn render_block(block: Block) -> impl IntoElement {
+/// Per-frame pole movement that drives the flag wave (the model headlessly
+/// recorded in `core/pd-flag-proto`). A flag's fly edge trails OPPOSITE the pole
+/// velocity — scroll down → cloth trails up; resize/pan right → cloth trails
+/// left — and `phase` only advances while moving, so a still flag does not
+/// animate (zero idle re-render). `Copy` so a snapshot rides into `render_block`.
+#[derive(Clone, Copy, Default)]
+pub struct FlagMotion {
+    pub vx: f32, // horizontal pole velocity (resize / pane-move); + = rightward
+    pub vy: f32, // vertical pole velocity (scroll); + = downward
+    pub phase: f32,
+}
+
+fn smoothstep(u: f32) -> f32 {
+    u * u * (3.0 - 2.0 * u)
+}
+
+/// Scale a packed 0xRRGGBB color by a brightness factor (cloth fold shading).
+fn scale_rgb(c: u32, f: f32) -> u32 {
+    let f = f.clamp(0.0, 1.4);
+    let r = ((((c >> 16) & 0xff) as f32) * f).min(255.0) as u32;
+    let g = ((((c >> 8) & 0xff) as f32) * f).min(255.0) as u32;
+    let b = (((c & 0xff) as f32) * f).min(255.0) as u32;
+    (r << 16) | (g << 8) | b
+}
+
+/// A small waving signal flag drawn as shaded cloth strips via gpui's T2 paint
+/// API (`canvas` + `PathBuilder` + `paint_path`), driven by `FlagMotion`. The
+/// letter rides centered on top. Replaces the old flat badge in `Block::Flag`.
+#[derive(IntoElement)]
+struct WavingFlag {
+    letter: char,
+    color: u32,
+    motion: FlagMotion,
+}
+
+impl RenderOnce for WavingFlag {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        const W: f32 = 46.0;
+        const H: f32 = 28.0;
+        const STRIPS: usize = 14;
+        const LEAN: f32 = 0.40; // fly-edge trail per unit velocity
+        const IDLE_DROOP: f32 = 0.12; // gentle hang at rest
+        const RIPPLE_GAIN: f32 = 0.42; // ripple amplitude per unit speed
+        const RIPPLE_WAVES: f32 = 1.5;
+
+        let FlagMotion { vx, vy, phase } = self.motion;
+        let base = self.color;
+        let letter = self.letter;
+        let speed = (vx * vx + vy * vy).sqrt().min(1.6);
+
+        div()
+            .relative()
+            .w(px(W))
+            .h(px(H))
+            .child(
+                canvas(
+                    |_bounds, _window, _cx| (),
+                    move |bounds, _prepaint, window, _cx| {
+                        let ox = f32::from(bounds.origin.x);
+                        let oy = f32::from(bounds.origin.y);
+                        let bw = f32::from(bounds.size.width);
+                        let bh = f32::from(bounds.size.height);
+                        // Inset the cloth so droop/ripple stay inside the badge.
+                        let ft = oy + 0.14 * bh;
+                        let fh = 0.60 * bh;
+                        let two_pi = std::f32::consts::TAU;
+                        let dx = |u: f32| smoothstep(u) * (-vx) * LEAN * bw;
+                        let dy = |u: f32| {
+                            smoothstep(u) * (-vy) * LEAN * fh
+                                + IDLE_DROOP * fh * u * u
+                                + RIPPLE_GAIN * fh * speed * u * (two_pi * RIPPLE_WAVES * u - phase).sin()
+                        };
+                        for j in 0..STRIPS {
+                            let u0 = j as f32 / STRIPS as f32;
+                            let u1 = (j + 1) as f32 / STRIPS as f32;
+                            let x0 = ox + u0 * bw + dx(u0);
+                            let x1 = ox + u1 * bw + dx(u1);
+                            let d0 = dy(u0);
+                            let d1 = dy(u1);
+                            let um = 0.5 * (u0 + u1);
+                            let fold = (two_pi * RIPPLE_WAVES * um - phase).cos();
+                            let light = 0.82 + 0.34 * fold * (speed / 1.6) + 0.06 * um;
+                            let mut pb = PathBuilder::fill();
+                            pb.move_to(point(px(x0), px(ft + d0)));
+                            pb.line_to(point(px(x1), px(ft + d1)));
+                            pb.line_to(point(px(x1), px(ft + fh + d1)));
+                            pb.line_to(point(px(x0), px(ft + fh + d0)));
+                            pb.close();
+                            if let Ok(path) = pb.build() {
+                                window.paint_path(path, rgb(scale_rgb(base, light)));
+                            }
+                        }
+                    },
+                )
+                .absolute()
+                .size_full(),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .size_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .text_color(rgb(0x0d141f))
+                    .text_size(px(14.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(letter.to_string()),
+            )
+    }
+}
+
+fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
     match block {
         Block::Header(text) => {
             div()
@@ -324,31 +436,15 @@ fn render_block(block: Block) -> impl IntoElement {
                 .into_any_element()
         }
         Block::Flag { letter, label, tone } => {
-            let color = rgb(tone_rgb(&tone));
+            // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
+            // reacts to pane scroll/resize via `motion`; the letter rides it.
             div()
                 .flex()
                 .items_center()
                 .gap(px(8.0))
                 .px(px(16.0))
                 .py(px(3.0))
-                .child(
-                    // The signal flag itself: a bold square hoist in the flag's
-                    // semantic tone, bearing the ICS letter.
-                    div()
-                        .w(px(22.0))
-                        .h(px(22.0))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(3.0))
-                        .border_2()
-                        .border_color(color)
-                        .bg(rgb(current_theme().raised))
-                        .text_color(color)
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::BOLD)
-                        .child(letter.to_string()),
-                )
+                .child(WavingFlag { letter, color: tone_rgb(&tone), motion })
                 .child(
                     div()
                         .text_color(rgb(current_theme().ink))
@@ -1013,7 +1109,7 @@ impl ConsoleView {
                     .overflow_y_scroll()
                     .flex()
                     .flex_col()
-                    .children(blocks.into_iter().map(render_block)),
+                    .children(blocks.into_iter().map(|b| render_block(b, FlagMotion::default()))),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
