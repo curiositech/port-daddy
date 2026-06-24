@@ -3,7 +3,7 @@ license: Apache-2.0
 name: make_copy_and_media_human
 description: Review and rewrite copy, web UI, slides, READMEs, marketing pages, and generated imagery to strip AI-isms — Claudeisms, GPT-isms, Codexisms, Geminisms, and the v0/Lovable design look — producing a line-item fix plan as static HTML. Use before shipping any outward-facing text or design, when something "reads like AI", or when auditing a property for machine tells. NOT for grammar/spell checking, SEO optimization, plagiarism detection, or detecting whether a third party used AI (this is an editing skill, not a forensics tool).
 allowed-tools: Read,Write,Edit,Bash,Grep,Glob,WebFetch
-argument-hint: '[file-or-directory] [--medium prose|web|deck|image] [--report out.html]'
+argument-hint: '[file-or-directory] [--out report.html] [--findings findings.json] [--json findings.json]'
 metadata:
   provenance:
     kind: first-party
