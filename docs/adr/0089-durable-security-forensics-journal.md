@@ -1,4 +1,4 @@
-# 0060. Durable security-forensics journal — security events survive the 7-day prune
+# 0089. Durable security-forensics journal — security events survive the 7-day prune
 
 ## Status
 
