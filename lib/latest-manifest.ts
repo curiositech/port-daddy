@@ -24,6 +24,17 @@
 export const LATEST_MANIFEST_SCHEMA = 1 as const;
 
 /**
+ * Canonical location of the published `latest.json` feed (ADR-0057 §5): the
+ * `latest` release alias gives a stable URL that always points at the newest
+ * release's assets. The single source of truth for both `pd upgrade`
+ * (cli/commands/upgrade.ts re-exports it as DEFAULT_FEED_URL) and the passive
+ * staleness nudge (lib/version-staleness.ts). Overridable via the
+ * `PORT_DADDY_LATEST_FEED` env var or `pd upgrade --feed <url>`.
+ */
+export const DEFAULT_LATEST_FEED_URL =
+  'https://github.com/curiositech/port-daddy/releases/latest/download/latest.json';
+
+/**
  * The distributable surfaces ADR-0057 unifies. `daemon` is the bun-compiled
  * `pd` CLI/daemon (the formula); `console` is the signed `pd-console.app`;
  * `fleetbar` is the signed FleetBar menu-bar `.app`. The MCP server and agent
