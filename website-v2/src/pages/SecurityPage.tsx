@@ -52,42 +52,44 @@ export default function SecurityPage() {
         {/* ── Section hero — lead with the fear, not the formalism ── */}
         <section className="border-b-2 border-[var(--border-strong)] py-[var(--space-7)] lg:py-[var(--space-8)]">
           <PageContainer width="wide">
-            <div className="space-y-[var(--space-4)]">
-              <BracketLabel>The security model</BracketLabel>
-              <PanelTitle as="h1" size="display" className="max-w-[22ch]">
-                An agent you never authorized just edited your code. What stops that?
-              </PanelTitle>
-              <PanelBody className="max-w-[58ch] text-[length:var(--type-panel-body-size)]">
-                You hand six agents a task and walk away. One of them dies halfway
-                through a refactor and leaves the file in a state no test covers.
-                Another claims write access to a module it was never granted. A
-                third is impersonating an agent you <em>did</em> trust, because it
-                got hold of a token. None of these are exotic. They are Tuesday for
-                anyone running a swarm.
-              </PanelBody>
-              <PanelBody className="max-w-[58ch] text-[length:var(--type-panel-body-size)]">
-                Port Daddy&rsquo;s answer is not &ldquo;be careful.&rdquo; It is a
-                small set of rules that make each of those failures impossible to
-                express &mdash; and where it matters most, those rules are checked
-                by a machine, not asserted in a blog post. Here is how each one
-                closes.
-              </PanelBody>
-            </div>
+            <div className="grid items-center gap-[var(--space-6)] lg:grid-cols-[minmax(0,0.52fr)_minmax(0,0.48fr)] lg:gap-[var(--space-7)]">
+              <div className="space-y-[var(--space-4)]">
+                <BracketLabel>The security model</BracketLabel>
+                <PanelTitle as="h1" size="display" className="max-w-[22ch]">
+                  An agent you never authorized just edited your code. What stops that?
+                </PanelTitle>
+                <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                  You hand six agents a task and walk away. One of them dies halfway
+                  through a refactor and leaves the file in a state no test covers.
+                  Another claims write access to a module it was never granted. A
+                  third is impersonating an agent you <em>did</em> trust, because it
+                  got hold of a token. None of these are exotic. They are Tuesday for
+                  anyone running a swarm.
+                </PanelBody>
+                <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
+                  Port Daddy&rsquo;s answer is not &ldquo;be careful.&rdquo; It is a
+                  small set of rules that make each of those failures impossible to
+                  express &mdash; and where it matters most, those rules are checked
+                  by a machine, not asserted in a blog post. Here is how each one
+                  closes.
+                </PanelBody>
+              </div>
 
-            <figure className="mt-[var(--space-6)] m-0">
-              <img
-                src={heroArt}
-                alt="A row of harbor gatekeepers at a customs counter, each inspecting a small signed capability card held up by a hooded coding agent; at the far gate one gatekeeper raises a hand and turns away an agent whose card is crossed out and forged."
-                width={1376}
-                height={768}
-                loading="eager"
-                decoding="async"
-                className="w-full border-2 border-[var(--border-strong)]"
-              />
-              <figcaption className="mt-[var(--space-3)] max-w-[58ch] font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                Every action carries a signed card that says what it may do. The card is checked at every door, cannot be forged, and can only ever grant less than the one it came from.
-              </figcaption>
-            </figure>
+              <figure className="m-0">
+                <img
+                  src={heroArt}
+                  alt="A row of harbor gatekeepers at a customs counter, each inspecting a small signed capability card held up by a hooded coding agent; at the far gate one gatekeeper raises a hand and turns away an agent whose card is crossed out and forged."
+                  width={1376}
+                  height={768}
+                  loading="eager"
+                  decoding="async"
+                  className="w-full border-2 border-[var(--border-strong)]"
+                />
+                <figcaption className="mt-[var(--space-3)] max-w-none font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
+                  Every action carries a signed card that says what it may do. Checked at every door, unforgeable, and only ever granting less than the card it came from.
+                </figcaption>
+              </figure>
+            </div>
           </PageContainer>
         </section>
 
