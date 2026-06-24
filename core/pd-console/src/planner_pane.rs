@@ -129,12 +129,24 @@ struct Epic {
 
 pub struct PlannerPane {
     items: Vec<PlannerItem>,
+    /// slug → who currently holds the live roadmap-pop claim, when present.
+    /// From GET /cartographer/roadmap-claims (active = releasedAt null).
+    claims: std::collections::HashMap<String, String>,
+    /// The live fleet: (identity, purpose, status) per running agent, from
+    /// GET /agents. This is the cockpit's "what agents are working on what" axis —
+    /// each agent's `purpose` is the real task it was spawned on.
+    agents: Vec<(String, String, String)>,
     last_error: Option<String>,
 }
 
 impl Default for PlannerPane {
     fn default() -> Self {
-        Self { items: Vec::new(), last_error: None }
+        Self {
+            items: Vec::new(),
+            claims: std::collections::HashMap::new(),
+            agents: Vec::new(),
+            last_error: None,
+        }
     }
 }
 
@@ -232,6 +244,15 @@ impl Pane for PlannerPane {
             label: format!("{now_n} now · {task_total} tasks · {} epics", epics.len()),
             tone: if now_n > 0 { Tone::Engaged } else { Tone::Resting },
         });
+        // Who's working on what: tasks under an active claim + distinct claimers.
+        let claimed_n = self.items.iter().filter(|i| self.claims.contains_key(&i.slug)).count();
+        if claimed_n > 0 {
+            let agents: std::collections::HashSet<&String> = self.claims.values().collect();
+            blocks.push(Block::Chip {
+                label: format!("{claimed_n} claimed · {} agent(s) working", agents.len()),
+                tone: Tone::Engaged,
+            });
+        }
 
         // Flags banner (reported, never auto-fixed — mirrors the HTML board).
         let dups = self.duplicate_slugs();
@@ -255,6 +276,20 @@ impl Pane for PlannerPane {
             }
         }
 
+        // Fleet — who's working on what: the live agents and their real purposes
+        // (GET /agents). This answers "what agents are working on what" directly.
+        if !self.agents.is_empty() {
+            blocks.push(Block::Gap);
+            blocks.push(Block::Header(format!("fleet — {} agent(s) working", self.agents.len())));
+            for (identity, purpose, status) in self.agents.iter().take(12) {
+                blocks.push(Block::Row(vec![trunc(identity, 34), trunc(purpose, 46)]));
+                blocks.push(Block::Chip { label: status.clone(), tone: status_tone(status) });
+            }
+            if self.agents.len() > 12 {
+                blocks.push(Block::KeyVal("…".into(), format!("+{} more agents", self.agents.len() - 12)));
+            }
+        }
+
         // The tree: epic header, then a row per task with status + priority + deps.
         for epic in &epics {
             blocks.push(Block::Gap);
@@ -263,13 +298,22 @@ impl Pane for PlannerPane {
                 let it = &self.items[idx];
                 let p = priority_for_status(&it.status);
                 let dep_note = if it.deps.is_empty() { String::new() } else { format!("⛓{}", it.deps.len()) };
+                let claimed = self.claims.get(&it.slug);
+                let claim_col = claimed.map(|b| format!("◆ {}", trunc(b, 24))).unwrap_or_default();
                 blocks.push(Block::Row(vec![
-                    trunc(&it.slug, 40),
+                    trunc(&it.slug, 38),
                     it.status.clone(),
                     format!("P{p}"),
                     dep_note,
+                    claim_col,
                 ]));
-                blocks.push(Block::Chip { label: it.status.clone(), tone: status_tone(&it.status) });
+                // Status chip; and when an agent holds the live claim, surface it
+                // (the "who's working on this task" axis) in the Engaged tone.
+                if let Some(by) = claimed {
+                    blocks.push(Block::Chip { label: format!("working: {}", trunc(by, 30)), tone: Tone::Engaged });
+                } else {
+                    blocks.push(Block::Chip { label: it.status.clone(), tone: status_tone(&it.status) });
+                }
             }
         }
         blocks
@@ -291,6 +335,34 @@ impl Pane for PlannerPane {
                     Ok(data) => {
                         self.last_error = None;
                         self.items = arr(&data, "items").iter().map(PlannerItem::from_value).collect();
+                        // Who's working on what: active roadmap claims (releasedAt null).
+                        self.claims.clear();
+                        let curl = format!("{}/cartographer/roadmap-claims", daemon.base());
+                        if let Ok(cr) = daemon.http_client().get(&curl).send().await {
+                            if let Ok(cv) = cr.json::<Value>().await {
+                                for c in arr(&cv, "claims") {
+                                    let active = matches!(c.get("releasedAt"), None | Some(Value::Null));
+                                    let slug = s(c, "slug");
+                                    let by = s(c, "claimedBy");
+                                    if active && !slug.is_empty() && !by.is_empty() {
+                                        self.claims.insert(slug, by);
+                                    }
+                                }
+                            }
+                        }
+                        // The live fleet — who's working on what (each agent's purpose).
+                        self.agents.clear();
+                        let aurl = format!("{}/agents", daemon.base());
+                        if let Ok(ar) = daemon.http_client().get(&aurl).send().await {
+                            if let Ok(av) = ar.json::<Value>().await {
+                                for a in arr(&av, "agents") {
+                                    let identity = s(a, "identity");
+                                    if !identity.is_empty() {
+                                        self.agents.push((identity, s(a, "purpose"), s(a, "status")));
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
             }
@@ -382,5 +454,33 @@ mod tests {
         let total: usize = p.epics().iter().map(|e| e.tasks.len()).sum();
         assert_eq!(total, 2);
         assert_eq!(p.duplicate_slugs(), vec!["dup ×2".to_string()]);
+    }
+
+    #[test]
+    fn view_annotates_claimed_tasks_with_working_agent() {
+        let mut p = PlannerPane::default();
+        p.items = vec![item("adr-0048-phase-0", "now", "x"), item("adr-0048-phase-1", "now", "y")];
+        p.claims.insert("adr-0048-phase-0".into(), "agent-foo".into());
+        let b = p.view();
+        // the claimed task shows its working agent
+        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { label, .. } if label.contains("working: agent-foo"))));
+        // and a summary chip reports how many agents are working
+        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { label, .. } if label.contains("agent(s) working"))));
+        // an unclaimed task keeps a plain status chip (no working: prefix)
+        let working_chips = b.iter().filter(|blk| matches!(blk, Block::Chip { label, .. } if label.starts_with("working:"))).count();
+        assert_eq!(working_chips, 1);
+    }
+
+    #[test]
+    fn view_shows_live_fleet_with_purposes() {
+        let mut p = PlannerPane::default();
+        p.items = vec![item("adr-0048-phase-0", "now", "x")];
+        p.agents = vec![
+            ("port-daddy:roadmap-delete".into(), "roadmap delete verb + harbor fix".into(), "ready".into()),
+            ("port-daddy:release-3211".into(), "Cut 3.21.1".into(), "ready".into()),
+        ];
+        let b = p.view();
+        assert!(b.iter().any(|blk| matches!(blk, Block::Header(h) if h.contains("fleet") && h.contains("2 agent"))));
+        assert!(b.iter().any(|blk| matches!(blk, Block::Row(c) if c.iter().any(|x| x.contains("roadmap delete verb")))));
     }
 }
