@@ -648,6 +648,11 @@ impl ConsoleView {
         if let Some(nav) = initial {
             if NAV.iter().any(|n| n.id == nav) {
                 ws.swap_surface(surface_for_nav_id(nav));
+            } else if let Some(surface) = surface_for_query(nav) {
+                // Non-NAV surfaces (e.g. `--pane filetree`, `--pane "edit <path>"`)
+                // route through the command-palette resolver so screenshot tooling
+                // can open the Harbor Editor / FileTree without keystroke injection.
+                ws.swap_surface(surface);
             }
         }
         ws
