@@ -25,6 +25,8 @@
 #[allow(dead_code)]
 #[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
+#[allow(dead_code)]
+#[path = "../editor_pane.rs"]    mod editor_pane;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]     mod fleet_pane;

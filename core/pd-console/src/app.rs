@@ -21,7 +21,7 @@ use gpui::*;
 use crate::agent::{Backend, ModelCatalog, Tier};
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
-use crate::pane::{Alert, AlertLevel, Block, Tone};
+use crate::pane::{Alert, AlertLevel, Block, Pane, Tone};
 use crate::tokens;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -215,7 +215,19 @@ fn build_stamp() -> String {
 /// Matches a NAV label/id/key by case-insensitive prefix, plus the two
 /// non-nav surfaces ("chat" → cartographer, "files"/"tree" → file tree).
 fn surface_for_query(query: &str) -> Option<SurfaceKind> {
-    let q = query.trim().to_lowercase();
+    let trimmed = query.trim();
+    // `:edit <path>` (or `edit <path>`) opens the Harbor Editor surface on a file.
+    // Keep the raw (case-preserving) path — file systems are case-sensitive.
+    if let Some(path) = trimmed
+        .strip_prefix(":edit ")
+        .or_else(|| trimmed.strip_prefix("edit "))
+    {
+        let path = path.trim();
+        if !path.is_empty() {
+            return Some(SurfaceKind::Editor { path: path.to_string(), region: None });
+        }
+    }
+    let q = trimmed.to_lowercase();
     if q.is_empty() {
         return None;
     }
@@ -465,6 +477,80 @@ mod motion {
             spread_radius: px(0.0),
         }]
     }
+}
+
+// ── FileTree directory listing ───────────────────────────────────────────────
+
+/// One row in the FileTree surface: a child of the listed directory.
+#[derive(Debug, Clone)]
+struct FileEntry {
+    /// Display name (basename), with a trailing `/` for directories.
+    name: String,
+    /// Absolute path to open / descend into.
+    path: String,
+    is_dir: bool,
+}
+
+/// Resolve the FileTree root: an explicit `root`, else the current working
+/// directory (the operator's repo). Returns the canonical-ish path string.
+fn filetree_root(root: Option<&str>) -> String {
+    match root {
+        Some(r) if !r.is_empty() => r.to_string(),
+        _ => std::env::current_dir()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| ".".into()),
+    }
+}
+
+/// Read `root`'s immediate children: directories first (alpha), then files
+/// (alpha). Hidden dotfiles are kept (a repo's `.github` etc. matter). Errors and
+/// huge dirs are bounded so the surface can't wedge.
+fn filetree_entries(root: Option<&str>) -> std::result::Result<Vec<FileEntry>, String> {
+    let dir = filetree_root(root);
+    let mut entries: Vec<FileEntry> = Vec::new();
+    let read = std::fs::read_dir(&dir).map_err(|e| format!("{dir}: {e}"))?;
+    for ent in read.flatten() {
+        let path = ent.path();
+        let is_dir = path.is_dir();
+        let name = ent.file_name().to_string_lossy().into_owned();
+        entries.push(FileEntry {
+            name: if is_dir { format!("{name}/") } else { name },
+            path: path.to_string_lossy().into_owned(),
+            is_dir,
+        });
+        if entries.len() >= 1000 {
+            break; // bound: never enumerate an absurd directory in the render path
+        }
+    }
+    entries.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(entries)
+}
+
+/// The FileTree surface as read-only `Block`s (the terminal face + the GPUI
+/// fallback when not specially rendered). The interactive, clickable GPUI version
+/// lives in `render_leaf`'s FileTree body.
+fn filetree_blocks(root: Option<&str>) -> Vec<Block> {
+    let dir = filetree_root(root);
+    let mut blocks = vec![Block::Header(format!("files {dir}"))];
+    match filetree_entries(root) {
+        Err(e) => blocks.push(Block::KeyVal("error".into(), e)),
+        Ok(entries) if entries.is_empty() => {
+            blocks.push(Block::KeyVal("status".into(), "empty directory".into()));
+        }
+        Ok(entries) => {
+            for e in entries {
+                blocks.push(Block::Row(vec![
+                    if e.is_dir { "▸".into() } else { " ".into() },
+                    e.name,
+                ]));
+            }
+        }
+    }
+    blocks
 }
 
 // ── Block renderer ───────────────────────────────────────────────────────────
@@ -971,6 +1057,22 @@ impl ConsoleView {
         // — no background NAV pane, no windags call yet.
         if matches!(surface, SurfaceKind::Conjure) {
             return crate::conjure::blocks_for_conjure(&self.conjure_dag);
+        }
+        // The Harbor Editor surface reads its file from local disk and renders a
+        // gutter view. P0 reads synchronously here (the file read is bounded by
+        // EditorPane's line cap, so it can't wedge the render); P1+ swaps this for
+        // a daemon/blob fetch via the async `refresh()`.
+        if let SurfaceKind::Editor { path, region } = surface {
+            let mut pane = crate::editor_pane::EditorPane::new(path.clone(), *region);
+            pane.load();
+            return pane.view();
+        }
+        // The FileTree surface renders an interactive directory listing — but the
+        // clickable rows are built in `render_leaf` (Blocks are non-interactive);
+        // here we emit the same listing as read-only Blocks so the terminal face
+        // (`term.rs`) shows the tree too.
+        if let SurfaceKind::FileTree { root } = surface {
+            return filetree_blocks(root.as_deref());
         }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
@@ -1777,6 +1879,14 @@ impl ConsoleView {
         // How many nodes "Dispatch DAG" would spawn (non-HITL-gated) vs hold back.
         let conjure_dispatch_count = crate::conjure::dispatch_targets(&self.conjure_dag).len();
         let conjure_gated_count = crate::conjure::gated_node_count(&self.conjure_dag);
+        // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
+        // opens the Editor surface; a directory row descends (rebinds the root).
+        let filetree: Option<(Option<String>, Vec<FileEntry>)> = match surface {
+            SurfaceKind::FileTree { root } => {
+                Some((root.clone(), filetree_entries(root.as_deref()).unwrap_or_default()))
+            }
+            _ => None,
+        };
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
@@ -1868,8 +1978,8 @@ impl ConsoleView {
             // reachable instead of clipped (needs a stable id for scroll state).
             // The Conjure surface leads with the INLINE Vello node-graph (the
             // beautiful default view), then the per-node text/partition/contracts.
-            .child(
-                div()
+            .child({
+                let body = div()
                     .id(SharedString::from(format!("pane-body-{id}")))
                     .flex_1()
                     .overflow_y_scroll()
@@ -1898,9 +2008,30 @@ impl ConsoleView {
                         .when_some(conjure_png, |b, path| {
                             b.child(conjure_graphic(id, Some(path), &conjure_title))
                         })
-                    })
-                    .children(blocks.into_iter().map(move |b| render_block(b, motion))),
-            )
+                    });
+                match filetree {
+                    // FileTree: interactive clickable rows (open file / descend dir).
+                    Some((root, entries)) => {
+                        let dir = filetree_root(root.as_deref());
+                        let mut b = body.child(
+                            div()
+                                .px(px(16.0))
+                                .pt(px(12.0))
+                                .pb(px(6.0))
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(15.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(format!("files {dir}")),
+                        );
+                        for entry in entries {
+                            b = b.child(render_filetree_row(id, entry, cx));
+                        }
+                        b
+                    }
+                    // Every other surface: the generic read-agnostic Block renderer.
+                    None => body.children(blocks.into_iter().map(move |b| render_block(b, motion))),
+                }
+            })
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
                 content.child(
@@ -3015,6 +3146,55 @@ fn pane_ctrl(
         }))
 }
 
+/// One clickable FileTree row. Activating a **file** focuses this pane and swaps
+/// it to the Harbor Editor surface on that file; activating a **directory**
+/// rebinds the FileTree root to descend (the existing expand behavior). This is
+/// the P0 `FileTree → open-in-Editor` wiring.
+fn render_filetree_row(
+    id: PaneId,
+    entry: FileEntry,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let is_dir = entry.is_dir;
+    let path = entry.path.clone();
+    let marker = if is_dir { "▸" } else { " " };
+    div()
+        .id(SharedString::from(format!("ftrow-{id}-{}", entry.path)))
+        .flex()
+        .gap(px(10.0))
+        .px(px(16.0))
+        .py(px(3.0))
+        .cursor_pointer()
+        .hover(|s| s.bg(rgb(current_theme().raised)))
+        .child(
+            div()
+                .w(px(12.0))
+                .flex_shrink_0()
+                .text_color(rgb(current_theme().muted))
+                .text_size(px(14.0))
+                .child(marker),
+        )
+        .child(
+            div()
+                .text_color(rgb(if is_dir { current_theme().accent_ink } else { current_theme().ink }))
+                .text_size(px(14.0))
+                .font_family("IBM Plex Mono")
+                .child(entry.name.clone()),
+        )
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.ws_mut().focus(id);
+            if is_dir {
+                // Descend: rebind the FileTree root to this directory.
+                this.ws_mut().bind_entity(Some(path.clone()));
+            } else {
+                // Open the file in the Harbor Editor surface.
+                this.ws_mut()
+                    .swap_surface(SurfaceKind::Editor { path: path.clone(), region: None });
+            }
+            cx.notify();
+        }))
+}
+
 /// Map an existing nav id to the richest matching surface (semantic where one
 /// exists, generic `Panel` otherwise).
 fn surface_for_nav_id(nav: &str) -> SurfaceKind {
@@ -3043,6 +3223,7 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         // neither is backed by a bg NAV pane.
         SurfaceKind::CartographerChat
         | SurfaceKind::FileTree { .. }
+        | SurfaceKind::Editor { .. }
         | SurfaceKind::Hitl
         | SurfaceKind::Conjure => None,
     }
@@ -3561,6 +3742,43 @@ mod add_pane_tests {
         assert!(matches!(surface_for_query("plan"), Some(SurfaceKind::Conjure)));
         // Conjure is not backed by a NAV pane — it renders the fixture DAG.
         assert!(nav_id_for_surface(&SurfaceKind::Conjure).is_none());
+    }
+
+    #[test]
+    fn edit_verb_opens_editor_surface_on_a_path() {
+        // `:edit <path>` and the bare `edit <path>` both open the Harbor Editor,
+        // preserving the path's case (file systems are case-sensitive).
+        match surface_for_query(":edit core/pd-console/src/Mux.rs") {
+            Some(SurfaceKind::Editor { path, region }) => {
+                assert_eq!(path, "core/pd-console/src/Mux.rs");
+                assert_eq!(region, None);
+            }
+            other => panic!("expected Editor surface, got {other:?}"),
+        }
+        assert!(matches!(
+            surface_for_query("edit README.md"),
+            Some(SurfaceKind::Editor { .. })
+        ));
+        // `:edit` with no path is not an Editor open (falls through to nav match).
+        assert!(!matches!(surface_for_query(":edit "), Some(SurfaceKind::Editor { .. })));
+    }
+
+    #[test]
+    fn filetree_entries_list_dirs_first_then_files() {
+        // The crate's own src/ has both files and (no) subdirs; assert the sort
+        // contract against a synthesized listing instead of the real FS shape.
+        let dir = std::env::var("HOME")
+            .map(|h| std::path::PathBuf::from(h).join("coding/tmp/pd-harbor-ft-test"))
+            .unwrap_or_else(|_| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/ft-test"));
+        std::fs::create_dir_all(dir.join("zsub")).unwrap();
+        std::fs::write(dir.join("afile.txt"), "x").unwrap();
+        std::fs::write(dir.join("bfile.txt"), "y").unwrap();
+        let entries = filetree_entries(Some(&dir.to_string_lossy())).expect("listing");
+        // Directory ("zsub/") sorts before files despite z > a/b alphabetically.
+        assert!(entries[0].is_dir);
+        assert_eq!(entries[0].name, "zsub/");
+        let files: Vec<&str> = entries.iter().filter(|e| !e.is_dir).map(|e| e.name.as_str()).collect();
+        assert_eq!(files, vec!["afile.txt", "bfile.txt"]);
     }
 
     #[test]

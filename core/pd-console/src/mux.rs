@@ -39,6 +39,12 @@ pub enum SurfaceKind {
     CartographerChat,
     /// Filetree rooted at a repo/worktree path (`None` = the operator's repo).
     FileTree { root: Option<String> },
+    /// Read-only editor surface hosting one file from local disk. The Harbor
+    /// Editor's P0 walking skeleton: `path` is the file to host; `region` is an
+    /// optional 1-based inclusive `(start, end)` line span to scroll to / mark
+    /// (the seam P1 authorship color and P3 claim bands paint into). P0 has no
+    /// buffer, no CRDT, no networking — it reads the file and renders it.
+    Editor { path: String, region: Option<(u32, u32)> },
     /// Daemon health / runtime state.
     DaemonHealth,
     /// All running fleet agents at a glance.
@@ -71,6 +77,10 @@ impl SurfaceKind {
             SurfaceKind::CartographerChat => "cartographer".into(),
             SurfaceKind::FileTree { root: Some(r) } => format!("files {r}"),
             SurfaceKind::FileTree { root: None } => "files".into(),
+            SurfaceKind::Editor { path, .. } => {
+                let base = path.rsplit(['/', '\\']).next().filter(|s| !s.is_empty()).unwrap_or(path);
+                format!("edit {base}")
+            }
             SurfaceKind::DaemonHealth => "daemon".into(),
             SurfaceKind::Fleet => "fleet".into(),
             SurfaceKind::Sessions => "sessions".into(),
@@ -277,6 +287,13 @@ impl Workspace {
             match s {
                 SurfaceKind::AgentTranscript { agent_id } => *agent_id = entity,
                 SurfaceKind::FileTree { root } => *root = entity,
+                // Rebind the Editor onto a different file. `None` clears the host
+                // (the pane keeps its kind but shows an empty/error face). Rebinding
+                // the path resets `region` — a different file's spans are unrelated.
+                SurfaceKind::Editor { path, region } => {
+                    *path = entity.unwrap_or_default();
+                    *region = None;
+                }
                 _ => {}
             }
         }
@@ -542,6 +559,29 @@ mod tests {
         assert_eq!(ws.focused_surface(), &agent("a2"));
         ws.bind_entity(None);
         assert_eq!(ws.focused_surface(), &SurfaceKind::AgentTranscript { agent_id: None });
+    }
+
+    #[test]
+    fn editor_label_is_basename_only() {
+        let e = SurfaceKind::Editor { path: "core/pd-console/src/mux.rs".into(), region: None };
+        assert_eq!(e.label(), "edit mux.rs");
+        // A bare filename (no separators) labels as itself.
+        let bare = SurfaceKind::Editor { path: "README.md".into(), region: Some((3, 9)) };
+        assert_eq!(bare.label(), "edit README.md");
+    }
+
+    #[test]
+    fn bind_entity_repoints_editor_and_clears_region() {
+        let mut ws = Workspace::new(SurfaceKind::Editor {
+            path: "a.txt".into(),
+            region: Some((2, 4)),
+        });
+        ws.bind_entity(Some("b.txt".into()));
+        assert_eq!(
+            ws.focused_surface(),
+            &SurfaceKind::Editor { path: "b.txt".into(), region: None },
+            "rebinding the path resets the region — a different file's spans are unrelated",
+        );
     }
 
     #[test]

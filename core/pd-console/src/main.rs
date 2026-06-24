@@ -17,6 +17,7 @@ mod claims_pane;
 mod cockpit_pane;
 mod conjure;
 mod dispatch_pane;
+mod editor_pane;
 mod fleet_pane;
 mod grid;
 mod health_pane;
