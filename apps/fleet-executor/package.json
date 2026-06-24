@@ -1,0 +1,22 @@
+{
+  "name": "@port-daddy/fleet-executor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker — cloud fleet executor. Queue consumer that runs Port Daddy fleet ships on Workers AI and posts PR check runs / comments, with per-ship blocking verdict semantics.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^3.78.0"
+  }
+}

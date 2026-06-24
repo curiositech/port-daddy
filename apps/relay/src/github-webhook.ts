@@ -39,7 +39,7 @@ import {
   ChainError,
 } from './db.js';
 import { harborChannelKey } from './harbor-channel.js';
-import type { Env, RelayEvent, ChainHead, RelayError } from './types.js';
+import type { Env, RelayEvent, ChainHead, RelayError, FleetRunJob } from './types.js';
 
 function err(code: string, detail: string, status = 400): Response {
   const body: RelayError = { error: detail, code };
@@ -232,6 +232,54 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
     }
   } catch {
     return err('INGEST_FAILED', 'relay storage error while publishing webhook', 503);
+  }
+
+  // 7. Hand ONE job per delivery to the fleet-executor queue. Guarded: a queue
+  //    failure (or the queue not yet provisioned) must NOT fail the webhook —
+  //    we've already published to channels. The executor's own retry/DLQ owns
+  //    durability from here. installation.id / pull_request.number are read
+  //    from the verified payload (no GitHub API call from the relay).
+  if (env.FLEET_RUNS) {
+    const installation =
+      payload.installation && typeof payload.installation === 'object'
+        ? (payload.installation as Record<string, unknown>)
+        : null;
+    const pull =
+      payload.pull_request && typeof payload.pull_request === 'object'
+        ? (payload.pull_request as Record<string, unknown>)
+        : null;
+    const job: FleetRunJob = {
+      deliveryId,
+      eventType,
+      action,
+      repoFullName,
+      installationId:
+        installation && typeof installation.id === 'number' ? installation.id : null,
+      prNumber: pull && typeof pull.number === 'number' ? pull.number : null,
+      payloadMinimal: {
+        sender: (payload.sender as Record<string, unknown>) ?? undefined,
+        repository: (payload.repository as Record<string, unknown>) ?? undefined,
+        pull_request: pull ?? undefined,
+        push: (payload.push as Record<string, unknown>) ?? undefined,
+      },
+    };
+    try {
+      await env.FLEET_RUNS.send(job);
+      await appendAudit(env.DB, {
+        action: 'fleet_run_enqueued',
+        target: repoFullName ?? '',
+        detail: `event=${eventType} delivery=${deliveryId}`,
+      });
+    } catch {
+      // Best-effort: record and move on. The webhook still succeeds (204);
+      // a missed enqueue means the executor simply doesn't run for this
+      // delivery — the required check stays absent (PR blocked), never green.
+      await appendAudit(env.DB, {
+        action: 'fleet_run_enqueue_failed',
+        target: repoFullName ?? '',
+        detail: `event=${eventType} delivery=${deliveryId}`,
+      }).catch(() => {});
+    }
   }
 
   return new Response(null, { status: 204 });

@@ -1,0 +1,44 @@
+name = "fleet-executor"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ---------------------------------------------------------------------------
+# Workers AI — runs the analytical ships (code-reviewer, qa, red-team, …).
+[ai]
+binding = "AI"
+
+# ---------------------------------------------------------------------------
+# KV — installation-token cache. Keyed by `github_inst_<installationId>`,
+# value `{ token, expiresAt }`, TTL set to (expiresAt - 60s). Avoids re-minting
+# a GitHub App installation token for every ship in the same fleet run.
+[[kv_namespaces]]
+binding = "FLEET_TOKENS"
+id = "<set-via: wrangler kv:namespace create FLEET_TOKENS>"
+
+# ---------------------------------------------------------------------------
+# Queue consumer — one message per GitHub delivery, enqueued by relay.
+# A blocking ship that never completes must never leave a green/pending gate,
+# so after `max_retries` exhausted the message lands in the DLQ where a
+# follow-up handler completes the check run as 'failure' (fail-closed).
+[[queues.consumers]]
+queue = "fleet-runs"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "fleet-runs-dlq"
+
+# ---------------------------------------------------------------------------
+# Plaintext vars. GITHUB_APP_PRIVATE_KEY is a *secret*, set out-of-band:
+#   echo "123456" | wrangler secret put GITHUB_APP_ID        # (or var, below)
+#   cat app-key.pem | wrangler secret put GITHUB_APP_PRIVATE_KEY
+# DEFAULT_BRANCH is the TRUSTED ref every config/contract file is read from.
+# It is NEVER pull_request.head — that is the zero-trust invariant.
+[vars]
+GITHUB_APP_ID = "3810450"
+DEFAULT_BRANCH = "main"
+
+# ---------------------------------------------------------------------------
+# Secrets (documented; set via `wrangler secret put`, never committed):
+#   GITHUB_APP_PRIVATE_KEY   PEM-encoded GitHub App private key
+#   GITHUB_APP_ID            (may be a secret instead of a var if preferred)
