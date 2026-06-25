@@ -158,6 +158,15 @@ export interface SpawnSpec {
    * channel — same default sortie/orchestrator spawns have always used.
    */
   tubeChannel?: string;
+  /**
+   * Giant Squid Harness (ADR-0091) opt-in. When true, the `claude-cli` /
+   * `cli:claude-code` launch first injects the pd-hook-* tentacles into the
+   * workspace's `.claude/settings.json` (via lib/squid/adapter.ts) so the
+   * UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
+   * own loop. Off by default — existing spawns are byte-for-byte unchanged. The
+   * actor identity used by the lock gate comes from `spec.identity` / PD_ACTOR.
+   */
+  injectSquidHooks?: boolean;
 }
 
 export interface SpawnResult {
@@ -1037,6 +1046,18 @@ export function parseClaudeCliResult(raw: string, task: string): BackendRunResul
 }
 
 async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
+  // Giant Squid Harness (ADR-0091): optionally sink the pd-hook-* tentacles into
+  // this workspace's .claude/settings.json BEFORE the CLI boots, so the
+  // UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
+  // own loop. Single, opt-in, fail-open call site — never blocks the launch.
+  if (spec.injectSquidHooks) {
+    try {
+      const { ClaudeCliSquidAdapter } = await import('./squid/adapter.js');
+      await new ClaudeCliSquidAdapter().injectHooks(spec.workdir || process.cwd());
+    } catch (err) {
+      console.warn(`[spawner] squid hook injection skipped: ${(err as Error).message}`);
+    }
+  }
   // `--output-format json` makes the CLI report its own exact usage, which we
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.

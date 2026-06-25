@@ -1,0 +1,81 @@
+#!/bin/sh
+# pd-hook-pre-tool — PreToolUse tentacle (ADR-0091, Giant Squid Harness)
+# =============================================================================
+# Claude Code invokes this BEFORE running a tool, passing the PreToolUse event
+# JSON on stdin: { tool_name, tool_input: { file_path|path|... }, cwd, ... }.
+#
+# This is the QUARTERMASTER (file locks) tentacle and the load-bearing ENFORCED
+# gate of the harness (ADR Success Criterion G2). If the requested file target is
+# locked in the Ink Cloud by a DIFFERENT actor (PD_LOCK_<path> = someone-else),
+# we `exit 2`. Claude Code treats exit code 2 on PreToolUse as a hard BLOCK: the
+# tool does not run, and our stderr is fed back into the agent's context as the
+# denial reason. exit 0 = allow.
+#
+# Failure posture: on ANY parse error we fail OPEN (exit 0) — we never crash the
+# CLI loop. A missed lock is degraded coordination; a crashed loop is a broken
+# product (ADR §Mitigation).
+set -u
+
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
+# This agent's identity; the daemon sets PD_ACTOR per voyage. Unknown → "".
+SELF="${PD_ACTOR:-}"
+
+EVENT="$(cat 2>/dev/null || true)"
+[ -n "$EVENT" ] || exit 0          # no event → nothing to gate, allow
+[ -f "$MATRIX" ] || exit 0         # no matrix → no locks, allow
+
+# ── Extract the file target + tool name from the event ──────────────────────
+TOOL=""
+TARGET=""
+if command -v jq >/dev/null 2>&1; then
+  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .tool // empty' 2>/dev/null || true)"
+  # Claude Code Edit/Write/MultiEdit put the path under tool_input.file_path;
+  # also check a few common aliases so codex/gemini parity is graceful.
+  TARGET="$(printf '%s' "$EVENT" | jq -r '
+      .tool_input.file_path
+      // .tool_input.path
+      // .tool_input.notebook_path
+      // .params.file_path
+      // .target
+      // empty' 2>/dev/null || true)"
+else
+  # jq-less fallback: grep the first "file_path":"..." out of the JSON. Crude but
+  # dependency-free; only the path matters for the gate.
+  TARGET="$(printf '%s' "$EVENT" \
+    | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  TOOL="$(printf '%s' "$EVENT" \
+    | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+
+# No file target (e.g. Bash/Grep) → nothing to lock-check, allow.
+[ -n "$TARGET" ] || exit 0
+
+# ── Compute the canonical PD_LOCK_<path> key (matches lib/squid/matrix.ts) ──
+# keySuffix(): non-alnum → "_", trim "_", uppercase, cap 80. Mirror it in sed.
+suffix() {
+  printf '%s' "$1" \
+    | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+//; s/_+$//' \
+    | tr '[:lower:]' '[:upper:]' \
+    | cut -c1-80
+}
+LOCK_KEY="PD_LOCK_$(suffix "$TARGET")"
+
+# Read the current owner from the matrix (single grep).
+LINE="$(grep -E "^${LOCK_KEY}=" "$MATRIX" 2>/dev/null | head -n1 || true)"
+[ -n "$LINE" ] || exit 0           # not locked → allow
+
+OWNER="$(printf '%s' "$LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
+
+# Locked by US (or owner unknowable and we have no identity) → allow our own edit.
+if [ -z "$OWNER" ]; then
+  exit 0
+fi
+if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
+  exit 0
+fi
+
+# Locked by ANOTHER actor → ENFORCED BLOCK. stderr becomes the agent's denial.
+echo "[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${TARGET}' is locked by actor '${OWNER}'." >&2
+echo "Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing." >&2
+exit 2

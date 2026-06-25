@@ -1,0 +1,103 @@
+#!/bin/sh
+# pd-hook-post-tool — PostToolUse tentacle (ADR-0091, Giant Squid Harness)
+# =============================================================================
+# Claude Code invokes this AFTER a tool runs, passing the PostToolUse event JSON
+# on stdin: { tool_name, tool_input, tool_response|tool_result, cwd, ... }.
+#
+# This is "Heaving the Log" (pheromones). When the CLI successfully MUTATES a
+# file (Edit/Write/MultiEdit/NotebookEdit), we acquire the matrix lock and append
+# a PD_PHEROMONE_<subject>_<ts> trace into the Ink Cloud. K≥8 agents may do this
+# concurrently; the lock keeps every appended line intact (ADR Success G5).
+#
+# Locking: prefer flock(1) when present (Linux). On macOS flock does NOT exist;
+# we fall back to an atomic `mkdir` lock — the SAME lock directory the TS layer
+# (lib/squid/matrix.ts) uses, so the two never tear each other's writes.
+#
+# Failure posture: always exit 0. A failed pheromone append is degraded
+# coordination, never a broken loop.
+set -u
+
+PD_HOME="${PD_HOME:-$HOME/.port-daddy}"
+MATRIX="${PD_MATRIX_FILE:-$PD_HOME/matrix.env}"
+LOCKDIR="${MATRIX}.lock"
+SELF="${PD_ACTOR:-unknown}"
+
+EVENT="$(cat 2>/dev/null || true)"
+[ -n "$EVENT" ] || exit 0
+
+# ── Extract tool + file target + success signal ─────────────────────────────
+TOOL=""
+TARGET=""
+if command -v jq >/dev/null 2>&1; then
+  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .tool // empty' 2>/dev/null || true)"
+  TARGET="$(printf '%s' "$EVENT" | jq -r '
+      .tool_input.file_path
+      // .tool_input.path
+      // .tool_input.notebook_path
+      // empty' 2>/dev/null || true)"
+else
+  TOOL="$(printf '%s' "$EVENT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  TARGET="$(printf '%s' "$EVENT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+
+# Only file-mutating tools leave a pheromone. Read-only tools are no-ops.
+case "$TOOL" in
+  Edit|Write|MultiEdit|NotebookEdit|edit|write|create|str_replace_editor|apply_patch) : ;;
+  *) [ -n "$TARGET" ] || exit 0 ;;   # unknown tool but a target → still record
+esac
+[ -n "$TARGET" ] || exit 0
+
+# ── subject suffix (mirror lib/squid/matrix.ts keySuffix) ───────────────────
+suffix() {
+  printf '%s' "$1" \
+    | sed -E 's/[^A-Za-z0-9]+/_/g; s/^_+//; s/_+$//' \
+    | tr '[:lower:]' '[:upper:]' \
+    | cut -c1-80
+}
+TS_EPOCH="$(date +%s)000"
+KEY="PD_PHEROMONE_$(suffix "$TARGET")_${TS_EPOCH}"
+ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
+VAL="${TARGET} | mutated via ${TOOL:-tool} | intensity:1 | actor:${SELF} | ts:${ISO}"
+
+# ── Acquire the lock (flock if present, else mkdir) and append atomically ────
+append_line() {
+  mkdir -p "$PD_HOME" 2>/dev/null || true
+  [ -f "$MATRIX" ] || {
+    {
+      echo '# ============================================================================'
+      echo '# PORT DADDY STIGMERGIC ATTENTION MATRIX  (~/.port-daddy/matrix.env)'
+      echo '# The Ink Cloud (ADR-0091). Hot cache for pd-hook-* tentacles. POSIX-readable.'
+      echo ''
+    } > "$MATRIX"
+  }
+  printf '%s="%s"\n' "$KEY" "$VAL" >> "$MATRIX"
+}
+
+if command -v flock >/dev/null 2>&1; then
+  # Linux fast path: flock on a sibling lock FILE.
+  ( flock 9; append_line ) 9>"${MATRIX}.flock" 2>/dev/null || append_line
+else
+  # Portable path (macOS): mkdir-atomic lock, retry briefly, break if stale.
+  i=0
+  while [ "$i" -lt 200 ]; do
+    if mkdir "$LOCKDIR" 2>/dev/null; then
+      append_line
+      rmdir "$LOCKDIR" 2>/dev/null || true
+      break
+    fi
+    # break a stale lock (> ~30s old) so a crashed agent can't wedge the cloud
+    if [ -d "$LOCKDIR" ]; then
+      # `find -mmin` is portable enough across macOS/Linux for staleness.
+      if find "$LOCKDIR" -maxdepth 0 -mmin +0.5 2>/dev/null | grep -q .; then
+        rmdir "$LOCKDIR" 2>/dev/null || true
+      fi
+    fi
+    i=$((i + 1))
+    # tiny sleep without spawning sleep(1) on the hot path when avoidable
+    sleep 0.01 2>/dev/null || :
+  done
+  # Fell through without the lock → append anyway (fail open; line is one write).
+  [ -d "$LOCKDIR" ] && append_line
+fi
+
+exit 0
