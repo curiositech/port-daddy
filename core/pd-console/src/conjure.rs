@@ -410,6 +410,88 @@ fn inspector_blocks(dag: &PredictedDag, wave_index: usize, node: &PredictedNode)
     blocks
 }
 
+// ── DISPATCH ──────────────────────────────────────────────────────────────────
+//
+// Turn predicted nodes into real spawn requests, routed by `model_tier` to the
+// right vendor, and run them through the console's EXISTING spawn path (the same
+// `DaemonClient::spawn` the operator's manual Spawn command uses, which calls the
+// daemon's existing multi-vendor spawner `lib/spawner.ts`). This module owns only
+// the pure request-shaping + HITL gating; `app.rs`/`main.rs` own the transport.
+//
+// HONEST FRAMING: live dispatch is env-dependent — it needs the daemon up and the
+// target vendor CLI installed + launchable (codex / claude-cli already pass
+// readiness; gemini if installed). The Giant Squid Harness (ADR-0091, Proposed /
+// NOT BUILT) is the FUTURE coordination upgrade for richer in-loop vendor-hook
+// orchestration. This slice wires + tests the spawn path; it does not depend on
+// the daemon being up to compile or to unit-test the request shaping.
+
+use crate::agent::{backend_for_tier, Backend};
+
+/// A spawn request shaped from one [`PredictedNode`], ready to hand to the
+/// console's existing spawn path. The fields map 1:1 onto `DaemonClient::spawn`
+/// args: `backend` (vendor chosen by `model_tier`), `goal` (the agent's task
+/// prompt, built from the node's role + why), and `skill_id` (the skill the
+/// agent loads). The transport layer adds the project/channel and calls `spawn`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DispatchRequest {
+    /// Stable node id this request came from (for the dispatched-note + alerts).
+    pub node_id: String,
+    /// The vendor to spawn on, resolved from `model_tier` via the multi-vendor map.
+    pub backend: Backend,
+    /// The skill the spawned agent loads (e.g. "api-architect").
+    pub skill_id: String,
+    /// The agent's task prompt: the node's role plus its rationale.
+    pub goal: String,
+    /// The capability/vendor tier string the node carried (for display).
+    pub model_tier: String,
+}
+
+/// Build the spawn request for a single node — the multi-vendor routing happens
+/// here: `backend = backend_for_tier(node.model_tier)`. The goal is the node's
+/// `role_description` (what to do) plus its `why` (the rationale) so the spawned
+/// agent has the same grounding the operator sees in the Conjure surface. The
+/// skill id is passed straight through so the agent loads the predicted skill.
+pub fn dispatch_request_for(node: &PredictedNode) -> DispatchRequest {
+    let mut goal = node.role_description.trim().to_string();
+    let why = node.why.trim();
+    if !why.is_empty() {
+        // Keep the prompt self-describing: the role is the instruction, the
+        // why is the context. A spawned agent reads both.
+        goal = format!("{goal}\n\nWhy this matters: {why}");
+    }
+    DispatchRequest {
+        node_id: node.id.clone(),
+        backend: backend_for_tier(&node.model_tier),
+        skill_id: node.skill_id.clone(),
+        goal,
+        model_tier: node.model_tier.clone(),
+    }
+}
+
+/// Select the nodes that "Dispatch DAG" should auto-spawn, RESPECTING THE HITL
+/// GATE: a node with `ask_user_before_proceeding` is **excluded** here (it must
+/// be dispatched one at a time via an explicit confirm, never swept up in a
+/// dispatch-all). Returns one [`DispatchRequest`] per eligible node, in wave
+/// order, so the caller can fire them through the existing spawn path.
+pub fn dispatch_targets(dag: &PredictedDag) -> Vec<DispatchRequest> {
+    dag.waves
+        .iter()
+        .flat_map(|w| w.nodes.iter())
+        .filter(|n| !n.ask_user_before_proceeding)
+        .map(dispatch_request_for)
+        .collect()
+}
+
+/// How many nodes in the DAG are HITL-gated (held back from dispatch-all) — used
+/// to honestly tell the operator "dispatched N, held back M for your approval".
+pub fn gated_node_count(dag: &PredictedDag) -> usize {
+    dag.waves
+        .iter()
+        .flat_map(|w| w.nodes.iter())
+        .filter(|n| n.ask_user_before_proceeding)
+        .count()
+}
+
 /// A real 3-wave fixture DAG mirroring `docs/CONJURE-DAG-SURFACE.md` — the
 /// foundation surface renders this until the windags call lands (later slice).
 /// The three nodes deliberately span the three commitment levels so the toned
@@ -929,5 +1011,90 @@ mod tests {
         let has_gemini = blocks.iter().any(|b| matches!(b, Block::KeyVal(k, v)
             if k.contains("model") && v.contains("gemini")));
         assert!(has_gemini, "model_tier renders generically (gemini, not just claude)");
+    }
+
+    // ── DISPATCH ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn dispatch_request_builds_backend_goal_and_skill() {
+        // A fixture node → a spawn request: vendor from model_tier, goal carrying
+        // the role_description, skill_id passed through.
+        let node = PredictedNode {
+            id: "build-panel".into(),
+            skill_id: "beautiful-gui-design".into(),
+            role_description: "Build the provider-settings panel".into(),
+            why: "The flow needs a real, accessible surface".into(),
+            model_tier: "gemini".into(),
+            ..Default::default()
+        };
+        let req = dispatch_request_for(&node);
+        // The vendor is chosen by the tier (multi-vendor: gemini, not claude).
+        assert_eq!(req.backend, Backend::Gemini);
+        // The skill the agent loads is the node's skill.
+        assert_eq!(req.skill_id, "beautiful-gui-design");
+        // The goal contains the role_description AND the rationale.
+        assert!(req.goal.contains("Build the provider-settings panel"));
+        assert!(req.goal.contains("The flow needs a real, accessible surface"));
+        // The node id is carried for the dispatched-note / alert.
+        assert_eq!(req.node_id, "build-panel");
+    }
+
+    #[test]
+    fn dispatch_request_goal_survives_empty_why() {
+        let node = PredictedNode {
+            id: "n".into(),
+            skill_id: "research".into(),
+            role_description: "Survey the codebase".into(),
+            why: String::new(),
+            model_tier: "opus".into(),
+            ..Default::default()
+        };
+        let req = dispatch_request_for(&node);
+        assert_eq!(req.backend, Backend::ClaudeCli, "opus → Claude Code");
+        assert_eq!(req.goal, "Survey the codebase", "no why ⇒ goal is just the role");
+    }
+
+    #[test]
+    fn dispatch_all_excludes_hitl_gated_nodes() {
+        // The fixture's release node is HITL-gated; dispatch-all must skip it and
+        // count it as held back, while every un-gated node produces a request.
+        let dag = fixture();
+        let total: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
+        let gated = gated_node_count(&dag);
+        assert!(gated >= 1, "the fixture has at least one HITL-gated node");
+
+        let targets = dispatch_targets(&dag);
+        assert_eq!(targets.len(), total - gated, "dispatch-all skips the gated node(s)");
+
+        // None of the produced requests come from a gated node id.
+        let gated_ids: Vec<String> = dag
+            .waves
+            .iter()
+            .flat_map(|w| w.nodes.iter())
+            .filter(|n| n.ask_user_before_proceeding)
+            .map(|n| n.id.clone())
+            .collect();
+        for req in &targets {
+            assert!(
+                !gated_ids.contains(&req.node_id),
+                "a HITL-gated node ({}) must never be auto-dispatched",
+                req.node_id
+            );
+        }
+    }
+
+    #[test]
+    fn dispatch_targets_span_multiple_vendors() {
+        // The fixture spans Claude tiers (opus/sonnet/haiku) → ClaudeCli; a synthetic
+        // gemini node proves the targets really route to different vendors.
+        let mut dag = fixture();
+        dag.waves[0].nodes[0].model_tier = "gemini".into();
+        let backends: Vec<Backend> = dispatch_targets(&dag).iter().map(|r| r.backend).collect();
+        assert!(backends.contains(&Backend::Gemini), "a gemini node routes to Gemini");
+        assert!(backends.contains(&Backend::ClaudeCli), "the claude-tier nodes route to Claude Code");
+        // Genuinely multi-vendor: at least two distinct backends in the dispatch set.
+        let distinct = backends.iter().filter(|&&b| b == Backend::Gemini).count() >= 1
+            && backends.iter().filter(|&&b| b == Backend::ClaudeCli).count() >= 1;
+        assert!(distinct, "dispatch spans Gemini AND Claude Code — multi-vendor");
     }
 }

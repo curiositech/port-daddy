@@ -404,6 +404,77 @@ fn main() {
                                     }
                                 });
                             }
+                            // Conjure DISPATCH: spawn each committed (non-HITL-gated)
+                            // node on the vendor its model_tier chose, through the
+                            // SAME client.spawn the manual Spawn command uses (the
+                            // daemon's existing multi-vendor spawner / lib/spawner.ts).
+                            // Each outcome is surfaced as an Alert exactly like Spawn:
+                            // Info with the agent id on launch, Error on a refusal
+                            // (unknown/non-launchable backend, budget/worktree guard,
+                            // or an embedded preflight block). Live launch is env-
+                            // dependent (daemon up + vendor CLI installed); the Giant
+                            // Squid Harness (ADR-0091, Proposed/not built) is the
+                            // FUTURE in-loop vendor-hook coordination upgrade.
+                            app::ControlMsg::ConjureDispatch { requests, gated } => {
+                                let total = requests.len();
+                                if gated > 0 {
+                                    let _ = alert_tx.send(pane::Alert::info(
+                                        format!("conjure dispatch: {total} node(s) → vendors"),
+                                        format!("{gated} HITL-gated node(s) held back for explicit approval"),
+                                    ));
+                                }
+                                for req in requests {
+                                    let tier = req.model_tier;
+                                    let node_id = req.node_id;
+                                    let skill = req.skill_id;
+                                    // The node's chosen vendor (already resolved from
+                                    // model_tier via agent::backend_for_tier on the
+                                    // foreground); re-parse the wire id to a Backend.
+                                    match agent::Backend::parse(&req.backend) {
+                                        None => {
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                format!("dispatch failed ({node_id})"),
+                                                format!("unknown backend '{}' for tier '{tier}'", req.backend),
+                                            ));
+                                        }
+                                        Some(b) => {
+                                            // Seed the goal with the skill the node
+                                            // predicted, so the spawned agent loads it.
+                                            let goal = if skill.is_empty() {
+                                                req.goal.clone()
+                                            } else {
+                                                format!("[skill: {skill}] {}", req.goal)
+                                            };
+                                            // EXISTING spawn path — same method, same
+                                            // channel convention as ControlMsg::Spawn.
+                                            match client.spawn(b, &goal, "operator", None).await {
+                                                Err(e) => {
+                                                    let _ = alert_tx.send(pane::Alert::error(
+                                                        format!("dispatch rejected ({node_id} → {})", req.backend),
+                                                        e.to_string(),
+                                                    ));
+                                                }
+                                                Ok(outcome) => {
+                                                    if let Some(err) = outcome.error {
+                                                        let _ = alert_tx.send(pane::Alert::error(
+                                                            format!("dispatch blocked ({node_id} → {})", req.backend),
+                                                            err,
+                                                        ));
+                                                    } else {
+                                                        let _ = alert_tx.send(pane::Alert::info(
+                                                            format!(
+                                                                "dispatched {node_id} → {} agent {}",
+                                                                req.backend, outcome.id
+                                                            ),
+                                                            format!("tier {tier} · {}", outcome.status),
+                                                        ));
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 

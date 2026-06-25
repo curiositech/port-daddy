@@ -61,6 +61,28 @@ pub enum ControlMsg {
     /// shell-out runs on a blocking worker so it never stalls the refresh loop and
     /// never touches the gpui render thread.
     RenderConjureGraph { dag_json: String, title: String },
+    /// Dispatch the committed (non-HITL-gated) Conjure nodes to live agents. Each
+    /// request carries the vendor backend chosen by the node's `model_tier`
+    /// (the multi-vendor map), the goal prompt (role + why), and the skill id. The
+    /// worker spawns each through the SAME `DaemonClient::spawn` the manual Spawn
+    /// command uses (the daemon's existing multi-vendor spawner), and surfaces each
+    /// outcome as an Alert — Info with the agent id on launch, Error on a refusal.
+    /// `gated` is how many nodes were held back behind the HITL gate, reported so
+    /// the operator knows the dispatch was partial by design.
+    ConjureDispatch { requests: Vec<ConjureDispatchRequest>, gated: usize },
+}
+
+/// A flattened, transport-ready spawn request for one Conjure node — the wire
+/// form of `conjure::DispatchRequest` carried across the control channel to the
+/// background worker. `backend` is the daemon spawner id string (e.g. "gemini",
+/// "claude-cli") already resolved from the node's `model_tier`.
+#[derive(Debug, Clone)]
+pub struct ConjureDispatchRequest {
+    pub node_id: String,
+    pub backend: String,
+    pub skill_id: String,
+    pub goal: String,
+    pub model_tier: String,
 }
 
 /// Which command line is open at the bottom of the console.
@@ -1025,6 +1047,54 @@ impl ConsoleView {
         }
     }
 
+    /// Dispatch the committed (non-HITL-gated) nodes of the current Conjure DAG to
+    /// live agents — the DISPATCH slice. Each node routes to the vendor backend its
+    /// `model_tier` names (the multi-vendor map in `agent::backend_for_tier`) and is
+    /// spawned through the EXACT spawn path the manual Spawn command uses
+    /// (`DaemonClient::spawn` → the daemon's existing multi-vendor spawner). HITL-
+    /// gated nodes (`ask_user_before_proceeding`) are EXCLUDED here by
+    /// `conjure::dispatch_targets`; they need an explicit per-node confirm, so a
+    /// "Dispatch DAG" sweep never auto-launches them. The foreground only shapes the
+    /// requests + flips a flash; the worker performs the spawns and reports each
+    /// outcome as an Alert (the same surface the Spawn command uses).
+    ///
+    /// HONEST FRAMING: live launch is env-dependent — the daemon must be up and the
+    /// target vendor CLI installed + launchable. The Giant Squid Harness (ADR-0091,
+    /// Proposed / not built) is the FUTURE upgrade for richer in-loop vendor-hook
+    /// coordination; this slice wires the real spawn path, not that harness.
+    fn dispatch_conjure_dag(&mut self) {
+        let targets = crate::conjure::dispatch_targets(&self.conjure_dag);
+        let gated = crate::conjure::gated_node_count(&self.conjure_dag);
+        if targets.is_empty() {
+            self.control_flash = Some(if gated > 0 {
+                format!("nothing to dispatch — all {gated} node(s) are HITL-gated; confirm each one")
+            } else {
+                "nothing to dispatch — the DAG has no nodes".into()
+            });
+            return;
+        }
+        let requests: Vec<ConjureDispatchRequest> = targets
+            .into_iter()
+            .map(|r| ConjureDispatchRequest {
+                node_id: r.node_id,
+                backend: r.backend.as_str().to_string(),
+                skill_id: r.skill_id,
+                goal: r.goal,
+                model_tier: r.model_tier,
+            })
+            .collect();
+        let count = requests.len();
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::ConjureDispatch { requests, gated });
+            let held = if gated > 0 { format!(" · {gated} held for your gate") } else { String::new() };
+            self.control_flash =
+                Some(format!("dispatching {count} node(s) to their vendors…{held} watch Alerts"));
+        } else {
+            // No control plane (an isolated test view): nothing to spawn against.
+            self.control_flash = Some("dispatch unavailable — no control plane".into());
+        }
+    }
+
     /// Push fresh data for all panes from the background refresh loop.
     /// Each entry is (nav_index, blocks_for_that_pane); `dispatch_head` is the
     /// head-of-queue dispatch for the review gate (None when the queue is empty).
@@ -1130,6 +1200,9 @@ impl ConsoleView {
         let is_conjure = matches!(surface, SurfaceKind::Conjure);
         let conjure_flash = self.control_flash.clone();
         let conjure_wave_count = self.conjure_dag.waves.len();
+        // How many nodes "Dispatch DAG" would spawn (non-HITL-gated) vs hold back.
+        let conjure_dispatch_count = crate::conjure::dispatch_targets(&self.conjure_dag).len();
+        let conjure_gated_count = crate::conjure::gated_node_count(&self.conjure_dag);
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
@@ -1427,12 +1500,40 @@ impl ConsoleView {
                                     cx.notify();
                                 })),
                         )
+                        // ── Dispatch DAG — spawn the committed (non-HITL-gated) nodes
+                        //    to their vendors (model_tier → backend), each through the
+                        //    SAME DaemonClient::spawn the manual Spawn command uses.
+                        //    Disabled-looking (muted) when there is nothing to send. ──
+                        .when(conjure_dispatch_count > 0, |row| {
+                            row.child(
+                                div()
+                                    .id("conjure-dispatch")
+                                    .px(px(12.0))
+                                    .py(px(5.0))
+                                    .rounded(px(6.0))
+                                    .border_1()
+                                    .border_color(rgb(current_theme().accent))
+                                    .text_color(rgb(current_theme().accent_ink))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|s| {
+                                        s.bg(rgb(current_theme().raised))
+                                            .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
+                                    })
+                                    .child(format!("\u{2693} Dispatch DAG ({conjure_dispatch_count})"))
+                                    .on_click(cx.listener(|this, _ev, _window, cx| {
+                                        this.dispatch_conjure_dag();
+                                        cx.notify();
+                                    })),
+                            )
+                        })
                         .child(
                             div()
                                 .text_color(rgb(current_theme().muted))
                                 .text_size(px(13.0))
                                 .child(format!(
-                                    "{conjure_wave_count} waves \u{00b7} Vello offscreen \u{2192} PNG (no window, no TCC)"
+                                    "{conjure_wave_count} waves \u{00b7} dispatch {conjure_dispatch_count} to vendors \u{00b7} {conjure_gated_count} gated \u{00b7} Vello \u{2192} PNG"
                                 )),
                         )
                         .when_some(conjure_flash, |bar, flash| {

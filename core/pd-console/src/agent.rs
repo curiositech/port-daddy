@@ -82,6 +82,43 @@ impl Backend {
     }
 }
 
+/// THE MULTI-VENDOR MAP — route a Conjure node's free-string `model_tier`
+/// (`"opus"` / `"sonnet"` / `"haiku"` / `"gemini"` / `"codex"` / `"groq"` /
+/// `"gpt"` / …) to the daemon spawner Backend that should run it.
+///
+/// This is what makes Conjure dispatch genuinely multi-vendor instead of
+/// Claude-only: a node tagged `gemini` spawns on Gemini, a node tagged `codex`
+/// spawns on Codex, a node tagged `groq` on Groq — each through the SAME
+/// `DaemonClient::spawn` path the operator's manual Spawn command uses, which
+/// hits the daemon's existing vendor spawner (`lib/spawner.ts`). That spawner
+/// launches the vendor CLI backends that are installed + pass readiness
+/// (codex / claude-cli already do; gemini if installed). It does NOT require
+/// the unbuilt Giant Squid Harness (ADR-0091, Proposed) — that is the FUTURE
+/// upgrade for richer in-loop vendor-hook coordination, not a prerequisite here.
+///
+/// `model_tier` is a CAPABILITY string ("opus") or a VENDOR string ("gemini"),
+/// because the planner emits both shapes. Claude tiers (opus/sonnet/haiku) map
+/// to `ClaudeCli` — Claude Code (Max) is the Prime default and is launchable
+/// without an API key. An unknown / empty tier also falls back to `ClaudeCli`,
+/// so a node can never fail to route: the worst case is "the default vendor".
+pub fn backend_for_tier(model_tier: &str) -> Backend {
+    match model_tier.trim().to_ascii_lowercase().as_str() {
+        // Claude capability tiers + the bare vendor name → Claude Code (Max).
+        "opus" | "sonnet" | "haiku" | "claude" | "claude-cli" | "claude-code" => {
+            Backend::ClaudeCli
+        }
+        "gemini" | "google" => Backend::Gemini,
+        "codex" => Backend::Codex,
+        "groq" => Backend::Groq,
+        "openai" | "gpt" | "gpt-4" | "gpt-4o" | "o1" | "o3" => Backend::Openai,
+        "ollama" | "local" => Backend::Ollama,
+        "aider" => Backend::Aider,
+        // Unknown / empty: the Prime default. Claude Max never bounces on a
+        // missing API key, so this is the safe "still launchable" fallback.
+        _ => Backend::ClaudeCli,
+    }
+}
+
 /// A capability tier the operator picks instead of memorising model ids. The
 /// tier is provider-agnostic; the concrete model is resolved at spawn time from
 /// the [`ModelCatalog`] config — never hard-coded — so the model list never goes
@@ -747,6 +784,27 @@ mod tests {
             assert_eq!(Backend::parse(b.as_str()), Some(b));
         }
         assert!(Backend::parse("nope").is_none());
+    }
+
+    #[test]
+    fn backend_for_tier_is_multi_vendor() {
+        // Claude capability tiers all route to Claude Code (the Prime/Max default).
+        assert_eq!(backend_for_tier("opus"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier("sonnet"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier("haiku"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier("claude"), Backend::ClaudeCli);
+        // The actual multi-vendor proof: non-Claude tiers route to OTHER vendors.
+        assert_eq!(backend_for_tier("gemini"), Backend::Gemini);
+        assert_eq!(backend_for_tier("codex"), Backend::Codex);
+        assert_eq!(backend_for_tier("groq"), Backend::Groq);
+        assert_eq!(backend_for_tier("openai"), Backend::Openai);
+        assert_eq!(backend_for_tier("gpt"), Backend::Openai);
+        assert_eq!(backend_for_tier("ollama"), Backend::Ollama);
+        // Case + whitespace tolerant (planner output is a free string).
+        assert_eq!(backend_for_tier("  GEMINI "), Backend::Gemini);
+        // Unknown / empty falls back to the launchable default, never panics.
+        assert_eq!(backend_for_tier("frobnicate"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier(""), Backend::ClaudeCli);
     }
 
     #[test]
