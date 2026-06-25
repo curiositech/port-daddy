@@ -1,18 +1,18 @@
 name: Roadmap Link Gate
 
-# Non-blocking gate: does this PR declare the roadmap item it advances?
+# Blocking gate: does this PR declare the roadmap item it advances?
+# `roadmap-link` is a required status check in branch protection, so it must
+# report on every ref the merge queue evaluates.
 #
-# IMPORTANT: do NOT add this job to the branch-protection "required status
-# checks" list. It is meant to be advisory — a red check here is a loud signal,
-# not a merge block. Its teeth are the `needs-roadmap-link` label, which the
-# land/auto-merge flow treats as "hold for a human".
-#
-# Merge-queue parity: a merge_group head has no PR body / roadmap link to
-# check, so if this check were ever added to the required-checks list it would
-# hang the queue forever waiting for a report that never comes. The merge_group
-# trigger below makes it report as a pass-through (exit 0) instead. The
-# substantive check still only runs at pull_request time — a rebase in the
-# queue does not change a PR's roadmap declaration.
+# Merge-queue parity: the queue evaluates required checks on the temporary
+# merge_group ref, not the PR branch. A merge_group head has no PR body /
+# roadmap link to check, so without a merge_group trigger this required check
+# would never report there — the queue would wait until timeout and eject the
+# PR despite green PR checks. The merge_group trigger below makes it report as
+# a pass-through (exit 0): the substantive check runs at pull_request time, and
+# a rebase in the queue does not change a PR's roadmap declaration, so the PR
+# verdict is sufficient. Its other teeth — the `needs-roadmap-link` label the
+# land/auto-merge flow treats as "hold for a human" — are unchanged.
 
 on:
   pull_request:
