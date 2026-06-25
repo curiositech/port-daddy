@@ -657,6 +657,9 @@ pub struct ConsoleView {
     /// the Conjure surface. `None` until a render lands (the surface shows a
     /// "rendering graph…" placeholder). Auto-refreshed whenever the DAG changes.
     conjure_png_path: Option<std::path::PathBuf>,
+    /// The node the operator clicked in the live Conjure canvas — drives the
+    /// inspector drawer (full role/contracts/why/model/cost). `None` ⇒ no drawer.
+    conjure_selected: Option<String>,
     /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
     /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
     launcher_open: bool,
@@ -708,6 +711,7 @@ impl ConsoleView {
             // default Conjure view shows the node-graph immediately (no blank
             // pane on first open). Only set when the file actually exists.
             conjure_png_path: default_conjure_png().filter(|p| p.exists()),
+            conjure_selected: None,
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
@@ -1375,6 +1379,8 @@ impl ConsoleView {
                 let waves = dag.waves.len();
                 let title = dag.title.clone();
                 self.conjure_dag = dag;
+                // A fresh DAG — drop any node selection from the prior graph.
+                self.conjure_selected = None;
                 // The new DAG hasn't been rendered yet — drop the stale PNG so the
                 // surface shows the "rendering graph…" placeholder until it lands.
                 self.conjure_png_path = None;
@@ -1579,7 +1585,18 @@ impl ConsoleView {
                     .flex()
                     .flex_col()
                     .when(is_conjure, |body| {
-                        body.child(conjure_graphic(id, conjure_png, &conjure_title))
+                        // The LIVE native canvas is the default view (animated,
+                        // interactive); the Vello PNG is an optional poster below,
+                        // shown only once the operator renders it.
+                        body.child(conjure_canvas(
+                            id,
+                            &self.conjure_dag,
+                            self.conjure_selected.as_deref(),
+                            cx,
+                        ))
+                        .when_some(conjure_png, |b, path| {
+                            b.child(conjure_graphic(id, Some(path), &conjure_title))
+                        })
                     })
                     .children(blocks.into_iter().map(render_block)),
             )
@@ -1830,6 +1847,401 @@ impl ConsoleView {
             })
             .into_any_element()
     }
+}
+
+/// Commitment → render accent (mirrors the Vello scene's `commitment_color`):
+/// COMMITTED is the strongest signal (canary), EXPLORATORY the faintest.
+fn commitment_accent(level: &str) -> u32 {
+    let t = current_theme();
+    match level.to_ascii_uppercase().as_str() {
+        "COMMITTED" => t.accent,
+        "TENTATIVE" => t.cobalt,
+        "EXPLORATORY" => t.muted,
+        _ => t.line,
+    }
+}
+
+/// Vendor-distinct chip accent (mirrors the Vello scene's `vendor_accent`): the
+/// tier label renders verbatim, but the chip color reads the vendor family so the
+/// operator scans vendors at a glance.
+fn vendor_accent(tier: &str) -> u32 {
+    let t = current_theme();
+    let s = tier.to_ascii_lowercase();
+    let has = |n: &str| s.contains(n);
+    if has("opus") || has("sonnet") || has("haiku") || has("claude") {
+        t.accent
+    } else if has("gemini") {
+        t.landed
+    } else if has("codex") || has("gpt") || has("o1") || has("o3") {
+        0x_b6_9c_ff // violet — no palette role, matches the Vello codex chip
+    } else if has("groq") || has("llama") || has("mixtral") {
+        t.engaged
+    } else {
+        t.muted
+    }
+}
+
+/// Truncate to `max` chars on a char boundary, with an ellipsis.
+fn trunc_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let kept: String = s.chars().take(max.saturating_sub(1)).collect();
+        format!("{kept}\u{2026}")
+    }
+}
+
+/// One live, interactive node card in the Conjure canvas. Themed to the same
+/// maritime palette as the Vello render: a commitment-colored border + rail, a
+/// vendor chip, a cost/time footer, an HITL gate marker, hover-lift, and — for
+/// COMMITTED nodes — a continuously BREATHING glow (the "presence beacon", a
+/// looping `with_animation`) so the graph is visibly alive, not a static image.
+/// Clicking the card selects it, opening the inspector drawer.
+fn conjure_card(
+    id: PaneId,
+    node: &crate::conjure::PredictedNode,
+    is_selected: bool,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let theme = current_theme();
+    let accent = commitment_accent(&node.commitment_level);
+    let committed = node.commitment_level.eq_ignore_ascii_case("COMMITTED");
+    let tentative = node.commitment_level.eq_ignore_ascii_case("TENTATIVE");
+    let vchip = vendor_accent(&node.model_tier);
+    let nid = node.id.clone();
+    let skill = trunc_chars(&node.skill_id, 30);
+    let role = trunc_chars(&node.role_description, 116);
+    let model = if node.model_tier.is_empty() {
+        "\u{2014}".to_string()
+    } else {
+        trunc_chars(&node.model_tier, 14)
+    };
+    let metrics = format!(
+        "${:.2} \u{00b7} {:.0}m{}",
+        node.estimated_cost_usd,
+        node.estimated_minutes,
+        if node.cascade_depth > 0 {
+            format!(" \u{00b7} casc {}", node.cascade_depth)
+        } else {
+            String::new()
+        }
+    );
+    let gate = node.ask_user_before_proceeding;
+    let border = if is_selected { theme.accent } else { accent };
+    let bg = if is_selected { theme.raised } else { theme.panel };
+
+    let card = div()
+        .id(SharedString::from(format!("conjure-card-{id}-{nid}")))
+        .flex()
+        .flex_col()
+        .gap(px(6.0))
+        .w(px(248.0))
+        .p(px(12.0))
+        .rounded(px(12.0))
+        .border_1()
+        .border_color(rgb(border))
+        .bg(rgb(bg))
+        .cursor_pointer()
+        .hover(move |s| {
+            s.bg(rgb(theme.raised))
+                .border_color(rgb(theme.accent))
+                .shadow(motion::glow(theme.accent, 0.34, 16.0, 1.0))
+        })
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.conjure_selected = Some(nid.clone());
+            crate::audio::play(crate::audio::Cue::Tick);
+            cx.notify();
+        }))
+        // Header: a commitment-colored skill eyebrow + an optional HITL gate flag.
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(6.0))
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(accent))
+                        .child(skill),
+                )
+                .when(gate, |r| {
+                    r.child(
+                        div()
+                            .text_size(px(11.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(theme.gated))
+                            .child("\u{26d4} GATE"),
+                    )
+                }),
+        )
+        // Role — what this agent does in context.
+        .child(
+            div()
+                .text_size(px(14.0))
+                .text_color(rgb(theme.ink))
+                .child(role),
+        )
+        // Footer: a vendor model-tier chip + a success-tinted cost/time line.
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .px(px(8.0))
+                        .py(px(2.0))
+                        .rounded_full()
+                        .border_1()
+                        .border_color(rgb(vchip))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(vchip))
+                        .child(model),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .text_color(rgb(theme.landed))
+                        .child(metrics),
+                ),
+        );
+
+    if committed {
+        // The breathing glow — a looping halo that proves the graph is live.
+        card.with_animation(
+            SharedString::from(format!("conjure-pulse-{id}-{}", node.id)),
+            Animation::new(Duration::from_millis(2200))
+                .repeat()
+                .with_easing(pulsating_between(0.0, 1.0)),
+            move |el, delta| el.shadow(motion::glow(accent, 0.16 + 0.30 * delta, 15.0, 0.0)),
+        )
+        .into_any_element()
+    } else {
+        let a = if tentative { 0.16 } else { 0.07 };
+        card.shadow(motion::glow(accent, a, 10.0, 0.0)).into_any_element()
+    }
+}
+
+/// The LIVE, interactive Conjure node-graph rendered natively in gpui — the
+/// default view of the Conjure surface. Replaces the static Vello PNG as the
+/// primary graphic: wave columns of [`conjure_card`]s (commitment-themed,
+/// breathing, hover-lit, clickable), an editorial header, and — when a node is
+/// selected — a full inspector drawer. The Vello PNG remains reachable as an
+/// optional "poster" beneath, rendered on demand by the "Render graph" action.
+fn conjure_canvas(
+    id: PaneId,
+    dag: &crate::conjure::PredictedDag,
+    selected: Option<&str>,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let theme = current_theme();
+    let n_nodes: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
+    let title = if dag.title.is_empty() {
+        "predicted DAG".to_string()
+    } else {
+        dag.title.clone()
+    };
+    let classification = if dag.problem_classification.is_empty() {
+        "unclassified".to_string()
+    } else {
+        dag.problem_classification.clone()
+    };
+    let meta = format!(
+        "{classification}  \u{00b7}  {} waves  \u{00b7}  {} nodes  \u{00b7}  ~{:.0}m  \u{00b7}  ${:.2}  \u{00b7}  {:.0}% confidence",
+        dag.waves.len(),
+        n_nodes,
+        dag.estimated_total_minutes,
+        dag.estimated_total_cost_usd,
+        dag.confidence * 100.0,
+    );
+
+    // Wave columns — a horizontal lane per wave, each a stack of node cards.
+    let columns: Vec<AnyElement> = dag
+        .waves
+        .iter()
+        .map(|wave| {
+            let cap = format!(
+                "WAVE {}  {}",
+                wave.wave_number,
+                if wave.parallelizable { "//  PARALLEL" } else { "\u{00b7}  SERIAL" }
+            );
+            let cards: Vec<AnyElement> = wave
+                .nodes
+                .iter()
+                .map(|node| conjure_card(id, node, selected == Some(node.id.as_str()), cx))
+                .collect();
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(12.0))
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(theme.muted))
+                        .child(cap),
+                )
+                .children(cards)
+                .into_any_element()
+        })
+        .collect();
+
+    // The selected node's full inspector (role, why, contracts, model, cost…).
+    let inspector: Option<AnyElement> = selected
+        .and_then(|sel| dag.waves.iter().flat_map(|w| &w.nodes).find(|n| n.id == sel))
+        .map(|node| conjure_inspector(node, cx));
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(10.0))
+        .px(px(12.0))
+        .pt(px(12.0))
+        .pb(px(8.0))
+        // Eyebrow.
+        .child(
+            div()
+                .text_size(px(12.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(theme.accent_ink))
+                .child(SharedString::from(format!(
+                    "\u{2693} CONJURE \u{00b7} LIVE PREDICTED DAG \u{00b7} {}",
+                    title.to_uppercase()
+                ))),
+        )
+        // Meta strip.
+        .child(
+            div()
+                .text_size(px(14.0))
+                .text_color(rgb(theme.muted))
+                .font_family("IBM Plex Mono")
+                .child(meta),
+        )
+        // The scrolling wave-column canvas.
+        .child(
+            div()
+                .id(SharedString::from(format!("conjure-cols-{id}")))
+                .flex()
+                .gap(px(30.0))
+                .py(px(8.0))
+                .overflow_x_scroll()
+                .children(columns),
+        )
+        .when_some(inspector, |c, insp| c.child(insp))
+        .into_any_element()
+}
+
+/// The node inspector drawer — the rich click-inspection the operator asked for:
+/// every field of the selected node, in full, with a close affordance.
+fn conjure_inspector(
+    node: &crate::conjure::PredictedNode,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let theme = current_theme();
+    let accent = commitment_accent(&node.commitment_level);
+    let row = |k: &'static str, v: String| {
+        div()
+            .flex()
+            .gap(px(10.0))
+            .child(
+                div()
+                    .w(px(140.0))
+                    .flex_shrink_0()
+                    .text_size(px(13.0))
+                    .text_color(rgb(theme.muted))
+                    .child(k),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(px(13.0))
+                    .text_color(rgb(theme.ink2))
+                    .child(v),
+            )
+    };
+
+    div()
+        .mt(px(6.0))
+        .p(px(14.0))
+        .rounded(px(12.0))
+        .border_1()
+        .border_color(rgb(accent))
+        .bg(rgb(theme.raised))
+        .shadow(motion::glow(accent, 0.18, 14.0, 0.0))
+        .flex()
+        .flex_col()
+        .gap(px(6.0))
+        // Title row: skill id + commitment + a close ✕.
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(px(15.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(accent))
+                        .child(SharedString::from(format!(
+                            "{}  \u{00b7}  {}",
+                            node.skill_id,
+                            node.commitment_level.to_uppercase()
+                        ))),
+                )
+                .child(
+                    div()
+                        .id("conjure-inspector-close")
+                        .px(px(8.0))
+                        .py(px(2.0))
+                        .rounded(px(6.0))
+                        .cursor_pointer()
+                        .text_size(px(13.0))
+                        .text_color(rgb(theme.muted))
+                        .hover(move |s| s.text_color(rgb(theme.ink)).bg(rgb(theme.panel)))
+                        .on_click(cx.listener(|this, _ev, _window, cx| {
+                            this.conjure_selected = None;
+                            cx.notify();
+                        }))
+                        .child("\u{2715} close"),
+                ),
+        )
+        .child(row("role", node.role_description.clone()))
+        .when(!node.why.is_empty(), |c| c.child(row("why", node.why.clone())))
+        .when(!node.input_contract.is_empty(), |c| {
+            c.child(row("input contract", node.input_contract.clone()))
+        })
+        .when(!node.output_contract.is_empty(), |c| {
+            c.child(row("output contract", node.output_contract.clone()))
+        })
+        .child(row(
+            "model tier",
+            if node.model_tier.is_empty() {
+                "\u{2014}".to_string()
+            } else {
+                node.model_tier.clone()
+            },
+        ))
+        .child(row(
+            "estimate",
+            format!(
+                "${:.2}  \u{00b7}  {:.0} min  \u{00b7}  cascade {}",
+                node.estimated_cost_usd, node.estimated_minutes, node.cascade_depth
+            ),
+        ))
+        .when(node.ask_user_before_proceeding, |c| {
+            c.child(
+                div()
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(theme.gated))
+                    .child("\u{26d4} HITL gate \u{2014} this node stops for your confirmation before it runs"),
+            )
+        })
+        .into_any_element()
 }
 
 /// The INLINE Vello node-graph at the top of the Conjure surface — the beautiful
