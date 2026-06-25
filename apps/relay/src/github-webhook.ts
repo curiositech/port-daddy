@@ -51,6 +51,15 @@ function err(code: string, detail: string, status = 400): Response {
 // keeps the per-(sender, channel) chain stable across deliveries.
 const GITHUB_SENDER = hashHex('github:webhook');
 
+// Only these (event, action) pairs warrant a fleet run. GitHub Apps fire a
+// flood of workflow_run / check_run / push events on every CI cycle; the
+// executor only reviews pull_request changes, so we never enqueue the rest.
+// (The full event stream is still PUBLISHED to channels for other subscribers.)
+const FLEET_PR_ACTIONS = new Set(['opened', 'synchronize', 'reopened', 'ready_for_review']);
+function shouldEnqueueFleetRun(eventType: string, action: string | null): boolean {
+  return eventType === 'pull_request' && FLEET_PR_ACTIONS.has(action ?? '');
+}
+
 /**
  * Compute the canonical set of channel strings for a normalized webhook.
  * Order matters and matches the channel/normalization spec.
@@ -239,7 +248,7 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
   //    we've already published to channels. The executor's own retry/DLQ owns
   //    durability from here. installation.id / pull_request.number are read
   //    from the verified payload (no GitHub API call from the relay).
-  if (env.FLEET_RUNS) {
+  if (env.FLEET_RUNS && shouldEnqueueFleetRun(eventType, action)) {
     const installation =
       payload.installation && typeof payload.installation === 'object'
         ? (payload.installation as Record<string, unknown>)
