@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 468 132" width="100%" height="100%" role="img" aria-label="Port Daddy">
+  <!-- COMPACT header wordmark, LIGHT theme: spinning radar mark + "Port Daddy",
+       no tagline/rule — tuned to read as a navbar lockup at ~40px height.
+       Transparent; reduced-motion safe. Companion: -header-dark.svg. -->
+  <style>
+    .pd-word { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 900; }
+    .pivot { transform-origin: 150px 150px; }
+    .spin-fwd-slow { animation: pd-spin 10s linear infinite; }
+    .spin-rev-med  { animation: pd-spin-r 7s ease-in-out infinite; }
+    .spin-fwd-fast { animation: pd-spin 5s linear infinite; }
+    .pd-flip { animation: pd-flip 6s cubic-bezier(0.77, 0, 0.17, 1) infinite; }
+    @keyframes pd-spin   { 100% { transform: rotate(360deg); } }
+    @keyframes pd-spin-r { 100% { transform: rotate(-360deg); } }
+    @keyframes pd-flip { 0%,15% { transform: rotate(0deg); } 45%,65% { transform: rotate(180deg); } 85%,100% { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spin-fwd-slow,.spin-rev-med,.spin-fwd-fast,.pd-flip { animation: none; } }
+  </style>
+
+  <svg x="6" y="6" width="120" height="120" viewBox="0 0 300 300">
+    <defs>
+      <mask id="pd-wmh-light-int" maskContentUnits="userSpaceOnUse">
+        <g stroke="white" stroke-width="14" stroke-linecap="butt" fill="none">
+          <line x1="110" y1="110" x2="110" y2="210" /><circle cx="135" cy="135" r="25" />
+        </g>
+      </mask>
+    </defs>
+    <g stroke="#DCE3EB" stroke-width="1.5" fill="none">
+      <circle cx="150" cy="150" r="45" /><circle cx="150" cy="150" r="90" /><circle cx="150" cy="150" r="135" />
+      <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="4 4" />
+      <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="4 4" />
+      <line x1="55" y1="55" x2="245" y2="245" stroke-dasharray="2 6" />
+      <line x1="55" y1="245" x2="245" y2="55" stroke-dasharray="2 6" />
+    </g>
+    <g class="pivot spin-fwd-slow">
+      <circle cx="150" cy="150" r="125" fill="none" stroke="#12B88F" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.7"/>
+      <path d="M 145 25 L 155 25" stroke="#12B88F" stroke-width="3" fill="none" />
+      <path d="M 145 275 L 155 275" stroke="#12B88F" stroke-width="3" fill="none" />
+      <path d="M 25 145 L 25 155" stroke="#12B88F" stroke-width="3" fill="none" />
+      <path d="M 275 145 L 275 155" stroke="#12B88F" stroke-width="3" fill="none" />
+    </g>
+    <g class="pivot spin-rev-med">
+      <circle cx="150" cy="150" r="105" fill="none" stroke="#F5A623" stroke-width="2" stroke-dasharray="40 10 5 10" opacity="0.8"/>
+      <circle cx="150" cy="150" r="115" fill="none" stroke="#2076FE" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.6"/>
+    </g>
+    <g class="pivot spin-fwd-fast" stroke="#2076FE" stroke-width="2" fill="none">
+      <path d="M 213 87 A 90 90 0 0 0 187 68" /><path d="M 87 87 A 90 90 0 0 1 113 68" />
+      <path d="M 213 213 A 90 90 0 0 1 187 232" /><path d="M 87 213 A 90 90 0 0 0 113 232" />
+    </g>
+    <g class="pivot pd-flip">
+      <g stroke="#2076FE" stroke-width="14" stroke-linecap="butt" fill="none">
+        <line x1="110" y1="110" x2="110" y2="210" /><circle cx="135" cy="135" r="25" />
+      </g>
+      <g stroke="#12B88F" stroke-width="14" stroke-linecap="butt" fill="none">
+        <line x1="190" y1="190" x2="190" y2="90" /><circle cx="165" cy="165" r="25" />
+      </g>
+      <g stroke="#F5A623" stroke-width="14" stroke-linecap="butt" fill="none" mask="url(#pd-wmh-light-int)">
+        <line x1="190" y1="190" x2="190" y2="90" /><circle cx="165" cy="165" r="25" />
+      </g>
+    </g>
+    <circle cx="150" cy="150" r="4" fill="none" stroke="#2076FE" stroke-width="2"/>
+  </svg>
+
+  <text x="140" y="86" class="pd-word" font-size="62" letter-spacing="-0.5" fill="#121212">Port<tspan fill="#2076FE"> Daddy</tspan></text>
+</svg>
