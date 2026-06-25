@@ -220,6 +220,37 @@ pub struct TubeMsg {
     pub text: String,
 }
 
+/// Per-spawn options that ride alongside the four positional `spawn` args.
+///
+/// Today this carries exactly one knob — `inject_squid_hooks` — but it is a
+/// struct (not a bare `bool`) so future opt-ins land here without re-threading
+/// every call site. `Default` is the byte-for-byte historical behaviour: no
+/// squid hooks, so the manual Spawn command and `create_agent` are unchanged.
+///
+/// `inject_squid_hooks` → the daemon body's `"injectSquidHooks": true`. When the
+/// daemon runs an updated `routes/spawn.ts` + `lib/spawner.ts`, that flag makes a
+/// `claude-cli` / `cli:claude-code` launch FIRST sink the Giant Squid Harness
+/// (ADR-0091) pd-hook-* tentacles into the workspace's `.claude/settings.json`,
+/// so the conjure-dispatched vendor CLI runs UNDER PD coordination — its
+/// UserPromptSubmit / PreToolUse / PostToolUse turns fire the lock gate +
+/// pheromone hooks inside Claude Code's own loop (Claude Max Prime). codex /
+/// gemini remain validate-then-add: their squid adapters throw, so the flag is a
+/// no-op there until those adapters are written.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpawnOpts {
+    /// Inject the Giant Squid pd-hook tentacles for this spawn (default false).
+    pub inject_squid_hooks: bool,
+}
+
+impl SpawnOpts {
+    /// The conjure-dispatch posture: run the vendor agent UNDER squid
+    /// coordination (lock-gating + pheromones via the injected pd-hook-*
+    /// tentacles). The conjurer's vendor agents always dispatch with this on.
+    pub fn squid() -> Self {
+        SpawnOpts { inject_squid_hooks: true }
+    }
+}
+
 // ── Live agent stream (GET /agents/:id/stream, SSE) ───────────────────────────
 //
 // The cockpit's "watch in real time" feed. The daemon (PR #404) opens an SSE
@@ -450,34 +481,19 @@ impl DaemonClient {
     /// worktree); the daemon blocks main-checkout spawns by design.
     /// Returns the outcome incl. one-shot inline `output` (ollama et al. reply in
     /// the spawn response, not on the tube).
+    ///
+    /// `opts.inject_squid_hooks` adds `"injectSquidHooks": true` to the POST body
+    /// (see [`build_spawn_body`]); conjure-dispatch sets it so the vendor CLI runs
+    /// under PD coordination. `Default` opts keep the historical body unchanged.
     pub async fn spawn(
         &self,
         backend: Backend,
         prompt: &str,
         channel: &str,
         model: Option<&str>,
+        opts: SpawnOpts,
     ) -> Result<SpawnOutcome> {
-        let mut body = serde_json::json!({
-            "backend": backend.as_str(),
-            "task": prompt,
-            "identity": format!("console:agent:{channel}"),
-            "purpose": "Top-level console agent (tube conversation)",
-            "tubeChannel": channel,
-            "budgetUsd": 0.25,
-        });
-        // An operator-chosen capability tier resolves to a model id; honour it.
-        if let Some(m) = model {
-            body["model"] = serde_json::json!(m);
-        } else if matches!(backend, Backend::Ollama) {
-            // Model-backends (ollama) require an explicit model even with no tier.
-            let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
-            body["model"] = serde_json::json!(m);
-        }
-        // Worktree isolation: the daemon refuses to run an agent in a main
-        // checkout. Pass an operator-provided worktree.
-        if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
-            body["workdir"] = serde_json::json!(wd);
-        }
+        let body = build_spawn_body(backend, prompt, channel, model, opts);
         let resp = self
             .http
             .post(format!("{}/spawn", self.base))
@@ -718,6 +734,56 @@ pub struct SpawnOutcome {
     pub error: Option<String>,
 }
 
+/// Build the `POST /spawn` request body. Factored out of [`DaemonClient::spawn`]
+/// as a PURE function (env reads aside) so the wire shape is unit-testable without
+/// a live daemon — the proof that a conjure dispatch carries `injectSquidHooks`.
+///
+/// When `opts.inject_squid_hooks` is set, the body gains `"injectSquidHooks":
+/// true`. The daemon's `routes/spawn.ts` reads that flag into the spawner spec
+/// (`spec.injectSquidHooks`), and `lib/spawner.ts`'s `runClaudeCli` then injects
+/// the Giant Squid Harness (ADR-0091) pd-hook-* tentacles into the workspace's
+/// `.claude/settings.json` before the CLI boots — so a conjure-dispatched vendor
+/// CLI runs UNDER PD coordination (lock-gating + pheromones) inside Claude Code's
+/// own loop (Claude Max Prime). codex / gemini remain validate-then-add: their
+/// squid adapters throw, so the flag is a harmless no-op for those backends.
+pub fn build_spawn_body(
+    backend: Backend,
+    prompt: &str,
+    channel: &str,
+    model: Option<&str>,
+    opts: SpawnOpts,
+) -> serde_json::Value {
+    let mut body = serde_json::json!({
+        "backend": backend.as_str(),
+        "task": prompt,
+        "identity": format!("console:agent:{channel}"),
+        "purpose": "Top-level console agent (tube conversation)",
+        "tubeChannel": channel,
+        "budgetUsd": 0.25,
+    });
+    // An operator-chosen capability tier resolves to a model id; honour it.
+    if let Some(m) = model {
+        body["model"] = serde_json::json!(m);
+    } else if matches!(backend, Backend::Ollama) {
+        // Model-backends (ollama) require an explicit model even with no tier.
+        let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
+        body["model"] = serde_json::json!(m);
+    }
+    // Worktree isolation: the daemon refuses to run an agent in a main
+    // checkout. Pass an operator-provided worktree.
+    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+        body["workdir"] = serde_json::json!(wd);
+    }
+    // Giant Squid Harness opt-in (ADR-0091): only emit the flag when set, so a
+    // default spawn's body is byte-for-byte what it has always been (the daemon
+    // defaults the absent flag to false). Conjure dispatch sets it true so its
+    // vendor CLIs run under PD coordination via the injected pd-hook tentacles.
+    if opts.inject_squid_hooks {
+        body["injectSquidHooks"] = serde_json::json!(true);
+    }
+    body
+}
+
 /// One hosted top-level agent.
 pub struct TopLevelAgent {
     pub id: String,
@@ -748,7 +814,12 @@ impl AgentManager {
         let local = self.next;
         self.next += 1;
         let channel = format!("console-agent-{local}");
-        let outcome = self.client.spawn(backend, prompt, &channel, None).await?;
+        // A manually-created top-level agent keeps the historical posture: no
+        // squid hooks (default opts). Only conjure dispatch opts in.
+        let outcome = self
+            .client
+            .spawn(backend, prompt, &channel, None, SpawnOpts::default())
+            .await?;
         self.agents.insert(local, TopLevelAgent { id: outcome.id.clone(), backend, channel, cursor: 0 });
         self.active = Some(local);
         Ok((local, outcome))
@@ -918,6 +989,43 @@ mod tests {
         assert!(seed.resolve(Backend::Gemini, Tier::Low).is_some());
         // Every backend still has a non-empty picker label.
         assert!(Backend::ALL.iter().all(|b| !b.label().is_empty()));
+    }
+
+    #[test]
+    fn conjure_dispatch_body_carries_inject_squid_hooks() {
+        // The conjure-dispatch posture runs the vendor agent UNDER squid
+        // coordination: the POST /spawn body must carry injectSquidHooks=true so
+        // the daemon injects the pd-hook tentacles (lock-gating + pheromones).
+        let body = build_spawn_body(
+            Backend::ClaudeCli,
+            "do the thing",
+            "operator",
+            None,
+            SpawnOpts::squid(),
+        );
+        assert_eq!(
+            body.get("injectSquidHooks").and_then(|v| v.as_bool()),
+            Some(true),
+            "conjure dispatch must opt into the Giant Squid Harness"
+        );
+
+        // A manual Spawn (default opts) must NOT carry the flag — the body is the
+        // historical shape, so the daemon defaults it to false (unchanged spawn).
+        let manual = build_spawn_body(
+            Backend::ClaudeCli,
+            "do the thing",
+            "operator",
+            None,
+            SpawnOpts::default(),
+        );
+        assert!(
+            manual.get("injectSquidHooks").is_none(),
+            "the manual Spawn body must omit injectSquidHooks (backward-compatible)"
+        );
+
+        // SpawnOpts::squid is the one true source of the true flag.
+        assert!(SpawnOpts::squid().inject_squid_hooks);
+        assert!(!SpawnOpts::default().inject_squid_hooks);
     }
 
     #[test]

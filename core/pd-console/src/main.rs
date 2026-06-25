@@ -324,7 +324,10 @@ fn main() {
                                             format!("unknown backend '{backend}'"),
                                         ));
                                     }
-                                    Some(b) => match client.spawn(b, &prompt, "operator", model.as_deref()).await {
+                                    // Manual Spawn keeps its historical posture:
+                                    // NO squid hooks (default opts). Only conjure
+                                    // dispatch opts into PD coordination.
+                                    Some(b) => match client.spawn(b, &prompt, "operator", model.as_deref(), agent::SpawnOpts::default()).await {
                                         Err(e) => {
                                             let _ = alert_tx.send(pane::Alert::error(
                                                 format!("spawn rejected ({backend})"),
@@ -520,8 +523,18 @@ fn main() {
                                                 format!("[skill: {skill}] {}", req.goal)
                                             };
                                             // EXISTING spawn path — same method, same
-                                            // channel convention as ControlMsg::Spawn.
-                                            match client.spawn(b, &goal, "operator", None).await {
+                                            // channel convention as ControlMsg::Spawn,
+                                            // but with SpawnOpts::squid(): this makes
+                                            // the conjure-dispatched vendor CLI run
+                                            // UNDER PD coordination — the daemon injects
+                                            // the Giant Squid Harness (ADR-0091)
+                                            // pd-hook-* tentacles into the workspace's
+                                            // .claude/settings.json, so lock-gating +
+                                            // pheromones fire inside Claude Code's own
+                                            // loop (Claude Max Prime). codex / gemini
+                                            // remain validate-then-add (their squid
+                                            // adapters throw → the flag is a no-op there).
+                                            match client.spawn(b, &goal, "operator", None, agent::SpawnOpts::squid()).await {
                                                 Err(e) => {
                                                     let _ = alert_tx.send(pane::Alert::error(
                                                         format!("dispatch rejected ({node_id} → {})", req.backend),
