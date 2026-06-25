@@ -6,37 +6,54 @@ name: Roadmap Link Gate
 # checks" list. It is meant to be advisory — a red check here is a loud signal,
 # not a merge block. Its teeth are the `needs-roadmap-link` label, which the
 # land/auto-merge flow treats as "hold for a human".
+#
+# Merge-queue parity: a merge_group head has no PR body / roadmap link to
+# check, so if this check were ever added to the required-checks list it would
+# hang the queue forever waiting for a report that never comes. The merge_group
+# trigger below makes it report as a pass-through (exit 0) instead. The
+# substantive check still only runs at pull_request time — a rebase in the
+# queue does not change a PR's roadmap declaration.
 
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+  merge_group:
 
 permissions:
   contents: read
   pull-requests: write
   issues: write
 
-# One run per PR; a fast follow-up edit cancels the in-flight check.
+# One run per PR (or per merge_group head); a fast follow-up edit cancels the
+# in-flight PR run. Merge-queue runs key on the head SHA and never cancel.
 concurrency:
-  group: roadmap-link-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: roadmap-link-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   roadmap-link:
     runs-on: ubuntu-latest
     steps:
+      - name: Merge-queue pass-through
+        if: github.event_name == 'merge_group'
+        run: echo "merge_group head — roadmap link already gated at PR time; passing through."
+
       - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
 
       - name: Use Node.js 22
+        if: github.event_name == 'pull_request'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
+        if: github.event_name == 'pull_request'
         run: npm ci
 
       - name: Check PR links a roadmap item
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx tsx scripts/check-roadmap-link.ts
