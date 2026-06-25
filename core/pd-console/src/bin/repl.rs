@@ -16,6 +16,10 @@
 #[path = "../activity_pane.rs"]  mod activity_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
+// Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
+// here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
+#[allow(dead_code)]
+#[path = "../audio.rs"]          mod audio;
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[allow(dead_code)]

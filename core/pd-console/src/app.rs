@@ -359,6 +359,7 @@ fn current_theme() -> Theme {
 fn toggle_theme() {
     let next = if THEME_MODE.load(Ordering::Relaxed) == 0 { 1 } else { 0 };
     THEME_MODE.store(next, Ordering::Relaxed);
+    crate::audio::play(crate::audio::Cue::Toggle);
 }
 
 /// Honour a reduced-motion preference (`PD_CONSOLE_REDUCED_MOTION=1`). gpui has
@@ -1145,6 +1146,8 @@ impl ConsoleView {
         let targets = crate::conjure::dispatch_targets(&self.conjure_dag);
         let gated = crate::conjure::gated_node_count(&self.conjure_dag);
         if targets.is_empty() {
+            // A firm "wall" tone — the dispatch is held (all gated) or empty.
+            crate::audio::play(crate::audio::Cue::Gate);
             self.control_flash = Some(if gated > 0 {
                 format!("nothing to dispatch — all {gated} node(s) are HITL-gated; confirm each one")
             } else {
@@ -1165,6 +1168,8 @@ impl ConsoleView {
         let count = requests.len();
         if let Some(tx) = &self.control_tx {
             let _ = tx.send(ControlMsg::ConjureDispatch { requests, gated });
+            // A confident rising sweep — committed nodes are launching to their vendors.
+            crate::audio::play(crate::audio::Cue::Dispatch);
             let held = if gated > 0 { format!(" · {gated} held for your gate") } else { String::new() };
             self.control_flash =
                 Some(format!("dispatching {count} node(s) to their vendors…{held} watch Alerts"));
@@ -1374,6 +1379,8 @@ impl ConsoleView {
                 // surface shows the "rendering graph…" placeholder until it lands.
                 self.conjure_png_path = None;
                 self.ws_mut().swap_surface(SurfaceKind::Conjure);
+                // The signature "bloom" sting — a DAG just materialized from a prompt.
+                crate::audio::play(crate::audio::Cue::Bloom);
                 self.control_flash = Some(format!(
                     "claude:cli conjured “{title}” — {waves} waves · rendering the Vello graphic…"
                 ));

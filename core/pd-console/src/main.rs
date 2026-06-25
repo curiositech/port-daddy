@@ -1,4 +1,4 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 //! pd-console — GPU-native standalone operator console (ADR-0046).
 //!
 //! Architecture: a std thread with a mini tokio runtime polls all 15 panes every
@@ -12,6 +12,7 @@ mod activity_pane;
 mod adrs_pane;
 mod agent;
 mod app;
+mod audio;
 mod claims_pane;
 mod cockpit_pane;
 mod conjure;
