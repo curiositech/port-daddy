@@ -51,6 +51,13 @@ pub enum ControlMsg {
     FleetHalt { root_id: Option<String> },
     FleetPause { root_id: Option<String> },
     FleetResume { root_id: Option<String> },
+    /// Generate a predicted DAG LIVE from the operator's prompt via the Max-seat
+    /// `claude` CLI (print mode, NO API key). Runs on a blocking worker
+    /// (`conjure::generate_dag_via_cli`): `claude -p "<DAG_GEN_PROMPT>"`, parse the
+    /// JSON it returns, fall back to the prompt-seeded fixture on any error. The
+    /// resulting DAG is pushed back to the view over the Conjure-update channel,
+    /// which swaps to the Conjure surface AND kicks the inline Vello render.
+    ConjureGenerate { prompt: String },
     /// Render the live Conjure DAG to a PNG via the Vello proto. Carries the DAG
     /// already serialized to the proto's JSON shape (the foreground owns the DAG;
     /// serializing on the gpui thread is cheap and keeps the worker self-contained)
@@ -83,6 +90,37 @@ pub struct ConjureDispatchRequest {
     pub skill_id: String,
     pub goal: String,
     pub model_tier: String,
+}
+
+/// A push from the background worker back to the view about the Conjure surface.
+/// The worker owns the claude:cli round-trip and the Vello render (both blocking);
+/// it streams the results back here so the foreground can update `conjure_dag` /
+/// `conjure_png_path` and `cx.notify()` without ever blocking the render thread.
+#[derive(Debug, Clone)]
+pub enum ConjureUpdate {
+    /// A freshly-generated DAG (claude:cli, or the fixture fallback). The view
+    /// stores it, swaps to the Conjure surface, and clears the stale PNG so the
+    /// inline graphic shows a "rendering…" placeholder until the new PNG lands.
+    Dag(crate::conjure::PredictedDag),
+    /// The path to the rendered Vello PNG for the current DAG — shown INLINE at the
+    /// top of the Conjure surface (gpui `img(path)`).
+    Png(std::path::PathBuf),
+}
+
+/// Resolve the default (pre-rendered fixture) Conjure PNG path. Honors the
+/// `PD_CONJURE_PROTO_DIR` override (a packaged app points at its installed copy);
+/// otherwise it is the sibling `pd-conjure-proto` crate's `conjure-dag-vello.png`,
+/// located via `CARGO_MANIFEST_DIR` at build time. Mirrors `main::conjure_proto_dir`
+/// so the default inline graphic and the live render write/read the same file.
+pub fn default_conjure_png() -> Option<std::path::PathBuf> {
+    let proto = if let Ok(dir) = std::env::var("PD_CONJURE_PROTO_DIR") {
+        std::path::PathBuf::from(dir)
+    } else {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pd-conjure-proto"))?
+    };
+    Some(proto.join("conjure-dag-vello.png"))
 }
 
 /// Which command line is open at the bottom of the console.
@@ -599,10 +637,14 @@ pub struct ConsoleView {
     /// Laid-out bounds of each split container, keyed by tree path, captured via a
     /// canvas overlay so the drag handler can map a mouse position to a weight.
     split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
-    /// The Conjure surface's predicted DAG. Foundation slice: a hardcoded fixture
-    /// rendered through the Block UI. The windags `next_move` call, the Vello
-    /// graph, and dispatch are later slices.
+    /// The Conjure surface's predicted DAG — live-generated from the operator's
+    /// prompt via the Max-seat `claude` CLI (with the fixture as the offline
+    /// fallback), rendered through the Block UI AND the inline Vello graphic.
     conjure_dag: crate::conjure::PredictedDag,
+    /// Path to the rendered Vello PNG of `conjure_dag`, shown INLINE at the top of
+    /// the Conjure surface. `None` until a render lands (the surface shows a
+    /// "rendering graph…" placeholder). Auto-refreshed whenever the DAG changes.
+    conjure_png_path: Option<std::path::PathBuf>,
 }
 
 impl ConsoleView {
@@ -647,6 +689,10 @@ impl ConsoleView {
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
             conjure_dag: crate::conjure::fixture(),
+            // Seed the inline graphic from the PRE-RENDERED fixture PNG so the
+            // default Conjure view shows the node-graph immediately (no blank
+            // pane on first open). Only set when the file actually exists.
+            conjure_png_path: default_conjure_png().filter(|p| p.exists()),
         }
     }
 
@@ -953,19 +999,32 @@ impl ConsoleView {
             }
             return;
         }
-        // Conjure is a local mutation too: the operator's prompt becomes a
-        // PredictedDag (the windags `next_move` path when reachable, else the
-        // prompt-seeded fixture), stored in `conjure_dag`, and the focused pane
-        // swaps to the Conjure surface so the Block UI renders it immediately.
-        // This closes the loop: type intent → see the predicted DAG of agents.
+        // Conjure: the operator's prompt is generated into a real PredictedDag LIVE
+        // by the Max-seat `claude` CLI (print mode, NO API key) on a background
+        // worker, which streams the DAG back over the Conjure-update channel —
+        // swapping to the Conjure surface AND auto-rendering the inline Vello PNG.
+        // We swap surfaces and seed the prompt-titled fixture IMMEDIATELY so the
+        // operator sees a graph instantly; the live DAG replaces it when it lands.
+        // If there's no control plane (an isolated test view), fall back to the
+        // local fixture path so the surface is still populated.
         if cmd.kind == CmdKind::Conjure {
+            // Optimistic seed so the surface is never blank during the CLI round-trip.
             self.conjure_dag = crate::conjure::from_prompt(&text);
-            let title = self.conjure_dag.title.clone();
+            // A fresh DAG means the old PNG is stale — show the fixture PNG (if any)
+            // as a holding graphic until the live render lands.
+            self.conjure_png_path = default_conjure_png().filter(|p| p.exists());
             self.ws_mut().swap_surface(SurfaceKind::Conjure);
-            self.control_flash = Some(format!(
-                "conjured “{title}” — {} waves · click Render graph for the Vello PNG",
-                self.conjure_dag.waves.len()
-            ));
+            if let Some(tx) = &self.control_tx {
+                let _ = tx.send(ControlMsg::ConjureGenerate { prompt: text.clone() });
+                self.control_flash =
+                    Some("generating with claude:cli… the DAG + Vello graphic land below".into());
+            } else {
+                self.control_flash = Some(format!(
+                    "conjured “{}” — {} waves (no control plane: fixture path)",
+                    self.conjure_dag.title.clone(),
+                    self.conjure_dag.waves.len()
+                ));
+            }
             return;
         }
         // Clone the sender (owned) so we can also mutate the workspace below
@@ -1119,6 +1178,30 @@ impl ConsoleView {
         }
     }
 
+    /// Apply one Conjure update pushed from the background worker: either a fresh
+    /// live-generated DAG (claude:cli) or a rendered Vello PNG path. A new DAG
+    /// swaps the focused pane to the Conjure surface so the operator SEES the
+    /// generated graph; a PNG just slots into the inline graphic.
+    pub fn apply_conjure_update(&mut self, update: ConjureUpdate) {
+        match update {
+            ConjureUpdate::Dag(dag) => {
+                let waves = dag.waves.len();
+                let title = dag.title.clone();
+                self.conjure_dag = dag;
+                // The new DAG hasn't been rendered yet — drop the stale PNG so the
+                // surface shows the "rendering graph…" placeholder until it lands.
+                self.conjure_png_path = None;
+                self.ws_mut().swap_surface(SurfaceKind::Conjure);
+                self.control_flash = Some(format!(
+                    "claude:cli conjured “{title}” — {waves} waves · rendering the Vello graphic…"
+                ));
+            }
+            ConjureUpdate::Png(path) => {
+                self.conjure_png_path = Some(path);
+            }
+        }
+    }
+
     pub fn update_panes(
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
@@ -1200,6 +1283,10 @@ impl ConsoleView {
         // discoverable control that ships the live DAG to the Vello PNG renderer.
         let is_conjure = matches!(surface, SurfaceKind::Conjure);
         let conjure_flash = self.control_flash.clone();
+        // The rendered Vello PNG (if any) for the inline node-graph at the top of
+        // the Conjure surface. `None` ⇒ a tasteful "rendering graph…" placeholder.
+        let conjure_png = if is_conjure { self.conjure_png_path.clone() } else { None };
+        let conjure_title = self.conjure_dag.title.clone();
         let conjure_wave_count = self.conjure_dag.waves.len();
         // How many nodes "Dispatch DAG" would spawn (non-HITL-gated) vs hold back.
         let conjure_dispatch_count = crate::conjure::dispatch_targets(&self.conjure_dag).len();
@@ -1293,6 +1380,8 @@ impl ConsoleView {
             )
             // Surface body — scrollable so long rosters/ledgers/transcripts are
             // reachable instead of clipped (needs a stable id for scroll state).
+            // The Conjure surface leads with the INLINE Vello node-graph (the
+            // beautiful default view), then the per-node text/partition/contracts.
             .child(
                 div()
                     .id(SharedString::from(format!("pane-body-{id}")))
@@ -1300,6 +1389,9 @@ impl ConsoleView {
                     .overflow_y_scroll()
                     .flex()
                     .flex_col()
+                    .when(is_conjure, |body| {
+                        body.child(conjure_graphic(id, conjure_png, &conjure_title))
+                    })
                     .children(blocks.into_iter().map(render_block)),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
@@ -1548,6 +1640,91 @@ impl ConsoleView {
                 )
             })
             .into_any_element()
+    }
+}
+
+/// The INLINE Vello node-graph at the top of the Conjure surface — the beautiful
+/// default view the operator most wants. When a PNG has been rendered, it shows
+/// the graph image sized to fit the pane (capped width, rounded, maritime frame);
+/// until then it shows a tasteful "rendering graph…" placeholder so the region is
+/// never blank. The image is loaded from an ABSOLUTE path via `gpui::img(PathBuf)`
+/// (a `Resource::Path` read directly off disk — NOT through the embedded asset
+/// source), so it works for the live-rendered PNG outside the `assets/` dir.
+fn conjure_graphic(
+    id: PaneId,
+    png: Option<std::path::PathBuf>,
+    title: &str,
+) -> impl IntoElement {
+    let frame = div()
+        .id(SharedString::from(format!("conjure-graphic-{id}")))
+        .flex()
+        .flex_col()
+        .gap(px(6.0))
+        .px(px(12.0))
+        .pt(px(12.0))
+        .pb(px(8.0));
+
+    // An eyebrow label above the graphic (12px is allowed for an uppercase,
+    // tracked-out, ≥600-weight eyebrow per the type-accessibility rule).
+    let eyebrow = div()
+        .text_color(rgb(current_theme().muted))
+        .text_size(px(12.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(SharedString::from(format!(
+            "\u{2693} PREDICTED DAG \u{00b7} {}",
+            title.to_uppercase()
+        )));
+
+    match png {
+        Some(path) => frame.child(eyebrow).child(
+            // The Vello PNG, framed and sized to fit the pane width. The image is
+            // read straight off disk (PathBuf ⇒ Resource::Path).
+            div()
+                .w_full()
+                .rounded(px(10.0))
+                .border_1()
+                .border_color(rgb(current_theme().line))
+                .bg(rgb(current_theme().bg))
+                .overflow_hidden()
+                .child(
+                    img(path)
+                        .w_full()
+                        .max_w(px(900.0))
+                        .h(px(360.0))
+                        .object_fit(ObjectFit::Contain)
+                        .rounded(px(10.0)),
+                ),
+        ),
+        None => frame.child(eyebrow).child(
+            // Placeholder: a calm maritime card while the offscreen Vello render
+            // builds (release build is multi-second on first run).
+            div()
+                .w_full()
+                .h(px(360.0))
+                .max_w(px(900.0))
+                .rounded(px(10.0))
+                .border_1()
+                .border_color(rgb(current_theme().line))
+                .bg(rgb(current_theme().raised))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().accent_ink))
+                        .text_size(px(15.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child("rendering graph\u{2026}"),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().muted))
+                        .text_size(px(14.0))
+                        .child("the Vello node-graph appears here when the offscreen render lands"),
+                ),
+        ),
     }
 }
 

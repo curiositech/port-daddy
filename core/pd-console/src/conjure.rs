@@ -492,7 +492,192 @@ pub fn gated_node_count(dag: &PredictedDag) -> usize {
         .count()
 }
 
+// ── LIVE GENERATION (claude:cli, the Max seat — NO API key) ─────────────────────
+//
+// The operator types intent; we ask `claude -p "<DAG_GEN_PROMPT>"` to bloom a real
+// PredictedDAG tailored to that intent. This runs the Max-seat CLI in print mode
+// (headless, no API key — the user's interactive Claude Code login), parses ONLY
+// the JSON it returns, and on ANY error falls back to `seeded_from_prompt(prompt)`
+// (the fixture) so the surface is NEVER empty/broken. The pure pieces below
+// (`augmented_path`, `dag_gen_prompt`, `parse_claude_dag_output`) are unit-tested
+// in the headless repl bin; the live spawn in `generate_dag_via_cli` is an
+// integration path (env-dependent on the claude binary) and is not unit-tested.
+
+/// Build a PATH that finds developer tools even when the process did NOT inherit a
+/// login shell's PATH — the exact failure mode of a macOS .app launched from
+/// Finder (no `cargo`, no `claude`: "command not found"). We PREPEND the canonical
+/// tool dirs (`~/.cargo/bin`, `~/.local/bin`, Homebrew, the system bins) to
+/// whatever PATH we did inherit, so a shelled `cargo`/`claude` resolves. Returns a
+/// single `:`-joined string suitable for `.env("PATH", …)`.
+pub fn augmented_path() -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    // Highest-priority dirs first; these are the homes of cargo + the claude CLI.
+    let mut dirs: Vec<String> = Vec::new();
+    if !home.is_empty() {
+        dirs.push(format!("{home}/.cargo/bin"));
+        dirs.push(format!("{home}/.local/bin"));
+    }
+    for sys in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] {
+        dirs.push(sys.to_string());
+    }
+    // Append the inherited PATH (deduplicated) so nothing the user already had is lost.
+    if let Ok(existing) = std::env::var("PATH") {
+        for seg in existing.split(':') {
+            let seg = seg.trim();
+            if !seg.is_empty() && !dirs.iter().any(|d| d == seg) {
+                dirs.push(seg.to_string());
+            }
+        }
+    }
+    dirs.join(":")
+}
+
+/// Resolve the `claude` CLI binary: prefer the known install path
+/// (`~/.local/bin/claude`), then fall back to the bare name `claude` (resolved
+/// against [`augmented_path`] by the spawned process). Returns the absolute path
+/// when it exists on disk, else the bare name so PATH resolution can take over.
+pub fn claude_binary() -> String {
+    if let Ok(home) = std::env::var("HOME") {
+        let local = std::path::PathBuf::from(&home).join(".local/bin/claude");
+        if local.exists() {
+            return local.to_string_lossy().into_owned();
+        }
+    }
+    "claude".to_string()
+}
+
+/// The prompt handed to `claude -p` to bloom a tailored DAG. It pins the EXACT
+/// serde schema of [`PredictedDag`]/[`PredictedWave`]/[`PredictedNode`] and demands
+/// raw JSON (no prose, no code fences) so [`parse_claude_dag_output`] can read it.
+/// It asks for a small, real plan (3–5 nodes across 2–4 waves) that VARIES the
+/// `model_tier` across vendors and gates EXACTLY ONE node behind the HITL flag.
+pub fn dag_gen_prompt(prompt: &str) -> String {
+    let intent = prompt.trim();
+    format!(
+        "You are a planning oracle for a multi-agent orchestrator. The operator's \
+intent is:\n\n\"{intent}\"\n\n\
+Output ONLY a single JSON object (no prose, no markdown, no code fences) that is a \
+predicted DAG of skill-equipped agent nodes tailored to that intent. Use EXACTLY \
+this schema (snake_case keys):\n\
+{{\n\
+  \"title\": string (echo/refine the operator intent),\n\
+  \"problem_classification\": \"well-structured\" | \"ill-structured\" | \"wicked\",\n\
+  \"confidence\": number in 0..1,\n\
+  \"estimated_total_minutes\": number,\n\
+  \"estimated_total_cost_usd\": number,\n\
+  \"topology\": \"dag\",\n\
+  \"waves\": [\n\
+    {{\n\
+      \"wave_number\": integer (1-based),\n\
+      \"parallelizable\": boolean,\n\
+      \"nodes\": [\n\
+        {{\n\
+          \"id\": string (kebab-case, stable),\n\
+          \"skill_id\": string (a concrete skill, e.g. \"api-architect\"),\n\
+          \"role_description\": string (what this agent does in context),\n\
+          \"why\": string (why this skill, why now),\n\
+          \"commitment_level\": \"COMMITTED\" | \"TENTATIVE\" | \"EXPLORATORY\",\n\
+          \"input_contract\": string (what it needs from upstream),\n\
+          \"output_contract\": string (what it delivers),\n\
+          \"model_tier\": one of \"sonnet\", \"opus\", \"gemini\", \"codex\" (VARY across nodes),\n\
+          \"estimated_minutes\": number,\n\
+          \"estimated_cost_usd\": number,\n\
+          \"cascade_depth\": integer (how many downstream nodes depend on this one),\n\
+          \"ask_user_before_proceeding\": boolean\n\
+        }}\n\
+      ]\n\
+    }}\n\
+  ]\n\
+}}\n\n\
+Constraints: 3 to 5 nodes total across 2 to 4 waves; the `model_tier` values must \
+span at least two different vendors (mix sonnet/opus with gemini and/or codex); \
+set `ask_user_before_proceeding` to true on EXACTLY ONE node (the riskiest, e.g. a \
+ship/deploy/irreversible step) and false on all others. Respond with the JSON only."
+    )
+}
+
+/// Robustly extract a [`PredictedDag`] from whatever `claude -p` printed. Handles:
+///   - a clean raw JSON object,
+///   - a ```json … ``` (or bare ``` … ```) fenced block,
+///   - leading/trailing prose around an embedded `{ … }` object.
+/// Strategy: strip code fences, then take the substring from the FIRST `{` to the
+/// LAST `}` (the outer object) and [`parse`] it. Returns an error on anything that
+/// does not yield a valid DAG, so the caller can fall back to the fixture.
+pub fn parse_claude_dag_output(raw: &str) -> anyhow::Result<PredictedDag> {
+    use anyhow::{anyhow, Context};
+    let mut text = raw.trim().to_string();
+
+    // Strip a fenced block if present: ```json\n … \n``` or ```\n … \n```.
+    if let Some(start) = text.find("```") {
+        // Drop everything up to and including the opening fence line.
+        let after_open = &text[start + 3..];
+        // The opening fence may carry a language tag (e.g. "json"); skip to EOL.
+        let body_start = after_open.find('\n').map(|i| i + 1).unwrap_or(0);
+        let body = &after_open[body_start..];
+        // Drop the closing fence (and anything after it).
+        let body = match body.find("```") {
+            Some(end) => &body[..end],
+            None => body,
+        };
+        text = body.trim().to_string();
+    }
+
+    // Take the outer object: first '{' through last '}'.
+    let open = text
+        .find('{')
+        .ok_or_else(|| anyhow!("no JSON object found in claude output"))?;
+    let close = text
+        .rfind('}')
+        .ok_or_else(|| anyhow!("no closing brace found in claude output"))?;
+    if close < open {
+        return Err(anyhow!("malformed JSON braces in claude output"));
+    }
+    let json = &text[open..=close];
+    let dag = parse(json).context("parsing the claude-emitted DAG JSON")?;
+    // A DAG with no waves is not useful — treat it as a failure so we fall back.
+    if dag.waves.is_empty() {
+        return Err(anyhow!("claude returned a DAG with no waves"));
+    }
+    Ok(dag)
+}
+
+/// Generate a real [`PredictedDag`] for `prompt` by shelling the Max-seat `claude`
+/// CLI in print mode (`claude -p "<DAG_GEN_PROMPT>"`). MUST run off the gpui render
+/// thread (a CLI round-trip is multi-second). Resolves the binary via
+/// [`claude_binary`] and runs it with an augmented PATH (so a Finder-launched .app
+/// still finds `claude`). On ANY failure — binary missing, non-zero exit, garbage
+/// output — it returns [`seeded_from_prompt`] (the fixture, re-titled with the
+/// prompt) so the Conjure surface is never empty or broken.
+pub fn generate_dag_via_cli(prompt: &str) -> anyhow::Result<PredictedDag> {
+    let bin = claude_binary();
+    let gen_prompt = dag_gen_prompt(prompt);
+    let output = std::process::Command::new(&bin)
+        .arg("-p")
+        .arg(&gen_prompt)
+        .env("PATH", augmented_path())
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            match parse_claude_dag_output(&stdout) {
+                Ok(mut dag) => {
+                    // Keep the operator's exact intent as the title if claude blanked it.
+                    if dag.title.trim().is_empty() {
+                        dag.title = prompt.trim().to_string();
+                    }
+                    Ok(dag)
+                }
+                Err(_) => Ok(seeded_from_prompt(prompt)),
+            }
+        }
+        // Non-zero exit or spawn failure (e.g. binary missing) → the fixture fallback.
+        _ => Ok(seeded_from_prompt(prompt)),
+    }
+}
+
 /// A real 3-wave fixture DAG mirroring `docs/CONJURE-DAG-SURFACE.md` — the
+/// foundation surface renders this until the windags call lands (later slice).
 /// foundation surface renders this until the windags call lands (later slice).
 /// The three nodes deliberately span the three commitment levels so the toned
 /// chips are visible, and one node carries the HITL gate.
@@ -1096,5 +1281,102 @@ mod tests {
         let distinct = backends.iter().filter(|&&b| b == Backend::Gemini).count() >= 1
             && backends.iter().filter(|&&b| b == Backend::ClaudeCli).count() >= 1;
         assert!(distinct, "dispatch spans Gemini AND Claude Code — multi-vendor");
+    }
+
+    // ── LIVE GENERATION (claude:cli) — pure-helper tests ────────────────────────
+
+    #[test]
+    fn augmented_path_contains_the_developer_tool_dirs() {
+        // The Finder-launched-.app fix: the PATH we hand a subprocess must include
+        // ~/.cargo/bin (for `cargo`) and ~/.local/bin (for `claude`) even when the
+        // process inherited a bare PATH.
+        let path = augmented_path();
+        assert!(path.contains(".cargo/bin"), "PATH must include ~/.cargo/bin (cargo): {path}");
+        assert!(path.contains(".local/bin"), "PATH must include ~/.local/bin (claude): {path}");
+        // The system bins are present too, so basic tooling resolves.
+        assert!(path.contains("/usr/bin"), "PATH must include /usr/bin");
+        // It is a colon-joined, non-empty list.
+        assert!(path.split(':').count() >= 4, "PATH should carry several dirs: {path}");
+    }
+
+    #[test]
+    fn dag_gen_prompt_is_non_empty_and_embeds_the_intent_and_schema() {
+        let p = dag_gen_prompt("  Add a retry budget to the dispatcher  ");
+        assert!(!p.trim().is_empty(), "the generation prompt must be non-empty");
+        // The operator intent is woven in (trimmed).
+        assert!(p.contains("Add a retry budget to the dispatcher"), "prompt embeds the intent");
+        // It pins the serde schema keys so claude emits the right shape.
+        assert!(p.contains("problem_classification"));
+        assert!(p.contains("ask_user_before_proceeding"));
+        assert!(p.contains("model_tier"));
+        // It demands raw JSON (no fences).
+        assert!(p.to_lowercase().contains("json only") || p.to_lowercase().contains("only a single json"));
+    }
+
+    #[test]
+    fn parse_claude_output_reads_a_fenced_json_block() {
+        // The common case: claude wraps the object in a ```json fence.
+        let raw = "Here is the plan:\n\n```json\n{\n  \"title\": \"Ship it\",\n  \"waves\": [\n    { \"wave_number\": 1, \"parallelizable\": false, \"nodes\": [ { \"id\": \"n1\", \"skill_id\": \"api-architect\", \"model_tier\": \"sonnet\" } ] }\n  ]\n}\n```\n\nHope that helps!";
+        let dag = parse_claude_dag_output(raw).expect("a fenced JSON block parses");
+        assert_eq!(dag.title, "Ship it");
+        assert_eq!(dag.waves.len(), 1);
+        assert_eq!(dag.waves[0].nodes[0].skill_id, "api-architect");
+        assert_eq!(dag.waves[0].nodes[0].model_tier, "sonnet");
+    }
+
+    #[test]
+    fn parse_claude_output_reads_a_raw_object() {
+        // A clean raw object (no fence, no prose) parses directly.
+        let raw = r#"{ "title": "Raw plan", "problem_classification": "well-structured", "waves": [ { "wave_number": 1, "parallelizable": true, "nodes": [ { "id": "x", "skill_id": "research", "model_tier": "gemini" } ] } ] }"#;
+        let dag = parse_claude_dag_output(raw).expect("a raw JSON object parses");
+        assert_eq!(dag.title, "Raw plan");
+        assert_eq!(dag.waves[0].nodes[0].model_tier, "gemini");
+    }
+
+    #[test]
+    fn parse_claude_output_reads_an_object_with_surrounding_prose() {
+        // Prose on both sides of an unfenced object — take first '{' .. last '}'.
+        let raw = "Sure! {\"title\":\"Inline\",\"waves\":[{\"wave_number\":1,\"parallelizable\":false,\"nodes\":[{\"id\":\"a\",\"skill_id\":\"s\",\"model_tier\":\"opus\"}]}]} Done.";
+        let dag = parse_claude_dag_output(raw).expect("an embedded object parses");
+        assert_eq!(dag.title, "Inline");
+        assert_eq!(dag.waves[0].nodes[0].model_tier, "opus");
+    }
+
+    #[test]
+    fn parse_claude_output_errors_on_garbage() {
+        // Non-JSON garbage must error (so the caller falls back to the fixture).
+        assert!(parse_claude_dag_output("I'm sorry, I can't help with that.").is_err());
+        assert!(parse_claude_dag_output("").is_err());
+        // A JSON object with no waves is also a failure (not a useful DAG).
+        assert!(parse_claude_dag_output(r#"{ "title": "empty" }"#).is_err());
+    }
+
+    #[test]
+    fn generate_dag_via_cli_falls_back_to_the_fixture_when_claude_is_unavailable() {
+        // Point HOME at a temp dir with no claude binary so the spawn fails; the
+        // function must still return a renderable, prompt-titled DAG (never error).
+        // (~/coding/tmp is the durable scratch root per house rules — never /tmp.)
+        let scratch = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+            .join("coding/tmp/pd-console-conjure-test-home");
+        let _ = std::fs::create_dir_all(&scratch);
+        let prev_home = std::env::var("HOME").ok();
+        // SAFETY: single-threaded test; we restore HOME immediately after.
+        unsafe { std::env::set_var("HOME", &scratch); }
+        // Also blank PATH so the bare `claude` name can't resolve to a real install.
+        let prev_path = std::env::var("PATH").ok();
+        unsafe { std::env::set_var("PATH", ""); }
+
+        let dag = generate_dag_via_cli("Add a retry budget to the dispatcher")
+            .expect("generation must never error — it falls back to the fixture");
+        // The fallback is the fixture re-titled with the operator intent.
+        assert_eq!(dag.title, "Add a retry budget to the dispatcher");
+        assert!(!dag.waves.is_empty(), "the fallback DAG is renderable");
+
+        // Restore the environment.
+        unsafe {
+            match prev_home { Some(h) => std::env::set_var("HOME", h), None => std::env::remove_var("HOME") }
+            match prev_path { Some(p) => std::env::set_var("PATH", p), None => std::env::remove_var("PATH") }
+        }
+        let _ = std::fs::remove_dir_all(&scratch);
     }
 }

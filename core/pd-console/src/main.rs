@@ -108,11 +108,16 @@ fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
     // Run capture.sh (release build + offscreen render). It cd's into the proto
     // dir itself; we also set cwd for robustness. Pass explicit input/output so a
     // future caller can fan out to distinct files without racing the default.
+    //
+    // PATH FIX: a macOS .app launched from Finder does NOT inherit a login shell's
+    // PATH, so `cargo` inside capture.sh is "command not found". We hand the child
+    // an augmented PATH (~/.cargo/bin + …) so the release build resolves.
     let status = std::process::Command::new("bash")
         .arg(&script)
         .arg(&input)
         .arg(&output)
         .current_dir(&proto)
+        .env("PATH", conjure::augmented_path())
         .output()
         .with_context(|| format!("running {}", script.display()))?;
     if !status.status.success() {
@@ -246,6 +251,11 @@ fn main() {
         // The fg drains it alongside pane updates — the keystone that turns
         // "nothing happens" into "spawn rejected: <why>".
         let (alert_tx, alert_rx) = mpsc::channel::<pane::Alert>();
+        // Conjure bus: the bg worker streams the live-generated DAG (claude:cli)
+        // and the rendered Vello PNG path back to the view, which swaps to the
+        // Conjure surface and shows the inline graphic. Separate from the pane bus
+        // because these are foreground-owned surfaces, not background NAV panes.
+        let (conjure_tx, conjure_rx) = mpsc::channel::<app::ConjureUpdate>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -377,6 +387,65 @@ fn main() {
                                     let _ = alert_tx.send(pane::Alert::error("fleet resume failed", e.to_string()));
                                 }
                             }
+                            // Conjure LIVE GENERATION: ask the Max-seat `claude` CLI
+                            // (print mode, NO API key) to bloom a real DAG tailored to
+                            // the operator's prompt, falling back to the prompt-seeded
+                            // fixture on any failure. Runs on a blocking worker (the
+                            // CLI round-trip is multi-second). On success it pushes the
+                            // DAG back to the view (which swaps to Conjure) AND kicks
+                            // the inline Vello render so the graphic appears too.
+                            app::ControlMsg::ConjureGenerate { prompt } => {
+                                let alert_tx = alert_tx.clone();
+                                let conjure_tx = conjure_tx.clone();
+                                tokio::task::spawn_blocking(move || {
+                                    let _ = alert_tx.send(pane::Alert::info(
+                                        "conjure: generating with claude:cli",
+                                        format!("asking the Max seat to plan: {}", prompt.trim()),
+                                    ));
+                                    // Never errors — returns the fixture on any CLI failure.
+                                    let dag = match conjure::generate_dag_via_cli(&prompt) {
+                                        Ok(d) => d,
+                                        Err(e) => {
+                                            // Defensive: generate_dag_via_cli is infallible
+                                            // by contract, but surface anything unexpected
+                                            // and still fall back to a renderable DAG.
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                "conjure generation error",
+                                                e.to_string(),
+                                            ));
+                                            conjure::seeded_from_prompt(&prompt)
+                                        }
+                                    };
+                                    let title = dag.title.clone();
+                                    let waves = dag.waves.len();
+                                    // Push the DAG to the view (swaps to Conjure surface).
+                                    let _ = conjure_tx.send(app::ConjureUpdate::Dag(dag.clone()));
+                                    let _ = alert_tx.send(pane::Alert::info(
+                                        format!("conjured “{title}” via claude:cli"),
+                                        format!("{waves} wave(s) — rendering the Vello graphic…"),
+                                    ));
+                                    // Auto-render the inline Vello PNG for the new DAG.
+                                    match conjure::to_json(&dag) {
+                                        Ok(json) => match render_conjure_png(&json) {
+                                            Ok(png) => {
+                                                let _ = conjure_tx.send(app::ConjureUpdate::Png(png));
+                                            }
+                                            Err(e) => {
+                                                let _ = alert_tx.send(pane::Alert::error(
+                                                    "conjure inline render failed",
+                                                    e.to_string(),
+                                                ));
+                                            }
+                                        },
+                                        Err(e) => {
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                "conjure serialize failed",
+                                                e.to_string(),
+                                            ));
+                                        }
+                                    }
+                                });
+                            }
                             // Conjure → Vello: write the live DAG JSON where the proto
                             // reads it, build+run capture.sh (RELEASE + UNSANDBOXED —
                             // debug fontique panics on macOS 15 and the Metal readback
@@ -385,9 +454,14 @@ fn main() {
                             // refresh cadence above never stalls on a release build.
                             app::ControlMsg::RenderConjureGraph { dag_json, title } => {
                                 let alert_tx = alert_tx.clone();
+                                let conjure_tx = conjure_tx.clone();
                                 tokio::task::spawn_blocking(move || {
                                     match render_conjure_png(&dag_json) {
                                         Ok(png) => {
+                                            // Slot the fresh PNG into the INLINE graphic too,
+                                            // not just the external `open` — the operator sees
+                                            // it update in-pane.
+                                            let _ = conjure_tx.send(app::ConjureUpdate::Png(png.clone()));
                                             // Surface the PNG to the operator (best-effort `open`).
                                             let _ = std::process::Command::new("open").arg(&png).status();
                                             let _ = alert_tx.send(pane::Alert::info(
@@ -575,6 +649,16 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.push_alert(alert.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the Conjure bus: a live-generated DAG (swaps to the
+                    // Conjure surface) or a rendered Vello PNG (the inline graphic).
+                    while let Ok(update) = conjure_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.apply_conjure_update(update.clone());
                                 cx.notify();
                             });
                         });
