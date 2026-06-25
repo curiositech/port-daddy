@@ -68,6 +68,69 @@ use std::borrow::Cow;
 use std::sync::mpsc;
 use std::time::Duration;
 
+/// Resolve the `pd-conjure-proto` crate dir (the Vello renderer). Honors a
+/// `PD_CONJURE_PROTO_DIR` override (a packaged app can point at an installed
+/// copy); otherwise it is the sibling of this crate at build time
+/// (`core/pd-console/../pd-conjure-proto`).
+fn conjure_proto_dir() -> std::path::PathBuf {
+    if let Ok(dir) = std::env::var("PD_CONJURE_PROTO_DIR") {
+        return std::path::PathBuf::from(dir);
+    }
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .map(|p| p.join("pd-conjure-proto"))
+        .unwrap_or_else(|| std::path::PathBuf::from("pd-conjure-proto"))
+}
+
+/// The Conjure → Vello render handoff (runs on a blocking worker, never the gpui
+/// thread): write the serialized DAG where the proto reads it, then build+run
+/// `scripts/capture.sh`. capture.sh builds RELEASE and runs the binary UNSANDBOXED
+/// — both are required on macOS 15 (debug fontique panics; the Metal readback is
+/// SIGKILLed in a sandbox). Returns the PNG path on success; an error carrying the
+/// captured stderr otherwise (surfaced as a HITL alert, never swallowed).
+fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
+    use anyhow::{bail, Context};
+    let proto = conjure_proto_dir();
+    let script = proto.join("scripts").join("capture.sh");
+    if !script.exists() {
+        bail!(
+            "capture.sh not found at {} — set PD_CONJURE_PROTO_DIR to the pd-conjure-proto crate",
+            script.display()
+        );
+    }
+    // Write the live DAG to the proto's input file (the same shape its fixture.json
+    // carries) so capture.sh's default INPUT renders exactly what was conjured.
+    let input = proto.join("fixture.json");
+    std::fs::write(&input, dag_json)
+        .with_context(|| format!("writing the DAG JSON to {}", input.display()))?;
+    let output = proto.join("conjure-dag-vello.png");
+
+    // Run capture.sh (release build + offscreen render). It cd's into the proto
+    // dir itself; we also set cwd for robustness. Pass explicit input/output so a
+    // future caller can fan out to distinct files without racing the default.
+    let status = std::process::Command::new("bash")
+        .arg(&script)
+        .arg(&input)
+        .arg(&output)
+        .current_dir(&proto)
+        .output()
+        .with_context(|| format!("running {}", script.display()))?;
+    if !status.status.success() {
+        let stderr = String::from_utf8_lossy(&status.stderr);
+        let stdout = String::from_utf8_lossy(&status.stdout);
+        bail!(
+            "capture.sh exited {}: {}{}",
+            status.status,
+            stderr.trim(),
+            if stderr.trim().is_empty() { stdout.trim() } else { "" }
+        );
+    }
+    if !output.exists() {
+        bail!("capture.sh reported success but no PNG at {}", output.display());
+    }
+    Ok(output)
+}
+
 /// Filesystem asset source — resolves paths relative to the `assets/` dir
 /// that lives next to the crate root (located via CARGO_MANIFEST_DIR at
 /// compile time; falls back to the executable's parent at runtime).
@@ -313,6 +376,33 @@ fn main() {
                                 if let Err(e) = client.fleet_action("resume", root_id.as_deref()).await {
                                     let _ = alert_tx.send(pane::Alert::error("fleet resume failed", e.to_string()));
                                 }
+                            }
+                            // Conjure → Vello: write the live DAG JSON where the proto
+                            // reads it, build+run capture.sh (RELEASE + UNSANDBOXED —
+                            // debug fontique panics on macOS 15 and the Metal readback
+                            // is SIGKILLed under a sandbox), then `open` the PNG. The
+                            // whole shell-out runs on a blocking worker so the 2s
+                            // refresh cadence above never stalls on a release build.
+                            app::ControlMsg::RenderConjureGraph { dag_json, title } => {
+                                let alert_tx = alert_tx.clone();
+                                tokio::task::spawn_blocking(move || {
+                                    match render_conjure_png(&dag_json) {
+                                        Ok(png) => {
+                                            // Surface the PNG to the operator (best-effort `open`).
+                                            let _ = std::process::Command::new("open").arg(&png).status();
+                                            let _ = alert_tx.send(pane::Alert::info(
+                                                format!("rendered “{title}”"),
+                                                format!("Vello PNG written + opened: {}", png.display()),
+                                            ));
+                                        }
+                                        Err(e) => {
+                                            let _ = alert_tx.send(pane::Alert::error(
+                                                "conjure render failed",
+                                                e.to_string(),
+                                            ));
+                                        }
+                                    }
+                                });
                             }
                         }
                     }

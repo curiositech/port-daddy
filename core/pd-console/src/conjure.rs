@@ -19,11 +19,15 @@
 //! (ADR-0091), never a Claude-only assumption.
 
 use crate::pane::{Block, Tone};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Top-level planner output. Mirrors the TS `PredictedDAG`. Optional/extra fields
 /// carry `#[serde(default)]` so a partial windags payload still deserializes.
-#[derive(Debug, Clone, Default, Deserialize)]
+/// `Serialize` is what closes the loop to the Vello renderer: the console
+/// serializes its live `PredictedDag` back out to the exact JSON shape
+/// `pd-conjure-proto` reads (`fixture.json`), so a prompt-derived DAG renders to
+/// a PNG without any second source of truth.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct PredictedDag {
     /// "Ship API endpoint with tests".
     pub title: String,
@@ -49,7 +53,7 @@ pub struct PredictedDag {
 }
 
 /// One execution wave. Mirrors the TS `PredictedWave`.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct PredictedWave {
     #[serde(default)]
     pub wave_number: u32,
@@ -61,7 +65,7 @@ pub struct PredictedWave {
 }
 
 /// A single predicted unit of work. Mirrors the TS `PredictedNode`.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct PredictedNode {
     /// Stable node id, e.g. "research-api-patterns".
     #[serde(default)]
@@ -105,6 +109,57 @@ pub struct PredictedNode {
 pub fn parse(json: &str) -> anyhow::Result<PredictedDag> {
     let dag = serde_json::from_str::<PredictedDag>(json)?;
     Ok(dag)
+}
+
+/// Serialize a [`PredictedDag`] to the exact JSON shape `pd-conjure-proto` reads
+/// (its `fixture.json` / first CLI arg). Pretty-printed so a written handoff file
+/// is human-legible. This is the other half of the render handoff: the console
+/// owns the live DAG, writes it here, and the Vello proto renders it to a PNG —
+/// one source of truth, round-tripped through serde.
+pub fn to_json(dag: &PredictedDag) -> anyhow::Result<String> {
+    Ok(serde_json::to_string_pretty(dag)?)
+}
+
+/// Build a [`PredictedDag`] for an operator prompt.
+///
+/// LIVE WINDAGS HOOK (TODO — this slice ships the fixture path):
+///   The real planner is `windags_next_move` (the MCP tool) /
+///   `workgroup-ai` `next-move --json --legacy-predictor`. Neither is a clean
+///   one-shot from this binary today:
+///     - the MCP server is stdio and gathers repo context itself (no prompt arg
+///       on the CLI — it auto-derives intent from git/files), and is deprecated
+///       behind `--legacy-predictor`;
+///     - it needs a *valid* provider key. In the build environment the stored
+///       `~/.windags/providers.json` anthropic key returned 401 invalid x-api-key,
+///       so no live DAG could be produced for this slice.
+///   When a clean hook lands, replace the body below with:
+///     1. spawn `windags next-move --json --legacy-predictor` (or POST the MCP
+///        tool) with `ANTHROPIC_API_KEY` in env and the prompt as the
+///        conversation summary,
+///     2. read stdout, `parse(json)` it,
+///     3. on any error fall back to `seeded_from_prompt(prompt)` (below) so the
+///        surface is never empty.
+///   The prompt → PredictedDag → Block UI → PNG wiring is identical either way;
+///   only this function's body swaps from fixture-seeded to live.
+///
+/// Until then this returns the real 3-wave [`fixture`] DAG re-titled with the
+/// operator's prompt, so the typed intent visibly drives the rendered graph
+/// (the title header + the PNG caption both echo it) instead of a static label.
+pub fn from_prompt(prompt: &str) -> PredictedDag {
+    seeded_from_prompt(prompt)
+}
+
+/// The deterministic fixture-seeded DAG for a prompt: the [`fixture`] topology
+/// with its title replaced by the (trimmed) operator prompt. Pulled out so the
+/// future live path can call it as the offline fallback, and so it is unit-test
+/// targetable without a network/provider.
+pub fn seeded_from_prompt(prompt: &str) -> PredictedDag {
+    let mut dag = fixture();
+    let trimmed = prompt.trim();
+    if !trimmed.is_empty() {
+        dag.title = trimmed.to_string();
+    }
+    dag
 }
 
 /// Map a commitment level to a semantic [`Tone`]. Matches windags' own stroke
@@ -431,6 +486,124 @@ mod tests {
         assert_ne!(commitment_tone("COMMITTED"), commitment_tone("EXPLORATORY"));
         // An unknown level falls back to the neutral default.
         assert_eq!(commitment_tone("???"), Tone::Default);
+    }
+
+    #[test]
+    fn to_json_round_trips_through_parse() {
+        // The render handoff: serialize the live DAG to the proto's JSON shape,
+        // then parse it straight back — the same bytes the Vello proto reads.
+        let dag = fixture();
+        let json = to_json(&dag).expect("a DAG serializes to JSON");
+        let back = parse(&json).expect("the serialized JSON parses straight back in");
+        assert_eq!(back.title, dag.title);
+        assert_eq!(back.waves.len(), dag.waves.len());
+        let orig_nodes: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
+        let back_nodes: usize = back.waves.iter().map(|w| w.nodes.len()).sum();
+        assert_eq!(back_nodes, orig_nodes, "no nodes lost in the round-trip");
+        // A field on a deep node survives verbatim (the vendor-agnostic tier).
+        assert_eq!(back.waves[1].nodes[0].model_tier, dag.waves[1].nodes[0].model_tier);
+        assert_eq!(
+            back.waves[2].nodes[0].ask_user_before_proceeding,
+            dag.waves[2].nodes[0].ask_user_before_proceeding,
+            "the HITL gate flag survives the round-trip"
+        );
+    }
+
+    #[test]
+    fn from_prompt_titles_the_dag_with_the_operator_intent() {
+        // The prompt visibly drives the rendered DAG: the title header echoes it.
+        let dag = from_prompt("  Add a retry budget to the dispatcher  ");
+        assert_eq!(dag.title, "Add a retry budget to the dispatcher", "trimmed prompt becomes the title");
+        // It's a real, renderable multi-wave DAG (the fixture topology), not empty.
+        assert!(dag.waves.len() >= 3, "a prompt-derived DAG carries the real wave structure");
+        let blocks = blocks_for_conjure(&dag);
+        match &blocks[0] {
+            Block::Header(t) => assert_eq!(t, "Add a retry budget to the dispatcher"),
+            other => panic!("first block must be the prompt title header, got {other:?}"),
+        }
+        // And it round-trips to the proto's JSON shape with the prompt title intact.
+        let json = to_json(&dag).expect("prompt-derived DAG serializes");
+        let back = parse(&json).expect("prompt-derived DAG round-trips");
+        assert_eq!(back.title, "Add a retry budget to the dispatcher");
+    }
+
+    #[test]
+    fn from_prompt_empty_keeps_the_fixture_title() {
+        // An empty/whitespace prompt must not blank the title — keep the fixture's.
+        let dag = from_prompt("   ");
+        assert_eq!(dag.title, fixture().title, "empty prompt falls back to the fixture title");
+        assert!(!dag.waves.is_empty());
+    }
+
+    #[test]
+    fn parse_accepts_a_windags_next_move_shaped_payload() {
+        // A representative windags `next_move` JSON (snake_case fields matching the
+        // TS PredictedDAG -> serde) parses into a renderable DAG. This is the exact
+        // shape the live windags hook will hand back when a provider key is valid.
+        let json = r#"{
+            "title": "Wire the Conjure prompt box to the Vello renderer",
+            "problem_classification": "well-structured",
+            "confidence": 0.78,
+            "halt_reason": null,
+            "estimated_total_minutes": 35,
+            "estimated_total_cost_usd": 0.31,
+            "topology": "dag",
+            "waves": [
+                {
+                    "wave_number": 1,
+                    "parallelizable": false,
+                    "nodes": [
+                        {
+                            "id": "serialize-dag",
+                            "skill_id": "api-architect",
+                            "role_description": "Add Serialize so the console can emit the proto JSON",
+                            "why": "Closes the loop to the Vello renderer with one source of truth",
+                            "commitment_level": "COMMITTED",
+                            "input_contract": "The PredictedDag types",
+                            "output_contract": "A to_json that round-trips through parse",
+                            "model_tier": "sonnet",
+                            "estimated_minutes": 6,
+                            "estimated_cost_usd": 0.05,
+                            "cascade_depth": 2,
+                            "ask_user_before_proceeding": false
+                        }
+                    ]
+                },
+                {
+                    "wave_number": 2,
+                    "parallelizable": true,
+                    "nodes": [
+                        {
+                            "id": "render-action",
+                            "skill_id": "beautiful-gui-design",
+                            "role_description": "Add the Render graph action that shells capture.sh",
+                            "why": "Operator needs the PNG of the DAG they conjured",
+                            "commitment_level": "TENTATIVE",
+                            "input_contract": "A serialized DAG on disk",
+                            "output_contract": "An opened PNG",
+                            "model_tier": "gemini",
+                            "estimated_minutes": 12,
+                            "estimated_cost_usd": 0.09,
+                            "cascade_depth": 0,
+                            "ask_user_before_proceeding": true
+                        }
+                    ]
+                }
+            ]
+        }"#;
+        let dag = parse(json).expect("a windags next_move payload parses");
+        assert_eq!(dag.title, "Wire the Conjure prompt box to the Vello renderer");
+        assert_eq!(dag.problem_classification, "well-structured");
+        assert_eq!(dag.waves.len(), 2);
+        assert!(dag.waves[1].parallelizable);
+        // The vendor-agnostic tier survives (gemini, not coerced to a Claude tier).
+        assert_eq!(dag.waves[1].nodes[0].model_tier, "gemini");
+        assert!(dag.waves[1].nodes[0].ask_user_before_proceeding, "the HITL gate parsed");
+        // It renders to blocks (title header + a chip per node) without panicking.
+        let blocks = blocks_for_conjure(&dag);
+        let node_count: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
+        let chip_count = blocks.iter().filter(|b| matches!(b, Block::Chip { .. })).count();
+        assert!(chip_count >= node_count, "at least one chip per parsed node");
     }
 
     #[test]

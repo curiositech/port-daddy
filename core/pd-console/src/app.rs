@@ -51,6 +51,16 @@ pub enum ControlMsg {
     FleetHalt { root_id: Option<String> },
     FleetPause { root_id: Option<String> },
     FleetResume { root_id: Option<String> },
+    /// Render the live Conjure DAG to a PNG via the Vello proto. Carries the DAG
+    /// already serialized to the proto's JSON shape (the foreground owns the DAG;
+    /// serializing on the gpui thread is cheap and keeps the worker self-contained)
+    /// plus a short title for the success flash. The background thread writes the
+    /// JSON where the proto reads it, shells `pd-conjure-proto/scripts/capture.sh`
+    /// (RELEASE + UNSANDBOXED — required: debug fontique panics on macOS 15 and the
+    /// Metal readback is SIGKILLed under a sandbox), then `open`s the PNG. The
+    /// shell-out runs on a blocking worker so it never stalls the refresh loop and
+    /// never touches the gpui render thread.
+    RenderConjureGraph { dag_json: String, title: String },
 }
 
 /// Which command line is open at the bottom of the console.
@@ -66,6 +76,12 @@ pub enum CmdKind {
     /// Add a new split pane of a chosen surface kind. Buffer is a surface name
     /// (nav label/id/key prefix, e.g. "cost", "fleet", "chat"). Handled locally.
     AddPane,
+    /// Conjure a predicted DAG from an operator prompt. Buffer is the free-text
+    /// intent ("ship a settings flow with tests"). On submit it produces a
+    /// `PredictedDag` (the windags `next_move` path when reachable, else the
+    /// prompt-seeded fixture), stores it in `ConsoleView::conjure_dag`, and swaps
+    /// the focused pane to the Conjure surface. Handled locally (no daemon round-trip).
+    Conjure,
 }
 
 impl CmdKind {
@@ -75,6 +91,7 @@ impl CmdKind {
             CmdKind::Cartographer => "cartographer",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
+            CmdKind::Conjure => "conjure",
         }
     }
 
@@ -87,6 +104,7 @@ impl CmdKind {
             CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…",
             CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.",
             CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…",
+            CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents",
         }
     }
 }
@@ -912,6 +930,21 @@ impl ConsoleView {
             }
             return;
         }
+        // Conjure is a local mutation too: the operator's prompt becomes a
+        // PredictedDag (the windags `next_move` path when reachable, else the
+        // prompt-seeded fixture), stored in `conjure_dag`, and the focused pane
+        // swaps to the Conjure surface so the Block UI renders it immediately.
+        // This closes the loop: type intent → see the predicted DAG of agents.
+        if cmd.kind == CmdKind::Conjure {
+            self.conjure_dag = crate::conjure::from_prompt(&text);
+            let title = self.conjure_dag.title.clone();
+            self.ws_mut().swap_surface(SurfaceKind::Conjure);
+            self.control_flash = Some(format!(
+                "conjured “{title}” — {} waves · click Render graph for the Vello PNG",
+                self.conjure_dag.waves.len()
+            ));
+            return;
+        }
         // Clone the sender (owned) so we can also mutate the workspace below
         // without holding an immutable borrow of `self` across `ws_mut()`.
         let Some(tx) = self.control_tx.clone() else { return };
@@ -962,8 +995,33 @@ impl ConsoleView {
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
-            // AddPane is handled locally above (early return) — never reaches here.
-            CmdKind::AddPane => {}
+            // AddPane and Conjure are handled locally above (early return) —
+            // never reach here.
+            CmdKind::AddPane | CmdKind::Conjure => {}
+        }
+    }
+
+    /// Kick off the Vello render of the current Conjure DAG. Serializes the DAG to
+    /// the proto's JSON shape on the foreground (cheap), then hands it to the
+    /// background thread, which writes the JSON, shells `capture.sh` (release +
+    /// unsandboxed) and `open`s the PNG. The gpui thread never blocks on the
+    /// build/render — it only flips a flash and fires the message.
+    fn render_conjure_graph(&mut self) {
+        let title = self.conjure_dag.title.clone();
+        match crate::conjure::to_json(&self.conjure_dag) {
+            Ok(dag_json) => {
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::RenderConjureGraph { dag_json, title });
+                    self.control_flash =
+                        Some("rendering the DAG with Vello… the PNG opens when the build lands".into());
+                } else {
+                    // No control plane (an isolated test view): nothing to shell out to.
+                    self.control_flash = Some("render unavailable — no control plane".into());
+                }
+            }
+            Err(e) => {
+                self.control_flash = Some(format!("could not serialize the DAG: {e}"));
+            }
         }
     }
 
@@ -1067,6 +1125,11 @@ impl ConsoleView {
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
+        // The Conjure surface (focused) gets the "Render graph" action bar — the
+        // discoverable control that ships the live DAG to the Vello PNG renderer.
+        let is_conjure = matches!(surface, SurfaceKind::Conjure);
+        let conjure_flash = self.control_flash.clone();
+        let conjure_wave_count = self.conjure_dag.waves.len();
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
@@ -1319,6 +1382,61 @@ impl ConsoleView {
                         )
                         .when_some(cond_flash, |c, flash| {
                             c.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
+            // ── Conjure render action (focused Conjure surface) — the discoverable
+            //    "open the Vello PNG of this DAG" control. Serializes the live DAG
+            //    to the proto's JSON, shells capture.sh (release+unsandboxed), then
+            //    opens the PNG — all on the background/blocking worker, never the
+            //    gpui thread. Mirrors the dispatch/conductor gate footer pattern. ──
+            .when(is_conjure && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(8.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .id("conjure-render")
+                                .px(px(12.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| {
+                                    s.bg(rgb(current_theme().raised))
+                                        .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
+                                })
+                                .child("\u{25c8} Render graph")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.render_conjure_graph();
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(13.0))
+                                .child(format!(
+                                    "{conjure_wave_count} waves \u{00b7} Vello offscreen \u{2192} PNG (no window, no TCC)"
+                                )),
+                        )
+                        .when_some(conjure_flash, |bar, flash| {
+                            bar.child(
                                 div()
                                     .text_color(rgb(current_theme().muted))
                                     .text_size(px(13.0))
@@ -2036,32 +2154,13 @@ impl Render for ConsoleView {
                     .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
                     .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
                     .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
-                    // Conjure: always visible. Click to swap the focused pane to the
-                    // predicted-DAG surface (foundation slice renders a fixture). The
-                    // discoverable way in — no hidden keystroke. Mirrors the Alerts btn.
-                    .child(
-                        div()
-                            .id("act-conjure")
-                            .px(px(11.0))
-                            .py(px(5.0))
-                            .rounded(px(6.0))
-                            .border_1()
-                            .border_color(rgb(current_theme().line))
-                            .text_color(rgb(current_theme().ink2))
-                            .text_size(px(13.0))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .cursor_pointer()
-                            .hover(|s| {
-                                s.text_color(rgb(current_theme().accent_ink))
-                                    .border_color(rgb(current_theme().accent))
-                                    .shadow(motion::glow(current_theme().accent, 0.20, 8.0, 0.0))
-                            })
-                            .child("Conjure")
-                            .on_click(cx.listener(|this, _ev, _window, cx| {
-                                this.ws_mut().swap_surface(SurfaceKind::Conjure);
-                                cx.notify();
-                            })),
-                    )
+                    // Conjure: always visible, next to the other ACT verbs. Click to
+                    // open the prompt input — type intent, Send blooms a predicted
+                    // DAG, the focused pane swaps to the Conjure surface to render it,
+                    // and "Render graph" there opens the Vello PNG. The discoverable
+                    // way in — no hidden keystroke. Uses the shared command_bar_btn so
+                    // it inherits the placeholder-guided input the other verbs use.
+                    .child(command_bar_btn(CmdKind::Conjure, "Conjure", cx))
                     // Alerts (HITL): always visible, glows red on errors, click to
                     // open the full untruncated log — the discoverable way to read
                     // a failure (no hidden keystroke).
