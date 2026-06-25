@@ -126,6 +126,9 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     if "alerts".starts_with(&q) || "hitl".starts_with(&q) {
         return Some(SurfaceKind::Hitl);
     }
+    if "conjure".starts_with(&q) || "plan".starts_with(&q) {
+        return Some(SurfaceKind::Conjure);
+    }
     NAV.iter()
         .find(|n| {
             n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q)
@@ -556,6 +559,10 @@ pub struct ConsoleView {
     /// Laid-out bounds of each split container, keyed by tree path, captured via a
     /// canvas overlay so the drag handler can map a mouse position to a weight.
     split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
+    /// The Conjure surface's predicted DAG. Foundation slice: a hardcoded fixture
+    /// rendered through the Block UI. The windags `next_move` call, the Vello
+    /// graph, and dispatch are later slices.
+    conjure_dag: crate::conjure::PredictedDag,
 }
 
 impl ConsoleView {
@@ -599,6 +606,7 @@ impl ConsoleView {
             reject_target: None,
             dragging: None,
             split_bounds: Rc::new(RefCell::new(HashMap::new())),
+            conjure_dag: crate::conjure::fixture(),
         }
     }
 
@@ -666,6 +674,11 @@ impl ConsoleView {
         // (the DLQ), not a background-refreshed NAV pane. Render it untruncated.
         if matches!(surface, SurfaceKind::Hitl) {
             return self.blocks_for_hitl();
+        }
+        // Conjure renders its (foundation-slice) fixture DAG through the Block UI
+        // — no background NAV pane, no windags call yet.
+        if matches!(surface, SurfaceKind::Conjure) {
+            return crate::conjure::blocks_for_conjure(&self.conjure_dag);
         }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
@@ -1726,8 +1739,12 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        // Hitl renders from the foreground alert log, not a bg NAV pane.
-        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } | SurfaceKind::Hitl => None,
+        // Hitl renders from the foreground alert log; Conjure from a fixture DAG —
+        // neither is backed by a bg NAV pane.
+        SurfaceKind::CartographerChat
+        | SurfaceKind::FileTree { .. }
+        | SurfaceKind::Hitl
+        | SurfaceKind::Conjure => None,
     }
 }
 
@@ -2019,6 +2036,32 @@ impl Render for ConsoleView {
                     .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
                     .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
                     .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
+                    // Conjure: always visible. Click to swap the focused pane to the
+                    // predicted-DAG surface (foundation slice renders a fixture). The
+                    // discoverable way in — no hidden keystroke. Mirrors the Alerts btn.
+                    .child(
+                        div()
+                            .id("act-conjure")
+                            .px(px(11.0))
+                            .py(px(5.0))
+                            .rounded(px(6.0))
+                            .border_1()
+                            .border_color(rgb(current_theme().line))
+                            .text_color(rgb(current_theme().ink2))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .cursor_pointer()
+                            .hover(|s| {
+                                s.text_color(rgb(current_theme().accent_ink))
+                                    .border_color(rgb(current_theme().accent))
+                                    .shadow(motion::glow(current_theme().accent, 0.20, 8.0, 0.0))
+                            })
+                            .child("Conjure")
+                            .on_click(cx.listener(|this, _ev, _window, cx| {
+                                this.ws_mut().swap_surface(SurfaceKind::Conjure);
+                                cx.notify();
+                            })),
+                    )
                     // Alerts (HITL): always visible, glows red on errors, click to
                     // open the full untruncated log — the discoverable way to read
                     // a failure (no hidden keystroke).
@@ -2129,6 +2172,15 @@ mod add_pane_tests {
         assert!(matches!(surface_for_query("chat"), Some(SurfaceKind::CartographerChat)));
         assert!(matches!(surface_for_query("files"), Some(SurfaceKind::FileTree { .. })));
         assert!(matches!(surface_for_query("tree"), Some(SurfaceKind::FileTree { .. })));
+    }
+
+    #[test]
+    fn picker_matches_conjure_surface() {
+        // Both the surface name and its alias "plan" resolve to Conjure.
+        assert!(matches!(surface_for_query("conjure"), Some(SurfaceKind::Conjure)));
+        assert!(matches!(surface_for_query("plan"), Some(SurfaceKind::Conjure)));
+        // Conjure is not backed by a NAV pane — it renders the fixture DAG.
+        assert!(nav_id_for_surface(&SurfaceKind::Conjure).is_none());
     }
 
     #[test]

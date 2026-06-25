@@ -50,6 +50,10 @@ pub enum SurfaceKind {
     /// The HITL alerts log — the dead-letter queue of captured action failures,
     /// rendered untruncated (foreground-only: reads `ConsoleView.alerts`).
     Hitl,
+    /// Conjure — prompt → predicted-DAG of skillful agents. Foundation slice:
+    /// renders a fixture `PredictedDag` through the Block UI (no windags call,
+    /// no Vello graph, no dispatch yet).
+    Conjure,
     /// Any existing console panel addressed by its nav id (fleet, cockpit,
     /// claims, peek, adrs, activity, inbox, suggest, memory, prs, coast, …).
     /// This is the bridge to the live data the shell already fetches: every
@@ -72,6 +76,7 @@ impl SurfaceKind {
             SurfaceKind::Sessions => "sessions".into(),
             SurfaceKind::Dispatch => "dispatch".into(),
             SurfaceKind::Hitl => "alerts".into(),
+            SurfaceKind::Conjure => "conjure".into(),
             SurfaceKind::Panel { nav } => nav.clone(),
         }
     }

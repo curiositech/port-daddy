@@ -14,6 +14,7 @@ mod agent;
 mod app;
 mod claims_pane;
 mod cockpit_pane;
+mod conjure;
 mod dispatch_pane;
 mod fleet_pane;
 mod health_pane;

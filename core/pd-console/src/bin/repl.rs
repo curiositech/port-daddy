@@ -18,6 +18,8 @@
 #[path = "../agent.rs"]          mod agent;
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
+#[allow(dead_code)]
+#[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
 // fleet_pane and maritime are excluded — they pull in GPUI derive macros
 // (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
