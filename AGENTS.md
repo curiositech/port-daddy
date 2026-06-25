@@ -210,6 +210,21 @@ is a real red you cannot fix unilaterally (missing secrets, infra outage).
 Operator, 2026-06-11: "Why are you waiting on me? Why do I have to tell
 every Claude this?" — don't be the Claude that has to be told.
 
+**Two PR-body checks are REQUIRED and fail closed — fill them in or the PR is
+bounced (it cannot enter the merge queue):**
+
+1. **`pr-requirements-guard`** — the body needs a real `## Summary` (≥10 words of
+   prose) and `## Test Plan` (≥12 words: commands + their output), plus a
+   screenshot + a GIF/recording for any visual-surface change. Self-check before
+   pushing: `npm run check:pr-requirements -- --body-file <draft.md>`.
+2. **`roadmap-link`** — the body needs exactly one `Roadmap-Item: <slug>` trailer
+   (or `Roadmap-Item: none — <reason>` for a chore/docs/hotfix). No slug yet?
+   `npx tsx scripts/roadmap-link.ts <pr-number>` creates the item and stamps it.
+
+The PR template (`.github/PULL_REQUEST_TEMPLATE.md`) pre-stubs both — keep the
+headings and the trailer line, fill in the prose. Both report on `merge_group`
+as pass-throughs, so a PR that is green at PR time never hangs the queue.
+
 Every PR opened in this repo MUST go through skeptical adversarial review
 before merging. The author cannot self-approve by typing "looks good." The
 flow is:
@@ -406,16 +421,24 @@ tracked work instead of vanishing. The mechanism:
   `roadmap_items` row (`POST /roadmap/items`) and edits the trailer into the
   PR body. Then `npx tsx scripts/export-roadmap-snapshot.ts` and commit so CI
   sees it.
-- **The check is non-blocking by design.** `.github/workflows/roadmap-link.yml`
+- **The check is REQUIRED and fails closed.** `.github/workflows/roadmap-link.yml`
   reads the committed mirror `docs/roadmap/roadmap.snapshot.json` (via the pure,
-  unit-tested `lib/roadmap-link-core.ts`). It is **NOT** a required status check
-  — never add it to branch protection. A red check is a loud signal, not a wall.
-- **Its teeth are the label.** A PR with no valid link gets `needs-roadmap-link`.
-  The land/auto-merge flow must treat that label as *hold for a human* — do not
-  auto-merge a PR carrying it; a human approves the land or adds the link.
-- **A broken roadmap is loud, not silent.** If the snapshot is missing, empty,
-  or stale, the gate shouts (🔴 comment + step summary) and tells you to
-  regenerate it — a stale mirror must never read as "all clear".
+  unit-tested `lib/roadmap-link-core.ts`) and is a **required status check** in
+  branch protection (operator, 2026-06). A PR with no valid `Roadmap-Item:`
+  trailer **cannot merge** — it is bounced back until you add the link or the
+  explicit opt-out. It reports on `merge_group` heads as a pass-through, so the
+  merge queue never hangs on it.
+- **Belt and suspenders: the label too.** A PR with no valid link also gets
+  `needs-roadmap-link`, and the land/auto-merge flow treats that label as *hold
+  for a human*. With the check now required, the merge is also blocked
+  mechanically — so an unlinked PR is stopped two ways.
+- **Keep the snapshot fresh — it fails closed.** If `roadmap.snapshot.json` is
+  missing, empty, or >21d stale, the gate shouts (🔴 comment + step summary) AND,
+  because it is required + fail-closed, **blocks every PR** — even correctly
+  linked ones — until someone regenerates and commits it:
+  `npx tsx scripts/export-roadmap-snapshot.ts`. A stale mirror must never read as
+  "all clear". (This is the operator's deliberate trade-off: a stale roadmap
+  halts the line rather than letting unverified links through.)
 - **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
   `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
   items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or

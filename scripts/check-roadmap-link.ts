@@ -5,11 +5,14 @@
  *   npx tsx scripts/check-roadmap-link.ts 512        # local: inspect PR #512 via gh
  *   npx tsx scripts/check-roadmap-link.ts 512 --dry-run   # classify, mutate nothing
  *
- * Decides whether a PR declares the roadmap item it advances and, when it does
- * not, marks it `needs-roadmap-link` so the auto-merger holds it for a human.
- * This job is intentionally NOT a required status check — it never blocks a
- * merge mechanically. Its teeth are the label (which the land flow respects)
- * plus a loud comment + step summary when the roadmap itself is broken.
+ * Decides whether a PR declares the roadmap item it advances. On a pull_request
+ * event this is a REQUIRED, fail-closed status check (the operator promoted it,
+ * 2026-06): any non-pass verdict exits non-zero and BLOCKS the merge — that is
+ * the bounce-back. It also marks `needs-roadmap-link` so the land flow holds it
+ * for a human, and posts a loud comment + step summary when the roadmap itself
+ * is broken. The workflow makes `merge_group` heads a pass-through (a rebase in
+ * the queue can't change a roadmap declaration), so this script gates only at
+ * pull_request time and a queued PR never hangs waiting for a report.
  *
  * I/O only — all decisions live in `lib/roadmap-link-core.ts` (unit-tested).
  * GitHub mutations go through the `gh` CLI so this needs no extra deps and runs
@@ -257,9 +260,14 @@ function main(): void {
   syncLabel(pr, LABEL, result.labelShouldBePresent);
   syncLabel(pr, SPAWN_LABEL, spawn.labelShouldBePresent);
 
-  // Non-blocking: a red check here is a visible signal, but this job is NOT in
-  // the required-checks list, so it cannot stop a merge on its own. The labels
-  // are what make the land wait for a human.
+  // Required + fail-closed: `roadmap-link` is in branch protection's required
+  // checks, so a non-zero exit here blocks the merge. Any non-pass blocks —
+  // an author-fixable miss (no/typo'd `Roadmap-Item:`, a planning doc with no
+  // spawns) OR a broken/stale snapshot. The operator chose fail-closed so a
+  // stale mirror can never read as "all clear"; keep it fresh with
+  // `npx tsx scripts/export-roadmap-snapshot.ts`. The label + comment still fire
+  // so the fix is obvious. (merge_group is a workflow pass-through, so this only
+  // gates at pull_request time.)
   process.exit(passed ? 0 : 1);
 }
 
