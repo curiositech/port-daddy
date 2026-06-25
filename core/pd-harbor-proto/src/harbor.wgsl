@@ -85,6 +85,26 @@ fn moored_boat(uv : vec2f, cx : f32, sea_y : f32, t : f32, scale : f32) -> f32 {
     return min(hull, mast);
 }
 
+// Gerstner-style swell as a screen-space height field: a sum of crossing
+// directional sine trains (+ a sharpening harmonic each) → coherent moving
+// crests that read at pixel scale, where plain FBM goes to static mud.
+// (Reimplemented from first principles — the technique, not anyone's code.)
+fn sea_h(p : vec2f, t : f32) -> f32 {
+    var dirs = array<vec2f,4>(vec2f(1.0, 0.2), vec2f(0.6, -0.5), vec2f(-0.4, 0.8), vec2f(0.9, 0.5));
+    var len  = array<f32,4>(1.0, 0.6, 1.8, 0.4);
+    var amp  = array<f32,4>(0.32, 0.18, 0.10, 0.06);
+    var spd  = array<f32,4>(0.5, 0.9, 0.3, 1.4);
+    var h = 0.0;
+    for (var i = 0u; i < 4u; i = i + 1u) {
+        let d = normalize(dirs[i]);
+        let k = 6.2831853 / len[i];
+        let ph = dot(d, p) * k + t * spd[i];
+        h = h + amp[i] * sin(ph);
+        h = h + amp[i] * 0.3 * sin(ph * 2.1 + 1.1);
+    }
+    return h;
+}
+
 @fragment
 fn fs_main(in : VOut) -> @location(0) vec4f {
     let CHUNK = 4.0;
@@ -117,15 +137,43 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
             col = mix(col, FOAM, s); // sparse dithered stars
         }
     } else {
-        // Dark water: a deep base with foam ONLY on the crests (dithered), so
-        // the sea reads as a calm dark backdrop the fleet content sits over.
-        let swell = fbm(vec2f(uv.x * 7.0, (uv.y - sea_y) * 16.0 - t * 0.5));
-        let base = select(SEA, NAVY, night);
-        let crest = smoothstep(0.52, 0.82, swell);
-        let foam = crest * step(bayer4(frag), 0.55);
-        col = mix(base, FOAM, foam);
+        // ── Richer water (ShaderToy-inspired techniques, reimplemented):
+        //    Gerstner height field + slope shading + fresnel horizon + foam from
+        //    wave curvature + a sharp specular sun-spark on crests. ──
+        // Bigger, gentler swells so the surface stays a calm dark backdrop.
+        let sp = vec2f(uv.x * 4.0, (uv.y - sea_y) * 6.0);
+        let h  = sea_h(sp, t);
+        let e  = 0.07;
+        let hl = sea_h(sp - vec2f(e, 0.0), t);
+        let hr = sea_h(sp + vec2f(e, 0.0), t);
+        let hd = sea_h(sp - vec2f(0.0, e), t);
+        let hu = sea_h(sp + vec2f(0.0, e), t);
+        let slope = (hr - hl) + (hu - hd);
+        let lap = hl + hr + hd + hu - 4.0 * h; // curvature → breaking foam
+
+        // Slope-shaded dark water: troughs sink to deep navy, faces lift only a
+        // little toward SEA (dimmed) so crests don't blow out.
+        let shade = clamp(0.5 - slope * 0.9, 0.0, 1.0);
+        var base = mix(NAVY * 0.5, mix(SEA, NAVY, 0.35), shade);
+
+        // Fresnel-ish horizon glow: grazing angles near the sea line warm toward
+        // the sun's mustard — the ocean "breathes" without extra geometry.
+        let depth = clamp((uv.y - sea_y) / (1.0 - sea_y), 0.0, 1.0);
+        let fres = pow(1.0 - depth, 3.0);
+        base = mix(base, mix(base, MUSTARD, 0.5), fres * 0.28);
+
+        // Foam only on the SHARPEST breaking crests, sparsely dithered.
+        let foam = smoothstep(0.16, 0.30, lap) * step(bayer4(frag), 0.38);
+        var water = mix(base, FOAM, foam);
+
+        // Sun-glint road + a sharp specular spark where the glint rides a crest.
         let glint = sun_glint(uv, sun, t);
-        col = mix(col, MUSTARD, smoothstep(0.4, 0.9, glint) * 0.7);
+        water = mix(water, MUSTARD, smoothstep(0.45, 0.9, glint) * 0.55);
+        let crest = smoothstep(0.26, 0.52, h);
+        let spark = pow(glint, 6.0) * crest;
+        water = mix(water, MUSTARD, clamp(spark * 2.0, 0.0, 0.85));
+
+        col = dither_quant(water, frag, 5.0);
     }
 
     let b0 = moored_boat(uv, 0.22, sea_y, t, 0.10);
