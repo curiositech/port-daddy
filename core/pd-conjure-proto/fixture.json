@@ -1,11 +1,8 @@
 {
-  "title": "Ship provider settings flow",
+  "title": "Design a local web app for characterizing daemon health.",
   "problem_classification": "well-structured",
   "confidence": 0.86,
   "halt_reason": null,
-  "estimated_total_minutes": 40,
-  "estimated_total_cost_usd": 0.42,
-  "topology": "dag",
   "waves": [
     {
       "wave_number": 1,
@@ -20,7 +17,7 @@
           "input_contract": "Repo layout + current settings module",
           "output_contract": "A provider-settings contract sketch",
           "model_tier": "sonnet",
-          "estimated_minutes": 8,
+          "estimated_minutes": 8.0,
           "estimated_cost_usd": 0.07,
           "cascade_depth": 2,
           "ask_user_before_proceeding": false
@@ -40,7 +37,7 @@
           "input_contract": "The provider-settings contract",
           "output_contract": "A wired settings panel",
           "model_tier": "opus",
-          "estimated_minutes": 16,
+          "estimated_minutes": 16.0,
           "estimated_cost_usd": 0.22,
           "cascade_depth": 1,
           "ask_user_before_proceeding": false
@@ -53,8 +50,8 @@
           "commitment_level": "EXPLORATORY",
           "input_contract": "Existing component behavior",
           "output_contract": "Passing tests for the changed flow",
-          "model_tier": "gemini",
-          "estimated_minutes": 10,
+          "model_tier": "haiku",
+          "estimated_minutes": 10.0,
           "estimated_cost_usd": 0.05,
           "cascade_depth": 0,
           "ask_user_before_proceeding": false
@@ -73,13 +70,16 @@
           "commitment_level": "TENTATIVE",
           "input_contract": "Green CI + the wired panel",
           "output_contract": "A signed, notarized release",
-          "model_tier": "codex",
-          "estimated_minutes": 6,
+          "model_tier": "sonnet",
+          "estimated_minutes": 6.0,
           "estimated_cost_usd": 0.08,
           "cascade_depth": 0,
           "ask_user_before_proceeding": true
         }
       ]
     }
-  ]
+  ],
+  "estimated_total_minutes": 40.0,
+  "estimated_total_cost_usd": 0.42,
+  "topology": "dag"
 }

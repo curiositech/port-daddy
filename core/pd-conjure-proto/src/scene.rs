@@ -1,10 +1,26 @@
-//! Vello scene construction for the Conjure predicted-DAG node-graph.
+//! Vello scene construction for the Conjure predicted-DAG node-graph —
+//! the NEXT-GENERATION render.
 //!
 //! This is the VELLO GRAPH slice (Rung 1, per `CONJURE-DAG-SURFACE.md`): a
 //! wave-column layout (x = `wave_number`), each node a rounded-rect card with
 //! Parley-shaped text, feed-forward cubic-bezier edges styled by
 //! `commitment_level`. Everything is bespoke GPU vector rendering — hand-built
 //! paths fed into the same Vello scene as the glyph runs, no widget tree.
+//!
+//! Art direction (the "magazine-grade / cinematic / retro-futurist" pass the
+//! operator asked for — all GPU vector, offscreen):
+//!   1. LIVING-HARBOR BACKDROP — a vertical ebony→warm gradient, a faint radial
+//!      horizon glow behind the graph, a quiet dithered dot-shimmer (the harbor
+//!      water), and a vignette around the frame.
+//!   2. NODE CARDS WITH DEPTH + GLOW — a soft blurred drop shadow, a commitment-
+//!      colored outer glow (`draw_blurred_rounded_rect`), a raised→panel gradient
+//!      card fill, a gradient header strip, and a crisp 2px commitment border.
+//!   3. GRADIENT FLOWING EDGES — bezier edges stroked with a source→target color
+//!      gradient, a soft glow underlay for COMMITTED, a brighter tapered leading
+//!      segment near the target, and a refined arrowhead.
+//!   4. EDITORIAL TYPOGRAPHY — a large headline, a refined sub-line, bold node
+//!      titles, lighter role text, and vendor-distinct model-tier CHIPS.
+//!   5. WAVE HEADERS as tracked-out labels, refined cost/cascade footers.
 //!
 //! The Parley glyph-run pipeline (`TextEngine` + `render_glyph_run`) mirrors
 //! `pd-timeline-proto/src/scene.rs` — the proven Rung-1 text path.
@@ -15,19 +31,23 @@ use kurbo::{Affine, BezPath, Circle, Point, Rect, RoundedRect, RoundedRectRadii,
 use parley::{
     Alignment, FontContext, GlyphRun, Layout, LayoutContext, PositionedLayoutItem, StyleProperty,
 };
-use peniko::{Brush, Color, Fill};
+use peniko::{Brush, Color, Extend, Fill, Gradient};
 use vello::Scene;
 
 use crate::dag::{build_edges, Commitment, PredictedDag};
 
 // --- Maritime palette (the harbor scheme the operator specified). ---
 const BG: Color = Color::rgb8(0x1e, 0x1b, 0x18); // ebony
-const PANEL: Color = Color::rgb8(0x2b, 0x27, 0x24); // card fill
-const PANEL_HI: Color = Color::rgb8(0x35, 0x30, 0x2c); // header strip on a card
-const CANARY: Color = Color::rgb8(0xff, 0xdb, 0x33); // accent
+const BG_DEEP: Color = Color::rgb8(0x14, 0x12, 0x10); // deeper ebony (bottom of harbor)
+const BG_WARM: Color = Color::rgb8(0x2a, 0x24, 0x1d); // warmer ebony near the title
+const PANEL: Color = Color::rgb8(0x2b, 0x27, 0x24); // card fill (low tone)
+const RAISED: Color = Color::rgb8(0x3a, 0x34, 0x2d); // raised tone (top of a card)
+const CANARY: Color = Color::rgb8(0xff, 0xdb, 0x33); // accent / committed
 const SUCCESS: Color = Color::rgb8(0x6d, 0xd3, 0xa8); // green
 const DANGER: Color = Color::rgb8(0xf2, 0x64, 0x75); // gate / refusal
 const COBALT: Color = Color::rgb8(0x7f, 0xc4, 0xff); // tentative
+const VIOLET: Color = Color::rgb8(0xb6, 0x9c, 0xff); // codex chip
+const AMBER: Color = Color::rgb8(0xf2, 0xa9, 0x4e); // groq chip
 const INK: Color = Color::rgb8(0xf5, 0xf5, 0xf0); // primary text
 const INK_DIM: Color = Color::rgb8(0xa6, 0xa0, 0x98); // secondary text
 const HAIRLINE: Color = Color::rgb8(0x46, 0x40, 0x3a); // faint divider
@@ -43,14 +63,44 @@ fn commitment_color(c: Commitment) -> Color {
     }
 }
 
+/// Linear interpolation between two colors in sRGB byte space (good enough for
+/// the short edge/card gradients — peniko 0.2's `Color` has no `lerp`).
+fn lerp_color(a: Color, b: Color, t: f64) -> Color {
+    let t = t.clamp(0.0, 1.0);
+    let mix = |x: u8, y: u8| -> u8 {
+        (x as f64 + (y as f64 - x as f64) * t).round().clamp(0.0, 255.0) as u8
+    };
+    Color::rgb8(mix(a.r, b.r), mix(a.g, b.g), mix(a.b, b.b))
+}
+
+/// Vendor-distinct accent for a model-tier chip. Tier labels are rendered
+/// VERBATIM, but the chip's accent reads the family so the operator can scan
+/// vendors at a glance: claude/opus/sonnet/haiku = canary, gemini = cobalt-green,
+/// codex = violet, groq = amber, everything else = a quiet ink chip.
+fn vendor_accent(tier: &str) -> Color {
+    let t = tier.trim().to_ascii_lowercase();
+    let has = |needle: &str| t.contains(needle);
+    if has("opus") || has("sonnet") || has("haiku") || has("claude") {
+        CANARY
+    } else if has("gemini") {
+        SUCCESS
+    } else if has("codex") || has("gpt") || has("o1") || has("o3") {
+        VIOLET
+    } else if has("groq") || has("llama") || has("mixtral") {
+        AMBER
+    } else {
+        INK_DIM
+    }
+}
+
 /// Card geometry, in logical pixels.
-const NODE_W: f64 = 280.0;
-const NODE_H: f64 = 158.0;
-const COL_GAP: f64 = 104.0; // horizontal gap between wave columns
-const ROW_GAP: f64 = 56.0; // vertical gap between stacked nodes in a column
-const MARGIN_X: f64 = 56.0;
-const TOP_PAD: f64 = 128.0; // room for title + meta banner + the WAVE captions
-const BOTTOM_PAD: f64 = 48.0;
+const NODE_W: f64 = 288.0;
+const NODE_H: f64 = 168.0;
+const COL_GAP: f64 = 116.0; // horizontal gap between wave columns
+const ROW_GAP: f64 = 60.0; // vertical gap between stacked nodes in a column
+const MARGIN_X: f64 = 64.0;
+const TOP_PAD: f64 = 150.0; // room for headline + meta sub-line + the WAVE captions
+const BOTTOM_PAD: f64 = 64.0;
 
 /// The fully-resolved canvas size for a DAG, so the offscreen target is sized to
 /// exactly contain the graph (no clipping, no wasted pixels).
@@ -73,8 +123,8 @@ pub fn canvas_for(dag: &PredictedDag) -> Canvas {
     let height = TOP_PAD + col_h + BOTTOM_PAD;
     Canvas {
         // A comfortable minimum so a tiny DAG still produces a substantial PNG.
-        width: width.max(720.0),
-        height: height.max(420.0),
+        width: width.max(760.0),
+        height: height.max(460.0),
     }
 }
 
@@ -140,6 +190,7 @@ impl TextEngine {
     }
 
     /// A single un-wrapped line (eyebrow / meta). Returns laid-out width.
+    #[allow(clippy::too_many_arguments)]
     fn draw_line(
         &mut self,
         scene: &mut Scene,
@@ -151,9 +202,30 @@ impl TextEngine {
         color: Color,
         scale: f32,
     ) -> f64 {
+        self.draw_line_tracked(scene, text, x, y, size, weight, color, scale, 0.0)
+    }
+
+    /// A single un-wrapped line with optional letter-spacing (tracking, in
+    /// logical px) for the editorial tracked-out caps labels. Returns width.
+    #[allow(clippy::too_many_arguments)]
+    fn draw_line_tracked(
+        &mut self,
+        scene: &mut Scene,
+        text: &str,
+        x: f64,
+        y: f64,
+        size: f32,
+        weight: f32,
+        color: Color,
+        scale: f32,
+        tracking: f32,
+    ) -> f64 {
         let mut builder = self.layout_cx.ranged_builder(&mut self.font_cx, text, scale);
         builder.push_default(StyleProperty::FontSize(size));
         builder.push_default(StyleProperty::FontWeight(parley::FontWeight::new(weight)));
+        if tracking != 0.0 {
+            builder.push_default(StyleProperty::LetterSpacing(tracking));
+        }
         builder.push_default(StyleProperty::Brush(Brush::Solid(color)));
         let mut layout: Layout<Brush> = builder.build(text);
         layout.break_all_lines(None);
@@ -166,6 +238,19 @@ impl TextEngine {
                 }
             }
         }
+        layout.width() as f64 / scale as f64
+    }
+
+    /// Measure a line's width without painting (used to size chips/pills).
+    fn measure(&mut self, text: &str, size: f32, weight: f32, tracking: f32, scale: f32) -> f64 {
+        let mut builder = self.layout_cx.ranged_builder(&mut self.font_cx, text, scale);
+        builder.push_default(StyleProperty::FontSize(size));
+        builder.push_default(StyleProperty::FontWeight(parley::FontWeight::new(weight)));
+        if tracking != 0.0 {
+            builder.push_default(StyleProperty::LetterSpacing(tracking));
+        }
+        let mut layout: Layout<Brush> = builder.build(text);
+        layout.break_all_lines(None);
         layout.width() as f64 / scale as f64
     }
 }
@@ -220,6 +305,16 @@ fn truncate(s: &str, max: usize) -> String {
     }
 }
 
+/// A vertical linear gradient brush between two colors over [y0, y1].
+fn vgrad(top: Color, bottom: Color, y0: f64, y1: f64) -> Brush {
+    Brush::Gradient(
+        Gradient::new_linear((0.0, y0), (0.0, y1)).with_stops([
+            (0.0_f32, top),
+            (1.0_f32, bottom),
+        ]),
+    )
+}
+
 /// Build the full Vello scene for the predicted DAG. `scale` is the hidpi factor
 /// of the offscreen target (text is shaped at this scale for crisp glyphs).
 pub fn build_scene(
@@ -231,46 +326,69 @@ pub fn build_scene(
 ) {
     scene.reset();
 
-    // 1. Background.
-    scene.fill(
-        Fill::NonZero,
-        Affine::IDENTITY,
-        BG,
-        None,
-        &Rect::new(0.0, 0.0, canvas.width, canvas.height),
-    );
+    paint_backdrop(scene, canvas);
 
-    // 2. Title + meta banner.
+    // --- Headline + meta sub-line (editorial type hierarchy). ---
     let title = if dag.title.is_empty() {
         "Conjure \u{2014} predicted DAG"
     } else {
         &dag.title
     };
-    text.draw_line(scene, title, MARGIN_X, 28.0, 24.0, 700.0, INK, scale);
+    // A thin canary tick before the eyebrow, then a tracked-out eyebrow.
+    scene.fill(
+        Fill::NonZero,
+        Affine::IDENTITY,
+        CANARY,
+        None,
+        &Rect::new(MARGIN_X, 26.0, MARGIN_X + 22.0, 29.0),
+    );
+    text.draw_line_tracked(
+        scene,
+        "CONJURE \u{00b7} PREDICTED EXECUTION DAG",
+        MARGIN_X + 32.0,
+        20.0,
+        12.0,
+        700.0,
+        CANARY,
+        scale,
+        2.4,
+    );
+    // The big editorial headline.
+    text.draw_line(
+        scene,
+        &truncate(title, 72),
+        MARGIN_X,
+        40.0,
+        34.0,
+        800.0,
+        INK,
+        scale,
+    );
 
+    // Refined sub-line: classification + a dot-separated metric strip.
     let classification = if dag.problem_classification.is_empty() {
         "unclassified".to_string()
     } else {
         dag.problem_classification.clone()
     };
     let n_nodes: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
-    let meta = format!(
-        "{classification}  \u{00b7}  {} waves  \u{00b7}  {} nodes  \u{00b7}  ~{:.0}m  \u{00b7}  ${:.2}  \u{00b7}  {:.0}% confidence",
+    let sub = format!(
+        "{classification}   \u{2022}   {} waves   \u{2022}   {} nodes   \u{2022}   ~{:.0} min   \u{2022}   ${:.2}   \u{2022}   {:.0}% confidence",
         dag.waves.len(),
         n_nodes,
         dag.estimated_total_minutes,
         dag.estimated_total_cost_usd,
         dag.confidence * 100.0,
     );
-    text.draw_line(scene, &meta, MARGIN_X, 62.0, 14.0, 500.0, CANARY, scale);
+    text.draw_line(scene, &sub, MARGIN_X, 86.0, 14.5, 500.0, INK_DIM, scale);
 
     // A halt reason (planner refused) reads in full, in the danger color.
     if let Some(reason) = &dag.halt_reason {
         text.draw_line(
             scene,
-            &format!("halt: {reason}"),
+            &format!("HALT \u{00b7} {reason}"),
             MARGIN_X,
-            84.0,
+            110.0,
             14.0,
             600.0,
             DANGER,
@@ -278,62 +396,203 @@ pub fn build_scene(
         );
     }
 
-    // 3. Resolve every node's card rect first, so edges can attach to real
-    //    geometry (left/right midpoints of the source/target cards).
-    //    pos: node id -> (left-mid attach point, right-mid attach point).
+    // --- Resolve every node's card rect first so edges attach to real geometry. ---
     let mut left_mid: HashMap<String, Point> = HashMap::new();
     let mut right_mid: HashMap<String, Point> = HashMap::new();
+    let mut card_commit: HashMap<String, Commitment> = HashMap::new();
     let mut cards: Vec<(Point, &crate::dag::PredictedNode)> = Vec::new();
     for (wi, wave) in dag.waves.iter().enumerate() {
         let rows = wave.nodes.len().max(1);
         for (ri, node) in wave.nodes.iter().enumerate() {
             let o = node_origin(canvas, wi, ri, rows);
             left_mid.insert(node.id.clone(), Point::new(o.x, o.y + NODE_H / 2.0));
-            right_mid.insert(
-                node.id.clone(),
-                Point::new(o.x + NODE_W, o.y + NODE_H / 2.0),
-            );
+            right_mid.insert(node.id.clone(), Point::new(o.x + NODE_W, o.y + NODE_H / 2.0));
+            card_commit.insert(node.id.clone(), Commitment::of(&node.commitment_level));
             cards.push((o, node));
         }
     }
 
-    // 4. Feed-forward edges FIRST (under the cards), styled by commitment.
+    // --- Feed-forward edges FIRST (under the cards), as gradient flowing strokes. ---
     for edge in build_edges(dag) {
         let (Some(&a), Some(&b)) = (right_mid.get(&edge.source), left_mid.get(&edge.target)) else {
             continue;
         };
-        draw_edge(scene, a, b, edge.commitment);
+        let src_commit = card_commit
+            .get(&edge.source)
+            .copied()
+            .unwrap_or(Commitment::Unknown);
+        draw_edge(scene, a, b, src_commit, edge.commitment);
     }
 
-    // 5. Wave column captions (above each column) + node cards.
+    // --- Wave column captions (tracked-out caps labels above each column). ---
     for (wi, wave) in dag.waves.iter().enumerate() {
         let rows = wave.nodes.len().max(1);
         let o0 = node_origin(canvas, wi, 0, rows);
+        let label_y = (o0.y - 30.0).max(TOP_PAD - 34.0);
+        // A small canary tick before the wave label.
+        scene.fill(
+            Fill::NonZero,
+            Affine::IDENTITY,
+            CANARY.multiply_alpha(0.85),
+            None,
+            &Rect::new(o0.x, label_y + 4.0, o0.x + 14.0, label_y + 6.5),
+        );
         let parallel = if wave.parallelizable {
-            "  \u{2225}"
+            "  //  PARALLEL"
         } else {
-            ""
+            "  \u{00b7}  SERIAL"
         };
-        text.draw_line(
+        text.draw_line_tracked(
             scene,
             &format!("WAVE {}{parallel}", wave.wave_number),
-            o0.x,
-            (o0.y - 26.0).max(TOP_PAD - 30.0),
-            13.0,
+            o0.x + 22.0,
+            label_y,
+            12.0,
             700.0,
             INK_DIM,
             scale,
+            1.6,
         );
     }
+
     for (o, node) in cards {
         draw_card(scene, text, o, node, scale);
     }
+
+    // A final vignette overlay, painted last so it darkens the very edges.
+    paint_vignette(scene, canvas);
 }
 
-/// Draw a single node card: rounded-rect panel with a commitment-colored stroke
-/// + left accent rail, a header strip, and the stacked Parley text rows
-/// (skill_id eyebrow, role_description, model/cost line). A gate marker rides the
-/// top-right when `ask_user_before_proceeding`.
+/// LIVING-HARBOR BACKDROP: a vertical ebony gradient (warm near the title,
+/// deep at the keel), a faint radial horizon glow behind the graph, and a quiet
+/// dithered dot-shimmer suggesting harbor water.
+fn paint_backdrop(scene: &mut Scene, canvas: &Canvas) {
+    let full = Rect::new(0.0, 0.0, canvas.width, canvas.height);
+
+    // 1. Base vertical gradient: warm at the very top (behind the headline),
+    //    settling to ebony through the graph, deepening toward the bottom.
+    let bg = Brush::Gradient(
+        Gradient::new_linear((0.0, 0.0), (0.0, canvas.height)).with_stops([
+            (0.0_f32, BG_WARM),
+            (0.16_f32, BG),
+            (0.78_f32, BG),
+            (1.0_f32, BG_DEEP),
+        ]),
+    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, &bg, None, &full);
+
+    // 2. Faint radial horizon glow behind the graph body — a warm canary-tinted
+    //    bloom low-and-center, evoking light off the harbor water. Very quiet.
+    let glow_center = Point::new(canvas.width * 0.5, canvas.height * 0.62);
+    let glow_r = (canvas.width.max(canvas.height)) * 0.62;
+    let horizon = Brush::Gradient(
+        Gradient::new_radial(glow_center, glow_r as f32)
+            .with_extend(Extend::Pad)
+            .with_stops([
+                (0.0_f32, Color::rgb8(0x46, 0x3c, 0x29).multiply_alpha(0.62)),
+                (0.40_f32, Color::rgb8(0x30, 0x2b, 0x22).multiply_alpha(0.34)),
+                (1.0_f32, BG.multiply_alpha(0.0)),
+            ]),
+    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, &horizon, None, &full);
+
+    // 3. Dithered dot-shimmer: a faint staggered grid of tiny dots (a hand-built
+    //    Bayer-ish pixel texture) over the lower harbor band. Alpha falls off
+    //    toward the top so it never competes with the graph. Quiet by design.
+    let spacing = 26.0_f64;
+    let band_top = TOP_PAD - 10.0;
+    let mut y = band_top;
+    let mut row = 0usize;
+    while y < canvas.height - 8.0 {
+        // Staggered (brick) offset every other row → the dither lattice.
+        let x_off = if row % 2 == 0 { 0.0 } else { spacing / 2.0 };
+        let mut x = 10.0 + x_off;
+        // Depth fade: stronger toward the bottom (the water), fading up.
+        let depth = ((y - band_top) / (canvas.height - band_top)).clamp(0.0, 1.0);
+        let base_a = 0.018 + 0.030 * depth;
+        while x < canvas.width - 6.0 {
+            // A 2x2 Bayer threshold gives the dots a subtle ordered twinkle.
+            let bayer = [[0.0, 0.5], [0.75, 0.25]][row % 2][((x / spacing) as usize) % 2];
+            let a = (base_a * (0.6 + 0.8 * bayer)) as f32;
+            if a > 0.004 {
+                scene.fill(
+                    Fill::NonZero,
+                    Affine::IDENTITY,
+                    COBALT.multiply_alpha(a),
+                    None,
+                    &Circle::new(Point::new(x, y), 1.1),
+                );
+            }
+            x += spacing;
+        }
+        y += spacing;
+        row += 1;
+    }
+
+    // 4. A faint top hairline glow under the headline band — separates the
+    //    editorial masthead from the graph water.
+    let band = Brush::Gradient(
+        Gradient::new_linear((MARGIN_X, 0.0), (canvas.width - MARGIN_X, 0.0)).with_stops([
+            (0.0_f32, CANARY.multiply_alpha(0.0)),
+            (0.12_f32, CANARY.multiply_alpha(0.28)),
+            (0.5_f32, CANARY.multiply_alpha(0.10)),
+            (1.0_f32, CANARY.multiply_alpha(0.0)),
+        ]),
+    );
+    scene.fill(
+        Fill::NonZero,
+        Affine::IDENTITY,
+        &band,
+        None,
+        &Rect::new(MARGIN_X, TOP_PAD - 44.0, canvas.width - MARGIN_X, TOP_PAD - 43.0),
+    );
+}
+
+/// A subtle vignette: four soft dark blurred bars hugging the frame edges, so
+/// the corners fall into shadow and the eye is drawn to the graph center.
+fn paint_vignette(scene: &mut Scene, canvas: &Canvas) {
+    let w = canvas.width;
+    let h = canvas.height;
+    let shade = Color::rgb8(0x0a, 0x09, 0x08);
+    let depth = 0.72_f32;
+    let std = 58.0;
+    // Top, bottom, left, right dark blurred rects placed just outside the frame
+    // so only their inner falloff darkens the edge.
+    scene.draw_blurred_rounded_rect(
+        Affine::IDENTITY,
+        Rect::new(-80.0, -90.0, w + 80.0, 4.0),
+        shade.multiply_alpha(depth),
+        0.0,
+        std,
+    );
+    scene.draw_blurred_rounded_rect(
+        Affine::IDENTITY,
+        Rect::new(-80.0, h - 4.0, w + 80.0, h + 90.0),
+        shade.multiply_alpha(depth),
+        0.0,
+        std,
+    );
+    scene.draw_blurred_rounded_rect(
+        Affine::IDENTITY,
+        Rect::new(-90.0, -80.0, 4.0, h + 80.0),
+        shade.multiply_alpha(depth),
+        0.0,
+        std,
+    );
+    scene.draw_blurred_rounded_rect(
+        Affine::IDENTITY,
+        Rect::new(w - 4.0, -80.0, w + 90.0, h + 80.0),
+        shade.multiply_alpha(depth),
+        0.0,
+        std,
+    );
+}
+
+/// Draw a single node card with DEPTH + GLOW: a soft blurred drop shadow, a
+/// commitment-colored outer glow, a raised→panel gradient fill, a gradient
+/// header strip, a crisp 2px commitment border + left accent rail, and the
+/// stacked Parley text rows. A gate marker rides the top-right when
+/// `ask_user_before_proceeding`.
 fn draw_card(
     scene: &mut Scene,
     text: &mut TextEngine,
@@ -343,63 +602,94 @@ fn draw_card(
 ) {
     let commitment = Commitment::of(&node.commitment_level);
     let accent = commitment_color(commitment);
-    let rect = Rect::new(
+    let rect = Rect::new(origin.x, origin.y, origin.x + NODE_W, origin.y + NODE_H);
+    let radius = 14.0;
+    let rrect = RoundedRect::from_rect(rect, radius);
+
+    // 1. Soft DROP SHADOW: a blurred dark rounded-rect offset down-right.
+    let shadow = rect.with_origin((origin.x + 0.0, origin.y + 10.0)).inflate(2.0, 2.0);
+    scene.draw_blurred_rounded_rect(
+        Affine::IDENTITY,
+        shadow,
+        Color::rgb8(0x00, 0x00, 0x00).multiply_alpha(0.55),
+        radius,
+        16.0,
+    );
+
+    // 2. Commitment-colored OUTER GLOW: stronger for COMMITTED (canary), medium
+    //    for TENTATIVE (cobalt), dim for EXPLORATORY/unknown.
+    let (glow_alpha, glow_std) = match commitment {
+        Commitment::Committed => (0.42, 20.0),
+        Commitment::Tentative => (0.26, 16.0),
+        Commitment::Exploratory => (0.12, 12.0),
+        Commitment::Unknown => (0.08, 10.0),
+    };
+    scene.draw_blurred_rounded_rect(
+        Affine::IDENTITY,
+        rect.inflate(1.5, 1.5),
+        accent.multiply_alpha(glow_alpha),
+        radius + 2.0,
+        glow_std,
+    );
+
+    // 3. Card BODY: a raised→panel vertical gradient (top catches the light).
+    let body = vgrad(RAISED, PANEL, origin.y, origin.y + NODE_H);
+    scene.fill(Fill::NonZero, Affine::IDENTITY, &body, None, &rrect);
+
+    // 3b. Premium TOP SHEEN: a thin glassy highlight along the top inner edge
+    //     that fades down — the card reads as a lit, raised surface.
+    let sheen = Brush::Gradient(
+        Gradient::new_linear((0.0, origin.y), (0.0, origin.y + 26.0)).with_stops([
+            (0.0_f32, INK.multiply_alpha(0.10)),
+            (1.0_f32, INK.multiply_alpha(0.0)),
+        ]),
+    );
+    let sheen_rr = RoundedRect::new(
+        origin.x + 1.5,
+        origin.y + 1.5,
+        origin.x + NODE_W - 1.5,
+        origin.y + 26.0,
+        RoundedRectRadii::new(radius - 1.0, radius - 1.0, 0.0, 0.0),
+    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, &sheen, None, &sheen_rr);
+
+    // 4. HEADER STRIP (top ~36px): a brighter raised→panel gradient + an accent
+    //    wash so the eyebrow sits on a tinted shelf.
+    let header_h = 38.0;
+    let header_rr = RoundedRect::new(
         origin.x,
         origin.y,
         origin.x + NODE_W,
-        origin.y + NODE_H,
+        origin.y + header_h,
+        RoundedRectRadii::new(radius, radius, 0.0, 0.0),
     );
-    let rrect = RoundedRect::from_rect(rect, 12.0);
-
-    // Soft glow for committed nodes: a faint, larger rounded-rect underlay.
-    if commitment == Commitment::Committed {
-        let glow = RoundedRect::from_rect(rect.inflate(4.0, 4.0), 14.0);
-        scene.fill(
-            Fill::NonZero,
-            Affine::IDENTITY,
-            accent.multiply_alpha(0.16),
-            None,
-            &glow,
-        );
-    }
-
-    // Panel fill.
-    scene.fill(Fill::NonZero, Affine::IDENTITY, PANEL, None, &rrect);
-
-    // Header strip (top ~32px) in a slightly lighter panel tone.
-    let header = Rect::new(origin.x, origin.y, origin.x + NODE_W, origin.y + 34.0);
+    let header_grad = vgrad(
+        lerp_color(RAISED, accent, 0.10),
+        RAISED,
+        origin.y,
+        origin.y + header_h,
+    );
+    scene.fill(Fill::NonZero, Affine::IDENTITY, &header_grad, None, &header_rr);
+    // Header underline: a gradient hairline that fades out to the right.
+    let underline = Brush::Gradient(
+        Gradient::new_linear((origin.x, 0.0), (origin.x + NODE_W, 0.0)).with_stops([
+            (0.0_f32, accent.multiply_alpha(0.7)),
+            (1.0_f32, accent.multiply_alpha(0.05)),
+        ]),
+    );
     scene.fill(
         Fill::NonZero,
         Affine::IDENTITY,
-        PANEL_HI,
+        &underline,
         None,
-        &RoundedRect::new(
-            header.x0,
-            header.y0,
-            header.x1,
-            header.y1,
-            // Rounded top corners, square bottom (the strip meets the card body).
-            RoundedRectRadii::new(12.0, 12.0, 0.0, 0.0),
-        ),
-    );
-    // Header underline hairline.
-    scene.fill(
-        Fill::NonZero,
-        Affine::IDENTITY,
-        HAIRLINE,
-        None,
-        &Rect::new(origin.x, origin.y + 33.0, origin.x + NODE_W, origin.y + 34.0),
+        &Rect::new(origin.x, origin.y + header_h - 1.0, origin.x + NODE_W, origin.y + header_h),
     );
 
-    // Card border, commitment-styled: solid (committed), dashed (tentative),
-    // dotted/faint (exploratory). Matches the edge styling.
-    let mut stroke = Stroke::new(if commitment == Commitment::Committed {
-        2.0
-    } else {
-        1.5
-    });
+    // 5. Crisp commitment BORDER: solid 2px (committed), dashed (tentative),
+    //    dotted/faint (exploratory).
+    let mut stroke = Stroke::new(if commitment == Commitment::Committed { 2.0 } else { 1.6 });
     match commitment {
-        Commitment::Tentative => stroke = stroke.with_dashes(0.0, [6.0, 4.0]),
+        Commitment::Tentative => stroke = stroke.with_dashes(0.0, [7.0, 4.0]),
         Commitment::Exploratory => stroke = stroke.with_dashes(0.0, [2.0, 4.0]),
         _ => {}
     }
@@ -410,96 +700,147 @@ fn draw_card(
     };
     scene.stroke(&stroke, Affine::IDENTITY, border_color, None, &rrect);
 
-    // Left accent rail (a 3px bar in the commitment color, full height).
+    // 6. Left accent rail (a 4px bar in the commitment color, full height).
     scene.fill(
         Fill::NonZero,
         Affine::IDENTITY,
         accent,
         None,
-        &Rect::new(origin.x, origin.y + 1.0, origin.x + 3.0, origin.y + NODE_H - 1.0),
+        &RoundedRect::new(
+            origin.x + 1.0,
+            origin.y + 1.0,
+            origin.x + 5.0,
+            origin.y + NODE_H - 1.0,
+            RoundedRectRadii::new(2.0, 0.0, 0.0, 2.0),
+        ),
     );
 
-    let pad_x = origin.x + 14.0;
-    // Reserve room on the right for the gate dot so the eyebrow never collides.
-    let gate_pad = if node.ask_user_before_proceeding { 26.0 } else { 0.0 };
-    let inner_w = NODE_W - 28.0;
+    let pad_x = origin.x + 16.0;
+    let inner_w = NODE_W - 32.0;
 
-    // Eyebrow: skill_id (accent color + heavy weight, in the header strip).
+    // 7. EYEBROW: skill_id (bold, accent color, in the header strip).
     text.draw_line(
         scene,
         &truncate(&node.skill_id, 28),
         pad_x,
-        origin.y + 9.0,
-        13.0,
+        origin.y + 11.0,
+        14.0,
         700.0,
         accent,
         scale,
     );
-    let _ = gate_pad;
 
-    // role_description: wrapped body, the primary line, clamped to the band
-    // between the header strip and the footer divider (truncated so it never
-    // bleeds into the cost line).
-    let role_y = origin.y + 44.0;
+    // 8. ROLE: wrapped body, the primary line (bold ink, clamped to the band).
+    let role_y = origin.y + 50.0;
     text.draw_wrapped(
         scene,
         &truncate(&node.role_description, 96),
         pad_x,
         role_y,
         inner_w,
-        14.0,
-        500.0,
+        15.0,
+        600.0,
         INK,
         scale,
     );
 
-    // model / cost / time line — model_tier rendered VERBATIM (vendor-agnostic).
-    let model = if node.model_tier.is_empty() {
-        "—".to_string()
-    } else {
-        node.model_tier.clone()
-    };
-    let cascade = if node.cascade_depth > 0 {
-        format!("  \u{00b7}  \u{21af}{}", node.cascade_depth)
-    } else {
-        String::new()
-    };
-    let model_line = format!(
-        "{model}  \u{00b7}  ${:.2}  \u{00b7}  {:.0}m{cascade}",
-        node.estimated_cost_usd, node.estimated_minutes
+    // 9. FOOTER: a vendor chip + a refined cost/time/cascade line.
+    let footer_y = origin.y + NODE_H - 30.0;
+    // A gradient divider above the footer (fades out to the right).
+    let div = Brush::Gradient(
+        Gradient::new_linear((pad_x, 0.0), (pad_x + inner_w, 0.0)).with_stops([
+            (0.0_f32, HAIRLINE.multiply_alpha(0.9)),
+            (1.0_f32, HAIRLINE.multiply_alpha(0.0)),
+        ]),
     );
-    // Pin the model line near the card bottom for a consistent footer baseline.
-    let footer_y = origin.y + NODE_H - 24.0;
-    // A thin divider above the footer.
     scene.fill(
         Fill::NonZero,
         Affine::IDENTITY,
-        HAIRLINE,
+        &div,
         None,
-        &Rect::new(pad_x, footer_y - 8.0, pad_x + inner_w, footer_y - 7.5),
+        &Rect::new(pad_x, footer_y - 10.0, pad_x + inner_w, footer_y - 9.0),
     );
-    // Model tier chip color: success-tinted text so the cost line reads as "live".
+
+    // Vendor model-tier CHIP: a small pill, accent-tinted by vendor family.
+    let model = if node.model_tier.is_empty() {
+        "\u{2014}".to_string()
+    } else {
+        node.model_tier.clone()
+    };
+    let chip_accent = vendor_accent(&model);
+    let chip_label = truncate(&model, 12);
+    let chip_text_w = text.measure(&chip_label, 12.0, 700.0, 0.6, scale);
+    let chip_pad = 9.0;
+    let chip_h = 19.0;
+    let chip_x0 = pad_x;
+    let chip_y0 = footer_y;
+    let chip_x1 = chip_x0 + chip_text_w + chip_pad * 2.0;
+    let chip_rr = RoundedRect::new(
+        chip_x0,
+        chip_y0,
+        chip_x1,
+        chip_y0 + chip_h,
+        RoundedRectRadii::from(chip_h / 2.0),
+    );
+    // Pill background: a tinted fill + a 1px accent ring.
+    scene.fill(
+        Fill::NonZero,
+        Affine::IDENTITY,
+        chip_accent.multiply_alpha(0.16),
+        None,
+        &chip_rr,
+    );
+    scene.stroke(
+        &Stroke::new(1.0),
+        Affine::IDENTITY,
+        chip_accent.multiply_alpha(0.85),
+        None,
+        &chip_rr,
+    );
+    text.draw_line_tracked(
+        scene,
+        &chip_label,
+        chip_x0 + chip_pad,
+        chip_y0 + 3.0,
+        12.0,
+        700.0,
+        chip_accent,
+        scale,
+        0.6,
+    );
+
+    // Cost / time / cascade, to the right of the chip (success-tinted "live").
+    let cascade = if node.cascade_depth > 0 {
+        format!("  \u{00b7}  casc {}", node.cascade_depth)
+    } else {
+        String::new()
+    };
+    let metrics = format!(
+        "${:.2}  \u{00b7}  {:.0}m{cascade}",
+        node.estimated_cost_usd, node.estimated_minutes
+    );
     text.draw_line(
         scene,
-        &model_line,
-        pad_x,
-        footer_y,
-        13.0,
+        &metrics,
+        chip_x1 + 10.0,
+        chip_y0 + 3.0,
+        12.5,
         600.0,
         SUCCESS,
         scale,
     );
 
-    // The HITL gate marker: a filled danger dot + an open ring, top-right.
+    // 10. HITL gate marker: a filled danger dot + an open ring + a glow, top-right.
     if node.ask_user_before_proceeding {
-        let c = Point::new(origin.x + NODE_W - 16.0, origin.y + 17.0);
-        scene.fill(
-            Fill::NonZero,
+        let c = Point::new(origin.x + NODE_W - 20.0, origin.y + 19.0);
+        scene.draw_blurred_rounded_rect(
             Affine::IDENTITY,
-            DANGER,
-            None,
-            &Circle::new(c, 5.0),
+            Rect::new(c.x - 6.0, c.y - 6.0, c.x + 6.0, c.y + 6.0),
+            DANGER.multiply_alpha(0.5),
+            6.0,
+            8.0,
         );
+        scene.fill(Fill::NonZero, Affine::IDENTITY, DANGER, None, &Circle::new(c, 5.0));
         scene.stroke(
             &Stroke::new(1.5),
             Affine::IDENTITY,
@@ -507,88 +848,129 @@ fn draw_card(
             None,
             &Circle::new(c, 9.0),
         );
-        // A "gate" label just below the ring, hugging the right edge.
-        let gw = text.draw_line(scene, "gate", 0.0, -100.0, 11.0, 700.0, DANGER, scale);
-        text.draw_line(
+        // A "GATE" tracked label under the ring, hugging the right edge.
+        let gw = text.measure("GATE", 10.0, 800.0, 1.2, scale);
+        text.draw_line_tracked(
             scene,
-            "gate",
+            "GATE",
             origin.x + NODE_W - 14.0 - gw,
-            origin.y + 24.0,
-            11.0,
-            700.0,
+            origin.y + 28.0,
+            10.0,
+            800.0,
             DANGER,
             scale,
+            1.2,
         );
     }
 }
 
 /// A feed-forward cubic-bezier edge from `a` (source right-mid) to `b` (target
-/// left-mid). Styled by commitment: COMMITTED = solid + accent glow underlay,
-/// TENTATIVE = dashed cobalt, EXPLORATORY = dotted + faint.
-fn draw_edge(scene: &mut Scene, a: Point, b: Point, commitment: Commitment) {
-    let color = commitment_color(commitment);
-    let mut path = BezPath::new();
-    path.move_to(a);
+/// left-mid). Drawn as a GRADIENT FLOWING stroke (source color → target color),
+/// styled by the *target's* commitment: COMMITTED = thick + soft glow underlay +
+/// a bright tapered leading segment near the target, TENTATIVE = dashed cobalt,
+/// EXPLORATORY = dotted + faint. A refined arrowhead caps the target.
+fn draw_edge(scene: &mut Scene, a: Point, b: Point, src_commit: Commitment, commitment: Commitment) {
+    let src_color = commitment_color(src_commit);
+    let tgt_color = commitment_color(commitment);
+
+    // The full S-curve.
     let dx = (b.x - a.x).abs().max(60.0);
     let c1 = Point::new(a.x + dx * 0.5, a.y);
     let c2 = Point::new(b.x - dx * 0.5, b.y);
+    let mut path = BezPath::new();
+    path.move_to(a);
     path.curve_to(c1, c2, b);
+
+    // A horizontal gradient brush from the source color to the target color,
+    // spanning the edge's x-extent → the stroke reads as flow/direction.
+    let flow = Brush::Gradient(
+        Gradient::new_linear((a.x, 0.0), (b.x, 0.0)).with_stops([
+            (0.0_f32, src_color.multiply_alpha(0.85)),
+            (0.5_f32, lerp_color(src_color, tgt_color, 0.5)),
+            (1.0_f32, tgt_color),
+        ]),
+    );
 
     match commitment {
         Commitment::Committed => {
-            // Glow underlay, then a solid bright stroke.
+            // Soft glow underlay (target-tinted), then the gradient flow stroke.
             scene.stroke(
-                &Stroke::new(6.0),
+                &Stroke::new(7.0),
                 Affine::IDENTITY,
-                color.multiply_alpha(0.20),
+                tgt_color.multiply_alpha(0.16),
                 None,
                 &path,
             );
-            scene.stroke(&Stroke::new(2.0), Affine::IDENTITY, color, None, &path);
+            scene.stroke(&Stroke::new(2.4), Affine::IDENTITY, &flow, None, &path);
+            // A bright tapered LEADING SEGMENT near the target (the "head" of
+            // the flow): re-stroke just the last third, brighter + thicker.
+            let lead = leading_segment(a, c1, c2, b, 0.62);
+            scene.stroke(
+                &Stroke::new(3.0),
+                Affine::IDENTITY,
+                tgt_color,
+                None,
+                &lead,
+            );
         }
         Commitment::Tentative => {
-            let s = Stroke::new(1.75).with_dashes(0.0, [7.0, 5.0]);
-            scene.stroke(&s, Affine::IDENTITY, color, None, &path);
+            let s = Stroke::new(1.9).with_dashes(0.0, [8.0, 5.0]);
+            scene.stroke(&s, Affine::IDENTITY, &flow, None, &path);
         }
         Commitment::Exploratory => {
             let s = Stroke::new(1.5).with_dashes(0.0, [1.5, 5.0]);
             scene.stroke(
                 &s,
                 Affine::IDENTITY,
-                color.multiply_alpha(0.7),
+                tgt_color.multiply_alpha(0.65),
                 None,
                 &path,
             );
         }
         Commitment::Unknown => {
-            scene.stroke(
-                &Stroke::new(1.25),
-                Affine::IDENTITY,
-                color,
-                None,
-                &path,
-            );
+            scene.stroke(&Stroke::new(1.25), Affine::IDENTITY, &flow, None, &path);
         }
     }
 
     // Arrowhead at the target end (along the incoming tangent c2 -> b).
-    let dir = (b - c2_dir(a, b)).normalize();
-    draw_arrowhead(scene, b, dir, color);
+    let dir = (b - c2).normalize();
+    draw_arrowhead(scene, b, dir, tgt_color);
 }
 
-/// Approximate the incoming tangent direction at the target: from the second
-/// control point toward `b`. We recompute c2 here to avoid threading it out.
-fn c2_dir(a: Point, b: Point) -> Point {
-    let dx = (b.x - a.x).abs().max(60.0);
-    Point::new(b.x - dx * 0.5, b.y)
+/// Re-evaluate the cubic to produce a sub-path covering t ∈ [t0, 1] — the
+/// "leading" tail near the target — as a fresh BezPath built from sampled points.
+fn leading_segment(p0: Point, p1: Point, p2: Point, p3: Point, t0: f64) -> BezPath {
+    let bez = |t: f64| -> Point {
+        let u = 1.0 - t;
+        let w0 = u * u * u;
+        let w1 = 3.0 * u * u * t;
+        let w2 = 3.0 * u * t * t;
+        let w3 = t * t * t;
+        Point::new(
+            w0 * p0.x + w1 * p1.x + w2 * p2.x + w3 * p3.x,
+            w0 * p0.y + w1 * p1.y + w2 * p2.y + w3 * p3.y,
+        )
+    };
+    let mut path = BezPath::new();
+    let steps = 14;
+    for i in 0..=steps {
+        let t = t0 + (1.0 - t0) * (i as f64 / steps as f64);
+        let p = bez(t);
+        if i == 0 {
+            path.move_to(p);
+        } else {
+            path.line_to(p);
+        }
+    }
+    path
 }
 
 /// Small filled triangle at `tip`, pointing along unit `dir`.
 fn draw_arrowhead(scene: &mut Scene, tip: Point, dir: Vec2, color: Color) {
     let perp = Vec2::new(-dir.y, dir.x);
-    let base = tip - dir * 9.0;
-    let left = base + perp * 4.5;
-    let right = base - perp * 4.5;
+    let base = tip - dir * 10.0;
+    let left = base + perp * 5.0;
+    let right = base - perp * 5.0;
     let mut head = BezPath::new();
     head.move_to(tip);
     head.line_to(left);
