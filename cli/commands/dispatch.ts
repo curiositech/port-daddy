@@ -37,6 +37,7 @@ import { describeState, stateGlyph } from '../../lib/dispatch/state-machine.js';
 import type { CLIOptions } from '../types.js';
 import { isJson, isQuiet } from '../types.js';
 import * as ui from '../utils/ui.js';
+import { pdFetch, isDaemonRunning } from '../utils/fetch.js';
 import { handleReview } from './review.js';
 
 function usage(): never {
@@ -46,7 +47,8 @@ function usage(): never {
   console.error('  propose <goal text>     Drop a goal into the queue (state=proposed)');
   console.error('  queue                   List proposed dispatches');
   console.error('  list                    List dispatches (default: all)');
-  console.error('  show <id>               Show one dispatch in detail');
+  console.error('  show <id>               Show one dispatch in detail (local row)');
+  console.error('  status <id>             Live daemon-driven progress + worker health');
   console.error('  run <id>                Run a specific dispatch (default --dry-run)');
   console.error('  run --next              Run the next proposed dispatch (default --dry-run)');
   console.error('  review <id>             Alias for `pd review` (see `pd review --help`)');
@@ -254,6 +256,55 @@ export async function handleDispatch(args: string[], options: CLIOptions): Promi
       return;
     }
     printDispatchDetail(d);
+    return;
+  }
+
+  // -- status (live daemon-driven progress + worker health) -------------
+  // `show` reads the LOCAL queue row; `status` additionally consults the daemon
+  // for the live row AND the autonomous worker's health (running? draining?),
+  // since the worker lives in the daemon process, not this CLI.
+  if (subcommand === 'status') {
+    const id = args[1];
+    if (!id) {
+      ui.error('pd dispatch status requires a dispatch id');
+      usage();
+    }
+    // Prefer the daemon (it holds the live row + worker status); fall back to the
+    // local DB row if the daemon is unreachable.
+    let d = queue.get(id);
+    let worker: Record<string, unknown> | null = null;
+    if (await isDaemonRunning()) {
+      try {
+        const res = await pdFetch(`/dispatches/${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && (json as { dispatch?: Dispatch }).dispatch) {
+            d = (json as { dispatch: Dispatch }).dispatch;
+          }
+        }
+        const wres = await pdFetch('/dispatches/worker/status');
+        if (wres.ok) {
+          const wjson = await wres.json();
+          worker = (wjson as { worker?: Record<string, unknown> }).worker ?? null;
+        }
+      } catch { /* daemon unreachable mid-call — fall back to the local row */ }
+    }
+    if (!d) {
+      ui.error(`Dispatch ${id} not found`);
+      process.exit(1);
+    }
+    if (isJson(options)) {
+      console.log(JSON.stringify({ dispatch: d, worker }, null, 2));
+      return;
+    }
+    printDispatchDetail(d);
+    if (worker) {
+      console.log('');
+      console.log(
+        `  daemon worker:  running=${worker.running} ` +
+        `inFlight=${worker.inFlight}/${worker.maxConcurrency}`,
+      );
+    }
     return;
   }
 

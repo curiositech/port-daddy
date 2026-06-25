@@ -5,8 +5,17 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { PageContainer, SectionIntro } from '@/components/site/primitives'
 import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
+import { useTheme } from '@/lib/theme-context'
 
 export function Hero() {
+  const { theme } = useTheme()
+  // Theme-aware animated radar mark: light artwork on light surfaces, dark on
+  // dark. Lives in the hero's upper-left corner as an additive flourish — it is
+  // absolutely positioned so it never displaces the headline/CTA grid.
+  const animatedLogo =
+    theme === 'dark'
+      ? '/logos/portdaddy-animated-darkmode.svg'
+      : '/logos/portdaddy-animated-lightmode.svg'
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -14,6 +23,19 @@ export function Hero() {
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }} />
+
+      {/* Animated brand mark, upper-left corner. Additive, behind the grid's
+          z-layer edge but above the dotted field; hidden on the narrowest
+          viewports so it never crowds the headline. */}
+      <motion.img
+        src={animatedLogo}
+        alt=""
+        aria-hidden="true"
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.7, ease: 'easeOut' as const }}
+        className="pointer-events-none absolute left-[var(--space-4)] top-[var(--space-4)] z-0 hidden h-16 w-16 select-none rounded-[var(--radius-md)] opacity-90 sm:block lg:h-20 lg:w-20"
+      />
 
       <PageContainer className="relative z-10">
         <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">

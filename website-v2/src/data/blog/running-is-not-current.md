@@ -27,7 +27,7 @@ That is useful, but it is not sufficient. Reachable only answers one question: c
 - whether a stale process survived a restart;
 - whether the shell shim points at the expected binary.
 
-In a system that coordinates agents, those details matter. An agent can make the correct edit in source while the operator keeps looking at an old UI. A background watcher can publish events into the wrong project. A guard can appear missing because the installed CLI is stale.
+In a system that coordinates agents, those details matter. An agent can make the correct edit in source while the operator keeps looking at an old UI. A background watcher can publish events into the wrong project. A guard can appear missing because [the installed CLI is stale](/blog/backend-readiness-is-dependency-truth).
 
 ## The Provenance Stack
 
@@ -218,4 +218,4 @@ The important rule is simple: process success is not visual success. Runtime tru
 
 As agent tooling gets more local and more parallel, provenance becomes a trust boundary. Developers will not accept mystery automation running from unknown state. They will want the system to say what is alive, what is current, and what is safe to trust.
 
-Port Daddy makes that a core product concern. Running is table stakes. Current is the thing that matters.
+Port Daddy makes that a [core product concern](/blog/control-plane-is-the-product). Running is table stakes. Current is the thing that matters.

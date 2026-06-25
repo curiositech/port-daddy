@@ -177,7 +177,7 @@ const config: PortDaddyServerConfig = existsSync(configPath)
 // package.json without a sync step, but the embedded constant is what the
 // bun-compiled binary actually serves — inside the /$bunfs/ bundle, __dirname
 // resolves to a virtual path where package.json doesn't exist on disk.
-const EMBEDDED_PACKAGE_VERSION: string = '3.20.0';
+const EMBEDDED_PACKAGE_VERSION: string = '3.22.0';
 const pkgPath: string = join(__dirname, 'package.json');
 const pkg: { version: string } = existsSync(pkgPath) ? JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string } : { version: EMBEDDED_PACKAGE_VERSION };
 const VERSION: string = pkg.version;
@@ -742,7 +742,7 @@ const arbiterStrictMode = resolveArbiterStrictMode(process.env.PORT_DADDY_ARBITE
 // Durable forensics journal — every Arbiter security event is written, in full,
 // to an append-only JSONL journal OUTSIDE the live DB (~/.port-daddy/forensics/),
 // so it survives the 7-day activity_log prune. Default on; opt out with
-// PD_FORENSICS_ARCHIVE=off. (ADR-0060.)
+// PD_FORENSICS_ARCHIVE=off. (ADR-0089.)
 const forensicsSink =
   process.env.PD_FORENSICS_ARCHIVE === 'off' ? undefined : createJsonlForensicsArchive();
 const arbiter = createArbiter(

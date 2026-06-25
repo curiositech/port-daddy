@@ -174,8 +174,26 @@ export function disableGuardInWorktree(worktreePath: string): void {
   }
 }
 
-export async function gitPushBranch(worktreePath: string, branch: string): Promise<void> {
-  await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch]);
+/**
+ * Default exec-level ceiling for the publish subprocesses (`git push`, `gh pr
+ * create`). The Conductor wraps the whole publish in its own `publishTimeoutMs`
+ * belt (default 120s) to free the dispatch's in-flight slot, but that only
+ * unblocks the daemon — it does NOT kill a hung child. We set the per-exec
+ * timeout slightly UNDER that belt so a stuck `git push` (DNS/ssh hang) or
+ * `gh pr create` (API retry storm) is SIGKILLed at the source before the
+ * Conductor gives up, rather than orphaning a process that lingers overnight.
+ */
+export const PUBLISH_EXEC_TIMEOUT_MS = 110_000;
+
+export async function gitPushBranch(
+  worktreePath: string,
+  branch: string,
+  timeoutMs: number = PUBLISH_EXEC_TIMEOUT_MS,
+): Promise<void> {
+  await execFileAsync('git', ['-C', worktreePath, 'push', '-u', 'origin', branch], {
+    timeout: timeoutMs,
+    killSignal: 'SIGKILL',
+  });
 }
 
 /**
@@ -215,6 +233,8 @@ export async function openDraftPr(params: {
   goal: string;
   dispatchId: string;
   worktreePath: string;
+  /** Exec-level kill ceiling; see PUBLISH_EXEC_TIMEOUT_MS. */
+  timeoutMs?: number;
 }): Promise<string> {
   const title = `[dispatch] ${params.goal.slice(0, 60)}${params.goal.length > 60 ? '...' : ''}`;
   const body = [
@@ -240,7 +260,11 @@ export async function openDraftPr(params: {
     '--body', body,
     '--head', params.branch,
     '--base', params.baseBranch,
-  ], { cwd: params.worktreePath });
+  ], {
+    cwd: params.worktreePath,
+    timeout: params.timeoutMs ?? PUBLISH_EXEC_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+  });
 
   // gh pr create outputs the PR URL as the last non-empty line of stdout.
   const lines = stdout.trim().split('\n').filter(Boolean);

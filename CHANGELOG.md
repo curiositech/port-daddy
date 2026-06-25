@@ -7,7 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.22.0] - 2026-06-23
+
+The **dev-daemon** release: feature-branch daemons become first-class and
+self-cleaning, and the auto-upgrade path that quietly stopped working is fixed.
+
 ### Added
+- **Feature-branch dev daemons + smart GC (ADR-0084).** `pd dev up` on a feature branch (no `--from`) now launches a `codebase` berth for *that worktree* — its own claimed port, isolated DB/socket — instead of the shared `dev-latest` lane (the `--label`-without-`--from` footgun). Many coexist, each named. New **`pd dev gc`** (auto-swept on `dev up`/`dev list`) reaps berths that are dead, worktree-orphaned, or idle past a 24h TTL (codebase only — `stable`/`dev-latest` are standing lanes), and clears the orphaned profile-dir graveyard.
+- **`pd whois` — semantic agent directory / skill router** (#453): find the right agent or skill by capability, not exact name.
+- **Inbox read receipts** (#525): `read_at` + `pd sent` so a sender can see whether a message was read.
+- **pd-console animated pane launcher** + clearer Substrate pane (#516).
+- **Bespoke OG art** for six top-level marketing routes (#536), plus examples friction/appeal surfacing on cards (#521).
+
+### Fixed
+- **Auto-freshness now actually auto-upgrades (#535).** The hourly `pd self-update --tick` logged "daemon already current" for hours while a newer release sat in the tap: `brew outdated` prints the *tap-qualified* `curiositech/tap/port-daddy` for a tapped formula in the unattended pipe, but the matcher only accepted the bare name. It now matches both forms, and logs the actual version transition (`daemon upgraded 3.21.0 → 3.22.0 + restarted`) whenever the daemon is updated.
+- **`pd dev up` works from the compiled binary (#532):** resolves the source tree from the git checkout instead of the bundle's virtual FS (which yielded a bogus `/scripts/...`).
+- **Dispatch worker observability** restored + a SIGKILL publish-timeout post-fold-in (#538).
+- **Dead-agent timeout** ladders reconciled to a single source of truth (#459).
+
+## [3.21.0] - 2026-06-21
+
+This release makes **cutting a release** a first-class, tested command and teaches the
+menu bar to tell you **which daemon you're talking to** — the two halves of the berth
+model (ADR-0084) that let a stable daemon and a dev daemon run side by side.
+
+### Added
+- **`pd cut` — the release orchestrator (ADR-0084 Phase 3).** One command builds the three decoupled release artifacts (the bun-compiled daemon binary, the Rust cdylib kernel, and `FleetBar.app`), collects them into `dist/release/<version>/`, hashes each, and writes a manifest. Honest by default: an unsigned cut is recorded as `signed: false` and says so — it never passes for a distributable build.
+- **`pd cut --require-sign` — fail-closed signing for the release pipeline (ADR-0057).** Pre-flights the signing credentials *before* building (so a missing `PORT_DADDY_SIGN_IDENTITY` / `PORT_DADDY_NOTARY_PROFILE` fails in milliseconds, not after a multi-minute build), captures a per-artifact codesign/notarize manifest, and exits non-zero if any signable artifact ends up unsigned. `--sign` remains the best-effort dev convenience.
+- **FleetBar surfaces the daemon berth (ADR-0084 Phase 2).** The menu bar now shows a colour-coded chip for the berth it is connected to — `stable` / `dev-latest` / `codebase` — so a dev daemon can never be mistaken for the canonical one. The daemon reports its berth identity under `/status.daemon.berth`; a legacy daemon that omits it is treated as the canonical stable berth.
 - Added `.github/PULL_REQUEST_TEMPLATE.md` — the fill-in form for the PR contract (exhaustive summary, non-trivial test plan, visual proof, surface parity, coverage, roadmap reasoning, changelog, parsimony, adversarial verdict).
 - Added `scripts/check-pr-requirements.mjs` and CI job `pr-requirements-guard` (`npm run check:pr-requirements`): the machine half of AGENTS.md § Pull Request Operating Procedure. Fails the PR when the Summary or Test Plan is empty or too thin, or when a visual surface (`core/pd-console/`, `website-v2/`, `fleet-config-ui/`, `public/fleet-ui/`, `public/`, `dashboard/`, `apps/FleetBar/`) changes without a screenshot + a GIF/recording. Lives in its own `pr-requirements.yml` workflow so it re-runs on PR-body `edited` events; becomes merge-blocking once added to branch protection. Escape hatches require a reason: `<!-- visual-exempt: … -->` and `<!-- pr-requirements-exempt: … -->`.
 - Added the `claude-adversarial-review` workflow: an always-on neutral adversary that assumes laziness/slop/lies/corner-cutting, reasons about whether visual artifacts show ideal behavior (presuming failure on sparse evidence), checks summary honesty / test-plan integrity / surface parity / coverage / parsimony, and ends with a `SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP` verdict. Complements (does not duplicate) `claude-code-review`.
@@ -17,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added an `Agent Operating Expectations` section to AGENTS.md (and a matching slice-discipline block to the internal skill): coordinate + pay rent on clean worktrees, dogfood novelly and capture hard-won gambits in the skill, assume features are broken until read-back/cold-start/worktree/GitHub-verified, confirm the usage + transcript + Cloudflare durability trail, generalize beyond tsx/Rust to any repo and remote harbor, treat GUIs as needing real design feedback, avoid AI tropes / humanize, reconcile against the whitepapers, work at maximal tool+skill access (pausing for skill research), and launch other agents through Port Daddy's own fabric. README gains a Contributing section pointing at the PR contract.
 
 ### Fixed
+- `pd cut` now names the FleetBar artifact what the packager actually writes (`PortDaddy-FleetBar-macOS-<arch>.zip`), pinned via `PORT_DADDY_FLEETBAR_ZIP` so the planner and the package script can't drift — a real cut previously aborted with `ENOENT` hashing a `FleetBar.app.zip` that never existed.
 - De-flaked the compiled-CLI `pd tube` fan-out smoke (`scripts/smoke-compiled-cli-runs.sh`): it raced a blind `sleep` against asynchronous subscriber setup and a single live send, so a slow second listener intermittently missed the message. It now re-sends until both listeners receive a copy (or a ~15s timeout), proving fan-out delivery without depending on subscribe timing. (Unrelated to the PR-process changes; surfaced as a flaky required check while landing them.)
 
 ## [3.19.0] - 2026-06-15

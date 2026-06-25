@@ -102,7 +102,7 @@ Most tools ask whether an API key exists. Port Daddy needs more than that.
 | SDK or CLI dependency | A key is useless if the launch path cannot import or execute the backend. |
 | Model catalog | Low, mid, and high tiers must map to known models. |
 | Pricing | Spend policy needs exact rates, not rough estimates. |
-| Usage telemetry | A launch should prove tokens and cost. |
+| Usage telemetry | A launch should [prove tokens and cost](/blog/telemetry-is-a-launch-gate). |
 | Project policy | Some repos require claims, tests, or human gates before mutation. |
 
 ![The readiness surface showing each backend's status beyond a key check — SDK present, model tiers mapped, pricing known, telemetry exact — so a backend can sit in the catalog while still blocked for unattended work](/media/landing-live-glory/live-resources-light.webp)
@@ -216,7 +216,7 @@ That unlocks workflows that are hard to build with a chat box:
 - A release helper can assemble artifacts while the operator sees exact readiness and checksums.
 - A repo can have a small always-on fleet without giving every role unlimited authority.
 
-The cold-start process is what makes that possible. It turns "let an agent loose" into "install a small local operating model."
+The cold-start process is what makes that possible. It turns "let an agent loose" into "[install a small local operating model](/blog/control-plane-is-the-product)."
 
 ## The Rule
 

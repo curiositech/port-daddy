@@ -86,6 +86,28 @@
   machine-gated, so no marker is needed.
 -->
 
+## Roadmap link
+
+<!--
+  The Roadmap Link Gate (non-blocking CI) reads ONE trailer line below. Put the
+  PR on the roadmap so merges write back to a tracked item — or opt out with a
+  reason. No item yet? Create it and stamp this PR in one step (daemon required):
+      npx tsx scripts/roadmap-link.ts <this-pr-number>
+  Without a valid line, this PR gets the `needs-roadmap-link` label and waits for
+  a human to approve the land.
+
+  Use exactly one of:
+    Roadmap-Item: <slug>
+    Roadmap-Item: none — <reason>     (chore/docs/hotfix)
+
+  PLANNING DOCS (a new ADR, a PLAN/ROADMAP file, a docs/ proposal) must ALSO
+  enumerate the downstream items they spawn — a plan exists to create work:
+    Roadmap-Spawns: <slug-a>, <slug-b>
+    Roadmap-Spawns: none — <reason>   (supersedes/clarifies only, no new work)
+-->
+
+Roadmap-Item:
+
 ## Changelog & Parsimony
 
 - [ ] `CHANGELOG.md` (or the relevant per-section changelog) updated

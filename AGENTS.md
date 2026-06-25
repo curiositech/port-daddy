@@ -352,13 +352,27 @@ Console work lives on `feat/console-tmux-multiplexer`; the v12 feel-pass design 
 The numbered flow above is the *review contract*. This subsection is the
 *mechanical contract* — the exact command sequence each phase resolves to.
 
-- **Create.** Branch in a linked Git worktree off `origin/main` under
-  `~/coding/tmp/wt-<slug>` (never the main checkout — the main checkout
-  carries the operator's WIP). Then `pd begin "<purpose>" --identity
-  port-daddy:<type>:<slug>` → a scope `pd note` → `pd session files add
-  <files>` *before* editing → edit → `pd guard check --staged` → commit
-  (no Claude co-author trailer) → `git push -u origin <branch>` → `gh pr
-  create` → `pd done`.
+- **Create.** Branch in a linked Git worktree under `~/coding/tmp/wt-<slug>`
+  (never the main checkout — the main checkout carries the operator's WIP).
+  **Pick the base by dependency, not reflex:**
+  - *Independent change* → branch off `origin/main`.
+  - **Stacked / dependent change** (it needs code from an open PR that has not
+    landed) → **branch off that PR's branch, not `origin/main`**, and open with
+    `gh pr create --base <prior-pr-branch>`. Each PR in a stack bases on the one
+    before it, so reviewers see a minimal diff and the dependency is explicit.
+    When the base PR squash-merges, retarget the dependent (`gh pr edit <n>
+    --base main`) and rebase onto the post-merge `main` — mergeability flips the
+    instant the base lands (see **Land**). Do NOT rebuild a feature on
+    `origin/main` when it actually depends on an unmerged PR; that strands the
+    work on the wrong base (the v0.2.0-console-vs-v0.3.0-mux trap, 2026-06-20:
+    a console pane was built on stale `main` while the mux it needed sat in an
+    open PR, forcing a full rebuild).
+
+  Then `pd begin "<purpose>" --identity port-daddy:<type>:<slug>` → a scope
+  `pd note` → `pd session files add <files>` *before* editing → edit →
+  `pd guard check --staged` → commit (no Claude co-author trailer) →
+  `git push -u origin <branch>` → `gh pr create [--base <prior-pr-branch>]` →
+  `pd done`.
 - **Update** (review + CI). Pull bot review comments with `gh api
   repos/curiositech/port-daddy/pulls/<n>/comments` and fix the real ones.
   Address every HIGH adversarial-review finding as a named fixup commit.
@@ -377,6 +391,38 @@ The numbered flow above is the *review contract*. This subsection is the
   <wt> status --porcelain` is clean. Never delete a worktree that still has
   uncommitted work. Never `git reset` or otherwise clobber the main
   checkout — it carries WIP that is not yours.
+
+### Roadmap link gate (every PR declares its roadmap item)
+
+Every PR must say which roadmap item it advances, so a merge writes back to
+tracked work instead of vanishing. The mechanism:
+
+- **Declare it.** Put one trailer line in the PR description:
+  `Roadmap-Item: <slug>` — or, for a chore/docs/hotfix, the explicit opt-out
+  `Roadmap-Item: none — <reason>`. The PR template carries the prompt.
+- **No item yet? Create + stamp in one step** (runs locally — the roadmap
+  lives in the daemon's SQLite, which CI can't reach):
+  `npx tsx scripts/roadmap-link.ts <pr-number>`. It POSTs a real
+  `roadmap_items` row (`POST /roadmap/items`) and edits the trailer into the
+  PR body. Then `npx tsx scripts/export-roadmap-snapshot.ts` and commit so CI
+  sees it.
+- **The check is non-blocking by design.** `.github/workflows/roadmap-link.yml`
+  reads the committed mirror `docs/roadmap/roadmap.snapshot.json` (via the pure,
+  unit-tested `lib/roadmap-link-core.ts`). It is **NOT** a required status check
+  — never add it to branch protection. A red check is a loud signal, not a wall.
+- **Its teeth are the label.** A PR with no valid link gets `needs-roadmap-link`.
+  The land/auto-merge flow must treat that label as *hold for a human* — do not
+  auto-merge a PR carrying it; a human approves the land or adds the link.
+- **A broken roadmap is loud, not silent.** If the snapshot is missing, empty,
+  or stale, the gate shouts (🔴 comment + step summary) and tells you to
+  regenerate it — a stale mirror must never read as "all clear".
+- **Planning docs must spawn downstream work.** A PR that adds/edits an ADR, a
+  `PLAN`/`ROADMAP` file, or a `docs/` proposal must also enumerate the roadmap
+  items it creates: `Roadmap-Spawns: <slug-a>, <slug-b>` (or
+  `Roadmap-Spawns: none — <reason>` when it only supersedes/clarifies). A plan
+  exists to generate work; without the spawn line the PR gets
+  `needs-roadmap-spawn` and waits for a human. Detection is by file path, so it
+  fires on the actual document, not on prose.
 
 ### Shell gotchas (real and recurring)
 
@@ -590,3 +636,39 @@ This rule has bitten us repeatedly when the daemon ran on a non-default port (CI
 - **Delete rule (operator-updated):** never-delete is demote-by-default, BUT you may
   **delete** a thing once its value is merged into its near twin — consolidation is the
   licensed exception. Coordinate the delete on the bus first; never solo-delete live-fleet code.
+
+## pd-console — build LANES (prod / latest / dev). Read before building the console.
+
+There is **no longer one `~/Applications/pd-console.app`** that every agent clobbers.
+That single bundle is why you could hit `Ctrl-A Space` on a month-old build and see
+nothing. The console now ships in three lanes, each a distinct bundle with a distinct
+icon colour + label so you can tell them apart in the Dock at a glance:
+
+| Lane | Bundle | Built from | Icon | PATH shim |
+|------|--------|-----------|------|-----------|
+| **prod** | `~/Applications/pd-console-prod.app` | the Homebrew cut | **blue**, `vX.Y.Z` badge | yes |
+| **latest** | `~/Applications/pd-console-latest.app` | `main` | **green**, `latest` badge | yes |
+| **dev** | `~/Applications/pd-console-dev-apps/pd-console_dev-<name>.app` | your worktree | **amber**, `dev·<name>` badge | no |
+
+The one tool is `core/pd-console/scripts/package-console.sh`:
+
+```bash
+bash scripts/package-console.sh                       # latest (default)
+bash scripts/package-console.sh --prod                # version-stamped prod (Homebrew cut)
+bash scripts/package-console.sh --devbuild parley-pane # YOUR isolated build — never touches prod/latest
+```
+
+**Rules for everyone:**
+- **Working on the console in Rust? Build your own dev lane** (`--devbuild <feature>`) and
+  test against *that* window. Never rebuild `-latest`/`-prod` to try a half-finished change —
+  that is the shared-bundle trap this replaced. Each lane is a separate `CFBundleIdentifier`,
+  so dev builds never overwrite prod/latest icon caches or Dock entries.
+- **When a pd-console change lands on `main`, rebuild the latest lane** (`bash scripts/package-console.sh`)
+  so `-latest.app` actually reflects main. A stale `-latest` is the bug, not a cosmetic.
+  **Automate it once:** `bash core/pd-console/scripts/install-console-hooks.sh` installs a
+  `post-merge` git hook that rebuilds the latest lane (detached, no window-steal) whenever a
+  pull into `main` touches `core/pd-console/`. Idempotent; chains onto any existing hook.
+- **Prod is owned by the Homebrew cut.** `release.yml` builds, signs (Developer ID, reusing
+  `scripts/sign-and-notarize.mjs`), and ships `pd-console-prod.app` alongside `pd`/`port-daddy`.
+  Set `PD_CONSOLE_SIGN_IDENTITY` for a real-signed local prod build; default is ad-hoc.
+- Dev lane never touches the `~/.port-daddy/bin/pd-console` PATH shim — only prod/latest do.

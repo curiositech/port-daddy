@@ -28,10 +28,17 @@ import type {
   ProposeDispatchInput,
   ListDispatchesOptions,
 } from '../lib/dispatch/queue.js';
+import type { DispatchWorker } from '../lib/dispatch/worker.js';
 
 interface DispatchesRouteDeps {
   deps: {
     dispatchQueue: DispatchQueue;
+    /**
+     * Daemon-side worker draining the queue. Absent when PD_DISPATCH_WORKER=false
+     * (the operator runs dispatches foreground instead). The worker-status + run
+     * routes degrade honestly when it is missing.
+     */
+    dispatchWorker?: DispatchWorker;
   };
 }
 
@@ -39,7 +46,7 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
   fastify,
   { deps },
 ) => {
-  const { dispatchQueue } = deps;
+  const { dispatchQueue, dispatchWorker } = deps;
 
   // POST /dispatches — propose
   fastify.post(
@@ -87,6 +94,16 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
     },
   );
 
+  // GET /dispatches/worker/status — is the daemon-side worker draining the queue?
+  // MUST be registered before the `/:id` routes so the literal 'worker' segment
+  // isn't swallowed by the `/dispatches/:id` param matcher.
+  fastify.get('/dispatches/worker/status', async (_req, reply) => {
+    if (!dispatchWorker) {
+      return reply.send({ ok: true, worker: { running: false, enabled: false } });
+    }
+    return reply.send({ ok: true, worker: { enabled: true, ...dispatchWorker.getStatus() } });
+  });
+
   // GET /dispatches/:id — single dispatch
   fastify.get<{ Params: { id: string } }>(
     '/dispatches/:id',
@@ -96,6 +113,53 @@ const dispatchesPlugin: FastifyPluginAsync<DispatchesRouteDeps> = async (
         return reply.code(404).send({ ok: false, error: `dispatch ${req.params.id} not found` });
       }
       return reply.send({ ok: true, dispatch });
+    },
+  );
+
+  // POST /dispatches/:id/run — enqueue-and-return. The daemon worker auto-drains
+  // `proposed` dispatches on its poll interval; this route NUDGES an immediate
+  // poll so `pd dispatch run <id>` starts promptly, then returns — it does NOT
+  // hold the request open for the (possibly hours-long) run. Honest degradation:
+  // 503 when the worker is disabled, 409 when the dispatch isn't `proposed`.
+  fastify.post<{ Params: { id: string } }>(
+    '/dispatches/:id/run',
+    async (req, reply) => {
+      const dispatch = dispatchQueue.get(req.params.id);
+      if (!dispatch) {
+        return reply.code(404).send({ ok: false, error: `dispatch ${req.params.id} not found` });
+      }
+      if (!dispatchWorker) {
+        return reply.code(503).send({
+          ok: false,
+          error:
+            'dispatch worker is disabled (PD_DISPATCH_WORKER=false); ' +
+            'run with `pd dispatch run <id> --foreground` or enable the worker',
+          dispatch,
+        });
+      }
+      // Only `proposed` dispatches are claimable. If already running/terminal,
+      // report honestly rather than pretending we queued it.
+      if (dispatch.state !== 'proposed') {
+        return reply.code(409).send({
+          ok: false,
+          error: `dispatch is in state '${dispatch.state}'; only 'proposed' dispatches can be (re)queued`,
+          dispatch,
+        });
+      }
+      let launched = 0;
+      try {
+        launched = await dispatchWorker.poll();
+      } catch { /* worker self-contains errors; the status route still reflects truth */ }
+      const after = dispatchQueue.get(req.params.id) ?? dispatch;
+      return reply.send({
+        ok: true,
+        queued: true,
+        launchedThisTick: launched,
+        dispatch: after,
+        message:
+          'Dispatch queued for daemon-side execution. It runs detached from this CLI; ' +
+          'poll `pd dispatch show <id>` or `pd dispatch status <id>` for progress.',
+      });
     },
   );
 

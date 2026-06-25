@@ -118,4 +118,39 @@ d('LIVE: full-depth transcript capture through the real spawner', () => {
     // 2.5 thinking model on a reasoning prompt. Logged + asserted.
     expect(roles).toContain('thinking');
   }, 70000);
+
+  // Cloudflare resolves creds via getSecret → keychain/env in the daemon. The
+  // bare jest process can't reach the keychain, so require both creds in the
+  // env. The default model (@cf/zai-org/glm-4.7-flash) is OpenAI-compat and
+  // returns reasoning + content, so a thinking turn is expected.
+  const cfIt = (process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID) ? it : it.skip;
+  cfIt('records cloudflare thinking + assistant turns from a real Workers AI run', async () => {
+    const spawner = createSpawner({
+      transcripts,
+      enforceTelemetryPolicy: false,
+      enforceTranscriptPolicy: true,
+      telemetryBypassApproval: { humanConfirmed: true, confirmedBy: 'live-test', reason: 'PD_LIVE cloudflare e2e' },
+    });
+
+    const result = await spawner.spawn({
+      backend: 'cloudflare',
+      model: '@cf/zai-org/glm-4.7-flash',
+      task: 'Think step by step about why 13 is prime, then give a one-sentence answer.',
+      timeout: 60000,
+    });
+    // eslint-disable-next-line no-console
+    console.log('LIVE cloudflare spawn status:', result.status, '| error:', result.error);
+
+    const rows = transcripts.listTranscripts({ ship: 'spawn:cloudflare' });
+    expect(rows.length).toBeGreaterThan(0);
+    const full = transcripts.getTranscript(rows[0].id);
+    const roles = full.messages.map((m) => m.role);
+    // eslint-disable-next-line no-console
+    console.log('LIVE cloudflare transcript roles:', JSON.stringify(roles));
+
+    expect(result.status).toBe('completed');
+    expect(roles).toContain('user');
+    expect(roles).toContain('assistant');
+    expect(roles).toContain('thinking');
+  }, 70000);
 });
