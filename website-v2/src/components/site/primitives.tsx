@@ -103,7 +103,11 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <img
       aria-hidden="true"
-      src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+      src={
+        theme === 'dark'
+          ? '/logos/portdaddy-mark-radar-darkmode.svg'
+          : '/logos/portdaddy-mark-radar-lightmode.svg'
+      }
       alt=""
       className={cn(
         'h-11 w-11 shrink-0',
