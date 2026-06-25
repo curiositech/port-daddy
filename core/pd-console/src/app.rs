@@ -658,10 +658,11 @@ impl ConsoleView {
         ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
         ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
         ws.focus(1); // start on the fleet pane (first leaf id)
-        if let Some(nav) = initial {
-            if NAV.iter().any(|n| n.id == nav) {
-                ws.swap_surface(surface_for_nav_id(nav));
-            }
+        // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
+        // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
+        // tooling and deep-links can open any surface, not just NAV-rail panes.
+        if let Some(surface) = initial.and_then(surface_for_query) {
+            ws.swap_surface(surface);
         }
         ws
     }
