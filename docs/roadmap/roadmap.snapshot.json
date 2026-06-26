@@ -2,7 +2,7 @@
   "generatedAt": 1782285276695,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 87,
+  "count": 88,
   "items": [
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -438,6 +438,11 @@
       "slug": "suggest-b3-2-fleet-yml-optin",
       "status": "backlog",
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
+    },
+    {
+      "slug": "conjure-prompt-to-dag-and-giant-squid",
+      "summaryMd": "Conjure operator surface: prompt → claude:cli DAG → next-gen Vello render → context-partition + contracts → multi-vendor dispatch; plus the Giant Squid Harness (ADR-0091). PR #581.",
+      "status": "merge"
     }
   ]
 }

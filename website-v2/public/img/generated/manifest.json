@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-29T20:42:01.724Z",
+  "generatedAt": "2026-06-25T13:08:22.444Z",
   "generator": "website-v2/scripts/generate-gemini-assets.mjs",
   "source": "Google Gemini API Nano Banana image generation",
   "docs": "https://ai.google.dev/gemini-api/docs/image-generation",
@@ -266,6 +266,42 @@
       "model": "gemini-2.5-flash-image",
       "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.\n- Make it feel premium, serious, current, and operational.\n\nCreate a completely wordless Swiss-modern architectural security print.\nComposition: nested rectangular zones, blank paper modules, sealed geometric packets, thin verification paths, dot-matrix texture fields, small checkpoint squares, and one strong central boundary shape. It should suggest scoped authority and signed access through structure only, like a museum-quality technical print, not a labeled diagram.\nUse hard ink rules, technical blue, restrained lime, warm paper grain, precise alignment, and crisp shadows. Every panel must be blank. Every packet must be blank. Every module must be blank. Abstract dots, short ticks, and non-language geometric marks are allowed.\nTypography prohibition: absolutely no words, no pseudo-words, no letters, no numbers, no code, no captions, no chart labels, no UI copy, no alphabet-like marks, no handwriting, no tiny labels, no readable or semi-readable text anywhere. Avoid any glyph that resembles Latin text.\nNo nautical imagery: no water, boats, docks, flags, lighthouses, sailors, maps, coastlines, cargo, or maritime motifs. No people, keys as cartoon objects, padlock clip art, shields as generic icons, police/security theater, fake UI screenshots, logos, or brand marks.",
       "webpFile": "/img/generated/harbors-signed-access.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "harness-hero",
+      "file": "/img/generated/harness-hero.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "model": "gemini-3-pro-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.\n- Make it feel premium, serious, current, and operational.\n\nCreate a wide hero image for a marketing page about a coordination harness that wraps an AI coding agent.\nComposition: a single agent module rendered as a precise rectilinear core at the center-right, with eight thin instrumented tendrils reaching outward into a surrounding control plane — message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a turn-ordered conversation loop, a budget meter, an isolated worktree enclosure, and a guard gate intercepting a dangerous lane. Render the tendrils as disciplined engineering lines hooking into the runtime, not organic tentacles. Use layered paper, deep ink, technical blue spine lines, restrained lime tuple marks, and a single amber accent on the guard gate.\nLeave a calm negative-space band on the left third so a website headline can sit beside it without visual fighting.\nNo humans. No nautical objects. No big rounded cards. No mock browser chrome. No visible words or numbers.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/harness-hero.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "harness-hooks",
+      "file": "/img/generated/harness-hooks.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "model": "gemini-3-pro-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.\n- Make it feel premium, serious, current, and operational.\n\nCreate a textless diagram showing a harness sinking instrumentation into a vendor CLI's own hook surface.\nComposition: on the left, a vendor command-line tool drawn as a layered module exposing a vertical row of four hook ports along its right edge. On the right, the Port Daddy daemon spine as a tall ruled lattice. Between them, precise connectors plug the daemon into each exposed hook port, drawn as keyed couplings seating into sockets. One primary connection is fully seated and inked solid (the verified path); the other three are drawn as dashed, partially-seated couplings to read as in-progress validation. Use deep ink, technical blue, restrained lime, and a quiet warm off-white paper grain.\nAbsolutely no Latin letters, no words, no numbers, no captions, no labels, no legible text anywhere. Where a port might be named, leave it blank or mark it with abstract non-letter ticks only.\nNo humans, no nautical imagery, no rounded SaaS cards.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/harness-hooks.webp",
+      "webpQuality": 82
+    },
+    {
+      "id": "harness-veto",
+      "file": "/img/generated/harness-veto.jpg",
+      "mimeType": "image/jpeg",
+      "aspectRatio": "16:9",
+      "imageSize": "2K",
+      "model": "gemini-3-pro-image-preview",
+      "prompt": "Port Daddy visual identity direction:\n- Subject: local-first AI agent coordination, daemon runtime, ports, locks, sessions, notes, salvage, budget gates, and recovery flows.\n- Visual language: Swiss-modern editorial infrastructure diagram, precise grid, crisp thin rules, architectural drawing discipline, tactile paper grain, deep ink, technical blue, restrained lime, quiet warm off-white.\n- Must not include people, sailors, boats, harbors, docks, nautical costumes, mascots, emojis, fake testimonials, readable brand logos, glossy stock-photo styling, bubbly extruded SaaS UI, pill-heavy dashboards, purple-blue gradients, or random surrealism.\n- Do not render visible words, letters, numbers, labels, headings, UI copy, brand marks, or fake code. Use abstract ticks, short lines, and geometric marks only.\n- If a module would normally need a label, leave it blank or represent it with non-letter geometric marks only. No Latin alphabet, pseudo text, interface labels, captions, chart labels, axis labels, or legible symbols anywhere.\n- Make it feel premium, serious, current, and operational.\n\nCreate a textless diagram about a guard that intercepts a destructive command and names the safe alternative.\nComposition: an incoming command lane arrives from the left as a bold ink line carrying a hazard mark (a small geometric blast / strike glyph, no letters). A guard gate at center stops that lane with a solid barrier rendered in amber. Below and to the right, a clean rerouted lane departs in technical blue toward a tidy, safe terminal node — the suggested alternative — making clear the command was redirected, not merely blocked. Use a precise Swiss grid, deep ink, technical blue, one amber accent on the gate, restrained lime on the safe terminal, warm off-white paper grain.\nNo humans, no nautical imagery, no rounded SaaS cards, no visible words, letters, numbers, or labels.",
+      "jpegQuality": 82,
+      "webpFile": "/img/generated/harness-veto.webp",
       "webpQuality": 82
     },
     {

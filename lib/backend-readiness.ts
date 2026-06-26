@@ -78,6 +78,29 @@ async function ollamaReachable(): Promise<boolean> {
   }
 }
 
+/** LM Studio's OpenAI-compatible local server base URL (override via env). */
+const LMSTUDIO_API_BASE =
+  process.env.LMSTUDIO_API_BASE || process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1';
+
+/**
+ * Probe the LM Studio local server's `/v1/models` endpoint. Returns the loaded
+ * model id when reachable (LM Studio reports whatever model is loaded), or null
+ * when the server is off/unreachable — handled gracefully, never throws.
+ */
+async function lmStudioLoadedModel(): Promise<string | null> {
+  try {
+    const res = await fetch(`${LMSTUDIO_API_BASE.replace(/\/$/, '')}/models`, {
+      signal: AbortSignal.timeout(1000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { data?: Array<{ id?: unknown }> };
+    const first = data?.data?.find((m) => typeof m?.id === 'string');
+    return first && typeof first.id === 'string' ? first.id : '';
+  } catch {
+    return null;
+  }
+}
+
 function applyTelemetryPolicy(
   readiness: BackendReadiness,
   telemetryPolicy: ReturnType<typeof assessBackendTelemetryPolicy>,
@@ -282,6 +305,50 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
+    case 'deepseek': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/deepseek.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('DEEPSEEK_API_KEY') || process.env.DEEPSEEK_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'DEEPSEEK_API_KEY present',
+          ...setupForKeys(['DEEPSEEK_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'DEEPSEEK_API_KEY missing',
+        nextStep: 'Run `pd secret set DEEPSEEK_API_KEY` (or add DEEPSEEK_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['DEEPSEEK_API_KEY']),
+        setupCommand: 'printf \'\\nDEEPSEEK_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
+    case 'xai': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/xai.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('XAI_API_KEY') || process.env.XAI_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'XAI_API_KEY present',
+          ...setupForKeys(['XAI_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'XAI_API_KEY missing',
+        nextStep: 'Run `pd secret set XAI_API_KEY` (or add XAI_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['XAI_API_KEY']),
+        setupCommand: 'printf \'\\nXAI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
     case 'cli:claude-code': {
       const bin = process.env.PD_CLI_CLAUDE_CODE_BIN || 'claude';
       if (!commandExists(bin)) {
@@ -410,6 +477,33 @@ export async function assessBackendReadiness(
         summary: 'Ollama not installed and API not reachable',
         nextStep: 'Install Ollama or choose a different backend.',
         setupCommand: 'brew install ollama\nollama serve',
+      }, telemetryPolicy);
+    }
+
+    case 'lmstudio': {
+      // LM Studio runs an OpenAI-compatible local server; GET /v1/models lists
+      // the loaded model. Reachable → ready (and we surface the loaded id);
+      // unreachable → needs_setup with the "Start Server" next step. The server
+      // is OFF by default, so the graceful-down path is the common case.
+      const loaded = await lmStudioLoadedModel();
+      if (loaded !== null) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: loaded
+            ? `LM Studio server reachable at ${LMSTUDIO_API_BASE}; loaded model: ${loaded}`
+            : `LM Studio server reachable at ${LMSTUDIO_API_BASE}, but no model is loaded`,
+          nextStep: loaded
+            ? undefined
+            : 'Load a model in LM Studio (e.g. Qwen 3 Next Coder) so spawns have a model to serve.',
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: `LM Studio server not reachable at ${LMSTUDIO_API_BASE}`,
+        nextStep: 'Start the LM Studio local server (Developer → Start Server) and load a model.',
+        setupCommand: 'open -a "LM Studio"',
       }, telemetryPolicy);
     }
 
