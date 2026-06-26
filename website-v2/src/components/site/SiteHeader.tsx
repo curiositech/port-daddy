@@ -27,21 +27,19 @@ type NavItem = {
 
 const PRIMARY_NAV_ITEMS = [
   { label: "Home", href: "/", end: true },
-  { label: "Install", href: "/mac-preview#install", end: false },
-  { label: "Get started", href: "/docs/quickstart", end: true },
-  { label: "Agents", href: "/agents", end: true },
-  { label: "Harness", href: "/harness", end: true },
-  { label: "Tube Playground", href: "/pd-tube", end: false },
-  { label: "Docs", href: "/docs", end: false },
+  { label: "Agent Tubes", href: "/pd-tube", end: false },
+  { label: "Examples", href: "/examples", end: false },
   { label: "Blog", href: "/blog", end: false },
   { label: "Cryptography", href: "/security", end: false },
-  { label: "Manifesto", href: "/manifesto", end: true },
+  { label: "The Big Idea", href: "/manifesto", end: true },
 ] satisfies readonly NavItem[];
 
+// Secondary destinations live behind the "More" dropdown to keep the top bar
+// uncrowded. Docs dropped out of the primary row but stays reachable here.
 const OVERFLOW_NAV_ITEMS = [
+  { label: "Docs", href: "/docs", end: false },
   { label: "Mac app", href: "/mac-preview", end: false },
   { label: "Run agents on your subscription", href: "/cli-backend", end: true },
-  { label: "Examples", href: "/examples", end: false },
   { label: "Tutorials", href: "/tutorials", end: false },
   { label: "Library", href: "/library", end: false },
   { label: "Landscape", href: "/landscape", end: false },

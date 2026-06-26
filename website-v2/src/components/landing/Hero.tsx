@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion'
 import { useEffect, useRef } from 'react'
-import { PageContainer, SectionIntro, Wordmark } from '@/components/site/primitives'
+import { PageContainer, PanelEyebrow, SectionIntro, Wordmark } from '@/components/site/primitives'
 import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
-import { LiveGloryVideo } from './LiveGloryVideo'
+import { MarqueeTrack } from './FeaturedMarquee'
 import { useHeroWordmark } from '@/lib/hero-brand-context'
 
 const productSurfaces = [
@@ -124,13 +124,10 @@ export function Hero() {
                 </span>
               </div>
 
-              <div className="min-[1100px]:hidden">
-                <LiveGloryVideo />
-              </div>
             </div>
           </motion.div>
 
-          {/* Right -- the big animated wordmark sits above the FleetBar capture. */}
+          {/* Right -- the big animated wordmark sits above the live story marquee. */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -150,8 +147,9 @@ export function Hero() {
             >
               <Wordmark variant="spin" className="w-full" />
             </motion.div>
-            <div className="relative z-10">
-              <LiveGloryVideo />
+            <div className="relative z-10 space-y-[var(--space-3)] overflow-hidden">
+              <PanelEyebrow>From the harbor - what people open first</PanelEyebrow>
+              <MarqueeTrack flush />
             </div>
           </motion.div>
         </div>
