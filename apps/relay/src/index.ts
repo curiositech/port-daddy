@@ -7,6 +7,11 @@
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
  *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
+ *   GET  /v1/fleet/config                     (operator; fleet control-plane read)
+ *   POST /v1/fleet/validate                   (operator; deterministic YAML validate)
+ *   POST /v1/fleet/smoke-test                 (operator; run one ship on Workers AI)
+ *   POST /v1/fleet/optimize-prompt            (operator; rewrite a ship prompt)
+ *   POST /v1/fleet/save                       (operator; commit to new branch + PR)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -34,6 +39,13 @@ import {
   handleAudit,
 } from './handlers.js';
 import { handleGithubWebhook } from './github-webhook.js';
+import {
+  handleFleetConfig,
+  handleFleetValidate,
+  handleFleetSmokeTest,
+  handleFleetOptimizePrompt,
+  handleFleetSave,
+} from './fleet-control.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -87,6 +99,23 @@ export default {
     // ── GitHub webhook ingress ───────────────────────────────────────────────
     else if (pathname === '/v1/github/webhook' && method === 'POST') {
       response = await handleGithubWebhook(request, env);
+    }
+
+    // ── Fleet control-plane (operator-gated) ─────────────────────────────────
+    else if (pathname === '/v1/fleet/config' && method === 'GET') {
+      response = await handleFleetConfig(request, env);
+    }
+    else if (pathname === '/v1/fleet/validate' && method === 'POST') {
+      response = await handleFleetValidate(request, env);
+    }
+    else if (pathname === '/v1/fleet/smoke-test' && method === 'POST') {
+      response = await handleFleetSmokeTest(request, env);
+    }
+    else if (pathname === '/v1/fleet/optimize-prompt' && method === 'POST') {
+      response = await handleFleetOptimizePrompt(request, env);
+    }
+    else if (pathname === '/v1/fleet/save' && method === 'POST') {
+      response = await handleFleetSave(request, env);
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────

@@ -73,8 +73,10 @@ function clientIp(request: Request): string {
   return request.headers.get('CF-Connecting-IP') ?? 'unknown';
 }
 
-// S1: timing-safe operator token check
-function operatorOnly(request: Request, env: Env): Response | null {
+// S1: timing-safe operator token check.
+// Exported so the fleet control-plane handlers (fleet-control.ts) reuse the
+// exact same gate rather than re-implementing the token comparison.
+export function operatorOnly(request: Request, env: Env): Response | null {
   const auth = request.headers.get('Authorization');
   const token = auth?.replace(/^Bearer\s+/i, '') ?? '';
   if (!timingSafeEqual(token, env.RELAY_OPERATOR_TOKEN)) {
