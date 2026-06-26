@@ -97,6 +97,18 @@ const MODEL_RATES: Array<[string, ModelRate]> = [
   ['openai/gpt-oss-120b',       { input: 0.15, cachedInput: 0.075, output: 0.60, label: 'Groq GPT-OSS 120B' }],
   ['openai/gpt-oss-20b',        { input: 0.10, cachedInput: 0.05,  output: 0.50, label: 'Groq GPT-OSS 20B' }],
   ['moonshotai/kimi-k2',        { input: 1.00, output: 3.00, label: 'Groq Kimi K2' }],
+  // DeepSeek (OpenAI-compatible; V3 + R1). Model ids are unique to DeepSeek so
+  // they live safely in the shared table (no bare-word false-match risk).
+  // Rates as of 2026-06 — https://api-docs.deepseek.com/quick_start/pricing.
+  // More-specific id first so 'deepseek-reasoner' wins over 'deepseek-chat'.
+  ['deepseek-reasoner',         { input: 0.55, output: 2.19, label: 'DeepSeek R1 (deepseek-reasoner)' }],
+  ['deepseek-chat',             { input: 0.27, output: 1.10, label: 'DeepSeek V3 (deepseek-chat)' }],
+  // xAI (Grok; OpenAI-compatible). Model ids are unique to xAI so they live
+  // safely in the shared table. Rates as of 2026-06 — https://docs.x.ai/docs/models.
+  // More-specific ids first ('grok-code-fast-1' before 'grok-3'/'grok-2').
+  ['grok-code-fast-1',          { input: 0.20, output: 1.50, label: 'xAI Grok Code Fast 1' }],
+  ['grok-3',                    { input: 3.00, output: 15.00, label: 'xAI Grok 3' }],
+  ['grok-2',                    { input: 2.00, output: 10.00, label: 'xAI Grok 2' }],
   // Gemini — 2.5 family (current). Thinking-model output tokens (incl.
   // thoughtsTokenCount) are billed at the output rate; geminiAdapter folds
   // them into outputTokens. More-specific keys before less-specific.
@@ -167,6 +179,8 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   'cloudflare': 0.05,  // remote inference via Cloudflare AI
   'openai':     0.05,  // remote inference via OpenAI API (overridden by exact token rates)
   'groq':       0.02,  // remote inference via Groq LPU (overridden by exact token rates)
+  'deepseek':   0.02,  // remote inference via DeepSeek API (overridden by exact token rates)
+  'xai':        0.05,  // remote inference via xAI Grok API (overridden by exact token rates)
   // CLI-tube backends route through operator's flat-rate subscription
   // (Claude Max / ChatGPT Pro). Marginal cost to PD's wallet is zero,
   // but we record a tiny nonzero session estimate so cost dashboards
@@ -198,7 +212,7 @@ function estimateOpaqueSessionCost(backend: string, model: string): number {
 }
 
 function hasKnownPaidRemoteBackend(backend: string): boolean {
-  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
+  return ['claude', 'claude-cli', 'gemini', 'codex', 'aider', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'].includes(backend);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

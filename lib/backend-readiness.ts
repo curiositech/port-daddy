@@ -305,6 +305,50 @@ export async function assessBackendReadiness(
       }, telemetryPolicy);
     }
 
+    case 'deepseek': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/deepseek.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('DEEPSEEK_API_KEY') || process.env.DEEPSEEK_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'DEEPSEEK_API_KEY present',
+          ...setupForKeys(['DEEPSEEK_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'DEEPSEEK_API_KEY missing',
+        nextStep: 'Run `pd secret set DEEPSEEK_API_KEY` (or add DEEPSEEK_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['DEEPSEEK_API_KEY']),
+        setupCommand: 'printf \'\\nDEEPSEEK_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
+    case 'xai': {
+      // OpenAI-compatible REST adapter (lib/spawner/backends/xai.ts) — no
+      // SDK package required. Readiness is a key-present check.
+      const apiKey = getSecret('XAI_API_KEY') || process.env.XAI_API_KEY;
+      if (apiKey) {
+        return applyTelemetryPolicy({
+          backend,
+          status: 'ready',
+          summary: 'XAI_API_KEY present',
+          ...setupForKeys(['XAI_API_KEY']),
+        }, telemetryPolicy);
+      }
+      return applyTelemetryPolicy({
+        backend,
+        status: 'needs_setup',
+        summary: 'XAI_API_KEY missing',
+        nextStep: 'Run `pd secret set XAI_API_KEY` (or add XAI_API_KEY to ~/.port-daddy-env), then restart the daemon.',
+        ...setupForKeys(['XAI_API_KEY']),
+        setupCommand: 'printf \'\\nXAI_API_KEY=<paste-value>\\n\' >> ~/.port-daddy-env\npd restart',
+      }, telemetryPolicy);
+    }
+
     case 'cli:claude-code': {
       const bin = process.env.PD_CLI_CLAUDE_CODE_BIN || 'claude';
       if (!commandExists(bin)) {

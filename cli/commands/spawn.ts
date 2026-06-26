@@ -86,7 +86,7 @@ export async function handleSpawn(
   const backend = (options.backend as string) || 'ollama';
   const budgetUsd = parseBudgetValue(options.budget);
 
-  const validBackends = ['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'];
+  const validBackends = ['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok'];
   if (!validBackends.includes(backend)) {
     console.error(`Invalid backend "${backend}". Valid: ${validBackends.join(', ')}`);
     process.exit(1);
@@ -96,7 +96,7 @@ export async function handleSpawn(
     console.error('Usage: pd spawn --backend <backend> -- <task>');
     console.error('       pd spawn --backend claude -- "Write a hello world program"');
     console.error('');
-    console.error('Backends: ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, codex, aider, custom, cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok');
+    console.error('Backends: ollama, lmstudio, claude, claude-cli, gemini, cloudflare, openai, groq, deepseek, xai, codex, aider, custom, cli:claude-code, cli:codex, cli:gemini, cli:groq, cli:grok');
     console.error('');
     console.error('Options:');
     console.error('  --backend <name>      AI backend to use (default: ollama)');

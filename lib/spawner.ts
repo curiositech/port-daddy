@@ -33,6 +33,8 @@ import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
 import { lmstudioAdapter, DEFAULT_LMSTUDIO_MODEL } from './spawner/backends/lmstudio.js';
+import { deepseekAdapter, DEFAULT_DEEPSEEK_MODEL } from './spawner/backends/deepseek.js';
+import { xaiAdapter, DEFAULT_XAI_MODEL } from './spawner/backends/xai.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
@@ -97,7 +99,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -635,6 +637,26 @@ async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunRe
   return adaptLLMResult(result);
 }
 
+async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await deepseekAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
+async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await xaiAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const result = await cloudflareAdapter({
     prompt: spec.task,
@@ -1119,6 +1141,8 @@ const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   cloudflare: resolveModel({ backend: 'cloudflare', capability: 'cheap' }),
   openai: DEFAULT_OPENAI_MODEL,
   groq: DEFAULT_GROQ_MODEL,
+  deepseek: DEFAULT_DEEPSEEK_MODEL,
+  xai: DEFAULT_XAI_MODEL,
   codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
@@ -1839,6 +1863,8 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'cloudflare': result = await runCloudflare(spec, model); break;
           case 'openai':    result = await runOpenAI(spec, model); break;
           case 'groq':      result = await runGroq(spec, model); break;
+          case 'deepseek':  result = await runDeepseek(spec, model); break;
+          case 'xai':       result = await runXai(spec, model); break;
           case 'codex':     result = await runCodexCli(spec, model, childContext); break;
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;

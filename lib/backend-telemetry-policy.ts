@@ -18,6 +18,8 @@ export const DEFAULT_OPERATOR_CLOUDFLARE_MODEL = resolveModel({ backend: 'cloudf
 export const DEFAULT_OPERATOR_OPENAI_MODEL = resolveModel({ backend: 'openai', capability: 'cheap' });
 export const DEFAULT_OPERATOR_GEMINI_MODEL = resolveModel({ backend: 'gemini', capability: 'cheap' });
 export const DEFAULT_OPERATOR_GROQ_MODEL = resolveModel({ backend: 'groq', capability: 'cheap' });
+export const DEFAULT_OPERATOR_DEEPSEEK_MODEL = resolveModel({ backend: 'deepseek', capability: 'cheap' });
+export const DEFAULT_OPERATOR_XAI_MODEL = resolveModel({ backend: 'xai', capability: 'cheap' });
 
 function blocked(backend: string, summary: string, nextStep?: string): BackendTelemetryPolicy {
   return {
@@ -164,6 +166,46 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
         backend,
         launchAllowed: true,
         summary: `Exact telemetry policy satisfied for Groq model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'deepseek': {
+      // DeepSeek's OpenAI-compatible API returns usage.prompt_tokens +
+      // completion_tokens, extracted by the shared OpenAI adapter the DeepSeek
+      // backend delegates to. Gate flips on a known rate in MODEL_RATES.
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_DEEPSEEK_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `DeepSeek model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for DeepSeek model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
+    case 'xai': {
+      // xAI's OpenAI-compatible API returns usage.prompt_tokens +
+      // completion_tokens, extracted by the shared OpenAI adapter the xAI
+      // backend delegates to. Gate flips on a known rate in MODEL_RATES.
+      const effectiveModel = model?.trim() || DEFAULT_OPERATOR_XAI_MODEL;
+      if (!hasExactModelRate(effectiveModel)) {
+        return blocked(
+          backend,
+          `xAI model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+          'Add an exact model rate before enabling this model.'
+        );
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for xAI model "${effectiveModel}"`,
         effectiveModel,
       };
     }

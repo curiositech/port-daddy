@@ -17,6 +17,18 @@
       "mid": "llama-3.3-70b-versatile",
       "low": "llama-3.1-8b-instant"
     },
+    "deepseek": {
+      "_comment": "DeepSeek OpenAI-compatible API. deepseek-chat = V3 (general+coder), deepseek-reasoner = R1 (reasoning). 'low' mirrors DEFAULT_DEEPSEEK_MODEL (deepseek-chat) and is priced in cost-tracker MODEL_RATES.",
+      "high": "deepseek-reasoner",
+      "mid": "deepseek-chat",
+      "low": "deepseek-chat"
+    },
+    "xai": {
+      "_comment": "xAI (Grok) OpenAI-compatible API. grok-2-latest = general high/mid, grok-code-fast-1 = fast coder/low. 'low' mirrors DEFAULT_XAI_MODEL and is priced in cost-tracker MODEL_RATES.",
+      "high": "grok-2-latest",
+      "mid": "grok-2-latest",
+      "low": "grok-code-fast-1"
+    },
     "openai": {
       "high": "gpt-5",
       "mid": "gpt-5-mini",
