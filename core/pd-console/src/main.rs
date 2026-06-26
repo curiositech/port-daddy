@@ -13,6 +13,7 @@ mod adrs_pane;
 mod agent;
 mod app;
 mod claims_pane;
+mod cloud_fleet_pane;
 mod cockpit_pane;
 mod dispatch_pane;
 mod fleet_pane;
@@ -44,6 +45,7 @@ use adrs_pane::AdrsPane;
 use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
+use cloud_fleet_pane::CloudFleetPane;
 use cockpit_pane::CockpitPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
@@ -215,6 +217,7 @@ fn main() {
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
                 let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
                 let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
+                let mut cloud_fleet = CloudFleetPane::new();    // 22 — remote relay observability (Phase C)
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,
@@ -290,6 +293,7 @@ fn main() {
                     let _ = substrate.refresh(&client).await;
                     let _ = parley.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
+                    let _ = cloud_fleet.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -336,6 +340,7 @@ fn main() {
                         (19, substrate.view()),
                         (20, parley.view()),
                         (21, conductor.view()),
+                        (22, cloud_fleet.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

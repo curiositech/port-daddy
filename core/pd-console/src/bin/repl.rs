@@ -17,6 +17,8 @@
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
 #[path = "../claims_pane.rs"]    mod claims_pane;
+// cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
+#[path = "../cloud_fleet_pane.rs"] mod cloud_fleet_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
 // fleet_pane and maritime are excluded — they pull in GPUI derive macros

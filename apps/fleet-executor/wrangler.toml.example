@@ -40,6 +40,24 @@ binding = "AI"
 binding = "FLEET_TOKENS"
 id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
 
+# CONTROL-PLANE KV: must be the SAME id the relay binds as "KV" (apps/relay
+# wrangler.toml). Carries the `fleet:paused` kill switch the relay toggles.
+[[kv_namespaces]]
+binding = "CONTROL_KV"
+id = "REPLACE_WITH_YOUR_RELAY_KV_NAMESPACE_ID"
+
+# ---------------------------------------------------------------------------
+# D1 — shared relay database. The executor writes the fleet_runs audit header
+# (one row per GitHub delivery) and the append-only fleet_run_steps transcript.
+# Use the SAME database the relay reads from (/v1/fleet/activity|runs|health).
+# All executor writes are best-effort: a transcript-write failure never fails
+# the run or changes the merge gate. Provision once and paste the id:
+#   wrangler d1 create port-daddy-relay   # (or reuse the relay's existing id)
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay"
+database_id = "REPLACE_WITH_YOUR_RELAY_D1_DATABASE_ID"
+
 # ---------------------------------------------------------------------------
 # Queue consumer — one message per GitHub delivery, enqueued by relay.
 # A blocking ship that never completes must never leave a green/pending gate,

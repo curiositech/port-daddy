@@ -378,6 +378,200 @@ export async function queryAuditLog(
   return rows.results;
 }
 
+// ── Fleet observability (Phase C) ──────────────────────────────────────────────
+
+export interface FleetRunRow {
+  id: string;
+  delivery_id: string;
+  repo_full_name: string;
+  pr_number: number;
+  pr_url: string;
+  head_sha: string;
+  conclusion: string;
+  ships_csv: string;
+  neurons: number | null;
+  ms: number;
+  created_at: number;
+}
+
+export interface FleetRunStepRow {
+  run_id: string;
+  seq: number;
+  kind: string;
+  ship: string | null;
+  title: string;
+  detail: string | null;
+  created_at: number;
+}
+
+/**
+ * Insert (or idempotently no-op on retry) the run header. delivery_id is the
+ * UNIQUE GitHub idempotency key, so a queue retry that re-creates the row is
+ * absorbed by INSERT OR IGNORE rather than throwing SQLITE_CONSTRAINT.
+ */
+export async function insertFleetRun(
+  db: D1Database,
+  row: {
+    id: string;
+    delivery_id: string;
+    repo_full_name: string;
+    pr_number: number;
+    pr_url: string;
+    head_sha: string;
+    conclusion?: string;
+    ships_csv: string;
+    neurons?: number | null;
+    ms?: number;
+    created_at?: number;
+  }
+): Promise<void> {
+  await db.prepare(`
+    INSERT OR IGNORE INTO fleet_runs
+      (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, neurons, ms, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    row.id,
+    row.delivery_id,
+    row.repo_full_name,
+    row.pr_number,
+    row.pr_url,
+    row.head_sha,
+    row.conclusion ?? 'pending',
+    row.ships_csv,
+    row.neurons ?? null,
+    row.ms ?? 0,
+    row.created_at ?? Math.floor(Date.now() / 1000),
+  ).run();
+}
+
+/** Patch the run header with its final conclusion + elapsed wall time. */
+export async function finalizeFleetRun(
+  db: D1Database,
+  id: string,
+  conclusion: string,
+  ms: number,
+  neurons?: number | null
+): Promise<void> {
+  await db.prepare(
+    'UPDATE fleet_runs SET conclusion = ?, ms = ?, neurons = COALESCE(?, neurons) WHERE id = ?'
+  ).bind(conclusion, ms, neurons ?? null, id).run();
+}
+
+/** Append one immutable transcript step. PK (run_id, seq) dedupes retries. */
+export async function insertFleetRunStep(
+  db: D1Database,
+  step: {
+    run_id: string;
+    seq: number;
+    kind: string;
+    ship?: string | null;
+    title: string;
+    detail?: unknown;
+    created_at?: number;
+  }
+): Promise<void> {
+  const detail =
+    step.detail === undefined || step.detail === null
+      ? null
+      : typeof step.detail === 'string'
+        ? step.detail
+        : JSON.stringify(step.detail);
+  await db.prepare(`
+    INSERT OR IGNORE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    step.run_id,
+    step.seq,
+    step.kind,
+    step.ship ?? null,
+    step.title,
+    detail,
+    step.created_at ?? Math.floor(Date.now() / 1000),
+  ).run();
+}
+
+/** Recent fleet runs, newest first. */
+export async function listFleetRuns(
+  db: D1Database,
+  limit = 50
+): Promise<FleetRunRow[]> {
+  const rows = await db.prepare(`
+    SELECT id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+           conclusion, ships_csv, neurons, ms, created_at
+    FROM fleet_runs
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).bind(limit).all<FleetRunRow>();
+  return rows.results;
+}
+
+/** One run + its ordered transcript, or null if the run id is unknown. */
+export async function getFleetRunWithSteps(
+  db: D1Database,
+  runId: string
+): Promise<{ run: FleetRunRow; steps: FleetRunStepRow[] } | null> {
+  const run = await db.prepare(`
+    SELECT id, delivery_id, repo_full_name, pr_number, pr_url, head_sha,
+           conclusion, ships_csv, neurons, ms, created_at
+    FROM fleet_runs WHERE id = ?
+  `).bind(runId).first<FleetRunRow>();
+  if (!run) return null;
+
+  const steps = await db.prepare(`
+    SELECT run_id, seq, kind, ship, title, detail, created_at
+    FROM fleet_run_steps
+    WHERE run_id = ?
+    ORDER BY seq ASC
+  `).bind(runId).all<FleetRunStepRow>();
+
+  return { run, steps: steps.results };
+}
+
+/** unix-seconds timestamp of the most recent run, or null when none exist. */
+export async function lastFleetRunAt(db: D1Database): Promise<number | null> {
+  const row = await db.prepare(
+    'SELECT created_at FROM fleet_runs ORDER BY created_at DESC LIMIT 1'
+  ).first<{ created_at: number }>();
+  return row ? row.created_at : null;
+}
+
+// ── Fleet kill switch (KV-backed) ──────────────────────────────────────────────
+
+/** KV key holding the fleet pause flag. Shared with the executor's gate. */
+export const FLEET_PAUSED_KEY = 'fleet:paused';
+
+export interface FleetPausedState {
+  paused: boolean;
+  pausedAt: number;
+}
+
+/**
+ * Read the kill-switch flag. Tolerates either the structured
+ * `{paused, pausedAt}` JSON form or a bare `"true"`/`"false"` string.
+ */
+export async function getFleetPaused(kv: KVNamespace): Promise<boolean> {
+  const raw = await kv.get(FLEET_PAUSED_KEY);
+  if (!raw) return false;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  try {
+    const parsed = JSON.parse(raw) as Partial<FleetPausedState>;
+    return parsed.paused === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Write the kill-switch flag as structured JSON, stamping pausedAt. */
+export async function setFleetPaused(
+  kv: KVNamespace,
+  paused: boolean
+): Promise<FleetPausedState> {
+  const state: FleetPausedState = { paused, pausedAt: Math.floor(Date.now() / 1000) };
+  await kv.put(FLEET_PAUSED_KEY, JSON.stringify(state));
+  return state;
+}
+
 // ── Errors ────────────────────────────────────────────────────────────────────
 
 export class ChainError extends Error {
