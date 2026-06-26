@@ -40,6 +40,7 @@ import {
   resolveDaemonProfile,
   writeDaemonProfileState,
 } from '../../lib/daemon-profiles.js';
+import { seedBerthDbFromProd, describeSeedResult } from '../../lib/seed-berth-db.js';
 import * as ui from '../utils/ui.js';
 import { posixShellQuote } from '../../lib/shell-quote.js';
 import { readDevDaemonRegistry } from '../utils/berth-registry.js';
@@ -413,6 +414,21 @@ async function devUp(options: CLIOptions): Promise<void> {
   // profile machinery (~/.port-daddy/instances/<label>/), plus its berth env.
   const profile = resolveDaemonProfile(label.replace(/[^A-Za-z0-9._-]/g, '-'));
   ensureDaemonProfileDir(profile);
+
+  // Seed the berth's (empty) DB from a point-in-time copy of the prod registry
+  // so it has real board data to test against — the surfacing bug ADR-0090 §1
+  // names ("a board route lived on a dev daemon; data lived on the brew
+  // daemon"). One-time bootstrap via VACUUM INTO; LOCAL-ONLY tables (port
+  // claims/locks) are scrubbed so the berth owns a clean port slate. Never
+  // clobbers an existing berth DB. Best-effort: a fresh machine with no prod
+  // registry just starts empty.
+  try {
+    const seed = seedBerthDbFromProd({ targetDbPath: profile.dbPath });
+    ui.info(`  DB: ${describeSeedResult(seed)}`);
+  } catch (err) {
+    ui.warn(`  DB seed skipped (${(err as Error).message}); berth starts empty.`);
+  }
+
   const env = buildDaemonProfileEnv(profile, { port, nodeEnv: 'development' });
   env[BERTH_ENV.tier] = tier;
   env[BERTH_ENV.label] = label;
