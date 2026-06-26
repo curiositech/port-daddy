@@ -1,0 +1,99 @@
+name: Claude Adversarial Review
+
+# Companion to claude-code-review.yml — NOT a duplicate. claude-code-review runs
+# the standard /code-review plugin (correctness, bugs, quality). THIS workflow is
+# the neutral, skeptical adversary required by AGENTS.md § Pull Request Operating
+# Procedure: it assumes laziness, slop, lies, corner-cutting, tautologies, and
+# bullshit, and tries to prove the PR does NOT do what it claims. Its job is
+# process-compliance + evidence-integrity, not line-by-line bug hunting:
+#   - Is the Summary honest and exhaustive, or hand-wavy?
+#   - Is the Test Plan real proof, or a tautology / "ran the tests" with no output?
+#   - For a visual diff: do the screenshots/GIFs actually show IDEAL behavior, or an
+#     error / loading state? If the evidence is sparse or ambiguous, presume FAILURE
+#     and say what extra artifact would settle it.
+#   - New CLI verb without MCP/SDK/docs/completions parity? New code without new tests?
+#   - A doc/plan PR that duplicates work already in flight, or derails existing
+#     functionality without the operator signing off on the trade?
+# It must end with a verdict line: SHIP / SHIP-AFTER-FIX / DO-NOT-SHIP.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened, edited]
+  # Required-check parity with ci.yml + claude-code-review.yml: report on
+  # merge_group heads (pass-through) so a queued PR never hangs. The substantive
+  # review ran at pull_request time; a rebase does not change its verdict.
+  merge_group:
+
+jobs:
+  adversarial-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # write so the adversary can post its findings + verdict as PR comments.
+      # Still non-blocking — advisory comments, the job does not gate merge.
+      pull-requests: write
+      issues: write
+      actions: read # read CI results so the adversary can call out red-but-claimed-green
+      id-token: write
+
+    steps:
+      - name: Merge-queue pass-through
+        if: github.event_name == 'merge_group'
+        run: echo "Adversarial verdict carries over from the pull_request run; merge queue re-validates build and tests."
+
+      - name: Checkout repository
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude (adversarial reviewer)
+        if: github.event_name == 'pull_request'
+        id: adversarial-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: |
+            You are the NEUTRAL ADVERSARIAL REVIEWER for pull request
+            ${{ github.repository }}#${{ github.event.pull_request.number }}.
+            Your default posture is skepticism. Assume the author may be lazy,
+            cutting corners, padding with slop, asserting tautologies, or
+            overstating what the diff does. Your job is to try to FALSIFY the
+            PR's claims, not to be agreeable. Be fair and specific — every
+            finding cites a file/line or a concrete gap — but do not soften.
+
+            Read the PR description, the diff, the changed files, and the CI
+            results. Then interrogate, in this order:
+
+            1. SUMMARY HONESTY. Does the Summary match the diff? Flag anything
+               claimed-but-not-done and anything done-but-undisclosed (hidden
+               blast radius).
+            2. TEST PLAN INTEGRITY. Is it real proof or a tautology? "All tests
+               pass" with no command output, counts, or exercised edge cases is
+               NOT proof. Name the edge cases the plan should have covered and
+               did not. Per AGENTS.md, every PR needs a non-trivial test plan
+               demonstrating the diff actually works across a variety of inputs.
+            3. VISUAL EVIDENCE. If a visual surface changed (core/pd-console,
+               website-v2, fleet-config-ui, public/fleet-ui, public, dashboard,
+               apps/FleetBar): are there screenshots AND a GIF/recording, and do
+               they show IDEAL behavior? Reason explicitly about whether each
+               artifact shows success vs. an error/empty/loading state. If the
+               artifacts are sparse or ambiguous and you cannot tell, PRESUME
+               FAILURE: say so and name the exact artifact that would resolve it.
+            4. SURFACE PARITY & DOCS. New CLI verb without matching MCP tool, SDK
+               method, route, completions, and docs? `npm run parity` is the
+               machine check; call out gaps it would miss (e.g. docs that exist
+               but lie).
+            5. COVERAGE. New lines/functions/classes without new tests. A green
+               build proves it compiles, not that it behaves.
+            6. PARSIMONY & ROADMAP. Does this duplicate an existing surface or a
+               PR/branch already in flight? Does a doc/plan PR derail existing
+               functionality without an explicit operator-acknowledged trade?
+
+            Keep it tight: at most ~12 findings, each tagged
+            [HIGH] / [MEDIUM] / [LOW] by how likely it is to cause real harm.
+            No filler, no restating the diff. End with EXACTLY one line:
+            `VERDICT: SHIP` or `VERDICT: SHIP-AFTER-FIX` or `VERDICT: DO-NOT-SHIP`,
+            followed by one sentence of justification.

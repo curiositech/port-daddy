@@ -12,8 +12,8 @@
 import { randomBytes } from 'node:crypto';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { readFileSync, existsSync, statSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, existsSync, statSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CostTracker } from './cost-tracker.js';
@@ -21,15 +21,22 @@ import { getEffectiveContextWindow } from './context-window-tracker.js';
 import type { Counters } from './counters.js';
 import type { Bonds } from './bonds.js';
 import type { Harbors } from './harbors.js';
-import type { Transcripts, TranscriptOutput } from './transcripts.js';
+import type { Transcripts, TranscriptOutput, TranscriptMessage } from './transcripts.js';
+import { parseCodexTranscript, mapCodexStreamLine, type StructuredTurn } from './spawner/codex-transcript.js';
+import { parseClaudeCodeTranscript, mapClaudeCodeStreamLine, extractClaudeCodeFinal, extractClaudeCodeUsage } from './spawner/cli-claude-code-transcript.js';
+import { parseGeminiTranscript } from './spawner/gemini-transcript.js';
+import { parseCloudflareTranscript } from './spawner/cloudflare-transcript.js';
 import { assessBackendTelemetryPolicy } from './backend-telemetry-policy.js';
+import { resolveModel } from './model-registry.js';
 import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
-import { spawnViaCliTube, type CliTubeTool } from './spawner/backends/cli-tube.js';
+import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
+import { coastGuardStatus } from './coast-guard.js';
+import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
 
@@ -89,7 +96,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex';
+  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -104,6 +111,15 @@ export interface SpawnSpec {
   // observers like the gardener, or genuinely read-only agents). When unset,
   // the spawner refuses to launch into a main checkout — see assessSpawnIsolation.
   allowSharedCheckout?: boolean;
+  // Harbor-card capability set this spawn enters with (lib/harbor-tokens.ts
+  // `cap[]` grammar). Drives THREE things consistently: the scope-proportional
+  // bond price (lib/bond-pricing.ts), the harbor-entry capabilities, and the
+  // Coast Guard write policy (a `read`-tier card → the child is physically
+  // denied writes to its workdir; lib/bond-pricing.ts `scopeTierWritePolicy`).
+  // When unset, defaults to `['spawn:agent', 'backend:<backend>']` — the
+  // historical spawn caps, which classify as the `full`/amplifier tier, so the
+  // default spawn is unchanged (writes allowed, full-tier bond).
+  capabilities?: string[];
   env?: Record<string, string>;
   timeout?: number;    // ms, default 300000
   allowedTools?: string;  // for claude-cli backend: tool permission string
@@ -125,6 +141,23 @@ export interface SpawnSpec {
   maxBytes?: number | null; // optional hard egress byte cap
   /** Estimated input prompt token count — used to gate spawn if it would exceed effective context. */
   estimatedPromptTokens?: number;
+  /**
+   * File-edit permission mode for the `cli:claude-code` backend. Forwarded to
+   * the CLI as `--permission-mode <mode>` (only when set). `acceptEdits` lets a
+   * spawned agent edit files in its `workdir` non-interactively;
+   * `bypassPermissions` removes all gating. Unset = current behavior (the CLI's
+   * default interactive gating). Ignored by backends that don't support it.
+   */
+  permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+  /**
+   * Optional stable tube channel the cli-tube backend publishes the agent
+   * exchange on, so an operator can watch the run live (`pd tube <channel>`).
+   * Dispatch sets this to `dispatch:<id>` (ADR-0060) so a folded dispatch keeps
+   * the live observability the legacy inline adapter provided. When unset, the
+   * cli-tube backend falls back to its per-invocation `cli:<tool>:<uuid>`
+   * channel — same default sortie/orchestrator spawns have always used.
+   */
+  tubeChannel?: string;
 }
 
 export interface SpawnResult {
@@ -188,7 +221,24 @@ interface SpawnerDeps {
   transcripts?: Transcripts;
   enforceTelemetryPolicy?: boolean;
   telemetryBypassApproval?: TelemetryBypassApproval;
+  /** When true (the default), a backend MUST NOT run unless its full
+   *  conversation is being recorded: construction throws if no `transcripts`
+   *  module is wired, and a spawn fails loudly if its transcript can't be
+   *  opened or finalized. Set false ONLY in tests/evals that don't exercise
+   *  recording — the live daemon always enforces. Mirrors the telemetry
+   *  fail-closed posture: untracked work is not allowed to look like success. */
+  enforceTranscriptPolicy?: boolean;
   runnerOverrides?: Partial<Record<SpawnSpec['backend'], (spec: SpawnSpec, model: string) => Promise<BackendRunResult>>>;
+  /**
+   * Optional tube client (the daemon's messaging layer). When wired, cli-tube
+   * spawns that carry a `spec.tubeChannel` publish their agent exchange on that
+   * channel so an operator can watch the run live (`pd tube <channel>`). This is
+   * the single seam that gives a folded dispatch back the live observability the
+   * legacy inline dispatch adapter provided (ADR-0060): the conductor stamps
+   * `dispatch:<id>` onto the spec, and this client is what actually publishes it.
+   * Absent → no publishing (the spawn still runs); same posture as before.
+   */
+  tubeClient?: TubeClientLike;
 }
 
 const ANSI_RESET = '\x1b[0m';
@@ -384,6 +434,16 @@ async function runConfinedChild(
   opts: ConfinedChildOpts,
 ): Promise<{ output: string; error: string | null; child: ChildProcess; coastGuardReceipt: CoastGuardReceipt }> {
   const cwd = opts.cwd ?? opts.spec.workdir;
+  // Scope-tier write confinement (ADR-VI containment): derive the same priced
+  // tier from the spawn's capabilities that the bond was priced on, so a
+  // read-tier agent is physically denied writes to its workdir. Default caps
+  // (`spawn:agent` + `backend:<id>`) → `full` tier → 'unrestricted' (no-op for
+  // ordinary spawns); only an explicit read-tier `capabilities` engages it.
+  const confineCaps =
+    opts.spec.capabilities && opts.spec.capabilities.length > 0
+      ? opts.spec.capabilities
+      : ['spawn:agent', `backend:${opts.spec.backend}`];
+  const writePolicy = scopeTierWritePolicy(classifyScope(confineCaps));
   const cg = await withCoastGuard({
     agentId: opts.spec.identity || opts.spec.name || 'spawned',
     backend: opts.spec.backend,
@@ -391,6 +451,7 @@ async function runConfinedChild(
     args: opts.args,
     env: opts.env,
     workdir: cwd,
+    writePolicy,
     spec: { coastGuard: opts.spec.coastGuard, maxRequests: opts.spec.maxRequests, maxBytes: opts.spec.maxBytes },
     // The broker scrubs EVERY key loaded from the operator's dotenv files, not
     // just the managed allow-list — those files ARE the operator's secret store.
@@ -427,10 +488,36 @@ interface BackendRunResult {
   childProcess?: ChildProcess | null;
   /** Coast Guard receipt for subprocess backends (sandbox + broker + cap). */
   coastGuardReceipt?: CoastGuardReceipt | null;
+  /** Ordered, role-tagged turns the backend extracted from its own event
+   *  stream (codex `--json` reasoning / command / message items). When
+   *  present, the spawner records these as the full conversation instead of a
+   *  single final-output blob, so thinking + tool calls land in the transcript.
+   *  Backends that only yield a final answer (simple API calls) leave it unset. */
+  transcript?: StructuredTurn[];
 }
 
 interface BackendRunContext {
   onChildProcess?: (child: ChildProcess) => void;
+  /**
+   * Live transcript-delta sink. A backend that streams events (the cli-tube
+   * backends parse claude-code `stream-json` / codex `--json` per line) calls
+   * this ONCE per event AS IT ARRIVES, so each thinking / tool_use / tool_result
+   * / assistant turn lands in fleet_transcripts mid-run and the cockpit SSE
+   * (`agent.transcript` `update`) renders it live instead of all-at-once at the
+   * end. When a backend streams deltas, the spawn loop records THESE and skips
+   * the batched final re-append (avoiding duplicates). Backends that only yield
+   * a final answer leave it unwired.
+   */
+  onTranscriptDelta?: (msg: TranscriptMessage) => void;
+  /**
+   * Tube client + stable channel for live observability. Threaded from
+   * `SpawnerDeps.tubeClient` + `spec.tubeChannel` into the cli-tube backend so a
+   * folded dispatch keeps `pd tube dispatch:<id>` working (ADR-0060). Both must
+   * be present for publishing to occur; otherwise the cli-tube backend uses its
+   * default per-invocation channel and (without a client) publishes nothing.
+   */
+  tubeClient?: TubeClientLike;
+  tubeChannel?: string;
 }
 
 interface CodexUsage {
@@ -508,7 +595,14 @@ async function runGemini(spec: SpawnSpec, model: string): Promise<BackendRunResu
     maxTokens: spec.maxTokens,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  // Full-depth capture: reconstruct thinking / functionCall / text turns from
+  // the raw Gemini response so the transcript shows HOW it answered.
+  if (result.ok && result.raw !== undefined) {
+    const turns = parseGeminiTranscript(result.raw);
+    if (turns.length > 0) adapted.transcript = turns;
+  }
+  return adapted;
 }
 
 async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -528,7 +622,14 @@ async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRun
     maxTokens: spec.maxTokens,
     signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
   });
-  return adaptLLMResult(result);
+  const adapted = adaptLLMResult(result);
+  // Full-depth capture: reconstruct reasoning / tool_calls / message turns
+  // from the raw Workers AI result.
+  if (result.ok && result.raw !== undefined) {
+    const turns = parseCloudflareTranscript(result.raw);
+    if (turns.length > 0) adapted.transcript = turns;
+  }
+  return adapted;
 }
 
 async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
@@ -552,11 +653,42 @@ async function runOpenAI(spec: SpawnSpec, model: string): Promise<BackendRunResu
  * relies on the operator's flat-rate subscription (Claude Max / ChatGPT
  * Pro) for cost accounting at the wallet layer.
  */
+/** Map one backend StructuredTurn to a transcript message (live deltas + batch
+ *  recording share this so a streamed turn and its end-of-run twin are identical). */
+function turnToMessage(turn: StructuredTurn, ts: number): TranscriptMessage {
+  const message: TranscriptMessage = {
+    role: turn.role,
+    content: turn.content,
+    timestamp: ts,
+  };
+  if (turn.toolCalls && turn.toolCalls.length > 0) {
+    message.tool_calls = turn.toolCalls;
+  }
+  return message;
+}
+
 async function runCliTube(
   spec: SpawnSpec,
   cli: CliTubeTool,
   context?: BackendRunContext,
 ): Promise<BackendRunResult> {
+  // Live per-line streaming: map each JSONL event the child emits to a
+  // transcript delta AS IT ARRIVES, so the cockpit sees thinking / tool calls /
+  // assistant text mid-run. Only wired when the spawn loop provided a delta
+  // sink (it does whenever a transcript row is open).
+  const onTranscriptDelta = context?.onTranscriptDelta;
+  const mapLine =
+    cli === 'codex' ? mapCodexStreamLine
+    : cli === 'claude-code' ? mapClaudeCodeStreamLine
+    : null;
+  const onStreamLine = onTranscriptDelta && mapLine
+    ? (line: string) => {
+        for (const turn of mapLine(line)) {
+          onTranscriptDelta(turnToMessage(turn, Date.now()));
+        }
+      }
+    : undefined;
+
   const result = await spawnViaCliTube({
     cli,
     prompt: spec.task,
@@ -565,10 +697,68 @@ async function runCliTube(
     env: { ...spec.env },
     model: spec.model,
     onChild: context?.onChildProcess,
+    onStreamLine,
+    permissionMode: spec.permissionMode,
+    // Live observability (ADR-0060): publish the exchange on the operator-
+    // discoverable channel (dispatch:<id>) when both a channel and a tube client
+    // are present. When `tubeChannel` is undefined, spawnViaCliTube falls back to
+    // its own `cli:<tool>:<uuid>` default — unchanged for sortie/orchestrator
+    // spawns. The publish is best-effort inside spawnViaCliTube and never blocks.
+    tube: context?.tubeChannel,
+    tubeClient: context?.tubeClient,
   });
+
+  // Full-depth capture from the raw event stream. Both wrapped CLIs emit
+  // structured JSONL: codex → `--json` (reasoning/command/message items),
+  // claude-code → `stream-json` (thinking/tool_use/tool_result/text blocks).
+  if (cli === 'codex') {
+    // Codex `--json` emits a terminal `turn.completed` carrying exact usage.
+    // The tube path previously dropped it (only the legacy runCodexCli parsed
+    // it), so every `cli:codex` spawn returned no tokens and fail-closed the
+    // exact-telemetry gate. Recover it here; estimate only when truly absent.
+    const cu = parseCodexUsage(result.rawStdout || result.output || '');
+    const codexExact = typeof cu.inputTokens === 'number' && cu.inputTokens > 0
+      && typeof cu.outputTokens === 'number' && cu.outputTokens > 0;
+    return {
+      output: result.output,                          // final message (from --output-last-message)
+      error: result.error,
+      transcript: parseCodexTranscript(result.rawStdout || ''),
+      ...(codexExact
+        ? {
+            inputTokens: cu.inputTokens,
+            outputTokens: cu.outputTokens,
+            ...(typeof cu.cachedInputTokens === 'number' ? { cachedInputTokens: cu.cachedInputTokens } : {}),
+          }
+        : {
+            inputTokens: estimateTokensFromText(spec.task),
+            outputTokens: estimateTokensFromText(result.output || ''),
+            estimatedTelemetry: true,
+          }),
+    };
+  }
+  // claude-code: raw stdout is the stream-json; recover the final answer from
+  // the terminal `result` line (falling back to raw if absent), parse the stream
+  // into thinking / tool / assistant turns, and recover the exact token usage the
+  // CLI reported on that same `result` line (previously dropped → fail-closed).
+  const finalAnswer = extractClaudeCodeFinal(result.rawStdout || '');
+  const ccu = extractClaudeCodeUsage(result.rawStdout || '');
+  const ccExact = typeof ccu.inputTokens === 'number' && ccu.inputTokens > 0
+    && typeof ccu.outputTokens === 'number' && ccu.outputTokens > 0;
   return {
-    output: result.output,
+    output: finalAnswer ?? result.output,
     error: result.error,
+    transcript: parseClaudeCodeTranscript(result.rawStdout || ''),
+    ...(ccExact
+      ? {
+          inputTokens: ccu.inputTokens,
+          outputTokens: ccu.outputTokens,
+          ...(typeof ccu.cachedInputTokens === 'number' ? { cachedInputTokens: ccu.cachedInputTokens } : {}),
+        }
+      : {
+          inputTokens: estimateTokensFromText(spec.task),
+          outputTokens: estimateTokensFromText(finalAnswer ?? result.output ?? ''),
+          estimatedTelemetry: true,
+        }),
   };
 }
 
@@ -664,9 +854,21 @@ function parseCodexError(raw: string): string | null {
   return null;
 }
 
+/**
+ * Scratch root for codex's `--output-last-message` file. NOT the OS temp dir:
+ * macOS purges `$TMPDIR`/`/tmp` on a timer and reboot, which can yank the file
+ * out from under an in-flight run. We root it under the durable `~/.port-daddy`
+ * tree (created on demand) and rmSync the per-run subdir in a finally block.
+ */
+function codexScratchRoot(): string {
+  const root = join(homedir(), '.port-daddy', 'codex-scratch');
+  mkdirSync(root, { recursive: true });
+  return root;
+}
+
 function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext): Promise<BackendRunResult> {
   const workspace = spec.workdir || process.cwd();
-  const tempDir = mkdtempSync(join(tmpdir(), 'port-daddy-codex-'));
+  const tempDir = mkdtempSync(join(codexScratchRoot(), 'run-'));
   const outputPath = join(tempDir, 'last-message.txt');
   const env: Record<string, string | undefined> = {
     ...process.env,
@@ -703,12 +905,16 @@ function runCodexCli(spec: SpawnSpec, model: string, context?: BackendRunContext
       const usage = parseCodexUsage(result.output || '');
       const structuredError = parseCodexError(result.output || '');
       const error = structuredError ? `Codex CLI failed: ${structuredError}` : result.error;
+      // Full-depth capture: turn the `--json` event stream into ordered
+      // reasoning / command / message turns. This is the whole reason codex
+      // runs with `--json` — previously the stream was parsed only for tokens.
+      const transcript = parseCodexTranscript(result.output || '');
       const fileOutput = existsSync(outputPath) ? readFileSync(outputPath, 'utf-8').trim() : '';
       if (fileOutput) {
-        return { output: fileOutput, error, ...usage, coastGuardReceipt: result.coastGuardReceipt };
+        return { output: fileOutput, error, ...usage, transcript, coastGuardReceipt: result.coastGuardReceipt };
       }
       const sanitized = sanitizeCodexOutput(result.output || '');
-      return { output: sanitized, error, ...usage, coastGuardReceipt: result.coastGuardReceipt };
+      return { output: sanitized, error, ...usage, transcript, coastGuardReceipt: result.coastGuardReceipt };
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -767,13 +973,14 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
 }
 
 /**
- * `PD_USE_CLI_BACKEND` override. When set to `claude-code` or `codex`,
- * every spawn — regardless of `spec.backend` — routes through the
- * matching `cli:<tool>` backend. Empty / unset values disable the
- * override.
+ * `PD_USE_CLI_BACKEND` override. Accepted values: `claude-code` (or
+ * `claude`), `codex`, `gemini`, `groq`, `grok`. When set, every spawn —
+ * regardless of `spec.backend` — routes through the matching
+ * `cli:<tool>` backend. Empty / unset / unrecognized values disable the
+ * override (fail-closed: the original backend stays in place).
  *
- * This is the operator-level "I'm a Claude Max subscriber, use my
- * unmetered CLI for everything" knob. Documented in
+ * This is the operator-level "I already pay for a CLI subscription, use
+ * my unmetered CLI for everything" knob. Documented in
  * `docs/fleet/backend-costs.md`.
  */
 function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
@@ -781,6 +988,9 @@ function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
   if (!raw) return null;
   if (raw === 'claude-code' || raw === 'claude') return 'cli:claude-code';
   if (raw === 'codex') return 'cli:codex';
+  if (raw === 'gemini') return 'cli:gemini';
+  if (raw === 'groq') return 'cli:groq';
+  if (raw === 'grok') return 'cli:grok';
   // Unrecognized value — fail-closed: leave the original backend in
   // place rather than silently routing nowhere. The spawner's outer
   // error surface will report unknown backends if the value is bad.
@@ -869,16 +1079,19 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
 // =============================================================================
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
-  ollama: 'llama3.1:8b',
-  claude: 'claude-haiku-4-5-20251001',
+  ollama: 'llama3.1:8b',  // local ollama model name, not an API id
+  claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
-  gemini: 'gemini-2.5-flash',  // gemini-2.0-flash was shut down 2026-06-01
-  cloudflare: '@cf/zai-org/glm-4.7-flash',
+  gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),
+  cloudflare: resolveModel({ backend: 'cloudflare', capability: 'cheap' }),
   openai: DEFAULT_OPENAI_MODEL,
   groq: DEFAULT_GROQ_MODEL,
-  codex: 'gpt-5.4-mini',
+  codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
+  'cli:gemini': 'gemini-cli',        // local gemini CLI manages its own model
+  'cli:groq': 'groq-cli',            // local groq CLI manages its own model
+  'cli:grok': 'grok-cli',            // local grok CLI manages its own model
   aider: 'aider',   // aider manages its own model selection
   custom: 'custom',
 };
@@ -965,22 +1178,48 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     harbors,
     transcripts,
     enforceTelemetryPolicy = true,
+    enforceTranscriptPolicy = true,
     telemetryBypassApproval,
     runnerOverrides = {},
+    tubeClient,
   } = deps;
 
   // ── Transcript helpers ──────────────────────────────────────────────────
-  // All transcript ops are best-effort: record/finalize failures must never
-  // block a spawn (the operator's spawn must succeed even if the recorder
-  // is misbehaving). Wrap every call.
+  // Fail-loud under enforcement (the daemon's posture): if recording throws,
+  // log a red banner and rethrow so the spawn is marked failed — untracked
+  // work must NOT look like success. When enforceTranscriptPolicy is false
+  // (tests/evals), failures are swallowed so the spawn path still exercises.
 
+  function recordOrThrow(label: string, fn: () => void): void {
+    try {
+      fn();
+    } catch (err) {
+      // Coerce safely: a thrown non-Error (possible in JS) has no `.message`,
+      // which would render "undefined" in the banner.
+      const detail = err instanceof Error ? err.message : String(err);
+      const msg = `transcript recording failed (${label}): ${detail}`;
+      if (enforceTranscriptPolicy) {
+        console.error(
+          `${ANSI_BANNER_RED} TRANSCRIPT RECORDING FAILED ${ANSI_RESET}\n` +
+          `${ANSI_BOLD_RED}${msg}${ANSI_RESET}`,
+        );
+        throw new Error(msg);
+      }
+      // best-effort mode: swallow
+    }
+  }
+
+  /** Open the transcript row and record the opening system/user turns.
+   *  Returns the id, or null only when recording is disabled (no module +
+   *  not enforced). Throws under enforcement if the recorder is broken. */
   function txStart(spec: SpawnSpec, agentId: string, model: string, startedAt: number): string | null {
     if (!transcripts) return null;
-    try {
+    let id: string | null = null;
+    recordOrThrow('start', () => {
       const ship = spec.ship || `spawn:${spec.backend}`;
       const trigger = spec.trigger || 'manual';
       const projectName = getProjectName(spec.identity);
-      const id = transcripts.start({
+      id = transcripts.start({
         ship,
         spawned_agent_id: agentId,
         trigger,
@@ -994,43 +1233,61 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
       // Always record the initial prompt(s) as system + user messages.
       if (spec.systemPrompt) {
-        try {
-          transcripts.appendMessage(id, {
-            role: 'system',
-            content: spec.systemPrompt,
-            timestamp: startedAt,
-          });
-        } catch { /* swallow */ }
-      }
-      try {
         transcripts.appendMessage(id, {
-          role: 'user',
-          content: spec.task,
+          role: 'system',
+          content: spec.systemPrompt,
           timestamp: startedAt,
         });
-      } catch { /* swallow */ }
-      return id;
-    } catch {
-      return null;
-    }
+      }
+      transcripts.appendMessage(id, {
+        role: 'user',
+        content: spec.task,
+        timestamp: startedAt,
+      });
+    });
+    return id;
   }
 
   function txAssistant(transcriptId: string | null, content: string, ts: number): void {
     if (!transcripts || !transcriptId) return;
-    try {
+    recordOrThrow('assistant', () => {
       transcripts.appendMessage(transcriptId, {
         role: 'assistant',
         content,
         timestamp: ts,
       });
-    } catch { /* swallow */ }
+    });
+  }
+
+  /** Record the backend's full structured conversation (reasoning / tool
+   *  calls / messages) in order. This is the depth the operator asked for:
+   *  thinking turns, command executions with their output, and each assistant
+   *  message — not a single final blob. */
+  function txMessages(transcriptId: string | null, turns: StructuredTurn[], ts: number): void {
+    if (!transcripts || !transcriptId) return;
+    recordOrThrow('messages', () => {
+      for (const turn of turns) {
+        transcripts.appendMessage(transcriptId, turnToMessage(turn, ts));
+      }
+    });
+  }
+
+  /** Append ONE live transcript delta mid-run (the cli-tube `onTranscriptDelta`
+   *  path). Mirrors txMessages' enforcement, but per-message: a live delta that
+   *  can't be recorded under enforcement is loud, just like the batch path.
+   *  Best-effort mode swallows internally. */
+  function txDelta(transcriptId: string | null, message: TranscriptMessage): void {
+    if (!transcripts || !transcriptId) return;
+    recordOrThrow('delta', () => {
+      transcripts.appendMessage(transcriptId, message);
+    });
   }
 
   function txOutput(transcriptId: string | null, output: TranscriptOutput): void {
     if (!transcripts || !transcriptId) return;
-    try {
+    recordOrThrow('output', () => {
       transcripts.appendOutput(transcriptId, output);
-    } catch { /* swallow */ }
+    });
   }
 
   function txFinalize(
@@ -1041,7 +1298,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     error: string | null,
   ): void {
     if (!transcripts || !transcriptId) return;
-    try {
+    recordOrThrow('finalize', () => {
       transcripts.finalize(transcriptId, {
         status,
         ended_at: endedAt,
@@ -1050,7 +1307,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         tokens_out: telemetry?.outputTokens ?? null,
         error,
       });
-    } catch { /* swallow */ }
+    });
   }
 
   // Default bond per spawn when caller doesn't specify one. Tunable via
@@ -1061,6 +1318,20 @@ export function createSpawner(deps: SpawnerDeps = {}) {
   if (!enforceTelemetryPolicy) {
     requireTelemetryBypassApproval(telemetryBypassApproval);
     warnTelemetryBypass(telemetryBypassApproval);
+  }
+
+  // Fail-closed transcript policy: a backend must not run unless its full
+  // conversation is recorded. Refuse to build a recording-blind spawner in the
+  // enforced (production) configuration. This is the construction-time twin of
+  // the per-spawn guard below — a misconfigured daemon fails LOUD at boot
+  // rather than silently running agents whose work vanishes.
+  if (enforceTranscriptPolicy && !transcripts) {
+    throw new Error([
+      `${ANSI_BANNER_RED} TRANSCRIPT RECORDING REQUIRED ${ANSI_RESET}`,
+      `${ANSI_BOLD_RED}A spawner was constructed with no transcripts module, but transcript recording is mandatory.${ANSI_RESET}`,
+      'Every backend run must record its full conversation (user/assistant/tool/thinking) to fleet_transcripts.',
+      'Wire deps.transcripts = createTranscripts(db). (Tests/evals that do not exercise recording may pass enforceTranscriptPolicy:false.)',
+    ].join('\n'));
   }
 
   /** Hard ceiling on concurrent running agents. Prevents fork bombs.
@@ -1184,6 +1455,20 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     const projectName = getProjectName(spec.identity);
     const defaultHarborName = projectName ? `${projectName}:fleet` : undefined;
     const harborName = spec.harborName || defaultHarborName;
+
+    // The capability set this spawn carries — the ONE source for the bond price,
+    // the harbor-entry caps, and the Coast Guard write policy, so all three
+    // agree on scope (no under-declaring one while acting on another). Defaults
+    // to the historical spawn caps (`spawn:agent` + `backend:<id>` → `full`
+    // tier), so an unset `capabilities` leaves the default spawn unchanged.
+    const effectiveCaps =
+      spec.capabilities && spec.capabilities.length > 0
+        ? spec.capabilities
+        : ['spawn:agent', `backend:${spec.backend}`];
+    // NOTE: the priced scope tier → OS write policy mapping
+    // (scopeTierWritePolicy) is applied per-backend-exec in runConfinedChild,
+    // which derives the SAME tier from these caps. Keeping the derivation there
+    // co-locates it with the Coast Guard call and avoids passing extra state.
     const displayName = deriveAgentDisplayName({
       name: spec.name,
       purpose: spec.purpose,
@@ -1211,7 +1496,74 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     // Escrow bond BEFORE any spawn work. If the wallet is insufficient OR
     // bonds aren't wired, we refuse here rather than run an unbonded agent —
     // the Ostrom "rule-monitoring" invariant: every running agent has a bond.
-    const bondUsd = spec.bondUsd ?? DEFAULT_BOND_USD;
+    //
+    // BOND PRICING (ADR-VI / agent-transactions-whitepaper §6.5). A
+    // caller-supplied `spec.bondUsd` ALWAYS wins (back-compat — the Fixed
+    // Bonds path is preserved). When it is omitted, we compute a
+    // scope-proportional bond with the closed-form floor
+    // π = c·(1 + α·s)·(1 − ρ) instead of a flat constant:
+    //   • c (base)   — DEFAULT_BOND_USD, the historical per-spawn cleanup unit,
+    //                  so quoted bonds stay on the same dollar scale as before.
+    //   • s (scope)  — `effectiveCaps`, the capability set the spawn enters its
+    //                  harbor with (default `spawn:agent` + `backend:<id>`). A
+    //                  spawn cap is an amplifier (it can create children), so the
+    //                  default classifies as the `full` tier — correct: the bond
+    //                  must cover the blast radius of the child it launches. A
+    //                  caller that requests a read-tier `capabilities` is priced
+    //                  AND confined to that tier (same set drives both).
+    //   • duration   — the spawn timeout (longer access ⇒ more time to drift).
+    //   • ρ          — par for now (1.0×): no reputation/quality-eval ledger
+    //                  exists yet (Proposed). When it lands, pass a `reputation`
+    //                  hook keyed on the PRINCIPAL / Anchor identity (NOT the
+    //                  re-rollable agent id — the Sybil defense, ADR-0014/0022).
+    let bondUsd: number;
+    if (spec.bondUsd !== undefined) {
+      // Caller-supplied Fixed Bond (back-compat) — the pricer is bypassed; no
+      // breakdown to log. Record the override so an operator reading the log can
+      // see WHY a spawn's bond did not follow the scope-proportional curve.
+      bondUsd = spec.bondUsd;
+      console.log(
+        `[spawner] bond: caller-supplied fixed bond $${bondUsd.toFixed(4)} ` +
+          `(scope-proportional pricer bypassed) — agent=${agentId} backend=${spec.backend}`,
+      );
+    } else {
+      const priced = priceBond({
+        baseUsd: DEFAULT_BOND_USD,
+        capabilities: effectiveCaps,
+        ttlMs: spec.timeout ?? 300_000,
+        // The Coast Guard posture on THIS machine, so the pricer can flag when the
+        // priced tier exceeds what the runtime structurally contains
+        // (breakdown.uncontainedScope → the WARN below). ADVISORY: this changes NO
+        // bondUsd / floor / ceiling — it only lights the containment-gap flag.
+        // Absent it, the flag would stay dark in the live spawn path. coastGuardStatus
+        // is a filesystem-probe-only read (no subprocess), cheap per spawn.
+        coastGuardReport: coastGuardStatus(),
+        // principal/reputation intentionally omitted → par; wire the Anchor-keyed
+        // reputation hook here once the reputation ledger ships.
+      });
+      bondUsd = priced.bondUsd;
+      // Operator visibility: one INFO line with the chosen tier + every multiplier
+      // + the final escrowed amount (the spawn path is not hot enough to be noise),
+      // plus INFO `notices` for an EXPECTED posture (the priced tier outrunning a
+      // present-but-modest enforced tier — the documented pricing-ahead-of-
+      // containment gap the default `full`-tier spawn trips on ~100% of spawns
+      // under an armed guard), and a LOUD `warnings` only for an ACTIONABLE
+      // anomaly: `belowFloor` (a ceiling clamp dropped the bond below its
+      // deterrence floor) or an uncontained scope with NO OS sandbox at all
+      // (`enforcedScopeTier === null` → the spawn is truly unconfined). An
+      // always-on uncontained WARN under an armed guard would be alarm fatigue, so
+      // that benign steady-state case is INFO. Formatting + level-routing live in
+      // the pure pricer helper so they stay unit-tested; we just route info +
+      // notices → log, warnings → warn.
+      const lines = pricedBondLogLines(priced.breakdown, {
+        bondUsd,
+        agentId,
+        backend: spec.backend,
+      });
+      console.log(lines.info);
+      for (const n of lines.notices) console.log(n);
+      for (const w of lines.warnings) console.warn(w);
+    }
     let bondId: number | null = null;
     let enteredHarborName: string | null = null;
     if (harbors && projectName && bondUsd > 0) {
@@ -1237,7 +1589,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
 
       const entered = await harbors.enter(harborName, agentId, {
         identity: spec.identity,
-        capabilities: ['spawn:agent', `backend:${spec.backend}`],
+        capabilities: effectiveCaps,
       });
       if (!entered.success) {
         counters?.bump('spawn.blocked', dims);
@@ -1326,8 +1678,17 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     agents.set(agentId, record);
 
     // Open a transcript row immediately so the live-tail surface (UI/SSE)
-    // sees the run before its (potentially long) LLM call returns.
-    const transcriptId = txStart(spec, agentId, model, startedAt);
+    // sees the run before its (potentially long) LLM call returns. Recording
+    // is a PRECONDITION of running the backend: if the row can't be opened
+    // under enforcement, we capture the failure and refuse to run (below)
+    // rather than executing an agent whose work would go unrecorded.
+    let transcriptId: string | null = null;
+    let transcriptStartError: string | null = null;
+    try {
+      transcriptId = txStart(spec, agentId, model, startedAt);
+    } catch (err) {
+      transcriptStartError = (err as Error).message;
+    }
 
     // Transition bond: escrowed → running. The markRunning call is what
     // cost-tracker's budget-guard hook looks at — bond must be 'running'
@@ -1364,6 +1725,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       pid: initialRegistryPid,
       identity: spec.identity || null,
       purpose: spec.purpose || spec.task.slice(0, 80),
+      lifecycle: 'ephemeral',
       metadata: coordinationMetadata,
     }, { pid: initialRegistryPid });
 
@@ -1382,8 +1744,21 @@ export function createSpawner(deps: SpawnerDeps = {}) {
     let error: string | null = null;
     let telemetry: SpawnTelemetry | null = null;
     let coastGuardReceipt: CoastGuardReceipt | null = null;
+    let structuredTurns: StructuredTurn[] | null = null;
+    // Set by the backend's live onTranscriptDelta sink (cli-tube streaming).
+    // When true, the conversation is ALREADY persisted turn-by-turn, so the
+    // end-of-run path skips the batched re-append to avoid duplicating it.
+    let streamedLiveDeltas = false;
 
     try {
+      // Recording is a precondition: if the transcript row could not be opened
+      // under enforcement, refuse to run the backend. An unrecorded agent run
+      // is exactly what this policy forbids — fail loud instead.
+      if (transcriptStartError) {
+        throw new Error(
+          `Spawn refused: ${transcriptStartError}. A backend must not run unless its conversation is recorded.`,
+        );
+      }
       const override = runnerOverrides[spec.backend];
       let result: BackendRunResult;
 
@@ -1402,6 +1777,21 @@ export function createSpawner(deps: SpawnerDeps = {}) {
               }, { pid });
             }
           },
+          // Live transcript streaming: each event a streaming backend parses is
+          // appended to the open transcript AS IT ARRIVES, so the cockpit SSE
+          // (`agent.transcript` `update`) renders thinking / tool calls / text
+          // mid-run. Only meaningful when a row is open (transcriptId set).
+          onTranscriptDelta: transcriptId
+            ? (msg) => {
+                streamedLiveDeltas = true;
+                txDelta(transcriptId, msg);
+              }
+            : undefined,
+          // Live observability seam (ADR-0060): when the daemon wired a tube
+          // client and this spawn carries a stable channel (dispatch:<id>), the
+          // cli-tube backend publishes the exchange there for `pd tube`.
+          tubeClient,
+          tubeChannel: spec.tubeChannel,
         };
         // Global env override: PD_USE_CLI_BACKEND=claude-code|codex forces
         // every spawn through the local CLI tube, regardless of yml config.
@@ -1419,6 +1809,9 @@ export function createSpawner(deps: SpawnerDeps = {}) {
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;
           case 'cli:codex':       result = await runCliTube(spec, 'codex', childContext); break;
+          case 'cli:gemini':      result = await runCliTube(spec, 'gemini', childContext); break;
+          case 'cli:groq':        result = await runCliTube(spec, 'groq', childContext); break;
+          case 'cli:grok':        result = await runCliTube(spec, 'grok', childContext); break;
           case 'aider':     result = await runAider(spec, model, childContext); break;
           case 'custom':    result = await runCustom(spec, childContext); break;
           default:
@@ -1433,6 +1826,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       coastGuardReceipt = result.coastGuardReceipt ?? null;
       output = result.output || null;
       error = result.error;
+      structuredTurns = result.transcript && result.transcript.length > 0 ? result.transcript : null;
 
       if (!error && enforceTelemetryPolicy) {
         const inputTokens = result.inputTokens;
@@ -1498,7 +1892,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       output = null;
     }
     const completedAt = record.completedAt ?? Date.now();
-    const status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
+    let status: SpawnResult['status'] = wasKilled ? 'killed' : error ? 'failed' : 'completed';
 
     record.status = status;
     record.completedAt = completedAt;
@@ -1527,31 +1921,68 @@ export function createSpawner(deps: SpawnerDeps = {}) {
       });
     }
 
-    // Record assistant message + finalize transcript. Order matters: we
-    // append the assistant reply BEFORE finalize so the 'end' SSE event
-    // carries the full conversation.
-    if (output && !wasKilled) {
-      txAssistant(transcriptId, output, completedAt);
+    // Record the conversation + finalize transcript. Order matters: we append
+    // the turns BEFORE finalize so the 'end' SSE event carries the full
+    // conversation. Under enforcement a recording failure here is loud: it
+    // flips the spawn to 'failed' (untracked work must not look successful).
+    try {
+      if (streamedLiveDeltas) {
+        // Live path (cli-tube streaming): every thinking / tool / assistant turn
+        // was already appended mid-run via onTranscriptDelta, so re-appending
+        // `structuredTurns` or `output` here would duplicate the whole
+        // conversation. Record nothing extra — the error turn below still fires.
+      } else if (structuredTurns && !wasKilled) {
+        // Full-depth path (codex / non-streamed): reasoning + tool calls + each
+        // message turn. The final agent_message is already the last structured
+        // turn, so we do NOT also append `output` — that would duplicate it.
+        txMessages(transcriptId, structuredTurns, completedAt);
+      } else if (output && !wasKilled) {
+        // Final-answer-only backends (API calls): one assistant turn.
+        txAssistant(transcriptId, output, completedAt);
+      }
+      if (error) {
+        // Record the error itself as a final turn so operators see why the run
+        // failed without having to cross-reference status.
+        txAssistant(transcriptId, `[error] ${error}`, completedAt);
+      }
+      // Outputs: minimal default — the spawner emits a 'message' output
+      // summarizing the result. Fleet ships can later call
+      // transcripts.appendOutput() directly to add pr-comment / draft-pr /
+      // commit artifacts.
+      if (!wasKilled && transcriptId) {
+        const turnCount = structuredTurns?.length ?? 0;
+        const summary = error
+          ? `failed: ${error.slice(0, 160)}`
+          : turnCount > 0
+            ? `${spec.backend}: ${turnCount} turns, ${(output || '').length} chars`
+            : `${spec.backend} returned ${(output || '').length} chars`;
+        txOutput(transcriptId, {
+          type: error ? 'noop' : 'message',
+          summary,
+        });
+      }
+    } catch (recordingErr) {
+      // recordOrThrow already logged a red banner. Surface the failure on the
+      // SpawnResult so the caller sees that recording — not the agent — broke.
+      if (!error) {
+        error = recordingErr instanceof Error ? recordingErr.message : String(recordingErr);
+        status = 'failed';
+        record.status = 'failed';
+      }
     }
-    if (error) {
-      // Record the error itself as a final assistant turn so operators see
-      // why the run failed without having to cross-reference status.
-      txAssistant(transcriptId, `[error] ${error}`, completedAt);
+    // Finalize. Under enforcement a finalize failure must NOT let the spawn
+    // report success — flip the result to failed and surface the error, then
+    // make a best-effort attempt to stamp the row 'failed' so it isn't stranded
+    // in 'running'. (In best-effort mode txFinalize swallows internally, so
+    // this catch never fires and behavior is unchanged.)
+    try {
+      txFinalize(transcriptId, status, completedAt, telemetry, error);
+    } catch (finalizeErr) {
+      if (!error) error = finalizeErr instanceof Error ? finalizeErr.message : String(finalizeErr);
+      status = 'failed';
+      record.status = 'failed';
+      try { txFinalize(transcriptId, 'failed', completedAt, telemetry, error); } catch { /* row may be unreachable; the SpawnResult already reports failed */ }
     }
-    // Outputs: minimal default — caller-driven via spec is not yet a thing,
-    // so the spawner emits a 'message' output summarizing the result. Fleet
-    // ships can later call transcripts.appendOutput() directly to add
-    // pr-comment / draft-pr / commit artifacts.
-    if (!wasKilled && transcriptId) {
-      const summary = error
-        ? `failed: ${error.slice(0, 160)}`
-        : `${spec.backend} returned ${(output || '').length} chars`;
-      txOutput(transcriptId, {
-        type: error ? 'noop' : 'message',
-        summary,
-      });
-    }
-    txFinalize(transcriptId, status, completedAt, telemetry, error);
 
     // Resolve bond. Clean exit → full refund; error → slash full bond with reason.
     // Why slash on any error: an error means the spawn didn't do its job; the

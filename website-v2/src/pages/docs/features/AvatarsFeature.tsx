@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { Link } from 'react-router-dom'
 import { ArrowRight, GitCommit, Zap, Clock, Shield, RefreshCw, FileText } from 'lucide-react'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
@@ -8,10 +7,6 @@ export default function AvatarsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Shipped in v3.8</Badge>
-          <Badge variant="default">Fleet</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Always-On Fleet Agents
         </h1>
@@ -40,7 +35,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             <FileText size={16} className="text-[var(--brand-primary)] mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">1. Declare</h3>
-              <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
+              <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 leading-relaxed">
                 Write a <code>pd-fleet.yml</code> at your project root. Each agent has a name, a trigger, a backend, and a prompt.
               </p>
             </div>
@@ -49,7 +44,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             <GitCommit size={16} className="text-[var(--brand-secondary)] mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">2. Wire</h3>
-              <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
+              <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 leading-relaxed">
                 A git post-commit hook publishes to the <code>git:committed</code> channel. Fleet agents trigger automatically on every commit.
               </p>
             </div>
@@ -58,7 +53,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
             <Zap size={16} className="text-[var(--brand-accent)] mt-0.5 shrink-0" />
             <div>
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">3. Run</h3>
-              <p className="text-xs text-[var(--text-secondary)] m-0 leading-relaxed">
+              <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 leading-relaxed">
                 <code>pd fleet up</code> starts everything. Agents spawn, do their work, publish results, and chain to downstream agents.
               </p>
             </div>
@@ -75,7 +70,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
               <Zap size={14} className="text-[var(--brand-secondary)]" />
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">Triggered</h3>
             </div>
-            <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">
               Fires when a message arrives on a pub/sub channel. Reactive, event-driven. Good for: code review, docs sync, roadmap updates.
             </p>
             <DocsCodeBlock code={`qa:\n  trigger: git:committed\n  backend: cloudflare\n  model: '@cf/qwen/qwen3-30b-a3b-fp8'`} />
@@ -85,7 +80,7 @@ git commit -m "test"   # QA, docs, cartographer fire automatically`} />
               <Clock size={14} className="text-[var(--brand-secondary)]" />
               <h3 className="text-sm font-bold text-[var(--text-primary)] m-0">Scheduled</h3>
             </div>
-            <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">
               Runs on a cron interval. Periodic, ambient. Good for: health checks, idea generation, cleanup, status reports.
             </p>
             <DocsCodeBlock code={`spark:\n  schedule: "*/30 * * * *"\n  backend: codex\n  model: gpt-5.4-mini`} />
@@ -128,8 +123,8 @@ spider:
             <div key={item.title} className="flex items-start gap-3 border-l-4 border-[var(--border-subtle)] pl-4 py-1">
               <span className="text-[var(--brand-primary)] mt-0.5">{item.icon}</span>
               <div>
-                <p className="text-xs font-bold text-[var(--text-primary)] m-0">{item.title}</p>
-                <p className="text-xs text-[var(--text-secondary)] m-0">{item.desc}</p>
+                <p className="text-[length:var(--type-meta-size)] font-bold text-[var(--text-primary)] m-0">{item.title}</p>
+                <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0">{item.desc}</p>
               </div>
             </div>
           ))}
@@ -145,13 +140,13 @@ spider:
         <div className="space-y-2">
           <div className="border-l-4 border-[var(--brand-primary)] pl-4 py-1">
             <p className="text-sm font-bold text-[var(--text-primary)] m-0">Starter Fleet</p>
-            <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">QA, Documentarian, Cartographer, Spark, Spider. Commit-triggered.</p>
-            <code className="text-xs text-[var(--brand-primary)] mt-1 block">pd fleet init</code>
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">QA, Documentarian, Cartographer, Spark, Spider. Commit-triggered.</p>
+            <code className="text-[length:var(--type-meta-size)] text-[var(--brand-primary)] mt-1 block">pd fleet init</code>
           </div>
           <div className="border-l-4 border-[var(--brand-primary)] pl-4 py-1">
             <p className="text-sm font-bold text-[var(--text-primary)] m-0">Always-On Fleet</p>
-            <p className="text-xs text-[var(--text-secondary)] m-0 mt-1">Health monitor, lock janitor, session reaper, dep watcher, changelog writer.</p>
-            <code className="text-xs text-[var(--brand-primary)] mt-1 block">templates/pd-fleet-always-on.yml</code>
+            <p className="text-[length:var(--type-panel-body-compact-size)] text-[var(--text-secondary)] m-0 mt-1">Health monitor, lock janitor, session reaper, dep watcher, changelog writer.</p>
+            <code className="text-[length:var(--type-meta-size)] text-[var(--brand-primary)] mt-1 block">templates/pd-fleet-always-on.yml</code>
           </div>
         </div>
       </div>

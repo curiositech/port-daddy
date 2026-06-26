@@ -379,54 +379,136 @@ async function fleetModels(options: CLIOptions, positionalBackend?: string): Pro
   }
 }
 
-async function fleetUp(): Promise<void> {
+/**
+ * Split a fleet config's agents into enabled vs paused for a partial
+ * `pd fleet up <ship...>`. No ships requested = everything enabled.
+ */
+export function partitionFleetShips(
+  config: { agents: Array<{ name: string }> },
+  ships: string[],
+): { ok: true; enabled: string[]; paused: string[] } | { ok: false; error: string } {
+  const known = config.agents.map((agent) => agent.name);
+  if (ships.length === 0) {
+    return { ok: true, enabled: known, paused: [] };
+  }
+  const knownSet = new Set(known);
+  const unknown = ships.filter((name) => !knownSet.has(name));
+  if (unknown.length > 0) {
+    return {
+      ok: false,
+      error: `Unknown ship(s): ${unknown.join(', ')}. Available: ${known.join(', ')}`,
+    };
+  }
+  const requested = new Set(ships);
+  return {
+    ok: true,
+    enabled: ships,
+    paused: known.filter((name) => !requested.has(name)),
+  };
+}
+
+async function fleetUp(ships: string[] = []): Promise<void> {
   if (!(await isDaemonRunning())) {
     ui.error('Port Daddy daemon not running. Start it first: pd start');
     process.exit(1);
   }
 
+  const projectDir = process.cwd();
+  const config = loadFleetConfig(projectDir);
+
+  let selection: { enabled: string[]; paused: string[] } = { enabled: [], paused: [] };
+  if (ships.length > 0) {
+    if (!config) {
+      ui.error('No pd-fleet.yml found — cannot select ships.');
+      process.exit(1);
+      return;
+    }
+    const partition = partitionFleetShips(config, ships);
+    if (!partition.ok) {
+      ui.error(partition.error);
+      process.exit(1);
+      return;
+    }
+    selection = partition;
+  }
+
   const state = await getFleetRunningState();
   if (state.running) {
+    if (state.source === 'daemon-supervised' && ships.length > 0) {
+      // Daemon supervises this fleet: apply the subset in place.
+      const res = await pdFetch('/fleet/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectDir, enabledAgents: selection.enabled }),
+      });
+      const body = await res.json().catch(() => ({})) as { success?: boolean; error?: string };
+      if (!res.ok || body.success === false) {
+        ui.error(`Could not apply ship selection: ${body.error ?? 'daemon error'}`);
+        process.exit(1);
+        return;
+      }
+      ui.success(`Fleet "${state.name ?? config?.name ?? ''}" now sailing a partial fleet:`);
+      for (const name of selection.enabled) ui.success(`  ${name} — enabled`);
+      for (const name of selection.paused) ui.info(`  ${name} — paused`);
+      ui.info('  Watch them go: pd fleet status');
+      return;
+    }
     if (state.source === 'daemon-supervised') {
       ui.warn(`Fleet "${state.name}" already supervised by the daemon (${describeFleetRunningState(state)})`);
       ui.info('  Status: pd fleet status');
       ui.info('  Stop:   pd fleet down');
+      ui.info('  Partial fleet: pd fleet up <ship...> to enable only some ships');
     } else {
       ui.warn(`Fleet already running (Dock Master PID ${state.pid})`);
       ui.info('  Status: pd fleet status');
       ui.info('  Stop:   pd fleet down');
+      if (ships.length > 0) {
+        ui.info('  Ship selection needs the fleet restarted: pd fleet down, then pd fleet up ' + ships.join(' '));
+      }
     }
     return;
   }
 
-  const projectDir = process.cwd();
-  const config = loadFleetConfig(projectDir);
-
   if (config) {
     // ─── Declarative mode: pd-fleet.yml found ───────────────────────
+    const partial = selection.paused.length > 0;
     ui.info(`Starting fleet "${config.name}" from pd-fleet.yml`);
-    ui.info(`  Agents: ${config.agents.length}`);
+    ui.info(`  Agents: ${partial ? `${selection.enabled.length} of ${config.agents.length} (partial fleet)` : config.agents.length}`);
     ui.info(`  Watchers: ${config.watchers.length}`);
     ui.info(`  Channels: ${Object.keys(config.channels).length}`);
     console.log('');
 
-    activeRunner = createFleetRunner(config, projectDir);
+    activeRunner = createFleetRunner(
+      config,
+      projectDir,
+      partial ? { initiallyPausedAgents: selection.paused } : undefined,
+    );
     activeRunner.startAll();
 
     // Save state so pd fleet status/stop can find it
     const stateFile = join(projectDir, '.portdaddy', 'fleet-state.json');
-    mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
-    writeFileSync(stateFile, JSON.stringify({
-      pid: process.pid,
-      name: config.name,
-      agents: config.agents.map(a => a.name),
-      watchers: config.watchers.map(w => w.name),
-      startedAt: new Date().toISOString(),
-    }));
+    const pausedSet = new Set(selection.paused);
+    const enabledAgents = config.agents.filter(a => !pausedSet.has(a.name));
+    try {
+      mkdirSync(join(projectDir, '.portdaddy'), { recursive: true });
+      writeFileSync(stateFile, JSON.stringify({
+        pid: process.pid,
+        name: config.name,
+        agents: enabledAgents.map(a => a.name),
+        pausedAgents: selection.paused,
+        watchers: config.watchers.map(w => w.name),
+        startedAt: new Date().toISOString(),
+      }));
+    } catch {
+      // Non-fatal: status/stop fall back to daemon discovery.
+    }
 
-    for (const agent of config.agents) {
+    for (const agent of enabledAgents) {
       const mode = agent.schedule ? `schedule: ${agent.schedule}` : `trigger: ${agent.trigger}`;
       ui.success(`  ${agent.name} (${agent.backend}) — ${mode}`);
+    }
+    for (const name of selection.paused) {
+      ui.info(`  ${name} — paused (not selected)`);
     }
     for (const watcher of config.watchers) {
       ui.success(`  ${watcher.name} (watcher) — trigger: ${watcher.trigger}`);
@@ -930,6 +1012,132 @@ async function fleetUnpanic(options: CLIOptions): Promise<void> {
   ui.success(`Fleet PANIC disarmed — reason: ${reason}`);
 }
 
+// ─── fleet conductor control: halt / pause / resume / inspect / tree ─────────
+// Operator control surface for the Daemon Fleet Conductor (ADR-0060). Each verb
+// calls the conductor methods that already exist in the daemon:
+//   halt   → POST /fleet/halt    (total: SIGTERM→SIGKILL the scope, refund bonds)
+//   pause  → POST /fleet/pause   (soft: stop admitting, leave running agents)
+//   resume → POST /fleet/resume  (reopen a halted/paused scope)
+//   inspect/tree → GET /fleet/tree/:rootId (render the lineage tree)
+// A bare verb targets the WHOLE fleet (global scope); `--root <id>` (or a
+// positional rootId) targets one lineage subtree.
+
+interface ConductorScopeResult {
+  success?: boolean;
+  scope?: string;
+  halted?: string[];
+  count?: number;
+  paused?: boolean;
+  resumed?: boolean;
+  error?: string;
+}
+
+interface ConductorTreeResult {
+  success?: boolean;
+  rootId?: string;
+  count?: number;
+  tree?: Array<{
+    id: string;
+    parentId: string;
+    depth: number;
+    state: string;
+    goal: string;
+    source: string;
+    bondUsd: number | null;
+    lineageCeilingUsd: number | null;
+    costUsd: number | null;
+    agentId: string | null;
+  }>;
+  error?: string;
+}
+
+function resolveScopeRootId(options: CLIOptions, positional?: string): string | undefined {
+  if (typeof options.root === 'string' && options.root.trim()) return options.root.trim();
+  if (positional && positional.trim()) return positional.trim();
+  return undefined;
+}
+
+async function fleetHalt(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  const scopeLabel = rootId ? `lineage ${rootId}` : 'the ENTIRE fleet (global)';
+  // Halt is destructive (it SIGKILLs running agents) → confirm unless --yes.
+  const confirmed = await requireConfirmation({
+    summary: `Fleet halt will SIGTERM→SIGKILL every running launch in ${scopeLabel} and refund (never slash) their bonds.`,
+    args: options as Record<string, unknown>,
+  });
+  if (!confirmed) {
+    ui.warn('Cancelled.');
+    process.exit(DESTRUCTIVE_EXIT_CODE);
+  }
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/halt`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rootId ? { rootId } : {}),
+  });
+  const data = (await res.json()) as ConductorScopeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log(`halted ${data.count ?? 0}`); return; }
+  ui.success(`Fleet HALT (${data.scope ?? (rootId ?? 'global')}) — ${data.count ?? 0} launch(es) halted, bonds refunded.`);
+}
+
+async function fleetPauseConductor(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/pause`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rootId ? { rootId } : {}),
+  });
+  const data = (await res.json()) as ConductorScopeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('paused'); return; }
+  ui.success(`Fleet PAUSE (${data.scope ?? (rootId ?? 'global')}) — admission stopped; running agents left alive.`);
+}
+
+async function fleetResume(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/resume`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rootId ? { rootId } : {}),
+  });
+  const data = (await res.json()) as ConductorScopeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  if (isQuiet(options)) { console.log('resumed'); return; }
+  ui.success(`Fleet RESUME (${data.scope ?? (rootId ?? 'global')}) — admission reopened.`);
+}
+
+async function fleetInspect(options: CLIOptions, positionalRootId?: string): Promise<void> {
+  const rootId = resolveScopeRootId(options, positionalRootId);
+  if (!rootId) {
+    ui.error('Usage: pd fleet inspect <rootId>   (or: pd fleet tree <rootId>)');
+    process.exit(1);
+  }
+  const res = await pdFetch(`${PORT_DADDY_URL}/fleet/tree/${encodeURIComponent(rootId)}`);
+  const data = (await res.json()) as ConductorTreeResult;
+  if (!res.ok) { ui.error(data.error || `HTTP ${res.status}`); process.exit(1); }
+  if (isJson(options)) { console.log(JSON.stringify(data, null, 2)); return; }
+  const nodes = data.tree ?? [];
+  if (nodes.length === 0) {
+    ui.warn(`No launches found for root ${rootId}.`);
+    return;
+  }
+  // Render the lineage as an indented tree (depth-based indentation).
+  console.log('');
+  ui.info(`Fleet lineage — root ${rootId} (${nodes.length} launch${nodes.length === 1 ? '' : 'es'})`);
+  console.log('');
+  for (const n of nodes) {
+    const indent = '  '.repeat(Math.max(0, n.depth));
+    const cost = n.costUsd != null ? `$${n.costUsd.toFixed(4)}` : (n.bondUsd != null ? `~$${n.bondUsd.toFixed(4)}` : '$—');
+    const ceiling = n.lineageCeilingUsd != null ? `cap $${n.lineageCeilingUsd}` : 'cap ∞';
+    console.log(`${indent}• [${n.state}] ${n.source}  d${n.depth}  ${cost}  ${ceiling}`);
+    console.log(`${indent}  ${n.goal.slice(0, 80)}${n.agentId ? `  (agent ${n.agentId})` : ''}`);
+  }
+  console.log('');
+}
+
 // ─── fleet prompt ───────────────────────────────────────────────────────────
 
 async function fleetPrompt(): Promise<void> {
@@ -1011,7 +1219,7 @@ export async function handleFleet(positional: string[], _options: Record<string,
 
   switch (subcommand) {
     case 'up':
-      await fleetUp();
+      await fleetUp(positional.slice(1));
       break;
 
     case 'down':
@@ -1046,6 +1254,23 @@ export async function handleFleet(positional: string[], _options: Record<string,
       await fleetUnpanic(_options as CLIOptions);
       break;
 
+    case 'halt':
+      await fleetHalt(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'pause':
+      await fleetPauseConductor(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'resume':
+      await fleetResume(_options as CLIOptions, positional[1]);
+      break;
+
+    case 'inspect':
+    case 'tree':
+      await fleetInspect(_options as CLIOptions, positional[1]);
+      break;
+
     case 'help':
     case '--help':
     case '-h': {
@@ -1057,11 +1282,17 @@ export async function handleFleet(positional: string[], _options: Record<string,
       console.log('');
       console.log('Lifecycle:');
       console.log('  init            Create pd-fleet.yml + git hook in current project');
-      console.log('  up              Start all agents from pd-fleet.yml');
+      console.log('  up [ship...]    Start agents from pd-fleet.yml (name ships for a partial fleet)');
       console.log('  down            Stop all agents');
       console.log('  status          Show fleet health');
       console.log('  validate        Parse pd-fleet.yml, resolve templates, and check topology');
       console.log('  models          Show backend model ladders and readiness');
+      console.log('');
+      console.log('Conductor control (ADR-0060 — operate the live fleet):');
+      console.log('  halt [rootId]   Total stop: SIGKILL the scope, refund bonds (--root <id> or global)');
+      console.log('  pause [rootId]  Soft stop: stop admitting; leave running agents alive');
+      console.log('  resume [rootId] Reopen a halted/paused scope');
+      console.log('  inspect <rootId> | tree <rootId>   Render a lineage tree');
       console.log('');
       if (config) {
         console.log(`Agents in pd-fleet.yml (${config.agents.length}):`);

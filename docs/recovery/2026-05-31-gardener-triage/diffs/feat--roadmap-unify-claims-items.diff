@@ -1,0 +1,88 @@
+STATS:
+
+---
+LAST COMMIT:
+4a18c217d62f03178575c8af1089b8bf73b22f5b
+Erich Owens <[redacted]>
+2026-05-18 22:57:47 -0700
+feat(roadmap): link claims to sessions + agents (ADR-0034) (#97)
+
+* feat(roadmap): link claims to sessions + agents (ADR-0034)
+
+Closes the seam between roadmap_claims and the existing sessions/agents
+tables. Before this, a claim said `claimed_by: "agent-foo"` and that
+string was a coordination receipt but not a join key — `pd sessions`
+couldn't say "this session is working on slug X", and a future
+`pd whois <slug>` had nothing to resolve.
+
+Schema:
+  ALTER TABLE roadmap_claims ADD COLUMN session_id TEXT;
+  ALTER TABLE roadmap_claims ADD COLUMN agent_id   TEXT;
+  CREATE INDEX idx_roadmap_claims_session
+    ON roadmap_claims(session_id) WHERE session_id IS NOT NULL;
+
+Migration is idempotent (PRAGMA table_info gate). Pre-ADR-0034 databases
+get the columns backfilled with NULL; existing claims stay valid.
+
+Surfaces:
+  POST /cartographer/roadmap-pop          now accepts sessionId, agentId
+  POST /cartographer/roadmap-claim-link   new — write or rebind a link
+                                           (idempotent, refuses to
+                                           overwrite without force:true)
+
+CLI:
+  pd roadmap pop --begin                  now writes session+agent back
+                                           onto the claim row after the
+                                           pd begin chain returns
+  pd roadmap claim-link <slug>            new — manual rebind verb
+    [--session <id>] [--agent <id>] [--force]
+  pd roadmap claims                       output now includes
+                                           "session: <id>" line
+
+Module:
+  lib/roadmap-pop.ts grows linkClaim() and getClaimBySession() while
+  keeping pop()/release()/listClaims()/getActiveClaim() unchanged in
+  shape. PopOptions accepts optional sessionId/agentId.
+
+10 new unit tests cover: pop-with-link, pop-without-link, link by
+claimId, link by slug, refuse-overwrite, --force rebind, idempotent
+no-op, no-active-claim (unknown + released), missing-args, reverse
+lookup by session, and the migration path on a pre-ADR-0034 database.
+57/57 in the suite pass, including the prior 21 and adjacent
+cartographer-routes / manifest-enforcement tests.
+
+CHANGELOG entry rolls into the existing proposed-3.15.0 minor. Manifest
+declares the new route.
+
+This is step 1 of the seam Erich asked about. Step 2 (claim ↔ file
+predictions via roadmap_claim_files + cartographer/symbol-index) is a
+separate ADR; this one stops at session linkage because that's the
+minimum bar to make pd sessions / pd whois useful and avoids dragging
+in the prediction pipeline.
+
+* fix(roadmap-link): preserve unspecified column in linkClaim
+
+Two Copilot findings on PR #97:
+
+1. `linkStmt` wrote both columns unconditionally, so
+   `linkClaim({ sessionId: 'new' })` on a row with `agent_id = 'A1'`
+   silently overwrote `agent_id` to NULL. That's a real bug, not just a
+   linting issue — partial updates are the common path (CLI fills
+   session first, agent later). Switched to `SET session_id =
+   COALESCE(?, session_id), agent_id = COALESCE(?, agent_id)` so NULL
+   from the caller means "leave this column alone."
+
+2. Dead `sameSession` / `sameAgent` variables in linkClaim were
+   misleading — `(sessionId === null && row.session_id !== null)`
+   reads as the *clear* condition, not a *sameness* check, and
+   `requestMatchesExisting` already encapsulated the real decision.
+   Replaced with the post-merge `wouldBecome` projection plus
+   `noChange` / `wouldOverwrite` predicates that match what the SQL
+   will actually do.
+
+New test: `linkClaim preserves the other column when only one is
+passed`. Asserts that updating session leaves the prior agent
+untouched. 33/33 in the suite pass.
+
+---
+DIFF (first 300 lines):

@@ -1,0 +1,338 @@
+STATS:
+ bin/port-daddy-cli.ts                        |  13 +-
+ cli/commands/backup.ts                       | 159 ++++++++++++
+ cli/commands/index.ts                        |   2 +
+ cli/commands/restore.ts                      |  94 +++++++
+ completions/port-daddy.bash                  |   2 +-
+ completions/port-daddy.fish                  |   4 +-
+ completions/port-daddy.zsh                   |   2 +
+ docs/adr/0037-pd-backup-durable-snapshots.md | 204 +++++++++++++++
+ features.manifest.json                       |  32 +++
+ lib/backup-backends/file.ts                  | 119 +++++++++
+ lib/backup-backends/types.ts                 |  64 +++++
+ lib/backup.ts                                | 373 +++++++++++++++++++++++++++
+ tests/unit/backup.test.js                    | 332 ++++++++++++++++++++++++
+ 13 files changed, 1397 insertions(+), 3 deletions(-)
+
+---
+LAST COMMIT:
+09026ab310071cbcf753731311be3b7960ab7028
+Erich Owens <[redacted]>
+2026-05-21 18:30:12 -0700
+fix(backup): wire pd backup / pd restore into manifest + completions
+
+PR-α (commit 197b6243) added the verbs but missed the parity wiring
+that manifest-enforcement.test.js + bijective-parity.test.js enforce:
+
+  - features.manifest.json — declare db_backup + db_restore features
+    (mirroring the claim_watcher_snapshots entry shape)
+  - completions/port-daddy.{bash,zsh,fish} — register both verbs so
+    tab-completion works in every supported shell
+
+Tests: manifest-enforcement + bijective-parity now green (436/436).
+
+
+---
+DIFF (first 300 lines):
+diff --git a/bin/port-daddy-cli.ts b/bin/port-daddy-cli.ts
+index 5de8da5d..d9d33a7e 100755
+--- a/bin/port-daddy-cli.ts
++++ b/bin/port-daddy-cli.ts
+@@ -111,6 +111,9 @@ import {
+   handleAdd,
+   // Claim-watcher snapshot list/restore/prune
+   handleSnapshots,
++  // Durable backups of port-registry.db (ADR-0037)
++  handleBackup,
++  handleRestore,
+   // Shipwright — survey/propose/apply for fleet authoring
+   handleShipwright,
+   // App-Native Development Cockpit
+@@ -1185,7 +1188,7 @@ const ALL_COMMANDS: string[] = [
+   'advise', 'preflight', 'compass', 'guard',
+   'salvage', 'resurrection', 'changelog', 'tunnel',
+   'services', 'dns', 'briefing', 'integration', 'pheromone', 'ph',
+-  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'shipwright',
++  'b', 'w', 'who-owns', 'history', 'tutorial', 'files', 'add', 'snapshots', 'snapshot', 'backup', 'restore', 'shipwright',
+   'spawn', 'spawned', 'watch',
+   'harbor', 'harbors', 'demo', 'fleet', 'tuple', 'sortie', 'graph', 'memory', 'ideas',
+   'quorum',
+@@ -2616,6 +2619,14 @@ export async function main(): Promise<void> {
+         await handleSnapshots(positional, options);
+         break;
+ 
++      case 'backup':
++        await handleBackup(positional, options);
++        break;
++
++      case 'restore':
++        await handleRestore(positional, options);
++        break;
++
+       case 'shipwright':
+         await handleShipwright(positional[0], options);
+         break;
+diff --git a/cli/commands/backup.ts b/cli/commands/backup.ts
+new file mode 100644
+index 00000000..5346f772
+--- /dev/null
++++ b/cli/commands/backup.ts
+@@ -0,0 +1,159 @@
++/**
++ * pd backup — durable snapshots of port-registry.db. See ADR-0037.
++ *
++ *   pd backup                                  # take a backup, default backend
++ *   pd backup --to file://<dir>                # custom backend URI
++ *   pd backup --retention "daily=14,keep=5"    # override retention
++ *   pd backup --no-prune                       # take backup, skip retention
++ *   pd backup list [--to URI]                  # newest-first list
++ *   pd backup show <snapshot-id> [--to URI]    # print full manifest
++ *   pd backup prune [--to URI] [--retention SPEC]
++ */
++
++import { createFileBackend } from '../../lib/backup-backends/file.js';
++import type { BackupBackend } from '../../lib/backup-backends/types.js';
++import {
++  createBackup,
++  listBackups,
++  parseRetentionSpec,
++  pruneBackups,
++  showBackup,
++} from '../../lib/backup.js';
++import * as ui from '../utils/ui.js';
++import type { CLIOptions } from '../types.js';
++
++function resolveBackend(options: CLIOptions): BackupBackend {
++  const uri = typeof options.to === 'string' ? options.to : undefined;
++  if (uri && !uri.startsWith('file://')) {
++    throw new Error(`backend URI "${uri}" is not supported in this slice (file:// only — see ADR-0037)`);
++  }
++  return createFileBackend(uri);
++}
++
++function isJson(options: CLIOptions): boolean {
++  return !!(options.json || options.j);
++}
++
++function fmtBytes(n: number): string {
++  if (n < 1024) return `${n}B`;
++  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`;
++  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)}MB`;
++  return `${(n / 1024 / 1024 / 1024).toFixed(2)}GB`;
++}
++
++function fmtTimestamp(ms: number): string {
++  return new Date(ms).toISOString().replace('T', ' ').replace(/\.\d+Z$/, 'Z');
++}
++
++async function runBackup(options: CLIOptions): Promise<void> {
++  const backend = resolveBackend(options);
++  const retentionSpec = options['no-prune']
++    ? null
++    : parseRetentionSpec(typeof options.retention === 'string' ? options.retention : undefined);
++
++  const result = await createBackup({
++    backend,
++    retention: retentionSpec,
++  });
++
++  if (isJson(options)) {
++    console.log(JSON.stringify({ success: true, ...result }, null, 2));
++    return;
++  }
++
++  ui.success(`Backup written: ${result.snapshotId}`);
++  console.log(`  backend:      ${backend.uri}`);
++  console.log(`  uncompressed: ${fmtBytes(result.manifest.dbBytesUncompressed)}`);
++  console.log(`  compressed:   ${fmtBytes(result.manifest.dbBytesCompressed)}`);
++  console.log(`  sha256:       ${result.manifest.sha256Uncompressed.slice(0, 16)}…`);
++  if (result.manifest.encryption.scheme === 'none') {
++    ui.warn('Backup is unencrypted (PR-α default). Encryption-at-rest lands in PR-β (ADR-0037).');
++  }
++  if (result.pruned.length > 0) {
++    console.log(`  pruned:       ${result.pruned.length} older snapshot(s)`);
++  }
++}
++
++async function runList(options: CLIOptions): Promise<void> {
++  const backend = resolveBackend(options);
++  const snapshots = await listBackups(backend);
++
++  if (isJson(options)) {
++    console.log(JSON.stringify({ success: true, count: snapshots.length, snapshots }, null, 2));
++    return;
++  }
++  if (snapshots.length === 0) {
++    ui.info(`No backups in ${backend.uri}`);
++    return;
++  }
++  console.log(`${snapshots.length} backup(s) in ${backend.uri}:`);
++  console.log('');
++  console.log('  TIMESTAMP             SIZE       ENC   SNAPSHOT-ID');
++  for (const s of snapshots) {
++    const ts = fmtTimestamp(s.createdAt);
++    const size = fmtBytes(s.dbBytesCompressed).padEnd(9);
++    const enc = s.encryption.scheme.padEnd(5);
++    console.log(`  ${ts}  ${size}  ${enc}  ${s.snapshotId}`);
++  }
++}
++
++async function runShow(positional: string[], options: CLIOptions): Promise<void> {
++  const snapshotId = positional[0];
++  if (!snapshotId) {
++    ui.error('usage: pd backup show <snapshot-id> [--to URI]');
++    process.exitCode = 1;
++    return;
++  }
++  const backend = resolveBackend(options);
++  const manifest = await showBackup(backend, snapshotId);
++  if (isJson(options)) {
++    console.log(JSON.stringify({ success: true, manifest }, null, 2));
++    return;
++  }
++  console.log(JSON.stringify(manifest, null, 2));
++}
++
++async function runPrune(options: CLIOptions): Promise<void> {
++  const backend = resolveBackend(options);
++  const retention = parseRetentionSpec(typeof options.retention === 'string' ? options.retention : undefined);
++  const deleted = await pruneBackups({ backend, retention });
++  if (isJson(options)) {
++    console.log(JSON.stringify({ success: true, deleted, count: deleted.length }, null, 2));
++    return;
++  }
++  if (deleted.length === 0) ui.info('Nothing to prune; all snapshots fall within retention window.');
++  else ui.success(`Pruned ${deleted.length} snapshot(s): ${deleted.join(', ')}`);
++}
++
++export async function handleBackup(positional: string[], options: CLIOptions): Promise<void> {
++  const sub = positional[0];
++  const rest = positional.slice(1);
++  try {
++    switch (sub) {
++      case undefined:
++      case '':
++      case 'run':
++        await runBackup(options);
++        break;
++      case 'list':
++        await runList(options);
++        break;
++      case 'show':
++        await runShow(rest, options);
++        break;
++      case 'prune':
++        await runPrune(options);
++        break;
++      case 'init':
++        ui.warn('`pd backup init` lands in PR-β with encryption-at-rest (ADR-0037). No-op for now.');
++        break;
++      default:
++        ui.error(`Unknown subcommand: pd backup ${sub}`);
++        ui.info('Valid subcommands: (no args), list, show, prune');
++        process.exitCode = 1;
++    }
++  } catch (err) {
++    ui.error((err as Error).message);
++    process.exitCode = 1;
++  }
++}
+diff --git a/cli/commands/index.ts b/cli/commands/index.ts
+index c689012a..b7d26d86 100644
+--- a/cli/commands/index.ts
++++ b/cli/commands/index.ts
+@@ -48,5 +48,7 @@ export * from './tube.js';
+ export * from './guard.js';
+ export * from './add.js';
+ export * from './snapshots.js';
++export * from './backup.js';
++export * from './restore.js';
+ export * from './shipwright.js';
+ export * from './cockpit.js';
+diff --git a/cli/commands/restore.ts b/cli/commands/restore.ts
+new file mode 100644
+index 00000000..d9e2e338
+--- /dev/null
++++ b/cli/commands/restore.ts
+@@ -0,0 +1,94 @@
++/**
++ * pd restore — restore a backup to the daemon's DB path. See ADR-0037.
++ *
++ *   pd restore <snapshot-id> [--from URI] [--dest PATH] [--force]
++ *
++ * Safety:
++ *   - Hashes the snapshot's gzipped + uncompressed bytes against the
++ *     manifest before touching anything destructive.
++ *   - Renames the current DB to `<dbPath>.pre-restore-<ts>` so the
++ *     restore is reversible.
++ *   - Runs PRAGMA integrity_check on the restored DB; if it fails, rolls
++ *     back to the pre-restore file.
++ *
++ * The daemon should be stopped before restore (active writers will lose
++ * uncommitted state). The CLI does NOT auto-stop in PR-α — operators are
++ * prompted unless `--force` is set, and we recommend `pd daemon stop` in
++ * the prompt copy. Auto-stop integration ships in a follow-up.
++ */
++
++import { existsSync } from 'node:fs';
++import { createInterface } from 'node:readline/promises';
++
++import { createFileBackend } from '../../lib/backup-backends/file.js';
++import type { BackupBackend } from '../../lib/backup-backends/types.js';
++import { resolveDbPath } from '../../lib/db.js';
++import { restoreBackup } from '../../lib/backup.js';
++import * as ui from '../utils/ui.js';
++import type { CLIOptions } from '../types.js';
++
++function resolveBackend(options: CLIOptions): BackupBackend {
++  const fromUri = typeof options.from === 'string' ? options.from : undefined;
++  if (fromUri && !fromUri.startsWith('file://')) {
++    throw new Error(`backend URI "${fromUri}" is not supported in this slice (file:// only — see ADR-0037)`);
++  }
++  return createFileBackend(fromUri);
++}
++
++async function confirm(prompt: string): Promise<boolean> {
++  const rl = createInterface({ input: process.stdin, output: process.stdout });
++  try {
++    const ans = (await rl.question(`${prompt} [y/N] `)).trim().toLowerCase();
++    return ans === 'y' || ans === 'yes';
++  } finally {
++    rl.close();
++  }
++}
++
++export async function handleRestore(positional: string[], options: CLIOptions): Promise<void> {
++  const snapshotId = positional[0];
++  if (!snapshotId) {
++    ui.error('usage: pd restore <snapshot-id> [--from URI] [--dest PATH] [--force]');
++    process.exitCode = 1;
++    return;
++  }
++  const destPath = typeof options.dest === 'string' ? options.dest : resolveDbPath();
++  const isJson = !!(options.json || options.j);
++
++  try {
++    const backend = resolveBackend(options);
++
++    if (!options.force && existsSync(destPath)) {
++      ui.warn('Restore will overwrite the live DB at:');
++      console.log(`  ${destPath}`);
++      ui.info('Stop the daemon first (pd daemon stop) so writes do not race the restore.');
++      ui.info(`A pre-restore copy will be saved alongside as ${destPath}.pre-restore-<timestamp>.`);
++      const ok = await confirm('Proceed?');
++      if (!ok) {
++        ui.info('Aborted.');
++        return;
++      }
++    }
++
++    const result = await restoreBackup({
++      backend,
++      snapshotId,
++      destPath,
++      preserveExisting: true,
++    });
++
+
+... [1229 more lines truncated]

@@ -50,6 +50,21 @@ const LAUNCH_AGENTS: string = join(homedir(), 'Library', 'LaunchAgents');
 const PLIST_PATH: string = join(LAUNCH_AGENTS, `${PLIST_LABEL}.plist`);
 const BOSUN_PLIST_PATH: string = join(LAUNCH_AGENTS, `${BOSUN_PLIST_LABEL}.plist`);
 
+// macOS auto-freshness self-heal (ADR-0062). A LaunchAgent runs
+// `pd self-update --tick` every 15 min: it brew-upgrades + restarts the daemon
+// onto the current release and relaunches the FleetBar GUI, hands-off. This is
+// the actor that finally consumes the daemon's long-standing
+// `binary_drift_detected` warning instead of merely logging it.
+const FRESHNESS_PLIST_LABEL: string = 'com.portdaddy.freshness';
+const FRESHNESS_PLIST_PATH: string = join(LAUNCH_AGENTS, `${FRESHNESS_PLIST_LABEL}.plist`);
+// 15 min, tightened from hourly (2026-06-23): a published brew release must land
+// on the running machine promptly — auto-upgrade should be a *necessary*
+// consequence of pushing a new version, not an eventual one. Lower latency
+// without hammering brew; a tick is a ~6s no-op when already current and only
+// does real work when a newer release actually exists.
+export const FRESHNESS_INTERVAL_SECONDS = 900;
+const FRESHNESS_LOG_PATH: string = join(homedir(), '.port-daddy', 'logs', 'freshness.log');
+
 // Linux paths
 const SYSTEMD_USER_DIR: string = join(homedir(), '.config', 'systemd', 'user');
 const SYSTEMD_UNIT: string = join(SYSTEMD_USER_DIR, 'port-daddy.service');
@@ -235,6 +250,84 @@ function generateBosunPlist(): string {
 </plist>`;
 }
 
+/**
+ * Resolve the absolute path to the `pd` CLI launcher for the freshness
+ * LaunchAgent. launchd jobs run with a minimal PATH, so an absolute path is
+ * required. Prefer `which pd` (the Homebrew symlink, typically
+ * /opt/homebrew/bin/pd); fall back to the common Homebrew prefixes.
+ */
+function resolvePdLauncherPath(): string | null {
+  const which = runCommand('which', ['pd']);
+  const resolved = (which.stdout || '').trim().split('\n')[0]?.trim();
+  if (resolved && existsSync(resolved)) return resolved;
+  for (const candidate of ['/opt/homebrew/bin/pd', '/usr/local/bin/pd']) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+export function generateFreshnessPlist(pdPath: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${FRESHNESS_PLIST_LABEL}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>${pdPath}</string>
+        <string>self-update</string>
+        <string>--tick</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StartInterval</key>
+    <integer>${FRESHNESS_INTERVAL_SECONDS}</integer>
+
+    <key>StandardOutPath</key>
+    <string>${FRESHNESS_LOG_PATH}</string>
+
+    <key>StandardErrorPath</key>
+    <string>${FRESHNESS_LOG_PATH}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>${servicePath(dirname(pdPath))}</string>
+    </dict>
+</dict>
+</plist>`;
+}
+
+/**
+ * Install the auto-freshness LaunchAgent (ADR-0062; 15-min cadence). macOS-only; the
+ * `pd self-update` it runs is itself a no-op off macOS. Best-effort: a missing
+ * `pd` launcher (e.g. a source checkout that hasn't `brew install`ed) skips
+ * cleanly rather than failing the whole install.
+ */
+function installFreshnessMacOS(): boolean {
+  const pdPath = resolvePdLauncherPath();
+  if (!pdPath) {
+    console.log('  Freshness self-heal skipped: `pd` launcher not found on PATH.');
+    console.log('  It installs automatically once Port Daddy is on PATH (brew install).');
+    return true;
+  }
+
+  // Ensure the freshness log directory exists so launchd can open the file.
+  mkdirSync(dirname(FRESHNESS_LOG_PATH), { recursive: true });
+
+  if (existsSync(FRESHNESS_PLIST_PATH)) {
+    runCommand('launchctl', ['unload', FRESHNESS_PLIST_PATH]);
+  }
+
+  writeFileSync(FRESHNESS_PLIST_PATH, generateFreshnessPlist(pdPath));
+  console.log(`  Wrote ${FRESHNESS_PLIST_PATH} (self-update every ${FRESHNESS_INTERVAL_SECONDS}s via ${pdPath})`);
+  return loadLaunchAgent(FRESHNESS_PLIST_LABEL, FRESHNESS_PLIST_PATH);
+}
+
 function loadLaunchAgent(label: string, plistPath: string): boolean {
   const load: CommandResult = runCommand('launchctl', ['load', plistPath]);
   if (load.status !== 0) {
@@ -300,7 +393,7 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
         console.log(`  Removed redundant ${PLIST_PATH}`);
       } catch { /* leave it if something still owns it */ }
     }
-    return installBosunMacOS();
+    return installBosunMacOS() && installFreshnessMacOS();
   }
 
   stopExistingCanonicalDaemon();
@@ -314,12 +407,12 @@ function installMacOS(daemon: DaemonLaunchCommand): boolean {
   writeFileSync(PLIST_PATH, generatePlist(daemon));
   console.log(`  Wrote ${PLIST_PATH}`);
 
-  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS();
+  return loadLaunchAgent(PLIST_LABEL, PLIST_PATH) && installBosunMacOS() && installFreshnessMacOS();
 }
 
 function uninstallMacOS(): boolean {
   // Unload both old and new labels
-  for (const path of [PLIST_PATH, BOSUN_PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
+  for (const path of [PLIST_PATH, BOSUN_PLIST_PATH, FRESHNESS_PLIST_PATH, join(LAUNCH_AGENTS, 'com.erichowens.port-daddy.plist')]) {
     if (existsSync(path)) {
       runCommand('launchctl', ['unload', path]);
       try {

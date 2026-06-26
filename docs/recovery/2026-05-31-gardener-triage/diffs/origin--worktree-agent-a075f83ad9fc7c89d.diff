@@ -1,0 +1,338 @@
+STATS:
+ apps/github-app-fleet/CHANGELOG.md                 | 104 +++++++
+ apps/github-app-fleet/README.md                    | 262 ++++++++++++++++
+ apps/github-app-fleet/docs/per-project-ships.md    | 345 +++++++++++++++++++++
+ .../icons/A-lighthouse/icon-1024.png               | Bin 0 -> 937623 bytes
+ .../icons/A-lighthouse/icon-256.png                | Bin 0 -> 32251 bytes
+ .../icons/A-lighthouse/icon-60.png                 | Bin 0 -> 3325 bytes
+ apps/github-app-fleet/icons/B-anchor/icon-1024.png | Bin 0 -> 1038620 bytes
+ apps/github-app-fleet/icons/B-anchor/icon-256.png  | Bin 0 -> 70083 bytes
+ apps/github-app-fleet/icons/B-anchor/icon-60.png   | Bin 0 -> 6541 bytes
+ .../github-app-fleet/icons/C-lantern/icon-1024.png | Bin 0 -> 434719 bytes
+ apps/github-app-fleet/icons/C-lantern/icon-256.png | Bin 0 -> 14443 bytes
+ apps/github-app-fleet/icons/C-lantern/icon-60.png  | Bin 0 -> 2267 bytes
+ apps/github-app-fleet/icons/README.md              | 106 +++++++
+ apps/github-app-fleet/lib/auth.ts                  | 224 +++++++++++++
+ apps/github-app-fleet/lib/post-as.ts               | 270 ++++++++++++++++
+ apps/github-app-fleet/manifest.json                |  71 +++++
+ apps/github-app-fleet/package.json                 |  20 ++
+ apps/github-app-fleet/scripts/generate-icons.sh    | 147 +++++++++
+ .../scripts/prompts/A-lighthouse.txt               |  15 +
+ apps/github-app-fleet/scripts/prompts/B-anchor.txt |  15 +
+ .../github-app-fleet/scripts/prompts/C-lantern.txt |  11 +
+ 21 files changed, 1590 insertions(+)
+
+---
+LAST COMMIT:
+7e03c7c94607278c6abad8fbbd664bb7c7e39b68
+Erich Owens <[redacted]>
+2026-05-22 06:40:53 -0700
+fix(github-app): sign App JWT via node:crypto with 60s iat back-date
+
+Confirmed live: clock-skew-resistant JWT path produces 200 OK from GET /app, mints installation tokens cleanly, lists all 12 curiositech repos via installation auth. @octokit/auth-app sets iat=now exactly; on a laptop running 16s ahead of GitHub's clock that produces 'JSON web token could not be decoded' 401 (confusingly worded — they reject future-iat the same as malformed). Our getAppJwt now signs via crypto.createSign with iat=now-60, exp=now+480; getInstallationToken POSTs the JWT directly to /app/installations/<id>/access_tokens, bypassing the lib's internal signer. The createAppAuth path is left in place but unused by the patched routes.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/apps/github-app-fleet/CHANGELOG.md b/apps/github-app-fleet/CHANGELOG.md
+new file mode 100644
+index 00000000..a1388f6d
+--- /dev/null
++++ b/apps/github-app-fleet/CHANGELOG.md
+@@ -0,0 +1,104 @@
++# Changelog — Port Daddy Fleet (GitHub App)
++
++All notable changes to this App scaffolding. Distinct from the parent
++`port-daddy` CHANGELOG — this one tracks the App manifest, auth helpers,
++and the ship-identity wrapper only.
++
++## [Unreleased]
++
++### Changed
++
++- **Ship roster is now per-repository.** The App no longer ships a closed
++  enum of seven ships. `lib/post-as.ts` accepts a caller-supplied
++  `ShipMeta` value (handle, role, optional mark); the App receiver
++  resolves it from the installed repository's `pd-fleet.yml` at dispatch
++  time. The seven port-daddy ships are retained in
++  `DEFAULT_PORT_DADDY_SHIPS` as a convenience for the port-daddy runtime
++  only — nothing in the App reads that registry by default.
++- **`postAs(ship, op)` signature changed.** The `ship` parameter is now
++  `ShipMeta`, not a `ShipIdentity` enum. Callers compute the meta
++  themselves (typically from `fleet.agents.<key>` in the installed
++  repository's `pd-fleet.yml`). The result type's `ship` field is the
++  bare handle string instead of an enum value.
++- **README rewritten.** Replaced first-person familiar register with a
++  GitHub-App documentation register. Removed the seven-ship gallery in
++  favor of a generic comment-shape description; the per-project examples
++  live in `docs/per-project-ships.md`.
++- **`manifest.json > description` no longer enumerates ships.** The
++  description names the App, the rendering contract
++  (`**[pd-<ship>]**`), and the per-repo `pd-fleet.yml` source of truth.
++
++### Added
++
++- **`docs/per-project-ships.md`** — schema reference for the per-repo
++  ship roster, plus three worked examples: port-daddy's seven code
++  reviewers, expungement-guide's UPL/citation/plain-language/
++  accessibility checkers, windags' skill-media/mermaid-author/
++  skill-grammar ships.
++- **`isValidShipHandle(handle)`** — exported helper for caller-side
++  validation against the lower-kebab-case grammar.
++
++### Migration
++
++Callers that previously wrote
++
++```ts
++await postAs('reviewer', { kind: 'pr-comment', payload: {...} })
++```
++
++should now resolve a `ShipMeta` and pass it:
++
++```ts
++import { postAs, DEFAULT_PORT_DADDY_SHIPS } from './lib/post-as'
++
++await postAs(DEFAULT_PORT_DADDY_SHIPS.reviewer, {
++  kind: 'pr-comment',
++  payload: {...},
++})
++```
++
++A per-repo runtime resolves `ShipMeta` from the installed repo's
++`pd-fleet.yml` rather than from `DEFAULT_PORT_DADDY_SHIPS`.
++
++## [0.1.0] — 2026-05-20
++
++Initial scaffolding. Not yet a registered App on github.com; the operator
++runs the manifest-create flow when ready.
++
++### Added
++
++- `manifest.json` — App manifest with default events (`pull_request`,
++  `pull_request_review`, `push`, `issue_comment`, `issues`, `check_run`,
++  `check_suite`) and default permissions (`contents:read`,
++  `pull_requests:write`, `issues:write`, `checks:write`, `metadata:read`).
++- `lib/auth.ts` — `getAppJwt`, `getInstallationToken` (with per-installation
++  TTL cache), `getOctokitForInstallation`, `assertGitHubAppEnv`. Supports
++  both raw-PEM and base64-encoded private keys in env.
++- `lib/post-as.ts` — `postAs(ship, operation)` single entry point. Seven
++  ship identities (`reviewer`, `redteam`, `qa`, `test-author`, `tautology`,
++  `unspider`, `documentarian`) each with a handle, role line, and unicode
++  mark. Body framing is idempotent.
++- `icons/` — three direction concepts (A: lighthouse, B: anchor + orbiting
++  fleet, C: harbormaster's lantern), each rendered at 1024×1024, 256×256,
++  and 60×60. Flat architectural-blueprint style, cream + cobalt + sage +
++  near-black palette per the brand reference.
++- `scripts/generate-icons.sh` — nano-banana driver that regenerates the
++  full set from prompts kept in `scripts/prompts/`.
++- `README.md` — installation guide, what-you'll-see gallery, cost table,
++  kill-switch instructions, time budget.
++
++### Architectural decision
++
++- **One App, seven identities.** Considered seven separate Apps; rejected
++  because the install-friction-per-App is the dominant cost and we have
++  zero per-App differentiation that's worth multiplying that cost by
++  seven. Per-ship identity lives in body prefixes and (future) avatars.
++  Re-evaluate when/if GitHub ships per-message bot identity for Apps.
++
++### Held back (operator-only)
++
++- Not registering the actual App on github.com. That mints a private key
++  and an App ID; both are credentials the operator should own.
++- Not committing a webhook URL — the receiver is a deployment-time
++  decision and we don't want to ship a placeholder that looks valid.
++- Not picking one of the three icon directions; all three ship as options.
+diff --git a/apps/github-app-fleet/README.md b/apps/github-app-fleet/README.md
+new file mode 100644
+index 00000000..2c635804
+--- /dev/null
++++ b/apps/github-app-fleet/README.md
+@@ -0,0 +1,262 @@
++# Port Daddy Fleet — GitHub App
++
++Port Daddy Fleet is a GitHub App that lets a Port Daddy installation post
++findings to a repository: PR comments, review threads, issues, and draft
++pull requests. It is the bridge between the local fleet daemon and the
++shared surface where reviewers, contributors, and CI already look.
++
++The App has one GitHub identity (`port-daddy-fleet[bot]`). The fleet itself
++is **per-repository**. Each installed repo declares which agents (ships)
++should run, on which events, with which behavior, in its own
++[`pd-fleet.yml`](../../pd-fleet.yml). The App reads that file at dispatch
++time and posts as the requested ship by rendering a header tag
++(`**[pd-<ship>]**`) into the comment body.
++
++The roster is open. Three worked examples:
++
++- **port-daddy** runs `reviewer`, `redteam`, `qa`, `test-author`,
++  `tautology`, `unspider`, and `documentarian`.
++- **expungement-guide** runs `upl-checker` (catches Unauthorized Practice
++  of Law in drafts), `citation-checker` (validates state-specific
++  citations), `plain-language` (Flesch-Kincaid + legalese), and
++  `accessibility`.
++- **windags** runs `skill-media` (generates hero illustrations for skill
++  dossiers), `mermaid-author` (draws diagrams referenced in copy), and
++  `skill-grammar` (lints SKILL.md frontmatter and required sections).
++
++See [`docs/per-project-ships.md`](docs/per-project-ships.md) for the
++schema, fragment examples, and how to introduce a new ship.
++
++---
++
++## Why one App and an open ship roster
++
++The unit of install on GitHub is the App, not the agent. Seven Apps is
++seven private keys, seven webhook receivers, seven installations to grant
++and revoke. Operators do not do that.
++
++One App with a body-rendered identity gets all the differentiation that
++matters — readers can scan a thread and tell `pd-reviewer` apart from
++`pd-redteam` at a glance, can mute one ship without uninstalling, and can
++introduce new ships per repository without registering anything with
++GitHub.
++
++A repository's ship roster lives in its own `pd-fleet.yml`. A legal
++content site needs Unauthorized Practice of Law checks. A media-heavy
++documentation site needs an illustration generator. Neither belongs in a
++GitHub App's source tree; both belong in the installed repo's own config.
++
++---
++
++## How dispatch works
++
++```
++GitHub webhook
++      │
++      ▼
++App receiver (operator-hosted)
++      │
++      ▼
++Read installed repo's pd-fleet.yml via contents:read
++      │
++      ▼
++For each ship whose `trigger:` matches the event:
++      │
++      ▼
++postAs(shipMeta, operation)  ──►  GitHub API as port-daddy-fleet[bot]
++                                  with **[pd-<ship>]** header
++```
++
++`postAs` is the only entry point. Its signature accepts a `ShipMeta`
++value the caller has resolved (handle, role, optional mark) — there is no
++closed list of ships in the App code. See
++[`lib/post-as.ts`](lib/post-as.ts) for the type.
++
++---
++
++## Install on your repository
++
++The App is not yet registered on github.com. Once it is, the flow is:
++
++1. Visit `https://github.com/apps/port-daddy-fleet`. (Placeholder slug;
++   the operator updates this after registration.)
++2. Click **Install**, then pick the repositories you want the fleet to
++   reach.
++3. GitHub redirects to
++   `https://portdaddy.dev/github/app/installed?installation_id=...`. Copy
++   the `installation_id` from the URL.
++4. Set three secrets in the runtime that posts on the App's behalf
++   (Cloudflare Workers env, your secret manager, or `.env.local` in dev):
++
++   ```bash
++   GITHUB_APP_ID=...                  # numeric, visible on the App settings page
++   GITHUB_APP_PRIVATE_KEY=...         # PEM, raw or base64-encoded
++   GITHUB_APP_INSTALLATION_ID=...     # per-repo, from step 3
++   ```
++
++5. Add a `pd-fleet.yml` to the installed repository at the path the
++   runtime is configured to read (default: repository root). See
++   [`docs/per-project-ships.md`](docs/per-project-ships.md) for the
++   schema.
++
++6. Verify auth from the runtime:
++
++   ```ts
++   import { getOctokitForInstallation } from 'apps/github-app-fleet/lib/auth'
++   const oct = await getOctokitForInstallation()
++   const me = await oct.apps.getAuthenticated()
++   console.log(me.data.slug) // -> port-daddy-fleet
++   ```
++
++If that prints the slug, auth is live. The next event that matches a
++configured ship's `trigger:` produces a post.
++
++The private key is the credential that lets the App act as the bot. Treat
++it like any other production secret: rotate via the App settings page,
++re-deploy the env if a runtime leaks one. The installation ID is not
++sensitive on its own.
++
++---
++
++## Comment shape
++
++Every post the App makes carries the same envelope. The differences
++between ships are confined to the header line and the body content.
++
++```
++**[pd-<ship>]** <mark>  _<role>_
++
++<body>
++
++<sub>posted by the Port Daddy fleet — `pd-<ship>` · [silence this ship](https://portdaddy.dev/docs/fleet/silence)</sub>
++```
++
++- `pd-<ship>` matches the ship's `handle` in `pd-fleet.yml`.
++- `<mark>` is an optional unicode primitive (geometric only — no emoji).
++- `<role>` is the ship's one-line role description.
++- The signed footer carries a link to the per-ship silence flow, which
++  toggles the runtime off without affecting the App installation.
++
++The framing is implemented in `frameBody(ship, body)` and is idempotent.
++Bodies that already start with the same `**[pd-<handle>]**` prefix are
++returned unchanged, so a body composed through framing can be passed
++through framing again safely.
++
++---
++
++## Cost expectations
++
++The fleet runs locally by default. Most ships use Llama 3.1 8B or a
++similar small model. The writing-heavy ships (test authors, image
++generators, document drafters) use larger models. None of that is fixed
++by this App; the per-ship backend is set in the installed repo's
++`pd-fleet.yml`.
++
++Rough numbers from `port-daddy`'s own fleet over a dogfood week, all
++seven ships on Anthropic Claude Haiku:
++
++| Ship             | Default backend         | Cloud cost / PR (Claude Haiku) |
++|------------------|-------------------------|--------------------------------|
++| reviewer         | local (llama 8B)        | ~$0.004                        |
++| redteam          | local (llama 8B)        | ~$0.006                        |
++| qa               | local (llama 8B)        | ~$0.003                        |
++| test-author      | local (qwen)            | ~$0.012                        |
++| tautology        | local (llama 8B)        | ~$0.001                        |
++| unspider         | local (llama 8B)        | ~$0.002                        |
++| documentarian    | local (qwen)            | ~$0.008                        |
++
++A PR-heavy week with all seven on Haiku came in under one US dollar for
++one repository. Sonnet is roughly ten times that; Opus is roughly five
++times Sonnet. The `port-daddy:fleet` daemon enforces per-day budget caps
++declared in `pd-fleet.yml > fleet.limits.budget_usd_per_day`. The App is
++not the budget enforcer; it is the surface.
++
++Other repositories' ships have their own cost shapes. A `skill-media`
++ship that generates images is not measured in tokens — it is measured in
++image-generation calls, which the runtime budgets separately.
++
++---
++
++## Silencing the fleet
++
++`pd fleet down` stops the local runners. The App stays installed; no
++posts arrive. This is the intentional default: uninstalling and
++reinstalling a GitHub App is meaningful friction, and an operator should
+
+... [1399 more lines truncated]

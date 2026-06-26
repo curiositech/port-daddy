@@ -274,6 +274,7 @@ describe('CLI Integration Tests', () => {
           body: {
             purpose: 'CLI stale-session recovery',
             agentId,
+            lifecycle: 'durable',
           },
         });
         expect(begin.ok).toBe(true);
@@ -604,14 +605,14 @@ describe('CLI Integration Tests', () => {
     // because CLI used data.sessionId but API returns data.id
     test('session start shows actual session ID (not undefined)', () => {
       const agentId = `bug2-agent-${Date.now()}`;
-      const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId]);
+      const result = runCli(['session', 'start', 'Bug regression test', '--agent', agentId, '--lifecycle', 'durable']);
       expect(result.success).toBe(true);
       expect(result.stdout).not.toContain('undefined');
       expect(result.stdout).toMatch(/session-[a-z0-9-]+-[a-f0-9]{12}/);
       const firstSessionId = result.stdout.match(/session-[a-z0-9-]+-[a-f0-9]{12}/)?.[0];
 
       // Also test -q returns just the ID
-      const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '-q']);
+      const quietResult = runCli(['session', 'start', 'Quiet test', '--agent', agentId, '--lifecycle', 'durable', '-q']);
       expect(quietResult.success).toBe(true);
       expect(quietResult.stdout).toMatch(/^session-[a-z0-9-]+-[a-f0-9]{12}$/);
       expect(quietResult.stdout).not.toBe('undefined');
@@ -630,6 +631,8 @@ describe('CLI Integration Tests', () => {
         'Conflict holder',
         '--agent',
         `bug-conflict-holder-${Date.now()}`,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
         '-q',
@@ -641,6 +644,8 @@ describe('CLI Integration Tests', () => {
         'Conflict challenger',
         '--agent',
         `bug-conflict-challenger-${Date.now()}`,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
       ]);
@@ -661,6 +666,8 @@ describe('CLI Integration Tests', () => {
         'Release count test',
         '--agent',
         agentId,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
         '-q',
@@ -682,6 +689,8 @@ describe('CLI Integration Tests', () => {
         'Files rm count test',
         '--agent',
         agentId,
+        '--lifecycle',
+        'durable',
         '--files',
         filePath,
         '-q',
@@ -704,6 +713,8 @@ describe('CLI Integration Tests', () => {
         'Files alias compatibility test',
         '--agent',
         agentId,
+        '--lifecycle',
+        'durable',
         '-q',
       ]).stdout.trim();
 
@@ -740,6 +751,8 @@ describe('CLI Integration Tests', () => {
           'Symbol region claim test',
           '--agent',
           agentId,
+          '--lifecycle',
+          'durable',
           '-q',
         ]).stdout.trim();
 
@@ -796,7 +809,7 @@ describe('CLI Integration Tests', () => {
     // but API returns { createdAt, updatedAt, completedAt }
     test('sessions list shows proper values (not undefined/NaN)', () => {
       const agentId = `bug3-agent-${Date.now()}`;
-      const sessionId = runCli(['session', 'start', 'Bug 3 session test', '--agent', agentId, '-q']).stdout.trim();
+      const sessionId = runCli(['session', 'start', 'Bug 3 session test', '--agent', agentId, '--lifecycle', 'durable', '-q']).stdout.trim();
       const result = runCli(['sessions', '--agent', agentId, '--json']);
       expect(result.success).toBe(true);
 
@@ -865,7 +878,7 @@ describe('CLI Integration Tests', () => {
     // Bug #15: session start --json ignored --json flag, output human-readable
     test('session start --json outputs JSON (not colored text)', () => {
       const agentId = `bug15-agent-${Date.now()}`;
-      const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--json']);
+      const result = runCli(['session', 'start', 'Bug 15 test', '--agent', agentId, '--lifecycle', 'durable', '--json']);
       expect(result.success).toBe(true);
 
       // Should be valid JSON
@@ -962,7 +975,7 @@ describe('CLI Integration Tests', () => {
   // =========================================================================
   describe('Flag Alternatives (v3.6)', () => {
     test('pd begin --purpose works as flag alternative to positional', () => {
-      const result = runCli(['begin', '--purpose', 'Flag alternative test', '-q']);
+      const result = runCli(['begin', '--purpose', 'Flag alternative test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy(); // agent ID in quiet mode
 
@@ -972,7 +985,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd begin -P works as short flag', () => {
-      const result = runCli(['begin', '-P', 'Short flag test', '-q']);
+      const result = runCli(['begin', '-P', 'Short flag test', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy();
 
@@ -986,6 +999,7 @@ describe('CLI Integration Tests', () => {
         '--purpose', 'Multi-flag test',
         '--identity', 'test:cli:flags',
         '--type', 'cli',
+        '--lifecycle', 'durable',
         '--json',
       ]);
       expect(result.success).toBe(true);
@@ -1000,7 +1014,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done --note works as flag alternative', () => {
-      const beginResult = runCli(['begin', '-P', 'Done flag test', '-q']);
+      const beginResult = runCli(['begin', '-P', 'Done flag test', '--lifecycle', 'durable', '-q']);
       const agentId = beginResult.stdout.trim();
 
       // pd-done origin rule (substrate fix 2026-05-20): bypass for this
@@ -1015,7 +1029,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done -n works as short flag for note', () => {
-      const beginResult = runCli(['begin', '-P', 'Done short flag test', '-q']);
+      const beginResult = runCli(['begin', '-P', 'Done short flag test', '--lifecycle', 'durable', '-q']);
       const agentId = beginResult.stdout.trim();
 
       // pd-done origin rule bypass — see comment in --note test above.
@@ -1028,7 +1042,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd done --status works as flag alternative', () => {
-      const beginResult = runCli(['begin', '-P', 'Status flag test', '-q']);
+      const beginResult = runCli(['begin', '-P', 'Status flag test', '--lifecycle', 'durable', '-q']);
       const agentId = beginResult.stdout.trim();
 
       const result = runCli(['done', '--status', 'abandoned', '--agent', agentId, '--json']);
@@ -1040,7 +1054,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd session start --purpose works as flag alternative', () => {
-      const result = runCli(['session', 'start', '--purpose', 'Session flag test', '--json']);
+      const result = runCli(['session', 'start', '--purpose', 'Session flag test', '--lifecycle', 'durable', '--json']);
       expect(result.success).toBe(true);
 
       const data = JSON.parse(result.stdout);
@@ -1051,9 +1065,18 @@ describe('CLI Integration Tests', () => {
       runCli(['session', 'rm', data.id]);
     });
 
+    test('pd session start requires explicit lifecycle in non-interactive mode', () => {
+      const result = runCli(['session', 'start', 'Missing lifecycle']);
+      expect(result.success).toBe(false);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('--lifecycle');
+      expect(output).toContain('durable');
+      expect(output).toContain('ephemeral');
+    });
+
     test('pd note --content works as flag alternative', () => {
       // Start a session first
-      const sessionResult = runCli(['session', 'start', 'Note flag test', '--json']);
+      const sessionResult = runCli(['session', 'start', 'Note flag test', '--lifecycle', 'durable', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
       const result = runCli(['note', '--content', 'Flag note content', '--session', sessionData.id, '--json']);
@@ -1067,7 +1090,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd note -c works as short flag for content', () => {
-      const sessionResult = runCli(['session', 'start', 'Short note test', '--json']);
+      const sessionResult = runCli(['session', 'start', 'Short note test', '--lifecycle', 'durable', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
       const result = runCli(['note', '-c', 'Short flag content', '--session', sessionData.id, '--json']);
@@ -1080,7 +1103,7 @@ describe('CLI Integration Tests', () => {
     });
 
     test('pd n works as the top-level note alias advertised by completions', () => {
-      const sessionResult = runCli(['session', 'start', 'Short alias note test', '--json']);
+      const sessionResult = runCli(['session', 'start', 'Short alias note test', '--lifecycle', 'durable', '--json']);
       const sessionData = JSON.parse(sessionResult.stdout);
 
       const result = runCli(['n', '-c', 'Short alias content', '--session', sessionData.id, '--json']);
@@ -1099,6 +1122,8 @@ describe('CLI Integration Tests', () => {
         'Stale note fallback',
         '--identity',
         identity,
+        '--lifecycle',
+        'durable',
         '--json',
       ]);
       expect(beginResult.success).toBe(true);
@@ -1145,6 +1170,8 @@ describe('CLI Integration Tests', () => {
         'Stale whoami fallback',
         '--identity',
         'port-daddy:test:stale-whoami',
+        '--lifecycle',
+        'durable',
         '--json',
       ]);
       expect(beginResult.success).toBe(true);
@@ -1173,6 +1200,8 @@ describe('CLI Integration Tests', () => {
         'Cross-worktree file claim fallback',
         '--identity',
         'port-daddy:test:cross-worktree-file-claim',
+        '--lifecycle',
+        'durable',
         '--json',
       ]);
       expect(beginResult.success).toBe(true);
@@ -1200,9 +1229,9 @@ describe('CLI Integration Tests', () => {
       }
     });
 
-    test('positional args still work (backward compat)', () => {
+    test('positional purpose works with explicit lifecycle', () => {
       // Positional purpose
-      const result = runCli(['begin', 'Positional purpose', '-q']);
+      const result = runCli(['begin', 'Positional purpose', '--lifecycle', 'durable', '-q']);
       expect(result.success).toBe(true);
       expect(result.stdout).toBeTruthy();
 
@@ -1216,6 +1245,15 @@ describe('CLI Integration Tests', () => {
 
       const data = JSON.parse(doneResult.stdout);
       expect(data.success).toBe(true);
+    });
+
+    test('pd begin requires explicit lifecycle in non-interactive mode', () => {
+      const result = runCli(['begin', 'Missing lifecycle']);
+      expect(result.success).toBe(false);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('--lifecycle');
+      expect(output).toContain('durable');
+      expect(output).toContain('ephemeral');
     });
 
     test('non-interactive mode shows usage when no args', () => {

@@ -18,6 +18,9 @@ jest.unstable_mockModule('node:child_process', () => ({
   spawnSync: mockSpawnSync,
   execSync: mockExecSync,
   execFileSync: jest.fn(),
+  // lib/fleet/outputs/notify-macos.ts (transitively imported via fleet-engine)
+  // uses execFile for macOS notification delivery.
+  execFile: jest.fn((_cmd, _args, cb) => { if (typeof cb === 'function') cb(null, '', ''); }),
 }));
 
 const { operatorPlugin, __resetGuardCachesForTest } = await import('../../routes/operator.js');
@@ -181,6 +184,51 @@ describe('operator routes', () => {
       kind: 'context',
     }));
     expect(mockSpawnSync).toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  test('POST /operator/files-exist reports per-path existence, false for model ids', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const projectDir = process.cwd();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/files-exist',
+      payload: {
+        paths: ['package.json', 'ollama/qwen2.5-coder'],
+        projectDir,
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      success: true,
+      results: {
+        'package.json': true,
+        'ollama/qwen2.5-coder': false,
+      },
+    });
+
+    await app.close();
+  });
+
+  test('POST /operator/files-exist rejects empty payloads', async () => {
+    const { app, register } = buildApp();
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/operator/files-exist',
+      payload: { paths: [] },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: false,
+      error: 'At least one file path is required.',
+    }));
 
     await app.close();
   });

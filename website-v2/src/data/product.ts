@@ -61,7 +61,7 @@ export const PRODUCT_FEATURES = [
     cli: 'pd setup',
     href: '/mac-preview',
     image: {
-      src: '/img/app-screens/fleetbar-native-shell-light.png',
+      src: '/img/app-screens/fleetbar-native-shell-light.webp',
       alt: 'FleetBar macOS shell showing the embedded Fleet Control Center',
     },
     detail: 'FleetBar is the Mac-native front door for Port Daddy. It keeps daemon health, project selection, fleet state, and the full web dashboard reachable from the menu bar so you do not have to remember ports, tabs, or stale localhost URLs.',
@@ -84,7 +84,7 @@ export const PRODUCT_FEATURES = [
     cli: 'pd fleet status',
     href: '/agents',
     image: {
-      src: '/img/app-screens/fleet-flow-light.png',
+      src: '/img/app-screens/fleet-flow-light.webp',
       alt: 'Fleet Control Center flow view showing agent coordination',
     },
     detail: 'Fleet Control Center is the dashboard for real multi-agent work. It brings Flow, Agents, Activity, Channels, Inbox, Sorties, Memory, Resources, Shipwright, and YAML into one inspectable console backed by the live daemon.',
@@ -107,7 +107,7 @@ export const PRODUCT_FEATURES = [
     cli: 'pd setup --project <dir>',
     href: '/docs/get-started',
     image: {
-      src: '/img/app-screens/shipwright-control-light.png',
+      src: '/img/app-screens/shipwright-control-light.webp',
       alt: 'Shipwright control view proposing a project fleet',
     },
     detail: 'Shipwright is the cold-start path for a new repo. It surveys the project, proposes a small fleet, names ownership boundaries, estimates budget pressure, and turns setup into a reviewable plan before agents start writing.',
@@ -130,7 +130,7 @@ export const PRODUCT_FEATURES = [
     cli: 'pd sortie run --backend codex',
     href: '/agents',
     image: {
-      src: '/img/app-screens/sorties-light.png',
+      src: '/img/app-screens/sorties-light.webp',
       alt: 'Sorties view showing delegated agent missions',
     },
     detail: 'Sorties package delegated work as missions with a goal, recipe, backend, model tier, budget ceiling, logs, and result record. They are for bounded agent work that should remain inspectable after the process exits.',
@@ -153,7 +153,7 @@ export const PRODUCT_FEATURES = [
     cli: 'pd status',
     href: '/docs/cli/status',
     image: {
-      src: '/img/app-screens/resources-light.png',
+      src: '/img/app-screens/resources-light.webp',
       alt: 'Resources view with daemon, memory, and fleet pressure indicators',
     },
     detail: 'Resource controls make agent scale visible before it becomes chaos. Port Daddy shows daemon health, memory, disk, renderer pressure, model availability, spend, and concurrency signals so you can decide how much automation the machine can actually carry.',
@@ -219,7 +219,7 @@ export const PRODUCT_FEATURES = [
     title: 'Enforced coordination',
     description: 'Sessions, notes, file claims, locks, tuples, inboxes, activity, salvage, and Coordination Guard make repo work attributable before code reaches a commit.',
     category: 'coordination',
-    cli: 'pd begin "purpose"',
+    cli: 'pd begin "purpose" --lifecycle durable',
     href: '/tutorials/multi-agent',
     image: {
       src: '/img/generated/coordination-guard.webp',
@@ -672,7 +672,7 @@ export const COLD_START_STEPS = [
     id: 'operate',
     title: 'Operate from the Fleet view',
     description: 'Start the fleet, inspect agents, run a sortie, read activity, tune YAML, and watch resources from the same console the Mac app embeds.',
-    command: 'pd fleet up\npd begin "first coordinated change"',
+    command: 'pd fleet up\npd begin "first coordinated change" --lifecycle durable',
     appSurface: 'Flow, Agents, Sorties, Resources, and Activity stay connected by project identity.',
   },
 ] satisfies ColdStartStep[];

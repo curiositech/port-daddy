@@ -19,7 +19,7 @@ const STEPS: Step[] = [
     description:
       'Summon a session. Port Daddy assigns a stable port and semantic identity, checking for orphaned work from previous swarms.',
     code: [
-      '$ pd begin "Analyzing data" --identity swarm:analyst',
+      '$ pd begin "Analyzing data" --identity swarm:analyst --lifecycle durable',
       '  Agent agent-7f3a ready',
       '  Session started · port 3102 · identity swarm:analyst',
       '  Salvage: No dead agents detected',
@@ -142,7 +142,7 @@ export function HowItWorks() {
                 The <span style={{ color: 'var(--brand-primary)' }}>Self-Healing</span> <br /> Swarm.
               </motion.h3>
               <motion.p className="text-2xl leading-relaxed max-w-xl" style={{ color: 'var(--text-secondary)' }}>
-                Port Daddy doesn't just manage ports—it manages <strong>resilience</strong>. If a critical background agent dies, its state, file claims, and notes are held in an escrow harbor until a replacement is spawned to take its place.
+                Ports are the easy part. When a critical background agent dies, Port Daddy holds its <strong>state, file claims, and notes</strong> in an escrow harbor until a replacement takes over.
               </motion.p>
               <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
                  <div className="flex -space-x-6">

@@ -6,6 +6,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
+import { SpinningWordmark } from './SpinningWordmark'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
 
 const truthTone: Record<TruthState, string> = {
@@ -86,7 +87,7 @@ const landingStatTone = {
   accent: 'bg-[var(--brand-accent)] text-[var(--brand-accent-foreground)]',
 } as const
 
-type DocsCodeLanguage = 'cli' | 'text' | 'typescript'
+type DocsCodeLanguage = 'cli' | 'text' | 'typescript' | 'yaml'
 
 function panelToneForAccent(tone: AccentTone): 'default' | 'primary' | 'accent' {
   return panelToneMap[tone]
@@ -103,12 +104,55 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <img
       aria-hidden="true"
-      src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+      src={
+        theme === 'dark'
+          ? '/logos/portdaddy-mark-radar-darkmode.svg'
+          : '/logos/portdaddy-mark-radar-lightmode.svg'
+      }
       alt=""
       className={cn(
         'h-11 w-11 shrink-0',
         className,
       )}
+    />
+  )
+}
+
+type WordmarkVariant = 'full' | 'spin' | 'header'
+
+/**
+ * The Port Daddy WORDMARK lockup — radar mark + "Port Daddy" type. Theme-aware
+ * (light/dark SVG swap), transparent ground so it sits on the live surface.
+ *   - 'full'   : mark + "Port Daddy" + tagline rule (footer / brand contexts)
+ *   - 'spin'   : same lockup, radar mark animates (hero)
+ *   - 'header' : compact mark + "Port Daddy", no tagline (navbar), mark spins
+ */
+export function Wordmark({
+  variant = 'full',
+  className,
+  decorative = false,
+}: {
+  variant?: WordmarkVariant
+  className?: string
+  decorative?: boolean
+}) {
+  const { theme } = useTheme()
+
+  // The hero's spinning wordmark is rendered inline (not an <img>) so its colour
+  // washes can be CSS-driven — smooth, and frozen when not spinning.
+  if (variant === 'spin') {
+    return <SpinningWordmark className={className} />
+  }
+
+  const suffix = theme === 'dark' ? 'dark' : 'light'
+  const base = variant === 'header' ? 'portdaddy-wordmark-header' : 'portdaddy-wordmark'
+
+  return (
+    <img
+      src={`/logos/${base}-${suffix}.svg`}
+      alt={decorative ? '' : 'Port Daddy'}
+      aria-hidden={decorative ? true : undefined}
+      className={cn('w-auto select-none', className)}
     />
   )
 }
@@ -808,6 +852,7 @@ export function BracketAnchor({
 export function DocsNoteCard({
   label,
   title,
+  titleId,
   tone = 'paper',
   className,
   children,
@@ -818,6 +863,7 @@ export function DocsNoteCard({
 }: {
   label?: string
   title?: string
+  titleId?: string
   tone?: AccentTone
   className?: string
   children?: ReactNode
@@ -841,7 +887,7 @@ export function DocsNoteCard({
         </BracketLabel>
       ) : null}
       {title ? (
-        <PanelTitle size={titleSize} tone={panelTone} className={titleClassName}>
+        <PanelTitle id={titleId} size={titleSize} tone={panelTone} className={titleClassName}>
           {title}
         </PanelTitle>
       ) : null}
@@ -867,8 +913,17 @@ export function DocsCodeBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const surface = useSurfaceTone()
-  const terminalLabel = label ?? (language === 'cli' ? 'CLI' : language === 'typescript' ? 'TypeScript' : 'Text')
-  const codeLanguage = language === 'typescript' ? 'typescript' : undefined
+  const terminalLabel =
+    label ??
+    (language === 'cli'
+      ? 'CLI'
+      : language === 'typescript'
+        ? 'TypeScript'
+        : language === 'yaml'
+          ? 'YAML'
+          : 'Text')
+  const codeLanguage =
+    language === 'typescript' ? 'typescript' : language === 'yaml' ? 'yaml' : undefined
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code)
@@ -1002,7 +1057,7 @@ export function CopyableCommandBlock({
         </Button>
       </div>
       <div
-        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[13px] leading-[1.65]"
+        className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-3)] font-mono text-[14px] leading-[1.65]"
         style={{ background: 'var(--code-bg)', color: 'var(--code-text)' }}
       >
         <code

@@ -152,6 +152,26 @@ This paper introduces the \textbf{Anchor Protocol}, a cryptographic and semantic
 \vspace{0.4cm}
 \noindent\textit{Reading time: approximately 30 minutes end-to-end. The companion paper, \emph{The Bonded Commons: Pre-Transactional Trust Infrastructure for Multi-Agent Systems} (Owens 2026), carries the economic and governance argument; either paper can be read first.}
 
+\vspace{0.6cm}
+
+% --- Series locator box (identical template across all three papers) ----------
+\begin{center}
+\begin{tikzpicture}
+\node[draw=hhebony,line width=0.8pt,rounded corners=5pt,fill=hhsand!22,
+      inner sep=11pt,text width=15.3cm,align=left,font=\small] {%
+  {\sffamily\bfseries\footnotesize\textcolor{hhebony}{THE PORT DADDY TRILOGY\hfill PAPER~II~OF~III}}\\[5pt]
+  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[6pt]
+  \textbf{I.~The Bonded Commons.}~\emph{Why} mutually-suspicious agents need a pre-transactional \emph{commons authority}: bonded participation, an immutable evidence trail, and a value-conservation law. The economic and governance case for coordination at all.\\[4pt]
+  {\color{hhcobalt}\textbf{II.~The Anchor Protocol \textnormal{(this paper)}.}}~\emph{How} a single process proves its identity and attenuates its capability to the local daemon --- a formally verified (ProVerif, Kani) capability substrate, scoped to one machine.\\[4pt]
+  \textbf{III.~The Federated Harbor.}~How identity, revocation, and settlement compose \emph{across sovereign machines} when no operator is a root of authority for any other --- the federation layer.\\[6pt]
+  {\color{hhebony!35}\rule{\linewidth}{0.4pt}}\\[5pt]
+  {\footnotesize You are reading \textbf{Paper~II}, the cryptographic substrate of the series; it can be read first or on its own.}
+};
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.4cm}
+
 \tableofcontents
 \newpage
 
@@ -820,9 +840,14 @@ Authentication + injective agreement, all three phases (\S\ref{sec:algorithms}) 
 Algorithm-confusion immunity & ProVerif pinned vs.\ naive & \Closed\ pinned TRUE; counter-trace witnessed & \texttt{algconfusion.pv} \\
 Delegation chain replay (\S\ref{sec:delegation}) & ProVerif at depth 3 & \Closed\ chain authenticity TRUE; 17-case runtime conformance & \texttt{chain-replay.pv} \\
 Cuckoo-filter pollution resistance (\S\ref{sec:revocation}) & 5-invariant property test & \Closed\ FP rate within $2B/2^f$ at load $0.95$ & cuckoo property tests \\
+GitHub-App webhook origin authentication & ProVerif (Dolev-Yao relay) & \Closed\ origin auth TRUE; daemon re-verifies GitHub HMAC (runtime conformance) & \texttt{github\_ingress\_origin\_auth.pv} \\
+Multi-tenant relay namespace isolation & ProVerif + runtime & \Closed\ member of $A$ cannot publish into $B$; \texttt{HARBOR\_MISMATCH} conformance & \texttt{github\_ingress\_tenant\_isolation.pv} \\
 \midrule
 Cuckoo-filter revocation soundness & inspection + empirical & \Partial\ gate strictly narrows acceptance; gossip bound reproduced from~\cite{demers1987epidemic} & runtime test \\
 Constant-time signature comparison & audited library (\texttt{subtle::ConstantTimeEq}) & \Partial\ no side-channel proof; library trust documented & --- \\
+Relay payload secrecy via HPKE (daemon key pinned) & ProVerif (design) & \Partial\ secrecy TRUE under pinned key; seal not yet implemented & \texttt{github\_ingress\_hpke\_secrecy.pv} \\
+Webhook replay-freedom + in-order delivery & TLA+ / TLC (exhaustive at bound) & \Partial\ design model-checked; runtime via ordered-chain ingest & \texttt{WebhookDelivery.tla} \\
+Card revocation finality under backup/restore (ADR-0018 Attack~2) & TLA+ / TLC & \Partial\ rollback attack + revocation-epoch mitigation both model-checked & \texttt{CardRevocation.tla} \\
 \midrule
 Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy analysis~\cite{demers1987epidemic} & --- \\
 \bottomrule
@@ -830,6 +855,8 @@ Formal gossip-convergence bound & --- & \Open\ leaning on standard anti-entropy 
 \end{table}
 
 \paragraph{Limitations.} The cuckoo-filter pollution closure handles the local-filter side; cross-peer gossip propagation still leans on the standard anti-entropy analysis rather than a mechanized proof. The side-channel resistance of signature comparison is inherited from an audited library rather than re-proved. These deferrals are documented as known open problems rather than as defects in the present claims.
+
+\paragraph{GitHub-App relay ingress.} The webhook-dispatch surface (GitHub $\to$ untrusted relay $\to$ daemon) is modeled with the relay as the Dolev-Yao attacker, in three relay-agnostic properties, each paired with a negative control (\texttt{*\_vuln.pv}) that exhibits the attack once the mitigation is removed---so a \emph{true} result is non-vacuous. (i)~\emph{Origin authentication}: the daemon dispatches a fleet event only if GitHub signed it, even when the forwarder's transport credential is attacker-held; the control omits the daemon-side HMAC re-verification and the property fails (forged dispatch). This is \emph{non-injective} agreement (origin), not replay-freedom: a captured genuine $(\textit{payload},\textit{mac})$ may be re-delivered. Replay-freedom is an ordering-sensitive, mutable-state property outside ProVerif's reach, so it is discharged separately in TLA+ (\texttt{proofs/relay/WebhookDelivery.tla}): a daemon consuming the \emph{ordered} per-publisher chain (dispatch iff $\textit{seq}=\textit{tip}+1$) is model-checked at-most-once \emph{and} gap-free against an adversarial relay that reorders, duplicates, and redelivers, with the unguarded daemon as the model-checked counterexample (TLC exhibits a double-dispatch). The obligation it names: the daemon ingests webhooks over the relay's ordered \texttt{from\_seq} subscribe path, not the raw forward. (ii)~\emph{Payload secrecy}: under HPKE to the daemon's \emph{pinned} X25519 key the relay never learns plaintext; the control sources the key from the relay and the secrecy property collapses to a key-substitution MITM---hence out-of-band key pinning is a requirement, not a recommendation. The seal is specified but not yet implemented, so this row is \Partial. (iii)~\emph{Namespace isolation}: a member of tenant $A$ cannot publish into tenant $B$ because harbor binding is checked against authoritative membership; the control trusts the card's self-declared issuer and crosses the tenant boundary. Honesty rider: HMAC-SHA256 gives origin authentication to a shared-key holder (EUF-CMA), not third-party non-repudiation; HPKE base mode is assumed IND-CCA2.
 
 \pullquote{We err toward listing fewer items as closed rather than more.}
 

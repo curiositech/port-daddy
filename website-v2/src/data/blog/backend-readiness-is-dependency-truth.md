@@ -1,10 +1,10 @@
 # Backend Readiness Is Dependency Truth
 
-An API key is not readiness. A green dot that only means "environment variable exists" is worse than useless, because it trains operators to click through uncertainty.
+The dashboard showed a green dot next to the backend, so you launched. The agent spun up, picked the high tier, and died on the first call: the SDK it needed was installed in your shell, not in the daemon that actually spawns agents. The green dot was never lying about much — it only ever meant "an environment variable exists somewhere." You read it as "this will work." Those are not the same sentence, and the gap between them is where the afternoon went.
 
-A model backend is ready when credentials, packages, CLI auth, model catalog, pricing, telemetry, and project policy all agree. Port Daddy treats that agreement as dependency truth.
+That green dot is the problem in miniature. A model backend is not ready because one key is present. It is ready when credentials, packages, CLI auth, model catalog, pricing, telemetry, and project policy all agree — and a status light that collapses seven different facts into one color trains you to click through the uncertainty instead of seeing it. Port Daddy treats that agreement as dependency truth, the same way a build treats a dependency graph: green means every edge resolved, not that you got lucky on one of them.
 
-![Backend readiness matrix](/img/generated/blog-backend-readiness.jpg)
+![A backend readiness matrix: seven dimensions down the side — credentials, dependency, auth, model catalog, pricing, telemetry, policy — each lit green, amber, or red, so "ready" is an agreement across all seven rather than a single light](/img/generated/blog-backend-readiness.jpg)
 
 ## The False Green Check
 
@@ -34,7 +34,7 @@ Port Daddy's backend readiness model should be multi-dimensional:
 | Telemetry | launch path returns exact usage | backend returns text only |
 | Policy | repo allows this kind of launch | daily budget exhausted |
 
-![Resources screen showing readiness and launch context](/img/app-screens/resources-light.png)
+![The Resources screen rendering each readiness dimension as its own row with a pass/fail state and a fix, so the operator sees which contract failed rather than a single "unavailable"](/img/app-screens/resources-light.webp)
 
 This is not paperwork. It prevents three common classes of failed launch: missing runtime dependency, silent spend ambiguity, and wrong-model execution.
 
@@ -107,11 +107,11 @@ $ pd fleet models --json
 
 The UI should not translate that into a vague red dot. It should show the failed check and the fix.
 
-![Live resources panel showing backend state](/media/landing-live-glory/live-resources-light.png)
+![The live resources panel showing a blocked backend with its failed check and the exact fix surfaced inline — the same story the JSON above tells, instead of a vague red dot](/media/landing-live-glory/live-resources-light.webp)
 
 ## Readiness Belongs To The Daemon Runtime
 
-One subtle bug class comes from checking readiness in the wrong process. A developer shell may have an API key and a package installed, while the daemon that actually launches agents does not. The UI should not mark a backend ready because the browser, shell, or build script can see something. It should ask the runtime that will perform the launch.
+One subtle bug class comes from checking readiness in [the wrong process](/blog/running-is-not-current). A developer shell may have an API key and a package installed, while the daemon that actually launches agents does not. The UI should not mark a backend ready because the browser, shell, or build script can see something. It should ask the runtime that will perform the launch.
 
 ```ts
 async function readBackendReadiness(backend: string) {
@@ -187,6 +187,7 @@ The key is honesty. Different backends can have different contracts as long as t
 
 Some integrations can produce useful answers but cannot prove exact usage. That does not make them useless. It makes them inappropriate for unattended spend-sensitive automation unless a human explicitly accepts the boundary.
 
+<!-- figure: How telemetry mode routes a launch — exact usage flows straight to a budget check, while estimated or opaque usage is forced through manual approval, so spend-blind backends can't run unattended. -->
 ```mermaid
 flowchart TD
   Request["launch request"] --> Ready["readiness checks"]
@@ -211,7 +212,7 @@ The readiness matrix is therefore part of engineering quality:
 - it prevents a release task from running on an unauthenticated CLI;
 - it prevents a background fleet from using a backend with no ledger;
 - it helps local models participate without pretending they are cloud APIs;
-- it gives setup flows a concrete list of missing work.
+- it gives [setup flows](/blog/fleet-designer-cold-start) a concrete list of missing work.
 
 That is the bigger idea. Backend readiness is not a preferences page. It is the dependency graph for agent execution.
 

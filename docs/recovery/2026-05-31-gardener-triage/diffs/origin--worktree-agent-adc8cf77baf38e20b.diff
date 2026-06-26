@@ -1,0 +1,347 @@
+STATS:
+ docs/shipwright/dialogue-v2.5-to-v2.6.json | 289 +++++++++++++++++++++++++++++
+ docs/shipwright/v2.5-to-v2.6-edits.md      | 276 +++++++++++++++++++++++++++
+ 2 files changed, 565 insertions(+)
+
+---
+LAST COMMIT:
+f8087d2c5d701f429e5fc4d58e64f49e3a75b05b
+Erich Owens <[redacted]>
+2026-05-19 23:24:22 -0700
+synthesis(v2.5->v2.6): canonical dialogue + paper-edits list
+
+Pair the 8 RED probes (worktree-agent-a7572be08e1ebc1c6) with the 10 WHITE
+defenses (paper/wave3-bundle) into the canonical v2.5->v2.6 dialogue. Decisions:
+
+- RT-001 (deterministic mu) -> closed-by-figure via the v2.6 correlating-device
+  figure (1/2-1/2 over (claim,defer)/(defer,claim) at symmetric ties) plus
+  one-sentence binding in sec:correlating-device. Operator pre-decision.
+- RT-002 (PoA abstract overclaim) -> closed-by-edit via WT-008 (propagate
+  body hedge into abstract).
+- RT-003 (delta-star param-sensitive) -> declined-with-acknowledgment; red
+  team's own report acknowledges arithmetic correct. WT-002 (derivation
+  expansion) + WT-001 (TLA+/Z3) close the math-correctness flank.
+- RT-004 (Schelling bond bands) -> closed-by-artifact via threat-bands.mjs.
+- RT-005 (bootstrap metrics) -> closed-by-edit via Evans-Schmalensee /
+  Hagiu-Wright / Rochet-Tirole citations.
+- RT-006 (oracle != insurer collusion) -> closed-by-edit via WT-004 symbol
+  map + B_dep^oracle stake. Two-layer folk-theorem TLA+ (WT-005) carried
+  to v2.7.
+- RT-007 (compromised vs absent Anchor) -> closed-by-edit via WT-003 H_anchor
+  numbered hypothesis + third bullet in 'What each condition buys'.
+- RT-008 (Aumann 1974 vs 1987) -> closed-by-edit; both years cited at the
+  clauses they speak to (1974 conceptual origin, 1987 technical machinery).
+
+Mechanization triage:
+- Blocking v2.6: claim-signaling.tla, delta-threshold.z3, threat-bands.mjs.
+- Carried to v2.7: folk-theorem-two-layers.tla (subsumes v2.5 cartel-formal
+  carry; paid only on review pushback).
+
+Paper-edits list (docs/shipwright/v2.5-to-v2.6-edits.md): 14 edits, ~90 prose
+lines + 1 new TikZ figure + 4 new bibitems. None exceeds 0.5 page.
+
+
+---
+DIFF (first 300 lines):
+diff --git a/docs/shipwright/dialogue-v2.5-to-v2.6.json b/docs/shipwright/dialogue-v2.5-to-v2.6.json
+new file mode 100644
+index 00000000..4c0def8a
+--- /dev/null
++++ b/docs/shipwright/dialogue-v2.5-to-v2.6.json
+@@ -0,0 +1,289 @@
++{
++  "round_from": "v2.5",
++  "round_to": "v2.6",
++  "kind": "normal",
++  "sealed_at": "2026-05-19",
++  "lead": "sec-eng-lead",
++  "red_team": "redteam-review-fleet",
++  "white_team": "whitehat-defense-fleet",
++  "branch_under_review": "paper/wave3-bundle",
++  "head_commit": "141b509f",
++  "synthesis_note": "First round with formal red/white split (RED on worktree-agent-a7572be08e1ebc1c6, WHITE on paper/wave3-bundle). 8 red probes paired with 10 white defenses plus carry. Operator pre-decided RT-001 closed-by-figure: the v2.6 correlating-device figure (1/2-1/2 over (claim,defer)/(defer,claim) at symmetric ties) is the concrete non-trivially-correlated mu the probe demanded. RT-003 marked declined-with-acknowledgment per the red team's own report (cubic math correct as stated; tightness is parametric, but the proposition is honest about its calibration).",
++  "exchanges": [
++    {
++      "id": "RT-v25v26-001",
++      "class": "correlating-device",
++      "section": "\\S\\ref{sec:correlating-device} prop:correlating-device + abstract",
++      "severity": "high",
++      "title": "Deterministic recommendation policy is a degenerate mu, not a correlated equilibrium",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ + sec-eng-lead",
++      "fix_status": "closed-by-figure",
++      "artifact": "website-v2/public/whitepaper/figures/fig-correlating-device.tex (added in v2.6) + \\S\\ref{sec:correlating-device} two-sentence binding paragraph",
++      "red_demand": "Exhibit a concrete mu non-trivially correlated across agents, or downgrade the Aumann reframe to Nash on the conflict-graph-augmented game.",
++      "white_counter": "No white-team defense was authored against this probe; the operator's call is that the v2.6 figure (symmetric tie-break: mu draws (claim_alpha, defer_beta) with probability 1/2 and (defer_alpha, claim_beta) with probability 1/2, which is not the product of marginals at a symmetric-conflict tie) exhibits the required non-trivial correlation. WT-v25v26-005 (two-layer folk-theorem TLA+) is the formal answer for the production-extension question and is tracked as a carried artifact.",
++      "synthesis": "Closed by figure plus one-sentence binding in \\S\\ref{sec:correlating-device} that names the figure as the witness mu and notes that the deterministic policy of the property statement is the policy in the no-tie case; the tied case (symmetric conflicts on a single resource) is where mu has non-trivial correlation. The probe's demand (a) is met by the figure; the probe's alternative (b) -- downgrade to Nash on the augmented game -- is declined."
++    },
++    {
++      "id": "RT-v25v26-002",
++      "class": "poa-bound",
++      "section": "\\S1 abstract + \\S\\ref{sec:correlating-device} (line 295)",
++      "severity": "high",
++      "title": "PoA-approx-1 claim in abstract asserts a bound the body explicitly disclaims",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ + sec-eng-lead",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edit E2 (abstract PoA sentence)",
++      "red_demand": "Either (a) supply an analytical PoA bound admitting non-zero cartel fraction; (b) rewrite the abstract sentence to no-cartel-and-low-noise regime with graceful degradation; or (c) drop 'at both layers' entirely and route through the A6 threshold p_d* approx 0.10.",
++      "white_counter": "WT-v25v26-008: the body hedge at line 295 (analytical bound under realistic noise is open; not closed here) is correct; the abstract overclaims. Edit the abstract sentence to: 'the price of anarchy is empirically near 1 in calibrated regimes (sigma_r <= 0.1) and is bounded by the cartel folk-theorem threshold sigma* at the insurer layer; the analytical bound for the agent layer under general reputation noise is open.'",
++      "synthesis": "Red probe is on the money. White-team defense WT-008 is the right shape -- match the abstract to the body's hedge. Adopt option (b) of the red demand via the WT-008 sentence."
++    },
++    {
++      "id": "RT-v25v26-003",
++      "class": "nash-math",
++      "section": "\\S\\ref{sec:claim-signaling-ic} prop:claim-signaling-ic + Table~\\ref{tab:claim-stage-game}",
++      "severity": "medium",
++      "title": "delta-star approx 0.253 is parametric in (c,d,p); proposition silent on calibration sensitivity",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "sec-eng-lead",
++      "fix_status": "declined-with-acknowledgment",
++      "artifact": "",
++      "red_demand": "Either (a) rephrase to make (c,d,p) dependence explicit; (b) anchor (d,c,p) to cleanup-cost c of \\S\\ref{sec:cleanup-bound} and scope multiplier alpha of \\S\\ref{sec:scope-multiplier}; or (c) state robustness as (d-c)/(c-p) ratio rather than a single delta-star.",
++      "white_counter": "WT-v25v26-002 (derivation) and WT-v25v26-001 (TLA+/Z3 mechanization) defend the delta-star number itself, not its parametric form.",
++      "synthesis": "Declined. The red team's own report explicitly acknowledges the arithmetic is correct ('numerical root ~0.2534, paper rounds to 0.253'). The proposition statement already names the stage-game payoffs explicitly via Table~\\ref{tab:claim-stage-game} and the 'What each condition buys' bullet on delta-star already routes the short-lived-principal regime to \\S\\ref{sec:economic} bond pricing. The probe asks for a more general statement of the proposition. That is a legitimate generalization but it is not a defect in the current statement -- the current statement is a concrete instance with an explicit payoff table, which is the standard way to write a folk-theorem application in a system paper. Carrying the more general form (option a or c) into a future round if a reviewer asks for it; not blocking v2.6 on it. WT-002's derivation expansion (closed-by-edit E5) and WT-001's mechanization (closed-by-artifact A1) close the math-correctness flank. The parametric-sensitivity flank stays open by design."
++    },
++    {
++      "id": "RT-v25v26-004",
++      "class": "bond-sizing",
++      "section": "\\S\\ref{sec:pricing:threats} Table~\\ref{tab:threat-bonds}",
++      "severity": "medium",
++      "title": "Bond bands 10-25 / 25-50 / 100-200% are Schelling-point round numbers without simulation or citation",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ",
++      "fix_status": "closed-by-artifact",
++      "artifact": "proofs/bonded/pareto/threat-bands.mjs + proofs/bonded/pareto/threat-bands.run.log + paper edit E7 (table caption cites artifact)",
++      "red_demand": "Either (a) cite marketplace-bond or actuarial literature; (b) derive each band from c (cleanup) and alpha (scope); or (c) re-label the table as illustrative starting bands with explicit calibration requirement.",
++      "white_counter": "WT-v25v26-006: extend proofs/bonded/pareto/simulation.mjs with a threat-mix dimension and verify commons-deficit-to-zero and retention-floor for each band; cite the run.log at the table caption.",
++      "synthesis": "Closed by artifact + caption edit. Red demand (c) is partially met by the existing caption language ('starting points for calibration, not protocol constants'); WT-006's simulation backs the numbers so the table is empirically defensible rather than purely intuitive. Red demand (b) -- derive from c and alpha -- is harder than its phrasing suggests because the threat-class structure does not fall out of (c, alpha) alone; the simulation is the right unit of evidence here."
++    },
++    {
++      "id": "RT-v25v26-005",
++      "class": "bootstrap-metrics",
++      "section": "\\S\\ref{sec:pricing:bootstrap} transition metrics (80%, 50%, 60%)",
++      "severity": "medium",
++      "title": "Phase-transition metrics appear without source",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edits E8a-E8c (citations at each metric paragraph)",
++      "red_demand": "For each threshold, either (a) cite marketplace cold-start literature; (b) derive from signal-to-noise simulation; or (c) soften to 'illustrative thresholds, calibrate from estimator variance' and drop the implication of tight calibration.",
++      "white_counter": "WT-v25v26-007: cite Evans-Schmalensee 2010, Hagiu-Wright 2015, Rochet-Tirole 2003 at the relevant phase paragraphs; or soften with revision policy. Lower-cost option is the citations.",
++      "synthesis": "Closed by edit. Adopt option (a) -- the canonical platform-cold-start references exist and are the right place to anchor the numbers. The body wording 'starting target bands, calibrated from observed cold-start deployments' is added at the head of \\S\\ref{sec:pricing:bootstrap} so the reader sees the framing before the per-phase metrics."
++    },
++    {
++      "id": "RT-v25v26-006",
++      "class": "oracle-collusion",
++      "section": "\\S\\ref{sec:pricing:settlement} 'Composition with cartel resistance' paragraph (line 848)",
++      "severity": "high",
++      "title": "Oracle collusion-equals-insurer cartel: structural identity asserted, not proved; detection mechanisms differ",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edit E9 (symbol-mapping table + B_dep^oracle stake variable) + carried mechanization WT-v25v26-005",
++      "red_demand": "Re-derive A6's deviation-payoff inequality with oracle-specific quantities (d_oracle, c_oracle, p_d^oracle = sigma against binomial sampling) and either show it reduces to p_d* approx 0.10 at delta = 0.95 or surface the actual oracle-specific threshold and update '10% sample is a starting point' accordingly.",
++      "white_counter": "WT-v25v26-004: add an explicit symbol-mapping table mapping the A6 cartel variables (q_floor, B_dep, p_d, surplus split) to the oracle-collusion variables (v_O, B_dep^oracle, sigma, r_O). The new stake variable B_dep^oracle is load-bearing: the existing paragraph has audit sampling but no stake at risk. Without a stake the same-analysis claim is structurally weaker than v2.5 implied. WT-v25v26-005: parameterize one TLA+ model by {layer in {insurer, oracle}, n_colluders, p_d-or-sigma, delta, B_dep, q_floor-or-r_O} so both folk-theorem claims share one verification path; carried to v2.7 behind the existing v2.5 cartel-formal carry.",
++      "synthesis": "Closed-by-edit for v2.6: the symbol-mapping table plus B_dep^oracle introduction is the minimum that makes the same-analysis claim mean something. The red team is correct that the deviation-payoff inequality has not been re-derived in oracle quantities; the symbol map makes the substitution explicit and turns the assertion into a checkable claim rather than a hand-wave. The full re-derivation (or its mechanization via WT-005's two-layer TLA+) is carried into v2.7 because the symbol map is sufficient to defend the v2.6 claim from the red probe's strongest form and the TLA+ is a 400-600-LOC week of work that is paid only if the symbol-map defense is rejected by review."
++    },
++    {
++      "id": "RT-v25v26-007",
++      "class": "anchor-dependency",
++      "section": "\\S\\ref{sec:claim-signaling-ic} 'What each condition buys' bullet 2 + cross-ref to dialogue-v2.4-to-v2.5",
++      "severity": "high",
++      "title": "Proposition 7.1 conflates 'no Anchor' and 'compromised Anchor'; compromised Anchor is the worse regime",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ + sec-eng-lead",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edit E6 (promote 'Sybil-resistant identity regime' to numbered hypothesis H_anchor; add third bullet on compromise regime citing dialogue-v2.4-to-v2.5)",
++      "red_demand": "Add a third bullet to the 'What each condition buys' enumeration explicitly addressing the Anchor-compromise regime, citing the v2.4-to-v2.5 magic-link analysis (proofs/bonded/recovery/magic-link.pv) and stating Proposition 7.1's conclusion under (i) single-use Anchor holds vs (ii) federated-sovereign threat realized (full reputation hijack). If the Bonded proposition does not bind in (ii), the abstract's correlating-device reframe inherits that scope limitation.",
++      "white_counter": "WT-v25v26-003: promote 'Sybil-resistant identity regime of the Anchor Protocol' from prose hand-wave to numbered hypothesis H_anchor in the proposition statement, with an epsilon-bound 'Pr[adversary controls k identities under rho] <= epsilon(k) * n^{-1} with epsilon(1) < delta-star_{k=3} * (1 - delta) / (1 - delta^{k+1}) * (c - p)/(d - c)'. Footnote that the Anchor companion paper establishes H_anchor under its \\S6 parameters. The H_anchor variable then becomes a parameter of the WT-001 TLA+ spec, which refuses to verify when epsilon is too large.",
++      "synthesis": "Closed by edit. The red probe and white defense are complementary: red asks for explicit treatment of the compromise regime; white promotes the Sybil-resistance assumption to a numbered hypothesis so the regime can be reasoned about formally. Both edits land: H_anchor is named in the proposition; the third bullet in 'What each condition buys' treats compromised-Anchor as a distinct regime (worse than no-Anchor because the attacker inherits laundered history rather than starting at zero) and cites dialogue-v2.4-to-v2.5 magic-link.pv as the relevant precondition. The proposition's conclusion under regime (ii) is stated explicitly as: the bound does not bind; the abstract's correlating-device reframe inherits the scope limitation; the protective remedies live in the Anchor companion paper, not this one."
++    },
++    {
++      "id": "RT-v25v26-008",
++      "class": "citation-placement",
++      "section": "\\bibitem{aumann1974subjectivity} + abstract + \\S2.0 intro item 4 + \\S\\ref{sec:correlating-device}",
++      "severity": "low",
++      "title": "Aumann 1974 is the conceptual origin; the formalization actually used is Aumann 1987",
++      "smell_from": "redteam-review-fleet",
++      "fix_from": "defense-econ",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edit E3 (add \\bibitem{aumann1987correlated}) + edit E4 (route technical citations to 1987; keep 1974 for conceptual-origin uses)",
++      "red_demand": "Add \\bibitem{aumann1987correlated} (Econometrica 55:1, 1987) and route the technical citations in \\S\\ref{sec:correlating-device} (joint-distribution formalization, best-response argument) to the 1987 paper; keep aumann1974 for conceptual-origin citation in the intro.",
++      "white_counter": "WT-v25v26-009: bind the existing aumann1974 citation into the Property statement at line 284 by editing the lead-in to 'Port Daddy's daemon implements a correlating device in the sense of Aumann~\\cite{aumann1974subjectivity} for the agent-coordination game. Specifically: ...'. Defends the citation against the 'decorative bibitem' attack.",
++      "synthesis": "Closed by combined edit. Both sides have a point: WT-009 is correct that the citation is non-decorative in the property statement and should be syntactically bound there; RT-008 is correct that the technical formalization (trusted third party, posterior, best response) is Aumann 1987 and the load-bearing technical cites should point there. The edit set is: (a) add \\bibitem{aumann1987correlated} to the bibliography (E3); (b) bind aumann1974 into the property statement lead-in per WT-009 (E4a); (c) point the technical-machinery citation at line 280 (joint distribution mu, trusted third party drawing recommendations, posterior best-response argument) to aumann1987correlated (E4b); (d) keep aumann1974 in the abstract and intro as the conceptual-origin citation. Net: 1974 introduces the concept the paper uses; 1987 supplies the formalization the paper relies on; both are cited at the points they speak to."
++    },
++    {
++      "id": "WT-v25v26-001",
++      "class": "mechanization",
++      "section": "\\S\\ref{sec:claim-signaling-ic} prop:claim-signaling-ic",
++      "severity": "high",
++      "title": "Mechanize Proposition 7.1 in TLA+ (Apalache delta-sweep) + Z3 check of the cubic",
++      "smell_from": "whitehat-defense-fleet self-audit (v2.5 ships analytic proof, no mechanization handle)",
++      "fix_from": "defense-econ + proof-completer",
++      "fix_status": "closed-by-artifact",
++      "artifact": "proofs/economics/claim-signaling.tla + proofs/economics/claim-signaling.cfg + proofs/economics/delta-threshold.z3",
++      "red_demand": "(no direct red probe; complementary to RT-003)",
++      "white_counter": "Two-agent repeated claim-signaling game with three-round graduated trigger as the agent's local automaton, Merkle-evidence history as shared variable, delta in {0.20, 0.25, 0.253, 0.30, 0.50, 0.90} as discrete parameter. Apalache: for delta > delta-star_{k=3}, no finite trace of length <= N admits a strictly profitable one-shot deviation from (T,T); for delta <= delta-star, Apalache produces a counter-trace at the smallest delta in the grid. Pair with Z3 SMT check of 3delta^3 + 3delta^2 + 3delta - 1 > 0 so the threshold itself is machine-checked.",
++      "synthesis": "Closed by artifact. Blocking for v2.6 because it grounds the proposition in mechanized evidence parallel to the existing \\S\\ref{sec:tlaplus} TLA+ citations and forms the spec into which H_anchor (from RT-007 / WT-003) is parameterized. The artifact citation lands at the end of the deviation-analysis paragraph (~line 706 of the .tex)."
++    },
++    {
++      "id": "WT-v25v26-002",
++      "class": "derivation-step",
++      "section": "\\S\\ref{sec:claim-signaling-ic} 'Critical delta' paragraph (~line 708-713)",
++      "severity": "medium",
++      "title": "Replace 'solves numerically to 0.253' with a half-paragraph derivation",
++      "smell_from": "whitehat-defense-fleet self-audit",
++      "fix_from": "defense-econ",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edit E5 (expand 'Critical delta' paragraph)",
++      "red_demand": "(no direct red probe; defends against the parametric-sensitivity flank of RT-003 by making the cubic reader-verifiable)",
++      "white_counter": "Replace the single sentence with a half-paragraph: f(delta) = 3delta^3 + 3delta^2 + 3delta - 1 > 0; f(0.25) ~ -0.0156, f(0.253) ~ -4e-4, f(0.26) ~ 0.0355; unique real root in [0,1] is delta-star_{k=3} approx 0.25319 (Cardano or one Newton step from delta_0 = 1/4). Grim-trigger limit (k to infinity) collapses to delta > 1/4 exactly.",
++      "synthesis": "Closed by edit. Defends against the 'cubic doesn't have a closed form' attack and against rounding-error skepticism on the 0.003 gap. Cost is ~3 lines; reader-verifiability gain is large."
++    },
++    {
++      "id": "WT-v25v26-005",
++      "class": "mechanization",
++      "section": "\\S\\ref{sec:pricing:settlement} composition claim + \\S\\ref{sec:youle:a6}",
++      "severity": "medium",
++      "title": "Two-layer folk-theorem TLA+ model (insurer + oracle) -- subsumes v2.5 cartel-formal carry",
++      "smell_from": "whitehat-defense-fleet self-audit (subsumes carried v2.5 'cartel-formal' item)",
++      "fix_from": "defense-econ + proof-completer",
++      "fix_status": "carried",
++      "artifact_target": "proofs/economics/folk-theorem-two-layers.tla + proofs/economics/folk-theorem-two-layers.cfg",
++      "red_demand": "(addresses the formal-mechanization flank of RT-006)",
++      "white_counter": "One TLA+ model parameterized by {layer in {insurer, oracle}, n_colluders, p_d-or-sigma, delta, B_dep, q_floor-or-r_O}; for sigma < sigma-star the model finds an unprofitable-deviation trace; for sigma >= sigma-star the cartel-sustaining state is unreachable from initial states under the strategy profile.",
++      "synthesis": "Carried to v2.7. The symbol-mapping edit from WT-004 / RT-006 is sufficient to defend the same-analysis claim in v2.6 against the red probe's strongest form. Promoting the v2.5 cartel-formal carry into this parameterized two-layer model is the right shape and the right time-to-pay (estimated 400-600 LOC + 1 week of a TLA+-fluent author) -- but it is not blocking for v2.6 because the symbol map plus the existing Monte Carlo simulation (proofs/bonded/pareto/simulation.mjs + simulation.run.log) bracket the claim from both sides."
++    },
++    {
++      "id": "WT-v25v26-010",
++      "class": "length-cut",
++      "section": "\\S\\ref{sec:claim-signaling-ic} 'What each condition buys' bullet list (~lines 719-726)",
++      "severity": "low",
++      "title": "Keep the conditions list at full length -- every bullet is load-bearing for a specific attack class",
++      "smell_from": "whitehat-defense-fleet self-audit (a merge-agent flagged the block as cuttable; this is the keep-or-cut decision)",
++      "fix_from": "defense-econ + sec-eng-lead",
++      "fix_status": "closed-by-edit",
++      "artifact": "paper edit E6b (one-line preface to bullet list)",
++      "red_demand": "(no direct red probe)",
++      "white_counter": "Bullet 1 (observable history) closes the \\S\\ref{sec:attribution} coupling attack; bullet 2 (Anchor) closes the Sybil-reset attack and is the cite-target for H_anchor (WT-003); bullet 3 (delta < 0.253) closes the short-lived-principal attack and forward-references \\S\\ref{sec:economic} pricing; bullet 4 (delta < 1/4) closes the 'folk theorem won't save you' attack. Each bullet defends one of four standard challenges to a repeated-game IC result; cutting any reopens an attack surface. Action: keep, plus add a one-line preface 'Each of the following bullets defends against a specific failure mode the proposition implicitly assumes away; cutting any bullet reopens the corresponding attack.'",
++      "synthesis": "Closed by edit (one-line preface). Decision is keep; the cost is ~8 lines of a 46-page paper, below the noise floor, and RT-007 makes bullet 2 do additional work by adding a third bullet for the compromise regime. Keep the list and label it correctly."
++    }
++  ],
++  "carried": [
++    {
++      "id": "WT-v25v26-005",
++      "class": "proof-gap",
++      "title": "Two-layer folk-theorem TLA+ model (insurer + oracle layer)",
++      "reason": "Subsumes the v2.5 carried 'cartel-formal' item. Symbol-mapping edit + existing Monte Carlo are sufficient for v2.6; the two-layer TLA+ is paid in v2.7 if a reviewer rejects the symbol-map defense. Estimated 400-600 LOC + 1 week of a TLA+-fluent author."
++    },
++    {
++      "id": "smell:proof-gap:bonded:4.2:merkle-binding-mechanization",
++      "class": "proof-gap",
++      "title": "Merkle Forest binding -- full EasyCrypt mechanization",
++      "reason": "Continued carry from v2.4-to-v2.5. v2.4 shipped impl + fast-check + game spec + EasyCrypt skeleton; full mechanization paid only when a higher-assurance audit asks."
++    },
++    {
++      "id": "smell:proof-gap:bonded:8.4.4:pareto-formalization",
++      "class": "proof-gap",
++      "title": "Pareto dominance -- formal Coq/Lean mechanization of strategic game",
++      "reason": "Continued carry from v2.4-to-v2.5. v2.5 shipped honest theorization + Monte Carlo; formal game-theory mechanization (~1000 LOC + months) carried indefinitely behind the simulation."
++    },
++    {
++      "id": "smell:audit:anchor:2.4:cuckoo-pollution",
++      "class": "coord",
++      "title": "Cuckoo filter pollution (Anchor \\S2.4)",
++      "reason": "Continued carry from v2.4-to-v2.5. Awaits lib/cuckoo-filter.ts implementation."
++    },
++    {
++      "id": "RT-v25v26-003-generalization",
++      "class": "nash-math",
++      "title": "Generalize Proposition 7.1 to (d-c)/(c-p) ratio form, parametric in (c,d,p)",
++      "reason": "Declined-with-acknowledgment in v2.5-to-v2.6 (math correct as stated). Carrying the generalization as a future-round edit if a reviewer asks for the more general statement. Cost is one paragraph plus a sentence in the proposition statement; not paid in v2.6 because the concrete-payoff form with explicit table is the conventional way to write a folk-theorem application in a system paper."
++    }
++  ],
++  "declined": [
++    {
++      "id": "RT-v25v26-003",
++      "title": "delta-star parametric sensitivity (declined-with-acknowledgment)",
++      "reason": "Red team's own report acknowledges the arithmetic is correct (numerical root ~0.2534). The probe asks for a more general statement of the proposition rather than identifying a defect. The current statement is a concrete instance with an explicit payoff table -- standard form for a folk-theorem application in a system paper. WT-002 (closed-by-edit) and WT-001 (closed-by-artifact) close the math-correctness flank. The parametric-sensitivity flank stays open by design and is carried as a future-round edit."
++    }
++  ],
++  "paper_changes": [
++    "E1 (\\S\\ref{sec:correlating-device}, after line 282): add Figure~\\ref{fig:correlating-device} via \\input{figures/fig-correlating-device} showing the symmetric tie-break mu (1/2 over (claim_alpha, defer_beta), 1/2 over (defer_alpha, claim_beta)) with marginal axes labeled, demonstrating mu is not the product of marginals. Add one-sentence binding after the figure: 'The figure exhibits the regime where mu has non-trivial correlation: on a symmetric tie, the daemon's recommendation is a randomized joint draw, not a deterministic function of public state -- the Aumann reframe of the headline result is therefore load-bearing rather than rhetorical.' (closes RT-001)",
++    "E2 (abstract, line 155, final clause of the long sentence): replace 'so the price of anarchy stays bounded at both layers' with 'so the price of anarchy is empirically near 1 in calibrated regimes (sigma_r <= 0.1) and is bounded by the cartel folk-theorem threshold sigma^star at the insurer layer; the analytical bound for the agent layer under general reputation noise is open'. (closes RT-002 via WT-008)",
++    "E3 (bibliography, after \\bibitem{aumann1974subjectivity}): add \\bibitem{aumann1987correlated} Robert J. Aumann, 'Correlated Equilibrium as an Expression of Bayesian Rationality', Econometrica 55(1):1-18, 1987, https://doi.org/10.2307/1911154. (closes RT-008 partial)",
++    "E4a (\\S\\ref{sec:correlating-device}, line 284 lead-in to property): change to 'Port Daddy's daemon implements a correlating device in the sense of Aumann~\\cite{aumann1974subjectivity, aumann1987correlated} for the agent-coordination game. Specifically:' so the citation is bound into the property statement. (closes RT-008 + WT-009)",
++    "E4b (\\S\\ref{sec:correlating-device}, line 280, sentence beginning 'Aumann~\\cite{aumann1974subjectivity} introduced'): retain the 1974 conceptual-origin citation at the introducing clause; at the technical-machinery clause ('a randomized strategy profile in which a trusted third party draws a recommendation tuple ... each player's best response -- given posterior beliefs ...') add the 1987 cite: '... the formalization the paper uses is Aumann 1987~\\cite{aumann1987correlated}.' (closes RT-008)",
++    "E5 (\\S\\ref{sec:claim-signaling-ic} 'Critical delta' paragraph, line 713): replace the single sentence 'which solves numerically to delta > delta-star_{k=3} approx 0.253' with the half-paragraph derivation: 'The sustainability condition rearranges to f(delta) = 3delta^3 + 3delta^2 + 3delta - 1 > 0. Evaluating: f(0.25) approx -0.0156 (deviation profitable), f(0.253) approx -4 x 10^{-4} (boundary), f(0.26) approx 0.0355 (deviation strictly unprofitable). The unique real root in [0, 1] is delta-star_{k=3} approx 0.25319, obtainable by Cardano or a single Newton step from delta_0 = 1/4. The grim-trigger limit k -> infinity collapses the inequality to 1 < 3delta/(1 - delta), i.e. delta > 1/4 exactly, recovering the standard prisoner's-dilemma folk bound.' Append: 'A Z3 SMT check of the cubic and a TLA+/Apalache delta-sweep are bundled as proofs/economics/delta-threshold.z3 and proofs/economics/claim-signaling.tla respectively.' (closes WT-002, cites WT-001)",
++    "E6a (\\S\\ref{sec:claim-signaling-ic} prop:claim-signaling-ic statement, line 715-716): promote 'Sybil-resistant identity regime of the Anchor Protocol' to a numbered hypothesis. Insert before the proposition: 'Hypothesis (H_anchor). There exists a trust-anchor primitive rho such that Pr[an adversary controls k identities under rho] <= epsilon(k) * n^{-1} with epsilon non-decreasing in k and epsilon(1) < delta-star_{k=3} * (1 - delta) / (1 - delta^{k+1}) * (c - p)/(d - c). The Anchor Protocol companion paper~\\cite{owens2026anchor} establishes (H_anchor) under the parameters of its \\S6.' Then change the proposition lead-in to 'Under the observable-history regime of \\S\\ref{sec:attribution} and (H_anchor), ...'. (closes RT-007 + WT-003)",
++    "E6b (\\S\\ref{sec:claim-signaling-ic} 'What each condition buys', after line 720 before bullet list): add one-line preface 'Each of the following bullets defends against a specific failure mode the proposition implicitly assumes away; cutting any bullet reopens the corresponding attack.' (closes WT-010)",
++    "E6c (\\S\\ref{sec:claim-signaling-ic} 'What each condition buys', insert as new bullet between current bullet 2 and bullet 3, line 723-724): 'Compromise (rather than absence) of the Anchor identity. The proposition's Sybil hypothesis (H_anchor) names two regimes: (i) the single-use property of the Anchor recovery flow holds (see proofs/bonded/recovery/magic-link.pv, sealed in dialogue-v2.4-to-v2.5), so a compromise costs at most a bounded reputation laundering; (ii) the federated-sovereign threat model is realized and an attacker inherits the victim's accumulated reputation. The proposition binds in regime (i); it does not bind in regime (ii). The correlating-device reframe of \\S\\ref{sec:correlating-device} inherits this scope limitation; the protective remedies live in the Anchor companion paper, not this one.' (closes RT-007)",
++    "E7 (Table~\\ref{tab:threat-bonds} caption, ~line 782): append 'See proofs/bonded/pareto/threat-bands.run.log for Monte Carlo verification that commons-deficit converges to zero and Phase-2 retention floor (>=50%) holds for each band across a threat-mix sweep.' (closes RT-004 via WT-006)",
++    "E8a (\\S\\ref{sec:pricing:bootstrap} head, before Phase 1 paragraph): add framing sentence 'The transition metrics below are starting target bands, calibrated from observed cold-start deployments in two-sided marketplace literature~\\cite{evansschmalensee2010, hagiuwright2015, rochettirole2003}; production deployments revise these from local estimator variance.' (closes RT-005 via WT-007)",
++    "E8b (bibliography): add \\bibitem{evansschmalensee2010} David S. Evans and Richard Schmalensee, 'Failure to Launch: Critical Mass in Platform Businesses', Review of Network Economics 9(4), 2010; \\bibitem{hagiuwright2015} Andrei Hagiu and Julian Wright, 'Multi-Sided Platforms', International Journal of Industrial Organization 43:162-174, 2015; \\bibitem{rochettirole2003} Jean-Charles Rochet and Jean Tirole, 'Platform Competition in Two-Sided Markets', Journal of the European Economic Association 1(4):990-1029, 2003.",
++    "E8c (\\S\\ref{sec:pricing:bootstrap} Phase 1 transition-metric paragraph, line 807): append after 'overfit to noise.' add citation '~\\cite{evansschmalensee2010}'. Apply equivalent cites at Phase 2 (line 814, retention threshold) -> \\cite{hagiuwright2015} and Phase 3 (line 819, repeat-poster threshold) -> \\cite{rochettirole2003}. (closes RT-005 via WT-007)",
++    "E9 (\\S\\ref{sec:pricing:settlement} 'Composition with cartel resistance', after line 848): replace the single sentence 'The same insurer-collusion analysis applies (\\S\\ref{sec:youle:a6}) with the oracles in the role of bidders' with: 'The mapping is explicit. Let v_O in {settle, slash} be Oracles 1 and 2's binary verdict-bias signal (analog of insurer premium q_I); let B_dep^oracle be a per-settlement oracle stake (analog of insurer deposit B_dep, introduced here; see below); let sigma be the human-audit sampling rate (analog of cartel detection probability p_d); let r_O be the per-settlement collusion rent split among colluders (analog of surplus split (q_floor - q^star)). The folk-theorem threshold p_d^star at the insurer layer becomes sigma^star at the oracle layer; the closed-form derivation of \\S\\ref{sec:youle:a6} substitutes one quadruple for the other. The new variable B_dep^oracle is load-bearing: the existing oracle layer has sampling but no stake at risk, so the same-analysis claim is stake-denominated only after the stake is introduced. Require Oracles 1 and 2 to post a per-settlement bond at least equal to a fraction of the disputed bond B_T (the fraction capped per A5's coverage-bound result), so that detection-by-human-audit triggers a slash whose magnitude is in the same currency as the cartel rent. A parameterized TLA+ model covering both layers (proofs/economics/folk-theorem-two-layers.tla) is carried to v2.7; the symbol mapping above is what makes the v2.6 same-analysis claim a substitution rather than an analogy.' (closes RT-006 via WT-004 + cites carried WT-005)"
++  ],
++  "infrastructure_added": [
++    "proofs/economics/claim-signaling.tla (TLA+: two-agent repeated claim-signaling game with three-round graduated trigger; Apalache delta-sweep over {0.20, 0.25, 0.253, 0.30, 0.50, 0.90}; verifies no profitable one-shot deviation from (T,T) for delta > delta-star, produces counter-trace for delta <= delta-star)",
++    "proofs/economics/claim-signaling.cfg (Apalache config)",
++    "proofs/economics/delta-threshold.z3 (SMT: 3delta^3 + 3delta^2 + 3delta - 1 > 0 iff delta > 0.25319; machine-checks the threshold itself)",
++    "proofs/bonded/pareto/threat-bands.mjs (extension of simulation.mjs with threat-mix dimension; verifies commons-deficit -> 0 and Phase-2 retention floor for each band of Table~\\ref{tab:threat-bonds})",
++    "proofs/bonded/pareto/threat-bands.run.log (Monte Carlo run log)",
++    "website-v2/public/whitepaper/figures/fig-correlating-device.tex (TikZ: symmetric tie-break mu; concrete joint distribution with marginals showing non-product structure; cited by \\S\\ref{sec:correlating-device})"
++  ],
++  "infrastructure_carried": [
++    "proofs/economics/folk-theorem-two-layers.tla + .cfg (parameterized two-layer cartel model; insurer + oracle; subsumes v2.5 cartel-formal carry; paid in v2.7 if symbol-mapping defense at \\S\\ref{sec:pricing:settlement} is rejected by review)"
++  ],
++  "mechanization_triage": {
++    "blocking_v2.6": [
++      "proofs/economics/claim-signaling.tla",
++      "proofs/economics/delta-threshold.z3",
++      "proofs/bonded/pareto/threat-bands.mjs"
++    ],
++    "carried_to_v2.7": [
++      "proofs/economics/folk-theorem-two-layers.tla (insurer + oracle layer in one parameterized model; rationale: RT-006 closed by symbol-map edit + existing Monte Carlo; full TLA+ is a 400-600-LOC week-of-author cost paid only on review pushback)"
++    ]
++  },
++  "reputation_deltas": {
++    "defense-econ": "+6 staged (002, 004, 006, 007 closed-by-edit; 003 co-signed; 008 co-signed); +2 artifacts (001 claim-signaling.tla/.z3, threat-bands.mjs); +1 carried (005 two-layer TLA+)",
++    "proof-completer": "+1 co-signed (001); +1 carried (005)",
++    "sec-eng-lead": "+1 round-lead; +2 co-signed (003, 008, 010); +1 synthesis call on RT-006 (symbol-map sufficient for v2.6, TLA+ carried)",
++    "whitehat-defense-fleet": "+10 defenses produced under sealed-namespace read of paper/wave3-bundle; 9 of 10 land in v2.6 as edits or artifacts, 1 (WT-005) carried with explicit rationale",
++    "redteam-review-fleet": "+8 probes; 7 land (closed-by-edit, closed-by-artifact, or closed-by-figure); 1 declined-with-acknowledgment (RT-003) with the generalization carried to a future round"
++  },
++  "synthesis_calls": [
++    {
++      "id": "RT-001-closure",
++      "tension": "RT-001 had no direct white-team counter; operator's pre-decision was that the v2.6 correlating-device figure (1/2-1/2 over (claim,defer)/(defer,claim) at symmetric ties) is the witness mu the probe demanded.",
++      "decision": "Adopt operator's pre-decision. The figure plus the one-sentence binding paragraph (edit E1) closes the probe at the figure level; the formal answer for the production-extension question is WT-005's carried two-layer TLA+ artifact. Without the figure the probe's option (b) -- downgrade to Nash on the augmented game -- would be the correct fix; with the figure the daemon's recommendation is correlated at exactly the points where Nash would not be."
++    },
++    {
++      "id": "RT-006-vs-WT-004-WT-005",
++      "tension": "RT-006 asks for a re-derivation (or simulation) of the deviation-payoff inequality with oracle-specific quantities. WT-004 supplies a symbol-mapping table and a new stake variable B_dep^oracle. WT-005 supplies a parameterized two-layer TLA+ model -- carried, not closed in v2.6.",
++      "decision": "Side with WT-004 for v2.6 closure. The symbol map plus the explicit B_dep^oracle is the minimum that turns the same-analysis claim from hand-wave into substitution. The TLA+ (WT-005) is the right shape for v2.7 if a reviewer rejects the symbol-map defense or asks for the deviation calculation under explicit oracle payoffs. This is a deliberate carry, not a deferral -- the symbol map is doing real work in v2.6."
++    },
++    {
++      "id": "RT-003-decline",
++      "tension": "Red team probe asks for a parametric-form rephrasing of Proposition 7.1; red team's own report acknowledges the arithmetic is correct.",
++      "decision": "Decline-with-acknowledgment. The current statement is a concrete instance with an explicit payoff table -- standard form for a folk-theorem application in a system paper. The generalization (option a or c of the red demand) is carried as a future-round edit if a reviewer asks. Defended the decline against the parametric-sensitivity flank with WT-002's derivation edit (cubic now reader-verifiable) and WT-001's mechanization (TLA+/Z3 machine-check the threshold)."
++    }
++  ],
++  "scope_notes": {
++    "out_of_scope_red": [
++      "RT-v25v26-skip-001 (Figure 1 visual correctness): visual-audit probes are deferred to a future round if needed; not synthesized here.",
++      "RT-v25v26-skip-002 (multi-oracle strategic abstention): the red team explicitly couldn't articulate the sharpest version without simulating the strategic-abstention payoff; not synthesized here. A future probe on strategic abstention from majority voting would compose naturally with WT-005's two-layer TLA+ model when that lands."
++    ],
++    "isolation": "RED authored on worktree-agent-a7572be08e1ebc1c6 with sealed-namespace read of paper/wave3-bundle. WHITE authored on paper/wave3-bundle independent of the red dialogue. Synthesis (this file) authored after reading both. No cross-contamination between red and white drafts."
++  }
++}
+diff --git a/docs/shipwright/v2.5-to-v2.6-edits.md b/docs/shipwright/v2.5-to-v2.6-edits.md
+new file mode 100644
+index 00000000..2ac08146
+--- /dev/null
++++ b/docs/shipwright/v2.5-to-v2.6-edits.md
+
+... [278 more lines truncated]

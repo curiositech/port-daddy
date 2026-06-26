@@ -9,7 +9,9 @@ import { cn } from '@/lib/utils'
 const badgeVariants = cva(
   [
     'inline-flex w-fit shrink-0 items-center justify-center gap-1',
-    'rounded-[var(--radius-sm)] text-xs font-semibold uppercase tracking-wider',
+    'rounded-[var(--radius-sm)] font-semibold uppercase tracking-wider',
+    // Badges are uppercase, tracked-out labels; --type-meta-size (13px) is the floor.
+    'text-[length:var(--type-meta-size)]',
     'whitespace-nowrap transition-all duration-200',
     '[&>svg]:pointer-events-none [&>svg]:size-3',
   ].join(' '),
@@ -25,9 +27,9 @@ const badgeVariants = cva(
         outline: '',
       },
       size: {
-        sm: 'px-2 py-px text-[10px]',
+        sm: 'px-2 py-px',
         md: 'px-2.5 py-0.5',
-        lg: 'px-3 py-1 text-sm',
+        lg: 'px-3 py-1',
       },
     },
     defaultVariants: {
@@ -37,6 +39,9 @@ const badgeVariants = cva(
   }
 )
 
+// Tone variants use design tokens only: a flat surface fill, a tone-colored
+// border, and tone-colored text. The previous color-mix() tints are replaced
+// with the status/brand color on the border and the matching *-on-tint text.
 const variantStyles: Record<string, React.CSSProperties> = {
   default: {
     background: 'var(--surface-overlay)',
@@ -45,32 +50,32 @@ const variantStyles: Record<string, React.CSSProperties> = {
     color: 'var(--text-primary)',
   },
   red: {
-    background: 'color-mix(in srgb, var(--status-error) 15%, var(--surface-base))',
-    border: '1px solid color-mix(in srgb, var(--status-error) 28%, var(--border-subtle))',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--status-error)',
     boxShadow: 'none',
     color: 'var(--status-error-on-tint)',
   },
   teal: {
-    background: 'color-mix(in srgb, var(--brand-secondary) 15%, var(--surface-base))',
-    border: '1px solid color-mix(in srgb, var(--brand-secondary) 28%, var(--border-subtle))',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--brand-secondary)',
     boxShadow: 'none',
     color: 'var(--brand-secondary)',
   },
   gold: {
-    background: 'color-mix(in srgb, var(--brand-accent) 20%, var(--surface-base))',
-    border: '1px solid color-mix(in srgb, var(--brand-accent) 30%, var(--border-subtle))',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--brand-accent)',
     boxShadow: 'none',
     color: 'var(--brand-accent-on-tint)',
   },
   success: {
-    background: 'color-mix(in srgb, var(--status-success) 15%, var(--surface-base))',
-    border: '1px solid color-mix(in srgb, var(--status-success) 28%, var(--border-subtle))',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--status-success)',
     boxShadow: 'none',
     color: 'var(--status-success-on-tint)',
   },
   warning: {
-    background: 'color-mix(in srgb, var(--status-warning) 15%, var(--surface-base))',
-    border: '1px solid color-mix(in srgb, var(--status-warning) 28%, var(--border-subtle))',
+    background: 'var(--surface-raised)',
+    border: '1px solid var(--status-warning)',
     boxShadow: 'none',
     color: 'var(--status-warning-on-tint)',
   },

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="Port Daddy Console">
+  <!--
+    pd-console app icon — the STATIC radar mark on the brand dark chip.
+    Source of truth for assets/branding/pd-console-icon-1024.png (rasterized at
+    1024 via headless Chromium). Rounded squircle-ish tile + cobalt rim matches
+    the website favicon chip; cobalt/seafoam/amber radar replaces the retired
+    Harbor-Heritage helm. No animation (app icons are still).
+  -->
+  <defs>
+    <mask id="pd-icon-intersection" maskContentUnits="userSpaceOnUse">
+      <g stroke="white" stroke-width="14" stroke-linecap="butt" fill="none">
+        <line x1="110" y1="110" x2="110" y2="210" />
+        <circle cx="135" cy="135" r="25" />
+      </g>
+    </mask>
+  </defs>
+
+  <!-- Tile: brand near-black with a thin cobalt rim. Transparent outside. -->
+  <rect x="46" y="46" width="932" height="932" rx="208" fill="#070B12" stroke="#2076FE" stroke-width="8" />
+
+  <!-- Static radar mark, centered with padding (640x640 in 300-unit space). -->
+  <svg x="192" y="192" width="640" height="640" viewBox="0 0 300 300">
+    <g stroke="#1A2434" stroke-width="1.5" fill="none">
+      <circle cx="150" cy="150" r="45" />
+      <circle cx="150" cy="150" r="90" />
+      <circle cx="150" cy="150" r="135" />
+      <line x1="15" y1="150" x2="285" y2="150" stroke-dasharray="4 4" />
+      <line x1="150" y1="15" x2="150" y2="285" stroke-dasharray="4 4" />
+      <line x1="55" y1="55" x2="245" y2="245" stroke-dasharray="2 6" />
+      <line x1="55" y1="245" x2="245" y2="55" stroke-dasharray="2 6" />
+    </g>
+    <g>
+      <circle cx="150" cy="150" r="125" fill="none" stroke="#20DEB0" stroke-width="2.5" stroke-dasharray="1 8" stroke-linecap="round" opacity="0.75"/>
+      <path d="M 145 25 L 155 25" stroke="#20DEB0" stroke-width="3.5" fill="none" />
+      <path d="M 145 275 L 155 275" stroke="#20DEB0" stroke-width="3.5" fill="none" />
+      <path d="M 25 145 L 25 155" stroke="#20DEB0" stroke-width="3.5" fill="none" />
+      <path d="M 275 145 L 275 155" stroke="#20DEB0" stroke-width="3.5" fill="none" />
+    </g>
+    <g>
+      <circle cx="150" cy="150" r="105" fill="none" stroke="#FFB505" stroke-width="2.5" stroke-dasharray="40 10 5 10" opacity="0.85"/>
+      <circle cx="150" cy="150" r="115" fill="none" stroke="#2076FE" stroke-width="2" stroke-dasharray="2 4" opacity="0.65"/>
+    </g>
+    <g stroke="#2076FE" stroke-width="2.5" fill="none">
+      <path d="M 213 87 A 90 90 0 0 0 187 68" />
+      <path d="M 87 87 A 90 90 0 0 1 113 68" />
+      <path d="M 213 213 A 90 90 0 0 1 187 232" />
+      <path d="M 87 213 A 90 90 0 0 0 113 232" />
+    </g>
+    <g stroke="#2076FE" stroke-width="14" stroke-linecap="butt" fill="none">
+      <line x1="110" y1="110" x2="110" y2="210" />
+      <circle cx="135" cy="135" r="25" />
+    </g>
+    <g stroke="#20DEB0" stroke-width="14" stroke-linecap="butt" fill="none">
+      <line x1="190" y1="190" x2="190" y2="90" />
+      <circle cx="165" cy="165" r="25" />
+    </g>
+    <g stroke="#FFB505" stroke-width="14" stroke-linecap="butt" fill="none" mask="url(#pd-icon-intersection)">
+      <line x1="190" y1="190" x2="190" y2="90" />
+      <circle cx="165" cy="165" r="25" />
+    </g>
+    <circle cx="150" cy="150" r="5" fill="#070B12" stroke="#2076FE" stroke-width="2.5"/>
+  </svg>
+</svg>

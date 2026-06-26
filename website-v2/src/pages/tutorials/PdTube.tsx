@@ -34,7 +34,7 @@ export function PdTube() {
           <p>
             <code>pd tube</code> wraps the daemon&apos;s message channels in a tiny thread-aware
             envelope. It is meant for operator-visible agent handoffs: a single command both delivers
-            a reply <em>and</em> blocks for the next event. That is what unlocks the agent loop:
+            a reply <em>and</em> blocks for the next event. That is what makes the agent loop work:
             every invocation returns, the bash tool yields, the model decides what to reply, and the
             next call posts the answer.
           </p>

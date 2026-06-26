@@ -1,4 +1,3 @@
-import { Badge } from '@/components/ui/Badge'
 import { DocsCodeBlock } from '@/components/docs/DocsCodeBlock'
 import { Link } from 'react-router-dom'
 import { ArrowRight, AlertCircle } from 'lucide-react'
@@ -8,16 +7,13 @@ export default function PortsFeature() {
     <div className="space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="teal">Feature</Badge>
-          <Badge variant="success">Core</Badge>
-        </div>
         <h1 className="text-4xl font-semibold text-[var(--text-primary)] tracking-tight">
           Atomic Port Assignment
         </h1>
         <p className="text-lg text-[var(--text-secondary)] leading-relaxed max-w-3xl">
-          Deterministic hashing ensures semantic identities like <code>myapp:api</code> always
-          map to the same port across restarts and swarms. No more port conflicts.
+          A name like <code>myapp:api</code> always maps to the same port — across restarts and
+          across agents working at once. The mapping is computed from the name, so two agents that
+          ask for the same name get the same port and never collide.
         </p>
       </div>
 
@@ -74,17 +70,17 @@ Port 3001 assigned to myapp:api:main`}
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">project</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Your project name</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">e.g., myapp, frontend, api</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., myapp, frontend, api</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">stack</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Service layer</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">e.g., api, web, worker</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., api, web, worker</p>
           </div>
           <div className="p-3 rounded-lg bg-[var(--surface-raised)] border border-[var(--border-subtle)]">
             <code className="text-[var(--brand-primary)] font-mono">context</code>
             <p className="text-sm text-[var(--text-muted)] mt-1">Environment/context</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">e.g., main, dev, test</p>
+            <p className="text-[length:var(--type-meta-size)] text-[var(--text-muted)] mt-1">e.g., main, dev, test</p>
           </div>
         </div>
       </div>

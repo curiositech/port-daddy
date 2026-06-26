@@ -1,10 +1,10 @@
 # The Control Plane Is the Product
 
-Most agent tools still present themselves as either a chat box, a hosted runner, or a pile of prompts. That is fine for a demo. It breaks down the moment software work becomes concurrent, stateful, expensive, and local to a developer machine.
+Two agents, the same module, ten minutes apart. The first one finishes a careful refactor of the billing route. The second — different terminal, different prompt, no idea the first ever existed — opens the same file, "fixes" it back, and force-pushes. You find out the next morning, reading a chat transcript that cheerfully says *I fixed the auth flow* in both windows. Neither agent did anything unreasonable. The text was fine. What was missing was everything around the text: who owned the file, which daemon was serving the app, whether the spend was accounted for, what changed since you looked away.
 
-Port Daddy starts from a different premise: the hard part is not generating text. The hard part is operating a set of agents around a real repo without losing ownership, runtime truth, spend control, or the human's ability to intervene. The control plane is not decoration around the product. The control plane is the product.
+That gap is the whole job. The hard part of agent work is not generating the diff — models are good at diffs now. The hard part is operating a set of agents around a real repo without losing ownership, runtime truth, spend control, or the ability to step in. So the control plane is not decoration around the product. The control plane is the product.
 
-![Fleet Control Center showing project flow and live agent work](/media/landing-live-glory/live-flow-light.png)
+![The Fleet Control Center mid-run: the active project at top, file claims and live agent lanes below, so a second agent could have seen the first one already owned billing.ts before touching it](/media/landing-live-glory/live-flow-light.webp)
 
 The usual agent stack treats orchestration as something hidden behind the tool. You press a button, a remote process runs, and maybe a transcript arrives later. Port Daddy makes the orchestration itself inspectable: which project is active, which files are claimed, which agents are live, which events fired, which backend is ready, which launch was blocked, and what evidence exists for the next person or agent to resume.
 
@@ -14,7 +14,7 @@ That is a very different developer experience. It feels less like asking a chatb
 
 Chat is an excellent human interface for intent. It is a weak system of record.
 
-A chat transcript can say "I fixed the auth flow." It cannot, by itself, prove which files were touched, whether another agent already claimed the same module, whether the local daemon that will serve the app is the daemon you think it is, or whether the selected model backend can account for spend.
+A chat transcript can say "I fixed the auth flow." It cannot, by itself, prove which files were touched, whether another agent already claimed the same module, whether the local daemon that will serve the app is the daemon you think it is, or whether the selected model backend can [account for spend](/blog/telemetry-is-a-launch-gate).
 
 Software teams solved this class of problem before. We do not use only Slack to deploy production. We use CI, logs, ownership, rollbacks, issue trackers, tracing, locks, and release gates. Agentic software work needs the same seriousness, but scaled down to the local machine where the work is actually happening.
 
@@ -24,9 +24,9 @@ Port Daddy's control plane answers operational questions that chat-centric tools
 | --- | --- |
 | What project is this work attached to? | The same developer can have five repos open and several local services running. |
 | Which agent or human owns this file right now? | Concurrent edits without ownership are how good work gets overwritten. |
-| Is this backend actually launchable? | An API key is not the same as a working SDK, model catalog, and telemetry path. |
+| Is this backend actually launchable? | An API key is not the same as a [working SDK, model catalog, and telemetry path](/blog/backend-readiness-is-dependency-truth). |
 | What event caused this agent to wake up? | Background automation without provenance becomes spooky action at a distance. |
-| What changed since I last looked? | Recovery depends on evidence, not a hopeful status label. |
+| What changed since I last looked? | Recovery depends on [evidence, not a hopeful status label](/blog/recovery-roadmap-map-truth). |
 
 The control plane exists because these are not edge cases. They are the normal shape of agent-assisted development in 2026.
 
@@ -34,6 +34,7 @@ The control plane exists because these are not edge cases. They are the normal s
 
 Port Daddy is a local coordination substrate. It runs near the repo, exposes CLI and MCP surfaces, and projects state into FleetBar and the Fleet Control Center. The pieces are deliberately boring in the way durable infrastructure should be boring:
 
+<!-- figure: Every surface — FleetBar, the Console, the pd CLI, MCP clients — talks to one local daemon, which is why a terminal command and a UI button can't disagree about who owns a file. -->
 ```mermaid
 flowchart LR
   Human["developer"] --> FleetBar["FleetBar"]
@@ -58,7 +59,7 @@ Here is a minimal loop for a software engineer who wants help on a route handler
 
 <!-- terminal -->
 ```bash
-$ pd begin "Tighten billing route error handling" --identity web:billing
+$ pd begin "Tighten billing route error handling" --identity web:billing --lifecycle durable
 $ pd session files add apps/web/src/routes/billing.ts
 $ pd note "Intent: preserve API shape, add retry-safe validation, run route tests."
 $ pd agent "Review the billing route for idempotency and missing test cases" --backend codex --model-tier low
@@ -75,7 +76,7 @@ This is not ceremony. Each command creates operational state:
 
 Most tools optimize only the fourth step: "start an agent." Port Daddy cares about the steps around it, because those are where real teams lose time.
 
-![Fleet Control Center showing active agent lanes](/media/landing-live-glory/live-agents-panel-light.png)
+![Active agent lanes in the Fleet Control Center — each agent's claimed files, current note, and backend shown in its own lane, which is the operational state those five commands create](/media/landing-live-glory/live-agents-panel-light.webp)
 
 ## Why Local Matters
 
@@ -87,7 +88,7 @@ Your development environment has facts that a hosted runner usually cannot infer
 - which local services are actually bound;
 - which app build is being served in the browser;
 - whether a native companion app is looking at the same daemon;
-- whether a generated artifact is stale;
+- whether [a generated artifact is stale](/blog/running-is-not-current);
 - which file claims and notes exist from earlier work;
 - whether the current repo has its own policy about agent launch and commit boundaries.
 
@@ -99,7 +100,7 @@ That local posture also changes trust. A developer can see the launch gate befor
 
 FleetBar should not be thought of as a pretty wrapper around CLI commands. The native app is the fast path into the same operational truth.
 
-![FleetBar native shell with the local control plane](/img/app-screens/fleetbar-native-shell-light.png)
+![The FleetBar native shell surfacing the current project, blocked backends, and the last handoff at a glance — the fast path into the same daemon truth, not a button that just spawns an agent](/img/app-screens/fleetbar-native-shell-light.webp)
 
 The useful native surface is not "spawn agent." It is:
 
@@ -125,6 +126,7 @@ Port Daddy is closer to a local control plane. It does not try to replace the mo
 
 That difference matters most when the work becomes parallel:
 
+<!-- figure: Two agents working in parallel through the daemon — claims and notes keep them from colliding, and the guard check at the end blocks the commit unless staged files match the claimed scope. -->
 ```mermaid
 sequenceDiagram
   participant Dev as Developer

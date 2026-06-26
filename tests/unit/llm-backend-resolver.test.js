@@ -160,7 +160,9 @@ describe('resolveLLMBackend — full transport resolution', () => {
       const { transport } = resolveLLMBackend({ actor: 'judge', env });
       const ctrl = new AbortController();
       const r = await transport.complete({ prompt: 'p', model: '', signal: ctrl.signal });
-      expect(r).toEqual({ ok: true, text: '{"intervene": true}' });
+      // cloudflareAdapter now also surfaces `raw` (the parsed result) for
+      // transcript reconstruction — assert the stable fields, not exact equality.
+      expect(r).toMatchObject({ ok: true, text: '{"intervene": true}' });
       const [url, opts] = fetchSpy.mock.calls[0];
       expect(url).toContain('/accounts/acct-123/ai/run/');
       expect(opts.headers.Authorization).toBe('Bearer tok-abc');

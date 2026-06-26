@@ -46,6 +46,7 @@ const COMMANDS_DIR = join(ROOT, 'cli', 'commands');
  */
 const SLUG_VERB_OVERRIDES = {
   resurrection: ['salvage', 'resurrection'],
+  berths: ['dev', 'use'], // ADR-0084: pd dev up/down/list + pd use targeting
   daemon: ['start', 'stop', 'restart', 'install', 'uninstall', 'daemon', 'dev'],
   diagnostics: ['ports', 'health', 'metrics', 'config', 'dashboard', 'doctor', 'diagnose', 'status', 'version', 'hints'],
   services: ['claim', 'release', 'find', 'url', 'env', 'ports'],

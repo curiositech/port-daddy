@@ -13,6 +13,8 @@
  *   pd tube <channel> --reply=<id> --send      # LEGACY: numeric --reply means parent id; prefer --reply-to
  *   pd tube <channel> --send                   # read stdin to EOF, post top-level
  *   pd tube <channel> --send <body>            # inline top-level body
+ *   pd tube <ch> --reply "no, see X" --relationship contradicts --performative inform
+ *                                              # typed discourse move: act + argumentative stance (RCP-14)
  *   pd tube <channel> --no-history             # listen without touching the cursor
  *   pd tube <channel> --limit=N                # initial backfill cap (default 50)
  *
@@ -38,12 +40,17 @@ import {
   reply,
   send,
   synthesizeSender,
+  PERFORMATIVES,
+  DISCOURSE_RELATIONSHIPS,
+  type ConversationMeta,
   type HistoryStore,
   type ListenResult,
   type RawDaemonMessage,
   type TubeClient,
   type TubeMessage,
 } from '../../lib/tube.js';
+import { buildLineage, summarizeThread, renderLineageTree } from '../../lib/discourse-lineage.js';
+import { shouldConvene } from '../../lib/parley-trigger.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Daemon client (HTTP shim over pdFetch)
@@ -251,6 +258,38 @@ function parseNumberOption(raw: unknown, label: string): number {
 }
 
 /**
+ * Build the typed conversation metadata from `--performative`,
+ * `--relationship`, and `--conversation-id`. Invalid enum values are a hard
+ * error (explicit operator input, unlike the lenient drop-on-decode path for
+ * untrusted wire data). Returns `undefined` when no meta flags were passed, so
+ * the envelope stays in its pre-Phase-0 shape.
+ */
+export function buildMetaFromOptions(options: CLIOptions): ConversationMeta | undefined {
+  const meta: ConversationMeta = {};
+
+  const perf = options.performative;
+  if (typeof perf === 'string') {
+    if (!(PERFORMATIVES as readonly string[]).includes(perf)) {
+      throw new Error(`tube: unknown --performative ${JSON.stringify(perf)} — one of: ${PERFORMATIVES.join(', ')}`);
+    }
+    meta.performative = perf as ConversationMeta['performative'];
+  }
+
+  const rel = options.relationship;
+  if (typeof rel === 'string') {
+    if (!(DISCOURSE_RELATIONSHIPS as readonly string[]).includes(rel)) {
+      throw new Error(`tube: unknown --relationship ${JSON.stringify(rel)} — one of: ${DISCOURSE_RELATIONSHIPS.join(', ')}`);
+    }
+    meta.relationship = rel as ConversationMeta['relationship'];
+  }
+
+  const conv = options['conversation-id'] ?? options.conversation;
+  if (typeof conv === 'string' && conv) meta.conversationId = conv;
+
+  return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
+/**
  * `pd tube` entry point.
  *
  * Listen mode (default): emits the prose crank-handle for each new event;
@@ -265,7 +304,7 @@ function parseNumberOption(raw: unknown, label: string): number {
  */
 export async function handleTube(channel: string | undefined, options: CLIOptions, deps: TubeHandlerDeps = {}): Promise<void> {
   if (!channel) {
-    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history]');
+    ui.error('Usage: pd tube <channel> [--reply <body> [--reply-to=<id>] | --reply-to=<id> < body | --send <body> | --send | --lineage [--conversation-id <id>] [--parley-cost <n> --waste-per-contradiction <n>] | --once | --tail | --wait-for=<seconds> | --raw | --json | --no-history] [--performative <act> --relationship <stance> --conversation-id <id>]');
     process.exit(1);
   }
 
@@ -398,7 +437,7 @@ export async function handleTube(channel: string | undefined, options: CLIOption
         body = replyArg.body;
       }
 
-      const result = await reply(physical, parentId, body, client, { sender: selfSender });
+      const result = await reply(physical, parentId, body, client, { sender: selfSender, meta: buildMetaFromOptions(options) });
       reportPost(result.id);
     } catch (e) {
       ui.error((e as Error).message);
@@ -421,8 +460,68 @@ export async function handleTube(channel: string | undefined, options: CLIOption
       let body: string;
       if (sendArg.kind === 'inline') body = sendArg.body;
       else body = await bodyFromStdin();
-      const result = await send(physical, body, client, { sender: selfSender });
+      const result = await send(physical, body, client, { sender: selfSender, meta: buildMetaFromOptions(options) });
       reportPost(result.id);
+      return;
+    } catch (e) {
+      ui.error((e as Error).message);
+      process.exit(1);
+      return;
+    }
+  }
+
+  // ── --lineage: render the argument graph over the channel backlog ───────
+  // (RCP-14). Pulls the full backlog, builds the typed inReplyTo graph, and
+  // prints a digest (zoom-out) + tree (zoom-in). Optionally scoped to one
+  // --conversation-id.
+  if (options.lineage) {
+    try {
+      const res = await listen(physical, client, history, { disableHistory: true, limit: 2000 });
+      let msgs = res.messages;
+      const convFilter = options['conversation-id'] ?? options.conversation;
+      if (typeof convFilter === 'string' && convFilter) {
+        msgs = msgs.filter((m) => m.conversationId === convFilter);
+      }
+      const graph = buildLineage(msgs);
+      const digest = summarizeThread(graph);
+      // Parley recommendation (RCP-2a / ADR-0086): should the swarm convene over
+      // the unresolved contradictions? Costs are tunable; defaults are unit-scaled.
+      const num = (v: unknown, d: number) => {
+        const n = typeof v === 'string' ? Number(v) : NaN;
+        return Number.isFinite(n) ? n : d;
+      };
+      const parley = shouldConvene(digest, {
+        wastePerUnresolved: num(options['waste-per-contradiction'], 2),
+        parleyCost: num(options['parley-cost'], 1),
+      });
+      if (emitMode === 'json') {
+        console.log(JSON.stringify({
+          ok: true,
+          channel: physical,
+          ...(graph.conversationId ? { conversationId: graph.conversationId } : {}),
+          digest: { ...digest },
+          parley,
+          tree: renderLineageTree(graph),
+        }));
+      } else {
+        const head = `Discourse lineage · ${formatResolvedChannel(resolved)}${graph.conversationId ? ` · conversation ${graph.conversationId}` : ''}`;
+        const relBits = Object.entries(digest.byRelationship).filter(([, n]) => n > 0).map(([k, n]) => `${k}=${n}`);
+        const parleyLine = parley.convene
+          ? `▶ parley recommended (${parley.shape}): ${parley.reason}`
+          : `· no parley: ${parley.reason}`;
+        const summary = [
+          head,
+          `${digest.total} message(s) · ${digest.participants.length} participant(s) · depth ${digest.maxDepth}`,
+          relBits.length > 0 ? `stances: ${relBits.join(' · ')}` : 'stances: (none typed)',
+          digest.unresolvedContradictions.length > 0
+            ? `⚠ ${digest.unresolvedContradictions.length} unresolved contradiction(s): ${digest.unresolvedContradictions.map((e) => `#${e.from}→#${e.to}`).join(', ')}`
+            : '',
+          parleyLine,
+          '',
+          renderLineageTree(graph) || '(no messages)',
+        ].filter((l) => l !== '').join('\n');
+        console.log(summary);
+      }
       return;
     } catch (e) {
       ui.error((e as Error).message);

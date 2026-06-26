@@ -1,0 +1,53 @@
+(*
+ * Port Daddy: GitHub-App-via-Relay — MULTI-TENANT ISOLATION (VULNERABLE)
+ * ======================================================================
+ *
+ * NEGATIVE CONTROL for github_ingress_tenant_isolation.pv. Models the WRONG
+ * design the relay code explicitly avoids: trusting the card's self-declared
+ * harbor (card.iss) instead of authoritative D1 membership. The only change from
+ * the fixed model: the publish verifier accepts the daemon's self-asserted
+ * harbor with NO membership credential check.
+ *
+ * A member of tenant A simply declares harbor = B and publishes into B's
+ * namespace — cross-tenant. This is the "guessable / self-asserted tenant id"
+ * multi-tenant anti-pattern.
+ *
+ * EXPECTED RESULT:
+ *   query event(AcceptPublish(harborB, d)) ==> false   is FALSE  (cross-tenant)
+ *
+ * Pairing FALSE here against the fixed model's TRUE proves the membership check
+ * is load-bearing — isolation is enforced, not conventional.
+ *)
+
+type skey.  type pkey.
+
+free c: channel.
+
+fun pk(skey): pkey.
+fun sign(bitstring, skey): bitstring.
+reduc forall m: bitstring, k: skey; checksign(m, pk(k), sign(m, k)) = true.
+
+free harborA: bitstring.
+free harborB: bitstring.
+free daemonD: bitstring.
+free relay_sk: skey [private].
+
+event AcceptPublish(bitstring, bitstring).
+
+query d: bitstring; event(AcceptPublish(harborB, d)) ==> false.
+
+(* VULNERABLE verifier: trusts the self-declared harbor; no membership check. *)
+let RelayPublishVerifierVuln() =
+    in(c, (sub: bitstring, harbor: bitstring));
+    event AcceptPublish(harbor, sub).
+
+(* A member of A declares harbor B and publishes into it. *)
+let DaemonDCrossTenant() =
+    out(c, (daemonD, harborB)).
+
+process
+    out(c, pk(relay_sk));
+    (
+        (! RelayPublishVerifierVuln())
+      | (! DaemonDCrossTenant())
+    )

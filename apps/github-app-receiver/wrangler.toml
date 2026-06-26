@@ -1,34 +1,32 @@
-# Cloudflare Worker config for the GitHub App webhook receiver.
+# Cloudflare Worker — GitHub App webhook receiver + cloud fleet executor.
 #
-# Two values must be set by the operator before `wrangler deploy`:
+# No tunnel, no daemon, no Anthropic API key required.
+# Fleet ships run entirely via Cloudflare Workers AI.
 #
-#   1. GITHUB_WEBHOOK_SECRET (secret)
-#         echo "<value>" | wrangler secret put GITHUB_WEBHOOK_SECRET
-#      Must match the webhook secret registered on the GitHub App.
+# Secrets (set via `wrangler secret put <NAME>` before first deploy):
+#   GITHUB_WEBHOOK_SECRET   — HMAC secret matching the GitHub App webhook setting
+#   GITHUB_APP_PRIVATE_KEY  — RSA private key PEM (base64-encoded or raw with \n)
 #
-#   2. DAEMON_FORWARD_URL (var, set below or via secret if sensitive)
-#      The HTTPS URL the operator's Port Daddy daemon (or its public
-#      tunnel — smee.io for dev, cloudflared / ngrok / Tailscale Funnel
-#      for prod) listens on. The Worker POSTs the normalized webhook
-#      envelope to this URL.
-#
-# Optional:
-#   FORWARD_AUTH_TOKEN (secret) — bearer token the daemon expects.
-#         echo "<value>" | wrangler secret put FORWARD_AUTH_TOKEN
-#   FORWARD_TIMEOUT_MS (var)    — forward timeout in ms (default 8000).
+# To deploy:
+#   cd apps/github-app-receiver
+#   echo "<secret>" | wrangler secret put GITHUB_WEBHOOK_SECRET
+#   cat ~/.cloudflared/github-app.pem | base64 | wrangler secret put GITHUB_APP_PRIVATE_KEY
+#   wrangler deploy
 
 name = "github-app-receiver"
 main = "src/worker.ts"
 compatibility_date = "2026-05-01"
 
-# Override per environment with `--env <name>` or `[env.production]` blocks.
 [vars]
-DAEMON_FORWARD_URL = "https://plain-coins-nyc-generated.trycloudflare.com/fleet/github/webhook"
-FORWARD_TIMEOUT_MS = "8000"
+# Numeric GitHub App ID (visible on the App settings page at github.com/settings/apps)
+GITHUB_APP_ID = "3810450"
+
+[ai]
+binding = "AI"
 
 [observability]
 enabled = true
 
 # Secrets (do not commit values):
 #   GITHUB_WEBHOOK_SECRET
-#   FORWARD_AUTH_TOKEN   (optional)
+#   GITHUB_APP_PRIVATE_KEY

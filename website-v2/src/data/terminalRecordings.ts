@@ -175,6 +175,36 @@ const exampleRecordings: Record<string, RecordingSpec> = {
       'This clip shows the webhook adapter pattern the example teaches: accept an incoming event, publish it once, and let the local agent own the response.',
     commands: ['pd status', 'pd tube docs:example-recording --once --no-history --limit=1'],
   },
+  'swarm-coordination-board': {
+    title: 'Watch swarm stages hand off on one channel',
+    caption:
+      'Each stage posts its status to a shared channel and reads the previous one back — the same hand-off the example wires into a four-agent swarm.',
+    commands: ['pd status', 'pd pub examples:swarm \'{"stage":"build"}\' --raw-channel', 'pd tube examples:swarm --once --limit=2'],
+  },
+  'coordination-file-guard': {
+    title: 'See a file claim block a second writer',
+    caption:
+      'An agent claims a service identity, the claim is visible to anyone who looks, and releasing it frees the resource — the guard pattern the example teaches for files.',
+    commands: ['pd status', 'pd claim demo:auth:main --json', 'pd find demo:auth:main', 'pd release demo:auth:main'],
+  },
+  'preview-tunnel': {
+    title: 'Inspect tunnel readiness before sharing a preview',
+    caption:
+      'The example checks which tunnel providers are installed and whether any tunnel is live before exposing a local preview — start on demand, never by accident.',
+    commands: ['pd status', 'npx tsx examples/tunnel/share-preview.ts inspect', 'pd tunnel --help'],
+  },
+  'services-dns': {
+    title: 'Let services find each other by name',
+    caption:
+      'A service claims a semantic identity, another looks it up by the same name, and the port is deterministic — the discovery pattern the example builds across three services.',
+    commands: ['pd status', 'pd claim shop:api:main --json', 'pd find shop:api:main', 'pd release shop:api:main'],
+  },
+  'war-room-incident': {
+    title: 'Watch incident findings land on a shared channel',
+    caption:
+      'Each responder posts a finding to one channel and the whole room reads the trail back — the shared-context pattern the three-agent war room is built on.',
+    commands: ['pd status', 'pd pub examples:war-room \'{"agent":"db","finding":"…"}\' --raw-channel', 'pd tube examples:war-room --once --limit=2'],
+  },
 }
 
 export const TUTORIAL_RECORDINGS: TerminalRecording[] = Object.entries(tutorialRecordings).map(([slug, spec]) => ({

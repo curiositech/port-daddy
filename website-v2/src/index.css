@@ -518,8 +518,8 @@ pre code {
     padding: 0 0 0 var(--space-3);
     border-left: 1px solid var(--border-default);
     background: transparent;
-    /* Tufte caption baseline. 13px floor, line-height generous. */
-    font-size: 0.8125rem;           /* 13px */
+    /* Tufte caption baseline. ≥14px per vision rule. */
+    font-size: 0.875rem;            /* 14px — a11y bump from 13px */
     line-height: 1.5;
   }
 
@@ -566,14 +566,16 @@ pre code {
   padding-bottom: clamp(var(--space-4), 4vw, var(--space-8)) !important;
 }
 
+/* Diagrams render as a theme-INDEPENDENT light "paper" card (dark-on-cream),
+   so they read identically in light and dark mode. A faint brand corner keeps
+   the house texture without sacrificing contrast. Content-sized — no forced
+   min-height that floated the diagram in a tall empty box. */
 .pd-docs-mermaid {
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 12%, transparent) 0 18%, transparent 18% 100%),
-    linear-gradient(90deg, color-mix(in srgb, var(--brand-accent) 16%, transparent), transparent 44%),
-    var(--surface-raised) !important;
-  border: 2px solid var(--border-strong) !important;
+    linear-gradient(135deg, color-mix(in srgb, #003fb8 7%, transparent) 0 16%, transparent 16% 100%),
+    #f7f3eb !important;
+  border: 2px solid #1a1a2e !important;
   padding: clamp(var(--space-4), 2.2vw, var(--space-7)) !important;
-  min-height: clamp(24rem, 38vw, 42rem);
   align-items: center;
 }
 
@@ -584,11 +586,25 @@ pre code {
   height: auto;
 }
 
+/* Text fills only — must NOT match the actor box <rect class="actor">, which
+   would paint the participant boxes solid ink and hide their labels. */
 .pd-docs-mermaid svg text,
 .pd-docs-mermaid svg .label,
-.pd-docs-mermaid svg .nodeLabel {
+.pd-docs-mermaid svg .nodeLabel,
+.pd-docs-mermaid svg .messageText,
+.pd-docs-mermaid svg text.actor,
+.pd-docs-mermaid svg .loopText,
+.pd-docs-mermaid svg .noteText {
   font-family: var(--font-sans) !important;
   line-height: 1.12 !important;
+  fill: #1a1a2e !important;
+}
+
+/* Participant boxes: cream fill, ink outline (theme-independent paper look). */
+.pd-docs-mermaid svg rect.actor,
+.pd-docs-mermaid svg .actor-box {
+  fill: #f7f3eb !important;
+  stroke: #1a1a2e !important;
 }
 
 .pd-docs-mermaid svg foreignObject {
@@ -597,8 +613,8 @@ pre code {
 
 .pd-docs-mermaid svg .edgeLabel,
 .pd-docs-mermaid svg .edgeLabel span {
-  background: var(--text-primary) !important;
-  color: var(--text-inverse) !important;
+  background: #f7f3eb !important;
+  color: #1a1a2e !important;
   font-size: 15px !important;
 }
 
@@ -751,4 +767,152 @@ pre code {
 
 .pulse-active {
   animation: pulse-active 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── pd-tube wire animations ─────────────────────────────────────────────────
+   One-shot pulses for the TubeWire primitive. These travel along a 28px wire.
+   They never loop (forwards, single run). The global reduced-motion block above
+   collapses their duration, and TubeWire.tsx additionally renders a static dot
+   instead of an animated one when prefers-reduced-motion is set. */
+@keyframes tube-travel {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 1; transform: translateX(18px); }
+}
+@keyframes tube-travel-back {
+  0% { opacity: 1; transform: translateX(18px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes tube-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tube-pulse-go {
+  left: 0;
+  animation: tube-travel 0.55s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+.tube-pulse-back {
+  right: 0;
+  animation: tube-travel-back 0.55s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+.tube-card-rise {
+  animation: tube-rise 0.25s ease-out;
+}
+
+/* Red-to-Green demo: the status bar wipes from the failing (red) fill to the
+   passing (green) fill on reply. The green layer is revealed left→right via an
+   expanding inset clip. Under prefers-reduced-motion the green state is applied
+   instantly with no wipe (callers gate the class, and this guard is a backstop). */
+@keyframes tube-rg-wipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.tube-rg-wipe {
+  animation: tube-rg-wipe 0.6s cubic-bezier(0.5, 0, 0.25, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-rg-wipe {
+    animation: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* Fan-Out Wall demo: one send pulse leaves the sender, reaches a junction, and
+   forks into three teal-bound branches that travel out to the three agent
+   nodes. The trunk pulse runs cobalt left→right; the three branch pulses fan
+   to their lanes with a small stagger so the eye reads "one became three". The
+   branch travel is expressed with custom properties so each lane can aim at its
+   own vertical offset. Under prefers-reduced-motion the pulses are suppressed
+   (the global block collapses duration) and callers render static dots. */
+@keyframes tube-fork-trunk {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 1; transform: translateX(var(--fork-trunk-x, 24px)); }
+}
+@keyframes tube-fork-branch {
+  0% { opacity: 0; transform: translate(0, 0); }
+  12% { opacity: 1; }
+  100% { opacity: 1; transform: translate(var(--fork-branch-x, 40px), var(--fork-branch-y, 0)); }
+}
+.tube-fork-trunk {
+  left: 0;
+  animation: tube-fork-trunk 0.32s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+}
+.tube-fork-branch {
+  animation: tube-fork-branch 0.42s cubic-bezier(0.4, 0, 0.4, 1) forwards;
+  animation-delay: var(--fork-delay, 0.3s);
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-fork-trunk,
+  .tube-fork-branch {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Editor Lightbulb demo: the gutter lightbulb is the signature beat. On a fire
+   it "lights up" — a one-shot flare (quick brighten, soft settle) plus a single
+   expanding ring that fades out. It never loops. Under prefers-reduced-motion the
+   bulb switches to its lit state instantly with no flare or ring (the global
+   block collapses the duration; these guards are a backstop and EditorLightbulb.tsx
+   additionally skips rendering the ring). */
+@keyframes tube-lamp-flare {
+  0% { opacity: 0.55; transform: scale(0.96); }
+  35% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes tube-lamp-ring {
+  0% { opacity: 0.55; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+.tube-lamp-flare {
+  animation: tube-lamp-flare 0.5s cubic-bezier(0.34, 1.4, 0.5, 1) forwards;
+}
+.tube-lamp-ring {
+  animation: tube-lamp-ring 0.6s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-lamp-flare {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .tube-lamp-ring {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* War Room demo: agents talk to each other on one channel. When one agent's
+   message replies-to another's, a teal provenance arrow is drawn between the two
+   cards so the argument's lineage is visible. The arrow's stroke is "drawn" via
+   stroke-dashoffset on each new link; it never loops (forwards, single run).
+   Under prefers-reduced-motion the arrow is static (no draw), and a fresh agent
+   card appears without a rise (callers gate tube-card-rise on the motion read).
+   The ROOT CAUSE banner flares once (a single brighten/settle) when it lands. */
+@keyframes tube-arrow-draw {
+  from { stroke-dashoffset: var(--arrow-len, 240); }
+  to { stroke-dashoffset: 0; }
+}
+.tube-arrow-draw {
+  animation: tube-arrow-draw 0.5s cubic-bezier(0.5, 0, 0.25, 1) forwards;
+}
+@keyframes tube-rootcause-flare {
+  0% { opacity: 0; transform: translateY(8px); }
+  60% { opacity: 1; transform: translateY(-1px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.tube-rootcause-flare {
+  animation: tube-rootcause-flare 0.45s cubic-bezier(0.34, 1.3, 0.5, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tube-arrow-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .tube-rootcause-flare {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }

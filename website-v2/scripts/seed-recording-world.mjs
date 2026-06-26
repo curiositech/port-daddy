@@ -247,12 +247,14 @@ async function seedWorld() {
     'begin',
     '--identity', 'port-daddy:api:main',
     '--purpose', 'Implement OAuth token refresh',
+    '--lifecycle', 'durable',
     '--allow-main-worktree',
   )
   await pdQ(
     'begin',
     '--identity', 'port-daddy:worker:main',
     '--purpose', 'Backfill search index',
+    '--lifecycle', 'durable',
     '--allow-main-worktree',
   )
 

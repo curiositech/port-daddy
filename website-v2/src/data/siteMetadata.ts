@@ -33,6 +33,12 @@ export const OG_SOURCE_IMAGES = {
   salvageLedger: '/img/generated/salvage-ledger.jpg',
   shipwrightProposal: '/img/generated/shipwright-proposal.jpg',
   exampleArchetypes: '/img/generated/example-agent-archetypes.jpg',
+  home: '/img/generated/home-og.jpg',
+  manifesto: '/img/generated/manifesto-og.jpg',
+  pdTube: '/img/generated/pd-tube-og.jpg',
+  blog: '/img/generated/blog-og.jpg',
+  library: '/img/generated/library-og.jpg',
+  landscape: '/img/generated/landscape-og.jpg',
 } as const
 
 export type SiteMetadataSection =
@@ -75,21 +81,21 @@ const exampleRouteMetadata = [
   },
   {
     slug: 'test-failure-to-agent',
-    title: 'Build a test reporter that asks the agent for help',
+    title: 'Turn a failing test into an agent request',
     description: 'Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.',
     sourceImage: '/img/generated/example-test-failure-to-agent.jpg',
     tags: ['tube', 'tests', 'reporter', 'terminal'],
   },
   {
     slug: 'editor-lightbulb-to-agent',
-    title: 'Build an editor lightbulb that asks the local agent',
+    title: 'Send an editor selection to your local agent',
     description: 'Select code in a local page, publish the file and range to the agent, and render the explanation inline.',
     sourceImage: '/img/generated/example-editor-lightbulb-to-agent.jpg',
     tags: ['tube', 'editor', 'selection', 'dev tools'],
   },
   {
     slug: 'webhook-to-local-agent',
-    title: 'Build a webhook adapter backed by your workstation',
+    title: 'Route webhooks to an agent on your machine',
     description: 'Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.',
     sourceImage: '/img/generated/example-webhook-to-local-agent.jpg',
     tags: ['tube', 'webhooks', 'bots', 'http'],
@@ -103,22 +109,22 @@ const exampleRouteMetadata = [
   },
   {
     slug: 'p2p-webrtc',
-    title: 'Build WebRTC signaling over agent inboxes',
+    title: 'Carry WebRTC signaling over agent inboxes',
     description: 'Use durable Port Daddy inbox messages for offer-answer rendezvous before peers switch to a direct local link.',
     sourceImage: '/img/generated/example-p2p-webrtc.jpg',
     tags: ['inboxes', 'webrtc', 'signaling', 'messages'],
   },
   {
     slug: 'ephemeral-ci-db',
-    title: 'Claim a collision-free port for an ephemeral CI database',
+    title: 'Claim a throwaway database port for CI',
     description: 'Give short-lived test databases clean local ports so CI helpers and agents do not collide on the same machine.',
     sourceImage: '/img/generated/example-ephemeral-ci-db.jpg',
     tags: ['ports', 'ci', 'database', 'tests'],
   },
   {
-    slug: 'agent-archetypes',
-    title: 'Sketch agent archetypes before you launch them',
-    description: 'Compare star, ring, arbiter, watchdog, and repair topologies before committing a fleet shape to YAML.',
+    slug: 'agent-topologies',
+    title: 'Trace how your agents actually talk',
+    description: 'Run star, ring, and arbiter message patterns over Port Daddy and capture an inspectable trace of who said what to whom.',
     sourceImage: '/img/generated/example-agent-archetypes.jpg',
     tags: ['agents', 'fleet', 'topology', 'templates'],
   },
@@ -137,6 +143,15 @@ const sectionLabels: Record<SiteMetadataSection, string> = {
 }
 
 function sourceImageForRoute(path: string, section: SiteMetadataSection) {
+  // Bespoke route-level OG art for the top-level pages that previously shared
+  // the generic control-plane fallback. Exact matches so individual sub-routes
+  // (e.g. a /blog/<slug> that mentions "guard") keep their topical image below.
+  if (path === '/') return OG_SOURCE_IMAGES.home
+  if (path === '/manifesto') return OG_SOURCE_IMAGES.manifesto
+  if (path === '/pd-tube') return OG_SOURCE_IMAGES.pdTube
+  if (path === '/blog') return OG_SOURCE_IMAGES.blog
+  if (path === '/library') return OG_SOURCE_IMAGES.library
+  if (path === '/landscape') return OG_SOURCE_IMAGES.landscape
   if (path === '/mac-preview') return OG_SOURCE_IMAGES.fleetbarInstall
   if (path === '/mcp' || path.startsWith('/docs/mcp')) return OG_SOURCE_IMAGES.agentRuntime
   if (path.startsWith('/agents') || path.includes('fleet') || path.includes('spawn')) return OG_SOURCE_IMAGES.virtualActors
@@ -292,14 +307,20 @@ const productRoutes: SiteMetadata[] = [
   ),
   metadata(
     '/blog',
-    'Blog',
-    'Read Port Daddy engineering notes about local control planes, shared state, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.',
+    'Harbor Blog',
+    'Short, honest write-ups from running a fleet of agents: what broke, what we fixed, and what the daemon has to keep true. Shared state, file ownership, launch checks, PD Tube, recovery trails, and daemon provenance.',
     { section: 'blog' },
   ),
   metadata(
     '/manifesto',
     'Manifesto',
     'Software learned to hire its own help. Why a fleet of agents needs a harbor-master before anything else, how legibility becomes the product, and the seven papers that work it out.',
+    { section: 'whitepaper' },
+  ),
+  metadata(
+    '/security',
+    'Cryptography',
+    'What stops an agent you never authorized from touching your code — and the proofs behind it. Capability attenuation, signed envelopes, collateralized work, and Ostrom-style commons governance, with the Anchor Protocol verified in ProVerif.',
     { section: 'whitepaper' },
   ),
   metadata(
@@ -526,11 +547,6 @@ export const siteMetadataRoutes: SiteMetadata[] = [
   ...productRoutes,
   ...contentMetadata,
   ...docsRouteMetadata,
-  metadata('/docs-old', 'Legacy Docs', 'Legacy Port Daddy documentation kept available for compatibility while the current docs system is normalized.', {
-    section: 'legacy',
-    canonicalPath: '/docs',
-    index: false,
-  }),
 ]
 
 const metadataByPath = new Map(siteMetadataRoutes.map((route) => [route.path, route]))
@@ -628,12 +644,26 @@ export function structuredDataForRoute(route: SiteMetadata) {
 
   if (route.section !== 'blog' || !route.publishedAt) return base
 
+  // Article rich-result completeness: Google wants datePublished + dateModified,
+  // a publisher Organization with a logo, mainEntityOfPage, and an author. We
+  // have no separate modified date, so dateModified mirrors datePublished (which
+  // Google accepts) rather than inventing freshness.
   return {
     ...base,
     datePublished: route.publishedAt,
+    dateModified: route.publishedAt,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     author: {
       '@type': 'Person',
       name: route.author ?? 'Erich Owens',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      logo: {
+        '@type': 'ImageObject',
+        url: absoluteUrl('/apple-touch-icon.png'),
+      },
     },
     keywords: route.tags?.join(', '),
   }

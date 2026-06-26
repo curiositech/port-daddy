@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "packageVersion": "3.15.0",
+  "packageVersion": "3.23.0",
   "sources": [
     "examples",
     "templates"
   ],
-  "count": 56,
+  "count": 58,
   "files": [
     {
       "path": "examples/agent-topologies/README.md",
@@ -28,8 +28,8 @@
     {
       "path": "examples/ci/github-actions.yml",
       "url": "/samples/files/examples/ci/github-actions.yml",
-      "bytes": 6211,
-      "sha256": "b37788d384986fa1b09ddc8ea46b4cfaf2b191a9f0e683883f54f838d00d30ca"
+      "bytes": 6245,
+      "sha256": "3078fe8186d64e33f1d4b9c6ae5c2238b96ee9bd3bc9b6fd650e9df348fb4b65"
     },
     {
       "path": "examples/coordination/agent-protocol.ts",
@@ -46,8 +46,8 @@
     {
       "path": "examples/coordination/README.md",
       "url": "/samples/files/examples/coordination/README.md",
-      "bytes": 2585,
-      "sha256": "68b8ae70edad55f11d66431c9fa665f8c755e3d58badaacd451825dba38e281f"
+      "bytes": 2609,
+      "sha256": "53793bdc61d36e5f2ef2c28e9ec28dd5f9e00d309023f6e2ced566dd0458c5c5"
     },
     {
       "path": "examples/devtools/agent-workbench.ts",
@@ -106,8 +106,8 @@
     {
       "path": "examples/inbox/agent-dm.sh",
       "url": "/samples/files/examples/inbox/agent-dm.sh",
-      "bytes": 1765,
-      "sha256": "e5982b4c8fc12239f3cba2c2c422b7bd7d22d09e7e8f96c40b41faf8d656aff1"
+      "bytes": 1805,
+      "sha256": "56416b84a5ef2d9bd3fde8234ff0df7e03831ecc8fa55f083ae90bd5168412b4"
     },
     {
       "path": "examples/inbox/inbox-monitor.ts",
@@ -130,8 +130,8 @@
     {
       "path": "examples/integration/ready-needs.sh",
       "url": "/samples/files/examples/integration/ready-needs.sh",
-      "bytes": 1512,
-      "sha256": "38f534ca62d3d4f2c2a34d22646bb7b4b31a50ac273620aeddbcb04906f352ed"
+      "bytes": 1552,
+      "sha256": "dd4fbbd74aa8177dbc57ff38654a393ca96b61311c93d988b8f105d014b9c2a1"
     },
     {
       "path": "examples/leader-election/leader-election.ts",
@@ -148,8 +148,8 @@
     {
       "path": "examples/locks/migration-guard.ts",
       "url": "/samples/files/examples/locks/migration-guard.ts",
-      "bytes": 2333,
-      "sha256": "acb87ca96e65e196857d1b822a1e3661c1a37909e4e91f23849fe165de5f9fcc"
+      "bytes": 2359,
+      "sha256": "f42ba7c8cd03ad6c564b27e27e96534b62cb0b0aa08063bc3f793404d52be1a7"
     },
     {
       "path": "examples/locks/README.md",
@@ -170,6 +170,12 @@
       "sha256": "e414ea7b31ad29a7e8fe7b52b65a1f0fe936486d0b9498fff9cbb97e30567a86"
     },
     {
+      "path": "examples/pd-tube/agent-responder.py",
+      "url": "/samples/files/examples/pd-tube/agent-responder.py",
+      "bytes": 3349,
+      "sha256": "db261236cf1c6b59e76029688c34323068bfc79b76e31c6236b42d2823d573f7"
+    },
+    {
       "path": "examples/pd-tube/button-to-agent.html",
       "url": "/samples/files/examples/pd-tube/button-to-agent.html",
       "bytes": 6396,
@@ -180,6 +186,12 @@
       "url": "/samples/files/examples/pd-tube/demo.sh",
       "bytes": 1209,
       "sha256": "da16983a136f0ac04b65f819de4e241e1d680adb7f2afdae26b796913dd02390"
+    },
+    {
+      "path": "examples/pd-tube/mission-control.html",
+      "url": "/samples/files/examples/pd-tube/mission-control.html",
+      "bytes": 11120,
+      "sha256": "1e9bea8862cba40b431e68ac2c38d6787012d8d85610c2b0b33d601e8f781350"
     },
     {
       "path": "examples/pd-tube/README.md",
@@ -196,8 +208,8 @@
     {
       "path": "examples/phases/session-lifecycle.sh",
       "url": "/samples/files/examples/phases/session-lifecycle.sh",
-      "bytes": 1741,
-      "sha256": "0352e324971f964ed75b55b37c227fd41e2a7a8e941cb70a3a4b16c2f7fa46a1"
+      "bytes": 1761,
+      "sha256": "c1746a10779bc68454971d66354a1cf761b778ae805e7b0f037f95bf2744835c"
     },
     {
       "path": "examples/README.md",
@@ -232,8 +244,8 @@
     {
       "path": "examples/swarm/coordination-board.ts",
       "url": "/samples/files/examples/swarm/coordination-board.ts",
-      "bytes": 6935,
-      "sha256": "851c635b2210e16424251219aa1b61ebdadb982696bf55a9a34abe44fe8b4a30"
+      "bytes": 6961,
+      "sha256": "cd40ad9bcf24c3e35a99f1c8a97c110128479ffcf3da3b8e9ce5895f06a87f58"
     },
     {
       "path": "examples/swarm/README.md",
@@ -268,14 +280,14 @@
     {
       "path": "examples/war-room/README.md",
       "url": "/samples/files/examples/war-room/README.md",
-      "bytes": 1973,
-      "sha256": "751f3565f1b94710cd26c711b0e277a4fce383aec1073953538641bef5a66ef4"
+      "bytes": 1997,
+      "sha256": "ec8eaa983bb034d36bf3b62ab80fe1a1d6e05481757c73f74069fc3652f82d98"
     },
     {
       "path": "examples/war-room/run.sh",
       "url": "/samples/files/examples/war-room/run.sh",
-      "bytes": 7585,
-      "sha256": "4806dbd2f0fdc0bcf43d6bc38db76e03e69201635d91df4c1391ce77f1140eb9"
+      "bytes": 7657,
+      "sha256": "b6b25fe97e86fbe7cf2af9eec52344e20fd96d2aace31e56c301ae572429a2bf"
     },
     {
       "path": "examples/webhook-adapter/local-webhook-to-agent.ts",

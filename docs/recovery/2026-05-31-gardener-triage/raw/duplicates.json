@@ -1,0 +1,339 @@
+{
+  "pairs": [
+    {
+      "a": "paper/pricing-bootstrap-threats-settlement",
+      "b": "refactor/whitepaper-correlating-device",
+      "jaccard": 1.0,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "paper/pricing-bootstrap-threats-settlement",
+      "b": "whitepaper-typography-v2.0.1",
+      "jaccard": 1.0,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "paper/pricing-bootstrap-threats-settlement",
+      "b": "worktree-agent-a36925a8e6fde11c8",
+      "jaccard": 1.0,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "refactor/whitepaper-correlating-device",
+      "b": "whitepaper-typography-v2.0.1",
+      "jaccard": 1.0,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "refactor/whitepaper-correlating-device",
+      "b": "worktree-agent-a36925a8e6fde11c8",
+      "jaccard": 1.0,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "verify-claim-signaling-tla",
+      "b": "worktree-agent-a3d3ec7a7198e6c82",
+      "jaccard": 1.0,
+      "shared_files": [
+        ".github/workflows/proofs.yml",
+        "proofs/bonded/pareto/threat-bands.mjs",
+        "proofs/economics/README.md",
+        "proofs/economics/claim_signaling.cfg",
+        "proofs/economics/claim_signaling.tla",
+        "proofs/economics/delta-threshold.expected.txt",
+        "proofs/economics/delta-threshold.z3",
+        "proofs/economics/sweep-delta.sh",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/src/pages/whitepaper/HowWeProveGameTheory.tsx"
+      ],
+      "shared_count": 10,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "whitepaper-typography-v2.0.1",
+      "b": "worktree-agent-a36925a8e6fde11c8",
+      "jaccard": 1.0,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 0
+    },
+    {
+      "a": "chore/skill-hygiene-followup",
+      "b": "chore/skill-hygiene-pass",
+      "jaccard": 0.967,
+      "shared_files": [
+        ".github/workflows/ci.yml",
+        "skills/charrier-et-al-big-brother-logic/SKILL.md",
+        "skills/charrier-et-al-big-brother-logic/_book_identity.json",
+        "skills/charrier-et-al-big-brother-logic/_raw_response.md",
+        "skills/charrier-et-al-big-brother-logic/diagrams/01_flowchart_knowledge_state_decision_tree.md",
+        "skills/charrier-et-al-big-brother-logic/diagrams/02_sequenceDiagram_knowledge_propagation_public.md",
+        "skills/charrier-et-al-big-brother-logic/diagrams/03_stateDiagram-v2_agent_knowledge_state_evolutio.md",
+        "skills/charrier-et-al-big-brother-logic/diagrams/INDEX.md",
+        "skills/charrier-et-al-big-brother-logic/provenance.json",
+        "skills/charrier-et-al-big-brother-logic/references/INDEX.md"
+      ],
+      "shared_count": 116,
+      "a_only": 4,
+      "b_only": 0
+    },
+    {
+      "a": "feat/fcc-backend-section",
+      "b": "worktree-agent-a109f9b7bcac9594c",
+      "jaccard": 0.85,
+      "shared_files": [
+        "apps/FleetBar/FleetBar/BackendPicker.swift",
+        "apps/FleetBar/FleetBar/BackendStore.swift",
+        "apps/FleetBar/FleetBar/FleetBarApp.swift",
+        "apps/FleetBar/FleetBar/FleetPopover.swift",
+        "apps/FleetBar/Tests/FleetBarTests/FleetPopoverTests.swift",
+        "bin/port-daddy-cli.ts",
+        "cli/commands/backend.ts",
+        "cli/commands/index.ts",
+        "completions/port-daddy.bash",
+        "completions/port-daddy.fish"
+      ],
+      "shared_count": 17,
+      "a_only": 3,
+      "b_only": 0
+    },
+    {
+      "a": "figure/bonded-three-layer-canonical",
+      "b": "paper/pricing-bootstrap-threats-settlement",
+      "jaccard": 0.833,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 1,
+      "b_only": 0
+    },
+    {
+      "a": "figure/bonded-three-layer-canonical",
+      "b": "refactor/whitepaper-correlating-device",
+      "jaccard": 0.833,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 1,
+      "b_only": 0
+    },
+    {
+      "a": "figure/bonded-three-layer-canonical",
+      "b": "whitepaper-typography-v2.0.1",
+      "jaccard": 0.833,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 1,
+      "b_only": 0
+    },
+    {
+      "a": "figure/bonded-three-layer-canonical",
+      "b": "worktree-agent-a36925a8e6fde11c8",
+      "jaccard": 0.833,
+      "shared_files": [
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.aux",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.out",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.pdf",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.tex",
+        "website-v2/public/whitepaper/agent-transactions-whitepaper.toc"
+      ],
+      "shared_count": 5,
+      "a_only": 1,
+      "b_only": 0
+    },
+    {
+      "a": "feat/account-create-and-roadmap",
+      "b": "fix/fleetbar-fleet-ui-route",
+      "jaccard": 0.75,
+      "shared_files": [
+        ".github/workflows/release.yml",
+        "docs/ROADMAP.md",
+        "docs/recovery/CURRENT-WORK.md"
+      ],
+      "shared_count": 3,
+      "a_only": 1,
+      "b_only": 0
+    },
+    {
+      "a": "ci/whitepaper-metadata-followup",
+      "b": "pr-117-checkout",
+      "jaccard": 0.714,
+      "shared_files": [
+        "README.md",
+        "website-v2/package.json",
+        "website-v2/scripts/check-whitepaper-metadata.ts",
+        "website-v2/src/data/whitePapers.test.ts",
+        "website-v2/src/data/whitePapers.ts"
+      ],
+      "shared_count": 5,
+      "a_only": 2,
+      "b_only": 0
+    },
+    {
+      "a": "cockpit/phase-2-dismiss-snooze-tuples",
+      "b": "cockpit/plan-dispatch-and-state",
+      "jaccard": 0.579,
+      "shared_files": [
+        "features.manifest.json",
+        "fleet-config-ui/src/api.ts",
+        "fleet-config-ui/src/components/CockpitMissionsPanel.tsx",
+        "fleet-config-ui/src/types.ts",
+        "lib/client.ts",
+        "lib/cockpit-mission-state.ts",
+        "public/fleet-ui/index.html",
+        "routes/cockpit.ts",
+        "server.ts",
+        "tests/unit/cockpit-mission-state.test.js"
+      ],
+      "shared_count": 11,
+      "a_only": 5,
+      "b_only": 3
+    },
+    {
+      "a": "tmp/branch3-ci-metadata",
+      "b": "tmp/branch4-pricing",
+      "jaccard": 0.5,
+      "shared_files": [
+        "lib/db.ts",
+        "lib/roadmap-items.ts",
+        "server.ts",
+        "tests/setup-unit.js",
+        "tests/unit/roadmap-items.test.js",
+        "tests/unit/roadmap-promote.test.js"
+      ],
+      "shared_count": 6,
+      "a_only": 5,
+      "b_only": 1
+    },
+    {
+      "a": "pr-117-checkout",
+      "b": "tmp/branch3-ci-metadata",
+      "jaccard": 0.455,
+      "shared_files": [
+        "README.md",
+        "website-v2/package.json",
+        "website-v2/scripts/check-whitepaper-metadata.ts",
+        "website-v2/src/data/whitePapers.test.ts",
+        "website-v2/src/data/whitePapers.ts"
+      ],
+      "shared_count": 5,
+      "a_only": 0,
+      "b_only": 6
+    },
+    {
+      "a": "feat/roadmap-schema-jira-forward",
+      "b": "tmp/branch4-pricing",
+      "jaccard": 0.4,
+      "shared_files": [
+        "lib/roadmap-items.ts",
+        "server.ts",
+        "tests/unit/roadmap-items.test.js",
+        "tests/unit/roadmap-promote.test.js"
+      ],
+      "shared_count": 4,
+      "a_only": 3,
+      "b_only": 3
+    },
+    {
+      "a": "ci/whitepaper-metadata-followup",
+      "b": "tmp/branch3-ci-metadata",
+      "jaccard": 0.385,
+      "shared_files": [
+        "README.md",
+        "website-v2/package.json",
+        "website-v2/scripts/check-whitepaper-metadata.ts",
+        "website-v2/src/data/whitePapers.test.ts",
+        "website-v2/src/data/whitePapers.ts"
+      ],
+      "shared_count": 5,
+      "a_only": 2,
+      "b_only": 6
+    },
+    {
+      "a": "feat/harbormaster-actor",
+      "b": "feat/pd-backup-durable",
+      "jaccard": 0.333,
+      "shared_files": [
+        "bin/port-daddy-cli.ts",
+        "cli/commands/index.ts",
+        "completions/port-daddy.bash",
+        "completions/port-daddy.fish",
+        "completions/port-daddy.zsh",
+        "features.manifest.json"
+      ],
+      "shared_count": 6,
+      "a_only": 5,
+      "b_only": 7
+    }
+  ],
+  "total_pairs_above_threshold": 21
+}

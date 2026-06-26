@@ -21,6 +21,7 @@ import { PortDaddy } from '../../lib/client.js';
 
 const pd = new PortDaddy({ agentId: 'agent-scout' });
 const { sessionId } = await pd.begin('Investigate flaky checkout test', {
+  lifecycle: 'durable',
   identity: 'myapp:test:checkout-flake',
   files: ['tests/checkout.test.ts'],
 });
