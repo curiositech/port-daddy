@@ -2,7 +2,7 @@
   "generatedAt": 1782207043527,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 48,
+  "count": 49,
   "items": [
     {
       "slug": "adr-0043-phase-0-spec-and-parser",
@@ -243,6 +243,11 @@
       "slug": "roadmap-link-gate",
       "status": "now",
       "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "conjure-prompt-to-dag-and-giant-squid",
+      "summaryMd": "Conjure operator surface: prompt → claude:cli DAG → next-gen Vello render → context-partition + contracts → multi-vendor dispatch; plus the Giant Squid Harness (ADR-0091). PR #581.",
+      "status": "merge"
     }
   ]
 }
