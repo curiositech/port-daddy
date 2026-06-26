@@ -43,6 +43,19 @@ JWKS_CACHE_TTL_SECONDS = "600"
 JWKS_FAIL_SOFT_SECONDS = "3600"
 REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
 RATE_LIMIT_WINDOW_MS = "60000"
+# Fleet control-plane: GitHub App + trusted ref for the config-read and save (PR)
+# endpoints. GITHUB_APP_PRIVATE_KEY is a *secret* (never committed):
+#   cat app-key.pem | wrangler secret put GITHUB_APP_PRIVATE_KEY
+GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
+GITHUB_OWNER = "REPLACE_WITH_YOUR_GITHUB_OWNER"
+GITHUB_REPO = "REPLACE_WITH_YOUR_GITHUB_REPO"
+DEFAULT_BRANCH = "main"
+
+# ---------------------------------------------------------------------------
+# Workers AI — fleet control-plane smoke-test + optimize-prompt endpoints.
+# No id needed; `wrangler` provisions the binding on deploy.
+[ai]
+binding = "AI"
 
 [[d1_databases]]
 binding = "DB"
