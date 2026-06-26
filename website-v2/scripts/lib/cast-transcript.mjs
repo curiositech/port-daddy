@@ -110,6 +110,13 @@ const EPHEMERAL_RULES = [
   // ISO date and wall-clock time.
   [/\b20\d\d-\d\d-\d\d\b/g, '<DATE>'],
   [/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, '<TIME>'],
+  // Tunnel-provider availability ("ngrok installed" / "cloudflared missing"):
+  // reflects which tunnel CLIs happen to be installed on the recording HOST —
+  // dev machines often have ngrok/cloudflared; CI runners do not. That is a
+  // host-environment fact, not Port Daddy behavior, so normalize the status so
+  // the transcript is portable (otherwise the same recording drifts between a
+  // dev re-record and the Linux CI re-record).
+  [/^(\s*(?:ngrok|cloudflared|localtunnel)\s+)(?:installed|missing)\s*$/gm, '$1<PROVIDER_STATUS>'],
 ]
 
 /** Apply the ordered ephemeral-scrub rules to a chunk of plain text. */

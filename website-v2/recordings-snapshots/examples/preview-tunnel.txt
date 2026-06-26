@@ -11,10 +11,9 @@
 
   $ npx tsx examples/tunnel/share-preview.ts inspect
   Tunnel providers
-    ngrok        installed
-    cloudflared  installed
-    localtunnel  installed
-
+    ngrok        <PROVIDER_STATUS>
+    cloudflared  <PROVIDER_STATUS>
+    localtunnel  <PROVIDER_STATUS>
   Active tunnels
     none
 
