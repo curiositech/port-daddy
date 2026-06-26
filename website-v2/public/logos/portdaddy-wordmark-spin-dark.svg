@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 220" width="100%" height="100%" role="img" aria-label="Port Daddy">
-  <!-- SPINNING wordmark lockup, DARK theme. Same lockup as
-       portdaddy-wordmark-dark.svg, but the radar mark spins (nested <svg> so
-       its animation runs in its own 300x300 space). Type stays static.
-       Transparent background — sits on the live near-black surface.
-       Reduced-motion safe. -->
+  <!-- SPINNING wordmark lockup, DARK theme. The radar mark spins (nested
+       <svg>); "Port"+p and "Daddy"+d step IN TANDEM through the 6 distinct
+       two-colour pairings of {cobalt, ink, seafoam} via SMIL discrete
+       <animate>. Transparent ground; spin is reduced-motion safe. -->
   <style>
     .pd-word { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 900; }
     .pd-tag  { font-family: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; }
@@ -61,14 +60,21 @@
       <path d="M 87 213 A 90 90 0 0 0 113 232" />
     </g>
     <g class="pivot pd-flip">
-      <g stroke="#2076FE" stroke-width="14" stroke-linecap="butt" fill="none">
+      <!-- p (group A): tandem with the word "Port" -->
+      <g stroke="#7DB4FF" stroke-width="14" stroke-linecap="butt" fill="none">
         <line x1="110" y1="110" x2="110" y2="210" />
         <circle cx="135" cy="135" r="25" />
+        <animate attributeName="stroke" calcMode="discrete" dur="9s" repeatCount="indefinite"
+                 values="#7DB4FF;#F5F3ED;#20DEB0;#7DB4FF;#20DEB0;#F5F3ED"/>
       </g>
+      <!-- d (group B): tandem with the word "Daddy" -->
       <g stroke="#20DEB0" stroke-width="14" stroke-linecap="butt" fill="none">
         <line x1="190" y1="190" x2="190" y2="90" />
         <circle cx="165" cy="165" r="25" />
+        <animate attributeName="stroke" calcMode="discrete" dur="9s" repeatCount="indefinite"
+                 values="#20DEB0;#7DB4FF;#F5F3ED;#F5F3ED;#7DB4FF;#20DEB0"/>
       </g>
+      <!-- amber intersection accent stays constant where the glyphs cross -->
       <g stroke="#FFB505" stroke-width="14" stroke-linecap="butt" fill="none" mask="url(#pd-wms-dark-int)">
         <line x1="190" y1="190" x2="190" y2="90" />
         <circle cx="165" cy="165" r="25" />
@@ -77,8 +83,8 @@
     <circle cx="150" cy="150" r="4" fill="none" stroke="#2076FE" stroke-width="2"/>
   </svg>
 
-  <!-- TYPE -->
-  <text x="240" y="118" class="pd-word" font-size="74" letter-spacing="-1" fill="#F5F3ED">Port<tspan fill="#7DB4FF"> Daddy</tspan></text>
+  <!-- TYPE: "Port" (group A) and "Daddy" (group B) cycle in tandem with p / d -->
+  <text x="240" y="118" class="pd-word" font-size="74" letter-spacing="-1"><tspan fill="#7DB4FF">Port<animate attributeName="fill" calcMode="discrete" dur="9s" repeatCount="indefinite" values="#7DB4FF;#F5F3ED;#20DEB0;#7DB4FF;#20DEB0;#F5F3ED"/></tspan><tspan fill="#20DEB0"> Daddy<animate attributeName="fill" calcMode="discrete" dur="9s" repeatCount="indefinite" values="#20DEB0;#7DB4FF;#F5F3ED;#F5F3ED;#7DB4FF;#20DEB0"/></tspan></text>
   <line x1="242" y1="146" x2="700" y2="146" stroke="#F5F3ED" stroke-width="3" />
   <text x="242" y="178" class="pd-tag" font-size="18" letter-spacing="2.6" fill="#A59F93">A HARBOR-MASTER FOR YOUR AGENTS</text>
 </svg>
