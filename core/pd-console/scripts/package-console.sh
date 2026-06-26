@@ -132,8 +132,13 @@ if [ -f "$ICON_PNG" ]; then
            "/System/Library/Fonts/Helvetica.ttc"; do
     [ -f "$f" ] && { FONT="$f"; break; }
   done
+  # Zoom 250% into the centre first: the brand master is a "pd" monogram on a busy
+  # radar field whose detail turns to mush at Dock size. Enlarging + centre-cropping
+  # drops the noisy outer rings and lets the bold wordmark dominate, so it stays
+  # legible at 64px (operator vision-accessibility line).
   if [ -n "$MAGICK" ] && \
-     "$MAGICK" "$ICON_PNG" -resize 976x976^ -gravity center -extent 976x976 \
+     "$MAGICK" "$ICON_PNG" -resize 250% -gravity center -extent 1024x1024 \
+       -resize 976x976^ -gravity center -extent 976x976 \
        -bordercolor "$TINT" -border 24 \
        -fill "$TINT" -draw "rectangle 0,860 1024,1010" \
        ${FONT:+-font "$FONT"} -fill white -pointsize 120 -gravity South -annotate +0+14 "$BADGE" \
