@@ -50,9 +50,10 @@ const MAP_CHUNK_CHAR_LIMIT = 12_000;
 const CHECK_NAME = 'Port Daddy Fleet';
 
 /**
- * Kill-switch flag key in the FLEET_TOKENS KV. Value is either JSON
- * `{ paused: boolean, pausedAt: number }` or the literal `"true"`/`"false"`.
- * When paused, a job is acked WITHOUT any AI spend or GitHub posts.
+ * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
+ * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
+ * either JSON `{ paused: boolean, pausedAt: number }` or the literal
+ * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
  */
 const PAUSE_KEY = 'fleet:paused';
 

@@ -32,9 +32,12 @@ export interface ShipConfig {
   needsExecution: boolean;
 }
 
-// Default Cloudflare AI model per ship if not declared in fallbacks
-const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
-const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct';
+// Default Cloudflare AI model per ship if not declared in fallbacks.
+// Upgraded from qwen-30B/32B: the small models produced speculative, noisy
+// reviews ("potential tautology", "consider a JSDoc"). These are the strongest
+// reasoning + code models on Workers AI (no external API key, stays edge-native).
+const DEFAULT_CF_MODEL = '@cf/openai/gpt-oss-120b';        // reasoning reviewers
+const CODER_CF_MODEL = '@cf/moonshotai/kimi-k2.7-code';    // code-specialized (1T, 262k ctx)
 
 // Tools that require local execution (can't run in a Worker). Matches any
 // Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
