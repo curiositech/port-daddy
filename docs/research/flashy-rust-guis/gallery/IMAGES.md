@@ -2,7 +2,7 @@
 
 Real, citable image URLs for every notable app, with a precise description of the
 visual. Verification status is noted. A few static, verified images are also
-downloaded into this folder by `scripts/fetch-gallery.sh` (see that script);
+downloaded into this folder by `docs/research/flashy-rust-guis/scripts/fetch-gallery.sh` (see that script);
 GitHub `user-attachments` and CMS-hashed URLs are left as links (they rotate /
 hotlink-protect and shouldn't be vendored).
 

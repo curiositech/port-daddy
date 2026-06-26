@@ -14,7 +14,7 @@ conclusion. It feeds the native **pd-console** operator console, which is built 
 - [`gallery/IMAGES.md`](./gallery/IMAGES.md) = canonical image URLs + descriptions; `gallery/*.png|gif` = downloaded static captures.
 - [`snippets/`](./snippets) = harvested, cited code — one file per technique.
 - [`templates/`](./templates) = 4 gpui-flavored drop-ins (glass card, glow pulse, animated gradient bg, stat card).
-- [`scripts/fetch-gallery.sh`](./scripts/fetch-gallery.sh) = re-fetch the static images.
+- [`docs/research/flashy-rust-guis/scripts/fetch-gallery.sh`](./scripts/fetch-gallery.sh) = re-fetch the static images.
 
 Cross-reference the repo skills `rust-gpui-motion`, `gpui-shaders`, and
 `vello-parley-rendering` when implementing.
