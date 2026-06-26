@@ -250,11 +250,17 @@ flow is:
 4. **Comment on the PR** with what changed, the validation evidence
    (test counts, `tsc --noEmit` exit, focused jest output), and an explicit
    line for each reviewer finding marked done / deferred / contested-because.
-5. **Treat bot comments as real review findings.** Copilot, Claude review,
-   Cloudflare Pages, CodeQL, release, or other automation comments are not
-   background noise. Reply to every actionable bot thread with fixed /
+5. **Treat bot comments as real review findings — fleetbot included.** The
+   `port-daddy-fleet` bot (a.k.a. fleetbot) posts `[pd-code-reviewer]` and
+   `[pd-qa]` threads on every PR; these are first-class review findings, NOT
+   background noise — the same goes for Copilot, Claude review, Cloudflare
+   Pages, CodeQL, release, and the `roadmap-link-gate` GitHub Action. Read
+   every bot comment, and reply to every actionable thread with fixed /
    deferred / contested-because, and push a fixup commit for every valid
-   high-confidence finding before asking a human to look.
+   high-confidence finding before asking a human to look. Do not declare a PR
+   done while a `port-daddy-fleet` or other actionable bot thread sits
+   unanswered. Operator, 2026-06-23: "Why did you ignore fleetbot?" — the
+   answer must never be "I didn't read its comments."
 6. **Get the full CI/CD surface clean.** "CI is green" means the GitHub
    matrix, review checks, deploy previews, release/package jobs, and external
    statuses attached to the PR are green. If a red status is truly external,
