@@ -285,6 +285,62 @@ export function load() {
     expect(dep!.targetFile).toBe('some-external-pkg');
   });
 
+  // ── Resolver hardening (ast-a1-1 inspector findings) ──────────────────────
+  test('resolves a NodeNext `.js` specifier to its `.ts` source (the dominant repo idiom)', async () => {
+    // tsconfig is moduleResolution:NodeNext — `import {x} from './b.js'` refers to b.ts.
+    const bPath = join(tempDir, 'nn-b.ts');
+    const aPath = join(tempDir, 'nn-a.ts');
+    writeFileSync(bPath, `export function foo() { return 1; }\n`);
+    writeFileSync(aPath, `import { foo } from './nn-b.js';\nexport function useFoo() { return foo(); }\n`);
+
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    const dep = symbolIndex.getDependencies(aPath)
+      .find(d => d.targetSymbol === 'foo' && d.dependencyType === 'imports');
+    expect(dep).toBeDefined();
+    expect(dep!.targetFile).toBe(bPath); // .js specifier → real .ts source, not raw './nn-b.js'
+    expect(symbolIndex.getDependents(bPath, 'foo').some(d => d.sourceFile === aPath)).toBe(true);
+  });
+
+  test('resolves `.mjs` → `.mts` source', async () => {
+    const bPath = join(tempDir, 'mod.mts');
+    const aPath = join(tempDir, 'uses-mod.ts');
+    writeFileSync(bPath, `export function m() { return 1; }\n`);
+    writeFileSync(aPath, `import { m } from './mod.mjs';\nexport const z = m;\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+    const dep = symbolIndex.getDependencies(aPath).find(d => d.targetSymbol === 'm');
+    expect(dep!.targetFile).toBe(bPath);
+  });
+
+  test('strips a `?query` suffix before resolving', async () => {
+    const bPath = join(tempDir, 'q-b.ts');
+    const aPath = join(tempDir, 'q-a.ts');
+    writeFileSync(bPath, `export const raw = 1;\n`);
+    writeFileSync(aPath, `import { raw } from './q-b.ts?raw';\nexport const r = raw;\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+    const dep = symbolIndex.getDependencies(aPath).find(d => d.targetSymbol === 'raw');
+    expect(dep!.targetFile).toBe(bPath);
+  });
+
+  test('does not resolve a `..` import that escapes the project root (boundary clamp)', async () => {
+    // proj/ is the project (has package.json); a file OUTSIDE it must stay raw.
+    const proj = join(tempDir, 'clamp-proj');
+    const sub = join(proj, 'sub');
+    mkdirSync(sub, { recursive: true });
+    writeFileSync(join(proj, 'package.json'), '{"name":"clamp-proj"}\n');
+    writeFileSync(join(tempDir, 'clamp-outside.ts'), `export const outside = 1;\n`);
+    const aPath = join(sub, 'a.ts');
+    // ../../clamp-outside resolves to tempDir/clamp-outside.ts — OUTSIDE clamp-proj.
+    writeFileSync(aPath, `import { outside } from '../../clamp-outside';\nexport const o = outside;\n`);
+    await symbolIndex.parseFile(aPath);
+    const dep = symbolIndex.getDependencies(aPath).find(d => d.targetSymbol === 'outside');
+    expect(dep).toBeDefined();
+    expect(dep!.targetFile).toBe('../../clamp-outside'); // clamped → raw, not the foreign abs path
+  });
+
   // ───────────────────────────────────────────────────────────────────────────
   // Intra-file call edges → blast-radius (issue #468).
   //

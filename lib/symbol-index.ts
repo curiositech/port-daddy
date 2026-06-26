@@ -15,7 +15,7 @@
 import type Database from 'better-sqlite3';
 import { createHash } from 'crypto';
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { join, extname, resolve, dirname } from 'path';
+import { join, extname, resolve, dirname, sep } from 'path';
 import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
@@ -841,19 +841,43 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
   }
 
   // Extension/index candidates for resolving a TS/JS import to a real file.
-  const TS_RESOLVE_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.d.ts'];
+  const TS_RESOLVE_EXTS = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.d.ts'];
+
+  // NodeNext/ESM: a relative import carries the EMITTED `.js`-family extension
+  // even when the real source is TypeScript (`import x from './b.js'` → `b.ts`).
+  // tsconfig here is `moduleResolution: NodeNext`, so this is the *dominant*
+  // import idiom in the repo — resolving it is the whole point of ast-a1-1.
+  const JS_TO_TS_SOURCE: Record<string, string[]> = {
+    '.js': ['.ts', '.tsx'],
+    '.jsx': ['.tsx'],
+    '.mjs': ['.mts'],
+    '.cjs': ['.cts'],
+  };
+
+  /** existsSync+statSync but never throws (a dangling symlink must not abort a parse). */
+  function isFileSafe(p: string): boolean {
+    try {
+      return existsSync(p) && statSync(p).isFile();
+    } catch {
+      return false;
+    }
+  }
 
   /**
-   * Resolve an import specifier to an absolute IN-PROJECT file path, or null if
-   * it can't be resolved to a real file (bare/`node_modules` packages, or a
-   * missing target). Filesystem-verified — only ever returns a path that exists
-   * on disk, so we never fabricate a cross-file edge (ast-a1-1). Handles:
+   * Resolve a RELATIVE import specifier to an absolute IN-PROJECT file path, or
+   * null if it can't be resolved to a real file. Filesystem-verified — only ever
+   * returns a path that exists on disk, so we never fabricate a cross-file edge
+   * (ast-a1-1). Handles:
    *   - relative `./` / `../` specifiers with extension inference + `index.*`;
-   *   - a baseUrl-style fallback: a non-relative specifier that maps to a real
-   *     file under `projectDir` (the common `tsconfig baseUrl: '.'` case).
-   * Full tsconfig `paths` glob mapping is a tracked follow-up; until then a
-   * `paths`-aliased import simply stays unresolved (raw specifier kept), which
-   * is safe — it degrades to today's file-level/unresolved behaviour.
+   *   - the NodeNext `.js`→`.ts` (and `.mjs`→`.mts`, `.cjs`→`.cts`, `.jsx`→`.tsx`)
+   *     source-vs-emitted-extension mapping;
+   *   - a project-boundary clamp so a `..` import escaping the importer's project
+   *     is NOT attributed as in-project coordination surface.
+   * Bare / `node_modules` / `tsconfig paths` specifiers stay unresolved (raw
+   * specifier kept) — baseUrl/`paths` resolution is a deliberate follow-up
+   * (ast-a1-1 hardening note). We deliberately dropped the earlier baseUrl probe:
+   * it mapped bare builtins/packages (`fs`, `react`) onto coincidental project
+   * files, *fabricating* bogus cross-file edges — worse than leaving them raw.
    */
   function resolveImportSpecifier(
     specifier: string,
@@ -861,27 +885,46 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
     projectDir: string | null,
   ): string | null {
     if (!specifier) return null;
-    const tryFile = (base: string): string | null => {
-      if (extname(base) && existsSync(base) && statSync(base).isFile()) return resolve(base);
-      for (const ext of TS_RESOLVE_EXTS) {
-        const p = base + ext;
-        if (existsSync(p) && statSync(p).isFile()) return resolve(p);
-      }
-      for (const ext of TS_RESOLVE_EXTS) {
-        const p = join(base, `index${ext}`);
-        if (existsSync(p) && statSync(p).isFile()) return resolve(p);
-      }
+    // Strip a bundler `?query` / `#hash` suffix (e.g. `./mod.ts?raw`).
+    const clean = specifier.replace(/[?#].*$/, '');
+    // Relative-only: bare/package/baseUrl specifiers stay external (raw).
+    if (!clean.startsWith('.')) return null;
+
+    const base = resolve(dirname(importerAbsPath), clean);
+    const resolved = tryResolveFile(base);
+    if (!resolved) return null;
+
+    // Boundary clamp: never attribute a file outside the importer's project as
+    // in-project surface (the contract is an *in-project* path). A null project
+    // root (a loose file) can't be clamped, so we trust the relative resolution.
+    if (projectDir && resolved !== projectDir && !resolved.startsWith(projectDir + sep)) {
       return null;
-    };
-    if (specifier.startsWith('.')) {
-      return tryFile(resolve(dirname(importerAbsPath), specifier));
     }
-    // Non-relative: probe projectDir (baseUrl). node_modules packages won't
-    // match a project file, so they stay external. We deliberately do NOT probe
-    // node_modules — those are external dependencies, not coordination surface.
-    // No project root (e.g. a loose file) → can't baseUrl-resolve; stay external.
-    if (!projectDir) return null;
-    return tryFile(join(projectDir, specifier));
+    return resolved;
+  }
+
+  /** Probe a resolved base path for a real source file (exact → ext-infer → js→ts → index). */
+  function tryResolveFile(base: string): string | null {
+    // Exact, when the specifier already carries a real source extension.
+    if (extname(base) && isFileSafe(base)) return resolve(base);
+    // Bare base → infer a source extension.
+    for (const ext of TS_RESOLVE_EXTS) {
+      if (isFileSafe(base + ext)) return resolve(base + ext);
+    }
+    // NodeNext: a `.js`-family extension on the specifier → its `.ts` source.
+    const ext = extname(base);
+    const tsExts = ext ? JS_TO_TS_SOURCE[ext] : undefined;
+    if (tsExts) {
+      const noExt = base.slice(0, -ext.length);
+      for (const tsExt of tsExts) {
+        if (isFileSafe(noExt + tsExt)) return resolve(noExt + tsExt);
+      }
+    }
+    // Directory import → index.*.
+    for (const ext2 of TS_RESOLVE_EXTS) {
+      if (isFileSafe(join(base, `index${ext2}`))) return resolve(join(base, `index${ext2}`));
+    }
+    return null;
   }
 
   function extractTSDeps(
