@@ -20,6 +20,9 @@
 //! available (CI, headless render, no CoreAudio) every call silently no-ops —
 //! sound is a delight, never a dependency.
 
+// RefCell only backs the gpui-gated thread-local device cell; in the headless
+// (repl/test) build it would be an unused import.
+#[cfg(feature = "gpui")]
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
