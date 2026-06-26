@@ -1,3 +1,27 @@
+# Port Daddy Fleet Executor — Cloudflare Worker (TEMPLATE)
+#
+# Copy this file to `wrangler.toml` and replace every REPLACE_WITH_YOUR_* token
+# with the ids/values you get from the provisioning commands below. The real
+# `wrangler.toml` is gitignored (it carries the account-scoped KV id and the
+# GitHub App id); only this template is committed.
+#
+# Provisioning (run once, then paste the ids returned):
+#
+#   1. Create the installation-token KV namespace — copy id into [[kv_namespaces]]:
+#        wrangler kv namespace create FLEET_TOKENS
+#
+#   2. Create the queue + DLQ (consumer binding below):
+#        wrangler queues create fleet-runs
+#        wrangler queues create fleet-runs-dlq
+#
+#   3. Set the GitHub App id (var) and private key (secret):
+#        # Put your numeric App id into [vars].GITHUB_APP_ID below, OR set as a secret:
+#        echo "<app-id>" | wrangler secret put GITHUB_APP_ID
+#        cat app-key.pem  | wrangler secret put GITHUB_APP_PRIVATE_KEY
+#
+#   4. Deploy:
+#        wrangler deploy
+
 name = "fleet-executor"
 main = "src/index.ts"
 compatibility_date = "2026-06-01"
@@ -14,7 +38,7 @@ binding = "AI"
 # a GitHub App installation token for every ship in the same fleet run.
 [[kv_namespaces]]
 binding = "FLEET_TOKENS"
-id = "<set-via: wrangler kv:namespace create FLEET_TOKENS>"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
 
 # ---------------------------------------------------------------------------
 # Queue consumer — one message per GitHub delivery, enqueued by relay.
@@ -35,7 +59,7 @@ dead_letter_queue = "fleet-runs-dlq"
 # DEFAULT_BRANCH is the TRUSTED ref every config/contract file is read from.
 # It is NEVER pull_request.head — that is the zero-trust invariant.
 [vars]
-GITHUB_APP_ID = "3810450"
+GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
 DEFAULT_BRANCH = "main"
 
 # ---------------------------------------------------------------------------

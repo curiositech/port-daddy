@@ -1,8 +1,11 @@
 -- Port Daddy Relay v0 — D1 Schema
--- Apply with: wrangler d1 execute port-daddy-relay --file=./schema.sql
+-- Apply with: wrangler d1 execute port-daddy-relay --file=./schema.sql --remote
 -- See ADR-0049 for field-level documentation.
-
-PRAGMA journal_mode = WAL;
+--
+-- NOTE: no `PRAGMA journal_mode` here. D1 manages journaling itself and its
+-- SQL authorizer rejects PRAGMA writes with SQLITE_AUTH, which aborts the whole
+-- batch. D1 is already WAL-style under the hood, so the pragma was both
+-- forbidden and unnecessary.
 
 CREATE TABLE IF NOT EXISTS identities (
   daemon_fingerprint TEXT    PRIMARY KEY,

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PLIST_SRC="$SCRIPT_DIR/com.portdaddy.fleetbar.plist"
+PLIST_TEMPLATE="$SCRIPT_DIR/com.portdaddy.fleetbar.plist.template"
 PLIST_DST="$HOME/Library/LaunchAgents/com.portdaddy.fleetbar.plist"
 LOG_DIR="$HOME/.port-daddy"
 APP_INFO_PLIST_SRC="$SCRIPT_DIR/FleetBar-Info.plist"
@@ -59,8 +59,14 @@ fi
 touch "$APP_BUNDLE"
 /usr/bin/killall -HUP Dock 2>/dev/null || true
 
-# Create plist with installed app executable path
-sed "s|/Users/erichowens/coding/port-daddy/apps/FleetBar/.build/arm64-apple-macosx/debug/FleetBar|$APP_BIN|" "$PLIST_SRC" > "$PLIST_DST"
+# Render the LaunchAgent plist from the committed template, substituting the
+# machine-local absolute paths. No home path is hardcoded anywhere — every value
+# is derived from $HOME / the checkout location at install time.
+sed \
+    -e "s|__FLEETBAR_BINARY__|$APP_BIN|g" \
+    -e "s|__FLEETBAR_WORKDIR__|$SCRIPT_DIR|g" \
+    -e "s|__LOG_DIR__|$LOG_DIR|g" \
+    "$PLIST_TEMPLATE" > "$PLIST_DST"
 
 # Unload if already running
 launchctl unload "$PLIST_DST" 2>/dev/null || true

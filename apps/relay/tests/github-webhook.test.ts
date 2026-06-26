@@ -261,3 +261,108 @@ describe('handleGithubWebhook — HMAC ingress gate', () => {
     expect(published).toEqual([]);
   });
 });
+
+describe('handleGithubWebhook — ambient-noise event filter', () => {
+  // A CI-flood event GitHub Apps fire constantly. Body has no `action`, so the
+  // persist gate must reject it on event-type alone.
+  const WORKFLOW_RUN_BODY = JSON.stringify({
+    workflow_run: { id: 99, conclusion: 'success' },
+    repository: { full_name: 'curiositech/port-daddy', id: 42 },
+    sender: { login: 'octocat', id: 1 },
+  });
+
+  it('204 and persists NOTHING for a non-PR event (still audited as ignored)', async () => {
+    const cap: Captured = { events: [], audits: [] };
+    const published: string[] = [];
+    const env = makeEnv(cap, published);
+    const sig = sign(SECRET, WORKFLOW_RUN_BODY);
+
+    const res = await handleGithubWebhook(
+      webhookReq({
+        body: WORKFLOW_RUN_BODY,
+        signature: sig,
+        event: 'workflow_run',
+        delivery: 'wf-1',
+      }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    // No fan-out, no event rows, no chain growth.
+    expect(published).toEqual([]);
+    expect(cap.events).toEqual([]);
+    // The delivery is still traceable via a single ignored-audit row.
+    expect(cap.audits).toEqual([
+      { action: 'github_webhook_ignored', target: 'curiositech/port-daddy' },
+    ]);
+  });
+
+  it('still HMAC-rejects a non-PR event with a bad signature (security gate unchanged)', async () => {
+    const cap: Captured = { events: [], audits: [] };
+    const published: string[] = [];
+    const env = makeEnv(cap, published);
+    const wrong = sign('the-wrong-secret', WORKFLOW_RUN_BODY);
+
+    const res = await handleGithubWebhook(
+      webhookReq({ body: WORKFLOW_RUN_BODY, signature: wrong, event: 'workflow_run' }),
+      env
+    );
+
+    // Verification happens BEFORE the persist filter — a forged delivery is 401,
+    // never a quiet 204.
+    expect(res.status).toBe(401);
+    expect(await res.text()).toContain('BAD_SIGNATURE');
+    expect(published).toEqual([]);
+    expect(cap.events).toEqual([]);
+    expect(cap.audits).toEqual([]);
+  });
+
+  it('204 and persists NOTHING for a pull_request action outside the whitelist', async () => {
+    const cap: Captured = { events: [], audits: [] };
+    const published: string[] = [];
+    const env = makeEnv(cap, published);
+    const body = JSON.stringify({
+      action: 'assigned', // not in PERSIST_EVENT_TYPES
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+    });
+    const sig = sign(SECRET, body);
+
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sig, event: 'pull_request', delivery: 'pr-assigned' }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(published).toEqual([]);
+    expect(cap.events).toEqual([]);
+    expect(cap.audits).toEqual([
+      { action: 'github_webhook_ignored', target: 'curiositech/port-daddy' },
+    ]);
+  });
+
+  it('persists and fans out a whitelisted PR action other than opened (e.g. labeled)', async () => {
+    const cap: Captured = { events: [], audits: [] };
+    const published: string[] = [];
+    const env = makeEnv(cap, published);
+    const body = JSON.stringify({
+      action: 'labeled',
+      repository: { full_name: 'curiositech/port-daddy', id: 42 },
+      sender: { login: 'octocat', id: 1 },
+    });
+    const sig = sign(SECRET, body);
+
+    const res = await handleGithubWebhook(
+      webhookReq({ body, signature: sig, event: 'pull_request', delivery: 'pr-labeled' }),
+      env
+    );
+
+    expect(res.status).toBe(204);
+    expect(published).toEqual([
+      'github:webhook:pull_request',
+      'github:webhook:pull_request:labeled',
+      'github:curiositech/port-daddy:pull_request',
+    ]);
+    expect(cap.audits.every((a) => a.action === 'github_webhook_publish')).toBe(true);
+  });
+});

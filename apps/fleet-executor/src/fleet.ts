@@ -5,10 +5,15 @@
  * a given event. The model selected is the first cloudflare fallback entry,
  * falling back to a sane default per ship.
  *
- * Copied from PR #549 (apps/github-app-receiver/src/fleet.ts) with one
- * addition: a per-ship `blocking` boolean (default false). Only ships with
- * `blocking: true` can fail the umbrella check run; everyone else is advisory.
+ * DETERMINISTIC PARSE (2026-06): the parser now uses the real `yaml` package on
+ * the ENTIRE document — no truncation, no LLM round-trip. The previous version
+ * sliced the YAML to 12000 chars and asked Workers AI to extract JSON, which
+ * silently dropped every ship declared past the cutoff (and could hallucinate
+ * fields). The deterministic parser reads all ships, every time, and is pure
+ * (no `Ai` dependency), so callers can parse once and never re-parse.
  */
+
+import { parse as parseYaml } from 'yaml';
 
 export interface ShipConfig {
   name: string;
@@ -31,8 +36,34 @@ export interface ShipConfig {
 const DEFAULT_CF_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
 const CODER_CF_MODEL = '@cf/qwen/qwen2.5-coder-32b-instruct';
 
-// Tools that require local execution (can't run in a Worker)
+// Tools that require local execution (can't run in a Worker). Matches any
+// Bash(...) tool whose command is NOT `gh` (gh runs fine against the API).
 const EXECUTION_TOOLS_RE = /Bash\((?!gh)[^)]*\)/;
+
+/**
+ * Ships that are CLOUD-STATIC reviewers by contract: they analyze the diff and
+ * existing tests but NEVER execute. `qa` historically lists `Bash(npm test*)`
+ * in `allowedTools` (a relic of its local-runner past); the cloud executor runs
+ * it as a static reviewer per fleet/ships/qa.md, so we force needsExecution=false
+ * for it regardless of allowedTools.
+ */
+const CLOUD_STATIC_SHIPS = new Set(['qa']);
+
+interface RawFallback {
+  backend?: string;
+  model?: string;
+}
+
+interface RawAgent {
+  trigger?: string | string[];
+  prompt?: string;
+  backend?: string;
+  fallbacks?: RawFallback[];
+  allowedTools?: string;
+  telos?: string;
+  role?: string;
+  blocking?: unknown;
+}
 
 /**
  * Coerce a YAML-ish truthy value into a strict boolean. Operator typos
@@ -44,68 +75,81 @@ function coerceBlocking(value: unknown): boolean {
 }
 
 /**
- * Very minimal YAML extraction. Instead of a full YAML parse, we use
- * Workers AI itself to extract the fleet config as JSON — meta, but
- * accurate and zero-dependency.
- *
- * Returns null if the extraction fails; callers fall back to built-in defaults.
+ * Derive the Cloudflare Workers AI model for a ship:
+ *   1. the first `fallbacks[].model` that starts with `@cf/`, else
+ *   2. a name-based default (coder model for *reviewer* ships, general otherwise).
  */
-export async function parseFleetShips(
-  fleetYaml: string,
-  trigger: string,
-  ai: Ai,
-): Promise<ShipConfig[] | null> {
-  const prompt = `Extract all ships from this pd-fleet.yml that have trigger "${trigger}" or "${trigger.split(':')[0]}:*".
-
-Return ONLY a JSON array, no markdown fences, no explanation. Each element:
-{
-  "name": "<ship-name>",
-  "trigger": "<trigger-value>",
-  "prompt": "<full prompt text>",
-  "cfModel": "<first @cf/ model from fallbacks array, or null>",
-  "role": "<telos field value, or first sentence of prompt>",
-  "telos": "<telos field value or empty>",
-  "blocking": <true if the ship has blocking: true, else false>,
-  "allowedTools": "<allowedTools value or empty>"
+function deriveCfModel(agent: RawAgent, name: string): string {
+  for (const fb of agent.fallbacks ?? []) {
+    if (typeof fb?.model === 'string' && fb.model.startsWith('@cf/')) return fb.model;
+  }
+  return name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL;
 }
 
-pd-fleet.yml:
-\`\`\`yaml
-${fleetYaml.slice(0, 12000)}
-\`\`\``;
+function deriveNeedsExecution(name: string, allowedTools: unknown): boolean {
+  if (CLOUD_STATIC_SHIPS.has(name)) return false;
+  return EXECUTION_TOOLS_RE.test(typeof allowedTools === 'string' ? allowedTools : '');
+}
 
+/**
+ * Does a ship's trigger (string or array) match the requested event trigger?
+ * Matches an exact trigger (`pull_request:opened`) or a wildcard
+ * (`pull_request:*`). A ship triggered on a different action (e.g.
+ * `pull_request:merged`) does NOT match `pull_request:opened`.
+ */
+function triggerMatches(trigger: unknown, requested: string): boolean {
+  const reqEvent = requested.split(':')[0];
+  const triggers = Array.isArray(trigger) ? trigger : [trigger];
+  return triggers.some(
+    t => typeof t === 'string' && (t === requested || t === `${reqEvent}:*`),
+  );
+}
+
+/**
+ * Deterministically parse pd-fleet.yml and return every ship whose trigger
+ * matches `trigger`. Pure (no Workers AI). Reads the ENTIRE document.
+ *
+ * Ships without a `prompt` (e.g. deterministic-body ships like harbor-pilot that
+ * carry `body:` instead) are skipped — the cloud executor only runs prompt-driven
+ * LLM ships. Returns `null` when the document can't be parsed or yields no
+ * matching ship, so callers fall back to {@link defaultPRShips} exactly once.
+ */
+export function parseFleetShips(fleetYaml: string, trigger: string): ShipConfig[] | null {
+  let doc: unknown;
   try {
-    const res = (await ai.run('@cf/qwen/qwen3-30b-a3b-fp8', {
-      messages: [{ role: 'user', content: prompt }],
-    })) as { response?: string };
-
-    const text = (res.response ?? '').trim();
-    // Strip markdown fences if model added them
-    const json = text.replace(/^```[a-z]*\n?/m, '').replace(/\n?```$/m, '').trim();
-    const raw = JSON.parse(json) as Array<{
-      name: string;
-      trigger: string;
-      prompt: string;
-      cfModel: string | null;
-      role: string;
-      telos: string;
-      blocking?: unknown;
-      allowedTools: string;
-    }>;
-
-    return raw.map(s => ({
-      name: s.name,
-      trigger: s.trigger,
-      prompt: s.prompt,
-      cfModel: s.cfModel ?? (s.name.includes('reviewer') ? CODER_CF_MODEL : DEFAULT_CF_MODEL),
-      role: s.telos || s.role || `${s.name} ship`,
-      telos: s.telos,
-      blocking: coerceBlocking(s.blocking),
-      needsExecution: EXECUTION_TOOLS_RE.test(s.allowedTools ?? ''),
-    }));
+    doc = parseYaml(fleetYaml);
   } catch {
     return null;
   }
+
+  const agents = (doc as { fleet?: { agents?: Record<string, unknown> } } | null)?.fleet?.agents;
+  if (!agents || typeof agents !== 'object') return null;
+
+  const ships: ShipConfig[] = [];
+  for (const [name, rawUnknown] of Object.entries(agents)) {
+    if (!rawUnknown || typeof rawUnknown !== 'object') continue;
+    const agent = rawUnknown as RawAgent;
+    if (!triggerMatches(agent.trigger, trigger)) continue;
+
+    const prompt = typeof agent.prompt === 'string' ? agent.prompt.trim() : '';
+    if (!prompt) continue; // deterministic/bodied ships and malformed entries
+
+    const telos = typeof agent.telos === 'string' ? agent.telos : '';
+    const role = telos || (typeof agent.role === 'string' ? agent.role : '') || `${name} ship`;
+
+    ships.push({
+      name,
+      trigger: agent.trigger as string | string[],
+      prompt,
+      cfModel: deriveCfModel(agent, name),
+      role,
+      telos,
+      blocking: coerceBlocking(agent.blocking),
+      needsExecution: deriveNeedsExecution(name, agent.allowedTools),
+    });
+  }
+
+  return ships.length > 0 ? ships : null;
 }
 
 /**

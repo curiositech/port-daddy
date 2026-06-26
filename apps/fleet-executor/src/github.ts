@@ -318,6 +318,69 @@ async function findExistingComment(
 }
 
 // ---------------------------------------------------------------------------
+// Reviews (inline comments)
+
+export interface ReviewComment {
+  /** File path relative to repo root. */
+  path: string;
+  /** 1-indexed line in the file (GitHub's review API expects `line`). */
+  line: number;
+  /** Comment text — already prefixed with `[<ship>] ` by the caller. */
+  body: string;
+}
+
+/**
+ * Create ONE GitHub Review carrying all the fleet's inline comments plus a
+ * roll-up summary body. This is the PRIMARY review surface; per-ship issue
+ * comments remain only for backward-compatible history.
+ *
+ * `event` is the review event ('COMMENT' — gating is owned by the check run, so
+ * the review never REQUEST_CHANGES on its own). Inline comments use the modern
+ * `line`/`side` fields against `commitSha` (the PR head SHA).
+ *
+ * Best-effort: a review failure NEVER throws — the merge gate is the check run,
+ * not the review. (Idempotency caveat: GitHub has no clean PATCH for a whole
+ * review-with-comments, so a re-run may append a second review; the per-ship
+ * issue comments stay edit-in-place for the idempotent history surface.)
+ */
+export async function createReview(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  event: 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES',
+  summaryBody: string,
+  comments: ReviewComment[],
+  commitSha: string,
+  token: string,
+): Promise<{ reviewId: number }> {
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+      {
+        method: 'POST',
+        headers: ghHeaders(token),
+        body: JSON.stringify({
+          commit_id: commitSha || undefined,
+          event,
+          body: summaryBody,
+          comments: comments.map(c => ({
+            path: c.path,
+            line: c.line,
+            side: 'RIGHT',
+            body: c.body,
+          })),
+        }),
+      },
+    );
+    if (!res.ok) return { reviewId: 0 };
+    const body = (await res.json()) as { id?: number };
+    return { reviewId: body.id ?? 0 };
+  } catch {
+    return { reviewId: 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Check runs
 
 export async function createCheckRun(

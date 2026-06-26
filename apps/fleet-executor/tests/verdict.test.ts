@@ -3,6 +3,7 @@ import {
   parseVerdict,
   resolveVerdict,
   aggregateConclusion,
+  parseShipFindings,
   type ShipResult,
 } from '../src/verdict.js';
 
@@ -44,6 +45,49 @@ describe('resolveVerdict (fail-closed)', () => {
   it('honors an explicit verdict regardless of blocking', () => {
     expect(resolveVerdict('FLEET-VERDICT: PASS', true)).toBe('PASS');
     expect(resolveVerdict('FLEET-VERDICT: BLOCK', false)).toBe('BLOCK');
+  });
+});
+
+describe('parseShipFindings', () => {
+  const fenced = (json: string, tail = '\n\nFLEET-VERDICT: PASS') =>
+    ['```json', json, '```', tail].join('\n');
+
+  it('returns [] when there is no findings block', () => {
+    expect(parseShipFindings('just prose\n\nFLEET-VERDICT: PASS')).toEqual([]);
+  });
+
+  it('returns [] for an empty array block', () => {
+    expect(parseShipFindings(fenced('[]'))).toEqual([]);
+  });
+
+  it('parses a well-formed findings array', () => {
+    const out = fenced('[{"path":"src/a.ts","line":42,"severity":"HIGH","body":"TOCTOU"}]');
+    expect(parseShipFindings(out)).toEqual([
+      { path: 'src/a.ts', line: 42, severity: 'HIGH', body: 'TOCTOU' },
+    ]);
+  });
+
+  it('coerces MED/unknown severity to MEDIUM/LOW', () => {
+    const out = fenced(
+      '[{"path":"a","line":1,"severity":"MED","body":"x"},{"path":"b","line":2,"severity":"weird","body":"y"}]',
+    );
+    const findings = parseShipFindings(out);
+    expect(findings).not.toBeNull();
+    expect(findings![0].severity).toBe('MEDIUM');
+    expect(findings![1].severity).toBe('LOW');
+  });
+
+  it('returns null for malformed JSON inside the fence (parse failure)', () => {
+    expect(parseShipFindings(fenced('{ not valid array'))).toBeNull();
+  });
+
+  it('returns null when the JSON is not an array', () => {
+    expect(parseShipFindings(fenced('{"path":"a","line":1}'))).toBeNull();
+  });
+
+  it('returns null when an element does not match the Finding schema', () => {
+    expect(parseShipFindings(fenced('[{"path":"a"}]'))).toBeNull();
+    expect(parseShipFindings(fenced('[{"path":"a","line":"NaN","body":"x"}]'))).toBeNull();
   });
 });
 

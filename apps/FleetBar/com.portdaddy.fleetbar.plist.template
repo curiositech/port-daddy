@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for the FleetBar LaunchAgent. install.sh substitutes the __PLACEHOLDER__
+  tokens with machine-local absolute paths (derived from $HOME and the checkout
+  location) and writes the rendered plist to
+  $HOME/Library/LaunchAgents/com.portdaddy.fleetbar.plist.
+  The rendered plist is machine-specific and gitignored; only this template is
+  committed (no hardcoded home paths).
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
@@ -8,7 +16,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/erichowens/coding/port-daddy/apps/FleetBar/.build/arm64-apple-macosx/debug/FleetBar</string>
+        <string>__FLEETBAR_BINARY__</string>
     </array>
 
     <key>RunAtLoad</key>
@@ -25,12 +33,12 @@
     <integer>10</integer>
 
     <key>WorkingDirectory</key>
-    <string>/Users/erichowens/coding/port-daddy/apps/FleetBar</string>
+    <string>__FLEETBAR_WORKDIR__</string>
 
     <key>StandardOutPath</key>
-    <string>/Users/erichowens/.port-daddy/fleetbar-stdout.log</string>
+    <string>__LOG_DIR__/fleetbar-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/erichowens/.port-daddy/fleetbar-stderr.log</string>
+    <string>__LOG_DIR__/fleetbar-stderr.log</string>
 
     <!-- Menu bar app — needs GUI access, low priority -->
     <key>Nice</key>
