@@ -6,6 +6,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
+import { SpinningWordmark } from './SpinningWordmark'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
 
 const truthTone: Record<TruthState, string> = {
@@ -136,13 +137,15 @@ export function Wordmark({
   decorative?: boolean
 }) {
   const { theme } = useTheme()
+
+  // The hero's spinning wordmark is rendered inline (not an <img>) so its colour
+  // washes can be CSS-driven — smooth, and frozen when not spinning.
+  if (variant === 'spin') {
+    return <SpinningWordmark className={className} />
+  }
+
   const suffix = theme === 'dark' ? 'dark' : 'light'
-  const base =
-    variant === 'spin'
-      ? 'portdaddy-wordmark-spin'
-      : variant === 'header'
-      ? 'portdaddy-wordmark-header'
-      : 'portdaddy-wordmark'
+  const base = variant === 'header' ? 'portdaddy-wordmark-header' : 'portdaddy-wordmark'
 
   return (
     <img
