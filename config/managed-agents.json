@@ -1,0 +1,14 @@
+{
+  "$comment": "Committed registry of Port Daddy Pilot Claude managed (cloud) agents. Written by scripts/create-managed-agent.ts. Do not hand-edit ids/versions.",
+  "agents": {
+    "port-daddy-pilot": {
+      "status": "pending",
+      "id": null,
+      "version": null,
+      "name": "Port Daddy Pilot",
+      "model": "claude-opus-4-8",
+      "source_sha": "f5665e08056b1315",
+      "note": "ANTHROPIC_API_KEY not set at creation time. Re-run scripts/create-managed-agent.ts with the key to create/update the cloud agent."
+    }
+  }
+}

@@ -15,6 +15,17 @@ class PortDaddy < Formula
     # same instruction manual into Codex, Claude, AGENTS-aware, Gemini, and
     # compatible editor runtimes without copy drift.
     pkgshare.install "skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"
+
+    # Ship the canonical Port Daddy Pilot agent source so `pd setup` can render
+    # it into each runtime's native agent format (Claude .md, Codex .toml,
+    # Gemini command, generic .agents drop). The renderer reads this on every
+    # install/upgrade — see lib/pilot-agent-render.ts.
+    pkgshare.install "agents/port-daddy-pilot" => "agents/port-daddy-pilot"
+
+    # Ship the SessionStart steering hook so `pd init` can wire it into a
+    # project's .claude/settings.json — new sessions in a Port Daddy repo adopt
+    # the Pilot agent automatically. Dependency-free, daemon-independent.
+    pkgshare.install "hooks/sessionstart-pilot.mjs" => "hooks/sessionstart-pilot.mjs"
   end
 
   def post_install
@@ -58,6 +69,16 @@ class PortDaddy < Formula
         ~/.windsurf/skills/port-daddy-agent-skill
         ...and other AGENTS-aware/editor skill registries
 
+      Setup also renders the Port Daddy Pilot agent — the ideal Port Daddy
+      operating persona — into every local LLM runtime's native format:
+        ~/.claude/agents/port-daddy-pilot.md      (Claude Code / Desktop)
+        ~/.codex/agents/port-daddy-pilot.toml     (Codex CLI)
+        ~/.gemini/commands/pd-pilot.toml          (Gemini CLI: /pd-pilot)
+        ~/.agents/agents/port-daddy-pilot.md      (generic AGENTS-aware drop)
+      Antigravity (agy) picks it up via `agy plugin import` from the Gemini
+      source. In a Port Daddy project the SessionStart hook steers new sessions
+      to this agent automatically unless you pass --agent <other>.
+
       Verify from the console:
         pd setup --status
         pd status
@@ -70,5 +91,8 @@ class PortDaddy < Formula
   test do
     system "#{bin}/pd", "version"
     assert_predicate pkgshare/"skills/port-daddy-agent-skill/SKILL.md", :exist?
+    assert_predicate pkgshare/"agents/port-daddy-pilot/AGENT.md", :exist?
+    assert_predicate pkgshare/"agents/port-daddy-pilot/agent.config.json", :exist?
+    assert_predicate pkgshare/"hooks/sessionstart-pilot.mjs", :exist?
   end
 end

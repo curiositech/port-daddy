@@ -1,0 +1,225 @@
+import { describe, expect, test, afterEach } from '@jest/globals';
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import {
+  extractSystemPrompt,
+  claudeToolList,
+  renderClaude,
+  renderCodexToml,
+  renderGeminiCommandToml,
+  installPilotAgents,
+  pilotRenderTargets,
+  type PilotConfig,
+} from '../../lib/pilot-agent-render.ts';
+import { installPilotSessionStartHook } from '../../lib/pilot-sessionstart-hook.ts';
+
+const SAMPLE_CONFIG: PilotConfig = {
+  id: 'port-daddy-pilot',
+  name: 'Port Daddy Pilot',
+  description: 'The ideal Port Daddy agent: coordinates before it cuts.',
+  color: 'green',
+  model: { claude_local: 'opus' },
+  skills: ['port-daddy-agent-skill'],
+  tools: {
+    portDaddyMcp: ['begin_session', 'coordination_preflight'],
+    windagsMcp: ['windags_skill_search'],
+    editorLocal: ['Read', 'Edit', 'Bash'],
+  },
+};
+
+const SAMPLE_AGENT_MD = [
+  '<!-- header doc that mentions the --- BEGIN SYSTEM PROMPT --- marker inline -->',
+  '# Port Daddy Pilot',
+  'docs go here',
+  '',
+  '--- BEGIN SYSTEM PROMPT ---',
+  '',
+  'You are **Port Daddy Pilot**. Coordinate before you cut.',
+  'Leave durable notes.',
+  '',
+  '--- END SYSTEM PROMPT ---',
+  '',
+  'trailing docs',
+].join('\n');
+
+const tmpDirs: string[] = [];
+function makeTmp(): string {
+  const d = mkdtempSync(join(tmpdir(), 'pilot-test-'));
+  tmpDirs.push(d);
+  return d;
+}
+afterEach(() => {
+  while (tmpDirs.length) rmSync(tmpDirs.pop()!, { recursive: true, force: true });
+});
+
+describe('extractSystemPrompt', () => {
+  test('extracts the text between line-delimited markers', () => {
+    const out = extractSystemPrompt(SAMPLE_AGENT_MD);
+    expect(out.startsWith('You are **Port Daddy Pilot**')).toBe(true);
+    expect(out.endsWith('Leave durable notes.')).toBe(true);
+  });
+
+  test('ignores an inline mention of the marker in the header', () => {
+    const out = extractSystemPrompt(SAMPLE_AGENT_MD);
+    // The header's inline "--- BEGIN SYSTEM PROMPT ---" must not become the cut point.
+    expect(out).not.toContain('header doc');
+    expect(out).not.toContain('docs go here');
+  });
+
+  test('throws when markers are absent', () => {
+    expect(() => extractSystemPrompt('no markers here')).toThrow(/BEGIN\/END SYSTEM PROMPT/);
+  });
+});
+
+describe('claudeToolList', () => {
+  test('prefixes MCP tools and passes editor tools through', () => {
+    expect(claudeToolList(SAMPLE_CONFIG)).toEqual([
+      'mcp__port-daddy__begin_session',
+      'mcp__port-daddy__coordination_preflight',
+      'mcp__windags__windags_skill_search',
+      'Read',
+      'Edit',
+      'Bash',
+    ]);
+  });
+});
+
+describe('renderClaude', () => {
+  test('emits valid frontmatter with name, description, tools, model, color, then the body', () => {
+    const md = renderClaude(SAMPLE_CONFIG, 'BODY-PROMPT');
+    const fm = md.split('---')[1];
+    expect(fm).toContain('name: port-daddy-pilot');
+    expect(fm).toContain('model: opus');
+    expect(fm).toContain('color: green');
+    expect(fm).toContain('mcp__port-daddy__begin_session');
+    // description is a JSON-escaped scalar (survives the colon)
+    expect(fm).toMatch(/description: ".*coordinates before it cuts\./);
+    expect(md).toContain('\nBODY-PROMPT\n');
+  });
+});
+
+describe('renderCodexToml', () => {
+  test('uses name/description/developer_instructions with a literal block', () => {
+    const toml = renderCodexToml(SAMPLE_CONFIG, "It's a body with an apostrophe.");
+    expect(toml).toContain('name = "port-daddy-pilot"');
+    expect(toml).toContain('developer_instructions = \'\'\'');
+    expect(toml).toContain("It's a body with an apostrophe.");
+  });
+});
+
+describe('renderGeminiCommandToml', () => {
+  test('wraps the prompt with an adopt-persona preamble', () => {
+    const toml = renderGeminiCommandToml(SAMPLE_CONFIG, 'BODY');
+    expect(toml).toContain('description = ');
+    expect(toml).toContain('Adopt the following operating persona');
+    expect(toml).toContain('BODY');
+  });
+});
+
+describe('installPilotAgents', () => {
+  function seedSource(): string {
+    const src = makeTmp();
+    writeFileSync(join(src, 'agent.config.json'), JSON.stringify(SAMPLE_CONFIG));
+    writeFileSync(join(src, 'AGENT.md'), SAMPLE_AGENT_MD);
+    return src;
+  }
+
+  test('writes every runtime definition under the base dir', () => {
+    const src = seedSource();
+    const base = makeTmp();
+    const result = installPilotAgents({ sourceDir: src, baseDir: base });
+    expect(result.errors).toEqual([]);
+    expect(result.written).toHaveLength(5);
+    for (const target of pilotRenderTargets(base, SAMPLE_CONFIG, 'x')) {
+      expect(existsSync(target.path)).toBe(true);
+    }
+    expect(readFileSync(join(base, '.claude', 'agents', 'port-daddy-pilot.md'), 'utf8'))
+      .toContain('You are **Port Daddy Pilot**');
+  });
+
+  test('is idempotent: a second install reports no changes', () => {
+    const src = seedSource();
+    const base = makeTmp();
+    installPilotAgents({ sourceDir: src, baseDir: base });
+    const second = installPilotAgents({ sourceDir: src, baseDir: base });
+    expect(second.written.every((w) => !w.changed)).toBe(true);
+  });
+
+  test('refuses to clobber a foreign file at the target path', () => {
+    const src = seedSource();
+    const base = makeTmp();
+    const claudePath = join(base, '.claude', 'agents', 'port-daddy-pilot.md');
+    mkdirSync(join(base, '.claude', 'agents'), { recursive: true });
+    writeFileSync(claudePath, 'hand-written file with no pilot id');
+    const result = installPilotAgents({ sourceDir: src, baseDir: base });
+    expect(result.errors.some((e) => e.path === claudePath)).toBe(true);
+    expect(readFileSync(claudePath, 'utf8')).toBe('hand-written file with no pilot id');
+  });
+});
+
+describe('installPilotSessionStartHook', () => {
+  test('registers the hook and preserves existing SessionStart entries', () => {
+    const projectDir = makeTmp();
+    mkdirSync(join(projectDir, '.claude'), { recursive: true });
+    writeFileSync(
+      join(projectDir, '.claude', 'settings.json'),
+      JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'pd attention --json' }] }] } }),
+    );
+    const r = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
+    expect(r.changed).toBe(true);
+    const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
+    const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
+    expect(commands).toContain('pd attention --json'); // preserved
+    expect(commands.some((c: string) => c.includes('sessionstart-pilot.mjs'))).toBe(true);
+  });
+
+  test('is idempotent', () => {
+    const projectDir = makeTmp();
+    installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
+    const second = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
+    expect(second.changed).toBe(false);
+  });
+});
+
+describe('sessionstart-pilot.mjs hook script', () => {
+  const script = join(process.cwd(), 'hooks', 'sessionstart-pilot.mjs');
+
+  function run(payload: object, env: Record<string, string> = {}): string {
+    try {
+      return execFileSync('node', [script], {
+        input: JSON.stringify(payload),
+        env: { ...process.env, ...env },
+        encoding: 'utf8',
+      });
+    } catch {
+      return '';
+    }
+  }
+
+  test('emits SessionStart steering in a Port Daddy-active repo', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    const out = JSON.parse(run({ cwd: dir }));
+    expect(out.hookSpecificOutput.hookEventName).toBe('SessionStart');
+    expect(out.hookSpecificOutput.additionalContext).toContain('Port Daddy Pilot');
+  });
+
+  test('stays silent outside a Port Daddy repo', () => {
+    const dir = makeTmp();
+    expect(run({ cwd: dir })).toBe('');
+  });
+
+  test('stays silent when a non-default agent is selected', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    expect(run({ cwd: dir, agent: 'debugger' })).toBe('');
+  });
+
+  test('stays silent when disabled via PD_PILOT_DISABLE', () => {
+    const dir = makeTmp();
+    mkdirSync(join(dir, '.portdaddy'), { recursive: true });
+    expect(run({ cwd: dir }, { PD_PILOT_DISABLE: '1' })).toBe('');
+  });
+});
