@@ -3,16 +3,14 @@ import { cn } from '@/lib/utils'
 
 /**
  * The hero's spinning wordmark — rendered INLINE (not an <img>) so the colour
- * washes are CSS-driven and therefore (a) smooth gradient transitions rather
- * than discrete jumps, and (b) gated by `prefers-reduced-motion`, so the colours
- * only travel while the mark is actually spinning and freeze when it sits still.
+ * animation is CSS-driven: it only travels while the mark spins and FREEZES
+ * under `prefers-reduced-motion`.
  *
- *   - "Port Daddy" type: a slightly-tilted linear gradient that washes
- *     left → right across both words (animated stop-colours, smooth crossfade).
- *   - the p·d monogram: a radial gradient that washes outward from the centre
- *     while the glyph spins.
- *
- * The spin (CSS transforms) and both washes share one reduced-motion switch.
+ * Colour cadence: the p·d glyph flips 180° twice per 6s. The palette advances
+ * exactly ONE notch per 180° turn — synced 1:1 to the flip — over an 18s,
+ * 6-turn cycle (= 3 flip cycles, two full {cobalt,ink,seafoam} rotations, so it
+ * loops seamlessly). Each change snaps in fast then brakes with a little
+ * overshoot, and sweeps left→right across "Port Daddy" (radially on the pd).
  */
 
 const PALETTE = {
@@ -20,70 +18,86 @@ const PALETTE = {
   dark: { c1: '#7DB4FF', c2: '#F5F3ED', c3: '#20DEB0', grid: '#1A2434', sea: '#20DEB0', amber: '#FFB505', cobalt: '#2076FE', ink: '#F5F3ED', muted: '#A59F93' },
 } as const
 
+// Turn centres as % of the 18s colour cycle — the six 180° flips (two per 6s
+// flip cycle, centred at 30% and 75% of each). One colour change at each.
+const TURN_PCT = [10, 25, 43.33, 58.33, 76.67, 91.67]
+const HALF = 1.6 // half-width of each (quick) transition window, in %
+// Fast in, hard brake, slight overshoot — the "fly in and stop like braking".
+const BRAKE = 'cubic-bezier(0.16, 1.3, 0.3, 1)'
+const C = ['var(--c1)', 'var(--c2)', 'var(--c3)']
+
+/** One keyframe track per base colour; advances one notch at each turn window. */
+function turnKeyframes(base: number): string {
+  let s = `@keyframes pdw-turn${base}{0%{stop-color:${C[base % 3]}}`
+  TURN_PCT.forEach((c, k) => {
+    const from = C[(base + k) % 3]
+    const to = C[(base + k + 1) % 3]
+    s += `${(c - HALF).toFixed(2)}%{stop-color:${from};animation-timing-function:${BRAKE};}`
+    s += `${(c + HALF).toFixed(2)}%{stop-color:${to};}`
+  })
+  return s + `100%{stop-color:${C[base % 3]}}}`
+}
+
+const TURN_KEYFRAMES = [0, 1, 2].map(turnKeyframes).join('\n')
+
+const STYLE = `
+  .pdw-pivot { transform-origin: 150px 150px; }
+  .pdw-s1 { animation: pdw-spin 10s linear infinite; }
+  .pdw-s2 { animation: pdw-spin-r 7s ease-in-out infinite; }
+  .pdw-s3 { animation: pdw-spin 5s linear infinite; }
+  .pdw-flip { animation: pdw-flip 6s cubic-bezier(0.77,0,0.17,1) infinite; }
+  @keyframes pdw-spin   { 100% { transform: rotate(360deg); } }
+  @keyframes pdw-spin-r { 100% { transform: rotate(-360deg); } }
+  @keyframes pdw-flip {
+    0%,15% { transform: rotate(0deg); } 45%,65% { transform: rotate(180deg); } 85%,100% { transform: rotate(360deg); }
+  }
+  ${TURN_KEYFRAMES}
+  /* base colours = the resting (reduced-motion) state */
+  .pdw-t0 { stop-color: var(--c1); animation: pdw-turn0 18s linear infinite; }
+  .pdw-t1 { stop-color: var(--c2); animation: pdw-turn1 18s linear infinite; }
+  .pdw-t2 { stop-color: var(--c3); animation: pdw-turn2 18s linear infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .pdw-s1, .pdw-s2, .pdw-s3, .pdw-flip,
+    .pdw-t0, .pdw-t1, .pdw-t2 { animation: none; }
+  }
+  .pdw-words { font-family: var(--font-display, "Radnika","Helvetica Neue",Helvetica,Arial,sans-serif); font-weight: 900; }
+  .pdw-tag   { font-family: var(--font-display, "Radnika","Helvetica Neue",Helvetica,Arial,sans-serif); font-weight: 700; }
+`
+
+// Word gradient: 5 stops; small left→right stagger so the change sweeps across.
+const WORD_STOPS = [0, 0.25, 0.5, 0.75, 1].map((offset, i) => ({
+  offset,
+  base: i % 3,
+  delay: -0.12 * (4 - i), // left stops lead → left-to-right sweep
+}))
+// Radial gradient: 4 stops; inner leads → washes outward.
+const RAD_STOPS = [0, 0.4, 0.72, 1].map((offset, i) => ({
+  offset,
+  base: i % 3,
+  delay: -0.12 * i,
+}))
+
 export function SpinningWordmark({ className }: { className?: string }) {
   const { theme } = useTheme()
   const p = PALETTE[theme === 'dark' ? 'dark' : 'light']
-
-  const css = `
-    .pdw { --c1:${p.c1}; --c2:${p.c2}; --c3:${p.c3}; }
-    .pdw-pivot { transform-origin: 150px 150px; }
-    .pdw-s1 { animation: pdw-spin 10s linear infinite; }
-    .pdw-s2 { animation: pdw-spin-r 7s ease-in-out infinite; }
-    .pdw-s3 { animation: pdw-spin 5s linear infinite; }
-    .pdw-flip { animation: pdw-flip 6s cubic-bezier(0.77,0,0.17,1) infinite; }
-    @keyframes pdw-spin   { 100% { transform: rotate(360deg); } }
-    @keyframes pdw-spin-r { 100% { transform: rotate(-360deg); } }
-    @keyframes pdw-flip {
-      0%,15% { transform: rotate(0deg); } 45%,65% { transform: rotate(180deg); } 85%,100% { transform: rotate(360deg); }
-    }
-
-    /* Smooth colour wash: stops crossfade through the palette; a per-stop phase
-       offset makes the colour band travel along the gradient axis. */
-    @keyframes pdw-wash {
-      0% { stop-color: var(--c1); } 33.33% { stop-color: var(--c2); }
-      66.66% { stop-color: var(--c3); } 100% { stop-color: var(--c1); }
-    }
-    .pdw-word-stop, .pdw-rad-stop { animation: pdw-wash 6s linear infinite; }
-    /* Words wash left -> right: left stops lead the cycle. */
-    .pdw-ws0 { stop-color: var(--c1); animation-delay: 0s; }
-    .pdw-ws1 { stop-color: var(--c2); animation-delay: -1.2s; }
-    .pdw-ws2 { stop-color: var(--c3); animation-delay: -2.4s; }
-    .pdw-ws3 { stop-color: var(--c1); animation-delay: -3.6s; }
-    .pdw-ws4 { stop-color: var(--c2); animation-delay: -4.8s; }
-    /* Monogram washes outward: inner stop leads. */
-    .pdw-rs0 { stop-color: var(--c1); animation-delay: 0s; }
-    .pdw-rs1 { stop-color: var(--c2); animation-delay: -1.5s; }
-    .pdw-rs2 { stop-color: var(--c3); animation-delay: -3s; }
-    .pdw-rs3 { stop-color: var(--c1); animation-delay: -4.5s; }
-
-    /* Sitting still (reduced motion): stop spinning AND stop the colour wash —
-       the lockup holds its resting colours. */
-    @media (prefers-reduced-motion: reduce) {
-      .pdw-s1, .pdw-s2, .pdw-s3, .pdw-flip,
-      .pdw-word-stop, .pdw-rad-stop { animation: none; }
-    }
-
-    .pdw-words { font-family: var(--font-display, "Radnika","Helvetica Neue",Helvetica,Arial,sans-serif); font-weight: 900; }
-    .pdw-tag   { font-family: var(--font-display, "Radnika","Helvetica Neue",Helvetica,Arial,sans-serif); font-weight: 700; }
-  `
+  const rootStyle = { '--c1': p.c1, '--c2': p.c2, '--c3': p.c3 } as React.CSSProperties
 
   return (
     <svg
-      className={cn('pdw w-auto select-none', className)}
+      className={cn('pdw block w-auto select-none', className)}
+      style={rootStyle}
       viewBox="0 0 720 220"
       role="img"
       aria-label="Port Daddy"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <style>{css}</style>
+      <style>{STYLE}</style>
       <defs>
         {/* Tilted linear wash for the words (objectBoundingBox; y2 > 0 => tilt). */}
         <linearGradient id="pdw-word-wash" x1="0" y1="0" x2="1" y2="0.16">
-          <stop className="pdw-word-stop pdw-ws0" offset="0" />
-          <stop className="pdw-word-stop pdw-ws1" offset="0.25" />
-          <stop className="pdw-word-stop pdw-ws2" offset="0.5" />
-          <stop className="pdw-word-stop pdw-ws3" offset="0.75" />
-          <stop className="pdw-word-stop pdw-ws4" offset="1" />
+          {WORD_STOPS.map((s, i) => (
+            <stop key={i} className={`pdw-t${s.base}`} offset={s.offset} style={{ animationDelay: `${s.delay}s` }} />
+          ))}
         </linearGradient>
       </defs>
 
@@ -98,10 +112,9 @@ export function SpinningWordmark({ className }: { className?: string }) {
           </mask>
           {/* Radial wash for the p·d monogram, centred on the glyph. */}
           <radialGradient id="pdw-rad-wash" gradientUnits="userSpaceOnUse" cx="150" cy="150" r="72">
-            <stop className="pdw-rad-stop pdw-rs0" offset="0" />
-            <stop className="pdw-rad-stop pdw-rs1" offset="0.4" />
-            <stop className="pdw-rad-stop pdw-rs2" offset="0.72" />
-            <stop className="pdw-rad-stop pdw-rs3" offset="1" />
+            {RAD_STOPS.map((s, i) => (
+              <stop key={i} className={`pdw-t${s.base}`} offset={s.offset} style={{ animationDelay: `${s.delay}s` }} />
+            ))}
           </radialGradient>
         </defs>
 
