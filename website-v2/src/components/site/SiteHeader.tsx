@@ -14,6 +14,7 @@ import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
 import { useTheme } from "@/lib/theme-context";
 import { PageContainer, Wordmark } from "./primitives";
+import { useHeroWordmark } from "@/lib/hero-brand-context";
 
 type NavItem = {
   label: string;
@@ -218,6 +219,7 @@ function CompressedNavMenu() {
 
 export function SiteHeader() {
   const { theme, toggle } = useTheme();
+  const { heroWordmarkVisible } = useHeroWordmark();
 
   return (
     <>
@@ -238,9 +240,14 @@ export function SiteHeader() {
           <Link
             to="/"
             aria-label="Port Daddy — home"
-            className="inline-flex shrink-0 items-center text-[var(--text-primary)]"
+            aria-hidden={heroWordmarkVisible || undefined}
+            tabIndex={heroWordmarkVisible ? -1 : undefined}
+            className={`inline-flex shrink-0 items-center text-[var(--text-primary)] transition-opacity duration-200 ${
+              heroWordmarkVisible ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
           >
-            {/* Compact wordmark lockup — spinning mark + "Port Daddy". */}
+            {/* Compact wordmark lockup — spinning mark + "Port Daddy". Hidden
+                while the hero wordmark is on-screen so the two don't stack. */}
             <Wordmark variant="header" className="h-9 xl:h-10" />
           </Link>
 

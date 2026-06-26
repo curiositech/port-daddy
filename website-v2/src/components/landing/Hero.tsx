@@ -2,11 +2,31 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
+import { useEffect, useRef } from 'react'
 import { PageContainer, SectionIntro, Wordmark } from '@/components/site/primitives'
 import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
+import { useHeroWordmark } from '@/lib/hero-brand-context'
 
 export function Hero() {
+  const { setHeroWordmarkVisible } = useHeroWordmark()
+  const heroMarkRef = useRef<HTMLDivElement>(null)
+  // Report whether the hero wordmark is on-screen so the navbar can hide its
+  // own (duplicative) wordmark. rootMargin offsets the sticky header height, so
+  // the mark counts as "gone" the moment it slides under the navbar.
+  useEffect(() => {
+    const el = heroMarkRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroWordmarkVisible(entry.isIntersecting),
+      { rootMargin: '-80px 0px 0px 0px', threshold: 0 },
+    )
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      setHeroWordmarkVisible(false)
+    }
+  }, [setHeroWordmarkVisible])
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -20,6 +40,7 @@ export function Hero() {
             hero. The radar mark animates; the type stays put. Theme-aware,
             transparent ground, reduced-motion safe. */}
         <motion.div
+          ref={heroMarkRef}
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' as const }}
