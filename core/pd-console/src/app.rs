@@ -147,7 +147,7 @@ const NAV: &[NavItem] = &[
     NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
     NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
     NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "roadmap",  label: "Roadmap",  icon: "icons/nav/roadmap.svg",  key: "6" },
+    NavItem { id: "roadmap",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
     NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
     NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
     NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },

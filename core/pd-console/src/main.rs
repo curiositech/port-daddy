@@ -30,6 +30,7 @@ mod palette;
 mod notes_pane;
 mod pane;
 mod peek_pane;
+mod planner_pane;
 mod prs_pane;
 mod roadmap_pane;
 mod sessions_pane;
@@ -59,7 +60,9 @@ use conductor_pane::ConductorPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
+use planner_pane::PlannerPane;
 use prs_pane::PrsPane;
+#[allow(unused_imports)]
 use roadmap_pane::RoadmapPane;
 use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
@@ -199,7 +202,7 @@ fn main() {
                 let mut sorties    = SortiePane::new();        // 2
                 let mut claims     = ClaimsPane::new();        // 3
                 let mut peek       = PeekPane::new();          // 4
-                let mut roadmap    = RoadmapPane::new();       // 5
+                let mut roadmap    = PlannerPane::new();       // 5 (Planner — replaces Roadmap; ADR-0086)
                 let mut adrs       = AdrsPane::new();          // 6
                 let mut activity   = ActivityPane::new();      // 7
                 let mut sessions   = SessionsPane::new();      // 8
