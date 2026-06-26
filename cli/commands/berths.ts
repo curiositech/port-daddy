@@ -574,6 +574,40 @@ function pad(s: string, n: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// pd dev ensure — idempotently guarantee the standing fleet (prod + dev-latest)
+// ---------------------------------------------------------------------------
+
+/**
+ * Make sure the two always-on daemons exist:
+ *   - stable/prod (:9876) — brew/launchd-supervised; we only report it (never
+ *     auto-manage the brew daemon), and tell the operator how to start it.
+ *   - dev-latest (:9886) — a berth built from main; brought up if it is not
+ *     already running (reusing `devUp` so it gets a prod-seeded DB).
+ *
+ * Named dev-feature berths stay opt-in (`pd dev up --from <worktree>`); this
+ * only guarantees the standing pair the cut/orchestrator and FleetBar expect.
+ * Idempotent: a no-op when both are already healthy.
+ */
+async function devEnsure(options: CLIOptions): Promise<void> {
+  const stable = await probeStable();
+  if (stable.up) {
+    ui.success(`stable (:${DEFAULT_DAEMON_PORT}) up — v${stable.version ?? '?'}`);
+  } else {
+    ui.warn(`stable (:${DEFAULT_DAEMON_PORT}) is down — start it with: brew services start port-daddy  (or: pd daemon start)`);
+  }
+
+  const devLatest = pruneRegistry().find((r) => r.tier === 'dev-latest');
+  if (devLatest && isProcessRunning(devLatest.pid)) {
+    ui.success(`dev-latest (:${devLatest.port}) already up — pid ${devLatest.pid}.`);
+    return;
+  }
+
+  ui.info('dev-latest berth not running — bringing it up from main…');
+  // Force the shared dev-latest lane regardless of which branch we're on.
+  await devUp({ ...options, from: 'main', label: undefined } as CLIOptions);
+}
+
+// ---------------------------------------------------------------------------
 // pd dev (dispatcher)
 // ---------------------------------------------------------------------------
 
@@ -597,6 +631,9 @@ export async function handleDevBerth(positional: string[], options: CLIOptions):
     case 'prune': // alias
       await devGc();
       break;
+    case 'ensure': // idempotently guarantee the standing fleet (prod + dev-latest)
+      await devEnsure(options);
+      break;
     default:
       ui.info('Daemon Berths (ADR-0084) — tiered, colour-coded, side-by-side daemons.');
       ui.info('');
@@ -606,6 +643,7 @@ export async function handleDevBerth(positional: string[], options: CLIOptions):
       ui.info('      --from main      → dev-latest berth on :' + DEV_LATEST_PORT + ' (blue)');
       ui.info('      --from <branch>  → codebase berth on a claimed port (purple)');
       ui.info('  pd dev down <label> | --all   Stop a berth (never the stable daemon).');
+      ui.info('  pd dev ensure                 Guarantee the standing fleet (prod + dev-latest) is up.');
       ui.info('  pd dev gc                     Reap dead/orphaned/idle berths + free their state.');
       ui.info('  pd dev list                   Show the stable berth + every dev berth.');
       ui.info('');
