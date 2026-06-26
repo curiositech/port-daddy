@@ -498,10 +498,10 @@ impl ConsoleView {
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
-            // Show the splash until the first refresh lands. The screenshot hook
-            // boots "already connected" so captures never catch the boot flash.
-            booted: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok()
-                || std::env::var("PD_CONSOLE_NO_SPLASH").is_ok(),
+            // Show the splash until the first refresh lands; PD_CONSOLE_NO_SPLASH
+            // opts out entirely. (The launcher screenshot hook also suppresses it
+            // via the splash gate in render(), so captures never catch the flash.)
+            booted: std::env::var("PD_CONSOLE_NO_SPLASH").is_ok(),
         }
     }
 
@@ -1469,7 +1469,9 @@ impl Render for ConsoleView {
             None
         };
         // The launch splash overlays everything until the first refresh lands.
-        let splash = if !self.booted {
+        // Suppressed while the launcher screenshot hook is open, so capture tooling
+        // grabs the launcher rather than the boot flash.
+        let splash = if !self.booted && !self.launcher_open {
             Some(self.render_splash())
         } else {
             None
