@@ -27,8 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      # write so the /code-review plugin can post inline review comments / nits
+      # on the diff. Still non-blocking — this job's pass/fail does not gate merge;
+      # the comments are advisory.
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:

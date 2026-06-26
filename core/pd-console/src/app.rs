@@ -21,6 +21,7 @@ use gpui::*;
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
+use crate::tokens;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -146,7 +147,7 @@ const NAV: &[NavItem] = &[
     NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
     NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
     NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "roadmap",  label: "Roadmap",  icon: "icons/nav/roadmap.svg",  key: "6" },
+    NavItem { id: "roadmap",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
     NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
     NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
     NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
@@ -252,7 +253,119 @@ mod motion {
 
 // ── Block renderer ───────────────────────────────────────────────────────────
 
-fn render_block(block: Block) -> impl IntoElement {
+/// Per-frame pole movement that drives the flag wave (the model headlessly
+/// recorded in `core/pd-flag-proto`). A flag's fly edge trails OPPOSITE the pole
+/// velocity — scroll down → cloth trails up; resize/pan right → cloth trails
+/// left — and `phase` only advances while moving, so a still flag does not
+/// animate (zero idle re-render). `Copy` so a snapshot rides into `render_block`.
+#[derive(Clone, Copy, Default)]
+pub struct FlagMotion {
+    pub vx: f32, // horizontal pole velocity (resize / pane-move); + = rightward
+    pub vy: f32, // vertical pole velocity (scroll); + = downward
+    pub phase: f32,
+}
+
+fn smoothstep(u: f32) -> f32 {
+    u * u * (3.0 - 2.0 * u)
+}
+
+/// Scale a packed 0xRRGGBB color by a brightness factor (cloth fold shading).
+fn scale_rgb(c: u32, f: f32) -> u32 {
+    let f = f.clamp(0.0, 1.4);
+    let r = ((((c >> 16) & 0xff) as f32) * f).min(255.0) as u32;
+    let g = ((((c >> 8) & 0xff) as f32) * f).min(255.0) as u32;
+    let b = (((c & 0xff) as f32) * f).min(255.0) as u32;
+    (r << 16) | (g << 8) | b
+}
+
+/// A small waving signal flag drawn as shaded cloth strips via gpui's T2 paint
+/// API (`canvas` + `PathBuilder` + `paint_path`), driven by `FlagMotion`. The
+/// letter rides centered on top. Replaces the old flat badge in `Block::Flag`.
+#[derive(IntoElement)]
+struct WavingFlag {
+    letter: char,
+    color: u32,
+    motion: FlagMotion,
+}
+
+impl RenderOnce for WavingFlag {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        const W: f32 = 46.0;
+        const H: f32 = 28.0;
+        const STRIPS: usize = 14;
+        const LEAN: f32 = 0.40; // fly-edge trail per unit velocity
+        const IDLE_DROOP: f32 = 0.12; // gentle hang at rest
+        const RIPPLE_GAIN: f32 = 0.42; // ripple amplitude per unit speed
+        const RIPPLE_WAVES: f32 = 1.5;
+
+        let FlagMotion { vx, vy, phase } = self.motion;
+        let base = self.color;
+        let letter = self.letter;
+        let speed = (vx * vx + vy * vy).sqrt().min(1.6);
+
+        div()
+            .relative()
+            .w(px(W))
+            .h(px(H))
+            .child(
+                canvas(
+                    |_bounds, _window, _cx| (),
+                    move |bounds, _prepaint, window, _cx| {
+                        let ox = f32::from(bounds.origin.x);
+                        let oy = f32::from(bounds.origin.y);
+                        let bw = f32::from(bounds.size.width);
+                        let bh = f32::from(bounds.size.height);
+                        // Inset the cloth so droop/ripple stay inside the badge.
+                        let ft = oy + 0.14 * bh;
+                        let fh = 0.60 * bh;
+                        let two_pi = std::f32::consts::TAU;
+                        let dx = |u: f32| smoothstep(u) * (-vx) * LEAN * bw;
+                        let dy = |u: f32| {
+                            smoothstep(u) * (-vy) * LEAN * fh
+                                + IDLE_DROOP * fh * u * u
+                                + RIPPLE_GAIN * fh * speed * u * (two_pi * RIPPLE_WAVES * u - phase).sin()
+                        };
+                        for j in 0..STRIPS {
+                            let u0 = j as f32 / STRIPS as f32;
+                            let u1 = (j + 1) as f32 / STRIPS as f32;
+                            let x0 = ox + u0 * bw + dx(u0);
+                            let x1 = ox + u1 * bw + dx(u1);
+                            let d0 = dy(u0);
+                            let d1 = dy(u1);
+                            let um = 0.5 * (u0 + u1);
+                            let fold = (two_pi * RIPPLE_WAVES * um - phase).cos();
+                            let light = 0.82 + 0.34 * fold * (speed / 1.6) + 0.06 * um;
+                            let mut pb = PathBuilder::fill();
+                            pb.move_to(point(px(x0), px(ft + d0)));
+                            pb.line_to(point(px(x1), px(ft + d1)));
+                            pb.line_to(point(px(x1), px(ft + fh + d1)));
+                            pb.line_to(point(px(x0), px(ft + fh + d0)));
+                            pb.close();
+                            if let Ok(path) = pb.build() {
+                                window.paint_path(path, rgb(scale_rgb(base, light)));
+                            }
+                        }
+                    },
+                )
+                .absolute()
+                .size_full(),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .size_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .text_color(rgb(0x0d141f))
+                    .text_size(px(14.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(letter.to_string()),
+            )
+    }
+}
+
+fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
     match block {
         Block::Header(text) => {
             div()
@@ -324,31 +437,15 @@ fn render_block(block: Block) -> impl IntoElement {
                 .into_any_element()
         }
         Block::Flag { letter, label, tone } => {
-            let color = rgb(tone_rgb(&tone));
+            // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
+            // reacts to pane scroll/resize via `motion`; the letter rides it.
             div()
                 .flex()
                 .items_center()
                 .gap(px(8.0))
                 .px(px(16.0))
                 .py(px(3.0))
-                .child(
-                    // The signal flag itself: a bold square hoist in the flag's
-                    // semantic tone, bearing the ICS letter.
-                    div()
-                        .w(px(22.0))
-                        .h(px(22.0))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(3.0))
-                        .border_2()
-                        .border_color(color)
-                        .bg(rgb(current_theme().raised))
-                        .text_color(color)
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::BOLD)
-                        .child(letter.to_string()),
-                )
+                .child(WavingFlag { letter, color: tone_rgb(&tone), motion })
                 .child(
                     div()
                         .text_color(rgb(current_theme().ink))
@@ -456,11 +553,46 @@ pub struct ConsoleView {
     /// True once the first pane refresh has landed. Until then the launch splash
     /// (the brand boot flash) covers the chrome.
     booted: bool,
+    /// Pole movement driving the waving flags — scroll feeds `vy`, viewport-width
+    /// change feeds `vx`; both decay to rest each frame (see WavingFlag / pd-flag-proto).
+    flag_motion: FlagMotion,
+    /// Last viewport width, to derive horizontal (resize/pan) velocity per frame.
+    prev_viewport_w: f32,
+    /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
+    flag_ticking: bool,
 }
 
 impl ConsoleView {
     pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
         Self::with_control(daemon_url, initial_pane, None, cx)
+    }
+
+    /// Advance the flag wave one frame and keep ticking until it settles.
+    /// Driven by `cx.on_next_frame` — safe to schedule from anywhere, unlike
+    /// `window.request_animation_frame()` which panics outside paint (it calls
+    /// `current_view()`, whose entity stack is empty in an event handler).
+    fn tick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let speed = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt();
+        self.flag_motion.phase += speed * 0.9;
+        self.flag_motion.vx *= 0.86;
+        self.flag_motion.vy *= 0.86;
+        let still_moving = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt() > 0.012;
+        if still_moving {
+            cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
+        } else {
+            self.flag_motion.vx = 0.0;
+            self.flag_motion.vy = 0.0;
+            self.flag_ticking = false;
+        }
+        cx.notify();
+    }
+
+    /// Start the settle loop if it isn't already running (idempotent).
+    fn kick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.flag_ticking {
+            self.flag_ticking = true;
+            cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
+        }
     }
 
     /// Construct with a control channel so the Lane's Interrupt button can reach
@@ -502,6 +634,9 @@ impl ConsoleView {
             // opts out entirely. (The launcher screenshot hook also suppresses it
             // via the splash gate in render(), so captures never catch the flash.)
             booted: std::env::var("PD_CONSOLE_NO_SPLASH").is_ok(),
+            flag_motion: FlagMotion::default(),
+            prev_viewport_w: 0.0,
+            flag_ticking: false,
         }
     }
 
@@ -976,6 +1111,7 @@ impl ConsoleView {
     ) -> AnyElement {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
+        let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
@@ -1074,9 +1210,19 @@ impl ConsoleView {
                     .id(SharedString::from(format!("pane-body-{id}")))
                     .flex_1()
                     .overflow_y_scroll()
+                    // Scrolling the pane gives the flags their vertical pole velocity;
+                    // they trail the motion and settle (render() drives the decay).
+                    .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, window, cx| {
+                        let dy = match ev.delta {
+                            ScrollDelta::Pixels(p) => f32::from(p.y),
+                            ScrollDelta::Lines(p) => p.y * 18.0,
+                        };
+                        this.flag_motion.vy = (this.flag_motion.vy - dy / 50.0).clamp(-1.6, 1.6);
+                        this.kick_flag_motion(window, cx);
+                    }))
                     .flex()
                     .flex_col()
-                    .children(blocks.into_iter().map(render_block)),
+                    .children(blocks.into_iter().map(move |b| render_block(b, motion))),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
@@ -1244,6 +1390,38 @@ impl ConsoleView {
     }
 }
 
+/// The one place an operator-action button's visual state machine lives —
+/// default / hover / active (press), on the 8pt token grid (`tokens.rs`). The
+/// dispatch review gate and the Conductor fleet gate both build on this; they
+/// differ only in the click handler they pass. (Per-button keyboard
+/// focus-visible is a GPUI focus-group follow-up; the actions stay reachable via
+/// the focused pane.)
+fn gate_btn(
+    id: impl Into<SharedString>,
+    label: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+    on_click: impl Fn(&mut ConsoleView, &mut Context<ConsoleView>) + 'static,
+) -> impl IntoElement {
+    div()
+        .id(id.into())
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_1))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(tokens::TEXT_BODY))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .active(|s| s.bg(rgb(current_theme().sunken)))
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            on_click(this, cx);
+            cx.notify();
+        }))
+}
+
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
 /// Reject opens a reason command line (the human-gate "why" path) targeting `id`.
 fn dispatch_gate_btn(
@@ -1253,85 +1431,54 @@ fn dispatch_gate_btn(
     id: String,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    div()
-        .id(SharedString::from(format!("gate-{action}")))
-        .px(px(12.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
-        .border_color(rgb(color))
-        .text_color(rgb(color))
-        .text_size(px(14.0))
-        .font_weight(FontWeight::SEMIBOLD)
-        .cursor_pointer()
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
-        .child(label)
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
-            match action {
-                "approve" => {
-                    if let Some(tx) = &this.control_tx {
-                        let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
-                    }
-                    this.control_flash = Some("dispatch approved → landing".into());
-                }
-                "cancel" => {
-                    if let Some(tx) = &this.control_tx {
-                        let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
-                    }
-                    this.control_flash = Some("dispatch cancelled".into());
-                }
-                "reject" => {
-                    // Don't reject blind — open a reason line targeting this dispatch.
-                    this.reject_target = Some(id.clone());
-                    this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
-                }
-                _ => {}
+    gate_btn(format!("gate-{action}"), label, color, cx, move |this, _cx| match action {
+        "approve" => {
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
             }
-            cx.notify();
-        }))
+            this.control_flash = Some("dispatch approved \u{2192} landing".into());
+        }
+        "cancel" => {
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
+            }
+            this.control_flash = Some("dispatch cancelled".into());
+        }
+        "reject" => {
+            this.reject_target = Some(id.clone());
+            this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
+        }
+        _ => {}
+    })
 }
 
-/// One conductor fleet-control button (ADR-0060). Fires the verb immediately
-/// against the whole fleet (global scope) — the operator's emergency wheel.
+/// One Conductor fleet-control button (ADR-0060): halt/pause/resume the whole
+/// fleet (global scope) — the operator's emergency wheel.
 fn conductor_gate_btn(
     action: &'static str,
     label: &'static str,
     color: u32,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    div()
-        .id(SharedString::from(format!("fleet-{action}")))
-        .px(px(12.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
-        .border_color(rgb(color))
-        .text_color(rgb(color))
-        .text_size(px(14.0))
-        .font_weight(FontWeight::SEMIBOLD)
-        .cursor_pointer()
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
-        .child(label)
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
-            if let Some(tx) = &this.control_tx {
-                let msg = match action {
-                    "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
-                    "pause" => Some(ControlMsg::FleetPause { root_id: None }),
-                    "resume" => Some(ControlMsg::FleetResume { root_id: None }),
-                    _ => None,
-                };
-                if let Some(m) = msg {
-                    let _ = tx.send(m);
-                }
+    gate_btn(format!("fleet-{action}"), label, color, cx, move |this, _cx| {
+        if let Some(tx) = &this.control_tx {
+            let msg = match action {
+                "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
+                "pause" => Some(ControlMsg::FleetPause { root_id: None }),
+                "resume" => Some(ControlMsg::FleetResume { root_id: None }),
+                _ => None,
+            };
+            if let Some(m) = msg {
+                let _ = tx.send(m);
             }
-            this.control_flash = Some(match action {
-                "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
-                "pause" => "fleet paused \u{2192} no new admissions".to_string(),
-                "resume" => "fleet resumed".to_string(),
-                _ => String::new(),
-            });
-            cx.notify();
-        }))
+        }
+        this.control_flash = Some(match action {
+            "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
+            "pause" => "fleet paused \u{2192} no new admissions".to_string(),
+            "resume" => "fleet resumed".to_string(),
+            _ => String::new(),
+        });
+    })
 }
 
 /// Split a spawn command into `(backend, prompt)`. If the first whitespace
@@ -1439,7 +1586,24 @@ impl Focusable for ConsoleView {
 }
 
 impl Render for ConsoleView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // ── Flag motion. Derive horizontal pole velocity from this frame's
+        // viewport-width change (resize / pane reflow → left/right); scrolling
+        // feeds vy via on_scroll_wheel. A width change kicks the settle loop,
+        // which decays the velocity over subsequent frames (cx.on_next_frame).
+        {
+            let vw = f32::from(window.viewport_size().width);
+            if self.prev_viewport_w == 0.0 {
+                self.prev_viewport_w = vw;
+            }
+            let dvw = vw - self.prev_viewport_w;
+            self.prev_viewport_w = vw;
+            if dvw.abs() > 0.5 {
+                self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
+                self.kick_flag_motion(window, cx);
+            }
+        }
+
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
         let armed = self.leader_armed;

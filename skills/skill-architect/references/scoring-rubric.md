@@ -1,92 +1,123 @@
 # Skill Scoring Rubric
 
-Use this rubric for per-skill scorecards and bulk-upgrade triage.
+Quantitative metrics for evaluating skill quality. Score each category 0-10.
 
-## Dimensions
+## Scoring Categories
 
-Score each dimension `0-10`.
+### 1. Activation Precision (0-10)
+How accurately does the skill activate?
 
-### 1. Activation precision
+| Score | Criteria |
+|-------|----------|
+| 0-2 | No keywords, vague description, activates randomly |
+| 3-4 | Some keywords, missing NOT clause, many false positives |
+| 5-6 | Good keywords + NOT clause, occasional misfires |
+| 7-8 | Precise activation, clear boundaries, <10% false positives |
+| 9-10 | Perfect activation, comprehensive exclusions, <2% false positives |
 
-- How specific is the description?
-- Does it include a strong NOT-for clause?
-- Does it avoid false positives?
+**Quick check**: Count (correct activations) / (total queries) for 10 test queries
 
-### 2. Runtime correctness
+### 2. Domain Expertise Depth (0-10)
+How much expert knowledge is encoded?
 
-- Are Claude Code runtime claims current?
-- Are native runtime-only fields used only when justified?
-- Are hooks, channels, and scheduled tasks described accurately?
+| Score | Criteria |
+|-------|----------|
+| 0-2 | Generic advice, could be Googled easily |
+| 3-4 | Some domain knowledge, no anti-patterns |
+| 5-6 | Good expertise, 1-2 anti-patterns, some shibboleths |
+| 7-8 | Deep expertise, 3+ anti-patterns, decision trees |
+| 9-10 | Expert-level with temporal knowledge, edge cases, and shibboleths |
 
-### 3. Knowledge depth
+**Quick check**: Count shibboleths + anti-patterns + decision trees
 
-- L1 present
-- L2 present
-- L3 present
-- expert shibboleths, contrastive cues, and recovery moves
+### 3. Progressive Disclosure (0-10)
+How well is information layered?
 
-### 4. Progressive disclosure
+| Score | Criteria |
+|-------|----------|
+| 0-2 | Everything in one file, >500 lines, no structure |
+| 3-4 | Some structure, still too dense |
+| 5-6 | Core in SKILL.md, some refs, ~300-500 lines |
+| 7-8 | Clean SKILL.md <300 lines, refs for deep dives |
+| 9-10 | Optimal: <200 line core, refs load on-demand |
 
-- `SKILL.md` stays lean
-- references are on-demand
-- support files reduce context rather than duplicate it
+**Quick check**: `wc -l SKILL.md` → Target <300
 
-### 5. Structural completeness
+### 4. Self-Containment (0-10)
+Does the skill ship working tools?
 
-- decision points
-- failure modes
-- worked examples
-- quality gates
-- NOT-for boundaries
+| Score | Criteria |
+|-------|----------|
+| 0-2 | Instructions only, user must implement everything |
+| 3-4 | Mentions tools but doesn't include them |
+| 5-6 | Has scripts but they're templates |
+| 7-8 | Working scripts, no phantom tools |
+| 9-10 | Complete tooling: scripts, validation, maybe MCP |
 
-### 6. Affordance discipline
+**Quick check**: Run `check_self_contained.py`
 
-- scripts used where determinism matters
-- templates used where output regularity matters
-- examples used where trigger or output boundaries are subtle
-- browser-open or HTML artifacts only where materially useful
+### 5. Maintainability (0-10)
+How easy is the skill to update?
 
-### 7. Reference hygiene
+| Score | Criteria |
+|-------|----------|
+| 0-2 | No CHANGELOG, no versioning, no structure |
+| 3-4 | Basic structure, no versioning |
+| 5-6 | Has CHANGELOG, some documentation |
+| 7-8 | Versioned, documented, modular references |
+| 9-10 | SemVer, complete changelog, validation scripts |
 
-- referenced files exist
-- `references/INDEX.md` exists when references are non-trivial
-- no giant unlabeled dumps
+**Quick check**: Has CHANGELOG.md? Uses semantic versioning?
 
-### 8. Maintainability
+### 6. Visual Artifacts (0-10)
+Does the skill use diagrams to encode knowledge that prose cannot?
 
-- `CHANGELOG.md` exists and is current
-- the skill is modular enough to update without rewriting everything
-- validation or scorecard tooling exists where the skill is important
+| Score | Criteria |
+|-------|----------|
+| 0-2 | No diagrams; complex processes described only in prose |
+| 3-4 | Prose-described diagrams ("imagine a tree where...") |
+| 5-6 | Some Mermaid diagrams but used decoratively, not structurally |
+| 7-8 | Key decision trees, state machines, or flows in Mermaid |
+| 9-10 | Every complex process has the right diagram type; diagrams encode knowledge prose cannot |
 
-## Composite grade
+**Quick check**: For each process/state/flow section — is there a Mermaid diagram? Is the diagram type appropriate (flowchart for decisions, stateDiagram for lifecycle, sequenceDiagram for protocols)?
 
-Use either:
+---
 
-- simple average across dimensions, or
-- a weighted score where Activation, Runtime Correctness, and Knowledge Depth count double for high-impact skills
+## Composite Score
 
-Suggested grades:
+**Formula**: (Σ category scores) / 6
 
-| Score | Grade |
-|---|---|
-| 9.0-10.0 | A |
-| 7.5-8.9 | B |
-| 6.0-7.4 | C |
-| 4.0-5.9 | D |
-| <4.0 | F |
+| Total | Grade | Meaning |
+|-------|-------|---------|
+| 9-10 | A | Production-ready, exemplary |
+| 7-8.9 | B | Good quality, minor improvements possible |
+| 5-6.9 | C | Functional but needs work |
+| 3-4.9 | D | Significant issues, needs revision |
+| 0-2.9 | F | Not ready for use |
 
-## Fast bulk heuristics
+## Example Evaluation
 
-- Activation weak if description is vague or missing NOT-for.
-- Runtime weak if the skill confuses hooks, channels, scheduled tasks, or fork semantics.
-- Progressive disclosure weak if `SKILL.md` is huge and references are absent.
-- Structural completeness weak if the core L3 sections are missing.
-- Affordance discipline weak if scripts, templates, or examples are absent where the skill obviously needs them, or present without any justification.
+```
+Skill: clip-aware-embeddings
+------------------------------
+Activation Precision:    9/10 (clear NOT clause, specific triggers)
+Domain Expertise Depth:  8/10 (shibboleths, anti-patterns, temporal)
+Progressive Disclosure:  8/10 (~150 line core, refs for details)
+Self-Containment:        7/10 (working scripts, no MCP)
+Maintainability:         7/10 (versioned, has CHANGELOG)
+Visual Artifacts:        6/10 (one pipeline flowchart, no state diagram)
+------------------------------
+Composite Score:         7.5/10 (Grade: B)
+```
 
-## Useful automation
+## Automation
 
+Run validation scripts for automated scoring:
 ```bash
+# Structure + content checks
 python scripts/validate_skill.py /path/to/skill
+
+# Self-containment check
 python scripts/check_self_contained.py /path/to/skill
-python scripts/audit-skills.py --json
 ```

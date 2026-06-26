@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`rust-data-structures-advanced` skill** — expert guidance for choosing the advanced Rust data structure that makes ownership trivial instead of fighting the borrow checker: arenas & generational indices (slotmap / generational-arena / id-arena / typed-arena) as the idiomatic alternative to `Rc<RefCell>` for graphs/trees, petgraph (`StableGraph`), inline/cache-friendly vectors (smallvec/tinyvec/arrayvec), lock-free & concurrent containers (crossbeam channels/epoch/queue, flume, dashmap, the ABA problem), copy-on-write & persistent structures (`Cow`, im/rpds), struct-of-arrays/ECS, interning, roaring bitsets, and map/hasher selection (HashMap/BTreeMap/hashbrown/fxhash/ahash/IndexMap). Ships four references, two compilable examples (`cargo build`-green: a slotmap graph and a crossbeam pipeline), an `agents/openai.yaml`, and a `validate_skill.py` self-check.
+
 ## [3.22.0] - 2026-06-23
 
 The **dev-daemon** release: feature-branch daemons become first-class and
