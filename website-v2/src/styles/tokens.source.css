@@ -22,6 +22,37 @@
   font-variation-settings: "MONO" 1, "CASL" 0;
 }
 
+/* Radnika — the brand's prior house sans, self-hosted. Kept only as the
+   "previous system" reference in the type switcher; not the default. */
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Radnika";
+  src: url("/fonts/radnika/Radnika-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --radnika-opsz-body: 17;
   --radnika-opsz-small: 12;
@@ -59,13 +90,13 @@
   --text-4xl: 2.25rem;
   --text-5xl: 3rem;
 
-  /* Default type system: Fraunces display serif + Source Sans 3 body +
-     JetBrains Mono. Loaded globally in index.html. Radnika/Recursive/others
-     remain as opt-in previews via the type switcher. */
-  --font-sans: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  /* Default type system: Recursive — one self-hosted variable file covers
+     display, body, and mono (see @font-face above). No external webfont is
+     fetched for the default; alternates load on demand via the type switcher. */
+  --font-sans: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono:
-    "JetBrains Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    "Recursive Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 
   /* Diagram "paper" palette — deliberately theme-INDEPENDENT (not overridden in
      the dark theme) so Mermaid sequence/flow diagrams render as a legible
@@ -141,43 +172,116 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Type-theme switcher (see TypeThemeSwitcher.tsx).
-   The DEFAULT (no attribute) is Fraunces + Source Sans 3 + JetBrains Mono, set
-   in :root above. The single opt-in below (Recursive) is self-hosted; no
-   external webfonts are loaded. The old grab-bag of CDN font themes was removed.
+   Default type-system tuning — Recursive (no [data-type-theme] attribute).
+   Recursive's upper weights run heavy and wide and its large x-height wants
+   slightly negative display tracking, so cap the display weight at 800,
+   tighten tracking, and normalize apparent x-height with font-size-adjust
+   (code is excepted so monospaced runs keep their measured advance).
 --------------------------------------------------------------------------- */
-
-/* Recursive — opt-in preview. Self-hosted (see @font-face above). Its upper
-   weights run heavy/wide and its large x-height wants slightly negative display
-   tracking, so cap display weight at 800, tighten tracking, and normalize
-   apparent size with font-size-adjust. Scoped to the theme so Radnika (default)
-   is untouched. */
-html[data-type-theme="recursive"] {
-  --font-sans: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Recursive", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-mono:
-    "Recursive Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+html:not([data-type-theme]) {
   --tracking-display-tight: -0.02em;
   --tracking-display-card: -0.015em;
   --tracking-display-nav: -0.01em;
 }
 
-html[data-type-theme="recursive"] .font-black {
+html:not([data-type-theme]) .font-black {
   font-weight: 800;
 }
 
-html[data-type-theme="recursive"] body {
+html:not([data-type-theme]) body {
   font-size-adjust: 0.526;
 }
 
-html[data-type-theme="recursive"] :is(pre, code, kbd, samp) {
+html:not([data-type-theme]) :is(pre, code, kbd, samp) {
   font-size-adjust: none;
 }
 
-/* Fraunces display tuning — large optical size for headings on the default
-   (no-attribute) type system. */
-html:not([data-type-theme]) .display,
-html:not([data-type-theme]) h1,
-html:not([data-type-theme]) h2 {
-  font-variation-settings: "opsz" 120, "SOFT" 0, "WONK" 0;
+/* ---------------------------------------------------------------------------
+   Type-theme switcher alternates (see TypeThemeSwitcher.tsx).
+   Each block swaps the three font roles. Recursive (default, above) and
+   Radnika are self-hosted; the rest lazy-load their WOFF2 from Google Fonts
+   (all SIL OFL) the first time the operator selects them. The roster
+   deliberately avoids the AI-design defaults — Inter, Geist, Fraunces, and
+   the Fontshare/ITF starter pack — in favour of fresher faces in each
+   register. See the switcher's THEMES array for the per-system rationale.
+--------------------------------------------------------------------------- */
+
+/* IBM Plex — libre superfamily on one skeleton. Serif body / sans display /
+   Plex mono; the no-pairing-risk technical option. */
+html[data-type-theme="plex"] {
+  --font-sans: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --font-display: "IBM Plex Sans", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* Hanken Grotesk — warm humanist UI sans; replaces Inter as the body/UI
+   workhorse. Spline Sans Mono carries code. */
+html[data-type-theme="hanken"] {
+  --font-sans: "Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display:
+    "Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Spline Sans Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* Schibsted Grotesk — Scandinavian neo-grotesque with real character;
+   replaces the General Sans (Fontshare starter-pack) body. */
+html[data-type-theme="schibsted"] {
+  --font-sans:
+    "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display:
+    "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* Newsreader — warm editorial serif (real opsz axis) over Source Sans 3;
+   replaces Fraunces as the literary display option. */
+html[data-type-theme="newsreader"] {
+  --font-sans: "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+html[data-type-theme="newsreader"] :is(.display, h1, h2) {
+  font-variation-settings: "opsz" 72;
+}
+
+/* Bricolage Grotesque — expressive contemporary display (opsz + wdth) over a
+   Hanken body; replaces Geist and the Clash Display starter-pack look. */
+html[data-type-theme="bricolage"] {
+  --font-sans: "Hanken Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Bricolage Grotesque", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "Martian Mono", "SFMono-Regular", Consolas, monospace;
+}
+html[data-type-theme="bricolage"] :is(.display, h1, h2) {
+  font-variation-settings: "opsz" 48;
+}
+
+/* Archivo — poster grotesque display (the libre Helvetica swap) over a
+   Source Serif 4 transitional body. */
+html[data-type-theme="archivo"] {
+  --font-sans: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-display: "Archivo", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* Radnika — the brand's previous house sans, self-hosted. Kept as an honest
+   before/after reference, not a recommendation. */
+html[data-type-theme="radnika"] {
+  --font-sans: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Radnika", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* Avoid faux-bold display headings: .font-black asks for weight 900, but the
+   alternates' heaviest *loaded* face is lighter, so pin each to a real weight
+   rather than let the browser synthesize one. Recursive (default) and Radnika
+   (real Black) are handled elsewhere. */
+html[data-type-theme="plex"] .font-black,
+html[data-type-theme="newsreader"] .font-black {
+  font-weight: 700;
+}
+html[data-type-theme="hanken"] .font-black,
+html[data-type-theme="schibsted"] .font-black,
+html[data-type-theme="bricolage"] .font-black,
+html[data-type-theme="archivo"] .font-black {
+  font-weight: 800;
 }
