@@ -10,6 +10,22 @@ on:
         required: true
 
 jobs:
+  release-docs-guard:
+    # Make updating the README + CHANGELOG a NECESSARY part of a brew cut. The
+    # bottle ships the repo at the tagged commit, so before the tap rolls we
+    # verify CHANGELOG.md has a dated section for this version and README.md's
+    # title advertises it. Mirrors the local `pd cut` gate (shared/release.ts →
+    # releaseDocsPreflight) for the public path, which builds straight from the
+    # tag without going through `pd cut`. Prerelease tags skip (they don't roll
+    # the tap). Dependency-free, so this runs fast in a bare checkout.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Check README + CHANGELOG are fresh for this cut
+        run: node scripts/check-release-docs.mjs --tag "${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+
   build-binaries:
     strategy:
       matrix:
@@ -368,8 +384,8 @@ jobs:
     # flaky FleetBar build now blocks the release, which forces FleetBar to be
     # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
     # distribution channel, not part of the daemon+GUI bundle).
-    needs: [build-binaries, build-fleetbar-preview]
-    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    needs: [release-docs-guard, build-binaries, build-fleetbar-preview]
+    if: always() && needs.release-docs-guard.result == 'success' && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Set release version
         id: release

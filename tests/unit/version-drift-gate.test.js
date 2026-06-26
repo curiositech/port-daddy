@@ -53,6 +53,7 @@ function scaffold(root, version) {
   w('website-v2/src/data/referenceCatalog.ts', `export const PORT_DADDY_VERSION = '${version}';\n`);
   w('VERSION', `${version}\n`);
   w('core/pd-console/Cargo.toml', `[package]\nname = "pd-console"\nversion = "${version}"\nedition = "2021"\n`);
+  w('README.md', `# ⚓ Port Daddy (v${version})\n\nAuthoritative port manager.\n`);
 }
 
 describe('version drift gate (scripts/check-version-drift.mjs)', () => {

@@ -27,7 +27,8 @@ A bump must update **every file** the build, MCP, and plugin metadata read from.
 | `public/samples/manifest.json` (`packageVersion`) | `sync-version.ts` | Bundled sample manifest version |
 | `VERSION` (plain text) | `sync-version.ts` | Human-facing product stamp. No code reads it, but it used to lie at `3.7.0`; now kept honest |
 | `core/pd-console/Cargo.toml` (`[package] version`) | `sync-version.ts` | The GPU-native app's `CARGO_PKG_VERSION` → `pd-console`'s in-app build stamp AND its `.app` `CFBundleShortVersionString`. The **only** Rust crate that is a user-facing product surface |
-| `CHANGELOG.md` | manual | Rename `[Unreleased]` → `[<version>] - YYYY-MM-DD`, prepend a fresh `[Unreleased]` |
+| `README.md` (`# ⚓ Port Daddy (vX.Y.Z)` title) | `sync-version.ts` | The first surface a reader sees. Drift-gated in CI and re-checked by the brew-cut docs gate (`pd cut`) |
+| `CHANGELOG.md` | manual | Rename `[Unreleased]` → `[<version>] - YYYY-MM-DD`, prepend a fresh `[Unreleased]`. Enforced for brew cuts by `pd cut` (see below) |
 
 The kernel library crates (`core/kernel/*`, `core/Cargo.toml` `[workspace.package]`) keep their **own independent library semver** — they ride *inside* the daemon/console and are not user-facing version surfaces, so `sync-version.ts` deliberately does not touch them.
 
@@ -42,7 +43,7 @@ The kernel library crates (`core/kernel/*`, `core/Cargo.toml` `[workspace.packag
 
 `scripts/sync-version.ts` now touches the plugin/MCP/Gemini JSON surfaces, the MCP/server TypeScript constants, the website reference constant, and the public samples manifest. `tests/unit/distribution-freshness.test.js` gates those surfaces against `package.json`.
 
-The remaining manual surface is `CHANGELOG.md`: pick the version section and release date deliberately so humans can read what changed.
+The remaining manual surface is `CHANGELOG.md`: pick the version section and release date deliberately so humans can read what changed. This is the one surface a machine can't write for you — so it (and the README title) is gated at the *cut*: `pd cut` runs a fail-closed `releaseDocsPreflight` before building a brew-shipping cut (`stable` tier, non-prerelease version) and refuses to proceed unless `CHANGELOG.md` has a dated `## [<version>]` section and the README title advertises the version. `--allow-stale-docs` overrides it for an emergency cut. This makes updating the README + changelog a *necessary* part of every brew cut rather than a forgettable post-bump chore.
 
 ## A release without a version bump is a release bug
 

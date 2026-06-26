@@ -174,6 +174,73 @@ export function signingPreflight(opts: {
   return { ok: true, willNotarize: !skipNotarize };
 }
 
+export interface ReleaseDocsPreflight {
+  ok: boolean;
+  /** Why a brew-shipping cut is blocked (only set when ok === false). */
+  reason?: string;
+  /** One human-readable entry per stale doc surface (empty when ok). */
+  problems: string[];
+}
+
+/** Escape a version string for literal use inside a RegExp (`.`, `-`, `+`). */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Decide, *before any heavy build*, whether the operator-facing docs that go
+ * live the moment users run `brew upgrade port-daddy` have actually been updated
+ * for this cut. The brew bottle ships the repo at the tagged commit, so a cut
+ * whose CHANGELOG still lacks its release notes — or whose README title still
+ * advertises the previous version — silently misreports what users just
+ * installed. This makes refreshing both a *necessary* part of a brew cut rather
+ * than a step that's easy to forget after the version bump.
+ *
+ * Pure: reads the two doc bodies (and the target version) the caller passes in,
+ * touches no IO — so it's testable the same way `signingPreflight` is. The cut
+ * command runs it only for brew-shipping cuts (the `stable` tier on a
+ * non-prerelease version); ephemeral dev/RC cuts don't gate on it.
+ *
+ * A brew-shipping cut needs:
+ *   - CHANGELOG.md with a dated `## [<version>] - YYYY-MM-DD` section (the
+ *     [Unreleased] notes have been cut under a real version heading), and
+ *   - README.md whose title advertises `Port Daddy (v<version>)`.
+ */
+export function releaseDocsPreflight(opts: {
+  version: string;
+  changelog: string | null;
+  readme: string | null;
+}): ReleaseDocsPreflight {
+  const { version, changelog, readme } = opts;
+  const v = escapeRegExp(version);
+  const problems: string[] = [];
+
+  // CHANGELOG.md — a dated, versioned section must exist. An entry still sitting
+  // only under [Unreleased] means the release notes were never cut.
+  if (changelog == null) {
+    problems.push('CHANGELOG.md is missing or unreadable.');
+  } else if (!new RegExp(`^##\\s*\\[${v}\\]\\s*-\\s*\\d{4}-\\d{2}-\\d{2}`, 'm').test(changelog)) {
+    problems.push(
+      `CHANGELOG.md has no dated "## [${version}] - YYYY-MM-DD" section — rename [Unreleased] to [${version}] with today's date and prepend a fresh [Unreleased].`,
+    );
+  }
+
+  // README.md — the title version is the first thing users see; a stale one
+  // misreports the cut. Matches the canonical "# ⚓ Port Daddy (vX.Y.Z)" heading.
+  if (readme == null) {
+    problems.push('README.md is missing or unreadable.');
+  } else if (!new RegExp(`Port Daddy \\(v${v}\\)`).test(readme)) {
+    problems.push(
+      `README.md title does not advertise v${version} — update the "# Port Daddy (vX.Y.Z)" heading (\`npx tsx scripts/sync-version.ts\` does this).`,
+    );
+  }
+
+  if (problems.length > 0) {
+    return { ok: false, problems, reason: `release docs are stale for ${version}:\n  - ${problems.join('\n  - ')}` };
+  }
+  return { ok: true, problems: [] };
+}
+
 export interface RunReleaseDeps {
   /** Run a build script; MUST throw if the build fails. `env` (when present) is
    *  merged over the process env for that one build (pins the fleetbar zip name). */

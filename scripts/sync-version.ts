@@ -16,6 +16,8 @@
  *   - public/samples/manifest.json
  *   - VERSION (plain-text product version stamp, read by no code but a
  *     human-facing authority surface — keep it honest or delete it)
+ *   - README.md (the "# ⚓ Port Daddy (vX.Y.Z)" title — the first surface a
+ *     reader sees, and one the brew-cut docs gate in `pd cut` checks)
  *   - core/pd-console/Cargo.toml (the GPU-native app's CARGO_PKG_VERSION, which
  *     becomes `pd-console --version` / the in-app build stamp AND is stamped into
  *     pd-console.app's CFBundleShortVersionString by scripts/package-pd-console.sh).
@@ -118,5 +120,19 @@ if (!consoleCargoVersionRe.test(consoleCargo)) {
 consoleCargo = consoleCargo.replace(consoleCargoVersionRe, `$1${version}$2`);
 writeFileSync(consoleCargoPath, consoleCargo);
 console.log(`  ✓ core/pd-console/Cargo.toml version → ${version}`);
+
+// README.md title — "# ⚓ Port Daddy (vX.Y.Z)". The first thing a reader sees,
+// and the surface that goes live on `brew upgrade port-daddy`. It used to drift
+// (stuck at v3.13.0 while the product was 3.22.0) because nothing stamped it;
+// now it's a tracked surface so the brew-cut docs gate (pd cut) finds it fresh.
+const readmePath = join(ROOT, 'README.md');
+const readmeVersionRe = /(# ⚓ Port Daddy \(v)[\w.\-+]+(\))/;
+let readme = readFileSync(readmePath, 'utf-8');
+if (!readmeVersionRe.test(readme)) {
+  throw new Error(`sync-version.ts: "# ⚓ Port Daddy (vX.Y.Z)" title not found in README.md — the README version surface would silently drift.`);
+}
+readme = readme.replace(readmeVersionRe, `$1${version}$2`);
+writeFileSync(readmePath, readme);
+console.log(`  ✓ README.md title → v${version}`);
 
 console.log(`\nVersion ${version} synced to all surfaces.`);

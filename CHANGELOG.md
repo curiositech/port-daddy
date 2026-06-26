@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Brew cuts now require fresh README + CHANGELOG (fail-closed docs gate).** `pd cut` runs a `releaseDocsPreflight` *before building* for a brew-shipping cut (the `stable` tier on a non-prerelease version) and exits non-zero unless `CHANGELOG.md` carries a dated `## [<version>] - YYYY-MM-DD` section and `README.md`'s title advertises that version. The brew bottle ships the repo at the tagged commit, so this stops a cut from going live while the changelog still has the notes under `[Unreleased]` or the README title misreports the version. `--allow-stale-docs` is the documented emergency override.
+
+### Changed
+- **README title is now a tracked version surface.** `scripts/sync-version.ts` stamps the `# ⚓ Port Daddy (vX.Y.Z)` heading and `scripts/check-version-drift.mjs` gates it in CI, so the title can no longer silently rot (it had drifted to v3.13.0 while the product was 3.22.0). The bump pipeline keeps it honest automatically.
+
 ## [3.22.0] - 2026-06-23
 
 The **dev-daemon** release: feature-branch daemons become first-class and

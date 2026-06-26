@@ -580,12 +580,13 @@ it in one commit.** Land the rename in phases through Cartographer:
 **Slice:** Ship `v0.42.0`.
 
 1. Worktree, identity, scope note.
-2. Tag locally: `git tag -a v0.42.0 -m "<changelog summary>"`.
-3. Compute tarball sha256: `curl -sSL <github tag tarball> | shasum -a 256`.
-4. Update the **in-repo** primary `Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed. Then mirror the same change into the external tap repo (`homebrew-port-daddy/Formula/port-daddy.rb`) — both must match before the brew install command in step 5 will succeed for users.
-5. `brew install --build-from-source ./Formula/port-daddy.rb` locally; confirm install path, daemon launches, `pd status` healthy.
-6. `pd actor lookout --message "Brew formula v0.42.0 ready: <sha256>. Surfaces audited: README, CHANGELOG, website, skill bundle."`
-7. Push the tag from port-daddy first, then commit + push the formula.
+2. **Refresh the docs FIRST — it's enforced, not optional.** A brew cut fails closed unless `CHANGELOG.md` has a dated `## [0.42.0] - YYYY-MM-DD` section and `README.md`'s title names the version (stamped by `scripts/sync-version.ts`). `pd cut` runs the gate locally; `release.yml`'s `release-docs-guard` job blocks the tap roll for the public path. Verify: `node scripts/check-release-docs.mjs --version 0.42.0`.
+3. Tag locally: `git tag -a v0.42.0 -m "<changelog summary>"`.
+4. Compute tarball sha256: `curl -sSL <github tag tarball> | shasum -a 256`.
+5. Update the **in-repo** primary `Formula/port-daddy.rb`: `url`, `sha256`, version-string-in-tests if present, post_install if `install.sh` changed. Then mirror the same change into the external tap repo (`homebrew-port-daddy/Formula/port-daddy.rb`) — both must match before the brew install command in step 6 will succeed for users.
+6. `brew install --build-from-source ./Formula/port-daddy.rb` locally; confirm install path, daemon launches, `pd status` healthy.
+7. `pd actor lookout --message "Brew formula v0.42.0 ready: <sha256>. Surfaces audited: README, CHANGELOG, website, skill bundle."`
+8. Push the tag from port-daddy first, then commit + push the formula.
 
 ## Quality Gates (contributor)
 

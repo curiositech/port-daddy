@@ -40,8 +40,13 @@ npx tsx scripts/sync-version.ts              # syncs EVERY version surface
 # website-v2/src/data/referenceCatalog.ts (PORT_DADDY_VERSION). No hand-bumps.
 # distribution-freshness.test.js fails CI if any surface drifts.
 
-# D. CHANGELOG.md
+# D. CHANGELOG.md  (REQUIRED — enforced, not optional)
 # Rename [Unreleased] → [3.15.0] - YYYY-MM-DD, prepend a fresh [Unreleased].
+# The README title (# ⚓ Port Daddy (vX.Y.Z)) is stamped by sync-version.ts in
+# step C, so it's already fresh. A brew cut fails closed without both: `pd cut`
+# runs releaseDocsPreflight before building, and release.yml's release-docs-guard
+# job blocks the Homebrew tap roll. Verify locally before pushing:
+#   node scripts/check-release-docs.mjs --version 3.15.0
 $EDITOR CHANGELOG.md
 
 # E. Validate locally
@@ -107,6 +112,7 @@ pd done "v3.15.0 shipped"
 | Tag pushed but `release.yml` didn't fire | Tag push alone doesn't fire release.yml — only the GitHub *Release* event does. | `gh release create v<x.y.z> --generate-notes`. |
 | Release created but binaries missing | release.yml failed; check `gh run view --log-failed`. | Fix workflow, re-run via `gh workflow run release.yml --ref v<x.y.z>` (works because workflow_dispatch is also enabled). |
 | `brew upgrade port-daddy` still serves the old version | The `update-homebrew` job in `release.yml` hasn't run or failed (common after a `workflow_dispatch` re-run, which skips that job). | Manually dispatch: `gh api repos/curiositech/homebrew-tap/dispatches --input - <<<'{"event_type":"update-formula","client_payload":{"version":"vX.Y.Z"}}'`. Until the commit lands in the tap, the bottle URL points at the previous release. |
+| `release-docs-guard` job fails: `RELEASE DOCS STALE for 3.15.0` | The tag was cut before CHANGELOG.md got its `## [3.15.0] - YYYY-MM-DD` section (or the README title still names the old version). The tap roll is blocked on purpose — a brew cut must ship fresh operator-facing docs. | Add the CHANGELOG section + run `sync-version.ts` for the README title (step C/D), re-tag, re-release. Verify with `node scripts/check-release-docs.mjs --version 3.15.0`. Local `pd cut` hits the same gate (`--allow-stale-docs` overrides only the local cut, never the public tap roll). |
 
 ---
 

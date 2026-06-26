@@ -1,4 +1,4 @@
-import { planRelease, runRelease, signingPreflight, SIGN_ENV } from '../../shared/release.js';
+import { planRelease, runRelease, signingPreflight, releaseDocsPreflight, SIGN_ENV } from '../../shared/release.js';
 
 describe('planRelease', () => {
   test('darwin cut contains daemon + core + fleetbar with their build scripts', () => {
@@ -148,5 +148,62 @@ describe('signingPreflight', () => {
     });
     expect(pre.ok).toBe(false);
     expect(pre.reason).toContain(SIGN_ENV.identity);
+  });
+});
+
+describe('releaseDocsPreflight', () => {
+  const changelogFor = (v) => `# Changelog\n\n## [Unreleased]\n\n## [${v}] - 2026-06-26\n\n### Added\n- thing\n`;
+  const readmeFor = (v) => `# ⚓ Port Daddy (v${v})\n\nAuthoritative port manager.\n`;
+
+  test('fresh CHANGELOG section + README title pass', () => {
+    const pre = releaseDocsPreflight({ version: '3.23.0', changelog: changelogFor('3.23.0'), readme: readmeFor('3.23.0') });
+    expect(pre.ok).toBe(true);
+    expect(pre.problems).toEqual([]);
+    expect(pre.reason).toBeUndefined();
+  });
+
+  test('notes still under [Unreleased] (no dated version section) fails', () => {
+    const changelog = '# Changelog\n\n## [Unreleased]\n\n### Added\n- thing\n';
+    const pre = releaseDocsPreflight({ version: '3.23.0', changelog, readme: readmeFor('3.23.0') });
+    expect(pre.ok).toBe(false);
+    expect(pre.problems).toHaveLength(1);
+    expect(pre.problems[0]).toMatch(/CHANGELOG\.md/);
+    expect(pre.reason).toContain('3.23.0');
+  });
+
+  test('a version section without a date does not count', () => {
+    const changelog = '# Changelog\n\n## [3.23.0]\n\n### Added\n- thing\n';
+    const pre = releaseDocsPreflight({ version: '3.23.0', changelog, readme: readmeFor('3.23.0') });
+    expect(pre.ok).toBe(false);
+    expect(pre.problems[0]).toMatch(/YYYY-MM-DD/);
+  });
+
+  test('stale README title (previous version) fails', () => {
+    const pre = releaseDocsPreflight({ version: '3.23.0', changelog: changelogFor('3.23.0'), readme: readmeFor('3.13.0') });
+    expect(pre.ok).toBe(false);
+    expect(pre.problems).toHaveLength(1);
+    expect(pre.problems[0]).toMatch(/README\.md/);
+  });
+
+  test('both stale → both problems reported', () => {
+    const pre = releaseDocsPreflight({ version: '3.23.0', changelog: changelogFor('3.22.0'), readme: readmeFor('3.13.0') });
+    expect(pre.ok).toBe(false);
+    expect(pre.problems).toHaveLength(2);
+  });
+
+  test('missing files are reported, not treated as fresh', () => {
+    const pre = releaseDocsPreflight({ version: '3.23.0', changelog: null, readme: null });
+    expect(pre.ok).toBe(false);
+    expect(pre.problems).toHaveLength(2);
+    expect(pre.problems.join(' ')).toMatch(/missing or unreadable/);
+  });
+
+  test('a prerelease version matches its own dated section (dot/dash escaped)', () => {
+    const pre = releaseDocsPreflight({
+      version: '3.23.0-rc.1',
+      changelog: changelogFor('3.23.0-rc.1'),
+      readme: readmeFor('3.23.0-rc.1'),
+    });
+    expect(pre.ok).toBe(true);
   });
 });

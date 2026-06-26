@@ -128,6 +128,10 @@ const SOURCE_SURFACES = [
     name: 'core/pd-console/Cargo.toml (CARGO_PKG_VERSION → pd-console --version)',
     get: () => literalFrom('core/pd-console/Cargo.toml', /^version\s*=\s*"(\d+\.\d+\.\d+[\w.\-+]*)"/m),
   },
+  {
+    name: 'README.md (# ⚓ Port Daddy title)',
+    get: () => literalFrom('README.md', /# ⚓ Port Daddy \(v(\d+\.\d+\.\d+[\w.\-+]*)\)/),
+  },
 ];
 
 /**
