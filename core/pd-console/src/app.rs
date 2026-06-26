@@ -78,6 +78,9 @@ pub enum ControlMsg {
     /// `gated` is how many nodes were held back behind the HITL gate, reported so
     /// the operator knows the dispatch was partial by design.
     ConjureDispatch { requests: Vec<ConjureDispatchRequest>, gated: usize },
+    /// Switch the whole console to another daemon berth (ADR-0084). The producer
+    /// swaps its `DaemonClient` so every pane's next refresh hits the new daemon.
+    RebindDaemon { url: String },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -143,6 +146,10 @@ pub enum CmdKind {
     /// prompt-seeded fixture), stores it in `ConsoleView::conjure_dag`, and swaps
     /// the focused pane to the Conjure surface. Handled locally (no daemon round-trip).
     Conjure,
+    /// Switch the console to another daemon berth (ADR-0084). Buffer is a berth
+    /// name, `:port`, or a tier alias ("stable"/"dev-latest"); resolved against
+    /// `~/.port-daddy/dev-daemons.json`. See the Daemons pane for the names.
+    UseDaemon,
 }
 
 impl CmdKind {
@@ -153,6 +160,7 @@ impl CmdKind {
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
             CmdKind::Conjure => "conjure",
+            CmdKind::UseDaemon => "use daemon",
         }
     }
 
@@ -174,6 +182,7 @@ impl CmdKind {
             CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.".to_string(),
             CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…".to_string(),
             CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents".to_string(),
+            CmdKind::UseDaemon => "prod · latest · dev-latest · :9876 · berth name…".to_string(),
         }
     }
 }
@@ -1150,6 +1159,8 @@ impl ConsoleView {
             "t" => self.command = Some(CommandLine::new(CmdKind::Cartographer)),
             // Insert a new pane of a chosen kind (the add-pane picker).
             "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
+            // Switch which daemon berth the console talks to (the Daemons pane lists names).
+            "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any nav key swaps the focused pane's surface — "hop context".
@@ -1339,6 +1350,24 @@ impl ConsoleView {
             }
             return;
         }
+        // UseDaemon resolves a berth name/`:port`/tier locally (reads the registry)
+        // then asks the producer to swap the client. Handled before the tx guard so
+        // the "no match" feedback works even without a control channel.
+        if cmd.kind == CmdKind::UseDaemon {
+            let berths = crate::berths::discover();
+            if let Some(berth) = crate::berths::resolve(&berths, &text) {
+                let url = berth.url();
+                let summary = berth.display();
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
+                }
+                self.control_flash = Some(format!("-> daemon {summary}"));
+                self.daemon_url = url;
+            } else {
+                self.control_flash = Some(format!("no daemon matches '{text}'"));
+            }
+            return;
+        }
         // Clone the sender (owned) so we can also mutate the workspace below
         // without holding an immutable borrow of `self` across `ws_mut()`.
         let Some(tx) = self.control_tx.clone() else { return };
@@ -1389,9 +1418,9 @@ impl ConsoleView {
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
-            // AddPane and Conjure are handled locally above (early return) —
+            // AddPane, Conjure, and UseDaemon are handled locally above (early return) —
             // never reach here.
-            CmdKind::AddPane | CmdKind::Conjure => {}
+            CmdKind::AddPane | CmdKind::Conjure | CmdKind::UseDaemon => {}
         }
     }
 
