@@ -36,26 +36,26 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        {/* Spinning wordmark lockup — the brand statement at the top of the
-            hero. The radar mark animates; the type stays put. Theme-aware,
-            transparent ground, reduced-motion safe. */}
-        <motion.div
-          ref={heroMarkRef}
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' as const }}
-          className="mb-[var(--space-6)]"
-        >
-          <Wordmark variant="spin" className="h-20 lg:h-24" />
-        </motion.div>
+        <div className="grid grid-cols-1 items-start gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-x-[var(--space-7)] min-[1100px]:gap-y-[var(--space-5)]">
+          {/* Brand mark — full-width at the top on mobile; up in the whitespace
+              above the video (top-right) on desktop. The radar spins; the colour
+              advances one notch per 180° flip. */}
+          <motion.div
+            ref={heroMarkRef}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' as const }}
+            className="min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-1"
+          >
+            <Wordmark variant="spin" className="w-full" />
+          </motion.div>
 
-        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-6)]"
+            className="min-w-0 space-y-[var(--space-6)] min-[1100px]:col-start-1 min-[1100px]:row-start-1 min-[1100px]:row-span-2"
           >
             <SectionIntro
               eyebrow="Fleet coordination for coding agents"
@@ -146,7 +146,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-2 min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
             <div className="relative z-10">
               <LiveGloryVideo />
