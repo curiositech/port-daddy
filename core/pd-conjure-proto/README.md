@@ -5,7 +5,7 @@ windags `next_move` planner output, mirrored from `pd-console::conjure`) as a
 beautiful **wave-column node-graph** with **Vello + Parley**, captured
 **OFFSCREEN** to a PNG. No window, no Screen-Recording / TCC permission. This is
 the **Rung-1** path (NOT bare Metal), per
-[`docs/CONJURE-DAG-SURFACE.md`](../pd-console/docs/CONJURE-DAG-SURFACE.md).
+[`docs/CONJURE-DAG-SURFACE.md`](../pd-console/docs/CONJURE-DAG-SURFACE.md) (proposed — designed-not-built).
 
 It mirrors the stack and the headless capture of `pd-timeline-proto` /
 `pd-flag-proto`, and is likewise **excluded from the `core/` workspace** (its own
