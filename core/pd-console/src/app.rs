@@ -198,6 +198,13 @@ fn reduced_motion() -> bool {
         .unwrap_or(false)
 }
 
+/// `PD_CONSOLE_NO_SPLASH` opt-out — suppresses the launch splash entirely.
+/// Read once (env is fixed for the process); the render gate consults this.
+fn splash_disabled() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("PD_CONSOLE_NO_SPLASH").is_ok())
+}
+
 /// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
 /// Call once at startup before the window opens.
 pub fn init_theme_from_env() {
@@ -630,10 +637,10 @@ impl ConsoleView {
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
-            // Show the splash until the first refresh lands; PD_CONSOLE_NO_SPLASH
-            // opts out entirely. (The launcher screenshot hook also suppresses it
-            // via the splash gate in render(), so captures never catch the flash.)
-            booted: std::env::var("PD_CONSOLE_NO_SPLASH").is_ok(),
+            // Flipped true once the first pane refresh lands (see update_panes).
+            // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
+            // lives in render()'s gate, not here.
+            booted: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
@@ -1014,8 +1021,10 @@ impl ConsoleView {
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
     ) {
-        // First refresh dismisses the launch splash.
-        self.booted = true;
+        // First refresh dismisses the launch splash (idempotent thereafter).
+        if !self.booted {
+            self.booted = true;
+        }
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 *slot = blocks;
@@ -1633,9 +1642,9 @@ impl Render for ConsoleView {
             None
         };
         // The launch splash overlays everything until the first refresh lands.
-        // Suppressed while the launcher screenshot hook is open, so capture tooling
-        // grabs the launcher rather than the boot flash.
-        let splash = if !self.booted && !self.launcher_open {
+        // Suppressed for the launcher screenshot hook and the PD_CONSOLE_NO_SPLASH
+        // opt-out, so capture tooling / opted-out users never see the boot flash.
+        let splash = if !self.booted && !self.launcher_open && !splash_disabled() {
             Some(self.render_splash())
         } else {
             None
