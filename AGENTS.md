@@ -277,6 +277,36 @@ For multi-PR ship campaigns, track the state in `TaskCreate` so the merge
 sequence is explicit. The user can interrupt at any boundary; the task
 list is the recovery surface.
 
+### Respond to every review comment — no silent ignores
+
+A review comment is a question you owe an answer, not a notification you may
+swipe away. **Before a PR merges, every review comment — inline diff thread or
+top-level, human or bot (Copilot, the Claude code-review / adversarial reviewer,
+FleetBot `[pd-*]`, CodeQL, Cloudflare) — must get a substantive response.** That
+means one of:
+
+- **Fixed** — you changed the code; say what you changed (and ideally link the
+  fixup commit), then resolve the thread.
+- **Deferred** — not now, with a reason and where it's tracked (issue / roadmap
+  item / follow-up PR). "Later" without a destination is ignoring it.
+- **Contested** — you disagree; say *why*, specifically, citing the code or the
+  invariant. A reviewer can be wrong — but you have to make the argument, not
+  stay silent.
+
+What does **not** count: resolving a thread with no reply, a one-word "done" with
+no evidence, closing the PR to dodge the comment, or letting a bot finding scroll
+off the page. "Seriously" is load-bearing — engage the substance.
+
+`[M]` Machine-flagged, advisory. `scripts/check-pr-comments-answered.mjs` (the
+`pr-comments-guard` check / its own `pr-comments.yml` workflow) inspects the PR's
+review threads and, when a reviewer spoke last on an open, non-outdated thread,
+marks the PR red and applies the `needs-comment-replies` label. It re-runs every
+time a comment, review, or reply lands, so the label clears the moment you
+respond. It is **advisory — it does not block the merge** (a genuinely
+bot-only/no-op PR can opt out with `<!-- pr-comments-exempt: <reason> -->`). The
+teeth that judge whether your reply is *real* vs. dismissive are the adversarial
+reviewer and the operator — the script only checks that you engaged at all.
+
 ### Visual artifacts for UI diffs (hard requirement — forever)
 
 Every PR that touches a **GPUI** surface (`core/pd-console` window), the
