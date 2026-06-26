@@ -257,7 +257,7 @@ marginally more code — profile first; this function earned it because it's hot
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/validate_skill.py` | Self-check: frontmatter, required references/examples exist, no phantom citations |
+| `skills/rust-performance-and-idioms/scripts/validate_skill.py` | Self-check: frontmatter, required references/examples exist, no phantom citations |
 
 ## Sources
 
