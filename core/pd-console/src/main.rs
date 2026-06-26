@@ -37,6 +37,7 @@ mod sortie_pane;
 mod suggest_pane;
 mod term;
 mod theme;
+mod tokens;
 mod util;
 
 use activity_pane::ActivityPane;
