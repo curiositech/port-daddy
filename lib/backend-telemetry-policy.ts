@@ -221,6 +221,34 @@ export function assessBackendTelemetryPolicy(backend: string, model?: string | n
       };
     }
 
+    case 'lmstudio': {
+      // LM Studio's OpenAI-compatible local server returns exact
+      // usage.{prompt_tokens,completion_tokens} on every completion (see
+      // lib/spawner/backends/openai.ts), so the exact telemetry path applies
+      // just like Ollama. It serves whatever model is loaded in the app, so
+      // the id is operator-chosen and unbounded; cost-tracker's lmstudio
+      // catch-all electricity-proxy rate prices any id at the local floor.
+      // The model id may be the conventional 'local-model' placeholder, which
+      // is fine — the catch-all rate matches it.
+      const effectiveModel = model?.trim() || 'local-model';
+      if (!hasExactModelRate(effectiveModel, 'lmstudio')) {
+        return {
+          ...blocked(
+            backend,
+            `LM Studio model "${effectiveModel}" has no exact cost rate entry; fail-closed telemetry policy blocks launch.`,
+            'Add a rate for LM Studio to cost-tracker LMSTUDIO_MODEL_RATES before enabling it.'
+          ),
+          effectiveModel,
+        };
+      }
+      return {
+        backend,
+        launchAllowed: true,
+        summary: `Exact telemetry policy satisfied for LM Studio model "${effectiveModel}"`,
+        effectiveModel,
+      };
+    }
+
     case 'custom':
       return blocked(
         backend,

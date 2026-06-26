@@ -32,6 +32,7 @@ import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
+import { lmstudioAdapter, DEFAULT_LMSTUDIO_MODEL } from './spawner/backends/lmstudio.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
@@ -96,7 +97,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -624,6 +625,16 @@ async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult
   return adaptLLMResult(result);
 }
 
+async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await lmstudioAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const result = await cloudflareAdapter({
     prompt: spec.task,
@@ -1101,6 +1112,7 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.1:8b',  // local ollama model name, not an API id
+  lmstudio: DEFAULT_LMSTUDIO_MODEL,  // LM Studio serves whatever model is loaded
   claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),
@@ -1821,6 +1833,7 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const effectiveBackend = cliOverride ?? spec.backend;
         switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
+          case 'lmstudio':  result = await runLmStudio(spec, model); break;
           case 'claude':    result = await runClaude(spec, model); break;
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;

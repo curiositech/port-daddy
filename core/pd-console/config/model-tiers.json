@@ -31,6 +31,12 @@
       "high": "llama3.1:70b",
       "mid": "llama3.1:8b",
       "low": "llama3.2:3b"
+    },
+    "lmstudio": {
+      "_comment": "LM Studio serves whatever model is loaded in the app; the concrete id is resolved at runtime (GET /v1/models reports it). 'local-model' is the conventional placeholder and is priced by the daemon's lmstudio catch-all electricity-proxy rate, so every tier launches. Load 'Qwen 3 Next Coder' as the prime in LM Studio.",
+      "high": "local-model",
+      "mid": "local-model",
+      "low": "local-model"
     }
   }
 }

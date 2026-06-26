@@ -27,12 +27,13 @@ pub enum Backend {
     Codex,
     Cloudflare,
     Ollama,
+    LmStudio,
     Aider,
     Custom,
 }
 
 impl Backend {
-    pub const ALL: [Backend; 10] = [
+    pub const ALL: [Backend; 11] = [
         Backend::Claude,
         Backend::Gemini,
         Backend::Groq,
@@ -41,6 +42,7 @@ impl Backend {
         Backend::Codex,
         Backend::Cloudflare,
         Backend::Ollama,
+        Backend::LmStudio,
         Backend::Aider,
         Backend::Custom,
     ];
@@ -55,6 +57,7 @@ impl Backend {
             Backend::Codex => "codex",
             Backend::Cloudflare => "cloudflare",
             Backend::Ollama => "ollama",
+            Backend::LmStudio => "lmstudio",
             Backend::Aider => "aider",
             Backend::Custom => "custom",
         }
@@ -76,6 +79,7 @@ impl Backend {
             Backend::Codex => "Codex",
             Backend::Cloudflare => "Cloudflare",
             Backend::Ollama => "Ollama (local)",
+            Backend::LmStudio => "LM Studio",
             Backend::Aider => "Aider",
             Backend::Custom => "Custom",
         }
@@ -112,6 +116,7 @@ pub fn backend_for_tier(model_tier: &str) -> Backend {
         "groq" => Backend::Groq,
         "openai" | "gpt" | "gpt-4" | "gpt-4o" | "o1" | "o3" => Backend::Openai,
         "ollama" | "local" => Backend::Ollama,
+        "lmstudio" | "lm-studio" | "lm_studio" => Backend::LmStudio,
         "aider" => Backend::Aider,
         // Unknown / empty: the Prime default. Claude Max never bounces on a
         // missing API key, so this is the safe "still launchable" fallback.
@@ -871,6 +876,8 @@ mod tests {
         assert_eq!(backend_for_tier("openai"), Backend::Openai);
         assert_eq!(backend_for_tier("gpt"), Backend::Openai);
         assert_eq!(backend_for_tier("ollama"), Backend::Ollama);
+        assert_eq!(backend_for_tier("lmstudio"), Backend::LmStudio);
+        assert_eq!(backend_for_tier("lm-studio"), Backend::LmStudio);
         // Case + whitespace tolerant (planner output is a free string).
         assert_eq!(backend_for_tier("  GEMINI "), Backend::Gemini);
         // Unknown / empty falls back to the launchable default, never panics.

@@ -139,6 +139,21 @@ const OLLAMA_MODEL_RATES: Array<[string, ModelRate]> = [
   ['nomic-embed', { input:  0.01, output:  0.01, label: 'Ollama local nomic-embed (smaller embedding model)' }],
 ];
 
+// ─── LM Studio-only model rates ───────────────────────────────────────────────
+//
+// LM Studio runs an OpenAI-compatible local server and returns exact
+// `usage.{prompt_tokens,completion_tokens}` on every completion, so the exact
+// telemetry path applies (just like Ollama). It serves whatever model is loaded
+// in the app, so the reported model id is operator-chosen and unbounded — we
+// cannot enumerate it. We therefore use a single catch-all electricity-proxy
+// rate (same $0.05/M floor as the Ollama family) consulted ONLY when the
+// backend argument is 'lmstudio', so it can never false-match a paid remote
+// model. The catch-all '' key matches every model id via substring (`includes`).
+// Held in its own table to keep the bare-word match scoped to this backend.
+const LMSTUDIO_MODEL_RATES: Array<[string, ModelRate]> = [
+  ['', { input: 0.05, output: 0.05, label: 'LM Studio local model (electricity proxy)' }],
+];
+
 /**
  * Flat per-session cost estimates for backends that don't expose token counts.
  * These are conservative estimates meant to flag usage, not for billing.
@@ -163,6 +178,7 @@ const SESSION_ESTIMATES_USD: Record<string, number> = {
   'cli:grok':        0.001,
   'custom':     0.00,  // unknown — assume free
   'ollama':     0.00,  // local — free
+  'lmstudio':   0.00,  // local LM Studio server — free (runs on operator hardware)
 };
 
 function estimateOpaqueSessionCost(backend: string, model: string): number {
@@ -249,6 +265,15 @@ function findRate(model: string, backend?: string): ModelRate | null {
   // remote model that happens to contain those substrings.
   if (backend === 'ollama') {
     for (const [key, rate] of OLLAMA_MODEL_RATES) {
+      if (lc.includes(key)) return rate;
+    }
+    return null;
+  }
+  // LM Studio serves an operator-chosen loaded model whose id we cannot
+  // enumerate; the '' catch-all matches any id but ONLY for the lmstudio
+  // backend, so it can never false-match a paid remote model elsewhere.
+  if (backend === 'lmstudio') {
+    for (const [key, rate] of LMSTUDIO_MODEL_RATES) {
       if (lc.includes(key)) return rate;
     }
     return null;

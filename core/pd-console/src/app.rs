@@ -158,15 +158,38 @@ impl CmdKind {
     /// Ghost text shown in the input when empty — the GUI must never demand
     /// syntax the operator has to guess. This is the discoverability the hidden
     /// leader-key command line never had.
-    fn placeholder(&self) -> &'static str {
+    ///
+    /// Returns an owned `String` because the Spawn hint's backend list is
+    /// GENERATED from [`Backend::ALL`] (see [`spawn_backend_hint`]) rather than
+    /// hardcoded, so it always reflects the real backend set — Groq, LM Studio,
+    /// and any future backend appear automatically and the hint can never drift
+    /// out of sync with what the picker actually offers.
+    fn placeholder(&self) -> String {
         match self {
-            CmdKind::Spawn => "claude: summarize the open PRs   (backend: task — try claude · gemini · ollama)",
-            CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…",
-            CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.",
-            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…",
-            CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents",
+            CmdKind::Spawn => {
+                format!("claude: summarize the open PRs   (backend: task — try {})", spawn_backend_hint())
+            }
+            CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…".to_string(),
+            CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.".to_string(),
+            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…".to_string(),
+            CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents".to_string(),
         }
     }
+}
+
+/// The backend names shown in the Spawn placeholder hint, generated from
+/// [`Backend::ALL`] so the hint never drifts from the real backend set. We
+/// curate to the commonly-reached vendors plus the local options — but pulled
+/// from the live enum (never a hand-kept literal), so adding a backend to
+/// `Backend::ALL` surfaces it here for free. `custom` is omitted (it is an
+/// escape hatch, not a starting suggestion).
+fn spawn_backend_hint() -> String {
+    Backend::ALL
+        .into_iter()
+        .filter(|b| *b != Backend::Custom)
+        .map(|b| b.as_str())
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 /// Version + build-freshness of the running binary, for the status bar.
@@ -2385,7 +2408,7 @@ fn render_open_command(
         cmd.kind.prompt().to_string()
     };
     let placeholder = if cmd.kind == CmdKind::Spawn {
-        "describe the task for this agent — Send to launch & stream"
+        "describe the task for this agent — Send to launch & stream".to_string()
     } else {
         cmd.kind.placeholder()
     };
