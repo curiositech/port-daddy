@@ -403,6 +403,51 @@ export function fact(n: number): number {
     expect(symbolIndex.getDependents(filePath, 'fact')
       .some(d => d.sourceSymbol === 'fact')).toBe(false);
   });
+
+  // ── Cross-file CALL resolution (ast-a1-3) ─────────────────────────────────
+  // The payoff of ast-a1-1: a call to an IMPORTED symbol now produces a `calls`
+  // edge into the other file, so blast-radius + signature conflicts cross modules.
+  test('emits a cross-file calls edge to an imported callee', async () => {
+    const bPath = join(tempDir, 'xc-b.ts');
+    const aPath = join(tempDir, 'xc-a.ts');
+    writeFileSync(bPath, `export function createRoutes() { return 1; }\n`);
+    writeFileSync(aPath, `import { createRoutes } from './xc-b';\nexport function registerRoutes() { return createRoutes(); }\n`);
+
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    // createRoutes' reverse-deps now include the cross-file caller registerRoutes.
+    const callers = symbolIndex.getDependents(bPath, 'createRoutes');
+    const xcall = callers.find(d => d.sourceSymbol === 'registerRoutes' && d.sourceFile === aPath);
+    expect(xcall).toBeDefined();
+    expect(xcall!.dependencyType).toBe('calls');
+
+    // ...and blast-radius of createRoutes (in b) now reaches across the module.
+    const radius = computeBlastRadius(symbolIndex, { filePath: bPath, symbolPath: 'createRoutes' }, 3);
+    expect(radius.some(n => n.symbolPath === 'registerRoutes')).toBe(true);
+  });
+
+  test('cross-file calls resolve through a NodeNext `.js` specifier', async () => {
+    const bPath = join(tempDir, 'jsx-b.ts');
+    const aPath = join(tempDir, 'jsx-a.ts');
+    writeFileSync(bPath, `export function build() { return 1; }\n`);
+    writeFileSync(aPath, `import { build } from './jsx-b.js';\nexport function boot() { return build(); }\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    expect(symbolIndex.getDependents(bPath, 'build')
+      .some(d => d.sourceSymbol === 'boot' && d.sourceFile === aPath && d.dependencyType === 'calls')).toBe(true);
+  });
+
+  test('does NOT emit a calls edge for an external (node_modules) callee', async () => {
+    const filePath = join(tempDir, 'ext-call.ts');
+    writeFileSync(filePath, `import { readFileSync } from 'fs';\nexport function load() { return readFileSync('x'); }\n`);
+    await symbolIndex.parseFile(filePath);
+
+    // The import edge exists, but no `calls` edge is fabricated to an unresolved 'fs'.
+    const callsEdges = symbolIndex.getDependencies(filePath).filter(d => d.dependencyType === 'calls');
+    expect(callsEdges.some(d => d.targetSymbol === 'readFileSync')).toBe(false);
+  });
 });
 
 // =============================================================================
@@ -761,6 +806,26 @@ export function beta() {}
     // No DIRECT conflict (different symbols)
     const direct = conflicts.filter(c => c.type === 'direct');
     expect(direct).toHaveLength(0);
+  });
+
+  test('detects a CROSS-FILE signature conflict (the ast-a1-3 payoff)', async () => {
+    // b defines createRoutes; a (a different file) imports + calls it. Modifying
+    // createRoutes' contract while someone edits its cross-file caller is a
+    // signature conflict — which could only fire intra-file before ast-a1-3.
+    const bPath = join(tempDir, 'sig-b.ts');
+    const aPath = join(tempDir, 'sig-a.ts');
+    writeFileSync(bPath, `export function createRoutes(app: any) { return app; }\n`);
+    writeFileSync(aPath, `import { createRoutes } from './sig-b';\nexport function registerRoutes(app: any) { return createRoutes(app); }\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    const conflicts = symbolIndex.predictConflicts(
+      [{ filePath: bPath, symbolPath: 'createRoutes', type: 'modify' }],   // A: change the contract
+      [{ filePath: aPath, symbolPath: 'registerRoutes', type: 'modify' }], // B: edit the cross-file caller
+    );
+    const sig = conflicts.find(c => c.type === 'signature');
+    expect(sig).toBeDefined();
+    expect(sig!.severity).toBe('blocking');
   });
 });
 

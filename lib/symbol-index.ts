@@ -15,7 +15,7 @@
 import type Database from 'better-sqlite3';
 import { createHash } from 'crypto';
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { join, extname, resolve, dirname, sep } from 'path';
+import { join, extname, resolve, dirname, sep, isAbsolute } from 'path';
 import { createRequire } from 'module';
 import type { GraphEdges, GraphEdgeInput } from './graph-edges.js';
 import { locateProjectDir } from './project-locator.js';
@@ -751,17 +751,30 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
       extractTSDeps(rootNode, deps, absPath, projectDir);
     }
 
-    // Intra-file `calls` edges — the reverse-dependency closure that powers
-    // blast-radius needs these (see extractCallEdges). The import/heritage
-    // extractors above never produced them, so blast-radius came back empty for
-    // a same-file caller (ADR-0084 / issue #468).
-    deps.push(...extractCallEdges(rootNode, absPath, symbols));
+    // Import map for CROSS-FILE call resolution (ast-a1-3): a local binding name
+    // → the resolved in-project file + symbol it imports. Built from the `imports`
+    // edges extractTSDeps just produced, keeping only those resolved to a real
+    // absolute path (ast-a1-1) — raw/external specifiers are not coordination
+    // surface. Lets extractCallEdges emit a `calls` edge when a call targets an
+    // imported symbol defined in ANOTHER file. (Aliased imports `as x` bind a
+    // different local name than the import edge records — a tracked follow-up.)
+    const importMap = new Map<string, { file: string; symbol: string }>();
+    for (const d of deps) {
+      if (d.type === 'imports' && d.targetSymbol && isAbsolute(d.targetFile)) {
+        importMap.set(d.targetSymbol, { file: d.targetFile, symbol: d.targetSymbol });
+      }
+    }
+
+    // `calls` edges — the reverse-dependency closure that powers blast-radius
+    // needs these (see extractCallEdges). Intra-file resolution closed issue #468;
+    // cross-file resolution (via importMap) is ast-a1-3.
+    deps.push(...extractCallEdges(rootNode, absPath, symbols, importMap));
 
     return deps;
   }
 
   /**
-   * Intra-file `calls` edges — the dependency kind that powers blast-radius.
+   * `calls` edges — the dependency kind that powers blast-radius.
    *
    * `extractTSDeps`/`extractPythonDeps` capture imports + class heritage, but the
    * reverse-dependency closure (`computeBlastRadius`) also needs `calls`: if
@@ -769,21 +782,22 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
    * `registerRoutes`, so `createRoutes` must report `registerRoutes` as a
    * dependent. Tree-sitter gives us call_expression (TS/JS) / call (Python) nodes;
    * for each we resolve:
-   *   - the CALLEE to a function/method DEFINED IN THIS FILE (cross-file call
-   *     resolution needs import tracking — a separate concern; unresolved/external
-   *     callees are skipped), and
+   *   - the CALLEE: first to a function/method DEFINED IN THIS FILE; failing that,
+   *     to a symbol IMPORTED from another in-project file via `importMap`
+   *     (ast-a1-3 cross-file calls). External/unresolved callees are skipped; an
+   *     ambiguously-defined local name is skipped rather than guessed cross-file.
    *   - the enclosing SOURCE symbol by line-containment against the already-
    *     extracted symbols (innermost function/method whose line span contains the
    *     call), which is language-agnostic and handles nested/method scopes.
-   * Emits one `{sourceSymbol, targetFile: thisFile, targetSymbol, type:'calls'}`
-   * per resolved intra-file call — deduped, self-recursion skipped, and ambiguous
-   * callee names (same simple name defined twice in the file) skipped rather than
-   * guessed (a wrong advisory edge is worse than a missing one).
+   * Emits one `{sourceSymbol, targetFile, targetSymbol, type:'calls'}` per resolved
+   * call — `targetFile` is this file for an intra-file callee, the imported file
+   * for a cross-file one. Deduped by caller+file+target, self-recursion skipped.
    */
   function extractCallEdges(
     rootNode: TSNode,
     absPath: string,
     symbols: ExtractedSymbol[],
+    importMap: Map<string, { file: string; symbol: string }>,
   ): ExtractedDep[] {
     // Callable targets defined in this file, by simple name → path. A name seen
     // twice maps to null (ambiguous, un-resolvable without scope analysis).
@@ -819,17 +833,29 @@ export function createSymbolIndex(db: Database.Database, options?: { graphEdges?
 
     const out: ExtractedDep[] = [];
     const seen = new Set<string>();
+    const emit = (caller: string, file: string, target: string): void => {
+      // Self-recursion only when it's the same symbol in the same file.
+      if (caller === target && file === absPath) return;
+      const key = `${caller}\t${file}\t${target}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ sourceSymbol: caller, targetFile: file, targetSymbol: target, type: 'calls' });
+    };
     const walk = (node: TSNode): void => {
       if (node.type === 'call_expression' || node.type === 'call') {
         const name = calleeName(node);
-        const targetPath = name != null ? callableByName.get(name) : undefined;
-        if (targetPath) {
+        if (name != null) {
           const caller = enclosingOf(node.startPosition.row + 1);
-          if (caller && caller !== targetPath) {
-            const key = `${caller} ${targetPath}`;
-            if (!seen.has(key)) {
-              seen.add(key);
-              out.push({ sourceSymbol: caller, targetFile: absPath, targetSymbol: targetPath, type: 'calls' });
+          if (caller) {
+            const localPath = callableByName.get(name);
+            if (localPath) {
+              // Intra-file callee (issue #468).
+              emit(caller, absPath, localPath);
+            } else if (localPath === undefined) {
+              // Not a local symbol → maybe imported from another file (ast-a1-3).
+              // `null` (ambiguous local) deliberately does NOT fall through here.
+              const imp = importMap.get(name);
+              if (imp) emit(caller, imp.file, imp.symbol);
             }
           }
         }
