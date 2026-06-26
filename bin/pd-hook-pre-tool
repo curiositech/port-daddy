@@ -25,6 +25,15 @@
 #                 hookSpecificOutput.permissionDecision:"deny" with a non-empty
 #                 permissionDecisionReason.
 #
+# CODEX apply_patch PATH GAP (fixed 2026-06-26): Codex's primary edit tool is
+# `apply_patch`, whose tool_input is { "command": ["apply_patch", "<patch text>"] }
+# — there is NO top-level file_path. The touched paths live INSIDE the patch text
+# after the envelope markers "*** Update File: <p>" / "*** Add File: <p>" /
+# "*** Delete File: <p>" / "*** Move to: <p>" (markers verified from the codex
+# rust binary; multi-file confirmed from the live --json `file_change` item's
+# changes[].path array). A file_path-only probe MISSES every apply_patch edit, so
+# below we ALSO harvest every File: path from the patch body and gate ALL of them.
+#
 # We therefore default to the universal exit-2 + stderr contract (works for all
 # three). When the event is the Codex *app-server* camelCase shape (toolName,
 # no snake_case tool_name), we instead emit the deny-JSON contract so that
@@ -55,12 +64,32 @@ case "$EVENT" in
   *) CAMEL=0 ;;
 esac
 
-# ── Extract the file target + tool name from the event (both shapes) ─────────
+# ── Extract the tool name + ALL candidate file targets from the event ─────────
+# Most tools carry a single file_path. Codex `apply_patch` is the exception: its
+# tool_input is { "command": ["apply_patch", "<patch text>"] } and the touched
+# paths live INSIDE the patch text after the envelope markers — verified against
+# the codex v0.139.0 rust binary (strings show `{"command":["apply_patch","***
+# Begin Patch\n*** Update File: path...`) AND the live --json file_change item
+# shape ({changes:[{path,kind}]}). So a single file_path probe MISSES every
+# apply_patch edit. We therefore collect a NEWLINE-LIST of targets:
+#   1. the standard file_path/path/notebook_path field (Claude/Gemini/most tools)
+#   2. every `*** Update|Add|Delete|Move (to)? File:` path in an apply_patch body
+# and lock-check each. One foreign-locked path in the set blocks the whole call.
 TOOL=""
-TARGET=""
 if command -v jq >/dev/null 2>&1; then
   TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .toolName // .tool // empty' 2>/dev/null || true)"
-  TARGET="$(printf '%s' "$EVENT" | jq -r '
+fi
+# Fall back to a raw sed scan whenever jq is absent OR returned nothing (e.g. the
+# event was not strict JSON). The block decision must never depend on jq parsing.
+if [ -z "$TOOL" ]; then
+  TOOL="$(printf '%s' "$EVENT" \
+    | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+
+# (1) standard single-path field (both snake_case and camelCase shapes).
+TARGETS=""
+if command -v jq >/dev/null 2>&1; then
+  STD="$(printf '%s' "$EVENT" | jq -r '
       .tool_input.file_path
       // .tool_input.path
       // .tool_input.notebook_path
@@ -70,15 +99,44 @@ if command -v jq >/dev/null 2>&1; then
       // .target
       // empty' 2>/dev/null || true)"
 else
-  # jq-less fallback: the inner key is "file_path" in every vendor shape.
-  TARGET="$(printf '%s' "$EVENT" \
+  STD="$(printf '%s' "$EVENT" \
     | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
-  TOOL="$(printf '%s' "$EVENT" \
-    | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+[ -n "$STD" ] && TARGETS="$STD"
+
+# (2) Codex apply_patch: pull the patch text out of tool_input.command[1] (or the
+# whole command array as a string) and harvest every File: path from the markers.
+# The patch text arrives JSON-escaped (\n for newlines), so we translate \n → real
+# newlines before scanning. Markers (verified): "*** Update File: <p>",
+# "*** Add File: <p>", "*** Delete File: <p>", "*** Move to: <p>".
+PATCH=""
+if command -v jq >/dev/null 2>&1; then
+  PATCH="$(printf '%s' "$EVENT" | jq -r '
+      ( .tool_input.command // .toolInput.command // empty ) as $c
+      | if ($c|type) == "array" then ($c | join("\n"))
+        elif ($c|type) == "string" then $c
+        else empty end' 2>/dev/null || true)"
+  # Fallback: some surfaces nest the raw patch under .tool_input.patch / .input.
+  [ -n "$PATCH" ] || PATCH="$(printf '%s' "$EVENT" | jq -r '.tool_input.patch // .toolInput.patch // empty' 2>/dev/null || true)"
+fi
+# jq-less (or jq-empty) fallback: scan the raw event for escaped patch markers.
+[ -n "$PATCH" ] || PATCH="$EVENT"
+
+if printf '%s' "$PATCH" | grep -q '\*\*\* '; then
+  # Translate literal "\n" (JSON-escaped) into real newlines so per-line sed works,
+  # then extract the path following each File marker.
+  PATCH_PATHS="$(printf '%s' "$PATCH" \
+    | sed 's/\\n/\n/g' \
+    | sed -n -E 's/^[*]{3} (Update File|Add File|Delete File|Move to): (.+)$/\2/p' \
+    | sed -E 's/[[:space:]]+$//')"
+  if [ -n "$PATCH_PATHS" ]; then
+    TARGETS="$(printf '%s\n%s' "$TARGETS" "$PATCH_PATHS")"
+  fi
 fi
 
-# No file target (e.g. Bash/Grep/run_shell_command) → nothing to lock-check, allow.
-[ -n "$TARGET" ] || exit 0
+# Trim blank lines; no targets at all (Bash/Grep/run_shell_command) → allow.
+TARGETS="$(printf '%s\n' "$TARGETS" | sed '/^[[:space:]]*$/d')"
+[ -n "$TARGETS" ] || exit 0
 
 # ── Compute the canonical PD_LOCK_<path> key (matches lib/squid/matrix.ts) ──
 # keySuffix(): non-alnum → "_", trim "_", uppercase, cap 80. Mirror it in sed.
@@ -88,35 +146,52 @@ suffix() {
     | tr '[:lower:]' '[:upper:]' \
     | cut -c1-80
 }
-LOCK_KEY="PD_LOCK_$(suffix "$TARGET")"
 
-# Read the current owner from the matrix (single grep).
-LINE="$(grep -E "^${LOCK_KEY}=" "$MATRIX" 2>/dev/null | head -n1 || true)"
-[ -n "$LINE" ] || exit 0           # not locked → allow
+# Check every candidate path. The FIRST one foreign-locked blocks the whole call —
+# an apply_patch that touches one locked file must not slip the rest through.
+BLOCK_TARGET=""
+BLOCK_OWNER=""
+while IFS= read -r CAND; do
+  [ -n "$CAND" ] || continue
+  LOCK_KEY="PD_LOCK_$(suffix "$CAND")"
+  LINE="$(grep -E "^${LOCK_KEY}=" "$MATRIX" 2>/dev/null | head -n1 || true)"
+  [ -n "$LINE" ] || continue       # this path not locked → keep checking
+  OWNER="$(printf '%s' "$LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
+  [ -n "$OWNER" ] || continue      # owner unknowable → not a foreign block
+  # Locked by US → allow our own edit; keep checking the remaining paths.
+  if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
+    continue
+  fi
+  BLOCK_TARGET="$CAND"
+  BLOCK_OWNER="$OWNER"
+  break
+done <<EOF
+$TARGETS
+EOF
 
-OWNER="$(printf '%s' "$LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
-
-# Locked by US (or owner unknowable and we have no identity) → allow our own edit.
-if [ -z "$OWNER" ]; then
-  exit 0
-fi
-if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
-  exit 0
-fi
+# Nothing foreign-locked → allow.
+[ -n "$BLOCK_TARGET" ] || exit 0
 
 # ── BLOCK. Respond in the contract the calling surface understands. ─────────
 if [ "$CAMEL" -eq 1 ]; then
-  # Codex app-server camelCase surface: exit 0 + stdout deny JSON. Codex requires
-  # a NON-EMPTY permissionDecisionReason or it rejects the output.
-  REASON="[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${TARGET}' is locked by actor '${OWNER}'. Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing."
+  # camelCase stdin (toolName) is sent by TWO surfaces with DIFFERENT deny keys:
+  #   - Codex app-server: { hookSpecificOutput: { permissionDecision:"deny",
+  #     permissionDecisionReason } } — codex requires a NON-EMPTY reason.
+  #   - Antigravity/Gemini-CLI (agy): { hookSpecificOutput: { decision:"block",
+  #     message } } — verified from agy's own gemini-kit `scout-block.js` hook,
+  #     whose live block emits exactly this shape on stdout, exit 0.
+  # We emit a SUPERSET object carrying BOTH key pairs (+ hookEventName) so the same
+  # stdout JSON satisfies whichever surface is reading. Extra keys are ignored by
+  # each side; the one it needs is present and non-empty.
+  REASON="[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'. Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing."
   ESCAPED="$(printf '%s' "$REASON" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$ESCAPED"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","decision":"block","message":"%s"}}\n' "$ESCAPED" "$ESCAPED"
   exit 0
 fi
 
 # Universal contract (Claude / Gemini / Codex-hooks): exit 2 + stderr.
 # The blocking reason MUST be on stderr (Codex binary rejects exit-2 with no
 # stderr: "exited with code 2 but did not write a blocking reason to stderr").
-echo "[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${TARGET}' is locked by actor '${OWNER}'." >&2
+echo "[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'." >&2
 echo "Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing." >&2
 exit 2

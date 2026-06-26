@@ -33,6 +33,7 @@ import {
   ClaudeCliSquidAdapter,
   GeminiSquidAdapter,
   CodexSquidAdapter,
+  AntigravitySquidAdapter,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 
@@ -349,6 +350,90 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/model = "gpt-5.5"/); // prior content survives
     expect(toml).toMatch(/\[\[hooks\.PreToolUse\]\]/); // block appended
   });
+
+  // spawnVoyage must pass the vetted-automation bypass flag (so untrusted hooks
+  // actually run) and the positional prompt (NOT stdin). We prove the exact argv
+  // by putting a fake `codex` on PATH that records its args, instead of spawning
+  // the real model loop.
+  test('spawnVoyage passes --dangerously-bypass-hook-trust, -C cwd, positional prompt', async () => {
+    const fakeBin = join(SCRATCH, 'fakebin');
+    mkdirSync(fakeBin, { recursive: true });
+    const argsFile = join(SCRATCH, 'codex-args.txt');
+    const fakeCodex = join(fakeBin, 'codex');
+    // Record argv one-per-line; exit 0 so spawnVoyage resolves.
+    writeFileSync(fakeCodex, `#!/bin/sh\nfor a in "$@"; do printf '%s\\n' "$a"; done > "${argsFile}"\nexit 0\n`, { mode: 0o755 });
+
+    const adapter = new CodexSquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+    await adapter.spawnVoyage('do the thing', {
+      workspaceRoot: WORKSPACE,
+      actor: 'codex_voyage',
+      env: { PATH: `${fakeBin}:${process.env.PATH ?? ''}` },
+    });
+
+    const argv = readFileSync(argsFile, 'utf8').split('\n').filter(Boolean);
+    expect(argv[0]).toBe('exec');
+    expect(argv).toContain('--dangerously-bypass-hook-trust');
+    expect(argv).toContain('--skip-git-repo-check');
+    // -C <workspace> pins the cwd.
+    const cIdx = argv.indexOf('-C');
+    expect(cIdx).toBeGreaterThanOrEqual(0);
+    expect(argv[cIdx + 1]).toBe(WORKSPACE);
+    // The directive is a POSITIONAL arg (last), not piped on stdin.
+    expect(argv).toContain('do the thing');
+  });
+});
+
+describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
+  // agy (Antigravity v1.0.12) auto-loads a Claude-shaped hooks.json from GeminiDir
+  // (~/.gemini, overridable with GEMINI_DIR). Its JSON hook engine is Claude-event
+  // compatible (PreToolUse/PostToolUse, tool_name/file_path/matcher) — established
+  // by reverse-engineering the agy binary + reading agy's own gemini-kit hooks.
+  const savedGeminiDir = process.env.GEMINI_DIR;
+  const fakeGeminiDir = join(SCRATCH, 'fake-gemini');
+
+  beforeEach(() => {
+    process.env.GEMINI_DIR = fakeGeminiDir; // isolate: never touch the real ~/.gemini
+  });
+  afterEach(() => {
+    if (savedGeminiDir === undefined) delete process.env.GEMINI_DIR;
+    else process.env.GEMINI_DIR = savedGeminiDir;
+  });
+
+  test('writes hooks.json into GeminiDir with the three tentacles (Claude event names)', async () => {
+    const adapter = new AntigravitySquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+
+    const cfgPath = join(fakeGeminiDir, 'hooks.json');
+    expect(existsSync(cfgPath)).toBe(true);
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+    const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
+    expect(cmd('UserPromptSubmit')).toBe(tentaclePath('pd-hook-prompt'));
+    expect(cmd('PreToolUse')).toBe(tentaclePath('pd-hook-pre-tool'));
+    expect(cmd('PostToolUse')).toBe(tentaclePath('pd-hook-post-tool'));
+    // The matcher must cover agy's edit tool names (write_to_file/replace_file_content).
+    const matcher = cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].matcher as string;
+    expect(matcher).toMatch(/write_to_file/);
+    expect(matcher).toMatch(/replace_file_content/);
+    expect(cmd('PreToolUse').startsWith('/')).toBe(true);
+  });
+
+  test('injectHooks preserves non-PD hooks and is idempotent', async () => {
+    const cfgPath = join(fakeGeminiDir, 'hooks.json');
+    mkdirSync(dirname(cfgPath), { recursive: true });
+    writeFileSync(
+      cfgPath,
+      JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Write', hooks: [{ type: 'command', command: '/usr/bin/true' }] }] } }),
+    );
+    const adapter = new AntigravitySquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+    await adapter.injectHooks(WORKSPACE);
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+    const pre = cfg.hooks.PreToolUse;
+    expect(pre.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
+    const pd = pre.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
+    expect(pd.length).toBe(1);
+  });
 });
 
 describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
@@ -390,6 +475,81 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     expect(r.stderr).toMatch(/agent_alpha/);
   });
 
+  // THE REAL apply_patch wire shape: codex's apply_patch tool_input is
+  // { command: ["apply_patch", "<patch text>"] } with the path INSIDE the patch
+  // body (verified from the codex v0.139.0 binary + a live `codex exec --json`
+  // file_change item). NO file_path field exists, so the tentacle must harvest
+  // the path from the "*** Update/Add/Delete File:" / "*** Move to:" markers.
+  test('Codex apply_patch with command-array patch body (no file_path) → exit 2 on locked path', () => {
+    const matrix = seedForeignLock();
+    const patch = '*** Begin Patch\n*** Update File: /repo/src/auth.ts\n@@\n-old\n+new\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({
+        tool_name: 'apply_patch',
+        tool_input: { command: ['apply_patch', patch] },
+        hook_event_name: 'PreToolUse',
+        cwd: '/repo',
+      }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/auth\.ts/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('Codex apply_patch multi-file patch blocks when ONE of several paths is locked', () => {
+    const matrix = seedForeignLock();
+    const patch =
+      '*** Begin Patch\n*** Add File: /repo/src/new.ts\n*** Update File: /repo/src/auth.ts\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ tool_name: 'apply_patch', tool_input: { command: ['apply_patch', patch] }, cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/auth\.ts/);
+  });
+
+  test('Codex apply_patch with only UNLOCKED patch paths → exit 0 (allow)', () => {
+    const matrix = seedForeignLock();
+    const patch = '*** Begin Patch\n*** Add File: /repo/src/fresh.ts\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ tool_name: 'apply_patch', tool_input: { command: ['apply_patch', patch] }, cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+  });
+
+  test('Codex app-server camelCase apply_patch (command body) → deny JSON names the patched path', () => {
+    const matrix = seedForeignLock();
+    const patch = '*** Begin Patch\n*** Update File: /repo/src/auth.ts\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ toolName: 'apply_patch', toolInput: { command: ['apply_patch', patch] }, cwd: '/repo', sessionId: 's1' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const out = JSON.parse(r.stdout);
+    expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/auth\.ts/);
+    expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/agent_alpha/);
+  });
+
+  test('Codex apply_patch post-tool pheromone harvests the patch-body path (no file_path)', () => {
+    const matrix = seedForeignLock();
+    const patch = '*** Begin Patch\n*** Update File: /repo/src/patched.ts\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-post-tool'), [], {
+      input: JSON.stringify({ tool_name: 'apply_patch', tool_input: { command: ['apply_patch', patch] }, cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const vals = Object.values(parseMatrix(readFileSync(matrix, 'utf8')));
+    expect(vals.some((v) => v.includes('/repo/src/patched.ts') && v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
+  });
+
   test('Codex app-server camelCase event → exit 0 + permissionDecision:deny JSON', () => {
     const matrix = seedForeignLock();
     const r = spawnSync(bin('pd-hook-pre-tool'), [], {
@@ -404,6 +564,25 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     // Codex REQUIRES a non-empty reason or it rejects the output.
     expect(out.hookSpecificOutput.permissionDecisionReason.length).toBeGreaterThan(0);
     expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/agent_alpha/);
+  });
+
+  test('Antigravity (agy) camelCase event → ONE block JSON satisfies BOTH agy and codex', () => {
+    const matrix = seedForeignLock();
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ toolName: 'write_to_file', toolInput: { file_path: '/repo/src/auth.ts' }, cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agy_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0); // block via stdout, not exit code
+    const out = JSON.parse(r.stdout);
+    // agy contract (verified from agy's own scout-block.js): decision:block + message.
+    expect(out.hookSpecificOutput.hookEventName).toBe('PreToolUse');
+    expect(out.hookSpecificOutput.decision).toBe('block');
+    expect(out.hookSpecificOutput.message.length).toBeGreaterThan(0);
+    expect(out.hookSpecificOutput.message).toMatch(/agent_alpha/);
+    // SAME object still satisfies codex (permissionDecision:deny + non-empty reason).
+    expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(out.hookSpecificOutput.permissionDecisionReason.length).toBeGreaterThan(0);
   });
 
   test('post-tool records a pheromone for Gemini (replace) and Codex (apply_patch) tools', () => {

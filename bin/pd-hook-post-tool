@@ -27,9 +27,18 @@ EVENT="$(cat 2>/dev/null || true)"
 
 # ── Extract tool + file target + success signal (multi-vendor) ──────────────
 # Claude/Gemini use snake_case (tool_name / tool_input.*); Codex uses camelCase
-# (toolName / toolInput.*). We read both so a pheromone lands for every vendor.
+# (toolName / toolInput.*) on its app-server surface and snake_case on its hook
+# surface. We read both so a pheromone lands for every vendor.
+#
+# Codex apply_patch carries NO file_path: tool_input is
+# { "command": ["apply_patch", "<patch text>"] } and the path(s) live inside the
+# patch body after "*** Update|Add|Delete File:" / "*** Move to:" markers (same
+# gap fixed in pd-hook-pre-tool, verified against the codex v0.139.0 binary). We
+# record one pheromone per touched path so a multi-file apply_patch is fully
+# traced, not silently dropped.
 TOOL=""
-TARGET=""
+TARGET=""        # primary (first) path — kept for the common single-file path
+TARGETS=""       # full newline-list of every touched path
 if command -v jq >/dev/null 2>&1; then
   TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .toolName // .tool // empty' 2>/dev/null || true)"
   TARGET="$(printf '%s' "$EVENT" | jq -r '
@@ -39,19 +48,48 @@ if command -v jq >/dev/null 2>&1; then
       // .toolInput.file_path
       // .toolInput.path
       // empty' 2>/dev/null || true)"
-else
+fi
+# Fall back to a raw sed scan whenever jq is absent OR returned nothing (so the
+# recorded pheromone always names the real tool, never a generic "tool").
+if [ -z "$TOOL" ]; then
   TOOL="$(printf '%s' "$EVENT" | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+fi
+if [ -z "$TARGET" ]; then
   TARGET="$(printf '%s' "$EVENT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 fi
+[ -n "$TARGET" ] && TARGETS="$TARGET"
+
+# Harvest apply_patch File: paths from the patch body (jq command[1], or raw scan).
+PATCH=""
+if command -v jq >/dev/null 2>&1; then
+  PATCH="$(printf '%s' "$EVENT" | jq -r '
+      ( .tool_input.command // .toolInput.command // empty ) as $c
+      | if ($c|type) == "array" then ($c | join("\n"))
+        elif ($c|type) == "string" then $c
+        else empty end' 2>/dev/null || true)"
+  [ -n "$PATCH" ] || PATCH="$(printf '%s' "$EVENT" | jq -r '.tool_input.patch // .toolInput.patch // empty' 2>/dev/null || true)"
+fi
+[ -n "$PATCH" ] || PATCH="$EVENT"
+if printf '%s' "$PATCH" | grep -q '\*\*\* '; then
+  PATCH_PATHS="$(printf '%s' "$PATCH" \
+    | sed 's/\\n/\n/g' \
+    | sed -n -E 's/^[*]{3} (Update File|Add File|Delete File|Move to): (.+)$/\2/p' \
+    | sed -E 's/[[:space:]]+$//')"
+  if [ -n "$PATCH_PATHS" ]; then
+    TARGETS="$(printf '%s\n%s' "$TARGETS" "$PATCH_PATHS")"
+    [ -n "$TARGET" ] || TARGET="$(printf '%s\n' "$PATCH_PATHS" | head -n1)"
+  fi
+fi
+TARGETS="$(printf '%s\n' "$TARGETS" | sed '/^[[:space:]]*$/d')"
 
 # Only file-mutating tools leave a pheromone. Read-only tools are no-ops.
 # Names span vendors: Claude (Edit/Write/MultiEdit/NotebookEdit), Gemini
 # (replace/write_file), Codex (apply_patch/str_replace_editor/edit/write/create).
 case "$TOOL" in
   Edit|Write|MultiEdit|NotebookEdit|edit|write|create|str_replace_editor|apply_patch|replace|write_file) : ;;
-  *) [ -n "$TARGET" ] || exit 0 ;;   # unknown tool but a target → still record
+  *) [ -n "$TARGETS" ] || exit 0 ;;   # unknown tool but a target → still record
 esac
-[ -n "$TARGET" ] || exit 0
+[ -n "$TARGETS" ] || exit 0
 
 # ── subject suffix (mirror lib/squid/matrix.ts keySuffix) ───────────────────
 suffix() {
@@ -61,11 +99,12 @@ suffix() {
     | cut -c1-80
 }
 TS_EPOCH="$(date +%s)000"
-KEY="PD_PHEROMONE_$(suffix "$TARGET")_${TS_EPOCH}"
 ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u)"
-VAL="${TARGET} | mutated via ${TOOL:-tool} | intensity:1 | actor:${SELF} | ts:${ISO}"
 
 # ── Acquire the lock (flock if present, else mkdir) and append atomically ────
+# One pheromone per touched path. A multi-file apply_patch produces N lines; the
+# per-path timestamp suffix keeps keys unique within the same epoch ms via a
+# monotonic counter so two paths in the same call don't collide.
 append_line() {
   mkdir -p "$PD_HOME" 2>/dev/null || true
   [ -f "$MATRIX" ] || {
@@ -76,7 +115,16 @@ append_line() {
       echo ''
     } > "$MATRIX"
   }
-  printf '%s="%s"\n' "$KEY" "$VAL" >> "$MATRIX"
+  n=0
+  while IFS= read -r t; do
+    [ -n "$t" ] || continue
+    KEY="PD_PHEROMONE_$(suffix "$t")_${TS_EPOCH}${n}"
+    VAL="${t} | mutated via ${TOOL:-tool} | intensity:1 | actor:${SELF} | ts:${ISO}"
+    printf '%s="%s"\n' "$KEY" "$VAL" >> "$MATRIX"
+    n=$((n + 1))
+  done <<INNER_EOF
+$TARGETS
+INNER_EOF
 }
 
 if command -v flock >/dev/null 2>&1; then

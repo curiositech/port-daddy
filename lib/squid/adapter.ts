@@ -37,6 +37,7 @@ import {
   chmodSync,
 } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn as spawnChild } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
@@ -386,16 +387,34 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
   readonly providerName = 'codex';
   readonly binaryName = 'codex';
   /**
-   * VALIDATION STATE (set 2026-06-25, honestly):
-   *   The Codex CLI (v0.139.0) exposes a hook engine (`[hooks]` in config.toml,
-   *   `--dangerously-bypass-hook-trust` flag confirmed in `codex exec --help`).
-   *   pd-hook-pre-tool answers Codex's deny contract: when invoked with a Codex
-   *   event (`toolName`/`toolInput`) it emits exit-0 + stdout
-   *   `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":
-   *   "deny",...}}` (Codex's documented gate) — proven contract-simulated in the
-   *   selftest. A full live `codex exec` block run was NOT captured in this slice
-   *   (hook trust + a live model turn are required), so `verified` stays `false`:
-   *   the flag is reserved to mean "live block captured".
+   * VALIDATION STATE (updated 2026-06-26, honestly — `verified` means "a LIVE
+   * codex BLOCK of a foreign-locked edit was captured end-to-end"):
+   *
+   * PROVEN LIVE this slice (codex v0.139.0, real ~/.codex):
+   *   - `codex exec --dangerously-bypass-hook-trust --skip-git-repo-check -C <dir>
+   *     "<prompt>"` runs non-interactively with stdin closed (no hang). The
+   *     `--dangerously-bypass-hook-trust` warning fires; this is the exact argv
+   *     spawnVoyage now emits.
+   *   - codex exec DOES fire plugin hooks: SessionStart / UserPromptSubmit /
+   *     PostToolUse / Stop were observed firing on a real `codex exec` run (the
+   *     trusted security-guidance/remember plugin hooks). So the hook lifecycle is
+   *     live under exec, not interactive-only.
+   *   - codex's apply_patch tool_input is { command:["apply_patch","<patch>"] }
+   *     with the path INSIDE the patch body (no file_path) — confirmed from the
+   *     binary AND a live `codex exec --json` file_change item. pd-hook-pre-tool
+   *     now harvests that path and BLOCKS it (proven by direct tentacle tests +
+   *     jest + selftest). THIS WAS THE REAL GAP and it is closed.
+   *
+   * NOT proven live this slice (why `verified` stays FALSE):
+   *   - A full "codex exec actually refused the apply_patch on a foreign-locked
+   *     file" capture. Reason: codex only RUNS hooks it has DISCOVERED into
+   *     config.toml [hooks.state] (discovery happens via the interactive TUI
+   *     trust flow). In an isolated CODEX_HOME the pd-squid plugin installed +
+   *     enabled but its hooks were never discovered (no [hooks.state] written),
+   *     so PreToolUse never fired there; and installing the code-executing hook
+   *     plugin into the user's REAL ~/.codex was (correctly) refused as
+   *     unauthorized persistence. So the tentacle's block is proven; the live
+   *     codex-side refusal is not yet captured. `verified` is reserved for that.
    */
   readonly verified = false;
 
@@ -432,8 +451,25 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
   /**
    * Spawn `codex exec <directive>` (the non-interactive subcommand) so the
    * injected hooks fire inside Codex's own lifecycle. Codex does NOT natively set
-   * PD_ACTOR / PD_FLEET; we inject them via the child env. `--cd <cwd>` pins the
-   * workspace and `--skip-git-repo-check` lets a scratch workdir run.
+   * PD_ACTOR / PD_FLEET; we inject them via the child env.
+   *
+   * Flags (verified against codex v0.139.0 `codex exec --help` on 2026-06-25):
+   *   --dangerously-bypass-hook-trust : Codex gates hooks behind PERSISTED trust
+   *       (config.toml [hooks.state].<id>.trusted_hash + enabled). An untrusted
+   *       hook is silently NOT run — which is exactly why the harness's tentacles
+   *       must be force-trusted for an unattended voyage. This is the LEGITIMATE,
+   *       documented automation bypass ("Intended only for automation that
+   *       already vets hook sources") — the harness vets its own pd-hook-* tentacle
+   *       sources, so we pass it so PreToolUse can actually fire and BLOCK.
+   *   -C <cwd>            : pin the working root (the long form of --cd).
+   *   --skip-git-repo-check : let a scratch / non-git workspace run.
+   *
+   * stdin contract (verified): `codex exec "<prompt>"` with the prompt as a
+   * POSITIONAL arg still tries to read stdin ("Reading additional input from
+   * stdin...") and HANGS if stdin is a live TTY/pipe. runCli already spawns with
+   * stdio[0]='ignore' (an effective `</dev/null`), so the child sees EOF on stdin
+   * immediately and does not block. The directive is therefore passed positionally
+   * (NOT on stdin) and stdin is closed — the documented non-interactive form.
    */
   async spawnVoyage(taskDirective: string, opts: SpawnVoyageOptions = {}): Promise<VoyageResult> {
     const cwd = opts.workspaceRoot ?? this.lastWorkspace;
@@ -442,7 +478,15 @@ export class CodexSquidAdapter implements GiantSquidAdapter {
     }
     assertTentaclesPresent();
 
-    const args = ['exec', '--cd', cwd, '--skip-git-repo-check', taskDirective, ...(opts.extraArgs ?? [])];
+    const args = [
+      'exec',
+      '--dangerously-bypass-hook-trust', // vetted-automation bypass so our tentacles run
+      '-C',
+      cwd,
+      '--skip-git-repo-check',
+      taskDirective, // positional prompt; stdin is closed by runCli (stdio[0]='ignore')
+      ...(opts.extraArgs ?? []),
+    ];
 
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -514,11 +558,146 @@ function codexHooksTomlBlock(t: { prompt: string; pre: string; post: string }): 
   return L.join('\n');
 }
 
+// ─── AntigravitySquidAdapter (agy) — IMPLEMENTED ──────────────────────────────
+
+// Antigravity ("agy", v1.0.12) is the live replacement for the tier-dead `gemini`
+// CLI. It OAuths to ~/.gemini and ships its OWN hook engine — NOT the Gemini-CLI
+// settings.json `hooks` block. Reverse-engineering the agy binary established:
+//   - agy parses a Claude-shaped `hooks.json` via an internal JSONHookSpec loader
+//     ("Loaded hooks.json from %s: %d named hooks" / "failed to parse hooks.json
+//     at %s"). The hook event vocabulary it carries is Claude-compatible:
+//     PreToolUse / PostToolUse, tool_name, file_path, matcher (all present as
+//     binary strings).
+//   - agy AUTO-LOADS a `hooks.json` (binary string "auto-loaded/hooks.json") from
+//     a customization path rooted at GeminiDir (~/.gemini), and ALSO discovers
+//     per-extension hook files (e.g. ~/.gemini/extensions/<ext>/hooks/before-tool.js).
+//   - agy's BLOCK contract (verified from its own bundled `scout-block.js`
+//     PreToolUse hook): stdin event { toolName, toolInput }; deny via stdout JSON
+//     { hookSpecificOutput: { hookEventName:"PreToolUse", decision:"block",
+//     message } }. pd-hook-pre-tool's camelCase branch now emits BOTH decision:
+//     "block"+message AND permissionDecision:"deny"+reason, so the same tentacle
+//     satisfies agy and Codex at once.
+//
+// injectHooks writes the Claude-shaped hooks.json to ~/.gemini/hooks.json (the
+// auto-loaded GeminiDir path). spawnVoyage runs `agy -p "<directive>"
+// --dangerously-skip-permissions` (non-interactive print + auto-approve so tool
+// use proceeds and routes through the hook gate).
+const AGY_GEMINI_DIR = () => process.env.GEMINI_DIR || join(homedir(), '.gemini');
+
+interface AgyHooksFile {
+  hooks?: Record<string, ClaudeHookMatcher[]>;
+  [k: string]: unknown;
+}
+
+export class AntigravitySquidAdapter implements GiantSquidAdapter {
+  readonly providerName = 'antigravity';
+  readonly binaryName = 'agy';
+  /**
+   * VALIDATION STATE (set 2026-06-26, honestly — `verified` means "a LIVE agy
+   * BLOCK of a foreign-locked edit was captured end-to-end"):
+   *
+   * PROVEN this slice:
+   *   - agy DOES ship a Claude-shaped JSON hook engine (PreToolUse/PostToolUse,
+   *     tool_name/file_path/matcher, decision:"block"+message OR exit-2) — proven
+   *     by reverse-engineering the agy v1.0.12 binary AND reading agy's own
+   *     bundled gemini-kit `scout-block.js` blocking hook (same hookSpecificOutput
+   *     shape). The tentacle emits exactly that block contract.
+   *   - The auto-loaded hooks.json path is ~/.gemini/hooks.json (GeminiDir).
+   *
+   * NOT proven live this slice (why `verified` stays FALSE):
+   *   - A full "agy actually refused the edit" capture. agy's `-p` print mode on
+   *     this machine repeatedly reinterpreted a direct "edit this file" directive
+   *     as a research task and NEVER invoked a file-write tool, so no PreToolUse
+   *     event was ever generated for the hook to block. The block contract is
+   *     proven against agy's own hook format; the live agy-side refusal was not
+   *     captured. `verified` is reserved for that live capture.
+   */
+  readonly verified = false;
+
+  private lastWorkspace?: string;
+
+  /**
+   * Write the three tentacles into ~/.gemini/hooks.json (agy's auto-loaded
+   * GeminiDir hooks file) in the Claude-shaped `hooks` schema agy's JSONHookSpec
+   * loader parses. Existing non-PD hooks are preserved; PD entries are upserted
+   * idempotently. NOTE: unlike the workspace-scoped Claude/Gemini/Codex adapters,
+   * agy's auto-load is HOME-scoped, so this touches ~/.gemini — callers that need
+   * isolation should back it up first (the live-test harness does).
+   */
+  async injectHooks(workspaceRoot: string): Promise<void> {
+    assertTentaclesPresent();
+    this.lastWorkspace = workspaceRoot;
+
+    const cfgPath = join(AGY_GEMINI_DIR(), 'hooks.json');
+    mkdirSync(dirname(cfgPath), { recursive: true });
+
+    let cfg: AgyHooksFile = {};
+    if (existsSync(cfgPath)) {
+      try {
+        cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as AgyHooksFile;
+      } catch {
+        cfg = {}; // corrupt → start clean rather than crash (fail-open posture)
+      }
+    }
+
+    const hooks = cfg.hooks ?? {};
+    // agy uses the Claude event names in its JSON hook engine (PreToolUse/
+    // PostToolUse/UserPromptSubmit), matched on its OWN tool names plus the
+    // Claude/Gemini ones, so we cast a wide matcher.
+    const matcher = 'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch';
+    const wanted: Record<string, ClaudeHookMatcher> = {
+      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt')),
+      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), matcher),
+      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), matcher),
+    };
+    for (const [event, entry] of Object.entries(wanted)) {
+      const existing = hooks[event] ?? [];
+      const pruned = existing.filter((g) => !g.hooks?.some((h) => h.command?.includes('pd-hook-')));
+      pruned.push(entry);
+      hooks[event] = pruned;
+    }
+    cfg.hooks = hooks;
+
+    writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + '\n', { mode: 0o644 });
+  }
+
+  /**
+   * Spawn `agy -p "<directive>" --dangerously-skip-permissions` so tool calls run
+   * non-interactively and route through the injected hooks. agy does NOT natively
+   * set PD_ACTOR / PD_FLEET; we inject them via the child env (the lock gate reads
+   * PD_ACTOR to know "self"). `-p` = single-prompt print mode; the skip-permissions
+   * flag auto-approves tool actions so the voyage runs unattended.
+   */
+  async spawnVoyage(taskDirective: string, opts: SpawnVoyageOptions = {}): Promise<VoyageResult> {
+    const cwd = opts.workspaceRoot ?? this.lastWorkspace;
+    if (!cwd) {
+      throw new Error('[squid/adapter] agy spawnVoyage: no workspaceRoot (call injectHooks first or pass one)');
+    }
+    assertTentaclesPresent();
+
+    const args = ['-p', taskDirective, '--dangerously-skip-permissions', ...(opts.extraArgs ?? [])];
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...(opts.actor ? { PD_ACTOR: opts.actor } : {}),
+      ...(opts.fleet ? { PD_FLEET: opts.fleet } : {}),
+      ...(opts.env ?? {}),
+    };
+
+    return runCli(this.binaryName, args, cwd, env, opts.timeoutMs);
+  }
+}
+
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
 /** All adapters. Only `verified` ones are safe to spawn through today. */
 export function squidAdapters(): GiantSquidAdapter[] {
-  return [new ClaudeCliSquidAdapter(), new CodexSquidAdapter(), new GeminiSquidAdapter()];
+  return [
+    new ClaudeCliSquidAdapter(),
+    new CodexSquidAdapter(),
+    new GeminiSquidAdapter(),
+    new AntigravitySquidAdapter(),
+  ];
 }
 
 /** The guarantee-bearing Prime adapter (Claude Max seat). */

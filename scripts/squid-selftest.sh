@@ -176,6 +176,96 @@ CCODE=$?
 if [ "$CCODE" -eq 0 ]; then ok "[codex] owner not self-blocked (exit 0)"; else bad "[codex] owner self-blocked? code=$CCODE"; fi
 
 echo ""
+echo "== CODEX apply_patch REAL shape (path inside the patch body, NOT file_path) =="
+# THE LOAD-BEARING GAP (fixed 2026-06-26): codex's apply_patch tool_input is
+# { "command": ["apply_patch", "*** Begin Patch\n*** Update File: <p>\n...*** End
+# Patch"] } — there is NO file_path field. Verified from the codex v0.139.0 binary
+# AND from a LIVE `codex exec --json` run (file_change item changes[].path). The
+# tentacle MUST harvest the path from the patch markers or every apply_patch edit
+# of a locked file slips through. These cases prove it does.
+APBODY='*** Begin Patch\n*** Update File: /repo/src/auth.ts\n@@\n-old\n+new\n*** End Patch'
+# (1) snake_case hook event, command array, locked path inside patch → EXIT 2
+AERR="$(printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","%s"]},"cwd":"/repo","hook_event_name":"PreToolUse"}' "$APBODY" \
+  | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+ACODE=$?
+if [ "$ACODE" -eq 2 ]; then ok "[codex apply_patch] EXIT 2 (path inside command[1] patch body)"; else bad "[codex apply_patch] expected exit 2, got $ACODE"; fi
+case "$AERR" in *BLOCKED*/repo/src/auth.ts*agent_alpha*) ok "[codex apply_patch] stderr names the patched path + holder";; *) bad "[codex apply_patch] stderr wrong: $AERR";; esac
+# (2) unlocked path inside patch → allow (escaped \n = real codex wire JSON)
+printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","*** Begin Patch\\n*** Add File: /repo/src/fresh.ts\\n*** End Patch"]},"cwd":"/repo"}' \
+  | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
+ACODE=$?
+if [ "$ACODE" -eq 0 ]; then ok "[codex apply_patch] EXIT 0 (unlocked Add File path)"; else bad "[codex apply_patch] expected 0 unlocked, got $ACODE"; fi
+# (3) MULTI-file patch, ONE foreign-locked → block the whole call
+MERR="$(printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","*** Begin Patch\\n*** Add File: /repo/src/new.ts\\n*** Update File: /repo/src/auth.ts\\n*** End Patch"]},"cwd":"/repo"}' \
+  | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+ACODE=$?
+if [ "$ACODE" -eq 2 ]; then ok "[codex apply_patch] multi-file patch blocked when ONE path is locked"; else bad "[codex apply_patch] multi-file expected exit 2, got $ACODE"; fi
+case "$MERR" in *auth.ts*) ok "[codex apply_patch] block names the locked file in a multi-file patch";; *) bad "[codex apply_patch] multi-file block wrong target: $MERR";; esac
+# (4) camelCase app-server apply_patch with command, locked path → deny JSON
+AOUT="$(printf '{"toolName":"apply_patch","toolInput":{"command":["apply_patch","%s"]},"cwd":"/repo","sessionId":"s1"}' "$APBODY" \
+  | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" 2>/dev/null)"
+ACODE=$?
+if [ "$ACODE" -eq 0 ]; then ok "[codex apply_patch appserver] EXIT 0 (deny via JSON)"; else bad "[codex apply_patch appserver] expected 0, got $ACODE"; fi
+case "$AOUT" in *'"permissionDecision":"deny"'*auth.ts*) ok "[codex apply_patch appserver] deny JSON names the patched path";; *) bad "[codex apply_patch appserver] deny JSON wrong: $AOUT";; esac
+# (5) owner's own apply_patch on the patched path → allow
+printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","%s"]},"cwd":"/repo"}' "$APBODY" \
+  | PD_ACTOR="agent_alpha" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
+ACODE=$?
+if [ "$ACODE" -eq 0 ]; then ok "[codex apply_patch] owner not self-blocked on patched path"; else bad "[codex apply_patch] owner self-blocked? code=$ACODE"; fi
+# (6) post-tool pheromone harvests the patch path (no file_path present).
+# NB: codex sends the patch text as a JSON string with the newlines ESCAPED (\n),
+# so we emit "\\n" through printf to produce a literal backslash-n in the JSON —
+# the real wire shape. (Raw newlines would be invalid JSON and is NOT what codex
+# emits.)
+PB=$(grep -c '^PD_PHEROMONE_' "$MATRIX" 2>/dev/null || echo 0)
+printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","*** Begin Patch\\n*** Update File: /repo/src/patched.ts\\n*** End Patch"]},"tool_response":{"success":true},"cwd":"/repo"}' \
+  | PD_ACTOR="codex_agent" "$BIN/pd-hook-post-tool" >/dev/null 2>&1
+PA=$(grep -c '^PD_PHEROMONE_' "$MATRIX" 2>/dev/null || echo 0)
+if [ "$PA" -gt "$PB" ] && grep -q '^PD_PHEROMONE_REPO_SRC_PATCHED_TS.*mutated via apply_patch.*actor:codex_agent' "$MATRIX"; then
+  ok "[codex apply_patch] post-tool pheromone records the patch-body path"
+else
+  bad "[codex apply_patch] post-tool pheromone for patch path failed ($PB -> $PA)"
+fi
+
+echo ""
+echo "== ANTIGRAVITY (agy) vendor parity =="
+# agy ships a Claude-shaped JSON hook engine; its BLOCK contract (verified from
+# agy's own bundled gemini-kit scout-block.js PreToolUse hook) is camelCase stdin
+# { toolName, toolInput } and a stdout JSON deny of the shape
+# { hookSpecificOutput: { hookEventName:"PreToolUse", decision:"block", message } }.
+# pd-hook-pre-tool's camelCase branch emits a SUPERSET carrying both decision:
+# "block"+message (agy) AND permissionDecision:"deny"+reason (codex).
+AGOUT="$(printf '{"toolName":"write_to_file","toolInput":{"file_path":"/repo/src/auth.ts"},"cwd":"/repo"}' \
+  | PD_ACTOR="agy_agent" "$BIN/pd-hook-pre-tool" 2>/dev/null)"
+AGCODE=$?
+if [ "$AGCODE" -eq 0 ]; then ok "[agy] EXIT 0 (block via stdout JSON, agy contract)"; else bad "[agy] expected exit 0, got $AGCODE"; fi
+case "$AGOUT" in *'"decision":"block"'*) ok "[agy] stdout carries decision:block";; *) bad "[agy] missing decision:block: $AGOUT";; esac
+case "$AGOUT" in *'"message"'*agent_alpha*) ok "[agy] block message names the lock holder";; *) bad "[agy] message missing holder: $AGOUT";; esac
+if command -v jq >/dev/null 2>&1; then
+  if printf '%s' "$AGOUT" | jq -e '.hookSpecificOutput.decision == "block" and (.hookSpecificOutput.message | length) > 0 and .hookSpecificOutput.hookEventName == "PreToolUse"' >/dev/null 2>&1; then
+    ok "[agy] block JSON well-formed (decision:block + non-empty message, agy's scout-block.js shape)"
+  else
+    bad "[agy] block JSON malformed: $AGOUT"
+  fi
+  # The SAME object must still satisfy codex (permissionDecision:deny + reason).
+  if printf '%s' "$AGOUT" | jq -e '.hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | length) > 0' >/dev/null 2>&1; then
+    ok "[agy] same block JSON ALSO satisfies codex (permissionDecision:deny + reason) — one tentacle, both vendors"
+  else
+    bad "[agy] block JSON lost codex contract: $AGOUT"
+  fi
+fi
+# agy gemini-style tool name (replace) snake_case event still blocks via exit 2.
+AGERR="$(printf '{"tool_name":"replace","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"/repo"}' \
+  | PD_ACTOR="agy_agent" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+AGCODE=$?
+if [ "$AGCODE" -eq 2 ]; then ok "[agy] snake_case event still exit-2 blocks (replace tool)"; else bad "[agy] expected exit 2, got $AGCODE"; fi
+# agy unlocked path → allow
+printf '{"toolName":"write_to_file","toolInput":{"file_path":"/repo/src/agy-free.ts"},"cwd":"/repo"}' \
+  | PD_ACTOR="agy_agent" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
+AGCODE=$?
+if [ "$AGCODE" -eq 0 ]; then ok "[agy] EXIT 0 on unlocked path"; else bad "[agy] expected exit 0 unlocked, got $AGCODE"; fi
+
+echo ""
 echo "== G5: K=8 concurrent appends (Jamie Madrox) =="
 B8=$(grep -c '^PD_PHEROMONE_' "$MATRIX" 2>/dev/null || echo 0)
 i=0
