@@ -16,6 +16,11 @@ set -euo pipefail
 OUT_DIR="${1:?usage: package-pd-console.sh <out-dir>}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONSOLE_DIR="$REPO_ROOT/core/pd-console"
+# pd-console is a MEMBER of the `core` cargo workspace (core/Cargo.toml), so its
+# build artifact lands in the WORKSPACE target (core/target), NOT core/pd-console/
+# target. Looking in the wrong place is why this job silently failed every release
+# (the cask's sha stayed PLACEHOLDER_CONSOLE_ARM64 — the .app never shipped).
+CORE_DIR="$REPO_ROOT/core"
 BUNDLE_DIR="$CONSOLE_DIR/bundle"
 # Deliberately an EMPTY entitlements dict (not the Bun daemon's port-daddy.plist):
 # a Rust + Metal GUI binary needs none of Bun's JIT / unsigned-executable-memory /
@@ -40,9 +45,15 @@ if [[ -n "${PD_CONSOLE_PREBUILT_BIN:-}" ]]; then
 else
   echo "Building pd-console --release --features gpui …"
   ( cd "$CONSOLE_DIR" && cargo build --release --features gpui --bin pd-console )
-  BIN="$CONSOLE_DIR/target/release/pd-console"
+  # Workspace target first (the real location), member-local target as a fallback
+  # in case the workspace layout changes.
+  if [[ -f "$CORE_DIR/target/release/pd-console" ]]; then
+    BIN="$CORE_DIR/target/release/pd-console"
+  else
+    BIN="$CONSOLE_DIR/target/release/pd-console"
+  fi
 fi
-[[ -f "$BIN" ]] || { echo "pd-console binary not found: $BIN" >&2; exit 1; }
+[[ -f "$BIN" ]] || { echo "pd-console binary not found at $CORE_DIR/target/release or $CONSOLE_DIR/target/release" >&2; exit 1; }
 
 # 2. Icon: the PROD lane brand mark — the shared master with a BLUE frame + a
 #    vX.Y.Z version badge, so pd-console-prod reads distinct from latest (green) and
