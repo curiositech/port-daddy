@@ -63,15 +63,15 @@ export default function SecurityPage() {
                   through a refactor and leaves the file in a state no test covers.
                   Another claims write access to a module it was never granted. A
                   third is impersonating an agent you <em>did</em> trust, because it
-                  got hold of a token. None of these are exotic. They are Tuesday for
-                  anyone running a swarm.
+                  got hold of a token. None of this is exotic &mdash; it&rsquo;s the
+                  ordinary failure surface of running a swarm.
                 </PanelBody>
                 <PanelBody className="max-w-[52ch] text-[length:var(--type-panel-body-size)]">
-                  Port Daddy&rsquo;s answer is not &ldquo;be careful.&rdquo; It is a
-                  small set of rules that make each of those failures impossible to
-                  express &mdash; and where it matters most, those rules are checked
-                  by a machine, not asserted in a blog post. Here is how each one
-                  closes.
+                  Port Daddy&rsquo;s answer isn&rsquo;t to ask the agents to behave.
+                  It&rsquo;s a small set of rules that make each of those failures
+                  impossible to even express, and the ones that matter most get
+                  checked by a machine instead of asserted in a blog post. Here&rsquo;s
+                  how each one closes.
                 </PanelBody>
               </div>
 

@@ -124,20 +124,20 @@ export function BondSlashMechanism() {
             )
           })}
 
-          {/* Recovery arrow: good behavior walks it back down. A flat arc in the
-              open band between the cap line and the tallest rung, ending at the
-              top of rung 1. Its label rides just below the arc apex. */}
+          {/* Recovery arrow: good behavior walks it back down. The label rides
+              just under the cap line; the dashed arrow descends cleanly beneath
+              it from the top rung to rung 1, never crossing the text. */}
+          <text x={(xOf(0) + xOf(3) + STEP_W) / 2} y="68" textAnchor="middle" fill="var(--text-muted)" style={{ font: '600 14px var(--font-sans)' }}>
+            good behavior recovers it downward
+          </text>
           <path
-            d={`M ${xOf(3) + STEP_W / 2} ${topOf(3) - 8} C ${xOf(3)} 72, ${xOf(1) + STEP_W} 72, ${xOf(0) + STEP_W / 2} ${topOf(0) - 8}`}
+            d={`M ${xOf(3) + STEP_W / 2} ${topOf(3) - 8} C ${xOf(2) + STEP_W / 2} ${topOf(3) - 6}, ${xOf(1)} ${topOf(0) - 40}, ${xOf(0) + STEP_W / 2} ${topOf(0) - 8}`}
             fill="none"
             stroke="var(--text-muted)"
             strokeWidth="2"
             strokeDasharray="5 4"
             markerEnd={`url(#${arrowId})`}
           />
-          <text x={(xOf(0) + xOf(3) + STEP_W) / 2} y="88" textAnchor="middle" fill="var(--text-muted)" style={{ font: '600 14px var(--font-sans)' }}>
-            good behavior recovers it downward
-          </text>
         </svg>
       </div>
       <figcaption className="border-t-2 border-[var(--border-strong)] p-[var(--space-4)] text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
