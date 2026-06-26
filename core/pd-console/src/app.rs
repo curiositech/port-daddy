@@ -131,40 +131,51 @@ struct Tab {
 }
 
 // ── Nav items ────────────────────────────────────────────────────────────────
+// The grid data (`NavItem`, `NAV`) and the slot map (`SLOT_PANE_IDS`) live in the
+// gpui-free `crate::grid` module so they compile into the headless REPL bin too,
+// where the 1:1 invariant tests run under the rust-console CI gate.
+use crate::grid::NAV;
 
-#[allow(dead_code)] // label/icon retained for the title-bar + future surface picker
-struct NavItem {
-    id: &'static str,
-    label: &'static str,
-    /// SVG asset path (custom stroke icons — never emoji; operator rule).
-    icon: &'static str,
-    key: &'static str,
+/// ADHD-friendly launcher colour-coding: each pane *category* gets a distinct,
+/// vivid maritime hue so the eye can navigate the grid by colour instead of
+/// reading all 22 labels. Uses only on-brand palette tokens (signal-flag +
+/// status hues), never an invented hex.
+///
+/// - **Live** (agents in motion) → `cobalt` (sky blue)
+/// - **Control** (operator levers) → `accent` (amber brand)
+/// - **Knowledge** (settled docs/graphs) → `landed` (mint)
+/// - **Records** (observability readouts) → `gated` (coral)
+fn launcher_tone(id: &str, t: &Theme) -> u32 {
+    match id {
+        "fleet" | "cockpit" | "sorties" | "lane" | "peek" => t.cobalt,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" => t.accent,
+        "roadmap" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
+        _ => t.gated, // activity, sessions, inbox, prs, health, ledger
+    }
 }
 
-const NAV: &[NavItem] = &[
-    NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
-    NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
-    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
-    NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
-    NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "roadmap",  label: "Planner",  icon: "icons/nav/roadmap.svg",  key: "6" },
-    NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
-    NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
-    NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
-    NavItem { id: "inbox",    label: "Inbox",    icon: "icons/nav/inbox.svg",    key: "0" },
-    NavItem { id: "suggest",  label: "Suggest",  icon: "icons/nav/suggest.svg",  key: "s" },
-    NavItem { id: "memory",   label: "Memory",   icon: "icons/nav/memory.svg",   key: "m" },
-    NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
-    NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
-    NavItem { id: "coast",    label: "C.Guard",  icon: "icons/nav/coast.svg",    key: "c" },
-    NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
-    NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/sorties.svg",  key: "l" },
-    NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
-    NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
-    NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
-    NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
-    NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
-];
+/// A faint wash of a tile's tone for chip/pill backgrounds (`color` at `alpha`).
+fn tone_wash(color: u32, alpha: u8) -> Rgba {
+    rgba((color << 8) | alpha as u32)
+}
+
+/// One entry in the launcher's colour legend: a filled dot + a category label,
+/// so the hue-coding is self-explaining rather than something to memorise.
+fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
+    let t = current_theme();
+    div()
+        .flex()
+        .items_center()
+        .gap(px(6.0))
+        .child(div().w(px(11.0)).h(px(11.0)).rounded(px(6.0)).bg(rgb(color)))
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(label),
+        )
+}
 
 // ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
 // One process-global mode (a single window), flipped by `Ctrl-A g`. `current_theme()`
@@ -861,54 +872,75 @@ impl ConsoleView {
         let reduced = reduced_motion();
         let current = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
         let n = NAV.len().max(1);
-        let cols = 5usize; // tiles per row — explicit grid (flex_wrap height isn't summed).
+        let cols = 4usize; // 4 big tiles per row — explicit grid (flex_wrap height isn't summed).
 
         let mut tiles: Vec<AnyElement> = NAV.iter().enumerate().map(|(i, nav)| {
             let id = nav.id;
             let is_current = current.as_deref() == Some(nav.id);
+            let tone = launcher_tone(id, &t); // ADHD colour-coding: navigate by hue.
+
+            // Big chunky tile — sized for low-friction targeting and legibility.
             let tile = div()
                 .id(SharedString::from(format!("launch-{id}")))
-                .w(px(112.0))
-                .h(px(96.0))
+                .w(px(170.0))
+                .h(px(150.0))
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .gap(px(6.0))
-                .rounded(px(12.0))
+                .gap(px(12.0))
+                .rounded(px(18.0))
                 .border_1()
-                .border_color(rgb(if is_current { t.accent_ink } else { t.line }))
+                .border_color(rgb(if is_current { tone } else { t.line }))
                 .bg(rgb(t.raised))
                 .cursor_pointer()
-                // The focused pane's current surface gets a standing glow ring.
-                .when(is_current, |s| s.shadow(motion::glow(t.accent, 0.30, 14.0, 1.0)))
-                // Hover "lift" = a brighter card + a wider/softer glow (no scale()).
+                // Hover "lift" (no transforms): brighter card, tone border, and a
+                // wide tone-coloured bloom — the big apparent-motion cue.
                 .hover(move |s| {
                     let t = current_theme();
                     s.bg(rgb(t.panel))
-                        .border_color(rgb(t.accent_ink))
-                        .shadow(motion::glow(t.accent, 0.42, 22.0, 2.0))
+                        .border_color(rgb(tone))
+                        .shadow(motion::glow(tone, 0.55, 32.0, 3.0))
                 })
+                // Icon sits in a big tone-washed chip so colour reads even at a glance.
                 .child(
-                    svg()
-                        .path(nav.icon)
-                        .w(px(30.0))
-                        .h(px(30.0))
-                        .text_color(rgb(if is_current { t.accent_ink } else { t.ink })),
+                    div()
+                        .w(px(74.0))
+                        .h(px(74.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(16.0))
+                        .bg(tone_wash(tone, 0x26))
+                        .child(
+                            svg()
+                                .path(nav.icon)
+                                .w(px(40.0))
+                                .h(px(40.0))
+                                .text_color(rgb(tone)),
+                        ),
                 )
                 .child(
                     div()
                         .text_color(rgb(t.ink))
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
                         .child(nav.label),
                 )
                 .child(
                     div()
+                        .px(px(9.0))
+                        .py(px(2.0))
+                        .rounded(px(7.0))
+                        .bg(tone_wash(tone, 0x1c))
                         .text_color(rgb(t.muted))
-                        .text_size(px(11.0))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
                         .child(format!("⌃A {}", nav.key)),
                 )
+                // Owns its glow only in the static cases; the breathing branch below
+                // owns it via the animation (one motion owner per surface).
+                .when(is_current && reduced, |s| s.shadow(motion::glow(tone, 0.5, 22.0, 2.0)))
                 .on_click(cx.listener(move |this, _ev, _window, cx| {
                     this.ws_mut().swap_surface(surface_for_nav_id(id));
                     this.launcher_open = false;
@@ -917,14 +949,30 @@ impl ConsoleView {
                 }));
 
             if reduced {
+                // Reduced motion: no travel, but keep the current-tile glow (above)
+                // for orientation. All tiles render at rest.
                 tile.into_any_element()
+            } else if is_current {
+                // The pane you're on *breathes* a tone-coloured glow — a single
+                // looping owner, scoped to this modal overlay (so it only runs
+                // while the launcher is open). This is the "where am I" beacon.
+                tile.with_animation(
+                    SharedString::from(format!("launch-breathe-{id}")),
+                    Animation::new(Duration::from_millis(2200))
+                        .repeat()
+                        .with_easing(pulsating_between(0.0, 1.0)),
+                    move |el, delta| {
+                        el.shadow(motion::glow(tone, 0.30 + 0.40 * delta, 16.0 + 16.0 * delta, 1.0))
+                    },
+                )
+                .into_any_element()
             } else {
-                // One-shot staggered fade — the stagger lives in the opacity
-                // curve, so each tile remains its own single animation owner.
-                let start = (i as f32 / n as f32) * 0.5;
+                // One-shot staggered entrance fade — the stagger lives in the
+                // opacity curve, so each tile stays its own single animation owner.
+                let start = (i as f32 / n as f32) * 0.6;
                 tile.with_animation(
                     SharedString::from(format!("launch-in-{id}")),
-                    Animation::new(Duration::from_millis(320)).with_easing(ease_in_out),
+                    Animation::new(Duration::from_millis(360)).with_easing(ease_in_out),
                     move |el, delta| {
                         let o = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
                         el.opacity(o)
@@ -981,32 +1029,50 @@ impl ConsoleView {
                     .occlude()
                     .flex()
                     .flex_col()
-                    .gap(px(14.0))
-                    .p(px(22.0))
-                    .max_w(px(760.0))
-                    .rounded(px(16.0))
+                    .gap(px(18.0))
+                    .p(px(28.0))
+                    .max_w(px(820.0))
+                    .rounded(px(22.0))
                     .bg(rgb(t.panel))
                     .border_1()
                     .border_color(rgb(t.line))
-                    .shadow(motion::glow(t.accent, 0.22, 30.0, 1.0))
-                    .child(
-                        div()
-                            .text_color(rgb(t.accent_ink))
-                            .text_size(px(16.0))
-                            .font_weight(FontWeight::BOLD)
-                            .child("Jump to a pane"),
-                    )
+                    .shadow(motion::glow(t.accent, 0.28, 40.0, 1.0))
+                    // Header: big title + a colour legend, so the hue-coding is
+                    // self-explaining at a glance (ADHD-friendly navigation).
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .gap(px(10.0))
+                            .child(
+                                div()
+                                    .text_color(rgb(t.accent_ink))
+                                    .text_size(px(24.0))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("Jump to a pane"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(16.0))
+                                    .child(launcher_legend_chip("Live", t.cobalt))
+                                    .child(launcher_legend_chip("Control", t.accent))
+                                    .child(launcher_legend_chip("Knowledge", t.landed))
+                                    .child(launcher_legend_chip("Records", t.gated)),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(12.0))
                             .children(rows),
                     )
                     .child(
                         div()
                             .text_color(rgb(t.muted))
-                            .text_size(px(12.0))
+                            .text_size(px(13.0))
                             .child("click a tile · press its ⌃A key · Esc to close"),
                     ),
             )
@@ -1911,4 +1977,7 @@ mod add_pane_tests {
         assert!(stamp.starts_with("pd-console v"), "stamp must name the app: {stamp}");
         assert!(stamp.contains(env!("CARGO_PKG_VERSION")), "stamp must carry the crate version: {stamp}");
     }
+
+    // The launcher-grid 1:1 invariant tests live in `crate::grid` (gpui-free) so
+    // they run in the headless REPL bin under the rust-console gate.
 }
