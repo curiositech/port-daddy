@@ -76,7 +76,7 @@ Apply in priority order:
 2. **Check line count** → SKILL.md must be <500 lines; move depth to `/references`
 3. **Add NOT clause** → Prevent false activation with explicit exclusions
 4. **Add 1-2 anti-patterns** → Use shibboleth template (Novice/Expert/Timeline)
-5. **Remove dead files** → Delete unreferenced files in `scripts/` and `references/` (no phantoms)
+5. **Remove dead files** → Delete unreferenced files in `./scripts/` and `references/` (no phantoms)
 6. **Test activation** → 5 queries that should trigger, 5 that shouldn't
 
 ---
@@ -220,8 +220,8 @@ flowchart LR
 ```
 
 1. **Gather Examples** — 3-5 real queries that should trigger, 3-5 that should NOT
-2. **Plan Contents** — Identify `scripts/`, `references/`, and, only when they materially help, `examples/`, `templates/`, and `agents/`. Also identify shibboleths (domain algorithms, temporal knowledge, pitfalls).
-3. **Initialize** — `scripts/init_skill.py <skill-name> --path <output-directory> [--with-mermaid --with-examples --with-templates --with-preflight --fork-context]`
+2. **Plan Contents** — Identify `./scripts/`, `references/`, and, only when they materially help, `examples/`, `templates/`, and `agents/`. Also identify shibboleths (domain algorithms, temporal knowledge, pitfalls).
+3. **Initialize** — `./scripts/init_skill.py <skill-name> --path <output-directory> [--with-mermaid --with-examples --with-templates --with-preflight --fork-context]`
 4. **Write the Skill** — Preflight scripts first → examples and templates next → references next → SKILL.md last. Write imperatively: "To do X, do Y." Include Mermaid diagrams for processes, decision trees, lifecycles.
 5. **Validate** — `python scripts/validate_skill.py <path>` and `python scripts/check_self_contained.py <path>`
 6. **Iterate** — After real-world use: notice struggles, improve skill, update CHANGELOG.md
@@ -331,7 +331,7 @@ package, or repeatedly improve skills instead of making a one-off edit.
 - `examples/runtime-export-example.md` — Concrete runtime-export example. **Read when** teaching or verifying export shape.
 - `examples/structural-upgrade-example.md` — Concrete structural-upgrade example. **Read when** planning a multi-file skill upgrade.
 - `diagrams/01_flowchart_primary-decision-tree.md` — Renderable overview of the primary decision tree. **Read when** documenting or visualizing the architecture.
-- `scripts/audit_skill_operating_system.py` — Audit first-party skills for operating-system completeness. **Read when** running a deeper local governance pass than the repo-level `pnpm audit:skills` command.
+- `./scripts/audit_skill_operating_system.py` — Audit first-party skills for operating-system completeness. **Read when** running a deeper local governance pass than the repo-level `pnpm audit:skills` command.
 
 ---
 
@@ -386,7 +386,7 @@ See `references/antipatterns.md` for full catalog with case studies.
 Evolution path: Skill → Skill + Scripts → Skill + MCP → Skill + Subagent → Plugin. Only promote when complexity justifies it.
 
 Use support assets selectively:
-- `scripts/` for working validators, transformers, and safe read-only preflight scripts
+- `./scripts/` for working validators, transformers, and safe read-only preflight scripts
 - `examples/` for concrete finished outputs
 - `templates/` for reusable deliverable shapes
 - `agents/` for forked specialist prompts
@@ -441,7 +441,7 @@ Do not add empty folders or TODO-only files just to satisfy a pattern.
 □ CHANGELOG.md tracks version history
 □ If subagent-consumed: output contracts are defined
 □ If `context: fork`: `agent:` is set and a matching `agents/*.md` asset exists
-□ If `scripts/preflight.sh` exists: it is safe and read-only by default
+□ If `./scripts/preflight.sh` exists: it is safe and read-only by default
 ```
 
 Run: `python scripts/validate_skill.py <path>` and `python scripts/check_self_contained.py <path>`
@@ -481,10 +481,10 @@ Run: `python scripts/validate_skill.py <path>` and `python scripts/check_self_co
 - `references/subagent-design.md` — How to design skills for subagent consumption: focused role, curated skill set, clear internal workflow. **Read when** creating skills for subagent toolkit.
 - `references/subagent-template.md` — Template for specialized subagent definitions with Identity, Skill Usage Rules, Task-Handling Loop, and Constraints sections. **Read when** defining a subagent that loads skills.
 - `references/visual-artifacts.md` — Mermaid diagrams as dual-purpose artifacts: visual for humans, text-based graph DSL for agents. **Read when** deciding whether to include flowcharts or state machines.
-- `scripts/check_self_contained.py` — Detects phantom references and orphaned files in skill directory. **Read when** validating that all referenced files exist and no dead files remain.
-- `scripts/init_skill.py` — Scaffolds new skill directory with SKILL.md template, references/guide.md, optional examples/templates/agents/scripts, and CHANGELOG.md. **Read when** creating a new skill from scratch.
-- `scripts/migration_planner.py` — Guides incremental skill upgrades: inventory files, separate frontmatter from structure, extract oversized sections, validate per stage. **Read when** planning major skill refactor.
-- `scripts/validate_skill.py` — Comprehensive validation: frontmatter fields, description quality, file references, line counts, anti-patterns, naming conventions. **Read when** auditing skill for publication readiness.
+- `./scripts/check_self_contained.py` — Detects phantom references and orphaned files in skill directory. **Read when** validating that all referenced files exist and no dead files remain.
+- `./scripts/init_skill.py` — Scaffolds new skill directory with SKILL.md template, references/guide.md, optional examples/templates/agents/scripts, and CHANGELOG.md. **Read when** creating a new skill from scratch.
+- `./scripts/migration_planner.py` — Guides incremental skill upgrades: inventory files, separate frontmatter from structure, extract oversized sections, validate per stage. **Read when** planning major skill refactor.
+- `./scripts/validate_skill.py` — Comprehensive validation: frontmatter fields, description quality, file references, line counts, anti-patterns, naming conventions. **Read when** auditing skill for publication readiness.
 - `agents/cross-evaluator.md` — (auto-added; describe on next pass)
 
 ## Reference Indexing — run before shipping any skill
@@ -504,7 +504,7 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Auto-generated; run `./scripts/index_references.py --fix`.*
 
 **root**
 - [`CHANGELOG.md`](CHANGELOG.md) — Changelog: skill-architect — **HTML entities in reference files**: The iter-2 self-evaluation claimed to fix HTML entities "throughout SKILL.md and references," but the 
@@ -554,15 +554,15 @@ linking every file with a derived purpose. Run it whenever you add/rename a file
 **`schemas/`**
 - [`schemas/skill-sync-plan.schema.json`](schemas/skill-sync-plan.schema.json) — skill sync plan.schema (data/schema)
 
-**`scripts/`**
-- [`scripts/audit_skill_operating_system.py`](scripts/audit_skill_operating_system.py) — Heuristic audit for advanced skill operating-surface affordances.
-- [`scripts/check_self_contained.py`](scripts/check_self_contained.py) — Self-Containment Checker — Detect Phantom References and Orphaned Files
-- [`scripts/index_references.py`](scripts/index_references.py) — index_references.py — ensure a skill's SKILL.md indexes its whole bundle.
-- [`scripts/init_skill.py`](scripts/init_skill.py) — Skill Scaffolder — Initialize a New Agent Skill Directory
-- [`scripts/migration_planner.py`](scripts/migration_planner.py) — !/usr/bin/env python3
-- [`scripts/preflight.sh`](scripts/preflight.sh) — !/usr/bin/env bash
-- [`scripts/validate_mermaid.py`](scripts/validate_mermaid.py) — Mermaid Syntax Validator — Structural Validation Without Rendering
-- [`scripts/validate_skill.py`](scripts/validate_skill.py) — Skill Validator — Comprehensive Structural Validation for Agent Skills
+**`./scripts/`**
+- [`./scripts/audit_skill_operating_system.py`](scripts/audit_skill_operating_system.py) — Heuristic audit for advanced skill operating-surface affordances.
+- [`./scripts/check_self_contained.py`](scripts/check_self_contained.py) — Self-Containment Checker — Detect Phantom References and Orphaned Files
+- [`./scripts/index_references.py`](scripts/index_references.py) — index_references.py — ensure a skill's SKILL.md indexes its whole bundle.
+- [`./scripts/init_skill.py`](scripts/init_skill.py) — Skill Scaffolder — Initialize a New Agent Skill Directory
+- [`./scripts/migration_planner.py`](scripts/migration_planner.py) — !/usr/bin/env python3
+- [`./scripts/preflight.sh`](scripts/preflight.sh) — !/usr/bin/env bash
+- [`./scripts/validate_mermaid.py`](scripts/validate_mermaid.py) — Mermaid Syntax Validator — Structural Validation Without Rendering
+- [`./scripts/validate_skill.py`](scripts/validate_skill.py) — Skill Validator — Comprehensive Structural Validation for Agent Skills
 
 **`templates/`**
 - [`templates/runtime-export-frontmatter.yaml`](templates/runtime-export-frontmatter.yaml) — runtime export frontmatter (data/schema)

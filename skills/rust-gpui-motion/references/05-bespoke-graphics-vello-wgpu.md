@@ -176,7 +176,7 @@ fn paint_dither(
 }
 ```
 
-**Honor the brand.** `lo`/`hi` must come from `palette.rs` roles (`bg: 0xf5f5f0`, `accent: 0xffdb33`, `gated: 0xc41e30`), never hardcoded — `scripts/check-brand-colors.mjs` fails CI on cinnabar `#CC3D2E` / brass / patina (`palette.rs:8`). Theme flip (`Ctrl-A g`) must re-skin the dither on the next `cx.notify()`.
+**Honor the brand.** `lo`/`hi` must come from `palette.rs` roles (`bg: 0xf5f5f0`, `accent: 0xffdb33`, `gated: 0xc41e30`), never hardcoded — `scripts/check-brand-colors.mjs` fails CI on cinnabar red / brass / patina (`palette.rs:8`). Theme flip (`Ctrl-A g`) must re-skin the dither on the next `cx.notify()`.
 
 **Decision Point — cell size = your budget knob.** `cell = 2.0` on a 600×400 region is ~60k quads/frame — fine for a static panel background, a problem at 60fps. `cell = 6.0`–`8.0` is "cassette chunky," ~4k quads, and reads *more* retro. Pick the largest cell that still looks like dithering; it's also your perf ceiling.
 

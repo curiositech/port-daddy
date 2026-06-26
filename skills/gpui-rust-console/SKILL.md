@@ -71,10 +71,10 @@ GPUI perf bug). Full detail: `references/console-architecture.md`.
 | `add-pane` | New surface end to end | `examples/add-a-pane.md`, `templates/new_pane.rs.tmpl`, `templates/pane_tests.rs.tmpl` |
 | `layout` | Taffy flexbox, three-panel skeleton | `references/render-and-layout.md` |
 | `scroll` | `uniform_list` vs `list`, bounded parents | `references/render-and-layout.md` |
-| `theme` | Add/preview an OKLCH tone | `references/maritime-flags.md`, `examples/preview-theme.md`, `scripts/oklch_to_srgb.py` |
-| `maritime` | ICS flag mapping / badge | `references/maritime-flags.md`, `scripts/flag_resolve.py` |
+| `theme` | Add/preview an OKLCH tone | `references/maritime-flags.md`, `examples/preview-theme.md`, `./scripts/oklch_to_srgb.py` |
+| `maritime` | ICS flag mapping / badge | `references/maritime-flags.md`, `./scripts/flag_resolve.py` |
 | `text-input` | Cockpit chat / command entry | `references/text-input.md` |
-| `verify` | Run the real CI gate locally | `references/build-and-ci.md`, `scripts/verify_console.py` |
+| `verify` | Run the real CI gate locally | `references/build-and-ci.md`, `./scripts/verify_console.py` |
 
 ## The Contracts You Must Not Break
 
@@ -147,11 +147,11 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/_envelope.py` | Shared stdin/stdout script-io envelope (imported by the others) |
-| `scripts/oklch_to_srgb.py` | Faithful port of `theme.rs::to_srgb8`; preview an OKLCH token's hex (`oklch.to_srgb`) |
-| `scripts/flag_resolve.py` | Faithful port of `maritime.rs`; resolve agent-state → ICS flag + meanings (`flag.resolve`) |
-| `scripts/verify_console.py` | Run the real CI gate locally: `cargo check`+`test` (+`--features gpui` on macOS) |
-| `scripts/validate_skill.py` | Skill self-check: frontmatter, refs, schema, no phantom citations, script selftests |
+| `./scripts/_envelope.py` | Shared stdin/stdout script-io envelope (imported by the others) |
+| `./scripts/oklch_to_srgb.py` | Faithful port of `theme.rs::to_srgb8`; preview an OKLCH token's hex (`oklch.to_srgb`) |
+| `./scripts/flag_resolve.py` | Faithful port of `maritime.rs`; resolve agent-state → ICS flag + meanings (`flag.resolve`) |
+| `./scripts/verify_console.py` | Run the real CI gate locally: `cargo check`+`test` (+`--features gpui` on macOS) |
+| `./scripts/validate_skill.py` | Skill self-check: frontmatter, refs, schema, no phantom citations, script selftests |
 
 ## Schemas
 
@@ -177,7 +177,7 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 
 ## Skill Bundle Index
 
-*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+*Every file in this skill, and when to open it. Auto-generated; run `./scripts/index_references.py --fix`.*
 
 **root**
 - [`.gitignore`](.gitignore)
@@ -196,12 +196,12 @@ pattern (state on the view, not the busy stream pane) or build an `Element` (~30
 **`schemas/`**
 - [`schemas/script-io.schema.json`](schemas/script-io.schema.json) — script io.schema (data/schema)
 
-**`scripts/`**
-- [`scripts/_envelope.py`](scripts/_envelope.py) — Shared script-io envelope helpers for the gpui-rust-console skill.
-- [`scripts/flag_resolve.py`](scripts/flag_resolve.py) — Resolve a canonical agent-state string to its ICS maritime flag, meanings, and
-- [`scripts/oklch_to_srgb.py`](scripts/oklch_to_srgb.py) — Convert OKLCH theme tokens to packed 0xRRGGBB sRGB — a faithful Python port of
-- [`scripts/validate_skill.py`](scripts/validate_skill.py) — Self-check the gpui-rust-console skill: frontmatter, required references,
-- [`scripts/verify_console.py`](scripts/verify_console.py) — Run the real pd-console CI gate locally and report it as a script-io envelope.
+**`./scripts/`**
+- [`./scripts/_envelope.py`](scripts/_envelope.py) — Shared script-io envelope helpers for the gpui-rust-console skill.
+- [`./scripts/flag_resolve.py`](scripts/flag_resolve.py) — Resolve a canonical agent-state string to its ICS maritime flag, meanings, and
+- [`./scripts/oklch_to_srgb.py`](scripts/oklch_to_srgb.py) — Convert OKLCH theme tokens to packed 0xRRGGBB sRGB — a faithful Python port of
+- [`./scripts/validate_skill.py`](scripts/validate_skill.py) — Self-check the gpui-rust-console skill: frontmatter, required references,
+- [`./scripts/verify_console.py`](scripts/verify_console.py) — Run the real pd-console CI gate locally and report it as a script-io envelope.
 
 **`templates/`**
 - [`templates/new_pane.rs.tmpl`](templates/new_pane.rs.tmpl)

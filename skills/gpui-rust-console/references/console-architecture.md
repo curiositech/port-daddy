@@ -124,4 +124,4 @@ operational decisions, not decoration — preserve them.
 | `theme.rs` | `Oklch`, `Theme`, `DARK`; `to_srgb8()` (see `maritime-flags.md` + `preview-theme.md`) |
 | `maritime.rs` | ICS `Flag` enum, `flag_for_state`, `FlagBadge` (see `maritime-flags.md`) |
 | `*_pane.rs` (17) | One surface each: fleet, cockpit, sorties, claims, peek, roadmap, adrs, activity, sessions, inbox, suggest, notes(memory), prs, health, coast-guard, dispatch, lane |
-| `bin/repl.rs` | The headless ratatui renderer — the Linux CI gate |
+| `./bin/repl.rs` | The headless ratatui renderer — the Linux CI gate |

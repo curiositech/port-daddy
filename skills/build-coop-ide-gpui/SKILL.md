@@ -17,7 +17,7 @@ This is the **capstone**: the whole-system skill for building the Harbor — an 
 | **beautiful-gui-design** | the visual system — hierarchy, semantic tokens, light/dark, contrast, the 8pt grid, a11y. |
 | **vello-parley-rendering** / **metal-text-pipeline** | vector viz + bare-metal text/glyph rendering when you go below the widget layer. |
 
-Plus the canon docs: `docs/strategy/harbor-editor-battle-plan.md` (the spine) and `docs/design/harbor-interaction-model.md` (the Quay/board/steer interaction).
+Plus the canon docs: `docs/strategy/harbor-editor-battle-plan.md` (the spine) and `docs/design/harbor-interaction-model.md` (the Quay/board/steer interaction). <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
 ## When to Use
 

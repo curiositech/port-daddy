@@ -309,4 +309,4 @@ Run these before shipping any motion in this codebase:
 
 ---
 
-*Sources: real console code in `core/pd-console/src/{app.rs,mux.rs,palette.rs}` (cited inline by file:line); [`beautiful-gui-design`](file:///Users/erichowens/.claude/skills/beautiful-gui-design/SKILL.md) and [`animation-system-architect`](file:///Users/erichowens/.claude/skills/animation-system-architect/SKILL.md) skills; [gpui-animation — lib.rs](https://lib.rs/crates/gpui-animation) (confirms the `delta`-closure model, no transforms added).*
+*Sources: real console code in `core/pd-console/src/{app.rs,mux.rs,palette.rs}` (cited inline by file:line); the `beautiful-gui-design` and `animation-system-architect` skills; [gpui-animation — lib.rs](https://lib.rs/crates/gpui-animation) (confirms the `delta`-closure model, no transforms added).*

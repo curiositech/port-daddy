@@ -2,7 +2,7 @@
 
 > **Scope.** This is the showpiece. A gallery of *complete*, on-brand WGSL fragment shaders for **T3 surfaces** (Vello/wgpu on Metal) in pd-console — the moment you've earned a fragment shader per `05-bespoke-graphics-vello-wgpu.md` (per-pixel dither at full res + 60fps, a real water sim, a CRT post pass). Every example below is the *escape-hatch ceiling*: a `wgpu::RenderPipeline` on the same `Surface` Vello renders into, or a Vello post-pass. None of this belongs in the gpui element tree, and none of it is a substitute for a T1 `with_animation` glow.
 >
-> **Brand law.** Harbor / maritime / **mustard + navy**, pixelated retro-futurism. Every color below traces a `palette.rs` role — `MUSTARD 0xffdb33`, `NAVY 0x141b2e`, `BG 0xf5f5f0`, `SEA 0x1c3a5e`, `FOAM 0xcfe3f0`. **Never** cinnabar `#CC3D2E`, brass, or patina (`scripts/check-brand-colors.mjs` fails CI on them). When the operator flips theme (`Ctrl-A g`), you re-push a uniform buffer, not a new pipeline.
+> **Brand law.** Harbor / maritime / **mustard + navy**, pixelated retro-futurism. Every color below traces a `palette.rs` role — `MUSTARD 0xffdb33`, `NAVY 0x141b2e`, `BG 0xf5f5f0`, `SEA 0x1c3a5e`, `FOAM 0xcfe3f0`. **Never** cinnabar red, brass, or patina (`scripts/check-brand-colors.mjs` fails CI on them). When the operator flips theme (`Ctrl-A g`), you re-push a uniform buffer, not a new pipeline.
 >
 > **House WGSL conventions used throughout** (so you can paste any one shader and it compiles against the same scaffold):
 > - Full-screen triangle vertex shader (§0), one shared `Uniforms` block, fragment entry `fs_main`.
@@ -570,7 +570,7 @@ fn fs_main(in : VOut) -> @location(0) vec4f {
 
 ## Quality Gates (every shader in the stockpile)
 
-- [ ] **Palette-only literals.** Every `vec3f` color is a named brand const (`MUSTARD`/`NAVY`/`SEA`/`FOAM`/`BG`/`HULL`/`RUST`). No cinnabar `#CC3D2E`, brass, or patina — `scripts/check-brand-colors.mjs` would fail.
+- [ ] **Palette-only literals.** Every `vec3f` color is a named brand const (`MUSTARD`/`NAVY`/`SEA`/`FOAM`/`BG`/`HULL`/`RUST`). No cinnabar red, brass, or patina — `scripts/check-brand-colors.mjs` would fail.
 - [ ] **Theme-reactive.** Reads `U.i_theme`; `Ctrl-A g` re-pushes the uniform and the surface re-skins next frame with **zero** pipeline rebuild.
 - [ ] **Off-switch.** Under `PD_CONSOLE_FX=off` the Rust side stops advancing `i_time` (freeze mid-phase) — every shader must look "lit," not broken, at a static `i_time`. No effect *requires* motion to be legible.
 - [ ] **Pixelation is intentional.** Any chunky look comes from `pixelate(... , CHUNK≥3.0)` or `dither_quant`, never from accidental low-res sampling. Borders/post passes that must stay crisp (`g`, `f`) deliberately skip `pixelate`.

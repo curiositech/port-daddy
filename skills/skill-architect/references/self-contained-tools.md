@@ -45,7 +45,7 @@ Rules:
 1. Keep the script read-only by default
 2. Prefer inspection over mutation
 3. Print concise, structured output that the agent can quote back
-4. Name it predictably, for example `scripts/preflight.sh`
+4. Name it predictably, for example `./scripts/preflight.sh`
 
 Bad fit:
 - Performing destructive cleanup

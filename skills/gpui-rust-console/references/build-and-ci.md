@@ -38,7 +38,7 @@ There is **no `RUST_MIN_STACK` override in CI. There is no `--bin pd-console-rep
 filter in CI.** Earlier skill drafts claimed both; they are wrong. `cargo test` with no
 filter runs every test in the crate, and that is the gate.
 
-`scripts/verify_console.py` reproduces this exactly: `cargo check` + `cargo test`, plus an
+`./scripts/verify_console.py` reproduces this exactly: `cargo check` + `cargo test`, plus an
 opt-in `cargo build --features gpui --bin pd-console` for macOS. Run it before you push a
 console change:
 

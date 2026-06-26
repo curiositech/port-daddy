@@ -2,7 +2,7 @@
 
 This is the load-bearing wall of the capstone. Before you write motion, shaders, audio, or a single visual token, you must hold the *whole machine* in your head: **M autonomous agents and N humans editing the same files at the same time, as co-equal replicas, on a native Rust gpui shell, governed by a daemon that already exists.** Everything else in this skill — and the four sibling skills it composes — hangs off the four layers described here.
 
-The spine is not negotiable, and it is not ours to invent. It is the **Harbor Editor battle plan** (`docs/strategy/harbor-editor-battle-plan.md`), whose thesis we quote because it is the entire reason this product is buildable at all:
+The spine is not negotiable, and it is not ours to invent. It is the **Harbor Editor battle plan** (`docs/strategy/harbor-editor-battle-plan.md`), whose thesis we quote because it is the entire reason this product is buildable at all: <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
 > "We win by making the CRDT *governable*: take the one genuinely-missing primitive (a fast Rust collaborative buffer) off the shelf — Loro v1.13.x — bind its awareness layer to PD claims so a claim *is* a presence range the guard can refuse to merge across, and treat every editing actor (human OR agent) as a first-class Loro replica keyed to its PD identity." — battle plan §1
 
@@ -55,7 +55,7 @@ It implements the existing object-safe `Pane`/`Surface` trait (`pane.rs:79`), wh
 
 **The semantic `Tone` vocabulary is already the conflict-UX palette.** `pane.rs:16` defines `Tone::{Default, Accent, Engaged, Gated, Resting, Landed, Conflicted}` — color = MEANING, resolved to theme OKLCH by the renderer (pane.rs:27). When two actors reach for the same region, you do not invent a warning color: you paint the overlap band `Tone::Conflicted` and a claim chip `Tone::Gated`. The maritime design system did this work for you.
 
-**The interaction model is the Harbor.** Per `docs/design/harbor-interaction-model.md`: a persistent left **Quay** (agent dock) is the spine; you "operate a roster of live ships," not navigate a tmux grid (§1). BOARD → STEER → DETACH → HOP. The same `bind_entity` that hops an agent transcript hops the editor's *follow target* — when you BOARD agent A, the editor can scroll-lock to A's claimed region and live-cursor. The editor surface is a citizen of the Quay model, not a parallel UI.
+**The interaction model is the Harbor.** Per `docs/design/harbor-interaction-model.md`: a persistent left **Quay** (agent dock) is the spine; you "operate a roster of live ships," not navigate a tmux grid (§1). BOARD → STEER → DETACH → HOP. The same `bind_entity` that hops an agent transcript hops the editor's *follow target* — when you BOARD agent A, the editor can scroll-lock to A's claimed region and live-cursor. The editor surface is a citizen of the Quay model, not a parallel UI. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
 **Everything visual on this layer is a sibling skill** — see §6.
 
@@ -146,7 +146,7 @@ This capstone **composes** four sibling Rust/design skills. It does not re-deriv
 
 **`rust-gpui-motion` — the TRANSITIONS (Layer 1 + the Layer 2 binding).** Owns `with_animation`, easing, `BoxShadow`/glow, breathing dots, pane expand/zoom/slide, the no-transform constraint, and — critically for this capstone — **the frame-budget law.** Its rule "Frame budget is architecture, not polish" is exactly the Loro↔gpui binding constraint from Layer 2: a `.repeat()` re-renders the window forever and every re-render walks the whole tree, so the live-cursor pulse for N remote actors, the claim-band breathing, and the spawn→board transition must each be **one owner, scoped to the smallest leaf, viewport-diffed.** The skill's "layout animation in a hot render" anti-pattern is the literal failure mode of naively re-laying-out the editor per CRDT op. **You cannot ship the editor without obeying this skill.** Reduced-motion-first is also non-negotiable PD canon.
 
-**`gpui-shaders` — the LIVING-HARBOR VIZ (Layer 1, Track B, isolated).** Owns the bespoke GPU surface for the presence/causal-thread overlay — the `pd-timeline-proto` Vello 0.3 + Parley + wgpu path (`core/pd-timeline-proto/src/{data,scene,main}.rs`) fed by `GET /activity/timeline`. This is where the M-agent swarm becomes *visible* as flowing causal threads, pixelated-wave harbor water, signal-flag wakes. **Polish, not load-bearing:** it stays **workspace-excluded with its own Cargo.lock** so heavy GPU deps never hit the Linux CI gate (battle plan §3; the FleetPopoverTests rot is the cautionary tale). The editor ships without it; the *demo* sings with it. `rust-gpui-motion` §5 ("Bespoke Graphics — Vello/wgpu") names this as the last-resort escape hatch — earn it, don't default to it.
+**`gpui-shaders` — the LIVING-HARBOR VIZ (Layer 1, Track B, isolated).** Owns the bespoke GPU surface for the presence/causal-thread overlay — the `pd-timeline-proto` Vello 0.3 + Parley + wgpu path (`core/pd-timeline-proto/src/{data,scene,main}.rs`) fed by `GET /activity/timeline`. This is where the M-agent swarm becomes *visible* as flowing causal threads, pixelated-wave harbor water, signal-flag wakes. **Polish, not load-bearing:** it stays **workspace-excluded with its own Cargo.lock** so heavy GPU deps never hit the Linux CI gate (battle plan §3; the FleetPopoverTests rot is the cautionary tale). The editor ships without it; the *demo* sings with it. `rust-gpui-motion` §5 ("Bespoke Graphics — Vello/wgpu") names this as the last-resort escape hatch — earn it, don't default to it. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 
 **`sound-design-and-audio` — the AUDIO (Layer 1).** Owns the sonic layer: a claim granted, a conflict band appearing, an agent landing a commit, a salvage recovering a dead replica's work — each is an event that wants a restrained, accessible, mutable sound. **Polish, gated behind a preference, never the critical path.** Like motion, it must honor a reduced/off setting and never be the only channel carrying state (accessibility: sound complements the `Tone::Conflicted` band, never replaces it).
 
@@ -194,12 +194,12 @@ When the multi-quarter scope (battle plan §6: "This is a multi-quarter build") 
 ---
 
 **Files that matter (all absolute):**
-- `/Users/erichowens/coding/port-daddy/docs/strategy/harbor-editor-battle-plan.md` — the spine; quote it.
-- `/Users/erichowens/coding/port-daddy/docs/design/harbor-interaction-model.md` — the Quay/board/steer/HOP model.
+- `/Users/erichowens/coding/port-daddy/docs/strategy/harbor-editor-battle-plan.md` — the spine; quote it. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
+- `/Users/erichowens/coding/port-daddy/docs/design/harbor-interaction-model.md` — the Quay/board/steer/HOP model. <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->
 - `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/mux.rs` — `SurfaceKind` enum (mux.rs:33, no `Editor` yet), `Workspace` ops (split:179, swap_surface:257, bind_entity:266, resize:280).
 - `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/pane.rs` — the `Pane`/`Surface` contract (:79), `Tone` enum (:16), `Block` primitives (:42), `SurfaceAction`/`Subscription` (:55/:67).
 - `/Users/erichowens/coding/tmp/pd-console-mux/core/pd-console/src/agent.rs` — the 8-backend tube mux (:1), `StreamEnvelope` (:119).
 - `/Users/erichowens/coding/port-daddy/routes/symbols.ts` — `POST /conflicts/predict` (the wedge).
 - `/Users/erichowens/coding/port-daddy/routes/recovery.ts` — salvage (the headline).
 - `/Users/erichowens/coding/port-daddy/routes/harbors.ts` + `/Users/erichowens/coding/port-daddy/core/harbor-card-rs/src/lib.rs` — Ed25519 capability enforcement.
-- New: `/Users/erichowens/coding/port-daddy/core/pd-console/src/editor.rs` — the editor surface (P0).
+- New: `/Users/erichowens/coding/port-daddy/core/pd-console/src/editor.rs` — the editor surface (P0). <!-- cite-exempt: forward design+build target of this capstone skill (harbor-editor track); not a file in this bundle -->

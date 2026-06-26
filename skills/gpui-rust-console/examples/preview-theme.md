@@ -2,7 +2,7 @@
 
 Goal: you want to add a `Stalled` status tone (a desaturated amber, distinct from the
 warning amber) and see its hex before wiring it into `theme.rs`. Use the byte-faithful
-port in `scripts/oklch_to_srgb.py`.
+port in `./scripts/oklch_to_srgb.py`.
 
 ## 1. Sanity-check the port matches the locked theme
 

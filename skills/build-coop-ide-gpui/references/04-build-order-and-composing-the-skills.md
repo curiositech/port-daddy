@@ -14,7 +14,7 @@ The build order is not negotiable and it is not the obvious one. The
 > transport.** Prove the editor + coordination over the daemon bus we already have;
 > abstract topology behind `SyncTransport` from day one but defer iroh/relay until the
 > wedge is demoed."
-> — `docs/strategy/harbor-editor-battle-plan.md` §5
+> — `docs/strategy/harbor-editor-battle-plan.md` §5 <!-- cite-exempt: harbor-editor battle-plan / interaction-model / editor.rs are the forward design+build targets this capstone skill teaches; they live in the harbor-editor track, not this bundle -->
 
 Everything below enforces that ordering and wires each phase to the skill that de-risks it.
 
@@ -95,7 +95,7 @@ reuses still exists at the quoted `file:line`, **(4)** build only that phase's s
 **Goal.** An editor *surface* that hosts a file, with **zero buffer work**. This de-risks
 the surface before you pay the hard from-scratch cost.
 
-**What you build.** A new `core/pd-console/src/editor.rs` implementing the existing
+**What you build.** A new `core/pd-console/src/editor.rs` implementing the existing <!-- cite-exempt: harbor-editor battle-plan / interaction-model / editor.rs are the forward design+build targets this capstone skill teaches; they live in the harbor-editor track, not this bundle -->
 object-safe `Pane` trait. The plan is precise about the reuse:
 
 > "Add `SurfaceKind::Editor { path, region }` to `core/pd-console/src/mux.rs` (the enum
@@ -515,7 +515,7 @@ PD claims.
   `04-frame-budget-and-reduced-motion.md`) and `beautiful-gui-design` (`references/02-color-and-theming.md`,
   `06-component-systems-tokens-and-platform-idioms.md`).
 - **Need the *what* and *why*?** → this skill's `references/01`–`03` and
-  `docs/strategy/harbor-editor-battle-plan.md` (the spine) + `docs/design/harbor-interaction-model.md`
+  `docs/strategy/harbor-editor-battle-plan.md` (the spine) + `docs/design/harbor-interaction-model.md` <!-- cite-exempt: harbor-editor battle-plan / interaction-model / editor.rs are the forward design+build targets this capstone skill teaches; they live in the harbor-editor track, not this bundle -->
   (the Quay / board / steer / drag-resize interaction model).
 - **At P5?** → `gpui-shaders` (when built; else `rust-gpui-motion` §`05-bespoke-graphics-vello-wgpu.md`)
   and `sound-design-and-audio` (when built; else ship silent).

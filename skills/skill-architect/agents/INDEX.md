@@ -1,6 +1,6 @@
 # skill-architect Subagents
 
-Five focused subagents implementing the skill-architect's decision branches. Each is invokable directly via the `Task` tool, or composed by the parent skill into a workflow.
+Focused subagents implementing the skill-architect's decision branches. Each is invokable directly via the `Task` tool, or composed by the parent skill into a workflow.
 
 | Agent | Path it implements | Output |
 |---|---|---|
@@ -8,7 +8,11 @@ Five focused subagents implementing the skill-architect's decision branches. Eac
 | `skill-auditor.md` | AUDIT | Structured 7-dimension scoring report with prioritized fixes |
 | `activation-debugger.md` | DEBUG | Corrected description + activation regression tests |
 | `shibboleth-extractor.md` | EXTRACT | Novice/Expert/Timeline anti-pattern entries from raw expert content |
+| `affordance-planner.md` | PLAN | Decides which support files (scripts, schemas, templates, examples, hooks, interface card) a skill needs |
+| `sync-coordinator.md` | SYNC | Reconciles skill copies across the workgroup source, repo mirrors, and user-level registries |
 | `cross-evaluator.md` | (legacy template) | Generic "embody source skill, evaluate target" template |
+
+The interface-metadata template `openai.yaml` (display name, prompts, policy) lives beside these agents; the affordance planner consults it when a skill needs an interface card.
 
 ## When to dispatch which
 

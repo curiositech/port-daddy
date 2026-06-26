@@ -1,6 +1,6 @@
 # Integration, Performance & Accessibility — Earning a Shader in a gpui App
 
-> **Scope.** A shader is the most expensive pixel in your app. This doc is the discipline around the WGSL/wgpu surfaces that [`05-bespoke-graphics-vello-wgpu.md`](05-bespoke-graphics-vello-wgpu.md) taught you to *build*: when a fragment shader **earns its place** over a `div` or a Vello path; the **frame budget** that keeps it from melting the laptop; **pausing** offscreen/unfocused/idle surfaces; honoring **reduced-motion** by freezing time to a static frame; **packaging + hot-reloading** WGSL so you iterate in seconds not minutes; **sampling theme tokens** so the shader respects light/dark and the brand palette; and the precision/overdraw/iGPU **pitfalls** that look fine on an M4 Max and die on a base M1 Air. Target is a native Rust gpui app on Metal via wgpu (the pd-console / `pd-timeline-proto` stack), **not** the web — there is no CSS `@media`, no compositor thread, no `<canvas>` that auto-throttles offscreen. You wire all of that by hand.
+> **Scope.** A shader is the most expensive pixel in your app. This doc is the discipline around the WGSL/wgpu surfaces that `05-bespoke-graphics-vello-wgpu.md` (in the `rust-gpui-motion` skill) taught you to *build*: when a fragment shader **earns its place** over a `div` or a Vello path; the **frame budget** that keeps it from melting the laptop; **pausing** offscreen/unfocused/idle surfaces; honoring **reduced-motion** by freezing time to a static frame; **packaging + hot-reloading** WGSL so you iterate in seconds not minutes; **sampling theme tokens** so the shader respects light/dark and the brand palette; and the precision/overdraw/iGPU **pitfalls** that look fine on an M4 Max and die on a base M1 Air. Target is a native Rust gpui app on Metal via wgpu (the pd-console / `pd-timeline-proto` stack), **not** the web — there is no CSS `@media`, no compositor thread, no `<canvas>` that auto-throttles offscreen. You wire all of that by hand.
 >
 > The three-tier model from doc 05 holds throughout: **T1** element tree (`div`+`shadow`+`opacity`), **T2** gpui low-level paint (`canvas`/`paint_quad`/`PathBuilder`), **T3** Vello/wgpu surface with a real WGSL shader. This doc is mostly about T3 — and about the constant temptation to use T3 where T1/T2 already wins.
 
@@ -269,7 +269,7 @@ When the operator flips theme (`Ctrl-A g`, `app.rs`), `palette.rs` returns the n
 ### Anti-Pattern — Hardcoded color in WGSL
 
 - **Symptom:** `return vec4(0.8, 0.24, 0.18, 1.0);` (cinnabar) in a shader; it survives `check-brand-colors.mjs` because the guard greps for `#hex`/`rgb()` in CSS/TS, not float literals in `.wgsl`.
-- **Detection:** Any `vec3`/`vec4` color literal in WGSL that isn't `0.0`/`1.0`/a uniform. Add a `.wgsl`-aware grep to the brand check (the guard's blind spot, exactly the `rgba(204,61,46)` class of miss the operator caught in PR #291).
+- **Detection:** Any `vec3`/`vec4` color literal in WGSL that isn't `0.0`/`1.0`/a uniform. Add a `.wgsl`-aware grep to the brand check (the guard's blind spot, exactly the retired-cinnabar rgb-literal class of miss the operator caught in PR #291).
 - **Fix:** Every shader color arrives as a `palette.rs`-sourced uniform in **linear** space. The shader mixes roles; it never names a color.
 
 ### Anti-Pattern — sRGB/linear color-space mismatch

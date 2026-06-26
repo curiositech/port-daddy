@@ -11,11 +11,11 @@
 - `references/self-contained-tools.md` line 107: `<500` inside a bash `echo` command in a code block
 - `references/subagent-template.md` line 238: `>95%` in the Success Criteria section
 
-**Validator gap closed**: `scripts/validate_skill.py` now includes `validate_all_md_html_entities()` — scans all `.md` files recursively (excluding SKILL.md which was already covered). This prevents entity-in-reference-files from escaping future validation passes.
+**Validator gap closed**: `./scripts/validate_skill.py` now includes `validate_all_md_html_entities()` — scans all `.md` files recursively (excluding SKILL.md which was already covered). This prevents entity-in-reference-files from escaping future validation passes.
 
 **Phantom references in EVALUATION.md**: The iter-2 `EVALUATION.md` itself contained 4 phantom-triggering paths in its prose description of phantom fixes — causing `check_self_contained.py` to fail after the self-evaluation declared it passing. Fixed by adding `<!-- phantom-ok -->` annotations to the 4 lines.
 
-**Extended ILLUSTRATIVE_MARKERS**: Added 3 new suppression patterns to `scripts/check_self_contained.py` covering evaluation-document language (`backtick-formatted path`, `triggering a false phantom`, `false positive root cause`) that future cross-evaluations will generate.
+**Extended ILLUSTRATIVE_MARKERS**: Added 3 new suppression patterns to `./scripts/check_self_contained.py` covering evaluation-document language (`backtick-formatted path`, `triggering a false phantom`, `false positive root cause`) that future cross-evaluations will generate.
 
 **README.md**: Fixed 5 HTML entities (`<500 lines`, `>90%`, `<5%`, `<5k`, `<5 min`). Added v2.2.0 and v2.3.0 entries to the Version History section.
 
@@ -31,7 +31,7 @@
 
 **Phantom references resolved**: `check_self_contained.py` was generating false positives on illustrative example paths in prose. Fixed via two approaches:
 1. Removed backtick-quoted paths from illustrative anti-pattern prose in `references/self-contained-tools.md`, `references/knowledge-engineering.md`, `references/subagent-design.md`, and `references/claude-extension-taxonomy.md`
-2. Added `ILLUSTRATIVE_MARKERS` detection to `scripts/check_self_contained.py` to skip lines containing "e.g.," "for example," "What it looks like," etc.
+2. Added `ILLUSTRATIVE_MARKERS` detection to `./scripts/check_self_contained.py` to skip lines containing "e.g.," "for example," "What it looks like," etc.
 
 Both validators now pass: `validate_skill.py` 0 errors, `check_self_contained.py` 0 phantoms.
 

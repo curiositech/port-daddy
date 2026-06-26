@@ -1,7 +1,7 @@
 # ICS Maritime Flags & the OKLCH Theme
 
 > Source: `core/pd-console/src/maritime.rs` and `core/pd-console/src/theme.rs`. The
-> Python ports `scripts/flag_resolve.py` and `scripts/oklch_to_srgb.py` are byte-faithful
+> Python ports `./scripts/flag_resolve.py` and `./scripts/oklch_to_srgb.py` are byte-faithful
 > to these and their selftests pin the load-bearing mappings.
 
 ## Why maritime flags at all
@@ -20,7 +20,7 @@ the expertise; do not reassign them casually.
 `maritime.rs` has two functions that must agree:
 
 1. `flag_for_state(state: &str) -> Flag` — canonical agent-state string → `Flag`. The
-   catch-all arm is `_ => Flag::Mike` (idle). `scripts/flag_resolve.py::STATE_TO_FLAG`
+   catch-all arm is `_ => Flag::Mike` (idle). `./scripts/flag_resolve.py::STATE_TO_FLAG`
    mirrors this exactly, including the Mike fallback.
 2. `Flag::ics_meaning()` / `Flag::pd_meaning()` / `Flag::letter()` / `Flag::bg_rgb()` —
    per-flag facets.
@@ -66,7 +66,7 @@ near-white ink, **one** amber accent (`l=0.80, c=0.105, h=78°`), and status ton
 their semantic hue angles (engaged=blue 248°, gated/conflicted=red 25°, landed=green
 150°). Typography: `General Sans` (UI chrome), `IBM Plex Mono` (code/values).
 
-`scripts/oklch_to_srgb.py` ports `to_srgb8()` faithfully so you can preview a token's hex
+`./scripts/oklch_to_srgb.py` ports `to_srgb8()` faithfully so you can preview a token's hex
 without `cargo build`. Its selftest reproduces the three invariants `theme.rs::tests`
 asserts: ink is bright in all channels, bg is dark, accent is warm (R ≥ G ≥ B). Use it
 when adding a status tone:

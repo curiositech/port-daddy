@@ -123,7 +123,7 @@ Re-run the failing queries from `known_failures` mentally against the new descri
 - [ ] New description follows `[What][When]NOT[Exclusions]` formula
 - [ ] NOT clause names ≥2 exclusions, each delegating to a real skill ID (verify with `Glob`)
 - [ ] Each known failing query is mapped to a fix (or you refused with a reason)
-- [ ] Activation tests file exists at `tests/activation.md` with ≥3 positive + ≥3 negative
+- [ ] Activation tests file exists at `./tests/activation.md` with ≥3 positive + ≥3 negative
 - [ ] You did not modify SKILL.md body (only frontmatter description)
 
 ## Anti-patterns (your behavior)
@@ -132,7 +132,7 @@ Re-run the failing queries from `known_failures` mentally against the new descri
 - **Removing NOT clause to "fix" undertrigger.** This breaks negative tests. The undertrigger cause is usually missing trigger context, not over-restriction.
 - **Delegating to nonexistent skills in NOT-FOR.** `Glob` for `skills/<id>/` to verify each name exists.
 - **Rewriting the entire skill** when the description is the only broken thing. Stay in your lane.
-- **No regression tests.** A fix without a test will regress. Always emit `tests/activation.md`.
+- **No regression tests.** A fix without a test will regress. Always emit `./tests/activation.md`.
 
 ## Returning to the orchestrator
 
