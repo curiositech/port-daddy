@@ -56,4 +56,16 @@ curl -s -X POST "${PORT_DADDY_BASE}/msg/${CHANNEL}" \
 # Also run git-lfs post-commit if present
 command -v git-lfs >/dev/null 2>&1 && git lfs post-commit "$@"
 
+# >>> Port Daddy Skill Sync
+# When this commit touched the first-party skills/ catalog, refresh the local
+# per-runtime symlink fan-out (.claude/skills, .codex/skills, .agy/skills, …) so
+# every agent tool sees the same library. Fire-and-forget: never blocks or fails
+# a commit (the fan-out is gitignored, machine-local state). Manual: npm run skills:sync
+if git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | grep -q '^skills/'; then
+  if command -v npx >/dev/null 2>&1 && [[ -f "$PROJECT_ROOT/scripts/sync-skills.ts" ]]; then
+    ( cd "$PROJECT_ROOT" && npx tsx scripts/sync-skills.ts --scope project --quiet >/dev/null 2>&1 & )
+  fi
+fi
+# <<< Port Daddy Skill Sync
+
 exit 0
