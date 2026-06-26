@@ -136,6 +136,9 @@ impl Theme {
             Tone::Resting => self.resting,
             Tone::Landed => self.landed,
             Tone::Conflicted => self.conflict,
+            // CRITICAL daemon health → the distress red (distinct from the
+            // crimson `gated`/`conflict` warning tone).
+            Tone::Alarm => self.mayday,
         }
     }
 

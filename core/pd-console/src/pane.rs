@@ -21,6 +21,10 @@ pub enum Tone {
     Resting,
     Landed,
     Conflicted,
+    /// LOUD alarm — daemon health is CRITICAL. Distinct from `Gated`/`Conflicted`
+    /// (muted warning red): this is a deeper, higher-chroma distress red so a
+    /// critical pane cannot be mistaken for an ordinary warning at a glance.
+    Alarm,
 }
 
 impl Tone {
@@ -33,6 +37,7 @@ impl Tone {
             Tone::Resting => t.resting,
             Tone::Landed => t.landed,
             Tone::Conflicted => t.conflicted,
+            Tone::Alarm => t.alarm,
         }
     }
 }

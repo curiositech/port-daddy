@@ -259,6 +259,48 @@ struct FleetPopover: View {
         }
     }
 
+    /// The loud daemon-health alarm banner. Uses an SF Symbol (never an emoji)
+    /// in a WCAG-contrasting alert color, with body-sized text (no tiny fonts).
+    @ViewBuilder
+    private func healthAlarmBanner(severity: HealthSeverity, runtimeState: String?) -> some View {
+        let isCritical = severity == .critical
+        let tint = isCritical ? Fleet.Color.failure : Fleet.Color.warning
+        let symbol = isCritical ? "exclamationmark.octagon.fill" : "exclamationmark.triangle.fill"
+        let title = isCritical ? "Daemon health CRITICAL" : "Daemon degraded"
+        let subtitle = isCritical
+            ? "Core daemon health is failing\(runtimeState.map { " — runtime \($0)" } ?? "")"
+            : "Functional, but the daemon reports a degradation\(runtimeState.map { " — runtime \($0)" } ?? "")"
+
+        HStack(alignment: .top, spacing: Fleet.Space.s) {
+            Image(systemName: symbol)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(tint)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(Fleet.Space.s)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(tint.opacity(0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(tint.opacity(0.5), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title). \(subtitle)")
+    }
+
     private func daemonReportSection(status: DaemonStatusResponse) -> some View {
         let runtimeColor: Color = status.runtime?.degraded == true ? Fleet.Color.warning : Fleet.Color.healthy
         let bosun = status.guardians?.bosun
@@ -273,8 +315,15 @@ struct FleetPopover: View {
             }
         }()
         let recentActivity = Array(status.history?.recentActivity.prefix(2) ?? [])
+        let severity = store.daemonSeverity
 
         return VStack(alignment: .leading, spacing: Fleet.Space.s) {
+            // LOUD alarm banner when the daemon's health is degraded — the
+            // section visibly changes colour instead of staying quietly green.
+            if severity != .ok {
+                healthAlarmBanner(severity: severity, runtimeState: status.runtime?.state)
+            }
+
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Daemon Report")

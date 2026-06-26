@@ -57,6 +57,9 @@ pub struct Theme {
     pub resting: Oklch,
     pub landed: Oklch,
     pub conflicted: Oklch,
+    /// LOUD alarm red — deeper + higher chroma than `gated`/`conflicted`, for a
+    /// CRITICAL daemon-health state that must read as distinct from a warning.
+    pub alarm: Oklch,
     pub sans: &'static str,
     pub mono: &'static str,
 }
@@ -75,6 +78,8 @@ pub const DARK: Theme = Theme {
     resting: Oklch::new(0.50, 0.008, 80.0),
     landed: Oklch::new(0.78, 0.10, 150.0),
     conflicted: Oklch::new(0.72, 0.10, 25.0),
+    // Deeper, more saturated than gated (0.72,0.10,25) — a true distress red.
+    alarm: Oklch::new(0.58, 0.18, 22.0),
     sans: "General Sans",
     mono: "IBM Plex Mono",
 };

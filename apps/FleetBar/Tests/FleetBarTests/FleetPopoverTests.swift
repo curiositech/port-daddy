@@ -240,6 +240,58 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertEqual(store.menuBarTone, .warning)
     }
 
+    /// A CRITICAL daemon severity is the dominant menu-bar signal: the icon
+    /// becomes an alarm triangle in the failure color, even with a healthy fleet.
+    func testCriticalDaemonHealthRaisesAlarmIconAndTone() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = [project(agents: [agent(name: "cartographer", status: .running)])]
+        store.daemonStatus = makeDaemonStatus(severity: "critical", runtimeState: "degraded", degraded: true)
+
+        XCTAssertEqual(store.daemonSeverity, .critical)
+        XCTAssertEqual(store.menuBarIcon, "exclamationmark.triangle.fill")
+        XCTAssertEqual(store.menuBarTone, .critical)
+    }
+
+    /// A WARN daemon severity degrades the menu bar to the warning triangle/tone
+    /// but stops short of the critical alarm.
+    func testWarnDaemonHealthShowsWarningTriangle() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = [project(agents: [agent(name: "cartographer", status: .running)])]
+        store.daemonStatus = makeDaemonStatus(severity: "warn", runtimeState: "degraded", degraded: true)
+
+        XCTAssertEqual(store.daemonSeverity, .warn)
+        XCTAssertEqual(store.menuBarIcon, "exclamationmark.triangle")
+        XCTAssertEqual(store.menuBarTone, .warning)
+    }
+
+    /// An older daemon that omits `severity` still degrades via runtime.degraded.
+    func testDaemonSeverityDerivesFromRuntimeWhenFieldAbsent() {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = []
+        store.daemonStatus = makeDaemonStatus(severity: nil, runtimeState: "degraded", degraded: true)
+
+        XCTAssertEqual(store.daemonSeverity, .warn)
+    }
+
+    private func makeDaemonStatus(severity: String?, runtimeState: String, degraded: Bool) -> DaemonStatusResponse {
+        DaemonStatusResponse(
+            status: degraded ? "degraded" : "running",
+            version: "3.22.0",
+            pid: 4242,
+            uptimeSeconds: 12,
+            uptimeHuman: "12 sec",
+            daemon: nil,
+            metrics: nil,
+            runtime: DaemonRuntimeResponse(state: runtimeState, degraded: degraded),
+            guardians: nil,
+            history: nil,
+            severity: severity
+        )
+    }
+
     func testAgentRowShowsCodexTelemetryRecoveryHint() throws {
         let reason = "Failed: Exact telemetry required, but codex did not return token counts."
         let row = AgentRow(

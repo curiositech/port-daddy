@@ -14,6 +14,7 @@ import type { createFleetDaemon } from '../lib/fleet-daemon.js';
 import { formatUptime } from '../shared/port-utils.js';
 import { detectDrift } from '../lib/binary-drift-detector.js';
 import { assessRouteHealth, registeredFromSet, type RouteHealth } from '../lib/route-health.js';
+import { daemonHealthSeverity, type Severity } from '../lib/health-severity.js';
 import type { DaemonBerthIdentity } from '../shared/daemon-berths.js';
 
 interface SystemPort {
@@ -159,6 +160,25 @@ function buildRuntimeSummary(deps: InfoRouteDeps, routeHealth?: RouteHealth | nu
       launchableAgents: fleetStatus.totalLaunchableAgents,
     } : undefined,
   };
+}
+
+/**
+ * Fold the daemon's self-knowledge (routes, runtime, binary drift) into the one
+ * shared severity the console + FleetBar + `pd doctor` all read. Computed from
+ * the SAME `runtime`/`routes` objects already in the response, so the top-level
+ * `severity` can never disagree with the detail below it.
+ */
+function computeHealthSeverity(
+  routeHealth: RouteHealth | null,
+  runtime: { degraded: boolean },
+  binaryDrifted: boolean,
+): Severity {
+  return daemonHealthSeverity({
+    routesOk: routeHealth ? routeHealth.ok : true,
+    routesMissing: routeHealth ? routeHealth.missing.length : 0,
+    runtimeDegraded: runtime.degraded,
+    binaryDrifted,
+  });
 }
 
 function humanizeActivityType(type: string): string {
@@ -350,11 +370,16 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       ? assessRouteHealth(registeredFromSet(deps.routeRegistry))
       : null;
     const runtime = buildRuntimeSummary(deps, routeHealth);
+    const severity = computeHealthSeverity(routeHealth, runtime, !!binaryDrift?.drifted);
     return {
       // #160: top-level liveness reflects whether the daemon can actually serve
       // its route contract. Arbiter/rule degradation is surfaced separately in
       // `runtime` (it does not mean the daemon is 404'ing its own endpoints).
       status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      // The shared three-tier severity (ok | warn | critical) that the Rust
+      // console, FleetBar, and `pd doctor` all colour from. Folds routes +
+      // runtime + binary drift via lib/health-severity.ts.
+      severity,
       version: VERSION,
       uptime_seconds: Math.floor(process.uptime()),
       active_ports,
@@ -394,8 +419,15 @@ export const infoPlugin: FastifyPluginAsync<{ deps: InfoRouteDeps }> = async (fa
       ? assessRouteHealth(registeredFromSet(deps.routeRegistry))
       : null;
     const runtime = buildRuntimeSummary(deps, routeHealth);
+    // Drift is surfaced in depth on /health; /status is the FleetBar hot-poll
+    // path, so we fold routes + runtime only here (skip the per-poll binary
+    // hash) and let /health + `pd doctor` carry the drift→warn signal.
+    const severity = computeHealthSeverity(routeHealth, runtime, false);
     return {
       status: routeHealth && !routeHealth.ok ? 'degraded' : 'ok',
+      // Shared three-tier severity (ok | warn | critical) — see lib/health-severity.ts.
+      // FleetBar's menu-bar alarm and the console badge both colour from this.
+      severity,
       routes: routeHealth ?? undefined,
       version: VERSION,
       pid: process.pid,

@@ -86,10 +86,19 @@ unzip PortDaddy-FleetBar-macOS-arm64.zip
 
 ### 3. Verify
 ```bash
-pd doctor   # Verify environment
-pd start    # Start the daemon
-pd bench 50 # Run performance benchmarks (Target: <1ms latency)
+pd doctor          # Comprehensive health check (supervision, liveness, DB, drift, bosun…)
+pd doctor --json   # Machine-readable report with per-check severity (ok | warn | critical)
+pd doctor --ci     # CI/script mode: no prompts, exits non-zero ONLY on a CRITICAL check
+pd start           # Start the daemon
+pd bench 50        # Run performance benchmarks (Target: <1ms latency)
 ```
+
+`pd doctor` grades every check on a three-tier severity model — `ok`, `warn`
+(degraded but functional), `critical` (core function broken / daemon
+unsupervised + down / registry corrupt). Only a **critical** gates the exit
+code, so `--ci` is safe to wire into a build without warnings breaking it. The
+same `severity` is reported by the daemon's `GET /health` and surfaced as an
+alert state in the FleetBar menu bar and the Rust console health pane.
 
 `pd start` and `pd install` are binary-first. They refuse to start a source-backed `tsx server.ts` daemon unless `PORT_DADDY_ALLOW_SOURCE_DAEMON=1` is set for a local development session. Release promotion builds the daemon executable, builds the public sample bundle, installs the binary service, and checks the macOS LaunchAgent did not regress to `tsx server.ts`.
 
