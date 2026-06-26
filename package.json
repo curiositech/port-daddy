@@ -30,6 +30,8 @@
     "test:ci": "npm test",
     "test:bun": "bun test tests/bun/",
     "typecheck": "tsc --noEmit",
+    "skills:sync": "tsx scripts/sync-skills.ts --scope project",
+    "skills:sync:check": "tsx scripts/sync-skills.ts --scope project --check",
     "boundary:public": "tsx scripts/check-public-repo-boundary.ts",
     "export:public": "tsx scripts/export-public-repo.ts",
     "check:public-export": "tsx scripts/export-public-repo.ts --check",
