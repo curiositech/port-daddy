@@ -3,7 +3,7 @@
  *
  * Verifies the launch-splash renderer:
  *   - PORT and DADDY block letters render in both colored and monochrome modes
- *   - The lighthouse silhouette is present
+ *   - The lighthouse art is gone (removed)
  *   - The tagline is present and customizable
  *   - NO_COLOR / non-TTY paths strip ANSI codes
  *   - No emojis leak into the output (rule: no emojis as design elements)
@@ -40,22 +40,19 @@ describe('renderSplash', () => {
     expect(heavyLines.length).toBeGreaterThanOrEqual(6);
   });
 
-  test('contains the lighthouse silhouette (box-drawing characters)', () => {
+  test('no longer renders the lighthouse silhouette', () => {
     const out = renderSplash({ color: false });
-    expect(out).toContain('╔═══╗');   // lantern room
-    expect(out).toContain('╚═╤═╝');   // lantern base
-    expect(out).toContain('┌─┴─┐');   // gallery
-    expect(out).toContain('░░░');     // cobalt stripe fill
-  });
-
-  test('contains the sage beam direction marker', () => {
-    const out = renderSplash({ color: false });
-    expect(out).toContain('◁');       // beam-sweep arrow
+    // The cove/lighthouse art was removed — none of its glyphs should remain.
+    expect(out).not.toContain('╔═══╗');   // lantern room
+    expect(out).not.toContain('╚═╤═╝');   // lantern base
+    expect(out).not.toContain('┌─┴─┐');   // gallery
+    expect(out).not.toContain('░░░');     // cobalt stripe fill
+    expect(out).not.toContain('◁');       // beam-sweep arrow
   });
 
   test('contains the default tagline', () => {
     const out = renderSplash({ color: false });
-    expect(out).toContain('the lighthouse for your fleet of agents.');
+    expect(out).toContain('the control plane for your fleet of agents.');
   });
 
   test('honors a custom tagline', () => {
@@ -64,7 +61,7 @@ describe('renderSplash', () => {
       tagline: 'small, sovereign, on your machine.',
     });
     expect(out).toContain('small, sovereign, on your machine.');
-    expect(out).not.toContain('the lighthouse for your fleet of agents.');
+    expect(out).not.toContain('the control plane for your fleet of agents.');
   });
 
   test('emits ANSI codes when color is enabled with truecolor', () => {
