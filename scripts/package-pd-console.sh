@@ -67,7 +67,11 @@ for f in "/System/Library/Fonts/Supplemental/Arial Bold.ttf" "/System/Library/Fo
 done
 MAGICK="$(command -v magick || command -v convert || true)"
 ICON_FOR_SET="$ICON_SRC"
-if [[ -n "$MAGICK" ]] && "$MAGICK" "$ICON_SRC" -resize 976x976^ -gravity center -extent 976x976 \
+# Zoom 250% into the centre first so the "pd" wordmark dominates and the busy
+# radar rings drop out — the master is illegible at Dock size otherwise. Matches
+# core/pd-console/scripts/package-console.sh's lane badging.
+if [[ -n "$MAGICK" ]] && "$MAGICK" "$ICON_SRC" -resize 250% -gravity center -extent 1024x1024 \
+     -resize 976x976^ -gravity center -extent 976x976 \
      -bordercolor "$PROD_TINT" -border 24 \
      -fill "$PROD_TINT" -draw "rectangle 0,860 1024,1010" \
      ${FONT:+-font "$FONT"} -fill white -pointsize 110 -gravity South -annotate +0+18 "v$PD_VERSION_FOR_BADGE" \
