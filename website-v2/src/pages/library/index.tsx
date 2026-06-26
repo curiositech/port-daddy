@@ -24,6 +24,7 @@ import {
   type WhitePaper,
 } from '@/data/whitePapers'
 import { harborEvolutionFigure } from '@/data/manifestoContent'
+import { ThemedImage } from '@/components/site/ThemedImage'
 
 /**
  * The cross-reference relationships, in the order they read on a chapter card.
@@ -228,7 +229,7 @@ export default function LibraryPage() {
               </div>
 
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
+                <ThemedImage
                   src="/img/manifesto/seven-papers.webp"
                   alt="A drafting wall pinned with seven blueprint plates: a back row of three stamped with wax seals labelled “three prove,” and a front row of four tugboat schematics labelled “four explain,” with a small robot studying them."
                   className="block aspect-[16/9] w-full object-cover"
@@ -296,7 +297,7 @@ export default function LibraryPage() {
                   → many machines. The three stages are re-stated in words so the
                   figure does not have to be decoded from the numerals alone. */}
               <figure className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-brutal)]">
-                <img
+                <ThemedImage
                   src={harborEvolutionFigure.src}
                   alt={harborEvolutionFigure.alt}
                   className="block w-full border-b-2 border-[var(--border-strong)] object-cover"
