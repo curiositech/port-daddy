@@ -45,6 +45,46 @@ The input JSON matches the `PredictedDag` field names exactly, so
 `conjure::fixture()` serialized to JSON (the bundled `fixture.json`) deserializes
 straight in — the proto does **not** depend on the gpui crate.
 
+## Animated artifact (offscreen → ffmpeg, Method-A)
+
+The same headless device can render the DAG as a **motion** artifact — no window,
+no Screen-Recording / TCC — by sweeping an animation clock `t ∈ [0,1]` and
+streaming each frame's raw RGBA to **ffmpeg** (mirrors `pd-timeline-proto`'s
+`render_offscreen`). Set `PD_CONJURE_RENDER_OFFSCREEN=<out.mp4>`:
+
+```sh
+cd core/pd-conjure-proto
+# Canonical build-and-settle clip (full t 0→1):
+PD_CONJURE_RENDER_OFFSCREEN=docs/artifacts/conjure/conjure-dag.mp4 cargo run --release
+```
+
+What animates (tasteful, on the maritime palette):
+- **Wave-by-wave bloom-in** — cards fade + scale + rise into place, staggered by
+  wave index over the first ~45% of the clip (`scene.rs` `wave_bloom`).
+- **Breathing committed glow** — COMMITTED cards' outer glow alpha/blur pulse with
+  a cosine of `t` (the "presence beacon"), anchored to **0 at the seam** so the
+  static PNG (always `t = 1.0`) is unchanged and the loop has no snap.
+- **Flowing edges** — a bright pulse travels source→target along each bezier.
+
+Tunables (env): `PD_CONJURE_RENDER_SECS` (5), `_FPS` (30), `_W`/`_H` (default =
+canvas × scale), `_SCALE` (2.0), and `_T_START`/`_T_END` (sub-range of the `t`
+timeline — used to cut the **settled half** `[0.5, 1.0]` for a seamless looping
+gif; bloom is done and the breathe/pulse complete a whole cycle over that window).
+
+Optimized looping gif (two-pass palettegen/paletteuse, width 960):
+```sh
+# render the settled-half source, then palette-quantize it
+PD_CONJURE_RENDER_OFFSCREEN=/tmp-or-coding-tmp/loop.mp4 \
+  PD_CONJURE_RENDER_T_START=0.5 PD_CONJURE_RENDER_T_END=1.0 PD_CONJURE_RENDER_SECS=4 \
+  cargo run --release
+ffmpeg -y -i loop.mp4 -vf "fps=24,scale=960:-1:flags=lanczos,palettegen=stats_mode=diff" pal.png
+ffmpeg -y -i loop.mp4 -i pal.png \
+  -lavfi "fps=24,scale=960:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" \
+  -loop 0 docs/artifacts/conjure/conjure-dag.gif
+```
+
+Tracked artifacts: `docs/artifacts/conjure/conjure-dag.{mp4,gif}`.
+
 ## Why release, not debug
 
 On macOS 15+ (Darwin 25) the parley/fontique system-font scan trips objc2

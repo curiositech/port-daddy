@@ -315,16 +315,67 @@ fn vgrad(top: Color, bottom: Color, y0: f64, y1: f64) -> Brush {
     )
 }
 
+/// Animation timing constants (all in normalized clip-time `t` ∈ [0,1]).
+///
+/// `BLOOM_WINDOW` — the fraction of the clip over which the wave-by-wave
+/// bloom-in completes; after this, all cards are fully present. Each wave's
+/// bloom is staggered within this window, and each individual card's bloom takes
+/// `BLOOM_DURATION` of clip-time (so a card eases in rather than popping).
+const BLOOM_WINDOW: f32 = 0.45;
+const BLOOM_DURATION: f32 = 0.20;
+
+/// Smoothstep ease (3t²−2t³) over [0,1], clamped — the canonical S-curve so the
+/// bloom-in eases rather than ramps linearly.
+fn smoothstep(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// The bloom-in progress for wave `wi` (0 = not yet arrived, 1 = fully present)
+/// at clip-time `t`. Waves are staggered across `BLOOM_WINDOW`: wave 0 starts at
+/// t=0, the last wave starts so its bloom finishes right at `BLOOM_WINDOW`.
+fn wave_bloom(t: f32, wi: usize, n_waves: usize) -> f32 {
+    if n_waves <= 1 {
+        return smoothstep(t / BLOOM_DURATION.max(1e-3));
+    }
+    // Last wave should *finish* by BLOOM_WINDOW, so its start is
+    // BLOOM_WINDOW - BLOOM_DURATION. Distribute starts linearly across waves.
+    let last_start = (BLOOM_WINDOW - BLOOM_DURATION).max(0.0);
+    let start = last_start * (wi as f32 / (n_waves - 1) as f32);
+    smoothstep((t - start) / BLOOM_DURATION)
+}
+
 /// Build the full Vello scene for the predicted DAG. `scale` is the hidpi factor
 /// of the offscreen target (text is shaped at this scale for crisp glyphs).
+///
+/// `t` ∈ [0,1] is the ANIMATION clock for the headless multi-frame render
+/// (Method-A). At `t = 1.0` the scene is the final static look (so the
+/// single-frame PNG path, which always passes `1.0`, is byte-for-byte the look
+/// it was). As `t` sweeps 0→1: waves bloom in staggered (fade + scale + rise),
+/// COMMITTED node glows breathe with a sine, and a bright pulse travels along
+/// each edge source→target. The glow's sine is phased so `t = 1` ≈ `t = 0`,
+/// letting an exported gif loop without a visible seam.
 pub fn build_scene(
     scene: &mut Scene,
     text: &mut TextEngine,
     dag: &PredictedDag,
     canvas: &Canvas,
     scale: f32,
+    t: f32,
 ) {
     scene.reset();
+    let n_waves = dag.waves.len().max(1);
+    // BREATHING phase, anchored so the STATIC look is reproduced at the seam.
+    // `breathe` ∈ [0,1] is a "departure from rest". We run TWO full breathing
+    // cycles across the clip — (1 - cos(2·2πt))/2 — which has three properties we
+    // want: it is 0 at t=0, t=0.5, and t=1 (so the static PNG at t=1 renders the
+    // unmodulated look), and because it returns to rest at t=0.5 the SETTLED
+    // SECOND HALF (t∈[0.5,1]) is itself a complete, seamless loop — that's the
+    // window the looping gif is cut from (the cards have finished blooming by
+    // then). `CYCLES` ties the traveling-edge pulse to the same beat.
+    const CYCLES: f32 = 2.0;
+    let breathe =
+        ((1.0 - (t * CYCLES * std::f32::consts::TAU).cos()) * 0.5) as f64; // 0 at t∈{0,0.5,1}
 
     paint_backdrop(scene, canvas);
 
@@ -397,18 +448,26 @@ pub fn build_scene(
     }
 
     // --- Resolve every node's card rect first so edges attach to real geometry. ---
+    // Edges attach to the cards' *settled* (final) mid-points so the graph's
+    // skeleton stays stable while cards bloom into place on top.
     let mut left_mid: HashMap<String, Point> = HashMap::new();
     let mut right_mid: HashMap<String, Point> = HashMap::new();
     let mut card_commit: HashMap<String, Commitment> = HashMap::new();
-    let mut cards: Vec<(Point, &crate::dag::PredictedNode)> = Vec::new();
+    // Per-card: (settled origin, node, wave index, this wave's bloom progress).
+    let mut cards: Vec<(Point, &crate::dag::PredictedNode, usize, f32)> = Vec::new();
+    // Per-target-node bloom, so an edge only flows once its target has begun to
+    // arrive (the pulse "wakes up" the node it points at).
+    let mut node_bloom: HashMap<String, f32> = HashMap::new();
     for (wi, wave) in dag.waves.iter().enumerate() {
         let rows = wave.nodes.len().max(1);
+        let bloom = wave_bloom(t, wi, n_waves);
         for (ri, node) in wave.nodes.iter().enumerate() {
             let o = node_origin(canvas, wi, ri, rows);
             left_mid.insert(node.id.clone(), Point::new(o.x, o.y + NODE_H / 2.0));
             right_mid.insert(node.id.clone(), Point::new(o.x + NODE_W, o.y + NODE_H / 2.0));
             card_commit.insert(node.id.clone(), Commitment::of(&node.commitment_level));
-            cards.push((o, node));
+            node_bloom.insert(node.id.clone(), bloom);
+            cards.push((o, node, wi, bloom));
         }
     }
 
@@ -421,7 +480,10 @@ pub fn build_scene(
             .get(&edge.source)
             .copied()
             .unwrap_or(Commitment::Unknown);
-        draw_edge(scene, a, b, src_commit, edge.commitment);
+        // The edge fades in with its target's bloom; the traveling pulse position
+        // is driven by clip-time `t` (a continuous source→target sweep).
+        let edge_in = node_bloom.get(&edge.target).copied().unwrap_or(1.0);
+        draw_edge(scene, a, b, src_commit, edge.commitment, t, edge_in, breathe);
     }
 
     // --- Wave column captions (tracked-out caps labels above each column). ---
@@ -455,8 +517,8 @@ pub fn build_scene(
         );
     }
 
-    for (o, node) in cards {
-        draw_card(scene, text, o, node, scale);
+    for (o, node, _wi, bloom) in cards {
+        draw_card(scene, text, o, node, scale, bloom, breathe);
     }
 
     // A final vignette overlay, painted last so it darkens the very edges.
@@ -599,12 +661,51 @@ fn draw_card(
     origin: Point,
     node: &crate::dag::PredictedNode,
     scale: f32,
+    bloom: f32,
+    breathe: f64,
 ) {
     let commitment = Commitment::of(&node.commitment_level);
     let accent = commitment_color(commitment);
     let rect = Rect::new(origin.x, origin.y, origin.x + NODE_W, origin.y + NODE_H);
     let radius = 14.0;
     let rrect = RoundedRect::from_rect(rect, radius);
+
+    // --- BLOOM-IN transform + fade. As `bloom` 0→1 the card eases up from a few
+    //     px below its settled spot and from 96%→100% scale, anchored on its own
+    //     center so the layout doesn't shift. `a` is the fade alpha applied to
+    //     the card's paints; text fades by being skipped until the card is
+    //     mostly present (Parley has no per-run alpha here, so we gate it). ---
+    let b = bloom as f64;
+    let a = bloom as f64; // fade alpha 0..1
+    let center = Point::new(origin.x + NODE_W / 2.0, origin.y + NODE_H / 2.0);
+    let card_scale = 0.96 + 0.04 * b;
+    let rise = (1.0 - b) * 14.0; // px below settled, eased to 0
+    // Scale about the card center, then translate up by `rise`.
+    let xf = Affine::translate((0.0, rise))
+        * Affine::translate((center.x, center.y))
+        * Affine::scale(card_scale)
+        * Affine::translate((-center.x, -center.y));
+    // A card that has not begun to bloom contributes nothing.
+    if a <= 0.001 {
+        return;
+    }
+
+    // Wrap the ENTIRE card in a single Vello layer carrying (a) the bloom
+    // transform `xf` and (b) the fade alpha `a` as a group opacity. Every inner
+    // paint then draws in `Affine::IDENTITY` (it inherits the layer transform)
+    // and the whole card — body, border, glow, shadow, AND glyph runs — fades
+    // uniformly as one unit. The clip is the card rect inflated generously so
+    // the blurred shadow/glow that spill outside the card aren't clipped.
+    let bloom_complete = a >= 0.999;
+    if !bloom_complete {
+        let clip = rect.inflate(48.0, 56.0);
+        scene.push_layer(
+            peniko::Mix::Normal,
+            a as f32,
+            xf,
+            &clip,
+        );
+    }
 
     // 1. Soft DROP SHADOW: a blurred dark rounded-rect offset down-right.
     let shadow = rect.with_origin((origin.x + 0.0, origin.y + 10.0)).inflate(2.0, 2.0);
@@ -617,17 +718,28 @@ fn draw_card(
     );
 
     // 2. Commitment-colored OUTER GLOW: stronger for COMMITTED (canary), medium
-    //    for TENTATIVE (cobalt), dim for EXPLORATORY/unknown.
+    //    for TENTATIVE (cobalt), dim for EXPLORATORY/unknown. COMMITTED cards'
+    //    glow BREATHES — the alpha pulses with `breathe` (the presence beacon).
     let (glow_alpha, glow_std) = match commitment {
         Commitment::Committed => (0.42, 20.0),
         Commitment::Tentative => (0.26, 16.0),
         Commitment::Exploratory => (0.12, 12.0),
         Commitment::Unknown => (0.08, 10.0),
     };
+    // For COMMITTED, the glow BREATHES: `breathe` is 0 at the seam (so the static
+    // look is exactly the base glow) and swells to 1 at mid-clip, brightening the
+    // alpha up to +55% and the blur radius by up to +7px — a slow presence beacon
+    // that returns to rest at the loop point.
+    let (glow_alpha, glow_std) = if commitment == Commitment::Committed {
+        let pulse = 1.0 + 0.55 * breathe; // 1.0 at seam → 1.55 at mid
+        (glow_alpha * pulse, glow_std + 7.0 * breathe)
+    } else {
+        (glow_alpha, glow_std)
+    };
     scene.draw_blurred_rounded_rect(
         Affine::IDENTITY,
         rect.inflate(1.5, 1.5),
-        accent.multiply_alpha(glow_alpha),
+        accent.multiply_alpha(glow_alpha as f32),
         radius + 2.0,
         glow_std,
     );
@@ -862,6 +974,11 @@ fn draw_card(
             1.2,
         );
     }
+
+    // Close the bloom layer (balances the push above).
+    if !bloom_complete {
+        scene.pop_layer();
+    }
 }
 
 /// A feed-forward cubic-bezier edge from `a` (source right-mid) to `b` (target
@@ -869,7 +986,23 @@ fn draw_card(
 /// styled by the *target's* commitment: COMMITTED = thick + soft glow underlay +
 /// a bright tapered leading segment near the target, TENTATIVE = dashed cobalt,
 /// EXPLORATORY = dotted + faint. A refined arrowhead caps the target.
-fn draw_edge(scene: &mut Scene, a: Point, b: Point, src_commit: Commitment, commitment: Commitment) {
+#[allow(clippy::too_many_arguments)]
+fn draw_edge(
+    scene: &mut Scene,
+    a: Point,
+    b: Point,
+    src_commit: Commitment,
+    commitment: Commitment,
+    t: f32,
+    edge_in: f32,
+    breathe: f64,
+) {
+    // The edge stays invisible until its target node has begun to bloom, then
+    // eases in with that node — so the graph "wires up" wave-by-wave.
+    let appear = smoothstep((edge_in - 0.15) / 0.55) as f64;
+    if appear <= 0.001 {
+        return;
+    }
     let src_color = commitment_color(src_commit);
     let tgt_color = commitment_color(commitment);
 
@@ -880,6 +1013,19 @@ fn draw_edge(scene: &mut Scene, a: Point, b: Point, src_commit: Commitment, comm
     let mut path = BezPath::new();
     path.move_to(a);
     path.curve_to(c1, c2, b);
+
+    // Fade the whole edge in with `appear` by wrapping it in an alpha layer
+    // (clip = its bounding box, generously inflated for the glow/arrowhead).
+    let edge_full = appear >= 0.999;
+    if !edge_full {
+        let bbox = Rect::new(
+            a.x.min(b.x) - 16.0,
+            a.y.min(b.y) - 16.0,
+            a.x.max(b.x) + 16.0,
+            a.y.max(b.y) + 16.0,
+        );
+        scene.push_layer(peniko::Mix::Normal, appear as f32, Affine::IDENTITY, &bbox);
+    }
 
     // A horizontal gradient brush from the source color to the target color,
     // spanning the edge's x-extent → the stroke reads as flow/direction.
@@ -932,9 +1078,88 @@ fn draw_edge(scene: &mut Scene, a: Point, b: Point, src_commit: Commitment, comm
         }
     }
 
+    // --- TRAVELING PULSE: a short bright segment sweeping source→target.
+    // The pulse center `p` ∈ [0,1) cycles with clip-time `t`; at t=0 and t=1 it
+    // sits at the same place, so an exported gif loops seamlessly. The pulse is
+    // brightest for COMMITTED edges (the live "flow"), quieter otherwise, and is
+    // suppressed entirely on the faintest EXPLORATORY edges to keep them calm. ---
+    // Skip entirely at the seam (breathe≈0) so the static PNG draws no pulse
+    // geometry at all — byte-identical static look — and the loop has no snap.
+    if commitment != Commitment::Exploratory && breathe > 0.001 {
+        // Two sweeps across the clip (matches the breathing CYCLES), so the pulse
+        // returns to the edge start at t=0.5 and t=1 — the settled-half loop seam.
+        let p = ((t * 2.0) as f64).fract(); // 0..1, loops at t∈{0,0.5,1}
+        let half = 0.10; // pulse covers ~20% of the curve
+        let t0 = (p - half).clamp(0.0, 1.0);
+        let t1 = (p + half).clamp(0.0, 1.0);
+        if t1 - t0 > 0.01 {
+            let pulse = sample_segment(a, c1, c2, b, t0, t1);
+            // Brightness eases up at the wave seam (so the loop has a tiny breath)
+            // and is stronger for committed flow. A soft underlay + a hot core.
+            let (under_w, core_w, core_a) = match commitment {
+                Commitment::Committed => (6.5, 2.6, 1.0),
+                Commitment::Tentative => (4.5, 1.8, 0.85),
+                _ => (3.5, 1.4, 0.7),
+            };
+            // The pulse rides on `breathe`, so it FADES TO NOTHING at the seam
+            // (t∈{0,1}) — the static PNG (t=1) shows no pulse, and the gif loops
+            // without a visible "snap". It's brightest mid-clip.
+            let beacon = breathe;
+            scene.stroke(
+                &Stroke::new(under_w),
+                Affine::IDENTITY,
+                tgt_color.multiply_alpha((0.22 * beacon) as f32),
+                None,
+                &pulse,
+            );
+            // A near-white hot core so the pulse reads as a moving light.
+            let hot = lerp_color(tgt_color, INK, 0.55);
+            scene.stroke(
+                &Stroke::new(core_w),
+                Affine::IDENTITY,
+                hot.multiply_alpha((core_a * beacon) as f32),
+                None,
+                &pulse,
+            );
+        }
+    }
+
     // Arrowhead at the target end (along the incoming tangent c2 -> b).
     let dir = (b - c2).normalize();
     draw_arrowhead(scene, b, dir, tgt_color);
+
+    // Close the edge fade-in layer (balances the push above).
+    if !edge_full {
+        scene.pop_layer();
+    }
+}
+
+/// Sample the cubic over t ∈ [t0, t1] into a fresh polyline BezPath — used for
+/// the traveling pulse (a short bright window of the edge).
+fn sample_segment(p0: Point, p1: Point, p2: Point, p3: Point, t0: f64, t1: f64) -> BezPath {
+    let bez = |t: f64| -> Point {
+        let u = 1.0 - t;
+        let w0 = u * u * u;
+        let w1 = 3.0 * u * u * t;
+        let w2 = 3.0 * u * t * t;
+        let w3 = t * t * t;
+        Point::new(
+            w0 * p0.x + w1 * p1.x + w2 * p2.x + w3 * p3.x,
+            w0 * p0.y + w1 * p1.y + w2 * p2.y + w3 * p3.y,
+        )
+    };
+    let mut path = BezPath::new();
+    let steps = 12;
+    for i in 0..=steps {
+        let t = t0 + (t1 - t0) * (i as f64 / steps as f64);
+        let pt = bez(t);
+        if i == 0 {
+            path.move_to(pt);
+        } else {
+            path.line_to(pt);
+        }
+    }
+    path
 }
 
 /// Re-evaluate the cubic to produce a sub-path covering t ∈ [t0, 1] — the
