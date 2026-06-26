@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.23.0] - 2026-06-26
+
 ### Added
+- **pd-console Parley pane (RCP-2a, #528).** Turns a disagreement into a decision: the lineage route (`GET /msg/:channel/lineage`) now returns a `parley` field — `shouldConvene(digest, costs)`, the cost-aware Signal-Detection call `P(fail)·waste·|unresolved| > parleyCost` over the unresolved contradictions (ADR-0086). The pane renders the CONVENE/hold decision, the SDT economics (expected waste vs cost + margin), and the contradiction edges a parley would reconcile. Tunable via `?parleyCost` / `?wastePerContradiction`.
+- **pd-console build LANES — prod / latest / dev (#534).** `package-console.sh` builds the console in one of three distinct bundles, each a separate `CFBundleIdentifier` with a distinct icon colour + label: `--prod` → `pd-console-prod.app` (blue, version badge), `--latest` (default) → `pd-console-latest.app` (green), `--devbuild <name>` → `pd-console-dev-apps/pd-console_dev-<name>.app` (amber). Agents working in Rust each get an isolated, testable build instead of clobbering one shared app; a `post-merge` hook keeps `-latest.app` current when `main` advances. The Homebrew cask installs the signed/notarized artifact as `pd-console-prod.app`. The release packager prod-brands the shipped icon (blue + `vX.Y.Z`).
 - **`rust-data-structures-advanced` skill** — expert guidance for choosing the advanced Rust data structure that makes ownership trivial instead of fighting the borrow checker: arenas & generational indices (slotmap / generational-arena / id-arena / typed-arena) as the idiomatic alternative to `Rc<RefCell>` for graphs/trees, petgraph (`StableGraph`), inline/cache-friendly vectors (smallvec/tinyvec/arrayvec), lock-free & concurrent containers (crossbeam channels/epoch/queue, flume, dashmap, the ABA problem), copy-on-write & persistent structures (`Cow`, im/rpds), struct-of-arrays/ECS, interning, roaring bitsets, and map/hasher selection (HashMap/BTreeMap/hashbrown/fxhash/ahash/IndexMap). Ships four references, two compilable examples (`cargo build`-green: a slotmap graph and a crossbeam pipeline), an `agents/openai.yaml`, and a `validate_skill.py` self-check.
+
+### Fixed
+- **pd-console "Jump to a pane" launcher was dead (#562).** The launcher card lacked `.occlude()`, so a tile press fell through to the scrim's `on_mouse_down`, which closed the launcher before the tile's `on_click` (the mouse-up) could fire — the pane never switched. The card now occludes the scrim.
+- **pd-console Parley pane was unreachable (#528).** `ParleyPane` and `ConductorPane` both pushed their view at nav index 20 in `main.rs`; conductor (added later) overwrote parley, so `--pane parley` rendered Conductor's idle "Fleet Lineage". Conductor moved to its correct slot 21.
+- **Release: a prerelease no longer rolls the brew tap (#564).** `release.yml`'s `update-homebrew` job fired for any release event — including prereleases — contradicting the documented RC-first discipline (an RC would have shipped to every `brew upgrade` user). Guarded to a real, non-prerelease published release only.
 
 ## [3.22.0] - 2026-06-23
 
