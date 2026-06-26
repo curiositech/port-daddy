@@ -198,6 +198,13 @@ fn reduced_motion() -> bool {
         .unwrap_or(false)
 }
 
+/// `PD_CONSOLE_NO_SPLASH` opt-out — suppresses the launch splash entirely.
+/// Read once (env is fixed for the process); the render gate consults this.
+fn splash_disabled() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("PD_CONSOLE_NO_SPLASH").is_ok())
+}
+
 /// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
 /// Call once at startup before the window opens.
 pub fn init_theme_from_env() {
@@ -550,6 +557,9 @@ pub struct ConsoleView {
     /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
     /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
     launcher_open: bool,
+    /// True once the first pane refresh has landed. Until then the launch splash
+    /// (the brand boot flash) covers the chrome.
+    booted: bool,
     /// Pole movement driving the waving flags — scroll feeds `vy`, viewport-width
     /// change feeds `vx`; both decay to rest each frame (see WavingFlag / pd-flag-proto).
     flag_motion: FlagMotion,
@@ -627,6 +637,10 @@ impl ConsoleView {
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
+            // Flipped true once the first pane refresh lands (see update_panes).
+            // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
+            // lives in render()'s gate, not here.
+            booted: false,
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
@@ -1007,12 +1021,64 @@ impl ConsoleView {
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
     ) {
+        // First refresh dismisses the launch splash (idempotent thereafter).
+        if !self.booted {
+            self.booted = true;
+        }
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 *slot = blocks;
             }
         }
         self.dispatch_head = dispatch_head;
+    }
+
+    /// The launch splash — a centered brand lockup (mark + "PORT DADDY") shown
+    /// until the first pane refresh lands (see `update_panes`). Static, so it
+    /// never fights reduced-motion; it covers the chrome via a full-size opaque
+    /// overlay painted last. Mirrors the launcher overlay's positioning.
+    fn render_splash(&self) -> AnyElement {
+        let t = current_theme();
+        div()
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full()
+            .occlude()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap(px(16.0))
+            .bg(rgb(t.bg))
+            .child(
+                svg()
+                    .path("icons/pd-mark-glyph.svg")
+                    .w(px(96.0))
+                    .h(px(96.0))
+                    .text_color(rgb(t.accent_ink)),
+            )
+            .child(
+                div()
+                    .text_size(px(30.0))
+                    .font_weight(FontWeight::BLACK)
+                    .text_color(rgb(t.ink))
+                    .child("PORT DADDY"),
+            )
+            .child(
+                div()
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(t.muted))
+                    .child("CONSOLE · connecting…"),
+            )
+            .child(
+                div()
+                    .text_size(px(11.0))
+                    .text_color(rgb(t.muted))
+                    .child(build_stamp()),
+            )
+            .into_any_element()
     }
 
     /// Recursively render the pane tree. Splits become weighted flex
@@ -1575,6 +1641,14 @@ impl Render for ConsoleView {
         } else {
             None
         };
+        // The launch splash overlays everything until the first refresh lands.
+        // Suppressed for the launcher screenshot hook and the PD_CONSOLE_NO_SPLASH
+        // opt-out, so capture tooling / opted-out users never see the boot flash.
+        let splash = if !self.booted && !self.launcher_open && !splash_disabled() {
+            Some(self.render_splash())
+        } else {
+            None
+        };
 
         div()
             .key_context("console")
@@ -1625,6 +1699,35 @@ impl Render for ConsoleView {
                     .bg(rgb(current_theme().panel))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
+                    // Persistent brand lockup — the P·d mark + "PORT DADDY",
+                    // pinned at the top-left of the chrome on every pane/tab.
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(7.0))
+                            .px(px(4.0))
+                            .child(
+                                svg()
+                                    .path("icons/pd-mark-glyph.svg")
+                                    .w(px(18.0))
+                                    .h(px(18.0))
+                                    .text_color(rgb(current_theme().accent_ink)),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(current_theme().ink))
+                                    .child("PORT DADDY"),
+                            )
+                            .child(
+                                div()
+                                    .w(px(1.0))
+                                    .h(px(16.0))
+                                    .bg(rgb(current_theme().line)),
+                            ),
+                    )
                     .children(tabs.into_iter().map(|(i, name, active)| {
                         div()
                             .id(SharedString::from(format!("tab-{i}")))
@@ -1762,6 +1865,8 @@ impl Render for ConsoleView {
             )
             // Pane launcher overlay — last child, paints over everything.
             .children(launcher)
+            // Splash paints last so it sits above all chrome while booting.
+            .children(splash)
     }
 }
 
