@@ -8,6 +8,16 @@ This is the standing answer to the limitation both capture scripts already docum
 
 That limitation is real and it is a TCC (Screen Recording permission) wall, not a bug. The methods below are the two ways around it.
 
+## TL;DR
+
+| I want to record… | Use | One-liner |
+|---|---|---|
+| A **Vello/wgpu surface** (`pd-timeline-proto`), headless / in CI | **A** — offscreen render + ffmpeg | `PD_TIMELINE_RENDER_OFFSCREEN=out.mp4 cargo run --release` |
+| The **whole gpui shell**, off your physical monitor | **B** — headless virtual display | run the app on a BetterDisplay/dummy-HDMI screen, capture that display |
+| Interactive **PR screenshots** of the shell | **0** — live-window capture | `core/pd-console/scripts/capture-gpui.sh` (needs a permitted Terminal) |
+
+Only **Method A** is truly window-free and TCC-free (it's the one wired in code). **B** runs the real app but still needs Screen-Recording permission; it just frees your physical screen. The rest of this doc explains why the split falls this way and the gotchas in each.
+
 ---
 
 ## The load-bearing constraint

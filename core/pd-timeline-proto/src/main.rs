@@ -430,7 +430,11 @@ fn render_offscreen(timeline: &Timeline, out_path: &str) {
 
     // Stream raw RGBA into ffmpeg; it owns the H.264 encode. yuv420p for players
     // that choke on rgb. -crf 16 is visually lossless for this flat-color UI.
-    let mut child = Command::new("ffmpeg")
+    // A missing ffmpeg is the single most likely failure on a fresh machine, so
+    // fail with a clear actionable line instead of a panic backtrace. (Bad output
+    // paths / unwritable dirs surface later via ffmpeg's own nonzero exit, which
+    // we check after the stream closes.)
+    let mut child = match Command::new("ffmpeg")
         .args([
             "-y",
             "-f", "rawvideo",
@@ -445,7 +449,13 @@ fn render_offscreen(timeline: &Timeline, out_path: &str) {
         ])
         .stdin(Stdio::piped())
         .spawn()
-        .expect("failed to spawn ffmpeg — install it (brew install ffmpeg)");
+    {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[render] could not start ffmpeg ({e}). Install it: brew install ffmpeg");
+            std::process::exit(1);
+        }
+    };
     let mut ffmpeg_stdin = child.stdin.take().expect("ffmpeg stdin");
 
     let mut scene = Scene::new();
