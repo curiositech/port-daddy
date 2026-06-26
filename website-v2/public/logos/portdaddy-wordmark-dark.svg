@@ -61,7 +61,7 @@
     <circle cx="165" cy="165" r="25" />
   </g>
 
-  <text x="240" y="118" class="pd-word" font-size="74" letter-spacing="-1" fill="var(--ink)">Port<tspan fill="var(--cobalt-bright)"> Daddy</tspan></text>
+  <text x="240" y="118" class="pd-word" font-size="74" letter-spacing="-1" fill="var(--cobalt)">Port<tspan fill="var(--seafoam)"> Daddy</tspan></text>
   <line x1="242" y1="146" x2="700" y2="146" stroke="var(--ink)" stroke-width="3" />
   <text x="242" y="178" class="pd-tag" font-size="18" letter-spacing="2.6" fill="var(--muted)">A HARBOR-MASTER FOR YOUR AGENTS</text>
 </svg>
