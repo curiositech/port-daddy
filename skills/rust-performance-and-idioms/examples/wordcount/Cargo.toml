@@ -1,0 +1,26 @@
+[package]
+name = "wordcount-perf"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# A measured before/after for the rust-performance-and-idioms skill.
+# `cargo bench` compares a naive allocation-heavy word counter against an
+# allocation-disciplined one over the same corpus. See README.md for results.
+
+[dependencies]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "wordcount"
+harness = false
+
+# A realistic "release-ish" profile for benchmarks so the numbers reflect what
+# ships, not a debug build. (Criterion benches already build in release, but we
+# pin the knobs the skill teaches so the example is self-documenting.)
+[profile.bench]
+opt-level = 3
+codegen-units = 1
+lto = "thin"
