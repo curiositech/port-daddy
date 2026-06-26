@@ -17,7 +17,7 @@
 
 import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +29,12 @@ import {
   readPheromones,
   parseMatrix,
 } from '../../lib/squid/matrix.js';
-import { ClaudeCliSquidAdapter, tentaclePath } from '../../lib/squid/adapter.js';
+import {
+  ClaudeCliSquidAdapter,
+  GeminiSquidAdapter,
+  CodexSquidAdapter,
+  tentaclePath,
+} from '../../lib/squid/adapter.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
@@ -248,5 +253,172 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
       g.hooks.some((h) => h.command.includes('pd-hook-')),
     );
     expect(pdEntries.length).toBe(1);
+  });
+});
+
+describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
+  // Gemini CLI (v0.36.0) reads settings.json `hooks` keyed by the GEMINI event
+  // names (BeforeTool/AfterTool/BeforeAgent), same {matcher, hooks:[{type,command}]}
+  // shape as Claude, with regex matchers over Gemini tool names. Confirmed by
+  // reading the installed gemini bundle's EVENT_MAPPING + TOOL_NAME_MAPPING.
+  test('wires the three tentacles into .gemini/settings.json under Gemini event names', async () => {
+    const adapter = new GeminiSquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+
+    const cfgPath = join(WORKSPACE, '.gemini', 'settings.json');
+    expect(existsSync(cfgPath)).toBe(true);
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+
+    const cmd = (event: string) => cfg.hooks[event][cfg.hooks[event].length - 1].hooks[0].command;
+    expect(cmd('BeforeAgent')).toBe(tentaclePath('pd-hook-prompt'));
+    expect(cmd('BeforeTool')).toBe(tentaclePath('pd-hook-pre-tool'));
+    expect(cmd('AfterTool')).toBe(tentaclePath('pd-hook-post-tool'));
+    // The BeforeTool matcher must cover the Gemini edit/shell tool names.
+    const matcher = cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].matcher as string;
+    expect(matcher).toMatch(/replace/);
+    expect(matcher).toMatch(/write_file/);
+    expect(matcher).toMatch(/run_shell_command/);
+    expect(cmd('BeforeTool').startsWith('/')).toBe(true);
+  });
+
+  test('injectHooks preserves non-PD hooks and is idempotent', async () => {
+    const cfgPath = join(WORKSPACE, '.gemini', 'settings.json');
+    mkdirSync(dirname(cfgPath), { recursive: true });
+    // Seed a foreign hook + an unrelated setting that must survive.
+    const seeded = {
+      theme: 'dark',
+      hooks: { BeforeTool: [{ matcher: 'replace', hooks: [{ type: 'command', command: '/usr/bin/true' }] }] },
+    };
+    writeFileSync(cfgPath, JSON.stringify(seeded));
+
+    const adapter = new GeminiSquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+    await adapter.injectHooks(WORKSPACE);
+    const cfg = JSON.parse(readFileSync(cfgPath, 'utf8'));
+
+    expect(cfg.theme).toBe('dark'); // unrelated setting preserved
+    const before = cfg.hooks.BeforeTool;
+    // foreign hook survives + exactly one PD entry (idempotent).
+    expect(before.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
+    const pd = before.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
+    expect(pd.length).toBe(1);
+  });
+});
+
+describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
+  // Codex CLI (v0.139.0) reads `[hooks]` from config.toml with [[hooks.PreToolUse]]
+  // (matcher) + [[hooks.PreToolUse.hooks]] (type/command/timeout/async). Schema
+  // confirmed by reading the codex rust binary's HookEventsToml structs.
+  test('hand-emits a valid Codex [hooks] TOML block with sync PreToolUse', async () => {
+    const adapter = new CodexSquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+
+    const cfgPath = join(WORKSPACE, '.codex', 'config.toml');
+    expect(existsSync(cfgPath)).toBe(true);
+    const toml = readFileSync(cfgPath, 'utf8');
+
+    // The enforced gate: PreToolUse must be present, synchronous, pointing at the
+    // pre-tool tentacle with an absolute path.
+    expect(toml).toMatch(/\[\[hooks\.PreToolUse\]\]/);
+    expect(toml).toMatch(/\[\[hooks\.PreToolUse\.hooks\]\]/);
+    expect(toml).toMatch(/async = false/);
+    expect(toml).toMatch(new RegExp(`command = "${tentaclePath('pd-hook-pre-tool')}"`.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')));
+    // PostToolUse (async pheromone) + UserPromptSubmit (sync envelope) present.
+    expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
+    expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
+    expect(toml).toMatch(/async = true/); // post-tool is fire-and-forget
+  });
+
+  test('injectHooks is idempotent (re-run does not duplicate the PD block)', async () => {
+    const adapter = new CodexSquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+    await adapter.injectHooks(WORKSPACE);
+    const toml = readFileSync(join(WORKSPACE, '.codex', 'config.toml'), 'utf8');
+    // Exactly one marker comment → exactly one injected block.
+    const markers = toml.match(/Giant Squid Harness tentacles/g) ?? [];
+    expect(markers.length).toBe(1);
+  });
+
+  test('injectHooks preserves pre-existing config.toml content', async () => {
+    const cfgPath = join(WORKSPACE, '.codex', 'config.toml');
+    mkdirSync(dirname(cfgPath), { recursive: true });
+    writeFileSync(cfgPath, 'model = "gpt-5.5"\n');
+    const adapter = new CodexSquidAdapter();
+    await adapter.injectHooks(WORKSPACE);
+    const toml = readFileSync(cfgPath, 'utf8');
+    expect(toml).toMatch(/model = "gpt-5.5"/); // prior content survives
+    expect(toml).toMatch(/\[\[hooks\.PreToolUse\]\]/); // block appended
+  });
+});
+
+describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
+  // Proves the ONE tentacle answers each vendor's block contract from the exact
+  // event JSON that vendor sends. This validates the tentacle, not the live CLI
+  // loop (the live-CLI status is documented in the harness report).
+  function seedForeignLock() {
+    process.env.PD_MATRIX_FILE = MATRIX;
+    setLock('/repo/src/auth.ts', 'agent_alpha');
+    return MATRIX;
+  }
+
+  test('Gemini snake_case BeforeTool event (replace) → exit 2 + stderr', () => {
+    const matrix = seedForeignLock();
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ tool_name: 'replace', tool_input: { file_path: '/repo/src/auth.ts' }, cwd: '/repo' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'gemini_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/BLOCKED/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('Codex snake_case hook event (apply_patch) → exit 2 + stderr', () => {
+    const matrix = seedForeignLock();
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({
+        tool_name: 'apply_patch',
+        tool_input: { file_path: '/repo/src/auth.ts' },
+        tool_use_id: 't1',
+        hook_event_name: 'PreToolUse',
+        cwd: '/repo',
+      }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('Codex app-server camelCase event → exit 0 + permissionDecision:deny JSON', () => {
+    const matrix = seedForeignLock();
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ toolName: 'apply_patch', toolInput: { file_path: '/repo/src/auth.ts' }, cwd: '/repo', sessionId: 's1' }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0); // deny goes via stdout, not exit code
+    const out = JSON.parse(r.stdout);
+    expect(out.hookSpecificOutput.hookEventName).toBe('PreToolUse');
+    expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
+    // Codex REQUIRES a non-empty reason or it rejects the output.
+    expect(out.hookSpecificOutput.permissionDecisionReason.length).toBeGreaterThan(0);
+    expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/agent_alpha/);
+  });
+
+  test('post-tool records a pheromone for Gemini (replace) and Codex (apply_patch) tools', () => {
+    const matrix = seedForeignLock();
+    for (const [tool, actor] of [['replace', 'gemini_agent'], ['apply_patch', 'codex_agent']] as const) {
+      const r = spawnSync(bin('pd-hook-post-tool'), [], {
+        input: JSON.stringify({ tool_name: tool, tool_input: { file_path: `/repo/src/${tool}-touch.ts` }, cwd: '/repo' }),
+        env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: actor },
+        encoding: 'utf8',
+      });
+      expect(r.status).toBe(0);
+    }
+    const kv = parseMatrix(readFileSync(matrix, 'utf8'));
+    const vals = Object.values(kv);
+    expect(vals.some((v) => v.includes('mutated via replace') && v.includes('gemini_agent'))).toBe(true);
+    expect(vals.some((v) => v.includes('mutated via apply_patch') && v.includes('codex_agent'))).toBe(true);
   });
 });

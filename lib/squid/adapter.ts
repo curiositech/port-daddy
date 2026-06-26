@@ -8,15 +8,25 @@
  * surface (`injectHooks`) and (b) spawn the vendor CLI on a task so those hooks
  * fire inside the vendor's own lifecycle (`spawnVoyage`).
  *
- * VERIFICATION SCOPE (honest, per the ADR):
+ * VERIFICATION SCOPE (honest, per the ADR — updated 2026-06-25):
  *   - ClaudeCliSquidAdapter is the PRIME path. Claude Code's hook surface
  *     (UserPromptSubmit / PreToolUse / PostToolUse, with `exit 2` blocking) is
  *     CONFIRMED and fires on this repo. This adapter is built end-to-end.
- *   - CodexSquidAdapter / GeminiSquidAdapter are VALIDATE-THEN-ADD skeletons.
- *     They write a plausible config (config.toml / .gemini/settings.json) but
- *     their synchronous, exit-code-respecting hook parity is UNVERIFIED. Each
- *     marks itself `verified: false` and spawnVoyage throws until validated, so
- *     nothing here can be mistaken for a working cross-vendor harness.
+ *   - GeminiSquidAdapter is now IMPLEMENTED. The Gemini CLI (v0.36.0) ships a
+ *     Claude-compatible hook engine: settings.json `hooks` keyed by the Gemini
+ *     event names (`BeforeTool`/`AfterTool`/`BeforeAgent`) with the same
+ *     `{matcher, hooks:[{type:"command", command, timeout}]}` shape, regex
+ *     matchers over Gemini tool names (`replace|write_file|run_shell_command`),
+ *     and exit-2-blocks semantics. injectHooks writes that native shape;
+ *     spawnVoyage launches `gemini -p --approval-mode auto_edit` with PD_ACTOR /
+ *     PD_FLEET injected. `verified` reflects exactly what was proved at build
+ *     time (see the flag's comment below).
+ *   - CodexSquidAdapter is now IMPLEMENTED. Codex CLI (v0.139.0) ships a hook
+ *     engine (`[hooks]` in config.toml, `--dangerously-bypass-hook-trust` flag).
+ *     injectHooks hand-emits valid TOML `[[hooks.PreToolUse]]` blocks;
+ *     spawnVoyage launches `codex exec`. `verified` reflects exactly what was
+ *     proved (see the flag's comment below). The tentacles answer Codex's
+ *     deny-via-stdout-JSON contract in addition to Claude/Gemini exit-2.
  */
 
 import {
@@ -260,94 +270,248 @@ export class ClaudeCliSquidAdapter implements GiantSquidAdapter {
   }
 }
 
-// ─── CodexSquidAdapter — VALIDATE-THEN-ADD skeleton (UNVERIFIED) ──────────────
+// ─── Gemini hooks settings shape ──────────────────────────────────────────────
 
-export class CodexSquidAdapter implements GiantSquidAdapter {
-  readonly providerName = 'codex';
-  readonly binaryName = 'codex';
-  /** Codex hook parity (synchronous, exit-2-respecting) is NOT yet verified. */
-  readonly verified = false;
+// The Gemini CLI (v0.36.0) hook engine maps Claude event names to its own and
+// reads settings.json `hooks` keyed by the GEMINI event names, with the SAME
+// per-event array of `{ matcher, hooks: [{ type:"command", command, timeout }] }`
+// that Claude uses. Confirmed by reading the installed bundle's EVENT_MAPPING +
+// TOOL_NAME_MAPPING + migrateClaudeHooks (gemini.js @ ~255485):
+//   PreToolUse → BeforeTool, PostToolUse → AfterTool, UserPromptSubmit → BeforeAgent
+//   Edit → replace, Write → write_file, Bash → run_shell_command, ...
+const GEMINI_EVENT = {
+  prompt: 'BeforeAgent',
+  preTool: 'BeforeTool',
+  postTool: 'AfterTool',
+} as const;
 
-  /**
-   * Writes a Codex `config.toml` hook block referencing the tentacles. The TOML
-   * key names below are a PLAUSIBLE mapping, not a confirmed schema — Codex's
-   * actual hook surface must be validated before this is trusted. Marked clearly
-   * so a reader cannot mistake it for a working integration.
-   */
-  async injectHooks(workspaceRoot: string): Promise<void> {
-    assertTentaclesPresent();
-    const cfgPath = join(workspaceRoot, '.codex', 'config.toml');
-    mkdirSync(dirname(cfgPath), { recursive: true });
-    const prompt = tentaclePath('pd-hook-prompt');
-    const pre = tentaclePath('pd-hook-pre-tool');
-    const post = tentaclePath('pd-hook-post-tool');
-    const block = [
-      '# Port Daddy Giant Squid Harness tentacles (ADR-0091).',
-      '# VALIDATE-THEN-ADD: Codex hook parity is UNVERIFIED. Do not rely on this',
-      "# blocking tools via exit 2 until Codex's synchronous hook surface is",
-      '# confirmed. The key names here are a plausible mapping only.',
-      '[hooks]',
-      `user_prompt_submit = "${prompt}"`,
-      `pre_tool_use = "${pre}"`,
-      `post_tool_use = "${post}"`,
-      '',
-    ].join('\n');
-    const existing = existsSync(cfgPath) ? readFileSync(cfgPath, 'utf8') : '';
-    if (!existing.includes('Giant Squid Harness tentacles')) {
-      writeFileSync(cfgPath, existing + (existing ? '\n' : '') + block, { mode: 0o644 });
-    }
-  }
+/** Regex matcher over GEMINI tool names that mutate files or run shell. */
+const GEMINI_TOOL_MATCHER = 'replace|write_file|edit|run_shell_command';
 
-  async spawnVoyage(): Promise<VoyageResult> {
-    throw new Error(
-      '[squid/adapter] CodexSquidAdapter.spawnVoyage is validate-then-add: Codex hook ' +
-        'parity is unverified. Validate Codex config.toml hooks (synchronous + exit-2) ' +
-        'before enabling. Refusing to claim a working harness.',
-    );
-  }
-}
-
-// ─── GeminiSquidAdapter — VALIDATE-THEN-ADD skeleton (UNVERIFIED) ─────────────
+// ─── GeminiSquidAdapter — IMPLEMENTED ─────────────────────────────────────────
 
 export class GeminiSquidAdapter implements GiantSquidAdapter {
   readonly providerName = 'gemini';
   readonly binaryName = 'gemini';
-  /** Gemini hook parity is NOT yet verified. */
+  /**
+   * VALIDATION STATE (set 2026-06-25, honestly):
+   *   `true` here means the hook CONTRACT is proven: the Gemini-format event
+   *   JSON the CLI sends a BeforeTool hook is fed to pd-hook-pre-tool and the
+   *   tentacle EXIT-2-BLOCKS a foreign-locked file (contract-simulated, see
+   *   scripts/squid-selftest.sh "Gemini" cases + tests/unit/squid-harness).
+   *   The native CLI hook SURFACE (settings.json `hooks` keyed by BeforeTool/
+   *   AfterTool/BeforeAgent with this matcher shape) is confirmed by reading the
+   *   installed gemini v0.36.0 bundle. A full live end-to-end "gemini actually
+   *   blocked the edit" run was NOT captured non-interactively in this slice;
+   *   that is the remaining gap, called out in the harness report. So we set
+   *   `verified=false` until a live block is captured — the tentacle contract is
+   *   proven but the live CLI loop is not yet, and this flag must mean "live".
+   */
   readonly verified = false;
 
+  private lastWorkspace?: string;
+
   /**
-   * Writes a `.gemini/settings.json` hook block referencing the tentacles. The
-   * JSON shape is a PLAUSIBLE mapping, not a confirmed schema. Marked clearly.
+   * Merge the three tentacles into `.gemini/settings.json` under
+   * `hooks.{BeforeAgent,BeforeTool,AfterTool}` using Gemini's native event names
+   * and a regex matcher over Gemini tool names. Non-PD hooks are preserved; PD
+   * entries are upserted idempotently (mirrors the Claude adapter).
    */
   async injectHooks(workspaceRoot: string): Promise<void> {
     assertTentaclesPresent();
+    this.lastWorkspace = workspaceRoot;
+
     const cfgPath = join(workspaceRoot, '.gemini', 'settings.json');
     mkdirSync(dirname(cfgPath), { recursive: true });
+
     let cfg: Record<string, unknown> = {};
     if (existsSync(cfgPath)) {
       try {
         cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>;
       } catch {
-        cfg = {};
+        cfg = {}; // corrupt → start clean rather than crash (fail-open posture)
       }
     }
-    cfg['_pd_squid_note'] =
-      'VALIDATE-THEN-ADD: Gemini hook parity (synchronous, exit-2) is UNVERIFIED (ADR-0091).';
-    cfg['hooks'] = {
-      userPromptSubmit: tentaclePath('pd-hook-prompt'),
-      preToolUse: tentaclePath('pd-hook-pre-tool'),
-      postToolUse: tentaclePath('pd-hook-post-tool'),
+
+    const hooks = (cfg['hooks'] as Record<string, ClaudeHookMatcher[]>) ?? {};
+    const wanted: Record<string, ClaudeHookMatcher> = {
+      [GEMINI_EVENT.prompt]: claudeHookEntry(tentaclePath('pd-hook-prompt')),
+      [GEMINI_EVENT.preTool]: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), GEMINI_TOOL_MATCHER),
+      [GEMINI_EVENT.postTool]: claudeHookEntry(tentaclePath('pd-hook-post-tool'), GEMINI_TOOL_MATCHER),
     };
+    for (const [event, entry] of Object.entries(wanted)) {
+      const existing = hooks[event] ?? [];
+      const pruned = existing.filter(
+        (g) => !g.hooks?.some((h) => h.command?.includes('pd-hook-')),
+      );
+      pruned.push(entry);
+      hooks[event] = pruned;
+    }
+    cfg['hooks'] = hooks;
+
     writeFileSync(cfgPath, JSON.stringify(cfg, null, 2) + '\n', { mode: 0o644 });
   }
 
-  async spawnVoyage(): Promise<VoyageResult> {
-    throw new Error(
-      '[squid/adapter] GeminiSquidAdapter.spawnVoyage is validate-then-add: Gemini hook ' +
-        'parity is unverified. Validate .gemini/settings.json hooks (synchronous + exit-2) ' +
-        'before enabling. Refusing to claim a working harness.',
-    );
+  /**
+   * Spawn `gemini -p <directive> --approval-mode auto_edit` so the injected hooks
+   * fire inside Gemini's own lifecycle. Gemini does NOT natively set PD_ACTOR /
+   * PD_FLEET, so we inject them via the child env — the lock gate reads them to
+   * know "self".
+   */
+  async spawnVoyage(taskDirective: string, opts: SpawnVoyageOptions = {}): Promise<VoyageResult> {
+    const cwd = opts.workspaceRoot ?? this.lastWorkspace;
+    if (!cwd) {
+      throw new Error('[squid/adapter] gemini spawnVoyage: no workspaceRoot (call injectHooks first or pass one)');
+    }
+    assertTentaclesPresent();
+
+    // -p = non-interactive (headless); auto_edit auto-approves edit tools so the
+    // voyage runs unattended but still routes every tool through the hook gate.
+    const args = ['-p', taskDirective, '--approval-mode', 'auto_edit', ...(opts.extraArgs ?? [])];
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...(opts.actor ? { PD_ACTOR: opts.actor } : {}),
+      ...(opts.fleet ? { PD_FLEET: opts.fleet } : {}),
+      ...(opts.env ?? {}),
+    };
+
+    return runCli(this.binaryName, args, cwd, env, opts.timeoutMs);
   }
+}
+
+// ─── CodexSquidAdapter — IMPLEMENTED ──────────────────────────────────────────
+
+export class CodexSquidAdapter implements GiantSquidAdapter {
+  readonly providerName = 'codex';
+  readonly binaryName = 'codex';
+  /**
+   * VALIDATION STATE (set 2026-06-25, honestly):
+   *   The Codex CLI (v0.139.0) exposes a hook engine (`[hooks]` in config.toml,
+   *   `--dangerously-bypass-hook-trust` flag confirmed in `codex exec --help`).
+   *   pd-hook-pre-tool answers Codex's deny contract: when invoked with a Codex
+   *   event (`toolName`/`toolInput`) it emits exit-0 + stdout
+   *   `{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":
+   *   "deny",...}}` (Codex's documented gate) — proven contract-simulated in the
+   *   selftest. A full live `codex exec` block run was NOT captured in this slice
+   *   (hook trust + a live model turn are required), so `verified` stays `false`:
+   *   the flag is reserved to mean "live block captured".
+   */
+  readonly verified = false;
+
+  private lastWorkspace?: string;
+
+  /**
+   * Merge the tentacles into `.codex/config.toml` `[hooks]` using Codex's
+   * `[[hooks.<Event>]]` (matcher) + `[[hooks.<Event>.hooks]]` (type/command/
+   * timeout/async) schema. No TOML library is available, so we hand-emit a valid
+   * block and only append it once (idempotent on the marker comment).
+   */
+  async injectHooks(workspaceRoot: string): Promise<void> {
+    assertTentaclesPresent();
+    this.lastWorkspace = workspaceRoot;
+
+    const cfgPath = join(workspaceRoot, '.codex', 'config.toml');
+    mkdirSync(dirname(cfgPath), { recursive: true });
+
+    const block = codexHooksTomlBlock({
+      prompt: tentaclePath('pd-hook-prompt'),
+      pre: tentaclePath('pd-hook-pre-tool'),
+      post: tentaclePath('pd-hook-post-tool'),
+    });
+
+    const existing = existsSync(cfgPath) ? readFileSync(cfgPath, 'utf8') : '';
+    if (existing.includes(CODEX_PD_MARKER)) {
+      return; // already injected — idempotent
+    }
+    writeFileSync(cfgPath, existing + (existing && !existing.endsWith('\n') ? '\n' : '') + block, {
+      mode: 0o644,
+    });
+  }
+
+  /**
+   * Spawn `codex exec <directive>` (the non-interactive subcommand) so the
+   * injected hooks fire inside Codex's own lifecycle. Codex does NOT natively set
+   * PD_ACTOR / PD_FLEET; we inject them via the child env. `--cd <cwd>` pins the
+   * workspace and `--skip-git-repo-check` lets a scratch workdir run.
+   */
+  async spawnVoyage(taskDirective: string, opts: SpawnVoyageOptions = {}): Promise<VoyageResult> {
+    const cwd = opts.workspaceRoot ?? this.lastWorkspace;
+    if (!cwd) {
+      throw new Error('[squid/adapter] codex spawnVoyage: no workspaceRoot (call injectHooks first or pass one)');
+    }
+    assertTentaclesPresent();
+
+    const args = ['exec', '--cd', cwd, '--skip-git-repo-check', taskDirective, ...(opts.extraArgs ?? [])];
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...(opts.actor ? { PD_ACTOR: opts.actor } : {}),
+      ...(opts.fleet ? { PD_FLEET: opts.fleet } : {}),
+      ...(opts.env ?? {}),
+    };
+
+    return runCli(this.binaryName, args, cwd, env, opts.timeoutMs);
+  }
+}
+
+// ─── Codex TOML emitter (no TOML dep available) ───────────────────────────────
+
+const CODEX_PD_MARKER = 'Port Daddy Giant Squid Harness tentacles (ADR-0091)';
+
+/** Codex tool-name regex covering edit + shell tools (Codex tool naming). */
+const CODEX_TOOL_MATCHER = 'apply_patch|edit|write|str_replace_editor|shell|run_shell_command';
+
+/** TOML basic-string escape (backslash + double-quote). */
+function tomlString(v: string): string {
+  return '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+}
+
+/**
+ * Hand-emit a valid Codex `[hooks]` TOML block. Codex's schema (v0.139.0):
+ *   [[hooks.PreToolUse]]            # array-of-tables, one per matcher group
+ *   matcher = "<regex>"
+ *   [[hooks.PreToolUse.hooks]]      # the commands to run for that group
+ *   type = "command"
+ *   command = "<abs path>"
+ *   timeout = 10
+ *   async = false                   # PreToolUse must be SYNC to block
+ * PostToolUse is async (fire-and-forget pheromone). UserPromptSubmit is sync.
+ */
+function codexHooksTomlBlock(t: { prompt: string; pre: string; post: string }): string {
+  const L: string[] = [];
+  L.push(`# ${CODEX_PD_MARKER}.`);
+  L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
+  L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
+  L.push('# PostToolUse is async (pheromone append). UserPromptSubmit is sync (envelope).');
+  L.push('');
+  // UserPromptSubmit (sync)
+  L.push('[[hooks.UserPromptSubmit]]');
+  L.push('[[hooks.UserPromptSubmit.hooks]]');
+  L.push('type = "command"');
+  L.push(`command = ${tomlString(t.prompt)}`);
+  L.push('timeout = 10');
+  L.push('async = false');
+  L.push('');
+  // PreToolUse (sync, the enforced gate)
+  L.push('[[hooks.PreToolUse]]');
+  L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
+  L.push('[[hooks.PreToolUse.hooks]]');
+  L.push('type = "command"');
+  L.push(`command = ${tomlString(t.pre)}`);
+  L.push('timeout = 10');
+  L.push('async = false');
+  L.push('');
+  // PostToolUse (async pheromone)
+  L.push('[[hooks.PostToolUse]]');
+  L.push(`matcher = ${tomlString(CODEX_TOOL_MATCHER)}`);
+  L.push('[[hooks.PostToolUse.hooks]]');
+  L.push('type = "command"');
+  L.push(`command = ${tomlString(t.post)}`);
+  L.push('timeout = 10');
+  L.push('async = true');
+  L.push('');
+  return L.join('\n');
 }
 
 // ─── Registry ─────────────────────────────────────────────────────────────────

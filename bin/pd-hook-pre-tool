@@ -1,15 +1,34 @@
 #!/bin/sh
 # pd-hook-pre-tool — PreToolUse tentacle (ADR-0091, Giant Squid Harness)
 # =============================================================================
-# Claude Code invokes this BEFORE running a tool, passing the PreToolUse event
-# JSON on stdin: { tool_name, tool_input: { file_path|path|... }, cwd, ... }.
+# Multi-vendor PreToolUse gate. Invoked BEFORE a tool runs, with the event JSON
+# on stdin. This is the QUARTERMASTER (file locks) tentacle and the load-bearing
+# ENFORCED gate of the harness (ADR Success Criterion G2). If the requested file
+# target is locked in the Ink Cloud by a DIFFERENT actor, we BLOCK.
 #
-# This is the QUARTERMASTER (file locks) tentacle and the load-bearing ENFORCED
-# gate of the harness (ADR Success Criterion G2). If the requested file target is
-# locked in the Ink Cloud by a DIFFERENT actor (PD_LOCK_<path> = someone-else),
-# we `exit 2`. Claude Code treats exit code 2 on PreToolUse as a hard BLOCK: the
-# tool does not run, and our stderr is fed back into the agent's context as the
-# denial reason. exit 0 = allow.
+# VENDOR EVENT FORMATS + BLOCK CONTRACTS — verified 2026-06-25 against the actual
+# vendor binaries (gemini.js bundle EVENT_MAPPING; codex rust binary HookEvent
+# wire structs):
+#   Claude Code : { tool_name, tool_input:{ file_path|command }, cwd }.
+#                 BLOCK = exit 2 + stderr (stderr → agent context).
+#   Gemini CLI  : same snake_case shape — gemini's hook layer NORMALIZES to the
+#                 Claude event format (EVENT_MAPPING/TOOL_NAME_MAPPING in the
+#                 bundle). BLOCK = exit 2 + stderr (same as Claude).
+#   Codex CLI   : ALSO snake_case { tool_name, tool_input, tool_use_id, cwd,
+#                 hook_event_name } — confirmed by strings on the codex binary:
+#                 "tool_name" / "tool_input" / "hook_event_name" are the hook
+#                 input fields (the camelCase toolName/toolInput keys are Codex's
+#                 *app-server* protocol, a DIFFERENT surface). Codex supports the
+#                 SAME exit-2 + stderr block: the binary literally checks
+#                 "PreToolUse hook exited with code 2 but did not write a blocking
+#                 reason to stderr". It ALSO accepts exit-0 + stdout JSON
+#                 hookSpecificOutput.permissionDecision:"deny" with a non-empty
+#                 permissionDecisionReason.
+#
+# We therefore default to the universal exit-2 + stderr contract (works for all
+# three). When the event is the Codex *app-server* camelCase shape (toolName,
+# no snake_case tool_name), we instead emit the deny-JSON contract so that
+# surface is covered too. Both are first-class for Codex.
 #
 # Failure posture: on ANY parse error we fail OPEN (exit 0) — we never crash the
 # CLI loop. A missed lock is degraded coordination; a crashed loop is a broken
@@ -25,30 +44,40 @@ EVENT="$(cat 2>/dev/null || true)"
 [ -n "$EVENT" ] || exit 0          # no event → nothing to gate, allow
 [ -f "$MATRIX" ] || exit 0         # no matrix → no locks, allow
 
-# ── Extract the file target + tool name from the event ──────────────────────
+# ── Detect the camelCase Codex app-server shape (deny-JSON contract). ────────
+# Standard hook input (Claude/Gemini/Codex-hooks) is snake_case tool_name. Only
+# the Codex app-server camelCase event (toolName, NO tool_name) needs the JSON
+# deny contract. Everything else gets the universal exit-2 + stderr block.
+CAMEL=0
+case "$EVENT" in
+  *'"tool_name"'*) CAMEL=0 ;;       # snake_case → exit-2 contract
+  *'"toolName"'*) CAMEL=1 ;;        # camelCase app-server → deny-JSON contract
+  *) CAMEL=0 ;;
+esac
+
+# ── Extract the file target + tool name from the event (both shapes) ─────────
 TOOL=""
 TARGET=""
 if command -v jq >/dev/null 2>&1; then
-  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .tool // empty' 2>/dev/null || true)"
-  # Claude Code Edit/Write/MultiEdit put the path under tool_input.file_path;
-  # also check a few common aliases so codex/gemini parity is graceful.
+  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .toolName // .tool // empty' 2>/dev/null || true)"
   TARGET="$(printf '%s' "$EVENT" | jq -r '
       .tool_input.file_path
       // .tool_input.path
       // .tool_input.notebook_path
+      // .toolInput.file_path
+      // .toolInput.path
       // .params.file_path
       // .target
       // empty' 2>/dev/null || true)"
 else
-  # jq-less fallback: grep the first "file_path":"..." out of the JSON. Crude but
-  # dependency-free; only the path matters for the gate.
+  # jq-less fallback: the inner key is "file_path" in every vendor shape.
   TARGET="$(printf '%s' "$EVENT" \
     | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
   TOOL="$(printf '%s' "$EVENT" \
-    | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+    | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 fi
 
-# No file target (e.g. Bash/Grep) → nothing to lock-check, allow.
+# No file target (e.g. Bash/Grep/run_shell_command) → nothing to lock-check, allow.
 [ -n "$TARGET" ] || exit 0
 
 # ── Compute the canonical PD_LOCK_<path> key (matches lib/squid/matrix.ts) ──
@@ -75,7 +104,19 @@ if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
   exit 0
 fi
 
-# Locked by ANOTHER actor → ENFORCED BLOCK. stderr becomes the agent's denial.
+# ── BLOCK. Respond in the contract the calling surface understands. ─────────
+if [ "$CAMEL" -eq 1 ]; then
+  # Codex app-server camelCase surface: exit 0 + stdout deny JSON. Codex requires
+  # a NON-EMPTY permissionDecisionReason or it rejects the output.
+  REASON="[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${TARGET}' is locked by actor '${OWNER}'. Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing."
+  ESCAPED="$(printf '%s' "$REASON" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s"}}\n' "$ESCAPED"
+  exit 0
+fi
+
+# Universal contract (Claude / Gemini / Codex-hooks): exit 2 + stderr.
+# The blocking reason MUST be on stderr (Codex binary rejects exit-2 with no
+# stderr: "exited with code 2 but did not write a blocking reason to stderr").
 echo "[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${TARGET}' is locked by actor '${OWNER}'." >&2
 echo "Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing." >&2
 exit 2

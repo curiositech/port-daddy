@@ -25,24 +25,30 @@ SELF="${PD_ACTOR:-unknown}"
 EVENT="$(cat 2>/dev/null || true)"
 [ -n "$EVENT" ] || exit 0
 
-# ── Extract tool + file target + success signal ─────────────────────────────
+# ── Extract tool + file target + success signal (multi-vendor) ──────────────
+# Claude/Gemini use snake_case (tool_name / tool_input.*); Codex uses camelCase
+# (toolName / toolInput.*). We read both so a pheromone lands for every vendor.
 TOOL=""
 TARGET=""
 if command -v jq >/dev/null 2>&1; then
-  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .tool // empty' 2>/dev/null || true)"
+  TOOL="$(printf '%s' "$EVENT" | jq -r '.tool_name // .toolName // .tool // empty' 2>/dev/null || true)"
   TARGET="$(printf '%s' "$EVENT" | jq -r '
       .tool_input.file_path
       // .tool_input.path
       // .tool_input.notebook_path
+      // .toolInput.file_path
+      // .toolInput.path
       // empty' 2>/dev/null || true)"
 else
-  TOOL="$(printf '%s' "$EVENT" | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
+  TOOL="$(printf '%s' "$EVENT" | sed -n 's/.*"tool[_N]ame"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
   TARGET="$(printf '%s' "$EVENT" | sed -n 's/.*"file_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
 fi
 
 # Only file-mutating tools leave a pheromone. Read-only tools are no-ops.
+# Names span vendors: Claude (Edit/Write/MultiEdit/NotebookEdit), Gemini
+# (replace/write_file), Codex (apply_patch/str_replace_editor/edit/write/create).
 case "$TOOL" in
-  Edit|Write|MultiEdit|NotebookEdit|edit|write|create|str_replace_editor|apply_patch) : ;;
+  Edit|Write|MultiEdit|NotebookEdit|edit|write|create|str_replace_editor|apply_patch|replace|write_file) : ;;
   *) [ -n "$TARGET" ] || exit 0 ;;   # unknown tool but a target → still record
 esac
 [ -n "$TARGET" ] || exit 0
