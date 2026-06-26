@@ -241,4 +241,10 @@ If the graph is build-once and never mutated (an AST), `typed-arena` (`&'arena N
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/validate_skill.py` | Self-check: frontmatter, required references/examples, mermaid present, SKILL.md line budget, example Cargo.toml sanity |
+| `skills/rust-data-structures-advanced/scripts/validate_skill.py` | Self-check: frontmatter, required references/examples, mermaid present, SKILL.md line budget, example Cargo.toml sanity. Run `python3 scripts/validate_skill.py` from the skill directory. |
+
+## Interface
+
+UI/catalog metadata for this first-party skill lives in `agents/openai.yaml` (display name,
+short description, recommended context, and `quality_gates`). Update it alongside the skill
+purpose so chips and skill lists stay accurate.
