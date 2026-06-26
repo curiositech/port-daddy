@@ -28,6 +28,14 @@ export interface GitHubState {
   /** existing check runs returned by the commit check-runs lookup. */
   existingCheckRuns: Array<{ id: number; name: string }>;
   completed: Array<{ id: number; conclusion: string; summary: string }>;
+  /** GitHub Reviews created via POST /pulls/{n}/reviews (inline comments). */
+  reviews: Array<{
+    event: string;
+    body: string;
+    comments: Array<{ path: string; line: number; body: string }>;
+  }>;
+  /** Override the PR diff body. Defaults to a single-file one-hunk diff. */
+  prDiff?: string;
   /** if set, the first N installation-token mints return 401-ish failure. */
   failTokenMintTimes: number;
   /** if set, the first N contents fetches of pd-fleet.yml return 401. */
@@ -48,6 +56,8 @@ export function freshState(): GitHubState {
     checkRunsCreated: 0,
     existingCheckRuns: [],
     completed: [],
+    reviews: [],
+    prDiff: undefined,
     failTokenMintTimes: 0,
     failConfig401: 0,
     failCreateCheckRun: 0,
@@ -116,9 +126,23 @@ export function installGitHubFetch(state: GitHubState): void {
     if (/\/pulls\/\d+\/files/.test(url)) {
       return json([{ filename: 'src/x.ts', status: 'modified', additions: 3, deletions: 1 }]);
     }
+    // --- create review (inline comments) ---
+    if (/\/pulls\/\d+\/reviews$/.test(url) && method === 'POST') {
+      const b = (body ?? {}) as {
+        event?: string;
+        body?: string;
+        comments?: Array<{ path: string; line: number; body: string }>;
+      };
+      state.reviews.push({
+        event: b.event ?? '',
+        body: b.body ?? '',
+        comments: (b.comments ?? []).map(c => ({ path: c.path, line: c.line, body: c.body })),
+      });
+      return json({ id: 7000 + state.reviews.length });
+    }
     // --- PR diff (Accept: diff) ---
     if (/\/pulls\/\d+$/.test(url)) {
-      return text('diff --git a/src/x.ts b/src/x.ts\n+changed');
+      return text(state.prDiff ?? 'diff --git a/src/x.ts b/src/x.ts\n+changed');
     }
 
     // --- commit check-runs lookup (idempotency) ---
@@ -198,40 +222,61 @@ export function memoryKV(): KVNamespace & { _store: Map<string, string>; _gets: 
 
 export interface AiStub {
   ai: Ai;
-  calls: Array<{ model: string }>;
+  /** Every AI call: which model, the map/reduce phase, and the routed ship. */
+  calls: Array<{ model: string; phase: 'map' | 'reduce'; ship: string | null }>;
 }
 
 /**
- * Workers AI stub. `outputs` maps a marker substring of the system prompt to a
- * response; we route by ship name embedded in the prompt. `fleetParser` is the
- * response returned for the parseFleetShips meta-call (model qwen3-30b).
+ * Workers AI stub for the map-reduce executor.
+ *
+ * Routing: the ship is identified by its name appearing in the system prompt
+ * (the ship prompt and the REDUCE manager prompt both embed it). The REDUCE
+ * manager call is recognized by the `REDUCE manager` marker in its system
+ * prompt and returns `managerOutput` (a global string, or a per-ship map).
+ *
+ * `perShip` is the per-CHUNK (MAP) response; `managerOutput` is the merged
+ * (REDUCE) response. `throwForShip` makes that ship's call throw (used to
+ * exercise the fail-closed path). `fleetParser` is accepted but ignored — the
+ * deterministic YAML parser replaced the old LLM extraction call.
  */
 export function aiStub(opts: {
   perShip: Record<string, string>;
-  fleetParser?: string;
+  managerOutput?: string | Record<string, string>;
   throwForShip?: string;
+  fleetParser?: string;
 }): AiStub {
-  const calls: Array<{ model: string }> = [];
-  const run = async (model: string, args: { messages: Array<{ role: string; content: string }> }) => {
-    calls.push({ model });
-    const sys = args.messages.find(m => m.role === 'system')?.content ?? '';
-    const user = args.messages.find(m => m.role === 'user')?.content ?? '';
+  const calls: AiStub['calls'] = [];
 
-    // parseFleetShips uses a single user message asking to "Extract all ships".
-    if (!sys && /Extract all ships/.test(user)) {
-      return { response: opts.fleetParser ?? '[]' };
+  const matchShip = (sys: string): string | null => {
+    for (const ship of Object.keys(opts.perShip)) {
+      if (sys.includes(ship)) return ship;
+    }
+    return null;
+  };
+
+  const run = async (model: string, args: { messages: Array<{ role: string; content: string }> }) => {
+    const sys = args.messages.find(m => m.role === 'system')?.content ?? '';
+    const ship = matchShip(sys);
+
+    // --- REDUCE manager call ---
+    if (/REDUCE manager/.test(sys)) {
+      calls.push({ model, phase: 'reduce', ship });
+      if (ship && opts.throwForShip === ship) throw new Error('AI exploded (reduce)');
+      const mgr = opts.managerOutput;
+      const out =
+        typeof mgr === 'string' ? mgr : ship && mgr ? mgr[ship] : undefined;
+      return { response: out ?? (ship ? opts.perShip[ship] : 'merged\n\nFLEET-VERDICT: PASS') };
     }
 
-    for (const [ship, out] of Object.entries(opts.perShip)) {
-      // ship name appears in the contract path and prompt; match on "pd-<ship>"
-      // or the bare ship name in the system prompt.
-      if (sys.includes(ship)) {
-        if (opts.throwForShip === ship) throw new Error('AI exploded');
-        return { response: out };
-      }
+    // --- MAP call ---
+    calls.push({ model, phase: 'map', ship });
+    if (ship) {
+      if (opts.throwForShip === ship) throw new Error('AI exploded');
+      return { response: opts.perShip[ship] };
     }
     return { response: 'no match\n\nFLEET-VERDICT: PASS' };
   };
+
   const ai = { run: vi.fn(run) } as unknown as Ai;
   return { ai, calls };
 }

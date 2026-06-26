@@ -60,6 +60,28 @@ function shouldEnqueueFleetRun(eventType: string, action: string | null): boolea
   return eventType === 'pull_request' && FLEET_PR_ACTIONS.has(action ?? '');
 }
 
+// GitHub Apps fire a flood of workflow_run / check_run / push / *_review events
+// on every CI cycle. Persisting and fanning out all of them bloats the D1 event
+// table (and every per-channel hash chain) with ambient noise that no subscriber
+// reads. We persist + publish + enqueue ONLY the PR-family (event, action) pairs
+// below; every other event is still HMAC-verified (security gate unchanged) and
+// acknowledged with 204, but writes nothing to D1 and starts no fleet run.
+const PERSIST_EVENT_TYPES = new Set([
+  'pull_request:opened',
+  'pull_request:closed',
+  'pull_request:reopened',
+  'pull_request:synchronize',
+  'pull_request:ready_for_review',
+  'pull_request:labeled',
+  'pull_request:unlabeled',
+]);
+function shouldPersistEvent(eventType: string, action: string | null): boolean {
+  return (
+    eventType === 'pull_request' &&
+    PERSIST_EVENT_TYPES.has(action ? `${eventType}:${action}` : eventType)
+  );
+}
+
 /**
  * Compute the canonical set of channel strings for a normalized webhook.
  * Order matters and matches the channel/normalization spec.
@@ -152,7 +174,8 @@ async function publishGithubEventToChannel(
  * 401 — missing X-Hub-Signature-256, missing secret, or signature mismatch
  * 400 — missing X-GitHub-Event, malformed body / JSON
  * 409 — chain conflict on a target channel
- * 204 — accepted and fanned out to all channels
+ * 204 — accepted; either fanned out to all channels (PR-family event) or
+ *       verified-and-ignored (non-PR event: audited, nothing persisted)
  */
 export async function handleGithubWebhook(request: Request, env: Env): Promise<Response> {
   // 0. Method gate (router only dispatches POST, but fail closed defensively).
@@ -224,7 +247,20 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
     )
   );
 
-  // 6. Publish to every channel via the internal path. Wrap in try/catch so an
+  // 6. Ambient-noise gate. Only PR-family events earn a D1 write + fan-out.
+  //    Every other event was still HMAC-verified above (security gate is
+  //    unchanged); we acknowledge it with 204 and record a single audit row so
+  //    the delivery is traceable, but we persist NOTHING and start no fleet run.
+  if (!shouldPersistEvent(eventType, action)) {
+    await appendAudit(env.DB, {
+      action: 'github_webhook_ignored',
+      target: repoFullName ?? '',
+      detail: `event=${eventType} action=${action ?? ''} delivery=${deliveryId} (not a PR event)`,
+    }).catch(() => {});
+    return new Response(null, { status: 204 });
+  }
+
+  // 7. Publish to every channel via the internal path. Wrap in try/catch so an
   //    infra failure (D1 / Durable Object unreachable, permission error, any
   //    non-ChainError throw from insertEvent / getLastEventSeq / upsertChainHead
   //    / appendAudit) fails CLOSED with a controlled 503 — GitHub then retries
@@ -243,7 +279,7 @@ export async function handleGithubWebhook(request: Request, env: Env): Promise<R
     return err('INGEST_FAILED', 'relay storage error while publishing webhook', 503);
   }
 
-  // 7. Hand ONE job per delivery to the fleet-executor queue. Guarded: a queue
+  // 8. Hand ONE job per delivery to the fleet-executor queue. Guarded: a queue
   //    failure (or the queue not yet provisioned) must NOT fail the webhook —
   //    we've already published to channels. The executor's own retry/DLQ owns
   //    durability from here. installation.id / pull_request.number are read
