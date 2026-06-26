@@ -9,7 +9,16 @@
     Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
     Last activity: <AGE> ago
 
-  $ pd pheromone --help || true
+  $ npx tsx examples/tunnel/share-preview.ts inspect
+  Tunnel providers
+    ngrok        installed
+    cloudflared  installed
+    localtunnel  installed
+
+  Active tunnels
+    none
+
+  $ pd tunnel --help || true
   Get started:
     pd setup                  [notify] Install daemon, MCP, FleetBar, init project
     pd begin "purpose" --lifecycle durable  [notify] I'll set up your agent + session
@@ -28,6 +37,3 @@
     pd note "message"        [notify] Leave a note
     pd notes                 [silent] Review recent notes
     pd feedback "message"    [notify] Drop structured feedback (auto-slug, agent from context)
-
-  $ pd pheromone files --path website-v2/src/pages/tutorials --depth 1
-    (no hot files — harbor is calm)

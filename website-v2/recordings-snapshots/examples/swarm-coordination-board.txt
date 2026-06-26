@@ -1,0 +1,36 @@
+  $ pd status
+  Port Daddy is running
+    Version: <VERSION> (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd pub examples:swarm '{"stage":"research","status":"done","next":"build"}' --raw-channel
+  SUCCESS: Published to examples:swarm (id: 1)
+
+  $ pd pub examples:swarm '{"stage":"build","status":"running"}' --raw-channel
+  SUCCESS: Published to examples:swarm (id: 2)
+
+  $ pd tube examples:swarm --once --limit=2
+  ──── event id=1 · channel examples:swarm ────
+  From: CLI · <DATETIME>
+  Body:
+    {"stage":"research","status":"done","next":"build"}
+
+  Act on the event above, then post your response by running:
+
+      pd tube examples:swarm --reply "your response here"
+
+  That command posts a reply correlated to id=1 AND continues
+  listening. Use --raw / --json for machine output. Ctrl+C to exit.
+  ──────────────────────────────────────
+  ──── event id=2 · channel examples:swarm ────
+  From: CLI · <DATETIME>
+  Body:
+    {"stage":"build","status":"running"}
+
+  Act on the event above, then post your response by running:

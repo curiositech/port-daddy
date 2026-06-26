@@ -1,7 +1,7 @@
   $ pd begin --help || true
   Get started:
     pd setup                  [notify] Install daemon, MCP, FleetBar, init project
-    pd begin "purpose"       [notify] I'll set up your agent + session
+    pd begin "purpose" --lifecycle durable  [notify] I'll set up your agent + session
     pd done "summary"        [notify] Finish up — I'll clean everything
     pd whoami                [silent] See your current context
     pd attention             [notify] What other agents queued for you (run first thing!)
@@ -21,7 +21,7 @@
   $ pd done --help || true
   Get started:
     pd setup                  [notify] Install daemon, MCP, FleetBar, init project
-    pd begin "purpose"       [notify] I'll set up your agent + session
+    pd begin "purpose" --lifecycle durable  [notify] I'll set up your agent + session
     pd done "summary"        [notify] Finish up — I'll clean everything
     pd whoami                [silent] See your current context
     pd attention             [notify] What other agents queued for you (run first thing!)

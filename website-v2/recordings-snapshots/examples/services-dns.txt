@@ -1,0 +1,49 @@
+  $ pd status
+  Port Daddy is running
+    Version: <VERSION> (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd claim shop:api:main --json
+  {
+    "success": true,
+    "id": "shop:api:main",
+    "port": 3103,
+    "status": "assigned",
+    "existing": false,
+    "message": "assigned new port"
+  }
+
+  $ pd find shop:api:main
+
+  ID                                 PORT    STATUS      URL
+  ───────────────────────────────────────────────────────────────────────────
+  shop:api:main                      3103    assigned    http://localhost:<PORT>
+
+  Total: 1 service(s)
+
+  $ pd dns --help || true
+  DNS Records — Local service discovery via hostname
+
+  Commands:
+    dns register             Register a DNS record
+      --hostname <name>      Hostname to register
+      --port <n>             Port to resolve to
+      --service <id>         Associated service identity
+
+    dns lookup <hostname>    Resolve a hostname to port
+    dns list                 List all DNS records
+    dns cleanup              Clean stale DNS records
+    dns status               DNS system status
+
+  Examples:
+    pd dns register --hostname api.local --port <PORT> --service myapp:api
+    pd dns lookup api.local
+
+  $ pd release shop:api:main
+  released shop:api:main (port <PORT>)

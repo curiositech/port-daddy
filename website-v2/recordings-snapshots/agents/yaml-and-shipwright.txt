@@ -3,7 +3,7 @@
   INFO: Validating ./pd-fleet.yml
 
   SUCCESS: Fleet "port-daddy" parsed successfully
-    agents:   13
+    agents:   16
     watchers: 3
     channels: 13
     budget:   8.5

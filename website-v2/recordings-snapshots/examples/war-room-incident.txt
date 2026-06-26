@@ -1,0 +1,36 @@
+  $ pd status
+  Port Daddy is running
+    Version: <VERSION> (<HASH>)
+    PID <PID>
+    Uptime: <UPTIME>
+    Active ports: 3
+    Runtime: nominal
+    Fleet: 0 project(s), 0 agent(s)
+    Bosun: idle — daemon heartbeat writer active; pd-bosun supervisor not installed (optional)
+    Last activity: <AGE> ago
+
+  $ pd pub examples:war-room '{"agent":"db","finding":"connection pool exhausted"}' --raw-channel
+  SUCCESS: Published to examples:war-room (id: 1)
+
+  $ pd pub examples:war-room '{"agent":"api","finding":"5xx spike confirmed"}' --raw-channel
+  SUCCESS: Published to examples:war-room (id: 2)
+
+  $ pd tube examples:war-room --once --limit=2
+  ──── event id=1 · channel examples:war-room ────
+  From: CLI · <DATETIME>
+  Body:
+    {"agent":"db","finding":"connection pool exhausted"}
+
+  Act on the event above, then post your response by running:
+
+      pd tube examples:war-room --reply "your response here"
+
+  That command posts a reply correlated to id=1 AND continues
+  listening. Use --raw / --json for machine output. Ctrl+C to exit.
+  ──────────────────────────────────────
+  ──── event id=2 · channel examples:war-room ────
+  From: CLI · <DATETIME>
+  Body:
+    {"agent":"api","finding":"5xx spike confirmed"}
+
+  Act on the event above, then post your response by running:
