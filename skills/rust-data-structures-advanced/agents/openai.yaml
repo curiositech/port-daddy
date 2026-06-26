@@ -1,0 +1,31 @@
+name: rust-data-structures-advanced
+display_name: Rust Data Structures (Advanced)
+description: >
+  Pick the advanced Rust data structure that makes ownership trivial instead of fighting the
+  borrow checker — arenas & generational indices, petgraph, lock-free/concurrent containers,
+  inline & cache-friendly structures, copy-on-write/persistent structures, interning, bitsets,
+  and choosing a map/hasher.
+icon: layers
+tags:
+  - rust
+  - data-structures
+  - arena
+  - generational-index
+  - lock-free
+  - cache-locality
+entrypoint: SKILL.md
+recommended_context:
+  - references/01-arenas-and-graphs.md
+  - references/02-concurrent-and-lockfree.md
+  - references/03-small-and-cache-friendly.md
+  - references/04-choosing-a-map.md
+  - examples/slotmap_graph.rs
+  - examples/crossbeam_pipeline.rs
+quality_gates:
+  - scripts/validate_skill.py
+interface:
+  display_name: "Rust Data Structures (Advanced)"
+  short_description: "Choose the Rust structure that makes ownership trivial"
+  default_prompt: "Use $rust-data-structures-advanced to choose the right structure for this access pattern instead of reaching for Rc<RefCell>."
+policy:
+  allow_implicit_invocation: true

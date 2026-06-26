@@ -21,6 +21,7 @@ use gpui::*;
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Block, Tone};
+use crate::tokens;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
@@ -130,40 +131,51 @@ struct Tab {
 }
 
 // ── Nav items ────────────────────────────────────────────────────────────────
+// The grid data (`NavItem`, `NAV`) and the slot map (`SLOT_PANE_IDS`) live in the
+// gpui-free `crate::grid` module so they compile into the headless REPL bin too,
+// where the 1:1 invariant tests run under the rust-console CI gate.
+use crate::grid::NAV;
 
-#[allow(dead_code)] // label/icon retained for the title-bar + future surface picker
-struct NavItem {
-    id: &'static str,
-    label: &'static str,
-    /// SVG asset path (custom stroke icons — never emoji; operator rule).
-    icon: &'static str,
-    key: &'static str,
+/// ADHD-friendly launcher colour-coding: each pane *category* gets a distinct,
+/// vivid maritime hue so the eye can navigate the grid by colour instead of
+/// reading all 22 labels. Uses only on-brand palette tokens (signal-flag +
+/// status hues), never an invented hex.
+///
+/// - **Live** (agents in motion) → `cobalt` (sky blue)
+/// - **Control** (operator levers) → `accent` (amber brand)
+/// - **Knowledge** (settled docs/graphs) → `landed` (mint)
+/// - **Records** (observability readouts) → `gated` (coral)
+fn launcher_tone(id: &str, t: &Theme) -> u32 {
+    match id {
+        "fleet" | "cockpit" | "sorties" | "lane" | "peek" => t.cobalt,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" => t.accent,
+        "roadmap" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
+        _ => t.gated, // activity, sessions, inbox, prs, health, ledger
+    }
 }
 
-const NAV: &[NavItem] = &[
-    NavItem { id: "fleet",    label: "Fleet",    icon: "icons/nav/fleet.svg",    key: "1" },
-    NavItem { id: "cockpit",  label: "Cockpit",  icon: "icons/nav/cockpit.svg",  key: "2" },
-    NavItem { id: "sorties",  label: "Sorties",  icon: "icons/nav/sorties.svg",  key: "3" },
-    NavItem { id: "claims",   label: "Claims",   icon: "icons/nav/claims.svg",   key: "4" },
-    NavItem { id: "peek",     label: "Peek",     icon: "icons/nav/peek.svg",     key: "5" },
-    NavItem { id: "roadmap",  label: "Roadmap",  icon: "icons/nav/roadmap.svg",  key: "6" },
-    NavItem { id: "adrs",     label: "ADRs",     icon: "icons/nav/adrs.svg",     key: "7" },
-    NavItem { id: "activity", label: "Activity", icon: "icons/nav/activity.svg", key: "8" },
-    NavItem { id: "sessions", label: "Sessions", icon: "icons/nav/sessions.svg", key: "9" },
-    NavItem { id: "inbox",    label: "Inbox",    icon: "icons/nav/inbox.svg",    key: "0" },
-    NavItem { id: "suggest",  label: "Suggest",  icon: "icons/nav/suggest.svg",  key: "s" },
-    NavItem { id: "memory",   label: "Memory",   icon: "icons/nav/memory.svg",   key: "m" },
-    NavItem { id: "prs",      label: "PRs",      icon: "icons/nav/prs.svg",      key: "p" },
-    NavItem { id: "health",   label: "Health",   icon: "icons/nav/health.svg",   key: "h" },
-    NavItem { id: "coast",    label: "C.Guard",  icon: "icons/nav/coast.svg",    key: "c" },
-    NavItem { id: "dispatch", label: "Dispatch", icon: "icons/nav/dispatch.svg", key: "d" },
-    NavItem { id: "lane",     label: "Lane",     icon: "icons/nav/sorties.svg",  key: "l" },
-    NavItem { id: "ledger",   label: "Cost",     icon: "icons/nav/ledger.svg",   key: "b" },
-    NavItem { id: "lineage",  label: "Lineage",  icon: "icons/nav/lineage.svg",  key: "g" },
-    NavItem { id: "substrate",label: "Substrate",icon: "icons/nav/substrate.svg",key: "y" },
-    NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
-    NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/dispatch.svg", key: "k" },
-];
+/// A faint wash of a tile's tone for chip/pill backgrounds (`color` at `alpha`).
+fn tone_wash(color: u32, alpha: u8) -> Rgba {
+    rgba((color << 8) | alpha as u32)
+}
+
+/// One entry in the launcher's colour legend: a filled dot + a category label,
+/// so the hue-coding is self-explaining rather than something to memorise.
+fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
+    let t = current_theme();
+    div()
+        .flex()
+        .items_center()
+        .gap(px(6.0))
+        .child(div().w(px(11.0)).h(px(11.0)).rounded(px(6.0)).bg(rgb(color)))
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(label),
+        )
+}
 
 // ── Live palette — light + dark, from `crate::palette` (maritime/neobrutalism) ──
 // One process-global mode (a single window), flipped by `Ctrl-A g`. `current_theme()`
@@ -195,6 +207,13 @@ fn reduced_motion() -> bool {
     std::env::var("PD_CONSOLE_REDUCED_MOTION")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
+}
+
+/// `PD_CONSOLE_NO_SPLASH` opt-out — suppresses the launch splash entirely.
+/// Read once (env is fixed for the process); the render gate consults this.
+fn splash_disabled() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::var("PD_CONSOLE_NO_SPLASH").is_ok())
 }
 
 /// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
@@ -252,7 +271,119 @@ mod motion {
 
 // ── Block renderer ───────────────────────────────────────────────────────────
 
-fn render_block(block: Block) -> impl IntoElement {
+/// Per-frame pole movement that drives the flag wave (the model headlessly
+/// recorded in `core/pd-flag-proto`). A flag's fly edge trails OPPOSITE the pole
+/// velocity — scroll down → cloth trails up; resize/pan right → cloth trails
+/// left — and `phase` only advances while moving, so a still flag does not
+/// animate (zero idle re-render). `Copy` so a snapshot rides into `render_block`.
+#[derive(Clone, Copy, Default)]
+pub struct FlagMotion {
+    pub vx: f32, // horizontal pole velocity (resize / pane-move); + = rightward
+    pub vy: f32, // vertical pole velocity (scroll); + = downward
+    pub phase: f32,
+}
+
+fn smoothstep(u: f32) -> f32 {
+    u * u * (3.0 - 2.0 * u)
+}
+
+/// Scale a packed 0xRRGGBB color by a brightness factor (cloth fold shading).
+fn scale_rgb(c: u32, f: f32) -> u32 {
+    let f = f.clamp(0.0, 1.4);
+    let r = ((((c >> 16) & 0xff) as f32) * f).min(255.0) as u32;
+    let g = ((((c >> 8) & 0xff) as f32) * f).min(255.0) as u32;
+    let b = (((c & 0xff) as f32) * f).min(255.0) as u32;
+    (r << 16) | (g << 8) | b
+}
+
+/// A small waving signal flag drawn as shaded cloth strips via gpui's T2 paint
+/// API (`canvas` + `PathBuilder` + `paint_path`), driven by `FlagMotion`. The
+/// letter rides centered on top. Replaces the old flat badge in `Block::Flag`.
+#[derive(IntoElement)]
+struct WavingFlag {
+    letter: char,
+    color: u32,
+    motion: FlagMotion,
+}
+
+impl RenderOnce for WavingFlag {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        const W: f32 = 46.0;
+        const H: f32 = 28.0;
+        const STRIPS: usize = 14;
+        const LEAN: f32 = 0.40; // fly-edge trail per unit velocity
+        const IDLE_DROOP: f32 = 0.12; // gentle hang at rest
+        const RIPPLE_GAIN: f32 = 0.42; // ripple amplitude per unit speed
+        const RIPPLE_WAVES: f32 = 1.5;
+
+        let FlagMotion { vx, vy, phase } = self.motion;
+        let base = self.color;
+        let letter = self.letter;
+        let speed = (vx * vx + vy * vy).sqrt().min(1.6);
+
+        div()
+            .relative()
+            .w(px(W))
+            .h(px(H))
+            .child(
+                canvas(
+                    |_bounds, _window, _cx| (),
+                    move |bounds, _prepaint, window, _cx| {
+                        let ox = f32::from(bounds.origin.x);
+                        let oy = f32::from(bounds.origin.y);
+                        let bw = f32::from(bounds.size.width);
+                        let bh = f32::from(bounds.size.height);
+                        // Inset the cloth so droop/ripple stay inside the badge.
+                        let ft = oy + 0.14 * bh;
+                        let fh = 0.60 * bh;
+                        let two_pi = std::f32::consts::TAU;
+                        let dx = |u: f32| smoothstep(u) * (-vx) * LEAN * bw;
+                        let dy = |u: f32| {
+                            smoothstep(u) * (-vy) * LEAN * fh
+                                + IDLE_DROOP * fh * u * u
+                                + RIPPLE_GAIN * fh * speed * u * (two_pi * RIPPLE_WAVES * u - phase).sin()
+                        };
+                        for j in 0..STRIPS {
+                            let u0 = j as f32 / STRIPS as f32;
+                            let u1 = (j + 1) as f32 / STRIPS as f32;
+                            let x0 = ox + u0 * bw + dx(u0);
+                            let x1 = ox + u1 * bw + dx(u1);
+                            let d0 = dy(u0);
+                            let d1 = dy(u1);
+                            let um = 0.5 * (u0 + u1);
+                            let fold = (two_pi * RIPPLE_WAVES * um - phase).cos();
+                            let light = 0.82 + 0.34 * fold * (speed / 1.6) + 0.06 * um;
+                            let mut pb = PathBuilder::fill();
+                            pb.move_to(point(px(x0), px(ft + d0)));
+                            pb.line_to(point(px(x1), px(ft + d1)));
+                            pb.line_to(point(px(x1), px(ft + fh + d1)));
+                            pb.line_to(point(px(x0), px(ft + fh + d0)));
+                            pb.close();
+                            if let Ok(path) = pb.build() {
+                                window.paint_path(path, rgb(scale_rgb(base, light)));
+                            }
+                        }
+                    },
+                )
+                .absolute()
+                .size_full(),
+            )
+            .child(
+                div()
+                    .absolute()
+                    .size_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .text_color(rgb(0x0d141f))
+                    .text_size(px(14.0))
+                    .font_weight(FontWeight::BOLD)
+                    .child(letter.to_string()),
+            )
+    }
+}
+
+fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
     match block {
         Block::Header(text) => {
             div()
@@ -324,31 +455,15 @@ fn render_block(block: Block) -> impl IntoElement {
                 .into_any_element()
         }
         Block::Flag { letter, label, tone } => {
-            let color = rgb(tone_rgb(&tone));
+            // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
+            // reacts to pane scroll/resize via `motion`; the letter rides it.
             div()
                 .flex()
                 .items_center()
                 .gap(px(8.0))
                 .px(px(16.0))
                 .py(px(3.0))
-                .child(
-                    // The signal flag itself: a bold square hoist in the flag's
-                    // semantic tone, bearing the ICS letter.
-                    div()
-                        .w(px(22.0))
-                        .h(px(22.0))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(3.0))
-                        .border_2()
-                        .border_color(color)
-                        .bg(rgb(current_theme().raised))
-                        .text_color(color)
-                        .text_size(px(13.0))
-                        .font_weight(FontWeight::BOLD)
-                        .child(letter.to_string()),
-                )
+                .child(WavingFlag { letter, color: tone_rgb(&tone), motion })
                 .child(
                     div()
                         .text_color(rgb(current_theme().ink))
@@ -453,11 +568,49 @@ pub struct ConsoleView {
     /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
     /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
     launcher_open: bool,
+    /// True once the first pane refresh has landed. Until then the launch splash
+    /// (the brand boot flash) covers the chrome.
+    booted: bool,
+    /// Pole movement driving the waving flags — scroll feeds `vy`, viewport-width
+    /// change feeds `vx`; both decay to rest each frame (see WavingFlag / pd-flag-proto).
+    flag_motion: FlagMotion,
+    /// Last viewport width, to derive horizontal (resize/pan) velocity per frame.
+    prev_viewport_w: f32,
+    /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
+    flag_ticking: bool,
 }
 
 impl ConsoleView {
     pub fn new(daemon_url: String, initial_pane: Option<String>, cx: &mut Context<Self>) -> Self {
         Self::with_control(daemon_url, initial_pane, None, cx)
+    }
+
+    /// Advance the flag wave one frame and keep ticking until it settles.
+    /// Driven by `cx.on_next_frame` — safe to schedule from anywhere, unlike
+    /// `window.request_animation_frame()` which panics outside paint (it calls
+    /// `current_view()`, whose entity stack is empty in an event handler).
+    fn tick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let speed = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt();
+        self.flag_motion.phase += speed * 0.9;
+        self.flag_motion.vx *= 0.86;
+        self.flag_motion.vy *= 0.86;
+        let still_moving = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt() > 0.012;
+        if still_moving {
+            cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
+        } else {
+            self.flag_motion.vx = 0.0;
+            self.flag_motion.vy = 0.0;
+            self.flag_ticking = false;
+        }
+        cx.notify();
+    }
+
+    /// Start the settle loop if it isn't already running (idempotent).
+    fn kick_flag_motion(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.flag_ticking {
+            self.flag_ticking = true;
+            cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
+        }
     }
 
     /// Construct with a control channel so the Lane's Interrupt button can reach
@@ -495,6 +648,13 @@ impl ConsoleView {
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
+            // Flipped true once the first pane refresh lands (see update_panes).
+            // Splash suppression (screenshot hook + PD_CONSOLE_NO_SPLASH opt-out)
+            // lives in render()'s gate, not here.
+            booted: false,
+            flag_motion: FlagMotion::default(),
+            prev_viewport_w: 0.0,
+            flag_ticking: false,
         }
     }
 
@@ -712,54 +872,75 @@ impl ConsoleView {
         let reduced = reduced_motion();
         let current = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
         let n = NAV.len().max(1);
-        let cols = 5usize; // tiles per row — explicit grid (flex_wrap height isn't summed).
+        let cols = 4usize; // 4 big tiles per row — explicit grid (flex_wrap height isn't summed).
 
         let mut tiles: Vec<AnyElement> = NAV.iter().enumerate().map(|(i, nav)| {
             let id = nav.id;
             let is_current = current.as_deref() == Some(nav.id);
+            let tone = launcher_tone(id, &t); // ADHD colour-coding: navigate by hue.
+
+            // Big chunky tile — sized for low-friction targeting and legibility.
             let tile = div()
                 .id(SharedString::from(format!("launch-{id}")))
-                .w(px(112.0))
-                .h(px(96.0))
+                .w(px(170.0))
+                .h(px(150.0))
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .gap(px(6.0))
-                .rounded(px(12.0))
+                .gap(px(12.0))
+                .rounded(px(18.0))
                 .border_1()
-                .border_color(rgb(if is_current { t.accent_ink } else { t.line }))
+                .border_color(rgb(if is_current { tone } else { t.line }))
                 .bg(rgb(t.raised))
                 .cursor_pointer()
-                // The focused pane's current surface gets a standing glow ring.
-                .when(is_current, |s| s.shadow(motion::glow(t.accent, 0.30, 14.0, 1.0)))
-                // Hover "lift" = a brighter card + a wider/softer glow (no scale()).
+                // Hover "lift" (no transforms): brighter card, tone border, and a
+                // wide tone-coloured bloom — the big apparent-motion cue.
                 .hover(move |s| {
                     let t = current_theme();
                     s.bg(rgb(t.panel))
-                        .border_color(rgb(t.accent_ink))
-                        .shadow(motion::glow(t.accent, 0.42, 22.0, 2.0))
+                        .border_color(rgb(tone))
+                        .shadow(motion::glow(tone, 0.55, 32.0, 3.0))
                 })
+                // Icon sits in a big tone-washed chip so colour reads even at a glance.
                 .child(
-                    svg()
-                        .path(nav.icon)
-                        .w(px(30.0))
-                        .h(px(30.0))
-                        .text_color(rgb(if is_current { t.accent_ink } else { t.ink })),
+                    div()
+                        .w(px(74.0))
+                        .h(px(74.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(16.0))
+                        .bg(tone_wash(tone, 0x26))
+                        .child(
+                            svg()
+                                .path(nav.icon)
+                                .w(px(40.0))
+                                .h(px(40.0))
+                                .text_color(rgb(tone)),
+                        ),
                 )
                 .child(
                     div()
                         .text_color(rgb(t.ink))
-                        .text_size(px(14.0))
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_size(px(18.0))
+                        .font_weight(FontWeight::BOLD)
                         .child(nav.label),
                 )
                 .child(
                     div()
+                        .px(px(9.0))
+                        .py(px(2.0))
+                        .rounded(px(7.0))
+                        .bg(tone_wash(tone, 0x1c))
                         .text_color(rgb(t.muted))
-                        .text_size(px(11.0))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
                         .child(format!("⌃A {}", nav.key)),
                 )
+                // Owns its glow only in the static cases; the breathing branch below
+                // owns it via the animation (one motion owner per surface).
+                .when(is_current && reduced, |s| s.shadow(motion::glow(tone, 0.5, 22.0, 2.0)))
                 .on_click(cx.listener(move |this, _ev, _window, cx| {
                     this.ws_mut().swap_surface(surface_for_nav_id(id));
                     this.launcher_open = false;
@@ -768,14 +949,30 @@ impl ConsoleView {
                 }));
 
             if reduced {
+                // Reduced motion: no travel, but keep the current-tile glow (above)
+                // for orientation. All tiles render at rest.
                 tile.into_any_element()
+            } else if is_current {
+                // The pane you're on *breathes* a tone-coloured glow — a single
+                // looping owner, scoped to this modal overlay (so it only runs
+                // while the launcher is open). This is the "where am I" beacon.
+                tile.with_animation(
+                    SharedString::from(format!("launch-breathe-{id}")),
+                    Animation::new(Duration::from_millis(2200))
+                        .repeat()
+                        .with_easing(pulsating_between(0.0, 1.0)),
+                    move |el, delta| {
+                        el.shadow(motion::glow(tone, 0.30 + 0.40 * delta, 16.0 + 16.0 * delta, 1.0))
+                    },
+                )
+                .into_any_element()
             } else {
-                // One-shot staggered fade — the stagger lives in the opacity
-                // curve, so each tile remains its own single animation owner.
-                let start = (i as f32 / n as f32) * 0.5;
+                // One-shot staggered entrance fade — the stagger lives in the
+                // opacity curve, so each tile stays its own single animation owner.
+                let start = (i as f32 / n as f32) * 0.6;
                 tile.with_animation(
                     SharedString::from(format!("launch-in-{id}")),
-                    Animation::new(Duration::from_millis(320)).with_easing(ease_in_out),
+                    Animation::new(Duration::from_millis(360)).with_easing(ease_in_out),
                     move |el, delta| {
                         let o = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
                         el.opacity(o)
@@ -832,32 +1029,50 @@ impl ConsoleView {
                     .occlude()
                     .flex()
                     .flex_col()
-                    .gap(px(14.0))
-                    .p(px(22.0))
-                    .max_w(px(760.0))
-                    .rounded(px(16.0))
+                    .gap(px(18.0))
+                    .p(px(28.0))
+                    .max_w(px(820.0))
+                    .rounded(px(22.0))
                     .bg(rgb(t.panel))
                     .border_1()
                     .border_color(rgb(t.line))
-                    .shadow(motion::glow(t.accent, 0.22, 30.0, 1.0))
-                    .child(
-                        div()
-                            .text_color(rgb(t.accent_ink))
-                            .text_size(px(16.0))
-                            .font_weight(FontWeight::BOLD)
-                            .child("Jump to a pane"),
-                    )
+                    .shadow(motion::glow(t.accent, 0.28, 40.0, 1.0))
+                    // Header: big title + a colour legend, so the hue-coding is
+                    // self-explaining at a glance (ADHD-friendly navigation).
                     .child(
                         div()
                             .flex()
                             .flex_col()
                             .gap(px(10.0))
+                            .child(
+                                div()
+                                    .text_color(rgb(t.accent_ink))
+                                    .text_size(px(24.0))
+                                    .font_weight(FontWeight::BOLD)
+                                    .child("Jump to a pane"),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(16.0))
+                                    .child(launcher_legend_chip("Live", t.cobalt))
+                                    .child(launcher_legend_chip("Control", t.accent))
+                                    .child(launcher_legend_chip("Knowledge", t.landed))
+                                    .child(launcher_legend_chip("Records", t.gated)),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(12.0))
                             .children(rows),
                     )
                     .child(
                         div()
                             .text_color(rgb(t.muted))
-                            .text_size(px(12.0))
+                            .text_size(px(13.0))
                             .child("click a tile · press its ⌃A key · Esc to close"),
                     ),
             )
@@ -872,12 +1087,64 @@ impl ConsoleView {
         updates: Vec<(usize, Vec<Block>)>,
         dispatch_head: Option<DispatchHead>,
     ) {
+        // First refresh dismisses the launch splash (idempotent thereafter).
+        if !self.booted {
+            self.booted = true;
+        }
         for (idx, blocks) in updates {
             if let Some(slot) = self.pane_blocks.get_mut(idx) {
                 *slot = blocks;
             }
         }
         self.dispatch_head = dispatch_head;
+    }
+
+    /// The launch splash — a centered brand lockup (mark + "PORT DADDY") shown
+    /// until the first pane refresh lands (see `update_panes`). Static, so it
+    /// never fights reduced-motion; it covers the chrome via a full-size opaque
+    /// overlay painted last. Mirrors the launcher overlay's positioning.
+    fn render_splash(&self) -> AnyElement {
+        let t = current_theme();
+        div()
+            .absolute()
+            .top_0()
+            .left_0()
+            .size_full()
+            .occlude()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap(px(16.0))
+            .bg(rgb(t.bg))
+            .child(
+                svg()
+                    .path("icons/pd-mark-glyph.svg")
+                    .w(px(96.0))
+                    .h(px(96.0))
+                    .text_color(rgb(t.accent_ink)),
+            )
+            .child(
+                div()
+                    .text_size(px(30.0))
+                    .font_weight(FontWeight::BLACK)
+                    .text_color(rgb(t.ink))
+                    .child("PORT DADDY"),
+            )
+            .child(
+                div()
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(t.muted))
+                    .child("CONSOLE · connecting…"),
+            )
+            .child(
+                div()
+                    .text_size(px(11.0))
+                    .text_color(rgb(t.muted))
+                    .child(build_stamp()),
+            )
+            .into_any_element()
     }
 
     /// Recursively render the pane tree. Splits become weighted flex
@@ -919,6 +1186,7 @@ impl ConsoleView {
     ) -> AnyElement {
         let label = surface.label();
         let blocks = self.blocks_for_surface(surface);
+        let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
@@ -1017,9 +1285,19 @@ impl ConsoleView {
                     .id(SharedString::from(format!("pane-body-{id}")))
                     .flex_1()
                     .overflow_y_scroll()
+                    // Scrolling the pane gives the flags their vertical pole velocity;
+                    // they trail the motion and settle (render() drives the decay).
+                    .on_scroll_wheel(cx.listener(|this, ev: &ScrollWheelEvent, window, cx| {
+                        let dy = match ev.delta {
+                            ScrollDelta::Pixels(p) => f32::from(p.y),
+                            ScrollDelta::Lines(p) => p.y * 18.0,
+                        };
+                        this.flag_motion.vy = (this.flag_motion.vy - dy / 50.0).clamp(-1.6, 1.6);
+                        this.kick_flag_motion(window, cx);
+                    }))
                     .flex()
                     .flex_col()
-                    .children(blocks.into_iter().map(render_block)),
+                    .children(blocks.into_iter().map(move |b| render_block(b, motion))),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
             .when(is_agent && is_focused, |content| {
@@ -1187,6 +1465,38 @@ impl ConsoleView {
     }
 }
 
+/// The one place an operator-action button's visual state machine lives —
+/// default / hover / active (press), on the 8pt token grid (`tokens.rs`). The
+/// dispatch review gate and the Conductor fleet gate both build on this; they
+/// differ only in the click handler they pass. (Per-button keyboard
+/// focus-visible is a GPUI focus-group follow-up; the actions stay reachable via
+/// the focused pane.)
+fn gate_btn(
+    id: impl Into<SharedString>,
+    label: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+    on_click: impl Fn(&mut ConsoleView, &mut Context<ConsoleView>) + 'static,
+) -> impl IntoElement {
+    div()
+        .id(id.into())
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_1))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(color))
+        .text_color(rgb(color))
+        .text_size(px(tokens::TEXT_BODY))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .active(|s| s.bg(rgb(current_theme().sunken)))
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            on_click(this, cx);
+            cx.notify();
+        }))
+}
+
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
 /// Reject opens a reason command line (the human-gate "why" path) targeting `id`.
 fn dispatch_gate_btn(
@@ -1196,85 +1506,54 @@ fn dispatch_gate_btn(
     id: String,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    div()
-        .id(SharedString::from(format!("gate-{action}")))
-        .px(px(12.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
-        .border_color(rgb(color))
-        .text_color(rgb(color))
-        .text_size(px(14.0))
-        .font_weight(FontWeight::SEMIBOLD)
-        .cursor_pointer()
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
-        .child(label)
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
-            match action {
-                "approve" => {
-                    if let Some(tx) = &this.control_tx {
-                        let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
-                    }
-                    this.control_flash = Some("dispatch approved → landing".into());
-                }
-                "cancel" => {
-                    if let Some(tx) = &this.control_tx {
-                        let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
-                    }
-                    this.control_flash = Some("dispatch cancelled".into());
-                }
-                "reject" => {
-                    // Don't reject blind — open a reason line targeting this dispatch.
-                    this.reject_target = Some(id.clone());
-                    this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
-                }
-                _ => {}
+    gate_btn(format!("gate-{action}"), label, color, cx, move |this, _cx| match action {
+        "approve" => {
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
             }
-            cx.notify();
-        }))
+            this.control_flash = Some("dispatch approved \u{2192} landing".into());
+        }
+        "cancel" => {
+            if let Some(tx) = &this.control_tx {
+                let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
+            }
+            this.control_flash = Some("dispatch cancelled".into());
+        }
+        "reject" => {
+            this.reject_target = Some(id.clone());
+            this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
+        }
+        _ => {}
+    })
 }
 
-/// One conductor fleet-control button (ADR-0060). Fires the verb immediately
-/// against the whole fleet (global scope) — the operator's emergency wheel.
+/// One Conductor fleet-control button (ADR-0060): halt/pause/resume the whole
+/// fleet (global scope) — the operator's emergency wheel.
 fn conductor_gate_btn(
     action: &'static str,
     label: &'static str,
     color: u32,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    div()
-        .id(SharedString::from(format!("fleet-{action}")))
-        .px(px(12.0))
-        .py(px(5.0))
-        .rounded(px(6.0))
-        .border_1()
-        .border_color(rgb(color))
-        .text_color(rgb(color))
-        .text_size(px(14.0))
-        .font_weight(FontWeight::SEMIBOLD)
-        .cursor_pointer()
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
-        .child(label)
-        .on_click(cx.listener(move |this, _ev, _window, cx| {
-            if let Some(tx) = &this.control_tx {
-                let msg = match action {
-                    "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
-                    "pause" => Some(ControlMsg::FleetPause { root_id: None }),
-                    "resume" => Some(ControlMsg::FleetResume { root_id: None }),
-                    _ => None,
-                };
-                if let Some(m) = msg {
-                    let _ = tx.send(m);
-                }
+    gate_btn(format!("fleet-{action}"), label, color, cx, move |this, _cx| {
+        if let Some(tx) = &this.control_tx {
+            let msg = match action {
+                "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
+                "pause" => Some(ControlMsg::FleetPause { root_id: None }),
+                "resume" => Some(ControlMsg::FleetResume { root_id: None }),
+                _ => None,
+            };
+            if let Some(m) = msg {
+                let _ = tx.send(m);
             }
-            this.control_flash = Some(match action {
-                "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
-                "pause" => "fleet paused \u{2192} no new admissions".to_string(),
-                "resume" => "fleet resumed".to_string(),
-                _ => String::new(),
-            });
-            cx.notify();
-        }))
+        }
+        this.control_flash = Some(match action {
+            "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
+            "pause" => "fleet paused \u{2192} no new admissions".to_string(),
+            "resume" => "fleet resumed".to_string(),
+            _ => String::new(),
+        });
+    })
 }
 
 /// Split a spawn command into `(backend, prompt)`. If the first whitespace
@@ -1382,7 +1661,24 @@ impl Focusable for ConsoleView {
 }
 
 impl Render for ConsoleView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // ── Flag motion. Derive horizontal pole velocity from this frame's
+        // viewport-width change (resize / pane reflow → left/right); scrolling
+        // feeds vy via on_scroll_wheel. A width change kicks the settle loop,
+        // which decays the velocity over subsequent frames (cx.on_next_frame).
+        {
+            let vw = f32::from(window.viewport_size().width);
+            if self.prev_viewport_w == 0.0 {
+                self.prev_viewport_w = vw;
+            }
+            let dvw = vw - self.prev_viewport_w;
+            self.prev_viewport_w = vw;
+            if dvw.abs() > 0.5 {
+                self.flag_motion.vx = (self.flag_motion.vx + dvw / 60.0).clamp(-1.6, 1.6);
+                self.kick_flag_motion(window, cx);
+            }
+        }
+
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
         let armed = self.leader_armed;
@@ -1408,6 +1704,14 @@ impl Render for ConsoleView {
         // The pane launcher overlay (when open) is the last child so it paints on top.
         let launcher = if self.launcher_open {
             Some(self.render_launcher(cx))
+        } else {
+            None
+        };
+        // The launch splash overlays everything until the first refresh lands.
+        // Suppressed for the launcher screenshot hook and the PD_CONSOLE_NO_SPLASH
+        // opt-out, so capture tooling / opted-out users never see the boot flash.
+        let splash = if !self.booted && !self.launcher_open && !splash_disabled() {
+            Some(self.render_splash())
         } else {
             None
         };
@@ -1461,6 +1765,35 @@ impl Render for ConsoleView {
                     .bg(rgb(current_theme().panel))
                     .border_b_1()
                     .border_color(rgb(current_theme().line))
+                    // Persistent brand lockup — the P·d mark + "PORT DADDY",
+                    // pinned at the top-left of the chrome on every pane/tab.
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(7.0))
+                            .px(px(4.0))
+                            .child(
+                                svg()
+                                    .path("icons/pd-mark-glyph.svg")
+                                    .w(px(18.0))
+                                    .h(px(18.0))
+                                    .text_color(rgb(current_theme().accent_ink)),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .font_weight(FontWeight::BOLD)
+                                    .text_color(rgb(current_theme().ink))
+                                    .child("PORT DADDY"),
+                            )
+                            .child(
+                                div()
+                                    .w(px(1.0))
+                                    .h(px(16.0))
+                                    .bg(rgb(current_theme().line)),
+                            ),
+                    )
                     .children(tabs.into_iter().map(|(i, name, active)| {
                         div()
                             .id(SharedString::from(format!("tab-{i}")))
@@ -1598,6 +1931,8 @@ impl Render for ConsoleView {
             )
             // Pane launcher overlay — last child, paints over everything.
             .children(launcher)
+            // Splash paints last so it sits above all chrome while booting.
+            .children(splash)
     }
 }
 
@@ -1642,4 +1977,7 @@ mod add_pane_tests {
         assert!(stamp.starts_with("pd-console v"), "stamp must name the app: {stamp}");
         assert!(stamp.contains(env!("CARGO_PKG_VERSION")), "stamp must carry the crate version: {stamp}");
     }
+
+    // The launcher-grid 1:1 invariant tests live in `crate::grid` (gpui-free) so
+    // they run in the headless REPL bin under the rust-console gate.
 }

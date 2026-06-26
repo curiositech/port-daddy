@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/Button";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { openDocsSearch } from "@/components/docs/docsSearchEvents";
 import { useTheme } from "@/lib/theme-context";
-import { BrandMark, PageContainer } from "./primitives";
+import { PageContainer, Wordmark } from "./primitives";
+import { useHeroWordmark } from "@/lib/hero-brand-context";
 
 type NavItem = {
   label: string;
@@ -218,6 +219,7 @@ function CompressedNavMenu() {
 
 export function SiteHeader() {
   const { theme, toggle } = useTheme();
+  const { heroWordmarkVisible } = useHeroWordmark();
 
   return (
     <>
@@ -237,17 +239,16 @@ export function SiteHeader() {
         >
           <Link
             to="/"
-            className="inline-flex shrink-0 items-center gap-[var(--space-3)] text-[var(--text-primary)]"
+            aria-label="Port Daddy — home"
+            aria-hidden={heroWordmarkVisible || undefined}
+            tabIndex={heroWordmarkVisible ? -1 : undefined}
+            className={`inline-flex shrink-0 items-center text-[var(--text-primary)] transition-opacity duration-200 ${
+              heroWordmarkVisible ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
           >
-            <BrandMark className="h-10 w-10 xl:h-11 xl:w-11" />
-            <div className="flex flex-col">
-              <span className="whitespace-nowrap font-display text-[length:var(--text-base)] font-black uppercase leading-none tracking-[var(--tracking-display-nav)] xl:text-[length:var(--text-lg)]">
-                Port Daddy
-              </span>
-              <span className="hidden max-w-[16ch] truncate font-sans text-[length:var(--type-meta-size)] uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] 2xl:block">
-                agent comms
-              </span>
-            </div>
+            {/* Compact wordmark lockup — spinning mark + "Port Daddy". Hidden
+                while the hero wordmark is on-screen so the two don't stack. */}
+            <Wordmark variant="header" className="h-9 xl:h-10" />
           </Link>
 
           <nav

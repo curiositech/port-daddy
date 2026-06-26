@@ -6,6 +6,7 @@ import { CodeBlock } from '@/components/ui/CodeBlock'
 import { CommandTerminal } from '@/components/ui/CommandTerminal'
 import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
+import { SpinningWordmark } from './SpinningWordmark'
 import type { AccentTone, CommercialTrack, ProofPanel, TruthState } from '@/data/publicSite'
 
 const truthTone: Record<TruthState, string> = {
@@ -103,12 +104,55 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <img
       aria-hidden="true"
-      src={theme === 'dark' ? '/pd_logo_darkmode.svg' : '/pd_logo.svg'}
+      src={
+        theme === 'dark'
+          ? '/logos/portdaddy-mark-radar-darkmode.svg'
+          : '/logos/portdaddy-mark-radar-lightmode.svg'
+      }
       alt=""
       className={cn(
         'h-11 w-11 shrink-0',
         className,
       )}
+    />
+  )
+}
+
+type WordmarkVariant = 'full' | 'spin' | 'header'
+
+/**
+ * The Port Daddy WORDMARK lockup — radar mark + "Port Daddy" type. Theme-aware
+ * (light/dark SVG swap), transparent ground so it sits on the live surface.
+ *   - 'full'   : mark + "Port Daddy" + tagline rule (footer / brand contexts)
+ *   - 'spin'   : same lockup, radar mark animates (hero)
+ *   - 'header' : compact mark + "Port Daddy", no tagline (navbar), mark spins
+ */
+export function Wordmark({
+  variant = 'full',
+  className,
+  decorative = false,
+}: {
+  variant?: WordmarkVariant
+  className?: string
+  decorative?: boolean
+}) {
+  const { theme } = useTheme()
+
+  // The hero's spinning wordmark is rendered inline (not an <img>) so its colour
+  // washes can be CSS-driven — smooth, and frozen when not spinning.
+  if (variant === 'spin') {
+    return <SpinningWordmark className={className} />
+  }
+
+  const suffix = theme === 'dark' ? 'dark' : 'light'
+  const base = variant === 'header' ? 'portdaddy-wordmark-header' : 'portdaddy-wordmark'
+
+  return (
+    <img
+      src={`/logos/${base}-${suffix}.svg`}
+      alt={decorative ? '' : 'Port Daddy'}
+      aria-hidden={decorative ? true : undefined}
+      className={cn('w-auto select-none', className)}
     />
   )
 }

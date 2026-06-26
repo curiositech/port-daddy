@@ -304,3 +304,15 @@ release matching your pin.
 Worked example and gotchas verified against `core/pd-timeline-proto/` in this
 repo (a winit+wgpu+Vello+Parley "Voyage Timeline" window), built and run on
 Apple M4 Max (Metal backend) at sub-millisecond per-frame GPU cost.
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`references/`**
+- [`references/parley-glyph-runs.md`](references/parley-glyph-runs.md) — Feeding Parley glyph runs into a Vello Scene — The single function everyone gets stuck writing.
+- [`references/version-matrix.md`](references/version-matrix.md) — Vello / wgpu / Parley version matrix — Pre-1.0 Linebender crates move in lockstep clusters.
+
+<!-- END BUNDLE INDEX -->

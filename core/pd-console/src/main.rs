@@ -16,6 +16,7 @@ mod claims_pane;
 mod cockpit_pane;
 mod dispatch_pane;
 mod fleet_pane;
+mod grid;
 mod health_pane;
 mod inbox_pane;
 mod lane_pane;
@@ -30,6 +31,7 @@ mod palette;
 mod notes_pane;
 mod pane;
 mod peek_pane;
+mod planner_pane;
 mod prs_pane;
 mod roadmap_pane;
 mod sessions_pane;
@@ -37,6 +39,7 @@ mod sortie_pane;
 mod suggest_pane;
 mod term;
 mod theme;
+mod tokens;
 mod util;
 
 use activity_pane::ActivityPane;
@@ -58,7 +61,9 @@ use conductor_pane::ConductorPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
+use planner_pane::PlannerPane;
 use prs_pane::PrsPane;
+#[allow(unused_imports)]
 use roadmap_pane::RoadmapPane;
 use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
@@ -198,7 +203,7 @@ fn main() {
                 let mut sorties    = SortiePane::new();        // 2
                 let mut claims     = ClaimsPane::new();        // 3
                 let mut peek       = PeekPane::new();          // 4
-                let mut roadmap    = RoadmapPane::new();       // 5
+                let mut roadmap    = PlannerPane::new();       // 5 (Planner — replaces Roadmap; ADR-0086)
                 let mut adrs       = AdrsPane::new();          // 6
                 let mut activity   = ActivityPane::new();      // 7
                 let mut sessions   = SessionsPane::new();      // 8
@@ -215,6 +220,23 @@ fn main() {
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
                 let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
                 let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
+
+                // Pin the producer slots to the canonical grid map. If a pane is
+                // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
+                // (and `NAV`), this fires in debug/test builds — the same map the
+                // `grid_is_one_to_one_with_pane_slots` test asserts against, so the
+                // launcher grid can never silently drift from the real panes.
+                debug_assert_eq!(
+                    [
+                        fleet.id(), cockpit.id(), sorties.id(), claims.id(), peek.id(),
+                        roadmap.id(), adrs.id(), activity.id(), sessions.id(), inbox.id(),
+                        suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
+                        dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
+                        parley.id(), conductor.id(),
+                    ],
+                    grid::SLOT_PANE_IDS,
+                    "producer slot order drifted from grid::SLOT_PANE_IDS",
+                );
 
                 // The Lane's live SSE stream. We (re)open it whenever the watched
                 // agent changes; envelopes are drained every loop into the lane,

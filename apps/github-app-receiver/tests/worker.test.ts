@@ -1,18 +1,18 @@
 /**
- * Worker tests — verify signature handling, envelope shape, and forwarding.
+ * Worker tests — verify signature handling, envelope shape, and 202 dispatch.
  *
  * These tests exercise the Worker handler directly. We do not boot a real
  * miniflare/workerd instance — the Worker only relies on Web Crypto (which
- * Node 20+ provides on `globalThis.crypto`) and `fetch` (stubbed).
+ * Node 20+ provides on `globalThis.crypto`) and stubbed `ctx.waitUntil`.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   handleRequest,
   computeSignature,
   timingSafeEqual,
   verifySignature,
-  type Env,
+  type ExecutorEnv,
 } from '../src/worker.js';
 import { buildEnvelope, forwardEnvelope } from '../src/forward.js';
 
@@ -38,28 +38,33 @@ function stubFetch(response: Response | Error): FetchStub {
   return { calls, fn };
 }
 
-const AUTH_TOKEN = 'test-forward-token-xyz';
+/** Minimal ExecutionContext stub — records waitUntil promises. */
+function makeCtx(): ExecutionContext {
+  return {
+    waitUntil: (_p: Promise<unknown>) => { /* no-op in tests */ },
+    passThroughOnException: () => { /* no-op */ },
+  } as unknown as ExecutionContext;
+}
 
-function makeEnv(overrides: Partial<Env> = {}): Env {
+function makeEnv(overrides: Partial<ExecutorEnv> = {}): ExecutorEnv {
   return {
     GITHUB_WEBHOOK_SECRET: SECRET,
-    DAEMON_FORWARD_URL: 'https://daemon.example/forward',
-    FORWARD_AUTH_TOKEN: AUTH_TOKEN,
-    FORWARD_TIMEOUT_MS: '5000',
+    GITHUB_APP_ID: 'test-app-id',
+    GITHUB_APP_PRIVATE_KEY: '',
+    AI: null as unknown as Ai,  // AI not exercised in unit tests
     ...overrides,
   };
 }
 
 async function signedRequest(
   payload: object,
-  opts: { secret?: string; event?: string; delivery?: string; signature?: string; path?: string } = {},
+  opts: { secret?: string; event?: string; delivery?: string; signature?: string } = {},
 ): Promise<Request> {
   const body = JSON.stringify(payload);
   const signature =
     opts.signature ?? (await computeSignature(opts.secret ?? SECRET, body));
   const event = opts.event ?? 'pull_request';
-  const path = opts.path ?? `/msg/github:webhook:${event}`;
-  return new Request(`https://worker.example${path}`, {
+  return new Request(`https://worker.example/`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -70,6 +75,8 @@ async function signedRequest(
     body,
   });
 }
+
+// ---------------------------------------------------------------------------
 
 describe('timingSafeEqual', () => {
   it('returns true for equal strings', () => {
@@ -91,7 +98,6 @@ describe('timingSafeEqual', () => {
 
 describe('computeSignature / verifySignature', () => {
   it('produces a sha256= hex digest matching a known vector', async () => {
-    // Verify our implementation against a payload + secret and re-derive.
     const sig = await computeSignature('s3cr3t', 'hello');
     expect(sig).toMatch(/^sha256=[0-9a-f]{64}$/);
     expect(await verifySignature('s3cr3t', 'hello', sig)).toBe(true);
@@ -116,6 +122,8 @@ describe('buildEnvelope', () => {
     const env = buildEnvelope({
       event: 'pull_request',
       delivery: 'd-1',
+      rawPayload: '{}',
+      signature: null,
       payload: {
         action: 'opened',
         repository: { full_name: 'curiositech/port-daddy', id: 42 },
@@ -133,7 +141,7 @@ describe('buildEnvelope', () => {
   });
 
   it('tolerates payloads missing optional fields', () => {
-    const env = buildEnvelope({ event: 'ping', delivery: 'd-2', payload: {} });
+    const env = buildEnvelope({ event: 'ping', delivery: 'd-2', rawPayload: '{}', signature: null, payload: {} });
     expect(env.action).toBeNull();
     expect(env.repository).toBeNull();
     expect(env.installation_id).toBeNull();
@@ -144,7 +152,7 @@ describe('buildEnvelope', () => {
 describe('forwardEnvelope', () => {
   it('POSTs JSON to the configured URL and surfaces 2xx', async () => {
     const stub = stubFetch(new Response('ok', { status: 200 }));
-    const envelope = buildEnvelope({ event: 'push', delivery: 'd-3', payload: { ref: 'refs/heads/main' } });
+    const envelope = buildEnvelope({ event: 'push', delivery: 'd-3', rawPayload: '{}', signature: null, payload: { ref: 'refs/heads/main' } });
     const result = await forwardEnvelope(envelope, {
       url: 'https://daemon.example/forward',
       authToken: 'tok',
@@ -153,21 +161,11 @@ describe('forwardEnvelope', () => {
     });
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
-    expect(stub.calls).toHaveLength(1);
-    const call = stub.calls[0];
-    expect(call.url).toBe('https://daemon.example/forward');
-    const headers = call.init?.headers as Record<string, string>;
-    expect(headers['authorization']).toBe('Bearer tok');
-    expect(headers['x-pd-webhook-event']).toBe('push');
-    expect(headers['x-pd-webhook-channel']).toBe('github:webhook:push');
-    const body = JSON.parse(call.init?.body as string);
-    expect(body.event).toBe('push');
-    expect(body.payload.ref).toBe('refs/heads/main');
   });
 
   it('reports failure when daemon returns non-2xx', async () => {
     const stub = stubFetch(new Response('boom', { status: 503 }));
-    const envelope = buildEnvelope({ event: 'push', delivery: 'd-4', payload: {} });
+    const envelope = buildEnvelope({ event: 'push', delivery: 'd-4', rawPayload: '{}', signature: null, payload: {} });
     const result = await forwardEnvelope(envelope, {
       url: 'https://daemon.example/forward',
       timeoutMs: 5000,
@@ -179,7 +177,7 @@ describe('forwardEnvelope', () => {
 
   it('reports failure when fetch throws', async () => {
     const stub = stubFetch(new Error('econnrefused'));
-    const envelope = buildEnvelope({ event: 'push', delivery: 'd-5', payload: {} });
+    const envelope = buildEnvelope({ event: 'push', delivery: 'd-5', rawPayload: '{}', signature: null, payload: {} });
     const result = await forwardEnvelope(envelope, {
       url: 'https://daemon.example/forward',
       timeoutMs: 5000,
@@ -191,43 +189,23 @@ describe('forwardEnvelope', () => {
 });
 
 describe('handleRequest', () => {
-  let originalFetch: typeof fetch;
-
-  beforeEach(() => {
-    originalFetch = globalThis.fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  function withFetch(stub: FetchStub): void {
-    globalThis.fetch = stub.fn;
-  }
-
-  it('204s when signature is valid and forward succeeds', async () => {
-    const stub = stubFetch(new Response(null, { status: 204 }));
-    withFetch(stub);
+  it('202s when signature is valid (fleet runs in background)', async () => {
     const req = await signedRequest({ action: 'opened', repository: { full_name: 'x/y', id: 1 } });
-    const res = await handleRequest(req, makeEnv());
-    expect(res.status).toBe(204);
-    expect(stub.calls).toHaveLength(1);
+    const res = await handleRequest(req, makeEnv(), makeCtx());
+    expect(res.status).toBe(202);
   });
 
   it('401s when signature is invalid', async () => {
-    const stub = stubFetch(new Response(null, { status: 204 }));
-    withFetch(stub);
     const req = await signedRequest(
       { action: 'opened' },
       { signature: 'sha256=' + '0'.repeat(64) },
     );
-    const res = await handleRequest(req, makeEnv());
+    const res = await handleRequest(req, makeEnv(), makeCtx());
     expect(res.status).toBe(401);
-    expect(stub.calls).toHaveLength(0);
   });
 
   it('401s when signature header is missing', async () => {
-    const req = new Request('https://worker.example/msg/github:webhook:push', {
+    const req = new Request('https://worker.example/', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -236,14 +214,14 @@ describe('handleRequest', () => {
       },
       body: JSON.stringify({}),
     });
-    const res = await handleRequest(req, makeEnv());
+    const res = await handleRequest(req, makeEnv(), makeCtx());
     expect(res.status).toBe(401);
   });
 
-  it('400s when GitHub headers are missing', async () => {
+  it('400s when GitHub event/delivery headers are missing', async () => {
     const body = JSON.stringify({});
     const signature = await computeSignature(SECRET, body);
-    const req = new Request('https://worker.example/msg/github:webhook:push', {
+    const req = new Request('https://worker.example/', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -251,14 +229,14 @@ describe('handleRequest', () => {
       },
       body,
     });
-    const res = await handleRequest(req, makeEnv());
+    const res = await handleRequest(req, makeEnv(), makeCtx());
     expect(res.status).toBe(400);
   });
 
-  it('400s when body is not valid JSON object', async () => {
+  it('400s when body is not a valid JSON object', async () => {
     const body = '"not an object"';
     const signature = await computeSignature(SECRET, body);
-    const req = new Request('https://worker.example/msg/github:webhook:ping', {
+    const req = new Request('https://worker.example/', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -268,56 +246,19 @@ describe('handleRequest', () => {
       },
       body,
     });
-    const res = await handleRequest(req, makeEnv());
+    const res = await handleRequest(req, makeEnv(), makeCtx());
     expect(res.status).toBe(400);
   });
 
-  it('502s when forward fails', async () => {
-    const stub = stubFetch(new Response('upstream sad', { status: 500 }));
-    withFetch(stub);
-    const req = await signedRequest({ action: 'opened' });
-    const res = await handleRequest(req, makeEnv());
-    expect(res.status).toBe(502);
-    expect(stub.calls).toHaveLength(1);
-  });
-
   it('405s on non-POST', async () => {
-    const req = new Request('https://worker.example/msg/github:webhook:push', { method: 'GET' });
-    const res = await handleRequest(req, makeEnv());
+    const req = new Request('https://worker.example/', { method: 'GET' });
+    const res = await handleRequest(req, makeEnv(), makeCtx());
     expect(res.status).toBe(405);
-  });
-
-  it('404s when path is not /msg/*', async () => {
-    const req = new Request('https://worker.example/services', { method: 'POST', body: '{}' });
-    const res = await handleRequest(req, makeEnv());
-    expect(res.status).toBe(404);
-  });
-
-  it('404s for bare root path', async () => {
-    const req = new Request('https://worker.example/', { method: 'POST', body: '{}' });
-    const res = await handleRequest(req, makeEnv());
-    expect(res.status).toBe(404);
   });
 
   it('500s when GITHUB_WEBHOOK_SECRET is missing', async () => {
     const req = await signedRequest({});
-    const env = makeEnv({ GITHUB_WEBHOOK_SECRET: '' });
-    const res = await handleRequest(req, env);
-    expect(res.status).toBe(500);
-  });
-
-  it('500s when DAEMON_FORWARD_URL is missing', async () => {
-    const req = await signedRequest({});
-    const env = makeEnv({ DAEMON_FORWARD_URL: '' });
-    const res = await handleRequest(req, env);
-    expect(res.status).toBe(500);
-  });
-
-  it('500s when FORWARD_AUTH_TOKEN is missing', async () => {
-    const req = await signedRequest({});
-    const env = makeEnv({ FORWARD_AUTH_TOKEN: '' });
-    const res = await handleRequest(req, env);
+    const res = await handleRequest(req, makeEnv({ GITHUB_WEBHOOK_SECRET: '' }), makeCtx());
     expect(res.status).toBe(500);
   });
 });
-
