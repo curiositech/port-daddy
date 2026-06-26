@@ -168,9 +168,11 @@ function main() {
       return
     }
     console.error(
-      '\n✗ Adversarial reviewer verdict: DO-NOT-SHIP. This check is failing on purpose — address the ' +
-      'findings in the review comment, or add `<!-- adversarial-override: <reason> -->` to the PR body ' +
-      '(or the `adversarial-override` label) to merge over it.\n',
+      '\n✗ Adversarial reviewer verdict: DO-NOT-SHIP. This check is failing on purpose.\n' +
+      'The full review (with the findings to address) is posted as a sticky comment on this PR and is ' +
+      'reproduced below for the log. To merge over it, add `<!-- adversarial-override: <reason> -->` to ' +
+      'the PR body or apply the `adversarial-override` label.\n\n' +
+      '──── adversarial review ────\n' + text + '\n────────────────────────────\n',
     )
     process.exitCode = 1
     return
