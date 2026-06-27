@@ -134,6 +134,38 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(ai.calls.length).toBeGreaterThan(0);
     expect(state.completed).toHaveLength(1);
   });
+
+  it('pause flipped after check creation stops before AI spend and completes neutral', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const originalGet = kv.get.bind(kv);
+    let pauseReads = 0;
+    kv.get = (async (key: string) => {
+      if (key === 'fleet:paused') {
+        pauseReads += 1;
+        return pauseReads >= 2 ? 'true' : null;
+      }
+      return originalGet(key);
+    }) as KVNamespace['get'];
+
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
+
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(pauseReads).toBe(2);
+    expect(ai.calls).toHaveLength(0);
+    expect(state.commentPosts).toBe(0);
+    expect(state.reviews).toHaveLength(0);
+    expect(state.checkRunsCreated).toBe(1);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('neutral');
+    expect(state.completed[0].summary).toContain('Fleet paused before pd-code-reviewer');
+    expect(d1.runs[0].conclusion).toBe('neutral');
+    expect(d1.steps.map(s => s.kind)).toEqual(['check-completed']);
+    expect(d1.steps[0].detail).toContain('"pausedBeforeShip":"code-reviewer"');
+  });
 });
 
 describe('transcript writes (fleet_runs + fleet_run_steps)', () => {

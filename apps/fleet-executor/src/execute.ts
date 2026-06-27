@@ -318,6 +318,22 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // the FLEET-VERDICT.
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
+    // Re-check the operator kill switch before each ship. The start-of-job
+    // check prevents any setup work while paused; this second gate closes the
+    // TOCTOU gap where the operator pauses after the GitHub check is created
+    // but before additional AI spend or review posts. Complete neutral rather
+    // than leaving the already-created check run in progress forever.
+    if (await isFleetPaused(env)) {
+      const summary = `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
+      await transcript.step('check-completed', null, 'Check concluded: neutral (paused)', {
+        checkRunId,
+        conclusion: 'neutral',
+        pausedBeforeShip: ship.name,
+      });
+      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token);
+      await recordRunEnd(env, runId, 'neutral', startMs);
+      return;
+    }
     results.push(await runShip(ship, prCtx, token, env, branch, transcript));
   }
 
