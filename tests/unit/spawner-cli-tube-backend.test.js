@@ -98,6 +98,21 @@ describe('buildArgs', () => {
     expect(args[idx + 1]).toBe('/tmp/fake.txt');
   });
 
+  test('codex validates -c config overrides before building argv', () => {
+    expect(buildArgs(
+      'codex',
+      'hi',
+      undefined,
+      undefined,
+      undefined,
+      ['model_reasoning_effort="high"', 'foo.bar=1'],
+    ).args).toEqual(expect.arrayContaining(['-c', 'model_reasoning_effort="high"', 'foo.bar=1']));
+    expect(() => buildArgs('codex', 'hi', undefined, undefined, undefined, ['--profile=prod']))
+      .toThrow(/Invalid Codex config override/);
+    expect(() => buildArgs('codex', 'hi', undefined, undefined, undefined, ['foo\nbar=1']))
+      .toThrow(/Invalid Codex config override/);
+  });
+
   test.each(['gemini', 'groq', 'grok'])('%s uses -p headless flag with prompt last', (cli) => {
     const { args } = buildArgs(cli, 'hello');
     expect(args[0]).toBe('-p');

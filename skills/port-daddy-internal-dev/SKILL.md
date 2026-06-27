@@ -66,6 +66,9 @@ repo-specific mechanics:
 - **Coordinate + pay rent.** Clean linked worktree off `origin/main`,
   `pd begin … --lifecycle durable`, `pd session files add` before editing, a
   `pd note` per commit (the Coordination Guard enforces it), `pd done` at the end.
+  When inheriting stale work, prefer `pd takeover <old-session-id> [reason]`
+  (or `pd session takeover <old-session-id> [reason]`) over deleting or silently reusing the old session; notes and claim
+  history are append-only evidence.
 - **Assume broken; verify both ends.** After any write, read it back from the
   surface that should serve it, and prove cold start (daemon down → elegant
   operator instruction, never a stack trace), worktrees, a second user, and the
