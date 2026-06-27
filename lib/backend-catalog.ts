@@ -281,9 +281,10 @@ function detectForcedCliBackendMatch(
   const hasExplicitPersistedPath = typeof options.persistedPath === 'string';
   const shouldReadDefaultPersistedPath = options.persistedPath === undefined && env === process.env;
   if (!hasExplicitPersistedPath && !shouldReadDefaultPersistedPath) return null;
+  const persistedPath = hasExplicitPersistedPath ? options.persistedPath as string : CLI_BACKEND_SELECTION_PATH;
 
   return normalizeForcedCliBackend(
-    readPersistedCliBackendSelection(hasExplicitPersistedPath ? options.persistedPath : CLI_BACKEND_SELECTION_PATH),
+    readPersistedCliBackendSelection(persistedPath),
   );
 }
 
