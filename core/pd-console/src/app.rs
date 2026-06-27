@@ -2310,6 +2310,7 @@ fn gate_btn(
         .cursor_pointer()
         .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
         .active(|s| s.bg(rgb(current_theme().sunken)))
+        .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             on_click(this, cx);
             cx.notify();

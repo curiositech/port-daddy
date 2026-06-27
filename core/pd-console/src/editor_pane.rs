@@ -383,7 +383,7 @@ mod tests {
     #[test]
     fn authorship_gutter_distinguishes_operator_and_agent_lines() {
         let path = write_temp("authorship.txt", "human line\n");
-        let mut pane = make_pane(&path, None);
+        let pane = make_pane(&path, None);
 
         let opener = pane.buffer().expect("buffer loaded").local_peer();
 
