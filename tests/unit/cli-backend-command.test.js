@@ -198,6 +198,17 @@ describe('pd backend use', () => {
     expect(readFileSync(persistPath, 'utf-8').trim()).toBe('claude-code');
   });
 
+  test('accepts the short codex form as the ChatGPT Pro CLI backend', async () => {
+    const cap = captureStdout();
+    try {
+      await handleBackend(['use', 'codex'], {});
+    } finally {
+      cap.restore();
+    }
+    expect(cap.lines[0]).toBe('export PD_USE_CLI_BACKEND=codex');
+    expect(readFileSync(persistPath, 'utf-8').trim()).toBe('codex');
+  });
+
   test('accepts the catalog id form (cli:codex) as well as the env value form', async () => {
     const cap = captureStdout();
     try {
