@@ -151,6 +151,7 @@ export function defaultSkillCatalogRoots(projectRoot: string, home = homedir()):
 export function runtimeSkillTargets(baseDir: string, scope: SkillSyncScope): RuntimeSkillTarget[] {
   const common: RuntimeSkillTarget[] = [
     { label: 'AGENTS universal', path: join(baseDir, '.agents', 'skills') },
+    { label: 'agy', path: join(baseDir, '.agy', 'skills') },
     { label: 'Codex', path: join(baseDir, '.codex', 'skills') },
     { label: 'Claude', path: join(baseDir, '.claude', 'skills') },
     { label: 'Gemini skills', path: join(baseDir, '.gemini', 'skills') },

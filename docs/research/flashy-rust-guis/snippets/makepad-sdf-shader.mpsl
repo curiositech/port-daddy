@@ -1,0 +1,42 @@
+// Makepad: shader-per-widget. EVERY Makepad widget background/border/glyph is an
+// MPSL (Makepad Shader Language) fragment program living inside the hot-reloadable
+// `live_design!` DSL, transpiled to Metal/DX11/GLSL/WebGL. SDF drawing is
+// first-class via the `Sdf2d` builtin. This is the flashiest Rust UI precisely
+// because the visual surface IS a live shader you can edit and see update.
+//
+// Source:  https://makepad.rs/guide/start/makepad-framework-architecture
+//          https://makepad.rs/api/Makepad-Quick-Reference-Guide
+//          repo: https://github.com/makepad/makepad (widgets/src/*.rs)
+// License: MIT OR Apache-2.0. Pulled June 2026.
+//
+// NOTE FOR pd-console: Makepad's flash is inseparable from its own renderer/DSL.
+// There is no "render a Makepad scene into a texture" hatch. To get this look in
+// a gpui console you REIMPLEMENT the technique — an SDF rounded-rect + glow + bevel
+// fragment shader in gpui's wgpu path (or via a Vello escape hatch), not import it.
+
+// The whole mechanism in miniature: a #[repr(C)] Rust struct is the uniform block,
+// `fn pixel(self) -> vec4` is the fragment program, DrawQuad provides the vertex stage.
+live_design!{
+    DrawColor = {{DrawColor}} {
+        fn pixel(self) -> vec4 {
+            // premultiplied-alpha solid fill
+            return vec4(self.color.rgb * self.color.a, self.color.a);
+        }
+    }
+}
+// #[derive(Live)] #[repr(C)] pub struct DrawColor {
+//     #[deref] pub draw_super: DrawQuad,
+//     #[live]  pub color: Vec4,
+// }
+
+// SDF-driven background: Sdf2d::viewport maps normalized varyings to pixel space,
+// then SDF primitives (circle / box / hexagon ...) accumulate a distance field
+// that fill/stroke/glow resolve to color. Real buttons compose box+fill+stroke+glow.
+fn pixel(self) -> vec4 {
+    let sdf = Sdf2d::viewport(self.pos * self.rect_size);
+    // a glowing rounded panel (pattern; verify exact field names vs widgets/src):
+    sdf.box(1.0, 1.0, self.rect_size.x - 2.0, self.rect_size.y - 2.0, 4.0);
+    sdf.fill_keep(#3478f6);
+    sdf.glow(#3478f6, 2.0);     // animator can scale the glow by a `hover` uniform
+    return sdf.result;
+}

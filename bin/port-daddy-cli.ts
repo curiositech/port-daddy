@@ -161,6 +161,7 @@ import { getDaemonTcpUrl, readDaemonPort, resolveDaemonTcpTarget, DEFAULT_DAEMON
 import { calculateRuntimeCodeHash } from '../shared/code-hash.js';
 import { DEFAULT_SOCK as _DEFAULT_SOCK, DEFAULT_PORT_FILE as _DEFAULT_PORT_FILE } from '../shared/paths.js';
 import { shouldAutoRestartDaemonForFreshness, shouldCheckDaemonFreshness } from '../cli/utils/freshness.js';
+import { maybeNudgeStaleness } from '../cli/utils/staleness-nudge.js';
 import { readCurrentContext } from '../cli/utils/current-context.js';
 import {
   attachCliSessionWorktreePolicy,
@@ -2259,6 +2260,12 @@ export async function main(): Promise<void> {
   if (shouldCheckDaemonFreshness(command as string, args)) {
     await checkDaemonFreshness(true, isQuiet);
   }
+
+  // Cross-platform staleness nudge (ADR-0054 Phase 2): at most once/day, print a
+  // one-line "you're behind the latest release" hint to stderr. Complements the
+  // macOS-only auto-upgrade `pd self-update` (ADR-0062) for npm/Linux installs.
+  // Throttled, TTY-gated, opt-out via PORT_DADDY_NO_UPDATE_CHECK, fail-soft.
+  await maybeNudgeStaleness({ command: command as string, currentVersion: PKG.version, isQuiet });
 
   // Parse options
   const options: CLIOptions = {};

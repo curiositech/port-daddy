@@ -40,7 +40,7 @@ sitrep=$(curl -s "http://localhost:9876/sitrep?since_minutes=60&project=$(echo "
 
 # 4. Start a session if none
 if [[ -z "$session_id" ]]; then
-  start=$(pd begin --identity "$identity" --purpose "$purpose" --json 2>/dev/null)
+  start=$(pd begin --identity "$identity" --purpose "$purpose" --lifecycle durable --json 2>/dev/null)
   session_id=$(echo "$start" | jq -r '.session_id')
 fi
 

@@ -2,20 +2,31 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
-import { PageContainer, SectionIntro } from '@/components/site/primitives'
+import { useEffect, useRef } from 'react'
+import { PageContainer, SectionIntro, Wordmark } from '@/components/site/primitives'
 import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
-import { useTheme } from '@/lib/theme-context'
+import { useHeroWordmark } from '@/lib/hero-brand-context'
 
 export function Hero() {
-  const { theme } = useTheme()
-  // Theme-aware animated radar mark: light artwork on light surfaces, dark on
-  // dark. Lives in the hero's upper-left corner as an additive flourish — it is
-  // absolutely positioned so it never displaces the headline/CTA grid.
-  const animatedLogo =
-    theme === 'dark'
-      ? '/logos/portdaddy-animated-darkmode.svg'
-      : '/logos/portdaddy-animated-lightmode.svg'
+  const { setHeroWordmarkVisible } = useHeroWordmark()
+  const heroMarkRef = useRef<HTMLDivElement>(null)
+  // Report whether the hero wordmark is on-screen so the navbar can hide its
+  // own (duplicative) wordmark. rootMargin offsets the sticky header height, so
+  // the mark counts as "gone" the moment it slides under the navbar.
+  useEffect(() => {
+    const el = heroMarkRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroWordmarkVisible(entry.isIntersecting),
+      { rootMargin: '-80px 0px 0px 0px', threshold: 0 },
+    )
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      setHeroWordmarkVisible(false)
+    }
+  }, [setHeroWordmarkVisible])
   return (
     <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
       {/* Swiss-grid field for the infrastructure diagram. */}
@@ -24,27 +35,27 @@ export function Hero() {
         backgroundSize: '24px 24px',
       }} />
 
-      {/* Animated brand mark, upper-left corner. Additive, behind the grid's
-          z-layer edge but above the dotted field; hidden on the narrowest
-          viewports so it never crowds the headline. */}
-      <motion.img
-        src={animatedLogo}
-        alt=""
-        aria-hidden="true"
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.7, ease: 'easeOut' as const }}
-        className="pointer-events-none absolute left-[var(--space-4)] top-[var(--space-4)] z-0 hidden h-16 w-16 select-none rounded-[var(--radius-md)] opacity-90 sm:block lg:h-20 lg:w-20"
-      />
-
       <PageContainer className="relative z-10">
-        <div className="grid items-center gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-[var(--space-7)]">
+        <div className="grid grid-cols-1 items-start gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-x-[var(--space-7)] min-[1100px]:gap-y-[var(--space-5)]">
+          {/* Brand mark — full-width at the top on mobile; up in the whitespace
+              above the video (top-right) on desktop. The radar spins; the colour
+              advances one notch per 180° flip. */}
+          <motion.div
+            ref={heroMarkRef}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' as const }}
+            className="min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-1"
+          >
+            <Wordmark variant="spin" className="w-full" />
+          </motion.div>
+
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="space-y-[var(--space-6)]"
+            className="min-w-0 space-y-[var(--space-6)] min-[1100px]:col-start-1 min-[1100px]:row-start-1 min-[1100px]:row-span-2"
           >
             <SectionIntro
               eyebrow="Fleet coordination for coding agents"
@@ -135,7 +146,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-2 min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
             <div className="relative z-10">
               <LiveGloryVideo />

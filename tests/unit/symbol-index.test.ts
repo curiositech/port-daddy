@@ -230,6 +230,118 @@ export function load() {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Cross-file import resolution (ast-a1-1).
+  //
+  // Import specifiers used to be stored raw ('./b'), so a symbol's cross-file
+  // importers were invisible — every cross-file dependency chain was blind.
+  // resolveImportSpecifier now maps in-project specifiers to absolute paths
+  // (filesystem-verified), so getDependents() crosses module boundaries.
+  // ───────────────────────────────────────────────────────────────────────────
+  test('resolves a relative import to the absolute defining file', async () => {
+    const bPath = join(tempDir, 'b.ts');
+    const aPath = join(tempDir, 'a.ts');
+    writeFileSync(bPath, `export function foo() { return 1; }\n`);
+    writeFileSync(aPath, `import { foo } from './b';\nexport function useFoo() { return foo(); }\n`);
+
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    // a.ts's import edge now points at the RESOLVED absolute path of b.ts...
+    const aDeps = symbolIndex.getDependencies(aPath);
+    const fooImport = aDeps.find(d => d.targetSymbol === 'foo' && d.dependencyType === 'imports');
+    expect(fooImport).toBeDefined();
+    expect(fooImport!.targetFile).toBe(bPath);
+
+    // ...so foo's reverse-deps surface a.ts as a cross-file importer.
+    const importers = symbolIndex.getDependents(bPath, 'foo');
+    expect(importers.some(d => d.sourceFile === aPath)).toBe(true);
+  });
+
+  test('resolves a directory import to its index file', async () => {
+    const pkgDir = join(tempDir, 'pkg');
+    mkdirSync(pkgDir, { recursive: true });
+    const indexPath = join(pkgDir, 'index.ts');
+    const consumerPath = join(tempDir, 'consumer.ts');
+    writeFileSync(indexPath, `export function bar() { return 2; }\n`);
+    writeFileSync(consumerPath, `import { bar } from './pkg';\nexport const x = bar;\n`);
+
+    await symbolIndex.parseFile(indexPath);
+    await symbolIndex.parseFile(consumerPath);
+
+    const dep = symbolIndex.getDependencies(consumerPath)
+      .find(d => d.targetSymbol === 'bar' && d.dependencyType === 'imports');
+    expect(dep).toBeDefined();
+    expect(dep!.targetFile).toBe(indexPath);
+  });
+
+  test('leaves external/node_modules specifiers unresolved (raw)', async () => {
+    const filePath = join(tempDir, 'ext.ts');
+    writeFileSync(filePath, `import { weird } from 'some-external-pkg';\nexport const y = weird;\n`);
+    await symbolIndex.parseFile(filePath);
+
+    const dep = symbolIndex.getDependencies(filePath).find(d => d.targetSymbol === 'weird');
+    expect(dep).toBeDefined();
+    // Unresolved → raw specifier retained (no fabricated path).
+    expect(dep!.targetFile).toBe('some-external-pkg');
+  });
+
+  // ── Resolver hardening (ast-a1-1 inspector findings) ──────────────────────
+  test('resolves a NodeNext `.js` specifier to its `.ts` source (the dominant repo idiom)', async () => {
+    // tsconfig is moduleResolution:NodeNext — `import {x} from './b.js'` refers to b.ts.
+    const bPath = join(tempDir, 'nn-b.ts');
+    const aPath = join(tempDir, 'nn-a.ts');
+    writeFileSync(bPath, `export function foo() { return 1; }\n`);
+    writeFileSync(aPath, `import { foo } from './nn-b.js';\nexport function useFoo() { return foo(); }\n`);
+
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    const dep = symbolIndex.getDependencies(aPath)
+      .find(d => d.targetSymbol === 'foo' && d.dependencyType === 'imports');
+    expect(dep).toBeDefined();
+    expect(dep!.targetFile).toBe(bPath); // .js specifier → real .ts source, not raw './nn-b.js'
+    expect(symbolIndex.getDependents(bPath, 'foo').some(d => d.sourceFile === aPath)).toBe(true);
+  });
+
+  test('resolves `.mjs` → `.mts` source', async () => {
+    const bPath = join(tempDir, 'mod.mts');
+    const aPath = join(tempDir, 'uses-mod.ts');
+    writeFileSync(bPath, `export function m() { return 1; }\n`);
+    writeFileSync(aPath, `import { m } from './mod.mjs';\nexport const z = m;\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+    const dep = symbolIndex.getDependencies(aPath).find(d => d.targetSymbol === 'm');
+    expect(dep!.targetFile).toBe(bPath);
+  });
+
+  test('strips a `?query` suffix before resolving', async () => {
+    const bPath = join(tempDir, 'q-b.ts');
+    const aPath = join(tempDir, 'q-a.ts');
+    writeFileSync(bPath, `export const raw = 1;\n`);
+    writeFileSync(aPath, `import { raw } from './q-b.ts?raw';\nexport const r = raw;\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+    const dep = symbolIndex.getDependencies(aPath).find(d => d.targetSymbol === 'raw');
+    expect(dep!.targetFile).toBe(bPath);
+  });
+
+  test('does not resolve a `..` import that escapes the project root (boundary clamp)', async () => {
+    // proj/ is the project (has package.json); a file OUTSIDE it must stay raw.
+    const proj = join(tempDir, 'clamp-proj');
+    const sub = join(proj, 'sub');
+    mkdirSync(sub, { recursive: true });
+    writeFileSync(join(proj, 'package.json'), '{"name":"clamp-proj"}\n');
+    writeFileSync(join(tempDir, 'clamp-outside.ts'), `export const outside = 1;\n`);
+    const aPath = join(sub, 'a.ts');
+    // ../../clamp-outside resolves to tempDir/clamp-outside.ts — OUTSIDE clamp-proj.
+    writeFileSync(aPath, `import { outside } from '../../clamp-outside';\nexport const o = outside;\n`);
+    await symbolIndex.parseFile(aPath);
+    const dep = symbolIndex.getDependencies(aPath).find(d => d.targetSymbol === 'outside');
+    expect(dep).toBeDefined();
+    expect(dep!.targetFile).toBe('../../clamp-outside'); // clamped → raw, not the foreign abs path
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Intra-file call edges → blast-radius (issue #468).
   //
   // Before the fix, parseFile extracted imports/heritage but NOT `calls`, so the
@@ -290,6 +402,51 @@ export function fact(n: number): number {
     await symbolIndex.parseFile(filePath);
     expect(symbolIndex.getDependents(filePath, 'fact')
       .some(d => d.sourceSymbol === 'fact')).toBe(false);
+  });
+
+  // ── Cross-file CALL resolution (ast-a1-3) ─────────────────────────────────
+  // The payoff of ast-a1-1: a call to an IMPORTED symbol now produces a `calls`
+  // edge into the other file, so blast-radius + signature conflicts cross modules.
+  test('emits a cross-file calls edge to an imported callee', async () => {
+    const bPath = join(tempDir, 'xc-b.ts');
+    const aPath = join(tempDir, 'xc-a.ts');
+    writeFileSync(bPath, `export function createRoutes() { return 1; }\n`);
+    writeFileSync(aPath, `import { createRoutes } from './xc-b';\nexport function registerRoutes() { return createRoutes(); }\n`);
+
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    // createRoutes' reverse-deps now include the cross-file caller registerRoutes.
+    const callers = symbolIndex.getDependents(bPath, 'createRoutes');
+    const xcall = callers.find(d => d.sourceSymbol === 'registerRoutes' && d.sourceFile === aPath);
+    expect(xcall).toBeDefined();
+    expect(xcall!.dependencyType).toBe('calls');
+
+    // ...and blast-radius of createRoutes (in b) now reaches across the module.
+    const radius = computeBlastRadius(symbolIndex, { filePath: bPath, symbolPath: 'createRoutes' }, 3);
+    expect(radius.some(n => n.symbolPath === 'registerRoutes')).toBe(true);
+  });
+
+  test('cross-file calls resolve through a NodeNext `.js` specifier', async () => {
+    const bPath = join(tempDir, 'jsx-b.ts');
+    const aPath = join(tempDir, 'jsx-a.ts');
+    writeFileSync(bPath, `export function build() { return 1; }\n`);
+    writeFileSync(aPath, `import { build } from './jsx-b.js';\nexport function boot() { return build(); }\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    expect(symbolIndex.getDependents(bPath, 'build')
+      .some(d => d.sourceSymbol === 'boot' && d.sourceFile === aPath && d.dependencyType === 'calls')).toBe(true);
+  });
+
+  test('does NOT emit a calls edge for an external (node_modules) callee', async () => {
+    const filePath = join(tempDir, 'ext-call.ts');
+    writeFileSync(filePath, `import { readFileSync } from 'fs';\nexport function load() { return readFileSync('x'); }\n`);
+    await symbolIndex.parseFile(filePath);
+
+    // The import edge exists, but no `calls` edge is fabricated to an unresolved 'fs'.
+    const callsEdges = symbolIndex.getDependencies(filePath).filter(d => d.dependencyType === 'calls');
+    expect(callsEdges.some(d => d.targetSymbol === 'readFileSync')).toBe(false);
   });
 });
 
@@ -649,6 +806,26 @@ export function beta() {}
     // No DIRECT conflict (different symbols)
     const direct = conflicts.filter(c => c.type === 'direct');
     expect(direct).toHaveLength(0);
+  });
+
+  test('detects a CROSS-FILE signature conflict (the ast-a1-3 payoff)', async () => {
+    // b defines createRoutes; a (a different file) imports + calls it. Modifying
+    // createRoutes' contract while someone edits its cross-file caller is a
+    // signature conflict — which could only fire intra-file before ast-a1-3.
+    const bPath = join(tempDir, 'sig-b.ts');
+    const aPath = join(tempDir, 'sig-a.ts');
+    writeFileSync(bPath, `export function createRoutes(app: any) { return app; }\n`);
+    writeFileSync(aPath, `import { createRoutes } from './sig-b';\nexport function registerRoutes(app: any) { return createRoutes(app); }\n`);
+    await symbolIndex.parseFile(bPath);
+    await symbolIndex.parseFile(aPath);
+
+    const conflicts = symbolIndex.predictConflicts(
+      [{ filePath: bPath, symbolPath: 'createRoutes', type: 'modify' }],   // A: change the contract
+      [{ filePath: aPath, symbolPath: 'registerRoutes', type: 'modify' }], // B: edit the cross-file caller
+    );
+    const sig = conflicts.find(c => c.type === 'signature');
+    expect(sig).toBeDefined();
+    expect(sig!.severity).toBe('blocking');
   });
 });
 

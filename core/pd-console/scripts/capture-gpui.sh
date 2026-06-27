@@ -9,6 +9,10 @@
 # from a normal Terminal session that has the permission. (No Accessibility
 # permission needed: we open each pane via `--pane`, not injected keystrokes.)
 #
+# For a truly background/CI path (no window, no TCC), see
+# core/pd-console/docs/recording-visual-artifacts.md — Method A (offscreen wgpu
+# render + ffmpeg, for the Vello surfaces) and Method B (headless virtual display).
+#
 # Usage:  core/pd-console/scripts/capture-gpui.sh [output-dir]
 # Output: window-<pane>.png for a representative set of panes, cropped to the app.
 set -euo pipefail
