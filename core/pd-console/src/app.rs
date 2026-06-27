@@ -1964,7 +1964,11 @@ impl ConsoleView {
         // The Daemons surface renders interactive picker buttons instead of plain
         // text blocks (built here so the on_click listeners can borrow cx).
         let is_daemons = nav_id_for_surface(surface) == Some("daemons");
-        let daemon_rows = if is_daemons { self.daemon_button_rows(cx) } else { Vec::new() };
+        let daemon_rows = if is_daemons {
+            self.daemon_button_rows(cx)
+        } else {
+            Vec::new()
+        };
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
         // The Conjure surface (focused) gets the "Render graph" action bar — the

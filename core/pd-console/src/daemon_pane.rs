@@ -28,7 +28,10 @@ pub struct DaemonPane {
 
 impl DaemonPane {
     pub fn new() -> Self {
-        Self { berths: Vec::new(), active_url: String::new() }
+        Self {
+            berths: Vec::new(),
+            active_url: String::new(),
+        }
     }
 
     /// Tier → tone (meaning, resolved to OKLCH by the renderer): the canonical
@@ -102,7 +105,10 @@ mod tests {
     use super::*;
 
     fn pane_with(berths: Vec<Berth>, active_url: &str) -> DaemonPane {
-        DaemonPane { berths, active_url: active_url.to_string() }
+        DaemonPane {
+            berths,
+            active_url: active_url.to_string(),
+        }
     }
 
     fn sample_berths() -> Vec<Berth> {
