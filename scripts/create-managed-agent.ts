@@ -85,12 +85,24 @@ export function buildCreatePayload(
     system,
     description: config.description,
     tools: [{ type: config.tools?.cloudToolset ?? 'agent_toolset_20260401' }, ...customTools],
-    skills: (config.skills ?? []).map((id: string) => ({ type: 'skill', id })),
     metadata: {
       source: 'port-daddy/agents/port-daddy-pilot',
       pilot_version: config.version ?? '0',
     },
   };
+
+  // The cloud `skills` array references either Anthropic pre-built skills
+  // (type:"anthropic", skill_id e.g. "xlsx") or CUSTOM skills already uploaded
+  // to the workspace (type:"custom", skill_id:"skill_…"). The Pilot's skills
+  // (port-daddy-agent-skill, multi-agent-coordination, next-move) are local
+  // filesystem skills, not workspace-uploaded, so we cannot reference them by a
+  // skill_* id yet. We omit them here — the full coordination discipline is
+  // already embedded verbatim in the system prompt. To attach them later:
+  // upload each as a custom skill, then add {type:"custom", skill_id:"skill_…"}.
+  // config.cloudSkills (if present) may list pre-resolved {type, skill_id} entries.
+  if (Array.isArray(config.cloudSkills) && config.cloudSkills.length) {
+    payload.skills = config.cloudSkills;
+  }
 
   const roster: string[] = (config.multiagent?.agents ?? [])
     .map((a: any) => a.delegate_to ?? a.role)

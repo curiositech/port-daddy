@@ -63,6 +63,20 @@ records its `id` + `version` in the committed `config/managed-agents.json`.
 Without the key it records a `pending` entry — it never fabricates an ID. The
 local definitions don't need the cloud agent.
 
+The live agent is `agent_01S8bG1GPXWgReKrNL9meD5V` (version 1), carrying the
+agent toolset plus the custom `pd_preflight` / `pd_note` / `pd_status` tools and
+the full persona as its system prompt. Reference it when starting a session:
+`POST /v1/sessions` with `{"agent_id": "agent_01S8bG1GPXWgReKrNL9meD5V"}`.
+
+> **Skills follow-up:** the cloud `skills` array references Anthropic pre-built
+> skills or *workspace-uploaded* custom skills (by `skill_*` id). The Pilot's
+> skills (`port-daddy-agent-skill`, `multi-agent-coordination`, `next-move`) are
+> local filesystem skills, so they are **omitted** from the cloud agent for now —
+> the discipline is already embedded in the system prompt. To attach them, upload
+> each as a custom skill, then set `cloudSkills` in `agent.config.json` to the
+> returned `{type:"custom", skill_id:"skill_…"}` entries and re-run the script
+> (it generates a new agent version).
+
 ## SessionStart steering
 
 In a Port Daddy-active project, `pd init` wires a SessionStart hook
