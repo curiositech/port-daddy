@@ -7,7 +7,7 @@
  */
 
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
-import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
   normalizeCodexConfigOverrides,
   spawnViaCliTube,
@@ -89,7 +89,7 @@ interface BridgeModelAlias {
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const BRIDGE_MODEL = 'codex-via-giant-squid';
-const DEFAULT_LOCAL_AUTH_TOKEN = 'squid-local';
+const GENERATED_TOKEN_BYTES = 24;
 export const DEFAULT_SQUID_MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_SESSION_ENTRIES = 1024;
 const MAX_CONTEXT_ID_LENGTH = 128;
@@ -592,7 +592,9 @@ function authorized(req: IncomingMessage, token: string | null | undefined): boo
 
 function effectiveAuthToken(token: string | null | undefined): string | null {
   if (token === null) return null;
-  return token ?? process.env.PD_SQUID_BRIDGE_TOKEN ?? DEFAULT_LOCAL_AUTH_TOKEN;
+  if (token !== undefined) return token;
+  if (process.env.PD_SQUID_BRIDGE_TOKEN) return process.env.PD_SQUID_BRIDGE_TOKEN;
+  return `squid-${randomBytes(GENERATED_TOKEN_BYTES).toString('base64url')}`;
 }
 
 function safeTokenEquals(actual: string, expected: string): boolean {

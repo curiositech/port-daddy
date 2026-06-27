@@ -330,6 +330,12 @@ const productRoutes: SiteMetadata[] = [
     { section: 'product' },
   ),
   metadata(
+    '/squid-codex',
+    'Squid Codex Bridge',
+    'Run Claude Code with Codex and your ChatGPT Pro subscription through the Giant Squid local bridge, with Port Daddy hooks, agent skill, MCP tools, budgets, claims, and recovery wrapped around the run.',
+    { section: 'product', ogSourceImage: OG_SOURCE_IMAGES.agentRuntime, ogSectionLabel: 'Giant Squid' },
+  ),
+  metadata(
     '/library',
     'The Harbor Library',
     'The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.',
