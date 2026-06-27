@@ -102,8 +102,9 @@ git fetch origin
 Resume the existing session when the user goal, worktree or successor
 worktree, branch lineage, and touched surface are still the same unresolved
 slice. If the previous session is stale, abandoned, or cannot be made active,
-start a new session in the same identity family and link the predecessor in
-the first note.
+use `pd session takeover <old-session-id> [reason]` (or `pd takeover <old-session-id> [reason]`) to create a linked
+successor. It preserves the predecessor's append-only notes, releases stale
+claims, and records the lineage on both sessions.
 
 Start a new linked session when the product goal changed, the previous slice
 was completed or merged, the branch no longer descends cleanly from the old
@@ -206,8 +207,8 @@ you explicitly hand it off in Port Daddy notes.
 | You will edit files | Start a session, leave a scope note, and claim the smallest real files or regions. |
 | The live daemon looks stale | Verify daemon provenance before trusting docs, source, or memory. |
 | Another session may overlap | Read notes, claims, activity, and ownership before changing the surface. |
-| Work was interrupted | Use salvage and preserve the abandoned intent. |
-| The same coding vibe resumes days later | Re-anchor, then resume the old session or start a linked successor with explicit predecessor provenance. |
+| Work was interrupted | Use salvage or `pd session takeover`; preserve the abandoned intent. |
+| The same coding vibe resumes days later | Re-anchor, then resume the old session or create a takeover successor with explicit predecessor provenance. |
 | You are about to commit, push, or deploy | Fetch, reconcile, re-read live coordination state, stage narrowly, and run the guard. |
 
 ## Advanced Surfaces
@@ -434,6 +435,7 @@ pd salvage --project <project>           # recover dead-agent intent
 # Sessions & coordination
 pd begin "<task>" --identity <project>:<stack>:<context> --lifecycle durable
 pd note "Scope: ..."                     # durable progress evidence
+pd takeover <old-session-id>             # linked successor; notes stay append-only
 pd session files add <path>              # claim a file region
 pd done "<outcome>"                      # close + leave result note
 
