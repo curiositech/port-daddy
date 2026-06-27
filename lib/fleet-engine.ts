@@ -158,7 +158,6 @@ interface FleetYamlAgent {
   name?: string;
   schedule?: string;
   run_on_start?: boolean;
-  runOnStart?: boolean;
   trigger?: string;
   trigger_tuple?: unknown[];
   backend?: string;

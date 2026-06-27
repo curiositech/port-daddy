@@ -32,10 +32,11 @@ import {
 /**
  * Standalone marquee page at /harness. The argument: a bare vendor CLI is a
  * lone agent typing into the void. The harness sinks tentacles into that
- * CLI's own hook surface and turns it into a citizen of the fleet — it hears
- * messages, is subscribed by default, sees the swarm, gets CI verdicts back,
- * is invited to parley, pays rent, is steered to fresh worktrees, and has its
- * destructive commands vetoed with the safe alternative named.
+ * CLI's own hook surface and turns it into a citizen of the fleet: it starts
+ * each turn with the latest messages, joins the right channels, checks for
+ * edit conflicts, gets CI failures back, calls a parley when work overlaps,
+ * stops at budget, works in its own tree, and has destructive commands vetoed
+ * with the safe alternative named.
  *
  * Source: ADR-0051 (eight harness capabilities). Tone is honest infrastructure,
  * not hype: Claude is fully wired today; Gemini and Codex hook surfaces are
@@ -65,120 +66,120 @@ const CAPABILITIES: readonly Capability[] = [
   {
     n: '01',
     icon: Ear,
-    title: 'Hears the fleet',
-    cardTitle: 'Fleet hearing',
-    oneLiner: 'Pending tube messages are injected at the start of every turn.',
+    title: 'Starts with the latest messages',
+    cardTitle: 'Starts with the latest messages',
+    oneLiner: 'Every turn begins with the project notes and tube messages the agent missed.',
     detail:
-      'Before the model thinks, the harness drains the agent’s inbox and lays the unread messages in front of it. The agent never has to poll, never has to remember to check — the conversation arrives as context, on the turn it matters.',
+      'Before the model decides what to do, Port Daddy adds unread notes, tube messages, and channel updates to the prompt. The agent sees what changed before it edits, tests, or replies.',
     figure: {
-      input: 'Unread tube',
-      hook: 'Turn-start hook',
-      output: 'Context lands',
-      proof: 'Every turn begins with a read-through of attention, inbox, and subscribed channels.',
+      input: 'Unread notes',
+      hook: 'Before reply',
+      output: 'Fresh context',
+      proof: 'Attention, inbox, and subscribed channels are read before the agent gets its next turn.',
     },
   },
   {
     n: '02',
     icon: Radio,
-    title: 'Subscribed by default',
-    cardTitle: 'Auto-subscribe',
-    oneLiner: 'Auto-joined to its project channel and the fleet channel.',
+    title: 'Joins the right channels',
+    cardTitle: 'Joins the right channels',
+    oneLiner: 'A new session is subscribed to the project and fleet channels before work starts.',
     detail:
-      'A fresh agent is not mute and not deaf. The harness signs it up to the channels its work lives on, so a broadcast to the project reaches it without anyone wiring up a subscription by hand.',
+      'When a session starts, the harness subscribes it to the places its work will happen. A teammate can broadcast once, and every relevant agent hears it without hand-wiring another subscription.',
     figure: {
-      input: 'New agent',
-      hook: 'Session birth',
-      output: 'Fleet channels',
+      input: 'New session',
+      hook: 'Subscribe',
+      output: 'Project + fleet',
       proof: 'The project lane and fleet lane are attached before the first useful turn.',
     },
   },
   {
     n: '03',
     icon: Users,
-    title: 'Swarm awareness',
-    cardTitle: 'Swarm map',
-    oneLiner: 'Sees who owns which files — and the blast radius — before it edits.',
+    title: 'Checks who is editing',
+    cardTitle: 'Checks who is editing',
+    oneLiner: 'Before a write, the agent sees active sessions, file claims, and nearby work.',
     detail:
-      'Before the agent touches a file, the harness shows it who has already claimed that surface and what depends on it. Collisions get headed off at the point of intent, not discovered later in a tangled merge.',
+      'Before the agent touches a file, the harness shows it who already claimed that surface and what depends on it. The agent can wait, pick another path, or start a parley before it creates a merge mess.',
     figure: {
-      input: 'Edit intent',
-      hook: 'Claim map',
-      output: 'Conflict signal',
+      input: 'Edit request',
+      hook: 'Claim check',
+      output: 'Clear path',
       proof: 'File claims, active sessions, and nearby work are surfaced before the write path.',
     },
   },
   {
     n: '04',
     icon: SignalHigh,
-    title: 'CI verdicts come home',
-    cardTitle: 'CI replies',
-    oneLiner: 'A red check on its branch tells the agent to fix-and-repush.',
+    title: 'Gets CI failures back',
+    cardTitle: 'Gets CI failures back',
+    oneLiner: 'A red check is sent to the session that pushed the branch.',
     detail:
-      'The verdict travels back to the agent that earned it. A failing run on the agent’s branch lands as a message it can act on — so the loop closes itself instead of waiting for a human to relay the bad news.',
+      'A failing run lands with the agent that earned it. The session gets the error, fixes the branch, reruns the check, and pushes again without a human playing dispatcher.',
     figure: {
-      input: 'Red check',
-      hook: 'Branch watcher',
-      output: 'Fix loop',
+      input: 'CI failure',
+      hook: 'Branch route',
+      output: 'Fix request',
       proof: 'CI verdicts are routed back to the session that produced the branch.',
     },
   },
   {
     n: '05',
     icon: MessagesSquare,
-    title: 'Invited to parley',
-    cardTitle: 'Parley table',
-    oneLiner: 'Multi-agent conversations with turn order and a termination rule.',
+    title: 'Calls a meeting when work overlaps',
+    cardTitle: 'Calls a meeting when work overlaps',
+    oneLiner: 'Overlapping agents get a structured conversation instead of stray chat.',
     detail:
-      'When several agents need to settle something, the harness seats them at a table with a defined turn order and a condition that ends the talk. It is a structured conversation with a gavel, not a free-for-all of interrupts.',
+      'When agents disagree or reach for the same surface, Port Daddy opens a conversation with named participants, turn order, and a way to end. The output is a decision another agent can read later.',
     figure: {
-      input: 'Dispute',
-      hook: 'Parley table',
-      output: 'Decision',
+      input: 'Overlap',
+      hook: 'Parley',
+      output: 'Written decision',
       proof: 'The conversation has participants, order, exit criteria, and a durable result.',
     },
   },
   {
     n: '06',
     icon: CircleDollarSign,
-    title: 'Pays rent',
-    cardTitle: 'Budget rent',
-    oneLiner: 'Budget- and bond-gated; an over-cap agent is throttled at the tool call.',
+    title: 'Stops when budget is gone',
+    cardTitle: 'Stops when budget is gone',
+    oneLiner: 'Every agent runs under a spend cap and a posted bond.',
     detail:
-      'Every agent runs against a budget and a posted bond. When it goes over cap, the brake is applied at the tool call itself — the most precise place to stop runaway spend, before the expensive action, not after the invoice.',
+      'Each agent has a spending cap and a bond. If the next tool call would exceed the limit, the call is stopped before money leaves the account.',
     figure: {
       input: 'Tool call',
-      hook: 'Budget gate',
-      output: 'Throttle',
+      hook: 'Spend check',
+      output: 'Allowed or stopped',
       proof: 'Spend is checked at the call boundary where the expensive action would happen.',
     },
   },
   {
     n: '07',
     icon: GitBranch,
-    title: 'Steered to fresh worktrees',
-    cardTitle: 'Fresh worktree',
-    oneLiner: 'Never edits the main checkout — redirected to an isolated worktree.',
+    title: 'Works outside your checkout',
+    cardTitle: 'Works outside your checkout',
+    oneLiner: 'Agent work is redirected into a linked git worktree.',
     detail:
-      'The harness keeps agents out of the working copy you are sitting in. Work is redirected into its own git worktree, so an agent’s experiment can fail, branch, or be thrown away without ever disturbing your checkout.',
+      'The harness keeps agents out of the working copy you are sitting in. Their work happens in a linked git worktree, so an experiment can branch, fail, or be thrown away without disturbing your checkout.',
     figure: {
-      input: 'Main checkout',
-      hook: 'Worktree redirect',
-      output: 'Isolated branch',
+      input: 'Work request',
+      hook: 'Worktree check',
+      output: 'Own branch',
       proof: 'The live operator tree stays untouched while the agent works in a linked berth.',
     },
   },
   {
     n: '08',
     icon: Ban,
-    title: 'Destructive commands vetoed',
-    cardTitle: 'Guard veto',
-    oneLiner: 'rm -rf and git push --force are intercepted — with the safe path named.',
+    title: 'Blocks irreversible commands',
+    cardTitle: 'Blocks irreversible commands',
+    oneLiner: 'Dangerous shell and git commands are intercepted before they run.',
     detail:
-      'The dangerous command is caught at the gate. The agent does not just get a wall; it gets the safe alternative spelled out — the reversible move it should have reached for. A veto that teaches, not one that merely blocks.',
+      'Commands like rm -rf and force push are caught before they run. The refusal names the reversible command the agent should use instead, so the agent can recover without guessing.',
     figure: {
-      input: 'Dangerous command',
-      hook: 'Guard veto',
-      output: 'Safe alternative',
+      input: 'Risky command',
+      hook: 'Guard check',
+      output: 'Safer command',
       proof: 'The refusal names the reversible action, so the agent can recover without guessing.',
     },
   },
@@ -366,11 +367,11 @@ export default function HarnessPage() {
                   </PanelTitle>
                   <PanelBody className="max-w-[46rem] text-[length:var(--type-panel-body-size)]">
                     Run an AI coding agent inside the Port Daddy Harness and it stops
-                    being a lone process talking to itself. The harness sinks
-                    tentacles into the vendor CLI’s own hook surface — and on the way
-                    in, it grants the agent eight things a bare CLI never had: it
-                    hears the fleet, knows the swarm, gets its verdicts back, pays
-                    rent, and is stopped before it can do anything it can’t undo.
+                    being a lone process talking to itself. The harness hooks into
+                    the vendor CLI and handles the jobs a bare CLI leaves to humans:
+                    messages before each turn, project channels, edit-conflict
+                    checks, CI feedback, parley when work overlaps, budget stops,
+                    isolated worktrees, and command guardrails.
                   </PanelBody>
                   <div className="flex flex-wrap gap-[var(--space-3)]">
                     <Button asChild variant="primary" size="lg">
@@ -467,8 +468,8 @@ export default function HarnessPage() {
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="What the harness grants"
-              title="Eight things a bare CLI never had."
-              description="Each one rides a hook. Together they turn an isolated process into a member of the crew — aware of the others, accountable for its spend, recoverable when it dies, and stopped before it can do harm."
+              title="Eight jobs the harness does before an agent acts."
+              description="These are practical jobs, not slogans. The harness gives every agent the messages, channels, claims, CI feedback, meetings, budget checks, worktree routing, and command guardrails it needs to work with the fleet."
               titleAs="h2"
               titleSize="display"
               titleClassName="max-w-[20ch]"
