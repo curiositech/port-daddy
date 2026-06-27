@@ -226,14 +226,14 @@ pd fleet ideas                 # Spark's idea notebook
 
 | Before (1,384 lines of shell) | After (YAML + engine) |
 |------|------|
-| `fleet/git-gardener.sh` (95 lines) | 8 lines of YAML |
-| `fleet/qa-adversary.sh` (90 lines) | 10 lines of YAML |
-| `fleet/spark.sh` (223 lines) | 10 lines of YAML |
-| `fleet/common.sh` (201 lines) | Built into `pd fleet` engine |
-| `fleet/dock-master.sh` (119 lines) | Built into `pd fleet` engine |
-| `fleet/pd-fleet.sh` (220 lines) | Built into `pd fleet` CLI |
+| `fleet/git-gardener.sh` (95 lines, historical removed script) <!-- cite-exempt --> | 8 lines of YAML |
+| `fleet/qa-adversary.sh` (90 lines, historical removed script) <!-- cite-exempt --> | 10 lines of YAML |
+| `fleet/spark.sh` (223 lines, historical removed script) <!-- cite-exempt --> | 10 lines of YAML |
+| `fleet/common.sh` (201 lines, historical removed script) <!-- cite-exempt --> | Built into `pd fleet` engine |
+| `fleet/dock-master.sh` (119 lines, historical removed script) <!-- cite-exempt --> | Built into `pd fleet` engine |
+| `fleet/pd-fleet.sh` (220 lines, historical removed script) <!-- cite-exempt --> | Built into `pd fleet` CLI |
 
-Total: **1,384 lines of shell → ~80 lines of YAML + a proper engine in `lib/fleet.ts`**
+Total: **1,384 lines of shell → ~80 lines of YAML + a proper engine in `lib/fleet-engine.ts`**
 
 ## What doesn't change
 
@@ -253,7 +253,7 @@ A team might share `.portdaddyrc` but have different fleet configs per developer
 
 ## Migration path
 
-1. Build the YAML parser and `lib/fleet.ts` engine
+1. Build the YAML parser and `lib/fleet-engine.ts` engine
 2. Keep existing shell scripts as fallback
 3. Add `pd fleet init` to generate a starter `pd-fleet.yml` from existing fleet scripts
 4. Deprecate individual shell scripts once the engine is stable
