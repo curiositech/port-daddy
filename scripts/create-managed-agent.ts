@@ -150,7 +150,10 @@ async function main(): Promise<void> {
   const sourceDir = join(repoRoot, 'agents', 'port-daddy-pilot');
   const { config, system } = loadPilotSource(sourceDir);
   const payload = buildCreatePayload(config, system);
-  const sourceSha = sha256(system);
+  // Hash the whole payload (not just the system prompt) so a change to any
+  // field — model, tools, description — is detected, and an unchanged re-run is
+  // a true no-op instead of churning a new agent version every time.
+  const sourceSha = sha256(JSON.stringify(payload));
   const mPath = manifestPath(repoRoot);
   const manifest = loadManifest(mPath);
   const existing = manifest.agents[config.id];
@@ -182,6 +185,15 @@ async function main(): Promise<void> {
   }
 
   const isUpdate = existing?.status === 'created' && existing.id;
+
+  // Idempotent skip: if we already have a created agent and the payload hasn't
+  // changed since we last wrote it, don't POST — the server would otherwise mint
+  // a new version even for an effectively-identical config.
+  if (isUpdate && existing!.source_sha === sourceSha) {
+    console.log(`Managed agent ${existing!.id} is already up to date (version ${existing!.version}); nothing to do.`);
+    return;
+  }
+
   const url = isUpdate ? `${API_URL}/${existing!.id}` : API_URL;
   const body: Record<string, unknown> = isUpdate
     ? { version: existing!.version, system, model: payload.model, name: payload.name, description: payload.description, tools: payload.tools }

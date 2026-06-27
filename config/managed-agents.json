@@ -4,12 +4,12 @@
     "port-daddy-pilot": {
       "status": "created",
       "id": "agent_01S8bG1GPXWgReKrNL9meD5V",
-      "version": 1,
+      "version": 3,
       "name": "Port Daddy Pilot",
       "model": "claude-opus-4-8",
-      "source_sha": "f5665e08056b1315",
+      "source_sha": "15c91413a1e973af",
       "created_at": "2026-06-27T04:06:34.615633Z",
-      "updated_at": "2026-06-27T04:06:34.615633Z"
+      "updated_at": "2026-06-27T04:08:35.319070Z"
     }
   }
 }
