@@ -395,7 +395,8 @@
       ],
       "completions": [
         "session",
-        "sessions"
+        "sessions",
+        "takeover"
       ],
       "docs": {
         "readme": true,

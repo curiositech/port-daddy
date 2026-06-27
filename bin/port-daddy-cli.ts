@@ -1315,7 +1315,7 @@ const ALL_COMMANDS: string[] = [
   'up', 'down', 'setup', 'init', 'cut', 'scan', 's', 'projects', 'p',
   'agent', 'agents', 'actor', 'actors', 'swarm', 'inbox', 'send', 'sent', 'log', 'activity',
   'wallet', 'bond',
-  'session', 'sessions', 'note', 'notes', 'say',
+  'session', 'sessions', 'takeover', 'note', 'notes', 'say',
   'begin', 'done', 'whoami', 'attention', 'nudge', 'with-lock', 'learn',
   'n', 'u', 'd',
   'dashboard', 'channels', 'webhook', 'webhooks', 'metrics', 'config', 'health', 'ports',
