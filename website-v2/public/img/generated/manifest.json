@@ -312,9 +312,9 @@
       "imageSize": "1376x768",
       "model": "gemini-3-pro-image-preview",
       "styleReference": "/img/generated/pr-reviews-itself/hero.webp",
-      "prompt": "Flat Swiss-modern blueprint editorial illustration in the PR That Reviews Itself house style. Wide three-panel Articles of Agreement metaphor: sailors board an old ship and sign aboard; the crew actively signs a large open ledger with pens and abstract non-language signature loops; the crew lifts safely from a railled deck launch platform with compact jet packs, loose safety tethers, spotters, and abstract tool/guard/tube/daemon nodes. Warm, personal, instructional, safe. No plank, falling, overboard staging, macabre mood, readable UI text, labels, letters, numbers, brand marks, or fake copy.",
+      "prompt": "Flat Swiss-modern blueprint editorial illustration in the PR That Reviews Itself house style: cream paper, cobalt sailor jackets, deep teal accents, near-black outlines, friendly expressive faces, crisp panel rules, hand-drawn but precise. Wide three-panel Articles of Agreement metaphor on an old ship deck. Left panel: crew arrives on a safe railed gangway and one sailor signs aboard at a small dockside desk while others wait warmly nearby. Center panel: a close-up signing ceremony around a huge open ledger; the book fills most of the panel; sailors lean over it; visible pen tips touch the signature lines; fresh blue ink trails and large signature loops are visible under their hands; the captain points gently at the exact line to sign. Right panel: after the agreement is signed, the same crew rises from a safe railed deck launch platform wearing compact jet packs; spotters hold tethers; above them are icon-only tool boxes with wrench, shield, tube, cube, and check-mark glyphs drawn as simple abstract symbols. Warm, personal, instructional, safe, specific.",
       "webpFile": "/img/generated/harness-articles-jetpacks-landscape-light.webp",
-      "webpQuality": 86
+      "webpQuality": 82
     },
     {
       "id": "harness-articles-jetpacks-landscape-dark",
@@ -324,9 +324,9 @@
       "imageSize": "1376x768",
       "model": "gemini-3-pro-image-preview",
       "styleReference": "/img/generated/harness-articles-jetpacks-landscape-light.png",
-      "prompt": "Dark-mode sibling of the warm three-panel Articles of Agreement illustration. Preserve boarding, active ledger signing, and safe deck-launch jet packs; re-light for dark UI with deep midnight paper, pale cream and cobalt linework, teal-sage accents, restrained lime marks, small warm amber highlights, and luminous blueprint ink. No plank, falling, overboard staging, macabre mood, readable UI text, labels, letters, numbers, brand marks, or fake copy.",
+      "prompt": "Dark-mode sibling of the close-up signing three-panel Articles of Agreement illustration. Preserve the composition and especially the middle signing ceremony with hands, pen tips, fresh ink trails, and visible signature loops. Render in deep ink navy, cream and cobalt linework, teal accents, warm faces, high contrast, crisp panel rules, icon-only tool boxes, and a safe railed deck launch platform.",
       "webpFile": "/img/generated/harness-articles-jetpacks-landscape-dark.webp",
-      "webpQuality": 86
+      "webpQuality": 82
     },
     {
       "id": "harness-articles-jetpacks-portrait-light",
@@ -336,9 +336,9 @@
       "imageSize": "768x1376",
       "model": "gemini-3-pro-image-preview",
       "styleReference": "/img/generated/harness-articles-jetpacks-landscape-light.png",
-      "prompt": "Portrait mobile version of the warm Articles of Agreement metaphor. Stacked bands: sailors board and sign at a deck desk; a large open ledger fills the middle with multiple sailors actively signing using pens and abstract non-language signature loops; sailors lift from a safe railled deck launch platform with compact jet packs, loose safety tethers, spotters, and abstract tool/guard/tube/daemon nodes. Human, specific, instructional, safe. No plank, falling, overboard staging, macabre mood, readable UI text, labels, letters, numbers, brand marks, or fake copy.",
+      "prompt": "Portrait mobile version of the close-up signing Articles of Agreement metaphor, stacked vertically in three panels. Top: sailors arrive on a safe railed gangway and one signs aboard at a desk. Middle: the huge open ledger dominates the panel and reads as active signing, with sailors leaning over it, pen tips touching signature lines, fresh ink trails, large signature loops, and the captain pointing at the exact line. Bottom: after the ledger is signed, the crew lifts from a safe railed deck launch platform wearing compact jet packs with spotters and safety tethers; icon-only tool boxes above them. Flat Swiss-modern blueprint house style, warm and personal, abstract geometric marks instead of readable labels.",
       "webpFile": "/img/generated/harness-articles-jetpacks-portrait-light.webp",
-      "webpQuality": 86
+      "webpQuality": 82
     },
     {
       "id": "harness-articles-jetpacks-portrait-dark",
@@ -348,9 +348,9 @@
       "imageSize": "768x1376",
       "model": "gemini-3-pro-image-preview",
       "styleReference": "/img/generated/harness-articles-jetpacks-portrait-light.png",
-      "prompt": "Dark-mode sibling of the portrait Articles of Agreement illustration. Preserve the stacked mobile story: boarding and desk signing, active ledger signing close-up, and safe deck-launch jet packs with spotters; re-light for dark UI with deep midnight paper, pale cream and cobalt linework, teal-sage accents, restrained lime marks, small warm amber highlights, and luminous blueprint ink. No plank, falling, overboard staging, macabre mood, readable UI text, labels, letters, numbers, brand marks, or fake copy.",
+      "prompt": "Dark-mode sibling of the portrait close-up signing Articles of Agreement illustration. Preserve the stacked mobile story: boarding and desk signing, active ledger signing close-up with hands, pen tips, ink trails, and signature loops, and safe deck-launch jet packs with spotters. Render in deep ink navy, cream and cobalt linework, teal accents, warm faces, high contrast, crisp panel rules, icon-only tool boxes, and a safe railed deck launch platform.",
       "webpFile": "/img/generated/harness-articles-jetpacks-portrait-dark.webp",
-      "webpQuality": 86
+      "webpQuality": 82
     },
     {
       "id": "salvage-ledger",
