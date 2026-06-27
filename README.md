@@ -688,6 +688,14 @@ Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree` (see Destr
 
 **What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
 
+**Giant Squid Claude-to-Codex bridge.** If you want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine, run `pd squid bridge`. It serves a small Anthropic Messages-compatible endpoint on localhost and forwards each request to `codex exec`. This is an unofficial compatibility layer, not an official Claude Code auth mode, and it does not promise full Anthropic tool-call round-tripping.
+
+```bash
+pd squid bridge --port 8765 --token squid-local
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8765
+export ANTHROPIC_AUTH_TOKEN=squid-local
+```
+
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
 
 **Budget breach is pause-and-ask, not cliff SIGTERM.** The manifest feature is `budget_guard`: when a spawn crosses 100% of its project's daily budget, Port Daddy posts a *pending kill* with a 60-second grace window and broadcasts on `budget:pending`. During grace, the operator has three options: `raise` (credit the wallet + optionally bump the budget, agent keeps running), `kill` (skip the wait, fire SIGTERM now), or `grace` (extend the window — up to 2 extensions). If nothing happens, the backstop SIGTERM fires at expiry. List pending kills with `pd wallet pending`; resolve one with `pd wallet raise --agent <id> --usd 5`.

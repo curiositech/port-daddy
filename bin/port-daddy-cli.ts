@@ -3018,6 +3018,12 @@ export async function main(): Promise<void> {
         break;
       }
 
+      case 'squid': {
+        const { handleSquid } = await import('../cli/commands/squid.js');
+        await handleSquid(positional, options);
+        break;
+      }
+
       case 'wallet': {
         const { handleWallet } = await import('../cli/commands/wallet.js');
         await handleWallet(positional, options);
