@@ -67,6 +67,12 @@ export interface CliTubeOptions {
    */
   model?: string;
   /**
+   * Raw Codex CLI config overrides, forwarded as repeated `-c key=value`
+   * arguments. Kept Codex-specific so other CLI backends cannot accidentally
+   * inherit OpenAI-only configuration names.
+   */
+  codexConfig?: string[];
+  /**
    * Optional tube client. When provided, the wrapper publishes the
    * final output on `tube`. When omitted, no publishing happens — the
    * wrapper is still callable, just without transparency.
@@ -184,6 +190,7 @@ export function buildArgs(
   outputPath?: string,
   model?: string,
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
+  codexConfig?: string[],
 ): { args: string[]; stdin: string | null } {
   // A model equal to the backend/CLI's own name is a placeholder that leaked
   // from default resolution (backend "cli:claude-code" → model "claude-code").
@@ -230,6 +237,9 @@ export function buildArgs(
     ];
     if (outputPath) args.push('--output-last-message', outputPath);
     if (effModel) args.push('--model', effModel);
+    for (const config of codexConfig ?? []) {
+      args.push('-c', config);
+    }
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -300,7 +310,7 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode);
+  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode, opts.codexConfig);
 
   const startedAt = Date.now();
 

@@ -2287,7 +2287,7 @@ export async function main(): Promise<void> {
   // Flags whose repeated occurrences should accumulate into an array
   // instead of last-write-wins. Add a key here when a consumer is array-aware
   // (e.g. `--files A --files B`).
-  const REPEATABLE_FLAGS: Set<string> = new Set(['files']);
+  const REPEATABLE_FLAGS: Set<string> = new Set(['files', 'client-arg', 'codex-config']);
 
   const assignOption = (key: string, value: string | true): void => {
     if (REPEATABLE_FLAGS.has(key) && key in options) {

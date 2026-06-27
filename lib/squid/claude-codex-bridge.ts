@@ -17,6 +17,7 @@ export interface ClaudeCodexBridgeOptions {
   timeoutMs?: number;
   authToken?: string | null;
   codexModel?: string;
+  codexConfig?: string[];
   env?: Record<string, string | undefined>;
   spawnCodex?: (opts: CliTubeOptions) => Promise<CliTubeResult>;
 }
@@ -42,6 +43,7 @@ export interface AnthropicMessagesRequest {
   system?: string | AnthropicContentBlock[];
   messages?: AnthropicMessage[];
   stream?: boolean;
+  thinking?: unknown;
   tools?: unknown[];
   tool_choice?: unknown;
   metadata?: Record<string, unknown>;
@@ -60,12 +62,21 @@ interface BridgeRunResult {
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const BRIDGE_MODEL = 'codex-via-giant-squid';
 
+/**
+ * Convert an Anthropic Messages-shaped request into the single prompt handed to
+ * `codex exec`. The bridge is intentionally text-first: Claude tool metadata is
+ * represented as context rather than as Anthropic `tool_use` protocol blocks.
+ */
 export function buildCodexPrompt(req: AnthropicMessagesRequest): string {
   const lines: string[] = [
     'You are Codex CLI running behind Port Daddy Giant Squid, an unofficial local compatibility bridge.',
     'The caller used an Anthropic Messages-shaped request, but this is not an official Claude Code auth mode.',
     'Return a normal assistant answer in text. Do not claim to be using Claude Code authentication.',
   ];
+
+  if (req.thinking) {
+    lines.push(`The caller requested Claude thinking/effort settings: ${JSON.stringify(req.thinking)}. Map that to your internal reasoning effort without exposing private reasoning.`);
+  }
 
   if (req.tools || req.tool_choice) {
     lines.push(
@@ -89,6 +100,10 @@ export function buildCodexPrompt(req: AnthropicMessagesRequest): string {
   return lines.join('\n');
 }
 
+/**
+ * Create the local HTTP server. Tests inject `spawnCodex`; production uses the
+ * cli-tube Codex driver, which in turn shells out to the authenticated Codex CLI.
+ */
 export function createClaudeCodexBridgeServer(options: ClaudeCodexBridgeOptions = {}): http.Server {
   const spawnCodex = options.spawnCodex ?? spawnViaCliTube;
   return http.createServer(async (req, res) => {
@@ -104,6 +119,7 @@ export function createClaudeCodexBridgeServer(options: ClaudeCodexBridgeOptions 
   });
 }
 
+/** Start the bridge listener and resolve after the TCP socket is bound. */
 export function listenClaudeCodexBridge(options: ClaudeCodexBridgeOptions = {}): Promise<http.Server> {
   const server = createClaudeCodexBridgeServer(options);
   const port = options.port ?? 8765;
@@ -117,6 +133,7 @@ export function listenClaudeCodexBridge(options: ClaudeCodexBridgeOptions = {}):
   });
 }
 
+/** Route one HTTP request into health, Anthropic Messages JSON, or SSE mode. */
 async function handleRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -159,6 +176,7 @@ async function handleRequest(
   }
 }
 
+/** Execute the translated request through Codex CLI and normalize the result. */
 async function runCodex(
   request: AnthropicMessagesRequest,
   options: Required<Pick<ClaudeCodexBridgeOptions, 'spawnCodex'>> & ClaudeCodexBridgeOptions,
@@ -171,6 +189,7 @@ async function runCodex(
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     env: options.env,
     model: options.codexModel,
+    codexConfig: options.codexConfig,
     tube: null,
   });
 
@@ -189,6 +208,11 @@ async function runCodex(
   };
 }
 
+/**
+ * Emit an Anthropic-compatible SSE envelope. Codex currently returns a final
+ * message through cli-tube, so this streams one text delta containing the final
+ * answer rather than token-level deltas.
+ */
 async function writeStreamResponse(
   res: ServerResponse,
   request: AnthropicMessagesRequest,
@@ -233,6 +257,7 @@ async function writeStreamResponse(
   }
 }
 
+/** Shape bridge output like an Anthropic Message, with PD provenance attached. */
 function toAnthropicMessage(result: BridgeRunResult) {
   return {
     id: result.id,
@@ -255,6 +280,7 @@ function toAnthropicMessage(result: BridgeRunResult) {
   };
 }
 
+/** Extract plain text from the string-or-block-array content forms Anthropic accepts. */
 function contentToText(content: AnthropicMessagesRequest['system'] | AnthropicMessage['content']): string {
   if (!content) return '';
   if (typeof content === 'string') return content;
@@ -271,6 +297,7 @@ function contentToText(content: AnthropicMessagesRequest['system'] | AnthropicMe
     .join('\n');
 }
 
+/** Validate only the subset of Anthropic Messages fields this bridge consumes. */
 function validateMessagesRequest(body: unknown): string | null {
   if (!body || typeof body !== 'object') return 'JSON object body required';
   const req = body as AnthropicMessagesRequest;
@@ -284,6 +311,7 @@ function validateMessagesRequest(body: unknown): string | null {
   return null;
 }
 
+/** Accept either bearer auth or x-api-key for local client compatibility. */
 function authorized(req: IncomingMessage, token: string | null | undefined): boolean {
   if (!token) return true;
   const auth = String(req.headers.authorization || '');
@@ -291,6 +319,7 @@ function authorized(req: IncomingMessage, token: string | null | undefined): boo
   return auth === `Bearer ${token}` || apiKey === token;
 }
 
+/** Read and parse the request body, preserving Anthropic-style error shape. */
 function readJson(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -307,25 +336,30 @@ function readJson(req: IncomingMessage): Promise<unknown> {
   });
 }
 
+/** Write a small JSON response without pulling in a web framework. */
 function writeJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(body, null, 2));
 }
 
+/** Write one Server-Sent Event frame. */
 function sse(res: ServerResponse, event: string, data: unknown): void {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+/** Anthropic-compatible error envelope. */
 function anthropicError(type: string, message: string) {
   return { type: 'error', error: { type, message } };
 }
 
+/** Cheap usage estimate for local bridge accounting; not billable telemetry. */
 function estimateTokens(text: string): number {
   if (!text) return 0;
   return Math.max(1, Math.ceil(text.length / 4));
 }
 
+/** Error type that carries the HTTP status and Anthropic error type together. */
 class BridgeHttpError extends Error {
   constructor(
     readonly status: number,
