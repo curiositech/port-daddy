@@ -676,11 +676,33 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
       });
       expect(res.status).toBe(401);
 
-      const authed = await fetch(`http://127.0.0.1:${addr.port}/v1/messages`, {
+      const legacyToken = await fetch(`http://127.0.0.1:${addr.port}/v1/messages`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           authorization: 'Bearer squid-local',
+        },
+        body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }] }),
+      });
+      expect(legacyToken.status).toBe(401);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  test('programmatic bridge servers still honor explicit local tokens', async () => {
+    const server = createClaudeCodexBridgeServer({
+      authToken: 'explicit-local-token',
+      spawnCodex: async () => okResult('explicit auth'),
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const addr = server.address() as AddressInfo;
+    try {
+      const authed = await fetch(`http://127.0.0.1:${addr.port}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: 'Bearer explicit-local-token',
         },
         body: JSON.stringify({ messages: [{ role: 'user', content: 'Hi' }] }),
       });
@@ -712,13 +734,13 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
   });
 
   test('bridgeClientEnv injects local Anthropic endpoint and auth token', () => {
-    const env = bridgeClientEnv('http://127.0.0.1:8765', 'squid-local', {
+    const env = bridgeClientEnv('http://127.0.0.1:8765', 'generated-token', {
       PATH: '/bin',
       ANTHROPIC_API_KEY: 'real-key-that-must-not-leak',
     });
     expect(env.ANTHROPIC_BASE_URL).toBe('http://127.0.0.1:8765');
-    expect(env.ANTHROPIC_AUTH_TOKEN).toBe('squid-local');
-    expect(env.ANTHROPIC_API_KEY).toBe('squid-local');
+    expect(env.ANTHROPIC_AUTH_TOKEN).toBe('generated-token');
+    expect(env.ANTHROPIC_API_KEY).toBe('generated-token');
   });
 
   test('bridgeClientEnv strips Anthropic tokens when local bridge auth is disabled', () => {
@@ -760,6 +782,8 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
     });
     expect(config.cwd).toBe('/repo');
     expect(config.maxRequestBytes).toBe(12345);
+    expect(config.authToken).toMatch(/^squid-[A-Za-z0-9_-]{32}$/);
+    expect(config.authTokenSource).toBe('generated');
     expect(config.codexConfig).toEqual([
       'foo.bar=1',
       'sandbox_mode="workspace-write"',
@@ -769,13 +793,24 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
 
   test('non-loopback Squid bridge binds require explicit strong auth', () => {
     const defaultRemote = resolveSquidBridgeConfig({ host: '0.0.0.0' }, '/repo');
-    expect(validateSquidBridgeConfig(defaultRemote)).toContain('default token');
+    expect(validateSquidBridgeConfig(defaultRemote)).toContain('generated local auth');
 
     const authDisabled = resolveSquidBridgeConfig({ host: '0.0.0.0', token: false }, '/repo');
     expect(validateSquidBridgeConfig(authDisabled)).toContain('auth disabled');
 
+    const weakExplicit = resolveSquidBridgeConfig({ host: '0.0.0.0', token: 'squid-local' }, '/repo');
+    expect(validateSquidBridgeConfig(weakExplicit)).toContain('weak token');
+
     const explicit = resolveSquidBridgeConfig({ host: '0.0.0.0', token: 'custom-local-token' }, '/repo');
     expect(validateSquidBridgeConfig(explicit)).toBeNull();
+  });
+
+  test('Squid bridge config rejects blank or control-character tokens', () => {
+    const blank = resolveSquidBridgeConfig({ token: '   ' }, '/repo');
+    expect(validateSquidBridgeConfig(blank)).toContain('blank or control-character');
+
+    const newline = resolveSquidBridgeConfig({ token: 'local\nbad' }, '/repo');
+    expect(validateSquidBridgeConfig(newline)).toContain('blank or control-character');
   });
 
   test('Squid bridge config rejects invalid max request byte limits', () => {
@@ -786,6 +821,11 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
   test('Squid bridge config rejects malformed Codex config overrides', () => {
     const config = resolveSquidBridgeConfig({ 'codex-config': ['--profile=prod'] }, '/repo');
     expect(validateSquidBridgeConfig(config)).toContain('Invalid Codex config override');
+  });
+
+  test('Squid bridge config rejects malformed model aliases from CLI or env', () => {
+    expect(() => resolveSquidBridgeConfig({ 'codex-model-alias': 'claude\nbad=gpt-5.1-codex' }, '/repo')).toThrow('Invalid Squid model alias');
+    expect(() => resolveSquidBridgeConfig({ 'codex-model-alias': 'claude;rm=gpt-5.1-codex' }, '/repo')).toThrow('Invalid Squid model alias');
   });
 
   test('Codex cli-tube argv includes repeated -c config overrides', () => {

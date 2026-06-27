@@ -695,24 +695,29 @@ Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree` (see Destr
 
 **What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
 
-**Giant Squid Claude-to-Codex bridge.** If you want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine, run `pd squid bridge`. It serves a small Anthropic Messages-compatible endpoint on localhost, injects `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and `ANTHROPIC_API_KEY` into a launched Claude-compatible client, and forwards each request to `codex exec`. This is an unofficial compatibility layer, not an official Claude Code auth mode.
+**Giant Squid Claude-to-Codex bridge.** If you want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine, run `pd squid codex` or `pd squid bridge`. It serves a small Anthropic Messages-compatible endpoint on localhost, generates a fresh local token unless you set one explicitly, injects `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and `ANTHROPIC_API_KEY` into a launched Claude-compatible client, and forwards each request to `codex exec`. This is an unofficial compatibility layer, not an official Claude Code auth mode.
 
 ```bash
+pd squid codex -- claude --model claude-sonnet-4-5
+pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5
 pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex --codex-effort high -- claude --model claude-sonnet-4-5
-pd squid serve --port 8765 --token squid-local  # bridge only, for curl/debugging
+pd squid serve --port 8765  # bridge only; prints the generated token for curl/debugging
 ```
 
 There are two model layers. `--codex-model`, `--codex-effort`, and repeated `--codex-config key=value` control the actual Codex CLI backend. `--codex-model-alias <client=codex>` (or comma-separated `PD_SQUID_MODEL_ALIASES`) lets a Claude client keep asking for `claude-sonnet-4-5` while the bridge runs `codex exec --model gpt-5.1-codex`. If no explicit backend model is set, a request model prefixed with `codex:` is also passed through after stripping the prefix.
+
+The harness lanes are broader than Codex. `pd spawn --backend ollama` keeps work local when an Ollama model is already running; `pd spawn --backend cloudflare --model @cf/qwen/qwen3-30b-a3b-fp8` uses Workers AI when you want cheap remote inference; `pd squid codex` is the Claude-shaped compatibility lane for ChatGPT Pro/Codex CLI. The same notes, claims, budgets, hooks, MCP tools, and skill install surfaces wrap each lane.
 
 Thinking and tools are translated honestly. Anthropic `thinking.budget_tokens` maps to Codex `model_reasoning_effort` (`low`, `medium`, or `high`) unless `--codex-effort` or `--codex-config model_reasoning_effort=...` overrides it. Claude `thinking` and `redacted_thinking` transcript blocks are omitted before prompting Codex so a resumed Claude session does not replay private reasoning into a different backend. Codex JSONL `function_call`/tool-call items become Anthropic `tool_use` blocks so Claude-style tool loops can continue; completed Codex `command_execution` records stay internal provenance and are not replayed as user tools.
 
 The bridge exposes `GET /health`, `POST /v1/messages`, and `POST /v1/messages/count_tokens`. Responses include a `port_daddy` provenance object with the bridge name, backend, request id, optional session id, optional session turn, backend model, and alias used. Session tracking is metadata-only: it counts turns for `session_id`, `conversation_id`, matching metadata fields, or session headers, but it does not store message text. Request bodies are capped by `--max-request-bytes` / `PD_SQUID_MAX_REQUEST_BYTES` (default 8 MiB) before JSON parsing.
 
-Security posture: the bridge binds to loopback by default, rejects non-loopback
-binds when auth is disabled or still using the default local token, compares
-tokens with a timing-safe check, and forwards only validated Codex `-c
-key=value` overrides. It is meant for local compatibility and dogfooding; do not
-expose it as a shared remote service without a stronger auth and sandbox story.
+Security posture: the bridge binds to loopback by default, generates a fresh
+per-run local token by default, rejects non-loopback binds unless a strong token
+was set explicitly, compares tokens with a timing-safe check, validates model
+aliases from flags/env, and forwards only validated Codex `-c key=value`
+overrides. It is meant for local compatibility and dogfooding; do not expose it
+as a shared remote service without a stronger auth and sandbox story.
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
 

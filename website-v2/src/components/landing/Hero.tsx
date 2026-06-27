@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { CodeBlock } from '@/components/ui/CodeBlock'
 import { useEffect, useRef } from 'react'
 import { PageContainer, SectionIntro, Wordmark } from '@/components/site/primitives'
-import { ArrowRight, Check, Download, Terminal } from 'lucide-react'
+import { ArrowRight, Check, Download, KeyRound, Terminal } from 'lucide-react'
 import { LiveGloryVideo } from './LiveGloryVideo'
 import { useHeroWordmark } from '@/lib/hero-brand-context'
 
@@ -104,6 +104,20 @@ export function Hero() {
               >
                 Already pay for Claude Max or ChatGPT Pro? The fleet runs on it.
                 <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                to="/squid-codex"
+                className="group grid max-w-[34rem] gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)] no-underline transition-colors hover:border-[var(--brand-primary)]"
+              >
+                <span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                  <KeyRound size={15} />
+                  Run Claude Code with Codex and your ChatGPT Pro subscription
+                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                </span>
+                <span className="font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                  Giant Squid serves a local Claude-shaped bridge, injects fresh auth, and routes
+                  the work through Codex CLI under the Port Daddy harness.
+                </span>
               </Link>
             </div>
 
