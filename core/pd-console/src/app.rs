@@ -1143,6 +1143,12 @@ impl ConsoleView {
         let active = self.daemon_url.trim_end_matches('/').to_string();
         let t = current_theme();
         let mut rows: Vec<AnyElement> = Vec::new();
+        // A baked still of the living-harbor water shader (pd-harbor-proto /
+        // harbor.wgsl, rendered offscreen) as an on-brand banner over the picker.
+        // A *baked* still, not a live pass: a 30fps embed would re-render the whole
+        // console every frame (idle must stay at 0 re-renders); the live
+        // render-to-texture backdrop is the ADR-0086 path-2 follow-up.
+        rows.push(harbor_banner());
         for berth in crate::berths::discover() {
             let color = daemon_tone_color(&berth.tier, &t);
             let glyph = berth.tier.chars().next().unwrap_or('?').to_ascii_uppercase();
@@ -2506,6 +2512,29 @@ fn console_button(
     } else {
         row.into_any_element()
     }
+}
+
+/// A baked still of the living-harbor water shader as a bounded banner. The
+/// asset is a single offscreen-rendered frame of `pd-harbor-proto/harbor.wgsl`
+/// (Method-A, no window), kept at the panel's accent border. `ObjectFit::Cover`
+/// crops to the band rather than stretching the 2:1 frame. Static by design —
+/// no per-frame re-render — which also makes it reduced-motion-correct for free.
+fn harbor_banner() -> AnyElement {
+    div()
+        .h(px(132.0))
+        .w_full()
+        .flex_shrink_0()
+        .rounded(px(tokens::RADIUS_MD))
+        .overflow_hidden()
+        .border_1()
+        .border_color(rgb(current_theme().line))
+        .mb(px(tokens::SPACE_2))
+        .child(
+            img("harbor-backdrop.png")
+                .size_full()
+                .object_fit(ObjectFit::Cover),
+        )
+        .into_any_element()
 }
 
 /// Tier → theme colour for a daemon berth (meaning, resolved to a theme role so
