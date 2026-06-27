@@ -237,7 +237,7 @@ export function buildArgs(
     ];
     if (outputPath) args.push('--output-last-message', outputPath);
     if (effModel) args.push('--model', effModel);
-    for (const config of codexConfig ?? []) {
+    for (const config of normalizeCodexConfigOverrides(codexConfig)) {
       args.push('-c', config);
     }
     args.push(prompt);
@@ -256,6 +256,32 @@ export function buildArgs(
   }
 
   throw new Error(`unknown cli tool: ${cli}`);
+}
+
+const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
+const MAX_CODEX_CONFIG_OVERRIDES = 32;
+const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
+
+export function normalizeCodexConfigOverrides(configs: readonly string[] | undefined | null): string[] {
+  const normalized: string[] = [];
+  for (const raw of configs ?? []) {
+    if (typeof raw !== 'string') continue;
+    const config = raw.trim();
+    if (!config) continue;
+    if (normalized.length >= MAX_CODEX_CONFIG_OVERRIDES) {
+      throw new Error(`Too many Codex config overrides; maximum is ${MAX_CODEX_CONFIG_OVERRIDES}`);
+    }
+    if (config.length > MAX_CODEX_CONFIG_OVERRIDE_LENGTH || /[\0\r\n]/.test(config)) {
+      throw new Error(`Invalid Codex config override "${config}": value is too long or contains a control character`);
+    }
+    const separator = config.indexOf('=');
+    const key = separator > 0 ? config.slice(0, separator).trim() : '';
+    if (!key || !CODEX_CONFIG_KEY.test(key)) {
+      throw new Error(`Invalid Codex config override "${config}": expected key=value with a simple key`);
+    }
+    normalized.push(config);
+  }
+  return normalized;
 }
 
 /**

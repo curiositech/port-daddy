@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -230,6 +230,7 @@ export function getBackendCatalogEntry(id: string): BackendCatalogEntry | undefi
 export const KNOWN_BACKEND_IDS: ReadonlySet<string> = new Set(BACKEND_CATALOG.map((b) => b.id));
 
 export const CLI_BACKEND_SELECTION_PATH = join(homedir(), '.port-daddy-cli-backend');
+const MAX_PERSISTED_BACKEND_SELECTION_BYTES = 128;
 
 /**
  * "Free via subscription / local" backends, ranked first in pickers.
@@ -262,8 +263,9 @@ export function readPersistedCliBackendSelection(
   path: string = CLI_BACKEND_SELECTION_PATH,
 ): string | null {
   try {
-    if (!existsSync(path)) return null;
-    return readFileSync(path, 'utf-8').trim() || null;
+    const raw = readFileSync(path, 'utf-8');
+    if (raw.length > MAX_PERSISTED_BACKEND_SELECTION_BYTES) return null;
+    return raw.trim() || null;
   } catch {
     return null;
   }
@@ -276,13 +278,12 @@ function detectForcedCliBackendMatch(
   const envMatch = normalizeForcedCliBackend(env.PD_USE_CLI_BACKEND);
   if (envMatch) return envMatch;
 
-  const shouldReadPersisted = options.persistedPath !== null && (
-    typeof options.persistedPath === 'string' || env === process.env
-  );
-  if (!shouldReadPersisted) return null;
+  const hasExplicitPersistedPath = typeof options.persistedPath === 'string';
+  const shouldReadDefaultPersistedPath = options.persistedPath === undefined && env === process.env;
+  if (!hasExplicitPersistedPath && !shouldReadDefaultPersistedPath) return null;
 
   return normalizeForcedCliBackend(
-    readPersistedCliBackendSelection(options.persistedPath || CLI_BACKEND_SELECTION_PATH),
+    readPersistedCliBackendSelection(hasExplicitPersistedPath ? options.persistedPath : CLI_BACKEND_SELECTION_PATH),
   );
 }
 

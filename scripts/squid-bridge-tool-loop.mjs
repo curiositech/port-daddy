@@ -6,8 +6,8 @@
  *   node scripts/squid-bridge-tool-loop.mjs --base-url http://127.0.0.1:8765 --token squid-local
  */
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, realpathSync } from 'node:fs';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 const args = parseArgs(process.argv.slice(2));
 const baseUrl = String(args['base-url'] ?? process.env.ANTHROPIC_BASE_URL ?? 'http://127.0.0.1:8765').replace(/\/$/, '');
@@ -177,7 +177,12 @@ function runLocalTool(toolUse) {
   const filePath = typeof toolUse.input?.file_path === 'string'
     ? toolUse.input.file_path
     : 'README.md';
-  const absolute = resolve(process.cwd(), filePath);
+  const root = realpathSync(process.cwd());
+  const absolute = realpathSync(resolve(root, filePath));
+  const rel = relative(root, absolute);
+  if (rel === '..' || rel.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(rel)) {
+    throw new Error(`Refusing to read outside the current workspace: ${filePath}`);
+  }
   return readFileSync(absolute, 'utf8').slice(0, 8000);
 }
 

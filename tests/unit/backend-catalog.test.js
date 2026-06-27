@@ -1,9 +1,10 @@
 import { describe, test, expect } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   BACKEND_CATALOG,
+  CLI_BACKEND_SELECTION_PATH,
   KNOWN_BACKEND_IDS,
   detectForcedCliBackend,
   detectForcedCliBackendValue,
@@ -80,6 +81,29 @@ describe('backend-catalog', () => {
       const env = { PD_USE_CLI_BACKEND: 'claude-code' };
       expect(detectForcedCliBackend(env, { persistedPath: path })).toBe('cli:claude-code');
       expect(detectForcedCliBackendValue(env, { persistedPath: path })).toBe('claude-code');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('invalid persisted selection path types do not fall back to the default file', () => {
+    const hadDefault = existsSync(CLI_BACKEND_SELECTION_PATH);
+    const savedDefault = hadDefault ? readFileSync(CLI_BACKEND_SELECTION_PATH, 'utf-8') : null;
+    try {
+      writeFileSync(CLI_BACKEND_SELECTION_PATH, 'codex\n');
+      expect(detectForcedCliBackend(process.env, { persistedPath: 7 })).toBeNull();
+    } finally {
+      if (hadDefault) writeFileSync(CLI_BACKEND_SELECTION_PATH, savedDefault);
+      else rmSync(CLI_BACKEND_SELECTION_PATH, { force: true });
+    }
+  });
+
+  test('oversized persisted backend selection files are ignored', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, `${'codex'.repeat(40)}\n`);
+      expect(detectForcedCliBackend(process.env, { persistedPath: path })).toBeNull();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -783,6 +783,11 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
     expect(validateSquidBridgeConfig(config)).toContain('invalid --max-request-bytes');
   });
 
+  test('Squid bridge config rejects malformed Codex config overrides', () => {
+    const config = resolveSquidBridgeConfig({ 'codex-config': ['--profile=prod'] }, '/repo');
+    expect(validateSquidBridgeConfig(config)).toContain('Invalid Codex config override');
+  });
+
   test('Codex cli-tube argv includes repeated -c config overrides', () => {
     const { args } = buildArgs(
       'codex',

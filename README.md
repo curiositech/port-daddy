@@ -628,9 +628,11 @@ or `backend: claude-cli` etc.), and a prompt. Run `pd fleet validate` to check
 the topology, then hot-reload or `pd fleet up`. See ADR-0019
 (`docs/adr/0019-declarative-fleet-yaml.md`) for the canonical schema and
 ADR-0026 (`docs/adr/0026-fleet-ast-and-diagnostics.md`) for the typed AST.
-Scheduled ships arm their timer on fleet start; they do not fire during daemon
-boot unless `run_on_start: true` is set explicitly. Keep boot-time work opt-in
-so a daemon restart cannot fan out an entire fleet before `/health` is stable.
+Scheduled ships arm their timer on fleet start; by default `run_on_start` is
+`false`, so they do not fire during daemon boot. Set `run_on_start: true` only
+for ships whose first pass is intentionally part of startup. Keep boot-time work
+opt-in so a daemon restart cannot fan out an entire fleet before `/health` is
+stable.
 
 **Port Daddy's own fleet.** This repo ships a `pd-fleet.yml` that dogfoods
 the engine — `gardener`, `qa`, `test-hunter`, `documentarian`, and
@@ -704,6 +706,12 @@ There are two model layers. `--codex-model`, `--codex-effort`, and repeated `--c
 Thinking and tools are translated honestly. Anthropic `thinking.budget_tokens` maps to Codex `model_reasoning_effort` (`low`, `medium`, or `high`) unless `--codex-effort` or `--codex-config model_reasoning_effort=...` overrides it. Claude `thinking` and `redacted_thinking` transcript blocks are omitted before prompting Codex so a resumed Claude session does not replay private reasoning into a different backend. Codex JSONL `function_call`/tool-call items become Anthropic `tool_use` blocks so Claude-style tool loops can continue; completed Codex `command_execution` records stay internal provenance and are not replayed as user tools.
 
 The bridge exposes `GET /health`, `POST /v1/messages`, and `POST /v1/messages/count_tokens`. Responses include a `port_daddy` provenance object with the bridge name, backend, request id, optional session id, optional session turn, backend model, and alias used. Session tracking is metadata-only: it counts turns for `session_id`, `conversation_id`, matching metadata fields, or session headers, but it does not store message text. Request bodies are capped by `--max-request-bytes` / `PD_SQUID_MAX_REQUEST_BYTES` (default 8 MiB) before JSON parsing.
+
+Security posture: the bridge binds to loopback by default, rejects non-loopback
+binds when auth is disabled or still using the default local token, compares
+tokens with a timing-safe check, and forwards only validated Codex `-c
+key=value` overrides. It is meant for local compatibility and dogfooding; do not
+expose it as a shared remote service without a stronger auth and sandbox story.
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
 

@@ -8,7 +8,12 @@
 
 import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
-import { spawnViaCliTube, type CliTubeOptions, type CliTubeResult } from '../spawner/backends/cli-tube.js';
+import {
+  normalizeCodexConfigOverrides,
+  spawnViaCliTube,
+  type CliTubeOptions,
+  type CliTubeResult,
+} from '../spawner/backends/cli-tube.js';
 import {
   mapCodexBridgeStreamLine,
   parseCodexBridgeResponse,
@@ -378,7 +383,7 @@ function codexInvocationForRequest(
   return {
     normalized,
     prompt,
-    codexConfig: codexConfigForNormalizedRequest(normalized, options.codexConfig),
+    codexConfig: normalizeCodexConfigOverrides(codexConfigForNormalizedRequest(normalized, options.codexConfig)),
     codexModel: modelResolution.model,
     context,
     modelAlias: modelResolution.alias,

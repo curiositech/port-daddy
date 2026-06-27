@@ -8,6 +8,7 @@ import {
   DEFAULT_SQUID_MAX_REQUEST_BYTES,
   listenClaudeCodexBridge,
 } from '../../lib/squid/claude-codex-bridge.js';
+import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tube.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
 
@@ -94,6 +95,11 @@ export function resolveSquidBridgeConfig(options: CLIOptions, cwdDefault = proce
 export function validateSquidBridgeConfig(config: SquidBridgeConfig): string | null {
   if (!Number.isFinite(config.maxRequestBytes) || config.maxRequestBytes <= 0) {
     return 'Refusing to start the Squid bridge with an invalid --max-request-bytes value.';
+  }
+  try {
+    normalizeCodexConfigOverrides(config.codexConfig);
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
   }
   if (isLoopbackHost(config.host)) return null;
   if (!config.authToken) return 'Refusing to bind the Squid bridge off loopback with auth disabled; pass --host 127.0.0.1 or set a strong --token.';
