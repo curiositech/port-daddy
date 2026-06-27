@@ -33,9 +33,20 @@ import {
 
 const PRINCIPAL = 'port-daddy:review:econ';
 const PROJECT = 'port-daddy';
+const T0 = 1_700_000_000_000;
 
 function breach(over = {}) {
   return { principal: PRINCIPAL, project: PROJECT, breachCount: 1, commitsWithoutNote: 1, ...over };
+}
+
+function freshLedger(policy) {
+  const db = new Database(':memory:');
+  return { db, ledger: createRentBreachLedger(db, policy) };
+}
+
+function computeAfterRecordedBreach(ledger, now, over = {}) {
+  const breachCount = ledger.recordBreach(PRINCIPAL, PROJECT, now);
+  return computeRentSlash(breach({ breachCount, ...over }));
 }
 
 describe('resolveRentSlashMode — fail-safe to advisory', () => {
@@ -61,24 +72,30 @@ describe('resolveRentSlashMode — fail-safe to advisory', () => {
 });
 
 describe('computeRentSlash — graduated, first-miss-free, capped', () => {
-  test('first miss is grace: no slash, fraction 0, reason points at the note', () => {
-    const d = computeRentSlash(breach({ breachCount: 1 }));
+  test('first recorded ledger miss is grace: no slash, fraction 0, reason points at the note', () => {
+    const { ledger } = freshLedger();
+    const d = computeAfterRecordedBreach(ledger, T0);
     expect(d.shouldSlash).toBe(false);
     expect(d.fraction).toBe(0);
     expect(d.escalationStep).toBe(0);
     expect(d.reason).toMatch(/pd note/);
   });
 
-  test('second breach is the first fine: 10% (one step past grace)', () => {
-    const d = computeRentSlash(breach({ breachCount: 2 }));
+  test('second recorded ledger breach is the first fine: 10% (one step past grace)', () => {
+    const { ledger } = freshLedger();
+    computeAfterRecordedBreach(ledger, T0);
+    const d = computeAfterRecordedBreach(ledger, T0 + 1000);
     expect(d.shouldSlash).toBe(true);
     expect(d.fraction).toBeCloseTo(0.1, 10);
     expect(d.escalationStep).toBe(1);
   });
 
-  test('escalates linearly with repetition', () => {
-    expect(computeRentSlash(breach({ breachCount: 3 })).fraction).toBeCloseTo(0.2, 10);
-    expect(computeRentSlash(breach({ breachCount: 4 })).fraction).toBeCloseTo(0.3, 10);
+  test('recorded ledger repetition escalates linearly', () => {
+    const { ledger } = freshLedger();
+    computeAfterRecordedBreach(ledger, T0);
+    computeAfterRecordedBreach(ledger, T0 + 1000);
+    expect(computeAfterRecordedBreach(ledger, T0 + 2000).fraction).toBeCloseTo(0.2, 10);
+    expect(computeAfterRecordedBreach(ledger, T0 + 3000).fraction).toBeCloseTo(0.3, 10);
   });
 
   test('hard cap at maxFraction — a slash never takes the whole bond', () => {
@@ -122,12 +139,6 @@ describe('rentSlashAmountUsd — double-clamped into [0, bondUsd]', () => {
 });
 
 describe('rentBreachLedger — escalation memory, keyed on principal', () => {
-  function freshLedger(policy) {
-    const db = new Database(':memory:');
-    return { db, ledger: createRentBreachLedger(db, policy) };
-  }
-  const T0 = 1_700_000_000_000;
-
   test('recordBreach increments and survives across commits', () => {
     const { ledger } = freshLedger();
     expect(ledger.recordBreach(PRINCIPAL, PROJECT, T0)).toBe(1);
@@ -171,6 +182,21 @@ describe('rentBreachLedger — escalation memory, keyed on principal', () => {
     const { ledger } = freshLedger();
     expect(ledger.getState('port-daddy:nobody:here')).toBeNull();
     expect(ledger.cure('port-daddy:nobody:here', T0)).toBe(0);
+  });
+
+  test('empty principal or project inputs fail before sqlite receives a bad key', () => {
+    const { ledger } = freshLedger();
+    expect(() => ledger.recordBreach('', PROJECT, T0)).toThrow(/principal must be a non-empty string/);
+    expect(() => ledger.recordBreach('   ', PROJECT, T0)).toThrow(/principal must be a non-empty string/);
+    expect(() => ledger.recordBreach(PRINCIPAL, '', T0)).toThrow(/project must be a non-empty string/);
+    expect(() => ledger.recordBreach(PRINCIPAL, '   ', T0)).toThrow(/project must be a non-empty string/);
+    expect(ledger.getState(PRINCIPAL)).toBeNull();
+  });
+
+  test('empty principal reads and cures fail cleanly too', () => {
+    const { ledger } = freshLedger();
+    expect(() => ledger.getState('')).toThrow(/principal must be a non-empty string/);
+    expect(() => ledger.cure('   ', T0)).toThrow(/principal must be a non-empty string/);
   });
 
   test('a non-finite clock is rejected (Law 1 — the agent never supplies wall time)', () => {

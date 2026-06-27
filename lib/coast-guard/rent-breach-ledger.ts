@@ -67,6 +67,12 @@ export interface BreachState {
   lastEventAt: number;
 }
 
+function requireNonEmptyString(name: 'principal' | 'project', value: string): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`rentBreachLedger: ${name} must be a non-empty string`);
+  }
+}
+
 export function createRentBreachLedger(
   db: Database.Database,
   policy: RentBreachLedgerPolicy = DEFAULT_RENT_BREACH_LEDGER_POLICY,
@@ -119,6 +125,8 @@ export function createRentBreachLedger(
    *   monotonic-safe wall value; tests inject a fixed clock.
    */
   function recordBreach(principal: string, project: string, now: number): number {
+    requireNonEmptyString('principal', principal);
+    requireNonEmptyString('project', project);
     if (!Number.isFinite(now)) {
       throw new Error('rentBreachLedger.recordBreach: now must be a finite number (Law 1)');
     }
@@ -136,6 +144,7 @@ export function createRentBreachLedger(
    * the post-decay count (>= 0). A principal with no ledger row is already at 0.
    */
   function cure(principal: string, now: number): number {
+    requireNonEmptyString('principal', principal);
     if (!Number.isFinite(now)) {
       throw new Error('rentBreachLedger.cure: now must be a finite number (Law 1)');
     }
@@ -148,6 +157,7 @@ export function createRentBreachLedger(
 
   /** Read the current breach state for a principal, or null if none recorded. */
   function getState(principal: string): BreachState | null {
+    requireNonEmptyString('principal', principal);
     return toState(selectRow.get(principal));
   }
 
