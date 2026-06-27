@@ -203,6 +203,10 @@ describe('backend readiness', () => {
     expect(readiness).toMatchObject({
       backend: 'codex',
       status: 'manual_check',
+      // codex manages its own auth — a found binary must be launchable
+      // (with a warning), like its cli:codex twin. Otherwise preflight refuses
+      // every codex launch through the daemon ("no launchable backend").
+      launchableUnverified: true,
     });
     expect(readiness.summary).toContain('Codex CLI binary found');
     expect(readiness.summary).not.toContain('blocked until exact token counts');

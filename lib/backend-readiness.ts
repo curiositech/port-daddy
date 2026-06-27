@@ -155,6 +155,11 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        // The CLI manages its own auth (OAuth/keychain); a found binary is
+        // launchable-with-a-warning, exactly like its cli:claude-code twin.
+        // Without this flag preflight refused every claude-cli launch through
+        // the daemon ("no launchable backend").
+        launchableUnverified: true,
         summary: 'Claude CLI binary found; login cannot be verified non-interactively',
         nextStep: 'Run `claude` once interactively if needed. In sandboxed runners, approve an unsandboxed Port Daddy/Claude command path first.',
         setupCommand: 'claude',
@@ -174,6 +179,11 @@ export async function assessBackendReadiness(
       return applyTelemetryPolicy({
         backend,
         status: 'manual_check',
+        // Codex manages its own auth (ChatGPT OAuth / OPENAI_API_KEY); a found
+        // binary is launchable-with-a-warning, exactly like its cli:codex twin.
+        // Without this flag preflight refused every codex launch through the
+        // daemon ("no launchable backend: codex — manual_check").
+        launchableUnverified: true,
         summary: 'Codex CLI binary found; OpenAI auth and model access cannot be verified non-interactively',
         nextStep: 'Run `codex exec` once interactively if needed. In sandboxed runners, approve an unsandboxed Port Daddy/Codex command path first.',
         setupCommand: 'codex exec "print ok"',

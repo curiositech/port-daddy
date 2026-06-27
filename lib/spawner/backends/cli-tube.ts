@@ -198,7 +198,17 @@ export function buildArgs(
   // per-CLI default so spawns get EXACT, billable telemetry instead of an
   // estimate (which the cost gate then rejects); for CLIs without a known good
   // default, drop `--model` so the CLI uses its authenticated account's default.
-  const PLACEHOLDER_MODELS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  //
+  // `claude-cli` / `codex-cli` are the OTHER placeholder spelling: lib/spawner.ts
+  // DEFAULT_MODELS maps `cli:claude-code` → "claude-cli" and `cli:codex` →
+  // "codex-cli" ("the CLI manages its own model"). When that sentinel reaches
+  // here as the model it must be treated as a placeholder too — otherwise
+  // `claude --model claude-cli` fails with "model may not exist" and every
+  // sentinel-model spawn dies (the bug that made cli:claude-code look broken).
+  const PLACEHOLDER_MODELS = new Set([
+    'claude-code', 'codex', 'gemini', 'groq', 'grok',
+    'claude-cli', 'codex-cli', 'cli',
+  ]);
   const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
     'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
   };
