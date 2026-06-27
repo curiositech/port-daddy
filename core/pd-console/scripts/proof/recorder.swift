@@ -29,19 +29,36 @@ func fail(_ msg: String, _ code: Int32) -> Never {
     exit(code)
 }
 
-let windowIdArg = argValue("--window-id").flatMap { UInt32($0) }
-let displayIdArg = argValue("--display-id").flatMap { UInt32($0) }
+let rawWindowId = argValue("--window-id")
+let rawDisplayId = argValue("--display-id")
+let windowIdArg = rawWindowId.flatMap { UInt32($0) }
+let displayIdArg = rawDisplayId.flatMap { UInt32($0) }
 guard let outPath = argValue("--out") else { fail("missing --out <file.mov>", 2) }
 let duration = Double(argValue("--duration") ?? "10") ?? 10
 let fps = Int(argValue("--fps") ?? "30") ?? 30
+if rawWindowId != nil && windowIdArg == nil {
+    fail("--window-id must be numeric", 2)
+}
+if rawDisplayId != nil && displayIdArg == nil {
+    fail("--display-id must be numeric", 2)
+}
 if windowIdArg == nil && displayIdArg == nil {
     fail("need --window-id <id> or --display-id <id>", 2)
 }
+if windowIdArg != nil && displayIdArg != nil {
+    fail("choose exactly one of --window-id or --display-id", 2)
+}
 
 let outURL = URL(fileURLWithPath: outPath)
-try? FileManager.default.removeItem(at: outURL)
-try? FileManager.default.createDirectory(
-    at: outURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+do {
+    if FileManager.default.fileExists(atPath: outURL.path) {
+        try FileManager.default.removeItem(at: outURL)
+    }
+    try FileManager.default.createDirectory(
+        at: outURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+} catch {
+    fail("preparing output path: \(error.localizedDescription)", 4)
+}
 
 // ── Recorder: SCStream → AVAssetWriter ───────────────────────────────────────────
 @available(macOS 12.3, *)
@@ -135,9 +152,10 @@ SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false)
             fail("window id \(wid) not found among \(content.windows.count) windows", 3)
         }
         // Pixel scale = backing scale of the display the window sits on (retina = 2).
-        let scale =
-            content.displays.first(where: { $0.frame.intersects(win.frame) })
-            .map { Double($0.width) / Double($0.frame.width) } ?? 2.0
+        guard let display = content.displays.first(where: { $0.frame.intersects(win.frame) }) else {
+            fail("window id \(wid) does not intersect any captured display", 3)
+        }
+        let scale = Double(display.width) / Double(display.frame.width)
         pxWidth = Int((win.frame.width * scale).rounded())
         pxHeight = Int((win.frame.height * scale).rounded())
         filter = SCContentFilter(desktopIndependentWindow: win)
@@ -150,7 +168,9 @@ SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: false)
         filter = SCContentFilter(display: disp, excludingWindows: [])
     }
 }
-ready.wait()
+if ready.wait(timeout: .now() + 30) == .timedOut {
+    fail("timed out while enumerating ScreenCaptureKit content", 4)
+}
 
 guard let filter = filter, pxWidth > 0, pxHeight > 0 else { fail("could not build filter", 3) }
 
@@ -174,7 +194,9 @@ do {
         startFailure = err
         startErr.signal()
     }
-    startErr.wait()
+    if startErr.wait(timeout: .now() + 10) == .timedOut {
+        fail("startCapture timed out", 4)
+    }
     if let e = startFailure { fail("startCapture: \(e.localizedDescription)", 4) }
 
     FileHandle.standardError.write(
@@ -184,9 +206,13 @@ do {
 
     let stopErr = DispatchSemaphore(value: 0)
     stream.stopCapture { _ in stopErr.signal() }
-    stopErr.wait()
+    if stopErr.wait(timeout: .now() + 10) == .timedOut {
+        fail("stopCapture timed out", 4)
+    }
     rec.finish()
-    rec.finished.wait()
+    if rec.finished.wait(timeout: .now() + 10) == .timedOut {
+        fail("finishWriting timed out", 4)
+    }
     exit(0)
 } catch {
     fail("recording error: \(error.localizedDescription)", 4)

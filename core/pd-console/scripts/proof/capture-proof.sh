@@ -33,6 +33,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"            # core/pd-console
 TARGET="$ROOT/../target"                               # workspace target/
 BIN="$TARGET/release/pd-console"
 REC="$TARGET/proof/recorder"
+WINID="$TARGET/proof/windowid"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 OUT="${1:-$ROOT/docs/artifacts/gpui/proof-$STAMP}"
 
@@ -40,6 +41,18 @@ PANES="${PD_PROOF_PANES:-fleet sorties dispatch sessions health lane}"
 VIDEO_PANE="${PD_PROOF_VIDEO_PANE:-fleet}"
 DURATION="${PD_PROOF_DURATION:-10}"
 FPS="${PD_PROOF_FPS:-30}"
+APP_PID=""
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "✗ missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+require_cmd cargo
+require_cmd screencapture
+require_cmd xcrun
 
 mkdir -p "$OUT"
 
@@ -52,6 +65,11 @@ if [[ ! -x "$REC" ]]; then
   echo "▸ building ScreenCaptureKit recorder…"
   mkdir -p "$TARGET/proof"
   xcrun swiftc -O "$ROOT/scripts/proof/recorder.swift" -o "$REC"
+fi
+if [[ ! -x "$WINID" ]]; then
+  echo "▸ building Quartz window-id helper…"
+  mkdir -p "$TARGET/proof"
+  xcrun swiftc -O "$ROOT/scripts/proof/windowid.swift" -o "$WINID"
 fi
 
 # ── Resolve the virtual display ──────────────────────────────────────────────────
@@ -77,10 +95,24 @@ resolve_display() {
     return 1
   fi
   # Pick the first display with a non-zero origin; fall back to the highest index.
-  local idx
-  idx="$(echo "$listing" | awk -F'[][]' '/origin=\(/{i=$2} /origin=\([^0]/{print i; exit}')"
+  local idx="" last="" line ox oy
+  while IFS= read -r line; do
+    if [[ "$line" =~ \[([0-9]+)\] ]]; then
+      last="${BASH_REMATCH[1]}"
+      if [[ "$line" =~ origin=\((-?[0-9]+),(-?[0-9]+)\) ]]; then
+        ox="${BASH_REMATCH[1]}"
+        oy="${BASH_REMATCH[2]}"
+        if [[ "$ox" != "0" || "$oy" != "0" ]]; then
+          idx="$last"
+          break
+        fi
+      fi
+    fi
+  done <<< "$listing"
+  idx="${idx:-$last}"
   if [[ -z "$idx" ]]; then
-    idx="$(echo "$listing" | grep -oE '\[[0-9]+\]' | tr -d '[]' | sort -n | tail -1)"
+    echo "✗  Could not parse any display indexes from pd-console --list-displays." >&2
+    return 1
   fi
   echo "$idx"
 }
@@ -90,58 +122,82 @@ echo "▸ virtual display selector: $DISPLAY_SEL"
 
 # ── pd-console window id on screen (Quartz; robust to z-order & which display) ────
 windowid() {
-  python3 - <<'PY' 2>/dev/null
-import Quartz
-ws = Quartz.CGWindowListCopyWindowInfo(
-    Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
-    Quartz.kCGNullWindowID)
-best = None
-for w in ws:
-    if str(w.get('kCGWindowOwnerName', '')) == 'pd-console':
-        b = w['kCGWindowBounds']; area = int(b['Width']) * int(b['Height'])
-        if best is None or area > best[1]:
-            best = (int(w['kCGWindowNumber']), area)
-if best:
-    print(best[0])
-PY
+  "$WINID" pd-console 2>/dev/null
 }
 
-cleanup() { pkill -f "target/release/pd-console" 2>/dev/null || true; }
+cleanup() {
+  if [[ -n "${APP_PID:-}" ]] && kill -0 "$APP_PID" 2>/dev/null; then
+    kill "$APP_PID" 2>/dev/null || true
+    wait "$APP_PID" 2>/dev/null || true
+  fi
+  APP_PID=""
+}
 trap cleanup EXIT
 
 launch_pane() { # $1 = pane id → leaves pd-console running on the virtual display
   cleanup; sleep 1
   "$BIN" --pane "$1" --display "$DISPLAY_SEL" >/dev/null 2>&1 &
-  sleep 5   # window open + first 2s daemon refresh + 500ms drain
+  APP_PID="$!"
+}
+
+wait_for_windowid() {
+  local id=""
+  local deadline=$((SECONDS + 20))
+  while [[ $SECONDS -lt $deadline ]]; do
+    id="$(windowid)" || true
+    if [[ "${id:-}" =~ ^[0-9]+$ ]]; then
+      echo "$id"
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
 }
 
 # ── Per-pane stills ───────────────────────────────────────────────────────────────
 echo "▸ stills → $OUT"
 for p in $PANES; do
   launch_pane "$p"
-  id="$(windowid)" || true
+  id="$(wait_for_windowid)" || true
   if [[ "${id:-}" =~ ^[0-9]+$ ]]; then
     screencapture -x -o -l"$id" "$OUT/pane-$p.png"
-    echo "    ✓ pane-$p.png  (window $id)"
+    if [[ -s "$OUT/pane-$p.png" ]]; then
+      echo "    ✓ pane-$p.png  (window $id)"
+    else
+      echo "    ✗ pane-$p — screencapture produced no image" >&2
+      exit 1
+    fi
   else
-    echo "    ✗ pane-$p — window id not found (is the daemon up? did the build run?)"
+    echo "    ✗ pane-$p — pd-console window id not found within 20s (is the daemon up? did the build run?)" >&2
+    exit 1
   fi
 done
 
 # ── Short video of the live, animating window ────────────────────────────────────
 echo "▸ video ($DURATION s @ ${FPS}fps) of pane '$VIDEO_PANE' → $OUT/proof.mov"
 launch_pane "$VIDEO_PANE"
-vid="$(windowid)" || true
+vid="$(wait_for_windowid)" || true
 if [[ "${vid:-}" =~ ^[0-9]+$ ]]; then
   "$REC" --window-id "$vid" --duration "$DURATION" --fps "$FPS" --out "$OUT/proof.mov"
+  if [[ ! -s "$OUT/proof.mov" ]]; then
+    echo "    ✗ recorder produced no proof.mov" >&2
+    exit 1
+  fi
   # A small web-friendly mp4 alongside the lossless mov, if ffmpeg is present.
   if command -v ffmpeg >/dev/null 2>&1 && [[ -s "$OUT/proof.mov" ]]; then
     ffmpeg -y -loglevel error -i "$OUT/proof.mov" \
       -vf "scale='min(1280,iw)':-2" -c:v libx264 -pix_fmt yuv420p -movflags +faststart \
-      "$OUT/proof.mp4" && echo "    ✓ proof.mp4 (web-friendly)"
+      "$OUT/proof.mp4"
+    if [[ -s "$OUT/proof.mp4" ]]; then
+      echo "    ✓ proof.mp4 (web-friendly)"
+    else
+      echo "    ✗ ffmpeg returned but proof.mp4 is missing/empty" >&2
+      exit 1
+    fi
   fi
 else
-  echo "    ✗ video skipped — pd-console window id not found"
+  echo "    ✗ video skipped — pd-console window id not found within 20s" >&2
+  exit 1
 fi
 
 # ── Manifest for pasting into the PR ─────────────────────────────────────────────
@@ -160,6 +216,15 @@ fi
   [[ -f "$OUT/proof.mp4" ]] && echo "- [proof.mp4](./proof.mp4) · [proof.mov](./proof.mov)" \
     || { [[ -f "$OUT/proof.mov" ]] && echo "- [proof.mov](./proof.mov)"; }
 } > "$OUT/MANIFEST.md"
+
+if ! compgen -G "$OUT/pane-*.png" >/dev/null; then
+  echo "✗ no pane screenshots were captured" >&2
+  exit 1
+fi
+if [[ ! -s "$OUT/proof.mov" ]]; then
+  echo "✗ no proof.mov was captured" >&2
+  exit 1
+fi
 
 echo "✓ done → $OUT"
 ls -1 "$OUT"

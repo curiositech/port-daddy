@@ -28,11 +28,11 @@ So we record a *real* rendered window, but keep it off the operator's screen:
 
 | File | Role |
 |------|------|
-| `src/main.rs` `--display` / `--list-displays` | Open the window on a chosen display; enumerate displays |
-| `scripts/proof/recorder.swift` | ScreenCaptureKit window/display → `.mov` recorder (cropped to the window) |
-| `scripts/proof/capture-proof.sh` | Orchestrator: build → resolve virtual display → stills + video → `MANIFEST.md` |
-| `scripts/proof/setup-virtual-display.sh` | One-time: install BetterDisplay, create the virtual screen, grant TCC |
-| `scripts/capture-gpui.sh` | The original stills-only script (kept; `make shots`) |
+| `core/pd-console/src/main.rs` `--display` / `--list-displays` | Open the window on a chosen display; enumerate displays |
+| `core/pd-console/scripts/proof/recorder.swift` | ScreenCaptureKit window/display → `.mov` recorder (cropped to the window) |
+| `core/pd-console/scripts/proof/capture-proof.sh` | Orchestrator: build → resolve virtual display → stills + video → `MANIFEST.md` |
+| `core/pd-console/scripts/proof/setup-virtual-display.sh` | One-time: install BetterDisplay, create the virtual screen, grant TCC |
+| `core/pd-console/scripts/capture-gpui.sh` | The original stills-only script (kept; `make shots`) |
 
 ## One-time setup (interactive)
 
@@ -76,7 +76,7 @@ Tunables (env):
 | `PD_PROOF_VIDEO_PANE` | `fleet` | pane to record |
 | `PD_PROOF_DURATION` | `10` | video seconds |
 | `PD_PROOF_FPS` | `30` | video frame rate |
-| `PD_PROOF_ALLOW_PRIMARY` | `0` | set `1` to record on the primary if no virtual display exists (visible) |
+| `PD_PROOF_ALLOW_PRIMARY` | `0` | set `1` to allow recording on the primary display when auto-detect finds no virtual display; this is visible and intended only for explicit local debugging |
 
 Paste `MANIFEST.md` into the PR; it links every still and the video.
 
