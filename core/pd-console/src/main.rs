@@ -18,6 +18,7 @@ mod buffer;
 mod cli_args;
 mod daemon_pane;
 mod claims_pane;
+mod cloud_fleet_pane;
 mod cockpit_pane;
 mod conjure;
 mod dispatch_pane;
@@ -54,6 +55,7 @@ use adrs_pane::AdrsPane;
 use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
+use cloud_fleet_pane::CloudFleetPane;
 use cockpit_pane::CockpitPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
@@ -293,10 +295,11 @@ fn main() {
         // Producer: std thread with mini tokio runtime — refreshes all panes every 2s.
         // Sends Vec<(nav_index, Vec<Block>)> so the view can update each slot.
         //
-        // NAV order mirrors app::NAV:
+        // NAV order mirrors grid::NAV:
         //  0=Fleet  1=Cockpit  2=Sorties  3=Claims  4=Peek  5=Roadmap  6=ADRs
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
-        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage  19=Substrate  20=Parley
+        //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
+        //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
         let (tx, rx) =
             mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
@@ -321,7 +324,7 @@ fn main() {
                 // it re-points every pane's next refresh; no restart.
                 let mut client = DaemonClient::new(url);
 
-                // All 16 panes — one per NAV slot.
+                // One pane per NAV slot.
                 // Slot 2 "Sorties" is the SortiePane multiplexer (all sorties bucketed
                 // running/blocked/done over GET /sorties — #344). The dispatch review
                 // queue (GET /dispatches?state=review_pending) is its own slot 15 so both
@@ -349,6 +352,7 @@ fn main() {
                 let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
                 let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
                 let mut daemons    = DaemonPane::new();         // 22 — daemon picker (ADR-0084)
+                let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -361,7 +365,7 @@ fn main() {
                         roadmap.id(), adrs.id(), activity.id(), sessions.id(), inbox.id(),
                         suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
-                        parley.id(), conductor.id(), daemons.id(),
+                        parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -672,6 +676,7 @@ fn main() {
                     let _ = parley.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
                     let _ = daemons.refresh(&client).await;
+                    let _ = cloud_fleet.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -719,6 +724,7 @@ fn main() {
                         (20, parley.view()),
                         (21, conductor.view()),
                         (22, daemons.view()),
+                        (23, cloud_fleet.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

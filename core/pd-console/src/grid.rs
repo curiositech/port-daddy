@@ -48,6 +48,7 @@ pub const NAV: &[NavItem] = &[
     NavItem { id: "parley",   label: "Parley",   icon: "icons/nav/parley.svg",   key: "j" },
     NavItem { id: "conductor",label: "Conductor",icon: "icons/nav/conductor.svg",key: "k" },
     NavItem { id: "daemons",  label: "Daemons",  icon: "icons/nav/daemons.svg",  key: "e" },
+    NavItem { id: "cloud-fleet", label: "Cloud Fleet", icon: "icons/nav/cloud-fleet.svg", key: "f" },
 ];
 
 /// Canonical slot → pane-id map: the single source of truth the producer thread
@@ -57,11 +58,11 @@ pub const NAV: &[NavItem] = &[
 /// `grid_is_one_to_one_with_pane_slots` (below) pins it to [`NAV`]. Add a pane
 /// here, in [`NAV`], and in the producer — or the gate turns red. Order is
 /// load-bearing (slot index == NAV index == producer index).
-pub const SLOT_PANE_IDS: [&str; 23] = [
+pub const SLOT_PANE_IDS: [&str; 24] = [
     "fleet", "cockpit", "sorties", "claims", "peek", "roadmap", "adrs",
     "activity", "sessions", "inbox", "suggest", "memory", "prs", "health",
     "coast", "dispatch", "lane", "ledger", "lineage", "substrate", "parley",
-    "conductor", "daemons",
+    "conductor", "daemons", "cloud-fleet",
 ];
 
 // ── Launcher-grid 1:1 invariants ────────────────────────────────────────────

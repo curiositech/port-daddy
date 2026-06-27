@@ -53,9 +53,9 @@ describe('parseFleetShips — deterministic parse of the real pd-fleet.yml', () 
 
   it('derives cfModel from the first @cf/ fallback entry', () => {
     const reviewer = ships!.find(s => s.name === 'code-reviewer');
-    expect(reviewer!.cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(reviewer!.cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
     const qa = ships!.find(s => s.name === 'qa');
-    expect(qa!.cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(qa!.cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
 });
 
@@ -77,7 +77,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/qwen/qwen2.5-coder-32b-instruct');
+    expect(ships![0].cfModel).toBe('@cf/moonshotai/kimi-k2.7-code');
   });
 
   it('falls back to the general model for non-reviewer ships with no @cf/ fallback', () => {
@@ -89,7 +89,7 @@ describe('parseFleetShips — model derivation + blocking coercion', () => {
       ),
       'pull_request:opened',
     );
-    expect(ships![0].cfModel).toBe('@cf/qwen/qwen3-30b-a3b-fp8');
+    expect(ships![0].cfModel).toBe('@cf/openai/gpt-oss-120b');
   });
 
   it('coerces blocking: only a real true / "true" opts into the gate', () => {
