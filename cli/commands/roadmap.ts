@@ -581,8 +581,8 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
 
 /**
  * Resolve the harbor a `pd roadmap` write should target. Precedence:
- *   --harbor flag  →  $PD_HARBOR  →  the repo/project name (git toplevel basename)
- *   →  cwd basename  →  undefined (let the daemon fall back to its global default).
+ *   --harbor flag, then $PD_HARBOR, then the repo/project name
+ *   (git toplevel basename), then cwd basename, then undefined.
  *
  * Defaulting to the project name fixes the "harbor split" the Planner pane
  * flags: the daemon's own fallback is the global `fleet` harbor, so a bare
@@ -590,7 +590,7 @@ async function deleteRoadmapItem(slug: string, harbor?: string): Promise<Roadmap
  * lives in the `<project>` harbor). Resolving the project here keeps writes on
  * the same board the operator reads.
  */
-function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
+export function resolveRoadmapHarbor(options: CLIOptions): string | undefined {
   const explicit = readOption(options, 'harbor');
   if (explicit) return explicit;
   const env = process.env.PD_HARBOR?.trim();
