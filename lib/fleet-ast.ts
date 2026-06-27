@@ -96,6 +96,7 @@ export interface AgentNode extends FleetAstNode<'agent'> {
   /** Additive output target list (kind:type grammar). */
   outputs?:       StringNode[];
   schedule?:      CronNode;
+  runOnStart?:    BoolNode;
   triggerTuple?:  TupleNode;
   backend?:       EnumNode<Backend>;
   model?:         StringNode;
@@ -316,6 +317,7 @@ function parseAgentMap(
       const str = extractString(n, gr);
       return str ? { kind: 'cron' as const, range: str.range, expression: str.value } : undefined;
     })(),
+    runOnStart:    gBool(m, 'run_on_start', gr) ?? gBool(m, 'runOnStart', gr),
     triggerTuple:  extractTuple(gNode(m, 'trigger_tuple'), gr),
     backend:       extractEnum<Backend>(gNode(m, 'backend'), gr),
     model:         gStr(m, 'model', gr),
@@ -585,6 +587,7 @@ export function astToConfig(ast: FleetAst): FleetConfig {
     agents.push({
       name,
       schedule:       a.schedule?.expression,
+      runOnStart:     a.runOnStart?.value ?? false,
       trigger:        a.trigger?.channel,
       triggers:       triggerList,
       outputs:        outputList,

@@ -605,6 +605,7 @@ fleet:
 
     gardener:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
+      run_on_start: false             # Set true only when boot-time work is intentional
       backend: claude
       model: claude-haiku-4-5-20251001
       prompt: "Summarize the current repo status and suggest the next maintenance action."
@@ -627,6 +628,9 @@ or `backend: claude-cli` etc.), and a prompt. Run `pd fleet validate` to check
 the topology, then hot-reload or `pd fleet up`. See ADR-0019
 (`docs/adr/0019-declarative-fleet-yaml.md`) for the canonical schema and
 ADR-0026 (`docs/adr/0026-fleet-ast-and-diagnostics.md`) for the typed AST.
+Scheduled ships arm their timer on fleet start; they do not fire during daemon
+boot unless `run_on_start: true` is set explicitly. Keep boot-time work opt-in
+so a daemon restart cannot fan out an entire fleet before `/health` is stable.
 
 **Port Daddy's own fleet.** This repo ships a `pd-fleet.yml` that dogfoods
 the engine — `gardener`, `qa`, `test-hunter`, `documentarian`, and
@@ -688,14 +692,18 @@ Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree` (see Destr
 
 **What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
 
-**Giant Squid Claude-to-Codex bridge.** If you want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine, run `pd squid bridge`. It serves a small Anthropic Messages-compatible endpoint on localhost, injects `ANTHROPIC_BASE_URL` plus local auth into a launched Claude-compatible client, and forwards each request to `codex exec`. This is an unofficial compatibility layer, not an official Claude Code auth mode, and it does not promise full Anthropic tool-call round-tripping.
+**Giant Squid Claude-to-Codex bridge.** If you want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine, run `pd squid bridge`. It serves a small Anthropic Messages-compatible endpoint on localhost, injects `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and `ANTHROPIC_API_KEY` into a launched Claude-compatible client, and forwards each request to `codex exec`. This is an unofficial compatibility layer, not an official Claude Code auth mode.
 
 ```bash
-pd squid bridge --codex-model gpt-5.1-codex --codex-effort high -- claude --model sonnet --effort high
+pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex --codex-effort high -- claude --model claude-sonnet-4-5
 pd squid serve --port 8765 --token squid-local  # bridge only, for curl/debugging
 ```
 
-There are two model layers. `--codex-model`, `--codex-effort`, and repeated `--codex-config key=value` control the actual Codex CLI backend. Flags after `--` are passed to the launched Claude-compatible client; for example `claude --model sonnet --effort high` controls the client request shape that the bridge receives.
+There are two model layers. `--codex-model`, `--codex-effort`, and repeated `--codex-config key=value` control the actual Codex CLI backend. `--codex-model-alias <client=codex>` (or comma-separated `PD_SQUID_MODEL_ALIASES`) lets a Claude client keep asking for `claude-sonnet-4-5` while the bridge runs `codex exec --model gpt-5.1-codex`. If no explicit backend model is set, a request model prefixed with `codex:` is also passed through after stripping the prefix.
+
+Thinking and tools are translated honestly. Anthropic `thinking.budget_tokens` maps to Codex `model_reasoning_effort` (`low`, `medium`, or `high`) unless `--codex-effort` or `--codex-config model_reasoning_effort=...` overrides it. Claude `thinking` and `redacted_thinking` transcript blocks are omitted before prompting Codex so a resumed Claude session does not replay private reasoning into a different backend. Codex JSONL `function_call`/tool-call items become Anthropic `tool_use` blocks so Claude-style tool loops can continue; completed Codex `command_execution` records stay internal provenance and are not replayed as user tools.
+
+The bridge exposes `GET /health`, `POST /v1/messages`, and `POST /v1/messages/count_tokens`. Responses include a `port_daddy` provenance object with the bridge name, backend, request id, optional session id, optional session turn, backend model, and alias used. Session tracking is metadata-only: it counts turns for `session_id`, `conversation_id`, matching metadata fields, or session headers, but it does not store message text. Request bodies are capped by `--max-request-bytes` / `PD_SQUID_MAX_REQUEST_BYTES` (default 8 MiB) before JSON parsing.
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
 

@@ -4,17 +4,24 @@
 
 import { spawn as spawnChild } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
-import { listenClaudeCodexBridge } from '../../lib/squid/claude-codex-bridge.js';
+import {
+  DEFAULT_SQUID_MAX_REQUEST_BYTES,
+  listenClaudeCodexBridge,
+} from '../../lib/squid/claude-codex-bridge.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
+
+const DEFAULT_SQUID_TOKEN = 'squid-local';
 
 export interface SquidBridgeConfig {
   host: string;
   port: number;
   cwd: string;
   timeoutMs: number;
+  maxRequestBytes: number;
   authToken: string | null;
   codexModel?: string;
+  modelAliases: Record<string, string>;
   codexConfig: string[];
 }
 
@@ -55,22 +62,45 @@ export function resolveSquidBridgeConfig(options: CLIOptions, cwdDefault = proce
   if (codexEffort) {
     codexConfig.push(`model_reasoning_effort="${codexEffort}"`);
   }
+  const modelAliases = parseModelAliases([
+    ...normalizeStringArray(process.env.PD_SQUID_MODEL_ALIASES),
+    ...normalizeStringArray(options['codex-model-alias']),
+  ]);
   const uniqueCodexConfig = [...new Set(codexConfig)];
   return {
     port: parseInt(String(options.port ?? process.env.PD_SQUID_BRIDGE_PORT ?? '8765'), 10),
     host: String(options.host ?? process.env.PD_SQUID_BRIDGE_HOST ?? '127.0.0.1'),
     cwd: String(options.cwd ?? options.workdir ?? cwdDefault),
     timeoutMs: parseInt(String(options.timeout ?? options['timeout-ms'] ?? 10 * 60 * 1000), 10),
+    maxRequestBytes: parseInt(String(
+      options['max-request-bytes']
+        ?? process.env.PD_SQUID_MAX_REQUEST_BYTES
+        ?? DEFAULT_SQUID_MAX_REQUEST_BYTES,
+    ), 10),
     authToken: options.token === false
       ? null
-      : String(options.token ?? process.env.PD_SQUID_BRIDGE_TOKEN ?? 'squid-local'),
+      : String(options.token ?? process.env.PD_SQUID_BRIDGE_TOKEN ?? DEFAULT_SQUID_TOKEN),
     codexModel: typeof options['codex-model'] === 'string'
       ? options['codex-model']
       : typeof options.model === 'string'
         ? options.model
         : undefined,
+    modelAliases,
     codexConfig: uniqueCodexConfig,
   };
+}
+
+/** Fail closed when the bridge is exposed beyond loopback with weak local auth. */
+export function validateSquidBridgeConfig(config: SquidBridgeConfig): string | null {
+  if (!Number.isFinite(config.maxRequestBytes) || config.maxRequestBytes <= 0) {
+    return 'Refusing to start the Squid bridge with an invalid --max-request-bytes value.';
+  }
+  if (isLoopbackHost(config.host)) return null;
+  if (!config.authToken) return 'Refusing to bind the Squid bridge off loopback with auth disabled; pass --host 127.0.0.1 or set a strong --token.';
+  if (config.authToken === DEFAULT_SQUID_TOKEN) {
+    return 'Refusing to bind the Squid bridge off loopback with the default token; set a strong --token or PD_SQUID_BRIDGE_TOKEN.';
+  }
+  return null;
 }
 
 /** Build the child-process environment for a Claude-compatible client. */
@@ -108,14 +138,20 @@ export function resolveClientLaunch(
 
 async function handleCodexBridge(clientPassthrough: string[], options: CLIOptions, mode: { serveOnly: boolean }): Promise<void> {
   const config = resolveSquidBridgeConfig(options);
+  const securityIssue = validateSquidBridgeConfig(config);
+  if (securityIssue) {
+    throw new Error(securityIssue);
+  }
 
   const server = await listenClaudeCodexBridge({
     port: config.port,
     host: config.host,
     cwd: config.cwd,
     timeoutMs: config.timeoutMs,
+    maxRequestBytes: config.maxRequestBytes,
     authToken: config.authToken,
     codexModel: config.codexModel,
+    modelAliases: config.modelAliases,
     codexConfig: config.codexConfig,
   });
   const info = server.address() as AddressInfo;
@@ -126,6 +162,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
   console.log(`  base URL:  ${baseUrl}`);
   console.log(`  backend:   codex exec`);
   if (config.codexModel) console.log(`  codex:    --model ${config.codexModel}`);
+  if (Object.keys(config.modelAliases).length > 0) console.log(`  aliases:  ${formatModelAliases(config.modelAliases)}`);
   if (config.codexConfig.length > 0) console.log(`  config:   ${config.codexConfig.join(', ')}`);
   console.log(`  official:  no - compatibility bridge only`);
   console.log('');
@@ -133,7 +170,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
   console.log(`  export ANTHROPIC_BASE_URL=${baseUrl}`);
   console.log(`  export ANTHROPIC_AUTH_TOKEN=${config.authToken ?? ''}`);
   console.log('');
-  console.log('Routes: GET /health, POST /v1/messages');
+  console.log('Routes: GET /health, POST /v1/messages, POST /v1/messages/count_tokens');
 
   if (!mode.serveOnly) {
     const launch = resolveClientLaunch(baseUrl, config.authToken, clientPassthrough, options);
@@ -165,11 +202,35 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
   });
 }
 
+function isLoopbackHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return normalized === 'localhost'
+    || normalized === '127.0.0.1'
+    || normalized === '::1'
+    || normalized === '[::1]';
+}
+
 /** Normalize parser output for repeatable flags. */
 export function normalizeStringArray(value: CLIOptions[string]): string[] {
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string' && v.length > 0);
   if (typeof value === 'string' && value.length > 0) return [value];
   return [];
+}
+
+function parseModelAliases(values: string[]): Record<string, string> {
+  const aliases: Record<string, string> = {};
+  for (const value of values.flatMap((entry) => entry.split(','))) {
+    const separator = value.indexOf('=');
+    if (separator <= 0) continue;
+    const from = value.slice(0, separator).trim();
+    const to = value.slice(separator + 1).trim();
+    if (from && to) aliases[from] = to;
+  }
+  return aliases;
+}
+
+function formatModelAliases(aliases: Record<string, string>): string {
+  return Object.entries(aliases).map(([from, to]) => `${from}=${to}`).join(', ');
 }
 
 function printHelp(): void {
@@ -181,8 +242,10 @@ Bridge options:
   --port <n>                  Local bridge port (default: 8765)
   --host <addr>               Local bind host (default: 127.0.0.1)
   --cwd <repo>                Working directory for Codex and launched client
+  --max-request-bytes <n>     Max JSON request body size (default: ${DEFAULT_SQUID_MAX_REQUEST_BYTES})
   --token <token>             Local bridge token (default: squid-local)
   --codex-model <model>       Actual Codex CLI model
+  --codex-model-alias <a=b>   Route client model a to Codex backend model b; repeatable
   --codex-effort <level>      Shortcut for -c model_reasoning_effort="<level>"
   --codex-config <key=value>  Extra Codex -c override; repeatable
   --client <bin>              Client to launch when no -- passthrough is given
@@ -190,7 +253,7 @@ Bridge options:
   --serve-only                With bridge, do not launch a client
 
 Examples:
-  pd squid bridge --codex-model gpt-5.1-codex --codex-effort high -- claude --model sonnet --effort high
+  pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex --codex-effort high -- claude --model claude-sonnet-4-5
   pd squid bridge --client claude --client-arg=-p --client-arg="Say hi"
   pd squid serve --port 8765
 

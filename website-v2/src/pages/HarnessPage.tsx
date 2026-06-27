@@ -154,6 +154,58 @@ const VENDOR_ROWS: readonly { vendor: string; status: 'live' | 'mapped'; note: s
   },
 ] as const
 
+type BackendExample = {
+  runtime: string
+  backend: string
+  contract: string
+  status: 'live' | 'mapped'
+  command: string
+}
+
+const BACKEND_EXAMPLES: readonly BackendExample[] = [
+  {
+    runtime: 'Claude Code native',
+    backend: 'Claude via Claude Code login or an official Anthropic gateway',
+    contract:
+      'The Articles bind to Claude Code hooks: turn-start attention, pre-tool vetoes, post-tool telemetry, MCP replies.',
+    status: 'live',
+    command: 'pd begin --identity myapp:api\nclaude',
+  },
+  {
+    runtime: 'Claude Code shape, Codex behind',
+    backend: 'OpenAI Codex CLI through `pd squid bridge`',
+    contract:
+      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the Codex model actually used.',
+    status: 'live',
+    command:
+      'pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex -- claude --model claude-sonnet-4-5',
+  },
+  {
+    runtime: 'Claude Code shape, open weights behind',
+    backend: 'vLLM serving Gemma, Qwen, Llama, DeepSeek, or another tool-capable model',
+    contract:
+      'Claude Code keeps the hook layer; the gateway provides Anthropic Messages compatibility and tool-call shape.',
+    status: 'mapped',
+    command: 'ANTHROPIC_BASE_URL=http://localhost:8000 claude --model gemma-tool-coder',
+  },
+  {
+    runtime: 'Ollama / Gemma adapter lane',
+    backend: 'Local Ollama models behind a router that speaks Anthropic Messages',
+    contract:
+      'The Articles still bind to the harness; this lane stays experimental until streaming and tool-loop fixtures pass.',
+    status: 'mapped',
+    command: 'pd squid serve --port 8765 --token squid-local\n# adapter under test: ollama -> anthropic messages',
+  },
+  {
+    runtime: 'Cloudflare Agent',
+    backend: 'Durable cloud actor using Workers AI or provider APIs',
+    contract:
+      'The remote agent gets a Harbor identity, relay channel, PR duties, budget, and the same review/merge obligations.',
+    status: 'mapped',
+    command: 'pd relay status\npd contract award cloudflare:review-shepherd',
+  },
+] as const
+
 export default function HarnessPage() {
   return (
     <div className="bg-[var(--surface-base)]">
@@ -393,6 +445,67 @@ $ rm -rf build/ .git/
                   <PanelBody size="compact" className="max-w-none">
                     {row.note}
                   </PanelBody>
+                </SurfacePanel>
+              ))}
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Backend examples ──────────────────────────────────────── */}
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Same Articles, many brains"
+              title="The contract binds to the runtime, then the model can vary."
+              description="Claude, Codex, Gemma, Ollama, and Cloudflare agents do not need identical brains. They need the same obligations: hear the fleet, claim before editing, pay rent, answer review, and leave memory behind. The verified state is named plainly."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[24ch]"
+              bodyClassName="max-w-[48rem]"
+            />
+
+            <figure className="mt-[var(--space-6)] space-y-[var(--space-2)]">
+              <picture>
+                <source
+                  media="(prefers-color-scheme: dark)"
+                  srcSet="/img/generated/harness-contract-topology-dark.png"
+                />
+                <img
+                  src="/img/generated/harness-contract-topology-light.png"
+                  alt="A topology diagram showing the Articles of Agreement harness between an agent runtime, hook layer, Port Daddy daemon, MCP response path, sandbox berth, and model backend"
+                  className="w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
+                  width={1400}
+                  height={780}
+                  loading="eager"
+                />
+              </picture>
+              <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                The runtime is where the Articles attach. Claude, Codex, Gemma, Ollama, and cloud agents can sit behind it only when their tool loop preserves the contract.
+              </figcaption>
+            </figure>
+
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)]">
+              {BACKEND_EXAMPLES.map((row) => (
+                <SurfacePanel key={row.runtime} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
+                  <div className="space-y-[var(--space-3)]">
+                    <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+                      <PanelTitle as="h3" size="nav" className="max-w-none">
+                        {row.runtime}
+                      </PanelTitle>
+                      <StatusPill tone={row.status}>
+                        {row.status === 'live' ? 'Verified lane' : 'Mapped lane'}
+                      </StatusPill>
+                    </div>
+                    <PanelBody size="compact" className="max-w-none font-semibold text-[var(--text-primary)]">
+                      {row.backend}
+                    </PanelBody>
+                    <PanelBody size="compact" className="max-w-none">
+                      {row.contract}
+                    </PanelBody>
+                  </div>
+                  <CodeBlock language="bash" filename="example">
+                    {row.command}
+                  </CodeBlock>
                 </SurfacePanel>
               ))}
             </div>
