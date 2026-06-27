@@ -24,6 +24,7 @@ type SessionStartResult = Awaited<ReturnType<PortDaddy['startSession']>>;
 type SessionEndResult = Awaited<ReturnType<PortDaddy['endSession']>>;
 type SessionListResult = Awaited<ReturnType<PortDaddy['sessions']>>;
 type SessionRemoveResult = Awaited<ReturnType<PortDaddy['removeSession']>>;
+type SessionTakeoverResult = Awaited<ReturnType<PortDaddy['takeoverSession']>>;
 type FileClaimResult = Awaited<ReturnType<PortDaddy['claimFiles']>>;
 type FileReleaseResult = Awaited<ReturnType<PortDaddy['releaseFiles']>>;
 type NoteResult = Awaited<ReturnType<PortDaddy['note']>>;
@@ -209,14 +210,15 @@ export async function handleSession(
   useDirect = false
 ): Promise<void> {
   if (!subcommand) {
-    console.error('Usage: port-daddy session <start|end|done|abandon|rm|files|phase> [args]');
+    console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm|files|phase> [args]');
     console.error('');
     console.error('Commands:');
     console.error('  start <purpose> [--files file1 file2...] [--agent AGENT_ID] [--force]');
     console.error('  end [note] [--status STATUS]');
     console.error('  done [note]           # Alias for "end" with status=completed');
     console.error('  abandon [note]        # End session with status=abandoned');
-    console.error('  rm <id>               # Delete a session');
+    console.error('  takeover <id> [note]  # Start a successor session; preserve old notes');
+    console.error('  rm <id>               # Archive a session; preserve old notes');
     console.error('  files add <paths...> [--session ID]  # Claim files in active session');
     console.error('  files rm <paths...> [--session ID]   # Release files in active session');
     console.error('  phase <id> <phase>    # Set session phase');
@@ -238,6 +240,8 @@ export async function handleSession(
       return sessionEnd(rest, options, subcommand === 'done' ? 'completed' : (options.status as string) || 'completed');
     case 'abandon':
       return sessionEnd(rest, options, 'abandoned');
+    case 'takeover':
+      return sessionTakeover(rest, options);
     case 'rm':
       return sessionRemove(rest, options);
     case 'files':
@@ -400,12 +404,6 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
     process.exit(1);
   }
 
-  const ok = await requireConfirmation({
-    summary: `Session rm will permanently delete ${sessionId}, its file claims, and all attached notes. The trail is unrecoverable.`,
-    args: options as Record<string, unknown>,
-  });
-  if (!ok) process.exit(DESTRUCTIVE_EXIT_CODE);
-
   const pd = createSessionClient(options);
   let data: SessionRemoveResult;
   try {
@@ -417,14 +415,85 @@ async function sessionRemove(rest: string[], options: CLIOptions): Promise<void>
   }
 
   if (!data.success) {
-    ui.error('Failed to delete session');
+    ui.error('Failed to archive session');
     process.exit(1);
   }
 
   if (isJson(options)) {
     console.log(JSON.stringify(data, null, 2));
   } else if (!isQuiet(options)) {
-    ui.success(`Deleted session: ${sessionId}`);
+    ui.success(`Archived session: ${sessionId}`);
+    const releasedFiles = Array.isArray((data as any).releasedFiles) ? (data as any).releasedFiles : [];
+    if (releasedFiles.length > 0) {
+      console.log(`  Files released: ${releasedFiles.length}`);
+    }
+    console.log('  Notes preserved: yes');
+  }
+}
+
+async function sessionTakeover(rest: string[], options: CLIOptions): Promise<void> {
+  const sessionId = rest[0];
+  if (!sessionId) {
+    console.error('Usage: port-daddy session takeover <id> [note] [--purpose PURPOSE] [--no-files] [--lifecycle durable|ephemeral]');
+    process.exit(1);
+  }
+
+  const note = rest.slice(1).join(' ') || (options.note as string) || undefined;
+  const lifecycleValue = options.lifecycle === undefined ? undefined : parseSessionLifecycle(options.lifecycle);
+  if (options.lifecycle !== undefined && !lifecycleValue) {
+    ui.error('session takeover requires --lifecycle durable|ephemeral when lifecycle is provided');
+    process.exit(1);
+  }
+
+  const pd = createSessionClient(options);
+  const body: Parameters<PortDaddy['takeoverSession']>[1] = {
+    note,
+    purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
+    lifecycle: lifecycleValue || undefined,
+    claimFiles: !(options['no-files'] || options['no-claims']),
+  };
+
+  const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+  if (!worktreePolicy.success) {
+    ui.error(worktreePolicy.error || 'Session worktree policy failed');
+    if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+    process.exit(1);
+  }
+  attachCliSessionWorktreePolicy(body as Record<string, unknown>, worktreePolicy);
+
+  let data: SessionTakeoverResult;
+  try {
+    data = await pd.takeoverSession(sessionId, body);
+  } catch (error) {
+    const errorBody = getErrorBody(error);
+    ui.error((errorBody.error as string) || (error as Error).message || 'Failed to take over session');
+    process.exit(1);
+  }
+
+  if (!data.success) {
+    ui.error(data.error || 'Failed to take over session');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+  } else if (isQuiet(options)) {
+    console.log(data.successorId);
+  } else {
+    ui.success(`Took over session: ${sessionId}`);
+    console.log(`  Successor: ${data.successorId}`);
+    console.log('  Notes preserved: yes');
+    if (Array.isArray(data.claimedFiles) && data.claimedFiles.length > 0) {
+      console.log(`  Files claimed: ${data.claimedFiles.length}`);
+    }
+    if (Array.isArray(data.conflicts) && data.conflicts.length > 0) {
+      ui.warn(`  Conflicts reported: ${data.conflicts.length}`);
+    }
+    if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+      for (const warning of data.warnings) {
+        ui.warn(`  ${warning}`);
+      }
+    }
   }
 }
 

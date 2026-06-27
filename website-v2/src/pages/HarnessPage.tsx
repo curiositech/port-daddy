@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -50,8 +50,15 @@ type Capability = {
   n: string
   icon: ComponentType<{ size?: number | string; className?: string }>
   title: string
+  cardTitle?: string
   oneLiner: string
   detail: string
+  figure: {
+    input: string
+    hook: string
+    output: string
+    proof: string
+  }
 }
 
 const CAPABILITIES: readonly Capability[] = [
@@ -59,70 +66,126 @@ const CAPABILITIES: readonly Capability[] = [
     n: '01',
     icon: Ear,
     title: 'Hears the fleet',
+    cardTitle: 'Fleet hearing',
     oneLiner: 'Pending tube messages are injected at the start of every turn.',
     detail:
       'Before the model thinks, the harness drains the agent’s inbox and lays the unread messages in front of it. The agent never has to poll, never has to remember to check — the conversation arrives as context, on the turn it matters.',
+    figure: {
+      input: 'Unread tube',
+      hook: 'Turn-start hook',
+      output: 'Context lands',
+      proof: 'Every turn begins with a read-through of attention, inbox, and subscribed channels.',
+    },
   },
   {
     n: '02',
     icon: Radio,
     title: 'Subscribed by default',
+    cardTitle: 'Auto-subscribe',
     oneLiner: 'Auto-joined to its project channel and the fleet channel.',
     detail:
       'A fresh agent is not mute and not deaf. The harness signs it up to the channels its work lives on, so a broadcast to the project reaches it without anyone wiring up a subscription by hand.',
+    figure: {
+      input: 'New agent',
+      hook: 'Session birth',
+      output: 'Fleet channels',
+      proof: 'The project lane and fleet lane are attached before the first useful turn.',
+    },
   },
   {
     n: '03',
     icon: Users,
     title: 'Swarm awareness',
+    cardTitle: 'Swarm map',
     oneLiner: 'Sees who owns which files — and the blast radius — before it edits.',
     detail:
       'Before the agent touches a file, the harness shows it who has already claimed that surface and what depends on it. Collisions get headed off at the point of intent, not discovered later in a tangled merge.',
+    figure: {
+      input: 'Edit intent',
+      hook: 'Claim map',
+      output: 'Conflict signal',
+      proof: 'File claims, active sessions, and nearby work are surfaced before the write path.',
+    },
   },
   {
     n: '04',
     icon: SignalHigh,
     title: 'CI verdicts come home',
+    cardTitle: 'CI replies',
     oneLiner: 'A red check on its branch tells the agent to fix-and-repush.',
     detail:
       'The verdict travels back to the agent that earned it. A failing run on the agent’s branch lands as a message it can act on — so the loop closes itself instead of waiting for a human to relay the bad news.',
+    figure: {
+      input: 'Red check',
+      hook: 'Branch watcher',
+      output: 'Fix loop',
+      proof: 'CI verdicts are routed back to the session that produced the branch.',
+    },
   },
   {
     n: '05',
     icon: MessagesSquare,
     title: 'Invited to parley',
+    cardTitle: 'Parley table',
     oneLiner: 'Multi-agent conversations with turn order and a termination rule.',
     detail:
       'When several agents need to settle something, the harness seats them at a table with a defined turn order and a condition that ends the talk. It is a structured conversation with a gavel, not a free-for-all of interrupts.',
+    figure: {
+      input: 'Dispute',
+      hook: 'Parley table',
+      output: 'Decision',
+      proof: 'The conversation has participants, order, exit criteria, and a durable result.',
+    },
   },
   {
     n: '06',
     icon: CircleDollarSign,
     title: 'Pays rent',
+    cardTitle: 'Budget rent',
     oneLiner: 'Budget- and bond-gated; an over-cap agent is throttled at the tool call.',
     detail:
       'Every agent runs against a budget and a posted bond. When it goes over cap, the brake is applied at the tool call itself — the most precise place to stop runaway spend, before the expensive action, not after the invoice.',
+    figure: {
+      input: 'Tool call',
+      hook: 'Budget gate',
+      output: 'Throttle',
+      proof: 'Spend is checked at the call boundary where the expensive action would happen.',
+    },
   },
   {
     n: '07',
     icon: GitBranch,
     title: 'Steered to fresh worktrees',
+    cardTitle: 'Fresh worktree',
     oneLiner: 'Never edits the main checkout — redirected to an isolated worktree.',
     detail:
       'The harness keeps agents out of the working copy you are sitting in. Work is redirected into its own git worktree, so an agent’s experiment can fail, branch, or be thrown away without ever disturbing your checkout.',
+    figure: {
+      input: 'Main checkout',
+      hook: 'Worktree redirect',
+      output: 'Isolated branch',
+      proof: 'The live operator tree stays untouched while the agent works in a linked berth.',
+    },
   },
   {
     n: '08',
     icon: Ban,
     title: 'Destructive commands vetoed',
+    cardTitle: 'Guard veto',
     oneLiner: 'rm -rf and git push --force are intercepted — with the safe path named.',
     detail:
       'The dangerous command is caught at the gate. The agent does not just get a wall; it gets the safe alternative spelled out — the reversible move it should have reached for. A veto that teaches, not one that merely blocks.',
+    figure: {
+      input: 'Dangerous command',
+      hook: 'Guard veto',
+      output: 'Safe alternative',
+      proof: 'The refusal names the reversible action, so the agent can recover without guessing.',
+    },
   },
 ] as const
 
 /** A small status pill for the vendor-support honesty table. */
-function StatusPill({ tone, children }: { tone: 'live' | 'mapped'; children: React.ReactNode }) {
+function StatusPill({ tone, children }: { tone: 'live' | 'mapped'; children: ReactNode }) {
   const cls =
     tone === 'live'
       ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
@@ -133,6 +196,74 @@ function StatusPill({ tone, children }: { tone: 'live' | 'mapped'; children: Rea
     >
       {children}
     </span>
+  )
+}
+
+function CapabilityFlowNode({
+  label,
+  icon: Icon,
+  active = false,
+}: {
+  label: string
+  icon: ComponentType<{ size?: number | string; className?: string }>
+  active?: boolean
+}) {
+  const cls = active
+    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+    : 'border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--text-primary)]'
+
+  return (
+    <div className={`grid min-h-[7.25rem] content-center gap-[var(--space-2)] border-2 p-[var(--space-3)] text-center ${cls}`}>
+      <span className="mx-auto inline-flex h-10 w-10 items-center justify-center border-2 border-current">
+        <Icon size={18} />
+      </span>
+      <span className="text-balance font-sans text-[length:var(--type-panel-body-compact-size)] font-black leading-[var(--leading-nav)]">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function CapabilityExplainer({ capability }: { capability: Capability }) {
+  const Icon = capability.icon
+
+  return (
+    <SurfacePanel
+      elevation="quiet"
+      padding="default"
+      className="mt-[var(--space-7)] grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]"
+    >
+      <div className="grid content-center gap-[var(--space-3)] border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-[var(--space-4)]">
+        <div className="grid gap-[var(--space-3)] sm:grid-cols-[minmax(0,1fr)_2.5rem_minmax(0,1fr)_2.5rem_minmax(0,1fr)] sm:items-center">
+          <CapabilityFlowNode label={capability.figure.input} icon={Terminal} />
+          <ArrowRight className="mx-auto rotate-90 text-[var(--brand-primary)] sm:rotate-0" size={24} />
+          <CapabilityFlowNode label={capability.figure.hook} icon={Icon} active />
+          <ArrowRight className="mx-auto rotate-90 text-[var(--brand-primary)] sm:rotate-0" size={24} />
+          <CapabilityFlowNode label={capability.figure.output} icon={CheckCircle2} />
+        </div>
+        <div className="border-l-2 border-[var(--brand-primary)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)]">
+          <PanelEyebrow>Contract proof</PanelEyebrow>
+          <PanelBody size="compact" className="mt-[var(--space-1)] max-w-none">
+            {capability.figure.proof}
+          </PanelBody>
+        </div>
+      </div>
+
+      <div className="grid content-center gap-[var(--space-3)]">
+        <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+          <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] font-mono text-[length:var(--type-meta-size)] font-black text-[var(--brand-primary)]">
+            {capability.n}
+          </span>
+          <PanelEyebrow>{capability.oneLiner}</PanelEyebrow>
+        </div>
+        <PanelTitle as="h3" size="display" className="max-w-[14ch]">
+          {capability.title}
+        </PanelTitle>
+        <PanelBody className="max-w-[42rem]">
+          {capability.detail}
+        </PanelBody>
+      </div>
+    </SurfacePanel>
   )
 }
 
@@ -207,6 +338,19 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
 ] as const
 
 export default function HarnessPage() {
+  const [activeCapability, setActiveCapability] = useState(0)
+  const selectedCapability = CAPABILITIES[activeCapability]
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const timer = window.setInterval(() => {
+      setActiveCapability((current) => (current + 1) % CAPABILITIES.length)
+    }, 5200)
+
+    return () => window.clearInterval(timer)
+  }, [])
+
   return (
     <div className="bg-[var(--surface-base)]">
       <main id="main-content">
@@ -329,35 +473,49 @@ export default function HarnessPage() {
               titleSize="display"
               titleClassName="max-w-[20ch]"
             />
-            <div className="mt-[var(--space-7)] grid gap-[var(--space-4)] md:grid-cols-2">
-              {CAPABILITIES.map((cap) => (
-                <SurfacePanel
-                  key={cap.n}
-                  elevation="quiet"
-                  padding="compact"
-                  className="grid gap-[var(--space-3)] md:grid-cols-[3rem_minmax(0,1fr)]"
-                >
-                  <div className="flex flex-col items-start gap-[var(--space-2)]">
-                    <span className="inline-flex h-11 w-11 items-center justify-center border-2 border-[var(--border-strong)] bg-[var(--surface-base)] text-[var(--brand-primary)]">
-                      <cap.icon size={18} />
+            <CapabilityExplainer capability={selectedCapability} />
+
+            <div className="mt-[var(--space-4)] grid grid-cols-2 gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] md:grid-cols-4">
+              {CAPABILITIES.map((cap, index) => {
+                const selected = index === activeCapability
+
+                return (
+                  <button
+                    key={cap.n}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setActiveCapability(index)}
+                    className={`grid min-h-[9rem] gap-[var(--space-2)] p-[var(--space-3)] text-left transition-colors focus-visible:outline-4 focus-visible:outline-[var(--focus-ring)] sm:min-h-[8.25rem] ${
+                      selected
+                        ? 'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]'
+                        : 'bg-[var(--surface-raised)] text-[var(--text-primary)] hover:bg-[var(--surface-strong)]'
+                    }`}
+                  >
+                    <span className="flex items-center justify-between gap-[var(--space-2)]">
+                      <span
+                        className={`inline-flex h-9 w-9 items-center justify-center border-2 ${
+                          selected ? 'border-current' : 'border-[var(--border-strong)] text-[var(--brand-primary)]'
+                        }`}
+                      >
+                        <cap.icon size={16} />
+                      </span>
+                      <span className="font-mono text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] opacity-75">
+                        {cap.n}
+                      </span>
                     </span>
-                    <span className="font-mono text-[length:var(--type-meta-size)] font-black tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-                      {cap.n}
+                    <span className="font-sans text-[length:var(--type-panel-body-compact-size)] font-black leading-[var(--leading-body-compact)] sm:text-balance sm:text-[length:var(--type-panel-title-nav-size)] sm:leading-[var(--leading-nav)]">
+                      {cap.cardTitle ?? cap.title}
                     </span>
-                  </div>
-                  <div className="grid gap-[var(--space-2)]">
-                    <PanelTitle as="h3" size="nav" className="max-w-none">
-                      {cap.title}
-                    </PanelTitle>
-                    <PanelBody size="compact" className="max-w-none font-semibold text-[var(--text-primary)]">
+                    <span
+                      className={`hidden text-[length:var(--type-meta-size)] font-semibold leading-[var(--leading-body-compact)] sm:block ${
+                        selected ? 'text-[color:var(--brand-primary-foreground-muted)]' : 'text-[var(--text-secondary)]'
+                      }`}
+                    >
                       {cap.oneLiner}
-                    </PanelBody>
-                    <PanelBody size="compact" className="max-w-none">
-                      {cap.detail}
-                    </PanelBody>
-                  </div>
-                </SurfacePanel>
-              ))}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </PageContainer>
         </section>
@@ -465,22 +623,49 @@ $ rm -rf build/ .git/
             />
 
             <figure className="mt-[var(--space-6)] space-y-[var(--space-2)]">
-              <picture>
+              <picture className="block">
+                <source
+                  media="(orientation: portrait) and (prefers-color-scheme: dark)"
+                  srcSet="/img/generated/harness-articles-jetpacks-portrait-dark.webp"
+                  type="image/webp"
+                />
+                <source
+                  media="(orientation: portrait) and (prefers-color-scheme: dark)"
+                  srcSet="/img/generated/harness-articles-jetpacks-portrait-dark.png"
+                />
+                <source
+                  media="(orientation: portrait)"
+                  srcSet="/img/generated/harness-articles-jetpacks-portrait-light.webp"
+                  type="image/webp"
+                />
+                <source
+                  media="(orientation: portrait)"
+                  srcSet="/img/generated/harness-articles-jetpacks-portrait-light.png"
+                />
                 <source
                   media="(prefers-color-scheme: dark)"
-                  srcSet="/img/generated/harness-contract-topology-dark.png"
+                  srcSet="/img/generated/harness-articles-jetpacks-landscape-dark.webp"
+                  type="image/webp"
+                />
+                <source
+                  media="(prefers-color-scheme: dark)"
+                  srcSet="/img/generated/harness-articles-jetpacks-landscape-dark.png"
+                />
+                <source
+                  srcSet="/img/generated/harness-articles-jetpacks-landscape-light.webp"
+                  type="image/webp"
                 />
                 <img
-                  src="/img/generated/harness-contract-topology-light.png"
-                  alt="A topology diagram showing the Articles of Agreement harness between an agent runtime, hook layer, Port Daddy daemon, MCP response path, sandbox berth, and model backend"
+                  src="/img/generated/harness-articles-jetpacks-landscape-light.png"
+                  alt="A three-part illustration of sailors joining an old ship, actively signing an open ledger together, then lifting safely from a deck launch platform with jet packs connected to abstract tool modules"
                   className="w-full border-2 border-[var(--border-strong)] bg-[var(--surface-base)]"
-                  width={1400}
-                  height={780}
+                  width={1376}
+                  height={768}
                   loading="eager"
                 />
               </picture>
               <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                The runtime is where the Articles attach. Claude, Codex, Gemma, Ollama, and cloud agents can sit behind it only when their tool loop preserves the contract.
+                The old ship is the agreement. The crew signs the ledger. The jet packs are the tools. Portrait phones get the same story stacked vertically; landscape viewports read it left to right.
               </figcaption>
             </figure>
 

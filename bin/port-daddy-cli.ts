@@ -191,7 +191,7 @@ const TIER_1_COMMANDS: Set<string> = new Set([
   'lock', 'unlock', 'locks',
   'status', 'version',
   'ports',               // 'ports cleanup' is Tier 1
-  'session', 'sessions',
+  'session', 'sessions', 'takeover',
   'note', 'notes',
 ]);
 
@@ -672,6 +672,8 @@ function buildHelp(): string {
     '',
     `${A}Sessions & notes:${Z}`,
     `  ${G}pd session start${Z} "why"   ${tag('notify')} Manual session start`,
+    `  ${G}pd session takeover${Z} <id> ${tag('notify')} Continue stale work, preserve notes`,
+    `  ${G}pd takeover${Z} <id>         ${tag('notify')} Alias for session takeover`,
     `  ${G}pd session abandon${Z}        ${tag('destructive')} End session as abandoned, release claims`,
     `  ${G}pd note${Z} "message"        ${tag('notify')} Leave a note`,
     `  ${G}pd notes${Z}                 ${tag('silent')} Review recent notes`,
@@ -748,7 +750,9 @@ Commands:
   session end [note]         End the active session (completed)
   session done [note]        Alias for "session end"
   session abandon [note]     End active session (abandoned)
-  session rm <id>            Delete a session and its notes
+  session takeover <id> [note]  Create successor; preserve predecessor notes
+  takeover <id> [note]       Alias for "session takeover"
+  session rm <id>            Archive a session; preserve notes
   session files add <paths>  Claim files in active session
   session files rm <paths>   Release files from active session
     compat aliases           claim -> add, release -> rm
@@ -1414,6 +1418,11 @@ async function executeDirectMode(
   positional: string[],
   options: CLIOptions
 ): Promise<boolean> {
+  if (command === 'takeover') {
+    command = 'session';
+    positional = ['takeover', ...positional];
+  }
+
   // Only Tier 1 commands are supported
   if (!TIER_1_COMMANDS.has(command)) {
     return false;
@@ -1787,7 +1796,7 @@ async function executeDirectMode(
       const sess = getDirectSessions();
 
       if (!subcommand) {
-        console.error('Usage: port-daddy session <start|end|done|abandon|rm> [args]');
+        console.error('Usage: port-daddy session <start|end|done|abandon|takeover|rm> [args]');
         process.exit(1);
       }
 
@@ -1913,6 +1922,60 @@ async function executeDirectMode(
           break;
         }
 
+        case 'takeover': {
+          const sessionId = rest[0];
+          if (!sessionId) {
+            console.error('Usage: port-daddy session takeover <id> [note]');
+            process.exit(1);
+          }
+
+          const current = readCurrentSession();
+          const agentId = typeof options.agent === 'string'
+            ? options.agent
+            : current?.agentId || `cli-${process.pid}`;
+          const takeoverOpts: Record<string, unknown> = {
+            agentId,
+            note: rest.slice(1).join(' ') || undefined,
+            purpose: typeof options.purpose === 'string' ? options.purpose : undefined,
+            claimFiles: !(options['no-files'] || options['no-claims']),
+          };
+
+          const lifecycle = typeof options.lifecycle === 'string' ? options.lifecycle.trim().toLowerCase() : '';
+          if (lifecycle) {
+            if (lifecycle !== 'durable' && lifecycle !== 'ephemeral') {
+              console.error('Usage: port-daddy session takeover <id> [note] --lifecycle durable|ephemeral');
+              process.exit(1);
+            }
+            takeoverOpts.durable = lifecycle === 'durable';
+          }
+
+          const worktreePolicy = resolveCliSessionWorktreePolicy(options);
+          if (!worktreePolicy.success) {
+            ui.error(worktreePolicy.error || 'Session worktree policy failed');
+            if (worktreePolicy.hint) console.error(`  ${worktreePolicy.hint}`);
+            process.exit(1);
+          }
+          attachCliSessionWorktreePolicy(takeoverOpts, worktreePolicy);
+          if (worktreePolicy.worktree) takeoverOpts.worktreeId = worktreePolicy.worktree.id;
+
+          const result = sess.takeover(sessionId, takeoverOpts as Parameters<typeof sess.takeover>[1]);
+          if (!result.success) {
+            ui.error(typeof result.error === 'string' ? result.error : 'Failed to take over session');
+            process.exit(1);
+          }
+
+          if (options.json) {
+            console.log(JSON.stringify(result, null, 2));
+          } else if (options.quiet) {
+            console.log(result.successorId);
+          } else {
+            ui.success(`Took over session: ${sessionId}`);
+            console.log(`  Successor: ${result.successorId}`);
+            console.log('  Notes preserved: yes');
+          }
+          break;
+        }
+
         case 'rm': {
           const sessionId = rest[0];
           if (!sessionId) {
@@ -1922,14 +1985,15 @@ async function executeDirectMode(
 
           const result = sess.remove(sessionId);
           if (!result.success) {
-            console.error(result.error || 'Failed to delete session');
+            console.error(result.error || 'Failed to archive session');
             process.exit(1);
           }
 
           if (options.json) {
-            console.log(JSON.stringify({ success: true, id: sessionId, deleted: true }, null, 2));
+            console.log(JSON.stringify(result, null, 2));
           } else if (!options.quiet) {
-            console.log(`Deleted session: ${sessionId}`);
+            console.log(`Archived session: ${sessionId}`);
+            console.log('  Notes preserved: yes');
           }
           break;
         }
@@ -2578,6 +2642,10 @@ export async function main(): Promise<void> {
         break;
 
       // Sessions & Notes
+      case 'takeover':
+        await handleSession('takeover', positional, options);
+        break;
+
       case 'session':
         await handleSession(positional[0], positional.slice(1), options);
         break;

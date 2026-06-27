@@ -367,13 +367,15 @@
       "description": "Work sessions for agent coordination",
       "cli": [
         "session",
-        "sessions"
+        "sessions",
+        "takeover"
       ],
       "sdk": [
         "startSession",
         "endSession",
         "abandonSession",
         "removeSession",
+        "takeoverSession",
         "sessions",
         "sessionDetails",
         "claimFiles",
@@ -385,6 +387,7 @@
         "GET /sessions/:param",
         "PUT /sessions/:param",
         "DELETE /sessions/:param",
+        "POST /sessions/:param/takeover",
         "POST /sessions/:param/files",
         "DELETE /sessions/:param/files",
         "POST /sessions/:param/symbols",

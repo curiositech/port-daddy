@@ -155,7 +155,7 @@ Every `pd` command is classified by how much shared state it touches. The tier i
 | Tier | What it means | Examples |
 |---|---|---|
 | `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd salvage` (list form), `pd sessions`, `pd actors`, `pd find` |
-| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd session start`, `pd session files add`, `pd agent register` |
+| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd session start`, `pd session takeover`, `pd takeover`, `pd session files add`, `pd agent register` |
 | `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd up`, `pd agent inbox send`, `pd harbor create/enter` |
 | `destructive` | Releases someone else's resources or removes records. Prompts. | (see list below) |
 
@@ -168,7 +168,6 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd salvage abandon <id>` — returns inherited work to the queue
 - `pd salvage dismiss <id>` — permanently removes an entry; context is unrecoverable
 - `pd session abandon` — marks active session abandoned; other agents may salvage
-- `pd session rm <id>` — deletes a session, its claims, and all attached notes
 - `pd release --expired` — releases stale port claims across all projects
 - `pd unlock --force` — breaks a lock held by another owner
 - `pd ports cleanup` — releases every stale port assignment
@@ -468,6 +467,8 @@ pd salvage claim dead-agent-99
 ```
 
 When an agent dies (crashes, loses connection, context exceeded), its sessions and notes are preserved. New agents in the same project are automatically notified at registration.
+
+Use `pd session takeover <old-session-id> [reason]` (or the shorter `pd takeover <old-session-id> [reason]`) when continuing a stale or predecessor session. It creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files for the successor when there is no live conflict. `pd session rm <id>` is now archival: it releases active claims and writes a tombstone note, but it does not delete the session, notes, or claim history.
 
 ### Distributed Locks
 Prevent agents from "stepping on" each other's files or DB migrations:
