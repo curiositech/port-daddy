@@ -37,6 +37,9 @@ import { WarRoom } from './demos/WarRoom'
 import { HowItsWired } from './demos/HowItsWired'
 import { PlaygroundExplainer } from './demos/PlaygroundExplainer'
 
+const PAGE_SECTION_CLASS =
+  'border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]'
+
 /**
  * The pd tube playground — every trigger, one agent.
  *
@@ -203,32 +206,38 @@ export function Playground() {
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
       <main id="main-content">
         {/* Hero */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
-            <div className="max-w-[52rem] space-y-[var(--space-5)]">
-              <PanelEyebrow>pd tube · playground</PanelEyebrow>
-              <PanelTitle as="h1" size="hero" className="max-w-[20ch]">
-                The pd tube playground — every trigger, one agent.
-              </PanelTitle>
-              <PanelBody className="max-w-[46rem] text-[length:var(--text-lg)]">
-                Each demo here fires a real message at a Port Daddy channel and waits for a real
-                reply. Run an agent on the same channel and the wire lights up; without one, the
-                demo says so and shows you the one command to start it. Nothing is staged — every
-                pulse is a round-trip you triggered.
-              </PanelBody>
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.92fr)_minmax(20rem,0.58fr)] lg:items-start">
+              <div className="max-w-[52rem] space-y-[var(--space-4)]">
+                <PanelEyebrow>pd tube · playground</PanelEyebrow>
+                <PanelTitle
+                  as="h1"
+                  size="hero"
+                  className="max-w-[16ch] !text-[length:var(--type-panel-title-display-size)] md:!text-[length:var(--type-hero-size)]"
+                >
+                  Every trigger, one agent.
+                </PanelTitle>
+                <PanelBody className="max-w-[42rem] text-[length:var(--text-lg)]">
+                  Fire a browser button, Git hook, test run, webhook, notebook, or scan into one
+                  Port Daddy channel. The same named agent replies on the same thread, with the real
+                  command visible when you need it.
+                </PanelBody>
+              </div>
+              <HeroSignalPanel />
             </div>
           </PageContainer>
         </section>
 
         {/* How pd tube actually works — the legibility explainer. */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <PlaygroundExplainer />
           </PageContainer>
         </section>
 
         {/* Demo #1 — The Switchboard */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 01 · The Switchboard"
@@ -259,7 +268,7 @@ export function Playground() {
         </section>
 
         {/* Demo #2 — Red-to-Green */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 02 · Red-to-Green"
@@ -275,7 +284,7 @@ export function Playground() {
         </section>
 
         {/* Demo #3 — Editor Lightbulb */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 03 · Editor Lightbulb"
@@ -291,7 +300,7 @@ export function Playground() {
         </section>
 
         {/* Demo #4 — War Room */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 04 · War Room"
@@ -307,7 +316,7 @@ export function Playground() {
         </section>
 
         {/* Run the agent */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Make it answer"
@@ -335,6 +344,39 @@ export function Playground() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+function HeroSignalPanel() {
+  const steps = [
+    ['01', 'Trigger posts'],
+    ['02', 'Channel stores'],
+    ['03', 'Agent replies'],
+  ] as const
+
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)] lg:mt-[var(--space-2)]">
+      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)]">
+        <PanelEyebrow>Live loop</PanelEyebrow>
+        <span className="border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+          {DEMO_CHANNEL}
+        </span>
+      </div>
+      <div className="grid gap-[var(--space-2)] sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+        {steps.map(([number, label]) => (
+          <div key={number} className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+            <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">{number}</div>
+            <div className="mt-[var(--space-1)] font-sans text-[length:var(--type-panel-body-compact-size)] font-semibold text-[var(--text-primary)]">
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
+      <CopyableCommandBlock
+        label="Start the listener"
+        command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME}`}
+      />
+    </SurfacePanel>
   )
 }
 
@@ -400,7 +442,7 @@ function Switchboard() {
 
   return (
     <TubeMotionProvider>
-      <div className="grid gap-[var(--space-5)] lg:grid-cols-[1fr_minmax(20rem,28rem)]">
+      <div className="grid gap-[var(--space-5)] xl:grid-cols-[1fr_minmax(20rem,28rem)]">
         {/* Trigger gallery */}
         <div className="space-y-[var(--space-4)]">
           <PanelEyebrow>Triggers · all POST to {DEMO_CHANNEL}</PanelEyebrow>
@@ -513,8 +555,18 @@ function TriggerTile({
       <CopyableCommandBlock
         label="Real shell command"
         command={trigger.command}
-        className="mt-[var(--space-1)]"
+        className="mt-[var(--space-1)] hidden md:grid"
       />
+      <details className="md:hidden">
+        <summary className="cursor-pointer border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
+          Shell command
+        </summary>
+        <CopyableCommandBlock
+          label="Real shell command"
+          command={trigger.command}
+          className="mt-[var(--space-2)]"
+        />
+      </details>
     </div>
   )
 }
