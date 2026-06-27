@@ -361,12 +361,38 @@ export function createRoadmapItems(deps: RoadmapItemsDeps) {
     return { ...rowToItem(row), lastTouchedAt: at };
   }
 
+  const deleteStatusEventsStmt = db.prepare(
+    `DELETE FROM roadmap_item_status_events WHERE item_id = ?`,
+  );
+  const deleteItemStmt = db.prepare(`DELETE FROM roadmap_items WHERE id = ?`);
+
+  /**
+   * Remove a roadmap item (and its append-only status-event audit rows, which
+   * carry no FK cascade). Returns the removed item so callers can confirm what
+   * was deleted, or `{ removed: false }` when the slug/harbor pair did not
+   * exist. This is the operation the Planner pane's "duplicate slug" /
+   * "harbor split" flags need to become auto-fixable instead of merely loud.
+   */
+  function remove(slug: string, harbor?: string): { removed: boolean; item: RoadmapItem | null } {
+    const h = harbor ?? DEFAULT_HARBOR;
+    const row = selectBySlugStmt.get(slug, h);
+    if (!row) return { removed: false, item: null };
+    const item = rowToItem(row);
+    // Sequential deletes are safe under the single-threaded sync-SQLite kernel
+    // (ADR-0006): audit rows first, then the item.
+    deleteStatusEventsStmt.run(row.id);
+    deleteItemStmt.run(row.id);
+    tuples.out(['roadmap:removed', slug, { harbor: h, id: row.id }], { harbor: h });
+    return { removed: true, item };
+  }
+
   return {
     upsert,
     get,
     list,
     updateStatus,
     touch,
+    remove,
   };
 }
 

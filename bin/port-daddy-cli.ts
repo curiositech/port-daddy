@@ -1217,6 +1217,10 @@ Commands:
     --status <s>            now|backlog|parked|merge|done
     --as <agentId>          Actor recorded on the receipt
     --note <text>           Receipt note attached to the item
+    --harbor <h>            Target harbor (default: repo/project name, then $PD_HARBOR)
+
+  roadmap delete <slug>     Remove a roadmap item (and its status-event audit rows)
+    --harbor <h>            Harbor to delete from (default: repo/project name)
 
   roadmap touch <slug>      Append a roadmap receipt note to an existing item
     --as <agentId>          Actor recorded on the receipt

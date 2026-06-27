@@ -1771,6 +1771,7 @@
         "GET /roadmap/items",
         "GET /roadmap/board",
         "GET /roadmap/items/:slug",
+        "DELETE /roadmap/items/:slug",
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",
         "POST /roadmap/promote",

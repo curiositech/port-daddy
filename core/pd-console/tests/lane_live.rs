@@ -16,6 +16,7 @@ mod agent;
 use agent::{DaemonClient, StreamKind};
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use tokio::time::{timeout, Duration};
 
 /// Spin a one-shot SSE server on an ephemeral port; return its base URL.
 /// It serves exactly one `GET /agents/:id/stream` connection, writing the
@@ -51,7 +52,8 @@ fn spawn_mock_stream() -> String {
                 let _ = sock.flush();
                 std::thread::sleep(std::time::Duration::from_millis(15));
             }
-            // Drop the socket → stream ends, the client task finishes.
+            // Drop the socket: the production client will reconnect, so tests
+            // should assert the expected frames rather than stream termination.
         }
     });
     format!("http://127.0.0.1:{port}")
@@ -64,10 +66,13 @@ async fn subscribe_agent_streams_typed_envelopes_over_a_socket() {
 
     let mut rx = client.subscribe_agent("a");
 
-    // Collect until the stream closes (server is one-shot).
     let mut kinds = Vec::new();
     let mut saw_control = false;
-    while let Some(env) = rx.recv().await {
+    while kinds.len() < 4 {
+        let env = timeout(Duration::from_secs(2), rx.recv())
+            .await
+            .expect("timed out waiting for stream envelope")
+            .expect("stream channel closed before expected envelopes arrived");
         if env.kind == StreamKind::Tube {
             if env.body.get("text").and_then(|t| t.as_str()) == Some("control.interrupt") {
                 saw_control = true;

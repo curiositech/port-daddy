@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1782285276695,
+  "generatedAt": 1782575053584,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 88,
+  "count": 90,
   "items": [
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -400,14 +400,29 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
-      "slug": "roadmap-delete-verb-and-harbor-fix",
+      "slug": "harbor-editor",
       "status": "now",
-      "summaryMd": "DELETE route + pd roadmap delete + harbor default fix"
+      "summaryMd": "Harbor Editor — cooperative gpui IDE where humans and agents co-edit files as Loro CRDT replicas governed by Port Daddy claims/guard/salvage (beat Zed at collaborative human+agent editing). P0: read-only editor surface in both faces. P1: Loro buffer. P2: networking. P3: claims + salvage."
+    },
+    {
+      "slug": "pd-session-coordination-hardening",
+      "status": "now",
+      "summaryMd": "Fix pd session coordination: begin-hang, resolver divergence (PPID/TTY slot), MCP lifecycle parity (#556)"
+    },
+    {
+      "slug": "roadmap-delete-verb-and-harbor-fix",
+      "status": "backlog",
+      "summaryMd": "Shepherd PR #558: roadmap delete verb, DELETE route, and project-harbor default; takeover rebase after stale session release."
     },
     {
       "slug": "roadmap-link-gate",
       "status": "now",
       "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "squid-contract-harness-daemon-boot-fix",
+      "status": "backlog",
+      "summaryMd": "feat(squid): harden bridge and document agent harness"
     },
     {
       "slug": "suggest-b1-1-suggestions-table",
@@ -438,11 +453,6 @@
       "slug": "suggest-b3-2-fleet-yml-optin",
       "status": "backlog",
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
-    },
-    {
-      "slug": "conjure-prompt-to-dag-and-giant-squid",
-      "summaryMd": "Conjure operator surface: prompt → claude:cli DAG → next-gen Vello render → context-partition + contracts → multi-vendor dispatch; plus the Giant Squid Harness (ADR-0091). PR #581.",
-      "status": "merge"
     }
   ]
 }
