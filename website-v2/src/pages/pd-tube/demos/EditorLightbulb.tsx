@@ -258,9 +258,9 @@ export function EditorLightbulb() {
 
   return (
     <TubeMotionProvider>
-      <div className="grid gap-[var(--space-5)] lg:grid-cols-[1fr_minmax(20rem,30rem)]">
+      <div className="grid min-w-0 gap-[var(--space-5)] lg:grid-cols-[minmax(0,1fr)_minmax(20rem,30rem)]">
         {/* Left column: the editor pane + ask control + wire */}
-        <div className="space-y-[var(--space-5)]">
+        <div className="min-w-0 space-y-[var(--space-5)]">
           <PanelEyebrow>The selection · posts to {EXPLAIN_CHANNEL}</PanelEyebrow>
 
           {/* House-style editor: cream frame, line-number gutter, gutter bulb. */}
@@ -291,7 +291,7 @@ export function EditorLightbulb() {
           </button>
 
           {/* Wire: editor → agent. */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-[var(--space-2)]">
+          <div className="grid min-w-0 grid-cols-1 items-center gap-[var(--space-2)] sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
             <Sender role="Editor" name="selection" active={lit} />
             <Wire pulse={pulse} />
             <AgentNode name={EXPLAINER_NAME} channel={EXPLAIN_CHANNEL} phase={phase} />
@@ -306,7 +306,7 @@ export function EditorLightbulb() {
         </div>
 
         {/* Right column: the agent's explanation + suggested change */}
-        <SurfacePanel className="flex flex-col gap-[var(--space-4)] self-start">
+        <SurfacePanel className="flex min-w-0 flex-col gap-[var(--space-4)] self-start">
           <div className="flex items-center justify-between gap-[var(--space-3)]">
             <PanelEyebrow className={answered ? 'text-[var(--brand-accent)]' : undefined}>
               {answered ? 'Agent reply · explanation' : 'What the agent sends back'}
@@ -349,7 +349,7 @@ export function EditorLightbulb() {
         </SurfacePanel>
 
         {/* Full-width: the real editor-command snippet */}
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <SurfacePanel elevation="quiet" padding="compact">
             <CopyableCommandBlock
               label="Wire your editor's “Ask the agent” to the channel"
@@ -410,22 +410,22 @@ function EditorPane({
   const bulbLineIndex = lines.findIndex((l) => l.selected)
 
   return (
-    <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-      <div className="flex items-center justify-between border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
+    <div className="min-w-0 overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-[var(--space-2)] border-b-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)]">
         <PanelEyebrow className="text-[var(--brand-primary)]">editor · {file}</PanelEyebrow>
         <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
           lines {SELECTION_RANGE.startLine}–{SELECTION_RANGE.endLine} selected
         </span>
       </div>
 
-      <div className="font-mono text-[14px] leading-[1.7]">
+      <div className="min-w-0 font-mono text-[14px] leading-[1.7]">
         {lines.map((line, i) => {
           const showBulb = i === bulbLineIndex
           return (
             <div
               key={line.n}
               className={cn(
-                'flex items-stretch',
+                'flex min-w-0 items-stretch',
                 line.selected &&
                   'bg-[color-mix(in_srgb,var(--brand-primary)_10%,transparent)]',
               )}

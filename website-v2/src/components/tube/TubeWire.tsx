@@ -526,7 +526,7 @@ export function TubeSimBadge({
         channel ?? '<channel>'
       }\` locally (or add ?daemon=<url>) for a real round-trip.`}
       className={cn(
-        'inline-flex shrink-0 items-center gap-[var(--space-1)] border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]',
+        'inline-flex max-w-full items-center gap-[var(--space-1)] border border-[var(--border-default)] bg-[var(--surface-base)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]',
         className,
       )}
     >
@@ -603,7 +603,7 @@ export function TubeStatus({
       aria-live="polite"
     >
       <TubeSimBadge channel={channel} />
-      <span>{content}</span>
+      <span className="min-w-0 max-w-full">{content}</span>
     </div>
   )
 }

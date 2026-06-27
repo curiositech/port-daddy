@@ -687,7 +687,7 @@ function LaneBoard({
         </svg>
       ) : null}
 
-      <div className="grid gap-[var(--space-4)] md:grid-cols-3">
+      <div className="grid min-w-0 gap-[var(--space-4)] md:grid-cols-3">
         {AGENTS.map((agent) => (
           <Lane
             key={agent.name}
@@ -722,7 +722,7 @@ function Lane({
   return (
     <div
       className={cn(
-        'flex flex-col border-2 bg-[var(--surface-base)]',
+        'flex min-w-0 flex-col border-2 bg-[var(--surface-base)]',
         !reduced && 'transition-colors duration-[var(--duration-normal)]',
       )}
       style={{ borderColor: agent.accent }}
@@ -732,7 +732,7 @@ function Lane({
     >
       {/* Lane header in the agent's accent. */}
       <div
-        className="flex items-center justify-between gap-[var(--space-2)] border-b-2 px-[var(--space-3)] py-[var(--space-2)]"
+        className="flex min-w-0 flex-wrap items-center justify-between gap-[var(--space-2)] border-b-2 px-[var(--space-3)] py-[var(--space-2)]"
         style={{ borderColor: agent.accent }}
       >
         <span className="flex items-center gap-[var(--space-2)]">
