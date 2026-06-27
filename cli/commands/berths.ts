@@ -579,7 +579,7 @@ function pad(s: string, n: number): string {
 
 /**
  * Make sure the two always-on daemons exist:
- *   - stable/prod (:9876) — brew/launchd-supervised; we only report it (never
+ *   - stable/prod (DEFAULT_DAEMON_PORT) — brew/launchd-supervised; we only report it (never
  *     auto-manage the brew daemon), and tell the operator how to start it.
  *   - dev-latest (:9886) — a berth built from main; brought up if it is not
  *     already running (reusing `devUp` so it gets a prod-seeded DB).

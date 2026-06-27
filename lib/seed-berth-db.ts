@@ -4,9 +4,9 @@
  * A non-stable daemon berth (`pd dev up`) runs against its own isolated SQLite
  * file at `<profile>/port-daddy.db` (server.ts derives `DB_PATH` from
  * `PORT_DADDY_PREFIX`). Created empty, that berth is useless for testing — it is
- * the surfacing bug ADR-0090 §1 names: "data lived on the brew daemon (:9876)
- * while a board route lived on a dev daemon (:9886)". A dev daemon with an empty
- * registry can't be exercised against real board state.
+ * the surfacing bug ADR-0090 §1 names: stable daemon data being invisible to
+ * routes served by a separate dev daemon. A dev daemon with an empty registry
+ * can't be exercised against real board state.
  *
  * This module seeds a new berth's DB from a point-in-time copy of the
  * stable/prod registry so every berth starts with realistic data.

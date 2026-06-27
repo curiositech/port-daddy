@@ -182,7 +182,10 @@ impl CmdKind {
             CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.".to_string(),
             CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…".to_string(),
             CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents".to_string(),
-            CmdKind::UseDaemon => "prod · latest · dev-latest · :9876 · berth name…".to_string(),
+            CmdKind::UseDaemon => format!(
+                "prod · latest · dev-latest · :{} · berth name…",
+                crate::berths::STABLE_PORT
+            ),
         }
     }
 }

@@ -113,7 +113,7 @@ mod tests {
 
     fn sample_berths() -> Vec<Berth> {
         vec![
-            Berth { label: "stable".into(), tier: "stable".into(), port: 9876, canonical: true },
+            Berth { label: "stable".into(), tier: "stable".into(), port: STABLE_PORT, canonical: true },
             Berth { label: "dev-latest".into(), tier: "dev-latest".into(), port: 9886, canonical: false },
         ]
     }
