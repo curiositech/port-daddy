@@ -18,9 +18,10 @@
 use gpui::prelude::*;
 use gpui::*;
 
+use crate::agent::{Backend, ModelCatalog, Tier};
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
-use crate::pane::{Block, Tone};
+use crate::pane::{Alert, AlertLevel, Block, Tone};
 use crate::tokens;
 use crate::palette::{Theme, ThemeMode};
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -37,8 +38,9 @@ use std::time::Duration;
 pub enum ControlMsg {
     /// Grab the wheel: interrupt the agent the Lane is watching.
     InterruptLane,
-    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt.
-    Spawn { backend: String, prompt: String },
+    /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt +
+    /// an optional resolved model id (from the capability tier the operator picked).
+    Spawn { backend: String, prompt: String, model: Option<String> },
     /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
     Cartographer { text: String },
     /// Operator review-gate verdicts on the head dispatch.
@@ -50,6 +52,76 @@ pub enum ControlMsg {
     FleetHalt { root_id: Option<String> },
     FleetPause { root_id: Option<String> },
     FleetResume { root_id: Option<String> },
+    /// Generate a predicted DAG LIVE from the operator's prompt via the Max-seat
+    /// `claude` CLI (print mode, NO API key). Runs on a blocking worker
+    /// (`conjure::generate_dag_via_cli`): `claude -p "<DAG_GEN_PROMPT>"`, parse the
+    /// JSON it returns, fall back to the prompt-seeded fixture on any error. The
+    /// resulting DAG is pushed back to the view over the Conjure-update channel,
+    /// which swaps to the Conjure surface AND kicks the inline Vello render.
+    ConjureGenerate { prompt: String },
+    /// Render the live Conjure DAG to a PNG via the Vello proto. Carries the DAG
+    /// already serialized to the proto's JSON shape (the foreground owns the DAG;
+    /// serializing on the gpui thread is cheap and keeps the worker self-contained)
+    /// plus a short title for the success flash. The background thread writes the
+    /// JSON where the proto reads it, shells `pd-conjure-proto/scripts/capture.sh`
+    /// (RELEASE + UNSANDBOXED — required: debug fontique panics on macOS 15 and the
+    /// Metal readback is SIGKILLed under a sandbox), then `open`s the PNG. The
+    /// shell-out runs on a blocking worker so it never stalls the refresh loop and
+    /// never touches the gpui render thread.
+    RenderConjureGraph { dag_json: String, title: String },
+    /// Dispatch the committed (non-HITL-gated) Conjure nodes to live agents. Each
+    /// request carries the vendor backend chosen by the node's `model_tier`
+    /// (the multi-vendor map), the goal prompt (role + why), and the skill id. The
+    /// worker spawns each through the SAME `DaemonClient::spawn` the manual Spawn
+    /// command uses (the daemon's existing multi-vendor spawner), and surfaces each
+    /// outcome as an Alert — Info with the agent id on launch, Error on a refusal.
+    /// `gated` is how many nodes were held back behind the HITL gate, reported so
+    /// the operator knows the dispatch was partial by design.
+    ConjureDispatch { requests: Vec<ConjureDispatchRequest>, gated: usize },
+}
+
+/// A flattened, transport-ready spawn request for one Conjure node — the wire
+/// form of `conjure::DispatchRequest` carried across the control channel to the
+/// background worker. `backend` is the daemon spawner id string (e.g. "gemini",
+/// "claude-cli") already resolved from the node's `model_tier`.
+#[derive(Debug, Clone)]
+pub struct ConjureDispatchRequest {
+    pub node_id: String,
+    pub backend: String,
+    pub skill_id: String,
+    pub goal: String,
+    pub model_tier: String,
+}
+
+/// A push from the background worker back to the view about the Conjure surface.
+/// The worker owns the claude:cli round-trip and the Vello render (both blocking);
+/// it streams the results back here so the foreground can update `conjure_dag` /
+/// `conjure_png_path` and `cx.notify()` without ever blocking the render thread.
+#[derive(Debug, Clone)]
+pub enum ConjureUpdate {
+    /// A freshly-generated DAG (claude:cli, or the fixture fallback). The view
+    /// stores it, swaps to the Conjure surface, and clears the stale PNG so the
+    /// inline graphic shows a "rendering…" placeholder until the new PNG lands.
+    Dag(crate::conjure::PredictedDag),
+    /// The path to the rendered Vello PNG for the current DAG — shown INLINE at the
+    /// top of the Conjure surface (gpui `img(path)`).
+    Png(std::path::PathBuf),
+}
+
+/// Resolve the default (pre-rendered fixture) Conjure PNG path. Honors the
+/// `PD_CONJURE_PROTO_DIR` override (a packaged app points at its installed copy);
+/// otherwise it is the sibling `pd-conjure-proto` crate's `conjure-dag-vello.png`,
+/// located via `CARGO_MANIFEST_DIR` at build time. Mirrors `main::conjure_proto_dir`
+/// so the default inline graphic and the live render write/read the same file.
+pub fn default_conjure_png() -> Option<std::path::PathBuf> {
+    let proto = if let Ok(dir) = std::env::var("PD_CONJURE_PROTO_DIR") {
+        std::path::PathBuf::from(dir)
+    } else {
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .map(|p| p.join("pd-conjure-proto"))?
+    };
+    Some(proto.join("conjure-dag-vello.png"))
 }
 
 /// Which command line is open at the bottom of the console.
@@ -65,6 +137,12 @@ pub enum CmdKind {
     /// Add a new split pane of a chosen surface kind. Buffer is a surface name
     /// (nav label/id/key prefix, e.g. "cost", "fleet", "chat"). Handled locally.
     AddPane,
+    /// Conjure a predicted DAG from an operator prompt. Buffer is the free-text
+    /// intent ("ship a settings flow with tests"). On submit it produces a
+    /// `PredictedDag` (the windags `next_move` path when reachable, else the
+    /// prompt-seeded fixture), stores it in `ConsoleView::conjure_dag`, and swaps
+    /// the focused pane to the Conjure surface. Handled locally (no daemon round-trip).
+    Conjure,
 }
 
 impl CmdKind {
@@ -74,8 +152,45 @@ impl CmdKind {
             CmdKind::Cartographer => "cartographer",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
+            CmdKind::Conjure => "conjure",
         }
     }
+
+    /// Ghost text shown in the input when empty — the GUI must never demand
+    /// syntax the operator has to guess. This is the discoverability the hidden
+    /// leader-key command line never had.
+    ///
+    /// Returns an owned `String` because the Spawn hint's backend list is
+    /// GENERATED from [`Backend::ALL`] (see [`spawn_backend_hint`]) rather than
+    /// hardcoded, so it always reflects the real backend set — Groq, LM Studio,
+    /// and any future backend appear automatically and the hint can never drift
+    /// out of sync with what the picker actually offers.
+    fn placeholder(&self) -> String {
+        match self {
+            CmdKind::Spawn => {
+                format!("claude: summarize the open PRs   (backend: task — try {})", spawn_backend_hint())
+            }
+            CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…".to_string(),
+            CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.".to_string(),
+            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…".to_string(),
+            CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents".to_string(),
+        }
+    }
+}
+
+/// The backend names shown in the Spawn placeholder hint, generated from
+/// [`Backend::ALL`] so the hint never drifts from the real backend set. We
+/// curate to the commonly-reached vendors plus the local options — but pulled
+/// from the live enum (never a hand-kept literal), so adding a backend to
+/// `Backend::ALL` surfaces it here for free. `custom` is omitted (it is an
+/// escape hatch, not a starting suggestion).
+fn spawn_backend_hint() -> String {
+    Backend::ALL
+        .into_iter()
+        .filter(|b| *b != Backend::Custom)
+        .map(|b| b.as_str())
+        .collect::<Vec<_>>()
+        .join(" · ")
 }
 
 /// Version + build-freshness of the running binary, for the status bar.
@@ -110,6 +225,12 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     if "files".starts_with(&q) || "tree".starts_with(&q) || "filetree".starts_with(&q) {
         return Some(SurfaceKind::FileTree { root: None });
     }
+    if "alerts".starts_with(&q) || "hitl".starts_with(&q) {
+        return Some(SurfaceKind::Hitl);
+    }
+    if "conjure".starts_with(&q) || "plan".starts_with(&q) {
+        return Some(SurfaceKind::Conjure);
+    }
     NAV.iter()
         .find(|n| {
             n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q)
@@ -117,11 +238,75 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         .map(|n| surface_for_nav_id(n.id))
 }
 
-/// An open command line: a prompt kind plus the text typed so far.
+/// An open command line: a prompt kind plus the text typed so far. For `Spawn`
+/// it also carries the structured picker state (chosen backend + tier) the
+/// operator selects from inline chips before typing the free-text prompt.
 #[derive(Debug, Clone)]
 pub struct CommandLine {
     kind: CmdKind,
     buffer: String,
+    /// Spawn picker: chosen backend (None → still choosing).
+    backend: Option<Backend>,
+    /// Spawn picker: chosen capability tier (None → still choosing).
+    tier: Option<Tier>,
+    /// Whether the chosen backend offers tiers (set from the ModelCatalog when
+    /// the backend is picked, so `spawn_step` stays catalog-free).
+    tier_applies: bool,
+}
+
+/// Which step of the Spawn structured picker is active.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SpawnStep {
+    Backend,
+    Tier,
+    Prompt,
+}
+
+impl CommandLine {
+    fn new(kind: CmdKind) -> Self {
+        Self { kind, buffer: String::new(), backend: None, tier: None, tier_applies: false }
+    }
+
+    /// The active step for a Spawn command: pick a backend, then a tier, then
+    /// type the prompt. Backends with no tiers in the config skip the tier step.
+    fn spawn_step(&self) -> SpawnStep {
+        if self.backend.is_none() {
+            SpawnStep::Backend
+        } else if self.tier.is_none() && self.tier_applies {
+            SpawnStep::Tier
+        } else {
+            SpawnStep::Prompt
+        }
+    }
+
+    /// True once the picker is done and we're typing the prompt.
+    fn spawn_ready(&self) -> bool {
+        self.kind != CmdKind::Spawn || self.spawn_step() == SpawnStep::Prompt
+    }
+}
+
+/// Backends matching the picker filter (case-insensitive prefix on label or id).
+fn filtered_backends(filter: &str) -> Vec<Backend> {
+    let f = filter.trim().to_lowercase();
+    Backend::ALL
+        .into_iter()
+        .filter(|b| {
+            f.is_empty()
+                || b.as_str().to_lowercase().starts_with(&f)
+                || b.label().to_lowercase().contains(&f)
+        })
+        .collect()
+}
+
+/// Tiers the config defines for this backend, matching the picker filter. Only
+/// tiers with a resolved model are shown — the set is data, not hard-coded.
+fn filtered_tiers(catalog: &ModelCatalog, backend: Backend, filter: &str) -> Vec<Tier> {
+    let f = filter.trim().to_lowercase();
+    Tier::ALL
+        .into_iter()
+        .filter(|t| catalog.resolve(backend, *t).is_some())
+        .filter(|t| f.is_empty() || t.as_str().starts_with(&f) || t.label().to_lowercase().contains(&f))
+        .collect()
 }
 
 /// An in-flight pane-divider drag (grab-the-rope resize): which split (by tree
@@ -209,6 +394,7 @@ fn current_theme() -> Theme {
 fn toggle_theme() {
     let next = if THEME_MODE.load(Ordering::Relaxed) == 0 { 1 } else { 0 };
     THEME_MODE.store(next, Ordering::Relaxed);
+    crate::audio::play(crate::audio::Cue::Toggle);
 }
 
 /// Honour a reduced-motion preference (`PD_CONSOLE_REDUCED_MOTION=1`). gpui has
@@ -496,6 +682,17 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
         Block::Gap => {
             div().h(px(8.0)).into_any_element()
         }
+        Block::WrappedText { text, tone } => {
+            // Full, wrapping, never-truncated — the operator reads it all.
+            div()
+                .px(px(16.0))
+                .py(px(6.0))
+                .text_color(rgb(current_theme().tone(&tone)))
+                .text_size(px(14.0))
+                .font_family("IBM Plex Mono")
+                .child(text)
+                .into_any_element()
+        }
     }
 }
 
@@ -564,6 +761,9 @@ pub struct ConsoleView {
     command: Option<CommandLine>,
     pane_blocks: Vec<Vec<Block>>,
     daemon_url: String,
+    /// Provider→tier→model map, loaded from config (not compiled-in), so the
+    /// Spawn picker resolves models that can change without a rebuild.
+    catalog: ModelCatalog,
     /// Stable focus handle — created once and focused on open. Recreating it per
     /// render (the old `cx.focus_handle()` in render) meant nothing stayed
     /// focused, so the keyboard nav never received key events.
@@ -573,10 +773,31 @@ pub struct ConsoleView {
     control_tx: Option<mpsc::Sender<ControlMsg>>,
     /// Transient confirmation shown after a control action ("interrupt sent").
     control_flash: Option<String>,
+    /// The accumulated alert log (the HITL dead-letter queue): every captured
+    /// action failure/outcome, newest first, bounded so an all-day session can't
+    /// leak memory (Release It! steady state). The status bar shows the head;
+    /// the HITL surface shows the full list untruncated.
+    alerts: Vec<Alert>,
     /// Head-of-queue dispatch the review gate acts on (from the background refresh).
     dispatch_head: Option<DispatchHead>,
     /// Dispatch id pending a reject reason (set when the operator opens the reject line).
     reject_target: Option<String>,
+    /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
+    dragging: Option<DragState>,
+    /// Laid-out bounds of each split container, keyed by tree path, captured via a
+    /// canvas overlay so the drag handler can map a mouse position to a weight.
+    split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
+    /// The Conjure surface's predicted DAG — live-generated from the operator's
+    /// prompt via the Max-seat `claude` CLI (with the fixture as the offline
+    /// fallback), rendered through the Block UI AND the inline Vello graphic.
+    conjure_dag: crate::conjure::PredictedDag,
+    /// Path to the rendered Vello PNG of `conjure_dag`, shown INLINE at the top of
+    /// the Conjure surface. `None` until a render lands (the surface shows a
+    /// "rendering graph…" placeholder). Auto-refreshed whenever the DAG changes.
+    conjure_png_path: Option<std::path::PathBuf>,
+    /// The node the operator clicked in the live Conjure canvas — drives the
+    /// inspector drawer (full role/contracts/why/model/cost). `None` ⇒ no drawer.
+    conjure_selected: Option<String>,
     /// The pane launcher overlay — an animated grid of surface tiles. `Ctrl-A Space`
     /// (or the ⊞ button) opens it; clicking a tile swaps the focused pane's surface.
     launcher_open: bool,
@@ -590,11 +811,6 @@ pub struct ConsoleView {
     prev_viewport_w: f32,
     /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
     flag_ticking: bool,
-    /// In-flight pane-divider drag (grab-the-rope resize); `None` when idle.
-    dragging: Option<DragState>,
-    /// Laid-out bounds of each split container, keyed by tree path, captured via a
-    /// canvas overlay so the drag handler can map a mouse position to a weight.
-    split_bounds: Rc<RefCell<HashMap<Vec<usize>, Bounds<Pixels>>>>,
 }
 
 impl ConsoleView {
@@ -657,11 +873,21 @@ impl ConsoleView {
             command: None,
             pane_blocks,
             daemon_url,
+            catalog: ModelCatalog::load(),
             focus_handle: cx.focus_handle(),
             control_tx,
             control_flash: None,
+            alerts: Vec::new(),
             dispatch_head: None,
             reject_target: None,
+            dragging: None,
+            split_bounds: Rc::new(RefCell::new(HashMap::new())),
+            conjure_dag: crate::conjure::fixture(),
+            // Seed the inline graphic from the PRE-RENDERED fixture PNG so the
+            // default Conjure view shows the node-graph immediately (no blank
+            // pane on first open). Only set when the file actually exists.
+            conjure_png_path: default_conjure_png().filter(|p| p.exists()),
+            conjure_selected: None,
             // Screenshot/demo hook (mirrors `--pane`): open the launcher on startup
             // so capture tooling can grab it without injecting a keystroke.
             launcher_open: std::env::var("PD_CONSOLE_OPEN_LAUNCHER").is_ok(),
@@ -672,8 +898,6 @@ impl ConsoleView {
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
-            dragging: None,
-            split_bounds: Rc::new(RefCell::new(HashMap::new())),
         }
     }
 
@@ -685,10 +909,11 @@ impl ConsoleView {
         ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
         ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
         ws.focus(1); // start on the fleet pane (first leaf id)
-        if let Some(nav) = initial {
-            if NAV.iter().any(|n| n.id == nav) {
-                ws.swap_surface(surface_for_nav_id(nav));
-            }
+        // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
+        // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
+        // tooling and deep-links can open any surface, not just NAV-rail panes.
+        if let Some(surface) = initial.and_then(surface_for_query) {
+            ws.swap_surface(surface);
         }
         ws
     }
@@ -737,6 +962,16 @@ impl ConsoleView {
     /// for it. Existing live panels resolve through `pane_blocks`; surfaces
     /// without a backing fetcher yet render an honest placeholder.
     fn blocks_for_surface(&self, surface: &SurfaceKind) -> Vec<Block> {
+        // The HITL surface is foreground-only — it reads the in-process alert log
+        // (the DLQ), not a background-refreshed NAV pane. Render it untruncated.
+        if matches!(surface, SurfaceKind::Hitl) {
+            return self.blocks_for_hitl();
+        }
+        // Conjure renders its (foundation-slice) fixture DAG through the Block UI
+        // — no background NAV pane, no windags call yet.
+        if matches!(surface, SurfaceKind::Conjure) {
+            return crate::conjure::blocks_for_conjure(&self.conjure_dag);
+        }
         match nav_id_for_surface(surface) {
             Some(nav_id) => NAV
                 .iter()
@@ -748,6 +983,30 @@ impl ConsoleView {
                 Block::KeyVal("status".into(), "live wiring lands in slice 3".into()),
             ],
         }
+    }
+
+    /// The HITL / Alerts surface: every captured action failure or outcome,
+    /// newest-first, with FULL untruncated detail (the operator finally reads
+    /// the whole daemon rejection). Each alert: a level chip + title + the
+    /// never-ellipsized detail + a separator.
+    fn blocks_for_hitl(&self) -> Vec<Block> {
+        let mut blocks = vec![Block::Header("Alerts — HITL".into())];
+        if self.alerts.is_empty() {
+            blocks.push(Block::KeyVal("status".into(), "all clear — no alerts".into()));
+            return blocks;
+        }
+        blocks.push(Block::KeyVal(
+            "total".into(),
+            format!("{} (newest first)", self.alerts.len()),
+        ));
+        blocks.push(Block::Gap);
+        for a in &self.alerts {
+            blocks.push(Block::Chip { label: a.level.label().into(), tone: a.level.tone() });
+            blocks.push(Block::KeyVal("  what".into(), a.title.clone()));
+            blocks.push(Block::WrappedText { text: a.detail.clone(), tone: a.level.tone() });
+            blocks.push(Block::Gap);
+        }
+        blocks
     }
 
     /// Handle one multiplexer command after the leader key. Disarming is done
@@ -782,10 +1041,10 @@ impl ConsoleView {
             "]" => self.switch_tab(1),
             "[" => self.switch_tab(-1),
             // Open command lines.
-            "n" => self.command = Some(CommandLine { kind: CmdKind::Spawn, buffer: String::new() }),
-            "t" => self.command = Some(CommandLine { kind: CmdKind::Cartographer, buffer: String::new() }),
+            "n" => self.command = Some(CommandLine::new(CmdKind::Spawn)),
+            "t" => self.command = Some(CommandLine::new(CmdKind::Cartographer)),
             // Insert a new pane of a chosen kind (the add-pane picker).
-            "i" => self.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() }),
+            "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any nav key swaps the focused pane's surface — "hop context".
@@ -802,6 +1061,20 @@ impl ConsoleView {
     /// (for enter/escape/backspace/space); `typed` is the actual character for
     /// printable input (case-preserving via `keystroke.key_char`).
     fn handle_command_key(&mut self, key: &str, typed: Option<&str>, cx: &mut Context<Self>) {
+        // The Spawn structured picker intercepts keys while choosing a backend or
+        // tier: digits 1-9 pick the Nth visible chip, Enter takes the first,
+        // typing filters, Backspace steps back. Once a prompt is being typed it
+        // falls through to the normal command-line handling below.
+        if self
+            .command
+            .as_ref()
+            .map(|c| !c.spawn_ready())
+            .unwrap_or(false)
+        {
+            self.handle_spawn_pick_key(key, typed);
+            cx.notify();
+            return;
+        }
         match key {
             "enter" => {
                 if let Some(cmd) = self.command.take() {
@@ -832,6 +1105,85 @@ impl ConsoleView {
         cx.notify();
     }
 
+    /// Key handling while the Spawn picker is choosing a backend or tier.
+    fn handle_spawn_pick_key(&mut self, key: &str, typed: Option<&str>) {
+        match key {
+            "escape" => self.command = None,
+            "backspace" => {
+                // Refine the filter, else step back: tier → backend → cancel.
+                if let Some(cmd) = self.command.as_mut() {
+                    if !cmd.buffer.is_empty() {
+                        cmd.buffer.pop();
+                    } else if cmd.tier.is_some() {
+                        cmd.tier = None;
+                    } else if cmd.backend.is_some() {
+                        cmd.backend = None;
+                    } else {
+                        self.command = None;
+                    }
+                }
+            }
+            "enter" => self.spawn_pick_index(0), // take the first visible chip
+            _ => {
+                if let Some(ch) = typed {
+                    // A digit is a hotkey for the Nth visible chip (backend/tier
+                    // labels carry no digits, so this never clashes with filtering).
+                    if let Ok(n) = ch.trim().parse::<usize>() {
+                        if n >= 1 {
+                            self.spawn_pick_index(n - 1);
+                            return;
+                        }
+                    }
+                    if let Some(cmd) = self.command.as_mut() {
+                        cmd.buffer.push_str(ch);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Select the Nth currently-visible chip for the active picker step.
+    fn spawn_pick_index(&mut self, idx: usize) {
+        let catalog = &self.catalog;
+        let Some(cmd) = self.command.as_mut() else { return };
+        match cmd.spawn_step() {
+            SpawnStep::Backend => {
+                if let Some(b) = filtered_backends(&cmd.buffer).get(idx).copied() {
+                    cmd.backend = Some(b);
+                    cmd.tier_applies = catalog.has_tiers(b);
+                    cmd.buffer.clear();
+                }
+            }
+            SpawnStep::Tier => {
+                if let Some(bk) = cmd.backend {
+                    if let Some(t) = filtered_tiers(catalog, bk, &cmd.buffer).get(idx).copied() {
+                        cmd.tier = Some(t);
+                        cmd.buffer.clear();
+                    }
+                }
+            }
+            SpawnStep::Prompt => {}
+        }
+    }
+
+    /// Click-select a specific backend chip.
+    fn spawn_pick_backend(&mut self, b: Backend) {
+        let applies = self.catalog.has_tiers(b);
+        if let Some(cmd) = self.command.as_mut() {
+            cmd.backend = Some(b);
+            cmd.tier_applies = applies;
+            cmd.buffer.clear();
+        }
+    }
+
+    /// Click-select a specific tier chip.
+    fn spawn_pick_tier(&mut self, t: Tier) {
+        if let Some(cmd) = self.command.as_mut() {
+            cmd.tier = Some(t);
+            cmd.buffer.clear();
+        }
+    }
+
     /// Dispatch a submitted command to the background thread (which owns the
     /// daemon client and performs the POST).
     fn submit_command(&mut self, cmd: CommandLine) {
@@ -854,19 +1206,76 @@ impl ConsoleView {
             }
             return;
         }
-        let Some(tx) = &self.control_tx else { return };
+        // Conjure: the operator's prompt is generated into a real PredictedDag LIVE
+        // by the Max-seat `claude` CLI (print mode, NO API key) on a background
+        // worker, which streams the DAG back over the Conjure-update channel —
+        // swapping to the Conjure surface AND auto-rendering the inline Vello PNG.
+        // We swap surfaces and seed the prompt-titled fixture IMMEDIATELY so the
+        // operator sees a graph instantly; the live DAG replaces it when it lands.
+        // If there's no control plane (an isolated test view), fall back to the
+        // local fixture path so the surface is still populated.
+        if cmd.kind == CmdKind::Conjure {
+            // Optimistic seed so the surface is never blank during the CLI round-trip.
+            self.conjure_dag = crate::conjure::from_prompt(&text);
+            // A fresh DAG means the old PNG is stale — show the fixture PNG (if any)
+            // as a holding graphic until the live render lands.
+            self.conjure_png_path = default_conjure_png().filter(|p| p.exists());
+            self.ws_mut().swap_surface(SurfaceKind::Conjure);
+            if let Some(tx) = &self.control_tx {
+                let _ = tx.send(ControlMsg::ConjureGenerate { prompt: text.clone() });
+                self.control_flash =
+                    Some("generating with claude:cli… the DAG + Vello graphic land below".into());
+            } else {
+                self.control_flash = Some(format!(
+                    "conjured “{}” — {} waves (no control plane: fixture path)",
+                    self.conjure_dag.title.clone(),
+                    self.conjure_dag.waves.len()
+                ));
+            }
+            return;
+        }
+        // Clone the sender (owned) so we can also mutate the workspace below
+        // without holding an immutable borrow of `self` across `ws_mut()`.
+        let Some(tx) = self.control_tx.clone() else { return };
         match cmd.kind {
             CmdKind::Spawn => {
-                let (backend, prompt) = split_backend(&text);
+                // Structured picker result: backend chosen from chips, tier
+                // resolved to a model id. Fall back to free-text `backend: prompt`
+                // only if no backend was picked (e.g. a future headless caller).
+                let (backend, prompt, model) = if let Some(b) = cmd.backend {
+                    // Resolve the model from the runtime config at the moment of
+                    // spawn — never compiled-in, so it can't go stale in the binary.
+                    let model = cmd.tier.and_then(|t| self.catalog.resolve(b, t));
+                    (b.as_str().to_string(), text.clone(), model)
+                } else {
+                    let (b, p) = split_backend(&text);
+                    (b, p, None)
+                };
+                let label = match cmd.tier {
+                    Some(t) if cmd.tier_applies => format!("{backend}·{}", t.as_str()),
+                    _ => backend.clone(),
+                };
                 let _ = tx.send(ControlMsg::Spawn {
                     backend: backend.clone(),
                     prompt,
+                    model,
                 });
-                self.control_flash = Some(format!("spawning a {backend} agent…"));
+                self.control_flash =
+                    Some(format!("spawning a {label} agent — streaming live below"));
+                // Immediately surface the live agent lane so the operator SEES the
+                // streaming response to the command they just issued. This closes
+                // the GUI loop: click Spawn → type → Send → watch it run. The lane
+                // auto-targets the newest active agent on its next refresh.
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
             }
             CmdKind::Cartographer => {
                 let _ = tx.send(ControlMsg::Cartographer { text });
-                self.control_flash = Some("sent to cartographer — watch the lane".into());
+                self.control_flash = Some("sent to cartographer — streaming the reply below".into());
+                // Same loop for the cartographer: jump to the lane to watch the
+                // reply stream rather than leaving the operator guessing where it went.
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
             }
             CmdKind::DispatchReject => {
                 if let Some(id) = self.reject_target.take() {
@@ -875,8 +1284,85 @@ impl ConsoleView {
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
-            // AddPane is handled locally above (early return) — never reaches here.
-            CmdKind::AddPane => {}
+            // AddPane and Conjure are handled locally above (early return) —
+            // never reach here.
+            CmdKind::AddPane | CmdKind::Conjure => {}
+        }
+    }
+
+    /// Kick off the Vello render of the current Conjure DAG. Serializes the DAG to
+    /// the proto's JSON shape on the foreground (cheap), then hands it to the
+    /// background thread, which writes the JSON, shells `capture.sh` (release +
+    /// unsandboxed) and `open`s the PNG. The gpui thread never blocks on the
+    /// build/render — it only flips a flash and fires the message.
+    fn render_conjure_graph(&mut self) {
+        let title = self.conjure_dag.title.clone();
+        match crate::conjure::to_json(&self.conjure_dag) {
+            Ok(dag_json) => {
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::RenderConjureGraph { dag_json, title });
+                    self.control_flash =
+                        Some("rendering the DAG with Vello… the PNG opens when the build lands".into());
+                } else {
+                    // No control plane (an isolated test view): nothing to shell out to.
+                    self.control_flash = Some("render unavailable — no control plane".into());
+                }
+            }
+            Err(e) => {
+                self.control_flash = Some(format!("could not serialize the DAG: {e}"));
+            }
+        }
+    }
+
+    /// Dispatch the committed (non-HITL-gated) nodes of the current Conjure DAG to
+    /// live agents — the DISPATCH slice. Each node routes to the vendor backend its
+    /// `model_tier` names (the multi-vendor map in `agent::backend_for_tier`) and is
+    /// spawned through the EXACT spawn path the manual Spawn command uses
+    /// (`DaemonClient::spawn` → the daemon's existing multi-vendor spawner). HITL-
+    /// gated nodes (`ask_user_before_proceeding`) are EXCLUDED here by
+    /// `conjure::dispatch_targets`; they need an explicit per-node confirm, so a
+    /// "Dispatch DAG" sweep never auto-launches them. The foreground only shapes the
+    /// requests + flips a flash; the worker performs the spawns and reports each
+    /// outcome as an Alert (the same surface the Spawn command uses).
+    ///
+    /// HONEST FRAMING: live launch is env-dependent — the daemon must be up and the
+    /// target vendor CLI installed + launchable. The Giant Squid Harness (ADR-0091,
+    /// Proposed / not built) is the FUTURE upgrade for richer in-loop vendor-hook
+    /// coordination; this slice wires the real spawn path, not that harness.
+    fn dispatch_conjure_dag(&mut self) {
+        let targets = crate::conjure::dispatch_targets(&self.conjure_dag);
+        let gated = crate::conjure::gated_node_count(&self.conjure_dag);
+        if targets.is_empty() {
+            // A firm "wall" tone — the dispatch is held (all gated) or empty.
+            crate::audio::play(crate::audio::Cue::Gate);
+            self.control_flash = Some(if gated > 0 {
+                format!("nothing to dispatch — all {gated} node(s) are HITL-gated; confirm each one")
+            } else {
+                "nothing to dispatch — the DAG has no nodes".into()
+            });
+            return;
+        }
+        let requests: Vec<ConjureDispatchRequest> = targets
+            .into_iter()
+            .map(|r| ConjureDispatchRequest {
+                node_id: r.node_id,
+                backend: r.backend.as_str().to_string(),
+                skill_id: r.skill_id,
+                goal: r.goal,
+                model_tier: r.model_tier,
+            })
+            .collect();
+        let count = requests.len();
+        if let Some(tx) = &self.control_tx {
+            let _ = tx.send(ControlMsg::ConjureDispatch { requests, gated });
+            // A confident rising sweep — committed nodes are launching to their vendors.
+            crate::audio::play(crate::audio::Cue::Dispatch);
+            let held = if gated > 0 { format!(" · {gated} held for your gate") } else { String::new() };
+            self.control_flash =
+                Some(format!("dispatching {count} node(s) to their vendors…{held} watch Alerts"));
+        } else {
+            // No control plane (an isolated test view): nothing to spawn against.
+            self.control_flash = Some("dispatch unavailable — no control plane".into());
         }
     }
 
@@ -1101,6 +1587,54 @@ impl ConsoleView {
     /// Push fresh data for all panes from the background refresh loop.
     /// Each entry is (nav_index, blocks_for_that_pane); `dispatch_head` is the
     /// head-of-queue dispatch for the review gate (None when the queue is empty).
+    /// Accept one captured alert from the bus: flash it immediately (the truthful
+    /// replacement for the old optimistic "spawning…" lie) and accumulate it in
+    /// the bounded HITL log, newest first.
+    pub fn push_alert(&mut self, alert: Alert) {
+        // Immediate feedback: a short head; the full detail lives in the log /
+        // HITL surface (never truncated at the source).
+        let head: String = alert.detail.lines().next().unwrap_or(&alert.detail).chars().take(120).collect();
+        self.control_flash = Some(match alert.level {
+            AlertLevel::Error => format!("✕ {} — {head}", alert.title),
+            AlertLevel::Warn => format!("⚑ {} — {head}", alert.title),
+            AlertLevel::Info => format!("✓ {}", alert.title),
+        });
+        self.alerts.insert(0, alert);
+        // Steady state: cap the log so a long session can't leak memory.
+        const ALERT_CAP: usize = 100;
+        if self.alerts.len() > ALERT_CAP {
+            self.alerts.truncate(ALERT_CAP);
+        }
+    }
+
+    /// Apply one Conjure update pushed from the background worker: either a fresh
+    /// live-generated DAG (claude:cli) or a rendered Vello PNG path. A new DAG
+    /// swaps the focused pane to the Conjure surface so the operator SEES the
+    /// generated graph; a PNG just slots into the inline graphic.
+    pub fn apply_conjure_update(&mut self, update: ConjureUpdate) {
+        match update {
+            ConjureUpdate::Dag(dag) => {
+                let waves = dag.waves.len();
+                let title = dag.title.clone();
+                self.conjure_dag = dag;
+                // A fresh DAG — drop any node selection from the prior graph.
+                self.conjure_selected = None;
+                // The new DAG hasn't been rendered yet — drop the stale PNG so the
+                // surface shows the "rendering graph…" placeholder until it lands.
+                self.conjure_png_path = None;
+                self.ws_mut().swap_surface(SurfaceKind::Conjure);
+                // The signature "bloom" sting — a DAG just materialized from a prompt.
+                crate::audio::play(crate::audio::Cue::Bloom);
+                self.control_flash = Some(format!(
+                    "claude:cli conjured “{title}” — {waves} waves · rendering the Vello graphic…"
+                ));
+            }
+            ConjureUpdate::Png(path) => {
+                self.conjure_png_path = Some(path);
+            }
+        }
+    }
+
     pub fn update_panes(
         &mut self,
         updates: Vec<(usize, Vec<Block>)>,
@@ -1231,6 +1765,18 @@ impl ConsoleView {
         // The dispatch surface (focused) gets the interactive review GATE.
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
+        // The Conjure surface (focused) gets the "Render graph" action bar — the
+        // discoverable control that ships the live DAG to the Vello PNG renderer.
+        let is_conjure = matches!(surface, SurfaceKind::Conjure);
+        let conjure_flash = self.control_flash.clone();
+        // The rendered Vello PNG (if any) for the inline node-graph at the top of
+        // the Conjure surface. `None` ⇒ a tasteful "rendering graph…" placeholder.
+        let conjure_png = if is_conjure { self.conjure_png_path.clone() } else { None };
+        let conjure_title = self.conjure_dag.title.clone();
+        let conjure_wave_count = self.conjure_dag.waves.len();
+        // How many nodes "Dispatch DAG" would spawn (non-HITL-gated) vs hold back.
+        let conjure_dispatch_count = crate::conjure::dispatch_targets(&self.conjure_dag).len();
+        let conjure_gated_count = crate::conjure::gated_node_count(&self.conjure_dag);
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
@@ -1320,6 +1866,8 @@ impl ConsoleView {
             )
             // Surface body — scrollable so long rosters/ledgers/transcripts are
             // reachable instead of clipped (needs a stable id for scroll state).
+            // The Conjure surface leads with the INLINE Vello node-graph (the
+            // beautiful default view), then the per-node text/partition/contracts.
             .child(
                 div()
                     .id(SharedString::from(format!("pane-body-{id}")))
@@ -1337,6 +1885,20 @@ impl ConsoleView {
                     }))
                     .flex()
                     .flex_col()
+                    .when(is_conjure, |body| {
+                        // The LIVE native canvas is the default view (animated,
+                        // interactive); the Vello PNG is an optional poster below,
+                        // shown only once the operator renders it.
+                        body.child(conjure_canvas(
+                            id,
+                            &self.conjure_dag,
+                            self.conjure_selected.as_deref(),
+                            cx,
+                        ))
+                        .when_some(conjure_png, |b, path| {
+                            b.child(conjure_graphic(id, Some(path), &conjure_title))
+                        })
+                    })
                     .children(blocks.into_iter().map(move |b| render_block(b, motion))),
             )
             // Steering bar — only the focused agent transcript grabs the wheel.
@@ -1501,6 +2063,89 @@ impl ConsoleView {
                         }),
                 )
             })
+            // ── Conjure render action (focused Conjure surface) — the discoverable
+            //    "open the Vello PNG of this DAG" control. Serializes the live DAG
+            //    to the proto's JSON, shells capture.sh (release+unsandboxed), then
+            //    opens the PNG — all on the background/blocking worker, never the
+            //    gpui thread. Mirrors the dispatch/conductor gate footer pattern. ──
+            .when(is_conjure && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(8.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .id("conjure-render")
+                                .px(px(12.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| {
+                                    s.bg(rgb(current_theme().raised))
+                                        .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
+                                })
+                                .child("\u{25c8} Render graph")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.render_conjure_graph();
+                                    cx.notify();
+                                })),
+                        )
+                        // ── Dispatch DAG — spawn the committed (non-HITL-gated) nodes
+                        //    to their vendors (model_tier → backend), each through the
+                        //    SAME DaemonClient::spawn the manual Spawn command uses.
+                        //    Disabled-looking (muted) when there is nothing to send. ──
+                        .when(conjure_dispatch_count > 0, |row| {
+                            row.child(
+                                div()
+                                    .id("conjure-dispatch")
+                                    .px(px(12.0))
+                                    .py(px(5.0))
+                                    .rounded(px(6.0))
+                                    .border_1()
+                                    .border_color(rgb(current_theme().accent))
+                                    .text_color(rgb(current_theme().accent_ink))
+                                    .text_size(px(14.0))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .cursor_pointer()
+                                    .hover(|s| {
+                                        s.bg(rgb(current_theme().raised))
+                                            .shadow(motion::glow(current_theme().accent, 0.24, 8.0, 0.0))
+                                    })
+                                    .child(format!("\u{2693} Dispatch DAG ({conjure_dispatch_count})"))
+                                    .on_click(cx.listener(|this, _ev, _window, cx| {
+                                        this.dispatch_conjure_dag();
+                                        cx.notify();
+                                    })),
+                            )
+                        })
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(13.0))
+                                .child(format!(
+                                    "{conjure_wave_count} waves \u{00b7} dispatch {conjure_dispatch_count} to vendors \u{00b7} {conjure_gated_count} gated \u{00b7} Vello \u{2192} PNG"
+                                )),
+                        )
+                        .when_some(conjure_flash, |bar, flash| {
+                            bar.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(13.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
             .into_any_element()
     }
 }
@@ -1537,6 +2182,710 @@ fn gate_btn(
         }))
 }
 
+/// Commitment → render accent (mirrors the Vello scene's `commitment_color`):
+/// COMMITTED is the strongest signal (canary), EXPLORATORY the faintest.
+fn commitment_accent(level: &str) -> u32 {
+    let t = current_theme();
+    match level.to_ascii_uppercase().as_str() {
+        "COMMITTED" => t.accent,
+        "TENTATIVE" => t.cobalt,
+        "EXPLORATORY" => t.muted,
+        _ => t.line,
+    }
+}
+
+/// Vendor-distinct chip accent (mirrors the Vello scene's `vendor_accent`): the
+/// tier label renders verbatim, but the chip color reads the vendor family so the
+/// operator scans vendors at a glance.
+fn vendor_accent(tier: &str) -> u32 {
+    let t = current_theme();
+    let s = tier.to_ascii_lowercase();
+    let has = |n: &str| s.contains(n);
+    if has("opus") || has("sonnet") || has("haiku") || has("claude") {
+        t.accent
+    } else if has("gemini") {
+        t.landed
+    } else if has("codex") || has("gpt") || has("o1") || has("o3") {
+        0x_b6_9c_ff // violet — no palette role, matches the Vello codex chip
+    } else if has("groq") || has("llama") || has("mixtral") {
+        t.engaged
+    } else {
+        t.muted
+    }
+}
+
+/// Truncate to `max` chars on a char boundary, with an ellipsis.
+fn trunc_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        let kept: String = s.chars().take(max.saturating_sub(1)).collect();
+        format!("{kept}\u{2026}")
+    }
+}
+
+/// One live, interactive node card in the Conjure canvas. Themed to the same
+/// maritime palette as the Vello render: a commitment-colored border + rail, a
+/// vendor chip, a cost/time footer, an HITL gate marker, hover-lift, and — for
+/// COMMITTED nodes — a continuously BREATHING glow (the "presence beacon", a
+/// looping `with_animation`) so the graph is visibly alive, not a static image.
+/// Clicking the card selects it, opening the inspector drawer.
+fn conjure_card(
+    id: PaneId,
+    node: &crate::conjure::PredictedNode,
+    is_selected: bool,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let theme = current_theme();
+    let accent = commitment_accent(&node.commitment_level);
+    let committed = node.commitment_level.eq_ignore_ascii_case("COMMITTED");
+    let tentative = node.commitment_level.eq_ignore_ascii_case("TENTATIVE");
+    let vchip = vendor_accent(&node.model_tier);
+    let nid = node.id.clone();
+    let skill = trunc_chars(&node.skill_id, 30);
+    let role = trunc_chars(&node.role_description, 116);
+    let model = if node.model_tier.is_empty() {
+        "\u{2014}".to_string()
+    } else {
+        trunc_chars(&node.model_tier, 14)
+    };
+    let metrics = format!(
+        "${:.2} \u{00b7} {:.0}m{}",
+        node.estimated_cost_usd,
+        node.estimated_minutes,
+        if node.cascade_depth > 0 {
+            format!(" \u{00b7} casc {}", node.cascade_depth)
+        } else {
+            String::new()
+        }
+    );
+    let gate = node.ask_user_before_proceeding;
+    let border = if is_selected { theme.accent } else { accent };
+    let bg = if is_selected { theme.raised } else { theme.panel };
+
+    let card = div()
+        .id(SharedString::from(format!("conjure-card-{id}-{nid}")))
+        .flex()
+        .flex_col()
+        .gap(px(6.0))
+        .w(px(248.0))
+        .p(px(12.0))
+        .rounded(px(12.0))
+        .border_1()
+        .border_color(rgb(border))
+        .bg(rgb(bg))
+        .cursor_pointer()
+        .hover(move |s| {
+            s.bg(rgb(theme.raised))
+                .border_color(rgb(theme.accent))
+                .shadow(motion::glow(theme.accent, 0.34, 16.0, 1.0))
+        })
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.conjure_selected = Some(nid.clone());
+            crate::audio::play(crate::audio::Cue::Tick);
+            cx.notify();
+        }))
+        // Header: a commitment-colored skill eyebrow + an optional HITL gate flag.
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(6.0))
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(accent))
+                        .child(skill),
+                )
+                .when(gate, |r| {
+                    r.child(
+                        div()
+                            .text_size(px(11.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(rgb(theme.gated))
+                            .child("\u{26d4} GATE"),
+                    )
+                }),
+        )
+        // Role — what this agent does in context.
+        .child(
+            div()
+                .text_size(px(14.0))
+                .text_color(rgb(theme.ink))
+                .child(role),
+        )
+        // Footer: a vendor model-tier chip + a success-tinted cost/time line.
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .px(px(8.0))
+                        .py(px(2.0))
+                        .rounded_full()
+                        .border_1()
+                        .border_color(rgb(vchip))
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(vchip))
+                        .child(model),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .text_color(rgb(theme.landed))
+                        .child(metrics),
+                ),
+        );
+
+    if committed {
+        // The breathing glow — a looping halo that proves the graph is live.
+        card.with_animation(
+            SharedString::from(format!("conjure-pulse-{id}-{}", node.id)),
+            Animation::new(Duration::from_millis(2200))
+                .repeat()
+                .with_easing(pulsating_between(0.0, 1.0)),
+            move |el, delta| el.shadow(motion::glow(accent, 0.16 + 0.30 * delta, 15.0, 0.0)),
+        )
+        .into_any_element()
+    } else {
+        let a = if tentative { 0.16 } else { 0.07 };
+        card.shadow(motion::glow(accent, a, 10.0, 0.0)).into_any_element()
+    }
+}
+
+/// The LIVE, interactive Conjure node-graph rendered natively in gpui — the
+/// default view of the Conjure surface. Replaces the static Vello PNG as the
+/// primary graphic: wave columns of [`conjure_card`]s (commitment-themed,
+/// breathing, hover-lit, clickable), an editorial header, and — when a node is
+/// selected — a full inspector drawer. The Vello PNG remains reachable as an
+/// optional "poster" beneath, rendered on demand by the "Render graph" action.
+fn conjure_canvas(
+    id: PaneId,
+    dag: &crate::conjure::PredictedDag,
+    selected: Option<&str>,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let theme = current_theme();
+    let n_nodes: usize = dag.waves.iter().map(|w| w.nodes.len()).sum();
+    let title = if dag.title.is_empty() {
+        "predicted DAG".to_string()
+    } else {
+        dag.title.clone()
+    };
+    let classification = if dag.problem_classification.is_empty() {
+        "unclassified".to_string()
+    } else {
+        dag.problem_classification.clone()
+    };
+    let meta = format!(
+        "{classification}  \u{00b7}  {} waves  \u{00b7}  {} nodes  \u{00b7}  ~{:.0}m  \u{00b7}  ${:.2}  \u{00b7}  {:.0}% confidence",
+        dag.waves.len(),
+        n_nodes,
+        dag.estimated_total_minutes,
+        dag.estimated_total_cost_usd,
+        dag.confidence * 100.0,
+    );
+
+    // Wave columns — a horizontal lane per wave, each a stack of node cards.
+    let columns: Vec<AnyElement> = dag
+        .waves
+        .iter()
+        .map(|wave| {
+            let cap = format!(
+                "WAVE {}  {}",
+                wave.wave_number,
+                if wave.parallelizable { "//  PARALLEL" } else { "\u{00b7}  SERIAL" }
+            );
+            let cards: Vec<AnyElement> = wave
+                .nodes
+                .iter()
+                .map(|node| conjure_card(id, node, selected == Some(node.id.as_str()), cx))
+                .collect();
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(12.0))
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(theme.muted))
+                        .child(cap),
+                )
+                .children(cards)
+                .into_any_element()
+        })
+        .collect();
+
+    // The selected node's full inspector (role, why, contracts, model, cost…).
+    let inspector: Option<AnyElement> = selected
+        .and_then(|sel| dag.waves.iter().flat_map(|w| &w.nodes).find(|n| n.id == sel))
+        .map(|node| conjure_inspector(node, cx));
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(10.0))
+        .px(px(12.0))
+        .pt(px(12.0))
+        .pb(px(8.0))
+        // Eyebrow.
+        .child(
+            div()
+                .text_size(px(12.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(theme.accent_ink))
+                .child(SharedString::from(format!(
+                    "\u{2693} CONJURE \u{00b7} LIVE PREDICTED DAG \u{00b7} {}",
+                    title.to_uppercase()
+                ))),
+        )
+        // Meta strip.
+        .child(
+            div()
+                .text_size(px(14.0))
+                .text_color(rgb(theme.muted))
+                .font_family("IBM Plex Mono")
+                .child(meta),
+        )
+        // The scrolling wave-column canvas.
+        .child(
+            div()
+                .id(SharedString::from(format!("conjure-cols-{id}")))
+                .flex()
+                .gap(px(30.0))
+                .py(px(8.0))
+                .overflow_x_scroll()
+                .children(columns),
+        )
+        .when_some(inspector, |c, insp| c.child(insp))
+        .into_any_element()
+}
+
+/// The node inspector drawer — the rich click-inspection the operator asked for:
+/// every field of the selected node, in full, with a close affordance.
+fn conjure_inspector(
+    node: &crate::conjure::PredictedNode,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let theme = current_theme();
+    let accent = commitment_accent(&node.commitment_level);
+    let row = |k: &'static str, v: String| {
+        div()
+            .flex()
+            .gap(px(10.0))
+            .child(
+                div()
+                    .w(px(140.0))
+                    .flex_shrink_0()
+                    .text_size(px(13.0))
+                    .text_color(rgb(theme.muted))
+                    .child(k),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(px(13.0))
+                    .text_color(rgb(theme.ink2))
+                    .child(v),
+            )
+    };
+
+    div()
+        .mt(px(6.0))
+        .p(px(14.0))
+        .rounded(px(12.0))
+        .border_1()
+        .border_color(rgb(accent))
+        .bg(rgb(theme.raised))
+        .shadow(motion::glow(accent, 0.18, 14.0, 0.0))
+        .flex()
+        .flex_col()
+        .gap(px(6.0))
+        // Title row: skill id + commitment + a close ✕.
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .flex_1()
+                        .text_size(px(15.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(accent))
+                        .child(SharedString::from(format!(
+                            "{}  \u{00b7}  {}",
+                            node.skill_id,
+                            node.commitment_level.to_uppercase()
+                        ))),
+                )
+                .child(
+                    div()
+                        .id("conjure-inspector-close")
+                        .px(px(8.0))
+                        .py(px(2.0))
+                        .rounded(px(6.0))
+                        .cursor_pointer()
+                        .text_size(px(13.0))
+                        .text_color(rgb(theme.muted))
+                        .hover(move |s| s.text_color(rgb(theme.ink)).bg(rgb(theme.panel)))
+                        .on_click(cx.listener(|this, _ev, _window, cx| {
+                            this.conjure_selected = None;
+                            cx.notify();
+                        }))
+                        .child("\u{2715} close"),
+                ),
+        )
+        .child(row("role", node.role_description.clone()))
+        .when(!node.why.is_empty(), |c| c.child(row("why", node.why.clone())))
+        .when(!node.input_contract.is_empty(), |c| {
+            c.child(row("input contract", node.input_contract.clone()))
+        })
+        .when(!node.output_contract.is_empty(), |c| {
+            c.child(row("output contract", node.output_contract.clone()))
+        })
+        .child(row(
+            "model tier",
+            if node.model_tier.is_empty() {
+                "\u{2014}".to_string()
+            } else {
+                node.model_tier.clone()
+            },
+        ))
+        .child(row(
+            "estimate",
+            format!(
+                "${:.2}  \u{00b7}  {:.0} min  \u{00b7}  cascade {}",
+                node.estimated_cost_usd, node.estimated_minutes, node.cascade_depth
+            ),
+        ))
+        .when(node.ask_user_before_proceeding, |c| {
+            c.child(
+                div()
+                    .text_size(px(13.0))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(theme.gated))
+                    .child("\u{26d4} HITL gate \u{2014} this node stops for your confirmation before it runs"),
+            )
+        })
+        .into_any_element()
+}
+
+/// The INLINE Vello node-graph at the top of the Conjure surface — the beautiful
+/// default view the operator most wants. When a PNG has been rendered, it shows
+/// the graph image sized to fit the pane (capped width, rounded, maritime frame);
+/// until then it shows a tasteful "rendering graph…" placeholder so the region is
+/// never blank. The image is loaded from an ABSOLUTE path via `gpui::img(PathBuf)`
+/// (a `Resource::Path` read directly off disk — NOT through the embedded asset
+/// source), so it works for the live-rendered PNG outside the `assets/` dir.
+fn conjure_graphic(
+    id: PaneId,
+    png: Option<std::path::PathBuf>,
+    title: &str,
+) -> impl IntoElement {
+    let frame = div()
+        .id(SharedString::from(format!("conjure-graphic-{id}")))
+        .flex()
+        .flex_col()
+        .gap(px(6.0))
+        .px(px(12.0))
+        .pt(px(12.0))
+        .pb(px(8.0));
+
+    // An eyebrow label above the graphic (12px is allowed for an uppercase,
+    // tracked-out, ≥600-weight eyebrow per the type-accessibility rule).
+    let eyebrow = div()
+        .text_color(rgb(current_theme().muted))
+        .text_size(px(12.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(SharedString::from(format!(
+            "\u{2693} PREDICTED DAG \u{00b7} {}",
+            title.to_uppercase()
+        )));
+
+    match png {
+        Some(path) => frame.child(eyebrow).child(
+            // The Vello PNG, framed and sized to fit the pane width. The image is
+            // read straight off disk (PathBuf ⇒ Resource::Path).
+            div()
+                .w_full()
+                .rounded(px(10.0))
+                .border_1()
+                .border_color(rgb(current_theme().line))
+                .bg(rgb(current_theme().bg))
+                .overflow_hidden()
+                .child(
+                    img(path)
+                        .w_full()
+                        .max_w(px(900.0))
+                        .h(px(360.0))
+                        .object_fit(ObjectFit::Contain)
+                        .rounded(px(10.0)),
+                ),
+        ),
+        None => frame.child(eyebrow).child(
+            // Placeholder: a calm maritime card while the offscreen Vello render
+            // builds (release build is multi-second on first run).
+            div()
+                .w_full()
+                .h(px(360.0))
+                .max_w(px(900.0))
+                .rounded(px(10.0))
+                .border_1()
+                .border_color(rgb(current_theme().line))
+                .bg(rgb(current_theme().raised))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(8.0))
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().accent_ink))
+                        .text_size(px(15.0))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child("rendering graph\u{2026}"),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(current_theme().muted))
+                        .text_size(px(14.0))
+                        .child("the Vello node-graph appears here when the offscreen render lands"),
+                ),
+        ),
+    }
+}
+
+/// One always-visible operator-toolbar button. Clicking it opens the matching
+/// GUI input (placeholder-guided, no leader key, no memorized syntax) — the
+/// discoverable face of the spawn / cartographer / add-pane commands. This is
+/// the difference between an operator console and a CLI with hidden options.
+fn command_bar_btn(
+    kind: CmdKind,
+    label: &'static str,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
+    let accent = current_theme().accent;
+    div()
+        .id(SharedString::from(format!("cmdbar-{}", kind.prompt())))
+        .px(px(11.0))
+        .py(px(5.0))
+        .rounded(px(6.0))
+        .border_1()
+        .border_color(rgb(current_theme().line))
+        .text_color(rgb(current_theme().ink2))
+        .text_size(px(13.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .hover(move |s| {
+            s.border_color(rgb(accent))
+                .text_color(rgb(current_theme().accent_ink))
+                .shadow(motion::glow(accent, 0.20, 8.0, 0.0))
+        })
+        .child(label)
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            this.command = Some(CommandLine::new(kind));
+            cx.notify();
+        }))
+}
+
+/// Render the open command line. For a Spawn still choosing backend/tier it
+/// shows the inline chip picker; otherwise the prompt field + Send/Cancel.
+fn render_open_command(
+    cmd: &CommandLine,
+    catalog: &ModelCatalog,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    if cmd.kind == CmdKind::Spawn && !cmd.spawn_ready() {
+        return render_spawn_picker(cmd, catalog, cx);
+    }
+    // Prompt step (or any non-Spawn command): label + input + Send/Cancel.
+    let prompt_label = if cmd.kind == CmdKind::Spawn {
+        // Breadcrumb of the picked backend (+ tier) so the operator sees exactly
+        // what Send will launch.
+        let b = cmd.backend.map(|b| b.as_str()).unwrap_or("spawn");
+        match cmd.tier {
+            Some(t) => format!("{b}·{}", t.as_str()),
+            None => b.to_string(),
+        }
+    } else {
+        cmd.kind.prompt().to_string()
+    };
+    let placeholder = if cmd.kind == CmdKind::Spawn {
+        "describe the task for this agent — Send to launch & stream".to_string()
+    } else {
+        cmd.kind.placeholder()
+    };
+    div()
+        .flex()
+        .gap(px(8.0))
+        .items_center()
+        .w_full()
+        .child(
+            div()
+                .text_color(rgb(current_theme().accent_ink))
+                .text_size(px(14.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(prompt_label),
+        )
+        .child({
+            let field = div().flex_1().text_size(px(14.0)).font_family("IBM Plex Mono");
+            if cmd.buffer.is_empty() {
+                field.text_color(rgb(current_theme().muted)).child(placeholder.to_string())
+            } else {
+                field.text_color(rgb(current_theme().ink)).child(format!("› {}▏", cmd.buffer))
+            }
+        })
+        .child(
+            div()
+                .id("cmd-send")
+                .px(px(12.0))
+                .py(px(4.0))
+                .rounded(px(6.0))
+                .bg(rgb(current_theme().accent))
+                .text_color(rgb(current_theme().bg))
+                .text_size(px(13.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .cursor_pointer()
+                .hover(|s| s.shadow(motion::glow(current_theme().accent, 0.30, 10.0, 0.0)))
+                .child("Send")
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    if let Some(cmd) = this.command.take() {
+                        this.submit_command(cmd);
+                    }
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .id("cmd-cancel")
+                .px(px(8.0))
+                .py(px(4.0))
+                .rounded(px(6.0))
+                .text_color(rgb(current_theme().muted))
+                .text_size(px(13.0))
+                .cursor_pointer()
+                .hover(|s| s.text_color(rgb(current_theme().ink2)))
+                .child("Cancel")
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    this.command = None;
+                    cx.notify();
+                })),
+        )
+        .into_any_element()
+}
+
+/// The inline Spawn picker: a breadcrumb, a step hint, and a row of option chips
+/// (`N  Label`) for the discrete known set — backends, then capability tiers.
+/// Type to filter, press the digit to pick, or click. This is the "dropdown that
+/// expands as you type with hotkeys" pattern instead of free-text syntax.
+fn render_spawn_picker(
+    cmd: &CommandLine,
+    catalog: &ModelCatalog,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    let step = cmd.spawn_step();
+    let chosen = cmd.backend.map(|b| b.as_str()).unwrap_or("");
+    let hint = match step {
+        SpawnStep::Backend => "pick a backend — type to filter, digit = hotkey",
+        SpawnStep::Tier => "pick a tier — high / mid / low",
+        SpawnStep::Prompt => "",
+    };
+    let mut row = div()
+        .flex()
+        .flex_wrap()
+        .gap(px(6.0))
+        .items_center()
+        .w_full()
+        .child(
+            div()
+                .text_color(rgb(current_theme().accent_ink))
+                .text_size(px(14.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(format!("spawn {chosen}").trim().to_string()),
+        )
+        .child(
+            div()
+                .text_color(rgb(current_theme().muted))
+                .text_size(px(13.0))
+                .child(hint),
+        );
+    match step {
+        SpawnStep::Backend => {
+            for (i, b) in filtered_backends(&cmd.buffer).into_iter().enumerate() {
+                let hot = i + 1;
+                row = row.child(
+                    div()
+                        .id(SharedString::from(format!("pick-b-{}", b.as_str())))
+                        .px(px(9.0))
+                        .py(px(4.0))
+                        .rounded(px(6.0))
+                        .border_1()
+                        .border_color(rgb(current_theme().line))
+                        .text_color(rgb(current_theme().ink2))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .cursor_pointer()
+                        .hover(|s| {
+                            s.border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                        })
+                        .child(format!("{hot}  {}", b.label()))
+                        .on_click(cx.listener(move |this, _ev, _window, cx| {
+                            this.spawn_pick_backend(b);
+                            cx.notify();
+                        })),
+                );
+            }
+        }
+        SpawnStep::Tier => {
+            let backend = cmd.backend.unwrap_or(Backend::Claude);
+            for (i, t) in filtered_tiers(catalog, backend, &cmd.buffer).into_iter().enumerate() {
+                let hot = i + 1;
+                row = row.child(
+                    div()
+                        .id(SharedString::from(format!("pick-t-{}", t.as_str())))
+                        .px(px(9.0))
+                        .py(px(4.0))
+                        .rounded(px(6.0))
+                        .border_1()
+                        .border_color(rgb(current_theme().line))
+                        .text_color(rgb(current_theme().ink2))
+                        .text_size(px(13.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .cursor_pointer()
+                        .hover(|s| {
+                            s.border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                        })
+                        .child(format!("{hot}  {}", t.label()))
+                        .on_click(cx.listener(move |this, _ev, _window, cx| {
+                            this.spawn_pick_tier(t);
+                            cx.notify();
+                        })),
+                );
+            }
+        }
+        SpawnStep::Prompt => {}
+    }
+    if !cmd.buffer.is_empty() {
+        row = row.child(
+            div()
+                .text_color(rgb(current_theme().ink))
+                .text_size(px(13.0))
+                .font_family("IBM Plex Mono")
+                .child(format!("/{}", cmd.buffer)),
+        );
+    }
+    row.into_any_element()
+}
+
 /// One dispatch review-gate button. Approve/Cancel fire a verdict immediately;
 /// Reject opens a reason command line (the human-gate "why" path) targeting `id`.
 fn dispatch_gate_btn(
@@ -1561,7 +2910,7 @@ fn dispatch_gate_btn(
         }
         "reject" => {
             this.reject_target = Some(id.clone());
-            this.command = Some(CommandLine { kind: CmdKind::DispatchReject, buffer: String::new() });
+            this.command = Some(CommandLine::new(CmdKind::DispatchReject));
         }
         _ => {}
     })
@@ -1658,7 +3007,7 @@ fn pane_ctrl(
                 // the surface picker (same flow as Ctrl-A i).
                 "addpane" => {
                     this.ws_mut().focus(id);
-                    this.command = Some(CommandLine { kind: CmdKind::AddPane, buffer: String::new() });
+                    this.command = Some(CommandLine::new(CmdKind::AddPane));
                 }
                 _ => {}
             }
@@ -1690,7 +3039,12 @@ fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
         SurfaceKind::Sessions => Some("sessions"),
         SurfaceKind::Dispatch => Some("dispatch"),
         SurfaceKind::Panel { nav } => Some(nav.as_str()),
-        SurfaceKind::CartographerChat | SurfaceKind::FileTree { .. } => None,
+        // Hitl renders from the foreground alert log; Conjure from a fixture DAG —
+        // neither is backed by a bg NAV pane.
+        SurfaceKind::CartographerChat
+        | SurfaceKind::FileTree { .. }
+        | SurfaceKind::Hitl
+        | SurfaceKind::Conjure => None,
     }
 }
 
@@ -1734,6 +3088,72 @@ fn split_divider(path: Vec<usize>, left: usize, dir: Dir, cx: &mut Context<Conso
     )
 }
 
+/// The always-visible NAV rail — the GUI replacement for `Ctrl-A <key>` surface
+/// switching. Click a surface name to swap the focused pane to it; the active
+/// surface is highlighted. Keyboard chords still work as unadvertised
+/// accelerators, but nothing here requires them. (#32 retired: the chord is made
+/// unnecessary, not consistent — the operator hates leader-key core movement.)
+fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let active = active.map(|s| s.to_string());
+    div()
+        .id("nav-rail")
+        .flex()
+        .flex_col()
+        .flex_none()
+        .w(px(152.0))
+        .h_full()
+        .overflow_y_scroll()
+        .bg(rgb(current_theme().panel))
+        .border_r_1()
+        .border_color(rgb(current_theme().line))
+        .py(px(6.0))
+        // Eyebrow header — the allowed 12px exception (uppercase, weight ≥600).
+        .child(
+            div()
+                .px(px(12.0))
+                .pb(px(4.0))
+                .text_size(px(12.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(current_theme().muted))
+                .child("NAVIGATE"),
+        )
+        .children(NAV.iter().map(|item| {
+            let nav_id: &'static str = item.id;
+            let is_active = active.as_deref() == Some(nav_id);
+            let accent = current_theme().accent;
+            div()
+                .id(SharedString::from(format!("nav-{nav_id}")))
+                .mx(px(6.0))
+                .my(px(1.0))
+                .px(px(10.0))
+                .py(px(5.0))
+                .rounded(px(6.0))
+                .text_size(px(14.0))
+                .font_weight(if is_active { FontWeight::SEMIBOLD } else { FontWeight::MEDIUM })
+                .text_color(rgb(if is_active {
+                    current_theme().accent_ink
+                } else {
+                    current_theme().ink2
+                }))
+                .cursor_pointer()
+                .when(is_active, |s| {
+                    s.bg(rgb(current_theme().raised))
+                        .shadow(motion::glow(accent, 0.28, 10.0, 0.0))
+                })
+                .when(!is_active, |s| {
+                    s.hover(move |h| {
+                        h.bg(rgb(current_theme().raised))
+                            .text_color(rgb(current_theme().accent_ink))
+                    })
+                })
+                .child(item.label)
+                .on_click(cx.listener(move |this, _ev, _window, cx| {
+                    this.ws_mut().swap_surface(surface_for_nav_id(nav_id));
+                    cx.notify();
+                }))
+        }))
+}
+
 impl Render for ConsoleView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // ── Flag motion. Derive horizontal pole velocity from this frame's
@@ -1755,6 +3175,8 @@ impl Render for ConsoleView {
 
         let daemon_url = self.daemon_url.clone();
         let focused = self.ws().focused();
+        // Which NAV surface the focused pane is showing — drives the rail highlight.
+        let active_nav = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
         let armed = self.leader_armed;
         let command = self.command.clone();
         let lit = armed || command.is_some();
@@ -1862,7 +3284,12 @@ impl Render for ConsoleView {
             .child(
                 div()
                     .h(px(28.0))
-                    .px(px(6.0))
+                    // The window titlebar is transparent (traffic lights drawn at
+                    // x≈12–64), so the tab strip must start clear of them or the
+                    // first tab + "+" hide behind the OS controls. Inset the left
+                    // edge past the light cluster; this whole bar is the drag region.
+                    .pl(px(78.0))
+                    .pr(px(6.0))
                     .flex()
                     .items_center()
                     .gap(px(4.0))
@@ -1968,8 +3395,93 @@ impl Render for ConsoleView {
                             })),
                     ),
             )
-            // The pane tree (or a maximized pane) fills the window.
-            .child(div().flex_1().overflow_hidden().child(body))
+            // ── Body row: clickable NAV rail (the GUI replacement for the
+            // Ctrl-A <key> surface switch the operator hates) + the pane tree.
+            // Click a surface name to swap the focused pane — no leader key. ──
+            .child(
+                div()
+                    .flex_1()
+                    .overflow_hidden()
+                    .flex()
+                    .flex_row()
+                    .child(render_nav_rail(active_nav.as_deref(), cx))
+                    .child(div().flex_1().overflow_hidden().child(body)),
+            )
+            // ── Operator toolbar: always-visible GUI affordances. No leader keys,
+            // no memorized syntax — click a button, a placeholder-guided input
+            // opens, type, hit Send. This is what makes the console an operator
+            // surface instead of a CLI with hidden options. ──
+            .child(
+                div()
+                    .h(px(36.0))
+                    .px(px(12.0))
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .bg(rgb(current_theme().panel))
+                    .border_t_1()
+                    .border_color(rgb(current_theme().line))
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(rgb(current_theme().muted))
+                            .child("ACT"),
+                    )
+                    .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
+                    .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
+                    .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
+                    // Conjure: always visible, next to the other ACT verbs. Click to
+                    // open the prompt input — type intent, Send blooms a predicted
+                    // DAG, the focused pane swaps to the Conjure surface to render it,
+                    // and "Render graph" there opens the Vello PNG. The discoverable
+                    // way in — no hidden keystroke. Uses the shared command_bar_btn so
+                    // it inherits the placeholder-guided input the other verbs use.
+                    .child(command_bar_btn(CmdKind::Conjure, "Conjure", cx))
+                    // Alerts (HITL): always visible, glows red on errors, click to
+                    // open the full untruncated log — the discoverable way to read
+                    // a failure (no hidden keystroke).
+                    .child({
+                        let n = self.alerts.len();
+                        let has_err = self.alerts.iter().any(|a| a.level == AlertLevel::Error);
+                        let label = if n == 0 {
+                            "Alerts".to_string()
+                        } else if has_err {
+                            format!("⚑ Alerts ({n})")
+                        } else {
+                            format!("Alerts ({n})")
+                        };
+                        let border = if has_err { current_theme().gated } else { current_theme().line };
+                        let text = if n == 0 {
+                            current_theme().muted
+                        } else if has_err {
+                            current_theme().gated
+                        } else {
+                            current_theme().accent_ink
+                        };
+                        div()
+                            .id("act-alerts")
+                            .px(px(11.0))
+                            .py(px(5.0))
+                            .rounded(px(6.0))
+                            .border_1()
+                            .border_color(rgb(border))
+                            .text_color(rgb(text))
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .cursor_pointer()
+                            .when(has_err, |s| s.shadow(motion::glow(current_theme().gated, 0.25, 8.0, 0.0)))
+                            .hover(|s| {
+                                s.text_color(rgb(current_theme().accent_ink))
+                                    .border_color(rgb(current_theme().accent))
+                            })
+                            .child(label)
+                            .on_click(cx.listener(|this, _ev, _window, cx| {
+                                this.ws_mut().swap_surface(SurfaceKind::Hitl);
+                                cx.notify();
+                            }))
+                    }),
+            )
             // ── Command / status bar ──
             .child(
                 div()
@@ -1984,36 +3496,8 @@ impl Render for ConsoleView {
                     // PREFIX / command mode glows unmistakably.
                     .when(lit, |s| s.shadow(motion::glow(current_theme().accent, 0.25, 12.0, 0.0)))
                     .child(if let Some(cmd) = command.as_ref() {
-                        // Open command line — type, Enter submits, Esc cancels.
-                        div()
-                            .flex()
-                            .gap(px(8.0))
-                            .items_center()
-                            .child(
-                                div()
-                                    .text_color(rgb(current_theme().accent_ink))
-                                    .text_size(px(14.0))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .child(format!("{}", cmd.kind.prompt())),
-                            )
-                            .child(
-                                div()
-                                    .flex_1()
-                                    .text_color(rgb(current_theme().ink))
-                                    .text_size(px(14.0))
-                                    .font_family("IBM Plex Mono")
-                                    .child(format!("› {}▏", cmd.buffer)),
-                            )
-                            .child(
-                                div()
-                                    .text_color(rgb(current_theme().muted))
-                                    .text_size(px(13.0))
-                                    .child(if cmd.kind == CmdKind::AddPane {
-                                        "fleet·cost·roadmap·lane·dispatch·chat·files… ⏎ add".to_string()
-                                    } else {
-                                        "⏎ send · esc cancel".to_string()
-                                    }),
-                            )
+                        // Open command line — chip picker (Spawn) or prompt + Send.
+                        render_open_command(cmd, &self.catalog, cx)
                     } else if armed {
                         div()
                             .text_color(rgb(current_theme().accent_ink))
@@ -2022,6 +3506,7 @@ impl Render for ConsoleView {
                             .child(
                                 "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · [1-9…] surface",
                             )
+                            .into_any_element()
                     } else {
                         div()
                             .text_color(rgb(current_theme().muted))
@@ -2031,6 +3516,7 @@ impl Render for ConsoleView {
                                 "daemon {daemon_url}  ·  {pane_count} panes  ·  Ctrl-A → space launcher · n new-job · i insert-pane · | split  ·  {}",
                                 build_stamp()
                             ))
+                            .into_any_element()
                     }),
             )
             // Pane launcher overlay — last child, paints over everything.
@@ -2066,6 +3552,15 @@ mod add_pane_tests {
         assert!(matches!(surface_for_query("chat"), Some(SurfaceKind::CartographerChat)));
         assert!(matches!(surface_for_query("files"), Some(SurfaceKind::FileTree { .. })));
         assert!(matches!(surface_for_query("tree"), Some(SurfaceKind::FileTree { .. })));
+    }
+
+    #[test]
+    fn picker_matches_conjure_surface() {
+        // Both the surface name and its alias "plan" resolve to Conjure.
+        assert!(matches!(surface_for_query("conjure"), Some(SurfaceKind::Conjure)));
+        assert!(matches!(surface_for_query("plan"), Some(SurfaceKind::Conjure)));
+        // Conjure is not backed by a NAV pane — it renders the fixture DAG.
+        assert!(nav_id_for_surface(&SurfaceKind::Conjure).is_none());
     }
 
     #[test]

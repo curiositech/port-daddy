@@ -1,0 +1,48 @@
+# Empty [workspace] table makes this crate its OWN workspace root with its own
+# Cargo.lock — exactly like pd-timeline-proto. Without it, cargo treats this
+# excluded-but-nested crate as part of the parent `core/` workspace's resolution
+# and pulls the entire wgpu/vello/winit dep tree (~520 packages) into
+# core/Cargo.lock, a noisy diff that churns the Linux CI.
+[workspace]
+
+[package]
+name = "pd-conjure-proto"
+version = "0.1.0"
+edition = "2021"
+description = "Conjure VELLO GRAPH slice: renders a PredictedDAG (from pd-console::conjure) as a wave-column node-graph with Vello + Parley, captured OFFSCREEN (render-to-texture readback, Method-A) to a PNG. No window, no Screen-Recording / TCC permission. NOT wired into pd-console or the daemon."
+license = "MIT"
+publish = false
+
+# This crate is intentionally EXCLUDED from the core/ workspace (see
+# core/Cargo.toml). It pulls heavy, macOS-centric GPU deps (wgpu/Metal, Vello,
+# Parley) that must stay out of the Linux `rust-console` CI job. Build it
+# explicitly:
+#   cd core/pd-conjure-proto && cargo run --release
+[[bin]]
+name = "pd-conjure-proto"
+path = "src/main.rs"
+
+# Versions pinned to EXACTLY what pd-timeline-proto's Cargo.lock resolved
+# (vello 0.3.0, wgpu 22.1.0, parley 0.2.0, peniko 0.2.0, kurbo 0.11.3) — version
+# skew across this trio is the #1 failure mode (surface/device/brush types must
+# line up). winit is NOT a dependency here: this proto is headless (no window).
+[dependencies]
+# GPU vector renderer (compute-based path rendering on wgpu).
+vello = "0.3"
+# wgpu is re-exported by vello; pin the matching minor so texture/device types line up.
+wgpu = "22"
+# Text shaping + layout (HarfRust-backed) and font loading.
+parley = "0.2"
+# Color / brush helpers used by both vello and parley.
+peniko = "0.2"
+# 2D geometry: points, bezier paths, affines.
+kurbo = "0.11"
+# Async device acquisition + buffer-map polling for wgpu (block_on).
+pollster = "0.4"
+# PNG encoding for the offscreen readback (already in the resolved dep tree).
+png = "0.17"
+# Fixture / input DAG deserialization (PredictedDag shape mirrors pd-console::conjure).
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Error plumbing for the offscreen capture.
+anyhow = "1"

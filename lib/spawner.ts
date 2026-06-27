@@ -32,6 +32,9 @@ import { getSecret } from './secret-env.js';
 import { cloudflareAdapter, ollamaAdapter, geminiAdapter } from './llm-call.js';
 import { openaiAdapter, DEFAULT_OPENAI_MODEL, DEFAULT_OPENAI_TIMEOUT_MS } from './spawner/backends/openai.js';
 import { groqAdapter, DEFAULT_GROQ_MODEL } from './spawner/backends/groq.js';
+import { lmstudioAdapter, DEFAULT_LMSTUDIO_MODEL } from './spawner/backends/lmstudio.js';
+import { deepseekAdapter, DEFAULT_DEEPSEEK_MODEL } from './spawner/backends/deepseek.js';
+import { xaiAdapter, DEFAULT_XAI_MODEL } from './spawner/backends/xai.js';
 import { spawnViaCliTube, type CliTubeTool, type TubeClientLike } from './spawner/backends/cli-tube.js';
 import { withCoastGuard } from './spawner/coast-guard-runner.js';
 import type { CoastGuardReceipt } from './coast-guard.js';
@@ -96,7 +99,7 @@ function loadDotenvOnce(): Record<string, string> {
 // =============================================================================
 
 export interface SpawnSpec {
-  backend: 'ollama' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
+  backend: 'ollama' | 'lmstudio' | 'claude' | 'claude-cli' | 'gemini' | 'cloudflare' | 'codex' | 'aider' | 'custom' | 'openai' | 'groq' | 'deepseek' | 'xai' | 'cli:claude-code' | 'cli:codex' | 'cli:gemini' | 'cli:groq' | 'cli:grok';
   name?: string;        // human-readable display name
   model?: string;
   modelTier?: 'low' | 'mid' | 'high';
@@ -158,6 +161,15 @@ export interface SpawnSpec {
    * channel — same default sortie/orchestrator spawns have always used.
    */
   tubeChannel?: string;
+  /**
+   * Giant Squid Harness (ADR-0091) opt-in. When true, the `claude-cli` /
+   * `cli:claude-code` launch first injects the pd-hook-* tentacles into the
+   * workspace's `.claude/settings.json` (via lib/squid/adapter.ts) so the
+   * UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
+   * own loop. Off by default — existing spawns are byte-for-byte unchanged. The
+   * actor identity used by the lock gate comes from `spec.identity` / PD_ACTOR.
+   */
+  injectSquidHooks?: boolean;
 }
 
 export interface SpawnResult {
@@ -615,6 +627,36 @@ async function runGroq(spec: SpawnSpec, model: string): Promise<BackendRunResult
   return adaptLLMResult(result);
 }
 
+async function runLmStudio(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await lmstudioAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
+async function runDeepseek(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await deepseekAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
+async function runXai(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
+  const result = await xaiAdapter({
+    prompt: spec.task,
+    model,
+    maxTokens: spec.maxTokens,
+    signal: spec.timeout ? AbortSignal.timeout(spec.timeout) : undefined,
+  });
+  return adaptLLMResult(result);
+}
+
 async function runCloudflare(spec: SpawnSpec, model: string): Promise<BackendRunResult> {
   const result = await cloudflareAdapter({
     prompt: spec.task,
@@ -1037,6 +1079,18 @@ export function parseClaudeCliResult(raw: string, task: string): BackendRunResul
 }
 
 async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promise<BackendRunResult> {
+  // Giant Squid Harness (ADR-0091): optionally sink the pd-hook-* tentacles into
+  // this workspace's .claude/settings.json BEFORE the CLI boots, so the
+  // UserPromptSubmit / PreToolUse / PostToolUse hooks fire inside Claude Code's
+  // own loop. Single, opt-in, fail-open call site — never blocks the launch.
+  if (spec.injectSquidHooks) {
+    try {
+      const { ClaudeCliSquidAdapter } = await import('./squid/adapter.js');
+      await new ClaudeCliSquidAdapter().injectHooks(spec.workdir || process.cwd());
+    } catch (err) {
+      console.warn(`[spawner] squid hook injection skipped: ${(err as Error).message}`);
+    }
+  }
   // `--output-format json` makes the CLI report its own exact usage, which we
   // parse below. Without it the CLI prints plain prose and we get no token
   // counts — the gap that previously fail-closed every claude-cli launch.
@@ -1080,12 +1134,15 @@ async function runClaudeCli(spec: SpawnSpec, context?: BackendRunContext): Promi
 
 const DEFAULT_MODELS: Record<SpawnSpec['backend'], string> = {
   ollama: 'llama3.1:8b',  // local ollama model name, not an API id
+  lmstudio: DEFAULT_LMSTUDIO_MODEL,  // LM Studio serves whatever model is loaded
   claude: resolveModel({ backend: 'claude', capability: 'cheap' }),
   'claude-cli': 'claude-cli',  // claude CLI manages its own model
   gemini: resolveModel({ backend: 'gemini', capability: 'cheap' }),
   cloudflare: resolveModel({ backend: 'cloudflare', capability: 'cheap' }),
   openai: DEFAULT_OPENAI_MODEL,
   groq: DEFAULT_GROQ_MODEL,
+  deepseek: DEFAULT_DEEPSEEK_MODEL,
+  xai: DEFAULT_XAI_MODEL,
   codex: resolveModel({ backend: 'codex', capability: 'cheap' }),
   'cli:claude-code': 'claude-cli',  // local claude CLI manages its own model
   'cli:codex': 'codex-cli',          // local codex CLI manages its own model
@@ -1800,11 +1857,14 @@ export function createSpawner(deps: SpawnerDeps = {}) {
         const effectiveBackend = cliOverride ?? spec.backend;
         switch (effectiveBackend) {
           case 'ollama':    result = await runOllama(spec, model); break;
+          case 'lmstudio':  result = await runLmStudio(spec, model); break;
           case 'claude':    result = await runClaude(spec, model); break;
           case 'gemini':    result = await runGemini(spec, model); break;
           case 'cloudflare': result = await runCloudflare(spec, model); break;
           case 'openai':    result = await runOpenAI(spec, model); break;
           case 'groq':      result = await runGroq(spec, model); break;
+          case 'deepseek':  result = await runDeepseek(spec, model); break;
+          case 'xai':       result = await runXai(spec, model); break;
           case 'codex':     result = await runCodexCli(spec, model, childContext); break;
           case 'claude-cli': result = await runClaudeCli(spec, childContext); break;
           case 'cli:claude-code': result = await runCliTube(spec, 'claude-code', childContext); break;

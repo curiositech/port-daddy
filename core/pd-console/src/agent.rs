@@ -19,36 +19,51 @@ use std::collections::BTreeMap;
 /// Every backend the daemon's spawner accepts (mirrors routes/spawn.ts VALID_BACKENDS).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
-    Ollama,
     Claude,
-    ClaudeCli,
     Gemini,
-    Cloudflare,
+    Groq,
+    Deepseek,
+    Xai,
+    Openai,
+    ClaudeCli,
     Codex,
+    Cloudflare,
+    Ollama,
+    LmStudio,
     Aider,
     Custom,
 }
 
 impl Backend {
-    pub const ALL: [Backend; 8] = [
-        Backend::Ollama,
+    pub const ALL: [Backend; 13] = [
         Backend::Claude,
-        Backend::ClaudeCli,
         Backend::Gemini,
-        Backend::Cloudflare,
+        Backend::Groq,
+        Backend::Deepseek,
+        Backend::Xai,
+        Backend::Openai,
+        Backend::ClaudeCli,
         Backend::Codex,
+        Backend::Cloudflare,
+        Backend::Ollama,
+        Backend::LmStudio,
         Backend::Aider,
         Backend::Custom,
     ];
 
     pub fn as_str(self) -> &'static str {
         match self {
-            Backend::Ollama => "ollama",
             Backend::Claude => "claude",
-            Backend::ClaudeCli => "claude-cli",
             Backend::Gemini => "gemini",
-            Backend::Cloudflare => "cloudflare",
+            Backend::Groq => "groq",
+            Backend::Deepseek => "deepseek",
+            Backend::Xai => "xai",
+            Backend::Openai => "openai",
+            Backend::ClaudeCli => "claude-cli",
             Backend::Codex => "codex",
+            Backend::Cloudflare => "cloudflare",
+            Backend::Ollama => "ollama",
+            Backend::LmStudio => "lmstudio",
             Backend::Aider => "aider",
             Backend::Custom => "custom",
         }
@@ -56,6 +71,159 @@ impl Backend {
 
     pub fn parse(s: &str) -> Option<Backend> {
         Backend::ALL.into_iter().find(|b| b.as_str() == s)
+    }
+
+    /// Human label for the inline picker chips (the operator never types the
+    /// wire id; they pick a labelled option).
+    pub fn label(self) -> &'static str {
+        match self {
+            Backend::Claude => "Claude (API)",
+            Backend::Gemini => "Gemini",
+            Backend::Groq => "Groq",
+            Backend::Deepseek => "DeepSeek",
+            Backend::Xai => "Grok (xAI)",
+            Backend::Openai => "OpenAI",
+            Backend::ClaudeCli => "Claude Code",
+            Backend::Codex => "Codex",
+            Backend::Cloudflare => "Cloudflare",
+            Backend::Ollama => "Ollama (local)",
+            Backend::LmStudio => "LM Studio",
+            Backend::Aider => "Aider",
+            Backend::Custom => "Custom",
+        }
+    }
+}
+
+/// THE MULTI-VENDOR MAP — route a Conjure node's free-string `model_tier`
+/// (`"opus"` / `"sonnet"` / `"haiku"` / `"gemini"` / `"codex"` / `"groq"` /
+/// `"gpt"` / …) to the daemon spawner Backend that should run it.
+///
+/// This is what makes Conjure dispatch genuinely multi-vendor instead of
+/// Claude-only: a node tagged `gemini` spawns on Gemini, a node tagged `codex`
+/// spawns on Codex, a node tagged `groq` on Groq — each through the SAME
+/// `DaemonClient::spawn` path the operator's manual Spawn command uses, which
+/// hits the daemon's existing vendor spawner (`lib/spawner.ts`). That spawner
+/// launches the vendor CLI backends that are installed + pass readiness
+/// (codex / claude-cli already do; gemini if installed). It does NOT require
+/// the unbuilt Giant Squid Harness (ADR-0091, Proposed) — that is the FUTURE
+/// upgrade for richer in-loop vendor-hook coordination, not a prerequisite here.
+///
+/// `model_tier` is a CAPABILITY string ("opus") or a VENDOR string ("gemini"),
+/// because the planner emits both shapes. Claude tiers (opus/sonnet/haiku) map
+/// to `ClaudeCli` — Claude Code (Max) is the Prime default and is launchable
+/// without an API key. An unknown / empty tier also falls back to `ClaudeCli`,
+/// so a node can never fail to route: the worst case is "the default vendor".
+pub fn backend_for_tier(model_tier: &str) -> Backend {
+    match model_tier.trim().to_ascii_lowercase().as_str() {
+        // Claude capability tiers + the bare vendor name → Claude Code (Max).
+        "opus" | "sonnet" | "haiku" | "claude" | "claude-cli" | "claude-code" => {
+            Backend::ClaudeCli
+        }
+        "gemini" | "google" => Backend::Gemini,
+        "codex" => Backend::Codex,
+        "groq" => Backend::Groq,
+        "deepseek" => Backend::Deepseek,
+        "xai" | "grok" => Backend::Xai,
+        "openai" | "gpt" | "gpt-4" | "gpt-4o" | "o1" | "o3" => Backend::Openai,
+        "ollama" | "local" => Backend::Ollama,
+        "lmstudio" | "lm-studio" | "lm_studio" => Backend::LmStudio,
+        "aider" => Backend::Aider,
+        // Unknown / empty: the Prime default. Claude Max never bounces on a
+        // missing API key, so this is the safe "still launchable" fallback.
+        _ => Backend::ClaudeCli,
+    }
+}
+
+/// A capability tier the operator picks instead of memorising model ids. The
+/// tier is provider-agnostic; the concrete model is resolved at spawn time from
+/// the [`ModelCatalog`] config — never hard-coded — so the model list never goes
+/// stale in the binary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tier {
+    High,
+    Mid,
+    Low,
+}
+
+impl Tier {
+    pub const ALL: [Tier; 3] = [Tier::High, Tier::Mid, Tier::Low];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tier::High => "high",
+            Tier::Mid => "mid",
+            Tier::Low => "low",
+        }
+    }
+
+    /// The chip label — tier plus a hint at what it buys.
+    pub fn label(self) -> &'static str {
+        match self {
+            Tier::High => "High · most capable",
+            Tier::Mid => "Mid · balanced",
+            Tier::Low => "Low · fast & cheap",
+        }
+    }
+}
+
+/// The seed shipped with the binary, overridden by any on-disk config. Kept as
+/// raw JSON (data, not Rust logic) so it reads like the editable file.
+const BUNDLED_MODEL_TIERS: &str = include_str!("../config/model-tiers.json");
+
+/// Provider capability tiers loaded from a JSON config — NOT compiled-in logic —
+/// so the tier→model map can change without a rebuild. Load order:
+///   `$PD_CONSOLE_MODEL_TIERS` → `~/.port-daddy/model-tiers.json` → bundled seed.
+/// The on-disk file (the installer writes it; the operator edits it) wins. A
+/// model id absent from the daemon's cost-rate registry fails the launch closed,
+/// which is the signal to fix the id in the config.
+#[derive(Debug, Clone, Default)]
+pub struct ModelCatalog {
+    providers: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+}
+
+impl ModelCatalog {
+    pub fn load() -> ModelCatalog {
+        let raw = std::env::var("PD_CONSOLE_MODEL_TIERS")
+            .ok()
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .or_else(|| {
+                dirs::home_dir()
+                    .map(|h| h.join(".port-daddy/model-tiers.json"))
+                    .and_then(|p| std::fs::read_to_string(p).ok())
+            })
+            .unwrap_or_else(|| BUNDLED_MODEL_TIERS.to_string());
+        Self::parse(&raw).unwrap_or_default()
+    }
+
+    /// Parse the `{ "providers": { "<backend>": { "<tier>": "<model>" } } }` shape.
+    pub fn parse(raw: &str) -> Option<ModelCatalog> {
+        let v: serde_json::Value = serde_json::from_str(raw).ok()?;
+        let mut providers = std::collections::HashMap::new();
+        if let Some(obj) = v.get("providers").and_then(|p| p.as_object()) {
+            for (backend, tiers) in obj {
+                if let Some(tobj) = tiers.as_object() {
+                    let map = tobj
+                        .iter()
+                        .filter_map(|(t, m)| Some((t.clone(), m.as_str()?.to_string())))
+                        .collect();
+                    providers.insert(backend.clone(), map);
+                }
+            }
+        }
+        Some(ModelCatalog { providers })
+    }
+
+    /// Whether this backend offers capability tiers (i.e. the config maps it).
+    /// CLI backends (Claude Code, Codex, Aider) are intentionally absent — they
+    /// run whatever model they're configured with, so a tier would be a lie.
+    pub fn has_tiers(&self, backend: Backend) -> bool {
+        self.providers.get(backend.as_str()).map(|m| !m.is_empty()).unwrap_or(false)
+    }
+
+    /// Resolve (backend, tier) → model id from the config, or `None` to let the
+    /// daemon pick its own per-backend default.
+    pub fn resolve(&self, backend: Backend, tier: Tier) -> Option<String> {
+        self.providers.get(backend.as_str())?.get(tier.as_str()).cloned()
     }
 }
 
@@ -65,6 +233,37 @@ pub struct TubeMsg {
     pub id: u64,
     pub sender: String,
     pub text: String,
+}
+
+/// Per-spawn options that ride alongside the four positional `spawn` args.
+///
+/// Today this carries exactly one knob — `inject_squid_hooks` — but it is a
+/// struct (not a bare `bool`) so future opt-ins land here without re-threading
+/// every call site. `Default` is the byte-for-byte historical behaviour: no
+/// squid hooks, so the manual Spawn command and `create_agent` are unchanged.
+///
+/// `inject_squid_hooks` → the daemon body's `"injectSquidHooks": true`. When the
+/// daemon runs an updated `routes/spawn.ts` + `lib/spawner.ts`, that flag makes a
+/// `claude-cli` / `cli:claude-code` launch FIRST sink the Giant Squid Harness
+/// (ADR-0091) pd-hook-* tentacles into the workspace's `.claude/settings.json`,
+/// so the conjure-dispatched vendor CLI runs UNDER PD coordination — its
+/// UserPromptSubmit / PreToolUse / PostToolUse turns fire the lock gate +
+/// pheromone hooks inside Claude Code's own loop (Claude Max Prime). codex /
+/// gemini remain validate-then-add: their squid adapters throw, so the flag is a
+/// no-op there until those adapters are written.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SpawnOpts {
+    /// Inject the Giant Squid pd-hook tentacles for this spawn (default false).
+    pub inject_squid_hooks: bool,
+}
+
+impl SpawnOpts {
+    /// The conjure-dispatch posture: run the vendor agent UNDER squid
+    /// coordination (lock-gating + pheromones via the injected pd-hook-*
+    /// tentacles). The conjurer's vendor agents always dispatch with this on.
+    pub fn squid() -> Self {
+        SpawnOpts { inject_squid_hooks: true }
+    }
 }
 
 // ── Live agent stream (GET /agents/:id/stream, SSE) ───────────────────────────
@@ -157,11 +356,23 @@ pub struct SseParser {
     buf: String,
     /// `data:` lines accumulated for the frame currently being assembled.
     data: Vec<String>,
+    /// The most recent SSE `id:` seen. Per the SSE spec this is sticky — it
+    /// persists across events until a new `id:` arrives — and is the value the
+    /// client echoes back as `Last-Event-ID` on reconnect so the daemon can
+    /// resume the stream instead of replaying from the head (or dropping the
+    /// gap). Without capturing this, a dropped connection silently loses or
+    /// duplicates frames — the interchange "idempotency gap".
+    last_id: Option<String>,
 }
 
 impl SseParser {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The last event id seen so far, for `Last-Event-ID` resume on reconnect.
+    pub fn last_id(&self) -> Option<&str> {
+        self.last_id.as_deref()
     }
 
     /// Feed a chunk of bytes; returns any `data:` payloads that completed
@@ -188,8 +399,11 @@ impl SseParser {
             } else if let Some(rest) = line.strip_prefix("data:") {
                 // SSE spec: a single leading space after the colon is stripped.
                 self.data.push(rest.strip_prefix(' ').unwrap_or(rest).to_string());
+            } else if let Some(rest) = line.strip_prefix("id:") {
+                // Sticky last-event-id for resumable reconnect.
+                self.last_id = Some(rest.strip_prefix(' ').unwrap_or(rest).to_string());
             }
-            // `event:`, `id:`, `:comment` (heartbeat) lines are ignored — the
+            // `event:` and `:comment` (heartbeat) lines are ignored — the
             // envelope's own `kind` is authoritative.
         }
         out
@@ -223,22 +437,39 @@ async fn ensure_success(resp: reqwest::Response, op: &str) -> Result<reqwest::Re
 
 impl DaemonClient {
     pub fn discover() -> Result<Self> {
-        let base = if let Ok(url) = std::env::var("PORT_DADDY_URL") {
-            url.trim_end_matches('/').to_string()
-        } else {
-            let port = dirs::home_dir()
-                .map(|h| h.join(".port-daddy/daemon.port"))
-                .and_then(|p| std::fs::read_to_string(p).ok())
-                .and_then(|s| s.trim().parse::<u16>().ok())
-                .ok_or_else(|| {
-                    anyhow!(
-                        "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, \
-                         or start the daemon (it writes ~/.port-daddy/daemon.port)"
-                    )
-                })?;
-            format!("http://127.0.0.1:{port}")
-        };
-        Ok(Self { base, http: reqwest::Client::new() })
+        // Resolution order, highest priority first:
+        //   1. `PORT_DADDY_URL` env — explicit override for one launch.
+        //   2. `~/.port-daddy/console-daemon.url` — the operator's selected daemon
+        //      (a one-line URL). This is the console's "use this daemon" switch:
+        //      point it at a dev berth (e.g. http://127.0.0.1:9886) WITHOUT
+        //      clobbering the canonical daemon.port. Delete the file to fall back
+        //      to stable. The status bar shows which URL is live.
+        //   3. `~/.port-daddy/daemon.port` — the canonical (stable) daemon.
+        if let Ok(url) = std::env::var("PORT_DADDY_URL") {
+            return Ok(Self::new(url));
+        }
+        let home = dirs::home_dir();
+        if let Some(url) = home
+            .as_ref()
+            .map(|h| h.join(".port-daddy/console-daemon.url"))
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+        {
+            return Ok(Self::new(url));
+        }
+        let port = home
+            .map(|h| h.join(".port-daddy/daemon.port"))
+            .and_then(|p| std::fs::read_to_string(p).ok())
+            .and_then(|s| s.trim().parse::<u16>().ok())
+            .ok_or_else(|| {
+                anyhow!(
+                    "cannot locate the Port Daddy daemon: set PORT_DADDY_URL, write \
+                     ~/.port-daddy/console-daemon.url, or start the daemon (it writes \
+                     ~/.port-daddy/daemon.port)"
+                )
+            })?;
+        Ok(Self::new(format!("http://127.0.0.1:{port}")))
     }
 
     /// Construct a client against an already-resolved base URL (e.g. the value
@@ -265,25 +496,19 @@ impl DaemonClient {
     /// worktree); the daemon blocks main-checkout spawns by design.
     /// Returns the outcome incl. one-shot inline `output` (ollama et al. reply in
     /// the spawn response, not on the tube).
-    pub async fn spawn(&self, backend: Backend, prompt: &str, channel: &str) -> Result<SpawnOutcome> {
-        let mut body = serde_json::json!({
-            "backend": backend.as_str(),
-            "task": prompt,
-            "identity": format!("console:agent:{channel}"),
-            "purpose": "Top-level console agent (tube conversation)",
-            "tubeChannel": channel,
-            "budgetUsd": 0.25,
-        });
-        // Model-backends (ollama) require an explicit model.
-        if matches!(backend, Backend::Ollama) {
-            let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
-            body["model"] = serde_json::json!(m);
-        }
-        // Worktree isolation: the daemon refuses to run an agent in a main
-        // checkout. Pass an operator-provided worktree.
-        if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
-            body["workdir"] = serde_json::json!(wd);
-        }
+    ///
+    /// `opts.inject_squid_hooks` adds `"injectSquidHooks": true` to the POST body
+    /// (see [`build_spawn_body`]); conjure-dispatch sets it so the vendor CLI runs
+    /// under PD coordination. `Default` opts keep the historical body unchanged.
+    pub async fn spawn(
+        &self,
+        backend: Backend,
+        prompt: &str,
+        channel: &str,
+        model: Option<&str>,
+        opts: SpawnOpts,
+    ) -> Result<SpawnOutcome> {
+        let body = build_spawn_body(backend, prompt, channel, model, opts);
         let resp = self
             .http
             .post(format!("{}/spawn", self.base))
@@ -426,36 +651,67 @@ impl DaemonClient {
         let http = self.http.clone();
         tokio::spawn(async move {
             use futures_util::StreamExt;
-            let resp = match http.get(&url).send().await {
-                Ok(r) => r,
-                Err(_) => return, // discovery/connection failure — caller reconnects
-            };
-            if !resp.status().is_success() {
-                return; // 404 unknown agent etc. — nothing to stream
-            }
-            let mut parser = SseParser::new();
-            let mut body = resp.bytes_stream();
-            while let Some(chunk) = body.next().await {
-                let bytes = match chunk {
-                    Ok(b) => b,
-                    Err(_) => break, // stream error — end the task, caller reconnects
+            use tokio::time::{sleep, Duration};
+            // Resumable, self-healing stream. A transient network blip or a daemon
+            // restart used to silently kill the lane (the task just returned and
+            // nothing re-opened it unless the WATCH TARGET changed). Now we
+            // reconnect with capped exponential backoff and resume from the last
+            // event id via `Last-Event-ID`, so the live surface survives drops
+            // instead of going dark mid-run.
+            let mut last_id: Option<String> = None;
+            let mut backoff = Duration::from_millis(500);
+            const MAX_BACKOFF: Duration = Duration::from_secs(10);
+            loop {
+                let mut req = http.get(&url);
+                if let Some(id) = &last_id {
+                    req = req.header("Last-Event-ID", id.as_str());
+                }
+                let resp = match req.send().await {
+                    Ok(r) if r.status().is_success() => r,
+                    // 404 = unknown agent: nothing will ever stream, so stop
+                    // (don't spin reconnecting against a permanent error).
+                    Ok(_) => return,
+                    Err(_) => {
+                        // Connection failure — back off and retry (daemon may be
+                        // restarting, e.g. a freshness self-heal).
+                        sleep(backoff).await;
+                        backoff = (backoff * 2).min(MAX_BACKOFF);
+                        continue;
+                    }
                 };
-                // SSE is UTF-8; tolerate a split multibyte char across chunks by
-                // lossy-decoding (rare, and a single glyph is not worth dropping
-                // the whole feed for).
-                let text = String::from_utf8_lossy(&bytes);
-                for data in parser.feed(&text) {
-                    let val: serde_json::Value = match serde_json::from_str(&data) {
-                        Ok(v) => v,
-                        Err(_) => continue, // skip a malformed frame, keep streaming
+                backoff = Duration::from_millis(500); // reset on a healthy connect
+                let mut parser = SseParser::new();
+                let mut body = resp.bytes_stream();
+                while let Some(chunk) = body.next().await {
+                    let bytes = match chunk {
+                        Ok(b) => b,
+                        Err(_) => break, // stream error — fall through to reconnect
                     };
-                    if let Some(env) = StreamEnvelope::from_value(&val) {
-                        // Receiver dropped → stop streaming.
-                        if tx.send(env).await.is_err() {
-                            return;
+                    // SSE is UTF-8; tolerate a split multibyte char across chunks by
+                    // lossy-decoding (rare, and a single glyph is not worth dropping
+                    // the whole feed for).
+                    let text = String::from_utf8_lossy(&bytes);
+                    for data in parser.feed(&text) {
+                        // Track the resume point as each event is processed.
+                        if let Some(id) = parser.last_id() {
+                            last_id = Some(id.to_string());
+                        }
+                        let val: serde_json::Value = match serde_json::from_str(&data) {
+                            Ok(v) => v,
+                            Err(_) => continue, // skip a malformed frame, keep streaming
+                        };
+                        if let Some(env) = StreamEnvelope::from_value(&val) {
+                            // Receiver dropped (pane closed / retargeted) → stop.
+                            if tx.send(env).await.is_err() {
+                                return;
+                            }
                         }
                     }
                 }
+                // Stream ended without the receiver being dropped (EOF or error):
+                // reconnect with backoff, resuming from `last_id`.
+                sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
             }
         });
         rx
@@ -493,6 +749,56 @@ pub struct SpawnOutcome {
     pub error: Option<String>,
 }
 
+/// Build the `POST /spawn` request body. Factored out of [`DaemonClient::spawn`]
+/// as a PURE function (env reads aside) so the wire shape is unit-testable without
+/// a live daemon — the proof that a conjure dispatch carries `injectSquidHooks`.
+///
+/// When `opts.inject_squid_hooks` is set, the body gains `"injectSquidHooks":
+/// true`. The daemon's `routes/spawn.ts` reads that flag into the spawner spec
+/// (`spec.injectSquidHooks`), and `lib/spawner.ts`'s `runClaudeCli` then injects
+/// the Giant Squid Harness (ADR-0091) pd-hook-* tentacles into the workspace's
+/// `.claude/settings.json` before the CLI boots — so a conjure-dispatched vendor
+/// CLI runs UNDER PD coordination (lock-gating + pheromones) inside Claude Code's
+/// own loop (Claude Max Prime). codex / gemini remain validate-then-add: their
+/// squid adapters throw, so the flag is a harmless no-op for those backends.
+pub fn build_spawn_body(
+    backend: Backend,
+    prompt: &str,
+    channel: &str,
+    model: Option<&str>,
+    opts: SpawnOpts,
+) -> serde_json::Value {
+    let mut body = serde_json::json!({
+        "backend": backend.as_str(),
+        "task": prompt,
+        "identity": format!("console:agent:{channel}"),
+        "purpose": "Top-level console agent (tube conversation)",
+        "tubeChannel": channel,
+        "budgetUsd": 0.25,
+    });
+    // An operator-chosen capability tier resolves to a model id; honour it.
+    if let Some(m) = model {
+        body["model"] = serde_json::json!(m);
+    } else if matches!(backend, Backend::Ollama) {
+        // Model-backends (ollama) require an explicit model even with no tier.
+        let m = std::env::var("PD_CONSOLE_OLLAMA_MODEL").unwrap_or_else(|_| "llama3.1:8b".into());
+        body["model"] = serde_json::json!(m);
+    }
+    // Worktree isolation: the daemon refuses to run an agent in a main
+    // checkout. Pass an operator-provided worktree.
+    if let Ok(wd) = std::env::var("PD_CONSOLE_WORKDIR") {
+        body["workdir"] = serde_json::json!(wd);
+    }
+    // Giant Squid Harness opt-in (ADR-0091): only emit the flag when set, so a
+    // default spawn's body is byte-for-byte what it has always been (the daemon
+    // defaults the absent flag to false). Conjure dispatch sets it true so its
+    // vendor CLIs run under PD coordination via the injected pd-hook tentacles.
+    if opts.inject_squid_hooks {
+        body["injectSquidHooks"] = serde_json::json!(true);
+    }
+    body
+}
+
 /// One hosted top-level agent.
 pub struct TopLevelAgent {
     pub id: String,
@@ -523,7 +829,12 @@ impl AgentManager {
         let local = self.next;
         self.next += 1;
         let channel = format!("console-agent-{local}");
-        let outcome = self.client.spawn(backend, prompt, &channel).await?;
+        // A manually-created top-level agent keeps the historical posture: no
+        // squid hooks (default opts). Only conjure dispatch opts in.
+        let outcome = self
+            .client
+            .spawn(backend, prompt, &channel, None, SpawnOpts::default())
+            .await?;
         self.agents.insert(local, TopLevelAgent { id: outcome.id.clone(), backend, channel, cursor: 0 });
         self.active = Some(local);
         Ok((local, outcome))
@@ -558,7 +869,57 @@ mod tests {
         for b in Backend::ALL {
             assert_eq!(Backend::parse(b.as_str()), Some(b));
         }
+        // DeepSeek + xAI are first-class backends alongside Groq + LM Studio.
+        assert_eq!(Backend::parse("deepseek"), Some(Backend::Deepseek));
+        assert_eq!(Backend::Deepseek.as_str(), "deepseek");
+        assert_eq!(Backend::Deepseek.label(), "DeepSeek");
+        assert!(Backend::ALL.contains(&Backend::Deepseek));
+        assert_eq!(Backend::parse("xai"), Some(Backend::Xai));
+        assert_eq!(Backend::Xai.as_str(), "xai");
+        assert_eq!(Backend::Xai.label(), "Grok (xAI)");
+        assert!(Backend::ALL.contains(&Backend::Xai));
         assert!(Backend::parse("nope").is_none());
+
+        // app.rs::spawn_backend_hint() is GENERATED by joining Backend::ALL
+        // (minus Custom) on " · ". Replicate that exact derivation here (agent.rs
+        // is the unit-tested binary; app.rs only compiles under the gpui build)
+        // to prove the Spawn suggestion now advertises deepseek + xai.
+        let hint = Backend::ALL
+            .into_iter()
+            .filter(|b| *b != Backend::Custom)
+            .map(|b| b.as_str())
+            .collect::<Vec<_>>()
+            .join(" · ");
+        assert!(hint.contains("deepseek"), "spawn hint must advertise deepseek: {hint}");
+        assert!(hint.contains("xai"), "spawn hint must advertise xai: {hint}");
+        assert!(hint.contains("groq"), "spawn hint must still advertise groq: {hint}");
+        assert!(!hint.contains("custom"), "spawn hint must exclude custom: {hint}");
+    }
+
+    #[test]
+    fn backend_for_tier_is_multi_vendor() {
+        // Claude capability tiers all route to Claude Code (the Prime/Max default).
+        assert_eq!(backend_for_tier("opus"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier("sonnet"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier("haiku"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier("claude"), Backend::ClaudeCli);
+        // The actual multi-vendor proof: non-Claude tiers route to OTHER vendors.
+        assert_eq!(backend_for_tier("gemini"), Backend::Gemini);
+        assert_eq!(backend_for_tier("codex"), Backend::Codex);
+        assert_eq!(backend_for_tier("groq"), Backend::Groq);
+        assert_eq!(backend_for_tier("deepseek"), Backend::Deepseek);
+        assert_eq!(backend_for_tier("xai"), Backend::Xai);
+        assert_eq!(backend_for_tier("grok"), Backend::Xai);
+        assert_eq!(backend_for_tier("openai"), Backend::Openai);
+        assert_eq!(backend_for_tier("gpt"), Backend::Openai);
+        assert_eq!(backend_for_tier("ollama"), Backend::Ollama);
+        assert_eq!(backend_for_tier("lmstudio"), Backend::LmStudio);
+        assert_eq!(backend_for_tier("lm-studio"), Backend::LmStudio);
+        // Case + whitespace tolerant (planner output is a free string).
+        assert_eq!(backend_for_tier("  GEMINI "), Backend::Gemini);
+        // Unknown / empty falls back to the launchable default, never panics.
+        assert_eq!(backend_for_tier("frobnicate"), Backend::ClaudeCli);
+        assert_eq!(backend_for_tier(""), Backend::ClaudeCli);
     }
 
     #[test]
@@ -647,6 +1008,88 @@ mod tests {
         let mut p = SseParser::new();
         let out = p.feed("data: line1\ndata: line2\n\n");
         assert_eq!(out, vec!["line1\nline2"]);
+    }
+
+    #[test]
+    fn model_catalog_resolves_from_config_not_hardcode() {
+        // The catalog is parsed from JSON data, never compiled-in logic.
+        let cat = ModelCatalog::parse(
+            r#"{ "providers": {
+                   "claude":   { "high": "claude-opus-4-8", "low": "claude-haiku-4-5-20251001" },
+                   "groq":     { "high": "llama-3.3-70b-versatile" },
+                   "deepseek": { "high": "deepseek-reasoner", "low": "deepseek-chat" },
+                   "xai":      { "high": "grok-2-latest", "low": "grok-code-fast-1" }
+                 } }"#,
+        )
+        .expect("valid catalog");
+        assert_eq!(cat.resolve(Backend::Claude, Tier::High).as_deref(), Some("claude-opus-4-8"));
+        assert_eq!(cat.resolve(Backend::Groq, Tier::High).as_deref(), Some("llama-3.3-70b-versatile"));
+        assert_eq!(cat.resolve(Backend::Deepseek, Tier::High).as_deref(), Some("deepseek-reasoner"));
+        assert_eq!(cat.resolve(Backend::Deepseek, Tier::Low).as_deref(), Some("deepseek-chat"));
+        assert_eq!(cat.resolve(Backend::Xai, Tier::High).as_deref(), Some("grok-2-latest"));
+        assert_eq!(cat.resolve(Backend::Xai, Tier::Low).as_deref(), Some("grok-code-fast-1"));
+        // A tier absent from the config → None (daemon picks its default).
+        assert_eq!(cat.resolve(Backend::Claude, Tier::Mid), None);
+        // A backend absent from the config offers no tiers (CLI backends, etc.).
+        assert!(cat.has_tiers(Backend::Claude));
+        assert!(!cat.has_tiers(Backend::ClaudeCli));
+        // The bundled seed is valid JSON and maps the model-backends.
+        let seed = ModelCatalog::parse(BUNDLED_MODEL_TIERS).expect("bundled seed parses");
+        assert!(seed.has_tiers(Backend::Claude));
+        assert!(seed.resolve(Backend::Gemini, Tier::Low).is_some());
+        // Every backend still has a non-empty picker label.
+        assert!(Backend::ALL.iter().all(|b| !b.label().is_empty()));
+    }
+
+    #[test]
+    fn conjure_dispatch_body_carries_inject_squid_hooks() {
+        // The conjure-dispatch posture runs the vendor agent UNDER squid
+        // coordination: the POST /spawn body must carry injectSquidHooks=true so
+        // the daemon injects the pd-hook tentacles (lock-gating + pheromones).
+        let body = build_spawn_body(
+            Backend::ClaudeCli,
+            "do the thing",
+            "operator",
+            None,
+            SpawnOpts::squid(),
+        );
+        assert_eq!(
+            body.get("injectSquidHooks").and_then(|v| v.as_bool()),
+            Some(true),
+            "conjure dispatch must opt into the Giant Squid Harness"
+        );
+
+        // A manual Spawn (default opts) must NOT carry the flag — the body is the
+        // historical shape, so the daemon defaults it to false (unchanged spawn).
+        let manual = build_spawn_body(
+            Backend::ClaudeCli,
+            "do the thing",
+            "operator",
+            None,
+            SpawnOpts::default(),
+        );
+        assert!(
+            manual.get("injectSquidHooks").is_none(),
+            "the manual Spawn body must omit injectSquidHooks (backward-compatible)"
+        );
+
+        // SpawnOpts::squid is the one true source of the true flag.
+        assert!(SpawnOpts::squid().inject_squid_hooks);
+        assert!(!SpawnOpts::default().inject_squid_hooks);
+    }
+
+    #[test]
+    fn sse_parser_captures_sticky_last_event_id() {
+        let mut p = SseParser::new();
+        assert_eq!(p.last_id(), None);
+        // An `id:` line sets the resume point; it is sticky across later events
+        // until a new `id:` arrives (the SSE Last-Event-ID contract).
+        p.feed("id: 42\ndata: {\"kind\":\"agent.transcript\"}\n\n");
+        assert_eq!(p.last_id(), Some("42"));
+        p.feed("data: {\"kind\":\"agent.transcript\"}\n\n");
+        assert_eq!(p.last_id(), Some("42"), "id is sticky without a new id: line");
+        p.feed("id: 99\ndata: {\"kind\":\"agent.status\"}\n\n");
+        assert_eq!(p.last_id(), Some("99"));
     }
 
     #[test]
