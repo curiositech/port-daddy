@@ -75,7 +75,7 @@ The follow-up redteam pass added tests for oversize request rejection, metadata 
 | Smell id | Status | Counter | Validation |
 |---|---|---|---|
 | `smell:vuln:coord:fleet:boot-spawn-storm:0016` | closed in source, mitigated live | Scheduled ships arm on fleet start; `run_on_start: true` is required for immediate work. Live Homebrew daemon was stabilized with `PORT_DADDY_NO_FLEET=1` until a fixed release is promoted. | `scheduled agents arm on start without immediately spawning by default` |
-| `smell:vuln:coord:fleet:schema-drift-run-on-start:0017` | closed | Fleet AST parses `run_on_start`/`runOnStart`; README and ADR-0019 document the opt-in. | `parses scheduled agent run_on_start opt-in from fleet yaml` |
+| `smell:vuln:coord:fleet:schema-drift-run-on-start:0017` | closed | Fleet AST parses the documented `run_on_start` field only; README and ADR-0019 document the opt-in. | `parses scheduled agent run_on_start opt-in from fleet yaml` |
 | `smell:vuln:coord:fleet:local-mitigation-masked-fix:0018` | monitored | The writeup distinguishes live mitigation from source/release truth; PR body must repeat that distinction. | `pd /health` live readback plus focused fleet tests |
 
 ## Combined Validation For Added Rounds

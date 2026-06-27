@@ -317,7 +317,7 @@ function parseAgentMap(
       const str = extractString(n, gr);
       return str ? { kind: 'cron' as const, range: str.range, expression: str.value } : undefined;
     })(),
-    runOnStart:    gBool(m, 'run_on_start', gr) ?? gBool(m, 'runOnStart', gr),
+    runOnStart:    gBool(m, 'run_on_start', gr),
     triggerTuple:  extractTuple(gNode(m, 'trigger_tuple'), gr),
     backend:       extractEnum<Backend>(gNode(m, 'backend'), gr),
     model:         gStr(m, 'model', gr),

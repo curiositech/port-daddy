@@ -356,6 +356,29 @@ test('parses scheduled agent run_on_start opt-in from fleet yaml', () => {
   }));
 });
 
+test('does not accept camelCase runOnStart in fleet yaml', () => {
+  mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
+  mockExecSync.mockReturnValue('main');
+  mockReadFileSync.mockReturnValue(JSON.stringify({
+    name: 'scheduled-fleet',
+    agents: {
+      cartographer: {
+        backend: 'claude-cli',
+        prompt: 'Map the repo',
+        schedule: '*/30 * * * *',
+        runOnStart: true,
+      },
+    },
+  }));
+
+  const config = loadFleetConfig('/tmp/proj');
+  expect(config?.agents[0]).toEqual(expect.objectContaining({
+    name: 'cartographer',
+    schedule: '*/30 * * * *',
+    runOnStart: false,
+  }));
+});
+
 test('parses per-agent cooldown, dedupe, and backoff settings from YAML', () => {
   mockExistsSync.mockImplementation(p => p.endsWith('pd-fleet.yml'));
   mockExecSync.mockReturnValue('main');
