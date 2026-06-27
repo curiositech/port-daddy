@@ -101,7 +101,7 @@ set -l __pd_commands \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
-    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
+    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'squid' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
@@ -212,6 +212,20 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command dispatch" -l state -x -a 'proposed claimed in_progress produced review_pending accepted rejected settled failed salvage open terminal awaiting_review all' -d 'State filter'
     complete -c $prog -n __pd_needs_command -a nightshift -d '(deprecated alias) Use pd dispatch'
     complete -c $prog -n "__pd_using_command nightshift" -x -a 'propose queue list show run review cancel help' -d 'Nightshift subcommand (alias for dispatch)'
+    complete -c $prog -n __pd_needs_command -a squid -d 'Run an unofficial Anthropic-compatible bridge backed by Codex CLI'
+    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve' -d 'Squid subcommand'
+    complete -c $prog -n "__pd_using_command squid" -l port -x -d 'Local bridge port'
+    complete -c $prog -n "__pd_using_command squid" -l host -x -d 'Local bind host'
+    complete -c $prog -n "__pd_using_command squid" -l cwd -x -d 'Working directory for Codex and launched client'
+    complete -c $prog -n "__pd_using_command squid" -l max-request-bytes -x -d 'Maximum JSON request body size'
+    complete -c $prog -n "__pd_using_command squid" -l token -x -d 'Local bridge token'
+    complete -c $prog -n "__pd_using_command squid" -l codex-model -x -d 'Actual Codex CLI model'
+    complete -c $prog -n "__pd_using_command squid" -l codex-model-alias -x -d 'Client-to-backend model alias'
+    complete -c $prog -n "__pd_using_command squid" -l codex-effort -x -a 'minimal low medium high' -d 'Codex reasoning effort'
+    complete -c $prog -n "__pd_using_command squid" -l codex-config -x -d 'Extra Codex -c override'
+    complete -c $prog -n "__pd_using_command squid" -l client -x -d 'Client binary to launch'
+    complete -c $prog -n "__pd_using_command squid" -l client-arg -x -d 'Client argument'
+    complete -c $prog -n "__pd_using_command squid" -l serve-only -d 'Start bridge without launching a client'
     complete -c $prog -n __pd_needs_command -a review -d 'pd review <id> --accept|--reject: operator review contract'
     complete -c $prog -n "__pd_using_command review" -l accept -d 'Accept the produced work'
     complete -c $prog -n "__pd_using_command review" -l reject -x -d 'Reject with reason'

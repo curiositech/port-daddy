@@ -2102,6 +2102,8 @@ _port_daddy() {
     # Fleet ship-run transcripts
     'transcripts:browse fleet ship-run transcripts (list/show/cost/delete)'
     'transcript:alias for transcripts — view a single ship-run record'
+    # Squid bridge
+    'squid:run an unofficial Anthropic-compatible bridge backed by Codex CLI'
     # Cloud relay — zero-trust event fabric (ADR-0049)
     'relay:cloud relay management — configure, exchange, status (ADR-0049)'
     # Harbormaster — canonical merge-owning actor body (ADR-0037)

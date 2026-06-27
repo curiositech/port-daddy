@@ -1245,6 +1245,21 @@
         "sdk": false
       }
     },
+    "squid": {
+      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards.",
+      "cli": [
+        "squid"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "squid"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "harbors": {
       "description": "Named permission namespaces for agent coordination — agents enter/leave harbors and declare capabilities",
       "cli": [
