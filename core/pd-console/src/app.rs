@@ -2570,6 +2570,7 @@ fn gate_btn(
         .text_size(px(tokens::TEXT_BODY))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
+        .child(label)
         .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
         .active(|s| s.bg(rgb(current_theme().sunken)))
         .child(label)
