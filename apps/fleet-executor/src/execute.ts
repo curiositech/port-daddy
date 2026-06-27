@@ -56,10 +56,18 @@ const CHECK_NAME = 'Port Daddy Fleet';
  * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
  */
 const PAUSE_KEY = 'fleet:paused';
+const DELIVERY_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 /** Epoch seconds — the timestamp unit used by fleet_runs / fleet_run_steps. */
 function nowSec(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+function validDeliveryId(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  if (raw.trim() !== raw) return null;
+  if (!DELIVERY_ID_RE.test(raw)) return null;
+  return raw;
 }
 
 /**
@@ -205,6 +213,11 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const trigger = triggerFor(job);
   if (!trigger) return;
   if (!job.repoFullName || !job.installationId || !job.prNumber) return;
+  const deliveryId = validDeliveryId(job.deliveryId);
+  if (!deliveryId) {
+    console.warn(`[fleet-executor] invalid deliveryId; skipping malformed fleet job`);
+    return;
+  }
 
   const [owner, repo] = job.repoFullName.split('/');
   if (!owner || !repo) return;
@@ -218,13 +231,13 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   // this leaves NO check run, so a paused fleet does not gate PRs at all —
   // pausing is an explicit operator decision to stop reviewing entirely.
   if (await isFleetPaused(env)) {
-    console.log(`[fleet-executor] delivery=${job.deliveryId} paused; skipping (no AI spend, no posts)`);
+    console.log(`[fleet-executor] delivery=${deliveryId} paused; skipping (no AI spend, no posts)`);
     return;
   }
 
   // Deterministic run id from the delivery id so a retried delivery rewrites its
   // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
-  const runId = `run:${job.deliveryId}`;
+  const runId = `run:${deliveryId}`;
   const startMs = Date.now();
   const transcript = new Transcript(env.DB, runId);
 

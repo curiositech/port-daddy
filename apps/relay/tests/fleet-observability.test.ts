@@ -247,6 +247,26 @@ describe('handleFleetRun', () => {
     const json = (await res.json()) as { code: string };
     expect(json.code).toBe('NOT_FOUND');
   });
+
+  it('rejects malformed run ids before reading D1', async () => {
+    let dbTouched = false;
+    const db = makeMockD1({
+      onFirst: () => {
+        dbTouched = true;
+        return RUN_NEW;
+      },
+      onAll: () => {
+        dbTouched = true;
+        return STEPS;
+      },
+    });
+
+    const res = await handleFleetRun(req('/v1/fleet/runs/..%2Frun-new', 'GET', OPERATOR), makeEnv({ db }), '../run-new');
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { code: string }).code).toBe('BAD_REQUEST');
+    expect(dbTouched).toBe(false);
+  });
 });
 
 // ── POST /v1/fleet/pause + GET /v1/fleet/health ──────────────────────────────

@@ -31,12 +31,18 @@ import type { Env } from './types.js';
 
 // ── Envelope helpers ──────────────────────────────────────────────────────────
 
+const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,160}$/;
+
 function envelope(status: number, body: Record<string, unknown>): Response {
   return Response.json(body, { status });
 }
 
 function fleetErr(code: string, error: string, status: number): Response {
   return envelope(status, { code, error });
+}
+
+function isSafeRunId(runId: string): boolean {
+  return runId.trim() === runId && RUN_ID_RE.test(runId) && !runId.includes('..');
 }
 
 async function readJson<T>(request: Request): Promise<T | null> {
@@ -94,7 +100,7 @@ export async function handleFleetRun(
   const denied = operatorOnly(request, env);
   if (denied) return denied;
 
-  if (!runId) {
+  if (!runId || !isSafeRunId(runId)) {
     return fleetErr('BAD_REQUEST', 'run id required', 400);
   }
 

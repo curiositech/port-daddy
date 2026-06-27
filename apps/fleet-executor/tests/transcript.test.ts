@@ -135,6 +135,42 @@ describe('kill switch (KV fleet:paused)', () => {
     expect(state.completed).toHaveLength(1);
   });
 
+  it('missing CONTROL_KV binding ⇒ NOT paused (fail-safe keeps the gate running)', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: undefined, AI: ai.ai, DB: memoryD1().db }));
+
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+  });
+
+  it('CONTROL_KV read failures and malformed objects ⇒ NOT paused', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const throwingControlKv = {
+      get: vi.fn(async () => {
+        throw new Error('kv read failed');
+      }),
+    } as unknown as KVNamespace;
+
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob(), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: throwingControlKv, AI: ai.ai, DB: memoryD1().db }));
+    expect(ai.calls.length).toBeGreaterThan(0);
+    expect(state.completed).toHaveLength(1);
+
+    const malformedKv = memoryKV();
+    await malformedKv.put('fleet:paused', JSON.stringify({ paused: 'true' }));
+    const ai2 = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    await executeFleet(makeJob({ deliveryId: 'delivery-def' }), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: malformedKv, AI: ai2.ai, DB: memoryD1().db }));
+    expect(ai2.calls.length).toBeGreaterThan(0);
+    expect(state.completed).toHaveLength(2);
+  });
+
   it('pause flipped after check creation stops before AI spend and completes neutral', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -274,6 +310,30 @@ describe('transcript is best-effort (never changes the gate)', () => {
     expect(d1.steps).toHaveLength(0);
   });
 
+  it('queue acks a completed run even when every transcript D1 write fails', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
+    d1.failAll = true;
+
+    const msg = fakeMessage(makeJob());
+    await handler.queue!(
+      fakeBatch([msg]),
+      makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }),
+      {} as ExecutionContext,
+    );
+
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+    expect(state.completed).toHaveLength(1);
+    expect(state.completed[0].conclusion).toBe('success');
+    expect(d1.runCalls).toBeGreaterThan(0);
+    expect(d1.runs).toHaveLength(0);
+    expect(d1.steps).toHaveLength(0);
+  });
+
   it('a missing DB binding ⇒ run still completes (writes are no-ops)', async () => {
     state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
     const kv = memoryKV();
@@ -285,5 +345,22 @@ describe('transcript is best-effort (never changes the gate)', () => {
 
     expect(state.completed).toHaveLength(1);
     expect(state.completed[0].conclusion).toBe('success');
+  });
+});
+
+describe('delivery id validation', () => {
+  it('skips malformed delivery ids before minting tokens or creating run ids', async () => {
+    state.files.set('main:pd-fleet.yml', REVIEWER_YAML);
+    const kv = memoryKV();
+    seedToken(kv, 42);
+    const ai = aiStub({ perShip: { 'code-reviewer': 'ok\n\nFLEET-VERDICT: PASS' } });
+    const d1 = memoryD1();
+
+    await executeFleet(makeJob({ deliveryId: '../delivery abc' }), makeEnv({ FLEET_TOKENS: kv, CONTROL_KV: kv, AI: ai.ai, DB: d1.db }));
+
+    expect(ai.calls).toHaveLength(0);
+    expect(state.records).toHaveLength(0);
+    expect(state.completed).toHaveLength(0);
+    expect(d1.runCalls).toBe(0);
   });
 });
