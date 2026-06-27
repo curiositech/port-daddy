@@ -102,6 +102,8 @@ impl Pane for DaemonPane {
 
 #[cfg(test)]
 mod tests {
+    use crate::berths::STABLE_PORT;
+
     use super::*;
 
     fn pane_with(berths: Vec<Berth>, active_url: &str) -> DaemonPane {
