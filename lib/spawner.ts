@@ -42,6 +42,7 @@ import { coastGuardStatus } from './coast-guard.js';
 import { priceBond, classifyScope, scopeTierWritePolicy, pricedBondLogLines } from './bond-pricing.js';
 import { getDaemonTcpUrl } from '../shared/daemon-discovery.js';
 import { deriveAgentDisplayName } from './agent-names.js';
+import { detectForcedCliBackend } from './backend-catalog.js';
 
 // ─── Load .env.local for spawned agents ─────────────────────────────────────
 // The daemon runs via launchd which has no shell env. Spawned agents need
@@ -1015,28 +1016,19 @@ function runCustom(spec: SpawnSpec, context?: BackendRunContext): Promise<Backen
 }
 
 /**
- * `PD_USE_CLI_BACKEND` override. Accepted values: `claude-code` (or
- * `claude`), `codex`, `gemini`, `groq`, `grok`. When set, every spawn —
- * regardless of `spec.backend` — routes through the matching
- * `cli:<tool>` backend. Empty / unset / unrecognized values disable the
- * override (fail-closed: the original backend stays in place).
+ * CLI backend override. `PD_USE_CLI_BACKEND` wins, then the persisted
+ * FleetBar/CLI selection in ~/.port-daddy-cli-backend. Accepted values:
+ * `claude-code` (or `claude`), `codex`, `gemini`, `groq`, `grok`.
+ * When set, every spawn — regardless of `spec.backend` — routes through the
+ * matching `cli:<tool>` backend. Empty / unset / unrecognized values disable
+ * the override (fail-closed: the original backend stays in place).
  *
  * This is the operator-level "I already pay for a CLI subscription, use
  * my unmetered CLI for everything" knob. Documented in
  * `docs/fleet/backend-costs.md`.
  */
 function resolveCliBackendOverride(): SpawnSpec['backend'] | null {
-  const raw = (process.env.PD_USE_CLI_BACKEND || '').trim().toLowerCase();
-  if (!raw) return null;
-  if (raw === 'claude-code' || raw === 'claude') return 'cli:claude-code';
-  if (raw === 'codex') return 'cli:codex';
-  if (raw === 'gemini') return 'cli:gemini';
-  if (raw === 'groq') return 'cli:groq';
-  if (raw === 'grok') return 'cli:grok';
-  // Unrecognized value — fail-closed: leave the original backend in
-  // place rather than silently routing nowhere. The spawner's outer
-  // error surface will report unknown backends if the value is bad.
-  return null;
+  return detectForcedCliBackend() as SpawnSpec['backend'] | null;
 }
 
 /** Rough token estimate (~4 chars/token) — the labelled best-guess fallback. */

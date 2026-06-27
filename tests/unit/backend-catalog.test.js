@@ -1,8 +1,12 @@
 import { describe, test, expect } from '@jest/globals';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   BACKEND_CATALOG,
   KNOWN_BACKEND_IDS,
   detectForcedCliBackend,
+  detectForcedCliBackendValue,
   getBackendCatalogEntry,
   recommendedBackendIds,
 } from '../../lib/backend-catalog.js';
@@ -54,6 +58,31 @@ describe('backend-catalog', () => {
     expect(detectForcedCliBackend({})).toBeNull();
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: '' })).toBeNull();
     expect(detectForcedCliBackend({ PD_USE_CLI_BACKEND: 'bogus' })).toBeNull();
+  });
+
+  test('detectForcedCliBackend honors persisted selection when using process env', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+      expect(detectForcedCliBackend(process.env, { persistedPath: path })).toBe('cli:codex');
+      expect(detectForcedCliBackendValue(process.env, { persistedPath: path })).toBe('codex');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('env selection wins over persisted selection', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-backend-catalog-'));
+    const path = join(dir, 'selection');
+    try {
+      writeFileSync(path, 'codex\n');
+      const env = { PD_USE_CLI_BACKEND: 'claude-code' };
+      expect(detectForcedCliBackend(env, { persistedPath: path })).toBe('cli:claude-code');
+      expect(detectForcedCliBackendValue(env, { persistedPath: path })).toBe('claude-code');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test('recommendedBackendIds surfaces subscription + local options', () => {
