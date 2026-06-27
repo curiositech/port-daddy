@@ -377,6 +377,17 @@ fn tone_wash(color: u32, alpha: u8) -> Rgba {
     rgba((color << 8) | alpha as u32)
 }
 
+/// Pick a high-contrast ink (near-black or near-white) for a label sitting ON a
+/// solid `color` chip — a Rec.601 luma threshold so a badge stays ≥4.5:1 legible
+/// regardless of the tone's hue or the active light/dark theme.
+fn knockout_ink(color: u32) -> u32 {
+    let r = ((color >> 16) & 0xff) as f32;
+    let g = ((color >> 8) & 0xff) as f32;
+    let b = (color & 0xff) as f32;
+    let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if luma > 140.0 { 0x10_10_14 } else { 0xf5_f5_f7 }
+}
+
 /// One entry in the launcher's colour legend: a filled dot + a category label,
 /// so the hue-coding is self-explaining rather than something to memorise.
 fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
@@ -2426,16 +2437,20 @@ fn console_button(
         row = row.bg(tone_wash(color, 0x22));
     }
     if let Some((glyph, badge)) = opts.leading {
+        // Solid tone chip + luminance-picked knockout letter — high contrast and
+        // crisp (matches the maritime flag badges), never a same-hue-on-same-hue
+        // wash. Flex-shrink-0 so a long label can't squeeze the badge.
         row = row.child(
             div()
+                .flex_shrink_0()
                 .w(px(22.0))
                 .h(px(18.0))
                 .flex()
                 .items_center()
                 .justify_center()
                 .rounded(px(tokens::RADIUS_SM))
-                .bg(tone_wash(badge, 0x44))
-                .text_color(rgb(badge))
+                .bg(rgb(badge))
+                .text_color(rgb(knockout_ink(badge)))
                 .text_size(px(tokens::TEXT_EYEBROW))
                 .font_weight(FontWeight::BOLD)
                 .child(glyph.to_string()),
