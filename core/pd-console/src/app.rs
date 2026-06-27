@@ -1123,6 +1123,53 @@ impl ConsoleView {
         blocks
     }
 
+    /// The Daemons surface as interactive [`console_button`]s (one per berth) —
+    /// the clickable form of the picker. The active berth (its url == the live
+    /// `daemon_url`) renders selected (washed + breathing halo); clicking any row
+    /// fires `ControlMsg::RebindDaemon`, the same path the `u` command uses, so
+    /// the producer swaps the client and every pane re-fetches from it.
+    fn daemon_button_rows(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let active = self.daemon_url.trim_end_matches('/').to_string();
+        let t = current_theme();
+        let mut rows: Vec<AnyElement> = Vec::new();
+        for berth in crate::berths::discover() {
+            let color = daemon_tone_color(&berth.tier, &t);
+            let glyph = berth.tier.chars().next().unwrap_or('?').to_ascii_uppercase();
+            let url = berth.url();
+            let selected = url == active;
+            let summary = berth.display();
+            rows.push(console_button(
+                format!("daemon-{}", berth.port),
+                berth.label.clone(),
+                color,
+                ButtonOpts {
+                    leading: Some((glyph, color)),
+                    trailing: Some(format!(":{}", berth.port)),
+                    selected,
+                    full_width: true,
+                },
+                cx,
+                move |this, _cx| {
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
+                    }
+                    this.control_flash = Some(format!("\u{2192} daemon {summary}"));
+                    this.daemon_url = url.clone();
+                },
+            ));
+        }
+        rows.push(
+            div()
+                .px(px(tokens::SPACE_3))
+                .pt(px(tokens::SPACE_2))
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child("click a daemon to switch — or press u")
+                .into_any_element(),
+        );
+        rows
+    }
+
     /// Handle one multiplexer command after the leader key. Disarming is done
     /// by the caller.
     fn leader_command(&mut self, key: &str, ctrl: bool, cx: &mut Context<Self>) {
@@ -1897,6 +1944,10 @@ impl ConsoleView {
         let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
+        // The Daemons surface renders interactive picker buttons instead of plain
+        // text blocks (built here so the on_click listeners can borrow cx).
+        let is_daemons = nav_id_for_surface(surface) == Some("daemons");
+        let daemon_rows = if is_daemons { self.daemon_button_rows(cx) } else { Vec::new() };
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
         // The Conjure surface (focused) gets the "Render graph" action bar — the
@@ -2027,6 +2078,9 @@ impl ConsoleView {
                     }))
                     .flex()
                     .flex_col()
+                    .gap(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
+                    .px(px(if is_daemons { tokens::SPACE_3 } else { 0.0 }))
+                    .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
                     .when(is_conjure, |body| {
                         // The LIVE native canvas is the default view (animated,
                         // interactive); the Vello PNG is an optional poster below,
@@ -2060,6 +2114,7 @@ impl ConsoleView {
                         }
                         b
                     }
+                    None if is_daemons => body.children(daemon_rows),
                     // Every other surface: the generic read-agnostic Block renderer.
                     None => body.children(blocks.into_iter().map(move |b| render_block(b, motion))),
                 }
@@ -2319,6 +2374,136 @@ impl ConsoleView {
 /// differ only in the click handler they pass. (Per-button keyboard
 /// focus-visible is a GPUI focus-group follow-up; the actions stay reachable via
 /// the focused pane.)
+/// Options for [`console_button`] — the reusable interactive-control primitive.
+/// Everything optional defaults off, so a bare button is `ButtonOpts::default()`.
+#[derive(Default)]
+struct ButtonOpts {
+    /// Leading badge: one glyph (e.g. a tier initial) on a tone-washed chip.
+    leading: Option<(char, u32)>,
+    /// Dimmed trailing text pushed to the right edge (a port, a shortcut hint).
+    trailing: Option<String>,
+    /// Selected/active: a solid tone wash + a gated breathing halo (static under
+    /// reduced motion).
+    selected: bool,
+    /// Stretch to fill the row (a list item) instead of hugging its content.
+    full_width: bool,
+}
+
+/// The console's one clickable-control primitive — reuse it for every operator
+/// button (daemon rows, future toolbar actions, gates) instead of hand-rolling a
+/// `div`. Motion is composed the gpui way, **no transforms**: hover lifts via a
+/// soft `glow` (free GPU-side `.hover` lane, no notify), press sinks via the
+/// `sunken` bg + a 1px `hard_offset`, and a `selected` button breathes a halo
+/// through a single `with_animation` owner (reduced-motion resolves it to a
+/// static glow — orientation kept, travel dropped). Colours read from theme
+/// roles so it survives the `Ctrl-A g` light⇄dark flip.
+fn console_button(
+    id: impl Into<SharedString>,
+    label: impl Into<String>,
+    color: u32,
+    opts: ButtonOpts,
+    cx: &mut Context<ConsoleView>,
+    on_click: impl Fn(&mut ConsoleView, &mut Context<ConsoleView>) + 'static,
+) -> AnyElement {
+    let id: SharedString = id.into();
+    let t = current_theme();
+
+    let mut row = div()
+        .id(id.clone())
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(if opts.selected { color } else { t.line }))
+        .cursor_pointer();
+    if opts.full_width {
+        row = row.w_full();
+    }
+    if opts.selected {
+        row = row.bg(tone_wash(color, 0x22));
+    }
+    if let Some((glyph, badge)) = opts.leading {
+        row = row.child(
+            div()
+                .w(px(22.0))
+                .h(px(18.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(tokens::RADIUS_SM))
+                .bg(tone_wash(badge, 0x44))
+                .text_color(rgb(badge))
+                .text_size(px(tokens::TEXT_EYEBROW))
+                .font_weight(FontWeight::BOLD)
+                .child(glyph.to_string()),
+        );
+    }
+    row = row.child(
+        div()
+            .text_color(rgb(color))
+            .text_size(px(tokens::TEXT_BODY))
+            .font_weight(FontWeight::SEMIBOLD)
+            .child(label.into()),
+    );
+    if let Some(trailing) = opts.trailing {
+        row = row.child(div().flex_1()).child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child(trailing),
+        );
+    }
+
+    // Cheap GPU-side interaction lane — restyles without a notify or re-render.
+    row = row
+        .hover(move |s| {
+            s.bg(rgb(current_theme().raised))
+                .border_color(rgb(color))
+                .shadow(motion::glow(color, 0.22, 10.0, 0.0))
+        })
+        .active(move |s| {
+            s.bg(rgb(current_theme().sunken))
+                .shadow(motion::hard_offset(color, 0.0, 1.0))
+        })
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            on_click(this, cx);
+            cx.notify();
+        }));
+
+    // Selected → a breathing halo. One animation owner, id keyed per-button so
+    // siblings don't share a clock; reduced motion drops to a static glow.
+    if opts.selected && !reduced_motion() {
+        row.with_animation(
+            SharedString::from(format!("btn-pulse-{id}")),
+            Animation::new(Duration::from_millis(2000))
+                .repeat()
+                .with_easing(pulsating_between(0.5, 1.0)),
+            move |el, delta| {
+                el.shadow(motion::glow(color, 0.10 + delta * 0.28, 6.0 + delta * 8.0, 0.0))
+            },
+        )
+        .into_any_element()
+    } else if opts.selected {
+        row.shadow(motion::glow(color, 0.30, 10.0, 0.0)).into_any_element()
+    } else {
+        row.into_any_element()
+    }
+}
+
+/// Tier → theme colour for a daemon berth (meaning, resolved to a theme role so
+/// the light⇄dark flip re-skins it): stable = mint "landed", dev-latest = cobalt,
+/// a named codebase berth = amber "engaged".
+fn daemon_tone_color(tier: &str, t: &Theme) -> u32 {
+    match tier {
+        "stable" => t.landed,
+        "dev-latest" => t.cobalt,
+        _ => t.engaged,
+    }
+}
+
 fn gate_btn(
     id: impl Into<SharedString>,
     label: &'static str,
