@@ -357,8 +357,8 @@ Bridge options:
   --serve-only                With bridge, do not launch a client
 
 Examples:
-  pd squid codex -- claude --model claude-sonnet-4-5
-  pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5
+  pd squid codex -- claude --model client-model
+  pd squid pro --codex-effort high -- claude --model client-model
   pd squid bridge --codex-model-alias client-model=backend-model --codex-effort high -- your-client --model client-model
   pd squid bridge --client claude --client-arg=-p --client-arg="Say hi"
   pd squid serve --port 8765
