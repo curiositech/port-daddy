@@ -144,7 +144,13 @@ describe('installPilotAgents', () => {
     const base = makeTmp();
     installPilotAgents({ sourceDir: src, baseDir: base });
     const second = installPilotAgents({ sourceDir: src, baseDir: base });
-    expect(second.written.every((w) => !w.changed)).toBe(true);
+    expect(second.written.map((w) => [w.runtime, w.changed])).toEqual([
+      ['Claude Code', false],
+      ['Codex CLI', false],
+      ['Gemini CLI', false],
+      ['Gemini extension (Antigravity)', false],
+      ['Generic agents', false],
+    ]);
   });
 
   test('refuses to clobber a foreign file at the target path', () => {
@@ -154,7 +160,11 @@ describe('installPilotAgents', () => {
     mkdirSync(join(base, '.claude', 'agents'), { recursive: true });
     writeFileSync(claudePath, 'hand-written file with no pilot id');
     const result = installPilotAgents({ sourceDir: src, baseDir: base });
-    expect(result.errors.some((e) => e.path === claudePath)).toBe(true);
+    expect(result.errors).toContainEqual({
+      runtime: 'Claude Code',
+      path: claudePath,
+      error: 'exists and is not a Port Daddy Pilot file — skipping',
+    });
     expect(readFileSync(claudePath, 'utf8')).toBe('hand-written file with no pilot id');
   });
 });
@@ -172,7 +182,7 @@ describe('installPilotSessionStartHook', () => {
     const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
     const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
     expect(commands).toContain('pd attention --json'); // preserved
-    expect(commands.some((c: string) => c.includes('sessionstart-pilot.mjs'))).toBe(true);
+    expect(commands.filter((c: string) => c.includes('sessionstart-pilot.mjs'))).toHaveLength(1);
   });
 
   test('is idempotent', () => {
