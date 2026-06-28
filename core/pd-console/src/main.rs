@@ -497,16 +497,32 @@ fn main() {
                                                 }
                                             }
                                             Err(e) => {
-                                                // No responder bound, but don't drop the
-                                                // turn: round-trip it onto the real channel
-                                                // and poll for any traffic going forward.
-                                                let _ = client
+                                                // No responder bound. Still try to round-trip
+                                                // the turn onto the real channel so it isn't
+                                                // lost — but surface WHICHEVER failure happened
+                                                // (never swallow the send: "stop swallowing
+                                                // errors").
+                                                match client
                                                     .tube_send(&channel, &text, "operator")
-                                                    .await;
-                                                chat = Some((channel, 0));
-                                                let _ = chat_tx.send(chat::ChatUpdate::Error(
-                                                    format!("no responder bound (spawn refused): {e}"),
-                                                ));
+                                                    .await
+                                                {
+                                                    Ok(_) => {
+                                                        // Message is on the channel; poll for a
+                                                        // responder that may join later.
+                                                        chat = Some((channel, 0));
+                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                            format!("no responder bound (spawn refused): {e} — your message is on the channel; replies appear if one joins"),
+                                                        ));
+                                                    }
+                                                    Err(send_err) => {
+                                                        // Daemon fully unreachable: be honest the
+                                                        // message did NOT land; leave chat unbound
+                                                        // so the next turn retries the spawn.
+                                                        let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                            format!("message not delivered — spawn refused ({e}) and channel send failed ({send_err}); is the daemon up?"),
+                                                        ));
+                                                    }
+                                                }
                                             }
                                         }
                                     }
