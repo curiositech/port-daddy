@@ -14,7 +14,15 @@
       "type": "object",
       "properties": {
         "claude_local": { "type": "string" },
-        "claude_cloud": {},
+        "claude_cloud": {
+          "type": "object",
+          "required": ["id"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "speed": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
         "codex": { "type": "string" },
         "gemini": { "type": "string" },
         "antigravity": { "type": "string" }

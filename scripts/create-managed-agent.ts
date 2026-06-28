@@ -144,6 +144,27 @@ function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex').slice(0, 16);
 }
 
+export function stableJsonStringify(value: unknown): string {
+  return JSON.stringify(sortJsonValue(value));
+}
+
+function sortJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((v) => v === undefined ? null : sortJsonValue(v));
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+      const child = (value as Record<string, unknown>)[key];
+      if (child !== undefined) out[key] = sortJsonValue(child);
+    }
+    return out;
+  }
+  return value;
+}
+
+export function sourceShaForPayload(payload: unknown): string {
+  return sha256(stableJsonStringify(payload));
+}
+
 async function main(): Promise<void> {
   const dryRun = process.argv.includes('--dry-run');
   const repoRoot = findRepoRoot();
@@ -153,7 +174,7 @@ async function main(): Promise<void> {
   // Hash the whole payload (not just the system prompt) so a change to any
   // field — model, tools, description — is detected, and an unchanged re-run is
   // a true no-op instead of churning a new agent version every time.
-  const sourceSha = sha256(JSON.stringify(payload));
+  const sourceSha = sourceShaForPayload(payload);
   const mPath = manifestPath(repoRoot);
   const manifest = loadManifest(mPath);
   const existing = manifest.agents[config.id];
@@ -233,7 +254,9 @@ async function main(): Promise<void> {
   console.log(`Manifest: ${mPath}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -14,6 +14,7 @@ import {
   type PilotConfig,
 } from '../../lib/pilot-agent-render.ts';
 import { installPilotSessionStartHook } from '../../lib/pilot-sessionstart-hook.ts';
+import { sourceShaForPayload, stableJsonStringify } from '../../scripts/create-managed-agent.ts';
 
 const SAMPLE_CONFIG: PilotConfig = {
   id: 'port-daddy-pilot',
@@ -57,8 +58,7 @@ afterEach(() => {
 describe('extractSystemPrompt', () => {
   test('extracts the text between line-delimited markers', () => {
     const out = extractSystemPrompt(SAMPLE_AGENT_MD);
-    expect(out.startsWith('You are **Port Daddy Pilot**')).toBe(true);
-    expect(out.endsWith('Leave durable notes.')).toBe(true);
+    expect(out).toBe('You are **Port Daddy Pilot**. Coordinate before you cut.\nLeave durable notes.');
   });
 
   test('ignores an inline mention of the marker in the header', () => {
@@ -132,9 +132,15 @@ describe('installPilotAgents', () => {
     const result = installPilotAgents({ sourceDir: src, baseDir: base });
     expect(result.errors).toEqual([]);
     expect(result.written).toHaveLength(5);
-    for (const target of pilotRenderTargets(base, SAMPLE_CONFIG, 'x')) {
-      expect(existsSync(target.path)).toBe(true);
-    }
+    expect(result.written.map((w) => w.runtime)).toEqual([
+      'Claude Code',
+      'Codex CLI',
+      'Gemini CLI',
+      'Gemini extension (Antigravity)',
+      'Generic agents',
+    ]);
+    expect(pilotRenderTargets(base, SAMPLE_CONFIG, 'x').map((target) => target.path).filter(existsSync))
+      .toHaveLength(5);
     expect(readFileSync(join(base, '.claude', 'agents', 'port-daddy-pilot.md'), 'utf8'))
       .toContain('You are **Port Daddy Pilot**');
   });
@@ -167,6 +173,40 @@ describe('installPilotAgents', () => {
     });
     expect(readFileSync(claudePath, 'utf8')).toBe('hand-written file with no pilot id');
   });
+
+  test('reports a missing source directory as an install error', () => {
+    const result = installPilotAgents({ sourceDir: join(makeTmp(), 'missing'), baseDir: makeTmp() });
+    expect(result.written).toEqual([]);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ runtime: 'source', error: expect.stringContaining('agent.config.json') }),
+    ]);
+  });
+
+  test('removes stale generated copies without deleting foreign files', () => {
+    const src = seedSource();
+    const base = makeTmp();
+    const staleGenerated = join(base, '.codex', 'agents', 'port-daddy-pilot.md');
+    const staleForeign = join(base, '.agents', 'port-daddy-pilot.md');
+    mkdirSync(join(base, '.codex', 'agents'), { recursive: true });
+    mkdirSync(join(base, '.agents'), { recursive: true });
+    writeFileSync(staleGenerated, 'old generated port-daddy-pilot markdown');
+    writeFileSync(staleForeign, 'hand-written universal agent');
+
+    const result = installPilotAgents({ sourceDir: src, baseDir: base });
+
+    expect(result.cleaned).toContainEqual({
+      runtime: 'Codex CLI',
+      path: staleGenerated,
+      changed: true,
+    });
+    expect(result.cleaned).toContainEqual({
+      runtime: 'Generic agents',
+      path: staleForeign,
+      changed: false,
+    });
+    expect(existsSync(staleGenerated)).toBe(false);
+    expect(readFileSync(staleForeign, 'utf8')).toBe('hand-written universal agent');
+  });
 });
 
 describe('installPilotSessionStartHook', () => {
@@ -178,7 +218,7 @@ describe('installPilotSessionStartHook', () => {
       JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'pd attention --json' }] }] } }),
     );
     const r = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
-    expect(r.changed).toBe(true);
+    expect(r).toEqual(expect.objectContaining({ changed: true, reason: 'registered new hook' }));
     const settings = JSON.parse(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8'));
     const commands = settings.hooks.SessionStart.flatMap((g: any) => g.hooks.map((h: any) => h.command));
     expect(commands).toContain('pd attention --json'); // preserved
@@ -190,6 +230,30 @@ describe('installPilotSessionStartHook', () => {
     installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
     const second = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
     expect(second.changed).toBe(false);
+  });
+
+  test('reports invalid Claude settings without overwriting them', () => {
+    const projectDir = makeTmp();
+    mkdirSync(join(projectDir, '.claude'), { recursive: true });
+    writeFileSync(join(projectDir, '.claude', 'settings.json'), '{not json');
+
+    const result = installPilotSessionStartHook({ projectDir, projectRoot: process.cwd() });
+
+    expect(result).toEqual(expect.objectContaining({
+      changed: false,
+      reason: 'existing settings.json is not valid JSON — skipping',
+    }));
+    expect(readFileSync(join(projectDir, '.claude', 'settings.json'), 'utf8')).toBe('{not json');
+  });
+});
+
+describe('managed-agent payload hashing', () => {
+  test('uses deterministic object key ordering for the source hash', () => {
+    const a = { name: 'Pilot', tools: [{ z: 1, a: 2 }], model: { id: 'opus', speed: 'standard' } };
+    const b = { model: { speed: 'standard', id: 'opus' }, tools: [{ a: 2, z: 1 }], name: 'Pilot' };
+
+    expect(stableJsonStringify(a)).toBe(stableJsonStringify(b));
+    expect(sourceShaForPayload(a)).toBe(sourceShaForPayload(b));
   });
 });
 

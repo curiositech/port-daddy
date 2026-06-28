@@ -184,16 +184,19 @@ export function pilotRenderTargets(
       runtime: 'Claude Code',
       path: join(baseDir, '.claude', 'agents', `${config.id}.md`),
       content: renderClaude(config, system),
+      cleanup: [join(baseDir, '.claude', 'agents', `${config.id}.toml`)],
     },
     {
       runtime: 'Codex CLI',
       path: join(baseDir, '.codex', 'agents', `${config.id}.toml`),
       content: renderCodexToml(config, system),
+      cleanup: [join(baseDir, '.codex', 'agents', `${config.id}.md`)],
     },
     {
       runtime: 'Gemini CLI',
       path: join(baseDir, '.gemini', 'commands', 'pd-pilot.toml'),
       content: renderGeminiCommandToml(config, system),
+      cleanup: [join(baseDir, '.gemini', 'commands', `${config.id}.toml`)],
     },
     {
       // Inside the Port Daddy Gemini extension so Antigravity (`agy plugin
@@ -201,17 +204,20 @@ export function pilotRenderTargets(
       runtime: 'Gemini extension (Antigravity)',
       path: join(baseDir, '.gemini', 'extensions', 'port-daddy', 'commands', 'pd-pilot.toml'),
       content: renderGeminiCommandToml(config, system),
+      cleanup: [join(baseDir, '.gemini', 'extensions', 'port-daddy', `${config.id}.toml`)],
     },
     {
       runtime: 'Generic agents',
       path: join(baseDir, '.agents', 'agents', `${config.id}.md`),
       content: renderUniversalMarkdown(config, system),
+      cleanup: [join(baseDir, '.agents', `${config.id}.md`)],
     },
   ];
 }
 
 export interface PilotInstallResult {
   written: Array<{ runtime: string; path: string; changed: boolean }>;
+  cleaned: Array<{ runtime: string; path: string; changed: boolean }>;
   errors: Array<{ runtime: string; path: string; error: string }>;
   sourceDir: string;
 }
@@ -238,11 +244,26 @@ export function installPilotAgents(options: {
   dryRun?: boolean;
 }): PilotInstallResult {
   const baseDir = options.baseDir ?? homedir();
-  const { config, system } = loadPilotSource(options.sourceDir);
-  const result: PilotInstallResult = { written: [], errors: [], sourceDir: options.sourceDir };
+  const result: PilotInstallResult = { written: [], cleaned: [], errors: [], sourceDir: options.sourceDir };
+  let config: PilotConfig;
+  let system: string;
+  try {
+    ({ config, system } = loadPilotSource(options.sourceDir));
+  } catch (err) {
+    result.errors.push({ runtime: 'source', path: options.sourceDir, error: (err as Error).message });
+    return result;
+  }
 
   for (const target of pilotRenderTargets(baseDir, config, system)) {
     try {
+      for (const stalePath of target.cleanup ?? []) {
+        result.cleaned.push({
+          runtime: target.runtime,
+          path: stalePath,
+          changed: removeGeneratedPilotFile(stalePath, config.id, !!options.dryRun),
+        });
+      }
+
       const dir = dirname(target.path);
       if (!options.dryRun && !existsSync(dir)) mkdirSync(dir, { recursive: true });
 
@@ -277,6 +298,20 @@ export function installPilotAgents(options: {
   }
 
   return result;
+}
+
+function removeGeneratedPilotFile(path: string, id: string, dryRun: boolean): boolean {
+  if (!existsSync(path)) return false;
+  try {
+    const stat = lstatSync(path);
+    if (!stat.isFile() && !stat.isSymbolicLink()) return false;
+    const existing = readFileSync(path, 'utf8');
+    if (!existing.includes(id)) return false;
+    if (!dryRun) rmSync(path, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Remove every rendered Pilot definition (used by tests / uninstall). */
