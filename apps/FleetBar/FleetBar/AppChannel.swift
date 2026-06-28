@@ -40,6 +40,26 @@ enum AppChannel: Equatable {
         }
     }
 
+    /// True for the shared dev-latest build (label "dev-latest" / "devlatest"),
+    /// regardless of punctuation. Used to default its daemon to the :9886 lane.
+    var isDevLatest: Bool {
+        guard case .dev(let label) = self else { return false }
+        return label.lowercased().replacingOccurrences(of: "-", with: "").contains("devlatest")
+    }
+
+    /// A per-channel accent colour (hex) so a dev FleetBar is unmistakably a
+    /// different colour in the menu bar — it matches the ADR-0084 berth palette
+    /// (dev-latest blue, other dev purple). `nil` for production, which keeps the
+    /// neutral daemon-state colour so the shipped app stays unbadged and calm.
+    /// Returned as a hex string (Foundation-only) so this stays unit-testable;
+    /// the view converts it via `Fleet.Color.hex`.
+    var accentColorHex: String? {
+        switch self {
+        case .production: return nil
+        case .dev: return isDevLatest ? "#3B82F6" : "#A855F7"
+        }
+    }
+
     /// Classify a build from its bundle metadata.
     ///
     /// - A bundle id equal to ``productionBundleID`` is the shipped app.

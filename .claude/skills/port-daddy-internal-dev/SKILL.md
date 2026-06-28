@@ -173,12 +173,14 @@ Contributor gotchas specific to these:
   (e.g. generic-typed Fastify handlers the route-parser cannot extract) — keep
   those notes accurate when you add or remove a route.
 
-### Rust surfaces — three crates, no single kernel (be honest)
+### Rust surfaces — four crates, no single kernel (be honest)
 
-`core/` holds three separate crates on `main`: `core/pd-tui` (ratatui),
-`core/pd-bosun`, and `core/harbor-card-rs`. There is **no single landed
-"rust kernel."** `core/pd-console` (the GPUI conversation-multiplexer) is
-**unlanded** — PRs #306/#318. A sibling WIP build `~/coding/port-daddy-kernel-rs`
+`core/` holds four separate crates on `main`: `core/pd-tui` (ratatui),
+`core/pd-bosun`, `core/harbor-card-rs`, and `core/pd-console` (the landed GPUI
+conversation-multiplexer). There is **no single landed "rust kernel."**
+`core/pd-console` is not the sibling kernel-rs runtime and is no longer only an
+old planning surface; keep prod/latest/dev pd-console lanes distinct when
+building or reviewing it. A sibling WIP build `~/coding/port-daddy-kernel-rs`
 maps the product spine (pd-anchor / pd-mesh / pd-eventlog / pd-runtime /
 pd-core) but is not this repo. **Do not scaffold a fourth Rust shell** without
 reconciling against `AGENTS.md` § *Architecture truths*. A release-cadence +

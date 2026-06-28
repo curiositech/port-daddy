@@ -13,7 +13,9 @@ mod adrs_pane;
 mod agent;
 mod app;
 mod audio;
+mod berths;
 mod buffer;
+mod daemon_pane;
 mod claims_pane;
 mod cockpit_pane;
 mod conjure;
@@ -62,6 +64,7 @@ use lineage_pane::LineagePane;
 use substrate_pane::SubstratePane;
 use parley_pane::ParleyPane;
 use conductor_pane::ConductorPane;
+use daemon_pane::DaemonPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
 use peek_pane::PeekPane;
@@ -273,7 +276,10 @@ fn main() {
                 .build()
                 .expect("tokio rt");
             rt.block_on(async move {
-                let client = DaemonClient::new(url);
+                // Mutable so the operator can switch which daemon the whole console
+                // talks to at runtime (ControlMsg::RebindDaemon, ADR-0084). Swapping
+                // it re-points every pane's next refresh; no restart.
+                let mut client = DaemonClient::new(url);
 
                 // All 16 panes — one per NAV slot.
                 // Slot 2 "Sorties" is the SortiePane multiplexer (all sorties bucketed
@@ -302,6 +308,7 @@ fn main() {
                 let mut substrate  = SubstratePane::new();     // 19 — RCP-7a/12 pheromone substrate
                 let mut parley     = ParleyPane::new();        // 20 — RCP-2a convene decision
                 let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
+                let mut daemons    = DaemonPane::new();         // 22 — daemon picker (ADR-0084)
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -314,7 +321,7 @@ fn main() {
                         roadmap.id(), adrs.id(), activity.id(), sessions.id(), inbox.id(),
                         suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
-                        parley.id(), conductor.id(),
+                        parley.id(), conductor.id(), daemons.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -590,6 +597,14 @@ fn main() {
                                     }
                                 }
                             }
+                            // Switch the whole console to another daemon berth: swap
+                            // the client so every pane's next refresh hits the new
+                            // daemon. The DaemonPane re-marks the active one because
+                            // it reads `client.base()` on refresh.
+                            app::ControlMsg::RebindDaemon { url } => {
+                                client = DaemonClient::new(url);
+                                lane_stream = None; // drop the old daemon's SSE stream
+                            }
                         }
                     }
 
@@ -616,6 +631,7 @@ fn main() {
                     let _ = substrate.refresh(&client).await;
                     let _ = parley.refresh(&client).await;
                     let _ = conductor.refresh(&client).await;
+                    let _ = daemons.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -662,6 +678,7 @@ fn main() {
                         (19, substrate.view()),
                         (20, parley.view()),
                         (21, conductor.view()),
+                        (22, daemons.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {

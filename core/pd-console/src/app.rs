@@ -78,6 +78,9 @@ pub enum ControlMsg {
     /// `gated` is how many nodes were held back behind the HITL gate, reported so
     /// the operator knows the dispatch was partial by design.
     ConjureDispatch { requests: Vec<ConjureDispatchRequest>, gated: usize },
+    /// Switch the whole console to another daemon berth (ADR-0084). The producer
+    /// swaps its `DaemonClient` so every pane's next refresh hits the new daemon.
+    RebindDaemon { url: String },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -143,6 +146,10 @@ pub enum CmdKind {
     /// prompt-seeded fixture), stores it in `ConsoleView::conjure_dag`, and swaps
     /// the focused pane to the Conjure surface. Handled locally (no daemon round-trip).
     Conjure,
+    /// Switch the console to another daemon berth (ADR-0084). Buffer is a berth
+    /// name, `:port`, or a tier alias ("stable"/"dev-latest"); resolved against
+    /// `~/.port-daddy/dev-daemons.json`. See the Daemons pane for the names.
+    UseDaemon,
 }
 
 impl CmdKind {
@@ -153,6 +160,7 @@ impl CmdKind {
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
             CmdKind::Conjure => "conjure",
+            CmdKind::UseDaemon => "use daemon",
         }
     }
 
@@ -172,8 +180,12 @@ impl CmdKind {
             }
             CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…".to_string(),
             CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.".to_string(),
-            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files…".to_string(),
+            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files · alerts · conjure…".to_string(),
             CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents".to_string(),
+            CmdKind::UseDaemon => format!(
+                "prod · latest · dev-latest · :{} · berth name…",
+                crate::berths::STABLE_PORT
+            ),
         }
     }
 }
@@ -211,9 +223,51 @@ fn build_stamp() -> String {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct LauncherItem {
+    id: &'static str,
+    label: &'static str,
+    icon: &'static str,
+    key: &'static str,
+}
+
+const EXTRA_LAUNCHER_ITEMS: &[LauncherItem] = &[
+    LauncherItem { id: "chat", label: "Chat", icon: "icons/nav/cockpit.svg", key: "c" },
+    LauncherItem { id: "files", label: "Files", icon: "icons/nav/claims.svg", key: "y" },
+    LauncherItem { id: "alerts", label: "Alerts", icon: "icons/nav/health.svg", key: "a" },
+    LauncherItem { id: "conjure", label: "Conjure", icon: "icons/nav/roadmap.svg", key: "v" },
+];
+
+fn launcher_items() -> Vec<LauncherItem> {
+    NAV.iter()
+        .map(|nav| LauncherItem { id: nav.id, label: nav.label, icon: nav.icon, key: nav.key })
+        .chain(EXTRA_LAUNCHER_ITEMS.iter().copied())
+        .collect()
+}
+
+fn surface_for_launcher_id(id: &str) -> SurfaceKind {
+    match id {
+        "chat" => SurfaceKind::CartographerChat,
+        "files" => SurfaceKind::FileTree { root: None },
+        "alerts" => SurfaceKind::Hitl,
+        "conjure" => SurfaceKind::Conjure,
+        nav => surface_for_nav_id(nav),
+    }
+}
+
+fn launcher_id_for_surface(surface: &SurfaceKind) -> Option<String> {
+    match surface {
+        SurfaceKind::CartographerChat => Some("chat".to_string()),
+        SurfaceKind::FileTree { .. } => Some("files".to_string()),
+        SurfaceKind::Hitl => Some("alerts".to_string()),
+        SurfaceKind::Conjure => Some("conjure".to_string()),
+        _ => nav_id_for_surface(surface).map(str::to_string),
+    }
+}
+
 /// Resolve a typed surface name to a `SurfaceKind` for the add-pane picker.
-/// Matches a NAV label/id/key by case-insensitive prefix, plus the two
-/// non-nav surfaces ("chat" → cartographer, "files"/"tree" → file tree).
+/// Matches every launcher tile by label/id/key, plus older aliases operators
+/// have already learned.
 fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     let trimmed = query.trim();
     // `:edit <path>` (or `edit <path>`) opens the Harbor Editor surface on a file.
@@ -231,23 +285,74 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     if q.is_empty() {
         return None;
     }
-    if "chat".starts_with(&q) || "cartographer".starts_with(&q) {
-        return Some(SurfaceKind::CartographerChat);
+    match q.as_str() {
+        "cartographer" => return Some(SurfaceKind::CartographerChat),
+        "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
+        "hitl" => return Some(SurfaceKind::Hitl),
+        "plan" => return Some(SurfaceKind::Conjure),
+        _ => {}
     }
-    if "files".starts_with(&q) || "tree".starts_with(&q) || "filetree".starts_with(&q) {
-        return Some(SurfaceKind::FileTree { root: None });
-    }
-    if "alerts".starts_with(&q) || "hitl".starts_with(&q) {
-        return Some(SurfaceKind::Hitl);
-    }
-    if "conjure".starts_with(&q) || "plan".starts_with(&q) {
-        return Some(SurfaceKind::Conjure);
-    }
-    NAV.iter()
+    launcher_items()
+        .into_iter()
         .find(|n| {
             n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q)
         })
-        .map(|n| surface_for_nav_id(n.id))
+        .map(|n| surface_for_launcher_id(n.id))
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LauncherLayout {
+    cols: usize,
+    tile_w: f32,
+    tile_h: f32,
+    icon_box: f32,
+    icon: f32,
+    label_size: f32,
+    key_size: f32,
+    gap: f32,
+    card_pad: f32,
+    card_w: f32,
+    card_h: f32,
+    title_size: f32,
+}
+
+fn launcher_layout(viewport_w: f32, viewport_h: f32, item_count: usize) -> LauncherLayout {
+    let card_w = (viewport_w - 32.0).clamp(320.0, 1120.0);
+    let card_h = (viewport_h - 32.0).clamp(300.0, 820.0);
+    let card_pad = if viewport_w < 640.0 || viewport_h < 520.0 { 12.0 } else if viewport_w < 900.0 || viewport_h < 700.0 { 18.0 } else { 26.0 };
+    let gap = if viewport_w < 700.0 || viewport_h < 560.0 { 6.0 } else { 10.0 };
+    let header_h = if viewport_h < 560.0 { 54.0 } else if viewport_h < 720.0 { 76.0 } else { 102.0 };
+    let footer_h = 18.0;
+    let inner_w = (card_w - card_pad * 2.0).max(240.0);
+    let inner_h = (card_h - card_pad * 2.0 - header_h - footer_h).max(140.0);
+    let max_cols = item_count.clamp(1, 8);
+    let mut best = (1usize, 120.0f32, 86.0f32, 0.0f32);
+    for cols in 2..=max_cols {
+        let rows = item_count.div_ceil(cols);
+        let tile_w = (inner_w - gap * (cols.saturating_sub(1) as f32)) / cols as f32;
+        let tile_h = (inner_h - gap * (rows.saturating_sub(1) as f32)) / rows as f32;
+        let fit_score = (tile_w / 170.0).min(tile_h / 150.0);
+        let usable = (tile_w / 80.0).min(tile_h / 58.0);
+        let score = fit_score + usable.min(1.0) * 0.18 + cols as f32 * 0.004;
+        if score > best.3 { best = (cols, tile_w, tile_h, score); }
+    }
+    let tile_w = best.1.clamp(82.0, 170.0);
+    let tile_h = best.2.clamp(62.0, 150.0);
+    let icon_box = (tile_h * 0.42).clamp(30.0, 74.0);
+    LauncherLayout {
+        cols: best.0,
+        tile_w,
+        tile_h,
+        icon_box,
+        icon: (icon_box * 0.54).clamp(18.0, 40.0),
+        label_size: (tile_h / 8.2).clamp(11.0, 18.0),
+        key_size: (tile_h / 11.0).clamp(9.0, 13.0),
+        gap,
+        card_pad,
+        card_w,
+        card_h,
+        title_size: if viewport_h < 560.0 { 18.0 } else { 24.0 },
+    }
 }
 
 /// An open command line: a prompt kind plus the text typed so far. For `Spawn`
@@ -356,8 +461,8 @@ use crate::grid::NAV;
 /// - **Records** (observability readouts) → `gated` (coral)
 fn launcher_tone(id: &str, t: &Theme) -> u32 {
     match id {
-        "fleet" | "cockpit" | "sorties" | "lane" | "peek" => t.cobalt,
-        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" => t.accent,
+        "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" | "conjure" => t.accent,
         "roadmap" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
@@ -366,6 +471,17 @@ fn launcher_tone(id: &str, t: &Theme) -> u32 {
 /// A faint wash of a tile's tone for chip/pill backgrounds (`color` at `alpha`).
 fn tone_wash(color: u32, alpha: u8) -> Rgba {
     rgba((color << 8) | alpha as u32)
+}
+
+/// Pick a high-contrast ink (near-black or near-white) for a label sitting ON a
+/// solid `color` chip — a Rec.601 luma threshold so a badge stays ≥4.5:1 legible
+/// regardless of the tone's hue or the active light/dark theme.
+fn knockout_ink(color: u32) -> u32 {
+    let r = ((color >> 16) & 0xff) as f32;
+    let g = ((color >> 8) & 0xff) as f32;
+    let b = (color & 0xff) as f32;
+    let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    if luma > 140.0 { 0x10_10_14 } else { 0xf5_f5_f7 }
 }
 
 /// One entry in the launcher's colour legend: a filled dot + a category label,
@@ -1114,6 +1230,59 @@ impl ConsoleView {
         blocks
     }
 
+    /// The Daemons surface as interactive [`console_button`]s (one per berth) —
+    /// the clickable form of the picker. The active berth (its url == the live
+    /// `daemon_url`) renders selected (washed + breathing halo); clicking any row
+    /// fires `ControlMsg::RebindDaemon`, the same path the `u` command uses, so
+    /// the producer swaps the client and every pane re-fetches from it.
+    fn daemon_button_rows(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let active = self.daemon_url.trim_end_matches('/').to_string();
+        let t = current_theme();
+        let mut rows: Vec<AnyElement> = Vec::new();
+        // A baked still of the living-harbor water shader (pd-harbor-proto /
+        // harbor.wgsl, rendered offscreen) as an on-brand banner over the picker.
+        // A *baked* still, not a live pass: a 30fps embed would re-render the whole
+        // console every frame (idle must stay at 0 re-renders); the live
+        // render-to-texture backdrop is the ADR-0086 path-2 follow-up.
+        rows.push(harbor_banner());
+        for berth in crate::berths::discover() {
+            let color = daemon_tone_color(&berth.tier, &t);
+            let glyph = berth.tier.chars().next().unwrap_or('?').to_ascii_uppercase();
+            let url = berth.url();
+            let selected = url == active;
+            let summary = berth.display();
+            rows.push(console_button(
+                format!("daemon-{}", berth.port),
+                berth.label.clone(),
+                color,
+                ButtonOpts {
+                    leading: Some((glyph, color)),
+                    trailing: Some(format!(":{}", berth.port)),
+                    selected,
+                    full_width: true,
+                },
+                cx,
+                move |this, _cx| {
+                    if let Some(tx) = &this.control_tx {
+                        let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
+                    }
+                    this.control_flash = Some(format!("\u{2192} daemon {summary}"));
+                    this.daemon_url = url.clone();
+                },
+            ));
+        }
+        rows.push(
+            div()
+                .px(px(tokens::SPACE_3))
+                .pt(px(tokens::SPACE_2))
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child("click a daemon to switch — or press u")
+                .into_any_element(),
+        );
+        rows
+    }
+
     /// Handle one multiplexer command after the leader key. Disarming is done
     /// by the caller.
     fn leader_command(&mut self, key: &str, ctrl: bool, cx: &mut Context<Self>) {
@@ -1150,12 +1319,14 @@ impl ConsoleView {
             "t" => self.command = Some(CommandLine::new(CmdKind::Cartographer)),
             // Insert a new pane of a chosen kind (the add-pane picker).
             "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
+            // Switch which daemon berth the console talks to (the Daemons pane lists names).
+            "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
-            // Any nav key swaps the focused pane's surface — "hop context".
+            // Any launcher key swaps the focused pane's surface — "hop context".
             other => {
-                if let Some(item) = NAV.iter().find(|n| n.key == other) {
-                    self.ws_mut().swap_surface(surface_for_nav_id(item.id));
+                if let Some(item) = launcher_items().into_iter().find(|n| n.key == other) {
+                    self.ws_mut().swap_surface(surface_for_launcher_id(item.id));
                 }
             }
         }
@@ -1339,6 +1510,24 @@ impl ConsoleView {
             }
             return;
         }
+        // UseDaemon resolves a berth name/`:port`/tier locally (reads the registry)
+        // then asks the producer to swap the client. Handled before the tx guard so
+        // the "no match" feedback works even without a control channel.
+        if cmd.kind == CmdKind::UseDaemon {
+            let berths = crate::berths::discover();
+            if let Some(berth) = crate::berths::resolve(&berths, &text) {
+                let url = berth.url();
+                let summary = berth.display();
+                if let Some(tx) = &self.control_tx {
+                    let _ = tx.send(ControlMsg::RebindDaemon { url: url.clone() });
+                }
+                self.control_flash = Some(format!("-> daemon {summary}"));
+                self.daemon_url = url;
+            } else {
+                self.control_flash = Some(format!("no daemon matches '{text}'"));
+            }
+            return;
+        }
         // Clone the sender (owned) so we can also mutate the workspace below
         // without holding an immutable borrow of `self` across `ws_mut()`.
         let Some(tx) = self.control_tx.clone() else { return };
@@ -1389,9 +1578,9 @@ impl ConsoleView {
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
-            // AddPane and Conjure are handled locally above (early return) —
+            // AddPane, Conjure, and UseDaemon are handled locally above (early return) —
             // never reach here.
-            CmdKind::AddPane | CmdKind::Conjure => {}
+            CmdKind::AddPane | CmdKind::Conjure | CmdKind::UseDaemon => {}
         }
     }
 
@@ -1477,29 +1666,32 @@ impl ConsoleView {
     /// transforms — entrance is a one-shot staggered opacity fade (one owner per
     /// tile, no repeat()); hover "lift" is a BoxShadow glow; reduced-motion
     /// renders tiles at full opacity but keeps the hover glow for orientation.
-    fn render_launcher(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn render_launcher(&self, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let t = current_theme();
         let reduced = reduced_motion();
-        let current = nav_id_for_surface(self.ws().focused_surface()).map(|s| s.to_string());
-        let n = NAV.len().max(1);
-        let cols = 4usize; // 4 big tiles per row — explicit grid (flex_wrap height isn't summed).
+        let current = launcher_id_for_surface(self.ws().focused_surface());
+        let items = launcher_items();
+        let n = items.len().max(1);
+        let viewport = window.viewport_size();
+        let layout = launcher_layout(f32::from(viewport.width), f32::from(viewport.height), n);
 
-        let mut tiles: Vec<AnyElement> = NAV.iter().enumerate().map(|(i, nav)| {
-            let id = nav.id;
-            let is_current = current.as_deref() == Some(nav.id);
+        let mut tiles: Vec<AnyElement> = items.iter().enumerate().map(|(i, item)| {
+            let item = *item;
+            let id = item.id;
+            let is_current = current.as_deref() == Some(item.id);
             let tone = launcher_tone(id, &t); // ADHD colour-coding: navigate by hue.
 
             // Big chunky tile — sized for low-friction targeting and legibility.
             let tile = div()
                 .id(SharedString::from(format!("launch-{id}")))
-                .w(px(170.0))
-                .h(px(150.0))
+                .w(px(layout.tile_w))
+                .h(px(layout.tile_h))
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .gap(px(12.0))
-                .rounded(px(18.0))
+                .gap(px((layout.gap + 2.0).min(12.0)))
+                .rounded(px(14.0))
                 .border_1()
                 .border_color(rgb(if is_current { tone } else { t.line }))
                 .bg(rgb(t.raised))
@@ -1515,44 +1707,44 @@ impl ConsoleView {
                 // Icon sits in a big tone-washed chip so colour reads even at a glance.
                 .child(
                     div()
-                        .w(px(74.0))
-                        .h(px(74.0))
+                        .w(px(layout.icon_box))
+                        .h(px(layout.icon_box))
                         .flex()
                         .items_center()
                         .justify_center()
-                        .rounded(px(16.0))
+                        .rounded(px((layout.icon_box * 0.22).clamp(8.0, 16.0)))
                         .bg(tone_wash(tone, 0x26))
                         .child(
                             svg()
-                                .path(nav.icon)
-                                .w(px(40.0))
-                                .h(px(40.0))
+                                .path(item.icon)
+                                .w(px(layout.icon))
+                                .h(px(layout.icon))
                                 .text_color(rgb(tone)),
                         ),
                 )
                 .child(
                     div()
                         .text_color(rgb(t.ink))
-                        .text_size(px(18.0))
+                        .text_size(px(layout.label_size))
                         .font_weight(FontWeight::BOLD)
-                        .child(nav.label),
+                        .child(item.label),
                 )
                 .child(
                     div()
-                        .px(px(9.0))
+                        .px(px(7.0))
                         .py(px(2.0))
                         .rounded(px(7.0))
                         .bg(tone_wash(tone, 0x1c))
                         .text_color(rgb(t.muted))
-                        .text_size(px(13.0))
+                        .text_size(px(layout.key_size))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child(format!("⌃A {}", nav.key)),
+                        .child(format!("⌃A {}", item.key)),
                 )
                 // Owns its glow only in the static cases; the breathing branch below
                 // owns it via the animation (one motion owner per surface).
                 .when(is_current && reduced, |s| s.shadow(motion::glow(tone, 0.5, 22.0, 2.0)))
                 .on_click(cx.listener(move |this, _ev, _window, cx| {
-                    this.ws_mut().swap_surface(surface_for_nav_id(id));
+                    this.ws_mut().swap_surface(surface_for_launcher_id(id));
                     this.launcher_open = false;
                     this.control_flash = Some(format!("→ {id}"));
                     cx.notify();
@@ -1598,9 +1790,9 @@ impl ConsoleView {
         // last row; rows stacked in a flex_col measure correctly and the bg fits.
         let mut rows: Vec<AnyElement> = Vec::new();
         while !tiles.is_empty() {
-            let take = tiles.len().min(cols);
+            let take = tiles.len().min(layout.cols);
             let row: Vec<AnyElement> = tiles.drain(0..take).collect();
-            rows.push(div().flex().gap(px(10.0)).children(row).into_any_element());
+            rows.push(div().flex().gap(px(layout.gap)).children(row).into_any_element());
         }
 
         div()
@@ -1639,9 +1831,10 @@ impl ConsoleView {
                     .occlude()
                     .flex()
                     .flex_col()
-                    .gap(px(18.0))
-                    .p(px(28.0))
-                    .max_w(px(820.0))
+                    .gap(px(layout.gap + 6.0))
+                    .p(px(layout.card_pad))
+                    .w(px(layout.card_w))
+                    .h(px(layout.card_h))
                     .rounded(px(22.0))
                     .bg(rgb(t.panel))
                     .border_1()
@@ -1657,7 +1850,7 @@ impl ConsoleView {
                             .child(
                                 div()
                                     .text_color(rgb(t.accent_ink))
-                                    .text_size(px(24.0))
+                                    .text_size(px(layout.title_size))
                                     .font_weight(FontWeight::BOLD)
                                     .child("Jump to a pane"),
                             )
@@ -1676,7 +1869,7 @@ impl ConsoleView {
                         div()
                             .flex()
                             .flex_col()
-                            .gap(px(12.0))
+                            .gap(px(layout.gap))
                             .children(rows),
                     )
                     .child(
@@ -1868,6 +2061,14 @@ impl ConsoleView {
         let motion = self.flag_motion; // Copy snapshot for this frame's flags.
         let is_agent = matches!(surface, SurfaceKind::AgentTranscript { .. });
         // The dispatch surface (focused) gets the interactive review GATE.
+        // The Daemons surface renders interactive picker buttons instead of plain
+        // text blocks (built here so the on_click listeners can borrow cx).
+        let is_daemons = nav_id_for_surface(surface) == Some("daemons");
+        let daemon_rows = if is_daemons {
+            self.daemon_button_rows(cx)
+        } else {
+            Vec::new()
+        };
         let is_dispatch = nav_id_for_surface(surface) == Some("dispatch");
         let is_conductor = nav_id_for_surface(surface) == Some("conductor");
         // The Conjure surface (focused) gets the "Render graph" action bar — the
@@ -1998,6 +2199,9 @@ impl ConsoleView {
                     }))
                     .flex()
                     .flex_col()
+                    .gap(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
+                    .px(px(if is_daemons { tokens::SPACE_3 } else { 0.0 }))
+                    .pt(px(if is_daemons { tokens::SPACE_2 } else { 0.0 }))
                     .when(is_conjure, |body| {
                         // The LIVE native canvas is the default view (animated,
                         // interactive); the Vello PNG is an optional poster below,
@@ -2031,6 +2235,7 @@ impl ConsoleView {
                         }
                         b
                     }
+                    None if is_daemons => body.children(daemon_rows),
                     // Every other surface: the generic read-agnostic Block renderer.
                     None => body.children(blocks.into_iter().map(move |b| render_block(b, motion))),
                 }
@@ -2290,6 +2495,163 @@ impl ConsoleView {
 /// differ only in the click handler they pass. (Per-button keyboard
 /// focus-visible is a GPUI focus-group follow-up; the actions stay reachable via
 /// the focused pane.)
+/// Options for [`console_button`] — the reusable interactive-control primitive.
+/// Everything optional defaults off, so a bare button is `ButtonOpts::default()`.
+#[derive(Default)]
+struct ButtonOpts {
+    /// Leading badge: one glyph (e.g. a tier initial) on a tone-washed chip.
+    leading: Option<(char, u32)>,
+    /// Dimmed trailing text pushed to the right edge (a port, a shortcut hint).
+    trailing: Option<String>,
+    /// Selected/active: a solid tone wash + a gated breathing halo (static under
+    /// reduced motion).
+    selected: bool,
+    /// Stretch to fill the row (a list item) instead of hugging its content.
+    full_width: bool,
+}
+
+/// The console's one clickable-control primitive — reuse it for every operator
+/// button (daemon rows, future toolbar actions, gates) instead of hand-rolling a
+/// `div`. Motion is composed the gpui way, **no transforms**: hover lifts via a
+/// soft `glow` (free GPU-side `.hover` lane, no notify), press sinks via the
+/// `sunken` bg + a 1px `hard_offset`, and a `selected` button breathes a halo
+/// through a single `with_animation` owner (reduced-motion resolves it to a
+/// static glow — orientation kept, travel dropped). Colours read from theme
+/// roles so it survives the `Ctrl-A g` light⇄dark flip.
+fn console_button(
+    id: impl Into<SharedString>,
+    label: impl Into<String>,
+    color: u32,
+    opts: ButtonOpts,
+    cx: &mut Context<ConsoleView>,
+    on_click: impl Fn(&mut ConsoleView, &mut Context<ConsoleView>) + 'static,
+) -> AnyElement {
+    let id: SharedString = id.into();
+    let t = current_theme();
+
+    let mut row = div()
+        .id(id.clone())
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(if opts.selected { color } else { t.line }))
+        .cursor_pointer();
+    if opts.full_width {
+        row = row.w_full();
+    }
+    if opts.selected {
+        row = row.bg(tone_wash(color, 0x22));
+    }
+    if let Some((glyph, badge)) = opts.leading {
+        // Solid tone chip + luminance-picked knockout letter — high contrast and
+        // crisp (matches the maritime flag badges), never a same-hue-on-same-hue
+        // wash. Flex-shrink-0 so a long label can't squeeze the badge.
+        row = row.child(
+            div()
+                .flex_shrink_0()
+                .w(px(22.0))
+                .h(px(18.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(tokens::RADIUS_SM))
+                .bg(rgb(badge))
+                .text_color(rgb(knockout_ink(badge)))
+                .text_size(px(tokens::TEXT_EYEBROW))
+                .font_weight(FontWeight::BOLD)
+                .child(glyph.to_string()),
+        );
+    }
+    row = row.child(
+        div()
+            .text_color(rgb(color))
+            .text_size(px(tokens::TEXT_BODY))
+            .font_weight(FontWeight::SEMIBOLD)
+            .child(label.into()),
+    );
+    if let Some(trailing) = opts.trailing {
+        row = row.child(div().flex_1()).child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .child(trailing),
+        );
+    }
+
+    // Cheap GPU-side interaction lane — restyles without a notify or re-render.
+    row = row
+        .hover(move |s| {
+            s.bg(rgb(current_theme().raised))
+                .border_color(rgb(color))
+                .shadow(motion::glow(color, 0.22, 10.0, 0.0))
+        })
+        .active(move |s| {
+            s.bg(rgb(current_theme().sunken))
+                .shadow(motion::hard_offset(color, 0.0, 1.0))
+        })
+        .on_click(cx.listener(move |this, _ev, _window, cx| {
+            on_click(this, cx);
+            cx.notify();
+        }));
+
+    // Selected → a breathing halo. One animation owner, id keyed per-button so
+    // siblings don't share a clock; reduced motion drops to a static glow.
+    if opts.selected && !reduced_motion() {
+        row.with_animation(
+            SharedString::from(format!("btn-pulse-{id}")),
+            Animation::new(Duration::from_millis(2000))
+                .repeat()
+                .with_easing(pulsating_between(0.5, 1.0)),
+            move |el, delta| {
+                el.shadow(motion::glow(color, 0.10 + delta * 0.28, 6.0 + delta * 8.0, 0.0))
+            },
+        )
+        .into_any_element()
+    } else if opts.selected {
+        row.shadow(motion::glow(color, 0.30, 10.0, 0.0)).into_any_element()
+    } else {
+        row.into_any_element()
+    }
+}
+
+/// A baked still of the living-harbor water shader as a bounded banner. The
+/// asset is a single offscreen-rendered frame of `pd-harbor-proto/harbor.wgsl`
+/// (Method-A, no window), kept at the panel's accent border. `ObjectFit::Cover`
+/// crops to the band rather than stretching the 2:1 frame. Static by design —
+/// no per-frame re-render — which also makes it reduced-motion-correct for free.
+fn harbor_banner() -> AnyElement {
+    div()
+        .h(px(132.0))
+        .w_full()
+        .flex_shrink_0()
+        .rounded(px(tokens::RADIUS_MD))
+        .overflow_hidden()
+        .border_1()
+        .border_color(rgb(current_theme().line))
+        .mb(px(tokens::SPACE_2))
+        .child(
+            img("harbor-backdrop.png")
+                .size_full()
+                .object_fit(ObjectFit::Cover),
+        )
+        .into_any_element()
+}
+
+/// Tier → theme colour for a daemon berth (meaning, resolved to a theme role so
+/// the light⇄dark flip re-skins it): stable = mint "landed", dev-latest = cobalt,
+/// a named codebase berth = amber "engaged".
+fn daemon_tone_color(tier: &str, t: &Theme) -> u32 {
+    match tier {
+        "stable" => t.landed,
+        "dev-latest" => t.cobalt,
+        _ => t.engaged,
+    }
+}
+
 fn gate_btn(
     id: impl Into<SharedString>,
     label: &'static str,
@@ -2308,6 +2670,7 @@ fn gate_btn(
         .text_size(px(tokens::TEXT_BODY))
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
+        .child(label)
         .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
         .active(|s| s.bg(rgb(current_theme().sunken)))
         .child(label)
@@ -3384,7 +3747,7 @@ impl Render for ConsoleView {
         };
         // The pane launcher overlay (when open) is the last child so it paints on top.
         let launcher = if self.launcher_open {
-            Some(self.render_launcher(cx))
+            Some(self.render_launcher(window, cx))
         } else {
             None
         };
@@ -3448,8 +3811,8 @@ impl Render for ConsoleView {
                     // Ctrl-A g theme-toggle collision — here g picks Lineage).
                     if key == "escape" {
                         this.launcher_open = false;
-                    } else if let Some(item) = NAV.iter().find(|n| n.key == key) {
-                        this.ws_mut().swap_surface(surface_for_nav_id(item.id));
+                    } else if let Some(item) = launcher_items().into_iter().find(|n| n.key == key) {
+                        this.ws_mut().swap_surface(surface_for_launcher_id(item.id));
                         this.launcher_open = false;
                         this.control_flash = Some(format!("→ {}", item.label));
                     }
@@ -3616,6 +3979,7 @@ impl Render for ConsoleView {
                     .child(command_bar_btn(CmdKind::Spawn, "Spawn agent", cx))
                     .child(command_bar_btn(CmdKind::Cartographer, "Ask cartographer", cx))
                     .child(command_bar_btn(CmdKind::AddPane, "Add pane", cx))
+                    .child(command_bar_btn(CmdKind::UseDaemon, "Use daemon", cx))
                     // Conjure: always visible, next to the other ACT verbs. Click to
                     // open the prompt input — type intent, Send blooms a predicted
                     // DAG, the focused pane swaps to the Conjure surface to render it,
@@ -3737,6 +4101,7 @@ mod add_pane_tests {
         assert!(matches!(surface_for_query("chat"), Some(SurfaceKind::CartographerChat)));
         assert!(matches!(surface_for_query("files"), Some(SurfaceKind::FileTree { .. })));
         assert!(matches!(surface_for_query("tree"), Some(SurfaceKind::FileTree { .. })));
+        assert!(matches!(surface_for_query("alerts"), Some(SurfaceKind::Hitl)));
     }
 
     #[test]
@@ -3746,6 +4111,37 @@ mod add_pane_tests {
         assert!(matches!(surface_for_query("plan"), Some(SurfaceKind::Conjure)));
         // Conjure is not backed by a NAV pane — it renders the fixture DAG.
         assert!(nav_id_for_surface(&SurfaceKind::Conjure).is_none());
+        assert_eq!(launcher_id_for_surface(&SurfaceKind::Conjure).as_deref(), Some("conjure"));
+    }
+
+    #[test]
+    fn launcher_exposes_every_foreground_surface() {
+        let ids = launcher_items().into_iter().map(|item| item.id).collect::<Vec<_>>();
+        for id in ["chat", "files", "alerts", "conjure"] {
+            assert!(ids.contains(&id), "launcher must expose {id}");
+        }
+        assert!(matches!(surface_for_launcher_id("chat"), SurfaceKind::CartographerChat));
+        assert!(matches!(surface_for_launcher_id("files"), SurfaceKind::FileTree { .. }));
+        assert!(matches!(surface_for_launcher_id("alerts"), SurfaceKind::Hitl));
+        assert!(matches!(surface_for_launcher_id("conjure"), SurfaceKind::Conjure));
+    }
+
+    #[test]
+    fn launcher_keys_are_unique() {
+        let items = launcher_items();
+        for (i, left) in items.iter().enumerate() {
+            for right in items.iter().skip(i + 1) {
+                assert_ne!(left.key, right.key, "duplicate launcher key {}", left.key);
+            }
+        }
+    }
+
+    #[test]
+    fn launcher_layout_fits_small_viewports() {
+        let layout = launcher_layout(640.0, 520.0, launcher_items().len());
+        assert!(layout.card_w <= 640.0);
+        assert!(layout.card_h <= 520.0);
+        assert!(layout.tile_h >= 58.0);
     }
 
     #[test]

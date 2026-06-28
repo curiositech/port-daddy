@@ -26,6 +26,10 @@
  *                              connection the prod-in-test guard protects, and
  *                              backup is a read-only-effect operation that
  *                              cannot leak test traffic into prod.
+ *   - lib/seed-berth-db.ts   — one-time dev-berth snapshot seeding. It opens the
+ *                              source read-only for VACUUM INTO and then opens
+ *                              the target copy to scrub local-only tables before
+ *                              the dev daemon starts.
  *
  * Test files are exempt: they use in-memory DBs (createTestDb / new
  * Database(':memory:')) and explicit scratch paths, which is the intended
@@ -49,6 +53,7 @@ const ALLOWED_FILES = new Set([
   'lib/shipwright/skill-index.ts',
   'cli/commands/diagnostics.ts',
   'lib/backup.ts',
+  'lib/seed-berth-db.ts',
 ]);
 
 // `new Database(` in any whitespace form.

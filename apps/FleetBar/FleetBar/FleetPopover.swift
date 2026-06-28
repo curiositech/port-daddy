@@ -114,6 +114,14 @@ struct FleetPopover: View {
             // even when the current connection is down.
             BerthManagerView(store: store, berthStore: berthStore)
             Divider().opacity(0.5)
+            // Tools: Fleet Control Center + a button per installed pd-console lane
+            // (prod / latest / dev-NAME), each launchable against a chosen berth.
+            ConsoleLauncherSection(
+                berths: berthStore.berths,
+                activeDaemonURL: store.daemonURL,
+                openControlCenter: { openControlPlane(.flow) }
+            )
+            Divider().opacity(0.5)
             if store.isDaemonRunning {
                 BackendStatusRow(store: backendStore)
                 Divider().opacity(0.5)

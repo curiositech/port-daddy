@@ -20,8 +20,10 @@
 // here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
 #[allow(dead_code)]
 #[path = "../audio.rs"]          mod audio;
+#[path = "../berths.rs"]         mod berths; // named daemon picker data (ADR-0084)
 #[allow(dead_code)]
 #[path = "../buffer.rs"]         mod buffer;
+#[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[allow(dead_code)]
