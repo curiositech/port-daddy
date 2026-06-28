@@ -89,14 +89,18 @@ describe('claudeToolList', () => {
 describe('renderClaude', () => {
   test('emits valid frontmatter with name, description, tools, model, color, then the body', () => {
     const md = renderClaude(SAMPLE_CONFIG, 'BODY-PROMPT');
-    const fm = md.split('---')[1];
-    expect(fm).toContain('name: port-daddy-pilot');
-    expect(fm).toContain('model: opus');
-    expect(fm).toContain('color: green');
-    expect(fm).toContain('mcp__port-daddy__begin_session');
-    // description is a JSON-escaped scalar (survives the colon)
-    expect(fm).toMatch(/description: ".*coordinates before it cuts\./);
-    expect(md).toContain('\nBODY-PROMPT\n');
+    expect(md).toBe([
+      '---',
+      'name: port-daddy-pilot',
+      'description: "The ideal Port Daddy agent: coordinates before it cuts."',
+      'tools: mcp__port-daddy__begin_session, mcp__port-daddy__coordination_preflight, mcp__windags__windags_skill_search, Read, Edit, Bash',
+      'model: opus',
+      'color: green',
+      '---',
+      '',
+      'BODY-PROMPT',
+      '',
+    ].join('\n'));
   });
 });
 
