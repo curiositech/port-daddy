@@ -105,7 +105,7 @@ export async function handleFleetConfig(request: Request, env: Env): Promise<Res
     }
     return envelope(200, { code: 'OK', error: null, ref, yaml, ships });
   } catch (e) {
-    return fleetErr('INTERNAL_ERROR', `config read failed: ${msg(e)}`, 500);
+    return fleetErr('INTERNAL_ERROR', `config read failed: ${publicError(e)}`, 500);
   }
 }
 
@@ -194,7 +194,7 @@ export async function handleFleetSmokeTest(request: Request, env: Env): Promise<
       ms,
     });
   } catch (e) {
-    return fleetErr('AI_ERROR', `Workers AI request failed: ${msg(e)}`, 500);
+    return fleetErr('AI_ERROR', `Workers AI request failed: ${publicError(e)}`, 500);
   }
 }
 
@@ -241,7 +241,7 @@ export async function handleFleetOptimizePrompt(request: Request, env: Env): Pro
     const res = (await env.AI.run(OPTIMIZE_MODEL as Parameters<typeof env.AI.run>[0], {
       messages: [
         { role: 'system', content: system },
-        { role: 'user', content: body.ship ? `Ship: ${body.ship}\n\n${currentPrompt}` : currentPrompt },
+        { role: 'user', content: body.ship ? `Ship: ${promptLabel(body.ship)}\n\n${currentPrompt}` : currentPrompt },
       ],
       max_tokens: OPTIMIZE_MAX_TOKENS,
     })) as { response?: string };
@@ -249,7 +249,7 @@ export async function handleFleetOptimizePrompt(request: Request, env: Env): Pro
     const { improvedPrompt, rationale } = parseOptimizeResponse(res.response ?? '', currentPrompt);
     return envelope(200, { code: 'OK', error: null, improvedPrompt, rationale });
   } catch (e) {
-    return fleetErr('AI_ERROR', `Workers AI request failed: ${msg(e)}`, 500);
+    return fleetErr('AI_ERROR', `Workers AI request failed: ${publicError(e)}`, 500);
   }
 }
 
@@ -371,12 +371,21 @@ export async function handleFleetSave(request: Request, env: Env): Promise<Respo
     const prUrl = await createPr(owner, repo, message, prBody, branchName, baseBranch, token);
     return envelope(200, { code: 'OK_PR_CREATED', error: null, prUrl, branch: branchName });
   } catch (e) {
-    return fleetErr('INTERNAL_ERROR', `GitHub API save failed: ${msg(e)}`, 500);
+    return fleetErr('INTERNAL_ERROR', `GitHub API save failed: ${publicError(e)}`, 500);
   }
 }
 
 // ── shared ──────────────────────────────────────────────────────────────────
 
-function msg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+function promptLabel(raw: string): string {
+  return raw.replace(/[\r\n\t]+/g, ' ').replace(/[^\w .:-]/g, '').trim().slice(0, 80) || 'ship';
+}
+
+function publicError(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  return raw
+    .replace(/gh[pousr]_[A-Za-z0-9_]+/g, '[redacted-token]')
+    .replace(/-----BEGIN [^-]+-----[\s\S]*?-----END [^-]+-----/g, '[redacted-key]')
+    .replace(/[A-Za-z0-9+/=]{80,}/g, '[redacted-long-secret]')
+    .slice(0, 240);
 }

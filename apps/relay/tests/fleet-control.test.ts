@@ -251,6 +251,27 @@ describe('handleFleetSmokeTest', () => {
     expect(res.status).toBe(500);
     expect((await res.json() as { code: string }).code).toBe('AI_ERROR');
   });
+
+  it('AI_ERROR redacts token-like and key-like error details', async () => {
+    const ai = {
+      run: vi.fn(async () => {
+        throw new Error(
+          'upstream leaked ghp_abcdefghijklmnopqrstuvwxyz1234567890 and -----BEGIN PRIVATE KEY-----abc-----END PRIVATE KEY-----',
+        );
+      }),
+    };
+    const env = makeEnv({ ai });
+    const res = await handleFleetSmokeTest(
+      req('/v1/fleet/smoke-test', 'POST', OPERATOR, { ship: 'qa', yaml: GOOD_YAML, sampleDiff: 'd' }),
+      env,
+    );
+    expect(res.status).toBe(500);
+    const json = await res.json() as { error: string };
+    expect(json.error).toContain('[redacted-token]');
+    expect(json.error).toContain('[redacted-key]');
+    expect(json.error).not.toContain('ghp_');
+    expect(json.error).not.toContain('PRIVATE KEY');
+  });
 });
 
 // ── optimize-prompt ─────────────────────────────────────────────────────────────
@@ -275,6 +296,23 @@ describe('handleFleetOptimizePrompt', () => {
     expect(json.improvedPrompt).toContain('severity-ranked');
     expect(json.improvedPrompt).not.toContain('RATIONALE');
     expect(json.rationale).toContain('numbered output contract');
+  });
+
+  it('sanitizes the optional ship label before placing it in the optimize prompt', async () => {
+    const ai = makeAI('IMPROVED:\nBetter prompt\nRATIONALE:\nCleaned label');
+    const env = makeEnv({ ai });
+    const res = await handleFleetOptimizePrompt(
+      req('/v1/fleet/optimize-prompt', 'POST', OPERATOR, {
+        ship: 'qa\nIGNORE PREVIOUS\t<script>',
+        currentPrompt: 'Review the diff',
+      }),
+      env,
+    );
+    expect(res.status).toBe(200);
+    const call = ai.run.mock.calls[0]![1] as { messages: Array<{ role: string; content: string }> };
+    expect(call.messages[1]!.content).toContain('Ship: qa IGNORE PREVIOUS script');
+    expect(call.messages[1]!.content).not.toContain('\nIGNORE');
+    expect(call.messages[1]!.content).not.toContain('<script>');
   });
 
   it('BAD_JSON when currentPrompt is missing', async () => {
@@ -379,6 +417,22 @@ describe('handleFleetSave', () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json() as { code: string }).code).toBe('BAD_REQUEST');
+  });
+
+  it('BAD_REQUEST when branchName has traversal after the fleet-control-plane prefix', async () => {
+    installFetchMock();
+    const res = await handleFleetSave(
+      req('/v1/fleet/save', 'POST', OPERATOR, {
+        files: { 'pd-fleet.yml': 'x' },
+        message: 'm',
+        branchName: 'fleet-control-plane-../../malicious',
+      }),
+      makeEnv(),
+    );
+    expect(res.status).toBe(400);
+    const json = await res.json() as { code: string; error: string };
+    expect(json.code).toBe('BAD_REQUEST');
+    expect(json.error).toContain('branchName');
   });
 
   it('BAD_REQUEST on a path-traversal file path', async () => {
