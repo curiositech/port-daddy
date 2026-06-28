@@ -21,6 +21,7 @@ import {
   formatSkillSyncSummary,
   syncAgentSkills,
 } from '../../lib/skill-sync.js';
+import { installPilotAgents, resolvePilotSourceDir } from '../../lib/pilot-agent-render.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Walk up from __dirname looking for the repo marker (Formula/port-daddy.rb
@@ -277,6 +278,31 @@ function installAgentSkillUnion(options: Record<string, unknown>): boolean {
   return result.errors.length === 0;
 }
 
+/**
+ * Render + install the Port Daddy Pilot agent definition into every local LLM
+ * runtime (Claude .md, Codex .toml, Gemini command, generic .agents). Runs on
+ * every `pd setup` / brew upgrade so the persona follows the canonical source.
+ */
+function installPilotAgentDefinitions(options: Record<string, unknown>): boolean {
+  const dryRun = !!options['dry-run'];
+  const source = resolvePilotSourceDir(PROJECT_ROOT);
+  if (!source) {
+    ui.warn('Port Daddy Pilot source not found in brew prefix or repo checkout');
+    return false;
+  }
+
+  const result = installPilotAgents({ sourceDir: source, dryRun });
+  const changed = result.written.filter((w) => w.changed).length;
+  ui.info(
+    `Port Daddy Pilot: ${dryRun ? 'would install' : 'installed'} ${result.written.length} runtime definition(s)` +
+    (changed ? ` (${changed} updated)` : ' (all current)'),
+  );
+  for (const err of result.errors.slice(0, 3)) {
+    ui.warn(`Pilot ${err.runtime}: ${err.path}: ${err.error}`);
+  }
+  return result.errors.length === 0;
+}
+
 function lstatSyncSafe(p: string) {
   try {
     return lstatSync(p);
@@ -384,6 +410,12 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
     installAgentSkillUnion(options);
   } else {
     ui.info('Skipping agent skill symlink (--no-skill)');
+  }
+
+  if (!options['no-agents']) {
+    installPilotAgentDefinitions(options);
+  } else {
+    ui.info('Skipping Pilot agent definitions (--no-agents)');
   }
 
   const explicitProject = typeof options.project === 'string' ? options.project : undefined;
