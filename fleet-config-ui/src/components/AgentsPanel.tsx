@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Bot, Ghost, Mail, PauseCircle, PlayCircle, Radio, RefreshCw, Square, StickyNote } from 'lucide-react';
 import {
   clearAgentInbox,
+  fetchActiveAgentRoster,
   dismissSalvageAgent,
   fetchAgentInbox,
   fetchAgentInboxStats,
@@ -14,6 +15,7 @@ import {
   fetchSorties,
   killSortie,
   markAllAgentInboxRead,
+  getDaemonUrl,
 } from '../api';
 import {
   buildAgentDirectoryEntries,
@@ -27,6 +29,7 @@ import type {
   FileClaim,
   InboxMessage,
   InboxStats,
+  ActiveAgentRosterItem,
   RegistryAgent,
   SessionSummary,
   OperatorActorEntry,
@@ -114,6 +117,21 @@ function badgeStyle(kind: 'running' | 'salvaged' | 'orphan_reconciled' | 'histor
   return { backgroundColor: 'var(--pd-bg)', color: 'var(--pd-muted)', border: '1px solid var(--pd-border)' };
 }
 
+function summarizeTouchedFiles(files: ActiveAgentRosterItem['touchedFiles']): string {
+  const labels = files
+    .slice(0, 3)
+    .map((file) => file.symbolPath ? `${file.filePath}#${file.symbolPath}` : file.filePath)
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  if (labels.length === 0) return 'No active file claims';
+  const suffix = files.length > labels.length ? ` +${files.length - labels.length}` : '';
+  return `${labels.join(', ')}${suffix}`;
+}
+
+function openDaemonPath(path: string): void {
+  if (typeof window === 'undefined') return;
+  window.open(`${getDaemonUrl()}${path}`, '_blank', 'noopener,noreferrer');
+}
+
 /**
  * Normalize a client-side directory entity onto the daemon actor-lens key so
  * lifecycle data can be joined without duplicating merge heuristics here.
@@ -138,7 +156,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
+    <section className="shrink-0 rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--pd-surface)', border: '1px solid var(--pd-border)' }}>
       <div className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--pd-border)' }}>
         <div>
           <div className="text-[10px] font-semibold tracking-wider" style={{ color: 'var(--pd-dim)' }}>{title}</div>
@@ -166,6 +184,7 @@ export default function AgentsPanel({
   const [error, setError] = useState<string | null>(null);
   const [entities, setEntities] = useState<AgentDirectoryEntry[]>([]);
   const [actorEntries, setActorEntries] = useState<OperatorActorEntry[]>([]);
+  const [liveRoster, setLiveRoster] = useState<ActiveAgentRosterItem[]>([]);
   const [projectSessions, setProjectSessions] = useState<SessionSummary[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -180,12 +199,13 @@ export default function AgentsPanel({
     setLoading(true);
     setError(null);
     try {
-      const [registryAgents, spawnedAgents, salvageAgents, sessions, actors] = await Promise.all([
+      const [registryAgents, spawnedAgents, salvageAgents, sessions, actors, roster] = await Promise.all([
         fetchRegistryAgents(),
         fetchSorties(),
         fetchSalvageAgents({ project: projectName ?? undefined, includeResolved: true, limit: 40 }),
         fetchSessions({ project: projectName ?? undefined, includeNotes: true, allWorktrees: true, limit: 40 }),
         fetchOperatorActors({ project: projectName ?? undefined, projectDir: projectDir ?? undefined, limit: 80 }),
+        fetchActiveAgentRoster({ project: projectName ?? undefined, limit: 80 }),
       ]);
 
       const scopedRegistryAgents = registryAgents.filter((agent) => matchesProjectRegistry(agent, projectName));
@@ -218,6 +238,7 @@ export default function AgentsPanel({
 
       setEntities(mergedEntities);
       setActorEntries(actors);
+      setLiveRoster(roster.agents);
       setProjectSessions(sessions);
       setSelectedAgentId((current) => {
         if (current && mergedEntities.some((entity) => entity.id === current)) return current;
@@ -321,6 +342,12 @@ export default function AgentsPanel({
     historical: actorEntries.filter((actor) => actor.actorState === 'historical').length,
     idle: actorEntries.filter((actor) => actor.actorState === 'idle').length,
   }), [actorEntries]);
+
+  const liveSummary = useMemo(() => ({
+    alive: liveRoster.filter((agent) => agent.liveness === 'alive').length,
+    claimedFiles: new Set(liveRoster.flatMap((agent) => agent.touchedFiles.map((file) => file.filePath).filter(Boolean))).size,
+    harnesses: new Set(liveRoster.map((agent) => agent.harness.id)).size,
+  }), [liveRoster]);
 
   const runBusy = actionBusy === 'run';
   const pauseBusy = actionBusy === 'pause';
@@ -517,6 +544,64 @@ export default function AgentsPanel({
       </section>
 
       <div className="min-h-0 overflow-y-auto flex flex-col gap-4">
+        <Section
+          title="LIVE HARNESS ROSTER"
+          subtitle={`${liveSummary.alive} active harness${liveSummary.alive === 1 ? '' : 'es'} · ${liveSummary.claimedFiles} claimed file${liveSummary.claimedFiles === 1 ? '' : 's'} · ${liveSummary.harnesses} lane${liveSummary.harnesses === 1 ? '' : 's'}`}
+        >
+          {liveRoster.length === 0 ? (
+            <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>
+              No live harnessed agents are registered for this project yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+              {liveRoster.map((agent) => (
+                <div key={agent.id} className="min-w-0 rounded-lg px-3 py-3" style={{ backgroundColor: 'var(--pd-bg)', border: '1px solid var(--pd-border)' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: agentColor(agent.label) }}>
+                        {agent.label}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
+                        {agent.harness.label}
+                      </div>
+                    </div>
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={badgeStyle(agent.liveness === 'alive' ? 'running' : 'historical')}>
+                      {agent.liveness}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-1.5 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
+                    <div><span style={{ color: 'var(--pd-dim)' }}>Doing:</span> {agent.purpose ?? 'No purpose recorded'}</div>
+                    <div><span style={{ color: 'var(--pd-dim)' }}>Worktree:</span> <span className="font-mono">{agent.worktree.root ?? agent.worktree.id ?? 'unknown'}</span>{agent.worktree.branch ? ` @ ${agent.worktree.branch}` : ''}</div>
+                    <div><span style={{ color: 'var(--pd-dim)' }}>Touching:</span> {summarizeTouchedFiles(agent.touchedFiles)}</div>
+                    <div><span style={{ color: 'var(--pd-dim)' }}>Channel:</span> <span className="font-mono">{agent.control.steeringChannel}</span></div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => openDaemonPath(agent.control.streamUrl)}
+                      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+                      style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+                    >
+                      <Radio size={13} />
+                      <span>Stream</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedAgentId(agent.id)}
+                      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
+                      style={{ color: 'var(--pd-text)', border: '1px solid var(--pd-border)', backgroundColor: 'var(--pd-surface)' }}
+                    >
+                      <Bot size={13} />
+                      <span>Inspect</span>
+                    </button>
+                  </div>
+                  <div className="mt-2 text-[10px] font-mono leading-relaxed" style={{ color: 'var(--pd-dim)' }}>
+                    pd agent interrupt {agent.id} --reason "..." {agent.activeSession ? `\npd session takeover ${agent.activeSession.id}` : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+
         {!selected ? (
           <Section title="AGENT DETAIL" subtitle="Pick an agent from the directory to inspect it.">
             <div className="text-sm" style={{ color: 'var(--pd-muted)' }}>

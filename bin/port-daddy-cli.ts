@@ -688,6 +688,7 @@ function buildHelp(): string {
     `${A}Coordination:${Z}`,
     `  ${G}pd lock${Z} <name>           ${tag('notify')} Grab a distributed lock`,
     `  ${G}pd agent${Z} "task"          ${tag('approval')} One-shot autopilot delegation`,
+    `  ${G}pd agents --live${Z}         ${tag('silent')} Active harness roster + session controls`,
     `  ${G}pd agent register${Z}        ${tag('notify')} Register as an agent`,
     `  ${G}pd salvage${Z}               ${tag('silent')} List a dead agent's work  ${D}(claim/dismiss are destructive)${Z}`,
     `  ${G}pd actors${Z}                ${tag('silent')} Inspect durable actor roster`,
@@ -845,6 +846,9 @@ Commands:
 
   agents                   List all registered agents
     --active               Show only active agents
+    --live, --roster       Show active harness lanes, worktrees, files, and control commands
+    --project <name>       Filter the live roster by project
+    --limit <n>            Cap live roster rows
     -j, --json             Output as JSON
 
   salvage                  Check resurrection queue for dead agents
@@ -865,6 +869,7 @@ Examples:
   pd agent register --agent build-42 --identity myapp:api --purpose "Building auth"
   pd agent heartbeat --agent build-42
   pd agents --active --json
+  pd agents --live --project port-daddy
   pd salvage --project myapp
   pd salvage triage --project myapp
   pd salvage next --project myapp --json

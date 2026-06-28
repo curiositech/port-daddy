@@ -653,6 +653,10 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
  * Handle `pd agents` command
  */
 export async function handleAgents(options: CLIOptions): Promise<void> {
+  if (options.roster || options.live || options.harness) {
+    return handleAgentRoster(options);
+  }
+
   const params = new URLSearchParams();
   if (options.active) params.append('active', 'true');
   if (options.identity) params.append('identity', options.identity as string);
@@ -696,6 +700,64 @@ export async function handleAgents(options: CLIOptions): Promise<void> {
 
   console.log('');
   console.log(`Total: ${data.count} agent(s)`);
+}
+
+async function handleAgentRoster(options: CLIOptions): Promise<void> {
+  const params = new URLSearchParams({ limit: String(options.limit || 100) });
+  if (options.project) params.set('project', String(options.project));
+
+  const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/agent-roster?${params}`);
+  const data = await res.json();
+
+  if (!res.ok || data.success === false) {
+    ui.error((data.error as string) || 'Failed to list active agent roster');
+    process.exit(1);
+  }
+
+  if (isJson(options)) {
+    console.log(JSON.stringify(data, null, 2));
+    return;
+  }
+
+  const agents = data.agents as Array<{
+    id: string;
+    label: string;
+    purpose: string | null;
+    identity: string | null;
+    liveness: string;
+    harness: { label: string; backend: string | null; model: string | null };
+    worktree: { root: string | null; branch: string | null };
+    activeSession: { id: string } | null;
+    touchedFiles: Array<{ filePath?: string | null; symbolPath?: string | null }>;
+    control: { streamUrl: string; interruptUrl: string; takeoverUrl: string | null; steeringChannel: string };
+  }>;
+
+  if (!agents.length) {
+    console.log('No live Port Daddy agents found');
+    return;
+  }
+
+  ui.info(`Active Port Daddy agents${data.project ? ` in ${data.project}` : ''}`);
+  console.log('');
+  for (const agent of agents) {
+    const files = agent.touchedFiles
+      .slice(0, 4)
+      .map((claim) => claim.symbolPath ? `${claim.filePath ?? '(unknown)'}#${claim.symbolPath}` : claim.filePath)
+      .filter(Boolean)
+      .join(', ');
+    console.log(`${agent.label} (${agent.id})`);
+    console.log(`  harness: ${agent.harness.label}${agent.harness.backend ? ` / ${agent.harness.backend}` : ''}${agent.harness.model ? ` / ${agent.harness.model}` : ''}`);
+    console.log(`  status:  ${agent.liveness}${agent.identity ? ` / ${agent.identity}` : ''}`);
+    console.log(`  worktree:${agent.worktree.root ?? '(unknown)'}${agent.worktree.branch ? ` @ ${agent.worktree.branch}` : ''}`);
+    console.log(`  doing:   ${agent.purpose ?? '(no purpose recorded)'}`);
+    console.log(`  touching:${files || '(no active file claims)'}`);
+    console.log(`  control: pd agent stream ${agent.id}  |  pd agent interrupt ${agent.id} --reason \"...\"`);
+    if (agent.activeSession?.id) {
+      console.log(`  session: ${agent.activeSession.id}${agent.control.takeoverUrl ? ' / pd session takeover ' + agent.activeSession.id : ''}`);
+    }
+    console.log('');
+  }
+  console.log(`Total: ${data.count} live agent(s)`);
 }
 
 /**

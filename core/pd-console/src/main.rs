@@ -9,6 +9,7 @@
 //! REPL: cargo run --bin pd-console-repl
 
 mod activity_pane;
+mod active_agents_pane;
 mod adrs_pane;
 mod agent;
 mod app;
@@ -51,6 +52,7 @@ mod tokens;
 mod util;
 
 use activity_pane::ActivityPane;
+use active_agents_pane::ActiveAgentsPane;
 use adrs_pane::AdrsPane;
 use agent::DaemonClient;
 use app::ConsoleView;
@@ -300,6 +302,7 @@ fn main() {
         //  7=Activity  8=Sessions  9=Inbox  10=Suggest  11=Memory  12=PRs
         //  13=Health  14=CoastGuard  15=Dispatch  16=Lane  17=Ledger  18=Lineage
         //  19=Substrate  20=Parley  21=Conductor  22=Daemons  23=Cloud Fleet
+        //  24=Active Agents
         let (tx, rx) =
             mpsc::channel::<(Vec<(usize, Vec<pane::Block>)>, Option<dispatch_pane::DispatchHead>)>();
         // Alert bus: the bg thread captures the daemon's REAL rejection from any
@@ -353,6 +356,7 @@ fn main() {
                 let mut conductor  = ConductorPane::new();     // 21 — Fleet Conductor (ADR-0060)
                 let mut daemons    = DaemonPane::new();         // 22 — daemon picker (ADR-0084)
                 let mut cloud_fleet = CloudFleetPane::new();    // 23 — remote relay observability (Phase C)
+                let mut live_agents = ActiveAgentsPane::new();  // 24 — harness roster
 
                 // Pin the producer slots to the canonical grid map. If a pane is
                 // added, reordered, or swapped without updating `app::SLOT_PANE_IDS`
@@ -365,7 +369,7 @@ fn main() {
                         roadmap.id(), adrs.id(), activity.id(), sessions.id(), inbox.id(),
                         suggest.id(), memory.id(), prs.id(), health.id(), coast.id(),
                         dispatch.id(), lane.id(), ledger.id(), lineage.id(), substrate.id(),
-                        parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(),
+                        parley.id(), conductor.id(), daemons.id(), cloud_fleet.id(), live_agents.id(),
                     ],
                     grid::SLOT_PANE_IDS,
                     "producer slot order drifted from grid::SLOT_PANE_IDS",
@@ -677,6 +681,7 @@ fn main() {
                     let _ = conductor.refresh(&client).await;
                     let _ = daemons.refresh(&client).await;
                     let _ = cloud_fleet.refresh(&client).await;
+                    let _ = live_agents.refresh(&client).await;
 
                     // (Re)subscribe the lane's live stream if its target changed.
                     let want = lane.subscription();
@@ -725,6 +730,7 @@ fn main() {
                         (21, conductor.view()),
                         (22, daemons.view()),
                         (23, cloud_fleet.view()),
+                        (24, live_agents.view()),
                     ];
 
                     if tx.send((all, dispatch.head())).is_err() {
