@@ -273,6 +273,7 @@ describe('managed-agent payload hashing', () => {
 
     expect(stableJsonStringify(a)).toBe(stableJsonStringify(b));
     expect(sourceShaForPayload(a)).toBe(sourceShaForPayload(b));
+    expect(sourceShaForPayload(a)).toHaveLength(64);
   });
 });
 

@@ -141,7 +141,7 @@ function writeManifest(path: string, manifest: Manifest): void {
 }
 
 function sha256(s: string): string {
-  return createHash('sha256').update(s).digest('hex').slice(0, 16);
+  return createHash('sha256').update(s).digest('hex');
 }
 
 export function stableJsonStringify(value: unknown): string {
