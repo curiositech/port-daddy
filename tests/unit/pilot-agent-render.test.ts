@@ -153,7 +153,15 @@ describe('installPilotAgents', () => {
     const src = seedSource();
     const base = makeTmp();
     installPilotAgents({ sourceDir: src, baseDir: base });
+    const targets = pilotRenderTargets(base, SAMPLE_CONFIG, extractSystemPrompt(SAMPLE_AGENT_MD));
+    const contentsAfterFirstInstall = targets.map((target) => [
+      target.runtime,
+      target.path,
+      readFileSync(target.path, 'utf8'),
+    ]);
+
     const second = installPilotAgents({ sourceDir: src, baseDir: base });
+
     expect(second.written.map((w) => [w.runtime, w.changed])).toEqual([
       ['Claude Code', false],
       ['Codex CLI', false],
@@ -161,21 +169,28 @@ describe('installPilotAgents', () => {
       ['Gemini extension (Antigravity)', false],
       ['Generic agents', false],
     ]);
+    expect(targets.map((target) => [
+      target.runtime,
+      target.path,
+      readFileSync(target.path, 'utf8'),
+    ])).toEqual(contentsAfterFirstInstall);
   });
 
   test('refuses to clobber a foreign file at the target path', () => {
     const src = seedSource();
     const base = makeTmp();
     const claudePath = join(base, '.claude', 'agents', 'port-daddy-pilot.md');
+    const foreignContent = 'hand-written file with no pilot id';
     mkdirSync(join(base, '.claude', 'agents'), { recursive: true });
-    writeFileSync(claudePath, 'hand-written file with no pilot id');
+    writeFileSync(claudePath, foreignContent);
     const result = installPilotAgents({ sourceDir: src, baseDir: base });
     expect(result.errors).toContainEqual({
       runtime: 'Claude Code',
       path: claudePath,
       error: 'exists and is not a Port Daddy Pilot file — skipping',
     });
-    expect(readFileSync(claudePath, 'utf8')).toBe('hand-written file with no pilot id');
+    expect(result.written.map((w) => w.runtime)).not.toContain('Claude Code');
+    expect(readFileSync(claudePath, 'utf8')).toBe(foreignContent);
   });
 
   test('reports a missing source directory as an install error', () => {
