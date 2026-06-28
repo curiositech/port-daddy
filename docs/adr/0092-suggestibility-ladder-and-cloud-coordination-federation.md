@@ -115,8 +115,8 @@ level is the single knob; the ladder is the mechanism.
 
 ### 3. Hook pack renders per-tool, like the agent
 
-A canonical `agents/port-daddy-pilot/pilot.hooks.json` rendered by a sibling of
-`pilot-agent-render.ts` (`lib/pilot-hooks-render.ts`) into each runtime's native
+A proposed canonical `agents/port-daddy-pilot/pilot.hooks.json` rendered by a
+sibling of `pilot-agent-render.ts` (`lib/pilot-hooks-render.ts`, proposed) into each runtime's native
 hook format: Claude `settings.json` hooks, Codex hook-trust entries, Gemini
 `hooksConfig`. "Install the Pilot" then means persona **+ discipline**,
 uniformly, everywhere — installed by the same `pd setup` path.
@@ -199,7 +199,7 @@ this ADR waits on, not new design.
 
 1. **L2 PreToolUse edit-gate + the `suggestibility` dial.** All-local, reuses
    `symbol-claims` + `blast-radius`. Ships the day it lands.
-2. **L1 ambient nudge + `lib/pilot-hooks-render.ts` hook pack** across
+2. **L1 ambient nudge + `lib/pilot-hooks-render.ts` hook pack** (proposed) across
    Claude/Codex/Gemini, installed by `pd setup` (mirrors the agent renderer).
 3. **L4 SubagentStop adversarial-pipeline + L5 PreCompact checkpoint.**
 4. **Cloud coordination peer (§4), gated behind the macaroon/trust-gate
