@@ -25,6 +25,8 @@
 #[path = "../buffer.rs"]         mod buffer;
 #[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
+// cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
+#[path = "../cloud_fleet_pane.rs"] mod cloud_fleet_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
 #[allow(dead_code)]
 #[path = "../conjure.rs"]        mod conjure;

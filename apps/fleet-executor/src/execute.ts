@@ -49,6 +49,152 @@ import {
 const MAP_CHUNK_CHAR_LIMIT = 12_000;
 const CHECK_NAME = 'Port Daddy Fleet';
 
+/**
+ * Kill-switch flag key in the relay's CONTROL_KV namespace (the relay writes it
+ * via POST /v1/fleet/pause; the executor reads it via env.CONTROL_KV). Value is
+ * either JSON `{ paused: boolean, pausedAt: number }` or the literal
+ * `"true"`/`"false"`. When paused, a job is acked WITHOUT any AI spend or posts.
+ */
+const PAUSE_KEY = 'fleet:paused';
+const DELIVERY_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+/** Epoch seconds — the timestamp unit used by fleet_runs / fleet_run_steps. */
+function nowSec(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
+function validDeliveryId(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  if (raw.trim() !== raw) return null;
+  if (!DELIVERY_ID_RE.test(raw)) return null;
+  return raw;
+}
+
+/**
+ * Read the kill-switch flag. Tolerates both the JSON object form and the bare
+ * `"true"`/`"false"` string. Best-effort: a KV read failure means "not paused"
+ * — the fail-safe here is to keep running the gate, never to silently skip it.
+ */
+async function isFleetPaused(env: ExecutorEnv): Promise<boolean> {
+  // Read the kill switch from the relay's CONTROL-PLANE KV — the SAME namespace
+  // the relay's POST /v1/fleet/pause writes to. (Previously read FLEET_TOKENS, a
+  // DIFFERENT namespace, so a pause toggle never reached the executor.) Absent
+  // binding ⇒ NOT paused (fail-safe: the gate keeps running).
+  const kv = env.CONTROL_KV;
+  if (!kv) return false;
+  try {
+    const raw = await kv.get(PAUSE_KEY);
+    if (!raw) return false;
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    try {
+      const parsed = JSON.parse(raw) as { paused?: boolean };
+      return parsed.paused === true;
+    } catch {
+      // Non-JSON, non-boolean payload — treat anything truthy-but-unknown as
+      // NOT paused so a corrupt flag can never silently disable the gate.
+      return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Append-only transcript recorder. Each {@link step} writes one fleet_run_steps
+ * row with a monotonically increasing seq. Every write is BEST-EFFORT: a missing
+ * DB binding (unit tests) or a D1 failure is swallowed and can NEVER fail the
+ * run, change the conclusion, or alter the merge gate.
+ *
+ * Uses INSERT OR REPLACE keyed on (run_id, seq) so a retried delivery (same
+ * deterministic runId) overwrites its transcript cleanly instead of erroring on
+ * the PK — preserving the pipeline's idempotency invariant.
+ */
+class Transcript {
+  private seq = 0;
+
+  constructor(
+    private readonly db: D1Database | undefined,
+    readonly runId: string,
+  ) {}
+
+  async step(kind: string, ship: string | null, title: string, detail: unknown): Promise<void> {
+    const seq = this.seq++;
+    if (!this.db) return;
+    try {
+      await this.db
+        .prepare(
+          `INSERT OR REPLACE INTO fleet_run_steps (run_id, seq, kind, ship, title, detail, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(this.runId, seq, kind, ship, title, detail == null ? null : JSON.stringify(detail), nowSec())
+        .run();
+    } catch (err) {
+      console.error(
+        `[fleet-executor] transcript step failed run=${this.runId} seq=${seq}: ${String(err)}`,
+      );
+    }
+  }
+}
+
+/**
+ * Write the fleet_runs audit header BEFORE any ship runs (conclusion 'pending').
+ * Best-effort + idempotent (INSERT OR REPLACE on the deterministic id). A write
+ * failure here NEVER aborts the run.
+ */
+async function recordRunStart(
+  env: ExecutorEnv,
+  runId: string,
+  job: FleetRunJob,
+  prCtx: PRContext,
+  prNumber: number,
+  ships: ShipConfig[],
+): Promise<void> {
+  if (!env.DB) return;
+  const prUrl = `https://github.com/${job.repoFullName}/pull/${prNumber}`;
+  try {
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO fleet_runs
+         (id, delivery_id, repo_full_name, pr_number, pr_url, head_sha, conclusion, ships_csv, ms, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, 0, ?)`,
+    )
+      .bind(
+        runId,
+        job.deliveryId,
+        job.repoFullName,
+        prNumber,
+        prUrl,
+        prCtx.headSha,
+        ships.map(s => s.name).join(','),
+        nowSec(),
+      )
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] fleet_runs insert failed run=${runId}: ${String(err)}`);
+  }
+}
+
+/**
+ * Stamp the final conclusion + wall-clock elapsed onto the fleet_runs row.
+ * Best-effort: a write failure NEVER changes the gate (the check run is already
+ * the authoritative surface on GitHub).
+ */
+async function recordRunEnd(
+  env: ExecutorEnv,
+  runId: string,
+  conclusion: string,
+  startMs: number,
+): Promise<void> {
+  if (!env.DB) return;
+  try {
+    await env.DB.prepare(`UPDATE fleet_runs SET conclusion = ?, ms = ? WHERE id = ?`)
+      .bind(conclusion, Date.now() - startMs, runId)
+      .run();
+  } catch (err) {
+    console.error(`[fleet-executor] fleet_runs update failed run=${runId}: ${String(err)}`);
+  }
+}
+
 /** The trigger we currently dispatch (pull_request opened/synchronize). */
 function triggerFor(job: FleetRunJob): string | null {
   if (job.eventType !== 'pull_request') return null;
@@ -67,11 +213,33 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   const trigger = triggerFor(job);
   if (!trigger) return;
   if (!job.repoFullName || !job.installationId || !job.prNumber) return;
+  const deliveryId = validDeliveryId(job.deliveryId);
+  if (!deliveryId) {
+    console.warn(`[fleet-executor] invalid deliveryId; skipping malformed fleet job`);
+    return;
+  }
 
   const [owner, repo] = job.repoFullName.split('/');
   if (!owner || !repo) return;
   const prNumber = job.prNumber;
   const prPayload = (job.payloadMinimal.pull_request as Record<string, unknown>) ?? {};
+
+  // --- KILL SWITCH ---------------------------------------------------------
+  // Checked at the very START, before any token mint, GitHub call, or AI spend.
+  // When paused we return normally so the queue handler acks the message: no
+  // work performed, nothing posted, no cost. (Returning early == acked.) Note:
+  // this leaves NO check run, so a paused fleet does not gate PRs at all —
+  // pausing is an explicit operator decision to stop reviewing entirely.
+  if (await isFleetPaused(env)) {
+    console.log(`[fleet-executor] delivery=${deliveryId} paused; skipping (no AI spend, no posts)`);
+    return;
+  }
+
+  // Deterministic run id from the delivery id so a retried delivery rewrites its
+  // own audit row + transcript (INSERT OR REPLACE) instead of duplicating.
+  const runId = `run:${deliveryId}`;
+  const startMs = Date.now();
+  const transcript = new Transcript(env.DB, runId);
 
   // --- Token (KV-cached; remint once on 401) -------------------------------
   let token: string;
@@ -151,13 +319,35 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
     );
   }
 
+  // --- Transcript: record the run header (best-effort) ---------------------
+  // Written AFTER the gating check is established but BEFORE any ship runs, so
+  // the audit trail records every attempt that got far enough to gate. A
+  // write failure is swallowed and never changes the run or the gate.
+  await recordRunStart(env, runId, job, prCtx, prNumber, cloudShips);
+
   // --- Run ships sequentially (Workers AI rate limits) ---------------------
   // Each ship is a map-reduce over the diff: MAP one call per diff chunk, then
   // REDUCE via a manager call that merges the structured findings and computes
   // the FLEET-VERDICT.
   const results: ShipResult[] = [];
   for (const ship of cloudShips) {
-    results.push(await runShip(ship, prCtx, token, env, branch));
+    // Re-check the operator kill switch before each ship. The start-of-job
+    // check prevents any setup work while paused; this second gate closes the
+    // TOCTOU gap where the operator pauses after the GitHub check is created
+    // but before additional AI spend or review posts. Complete neutral rather
+    // than leaving the already-created check run in progress forever.
+    if (await isFleetPaused(env)) {
+      const summary = `Fleet paused before pd-${ship.name}; stopped before additional AI spend or review posts.`;
+      await transcript.step('check-completed', null, 'Check concluded: neutral (paused)', {
+        checkRunId,
+        conclusion: 'neutral',
+        pausedBeforeShip: ship.name,
+      });
+      await completeCheckRun(owner, repo, checkRunId, 'neutral', summary, token);
+      await recordRunEnd(env, runId, 'neutral', startMs);
+      return;
+    }
+    results.push(await runShip(ship, prCtx, token, env, branch, transcript));
   }
 
   // --- Conclusion (verdict logic is REAL; see verdict.ts) ------------------
@@ -180,6 +370,13 @@ export async function executeFleet(job: FleetRunJob, env: ExecutorEnv): Promise<
   }
 
   await completeCheckRun(owner, repo, checkRunId, conclusion, summary, token);
+
+  // --- Transcript: check completion + final run header (best-effort) --------
+  await transcript.step('check-completed', null, `Check concluded: ${conclusion}`, {
+    checkRunId,
+    conclusion,
+  });
+  await recordRunEnd(env, runId, conclusion, startMs);
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +404,7 @@ async function runShip(
   token: string,
   env: ExecutorEnv,
   branch: string,
+  transcript: Transcript,
 ): Promise<ShipResult> {
   try {
     // ZERO-TRUST: ship contract is read from the trusted branch, NEVER PR head.
@@ -232,15 +430,44 @@ async function runShip(
         ],
       })) as { response?: string };
       partials.push((res.response ?? '').trim());
+
+      // Transcript: one row per MAP chunk (best-effort).
+      await transcript.step('map-chunk', ship.name, `MAP chunk ${i + 1}/${chunks.length}`, {
+        chunkIndex: i,
+        chunkCount: chunks.length,
+        outputLength: partials[i]?.length ?? 0,
+      });
     }
 
     // --- REDUCE: manager merges the partials (only when fan-out > 1) --------
     const output =
       chunks.length === 1 ? partials[0] ?? '' : await reduceFindings(ship, partials, env);
 
+    // Transcript: the REDUCE step exists only on a multi-chunk fan-out.
+    if (chunks.length > 1) {
+      await transcript.step('reduce', ship.name, `REDUCE pd-${ship.name}`, {
+        chunkCount: chunks.length,
+        outputLength: output.length,
+      });
+    }
+
     // Parse the structured findings block. `null` => malformed JSON => the ship
     // is treated as errored (blocking → BLOCK, advisory → PASS, never silent).
     const findings = parseShipFindings(output);
+
+    // Transcript: findings parse outcome. A malformed block is a 'ship-finding'
+    // marker (the ship produced output we couldn't parse); a parsed block is a
+    // 'ship-verdict' carrying the resolved verdict line.
+    const verdictForTranscript: Verdict | null =
+      findings === null ? null : resolveVerdict(output, ship.blocking);
+    await transcript.step(
+      findings === null ? 'ship-finding' : 'ship-verdict',
+      ship.name,
+      findings === null
+        ? `pd-${ship.name}: MALFORMED`
+        : `pd-${ship.name}: ${verdictForTranscript}`,
+      findings === null ? { error: 'failed to parse findings' } : findings,
+    );
 
     // Post the ship's full output (edit-in-place => idempotent on retry). This
     // is the backward-compatible history surface; inline review is primary.
@@ -254,6 +481,11 @@ async function runShip(
       token,
     );
 
+    // Transcript: the per-ship issue comment was posted.
+    await transcript.step('review-posted', ship.name, `Posted review for pd-${ship.name}`, {
+      posted: true,
+    });
+
     if (findings === null) {
       return {
         ship: ship.name,
@@ -264,12 +496,19 @@ async function runShip(
       };
     }
 
-    const verdict: Verdict = resolveVerdict(output, ship.blocking);
+    const verdict: Verdict = verdictForTranscript ?? resolveVerdict(output, ship.blocking);
     return { ship: ship.name, blocking: ship.blocking, verdict, errored: false, findings };
   } catch {
     // A blocking ship that errors fails the gate (fail-closed). Verdict is
     // forced to BLOCK for blocking ships, PASS for advisory ones; `errored`
     // is the authoritative signal the aggregator keys on.
+    // Transcript: record the errored verdict so the run remains legible.
+    await transcript.step(
+      'ship-verdict',
+      ship.name,
+      `pd-${ship.name}: ${ship.blocking ? 'BLOCK' : 'PASS'} (errored)`,
+      { errored: true },
+    );
     return {
       ship: ship.name,
       blocking: ship.blocking,

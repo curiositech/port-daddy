@@ -220,6 +220,111 @@ export function memoryKV(): KVNamespace & { _store: Map<string, string>; _gets: 
   return kv;
 }
 
+/**
+ * Captured fleet_runs row (after any UPDATE applied).
+ */
+export interface CapturedRun {
+  id: unknown;
+  deliveryId: unknown;
+  repo: unknown;
+  prNumber: unknown;
+  prUrl: unknown;
+  headSha: unknown;
+  shipsCsv: unknown;
+  createdAt: unknown;
+  conclusion: string;
+  ms: number;
+}
+
+/** Captured fleet_run_steps row. */
+export interface CapturedStep {
+  runId: unknown;
+  seq: unknown;
+  kind: string;
+  ship: unknown;
+  title: unknown;
+  detail: unknown;
+}
+
+export interface D1Capture {
+  db: D1Database;
+  /** fleet_runs rows, in id order of first insert. */
+  runs: CapturedRun[];
+  /** fleet_run_steps rows, in insertion order. */
+  steps: CapturedStep[];
+  /** Set true to make EVERY `.run()` throw (transcript-write failure path). */
+  failAll: boolean;
+  /** Number of `.run()` calls attempted (including the ones that threw). */
+  runCalls: number;
+}
+
+/**
+ * Minimal in-memory D1 stub. Recognizes the three statements the executor uses
+ * (INSERT OR REPLACE INTO fleet_runs / fleet_run_steps, UPDATE fleet_runs) by
+ * keyword and records the bound parameters. Everything else is a no-op that
+ * returns an empty result, so a stray query never blows up a test.
+ */
+export function memoryD1(): D1Capture {
+  const runsById = new Map<string, CapturedRun>();
+  const cap: D1Capture = {
+    db: undefined as unknown as D1Database,
+    get runs() {
+      return [...runsById.values()];
+    },
+    steps: [],
+    failAll: false,
+    runCalls: 0,
+  };
+
+  const prepare = (sql: string) => ({
+    bind: (...args: unknown[]) => ({
+      async run() {
+        cap.runCalls += 1;
+        if (cap.failAll) throw new Error('D1 unavailable');
+        if (/INTO fleet_runs/i.test(sql)) {
+          runsById.set(String(args[0]), {
+            id: args[0],
+            deliveryId: args[1],
+            repo: args[2],
+            prNumber: args[3],
+            prUrl: args[4],
+            headSha: args[5],
+            shipsCsv: args[6],
+            createdAt: args[7],
+            conclusion: 'pending',
+            ms: 0,
+          });
+        } else if (/INTO fleet_run_steps/i.test(sql)) {
+          cap.steps.push({
+            runId: args[0],
+            seq: args[1],
+            kind: String(args[2]),
+            ship: args[3],
+            title: args[4],
+            detail: args[5],
+          });
+        } else if (/UPDATE fleet_runs/i.test(sql)) {
+          const row = runsById.get(String(args[2]));
+          if (row) {
+            row.conclusion = String(args[0]);
+            row.ms = Number(args[1]);
+          }
+        }
+        return { success: true, meta: {} };
+      },
+      async first() {
+        return null;
+      },
+      async all() {
+        return { results: [] };
+      },
+    }),
+  });
+
+  cap.db = { prepare } as unknown as D1Database;
+  return cap;
+}
+
 export interface AiStub {
   ai: Ai;
   /** Every AI call: which model, the map/reduce phase, and the routed ship. */
@@ -290,6 +395,7 @@ export function makeEnv(over: Partial<ExecutorEnv> = {}): ExecutorEnv {
     GITHUB_APP_PRIVATE_KEY: 'unused-in-faked-fetch',
     DEFAULT_BRANCH: 'main',
     FLEET_TOKENS: memoryKV(),
+    CONTROL_KV: memoryKV(),
     AI: aiStub({ perShip: {} }).ai,
     ...over,
   };

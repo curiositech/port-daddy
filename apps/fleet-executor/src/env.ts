@@ -16,10 +16,28 @@ export interface ExecutorEnv {
    * zero-trust invariant: never resolve config from `pull_request.head`.
    */
   DEFAULT_BRANCH: string;
-  /** KV cache for installation tokens, keyed by `github_inst_<id>`. */
+  /**
+   * KV cache for installation tokens, keyed by `github_inst_<id>`.
+   */
   FLEET_TOKENS: KVNamespace;
+  /**
+   * Relay CONTROL-PLANE KV (the relay's own `KV` namespace). Carries the
+   * kill-switch flag at key `fleet:paused` (JSON `{paused, pausedAt}` or the
+   * literal string `"true"`/`"false"`), written by the relay's
+   * POST /v1/fleet/pause. MUST be the SAME namespace the relay binds as `KV` —
+   * otherwise the executor never sees a pause toggle. Optional at the type level
+   * so unit tests can omit it; absent ⇒ NOT paused (fail-safe: the gate runs).
+   */
+  CONTROL_KV?: KVNamespace;
   /** Workers AI binding. */
   AI: Ai;
+  /**
+   * Shared relay D1 database (`port-daddy-relay`). The executor writes the
+   * fleet_runs audit header + the append-only fleet_run_steps transcript here.
+   * Optional at the type level so unit tests can omit it; all writes are
+   * best-effort and a missing/failing DB NEVER changes the gate.
+   */
+  DB?: D1Database;
 }
 
 /**
