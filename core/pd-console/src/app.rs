@@ -542,6 +542,109 @@ fn splash_disabled() -> bool {
     *V.get_or_init(|| std::env::var("PD_CONSOLE_NO_SPLASH").is_ok())
 }
 
+#[derive(Clone, Copy)]
+struct SplashBrandPalette {
+    cobalt: u32,
+    seafoam: u32,
+    amber: u32,
+    grid: u32,
+}
+
+fn splash_brand_palette(mode: ThemeMode) -> SplashBrandPalette {
+    match mode {
+        ThemeMode::Light => SplashBrandPalette {
+            cobalt: 0x2076fe,
+            seafoam: 0x12b88f,
+            amber: 0xf5a623,
+            grid: 0xdce3eb,
+        },
+        ThemeMode::Dark => SplashBrandPalette {
+            cobalt: 0x2076fe,
+            seafoam: 0x20deb0,
+            amber: 0xffb505,
+            grid: 0x243247,
+        },
+    }
+}
+
+fn splash_flip_turn(delta: f32) -> f32 {
+    let delta = delta.clamp(0.0, 1.0);
+    if delta < 0.15 {
+        0.0
+    } else if delta < 0.45 {
+        0.5 * ease_in_out((delta - 0.15) / 0.30)
+    } else if delta < 0.65 {
+        0.5
+    } else if delta < 0.85 {
+        0.5 + 0.5 * ease_in_out((delta - 0.65) / 0.20)
+    } else {
+        1.0
+    }
+}
+
+fn splash_static_layer(path: &'static str, color: u32) -> Svg {
+    svg()
+        .path(path)
+        .absolute()
+        .top_0()
+        .left_0()
+        .size_full()
+        .text_color(rgb(color))
+}
+
+fn splash_spin_layer(path: &'static str, color: u32, id: &'static str, duration_ms: u64, reverse: bool) -> AnyElement {
+    let layer = splash_static_layer(path, color);
+    if reduced_motion() {
+        return layer.into_any_element();
+    }
+    let direction = if reverse { -1.0 } else { 1.0 };
+    layer
+        .with_animation(
+            id,
+            Animation::new(Duration::from_millis(duration_ms)).repeat(),
+            move |layer, delta| {
+                layer.with_transformation(Transformation::rotate(radians(
+                    std::f32::consts::TAU * delta * direction,
+                )))
+            },
+        )
+        .into_any_element()
+}
+
+fn splash_flip_layer(path: &'static str, color: u32, id: &'static str) -> AnyElement {
+    let layer = splash_static_layer(path, color);
+    if reduced_motion() {
+        return layer.into_any_element();
+    }
+    layer
+        .with_animation(
+            id,
+            Animation::new(Duration::from_millis(6000)).repeat(),
+            |layer, delta| {
+                layer.with_transformation(Transformation::rotate(radians(
+                    std::f32::consts::TAU * splash_flip_turn(delta),
+                )))
+            },
+        )
+        .into_any_element()
+}
+
+fn render_splash_mark(brand: SplashBrandPalette) -> AnyElement {
+    div()
+        .relative()
+        .w(px(140.0))
+        .h(px(140.0))
+        .child(splash_static_layer("icons/pd-splash-radar-grid.svg", brand.grid))
+        .child(splash_spin_layer("icons/pd-splash-radar-slow.svg", brand.seafoam, "pd-splash-radar-slow", 10000, false))
+        .child(splash_spin_layer("icons/pd-splash-radar-mid.svg", brand.amber, "pd-splash-radar-mid", 7000, true))
+        .child(splash_spin_layer("icons/pd-splash-radar-fast.svg", brand.cobalt, "pd-splash-radar-fast", 5000, false))
+        .child(splash_flip_layer("icons/pd-splash-glyph-p.svg", brand.cobalt, "pd-splash-glyph-p"))
+        .child(splash_flip_layer("icons/pd-splash-glyph-d.svg", brand.seafoam, "pd-splash-glyph-d"))
+        .child(splash_flip_layer("icons/pd-splash-glyph-overlap.svg", brand.amber, "pd-splash-glyph-overlap"))
+        .child(splash_static_layer("icons/pd-splash-hub.svg", brand.cobalt))
+        .into_any_element()
+}
+
 /// Seed the starting palette from `PD_CONSOLE_THEME` (`light` | `dark`); default dark.
 /// Call once at startup before the window opens.
 pub fn init_theme_from_env() {
@@ -2031,12 +2134,13 @@ impl ConsoleView {
         self.dispatch_head = dispatch_head;
     }
 
-    /// The launch splash — a centered brand lockup (mark + "PORT DADDY") shown
-    /// until the first pane refresh lands (see `update_panes`). Static, so it
-    /// never fights reduced-motion; it covers the chrome via a full-size opaque
-    /// overlay painted last. Mirrors the launcher overlay's positioning.
+    /// The launch splash — a centered brand lockup (spinning radar mark + "Port Daddy") shown
+    /// until the first pane refresh lands (see `update_panes`). The radar layers
+    /// use native GPUI transforms and honor `PD_CONSOLE_REDUCED_MOTION`; the
+    /// overlay covers the chrome via a full-size opaque surface painted last.
     fn render_splash(&self) -> AnyElement {
         let t = current_theme();
+        let brand = splash_brand_palette(t.mode);
         div()
             .absolute()
             .top_0()
@@ -2049,19 +2153,15 @@ impl ConsoleView {
             .justify_center()
             .gap(px(16.0))
             .bg(rgb(t.bg))
-            .child(
-                svg()
-                    .path("icons/pd-mark-glyph.svg")
-                    .w(px(96.0))
-                    .h(px(96.0))
-                    .text_color(rgb(t.accent_ink)),
-            )
+            .child(render_splash_mark(brand))
             .child(
                 div()
-                    .text_size(px(30.0))
+                    .flex()
+                    .items_center()
+                    .text_size(px(34.0))
                     .font_weight(FontWeight::BLACK)
-                    .text_color(rgb(t.ink))
-                    .child("PORT DADDY"),
+                    .child(div().text_color(rgb(brand.cobalt)).child("Port"))
+                    .child(div().text_color(rgb(brand.seafoam)).child(" Daddy")),
             )
             .child(
                 div()
