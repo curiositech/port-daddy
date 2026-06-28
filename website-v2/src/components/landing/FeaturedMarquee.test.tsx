@@ -102,4 +102,13 @@ describe('FeaturedMarquee', () => {
 
     expect(intervalSpy).not.toHaveBeenCalled()
   })
+
+  it('clears the auto-advance interval on unmount', () => {
+    const clearIntervalSpy = vi.spyOn(window, 'clearInterval')
+    const { unmount } = renderFeaturedMarquee()
+
+    unmount()
+
+    expect(clearIntervalSpy).toHaveBeenCalledTimes(1)
+  })
 })
