@@ -784,36 +784,71 @@ impl RenderOnce for WavingFlag {
 }
 
 fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
+    let t = current_theme();
     match block {
         Block::Header(text) => {
             div()
-                .px(px(16.0))
-                .pt(px(12.0))
-                .pb(px(6.0))
-                .text_color(rgb(current_theme().accent_ink))
-                .text_size(px(15.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(text)
+                .mx(px(tokens::SPACE_3))
+                .mt(px(tokens::SPACE_3))
+                .mb(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.raised))
+                .shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+                .flex()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .w(px(5.0))
+                        .h(px(18.0))
+                        .rounded(px(tokens::RADIUS_SM))
+                        .bg(rgb(t.accent)),
+                )
+                .child(
+                    div()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_HEADER))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(text),
+                )
                 .into_any_element()
         }
         Block::KeyVal(key, val) => {
             div()
                 .flex()
-                .gap(px(8.0))
-                .px(px(16.0))
-                .py(px(3.0))
+                .items_start()
+                .gap(px(tokens::SPACE_3))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(tone_wash(t.raised, 0xd8))
+                .hover(|s| {
+                    let t = current_theme();
+                    s.border_color(rgb(t.accent))
+                        .bg(rgb(t.raised))
+                        .shadow(motion::glow(t.accent, 0.16, 10.0, 0.0))
+                })
                 .child(
                     div()
-                        .text_color(rgb(current_theme().muted))
-                        .text_size(px(14.0))
-                        .w(px(150.0))
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .w(px(132.0))
                         .flex_shrink_0()
                         .child(key)
                 )
                 .child(
                     div()
-                        .text_color(rgb(current_theme().ink))
-                        .text_size(px(14.0))
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_BODY))
                         .font_family("IBM Plex Mono")
                         .child(val)
                 )
@@ -822,76 +857,122 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
         Block::Row(cells) => {
             div()
                 .flex()
-                .gap(px(16.0))
-                .px(px(16.0))
-                .py(px(4.0))
-                .hover(|s| s.bg(rgb(current_theme().raised)))
+                .items_center()
+                .gap(px(tokens::SPACE_3))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .hover(|s| {
+                    let t = current_theme();
+                    s.bg(rgb(t.raised))
+                        .border_color(rgb(t.accent))
+                        .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
+                })
                 .children(
                     cells.into_iter().enumerate().map(|(i, cell)| {
                         div()
                             .text_color(rgb(if i == 0 { current_theme().accent_ink } else { current_theme().ink2 }))
-                            .text_size(px(14.0))
+                            .text_size(px(tokens::TEXT_BODY))
                             .font_family("IBM Plex Mono")
                             .flex_shrink_0()
+                            .when(i == 0, |s| s.min_w(px(22.0)).font_weight(FontWeight::BOLD))
                             .child(cell)
                     })
                 )
                 .into_any_element()
         }
         Block::Chip { label, tone } => {
-            let color = rgb(tone_rgb(&tone));
+            let color_u32 = tone_rgb(&tone);
+            let color = rgb(color_u32);
             div()
-                .mx(px(16.0))
-                .mt(px(4.0))
-                .mb(px(8.0))
-                .px(px(10.0))
-                .py(px(3.0))
-                .rounded_full()
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_1))
+                .rounded(px(tokens::RADIUS_MD))
                 .border_1()
                 .border_color(color)
+                .bg(tone_wash(color_u32, 0x20))
                 .text_color(color)
-                .text_size(px(13.0))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .shadow(motion::glow(color_u32, 0.10, 8.0, 0.0))
                 .child(label)
                 .into_any_element()
         }
         Block::Flag { letter, label, tone } => {
             // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
             // reacts to pane scroll/resize via `motion`; the letter rides it.
+            let color = tone_rgb(&tone);
             div()
                 .flex()
                 .items_center()
-                .gap(px(8.0))
-                .px(px(16.0))
-                .py(px(3.0))
-                .child(WavingFlag { letter, color: tone_rgb(&tone), motion })
+                .gap(px(tokens::SPACE_3))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(tone_wash(color, 0x16))
+                .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
+                .hover(|s| {
+                    let t = current_theme();
+                    s.border_color(rgb(color))
+                        .bg(rgb(t.raised))
+                        .shadow(motion::glow(color, 0.18, 10.0, 0.0))
+                })
+                .child(WavingFlag { letter, color, motion })
                 .child(
                     div()
-                        .text_color(rgb(current_theme().ink))
-                        .text_size(px(14.0))
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::MEDIUM)
                         .child(label),
                 )
                 .into_any_element()
         }
         Block::Spark(_) => {
             div()
-                .px(px(16.0))
-                .py(px(4.0))
-                .text_color(rgb(current_theme().muted))
-                .text_size(px(13.0))
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.sunken))
+                .text_color(rgb(t.landed))
+                .text_size(px(tokens::TEXT_HEADER))
+                .font_family("IBM Plex Mono")
                 .child("▁▂▃▄▅▆▇")
                 .into_any_element()
         }
         Block::Gap => {
-            div().h(px(8.0)).into_any_element()
+            div().h(px(tokens::SPACE_2)).into_any_element()
         }
         Block::WrappedText { text, tone } => {
             // Full, wrapping, never-truncated — the operator reads it all.
+            let color = tone_rgb(&tone);
             div()
-                .px(px(16.0))
-                .py(px(6.0))
-                .text_color(rgb(current_theme().tone(&tone)))
-                .text_size(px(14.0))
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(color))
+                .bg(tone_wash(color, 0x18))
+                .text_color(rgb(color))
+                .text_size(px(tokens::TEXT_BODY))
                 .font_family("IBM Plex Mono")
+                .shadow(motion::glow(color, 0.14, 12.0, 0.0))
                 .child(text)
                 .into_any_element()
         }
@@ -3193,6 +3274,45 @@ fn command_bar_btn(
         }))
 }
 
+/// Visible light/dark control. The old `Ctrl-A g` path still works; this makes
+/// the theme a discoverable operator action in the chrome.
+fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
+    let theme = current_theme();
+    let (icon, label) = match theme.mode {
+        ThemeMode::Dark => ("☀", "Light"),
+        ThemeMode::Light => ("◐", "Dark"),
+    };
+    div()
+        .id("theme-toggle")
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_1))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(theme.line))
+        .bg(rgb(theme.panel))
+        .text_color(rgb(theme.ink2))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .cursor_pointer()
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_1))
+        .hover(|s| {
+            let t = current_theme();
+            s.bg(rgb(t.raised))
+                .border_color(rgb(t.accent))
+                .text_color(rgb(t.accent_ink))
+                .shadow(motion::glow(t.accent, 0.24, 10.0, 0.0))
+        })
+        .child(div().text_size(px(tokens::TEXT_BODY)).child(icon))
+        .child(label)
+        .on_click(cx.listener(|this, _ev, _window, cx| {
+            toggle_theme();
+            this.control_flash = Some(format!("theme → {}", current_theme().mode.label()));
+            cx.notify();
+        }))
+}
+
 /// Render the open command line. For a Spawn still choosing backend/tier it
 /// shows the inline chip picker; otherwise the prompt field + Send/Cancel.
 fn render_open_command(
@@ -3941,7 +4061,9 @@ impl Render for ConsoleView {
                                 this.launcher_open = true;
                                 cx.notify();
                             })),
-                    ),
+                    )
+                    .child(div().flex_1())
+                    .child(theme_toggle_btn(cx)),
             )
             // ── Body row: clickable NAV rail (the GUI replacement for the
             // Ctrl-A <key> surface switch the operator hates) + the pane tree.
