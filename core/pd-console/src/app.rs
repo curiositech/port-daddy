@@ -19,6 +19,8 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::agent::{Backend, ModelCatalog, Tier};
+use crate::chat::{ChatLog, ChatMsg, ChatState};
+pub use crate::chat::ChatUpdate;
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::pane::{Alert, AlertLevel, Block, Pane, Tone};
@@ -43,6 +45,13 @@ pub enum ControlMsg {
     Spawn { backend: String, prompt: String, model: Option<String> },
     /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
     Cartographer { text: String },
+    /// Operator chat: a turn UP the tube on the stable per-conversation channel
+    /// (`console-chat`). The background thread binds a real conversational
+    /// responder on the first turn (spawns a Claude Code agent on the channel,
+    /// `POST /spawn`), then `tube_send`s subsequent turns and `tube_poll`s replies
+    /// DOWN the same channel — both off the gpui executor. Replies flow back over
+    /// the [`ChatUpdate`] bus.
+    ChatSend { text: String },
     /// Operator review-gate verdicts on the head dispatch.
     DispatchAccept { id: String },
     DispatchReject { id: String, reason: String },
@@ -1197,6 +1206,13 @@ pub struct ConsoleView {
     prev_viewport_w: f32,
     /// True while a flag-settle loop is scheduled (one at a time, idempotent kick).
     flag_ticking: bool,
+    /// Operator chat transcript (bubbles) + a transient transport error. Folded by
+    /// the background thread over the [`ChatUpdate`] bus; the pane renders it.
+    chat: ChatLog,
+    /// The chat composer's rolled-own text buffer — gpui 0.2.2 has no native input,
+    /// so keydown pushes `key_char` here (case-preserving) the same way the command
+    /// line does, and Enter submits a turn up the tube.
+    chat_input: String,
 }
 
 impl ConsoleView {
@@ -1284,6 +1300,8 @@ impl ConsoleView {
             flag_motion: FlagMotion::default(),
             prev_viewport_w: 0.0,
             flag_ticking: false,
+            chat: ChatLog::default(),
+            chat_input: String::new(),
         }
     }
 
@@ -1352,6 +1370,12 @@ impl ConsoleView {
         // (the DLQ), not a background-refreshed NAV pane. Render it untruncated.
         if matches!(surface, SurfaceKind::Hitl) {
             return self.blocks_for_hitl();
+        }
+        // Operator chat is foreground-only too — it reads the in-process transcript
+        // (the GPUI shell renders bespoke bubbles, but the terminal face + tests
+        // read these render-agnostic blocks from the same model).
+        if matches!(surface, SurfaceKind::CartographerChat) {
+            return self.chat.blocks();
         }
         // Conjure renders its (foundation-slice) fixture DAG through the Block UI
         // — no background NAV pane, no windags call yet.
@@ -1563,6 +1587,72 @@ impl ConsoleView {
             }
         }
         cx.notify();
+    }
+
+    /// Is the focused pane the operator chat? Drives the keydown router (chat
+    /// captures printable keys into its composer when focused, like a text field —
+    /// gpui 0.2.2 has no native input, so the root focus handle does the capturing).
+    fn focused_is_chat(&self) -> bool {
+        matches!(self.ws().focused_surface(), SurfaceKind::CartographerChat)
+    }
+
+    /// Feed one keystroke into the chat composer. Mirrors `handle_command_key`'s
+    /// rolled-own buffer (no native widget): Enter submits the turn; Shift+Enter
+    /// inserts a newline; Backspace pops; Space/printable chars push (case-preserving
+    /// via `keystroke.key_char`); bare modifiers/arrows/function keys are ignored.
+    fn handle_chat_key(&mut self, key: &str, typed: Option<&str>, shift: bool, cx: &mut Context<Self>) {
+        match key {
+            "enter" if shift => self.chat_input.push('\n'),
+            "enter" => self.submit_chat(),
+            "backspace" => {
+                self.chat_input.pop();
+            }
+            "space" => self.chat_input.push(' '),
+            _ => {
+                if let Some(ch) = typed {
+                    self.chat_input.push_str(ch);
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    /// Submit the composed chat turn: optimistically show the operator's bubble,
+    /// clear the composer, fire the send earcon, and hand the text to the
+    /// background transport thread (which owns the daemon client / tube). Without a
+    /// control plane (an isolated test view) the surface is honest about being
+    /// view-only rather than pretending to send.
+    fn submit_chat(&mut self) {
+        let text = self.chat_input.trim().to_string();
+        if text.is_empty() {
+            return;
+        }
+        self.chat_input.clear();
+        // Optimistic: the operator's turn appears the instant they press Enter.
+        self.chat.push_mine(text.clone());
+        crate::audio::play(crate::audio::Cue::Confirm);
+        match &self.control_tx {
+            Some(tx) => {
+                let _ = tx.send(ControlMsg::ChatSend { text });
+            }
+            None => {
+                self.chat
+                    .set_error("no control plane — chat is view-only in this build");
+            }
+        }
+    }
+
+    /// Fold one transport push into the chat transcript: a real reply down the tube
+    /// (with the receive earcon) or a transport error (surfaced in the error state).
+    pub fn apply_chat_update(&mut self, update: ChatUpdate) {
+        match update {
+            ChatUpdate::Reply(msg) => {
+                // A reply is always agent-side (mine = false), by construction.
+                self.chat.push_agent(msg.sender, msg.text);
+                crate::audio::play(crate::audio::Cue::Receive);
+            }
+            ChatUpdate::Error(reason) => self.chat.set_error(reason),
+        }
     }
 
     /// Key handling while the Spawn picker is choosing a backend or tier.
@@ -2255,6 +2345,14 @@ impl ConsoleView {
         // The Conjure surface (focused) gets the "Render graph" action bar — the
         // discoverable control that ships the live DAG to the Vello PNG renderer.
         let is_conjure = matches!(surface, SurfaceKind::Conjure);
+        // The chat surface renders bespoke bubbles (from view state) + a focused
+        // composer, NOT the generic Block list. Snapshot the transcript for this frame.
+        let is_chat = matches!(surface, SurfaceKind::CartographerChat);
+        let chat_msgs: Vec<ChatMsg> = if is_chat { self.chat.messages.clone() } else { Vec::new() };
+        let chat_error: Option<String> = if is_chat { self.chat.error.clone() } else { None };
+        let chat_state: Option<ChatState> = if is_chat { Some(self.chat.state()) } else { None };
+        let chat_input = if is_chat { self.chat_input.clone() } else { String::new() };
+        let chat_reduced = reduced_motion();
         let conjure_flash = self.control_flash.clone();
         // The rendered Vello PNG (if any) for the inline node-graph at the top of
         // the Conjure surface. `None` ⇒ a tasteful "rendering graph…" placeholder.
@@ -2417,6 +2515,22 @@ impl ConsoleView {
                         b
                     }
                     None if is_daemons => body.children(daemon_rows),
+                    // Chat: bespoke bubbles from view state (three states: empty
+                    // invitation / populated transcript / error banner) — never the
+                    // generic Block list.
+                    None if is_chat => {
+                        let mut b = body;
+                        if matches!(chat_state, Some(ChatState::Empty)) {
+                            b = b.child(chat_empty_state());
+                        }
+                        if let Some(reason) = &chat_error {
+                            b = b.child(chat_error_banner(reason));
+                        }
+                        for (i, m) in chat_msgs.iter().enumerate() {
+                            b = b.child(chat_bubble(i, m, chat_reduced));
+                        }
+                        b
+                    }
                     // Every other surface: the generic read-agnostic Block renderer.
                     None => body.children(blocks.into_iter().map(move |b| render_block(b, motion))),
                 }
@@ -2464,6 +2578,12 @@ impl ConsoleView {
                             )
                         }),
                 )
+            })
+            // Chat composer — only the focused chat pane mounts the input bar. This
+            // is the rolled-own text field: the root focus handle captures keys and
+            // routes them to handle_chat_key when chat is focused (gpui has no native input).
+            .when(is_chat && is_focused, |content| {
+                content.child(chat_composer(&chat_input, chat_reduced, cx))
             })
             // ── Dispatch review GATE (focused dispatch surface) — the operator's
             //    supervisor-worker veto: shows the head dispatch's intent + cost
@@ -3413,6 +3533,234 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
         }))
 }
 
+// ── Operator chat — bespoke bubbles + the rolled-own composer ─────────────────
+
+/// One chat bubble (bespoke, not a `Block`). Operator turns sit right-aligned in
+/// an accent-bordered raised card with a soft accent glow; agent replies sit
+/// left-aligned in a panel card with a cobalt left rail (mirrors `render_block`'s
+/// header rail). Each blooms in once (220ms swoosh fade) unless reduced-motion is
+/// set, in which case it renders static at full opacity.
+fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
+    let t = current_theme();
+    let mine = msg.mine;
+    let sender_label = if mine { "you".to_string() } else { msg.sender.clone() };
+
+    // Eyebrow: who spoke (caption weight) — color = meaning, plus the label so a
+    // role is never conveyed by color alone.
+    let eyebrow = div()
+        .text_color(rgb(t.muted))
+        .text_size(px(tokens::TEXT_CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(sender_label);
+    let body = div()
+        .text_color(rgb(if mine { t.accent_ink } else { t.ink }))
+        .text_size(px(tokens::TEXT_BODY))
+        .child(msg.text.clone());
+
+    let bubble: Div = if mine {
+        div()
+            .max_w(px(560.0)) // ~62ch at 14px
+            .flex()
+            .flex_col()
+            .gap(px(tokens::SPACE_1))
+            .px(px(tokens::SPACE_3))
+            .py(px(tokens::SPACE_2))
+            .rounded(px(tokens::RADIUS_LG))
+            .border_1()
+            .border_color(rgb(t.accent))
+            .bg(rgb(t.raised))
+            .shadow(motion::glow(t.accent, 0.10, 8.0, 0.0))
+            .child(eyebrow)
+            .child(body)
+    } else {
+        // The cobalt rail is a child div (a fixed-width colored strip), exactly the
+        // render_block Header rail idiom — guaranteed across gpui border helpers.
+        div()
+            .max_w(px(560.0))
+            .flex()
+            .overflow_hidden()
+            .rounded(px(tokens::RADIUS_LG))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(rgb(t.panel))
+            .child(div().w(px(4.0)).bg(rgb(t.cobalt)))
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(tokens::SPACE_1))
+                    .px(px(tokens::SPACE_3))
+                    .py(px(tokens::SPACE_2))
+                    .child(eyebrow)
+                    .child(body),
+            )
+    };
+
+    // Bloom-in: a one-shot 220ms swoosh fade. Reduced-motion → static full opacity.
+    let bubble_el: AnyElement = if reduced {
+        bubble.into_any_element()
+    } else {
+        bubble
+            .with_animation(
+                SharedString::from(format!("chat-bloom-{idx}")),
+                Animation::new(Duration::from_millis(220)).with_easing(motion::swoosh),
+                |el: Div, delta| el.opacity(delta),
+            )
+            .into_any_element()
+    };
+
+    // Alignment via spacer divs (no justify_* dependency): mine → push right,
+    // agent → push left.
+    let row = div()
+        .w_full()
+        .flex()
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_1));
+    if mine {
+        row.child(div().flex_1()).child(bubble_el).into_any_element()
+    } else {
+        row.child(bubble_el).child(div().flex_1()).into_any_element()
+    }
+}
+
+/// The empty chat state — an honest invitation, never a blank pane.
+fn chat_empty_state() -> AnyElement {
+    let t = current_theme();
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(tokens::SPACE_2))
+        .px(px(tokens::SPACE_4))
+        .pt(px(tokens::SPACE_4))
+        .child(
+            div()
+                .text_color(rgb(t.ink))
+                .text_size(px(tokens::TEXT_BODY_LG))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child("Talk to the cartographer"),
+        )
+        .child(
+            div()
+                .text_color(rgb(t.muted))
+                .text_size(px(tokens::TEXT_BODY))
+                .child(
+                    "Type below and press Enter. Your turn rides up the console-chat tube; \
+                     replies stream back here as they land.",
+                ),
+        )
+        .into_any_element()
+}
+
+/// The chat error banner — a refused send/spawn, surfaced (never swallowed).
+fn chat_error_banner(reason: &str) -> AnyElement {
+    let t = current_theme();
+    div()
+        .mx(px(tokens::SPACE_3))
+        .my(px(tokens::SPACE_1))
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .rounded(px(tokens::RADIUS_MD))
+        .border_1()
+        .border_color(rgb(t.gated))
+        .bg(tone_wash(t.gated, 0x1c))
+        .child(
+            div()
+                .text_color(rgb(t.gated))
+                .text_size(px(tokens::TEXT_BODY))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(format!("\u{26A0} {reason}")),
+        )
+        .into_any_element()
+}
+
+/// The blinking composer caret — a painted "▏" in accent, pulsed over 1100ms
+/// (skipped under reduced-motion: a static caret).
+fn chat_caret(reduced: bool) -> AnyElement {
+    let t = current_theme();
+    let caret = div()
+        .text_color(rgb(t.accent))
+        .text_size(px(tokens::TEXT_BODY))
+        .child("\u{258F}");
+    if reduced {
+        return caret.into_any_element();
+    }
+    caret
+        .with_animation(
+            SharedString::from("chat-caret"),
+            Animation::new(Duration::from_millis(1100))
+                .repeat()
+                .with_easing(pulsating_between(0.0, 1.0)),
+            |el, delta| el.opacity(delta),
+        )
+        .into_any_element()
+}
+
+/// The chat composer row — a sunken field that shows the rolled-own `chat_input`
+/// buffer (or a ghost placeholder) + the blinking caret, with a Send button. The
+/// load-bearing text input: gpui 0.2.2 has no native field, so keydown fills the
+/// buffer and this renders it.
+fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> AnyElement {
+    let t = current_theme();
+    div()
+        .px(px(tokens::SPACE_3))
+        .py(px(tokens::SPACE_2))
+        .border_t_1()
+        .border_color(rgb(t.line))
+        .flex()
+        .items_center()
+        .gap(px(tokens::SPACE_2))
+        .child(
+            div()
+                .flex_1()
+                .flex()
+                .items_center()
+                .gap(px(4.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_LG))
+                .bg(rgb(t.sunken))
+                .border_1()
+                .border_color(rgb(t.line))
+                .child(
+                    div()
+                        .text_color(rgb(t.accent_ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child("\u{203A}"),
+                )
+                .child({
+                    let field = div().flex_1().text_size(px(tokens::TEXT_BODY)).font_family("IBM Plex Mono");
+                    if input.is_empty() {
+                        field
+                            .text_color(rgb(t.muted))
+                            .child("Message the cartographer…  (Enter to send · Shift+Enter newline)")
+                    } else {
+                        field.text_color(rgb(t.ink)).child(input.to_string())
+                    }
+                })
+                .child(chat_caret(reduced)),
+        )
+        .child(
+            div()
+                .id("chat-send")
+                .px(px(12.0))
+                .py(px(5.0))
+                .rounded(px(tokens::RADIUS_MD))
+                .bg(rgb(t.accent))
+                .text_color(rgb(t.bg))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
+                .cursor_pointer()
+                .hover(|s| s.shadow(motion::glow(t.accent, 0.30, 10.0, 0.0)))
+                .child("Send")
+                .on_click(cx.listener(|this, _ev, _window, cx| {
+                    this.submit_chat();
+                    cx.notify();
+                })),
+        )
+        .into_any_element()
+}
+
 /// Render the open command line. For a Spawn still choosing backend/tier it
 /// shows the inline chip picker; otherwise the prompt field + Send/Cancel.
 fn render_open_command(
@@ -4046,6 +4394,12 @@ impl Render for ConsoleView {
                 } else if ctrl && key == "a" {
                     this.leader_armed = true;
                     cx.notify();
+                } else if this.focused_is_chat() {
+                    // The focused chat pane captures printable keys into its composer
+                    // (no native input widget) — the load-bearing "make it actually
+                    // type" path. Ctrl-A still arms the leader (checked above first).
+                    let shift = ev.keystroke.modifiers.shift;
+                    this.handle_chat_key(key.as_str(), key_char.as_deref(), shift, cx);
                 }
             }))
             // ── Tab bar (named workspaces, like tmux windows) ──

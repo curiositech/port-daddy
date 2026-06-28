@@ -15,6 +15,7 @@ mod app;
 mod audio;
 mod berths;
 mod buffer;
+mod chat;
 mod cli_args;
 mod daemon_pane;
 mod claims_pane;
@@ -312,6 +313,11 @@ fn main() {
         // Conjure surface and shows the inline graphic. Separate from the pane bus
         // because these are foreground-owned surfaces, not background NAV panes.
         let (conjure_tx, conjure_rx) = mpsc::channel::<app::ConjureUpdate>();
+        // Chat bus: the bg thread owns the real tube round-trip (tube_send up,
+        // tube_poll down on the stable `console-chat` channel, both off the gpui
+        // executor) and pushes replies/errors back here for the foreground to fold
+        // into the chat transcript. Real daemon traffic, never a fake.
+        let (chat_tx, chat_rx) = mpsc::channel::<chat::ChatUpdate>();
         let url = daemon_url.clone();
         std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
@@ -377,6 +383,11 @@ fn main() {
                 // (A finer cadence is a follow-up; this proves the live pipeline.)
                 let mut lane_stream: Option<(String, tokio::sync::mpsc::Receiver<agent::StreamEnvelope>)> = None;
 
+                // Operator chat transport state: (channel, cursor). `None` until the
+                // first turn binds a responder on the stable `console-chat` channel.
+                // Each loop polls this channel for replies down the tube.
+                let mut chat: Option<(String, u64)> = None;
+
                 loop {
                     tokio::time::sleep(Duration::from_secs(2)).await;
 
@@ -435,6 +446,70 @@ fn main() {
                             app::ControlMsg::Cartographer { text } => {
                                 if let Err(e) = client.tube_send("cartographer", &text, "operator").await {
                                     let _ = alert_tx.send(pane::Alert::error("cartographer send failed", e.to_string()));
+                                }
+                            }
+                            // Operator chat — the REAL tube round-trip. The first turn
+                            // binds a conversational responder by spawning a Claude Code
+                            // agent ON the `console-chat` channel (guaranteed multi-turn
+                            // tube replies); the operator's first message is the seed
+                            // prompt. Subsequent turns `tube_send` up the channel; the
+                            // poll below pulls replies down. Live launch is env-dependent
+                            // (daemon up + claude CLI + a worktree via PD_CONSOLE_WORKDIR
+                            // + budget). On a spawn refusal we DON'T lose the turn — we
+                            // round-trip it onto the real /msg channel and start polling,
+                            // and surface the refusal in the chat error state.
+                            app::ControlMsg::ChatSend { text } => {
+                                let channel = "console-chat".to_string();
+                                match &mut chat {
+                                    Some((ch, _cursor)) => {
+                                        if let Err(e) = client.tube_send(ch, &text, "operator").await {
+                                            let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                format!("chat send failed: {e}"),
+                                            ));
+                                        }
+                                    }
+                                    None => {
+                                        match client
+                                            .spawn(
+                                                agent::Backend::ClaudeCli,
+                                                &text,
+                                                &channel,
+                                                None,
+                                                agent::SpawnOpts::default(),
+                                            )
+                                            .await
+                                        {
+                                            Ok(outcome) => {
+                                                chat = Some((channel.clone(), 0));
+                                                // One-shot inline backends (ollama) reply
+                                                // in the spawn response, not on the tube.
+                                                if let Some(out) =
+                                                    outcome.output.filter(|t| !t.trim().is_empty())
+                                                {
+                                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
+                                                        chat::ChatMsg::agent("claude-cli", out),
+                                                    ));
+                                                }
+                                                if let Some(err) = outcome.error {
+                                                    let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                        format!("chat responder blocked: {err}"),
+                                                    ));
+                                                }
+                                            }
+                                            Err(e) => {
+                                                // No responder bound, but don't drop the
+                                                // turn: round-trip it onto the real channel
+                                                // and poll for any traffic going forward.
+                                                let _ = client
+                                                    .tube_send(&channel, &text, "operator")
+                                                    .await;
+                                                chat = Some((channel, 0));
+                                                let _ = chat_tx.send(chat::ChatUpdate::Error(
+                                                    format!("no responder bound (spawn refused): {e}"),
+                                                ));
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             // Operator review-gate verdicts on a dispatch.
@@ -648,6 +723,7 @@ fn main() {
                             app::ControlMsg::RebindDaemon { url } => {
                                 client = DaemonClient::new(url);
                                 lane_stream = None; // drop the old daemon's SSE stream
+                                chat = None; // re-bind chat on the new daemon's channel
                             }
                         }
                     }
@@ -697,6 +773,26 @@ fn main() {
                     if let Some((_, rx)) = lane_stream.as_mut() {
                         while let Ok(env) = rx.try_recv() {
                             lane.on_stream(&env);
+                        }
+                    }
+
+                    // Poll the operator-chat channel for replies down the tube. Only
+                    // active once a turn has been sent (a responder bound); non-operator
+                    // messages become chat replies, the operator's own echoes are dropped.
+                    if let Some((ch, cursor)) = &mut chat {
+                        match client.tube_poll(ch, *cursor).await {
+                            Ok((new_cursor, msgs)) => {
+                                *cursor = new_cursor;
+                                for m in msgs.into_iter().filter(|m| m.sender != "operator") {
+                                    let _ = chat_tx.send(chat::ChatUpdate::Reply(
+                                        chat::ChatMsg::agent(m.sender, m.text),
+                                    ));
+                                }
+                            }
+                            Err(e) => {
+                                let _ = chat_tx
+                                    .send(chat::ChatUpdate::Error(format!("chat poll failed: {e}")));
+                            }
                         }
                     }
 
@@ -765,6 +861,16 @@ fn main() {
                         let _ = async_cx.update(|app| {
                             let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
                                 view.apply_conjure_update(update.clone());
+                                cx.notify();
+                            });
+                        });
+                    }
+                    // Drain the chat bus: real replies down the tube (with the receive
+                    // earcon) or a transport error, folded into the chat transcript.
+                    while let Ok(update) = chat_rx.try_recv() {
+                        let _ = async_cx.update(|app| {
+                            let _ = window.update(app, |view: &mut ConsoleView, _, cx| {
+                                view.apply_chat_update(update.clone());
                                 cx.notify();
                             });
                         });
