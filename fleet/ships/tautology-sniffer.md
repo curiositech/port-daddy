@@ -136,7 +136,7 @@ Fail-closed rules (this is a blocking ship):
     "path": "tests/unit/sdk.test.ts",
     "line": 42,
     "severity": "HIGH",
-    "body": "Tautology (score 9): the mock is told to return `{ port: 3001 }` (line 38) and the assertion checks `result.port === 3001` (line 42). If the daemon wire shape drifted to `{ assignedPort: 3001 }` this test still passes — it asserts the mock, not the SDK. Rewrite against a fixture (`tests/fixtures/claim-response.json`) or the ephemeral-daemon helper, then update the fixture when the wire shape changes."
+    "body": "Tautology (score 9): the mock is told to return `{ port: 3001 }` (line 38) and the assertion checks `result.port === 3001` (line 42). If the daemon wire shape drifted to `{ assignedPort: 3001 }` this test still passes — it asserts the mock, not the SDK. Rewrite against a checked-in wire fixture or the ephemeral-daemon helper, then update the fixture when the wire shape changes."
   },
   {
     "path": "apps/fleet-executor/src/verdict.ts",
