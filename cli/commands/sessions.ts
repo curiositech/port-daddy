@@ -12,7 +12,7 @@ import { canPrompt, promptText, promptSelect } from '../utils/prompt.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
-import { readCurrentContext } from '../utils/current-context.js';
+import { readCurrentContext, writeCurrentContext } from '../utils/current-context.js';
 import { loadFleetConfig } from '../../lib/fleet-engine.js';
 import { deriveChangelogFromNote } from '../../lib/changelog-from-note.js';
 import {
@@ -473,6 +473,22 @@ async function sessionTakeover(rest: string[], options: CLIOptions): Promise<voi
   if (!data.success) {
     ui.error(data.error || 'Failed to take over session');
     process.exit(1);
+  }
+
+  if (data.successorId) {
+    const successor = data.session as Record<string, unknown> | undefined;
+    const successorAgentId = typeof successor?.agentId === 'string'
+      ? successor.agentId
+      : (typeof options.agent === 'string' ? options.agent : readCurrentContext()?.agentId);
+    if (successorAgentId) {
+      writeCurrentContext({
+        agentId: successorAgentId,
+        sessionId: data.successorId,
+        purpose: typeof successor?.purpose === 'string' ? successor.purpose : undefined,
+        identity: typeof successor?.identityProject === 'string' ? successor.identityProject : null,
+        startedAt: typeof successor?.createdAt === 'number' ? successor.createdAt : Date.now(),
+      });
+    }
   }
 
   if (isJson(options)) {
