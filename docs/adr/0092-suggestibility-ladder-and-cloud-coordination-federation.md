@@ -190,10 +190,15 @@ this ADR waits on, not new design.
   Solves cloud-writes and multi-machine but breaks offline-first and makes
   coordination hard-depend on connectivity. *Rejected* — offline-first is load-
   bearing for local agent work.
-- **CRDT federation (chosen).** Cloud is a peer, not a master; offline-first
-  preserved; aligns with existing Harbor CRDT and ADR-0090.
+- **CRDT federation (chosen).** Cloud is a peer, not a master, so offline-first is
+  preserved (a local daemon keeps working partitioned and reconciles on
+  reconnect); it reuses the existing Harbor CRDT/oplog and the ADR-0090 sync
+  layer rather than inventing a second one; and local and cloud agents converge
+  on a single ledger so the two transports stop diverging. Full mechanism in §4.
 - **Keep discipline prompt-only (status quo).** Rejected: the Pilot branch proved
-  a persona alone does not prevent the cardinal sin; only interception does.
+  a persona alone does not prevent the cardinal sin — two agents editing the same
+  surface, the one outcome the whole substrate exists to prevent; only
+  interception at the edit moment (L2) does.
 
 ## Rollout (smallest-real-first, each independently shippable)
 
