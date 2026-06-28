@@ -296,6 +296,9 @@ describe('Test Group 3: API -> CLI Parity', () => {
     messaging: ['pub', 'sub', 'channels'],
     locks: ['lock', 'unlock', 'locks'],
     agents: ['agent', 'agents'],
+    // agentroster: live aggregate over agents/sessions/claims.
+    // CLI surface is `pd agents --live` / `pd agents --roster`.
+    agentroster: ['agents'],
     actors: ['actor', 'actors'],
     // agentcockpit: "Watch + Grab the Wheel" SSE stream + soft interrupt
     // (routes/agent-cockpit.ts, agentCockpitPlugin). CLI surface is
