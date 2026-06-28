@@ -16,15 +16,12 @@ class PortDaddy < Formula
     # compatible editor runtimes without copy drift.
     pkgshare.install "skills/port-daddy-agent-skill" => "skills/port-daddy-agent-skill"
 
-    # Ship the canonical Port Daddy Pilot agent source so `pd setup` can render
-    # it into each runtime's native agent format (Claude .md, Codex .toml,
-    # Gemini command, generic .agents drop). The renderer reads this on every
-    # install/upgrade — see lib/pilot-agent-render.ts.
+    # Port Daddy Pilot source rendered by `pd setup` into each runtime's
+    # native agent format. See lib/pilot-agent-render.ts.
     pkgshare.install "agents/port-daddy-pilot" => "agents/port-daddy-pilot"
 
-    # Ship the SessionStart steering hook so `pd init` can wire it into a
-    # project's .claude/settings.json — new sessions in a Port Daddy repo adopt
-    # the Pilot agent automatically. Dependency-free, daemon-independent.
+    # SessionStart steering hook wired by `pd init`; dependency-free and
+    # daemon-independent.
     pkgshare.install "hooks/sessionstart-pilot.mjs" => "hooks/sessionstart-pilot.mjs"
   end
 
@@ -75,9 +72,9 @@ class PortDaddy < Formula
         ~/.codex/agents/port-daddy-pilot.toml     (Codex CLI)
         ~/.gemini/commands/pd-pilot.toml          (Gemini CLI: /pd-pilot)
         ~/.agents/agents/port-daddy-pilot.md      (generic AGENTS-aware drop)
-      Antigravity (agy) picks it up via `agy plugin import` from the Gemini
-      source. In a Port Daddy project the SessionStart hook steers new sessions
-      to this agent automatically unless you pass --agent <other>.
+      Antigravity (agy) imports the Gemini command when you run
+      `agy plugin import`. In a Port Daddy project the SessionStart hook steers
+      new sessions to this agent automatically unless you pass --agent <other>.
 
       Verify from the console:
         pd setup --status
