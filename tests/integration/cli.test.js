@@ -1237,6 +1237,9 @@ describe('CLI Integration Tests', () => {
       const doneResult = runCli([
         'done',
         'Result: takeover context regression complete - not-applicable: integration test cleanup',
+        '--skip-origin-check',
+        '--reason',
+        'takeover context regression test',
         '--json',
       ]);
       expect(doneResult.success).toBe(true);
