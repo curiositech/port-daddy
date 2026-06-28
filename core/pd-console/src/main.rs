@@ -15,6 +15,7 @@ mod app;
 mod audio;
 mod berths;
 mod buffer;
+mod cli_args;
 mod daemon_pane;
 mod claims_pane;
 mod cockpit_pane;
@@ -76,6 +77,7 @@ use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
 use suggest_pane::SuggestPane;
 
+use cli_args::{parse_console_args, resolve_display_selector};
 use gpui::*;
 use std::borrow::Cow;
 use std::sync::mpsc;
@@ -198,24 +200,16 @@ fn main() {
         .base()
         .to_string();
 
-    // `--pane <id>` opens directly on a pane (e.g. `pd-console --pane sorties`).
-    // Lets the screenshot tooling capture each pane without injecting keystrokes
-    // (which needs Accessibility permission). Unknown / absent → Fleet (slot 0).
-    let initial_pane = {
-        let args: Vec<String> = std::env::args().collect();
-        args.iter().position(|a| a == "--pane").and_then(|i| args.get(i + 1).cloned())
-    };
+    let cli_args = parse_console_args(std::env::args());
+    let initial_pane = cli_args.initial_pane.clone();
 
     // `--display <selector>` opens the window on a specific display instead of the
     // primary one. `selector` is a 0-based index into the display list (see
     // `--list-displays`) or a display UUID. The visual-proof harness uses this to
     // render onto an off-screen virtual display so capture never intrudes on the
     // operator's physical monitor. `--list-displays` prints the displays and exits.
-    let display_selector = {
-        let args: Vec<String> = std::env::args().collect();
-        args.iter().position(|a| a == "--display").and_then(|i| args.get(i + 1).cloned())
-    };
-    let list_displays = std::env::args().any(|a| a == "--list-displays");
+    let display_selector = cli_args.display_selector.clone();
+    let list_displays = cli_args.list_displays;
 
     Application::new()
         .with_assets(FsAssets::locate())
@@ -245,27 +239,16 @@ fn main() {
         // Resolve the `--display` selector → DisplayId: numeric index first, then a
         // UUID match. An unmatched selector warns and uses the primary display (None)
         // rather than failing the capture run.
-        let chosen_display: Option<DisplayId> = display_selector.as_ref().and_then(|sel| {
-            if let Ok(idx) = sel.parse::<usize>() {
-                if let Some(d) = displays.get(idx) {
-                    return Some(d.id());
-                }
-                eprintln!(
-                    "pd-console: --display {idx} out of range ({} display(s)); using primary",
-                    displays.len()
-                );
-                return None;
-            }
-            for d in &displays {
-                if let Ok(u) = d.uuid() {
-                    if u.to_string().eq_ignore_ascii_case(sel) {
-                        return Some(d.id());
-                    }
-                }
-            }
-            eprintln!("pd-console: --display '{sel}' matched no display; using primary");
-            None
-        });
+        let display_refs: Vec<(DisplayId, Option<String>)> = displays
+            .iter()
+            .map(|d| (d.id(), d.uuid().ok().map(|u| u.to_string())))
+            .collect();
+        let display_selection =
+            resolve_display_selector(display_selector.as_deref(), &display_refs);
+        if let Some(warning) = &display_selection.warning {
+            eprintln!("{warning}");
+        }
+        let chosen_display = display_selection.display_id;
 
         // Operator control plane: the Lane's Interrupt button (foreground) sends
         // ControlMsg to the background thread that owns the surfaces + daemon.
