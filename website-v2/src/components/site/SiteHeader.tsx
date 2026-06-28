@@ -29,6 +29,7 @@ const PRIMARY_NAV_ITEMS = [
   { label: "Home", href: "/", end: true },
   { label: "Get started", href: "/docs/quickstart", end: true },
   { label: "Agents", href: "/agents", end: true },
+  { label: "Harness", href: "/harness", end: true },
   { label: "Tube Playground", href: "/pd-tube", end: false },
   { label: "Docs", href: "/docs", end: false },
   { label: "Blog", href: "/blog", end: false },

@@ -34,6 +34,7 @@ import {
   BACKEND_CATALOG,
   getBackendCatalogEntry,
   detectForcedCliBackend,
+  detectForcedCliBackendValue,
   type BackendCatalogEntry,
 } from '../../lib/backend-catalog.js';
 
@@ -101,7 +102,7 @@ function offlineCatalogFallback(): FleetModelsResponse {
   return {
     success: true,
     forcedCliBackend: detectForcedCliBackend(),
-    pdUseCliBackend: process.env.PD_USE_CLI_BACKEND || null,
+    pdUseCliBackend: detectForcedCliBackendValue(),
     backends: BACKEND_CATALOG.map((b) => ({
       id: b.id,
       name: b.name,
@@ -247,10 +248,9 @@ async function useCommand(target: string | undefined, options: CLIOptions): Prom
 
   // Accept either the catalog id (`cli:claude-code`) or the short env value
   // (`claude-code`, `codex`).
-  let entry: BackendCatalogEntry | undefined = getBackendCatalogEntry(raw);
-  if (!entry) {
-    entry = BACKEND_CATALOG.find((b) => b.pdUseCliBackendValue === raw);
-  }
+  let entry: BackendCatalogEntry | undefined =
+    BACKEND_CATALOG.find((b) => b.pdUseCliBackendValue === raw) ||
+    getBackendCatalogEntry(raw);
 
   if (!entry || !entry.pdUseCliBackendValue) {
     ui.error(`No CLI-routable backend matches "${target}".`);

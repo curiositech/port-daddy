@@ -95,5 +95,19 @@ export const MODEL_REGISTRY_DATA: ModelRegistryData = {
       'max-thinking': 'openai/gpt-oss-120b',
       code: 'llama-3.3-70b-versatile',
     },
+    deepseek: {
+      cheap: 'deepseek-chat',
+      balanced: 'deepseek-chat',
+      high: 'deepseek-reasoner',
+      'max-thinking': 'deepseek-reasoner',
+      code: 'deepseek-chat',
+    },
+    xai: {
+      cheap: 'grok-code-fast-1',
+      balanced: 'grok-2-latest',
+      high: 'grok-2-latest',
+      'max-thinking': 'grok-3',
+      code: 'grok-code-fast-1',
+    },
   },
 };

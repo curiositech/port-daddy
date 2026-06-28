@@ -324,6 +324,18 @@ const productRoutes: SiteMetadata[] = [
     { section: 'whitepaper' },
   ),
   metadata(
+    '/harness',
+    'The Harness',
+    'What an AI coding agent gains when it runs inside the Port Daddy Harness: it hears the fleet, is subscribed by default, sees the swarm before it edits, gets CI verdicts back, is invited to parley, pays rent, is steered to fresh worktrees, and has destructive commands vetoed with the safe alternative named. Claude is fully wired; Gemini and Codex hook surfaces are mapped.',
+    { section: 'product' },
+  ),
+  metadata(
+    '/squid-codex',
+    'Squid Codex Bridge',
+    'Run Claude Code with Codex and your ChatGPT Pro subscription through the Giant Squid local bridge, with Port Daddy hooks, agent skill, MCP tools, budgets, claims, and recovery wrapped around the run.',
+    { section: 'product', ogSourceImage: OG_SOURCE_IMAGES.agentRuntime, ogSectionLabel: 'Giant Squid' },
+  ),
+  metadata(
     '/library',
     'The Harbor Library',
     'The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.',

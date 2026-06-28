@@ -367,13 +367,15 @@
       "description": "Work sessions for agent coordination",
       "cli": [
         "session",
-        "sessions"
+        "sessions",
+        "takeover"
       ],
       "sdk": [
         "startSession",
         "endSession",
         "abandonSession",
         "removeSession",
+        "takeoverSession",
         "sessions",
         "sessionDetails",
         "claimFiles",
@@ -385,6 +387,7 @@
         "GET /sessions/:param",
         "PUT /sessions/:param",
         "DELETE /sessions/:param",
+        "POST /sessions/:param/takeover",
         "POST /sessions/:param/files",
         "DELETE /sessions/:param/files",
         "POST /sessions/:param/symbols",
@@ -392,7 +395,8 @@
       ],
       "completions": [
         "session",
-        "sessions"
+        "sessions",
+        "takeover"
       ],
       "docs": {
         "readme": true,
@@ -1245,6 +1249,21 @@
         "sdk": false
       }
     },
+    "squid": {
+      "description": "Unofficial local Anthropic Messages compatibility bridge for Claude-compatible clients backed by Codex CLI, including model aliases, thinking-effort mapping, local auth, and request-size guards.",
+      "cli": [
+        "squid"
+      ],
+      "sdk": [],
+      "routes": [],
+      "completions": [
+        "squid"
+      ],
+      "docs": {
+        "readme": true,
+        "sdk": false
+      }
+    },
     "harbors": {
       "description": "Named permission namespaces for agent coordination — agents enter/leave harbors and declare capabilities",
       "cli": [
@@ -1771,6 +1790,7 @@
         "GET /roadmap/items",
         "GET /roadmap/board",
         "GET /roadmap/items/:slug",
+        "DELETE /roadmap/items/:slug",
         "POST /roadmap/items/:slug/status",
         "POST /roadmap/items/:slug/touch",
         "POST /roadmap/promote",

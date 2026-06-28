@@ -1,0 +1,73 @@
+# Port Daddy Relay — Cloudflare Worker (TEMPLATE)
+#
+# Copy this file to `wrangler.toml` and replace every REPLACE_WITH_YOUR_* token
+# with the ids you get back from the provisioning commands below. The real
+# `wrangler.toml` is gitignored (it carries account-scoped resource ids); only
+# this template is committed.
+#
+# Provisioning (run once, then paste the ids returned):
+#
+#   1. Create the D1 database — copy the printed database_id into [[d1_databases]]:
+#        wrangler d1 create port-daddy-relay
+#
+#   2. Apply the schema:
+#        wrangler d1 execute port-daddy-relay --file=./schema.sql
+#
+#   3. Create the KV namespace — copy the printed id into [[kv_namespaces]]:
+#        wrangler kv namespace create KV
+#
+#   4. Create the fleet-runs queue (producer binding below):
+#        wrangler queues create fleet-runs
+#
+#   5. Set secrets (never committed):
+#        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
+#        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        echo "<value>" | wrangler secret put GITHUB_WEBHOOK_SECRET
+#
+#   6. Deploy:
+#        wrangler deploy
+#
+# Local dev:
+#   wrangler dev --local   (uses local D1 sqlite, local DO)
+
+name = "port-daddy-relay"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+RELAY_VERSION = "0.1.0"
+EVENT_RETENTION_DAYS = "7"
+SESSION_TTL_SECONDS = "3600"
+JWKS_CACHE_TTL_SECONDS = "600"
+JWKS_FAIL_SOFT_SECONDS = "3600"
+REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
+RATE_LIMIT_WINDOW_MS = "60000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "port-daddy-relay"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[durable_objects]
+bindings = [
+  { name = "HARBOR_CHANNEL", class_name = "HarborChannel" },
+]
+
+[[migrations]]
+tag = "v0001"
+new_classes = ["HarborChannel"]
+
+[[kv_namespaces]]
+# JWKS cache and pinned relay key cache
+binding = "KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
+# Operator must `wrangler queues create fleet-runs` before this deploy succeeds.
+[[queues.producers]]
+binding = "FLEET_RUNS"
+queue = "fleet-runs"
+
+[observability]
+enabled = true

@@ -25,6 +25,7 @@
     "crawl:docs": "node scripts/crawl-docs-surface.mjs",
     "test:tutorial-command-surfaces": "node scripts/check-tutorial-command-surfaces.mjs",
     "test:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts",
+    "test:console-palette": "node scripts/check-console-palette-tokens.mjs",
     "fix:whitepaper-metadata": "tsx scripts/check-whitepaper-metadata.ts --fix",
     "test:figure-palette": "node scripts/check-figure-palette.mjs",
     "test:install-commands": "node scripts/check-install-commands.mjs",

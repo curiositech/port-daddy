@@ -177,7 +177,17 @@ if [ "$update_shim" = 1 ]; then
   echo "▸ updated PATH shim → $BIN_PATH"
 fi
 
-# ── 8. Sign (real Developer ID if PD_CONSOLE_SIGN_IDENTITY is set, else ad-hoc) ─
+# 4b. Seed the editable model-tier config (the single source of truth for the
+# Spawn picker's provider→tier→model map). Never clobber an operator-edited file
+# — only drop the default if it's missing, so edits survive upgrades.
+MODEL_TIERS_DST="$HOME/.port-daddy/model-tiers.json"
+MODEL_TIERS_SRC="$(cd "$(dirname "$0")/.." && pwd)/config/model-tiers.json"
+if [[ ! -f "$MODEL_TIERS_DST" && -f "$MODEL_TIERS_SRC" ]]; then
+  cp "$MODEL_TIERS_SRC" "$MODEL_TIERS_DST"
+  echo "▸ seeded model-tier config → $MODEL_TIERS_DST (edit it; no rebuild needed)"
+fi
+
+# ── Sign (real Developer ID if PD_CONSOLE_SIGN_IDENTITY is set, else ad-hoc) ─
 SIGN="${PD_CONSOLE_SIGN_IDENTITY:--}"
 echo "▸ codesign ($([ "$SIGN" = "-" ] && echo ad-hoc || echo "$SIGN"))"
 codesign --force --deep --sign "$SIGN" "$APP" >/dev/null 2>&1 || echo "⚠ codesign warning (non-fatal)"

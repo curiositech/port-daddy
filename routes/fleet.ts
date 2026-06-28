@@ -37,6 +37,7 @@ import {
   BACKEND_CATALOG as SHARED_BACKEND_CATALOG,
   KNOWN_BACKEND_IDS,
   detectForcedCliBackend,
+  detectForcedCliBackendValue,
 } from '../lib/backend-catalog.js';
 import { managedSecretStorageStatus, saveManagedSecret } from '../lib/secret-env.js';
 import { validateProjectRoot } from '../lib/utils.js';
@@ -685,6 +686,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     }
 
     const forcedCliBackend = detectForcedCliBackend();
+    const pdUseCliBackend = detectForcedCliBackendValue();
     const backends = await Promise.all(
       BACKEND_CATALOG.map(async (backend) => {
         const readiness = await assessBackendReadiness(backend.id);
@@ -734,7 +736,7 @@ export const fleetPlugin: FastifyPluginAsync<{ deps: FleetRouteDeps }> = async (
     return {
       success: true,
       forcedCliBackend,
-      pdUseCliBackend: process.env.PD_USE_CLI_BACKEND || null,
+      pdUseCliBackend,
       backends,
     };
   });

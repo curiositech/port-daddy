@@ -32,6 +32,7 @@ import { IoDispatch, type DispatchOutputResult } from './fleet/io-dispatch.js';
 export interface FleetAgent {
   name: string;
   schedule?: string;       // cron syntax
+  runOnStart?: boolean;    // scheduled agents opt in to firing during fleet boot
   trigger?: string;        // channel name (singular sugar; also folded into `triggers`)
   /**
    * Plural trigger list (additive). Each entry is a trigger-spec string in
@@ -156,6 +157,7 @@ interface AgentActivationState {
 interface FleetYamlAgent {
   name?: string;
   schedule?: string;
+  run_on_start?: boolean;
   trigger?: string;
   trigger_tuple?: unknown[];
   backend?: string;
@@ -947,10 +949,13 @@ export function createFleetRunner(config: FleetConfig, projectDir: string, optio
     const cleanupHandles: Array<() => void> = [];
 
     if (agent.schedule) {
-      // Scheduled agent: run immediately, then on interval
+      // Scheduled agent: arm the interval. Fleet daemon boot must stay cheap;
+      // agents that truly need a boot-time pass can opt in with run_on_start.
       // Convert cron to ms (simplified: support */N * * * * format)
       const intervalMs = parseCronInterval(agent.schedule);
-      void requestAgentRun(agent, { source: 'schedule' });
+      if (agent.runOnStart) {
+        void requestAgentRun(agent, { source: 'schedule' });
+      }
       record.interval = setInterval(() => { void requestAgentRun(agent, { source: 'schedule' }); }, intervalMs);
     }
 

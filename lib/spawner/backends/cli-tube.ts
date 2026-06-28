@@ -67,6 +67,12 @@ export interface CliTubeOptions {
    */
   model?: string;
   /**
+   * Raw Codex CLI config overrides, forwarded as repeated `-c key=value`
+   * arguments. Kept Codex-specific so other CLI backends cannot accidentally
+   * inherit OpenAI-only configuration names.
+   */
+  codexConfig?: string[];
+  /**
    * Optional tube client. When provided, the wrapper publishes the
    * final output on `tube`. When omitted, no publishing happens — the
    * wrapper is still callable, just without transparency.
@@ -184,6 +190,7 @@ export function buildArgs(
   outputPath?: string,
   model?: string,
   permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions',
+  codexConfig?: string[],
 ): { args: string[]; stdin: string | null } {
   // A model equal to the backend/CLI's own name is a placeholder that leaked
   // from default resolution (backend "cli:claude-code" → model "claude-code").
@@ -191,7 +198,17 @@ export function buildArgs(
   // per-CLI default so spawns get EXACT, billable telemetry instead of an
   // estimate (which the cost gate then rejects); for CLIs without a known good
   // default, drop `--model` so the CLI uses its authenticated account's default.
-  const PLACEHOLDER_MODELS = new Set(['claude-code', 'codex', 'gemini', 'groq', 'grok']);
+  //
+  // `claude-cli` / `codex-cli` are the OTHER placeholder spelling: lib/spawner.ts
+  // DEFAULT_MODELS maps `cli:claude-code` → "claude-cli" and `cli:codex` →
+  // "codex-cli" ("the CLI manages its own model"). When that sentinel reaches
+  // here as the model it must be treated as a placeholder too — otherwise
+  // `claude --model claude-cli` fails with "model may not exist" and every
+  // sentinel-model spawn dies (the bug that made cli:claude-code look broken).
+  const PLACEHOLDER_MODELS = new Set([
+    'claude-code', 'codex', 'gemini', 'groq', 'grok',
+    'claude-cli', 'codex-cli', 'cli',
+  ]);
   const CLI_DEFAULT_MODEL: Partial<Record<CliTubeTool, string>> = {
     'claude-code': 'sonnet', // a real Claude model the CLI + rate table both accept
   };
@@ -230,6 +247,9 @@ export function buildArgs(
     ];
     if (outputPath) args.push('--output-last-message', outputPath);
     if (effModel) args.push('--model', effModel);
+    for (const config of normalizeCodexConfigOverrides(codexConfig)) {
+      args.push('-c', config);
+    }
     args.push(prompt);
     return { args, stdin: null };
   }
@@ -246,6 +266,32 @@ export function buildArgs(
   }
 
   throw new Error(`unknown cli tool: ${cli}`);
+}
+
+const CODEX_CONFIG_KEY = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
+const MAX_CODEX_CONFIG_OVERRIDES = 32;
+const MAX_CODEX_CONFIG_OVERRIDE_LENGTH = 512;
+
+export function normalizeCodexConfigOverrides(configs: readonly string[] | undefined | null): string[] {
+  const normalized: string[] = [];
+  for (const raw of configs ?? []) {
+    if (typeof raw !== 'string') continue;
+    const config = raw.trim();
+    if (!config) continue;
+    if (normalized.length >= MAX_CODEX_CONFIG_OVERRIDES) {
+      throw new Error(`Too many Codex config overrides; maximum is ${MAX_CODEX_CONFIG_OVERRIDES}`);
+    }
+    if (config.length > MAX_CODEX_CONFIG_OVERRIDE_LENGTH || /[\0\r\n]/.test(config)) {
+      throw new Error(`Invalid Codex config override "${config}": value is too long or contains a control character`);
+    }
+    const separator = config.indexOf('=');
+    const key = separator > 0 ? config.slice(0, separator).trim() : '';
+    if (!key || !CODEX_CONFIG_KEY.test(key)) {
+      throw new Error(`Invalid Codex config override "${config}": expected key=value with a simple key`);
+    }
+    normalized.push(config);
+  }
+  return normalized;
 }
 
 /**
@@ -300,7 +346,7 @@ export async function spawnViaCliTube(
     outputPath = join(tempDir, 'last-message.txt');
   }
 
-  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode);
+  const { args } = buildArgs(cli, opts.prompt, outputPath, opts.model, opts.permissionMode, opts.codexConfig);
 
   const startedAt = Date.now();
 

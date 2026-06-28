@@ -16,9 +16,21 @@
 #[path = "../activity_pane.rs"]  mod activity_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
+// Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
+// here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
+#[allow(dead_code)]
+#[path = "../audio.rs"]          mod audio;
+#[path = "../berths.rs"]         mod berths; // named daemon picker data (ADR-0084)
+#[allow(dead_code)]
+#[path = "../buffer.rs"]         mod buffer;
+#[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
+#[allow(dead_code)]
+#[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
+#[allow(dead_code)]
+#[path = "../editor_pane.rs"]    mod editor_pane;
 // maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
 // Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
 #[path = "../fleet_pane.rs"]     mod fleet_pane;

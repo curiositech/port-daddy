@@ -760,6 +760,9 @@
     <loc>https://portdaddy.dev/examples/webhook-to-local-agent</loc>
   </url>
   <url>
+    <loc>https://portdaddy.dev/harness</loc>
+  </url>
+  <url>
     <loc>https://portdaddy.dev/integrations</loc>
   </url>
   <url>
@@ -800,6 +803,9 @@
   </url>
   <url>
     <loc>https://portdaddy.dev/security</loc>
+  </url>
+  <url>
+    <loc>https://portdaddy.dev/squid-codex</loc>
   </url>
   <url>
     <loc>https://portdaddy.dev/tutorials</loc>

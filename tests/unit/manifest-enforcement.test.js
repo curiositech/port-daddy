@@ -382,6 +382,8 @@ describe('CLI --> Manifest (no undocumented CLI commands)', () => {
     // independent manifest entries.
     const metaCommands = new Set([
       'help', 'version', '--help', '-h', '--version', '-V', '--json', '-j', '--quiet', '-q',
+      // Repeatable bridge option names extracted from REPEATABLE_FLAGS, not commands
+      'client-arg', 'codex-config',
       // Short flag characters (from shortFlags map, not commands)
       'p', 'e', 'P', 'n', 'c', 'm', 'd', 't', 'i', 'a', 's', 'o', 'f',
       // Session subcommands: handled inside `case 'session':` dispatch

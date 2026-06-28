@@ -107,6 +107,17 @@ interface EndOptions {
   status?: string;
 }
 
+interface TakeoverOptions {
+  agentId?: string | null;
+  purpose?: string | null;
+  note?: string | null;
+  project?: string | null;
+  worktreeId?: string | null;
+  metadata?: Record<string, unknown> | null;
+  durable?: boolean;
+  claimFiles?: boolean;
+}
+
 interface AddNoteOptions {
   type?: string;
 }
@@ -344,7 +355,9 @@ export function createSessions(
       UPDATE sessions SET status = 'abandoned', updated_at = ?, completed_at = ?
       WHERE status = 'active' AND agent_id = ?
     `),
-    deleteById: db.prepare('DELETE FROM sessions WHERE id = ?'),
+    setMetadata: db.prepare(`
+      UPDATE sessions SET metadata = ?, updated_at = ? WHERE id = ?
+    `),
     listActive: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' ORDER BY updated_at DESC LIMIT ?
     `),
@@ -394,16 +407,15 @@ export function createSessions(
     mostRecentActiveByAgentAndWorktree: db.prepare(`
       SELECT * FROM sessions WHERE status = 'active' AND agent_id = ? AND worktree_id = ? ORDER BY updated_at DESC LIMIT 1
     `),
-    // Abandoned durable sessions are suspended work contexts, not garbage —
-    // they must survive cleanup until pd done completes them. Completed
-    // durable sessions are fair game (pd done is final).
-    cleanupOld: db.prepare(`
-      DELETE FROM sessions WHERE status = ? AND updated_at < ?
-        AND NOT (is_durable = 1 AND status = 'abandoned')
+    // Cleanup is intentionally non-destructive. Older builds physically
+    // deleted completed/abandoned sessions here; that violated the note
+    // monotonicity contract. These count the rows that would have been removed
+    // so callers can surface archival pressure without destroying evidence.
+    countCleanupOld: db.prepare(`
+      SELECT COUNT(*) as count FROM sessions WHERE status = ? AND updated_at < ?
     `),
-    cleanupOldAny: db.prepare(`
-      DELETE FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
-        AND NOT (is_durable = 1 AND status = 'abandoned')
+    countCleanupOldAny: db.prepare(`
+      SELECT COUNT(*) as count FROM sessions WHERE status IN ('completed', 'abandoned') AND updated_at < ?
     `),
     listOrphanedActive: db.prepare(hasAgentsTable ? `
         SELECT s.*
@@ -1123,8 +1135,45 @@ export function createSessions(
     return result.changes;
   }
 
+  function mergeMetadata(row: SessionRow, patch: Record<string, unknown>, now = Date.now()) {
+    const existing = safeJsonParse(row.metadata) ?? {};
+    const next = {
+      ...existing,
+      ...patch,
+    };
+    stmts.setMetadata.run(JSON.stringify(next), now, row.id);
+    return next;
+  }
+
+  function splitTransferClaims(files: SessionFileRow[]) {
+    const wholeFiles: string[] = [];
+    const regions: FileRegion[] = [];
+
+    for (const file of files) {
+      if (file.start_line == null && file.end_line == null && !file.symbol && !file.symbol_path) {
+        if (!wholeFiles.includes(file.file_path)) wholeFiles.push(file.file_path);
+        continue;
+      }
+
+      regions.push({
+        path: file.file_path,
+        startLine: file.start_line ?? undefined,
+        endLine: file.end_line ?? undefined,
+        symbol: file.symbol ?? undefined,
+        symbolPath: file.symbol_path ?? undefined,
+      });
+    }
+
+    return { wholeFiles, regions };
+  }
+
   /**
-   * Remove a session entirely (CASCADE deletes notes and file claims)
+   * Archive a session without deleting its notes or claim history.
+   *
+   * Historical `rm` semantics physically deleted the session row and relied on
+   * foreign-key cascades to erase notes. The coordination contract is now
+   * append-only: removing a session means releasing any active claims, marking
+   * active sessions abandoned, and writing a tombstone note.
    */
   function remove(sessionId: string) {
     if (!sessionId || typeof sessionId !== 'string') {
@@ -1136,9 +1185,192 @@ export function createSessions(
       return { success: false, error: 'session not found' };
     }
 
-    stmts.deleteById.run(sessionId);
+    const now = Date.now();
+    const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
+    if (activeFiles.length > 0) {
+      stmts.releaseAllFiles.run(now, sessionId);
+      claimForest.releaseAllBySession(sessionId, now);
+    }
 
-    return { success: true };
+    const finalStatus = session.status === 'active' ? 'abandoned' : session.status;
+    if (session.status === 'active') {
+      stmts.setPhase.run('abandoned', now, sessionId);
+      stmts.updateStatus.run('abandoned', now, now, sessionId);
+
+      if (semanticIndex && session.identity_project) {
+        semanticIndex.unindexEntry(session.identity_project, sessionId);
+      }
+    }
+
+    mergeMetadata(session, {
+      archivedAt: now,
+      archivedBy: 'sessions.remove',
+      removeIsNonDestructive: true,
+    }, now);
+
+    const noteResult = addNote(
+      sessionId,
+      'Session archived by pd session rm. Notes and claim history were preserved; active file claims were released.',
+      { type: 'archive' },
+    );
+
+    if (activityLog) {
+      activityLog.log(ActivityType.SESSION_END, {
+        agentId: session.agent_id,
+        targetId: sessionTarget(session.identity_project, sessionId),
+        details: `Session archived without deleting notes: ${sessionId}`,
+        metadata: {
+          sessionId,
+          status: finalStatus,
+          archived: true,
+          notesPreserved: true,
+          releasedFiles: activeFiles.length,
+          agentId: session.agent_id || undefined,
+          identityProject: session.identity_project || undefined,
+        } as unknown as Record<string, unknown>,
+      });
+    }
+
+    return {
+      success: true,
+      id: sessionId,
+      status: finalStatus,
+      archived: true,
+      removed: false,
+      notesPreserved: true,
+      releasedFiles: activeFiles.map(file => file.file_path),
+      noteId: noteResult.success ? noteResult.noteId : undefined,
+      warning: noteResult.success ? undefined : noteResult.error,
+    };
+  }
+
+  /**
+   * Non-destructively continue an existing session as a successor session.
+   *
+   * The predecessor remains queryable. If it was active, takeover abandons it
+   * and releases its active claims before the successor claims the same files.
+   */
+  function takeover(sessionId: string, options: TakeoverOptions = {}) {
+    if (!sessionId || typeof sessionId !== 'string') {
+      return { success: false, error: 'sessionId must be a non-empty string', code: 'VALIDATION_ERROR' };
+    }
+
+    const predecessor = stmts.getById.get(sessionId) as SessionRow | undefined;
+    if (!predecessor) {
+      return { success: false, error: 'session not found', code: 'SESSION_NOT_FOUND' };
+    }
+
+    if (options.agentId !== undefined && options.agentId !== null && typeof options.agentId !== 'string') {
+      return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
+    }
+    const normalizedAgentId = normalizeAgentId(options.agentId);
+    if (options.agentId !== undefined && options.agentId !== null && !normalizedAgentId) {
+      return { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
+    }
+
+    if (options.purpose !== undefined && options.purpose !== null && typeof options.purpose !== 'string') {
+      return { success: false, error: 'purpose must be a string', code: 'VALIDATION_ERROR' };
+    }
+    const successorPurpose = typeof options.purpose === 'string' && options.purpose.trim()
+      ? options.purpose.trim()
+      : predecessor.purpose;
+
+    const now = Date.now();
+    const takeoverReason = typeof options.note === 'string' && options.note.trim()
+      ? options.note.trim()
+      : null;
+    const activeFiles = stmts.getActiveFilesBySession.all(sessionId) as SessionFileRow[];
+    const shouldTransferClaims = options.claimFiles !== false && activeFiles.length > 0;
+
+    const startResult = start(successorPurpose, {
+      agentId: normalizedAgentId,
+      project: options.project ?? predecessor.identity_project,
+      worktreeId: options.worktreeId ?? undefined,
+      durable: options.durable ?? predecessor.is_durable === 1,
+      metadata: {
+        ...(options.metadata && typeof options.metadata === 'object' ? options.metadata : {}),
+        predecessorSessionId: sessionId,
+        predecessorStatus: predecessor.status,
+        predecessorAgentId: predecessor.agent_id,
+        predecessorWorktreeId: predecessor.worktree_id,
+        takeoverAt: now,
+        takeoverReason,
+      },
+    });
+
+    if (!startResult.success || typeof startResult.id !== 'string') {
+      return {
+        success: false,
+        error: startResult.error || 'failed to create successor session',
+        code: startResult.code || 'SESSION_CREATE_FAILED',
+      };
+    }
+
+    const successorId = startResult.id;
+    mergeMetadata(predecessor, {
+      takenOverAt: now,
+      takenOverBySessionId: successorId,
+      takenOverByAgentId: normalizedAgentId,
+      takeoverReason,
+    }, now);
+
+    const predecessorNote = `Taken over non-destructively by ${successorId}${normalizedAgentId ? ` (${normalizedAgentId})` : ''}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
+    let predecessorResult: Record<string, unknown> | undefined;
+    if (predecessor.status === 'active') {
+      predecessorResult = end(sessionId, { status: 'abandoned', note: predecessorNote });
+    } else {
+      predecessorResult = addNote(sessionId, predecessorNote, { type: 'takeover' });
+    }
+
+    const successorNote = `Successor session for ${sessionId}.${takeoverReason ? ` Reason: ${takeoverReason}` : ''}`;
+    const successorNoteResult = addNote(successorId, successorNote, { type: 'takeover' });
+
+    const claimedFiles: string[] = [];
+    const conflicts: FileConflict[] = [];
+    const claimErrors: string[] = [];
+    if (shouldTransferClaims) {
+      const { wholeFiles, regions } = splitTransferClaims(activeFiles);
+      if (wholeFiles.length > 0) {
+        const claimResult = claimFiles(successorId, wholeFiles, { agentId: normalizedAgentId });
+        if (claimResult.success) {
+          claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
+          conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
+        } else if (claimResult.error) {
+          claimErrors.push(String(claimResult.error));
+        }
+      }
+      if (regions.length > 0) {
+        const claimResult = claimFiles(successorId, [], { regions, agentId: normalizedAgentId });
+        if (claimResult.success) {
+          claimedFiles.push(...((claimResult.claimed as string[] | undefined) ?? []));
+          conflicts.push(...((claimResult.conflicts as FileConflict[] | undefined) ?? []));
+        } else if (claimResult.error) {
+          claimErrors.push(String(claimResult.error));
+        }
+      }
+    }
+
+    const successor = stmts.getById.get(successorId) as SessionRow | undefined;
+
+    return {
+      success: true,
+      predecessorId: sessionId,
+      successorId,
+      session: successor ? formatSession(successor) : undefined,
+      predecessorStatus: predecessor.status === 'active' ? 'abandoned' : predecessor.status,
+      predecessorNoteId: predecessorResult && 'noteId' in predecessorResult ? predecessorResult.noteId : undefined,
+      successorNoteId: successorNoteResult.success ? successorNoteResult.noteId : undefined,
+      notesPreserved: true,
+      claimsTransferred: shouldTransferClaims,
+      releasedFiles: activeFiles.map(file => file.file_path),
+      claimedFiles: [...new Set(claimedFiles)],
+      conflicts,
+      warnings: [
+        ...(predecessorResult?.success === false && predecessorResult.error ? [String(predecessorResult.error)] : []),
+        ...(successorNoteResult.success ? [] : [String(successorNoteResult.error)]),
+        ...claimErrors,
+      ],
+    };
   }
 
   /**
@@ -1915,21 +2147,26 @@ export function createSessions(
   }
 
   /**
-   * Cleanup old completed/abandoned sessions
+   * Report old completed/abandoned sessions without deleting their evidence.
    */
   function cleanup(options: CleanupOptions = {}) {
     const { olderThan = 7 * 24 * 60 * 60 * 1000, status } = options;
 
     const cutoff = Date.now() - olderThan;
-    let result;
+    let row: { count: number };
 
     if (status) {
-      result = stmts.cleanupOld.run(status, cutoff);
+      row = stmts.countCleanupOld.get(status, cutoff) as { count: number };
     } else {
-      result = stmts.cleanupOldAny.run(cutoff);
+      row = stmts.countCleanupOldAny.get(cutoff) as { count: number };
     }
 
-    return { cleaned: result.changes };
+    return {
+      cleaned: 0,
+      preserved: row.count,
+      notesPreserved: true,
+      message: 'cleanup is append-only; no sessions, notes, or claim history were deleted',
+    };
   }
 
   /**
@@ -2010,6 +2247,7 @@ export function createSessions(
     abandon,
     abandonByAgent,
     remove,
+    takeover,
     addNote,
     quickNote,
     getNotes,

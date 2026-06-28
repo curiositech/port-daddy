@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for the FleetBar LaunchAgent. install.sh substitutes the __PLACEHOLDER__
+  tokens with machine-local absolute paths (derived from $HOME and the checkout
+  location) and writes the rendered plist to
+  $HOME/Library/LaunchAgents/com.portdaddy.fleetbar.plist.
+  The rendered plist is machine-specific and gitignored; only this template is
+  committed (no hardcoded home paths).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.portdaddy.fleetbar</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__FLEETBAR_BINARY__</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Auto-restart on crash, not on clean exit -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>WorkingDirectory</key>
+    <string>__FLEETBAR_WORKDIR__</string>
+
+    <key>StandardOutPath</key>
+    <string>__LOG_DIR__/fleetbar-stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOG_DIR__/fleetbar-stderr.log</string>
+
+    <!-- Menu bar app — needs GUI access, low priority -->
+    <key>Nice</key>
+    <integer>10</integer>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

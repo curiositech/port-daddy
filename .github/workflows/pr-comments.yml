@@ -22,10 +22,12 @@ permissions:
   pull-requests: write # apply/remove the needs-comment-replies label
   issues: write
 
-# Coalesce the burst of events a single review produces into one run per PR.
+# Queue the burst of events a single review produces into one run group per PR.
+# This advisory job is cheap, and canceled check-runs still attach to the head
+# SHA as red noise in `gh pr checks`, even when a later run passes.
 concurrency:
   group: pr-comments-${{ github.event.pull_request.number || github.event.issue.number || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   pr-comments-guard:
