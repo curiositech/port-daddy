@@ -40,6 +40,7 @@
   --muted-foreground: var(--text-secondary);
   --accent: var(--brand-accent);
   --accent-foreground: var(--brand-accent-foreground);
+  /* Console palette expansion: warm/coral roles plus material glow/depth. */
   --heat: var(--brand-heat);
   --heat-foreground: var(--brand-heat-on-tint);
   --warm: var(--brand-warm);

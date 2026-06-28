@@ -19,6 +19,7 @@
   --brand-secondary: #1f1f1f;
   --brand-accent: #006b5f;
   --brand-accent-on-tint: #004a42;
+  /* pd-console uses these as first-class palette roles for flags and cards. */
   --brand-heat: #aa432e;
   --brand-heat-on-tint: #6f2417;
   --brand-warm: #8c540e;
@@ -46,6 +47,7 @@
   --status-warning-on-tint: #5b3900;
   --status-error-on-tint: #5a0000;
   --status-info-on-tint: var(--brand-primary-on-tint);
+  /* Native console material effects mirrored here for website previews/docs. */
   --console-glow-primary: rgba(0, 63, 184, 0.28);
   --console-glow-heat: rgba(170, 67, 46, 0.24);
   --console-depth-shadow: rgba(31, 28, 23, 0.16);
@@ -128,6 +130,7 @@
   --brand-secondary: #f5f3ed;
   --brand-accent: #8fd0a7;
   --brand-accent-on-tint: #bce8ca;
+  /* pd-console uses these as first-class palette roles for flags and cards. */
   --brand-heat: #ff9c85;
   --brand-heat-on-tint: #ffd4c8;
   --brand-warm: #f2be51;
@@ -155,6 +158,7 @@
   --status-warning-on-tint: #ffe0a0;
   --status-error-on-tint: #ffc4c4;
   --status-info-on-tint: var(--brand-primary-on-tint);
+  /* Native console material effects mirrored here for website previews/docs. */
   --console-glow-primary: rgba(125, 180, 255, 0.34);
   --console-glow-heat: rgba(255, 156, 133, 0.28);
   --console-depth-shadow: rgba(0, 0, 0, 0.42);

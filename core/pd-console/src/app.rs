@@ -3284,8 +3284,8 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
     };
     div()
         .id("theme-toggle")
-        .px(px(9.0))
-        .py(px(3.0))
+        .px(px(tokens::SPACE_2))
+        .py(px(tokens::SPACE_1))
         .rounded(px(tokens::RADIUS_MD))
         .border_1()
         .border_color(rgb(theme.line))
