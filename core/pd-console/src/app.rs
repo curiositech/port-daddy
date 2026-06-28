@@ -468,6 +468,24 @@ fn launcher_tone(id: &str, t: &Theme) -> u32 {
     }
 }
 
+/// Compact category badge for a pane title bar. Mirrors the launcher hue system
+/// so every surface reads as part of the same designed console.
+fn surface_category(surface: &SurfaceKind, t: &Theme) -> (&'static str, u32) {
+    match surface {
+        SurfaceKind::AgentTranscript { .. } | SurfaceKind::Fleet | SurfaceKind::CartographerChat => ("LIVE", t.cobalt),
+        SurfaceKind::Dispatch | SurfaceKind::Hitl | SurfaceKind::Conjure => ("CTRL", t.accent),
+        SurfaceKind::Roadmap | SurfaceKind::Editor { .. } => ("KNOW", t.landed),
+        SurfaceKind::FileTree { .. } => ("FILES", t.cobalt),
+        SurfaceKind::DaemonHealth | SurfaceKind::Sessions => ("OPS", t.gated),
+        SurfaceKind::Panel { nav } => match nav.as_str() {
+            "cockpit" | "sorties" | "lane" | "peek" => ("LIVE", t.cobalt),
+            "conductor" | "parley" | "suggest" | "coast" | "claims" => ("CTRL", t.accent),
+            "adrs" | "memory" | "lineage" | "substrate" => ("KNOW", t.landed),
+            _ => ("LOG", t.gated),
+        },
+    }
+}
+
 /// A faint wash of a tile's tone for chip/pill backgrounds (`color` at `alpha`).
 fn tone_wash(color: u32, alpha: u8) -> Rgba {
     rgba((color << 8) | alpha as u32)
@@ -784,36 +802,59 @@ impl RenderOnce for WavingFlag {
 }
 
 fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
+    let t = current_theme();
     match block {
         Block::Header(text) => {
             div()
-                .px(px(16.0))
-                .pt(px(12.0))
-                .pb(px(6.0))
-                .text_color(rgb(current_theme().accent_ink))
-                .text_size(px(15.0))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(text)
+                .mx(px(tokens::SPACE_3))
+                .mt(px(tokens::SPACE_3))
+                .mb(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.raised))
+                .flex()
+                .items_center()
+                .gap(px(tokens::SPACE_2))
+                .child(div().w(px(5.0)).h(px(18.0)).rounded(px(tokens::RADIUS_SM)).bg(rgb(t.accent)))
+                .child(
+                    div()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_HEADER))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(text),
+                )
                 .into_any_element()
         }
         Block::KeyVal(key, val) => {
             div()
                 .flex()
-                .gap(px(8.0))
-                .px(px(16.0))
-                .py(px(3.0))
+                .items_start()
+                .gap(px(tokens::SPACE_3))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(tone_wash(t.raised, 0x9a))
+                .hover(|s| s.border_color(rgb(current_theme().accent)).bg(rgb(current_theme().raised)))
                 .child(
                     div()
-                        .text_color(rgb(current_theme().muted))
-                        .text_size(px(14.0))
-                        .w(px(150.0))
+                        .text_color(rgb(t.muted))
+                        .text_size(px(tokens::TEXT_CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .w(px(132.0))
                         .flex_shrink_0()
                         .child(key)
                 )
                 .child(
                     div()
-                        .text_color(rgb(current_theme().ink))
-                        .text_size(px(14.0))
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_BODY))
                         .font_family("IBM Plex Mono")
                         .child(val)
                 )
@@ -822,75 +863,113 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
         Block::Row(cells) => {
             div()
                 .flex()
-                .gap(px(16.0))
-                .px(px(16.0))
-                .py(px(4.0))
-                .hover(|s| s.bg(rgb(current_theme().raised)))
+                .items_center()
+                .gap(px(tokens::SPACE_3))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.panel))
+                .hover(|s| {
+                    let t = current_theme();
+                    s.bg(rgb(t.raised))
+                        .border_color(rgb(t.accent))
+                        .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
+                })
                 .children(
                     cells.into_iter().enumerate().map(|(i, cell)| {
                         div()
                             .text_color(rgb(if i == 0 { current_theme().accent_ink } else { current_theme().ink2 }))
-                            .text_size(px(14.0))
+                            .text_size(px(tokens::TEXT_BODY))
                             .font_family("IBM Plex Mono")
                             .flex_shrink_0()
+                            .when(i == 0, |s| s.min_w(px(22.0)).font_weight(FontWeight::BOLD))
                             .child(cell)
                     })
                 )
                 .into_any_element()
         }
         Block::Chip { label, tone } => {
-            let color = rgb(tone_rgb(&tone));
+            let color_u32 = tone_rgb(&tone);
+            let color = rgb(color_u32);
             div()
-                .mx(px(16.0))
-                .mt(px(4.0))
-                .mb(px(8.0))
-                .px(px(10.0))
-                .py(px(3.0))
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_1))
                 .rounded_full()
                 .border_1()
                 .border_color(color)
+                .bg(tone_wash(color_u32, 0x22))
                 .text_color(color)
-                .text_size(px(13.0))
+                .text_size(px(tokens::TEXT_CAPTION))
+                .font_weight(FontWeight::SEMIBOLD)
                 .child(label)
                 .into_any_element()
         }
         Block::Flag { letter, label, tone } => {
             // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
             // reacts to pane scroll/resize via `motion`; the letter rides it.
+            let color = tone_rgb(&tone);
             div()
                 .flex()
                 .items_center()
-                .gap(px(8.0))
-                .px(px(16.0))
-                .py(px(3.0))
-                .child(WavingFlag { letter, color: tone_rgb(&tone), motion })
+                .gap(px(tokens::SPACE_3))
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(tone_wash(color, 0x14))
+                .hover(|s| s.border_color(rgb(current_theme().accent)).bg(rgb(current_theme().raised)))
+                .child(WavingFlag { letter, color, motion })
                 .child(
                     div()
-                        .text_color(rgb(current_theme().ink))
-                        .text_size(px(14.0))
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::MEDIUM)
                         .child(label),
                 )
                 .into_any_element()
         }
         Block::Spark(_) => {
             div()
-                .px(px(16.0))
-                .py(px(4.0))
-                .text_color(rgb(current_theme().muted))
-                .text_size(px(13.0))
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(t.line))
+                .bg(rgb(t.sunken))
+                .text_color(rgb(t.landed))
+                .text_size(px(tokens::TEXT_HEADER))
+                .font_family("IBM Plex Mono")
                 .child("▁▂▃▄▅▆▇")
                 .into_any_element()
         }
         Block::Gap => {
-            div().h(px(8.0)).into_any_element()
+            div().h(px(tokens::SPACE_2)).into_any_element()
         }
         Block::WrappedText { text, tone } => {
             // Full, wrapping, never-truncated — the operator reads it all.
+            let color = tone_rgb(&tone);
             div()
-                .px(px(16.0))
-                .py(px(6.0))
-                .text_color(rgb(current_theme().tone(&tone)))
-                .text_size(px(14.0))
+                .mx(px(tokens::SPACE_3))
+                .my(px(tokens::SPACE_1))
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_2))
+                .rounded(px(tokens::RADIUS_MD))
+                .border_1()
+                .border_color(rgb(color))
+                .bg(tone_wash(color, 0x16))
+                .text_color(rgb(color))
+                .text_size(px(tokens::TEXT_BODY))
                 .font_family("IBM Plex Mono")
                 .child(text)
                 .into_any_element()
@@ -2097,6 +2176,7 @@ impl ConsoleView {
         let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
         let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
         let control_flash = self.control_flash.clone();
+        let (category_label, category_color) = surface_category(surface, &current_theme());
 
         div()
             .id(SharedString::from(format!("pane-{id}")))
@@ -2154,6 +2234,19 @@ impl ConsoleView {
                             dot.into_any_element()
                         }
                     })
+                    .child(
+                        div()
+                            .px(px(tokens::SPACE_2))
+                            .py(px(2.0))
+                            .rounded(px(tokens::RADIUS_SM))
+                            .border_1()
+                            .border_color(rgb(category_color))
+                            .bg(tone_wash(category_color, if is_focused { 0x2f } else { 0x16 }))
+                            .text_color(rgb(category_color))
+                            .text_size(px(tokens::TEXT_EYEBROW))
+                            .font_weight(FontWeight::BOLD)
+                            .child(category_label),
+                    )
                     .child(
                         div()
                             .text_color(rgb(title_color))
