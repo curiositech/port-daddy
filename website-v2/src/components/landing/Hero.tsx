@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/Button'
-import { CodeBlock } from '@/components/ui/CodeBlock'
 import { useEffect, useRef } from 'react'
 import { PageContainer, SectionIntro, Wordmark } from '@/components/site/primitives'
 import { ArrowRight, Check, Download, KeyRound, Terminal } from 'lucide-react'
@@ -41,7 +39,7 @@ export function Hero() {
     }
   }, [setHeroWordmarkVisible])
   return (
-    <section className="relative flex items-center overflow-hidden py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+    <section className="relative flex items-center overflow-hidden py-[clamp(var(--space-5),5vw,var(--space-8))]">
       {/* Swiss-grid field for the infrastructure diagram. */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
         backgroundImage: 'radial-gradient(circle, var(--text-muted) 1px, transparent 1px)',
@@ -49,13 +47,13 @@ export function Hero() {
       }} />
 
       <PageContainer className="relative z-10">
-        <div className="grid grid-cols-1 items-start gap-[var(--space-6)] min-[1100px]:grid-cols-[minmax(24rem,0.86fr)_minmax(34rem,1.14fr)] min-[1100px]:gap-x-[var(--space-7)] min-[1100px]:gap-y-[var(--space-5)]">
+        <div className="grid grid-cols-1 items-center gap-[var(--space-5)] min-[1100px]:grid-cols-[minmax(24rem,0.82fr)_minmax(38rem,1.18fr)] min-[1100px]:gap-x-[var(--space-6)]">
           {/* Left -- Copy */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' as const }}
-            className="min-w-0 space-y-[var(--space-6)] min-[1100px]:col-start-1 min-[1100px]:row-start-1 min-[1100px]:row-span-2"
+            className="min-w-0 space-y-[var(--space-4)] min-[1100px]:col-start-1 min-[1100px]:row-start-1"
           >
             <SectionIntro
               eyebrow="Fleet coordination for coding agents"
@@ -70,74 +68,95 @@ export function Hero() {
                     initial={{ opacity: 0, scale: 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.7, ease: 'easeOut' as const }}
-                    className="float-right mb-[var(--space-2)] ml-[var(--space-4)] block h-24 w-24 overflow-hidden sm:h-32 sm:w-32 min-[1100px]:hidden"
+                    className="float-right mb-[var(--space-2)] ml-[var(--space-3)] block h-32 w-32 overflow-hidden sm:h-40 sm:w-40 min-[1100px]:hidden"
                   >
                     <Wordmark variant="spin" className="h-full max-w-none" />
                   </motion.span>
-                  Run a fleet of coding agents{' '}
+                  Run agent fleets{' '}
                   <span className="text-[var(--brand-primary)]">
                     without losing track.
                   </span>
                 </>
               }
-              description="Point Claude Code, Codex, and Cursor at the same project and they step on each other — two agents edit one file, a crash takes its work with it, and you find out too late. Port Daddy keeps the record: every agent can see who is working where, read what the others learned, and pick up tasks that died mid-run. Nothing happens silently."
+              description="Run Claude Code, Codex, Cursor, and the rest in one repo without losing the thread. Port Daddy records who is working where, what changed, and how another agent can safely resume."
               titleAs="h1"
               titleSize="hero"
               titleClassName="max-w-[18ch]"
-              bodyClassName="max-w-[44rem]"
+              bodyClassName="max-w-[39rem]"
             />
 
-            {/* Co-primary actions: install in one line, or take the Mac app.
-                The load-bearing BYO-subscription line sits beneath as a quiet
-                link (the full pitch is the next section). */}
-            <div className="space-y-[var(--space-3)]">
-              <div className="max-w-[26rem]">
-                <CodeBlock language="bash" showHeaderLabel={false}>
-                  {`brew install curiositech/tap/port-daddy`}
-                </CodeBlock>
-              </div>
-              <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-                <Button asChild variant="primary" size="lg">
-                  <Link to="/mac-preview#download">
-                    <Download size={16} />
-                    Get the Mac app
-                    <ArrowRight size={16} />
+            <div className="grid max-w-[46rem] gap-[var(--space-3)]">
+              <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--border-strong)]">
+                <div className="flex items-center justify-between gap-[var(--space-3)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-2)]">
+                  <div className="flex items-center gap-[var(--space-1)]" aria-hidden="true">
+                    <span className="h-2.5 w-2.5 bg-[var(--brand-accent)]" />
+                    <span className="h-2.5 w-2.5 bg-[var(--brand-primary)]" />
+                    <span className="h-2.5 w-2.5 bg-[var(--text-muted)]" />
+                  </div>
+                  <span className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+                    local install
+                  </span>
+                </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-px">
+                  <div className="flex min-w-0 items-center gap-[var(--space-2)] bg-[var(--surface-sunken)] px-[var(--space-3)] py-[var(--space-3)]">
+                    <Terminal size={16} className="shrink-0 text-[var(--brand-primary)]" aria-hidden="true" />
+                    <code className="truncate font-mono text-[length:var(--type-panel-body-compact-size)] text-[var(--text-primary)]">
+                      brew install curiositech/tap/port-daddy
+                    </code>
+                  </div>
+                  <Link
+                    to="/mac-preview#download"
+                    className="inline-flex items-center justify-center gap-[var(--space-2)] bg-[var(--text-primary)] px-[var(--space-3)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-inverse)] no-underline transition-colors hover:bg-[var(--brand-primary)]"
+                  >
+                    <Download size={15} aria-hidden="true" />
+                    <span>Mac app</span>
                   </Link>
-                </Button>
-                <Button asChild variant="ghost" size="lg" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                  <Link to="/docs/">
-                    <Terminal size={16} />
-                    Read the docs
+                  <Link
+                    to="/docs/"
+                    className="inline-flex items-center justify-center gap-[var(--space-2)] bg-[var(--surface-raised)] px-[var(--space-3)] py-[var(--space-3)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)] no-underline transition-colors hover:bg-[var(--surface-strong)]"
+                  >
+                    <span aria-hidden="true">&gt;_</span>
+                    <span>Docs</span>
                   </Link>
-                </Button>
+                </div>
               </div>
-              <Link
-                to="/cli-backend"
-                className="group inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)] no-underline transition-colors hover:text-[var(--brand-primary)]"
-              >
-                Already pay for Claude Max or ChatGPT Pro? The fleet runs on it.
-                <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                to="/squid-codex"
-                className="group grid max-w-[34rem] gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] p-[var(--space-3)] no-underline transition-colors hover:border-[var(--brand-primary)]"
-              >
-                <span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
-                  <KeyRound size={15} />
-                  Run Claude Code with Codex and your ChatGPT Pro subscription
-                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-                </span>
-                <span className="font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
-                  Giant Squid serves a local Claude-shaped bridge, injects fresh auth, and routes
-                  the work through Codex CLI under the Port Daddy harness.
-                </span>
-              </Link>
+
+              <div className="min-[1100px]:hidden">
+                <LiveGloryVideo />
+              </div>
+
+              <div className="grid gap-px border-2 border-[var(--border-strong)] bg-[var(--border-strong)] sm:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                <Link
+                  to="/cli-backend"
+                  className="group grid gap-[var(--space-2)] bg-[var(--surface-raised)] p-[var(--space-3)] no-underline transition-colors hover:bg-[var(--surface-base)]"
+                >
+                  <span className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
+                    Use the subscription you already pay for
+                  </span>
+                  <span className="inline-flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                    Claude Max or ChatGPT Pro becomes local fleet capacity.
+                    <ArrowRight size={14} className="shrink-0 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+                <Link
+                  to="/squid-codex"
+                  className="group grid gap-[var(--space-2)] bg-[var(--surface-raised)] p-[var(--space-3)] no-underline transition-colors hover:bg-[var(--surface-base)]"
+                >
+                  <span className="flex items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+                    <KeyRound size={15} />
+                    Giant Squid bridge
+                  </span>
+                  <span className="font-sans text-[length:var(--type-panel-body-compact-size)] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+                    Claude-shaped requests route through Codex CLI while Port Daddy keeps the run local and auditable.
+                  </span>
+                </Link>
+              </div>
             </div>
 
             {/* Trust strip — the engineer's risk-reducers (the weakest vertex on
                 the appeal triangle): local-first, no account, inspectable, broad
                 tool support. Every line is a verifiable fact, not a guarantee. */}
-            <div className="space-y-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-4)]">
+            <div className="space-y-[var(--space-2)] border-t-2 border-[var(--border-strong)] pt-[var(--space-3)]">
               <div className="flex flex-wrap items-center gap-x-[var(--space-4)] gap-y-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
                 <span className="inline-flex items-center gap-[var(--space-2)] text-[var(--brand-primary)]">
                   <Check size={15} strokeWidth={2.5} aria-hidden="true" />
@@ -173,7 +192,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2, ease: 'easeOut' as const }}
-            className="relative min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-2 min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
+            className="relative hidden min-w-0 min-[1100px]:col-start-2 min-[1100px]:row-start-1 min-[1100px]:block min-[1100px]:-mr-[clamp(1rem,3vw,4rem)]"
           >
             {/* Animated wordmark, centered over the FleetBar preview below it.
                 On wide screens its top is nudged down to line up with the top of
@@ -184,7 +203,7 @@ export function Hero() {
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: 'easeOut' as const }}
-              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(34rem,44vw)] select-none min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)] min-[1100px]:block"
+              className="pointer-events-none mx-auto mb-[var(--space-3)] hidden w-[min(34rem,42vw)] select-none min-[1100px]:block"
             >
               <Wordmark variant="spin" className="w-full" />
             </motion.div>

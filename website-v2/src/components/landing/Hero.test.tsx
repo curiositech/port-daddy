@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { useState } from 'react'
@@ -112,9 +112,10 @@ describe('Hero wordmark observer', () => {
     const [mobileMark, desktopMark] = heroWordmarkContainers()
     expect(observer.observed).toEqual([mobileMark, desktopMark])
     expect(mobileMark.className).toContain('float-right')
-    expect(mobileMark.className).toContain('ml-[var(--space-4)]')
+    expect(mobileMark.className).toContain('ml-[var(--space-3)]')
+    expect(mobileMark.className).toContain('h-32')
     expect(mobileMark.className).toContain('min-[1100px]:hidden')
-    expect(mobileMark.className).toContain('sm:h-32')
+    expect(mobileMark.className).toContain('sm:h-40')
     expect(homeLink()).toHaveClass('opacity-0')
 
     act(() => observer.trigger(mobileMark, true))
@@ -136,5 +137,21 @@ describe('Hero wordmark observer', () => {
     expect(homeLink()).not.toHaveAttribute('aria-hidden')
     expect(homeLink()).not.toHaveAttribute('tabindex')
     expect(homeLink()).toHaveClass('opacity-100')
+  })
+
+  it('renders the compact local install row and mobile proof panel', () => {
+    renderHeroShell()
+
+    expect(screen.getByText('local install')).toBeInTheDocument()
+    expect(screen.getByText('brew install curiositech/tap/port-daddy')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /mac app/i })).toHaveAttribute(
+      'href',
+      '/mac-preview#download',
+    )
+    const heroDocsLink = screen
+      .getAllByRole('link', { name: /docs/i })
+      .find((link) => link.getAttribute('href') === '/docs/')
+    expect(heroDocsLink).toBeInTheDocument()
+    expect(screen.getAllByTestId('live-glory-video')).toHaveLength(2)
   })
 })
