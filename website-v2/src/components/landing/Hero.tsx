@@ -21,7 +21,7 @@ export function Hero() {
   // height, so the mark counts as "gone" once it slides under the navbar.
   useEffect(() => {
     const els = [mobileHeroMarkRef.current, desktopHeroMarkRef.current].filter(
-      (el): el is Element => el != null,
+      (el): el is HTMLSpanElement | HTMLDivElement => el != null,
     )
     if (els.length === 0) return
     const visibleByElement = new WeakMap<Element, boolean>()
@@ -70,9 +70,9 @@ export function Hero() {
                     initial={{ opacity: 0, scale: 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.7, ease: 'easeOut' as const }}
-                    className="float-right mb-[var(--space-2)] ml-[var(--space-4)] block w-[min(11rem,42vw)] min-[1100px]:hidden"
+                    className="float-right mb-[var(--space-2)] ml-[var(--space-4)] block h-24 w-24 overflow-hidden sm:h-32 sm:w-32 min-[1100px]:hidden"
                   >
-                    <Wordmark variant="spin" className="w-full" />
+                    <Wordmark variant="spin" className="h-full max-w-none" />
                   </motion.span>
                   Run a fleet of coding agents{' '}
                   <span className="text-[var(--brand-primary)]">
@@ -184,7 +184,7 @@ export function Hero() {
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: 'easeOut' as const }}
-              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(28rem,42vw)] select-none min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)] min-[1100px]:block"
+              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(34rem,44vw)] select-none min-[1100px]:mt-[calc(var(--section-intro-gap)+1.875rem)] min-[1100px]:block"
             >
               <Wordmark variant="spin" className="w-full" />
             </motion.div>
