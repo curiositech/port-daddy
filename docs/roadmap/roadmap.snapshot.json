@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1782578276746,
+  "generatedAt": 1782613558927,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 90,
+  "count": 92,
   "items": [
     {
       "slug": "adr-0019-declarative-fleet-yaml",
@@ -300,6 +300,11 @@
       "summaryMd": "Paid Trust tier: roll receipts up to a team policy-and-audit plane. Done when an eng lead sees every agent's signed record across the team."
     },
     {
+      "slug": "adr-0050-phase-7-compulsion",
+      "status": "backlog",
+      "summaryMd": "feat(coast-guard): rent→slash advisory-only — pure policy + breach ledger (ADR-0050 ph7)"
+    },
+    {
       "slug": "adr-0090-database-distribution",
       "status": "now",
       "summaryMd": "ADR-0090 DB distribution plan"
@@ -418,6 +423,11 @@
       "slug": "roadmap-link-gate",
       "status": "now",
       "summaryMd": "Non-blocking CI gate: every PR declares its roadmap item (committed snapshot + label→human-approval fallback + loud-on-broken). Daemon is the only writer; CI reads the mirror."
+    },
+    {
+      "slug": "seeded-daemon-fleet-console-lanes",
+      "status": "backlog",
+      "summaryMd": "feat: seeded daemon fleet + FleetBar console links/chrome + cut-and-rebuild orchestrator"
     },
     {
       "slug": "squid-contract-harness-daemon-boot-fix",
