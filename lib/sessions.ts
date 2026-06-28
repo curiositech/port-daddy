@@ -1263,7 +1263,8 @@ export function createSessions(
     if (options.agentId !== undefined && options.agentId !== null && typeof options.agentId !== 'string') {
       return { success: false, error: 'agentId must be a string', code: 'VALIDATION_ERROR' };
     }
-    const normalizedAgentId = normalizeAgentId(options.agentId);
+    const predecessorAgentId = normalizeAgentId(predecessor.agent_id);
+    const normalizedAgentId = normalizeAgentId(options.agentId) || predecessorAgentId;
     if (options.agentId !== undefined && options.agentId !== null && !normalizedAgentId) {
       return { success: false, error: 'agentId must be a non-empty string when provided', code: 'VALIDATION_ERROR' };
     }

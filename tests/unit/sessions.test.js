@@ -392,6 +392,24 @@ describe('Sessions Module', () => {
       ]));
     });
 
+    it('should keep the predecessor agent when takeover does not specify a replacement', () => {
+      const started = sessions.start('Agent continuity takeover', {
+        agentId: 'continuity-agent',
+        durable: true,
+      });
+
+      const result = sessions.takeover(started.id, { note: 'same agent continuing' });
+
+      expect(result.success).toBe(true);
+      const successor = sessions.get(result.successorId);
+      expect(successor.success).toBe(true);
+      expect(successor.session.agentId).toBe('continuity-agent');
+      expect(successor.session.metadata.predecessorAgentId).toBe('continuity-agent');
+
+      const predecessor = sessions.get(started.id);
+      expect(predecessor.session.metadata.takenOverByAgentId).toBe('continuity-agent');
+    });
+
     it('should create a successor from a completed session without changing predecessor status', () => {
       const started = sessions.start('Completed source');
       sessions.end(started.id, { note: 'done once' });
