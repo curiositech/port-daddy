@@ -13,12 +13,12 @@
       --cobalt: #2076FE;
       --seafoam: #20DEB0; 
       --amber: #FFB505;   
-      --bg-dark: #101216; /* matches the site's dark --surface-base */
-      --radar-grid: #1c2230;
+      --bg-dark: #070B12;
+      --radar-grid: #121A28;
     }
   </style>
 
-  <rect width="300" height="300" fill="transparent" />
+  <rect width="300" height="300" fill="var(--bg-dark)" />
   
   <g stroke="var(--radar-grid)" stroke-width="1" fill="none">
     <circle cx="150" cy="150" r="45" />

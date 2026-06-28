@@ -101,8 +101,6 @@ function useSurfaceTone(explicitTone?: AccentTone) {
 export function BrandMark({ className }: { className?: string }) {
   const { theme } = useTheme()
 
-  // The static radar mark — the still version of the hero's spinning logo, so
-  // the nav mark and the hero mark are the same artwork. Theme-aware.
   return (
     <img
       aria-hidden="true"
