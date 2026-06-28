@@ -6,6 +6,7 @@
  *   POST /v1/handshake
  *   GET  /v1/subscribe/:session_id          (SSE)
  *   POST /v1/publish
+ *   POST /v1/github/webhook                  (GitHub webhook ingress; HMAC-gated)
  *   POST /v1/exchange                        (OIDC → PD card)
  *   POST /v1/revoke
  *   POST /v1/revoke-by-issuer               (operator; acceptance criterion #2)
@@ -32,6 +33,7 @@ import {
   handleInvalidateJwks,
   handleAudit,
 } from './handlers.js';
+import { handleGithubWebhook } from './github-webhook.js';
 
 // Re-export Durable Object class for wrangler to pick up
 export { HarborChannel };
@@ -58,8 +60,9 @@ export default {
       return cors(new Response(null, { status: 204 }));
     }
 
-    let response: Response;
+    let response: Response = notFound();
 
+    try {
     // ── Health ──────────────────────────────────────────────────────────────
     if (pathname === '/health' && method === 'GET') {
       response = handleHealth(env);
@@ -79,6 +82,11 @@ export default {
     // ── Publish ─────────────────────────────────────────────────────────────
     else if (pathname === '/v1/publish' && method === 'POST') {
       response = await handlePublish(request, env);
+    }
+
+    // ── GitHub webhook ingress ───────────────────────────────────────────────
+    else if (pathname === '/v1/github/webhook' && method === 'POST') {
+      response = await handleGithubWebhook(request, env);
     }
 
     // ── OIDC exchange ────────────────────────────────────────────────────────
@@ -133,6 +141,15 @@ export default {
 
     else {
       response = notFound();
+    }
+    } catch (e) {
+      // Global fail-closed boundary: any uncaught throw (D1/KV/Durable Object
+      // infra error) becomes a controlled {error,code} envelope, never a raw
+      // runtime 500. Matches the contract every handler already uses.
+      response = Response.json(
+        { error: 'internal relay error', code: 'INTERNAL_ERROR' },
+        { status: 500 },
+      );
     }
 
     return cors(response);

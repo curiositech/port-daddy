@@ -1,19 +1,30 @@
-# Port Daddy Relay — Cloudflare Worker
+# Port Daddy Relay — Cloudflare Worker (TEMPLATE)
 #
-# Prerequisites before `wrangler deploy`:
+# Copy this file to `wrangler.toml` and replace every REPLACE_WITH_YOUR_* token
+# with the ids you get back from the provisioning commands below. The real
+# `wrangler.toml` is gitignored (it carries account-scoped resource ids); only
+# this template is committed.
 #
-#   1. Create D1 database:
+# Provisioning (run once, then paste the ids returned):
+#
+#   1. Create the D1 database — copy the printed database_id into [[d1_databases]]:
 #        wrangler d1 create port-daddy-relay
-#      Copy the database_id into [d1_databases] below.
 #
-#   2. Apply schema:
+#   2. Apply the schema:
 #        wrangler d1 execute port-daddy-relay --file=./schema.sql
 #
-#   3. Set secrets:
+#   3. Create the KV namespace — copy the printed id into [[kv_namespaces]]:
+#        wrangler kv namespace create KV
+#
+#   4. Create the fleet-runs queue (producer binding below):
+#        wrangler queues create fleet-runs
+#
+#   5. Set secrets (never committed):
 #        echo "<value>" | wrangler secret put RELAY_OPERATOR_TOKEN
 #        echo "<value>" | wrangler secret put RELAY_ED25519_PRIVATE_KEY_HEX
+#        echo "<value>" | wrangler secret put GITHUB_WEBHOOK_SECRET
 #
-#   4. Deploy:
+#   6. Deploy:
 #        wrangler deploy
 #
 # Local dev:
@@ -33,7 +44,7 @@ JWKS_FAIL_SOFT_SECONDS = "3600"
 REVOCATION_BROADCAST_TIMEOUT_MS = "5000"
 RATE_LIMIT_WINDOW_MS = "60000"
 
-[d1_databases]
+[[d1_databases]]
 binding = "DB"
 database_name = "port-daddy-relay"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
@@ -47,10 +58,16 @@ bindings = [
 tag = "v0001"
 new_classes = ["HarborChannel"]
 
-[kv_namespaces]
+[[kv_namespaces]]
 # JWKS cache and pinned relay key cache
 binding = "KV"
 id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Fleet-executor handoff: relay enqueues one FleetRunJob per GitHub delivery.
+# Operator must `wrangler queues create fleet-runs` before this deploy succeeds.
+[[queues.producers]]
+binding = "FLEET_RUNS"
+queue = "fleet-runs"
 
 [observability]
 enabled = true

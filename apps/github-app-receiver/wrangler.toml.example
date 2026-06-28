@@ -1,0 +1,22 @@
+# Cloudflare Worker — GitHub App webhook receiver + cloud fleet executor.
+#
+# Copy this file to `wrangler.toml` and replace account-scoped values before deploy.
+# `wrangler.toml` is gitignored; set secrets with `wrangler secret put`.
+#
+# Secrets:
+#   GITHUB_WEBHOOK_SECRET   — HMAC secret matching the GitHub App webhook setting
+#   GITHUB_APP_PRIVATE_KEY  — RSA private key PEM (base64-encoded or raw with \n)
+
+name = "github-app-receiver"
+main = "src/worker.ts"
+compatibility_date = "2026-05-01"
+
+[vars]
+# Numeric GitHub App ID (visible on the App settings page at github.com/settings/apps)
+GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
+
+[ai]
+binding = "AI"
+
+[observability]
+enabled = true
