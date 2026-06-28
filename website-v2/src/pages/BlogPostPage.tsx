@@ -12,6 +12,8 @@ import { BlogComments } from '@/components/blog/BlogComments'
 import { Calendar, User, ArrowLeft } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
+import { ThemedImage } from '@/components/site/ThemedImage'
+import { useTheme } from '@/lib/theme-context'
 
 // ─── Directive system ─────────────────────────────────────────────────────
 // HTML comments in markdown declare how the NEXT block should render:
@@ -94,6 +96,8 @@ export function BlogPostPage() {
   const post = blogPosts.find(p => p.slug === slug)
   const deprecatedPost = deprecatedBlogPosts.find(p => p.slug === slug)
   const { scrollYProgress } = useScroll()
+  const { theme } = useTheme()
+  const dark = theme === 'dark'
 
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -205,7 +209,13 @@ export function BlogPostPage() {
     img({ src, alt }) {
       return (
         <figure>
-          <img src={src} alt={alt} />
+          <ThemedImage
+            src={String(src ?? '')}
+            alt={alt ?? ''}
+            style={{
+              filter: dark ? 'brightness(0.76) contrast(1.18) saturate(1.08)' : 'saturate(1.02)',
+            }}
+          />
           {alt && <figcaption>{alt}</figcaption>}
         </figure>
       )
@@ -273,8 +283,24 @@ export function BlogPostPage() {
       {/* Hero Image */}
       {heroImg && (
         <div className="w-full max-w-6xl mx-auto px-6 -mt-8 relative z-10">
-          <div className="overflow-hidden border-2 border-border-strong bg-surface-sunken">
-            <img src={heroImg} alt={post.heroAlt} className="w-full h-auto object-cover max-h-[36rem]" />
+          <div className="relative overflow-hidden border-2 border-border-strong bg-surface-sunken">
+            <ThemedImage
+              src={heroImg}
+              alt={post.heroAlt}
+              className="w-full h-auto object-cover max-h-[36rem]"
+              style={{
+                filter: dark ? 'brightness(0.76) contrast(1.18) saturate(1.08)' : 'saturate(1.02)',
+              }}
+              loading="eager"
+            />
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: dark
+                  ? 'linear-gradient(180deg, rgba(11,13,16,0.02) 0%, rgba(11,13,16,0.22) 100%)'
+                  : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.1) 100%)',
+              }}
+            />
           </div>
         </div>
       )}

@@ -28,6 +28,8 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
+import { ThemedImage } from '@/components/site/ThemedImage'
+import { useTheme } from '@/lib/theme-context'
 
 /**
  * Standalone marquee page at /harness. The argument: a bare vendor CLI is a
@@ -197,6 +199,63 @@ function StatusPill({ tone, children }: { tone: 'live' | 'mapped'; children: Rea
     >
       {children}
     </span>
+  )
+}
+
+function HarnessArtFigure({
+  src,
+  alt,
+  caption,
+  labels,
+  loading = 'lazy',
+}: {
+  src: string
+  alt: string
+  caption: string
+  labels: readonly string[]
+  loading?: 'eager' | 'lazy'
+}) {
+  const { theme } = useTheme()
+  const dark = theme === 'dark'
+
+  return (
+    <figure className="space-y-[var(--space-2)]">
+      <div className="relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+        <ThemedImage
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover"
+          style={{
+            filter: dark ? 'brightness(0.72) contrast(1.18) saturate(1.12)' : 'saturate(1.03)',
+          }}
+          width={1456}
+          height={816}
+          loading={loading}
+          decoding="async"
+        />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: dark
+              ? 'linear-gradient(180deg, rgba(11,13,16,0.12) 0%, rgba(11,13,16,0.54) 100%)'
+              : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.22) 100%)',
+          }}
+        />
+        <div className="absolute inset-x-[var(--space-3)] bottom-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
+          {labels.map((label) => (
+            <span
+              key={label}
+              className="border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+        {caption}
+      </figcaption>
+    </figure>
   )
 }
 
@@ -388,21 +447,13 @@ export default function HarnessPage() {
               </SwissGridItem>
 
               <SwissGridItem span="wide">
-                <figure className="space-y-[var(--space-2)]">
-                  <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
-                    <source srcSet="/img/generated/harness-hero.webp" type="image/webp" />
-                    <img
-                      src="/img/generated/harness-hero.jpg"
-                      alt="A single agent core at center, eight instrumented lines reaching out into a control plane of message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a conversation loop, a budget meter, an isolated worktree, and an amber guard gate"
-                      className="h-full w-full object-cover"
-                      width={1456}
-                      height={816}
-                    />
-                  </picture>
-                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    One agent core, eight instrumented lines into the fleet’s control plane.
-                  </figcaption>
-                </figure>
+                <HarnessArtFigure
+                  src="/img/generated/harness-hero.webp"
+                  alt="A single agent core at center, eight instrumented lines reaching out into a control plane of message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a conversation loop, a budget meter, an isolated worktree, and an amber guard gate"
+                  caption="One agent core, eight instrumented lines into the fleet’s control plane."
+                  labels={['Messages', 'Claims', 'Budget', 'Guardrails']}
+                  loading="eager"
+                />
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
@@ -439,22 +490,12 @@ export default function HarnessPage() {
               </SwissGridItem>
 
               <SwissGridItem span="wide">
-                <figure className="space-y-[var(--space-2)]">
-                  <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-                    <source srcSet="/img/generated/harness-hooks.webp" type="image/webp" />
-                    <img
-                      src="/img/generated/harness-hooks.jpg"
-                      alt="A vendor command-line tool exposing four hook ports along its edge, with keyed couplings from the daemon seating into them — one connection fully seated and solid, the others dashed and partially seated to show validation in progress"
-                      className="h-full w-full object-cover"
-                      width={1456}
-                      height={816}
-                      loading="lazy"
-                    />
-                  </picture>
-                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    The daemon seats into the CLI’s hook ports. One solid coupling is verified; the dashed ones are validating.
-                  </figcaption>
-                </figure>
+                <HarnessArtFigure
+                  src="/img/generated/harness-hooks.webp"
+                  alt="A vendor command-line tool exposing four hook ports along its edge, with keyed couplings from the daemon seating into them — one connection fully seated and solid, the others dashed and partially seated to show validation in progress"
+                  caption="The daemon seats into the CLI’s hook ports. One solid coupling is verified; the dashed ones are validating."
+                  labels={['Before turn', 'Pre-tool', 'Post-tool', 'Command veto']}
+                />
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
@@ -526,22 +567,12 @@ export default function HarnessPage() {
           <PageContainer width="wide">
             <SwissGrid className="items-center">
               <SwissGridItem span="wide">
-                <figure className="space-y-[var(--space-2)]">
-                  <picture className="block overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-base)]">
-                    <source srcSet="/img/generated/harness-veto.webp" type="image/webp" />
-                    <img
-                      src="/img/generated/harness-veto.jpg"
-                      alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate; a clean rerouted lane departs toward a safe terminal node, showing the command was redirected to a safe alternative rather than only blocked"
-                      className="h-full w-full object-cover"
-                      width={1456}
-                      height={816}
-                      loading="lazy"
-                    />
-                  </picture>
-                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-                    The hazard lane is stopped at the gate; a safe lane is offered in its place.
-                  </figcaption>
-                </figure>
+                <HarnessArtFigure
+                  src="/img/generated/harness-veto.webp"
+                  alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate; a clean rerouted lane departs toward a safe terminal node, showing the command was redirected to a safe alternative rather than only blocked"
+                  caption="The hazard lane is stopped at the gate; a safe lane is offered in its place."
+                  labels={['Veto', 'Explain', 'Safer move']}
+                />
               </SwissGridItem>
 
               <SwissGridItem span="narrow">

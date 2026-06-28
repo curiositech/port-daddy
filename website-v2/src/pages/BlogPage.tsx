@@ -3,6 +3,7 @@ import { blogPosts, deprecatedBlogPosts, type BlogPost } from '@/data/blogData'
 import { Activity, ArrowUpRight, Calendar, CheckCircle2, Cpu, GitBranch, NotebookText, ShieldCheck, Terminal } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { ThemedImage } from '@/components/site/ThemedImage'
+import { useTheme } from '@/lib/theme-context'
 
 const metaClass =
   'font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)]'
@@ -48,13 +49,27 @@ function Tag({ children }: { children: string }) {
 }
 
 function ArticleImage({ post, eager = false }: { post: BlogPost; eager?: boolean }) {
+  const { theme } = useTheme()
+  const dark = theme === 'dark'
+
   return (
     <div className="relative aspect-[16/9] w-full overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-      <img
+      <ThemedImage
         src={post.heroImage}
         alt={post.heroAlt}
         className="h-full w-full object-cover"
+        style={{
+          filter: dark ? 'brightness(0.76) contrast(1.18) saturate(1.08)' : 'saturate(1.02)',
+        }}
         loading={eager ? 'eager' : 'lazy'}
+      />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: dark
+            ? 'linear-gradient(180deg, rgba(11,13,16,0.04) 0%, rgba(11,13,16,0.32) 100%)'
+            : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.12) 100%)',
+        }}
       />
     </div>
   )
