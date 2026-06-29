@@ -85,6 +85,44 @@ export interface VoyageResult {
   stderr: string;
 }
 
+export type SquidHookPurpose = 'prompt' | 'preTool' | 'postTool';
+
+export interface SquidHookMetadata {
+  purpose: SquidHookPurpose;
+  displayName: string;
+  description: string;
+  privacy: string;
+}
+
+export const SQUID_HOOK_PRIVACY_NOTICE =
+  'Port Daddy hooks run locally. They do not log or retain user transcripts. ' +
+  'They read lifecycle event JSON only to surface coordination context, block unsafe/conflicting tool use, ' +
+  'and write compact local coordination facts. Any future transcript sync must be opt-in and encrypted.';
+
+export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = {
+  prompt: {
+    purpose: 'prompt',
+    displayName: 'Port Daddy pre-turn briefing (local)',
+    description:
+      'Reads local Port Daddy inbox, alert, and pheromone signals for this repo and may add a short coordination briefing to the next turn.',
+    privacy: 'Does not store the prompt or transcript.',
+  },
+  preTool: {
+    purpose: 'preTool',
+    displayName: 'Port Daddy pre-tool safety gate (local)',
+    description:
+      'Checks local Port Daddy locks and file-claim state before file-mutating tools, and can block conflicting or unsafe edits.',
+    privacy: 'Does not send tool input off-machine.',
+  },
+  postTool: {
+    purpose: 'postTool',
+    displayName: 'Port Daddy post-tool coordination trace (local)',
+    description:
+      'After successful file mutations, writes compact path/tool/actor coordination facts so other local agents can avoid collisions.',
+    privacy: 'Does not retain full tool output or conversation transcripts.',
+  },
+};
+
 // ─── Tentacle locations ───────────────────────────────────────────────────────
 
 const __adapter_dir = dirname(fileURLToPath(import.meta.url));
@@ -109,6 +147,145 @@ export function assertTentaclesPresent(): void {
       /* non-fatal */
     }
   }
+}
+
+export interface SquidProviderHookDiagnosis {
+  providerName: string;
+  binaryName: string;
+  configPath: string;
+  ok: boolean;
+  detail: string;
+  hint: string;
+}
+
+function hasPortDaddyHook(group: ClaudeHookMatcher | undefined, purpose: SquidHookPurpose): boolean {
+  if (!group?.hooks?.some((hook) => hook.command?.includes(tentaclePath(commandForPurpose(purpose))))) {
+    return false;
+  }
+  const meta = SQUID_HOOK_METADATA[purpose];
+  return group.name === meta.displayName && group.description === meta.description && group.privacy === meta.privacy;
+}
+
+function commandForPurpose(purpose: SquidHookPurpose): 'pd-hook-prompt' | 'pd-hook-pre-tool' | 'pd-hook-post-tool' {
+  if (purpose === 'prompt') return 'pd-hook-prompt';
+  if (purpose === 'preTool') return 'pd-hook-pre-tool';
+  return 'pd-hook-post-tool';
+}
+
+function readJsonConfig(path: string): Record<string, unknown> | null {
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function diagnoseJsonHookFile(
+  providerName: string,
+  binaryName: string,
+  configPath: string,
+  events: Record<string, SquidHookPurpose>,
+): SquidProviderHookDiagnosis {
+  const cfg = readJsonConfig(configPath);
+  const hint = `Run: pd squid hooks --provider ${providerName === 'claude-code' ? 'claude' : providerName}`;
+  if (!cfg) {
+    return { providerName, binaryName, configPath, ok: false, detail: 'hook config missing or invalid JSON', hint };
+  }
+
+  const hooks = cfg.hooks as Record<string, ClaudeHookMatcher[]> | undefined;
+  if (!hooks || typeof hooks !== 'object') {
+    return { providerName, binaryName, configPath, ok: false, detail: 'no hooks block found', hint };
+  }
+
+  const missing: string[] = [];
+  for (const [event, purpose] of Object.entries(events)) {
+    const group = (hooks[event] ?? []).find((candidate) =>
+      candidate.hooks?.some((hook) => hook.command?.includes(commandForPurpose(purpose))),
+    );
+    if (!hasPortDaddyHook(group, purpose)) {
+      missing.push(`${event}:${SQUID_HOOK_METADATA[purpose].displayName}`);
+    }
+  }
+
+  if (missing.length > 0) {
+    return {
+      providerName,
+      binaryName,
+      configPath,
+      ok: false,
+      detail: `missing or stale Port Daddy hook metadata: ${missing.join(', ')}`,
+      hint,
+    };
+  }
+
+  return {
+    providerName,
+    binaryName,
+    configPath,
+    ok: true,
+    detail: `${Object.keys(events).length} local hooks installed with privacy metadata`,
+    hint,
+  };
+}
+
+function diagnoseCodexHookFile(workspaceRoot: string): SquidProviderHookDiagnosis {
+  const configPath = join(workspaceRoot, '.codex', 'config.toml');
+  const hint = 'Run: pd squid hooks --provider codex';
+  if (!existsSync(configPath)) {
+    return { providerName: 'codex', binaryName: 'codex', configPath, ok: false, detail: 'hook config missing', hint };
+  }
+  const text = readFileSync(configPath, 'utf8');
+  const required = [
+    CODEX_PD_MARKER,
+    SQUID_HOOK_PRIVACY_NOTICE,
+    SQUID_HOOK_METADATA.prompt.displayName,
+    SQUID_HOOK_METADATA.preTool.displayName,
+    SQUID_HOOK_METADATA.postTool.displayName,
+    tentaclePath('pd-hook-prompt'),
+    tentaclePath('pd-hook-pre-tool'),
+    tentaclePath('pd-hook-post-tool'),
+  ];
+  const missing = required.filter((needle) => !text.includes(needle));
+  if (missing.length > 0) {
+    return {
+      providerName: 'codex',
+      binaryName: 'codex',
+      configPath,
+      ok: false,
+      detail: 'missing or stale Port Daddy hook TOML block/metadata',
+      hint,
+    };
+  }
+  return {
+    providerName: 'codex',
+    binaryName: 'codex',
+    configPath,
+    ok: true,
+    detail: '3 local hooks installed with privacy comments',
+    hint,
+  };
+}
+
+export function diagnoseSquidHookInstall(workspaceRoot: string): SquidProviderHookDiagnosis[] {
+  return [
+    diagnoseJsonHookFile('claude-code', 'claude', join(workspaceRoot, '.claude', 'settings.json'), {
+      UserPromptSubmit: 'prompt',
+      PreToolUse: 'preTool',
+      PostToolUse: 'postTool',
+    }),
+    diagnoseCodexHookFile(workspaceRoot),
+    diagnoseJsonHookFile('gemini', 'gemini', join(workspaceRoot, '.gemini', 'settings.json'), {
+      [GEMINI_EVENT.prompt]: 'prompt',
+      [GEMINI_EVENT.preTool]: 'preTool',
+      [GEMINI_EVENT.postTool]: 'postTool',
+    }),
+    diagnoseJsonHookFile('antigravity', 'agy', join(AGY_GEMINI_DIR(), 'hooks.json'), {
+      UserPromptSubmit: 'prompt',
+      PreToolUse: 'preTool',
+      PostToolUse: 'postTool',
+    }),
+  ];
 }
 
 // ─── Shared spawn helper ──────────────────────────────────────────────────────
@@ -160,6 +337,9 @@ interface ClaudeHookCommand {
   command: string;
 }
 interface ClaudeHookMatcher {
+  name?: string;
+  description?: string;
+  privacy?: string;
   matcher?: string;
   hooks: ClaudeHookCommand[];
 }
@@ -169,8 +349,15 @@ interface ClaudeSettings {
 }
 
 /** A tentacle command shaped for a Claude Code settings.json hook entry. */
-function claudeHookEntry(command: string, matcher?: string): ClaudeHookMatcher {
-  return { ...(matcher ? { matcher } : {}), hooks: [{ type: 'command', command }] };
+function claudeHookEntry(command: string, purpose: SquidHookPurpose, matcher?: string): ClaudeHookMatcher {
+  const meta = SQUID_HOOK_METADATA[purpose];
+  return {
+    name: meta.displayName,
+    description: meta.description,
+    privacy: meta.privacy,
+    ...(matcher ? { matcher } : {}),
+    hooks: [{ type: 'command', command }],
+  };
 }
 
 // ─── ClaudeCliSquidAdapter — THE PRIME PATH (verified) ────────────────────────
@@ -209,10 +396,10 @@ export class ClaudeCliSquidAdapter implements GiantSquidAdapter {
 
     const wanted: Record<string, ClaudeHookMatcher> = {
       // UserPromptSubmit has no tool matcher — it always fires.
-      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt')),
+      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
       // PreToolUse / PostToolUse match the file-mutating tools we gate on.
-      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'Edit|Write|MultiEdit|NotebookEdit'),
-      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'Edit|Write|MultiEdit|NotebookEdit'),
+      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', 'Edit|Write|MultiEdit|NotebookEdit'),
+      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', 'Edit|Write|MultiEdit|NotebookEdit'),
     };
 
     for (const [event, entry] of Object.entries(wanted)) {
@@ -336,9 +523,9 @@ export class GeminiSquidAdapter implements GiantSquidAdapter {
 
     const hooks = (cfg['hooks'] as Record<string, ClaudeHookMatcher[]>) ?? {};
     const wanted: Record<string, ClaudeHookMatcher> = {
-      [GEMINI_EVENT.prompt]: claudeHookEntry(tentaclePath('pd-hook-prompt')),
-      [GEMINI_EVENT.preTool]: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), GEMINI_TOOL_MATCHER),
-      [GEMINI_EVENT.postTool]: claudeHookEntry(tentaclePath('pd-hook-post-tool'), GEMINI_TOOL_MATCHER),
+      [GEMINI_EVENT.prompt]: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
+      [GEMINI_EVENT.preTool]: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', GEMINI_TOOL_MATCHER),
+      [GEMINI_EVENT.postTool]: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', GEMINI_TOOL_MATCHER),
     };
     for (const [event, entry] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];
@@ -525,9 +712,12 @@ function tomlString(v: string): string {
 function codexHooksTomlBlock(t: { prompt: string; pre: string; post: string }): string {
   const L: string[] = [];
   L.push(`# ${CODEX_PD_MARKER}.`);
-  L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked');
-  L.push('# file (exit 2 + stderr, OR exit 0 + permissionDecision:"deny" JSON on stdout).');
-  L.push('# PostToolUse is async (pheromone append). UserPromptSubmit is sync (envelope).');
+  L.push(`# Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`);
+  L.push(`# ${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`);
+  L.push(`# ${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`);
+  L.push(`# ${SQUID_HOOK_METADATA.postTool.displayName}: ${SQUID_HOOK_METADATA.postTool.description}`);
+  L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked file.');
+  L.push('# PostToolUse is async (compact local coordination trace). UserPromptSubmit is sync (briefing envelope).');
   L.push('');
   // UserPromptSubmit (sync)
   L.push('[[hooks.UserPromptSubmit]]');
@@ -646,9 +836,9 @@ export class AntigravitySquidAdapter implements GiantSquidAdapter {
     // Claude/Gemini ones, so we cast a wide matcher.
     const matcher = 'Edit|Write|MultiEdit|write_to_file|replace_file_content|multi_replace_file_content|replace|write_file|edit|apply_patch';
     const wanted: Record<string, ClaudeHookMatcher> = {
-      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt')),
-      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), matcher),
-      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), matcher),
+      UserPromptSubmit: claudeHookEntry(tentaclePath('pd-hook-prompt'), 'prompt'),
+      PreToolUse: claudeHookEntry(tentaclePath('pd-hook-pre-tool'), 'preTool', matcher),
+      PostToolUse: claudeHookEntry(tentaclePath('pd-hook-post-tool'), 'postTool', matcher),
     };
     for (const [event, entry] of Object.entries(wanted)) {
       const existing = hooks[event] ?? [];

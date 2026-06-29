@@ -34,6 +34,9 @@ import {
   GeminiSquidAdapter,
   CodexSquidAdapter,
   AntigravitySquidAdapter,
+  SQUID_HOOK_METADATA,
+  SQUID_HOOK_PRIVACY_NOTICE,
+  diagnoseSquidHookInstall,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
 import { installSquidHooks } from '../../cli/commands/squid.js';
@@ -244,6 +247,10 @@ describe('Giant Squid Harness — ClaudeCliSquidAdapter.injectHooks', () => {
     expect(cmd('PostToolUse')).toBe(tentaclePath('pd-hook-post-tool'));
     // Absolute paths only (the CLI runs hooks from arbitrary cwds).
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
+    const gate = settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1];
+    expect(gate.name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
+    expect(gate.description).toBe(SQUID_HOOK_METADATA.preTool.description);
+    expect(gate.privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate PD entries)', async () => {
@@ -281,6 +288,7 @@ describe('Giant Squid Harness — GeminiSquidAdapter.injectHooks', () => {
     expect(matcher).toMatch(/write_file/);
     expect(matcher).toMatch(/run_shell_command/);
     expect(cmd('BeforeTool').startsWith('/')).toBe(true);
+    expect(cfg.hooks.BeforeTool[cfg.hooks.BeforeTool.length - 1].name).toBe(SQUID_HOOK_METADATA.preTool.displayName);
   });
 
   test('injectHooks preserves non-PD hooks and is idempotent', async () => {
@@ -329,6 +337,10 @@ describe('Giant Squid Harness — CodexSquidAdapter.injectHooks', () => {
     expect(toml).toMatch(/\[\[hooks\.PostToolUse\]\]/);
     expect(toml).toMatch(/\[\[hooks\.UserPromptSubmit\]\]/);
     expect(toml).toMatch(/async = true/); // post-tool is fire-and-forget
+    expect(toml).toContain(SQUID_HOOK_PRIVACY_NOTICE);
+    expect(toml).toContain(SQUID_HOOK_METADATA.prompt.displayName);
+    expect(toml).toContain(SQUID_HOOK_METADATA.preTool.displayName);
+    expect(toml).toContain(SQUID_HOOK_METADATA.postTool.displayName);
   });
 
   test('injectHooks is idempotent (re-run does not duplicate the PD block)', async () => {
@@ -417,6 +429,7 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     expect(matcher).toMatch(/write_to_file/);
     expect(matcher).toMatch(/replace_file_content/);
     expect(cmd('PreToolUse').startsWith('/')).toBe(true);
+    expect(cfg.hooks.PreToolUse[cfg.hooks.PreToolUse.length - 1].privacy).toBe(SQUID_HOOK_METADATA.preTool.privacy);
   });
 
   test('injectHooks preserves non-PD hooks and is idempotent', async () => {
@@ -472,6 +485,31 @@ describe('Giant Squid Harness — pd squid hooks installer', () => {
 
   test('rejects unknown hook providers instead of silently pretending compliance', async () => {
     await expect(installSquidHooks(WORKSPACE, ['mystery-agent'])).rejects.toThrow(/Unsupported Squid hook provider/);
+  });
+
+  test('diagnoses installed hooks and flags stale user-edited metadata', async () => {
+    const savedGeminiDir = process.env.GEMINI_DIR;
+    const agyGeminiDir = join(SCRATCH, 'agy-gemini-dir');
+    process.env.GEMINI_DIR = agyGeminiDir;
+    try {
+      await installSquidHooks(WORKSPACE);
+      let diagnosis = diagnoseSquidHookInstall(WORKSPACE);
+      expect(diagnosis.every((result) => result.ok)).toBe(true);
+
+      const claudePath = join(WORKSPACE, '.claude', 'settings.json');
+      const settings = JSON.parse(readFileSync(claudePath, 'utf8'));
+      delete settings.hooks.PreToolUse[settings.hooks.PreToolUse.length - 1].privacy;
+      writeFileSync(claudePath, JSON.stringify(settings, null, 2));
+
+      diagnosis = diagnoseSquidHookInstall(WORKSPACE);
+      const claude = diagnosis.find((result) => result.providerName === 'claude-code');
+      expect(claude?.ok).toBe(false);
+      expect(claude?.detail).toMatch(/stale Port Daddy hook metadata/);
+      expect(claude?.hint).toBe('Run: pd squid hooks --provider claude');
+    } finally {
+      if (savedGeminiDir === undefined) delete process.env.GEMINI_DIR;
+      else process.env.GEMINI_DIR = savedGeminiDir;
+    }
   });
 });
 

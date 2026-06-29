@@ -37,6 +37,11 @@ import {
   isBunVirtualPath,
   resolveDistributionRoot,
 } from '../../shared/daemon-binary.js';
+import {
+  diagnoseSquidHookInstall,
+  SQUID_HOOK_PRIVACY_NOTICE,
+} from '../../lib/squid/adapter.js';
+import { createPlatforms } from './mcp-install.js';
 import * as ui from '../utils/ui.js';
 
 // __dirname equivalent for ESM
@@ -369,6 +374,63 @@ export interface ResourceDirBreakdown {
   resolvedRoot: string;
   expectedBinary: string;
   binaryExists: boolean;
+}
+
+export interface AgentRuntimeInstallDiagnosis {
+  mcpConfigured: boolean;
+  mcpDetail: string;
+  mcpHint: string;
+  skillInstalled: boolean;
+  skillDetail: string;
+  skillHint: string;
+}
+
+function readJsonFile(path: string): Record<string, unknown> | null {
+  if (!existsSync(path)) return null;
+  try {
+    const raw = readFileSync(path, 'utf8').trim();
+    return raw ? JSON.parse(raw) as Record<string, unknown> : {};
+  } catch {
+    return null;
+  }
+}
+
+export function diagnoseAgentRuntimeInstall(home = homedir()): AgentRuntimeInstallDiagnosis {
+  const platforms = createPlatforms(home);
+  const detected = platforms.filter((platform) => {
+    try {
+      return platform.detect();
+    } catch {
+      return existsSync(platform.configPath);
+    }
+  });
+  const configured = platforms.filter((platform) => {
+    const cfg = readJsonFile(platform.configPath);
+    const servers = cfg?.[platform.configKey] as Record<string, unknown> | undefined;
+    return !!servers?.['port-daddy'];
+  });
+
+  const skillTargets = [
+    join(home, '.claude', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.codex', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.agents', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.gemini', 'extensions', 'port-daddy', 'skills', 'port-daddy-agent-skill', 'SKILL.md'),
+    join(home, '.cursor', 'rules', 'port-daddy-agent-skill.md'),
+  ];
+  const installedSkills = skillTargets.filter((path) => existsSync(path));
+
+  return {
+    mcpConfigured: configured.length > 0,
+    mcpDetail: configured.length > 0
+      ? `port-daddy MCP configured for ${configured.map((platform) => platform.name).join(', ')}`
+      : `port-daddy MCP missing from ${detected.length || platforms.length} known agent config(s)`,
+    mcpHint: 'Run: pd mcp install   (or pd setup)',
+    skillInstalled: installedSkills.length > 0,
+    skillDetail: installedSkills.length > 0
+      ? `Port Daddy skill present in ${installedSkills.length} local agent runtime(s)`
+      : 'Port Daddy skill not found in Claude/Codex/Gemini/Cursor/common agent skill locations',
+    skillHint: 'Run: pd setup   (refreshes skills and Pilot definitions)',
+  };
 }
 
 /**
@@ -985,6 +1047,41 @@ export async function handleDoctor(): Promise<void> {
       `Error: ${(err as Error).message}`,
       'Inspect PORT_DADDY_RESOURCE_DIR if set, otherwise file a bug',
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // 14. Agent runtime wiring: MCP, skills, and lifecycle hooks
+  // -------------------------------------------------------------------------
+  // Agent CLIs are right to show users installed hooks. This section makes that
+  // disclosure auditable: the names are plain language, the privacy boundary is
+  // explicit, and a user who removed hooks/skills/MCP gets a direct repair path.
+  try {
+    const runtime = diagnoseAgentRuntimeInstall(homedir());
+    check('Agent MCP wiring', runtime.mcpConfigured, runtime.mcpDetail, runtime.mcpHint);
+    check('Agent Port Daddy skill', runtime.skillInstalled, runtime.skillDetail, runtime.skillHint);
+  } catch (err: unknown) {
+    check('Agent runtime wiring', false, `Error: ${(err as Error).message}`, 'Run: pd setup');
+  }
+
+  try {
+    const hookChecks = diagnoseSquidHookInstall(process.cwd());
+    const okHooks = hookChecks.filter((result) => result.ok);
+    if (okHooks.length === hookChecks.length) {
+      check('Agent lifecycle hooks', true, `${okHooks.length} provider hook contract(s) installed with visible privacy metadata`);
+    } else {
+      check(
+        'Agent lifecycle hooks',
+        false,
+        `${okHooks.length}/${hookChecks.length} provider hook contract(s) healthy`,
+        'Run: pd setup   (or pd squid hooks)',
+      );
+      for (const result of hookChecks.filter((item) => !item.ok)) {
+        check(`Agent hooks: ${result.providerName}`, false, `${result.detail} at ${result.configPath}`, result.hint);
+      }
+    }
+    check('Hook privacy disclosure', true, SQUID_HOOK_PRIVACY_NOTICE);
+  } catch (err: unknown) {
+    check('Agent lifecycle hooks', false, `Error: ${(err as Error).message}`, 'Run: pd squid hooks');
   }
 
   // -------------------------------------------------------------------------

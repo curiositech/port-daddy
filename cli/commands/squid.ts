@@ -9,7 +9,11 @@ import {
   DEFAULT_SQUID_MAX_REQUEST_BYTES,
   listenClaudeCodexBridge,
 } from '../../lib/squid/claude-codex-bridge.js';
-import { squidAdapters } from '../../lib/squid/adapter.js';
+import {
+  SQUID_HOOK_METADATA,
+  SQUID_HOOK_PRIVACY_NOTICE,
+  squidAdapters,
+} from '../../lib/squid/adapter.js';
 import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tube.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
@@ -250,7 +254,12 @@ async function handleInstallHooks(args: string[], options: CLIOptions): Promise<
     console.log(`  ${result.providerName.padEnd(13)} ${result.binaryName.padEnd(8)} ${proof}`);
   }
   console.log('');
-  console.log('Installed tentacles: pre-turn envelope, pre-tool veto, post-tool telemetry.');
+  console.log('Installed local tentacles:');
+  for (const meta of Object.values(SQUID_HOOK_METADATA)) {
+    console.log(`  - ${meta.displayName}: ${meta.description} ${meta.privacy}`);
+  }
+  console.log(`Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`);
+  console.log('Repair check: pd doctor');
   console.log('Use pd squid codex --tier strong when you also want Anthropic-compatible traffic bridged to Codex CLI.');
 }
 

@@ -17,7 +17,7 @@ import { useState, type ReactNode } from 'react'
  * MacInstallSection is the single public install story: run setup, let doctor
  * repair drift, and use Squid only when you intentionally want a compatibility
  * bridge. FleetBar is signed and installed by setup, so this page does not ask
- * humans to checksum a zip by hand.
+ * humans to perform manual app-install work.
  */
 
 type InstallLane = {

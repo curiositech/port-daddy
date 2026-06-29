@@ -662,7 +662,7 @@ function buildHelp(): string {
 
   lines.push(
     `${A}Get started:${Z}`,
-    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, init project`,
+    `  ${G}pd setup${Z}                  ${tag('notify')} Install daemon, MCP, FleetBar, hooks, Guard`,
     `  ${G}pd begin${Z} "purpose" --lifecycle durable  ${tag('notify')} I'll set up your agent + session`,
     `  ${G}pd done${Z} "summary"        ${tag('notify')} Finish up — I'll clean everything`,
     `  ${G}pd whoami${Z}                ${tag('silent')} See your current context`,
@@ -720,13 +720,16 @@ const TOPIC_HELP: Record<string, string> = {
   setup: `Setup — Install the full local Port Daddy environment
 
 Commands:
-  setup                     Install daemon, MCP, FleetBar, and init project
+  setup                     Install daemon, MCP, FleetBar, Pilot, project hooks, and Guard
     --project <path>        Initialize a specific project directory
     --no-daemon             Skip daemon installation/start
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
     --no-agents             Skip Port Daddy Pilot agent definitions
+    --no-harness            Skip Squid hooks and Coordination Guard
+    --no-squid-hooks        Skip agent hook installation only
+    --no-guard              Skip Coordination Guard hook installation only
     --status                Show cross-tool skill sync status only
     --skill-status          Alias for --status
     --dry-run               Preview cross-tool skill sync without writing links
@@ -740,7 +743,8 @@ Examples:
   pd setup --project ~/coding/workgroup-ai
   pd setup --no-fleetbar
   pd setup --no-skill
-  pd setup --no-init`,
+  pd setup --no-init
+  pd setup --no-harness`,
 
   sessions: `Sessions & Notes \u2014 Structured multi-agent coordination
 
