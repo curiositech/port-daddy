@@ -121,8 +121,9 @@ fi
 # Distinct colour frame + bottom label so prod / latest / dev read apart instantly.
 if [ -f "$ICON_PNG" ]; then
   echo "▸ building lane-badged AppIcon.icns"
-  sips -s format png "$ICON_PNG" --out "$ICON_PNG" >/dev/null 2>&1 || true   # nano-banana sometimes emits JPEG-in-.png
   WORK="$(mktemp -d "$HOME/coding/tmp/pd-console-iconset.XXXXXX")"
+  NORMALIZED="$WORK/icon-master.png"
+  sips -s format png "$ICON_PNG" --out "$NORMALIZED" >/dev/null 2>&1 || cp "$ICON_PNG" "$NORMALIZED"   # nano-banana sometimes emits JPEG-in-.png
   BADGED="$WORK/badged.png"
   MAGICK="$(command -v magick || command -v convert || true)"
   # A bold font that actually exists on macOS (magick needs a real file for -annotate).
@@ -137,7 +138,7 @@ if [ -f "$ICON_PNG" ]; then
   # drops the noisy outer rings and lets the bold wordmark dominate, so it stays
   # legible at 64px (operator vision-accessibility line).
   if [ -n "$MAGICK" ] && \
-     "$MAGICK" "$ICON_PNG" -resize 250% -gravity center -extent 1024x1024 \
+     "$MAGICK" "$NORMALIZED" -resize 250% -gravity center -extent 1024x1024 \
        -resize 976x976^ -gravity center -extent 976x976 \
        -bordercolor "$TINT" -border 24 \
        -fill "$TINT" -draw "rectangle 0,860 1024,1010" \
@@ -146,7 +147,7 @@ if [ -f "$ICON_PNG" ]; then
     :
   else
     echo "⚠ icon badge step failed — using unbadged master ($(tail -1 "$WORK/magick.err" 2>/dev/null))"
-    cp "$ICON_PNG" "$BADGED"
+    cp "$NORMALIZED" "$BADGED"
   fi
   ICONSET="$WORK/AppIcon.iconset"; mkdir -p "$ICONSET"
   for sz in 16 32 128 256 512; do
