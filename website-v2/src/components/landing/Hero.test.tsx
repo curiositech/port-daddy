@@ -9,10 +9,6 @@ import { SiteHeader } from '@/components/site/SiteHeader'
 import { HeroWordmarkContext } from '@/lib/hero-brand-context'
 import { ThemeContext } from '@/lib/theme-context'
 
-vi.mock('./LiveGloryVideo', () => ({
-  LiveGloryVideo: () => <div data-testid="live-glory-video" />,
-}))
-
 const originalIntersectionObserver = globalThis.IntersectionObserver
 
 class MockIntersectionObserver {
@@ -159,6 +155,7 @@ describe('Hero wordmark observer', () => {
     expect(screen.queryByText('local install')).not.toBeInTheDocument()
     expect(screen.queryByText(/brew install curiositech/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /mac app/i })).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('live-glory-video')).toHaveLength(2)
+    expect(screen.getByText('From the harbor - what people open first')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /featured posts and demos/i })).toBeInTheDocument()
   })
 })
