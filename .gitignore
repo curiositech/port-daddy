@@ -77,11 +77,18 @@ agentsd_mocks/
 # Ephemeral scratch for scripts/smoke-compiled-daemon.sh
 .smoke-tmp/
 
-# Local scratch/probe scripts and generated artifact lists
+# Local scratch/probe scripts and generated artifact lists.
+# Ignore nested .scratch/ trees, but keep the repository-root .scratch/ in git
+# because it holds operator research notes ("save research markdowns always").
+# Both negations are needed: !/.scratch/ re-opens the root directory, and
+# !/.scratch/** re-opens new files below it after **/.scratch/ matched them.
 **/.scratch/
+!/.scratch/
+!/.scratch/**
 
 # Xcode/SwiftPM user-specific and generated workspace files
 xcuserdata/
+*.xcuserstate
 **/.swiftpm/xcode/package.xcworkspace/
 
 # Ephemeral runtime lock files
