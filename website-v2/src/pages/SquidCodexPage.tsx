@@ -23,7 +23,7 @@ const lanes = [
     title: 'Claude-shaped client, Codex-backed work.',
     copy:
       'Run Claude Code against a local Anthropic-compatible endpoint while the actual work goes through the authenticated Codex CLI already on your machine.',
-    command: 'pd squid codex -- claude --model claude-sonnet-4-5',
+    command: 'pd squid codex --tier strong',
   },
   {
     icon: Cpu,
@@ -45,22 +45,16 @@ const lanes = [
 
 const installSteps = [
   {
-    label: 'Hooks',
-    title: 'Install the harness hooks',
-    body: 'Coordination Guard installs the local safety rail: claim checks, commit-rent enforcement, and the same before/after tool posture that keeps agent edits visible.',
-    command: 'pd guard install --mode enforce',
+    label: 'Setup',
+    title: 'Install and arm the harness',
+    body: 'Setup starts the daemon, installs FleetBar, wires MCP, refreshes the shared Port Daddy skill, and installs the project hooks that make the agent accountable.',
+    command: 'pd setup',
   },
   {
-    label: 'Agent',
-    title: 'Drop in the agent definition',
-    body: 'The agent definition names the role, budget, backend, worktree posture, and the Port Daddy channels it should hear by default.',
-    command: 'pd init\n# then set backend: codex or backend: ollama in pd-fleet.yml',
-  },
-  {
-    label: 'Skill + MCP',
-    title: 'Give the client tools, not just text',
-    body: 'The skill tells the agent how to behave. The MCP server gives it callable sessions, claims, notes, locks, salvage, and messages.',
-    command: 'pd mcp install',
+    label: 'Doctor',
+    title: 'Repair drift when tools change',
+    body: 'Doctor checks the daemon, app, hooks, skills, MCP wiring, and bridge prerequisites. If a user or tool modified the harness, doctor names the problem and offers remediation.',
+    command: 'pd doctor',
   },
 ] as const
 
@@ -75,8 +69,8 @@ function AsciiBridge() {
         {`╭─ Giant Squid :: Claude-shaped local bridge ───────────────╮
 │ Base URL  http://127.0.0.1:8765                            │
 │ Auth      generated per run                                │
-│ Backend   codex exec --model gpt-5.1-codex                 │
-│ Aliases   claude-sonnet-4-5=gpt-5.1-codex                  │
+│ Tier      strong                                           │
+│ Backend   codex exec                                       │
 │ Use now   client launched with Anthropic env injected       │
 ├─────────────────────────────────────────────────────────────┤
 │ Hooks     pre-tool veto  post-tool trail  prompt attention  │
@@ -117,7 +111,7 @@ export default function SquidCodexPage() {
               <div className="space-y-[var(--panel-gap)]">
                 <CommandBlock
                   title="Start the bridge"
-                  command={'pd squid codex -- claude --model claude-sonnet-4-5'}
+                  command={'pd squid codex --tier strong'}
                   label="One command"
                   tone="blue"
                 />
@@ -165,13 +159,13 @@ export default function SquidCodexPage() {
             <SwissGridItem span="wide" className="grid gap-[var(--space-4)]">
               <CommandBlock
                 title="Claude Code through Codex"
-                command={'pd squid codex -- claude --model claude-sonnet-4-5'}
+                command={'pd squid codex --tier strong'}
                 label="Sugar"
               />
               <CommandBlock
-                title="Higher Codex reasoning"
-                command={'pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5'}
-                label="Pro lane"
+                title="Mid-tier bridge"
+                command={'pd squid codex --tier mid'}
+                label="Tier"
               />
               <CommandBlock
                 title="Debug the bridge directly"
@@ -211,11 +205,12 @@ export default function SquidCodexPage() {
               <div className="sticky top-28 space-y-[var(--space-4)]">
                 <PanelEyebrow>Install the harness</PanelEyebrow>
                 <PanelTitle as="h2" size="display">
-                  Hooks, agent definition, skill, MCP.
+                  Setup, then doctor.
                 </PanelTitle>
                 <PanelBody>
-                  A bridge without the harness is just translation. The useful version gives the
-                  client guardrails and callable Port Daddy tools before it starts editing.
+                  A bridge without the harness is just translation. Setup gives the client
+                  guardrails and callable Port Daddy tools. Doctor tells you when that contract
+                  has drifted and how to fix it.
                 </PanelBody>
               </div>
             </SwissGridItem>

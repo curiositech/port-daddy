@@ -335,7 +335,7 @@ const VENDOR_ROWS: readonly { vendor: string; status: 'live' | 'mapped'; note: s
   },
 ] as const
 
-type BackendExample = {
+type BackendLane = {
   runtime: string
   backend: string
   contract: string
@@ -343,7 +343,7 @@ type BackendExample = {
   command: string
 }
 
-const BACKEND_EXAMPLES: readonly BackendExample[] = [
+const BACKEND_LANES: readonly BackendLane[] = [
   {
     runtime: 'Claude Code native',
     backend: 'Claude via Claude Code login or an official Anthropic gateway',
@@ -354,12 +354,11 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
   },
   {
     runtime: 'Claude Code shape, Codex behind',
-    backend: 'OpenAI Codex CLI through `pd squid bridge`',
+    backend: 'OpenAI Codex CLI through the Squid compatibility bridge',
     contract:
-      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the Codex model actually used.',
+      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the backend tier actually used.',
     status: 'live',
-    command:
-      'pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex -- claude --model claude-sonnet-4-5',
+    command: 'pd squid codex --tier strong',
   },
   {
     runtime: 'Claude Code shape, open weights behind',
@@ -367,7 +366,7 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
     contract:
       'Claude Code keeps the hook layer; the gateway provides Anthropic Messages compatibility and tool-call shape.',
     status: 'mapped',
-    command: 'ANTHROPIC_BASE_URL=http://localhost:8000 claude --model gemma-tool-coder',
+    command: 'surface required: streamed turns, tool calls, and hook verdicts in CLI + FleetBar before promotion',
   },
   {
     runtime: 'Ollama / Gemma adapter lane',
@@ -375,7 +374,7 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
     contract:
       'The Articles still bind to the harness; this lane stays experimental until streaming and tool-loop fixtures pass.',
     status: 'mapped',
-    command: 'pd squid serve --port 8765 --token squid-local\n# adapter under test: ollama -> anthropic messages',
+    command: 'surface required: ollama turn stream + Port Daddy hook verdicts visible in the roster',
   },
   {
     runtime: 'Cloudflare Agent',
@@ -383,7 +382,7 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
     contract:
       'The remote agent gets a Harbor identity, relay channel, PR duties, budget, and the same review/merge obligations.',
     status: 'mapped',
-    command: 'pd relay status\npd contract award cloudflare:review-shepherd',
+    command: 'surface required: Cloudflare actor appears beside local agents with relay status and transcript tail',
   },
 ] as const
 
@@ -634,7 +633,70 @@ $ rm -rf build/ .git/
           </PageContainer>
         </section>
 
-        {/* ── Backend examples ──────────────────────────────────────── */}
+        {/* ── Operator proof surfaces ───────────────────────────────── */}
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="What finished means"
+              title="A harnessed agent must be visible in the CLI and the app."
+              description="A backend lane is not real because a command fits in a code block. It is real when an operator can watch the agent stream, see Port Daddy's hook decisions, jump into the session, and see the same agent in FleetBar beside the standing fleet."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[24ch]"
+              bodyClassName="max-w-[52rem]"
+            />
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-5)] lg:grid-cols-2">
+              <SurfacePanel className="space-y-[var(--space-4)]">
+                <div className="flex items-center gap-[var(--space-2)]">
+                  <Terminal size={18} className="text-[var(--brand-primary)]" />
+                  <PanelEyebrow className="text-[var(--brand-primary)]">CLI multiplexor</PanelEyebrow>
+                </div>
+                <PanelTitle as="h3" size="card">
+                  Watch the working agent and Port Daddy at once.
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  The terminal surface needs a live transcript tail, hook verdicts, inbox and parley injections, budget state,
+                  and a jump-in path for every daemon-launched agent.
+                </PanelBody>
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                  <img
+                    src="/gifs/tutorials/fleet.gif"
+                    alt="Terminal recording of Port Daddy fleet commands showing running agents and their status."
+                    className="aspect-video w-full object-cover"
+                    loading="lazy"
+                  />
+                </figure>
+              </SurfacePanel>
+
+              <SurfacePanel className="space-y-[var(--space-4)]">
+                <div className="flex items-center gap-[var(--space-2)]">
+                  <Users size={18} className="text-[var(--brand-primary)]" />
+                  <PanelEyebrow className="text-[var(--brand-primary)]">FleetBar roster</PanelEyebrow>
+                </div>
+                <PanelTitle as="h3" size="card">
+                  See fleet agents and task agents in one place.
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  FleetBar should show full-time infrastructure agents beside task agents, with model tier, worktree,
+                  hook health, transcript tail, and remediation when part of the harness is missing.
+                </PanelBody>
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                  <picture>
+                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
+                    <img
+                      src="/img/app-screens/fleetbar-native-shell-light.webp"
+                      alt="FleetBar native shell showing the Port Daddy operator app surface."
+                      className="aspect-video w-full object-cover"
+                      loading="lazy"
+                    />
+                  </picture>
+                </figure>
+              </SurfacePanel>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Backend lanes ─────────────────────────────────────────── */}
         <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
@@ -695,7 +757,7 @@ $ rm -rf build/ .git/
             </figure>
 
             <div className="mt-[var(--space-6)] grid gap-[var(--space-4)]">
-              {BACKEND_EXAMPLES.map((row) => (
+              {BACKEND_LANES.map((row) => (
                 <SurfacePanel key={row.runtime} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
                   <div className="space-y-[var(--space-3)]">
                     <div className="flex flex-wrap items-center gap-[var(--space-3)]">
@@ -713,7 +775,7 @@ $ rm -rf build/ .git/
                       {row.contract}
                     </PanelBody>
                   </div>
-                  <CodeBlock language="bash" filename="example">
+                  <CodeBlock language="bash" filename={row.status === 'live' ? 'operator command' : 'promotion gate'}>
                     {row.command}
                   </CodeBlock>
                 </SurfacePanel>

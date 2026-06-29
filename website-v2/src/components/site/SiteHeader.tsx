@@ -27,6 +27,7 @@ type NavItem = {
 
 const PRIMARY_NAV_ITEMS = [
   { label: "Home", href: "/", end: true },
+  { label: "Install", href: "/mac-preview#install", end: false },
   { label: "Get started", href: "/docs/quickstart", end: true },
   { label: "Agents", href: "/agents", end: true },
   { label: "Harness", href: "/harness", end: true },

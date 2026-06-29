@@ -36,6 +36,7 @@ import {
   AntigravitySquidAdapter,
   tentaclePath,
 } from '../../lib/squid/adapter.js';
+import { installSquidHooks } from '../../cli/commands/squid.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dir, '..', '..');
@@ -433,6 +434,44 @@ describe('Giant Squid Harness — AntigravitySquidAdapter.injectHooks', () => {
     expect(pre.some((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command === '/usr/bin/true'))).toBe(true);
     const pd = pre.filter((g: { hooks: { command: string }[] }) => g.hooks.some((h) => h.command.includes('pd-hook-')));
     expect(pd.length).toBe(1);
+  });
+});
+
+describe('Giant Squid Harness — pd squid hooks installer', () => {
+  test('installs hook tentacles into all supported agent configs from one command surface', async () => {
+    const savedGeminiDir = process.env.GEMINI_DIR;
+    const agyGeminiDir = join(SCRATCH, 'agy-gemini-dir');
+    process.env.GEMINI_DIR = agyGeminiDir;
+    try {
+      const results = await installSquidHooks(WORKSPACE);
+
+      expect(results.map((result) => result.providerName).sort()).toEqual([
+        'antigravity',
+        'claude-code',
+        'codex',
+        'gemini',
+      ]);
+      expect(existsSync(join(WORKSPACE, '.claude', 'settings.json'))).toBe(true);
+      expect(existsSync(join(WORKSPACE, '.codex', 'config.toml'))).toBe(true);
+      expect(existsSync(join(WORKSPACE, '.gemini', 'settings.json'))).toBe(true);
+      expect(existsSync(join(agyGeminiDir, 'hooks.json'))).toBe(true);
+    } finally {
+      if (savedGeminiDir === undefined) delete process.env.GEMINI_DIR;
+      else process.env.GEMINI_DIR = savedGeminiDir;
+    }
+  });
+
+  test('can install only the Claude Code hook contract when scoped by provider', async () => {
+    const results = await installSquidHooks(WORKSPACE, ['claude']);
+
+    expect(results).toEqual([{ providerName: 'claude-code', binaryName: 'claude', verified: true }]);
+    expect(existsSync(join(WORKSPACE, '.claude', 'settings.json'))).toBe(true);
+    expect(existsSync(join(WORKSPACE, '.codex', 'config.toml'))).toBe(false);
+    expect(existsSync(join(WORKSPACE, '.gemini', 'settings.json'))).toBe(false);
+  });
+
+  test('rejects unknown hook providers instead of silently pretending compliance', async () => {
+    await expect(installSquidHooks(WORKSPACE, ['mystery-agent'])).rejects.toThrow(/Unsupported Squid hook provider/);
   });
 });
 
