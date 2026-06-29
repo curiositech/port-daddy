@@ -164,4 +164,114 @@ describe('pd agent autopilot', () => {
 
     expect(console.log).toHaveBeenCalledWith('task complete');
   });
+
+  test('launches a squid-harnessed tube-bound agent', async () => {
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'codex',
+      model: undefined,
+      modelTier: 'high',
+      warnings: [],
+    });
+    mockPdFetch
+      .mockResolvedValueOnce(response(true, {
+        success: true,
+        launchReady: true,
+        blockedReasons: [],
+        warnings: [],
+        attempts: [{
+          attempt: 1,
+          backend: 'codex',
+          model: null,
+          modelTier: 'high',
+          readinessStatus: 'ready',
+          readinessSummary: 'codex ready',
+        }],
+      }))
+      .mockResolvedValueOnce(response(true, {
+        success: true,
+        status: 'running',
+        agentId: 'spawned-codex',
+      }));
+
+    await handleAgent('harness', ['codex', 'inspect', 'the', 'queue'], {
+      budget: '0.5',
+      channel: 'harness-demo',
+      tier: 'strong',
+      quiet: true,
+    });
+
+    expect(mockResolveFleetAgentRuntime).toHaveBeenCalledWith({
+      backend: 'codex',
+      model: undefined,
+      modelTier: 'high',
+    });
+    expect(mockPdFetch).toHaveBeenNthCalledWith(1,
+      'http://localhost:9876/spawn/preflight',
+      expect.objectContaining({ method: 'POST' })
+    );
+    expect(mockPdFetch).toHaveBeenNthCalledWith(2,
+      'http://localhost:9876/spawn',
+      expect.objectContaining({ method: 'POST' })
+    );
+
+    const preflightBody = JSON.parse(mockPdFetch.mock.calls[0][1].body);
+    expect(preflightBody).toMatchObject({
+      backend: 'codex',
+      modelTier: 'high',
+      identity: 'port-daddy:repo:cli',
+      budgetUsd: 0.5,
+    });
+
+    const spawnBody = JSON.parse(mockPdFetch.mock.calls[1][1].body);
+    expect(spawnBody).toMatchObject({
+      backend: 'codex',
+      modelTier: 'high',
+      identity: 'port-daddy:repo:cli',
+      task: 'inspect the queue',
+      budgetUsd: 0.5,
+      tubeChannel: 'harness-demo',
+      injectSquidHooks: true,
+    });
+    expect(console.log).toHaveBeenCalledWith('spawned-codex');
+  });
+
+  test('harness json output includes operator follow-up commands', async () => {
+    mockResolveFleetAgentRuntime.mockReturnValue({
+      backend: 'claude-cli',
+      model: undefined,
+      modelTier: undefined,
+      warnings: [],
+    });
+    mockPdFetch
+      .mockResolvedValueOnce(response(true, {
+        success: true,
+        launchReady: true,
+        blockedReasons: [],
+        warnings: [],
+        attempts: [],
+      }))
+      .mockResolvedValueOnce(response(true, {
+        success: true,
+        status: 'running',
+        agentId: 'spawned-claude',
+      }));
+
+    await handleAgent('harness', ['claude-cli', 'fix', 'tests'], {
+      budget: '0.25',
+      channel: 'crew-room',
+      json: true,
+    });
+
+    const printed = JSON.parse(console.log.mock.calls[0][0]);
+    expect(printed).toMatchObject({
+      channel: 'crew-room',
+      runtime: { backend: 'claude-cli' },
+      result: { agentId: 'spawned-claude' },
+      commands: {
+        stream: 'pd agent stream spawned-claude',
+        tube: 'pd tube crew-room',
+        send: 'pd tube crew-room --send "..."',
+      },
+    });
+  });
 });

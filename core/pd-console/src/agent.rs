@@ -824,20 +824,37 @@ impl AgentManager {
         &self.client
     }
 
-    /// Create a NEW top-level agent on `backend`. The thing iterm2 was for.
-    pub async fn create_agent(&mut self, backend: Backend, prompt: &str) -> Result<(u64, SpawnOutcome)> {
+    async fn create_agent_with_opts(
+        &mut self,
+        backend: Backend,
+        prompt: &str,
+        opts: SpawnOpts,
+    ) -> Result<(u64, SpawnOutcome)> {
         let local = self.next;
         self.next += 1;
         let channel = format!("console-agent-{local}");
-        // A manually-created top-level agent keeps the historical posture: no
-        // squid hooks (default opts). Only conjure dispatch opts in.
         let outcome = self
             .client
-            .spawn(backend, prompt, &channel, None, SpawnOpts::default())
+            .spawn(backend, prompt, &channel, None, opts)
             .await?;
         self.agents.insert(local, TopLevelAgent { id: outcome.id.clone(), backend, channel, cursor: 0 });
         self.active = Some(local);
         Ok((local, outcome))
+    }
+
+    /// Create a NEW top-level agent on `backend`. The thing iterm2 was for.
+    pub async fn create_agent(&mut self, backend: Backend, prompt: &str) -> Result<(u64, SpawnOutcome)> {
+        // Plain spawn: no squid hooks. Use create_harnessed_agent for the
+        // Port-Daddy-compliant launch posture.
+        self.create_agent_with_opts(backend, prompt, SpawnOpts::default()).await
+    }
+
+    /// Create a top-level agent under the Giant Squid harness. This keeps the
+    /// same tube-bound conversation path as create_agent, but requests hook
+    /// injection at daemon spawn time so turn-start/tool/post-tool affordances
+    /// can reach the vendor CLI loop.
+    pub async fn create_harnessed_agent(&mut self, backend: Backend, prompt: &str) -> Result<(u64, SpawnOutcome)> {
+        self.create_agent_with_opts(backend, prompt, SpawnOpts::squid()).await
     }
 
     pub async fn send(&mut self, text: &str) -> Result<()> {

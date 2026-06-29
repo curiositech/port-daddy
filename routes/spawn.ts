@@ -11,6 +11,7 @@ import type { SpawnSpec, Spawner } from '../lib/spawner.js';
 import { assessSpawnPreflight } from '../lib/spawn-preflight.js';
 import type { CostTracker } from '../lib/cost-tracker.js';
 import type { FleetModelTier, FleetRuntimeTarget } from '../lib/fleet-engine.js';
+import { validateChannel } from '../shared/validators.js';
 
 interface SpawnRouteDeps {
   spawner: Spawner;
@@ -80,6 +81,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         maxTokens,
         permissionMode,
         injectSquidHooks,
+        tubeChannel,
         budgetUsd: rawBudgetUsd,
       } = request.body as any;
 
@@ -121,6 +123,17 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
           error: 'Custom backend task contains shell metacharacters. Use explicit arguments instead of shell syntax.',
           code: 'VALIDATION_ERROR',
         };
+      }
+
+      if (tubeChannel !== undefined && tubeChannel !== null) {
+        const channelValidation = validateChannel(tubeChannel);
+        if (!channelValidation.valid) {
+          reply.code(400); return {
+            success: false,
+            error: `tubeChannel ${channelValidation.error}`,
+            code: 'VALIDATION_ERROR',
+          };
+        }
       }
 
       // workdir is interpolated into the Coast Guard's OS-sandbox profile
@@ -194,6 +207,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       if (timeout && typeof timeout === 'number') spec.timeout = timeout;
       if (allowedTools && typeof allowedTools === 'string') spec.allowedTools = allowedTools;
       if (maxTokens && typeof maxTokens === 'number') spec.maxTokens = maxTokens;
+      if (typeof tubeChannel === 'string') spec.tubeChannel = tubeChannel;
       // File-edit permission mode for the cli:claude-code backend. Only the three
       // CLI-recognised modes are accepted; anything else is ignored (the spawner
       // forwards it verbatim as --permission-mode, so the boundary validates it).

@@ -2,8 +2,9 @@
 //! pd-console — the operator console. Engine milestone: a headless conversation
 //! multiplexer, on the PD bus, backend-agnostic. The GPUI shell renders this next.
 //!
-//!   :new <backend> <prompt>   create a top-level agent (ollama|claude|claude-cli|
-//!                             gemini|cloudflare|codex|aider|custom)
+//!   :new <backend> <prompt>   create a plain top-level agent
+//!   :harness <backend> <prompt>
+//!                             create a Squid-harnessed tube-bound agent
 //!   :agents                   list hosted agents
 //!   :switch <n>               make agent n active
 //!   :dispatch                 show the dispatch queue (sorties awaiting review)
@@ -97,7 +98,7 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":new <backend> <prompt> · :agents · :switch <n> · :dispatch · :lineage · :substrate · :parley · <text> · :quit",
+            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :roster · <text> · :quit",
             Sem::Muted
         )
     );
@@ -223,7 +224,7 @@ async fn main() -> Result<()> {
             }
         } else if line == ":agents" {
             if mgr.agents.is_empty() {
-                println!("  {}", style.paint("(no agents — :new <backend> <prompt>)", Sem::Muted));
+                println!("  {}", style.paint("(no agents — :harness <backend> <prompt>)", Sem::Muted));
             }
             for (n, a) in &mgr.agents {
                 let mark = if mgr.active == Some(*n) {
@@ -278,6 +279,37 @@ async fn main() -> Result<()> {
                         }
                     }
                     Err(e) => err(&style, &format!("spawn failed: {e}")),
+                },
+            }
+        } else if let Some(rest) = line.strip_prefix(":harness ") {
+            let mut it = rest.splitn(2, ' ');
+            let bk = it.next().unwrap_or("");
+            let prompt = it.next().unwrap_or("").trim();
+            match Backend::parse(bk) {
+                None => err(
+                    &style,
+                    &format!(
+                        "unknown backend '{bk}'. one of: {}",
+                        Backend::ALL.iter().map(|b| b.as_str()).collect::<Vec<_>>().join(" ")
+                    ),
+                ),
+                Some(backend) => match mgr.create_harnessed_agent(backend, prompt).await {
+                    Ok((n, out)) => {
+                        if let Some(reason) = out.error.filter(|_| out.status == "failed" || out.status == "blocked") {
+                            err(&style, &format!("harnessed agent {n} {} — {reason}", out.status));
+                        } else {
+                            ok(&style, &format!("harnessed agent {n} on {} ({})", backend.as_str(), out.status));
+                            println!("  {}", style.paint("squid hooks requested · use :agents then talk normally", Sem::Muted));
+                            if let Some(text) = out.output.filter(|t| !t.trim().is_empty()) {
+                                println!(
+                                    "  {} {}",
+                                    style.paint(&format!("{}:", backend.as_str()), Sem::Engaged),
+                                    text,
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => err(&style, &format!("harness spawn failed: {e}")),
                 },
             }
         } else {

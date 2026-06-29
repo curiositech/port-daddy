@@ -186,12 +186,41 @@ describe('spawn routes preflight', () => {
         task: 'review the diff',
         budgetUsd: 0.75,
         injectSquidHooks: true,
+        tubeChannel: 'harness:repo:pilot',
       },
     });
 
     expect(spawner.spawn).toHaveBeenCalledWith(expect.objectContaining({
       injectSquidHooks: true,
+      tubeChannel: 'harness:repo:pilot',
     }));
+
+    await app.close();
+  });
+
+  test('POST /spawn rejects an invalid tube channel before launching', async () => {
+    const { app, spawner, register } = buildApp();
+    await register();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/spawn',
+      payload: {
+        backend: 'claude-cli',
+        identity: 'port-daddy:repo:cli',
+        task: 'review the diff',
+        budgetUsd: 0.75,
+        tubeChannel: 'harness room',
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual(expect.objectContaining({
+      success: false,
+      code: 'VALIDATION_ERROR',
+      error: 'tubeChannel channel contains invalid characters',
+    }));
+    expect(spawner.spawn).not.toHaveBeenCalled();
 
     await app.close();
   });
