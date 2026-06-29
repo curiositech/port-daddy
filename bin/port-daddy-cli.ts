@@ -2750,7 +2750,11 @@ export async function main(): Promise<void> {
 
       case 'doctor':
       case 'diagnose':
-        await handleDoctor();
+        await handleDoctor({
+          json: !!(options.json ?? options.j),
+          ci: !!options.ci,
+          exitCode: !!(options['exit-code'] ?? options.exitCode),
+        });
         break;
 
       case 'bench':

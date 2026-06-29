@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readFileSync, accessSync, constants } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, accessSync, constants } from 'node:fs';
 import { homedir, platform } from 'node:os';
 import { spawnSync, spawn } from 'node:child_process';
 import type { SpawnSyncReturns } from 'node:child_process';
@@ -32,6 +32,8 @@ import type { PdFetchResponse } from '../utils/fetch.js';
 import { diagnoseStartupBlockers, confirmFix, detectHostileEnvLocal } from '../utils/startup-doctor.js';
 import { CANONICAL_TCP_PORT } from '../../shared/daemon-discovery.js';
 import { calculateRuntimeCodeHash } from '../../shared/code-hash.js';
+import { PD_HOME } from '../../shared/paths.js';
+import { type Severity, worstSeverity } from '../../lib/health-severity.js';
 import {
   daemonBinaryPath,
   isBunVirtualPath,
@@ -507,38 +509,236 @@ export function readPlistAsXml(plistPath: string): string {
   return result.stdout;
 }
 
-export async function handleDoctor(): Promise<void> {
+// =============================================================================
+// Supervision integrity — the crux of "is the daemon actually owned?"
+//
+// On macOS the daemon is supervised by exactly ONE launchd job: Homebrew's
+// `homebrew.mxcl.port-daddy` (brew install) OR the legacy `com.portdaddy.daemon`
+// (self/npm install, removed 2026-06-01 but may linger on old machines). The
+// failure modes the operator keeps hitting:
+//   - zero supervisors loaded            → nothing will resurrect the daemon
+//   - one supervisor loaded but NOT      → the daemon is unsupervised right now;
+//     running                              if it's also unreachable this is
+//                                          exactly how it silently died
+//   - two supervisors loaded             → duplicate KeepAlive jobs race the
+//                                          listener (the install-daemon dedup bug)
+// The previous `pd doctor` looked ONLY for `com.portdaddy.daemon` and so was
+// blind to every brew-supervised install — it reported "LaunchAgent not
+// installed" on a perfectly-supervised daemon. This replaces that.
+// =============================================================================
+
+/** The launchd labels that legitimately supervise the Port Daddy daemon. */
+export const DAEMON_SUPERVISOR_LABELS = [
+  'homebrew.mxcl.port-daddy',
+  'com.portdaddy.daemon',
+] as const;
+
+export interface LaunchdSupervisor {
+  label: string;
+  /** launchctl knows this job (status 0). */
+  loaded: boolean;
+  /** the job currently has a live PID. */
+  running: boolean;
+  pid: number | null;
+}
+
+export interface SupervisionAssessment {
+  severity: Severity;
+  detail: string;
+  hint?: string;
+}
+
+/**
+ * Pure severity judgment over the launchd supervisor set + daemon reachability.
+ * Separated from the spawn so it is unit-testable without launchctl.
+ *
+ * ```ts
+ * assessSupervisionIntegrity({ supervisors: [], daemonReachable: false, platform: 'darwin' }).severity
+ * // => 'critical'
+ * assessSupervisionIntegrity({ supervisors: [{label:'homebrew.mxcl.port-daddy',loaded:true,running:true,pid:42}], daemonReachable: true, platform: 'darwin' }).severity
+ * // => 'ok'
+ * ```
+ */
+export function assessSupervisionIntegrity(input: {
+  supervisors: LaunchdSupervisor[];
+  daemonReachable: boolean;
+  platform?: NodeJS.Platform;
+}): SupervisionAssessment {
+  const plat = input.platform ?? process.platform;
+  if (plat !== 'darwin') {
+    return { severity: 'ok', detail: `Supervision integrity is a macOS-only check (skipped on ${plat})` };
+  }
+
+  const loaded = input.supervisors.filter((s) => s.loaded);
+  const running = loaded.filter((s) => s.running);
+
+  if (loaded.length === 0) {
+    if (input.daemonReachable) {
+      return {
+        severity: 'warn',
+        detail: 'Daemon is reachable but NO launchd supervisor owns it — it will not be resurrected if it dies',
+        hint: 'Run: port-daddy install   (installs the launchd supervisor)',
+      };
+    }
+    return {
+      severity: 'critical',
+      detail: 'No launchd supervisor is loaded and the daemon is not reachable',
+      hint: 'Run: port-daddy install   then: port-daddy start',
+    };
+  }
+
+  if (loaded.length >= 2) {
+    return {
+      severity: 'warn',
+      detail: `${loaded.length} supervisors loaded (${loaded.map((s) => s.label).join(', ')}) — duplicate KeepAlive jobs race the listener`,
+      hint: `Keep exactly one. Unload the duplicate: launchctl bootout gui/$(id -u)/${loaded[1].label}`,
+    };
+  }
+
+  // Exactly one supervisor loaded.
+  const one = loaded[0];
+  if (running.length >= 1) {
+    return { severity: 'ok', detail: `${one.label} is loaded and running (PID ${one.pid})` };
+  }
+  // Loaded but not running — the unsupervised-drift precursor.
+  if (input.daemonReachable) {
+    return {
+      severity: 'warn',
+      detail: `${one.label} is loaded but its process is not running — the daemon is currently UNSUPERVISED (reachable now, but won't be resurrected)`,
+      hint: `Re-kick the supervisor: launchctl kickstart -k gui/$(id -u)/${one.label}`,
+    };
+  }
+  return {
+    severity: 'critical',
+    detail: `${one.label} is loaded but not running, and the daemon is not reachable — this is how the daemon silently dies`,
+    hint: `Run: port-daddy start   (or: launchctl kickstart -k gui/$(id -u)/${one.label})`,
+  };
+}
+
+/**
+ * Query launchd for each candidate supervisor label. macOS-only; on other
+ * platforms returns an empty set (the assessor short-circuits to ok there).
+ *
+ * `launchctl list <label>` exits 0 and prints a `"PID" = N;` line when the job
+ * is loaded AND running; exits 0 with no PID line when loaded-but-stopped; and
+ * exits non-zero ("Could not find service") when the job is not loaded.
+ */
+export function gatherLaunchdSupervisors(
+  labels: readonly string[] = DAEMON_SUPERVISOR_LABELS,
+): LaunchdSupervisor[] {
+  if (process.platform !== 'darwin') return [];
+  return labels.map((label) => {
+    try {
+      const res = spawnSync('launchctl', ['list', label], {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 5000,
+      });
+      if (res.status !== 0) return { label, loaded: false, running: false, pid: null };
+      const m = /"PID"\s*=\s*(\d+)/.exec(res.stdout || '');
+      const pid = m ? parseInt(m[1], 10) : null;
+      return { label, loaded: true, running: pid !== null && pid > 0, pid };
+    } catch {
+      return { label, loaded: false, running: false, pid: null };
+    }
+  });
+}
+
+/**
+ * Resolve the Bosun watchdog binary (`core/pd-bosun`). Prefers the release
+ * artifact under `dist/`, falls back to the source-tree release build. Mirrors
+ * the daemon-side `resolveBosunBinaryStatus` in routes/info.ts.
+ */
+export function resolveBosunBinary(rootDir: string): { binaryPath: string; exists: boolean } {
+  const distBinary = join(rootDir, 'dist', 'core', 'pd-bosun');
+  const sourceBinary = join(rootDir, 'core', 'pd-bosun', 'target', 'release', 'pd-bosun');
+  const binaryPath = existsSync(distBinary) ? distBinary : sourceBinary;
+  return { binaryPath, exists: existsSync(binaryPath) };
+}
+
+/**
+ * Find scattered `port-registry*.db` files in a directory. The known continuity
+ * bug (db-fragmentation): backups and brew-Cellar copies leave multiple
+ * registry DBs around, and the daemon can end up reading or backing up the
+ * wrong one. More than one is a fragmentation smell worth a WARN.
+ */
+export function scanRegistryDbFiles(dir: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((f) => /^port-registry.*\.db$/.test(f) && !f.endsWith('-wal') && !f.endsWith('-shm'))
+      .map((f) => join(dir, f));
+  } catch {
+    return [];
+  }
+}
+
+export interface DoctorOptions {
+  json?: boolean | string;
+  /** CI/script mode: machine-readable, no interactive fix phase. */
+  ci?: boolean | string;
+  /** Force exit-code gating (alias of --ci's gating half). */
+  exitCode?: boolean | string;
+}
+
+export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void> {
+  const jsonMode = !!(rawOptions.json);
+  // CI/exit-code mode: never prompt, always gate the exit code on critical.
+  const ciMode = !!(rawOptions.ci || rawOptions.exitCode);
+  const nonInteractive = jsonMode || ciMode;
+
   interface CheckResult {
     ok: boolean;
     name: string;
     detail: string;
     hint?: string;
+    severity: Severity;
+    /** retained for back-compat with callers reading `.critical`. */
     critical?: boolean;
   }
 
   const results: CheckResult[] = [];
   let passed: number = 0;
   let total: number = 0;
-  let hasCriticalFailure: boolean = false;
   const daemonPort = resolveDiagnosticPort();
   const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
 
   const libDir: string = join(__dirname, '..', '..');
 
+  // A non-critical failure is now a WARN, not a blanket fail: it is loud in the
+  // output and surfaced to CI's machine view, but it does NOT gate the exit code
+  // (only `critical` does). That is the whole point of the three-tier model —
+  // missing shell completions should nag, not break the build.
   function check(name: string, ok: boolean, detail: string, hint?: string): void {
     total++;
     if (ok) {
       passed++;
-      results.push({ ok: true, name, detail });
+      results.push({ ok: true, name, detail, severity: 'ok' });
     } else {
-      results.push({ ok: false, name, detail, hint });
+      results.push({ ok: false, name, detail, hint, severity: 'warn' });
     }
+  }
+
+  function warn(name: string, detail: string, hint?: string): void {
+    total++;
+    results.push({ ok: false, name, detail, hint, severity: 'warn' });
   }
 
   function criticalFail(name: string, detail: string, hint: string): void {
     total++;
-    hasCriticalFailure = true;
-    results.push({ ok: false, name, detail, hint, critical: true });
+    results.push({ ok: false, name, detail, hint, severity: 'critical', critical: true });
+  }
+
+  /** Record a pre-computed assessment (supervision, liveness, bosun, …). */
+  function recordAssessment(name: string, a: { severity: Severity; detail: string; hint?: string }): void {
+    total++;
+    if (a.severity === 'ok') {
+      passed++;
+      results.push({ ok: true, name, detail: a.detail, severity: 'ok' });
+    } else if (a.severity === 'warn') {
+      results.push({ ok: false, name, detail: a.detail, hint: a.hint, severity: 'warn' });
+    } else {
+      results.push({ ok: false, name, detail: a.detail, hint: a.hint, severity: 'critical', critical: true });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -562,21 +762,31 @@ export async function handleDoctor(): Promise<void> {
   try {
     const nodeModulesPath: string = join(libDir, 'node_modules');
     const pkgPath: string = join(libDir, 'package.json');
-    const pkg: { dependencies?: Record<string, string> } = JSON.parse(readFileSync(pkgPath, 'utf8'));
-    const deps: string[] = Object.keys(pkg.dependencies || {});
-    const missing: string[] = [];
-
-    for (const dep of deps) {
-      const depPath: string = join(nodeModulesPath, dep);
-      if (!existsSync(depPath)) {
-        missing.push(dep);
-      }
-    }
-
-    if (missing.length === 0) {
-      check('Dependencies', true, `All ${deps.length} dependencies installed`);
+    // In the `bun build --compile` binary, libDir resolves into the read-only
+    // /$bunfs/ virtual filesystem (or a layout with no sibling package.json),
+    // and every dependency is BUNDLED into the binary — there is no
+    // node_modules to inspect. Treat that as OK, not a false CRITICAL (this is
+    // why the brew `pd doctor` used to fail "Dependencies: ENOENT /package.json"
+    // on a perfectly healthy install).
+    if (isBunVirtualPath(libDir) || !existsSync(pkgPath)) {
+      check('Dependencies', true, 'Bundled in the compiled binary (no node_modules to verify)');
     } else {
-      criticalFail('Dependencies', `Missing: ${missing.join(', ')}`, 'Run: npm install');
+      const pkg: { dependencies?: Record<string, string> } = JSON.parse(readFileSync(pkgPath, 'utf8'));
+      const deps: string[] = Object.keys(pkg.dependencies || {});
+      const missing: string[] = [];
+
+      for (const dep of deps) {
+        const depPath: string = join(nodeModulesPath, dep);
+        if (!existsSync(depPath)) {
+          missing.push(dep);
+        }
+      }
+
+      if (missing.length === 0) {
+        check('Dependencies', true, `All ${deps.length} dependencies installed`);
+      } else {
+        criticalFail('Dependencies', `Missing: ${missing.join(', ')}`, 'Run: npm install');
+      }
     }
   } catch (err: unknown) {
     criticalFail('Dependencies', `Error: ${(err as Error).message}`, 'Run: npm install');
@@ -614,9 +824,14 @@ export async function handleDoctor(): Promise<void> {
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
     if (res.ok) {
-      daemonData = await res.json();
-      daemonRunning = true;
-      check('Network', true, `${getDaemonUrl()} is reachable`);
+      const parsedHealth = await res.json();
+      if (parsedHealth && typeof parsedHealth === 'object' && !Array.isArray(parsedHealth)) {
+        daemonData = parsedHealth as Record<string, unknown>;
+        daemonRunning = true;
+        check('Network', true, `${getDaemonUrl()} is reachable`);
+      } else {
+        check('Network', false, `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+      }
     } else {
       check('Network', false, `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
     }
@@ -631,6 +846,50 @@ export async function handleDoctor(): Promise<void> {
     check('Daemon running', true, `PID ${daemonData.pid}, v${daemonData.version}`);
   } else {
     check('Daemon running', false, 'Daemon is not running', 'Run: port-daddy start');
+  }
+
+  // -------------------------------------------------------------------------
+  // 5b. Daemon liveness DEPTH — not just "TCP bound" but the shared /health
+  //     report: critical routes registered + runtime nominal. Consumes the
+  //     SAME structured report the console and FleetBar read, so the three
+  //     surfaces never disagree about what "degraded" means.
+  // -------------------------------------------------------------------------
+  if (daemonRunning && daemonData) {
+    const routes = daemonData.routes as { ok?: boolean; missing?: Array<{ method: string; url: string }>; checked?: number } | undefined;
+    const runtime = daemonData.runtime as { state?: string; degraded?: boolean } | undefined;
+    const severity = daemonData.severity as Severity | undefined;
+    if (routes && routes.ok === false) {
+      const missingList = (routes.missing ?? []).map((r) => `${r.method} ${r.url}`).join(', ');
+      criticalFail('Daemon liveness',
+        `Daemon is 404'ing ${routes.missing?.length ?? 0} of its own critical routes: ${missingList || 'unknown'}`,
+        'Rebuild + relaunch the daemon: port-daddy restart');
+    } else if (severity === 'warn' || runtime?.degraded) {
+      recordAssessment('Daemon liveness', {
+        severity: 'warn',
+        detail: `Runtime is ${runtime?.state ?? 'degraded'} (routes ok, but the daemon reports a degradation)`,
+        hint: 'Inspect: pd status   (see runtime.reasons)',
+      });
+    } else {
+      check('Daemon liveness', true, `Routes ok (${routes?.checked ?? 0} checked), runtime ${runtime?.state ?? 'nominal'}`);
+    }
+  } else {
+    check('Daemon liveness', false, 'Daemon not running, cannot probe routes/runtime', 'Run: port-daddy start');
+  }
+
+  // -------------------------------------------------------------------------
+  // 5c. Binary drift — the running daemon vs the binary `pd` now resolves on
+  //     disk (brew-upgrade / Cellar-vs-opt drift). WARN: works now, but the
+  //     operator is talking to a stale process.
+  // -------------------------------------------------------------------------
+  if (daemonRunning && daemonData) {
+    const drift = daemonData.binaryDrift as { drifted?: boolean; reason?: string; runningPath?: string; onDiskPath?: string } | undefined;
+    if (drift?.drifted) {
+      warn('Binary drift',
+        `Running daemon differs from on-disk binary (${drift.reason ?? 'hash mismatch'}): running=${drift.runningPath ?? '?'} on-disk=${drift.onDiskPath ?? '?'}`,
+        'Restart to pick up the on-disk binary: port-daddy restart');
+    } else {
+      check('Binary drift', true, drift ? 'Running daemon matches the on-disk binary' : 'No drift snapshot (older daemon) — skipped');
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -690,38 +949,19 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // 8. System service (LaunchAgent on macOS, systemd on Linux)
+  // 8. Supervision integrity (the crux) — exactly ONE launchd job owns the
+  //    daemon and it is running. CRITICAL when unsupervised + unreachable
+  //    (silent-death), WARN when unsupervised-but-reachable or when two
+  //    supervisors race the listener. The old check looked only for the
+  //    removed `com.portdaddy.daemon` label and was blind to every
+  //    brew-supervised install.
   // -------------------------------------------------------------------------
   try {
     if (process.platform === 'darwin') {
-      const homedir = (await import('node:os')).homedir();
-      const plistPath: string = join(homedir, 'Library', 'LaunchAgents', 'com.portdaddy.daemon.plist');
-
-      if (existsSync(plistPath)) {
-        const result: SpawnSyncReturns<Buffer> = spawnSync('launchctl', ['list', 'com.portdaddy.daemon'], {
-          stdio: ['pipe', 'pipe', 'pipe']
-        });
-
-        if (result.status === 0) {
-          check('System service', true, 'LaunchAgent installed and loaded');
-        } else {
-          check('System service', false,
-            'LaunchAgent plist exists but is not loaded',
-            'Run: port-daddy install');
-        }
-      } else {
-        // Check for legacy plist
-        const legacyPath: string = join(homedir, 'Library', 'LaunchAgents', 'com.erichowens.port-daddy.plist');
-        if (existsSync(legacyPath)) {
-          check('System service', false,
-            'Legacy LaunchAgent found (com.erichowens.port-daddy)',
-            'Run: port-daddy install (will upgrade automatically)');
-        } else {
-          check('System service', false,
-            'LaunchAgent not installed',
-            'Run: port-daddy install');
-        }
-      }
+      recordAssessment('Supervision integrity', assessSupervisionIntegrity({
+        supervisors: gatherLaunchdSupervisors(),
+        daemonReachable: daemonRunning,
+      }));
     } else if (process.platform === 'linux') {
       const homedir = (await import('node:os')).homedir();
       const unitPath: string = join(homedir, '.config', 'systemd', 'user', 'port-daddy.service');
@@ -753,6 +993,44 @@ export async function handleDoctor(): Promise<void> {
     }
   } catch (err: unknown) {
     check('System service', false, `Error: ${(err as Error).message}`, 'Run: port-daddy install');
+  }
+
+  // -------------------------------------------------------------------------
+  // 8b. Bosun watchdog — the Rust heartbeat/PID supervisor (core/pd-bosun).
+  //     Previously this was silently skipped when the binary was missing; now
+  //     it is a loud WARN that names the exact build command. Running-state is
+  //     read from the daemon's guardians.bosun when reachable.
+  // -------------------------------------------------------------------------
+  try {
+    const bosun = resolveBosunBinary(libDir);
+    let bosunRunning: boolean | null = null;
+    let bosunReason: string | null = null;
+    if (daemonRunning) {
+      try {
+        const statusRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json() as { guardians?: { bosun?: { state?: string; reason?: string } } };
+          const g = statusData?.guardians?.bosun;
+          if (g) {
+            bosunReason = g.reason ?? g.state ?? null;
+            bosunRunning = g.state === 'healthy' || g.state === 'idle';
+          }
+        }
+      } catch { /* daemon guardians unavailable — fall back to binary presence */ }
+    }
+    if (!bosun.exists) {
+      warn('Bosun watchdog',
+        'pd-bosun binary not built — the daemon has no independent heartbeat/PID watchdog',
+        'Build it: (cd core/pd-bosun && cargo build --release)   or: npm run build');
+    } else if (bosunRunning === false) {
+      warn('Bosun watchdog',
+        `pd-bosun binary present but not active${bosunReason ? ` (${bosunReason})` : ''}`,
+        'Heartbeat writer is the daemon-side fallback; install the supervisor for resurrection coverage');
+    } else {
+      check('Bosun watchdog', true, `pd-bosun present at ${bosun.binaryPath}${bosunReason ? ` (${bosunReason})` : ''}`);
+    }
+  } catch (err: unknown) {
+    check('Bosun watchdog', false, `Error: ${(err as Error).message}`);
   }
 
   // -------------------------------------------------------------------------
@@ -827,6 +1105,29 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
+  // DB fragmentation — multiple scattered port-registry*.db files (the known
+  // continuity bug where backups/Cellar copies leave the daemon reading or
+  // backing up the wrong registry). One is healthy; more than one is a WARN.
+  // -------------------------------------------------------------------------
+  try {
+    const registryDbs = scanRegistryDbFiles(PD_HOME);
+    const activeDb = resolveDbPath();
+    const activeDir = activeDb.slice(0, activeDb.lastIndexOf('/'));
+    // Also count a registry living outside ~/.port-daddy (e.g. a brew Cellar copy).
+    const extra = activeDir && activeDir !== PD_HOME ? scanRegistryDbFiles(activeDir) : [];
+    const all = Array.from(new Set([...registryDbs, ...extra]));
+    if (all.length <= 1) {
+      check('DB fragmentation', true, all.length === 1 ? `Single registry: ${all[0]}` : 'No scattered registry copies');
+    } else {
+      warn('DB fragmentation',
+        `${all.length} registry DB files found (${all.join(', ')}) — the daemon may read/back-up the wrong one`,
+        `Active registry is ${activeDb}; consolidate or remove the stale copies`);
+    }
+  } catch (err: unknown) {
+    check('DB fragmentation', true, `Could not check (skipped): ${(err as Error).message}`);
+  }
+
+  // -------------------------------------------------------------------------
   // Stale socket file
   // -------------------------------------------------------------------------
   try {
@@ -896,17 +1197,17 @@ export async function handleDoctor(): Promise<void> {
     const zshFile: string = join(completionsDir, 'port-daddy.zsh');
     check('Shell completions', existsSync(zshFile),
       existsSync(zshFile) ? 'Zsh completions file found' : 'Zsh completions file missing',
-      'See: completions/port-daddy.zsh');
+      'Run: port-daddy install   (writes the zsh completion file)');
   } else if (shell.includes('bash')) {
     const bashFile: string = join(completionsDir, 'port-daddy.bash');
     check('Shell completions', existsSync(bashFile),
       existsSync(bashFile) ? 'Bash completions file found' : 'Bash completions file missing',
-      'See: completions/port-daddy.bash');
+      'Run: port-daddy install   (writes the bash completion file)');
   } else if (shell.includes('fish')) {
     const fishFile: string = join(completionsDir, 'port-daddy.fish');
     check('Shell completions', existsSync(fishFile),
       existsSync(fishFile) ? 'Fish completions file found' : 'Fish completions file missing',
-      'See: completions/port-daddy.fish');
+      'Run: port-daddy install   (writes the fish completion file)');
   } else {
     check('Shell completions', true, `Shell "${shell || 'unknown'}" — completions available for bash/zsh/fish`);
   }
@@ -1085,33 +1386,74 @@ export async function handleDoctor(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
-  // Output
+  // Tally + overall severity (the three-tier model)
+  // -------------------------------------------------------------------------
+  const warnCount = results.filter((r) => r.severity === 'warn').length;
+  const criticalCount = results.filter((r) => r.severity === 'critical').length;
+  const overall: Severity = worstSeverity(results.map((r) => r.severity));
+
+  // -------------------------------------------------------------------------
+  // JSON mode: one machine-readable report, no interactive phase. This is the
+  // shape CI consumes (`pd doctor --json`) and the same severity vocabulary the
+  // daemon's /health speaks.
+  // -------------------------------------------------------------------------
+  if (jsonMode) {
+    const report = {
+      tool: 'port-daddy doctor',
+      severity: overall,
+      summary: { ok: passed, warn: warnCount, critical: criticalCount, total },
+      checks: results.map((r) => ({
+        name: r.name,
+        severity: r.severity,
+        ok: r.ok,
+        detail: r.detail,
+        ...(r.hint ? { hint: r.hint } : {}),
+      })),
+    };
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(criticalCount > 0 ? 1 : 0);
+  }
+
+  // -------------------------------------------------------------------------
+  // Human output \u2014 severity-aware glyphs so warnings are loud but distinct
+  // from a build-breaking critical.
   // -------------------------------------------------------------------------
   console.log('');
   console.log('Port Daddy Doctor');
   console.log('\u2501'.repeat(50));
 
   for (const r of results) {
-    if (r.ok) {
-      console.log(`\u2713 ${r.name}: ${r.detail}`);
-    } else {
-      console.log(`\u2717 ${r.name}: ${r.detail}`);
-      if (r.hint) {
-        console.log(`  \u2192 ${r.hint}`);
-      }
+    const glyph = r.severity === 'ok' ? '\u2713' : r.severity === 'warn' ? '\u26a0' : '\u2717';
+    const tag = r.severity === 'critical' ? ' [CRITICAL]' : r.severity === 'warn' ? ' [warn]' : '';
+    console.log(`${glyph} ${r.name}${tag}: ${r.detail}`);
+    if (!r.ok && r.hint) {
+      console.log(`  \u2192 ${r.hint}`);
     }
   }
 
   console.log('\u2501'.repeat(50));
-  console.log(`${passed}/${total} checks passed`);
+  console.log(
+    `${passed} ok \u00b7 ${warnCount} warn \u00b7 ${criticalCount} critical` +
+    `   (of ${total})  \u2192  OVERALL: ${overall.toUpperCase()}`,
+  );
+  if (criticalCount > 0) {
+    console.log('Critical failures gate CI and turn the operator UIs red.');
+  }
+
+  // -------------------------------------------------------------------------
+  // CI / exit-code mode: stop here (no interactive prompts), gate on critical.
+  // -------------------------------------------------------------------------
+  if (ciMode) {
+    console.log('');
+    process.exit(criticalCount > 0 ? 1 : 0);
+  }
 
   // -------------------------------------------------------------------------
   // Interactive fix phase: offer to fix each fixable issue
   // -------------------------------------------------------------------------
   const fixableIssues = startupIssues.filter(i => i.fixable && i.fix);
-  const fixableChecks = results.filter(r => !r.ok && r.hint);
 
-  if (fixableIssues.length > 0) {
+  if (!nonInteractive && fixableIssues.length > 0) {
     console.log('');
     console.log('Fixable issues found:');
     console.log('');
@@ -1172,10 +1514,9 @@ export async function handleDoctor(): Promise<void> {
 
   console.log('');
 
-  if (hasCriticalFailure) {
-    process.exit(1);
-  }
-  if (passed < total) {
+  // Exit code gates on CRITICAL only — warnings are loud but do not break the
+  // build (the three-tier contract).
+  if (criticalCount > 0) {
     process.exit(1);
   }
 }

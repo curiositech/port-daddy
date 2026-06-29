@@ -8,6 +8,9 @@ import {
   describeResourceDir,
   diagnoseAgentRuntimeInstall,
   readPlistAsXml,
+  assessSupervisionIntegrity,
+  resolveBosunBinary,
+  scanRegistryDbFiles,
 } from '../../cli/commands/diagnostics.js';
 
 describe('plistTargetsLegacyDaemon', () => {
@@ -244,5 +247,105 @@ describe('diagnoseAgentRuntimeInstall', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('assessSupervisionIntegrity', () => {
+  // The crux: exactly ONE launchd job supervises the daemon and it is running.
+  // The previous doctor looked only for the removed `com.portdaddy.daemon`
+  // label and so was blind to every brew-supervised install.
+  const sup = (over = {}) => ({ label: 'homebrew.mxcl.port-daddy', loaded: true, running: true, pid: 42, ...over });
+
+  test('non-darwin platforms are skipped as ok', () => {
+    const a = assessSupervisionIntegrity({ supervisors: [], daemonReachable: false, platform: 'linux' });
+    expect(a.severity).toBe('ok');
+  });
+
+  test('exactly one supervisor, loaded and running, is ok', () => {
+    const a = assessSupervisionIntegrity({ supervisors: [sup()], daemonReachable: true, platform: 'darwin' });
+    expect(a.severity).toBe('ok');
+    expect(a.detail).toContain('PID 42');
+  });
+
+  test('zero supervisors + daemon down is CRITICAL', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [sup({ loaded: false, running: false, pid: null })],
+      daemonReachable: false,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('critical');
+  });
+
+  test('zero supervisors but daemon reachable is a warning (unsupervised, works now)', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [sup({ loaded: false, running: false, pid: null })],
+      daemonReachable: true,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('warn');
+  });
+
+  test('supervisor loaded but not running, daemon reachable, is a warning (the silent-death precursor)', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [sup({ running: false, pid: null })],
+      daemonReachable: true,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('UNSUPERVISED');
+  });
+
+  test('supervisor loaded but not running AND daemon unreachable is CRITICAL', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [sup({ running: false, pid: null })],
+      daemonReachable: false,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('critical');
+  });
+
+  test('two supervisors loaded is a warning (duplicate KeepAlive race)', () => {
+    const a = assessSupervisionIntegrity({
+      supervisors: [
+        sup(),
+        sup({ label: 'com.portdaddy.daemon', pid: 99 }),
+      ],
+      daemonReachable: true,
+      platform: 'darwin',
+    });
+    expect(a.severity).toBe('warn');
+    expect(a.detail).toContain('2 supervisors');
+  });
+});
+
+describe('resolveBosunBinary', () => {
+  test('reports non-existence without throwing for a binary-free root', () => {
+    const r = resolveBosunBinary('/nonexistent/port-daddy-root');
+    expect(r.exists).toBe(false);
+    expect(r.binaryPath).toContain('pd-bosun');
+  });
+});
+
+describe('scanRegistryDbFiles', () => {
+  test('finds only port-registry*.db and ignores WAL/SHM sidecars', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-dbscan-'));
+    try {
+      writeFileSync(join(dir, 'port-registry.db'), 'x');
+      writeFileSync(join(dir, 'port-registry.db-wal'), 'x');
+      writeFileSync(join(dir, 'port-registry.db-shm'), 'x');
+      writeFileSync(join(dir, 'port-registry.backup.db'), 'x');
+      writeFileSync(join(dir, 'usage.db'), 'x'); // unrelated DB — must be ignored
+      const found = scanRegistryDbFiles(dir);
+      expect(found.length).toBe(2);
+      expect(found.some((f) => f.endsWith('port-registry.db'))).toBe(true);
+      expect(found.some((f) => f.endsWith('port-registry.backup.db'))).toBe(true);
+      expect(found.some((f) => f.includes('usage.db'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('returns empty for a missing directory', () => {
+    expect(scanRegistryDbFiles('/nonexistent/dir/xyz')).toEqual([]);
   });
 });

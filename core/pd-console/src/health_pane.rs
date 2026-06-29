@@ -19,6 +19,43 @@ fn fmt_uptime(secs: i64) -> String {
     if h > 0 { format!("{h}h {m}m") } else if m > 0 { format!("{m}m {sec}s") } else { format!("{sec}s") }
 }
 
+/// The shared three-tier severity the daemon reports (lib/health-severity.ts).
+/// Read the top-level `severity` field; fall back to deriving it from
+/// routes/runtime/status for an older daemon that predates the field, so the
+/// console never silently shows "ok" against a degraded daemon.
+fn read_severity(h: &Value) -> &'static str {
+    match h.get("severity").and_then(|v| v.as_str()) {
+        Some("critical") => "critical",
+        Some("warn") => "warn",
+        Some("ok") => "ok",
+        _ => {
+            // Derive: routes not ok ⇒ critical; runtime degraded or status not
+            // "ok" ⇒ warn; else ok.
+            let routes_ok = h.get("routes").map(|r| b(r, "ok")).unwrap_or(true);
+            if !routes_ok {
+                "critical"
+            } else if h.get("runtime").map(|r| b(r, "degraded")).unwrap_or(false)
+                || s(h, "status") != "ok"
+            {
+                "warn"
+            } else {
+                "ok"
+            }
+        }
+    }
+}
+
+/// Map a severity to its semantic tone. `critical` gets the LOUD `Alarm` tone
+/// (distinct distress red), `warn` the `Gated` warning tone, `ok` the calm
+/// `Landed` tone.
+fn severity_tone(sev: &str) -> Tone {
+    match sev {
+        "critical" => Tone::Alarm,
+        "warn" => Tone::Gated,
+        _ => Tone::Landed,
+    }
+}
+
 pub struct HealthPane {
     data: Option<Value>,
     last_error: Option<String>,
@@ -40,19 +77,38 @@ impl Pane for HealthPane {
         let mut blocks = vec![Block::Header("Daemon Health".into())];
 
         if let Some(err) = &self.last_error {
+            // Unreachable daemon is the loudest state: a CRITICAL alarm banner.
+            blocks.push(Block::Chip { label: "✗ DAEMON UNREACHABLE".into(), tone: Tone::Alarm });
             blocks.push(Block::KeyVal("error".into(), err.clone()));
-            blocks.push(Block::Chip { label: "daemon unreachable".into(), tone: Tone::Gated });
             return blocks;
-        }
+        };
 
         let Some(h) = &self.data else {
             blocks.push(Block::KeyVal("status".into(), "connecting…".into()));
             return blocks;
         };
 
+        let severity = read_severity(h);
         let status = s(h, "status");
-        let status_tone = if status == "ok" { Tone::Landed } else { Tone::Gated };
-        blocks.push(Block::Chip { label: format!("status: {status}"), tone: status_tone });
+
+        // LOUD alert banner at the top of the pane when not nominal — the pane
+        // visibly changes, it does not silently stay green.
+        match severity {
+            "critical" => blocks.push(Block::Chip {
+                label: "✗ DAEMON CRITICAL — core health failing".into(),
+                tone: Tone::Alarm,
+            }),
+            "warn" => blocks.push(Block::Chip {
+                label: "⚠ DAEMON DEGRADED".into(),
+                tone: Tone::Gated,
+            }),
+            _ => {}
+        }
+
+        blocks.push(Block::Chip {
+            label: format!("status: {status} ({severity})"),
+            tone: severity_tone(severity),
+        });
         blocks.push(Block::Gap);
         blocks.push(Block::KeyVal("version".into(), s(h, "version")));
         blocks.push(Block::KeyVal("uptime".into(), fmt_uptime(n(h, "uptime_seconds"))));
@@ -78,7 +134,8 @@ impl Pane for HealthPane {
             let missing = routes.get("missing").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
             blocks.push(Block::Chip {
                 label: format!("{} checked / {} missing", n(routes, "checked"), missing),
-                tone: if ok { Tone::Landed } else { Tone::Gated },
+                // A daemon 404'ing its own critical routes is a CRITICAL state.
+                tone: if ok { Tone::Landed } else { Tone::Alarm },
             });
         }
 
@@ -142,7 +199,7 @@ mod tests {
     fn view_real_shape() {
         let mut p = HealthPane::default();
         p.data = Some(json!({
-            "status": "ok", "version": "3.18.0", "uptime_seconds": 1412,
+            "status": "ok", "severity": "ok", "version": "3.18.0", "uptime_seconds": 1412,
             "active_ports": 52, "pid": 3467,
             "fleet": {"running": true, "projects": 0, "agents": 0},
             "routes": {"ok": true, "missing": [], "checked": 11},
@@ -151,6 +208,9 @@ mod tests {
         let blocks = p.view();
         let chips = blocks.iter().filter(|b| matches!(b, Block::Chip { .. })).count();
         assert!(chips >= 3, "expected status, fleet, routes, runtime chips");
+        // A nominal daemon shows NO alarm tone anywhere.
+        assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })),
+            "ok daemon must not show an alarm tone");
     }
 
     #[test]
@@ -158,6 +218,53 @@ mod tests {
         let mut p = HealthPane::default();
         p.last_error = Some("timeout".into());
         let b = p.view();
-        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { tone: Tone::Gated, .. })));
+        // Unreachable daemon is a CRITICAL alarm, not a soft warning.
+        assert!(b.iter().any(|blk| matches!(blk, Block::Chip { tone: Tone::Alarm, .. })),
+            "unreachable daemon must raise an alarm tone");
+    }
+
+    #[test]
+    fn view_critical_severity_raises_alarm() {
+        // Daemon 404'ing its own routes → severity critical → loud Alarm banner.
+        let mut p = HealthPane::default();
+        p.data = Some(json!({
+            "status": "degraded", "severity": "critical", "version": "3.22.0",
+            "uptime_seconds": 10, "active_ports": 0, "pid": 1,
+            "routes": {"ok": false, "missing": [{"method": "GET", "url": "/health"}], "checked": 11},
+            "runtime": {"state": "degraded", "degraded": true}
+        }));
+        let blocks = p.view();
+        let alarms = blocks.iter().filter(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })).count();
+        assert!(alarms >= 2, "critical daemon must show the alarm banner AND an alarm status chip");
+        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, .. } if label.contains("CRITICAL"))),
+            "critical banner must be present");
+    }
+
+    #[test]
+    fn view_warn_severity_is_degraded_not_alarm() {
+        // Runtime degraded but routes ok → warn → Gated banner, no Alarm.
+        let mut p = HealthPane::default();
+        p.data = Some(json!({
+            "status": "ok", "severity": "warn", "version": "3.22.0",
+            "uptime_seconds": 10, "active_ports": 1, "pid": 1,
+            "routes": {"ok": true, "missing": [], "checked": 11},
+            "runtime": {"state": "degraded", "degraded": true}
+        }));
+        let blocks = p.view();
+        assert!(blocks.iter().any(|b| matches!(b, Block::Chip { label, tone: Tone::Gated } if label.contains("DEGRADED"))),
+            "warn must show a degraded banner");
+        assert!(!blocks.iter().any(|b| matches!(b, Block::Chip { tone: Tone::Alarm, .. })),
+            "warn must not escalate to an alarm tone");
+    }
+
+    #[test]
+    fn read_severity_derives_when_field_absent() {
+        // Older daemon without the severity field: derive from routes.
+        let degraded = json!({"status": "degraded", "routes": {"ok": false, "missing": [{}], "checked": 5}});
+        assert_eq!(read_severity(&degraded), "critical");
+        let warn = json!({"status": "ok", "routes": {"ok": true}, "runtime": {"degraded": true}});
+        assert_eq!(read_severity(&warn), "warn");
+        let ok = json!({"status": "ok", "routes": {"ok": true}, "runtime": {"degraded": false}});
+        assert_eq!(read_severity(&ok), "ok");
     }
 }

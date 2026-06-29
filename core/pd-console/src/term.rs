@@ -58,6 +58,8 @@ pub enum Sem {
     Gated,
     Resting,
     Landed,
+    /// LOUD distress red — CRITICAL daemon health (distinct from `Gated`).
+    Alarm,
 }
 
 impl Sem {
@@ -71,6 +73,7 @@ impl Sem {
             Sem::Gated => t.gated,
             Sem::Resting => t.resting,
             Sem::Landed => t.landed,
+            Sem::Alarm => t.alarm,
         }
     }
 
@@ -85,6 +88,7 @@ impl Sem {
             Sem::Gated => "31",   // red
             Sem::Resting => "90",
             Sem::Landed => "32",  // green
+            Sem::Alarm => "91",   // bright red — louder than gated's 31
         }
     }
 }
@@ -99,6 +103,7 @@ impl Tone {
             Tone::Resting => Sem::Resting,
             Tone::Landed => Sem::Landed,
             Tone::Conflicted => Sem::Gated,
+            Tone::Alarm => Sem::Alarm,
         }
     }
 
@@ -112,6 +117,7 @@ impl Tone {
             Tone::Resting => "○",
             Tone::Landed => "✓",
             Tone::Conflicted => "⚠",
+            Tone::Alarm => "‼",
         }
     }
 }
