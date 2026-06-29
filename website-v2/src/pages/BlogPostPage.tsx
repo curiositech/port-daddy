@@ -12,6 +12,7 @@ import { BlogComments } from '@/components/blog/BlogComments'
 import { Calendar, User, ArrowLeft } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
+import { stripDuplicateLeadingHeroImage } from '@/lib/blogMarkdown'
 import { ThemedImage } from '@/components/site/ThemedImage'
 
 // ─── Directive system ─────────────────────────────────────────────────────
@@ -105,7 +106,8 @@ export function BlogPostPage() {
   // Pre-process directives from markdown content
   const { cleaned, directives } = useMemo(() => {
     if (!post) return { cleaned: '', directives: new Map() }
-    return extractDirectives(post.content.replace(/^\s*#\s+.+\n/, ''))
+    const bodyWithoutTitle = post.content.replace(/^\s*#\s+.+\n/, '')
+    return extractDirectives(stripDuplicateLeadingHeroImage(bodyWithoutTitle, post.heroImage))
   }, [post])
 
   if (!post && deprecatedPost) {
