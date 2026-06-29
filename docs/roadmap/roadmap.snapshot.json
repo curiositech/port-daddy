@@ -2,7 +2,7 @@
   "generatedAt": 1782732844907,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 101,
+  "count": 107,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -508,6 +508,36 @@
       "slug": "suggest-b3-2-fleet-yml-optin",
       "status": "backlog",
       "summaryMd": "B3.2 pd-fleet.yml suggestions:{enabled:true} gate; broker opt-in per project, default off. Done when broker only runs when enabled."
+    },
+    {
+      "slug": "io-wiring",
+      "status": "now",
+      "summaryMd": "Wire the pluggable trigger/output registry into the fleet engine so fleet agents can fire on and emit to file, webhook, notify, email, SMS, iMessage and calendar — not just singular trigger:/schedule:. Phased: io-wiring-phase-1..5."
+    },
+    {
+      "slug": "io-wiring-phase-1-registry-engine",
+      "status": "merge",
+      "summaryMd": "PHASE 1 (PR #539): registry->engine seam (lib/fleet/io-dispatch.ts); plural triggers:/outputs: parsing; proven end-to-end on the file channel; 37 io-wiring + 5 engine tests."
+    },
+    {
+      "slug": "io-wiring-phase-2-webhook-notify-health-board",
+      "status": "backlog",
+      "summaryMd": "PHASE 2: webhook IN receiver + macOS notify OUT end-to-end; pd fleet sources health board. No external creds."
+    },
+    {
+      "slug": "io-wiring-phase-3-email-out-smtp",
+      "status": "backlog",
+      "summaryMd": "PHASE 3: Email OUT over SMTP. Needs SMTP creds + consent gating."
+    },
+    {
+      "slug": "io-wiring-phase-4-email-in-sms",
+      "status": "backlog",
+      "summaryMd": "PHASE 4: Email IN (IMAP) + SMS (Twilio). Needs IMAP + Twilio creds."
+    },
+    {
+      "slug": "io-wiring-phase-5-imessage-calendar",
+      "status": "backlog",
+      "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
     }
   ]
 }
