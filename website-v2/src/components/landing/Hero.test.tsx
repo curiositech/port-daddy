@@ -139,19 +139,22 @@ describe('Hero wordmark observer', () => {
     expect(homeLink()).toHaveClass('opacity-100')
   })
 
-  it('renders the compact local install row and mobile proof panel', () => {
+  it('renders the compact product definition and mobile story panel', () => {
     renderHeroShell()
 
-    expect(screen.getByText('local install')).toBeInTheDocument()
-    expect(screen.getByText('brew install curiositech/tap/port-daddy')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /mac app/i })).toHaveAttribute(
-      'href',
-      '/mac-preview#download',
+    expect(screen.getByRole('heading', { name: /runs a tight ship/i })).toBeInTheDocument()
+    expect(screen.getByText('Agents are better when they coordinate.')).toBeInTheDocument()
+    expect(screen.getByText('Port Daddy is')).toBeInTheDocument()
+    expect(screen.getByText(/an agent event-triggering lab/i)).toBeInTheDocument()
+    expect(screen.getByText(/Codex/i)).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-product-logo]')).toHaveLength(5)
+    expect(document.querySelector('[data-product-logo="claude"]')).toHaveAttribute(
+      'title',
+      'Anthropic Claude',
     )
-    const heroDocsLink = screen
-      .getAllByRole('link', { name: /docs/i })
-      .find((link) => link.getAttribute('href') === '/docs/')
-    expect(heroDocsLink).toBeInTheDocument()
+    expect(screen.queryByText('local install')).not.toBeInTheDocument()
+    expect(screen.queryByText(/brew install curiositech/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /mac app/i })).not.toBeInTheDocument()
     expect(screen.getAllByTestId('live-glory-video')).toHaveLength(2)
   })
 })

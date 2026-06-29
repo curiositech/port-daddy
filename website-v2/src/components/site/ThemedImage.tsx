@@ -1,18 +1,6 @@
 import * as React from 'react'
 import { useTheme } from '@/lib/theme-context'
-
-/**
- * Insert `-dark` before a file's extension to derive its dark-mode sibling:
- *   /img/manifesto/collision.webp → /img/manifesto/collision-dark.webp
- * Query strings and hashes (if any) are preserved after the extension.
- */
-export function toDarkSrc(src: string): string {
-  const [path, ...suffixParts] = src.split(/(?=[?#])/)
-  const suffix = suffixParts.join('')
-  const dot = path.lastIndexOf('.')
-  if (dot <= path.lastIndexOf('/')) return src // no extension — leave untouched
-  return `${path.slice(0, dot)}-dark${path.slice(dot)}${suffix}`
-}
+import { toDarkSrc } from './ThemedImageSrc'
 
 type ThemedImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
   /** The LIGHT (default) image source. The dark sibling is derived from it. */

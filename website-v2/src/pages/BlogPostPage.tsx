@@ -213,7 +213,7 @@ export function BlogPostPage() {
             src={String(src ?? '')}
             alt={alt ?? ''}
             style={{
-              filter: dark ? 'brightness(0.76) contrast(1.18) saturate(1.08)' : 'saturate(1.02)',
+              filter: dark ? 'brightness(0.94) contrast(1.08) saturate(1.06)' : 'saturate(1.02)',
             }}
           />
           {alt && <figcaption>{alt}</figcaption>}
@@ -289,7 +289,7 @@ export function BlogPostPage() {
               alt={post.heroAlt}
               className="w-full h-auto object-cover max-h-[36rem]"
               style={{
-                filter: dark ? 'brightness(0.76) contrast(1.18) saturate(1.08)' : 'saturate(1.02)',
+                filter: dark ? 'brightness(0.94) contrast(1.08) saturate(1.06)' : 'saturate(1.02)',
               }}
               loading="eager"
             />
@@ -297,7 +297,7 @@ export function BlogPostPage() {
               className="pointer-events-none absolute inset-0"
               style={{
                 background: dark
-                  ? 'linear-gradient(180deg, rgba(11,13,16,0.02) 0%, rgba(11,13,16,0.22) 100%)'
+                  ? 'linear-gradient(180deg, rgba(11,13,16,0.01) 0%, rgba(11,13,16,0.14) 100%)'
                   : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.1) 100%)',
               }}
             />

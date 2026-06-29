@@ -9,6 +9,7 @@ import {
   PanelTitle,
   SurfacePanel,
 } from '@/components/site/primitives'
+import { ProductLogoLockup, type ProductLogoKey } from '@/components/site/ProductLogos'
 import { MCP_TOOL_TOTAL } from '@/data/mcp'
 import type { ReactNode } from 'react'
 
@@ -34,6 +35,7 @@ interface Piece {
 }
 
 const BREW_ONE_LINER = 'brew install curiositech/tap/port-daddy && pd setup'
+const MCP_AGENT_LOGOS: ProductLogoKey[] = ['claude', 'codex', 'cursor', 'windsurf']
 
 const PIECES: Piece[] = [
   {
@@ -54,7 +56,12 @@ const PIECES: Piece[] = [
     what: (
       <>
         {MCP_TOOL_TOTAL}+ tools your agent calls directly. <Mono>pd mcp install</Mono> configures Claude Code,
-        Claude Desktop, Cursor, Windsurf, Gemini CLI, VS Code, Continue, and Cline.
+        Claude Desktop, Codex CLI, Cursor, Windsurf, Gemini CLI, VS Code, Continue, and Cline.
+        <span className="mt-[var(--space-2)] flex flex-wrap gap-2">
+          {MCP_AGENT_LOGOS.map((product) => (
+            <ProductLogoLockup key={product} product={product} size="compact" />
+          ))}
+        </span>
       </>
     ),
     how: 'pd mcp install',
@@ -131,7 +138,12 @@ export function MacInstallSection() {
             <PanelBody size="compact" className="max-w-[60ch]">
               Detects your local agent tools, configures the MCP server, installs the shared skill, and writes the
               Port Daddy Pilot persona for Claude Code, Codex CLI, Gemini CLI, and generic AGENTS.md-aware tools. The
-              full <Mono>{MCP_TOOL_TOTAL}</Mono>-tool reference lives in{' '}
+              <span className="mt-[var(--space-2)] flex flex-wrap gap-2">
+                {MCP_AGENT_LOGOS.map((product) => (
+                  <ProductLogoLockup key={product} product={product} size="compact" />
+                ))}
+              </span>
+              The full <Mono>{MCP_TOOL_TOTAL}</Mono>-tool reference lives in{' '}
               <Link to="/docs/mcp" className="font-semibold text-[var(--brand-primary)] underline">
                 the MCP docs
               </Link>

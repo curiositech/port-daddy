@@ -206,20 +206,20 @@ function HarnessArtFigure({
   src,
   alt,
   caption,
-  labels,
   loading = 'lazy',
+  className,
 }: {
   src: string
   alt: string
   caption: string
-  labels: readonly string[]
   loading?: 'eager' | 'lazy'
+  className?: string
 }) {
   const { theme } = useTheme()
   const dark = theme === 'dark'
 
   return (
-    <figure className="space-y-[var(--space-2)]">
+    <figure className={`space-y-[var(--space-2)] ${className ?? ''}`}>
       <div className="relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
         <ThemedImage
           src={src}
@@ -241,16 +241,6 @@ function HarnessArtFigure({
               : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.22) 100%)',
           }}
         />
-        <div className="absolute inset-x-[var(--space-3)] bottom-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
-          {labels.map((label) => (
-            <span
-              key={label}
-              className="border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white"
-            >
-              {label}
-            </span>
-          ))}
-        </div>
       </div>
       <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
         {caption}
@@ -422,13 +412,18 @@ export default function HarnessPage() {
                 <div className="space-y-[var(--space-5)]">
                   <BracketLabel>The harness</BracketLabel>
                   <PanelTitle as="h1" size="hero" className="max-w-[15ch]">
-                    A bare agent types into the void. A harnessed one joins the crew.
+                    A control plane for every coding agent.
                   </PanelTitle>
+                  <HarnessArtFigure
+                    src="/img/generated/harness-hero.webp"
+                    alt="A rugged agent core in a harness cradle, with instrumented lines reaching into message radio, file claims, budget controls, worktree docks, and command guardrails."
+                    caption="One agent core, eight instrumented lines into the fleet’s control plane."
+                    loading="eager"
+                    className="lg:hidden"
+                  />
                   <PanelBody className="max-w-[46rem] text-[length:var(--type-panel-body-size)]">
-                    Run an AI coding agent inside the Port Daddy Harness and it stops
-                    being a lone process talking to itself. The harness hooks into
-                    the vendor CLI and handles the jobs a bare CLI leaves to humans:
-                    messages before each turn, project channels, edit-conflict
+                    Port Daddy Harness gives each agent the coordination layer it
+                    needs: messages before each turn, project channels, edit-conflict
                     checks, CI feedback, parley when work overlaps, budget stops,
                     isolated worktrees, and command guardrails.
                   </PanelBody>
@@ -451,8 +446,8 @@ export default function HarnessPage() {
                   src="/img/generated/harness-hero.webp"
                   alt="A single agent core at center, eight instrumented lines reaching out into a control plane of message tubes, a subscription rail, a swarm-ownership grid, a returning verdict path, a conversation loop, a budget meter, an isolated worktree, and an amber guard gate"
                   caption="One agent core, eight instrumented lines into the fleet’s control plane."
-                  labels={['Messages', 'Claims', 'Budget', 'Guardrails']}
                   loading="eager"
+                  className="hidden lg:block"
                 />
               </SwissGridItem>
             </SwissGrid>
@@ -494,7 +489,6 @@ export default function HarnessPage() {
                   src="/img/generated/harness-hooks.webp"
                   alt="A vendor command-line tool exposing four hook ports along its edge, with keyed couplings from the daemon seating into them — one connection fully seated and solid, the others dashed and partially seated to show validation in progress"
                   caption="The daemon seats into the CLI’s hook ports. One solid coupling is verified; the dashed ones are validating."
-                  labels={['Before turn', 'Pre-tool', 'Post-tool', 'Command veto']}
                 />
               </SwissGridItem>
             </SwissGrid>
@@ -571,7 +565,6 @@ export default function HarnessPage() {
                   src="/img/generated/harness-veto.webp"
                   alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate; a clean rerouted lane departs toward a safe terminal node, showing the command was redirected to a safe alternative rather than only blocked"
                   caption="The hazard lane is stopped at the gate; a safe lane is offered in its place."
-                  labels={['Veto', 'Explain', 'Safer move']}
                 />
               </SwissGridItem>
 
