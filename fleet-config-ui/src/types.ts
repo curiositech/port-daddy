@@ -864,15 +864,86 @@ export interface InboxMessage {
   id: number;
   agentId: string;
   from: string | null;
-  content: string;
+  content: unknown;
+  contentType?: 'text' | 'json' | 'binary' | string;
   type: string;
   read: boolean;
+  readAt?: number | null;
   createdAt: number;
 }
 
 export interface InboxStats {
   total: number;
   unread: number;
+}
+
+export type VisualTaskKind = 'fix' | 'bug' | 'nit' | 'feedback' | 'question';
+export type VisualTaskCaptureMode = 'image' | 'current-page';
+export type VisualTaskRegionSpace = 'image' | 'viewport';
+
+export interface VisualTaskRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  coordinateSpace: VisualTaskRegionSpace;
+}
+
+export interface VisualTaskImageAttachment {
+  name: string;
+  mimeType: string;
+  size: number;
+  dataUrl: string;
+  width: number | null;
+  height: number | null;
+}
+
+export interface VisualTaskDomElement {
+  selector: string;
+  xpath: string;
+  tagName: string;
+  role: string | null;
+  text: string | null;
+  bounds: VisualTaskRegion;
+}
+
+export interface VisualTaskDomContext {
+  url: string;
+  title: string | null;
+  capturedAt: string;
+  selectors: string[];
+  elementsInRegion: VisualTaskDomElement[];
+}
+
+export interface VisualTaskSubmission {
+  schemaVersion: 1;
+  type: 'visual-task';
+  id: string;
+  source: 'fleet-ui';
+  project: string | null;
+  projectDir: string | null;
+  targetAgent: string | null;
+  kind: VisualTaskKind;
+  title: string;
+  description: string;
+  pageUrl: string | null;
+  captureMode: VisualTaskCaptureMode;
+  image: VisualTaskImageAttachment | null;
+  region: VisualTaskRegion | null;
+  domContext: VisualTaskDomContext | null;
+  viewport: {
+    width: number;
+    height: number;
+    devicePixelRatio: number;
+  };
+  createdAt: string;
+}
+
+export interface DispatchProposal {
+  id: string;
+  slug?: string;
+  goal: string;
+  state?: string;
 }
 
 export interface SalvageAgent {

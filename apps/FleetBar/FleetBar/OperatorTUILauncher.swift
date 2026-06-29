@@ -236,6 +236,8 @@ struct ConsoleLauncherSection: View {
     let activeDaemonURL: String?
     /// Opens the in-app Fleet Control Center window.
     let openControlCenter: () -> Void
+    /// Opens the Fleet Control Center directly to visual task intake.
+    let openVisualTask: () -> Void
 
     @State private var apps: [ConsoleApp] = OperatorConsoleLauncher.discoverApps()
 
@@ -256,14 +258,23 @@ struct ConsoleLauncherSection: View {
                 .tracking(0.8)
                 .foregroundStyle(Fleet.Chrome.tertiaryText)
 
-            // Fleet Control Center — the in-app operator window (the "old swift app").
-            Button(action: openControlCenter) {
-                Label("Fleet Control Center", systemImage: "sailboat.fill")
-                    .font(.caption.weight(.semibold))
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(Fleet.Color.active)
+            toolAction(
+                title: "Fleet Control Center",
+                subtitle: "Open the operator window",
+                systemImage: "sailboat.fill",
+                color: Fleet.Color.active,
+                action: openControlCenter
+            )
             .help("Open the Fleet Control Center window")
+
+            toolAction(
+                title: "Send Visual Task",
+                subtitle: "Annotate a screenshot for an agent",
+                systemImage: "viewfinder",
+                color: Fleet.Color.healthy,
+                action: openVisualTask
+            )
+            .help("Open Fleet Control Center to visual task intake")
 
             if apps.isEmpty {
                 Text("pd-console not installed — run package-console.sh --prod / --latest")
@@ -280,6 +291,54 @@ struct ConsoleLauncherSection: View {
         .padding(.vertical, Fleet.Space.s)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { apps = OperatorConsoleLauncher.discoverApps() }
+    }
+
+    private func toolAction(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        color: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: Fleet.Space.s) {
+                Image(systemName: systemImage)
+                    .font(.system(.caption, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(color)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        color.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: Fleet.Radius.small, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(Fleet.Chrome.tertiaryText)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: Fleet.Space.s)
+            }
+            .padding(.horizontal, Fleet.Space.s)
+            .padding(.vertical, Fleet.Space.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                color.opacity(0.07),
+                in: RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous)
+                    .stroke(color.opacity(0.18), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Fleet.Radius.medium, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 
     @ViewBuilder

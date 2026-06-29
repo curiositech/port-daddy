@@ -14,6 +14,7 @@ final class FleetPopoverTests: XCTestCase {
                 "roadmap",
                 "nightshift",
                 "agents",
+                "visual",
                 "resources",
                 "activity",
                 "channels",
@@ -32,6 +33,7 @@ final class FleetPopoverTests: XCTestCase {
                 "Roadmap",
                 "Nightshift",
                 "Agents",
+                "Visual Task",
                 "Resources",
                 "Activity",
                 "Channels",
@@ -57,6 +59,27 @@ final class FleetPopoverTests: XCTestCase {
         for surface in FleetControlSurface.allCases where !nativeSet.contains(surface) {
             XCTAssertFalse(surface.isNative, "Expected \(surface.rawValue) to be a web surface")
         }
+    }
+
+    func testConsoleLauncherSectionExposesVisualTaskAction() throws {
+        var openedControlCenter = false
+        var openedVisualTask = false
+
+        let section = ConsoleLauncherSection(
+            berths: [],
+            activeDaemonURL: nil,
+            openControlCenter: { openedControlCenter = true },
+            openVisualTask: { openedVisualTask = true }
+        )
+
+        let inspected = try section.inspect()
+        XCTAssertNoThrow(try inspected.find(button: "Fleet Control Center"))
+
+        let visualButton = try inspected.find(button: "Send Visual Task")
+        try visualButton.tap()
+
+        XCTAssertTrue(openedVisualTask, "Visual Task should route through the native FleetBar tools section")
+        XCTAssertFalse(openedControlCenter, "Tapping Visual Task should not open the default Flow route")
     }
 
     func testFooterControlsStayOutsideScrollView() throws {
@@ -284,6 +307,7 @@ final class FleetPopoverTests: XCTestCase {
         let row = ProjectReadinessRow(
             project: projectWithRemediation(remediation),
             onOpenProject: {},
+            onOpenVisualTask: {},
             onRemediateProject: { fired = true }
         )
 
@@ -324,6 +348,7 @@ final class FleetPopoverTests: XCTestCase {
             let row = ProjectReadinessRow(
                 project: projectWithRemediation(remediation),
                 onOpenProject: {},
+                onOpenVisualTask: {},
                 onRemediateProject: {}
             )
             let inspected = try row.inspect()

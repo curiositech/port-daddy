@@ -22,6 +22,7 @@ import TubeMessagePanel from './components/TubeMessagePanel';
 import DispatchPanel from './components/DispatchPanel';
 import CoastGuardPanel from './components/CoastGuardPanel';
 import CockpitControlPanel from './components/CockpitControlPanel';
+import VisualTaskPanel from './components/VisualTaskPanel';
 import EventsRegistryPanel from './components/EventsRegistryPanel';
 import { MetricsPanel } from './components/MetricsPanel';
 import ShipwrightPanel from './shipwright/ShipwrightPanel';
@@ -65,8 +66,8 @@ import type {
   TopologyValidation,
 } from './types';
 
-type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
-type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
+type MainTab = 'Operator' | 'Flow' | 'Roadmap' | 'Agents' | 'Visual' | 'Resources' | 'Activity' | 'Channels' | 'Tube' | 'TubeBrowser' | 'Events' | 'Inbox' | 'Sorties' | 'Memory' | 'Metrics' | 'Dispatch' | 'CoastGuard' | 'Cockpit' | 'Shipwright' | 'YAML';
+type ControlSurface = 'operator' | 'flow' | 'roadmap' | 'agents' | 'visual' | 'resources' | 'activity' | 'channels' | 'tube' | 'tubebrowser' | 'events' | 'inbox' | 'sorties' | 'memory' | 'metrics' | 'dispatch' | 'coastguard' | 'cockpit' | 'shipwright' | 'yaml';
 
 function canUseWindow(): boolean {
   return typeof window !== 'undefined';
@@ -91,6 +92,7 @@ function normalizeSurface(value: string | null): ControlSurface {
     case 'shipwright':
     case 'yaml':
     case 'agents':
+    case 'visual':
     case 'resources':
     case 'flow':
       return value;
@@ -109,6 +111,8 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
       return 'Roadmap';
     case 'agents':
       return 'Agents';
+    case 'visual':
+      return 'Visual';
     case 'resources':
       return 'Resources';
     case 'activity':
@@ -147,6 +151,7 @@ function surfaceToMainTab(surface: ControlSurface): MainTab {
 function mainTabToSurface(activeTab: MainTab): ControlSurface {
   if (activeTab === 'Operator') return 'operator';
   if (activeTab === 'Agents') return 'agents';
+  if (activeTab === 'Visual') return 'visual';
   if (activeTab === 'Resources') return 'resources';
   if (activeTab === 'Roadmap') return 'roadmap';
   if (activeTab === 'Activity') return 'activity';
@@ -935,8 +940,9 @@ function summarizeChannelPayload(payload: unknown): string {
   const candidate = payload as Record<string, unknown>;
   const preferredKeys = ['message', 'summary', 'content', 'text', 'details', 'error', 'status'];
   for (const key of preferredKeys) {
-    if (typeof candidate[key] === 'string' && candidate[key]!.trim()) {
-      return candidate[key]!.trim() as string;
+    const value = candidate[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
     }
   }
 
@@ -1473,9 +1479,10 @@ export default function App() {
     (!!fleet.status && !fleet.error) ||
     (!!operatorStateHook.state && !operatorStateHook.error);
 
-  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
-  // Metrics/Dispatch/CoastGuard/Cockpit are daemon-wide, useful even without a project.
-  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Metrics', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
+  const surfaceTabs: MainTab[] = ['Operator', 'Flow', 'Roadmap', 'Agents', 'Visual', 'Resources', 'Activity', 'Channels', 'Tube', 'TubeBrowser', 'Events', 'Inbox', 'Sorties', 'Memory', 'Metrics', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright', 'YAML'];
+  // Visual task intake can start from a screenshot before the operator picks a repo.
+  // It still attaches a project when FleetBar opens it from a project context.
+  const allProjectSurfaceTabs: MainTab[] = ['Operator', 'Flow', 'Visual', 'Metrics', 'TubeBrowser', 'Dispatch', 'Cockpit', 'CoastGuard', 'Shipwright'];
   const showProjectSidebar = activeTab === 'Flow' && !embedded;
   const visibleSurfaceTabs = selectedProjectId ? surfaceTabs : allProjectSurfaceTabs;
   const handleProjectRefresh = useCallback(() => {
@@ -1580,7 +1587,18 @@ export default function App() {
 
       <AnimatePresence mode="wait">
         {!selectedProjectId ? (
-          activeTab === 'Metrics' ? (
+          activeTab === 'Visual' ? (
+            <motion.div key="visual-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
+              <VisualTaskPanel
+                key={`${daemonUrl}:all:visual`}
+                channels={channelTargets}
+                project={undefined}
+                projectDir={undefined}
+                projectRunning={false}
+                configuredAgentCount={0}
+              />
+            </motion.div>
+          ) : activeTab === 'Metrics' ? (
             <motion.div key="metrics-all-wrap" className="flex-1 overflow-hidden flex flex-col" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: -20 }}>
               <MetricsPanel key="metrics-all" theme={theme} embedded={embedded} daemonUrl={daemonUrl} />
             </motion.div>
@@ -1892,6 +1910,16 @@ export default function App() {
                         }}
                         onRunFleetAgent={(name) => handleAgentRunNow(name)}
                         onPauseFleetAgent={(name, paused) => handleAgentPauseToggle(name, paused)}
+                      />
+                    )}
+                    {activeTab === 'Visual' && (
+                      <VisualTaskPanel
+                        key={`${daemonUrl}:${selectedProjectId ?? 'all'}:visual`}
+                        channels={channelTargets}
+                        project={selectedProjectName ?? undefined}
+                        projectDir={selectedProjectId ?? undefined}
+                        projectRunning={selectedProject?.running ?? false}
+                        configuredAgentCount={fleetConfig?.agents.length ?? 0}
                       />
                     )}
                     {activeTab === 'Roadmap' && (

@@ -73,9 +73,10 @@ function summarizeChannelPayload(payload: unknown): string {
   if (!payload || typeof payload !== 'object') return String(payload ?? '').trim();
 
   const candidate = payload as Record<string, unknown>;
-  for (const key of ['message', 'summary', 'content', 'text', 'details', 'error', 'status']) {
-    if (typeof candidate[key] === 'string' && candidate[key]?.trim()) {
-      return candidate[key].trim();
+  for (const key of ['message', 'summary', 'title', 'content', 'text', 'details', 'error', 'status']) {
+    const value = candidate[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
     }
   }
 
@@ -747,7 +748,7 @@ export default function AgentsPanel({
                           from {message.from ?? 'system'} {message.read ? '· read' : '· unread'}
                         </div>
                         <div className="mt-2 text-sm whitespace-pre-wrap" style={{ color: 'var(--pd-text)' }}>
-                          {message.content}
+                          {summarizeChannelPayload(message.content)}
                         </div>
                       </div>
                     ))
