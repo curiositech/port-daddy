@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:visuals": "node scripts/generate-gemini-assets.mjs",
+    "generate:dark-variants": "node scripts/generate-dark-variants.mjs",
     "optimize:visuals": "node scripts/generate-gemini-assets.mjs --optimize-existing",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

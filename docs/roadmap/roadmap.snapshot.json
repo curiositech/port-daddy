@@ -1,9 +1,14 @@
 {
-  "generatedAt": 1782613558927,
+  "generatedAt": 1782710088342,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 93,
+  "count": 98,
   "items": [
+    {
+      "slug": "active-agent-roster",
+      "status": "backlog",
+      "summaryMd": "Add live active agent roster surfaces"
+    },
     {
       "slug": "adr-0019-declarative-fleet-yaml",
       "status": "done",
@@ -340,6 +345,11 @@
       "summaryMd": "Second device: pair, R2 snapshot pull, replay since HLC, revocation <=5s"
     },
     {
+      "slug": "agent-harness-installer-roster",
+      "status": "backlog",
+      "summaryMd": "Expose Giant Squid hook installation and spawn hook injection as the enforceable Port Daddy agent harness layer. PR #624 now documents runtime setup, project hook arming, Squid bridge launch, MCP/Pilot install, and FleetBar as separate install surfaces, with tests for Claude/Codex/Gemini/Antigravity hook config writes."
+    },
+    {
       "slug": "ast-a0-intra-file-call-edges",
       "status": "done",
       "summaryMd": "SHIPPED (#468/#544): parseFile extracts intra-file calls edges so blast-radius + signature conflicts fire within a file. Cross-file is ast-a1-1."
@@ -405,9 +415,19 @@
       "summaryMd": "A4.1 (optional) Wire tree-sitter-go / tree-sitter-rust + extraction (symbols, imports, intra-file calls). Done when a Go and Rust file parse with symbols + call edges."
     },
     {
+      "slug": "codex-homepage-hero-followup",
+      "status": "backlog",
+      "summaryMd": "Harden marketing visuals and asset integrity"
+    },
+    {
       "slug": "codex-session-takeover-legibility",
       "status": "backlog",
       "summaryMd": "fix(sessions): make takeover successor the active context"
+    },
+    {
+      "slug": "gpui-agent-observatory",
+      "status": "backlog",
+      "summaryMd": "Build a Rust GPUI agent observatory after daemon endpoints exist: list daemon-launched harnessed sessions, distinguish fleet infrastructure agents from merchant task agents, stream persisted transcripts, show Port Daddy hook activity and operator-only fleet overlays, and allow jumping into a live harnessed agent REPL without losing auditability."
     },
     {
       "slug": "harbor-editor",
@@ -433,6 +453,11 @@
       "slug": "seeded-daemon-fleet-console-lanes",
       "status": "backlog",
       "summaryMd": "feat: seeded daemon fleet + FleetBar console links/chrome + cut-and-rebuild orchestrator"
+    },
+    {
+      "slug": "session-takeover-legibility",
+      "status": "backlog",
+      "summaryMd": "Make non-destructive session takeover legible and operational: successor sessions preserve agent identity and become the CLI current context, so subsequent whoami, note, file-claim, and done commands target the successor rather than stale predecessor state."
     },
     {
       "slug": "squid-contract-harness-daemon-boot-fix",

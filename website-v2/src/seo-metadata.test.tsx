@@ -76,7 +76,7 @@ describe('website SEO metadata', () => {
       expect(route.publishedAt).toBe(post.date)
       expect(route.author).toBe(post.author)
       expect(absoluteImageUrl(route.image)).toMatch(/^https:\/\/portdaddy\.dev\/img\/og\//)
-      expect(new Date(post.date).getTime()).toBeLessThanOrEqual(new Date('2026-04-29T23:59:59-07:00').getTime())
+      expect(new Date(post.date).getTime()).toBeLessThanOrEqual(new Date('2026-06-29T23:59:59-07:00').getTime())
     }
   })
 
@@ -196,7 +196,7 @@ describe('website SEO metadata', () => {
       expect(document.title).toContain('The Control Plane Is the Product')
     })
 
-    expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('project identity, file ownership')
+    expect(document.querySelector<HTMLMetaElement>('meta[name="description"]')?.content).toContain('identity, ownership, runtime, backend, cost, and recovery')
     expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href).toBe('https://portdaddy.dev/blog/control-plane-is-the-product')
     expect(document.querySelector<HTMLMetaElement>('meta[property="og:image"]')?.content).toBe('https://portdaddy.dev/img/og/blog-control-plane-is-the-product.jpg')
     expect(document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]')?.content).toBe('https://portdaddy.dev/img/og/blog-control-plane-is-the-product.jpg')

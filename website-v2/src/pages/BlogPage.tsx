@@ -59,7 +59,7 @@ function ArticleImage({ post, eager = false }: { post: BlogPost; eager?: boolean
         alt={post.heroAlt}
         className="h-full w-full object-cover"
         style={{
-          filter: dark ? 'brightness(0.76) contrast(1.18) saturate(1.08)' : 'saturate(1.02)',
+          filter: dark ? 'brightness(0.94) contrast(1.08) saturate(1.06)' : 'saturate(1.02)',
         }}
         loading={eager ? 'eager' : 'lazy'}
       />
@@ -67,7 +67,7 @@ function ArticleImage({ post, eager = false }: { post: BlogPost; eager?: boolean
         className="pointer-events-none absolute inset-0"
         style={{
           background: dark
-            ? 'linear-gradient(180deg, rgba(11,13,16,0.04) 0%, rgba(11,13,16,0.32) 100%)'
+            ? 'linear-gradient(180deg, rgba(11,13,16,0.02) 0%, rgba(11,13,16,0.18) 100%)'
             : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.12) 100%)',
         }}
       />
