@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1782721673981,
+  "generatedAt": 1782732844907,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 100,
+  "count": 101,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -433,6 +433,11 @@
       "slug": "feat-pd-console-operator-chat",
       "status": "backlog",
       "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
+    },
+    {
+      "slug": "fleetbar-visual-task-intake",
+      "status": "backlog",
+      "summaryMd": "feat(fleetbar): add visual task intake"
     },
     {
       "slug": "gpui-agent-observatory",
