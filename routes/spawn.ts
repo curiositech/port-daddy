@@ -22,7 +22,7 @@ interface SpawnRouteDeps {
   };
 }
 
-const VALID_BACKENDS = new Set(['ollama', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
+const VALID_BACKENDS = new Set(['ollama', 'lmstudio', 'claude', 'claude-cli', 'gemini', 'cloudflare', 'openai', 'groq', 'deepseek', 'xai', 'codex', 'aider', 'custom', 'cli:claude-code', 'cli:codex', 'cli:gemini', 'cli:groq', 'cli:grok']);
 
 
 // ==========================================================================
@@ -79,6 +79,7 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
         allowedTools,
         maxTokens,
         permissionMode,
+        injectSquidHooks,
         budgetUsd: rawBudgetUsd,
       } = request.body as any;
 
@@ -198,6 +199,19 @@ export const spawnPlugin: FastifyPluginAsync<{ deps: SpawnRouteDeps }> = async (
       // forwards it verbatim as --permission-mode, so the boundary validates it).
       if (permissionMode === 'default' || permissionMode === 'acceptEdits' || permissionMode === 'bypassPermissions') {
         spec.permissionMode = permissionMode;
+      }
+      // Giant Squid Harness opt-in (ADR-0091). Default false → backward-compatible:
+      // an absent/false flag leaves the spawn byte-for-byte unchanged. When true,
+      // the spawner's runClaudeCli (lib/spawner.ts) FIRST injects the pd-hook-*
+      // tentacles into the workspace's .claude/settings.json, so a conjure-
+      // dispatched vendor CLI runs UNDER PD coordination — its UserPromptSubmit /
+      // PreToolUse / PostToolUse turns fire the lock gate + pheromone hooks inside
+      // Claude Code's own loop (Claude Max Prime). The conjurer's Dispatch sets
+      // this true (console DaemonClient::spawn with SpawnOpts::squid). codex /
+      // gemini remain validate-then-add: their squid adapters throw, so the flag
+      // is a harmless no-op for those backends until those adapters are written.
+      if (injectSquidHooks === true) {
+        spec.injectSquidHooks = true;
       }
 
       logger.info('spawn_start', {

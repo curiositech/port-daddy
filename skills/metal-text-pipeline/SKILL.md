@@ -245,3 +245,15 @@ rung was warranted. Always have the Rung-1 number in hand.
 
 Decision and measurements are from `core/pd-timeline-proto/` in this repo (Rung 1:
 winit+wgpu+Vello+Parley), run on Apple M4 Max with the Metal backend.
+
+<!-- BEGIN BUNDLE INDEX (auto: index_references.py) -->
+
+## Skill Bundle Index
+
+*Every file in this skill, and when to open it. Auto-generated; run `scripts/index_references.py --fix`.*
+
+**`references/`**
+- [`references/cost-ledger.md`](references/cost-ledger.md) — Cost ledger: Rung 1 (Vello/Parley) vs Rung 3 (pure objc2-metal) — Side-by-side of what you actually write, maintain, and measure.
+- [`references/objc2-metal-skeleton.md`](references/objc2-metal-skeleton.md) — Rung-3 skeleton: what you own with pure objc2-metal — This is the pipeline you'd hand-write if you dropped below wgpu/Vello.
+
+<!-- END BUNDLE INDEX -->

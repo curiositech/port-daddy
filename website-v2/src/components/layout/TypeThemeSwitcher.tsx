@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Type-theme switcher — a small toggle for the site's type system.
+ * Type-theme switcher — a feel-out tool for the site's type system.
  *
- * Normalized to two systems, both self-hosted (no external font requests):
- *   - Fraunces (default, no attribute) — editorial serif display + Source Sans 3
- *     body + JetBrains Mono, loaded globally in index.html.
- *   - Recursive (opt-in) — one variable font, sans-to-mono on a single axis,
- *     self-hosted in tokens.source.css.
+ * The default (no attribute on <html>) is Recursive, self-hosted in
+ * tokens.source.css — one variable file covering display, body, and mono.
+ * Each alternate swaps the three font-role variables via the matching
+ * html[data-type-theme="..."] block in tokens.source.css; this component
+ * sets the attribute, lazily injects the alternate's webfont stylesheet the
+ * first time it is picked, and persists the choice in localStorage.
  *
- * The earlier grab-bag (Radnika, General Sans, Geist+Inter, IBM Plex, Archivo)
- * was removed: those either had no CSS block or pulled external webfonts, which
- * is exactly the font sprawl this toggle should not create.
+ * The roster is curated, not a grab-bag, and it skips the AI-design defaults
+ * (Inter, Geist, Fraunces, the Fontshare/ITF starter pack). Every alternate
+ * is SIL OFL: Recursive and Radnika are self-hosted; the rest load from
+ * Google Fonts on demand. Once a winner is chosen, drop this component, its
+ * theme blocks, and subset/self-host the winner.
  */
 
 interface TypeTheme {
@@ -21,18 +24,70 @@ interface TypeTheme {
   links: string[]
 }
 
+const GF = 'https://fonts.googleapis.com/css2'
+
 const THEMES: TypeTheme[] = [
   {
     id: null,
-    label: 'Fraunces',
-    detail: 'the default — editorial serif over Source Sans 3',
+    label: 'Recursive',
+    detail: 'self-hosted default — one variable file, sans through mono',
     links: [],
   },
   {
-    id: 'recursive',
-    label: 'Recursive',
-    detail: 'one variable font, sans-to-mono on a single axis',
-    links: [],
+    id: 'plex',
+    label: 'IBM Plex',
+    detail: 'libre superfamily: serif body, sans display, Plex mono',
+    links: [
+      `${GF}?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap`,
+    ],
+  },
+  {
+    id: 'hanken',
+    label: 'Hanken Grotesk',
+    detail: 'warm humanist UI sans — what to use instead of Inter',
+    links: [
+      `${GF}?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500&display=swap`,
+    ],
+  },
+  {
+    id: 'schibsted',
+    label: 'Schibsted Grotesk',
+    detail: 'Scandinavian grotesque with grit, in place of General Sans',
+    links: [
+      `${GF}?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap`,
+    ],
+  },
+  {
+    id: 'newsreader',
+    label: 'Newsreader',
+    detail: 'editorial serif over Source Sans 3 — the un-Fraunces',
+    links: [
+      `${GF}?family=Newsreader:opsz,ital,wght@6..72,0,400..700;6..72,1,400&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap`,
+    ],
+  },
+  {
+    id: 'bricolage',
+    label: 'Bricolage Grotesque',
+    detail: 'expressive display with a real opsz axis, over Hanken',
+    links: [
+      `${GF}?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&family=Martian+Mono:wght@400;500&display=swap`,
+    ],
+  },
+  {
+    id: 'archivo',
+    label: 'Archivo',
+    detail: 'poster grotesque over a Source Serif 4 body',
+    links: [
+      `${GF}?family=Archivo:wght@500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap`,
+    ],
+  },
+  {
+    id: 'radnika',
+    label: 'Radnika',
+    detail: 'the previous house sans, kept for comparison',
+    links: [
+      `${GF}?family=IBM+Plex+Mono:wght@400;500&display=swap`,
+    ],
   },
 ]
 

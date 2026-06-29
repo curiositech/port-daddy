@@ -58,6 +58,79 @@ Plenty. The CLI is the **agent's** native surface and it should stay rich:
 
 These do not move. They are not what this post is about. This post is about the soft middle — the routine operator action that should be a button and currently is a man-page.
 
+## The action matrix
+
+![FleetBar and daemon install artwork showing a local menu-bar control surface connected to project folders and a daemon spine.](/img/generated/fleetbar-install.webp)
+
+The rule is easier to enforce when the product owns a table instead of a
+lecture. Every routine operation should be classed before it ships:
+
+```text
+operator wants to...        surface                 agent fallback
+configure Cloudflare        FleetBar Credentials    pd feedback drop if missing
+restart daemon              FleetBar Health         agent runs supervisor command
+inspect failing backend     Dashboard Readiness     pd status / pd briefing
+claim crash recovery        Dashboard Salvage       pd salvage claim
+ack coordination conflict   Dashboard Attention     pd attention / pd note
+```
+
+That table is intentionally asymmetric. The human path is the product path. The
+agent path is the maintenance path. If only the right column exists, the feature
+is not done; it is exposed through an emergency hatch.
+
+The feedback object should carry the same distinction so Cartographer can sort
+product bugs from ordinary enhancement requests:
+
+```json
+{
+  "surface": "FleetBar",
+  "severity": "high",
+  "operatorAction": "configure provider credentials",
+  "missingControl": "Credentials panel with provider deep links",
+  "temporaryAgentFallback": "agent imports existing env values and writes Keychain item"
+}
+```
+
+That is not process decoration. It changes how review works. A PR that adds a
+new backend can pass all CLI tests and still fail the operator contract if the
+backend has no visible credential state, no provider-specific link, and no
+explanation of why a launch is blocked.
+
+## The readiness surface
+
+![Swiss-modern backend-readiness matrix showing credentials, package, CLI login, model catalog, and telemetry gates before launch.](/img/generated/blog-backend-readiness.webp)
+
+The simplest version of the panel is not complicated. It is a read model over
+facts agents already know how to collect:
+
+```ts
+type BackendReadiness = {
+  provider: 'cloudflare' | 'anthropic' | 'openai' | 'ollama'
+  credential: 'missing' | 'present' | 'expired' | 'wrong-scope'
+  packageInstalled: boolean
+  cliLoggedIn: boolean
+  modelCatalogReachable: boolean
+  launchAllowed: boolean
+}
+```
+
+The operator should see that as a row, not as a transcript. If `credential` is
+`wrong-scope`, the row needs a button to open the exact provider page and a short
+sentence that names the scope. If `modelCatalogReachable` is false, the row
+needs to say whether the daemon is offline, the provider is down, or the local
+network is blocking the call. The agent can still run the diagnosis through the
+CLI. The operator should not have to.
+
+The tuple shape is equally small:
+
+```bash
+pd tuple set backend:cloudflare readiness \
+  '{"credential":"wrong-scope","launchAllowed":false,"checkedAt":"2026-05-17T21:10:00Z"}'
+```
+
+The GUI reads that tuple. The agent writes it. The operator gets a button. That
+is the architecture this post is trying to force into muscle memory.
+
 ## Coda
 
 Port Daddy started as a port manager. It became a coordination substrate. It is [becoming a control plane](/blog/control-plane-is-the-product). Each of those transitions is a step away from "the operator has a terminal" and a step toward "the operator has a thing they look at, and a few buttons they press, and the agents do the rest."

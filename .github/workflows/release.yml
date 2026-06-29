@@ -359,6 +359,13 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  # Roll the brew tap ONLY for a real, non-prerelease published Release. A
+  # prerelease (vX.Y.Z-rc.N) builds + signs binaries but must NEVER roll the tap —
+  # candidates are opt-in (RELEASING.md §2). A workflow_dispatch re-run also skips
+  # this (it's for re-building a failed release, not re-rolling the tap); dispatch
+  # the tap by hand via RELEASING.md §1 step J if a real release needs a re-roll.
+  # Previously this fired for ANY release event incl. prereleases — an RC would have
+  # shipped to every `brew upgrade` user.
   update-homebrew:
     runs-on: ubuntu-latest
     # FleetBar is now ESSENTIAL (operator directive 2026-06-18): a release ships
@@ -369,7 +376,7 @@ jobs:
     # FIXED rather than bypassed. publish-npm stays non-gating (it's a separate
     # distribution channel, not part of the daemon+GUI bundle).
     needs: [build-binaries, build-fleetbar-preview]
-    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    if: always() && needs.build-binaries.result == 'success' && needs.build-fleetbar-preview.result == 'success' && github.event_name == 'release' && github.event.release.prerelease == false
     steps:
       - name: Set release version
         id: release

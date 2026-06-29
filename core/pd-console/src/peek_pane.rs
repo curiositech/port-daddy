@@ -1,6 +1,6 @@
-//! Peek pane — context snapshot: active git branch, recent commits, dirty files.
+//! Peek pane — active console/session context from the daemon.
 //!
-//! Calls `GET /peek` on the daemon (returns worktree + git context for active session).
+//! Calls `GET /sugar/whoami` on the daemon.
 
 use crate::agent::DaemonClient;
 use crate::pane::{Block, Pane, Tone};
@@ -10,17 +10,17 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 struct PeekResponse {
     #[serde(default)]
-    branch: String,
+    active: bool,
+    #[serde(default, rename = "agentId")]
+    agent_id: Option<String>,
+    #[serde(default, rename = "sessionId")]
+    session_id: Option<String>,
     #[serde(default)]
-    worktree: Option<String>,
+    identity: Option<String>,
     #[serde(default)]
-    dirty_files: u32,
+    purpose: Option<String>,
     #[serde(default)]
-    ahead: u32,
-    #[serde(default)]
-    behind: u32,
-    #[serde(default)]
-    recent_commits: Vec<String>,
+    hint: Option<String>,
 }
 
 pub struct PeekPane {
@@ -29,22 +29,36 @@ pub struct PeekPane {
 }
 
 impl Default for PeekPane {
-    fn default() -> Self { Self { data: None, last_error: None } }
+    fn default() -> Self {
+        Self {
+            data: None,
+            last_error: None,
+        }
+    }
 }
 
 impl PeekPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for PeekPane {
-    fn id(&self) -> &str { "peek" }
-    fn title(&self) -> String { "Peek".into() }
+    fn id(&self) -> &str {
+        "peek"
+    }
+    fn title(&self) -> String {
+        "Peek".into()
+    }
 
     fn view(&self) -> Vec<Block> {
-        let mut blocks = vec![Block::Header("Peek — Git Context".into())];
+        let mut blocks = vec![Block::Header("Peek — Active Session".into())];
 
         if let Some(err) = &self.last_error {
-            blocks.push(Block::KeyVal("note".into(), "GET /peek not yet available".into()));
+            blocks.push(Block::KeyVal(
+                "note".into(),
+                "GET /sugar/whoami failed".into(),
+            ));
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return blocks;
         }
@@ -54,29 +68,35 @@ impl Pane for PeekPane {
             return blocks;
         };
 
-        blocks.push(Block::KeyVal("branch".into(), d.branch.clone()));
-        if let Some(wt) = &d.worktree {
-            blocks.push(Block::KeyVal("worktree".into(), wt.clone()));
+        blocks.push(Block::KeyVal("active".into(), d.active.to_string()));
+        if let Some(session_id) = &d.session_id {
+            blocks.push(Block::KeyVal("session".into(), session_id.clone()));
         }
-        blocks.push(Block::KeyVal("dirty files".into(), d.dirty_files.to_string()));
-        if d.ahead > 0 || d.behind > 0 {
-            blocks.push(Block::KeyVal("ahead".into(), d.ahead.to_string()));
-            blocks.push(Block::KeyVal("behind".into(), d.behind.to_string()));
+        if let Some(agent_id) = &d.agent_id {
+            blocks.push(Block::KeyVal("agent".into(), agent_id.clone()));
         }
-
-        if !d.recent_commits.is_empty() {
-            blocks.push(Block::Gap);
-            blocks.push(Block::Header("Recent Commits".into()));
-            for c in d.recent_commits.iter().take(5) {
-                let trunc = if c.len() > 72 { format!("{}…", &c[..72]) } else { c.clone() };
-                blocks.push(Block::KeyVal("·".into(), trunc));
-            }
+        if let Some(identity) = &d.identity {
+            blocks.push(Block::KeyVal("identity".into(), identity.clone()));
+        }
+        if let Some(purpose) = &d.purpose {
+            blocks.push(Block::KeyVal("purpose".into(), purpose.clone()));
+        }
+        if let Some(hint) = &d.hint {
+            blocks.push(Block::KeyVal("hint".into(), hint.clone()));
         }
 
-        let tone = if d.dirty_files > 0 { Tone::Engaged } else { Tone::Landed };
+        let tone = if d.active {
+            Tone::Landed
+        } else {
+            Tone::Resting
+        };
         blocks.push(Block::Gap);
         blocks.push(Block::Chip {
-            label: format!("{} dirty  ↑{}  ↓{}", d.dirty_files, d.ahead, d.behind),
+            label: if d.active {
+                "active".into()
+            } else {
+                "no active session".into()
+            },
             tone,
         });
         blocks
@@ -87,7 +107,7 @@ impl Pane for PeekPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            let url = format!("{}/peek", daemon.base());
+            let url = format!("{}/sugar/whoami", daemon.base());
             match daemon.http_client().get(&url).send().await {
                 Err(e) => {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
@@ -97,15 +117,13 @@ impl Pane for PeekPane {
                     self.last_error = Some(format!("HTTP {}", resp.status()));
                     self.data = None;
                 }
-                Ok(resp) => {
-                    match resp.json::<PeekResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.data = Some(data);
-                        }
+                Ok(resp) => match resp.json::<PeekResponse>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.data = Some(data);
                     }
-                }
+                },
             }
             Ok(())
         })
@@ -128,6 +146,8 @@ mod tests {
         let mut p = PeekPane::default();
         p.last_error = Some("404 Not Found".into());
         let b = p.view();
-        assert!(b.iter().any(|blk| matches!(blk, Block::KeyVal(k, _) if k == "note")));
+        assert!(b
+            .iter()
+            .any(|blk| matches!(blk, Block::KeyVal(k, _) if k == "note")));
     }
 }

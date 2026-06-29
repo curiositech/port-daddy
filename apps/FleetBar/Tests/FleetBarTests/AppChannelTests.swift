@@ -48,4 +48,21 @@ final class AppChannelTests: XCTestCase {
         XCTAssertNil(AppChannel.parenthetical(in: "FleetBar"))
         XCTAssertNil(AppChannel.parenthetical(in: "FleetBar ()"))
     }
+
+    // MARK: - Per-channel chrome (visibly-different FleetBars) + dev-latest lane
+
+    func testIsDevLatestMatchesBothPunctuations() {
+        XCTAssertTrue(AppChannel.dev(label: "dev-latest").isDevLatest)
+        XCTAssertTrue(AppChannel.dev(label: "devlatest").isDevLatest)
+        XCTAssertTrue(AppChannel.dev(label: "DEV-LATEST").isDevLatest)
+        XCTAssertFalse(AppChannel.dev(label: "my-feature").isDevLatest)
+        XCTAssertFalse(AppChannel.production.isDevLatest)
+    }
+
+    func testAccentColorHexIsNilForProductionAndSetForDev() {
+        XCTAssertNil(AppChannel.production.accentColorHex)
+        // dev-latest is blue, a named dev build is purple — distinct in the menu bar.
+        XCTAssertEqual(AppChannel.dev(label: "dev-latest").accentColorHex, "#3B82F6")
+        XCTAssertEqual(AppChannel.dev(label: "my-feature").accentColorHex, "#A855F7")
+    }
 }

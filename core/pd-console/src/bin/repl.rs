@@ -16,11 +16,28 @@
 #[path = "../activity_pane.rs"]  mod activity_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
+// Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
+// here (the headless repl is the test gate; the GPUI bin can't be `--test`-built).
+#[allow(dead_code)]
+#[path = "../audio.rs"]          mod audio;
+#[path = "../berths.rs"]         mod berths; // named daemon picker data (ADR-0084)
+#[allow(dead_code)]
+#[path = "../buffer.rs"]         mod buffer;
+#[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
+// cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.
+#[path = "../cloud_fleet_pane.rs"] mod cloud_fleet_pane;
 #[path = "../cockpit_pane.rs"]   mod cockpit_pane;
+#[allow(dead_code)]
+#[path = "../conjure.rs"]        mod conjure;
 #[path = "../dispatch_pane.rs"]  mod dispatch_pane;
-// fleet_pane and maritime are excluded — they pull in GPUI derive macros
-// (#[derive(IntoElement)]) which overflow the rustc stack in this non-GPUI binary.
+#[allow(dead_code)]
+#[path = "../editor_pane.rs"]    mod editor_pane;
+// maritime's gpui FlagBadge is now #[cfg(feature = "gpui")]-gated, so the pure
+// Flag/flag_for_state compile here and the fleet pane renders in the REPL too.
+#[path = "../fleet_pane.rs"]     mod fleet_pane;
+#[path = "../grid.rs"]           mod grid; // launcher-grid data + 1:1 invariant tests
+#[path = "../maritime.rs"]       mod maritime;
 #[path = "../health_pane.rs"]    mod health_pane;
 #[path = "../inbox_pane.rs"]     mod inbox_pane;
 #[path = "../lane_pane.rs"]      mod lane_pane;
@@ -30,6 +47,7 @@
 #[path = "../notes_pane.rs"]     mod notes_pane;
 #[path = "../pane.rs"]           mod pane;
 #[path = "../peek_pane.rs"]      mod peek_pane;
+#[path = "../planner_pane.rs"]   mod planner_pane;
 #[path = "../prs_pane.rs"]       mod prs_pane;
 #[path = "../roadmap_pane.rs"]   mod roadmap_pane;
 #[path = "../sessions_pane.rs"]  mod sessions_pane;
@@ -43,6 +61,7 @@
 use agent::{AgentManager, Backend};
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
+use fleet_pane::FleetPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
 use pane::PaneRegistry;
@@ -94,6 +113,7 @@ async fn main() -> Result<()> {
     // Build the pane registry — register all panes once at startup.
     let mut reg = PaneRegistry::default();
     reg.register(Box::new(DispatchQueuePane::new()));
+    reg.register(Box::new(FleetPane::new()));
     reg.register(Box::new(LanePane::new()));
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
@@ -170,6 +190,16 @@ async fn main() -> Result<()> {
         } else if line == ":parley" {
             // RCP-2a convene decision over the channel's unresolved contradictions.
             reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":fleet" {
+            // Declarative ships from pd-fleet.yml with live lifecycle (GET /fleet):
+            // sailing / cooldown / dry-dock / paused / armed, each an ICS flag.
+            reg.active = reg.panes.iter().position(|p| p.id() == "fleet").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }

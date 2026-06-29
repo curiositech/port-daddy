@@ -74,6 +74,8 @@ const SENSITIVE_KEYS: readonly string[] = Object.freeze([
   'CF_API_TOKEN',
   'NGROK_AUTHTOKEN',
   'VOYAGE_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'XAI_API_KEY',
 ]);
 
 /** Sealed in-module cache. The only way in is snapshotSensitiveEnv(). */

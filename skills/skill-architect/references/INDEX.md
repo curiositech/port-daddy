@@ -4,6 +4,8 @@ Load only the file that matches the blocking question. Do not read the entire re
 
 | File | Topic | Lines | When to load |
 |---|---|---:|---|
+| `references/guide.md` | Concise authoring contract (legacy wrapper copies) | 9 | Use when a legacy wrapper copy of `skill-architect` needs the minimal authoring contract. |
+| `references/strategies.md` | Lightest-strategy decision table | 18 | Use when picking the smallest structural change that materially improves execution quality. |
 | `references/activation-debugging.md` | Activation failure diagnosis | 189 | Use when a skill undertriggers, overtriggers, or collides with nearby skills. |
 | `references/advanced-structure-and-sync.md` | Interface metadata, subagents, schemas, review artifacts, sync | 180 | Use when adding `agents/openai.yaml`, subagent prompts, schemas, visual boards, eval fixtures, HTML reports, or Port Daddy/workgroup sync. |
 | `references/antipatterns.md` | Skill anti-pattern catalog | 570 | Use when auditing weak skills or naming failure modes and shibboleths. |

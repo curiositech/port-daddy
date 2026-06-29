@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-02T02:11:05.992Z",
+  "generatedAt": "2026-06-29T03:58:43.181Z",
   "generator": "website-v2/scripts/generate-og-cards.mjs",
   "renderer": "website-v2/scripts/render-og-cards.py",
   "siteName": "Port Daddy",
@@ -28,55 +28,64 @@
       "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
     },
     {
+      "image": "/img/og/blog-attention-is-the-first-command.jpg",
+      "route": "/blog/attention-is-the-first-command",
+      "title": "Attention Is The First Command - Port Daddy",
+      "description": "Port Daddy has had a perfectly good mailbox for about a year. Inboxes, channels, tuples, a coordination-inconsistency stream where the fleet airs its complaints. Nobody was checking the mail. Each agent turn is a fresh process; nothing inside the turn polls. This is the verb that fixes it, the convention that makes the verb stick, the JSON schema that lets any harness adopt it — and the deliberate reason this is not an MCP tool.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/attention-first-command/hero.webp"
+    },
+    {
       "image": "/img/og/blog-backend-readiness-is-dependency-truth.jpg",
       "route": "/blog/backend-readiness-is-dependency-truth",
       "title": "Backend Readiness Is Dependency Truth - Port Daddy",
-      "description": "A model backend is ready only when credentials, packages, CLI auth, model catalog, and telemetry policy all agree.",
+      "description": "\"Ready\" is not one bit; it is five, and they all have to line up. The credential exists. The package is installed. The CLI is logged in. The model is on the catalog. Telemetry will write a real number when the run finishes. Miss one, and the launch becomes a story you tell about why the bill arrived.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-backend-readiness.jpg"
+      "sourceImage": "/img/generated/blog-backend-readiness.webp"
     },
     {
       "image": "/img/og/blog-bond-pricing-is-a-market.jpg",
       "route": "/blog/bond-pricing-is-a-market",
       "title": "Bond Pricing Is a Market, Not a Constant - Port Daddy",
-      "description": "Daily budgets are training wheels. The v2 of the Bonded Commons paper points at the destination: cleanup-cost lower bounds, scope multipliers, the Bonded Advisor pattern, and Thomas Youle's competitive-insurance market.",
+      "description": "Daily budgets are training wheels. They keep an agent from setting itself on fire, but they do not price what the fire would cost. The v2 paper points at the destination: cleanup as a lower bound, scope as a multiplier, reputation as a discount, and Thomas Youle's insurer-bidding market on top.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-control-plane-product.jpg"
+      "sourceImage": "/img/generated/bond-pricing/bond-pricing-hero.webp"
     },
     {
       "image": "/img/og/blog-control-plane-is-the-product.jpg",
       "route": "/blog/control-plane-is-the-product",
       "title": "The Control Plane Is the Product - Port Daddy",
-      "description": "A local agent system is only trustworthy when project identity, file ownership, runtime provenance, backend readiness, cost, and recovery share one inspectable control plane.",
+      "description": "The agents do beautiful work and then quietly clobber each other's files, spend money on the wrong API key, and answer to a daemon that has been serving stale code for three days. The fix is not more agents; it is one inspectable surface where identity, ownership, runtime, backend, cost, and recovery all agree before anyone presses go.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-control-plane-product.jpg"
+      "sourceImage": "/img/generated/control-plane-hero.webp"
     },
     {
       "image": "/img/og/blog-coordination-guard-claims-into-policy.jpg",
       "route": "/blog/coordination-guard-claims-into-policy",
-      "title": "Coordination Guard Turns Claims Into Policy - Port Daddy",
-      "description": "Notes and file claims are useful as shared facts. Coordination Guard makes them matter at commit time.",
+      "title": "Why Coordination Guard Exists - Port Daddy",
+      "description": "Coordination Guard was not born from a clean theory of Git as policy. It was born because four agents - politely, professionally, with great commit messages - kept staging, resetting, and cherry-picking through each other's claims, and the Saturday I lost untangling that mess was the Saturday I stopped trusting honor systems.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-coordination-guard-policy.jpg"
+      "sourceImage": "/img/generated/coordination-guard.webp"
     },
     {
       "image": "/img/og/blog-evidence-that-survives-machines.jpg",
       "route": "/blog/evidence-that-survives-machines",
       "title": "Evidence That Survives Multiple Machines - Port Daddy",
-      "description": "A note that only your laptop can verify is half a record. The v2 Merkle forest, the KMS witness, and the new mutable-signal ledger turn evidence into something a CI pipeline or a teammate can verify in 700 bytes.",
+      "description": "A note only your laptop can verify is half a record - and \"trust me, it was on the other machine\" is the worst sentence in incident response. The v2 Merkle forest, the KMS witness, and the mutable-signal ledger let a teammate or a CI runner verify the same evidence in 700 bytes, without your laptop in the room.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-map-truth.jpg"
+      "sourceImage": "/img/generated/agent-runtime-map.webp"
     },
     {
       "image": "/img/og/blog-fleet-designer-cold-start.jpg",
       "route": "/blog/fleet-designer-cold-start",
       "title": "Cold Start Without Surprise Launches - Port Daddy",
-      "description": "A good first-run flow should inspect the repo, expose missing credentials, simulate the fleet, and keep the human in control before any agent starts spending money.",
+      "description": "The first time you run a fleet should not also be the first time it tells you a credential is missing, the daemon is on the wrong checkout, or the planned spend is roughly your rent. Cold start is supposed to read the repo, list what is missing, simulate the run, and let the human decide whether the bill is worth it.",
       "section": "blog",
       "sectionLabel": "Field Note",
       "sourceImage": "/img/generated/blog-fleet-designer-cold-start.jpg"
@@ -85,64 +94,109 @@
       "image": "/img/og/blog-passkey-identity-across-machines.jpg",
       "route": "/blog/passkey-identity-across-machines",
       "title": "Passkey Identity Across Machines - Port Daddy",
-      "description": "Single-node scope was a true description that stopped being true. The Federated Sovereign replaces it with passkey-first identity, an abstract KMS, mobile-as-viewer, and an honest recovery story.",
+      "description": "Single-node was the right answer for one laptop and exactly one human. Then the laptops multiplied, the phone showed up, and the recovery story collapsed into prayer. The Federated Sovereign is what replaces it: passkeys at the front, an abstract KMS in the middle, mobile-as-viewer at the edge, and a recovery flow you can actually run on a Tuesday.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-daemon-provenance.jpg"
+      "sourceImage": "/img/generated/harbors-signed-access.webp"
     },
     {
       "image": "/img/og/blog-pd-tube-event-reply-loop.jpg",
       "route": "/blog/pd-tube-event-reply-loop",
       "title": "PD Tube Turns UI Events Into Agent Work - Port Daddy",
-      "description": "PD Tube is the small event-reply loop underneath button-to-agent examples, test reporters, editor lightbulbs, and webhook adapters.",
+      "description": "PD Tube is a phone line. The browser button, the failing test, the editor lightbulb, the inbound webhook - they all dial the same number, and the agent already sitting in your repo picks up. No SDK, no MCP server, no hosted callback. Just a local socket and a threaded reply.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-pd-tube-event-reply.jpg"
+      "sourceImage": "/img/generated/example-pd-tube-button-to-agent.webp"
+    },
+    {
+      "image": "/img/og/blog-pd-tube-multi-subscriber.jpg",
+      "route": "/blog/pd-tube-multi-subscriber",
+      "title": "One Send, Every Listener: pd tube Goes Multi-Subscriber - Port Daddy",
+      "description": "I built a two-pane demo of pd tube — a human and a live agent talking over one channel. It worked. Then I added a third listener and the bug fell out of the sky: whichever terminal polled first swallowed the message and the rest saw an empty channel. A 'broadcast' channel was quietly behaving like a vending machine. Here's the shared-cursor race that caused it, the per-listener-cursor fix that turned it into real fan-out, and the regression test that documents the old bug on purpose. Shipped in v3.16.2.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/tube-multiplex/hero.webp"
     },
     {
       "image": "/img/og/blog-recovery-roadmap-map-truth.jpg",
       "route": "/blog/recovery-roadmap-map-truth",
       "title": "Keeping the Map Honest - Port Daddy",
-      "description": "Roadmaps, recovery docs, session notes, and live daemon state drift unless one surface reconciles them into an operator-readable map.",
+      "description": "The roadmap says one thing, the recovery doc says another, the session notes say a third, and the live daemon is somehow doing a fourth. The fix is not more documents. It is one surface that reconciles all four into a map an operator can read in twenty seconds.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-map-truth.jpg"
+      "sourceImage": "/img/generated/salvage-ledger.webp"
     },
     {
       "image": "/img/og/blog-red-and-white-stay-in-their-lanes.jpg",
       "route": "/blog/red-and-white-stay-in-their-lanes",
       "title": "Red and White Stay In Their Lanes - Port Daddy",
-      "description": "Adversarial review of the Bonded Commons + Anchor Protocol whitepapers now runs as a monthly versioned round, with a ProVerif-proved isolation property between red-team and white-hat fleets. This post explains the crypto, the gates, and what an operator should expect to see.",
+      "description": "Two AI fleets argue about my whitepaper every month, and they are not allowed to talk to each other. One tries to break the paper; one tries to defend it. Here is the crypto that keeps them in their lanes, the three gates each round has to clear, and what shows up on the operator screen when somebody cheats.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-map-truth.jpg"
+      "sourceImage": "/img/generated/virtual-actor-fleet.webp"
     },
     {
       "image": "/img/og/blog-running-is-not-current.jpg",
       "route": "/blog/running-is-not-current",
       "title": "Running Is Not the Same as Current - Port Daddy",
-      "description": "A daemon can be alive, reachable, and still serving the wrong checkout. Runtime provenance has to be visible before you trust UI or CLI behavior.",
+      "description": "A daemon can be alive, reachable, answering on the right port, and still serving the version of itself you wrote three weeks ago. \"Running\" is a heartbeat. \"Current\" is a different question. Runtime provenance is what makes the second one answerable before you trust anything the UI or the CLI says.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/blog-daemon-provenance.jpg"
+      "sourceImage": "/img/generated/blog-daemon-provenance.webp"
     },
     {
       "image": "/img/og/blog-telemetry-is-a-launch-gate.jpg",
       "route": "/blog/telemetry-is-a-launch-gate",
       "title": "Telemetry Is a Launch Gate - Port Daddy",
-      "description": "Operator-facing launches should not succeed unless the backend can prove exact tokens, exact rates, and persisted nonzero cost.",
+      "description": "A launch button that does not know what the run will cost is a slot machine in a nice typeface. The fix is unromantic: refuse to launch unless the backend can name the exact tokens, the exact rates, and the exact nonzero cost it has already written down.",
       "section": "blog",
       "sectionLabel": "Field Note",
       "sourceImage": "/img/generated/blog-telemetry-launch-gate.jpg"
     },
     {
-      "image": "/img/og/blog.jpg",
-      "route": "/blog",
-      "title": "Blog - Port Daddy",
-      "description": "Read current Port Daddy field notes about FleetBar, Fleet Control Center, launch readiness, recovery maps, PD Tube, daemon provenance, and coordination policy.",
+      "image": "/img/og/blog-the-cli-is-for-the-robots.jpg",
+      "route": "/blog/the-cli-is-for-the-robots",
+      "title": "The CLI Is For The Robots - Port Daddy",
+      "description": "I edited an .env.local file today. Wrong one. Three directories away from the one the daemon actually reads. The fleet sat there 401'ing for an hour while I edited the wrong file and felt productive. That is a product failure, not a user error. The operator does not run `pd` commands; the operator gets buttons. Here is the rule, the two feedback drops that came out of the incident, and what stays in the CLI.",
       "section": "blog",
       "sectionLabel": "Field Note",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
+      "sourceImage": "/img/generated/fleetbar-install.webp"
+    },
+    {
+      "image": "/img/og/blog-the-macaroon-gate.jpg",
+      "route": "/blog/the-macaroon-gate",
+      "title": "Your Coding Agent Has Your Push Token - Port Daddy",
+      "description": "You hand an agent your repo and it has the real push token — nothing structural stops it pinning main at 3am. A stern wrapper does not help; if the agent holds the capability, the restraint is advice. The fix is a macaroon: a credential the agent can narrow but never widen, whose push is gated on a daemon-issued discharge that only exists while coordination rent is paid. And we did not assert it was sound — ProVerif checked it, found the attack the request-binding stops, and proved the gate holds against an active attacker.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/macaroon-gate/hero.png"
+    },
+    {
+      "image": "/img/og/blog-the-pr-that-reviews-itself.jpg",
+      "route": "/blog/the-pr-that-reviews-itself",
+      "title": "The PR That Reviews Itself - Port Daddy",
+      "description": "You push at eleven at night. The CI gear-wheel is the only critic in the room. What if every PR you opened arrived with the adversarial review you would have asked for — six paid critics on the same git push you were already doing? The GitHub fleet, the bug it caught (14 green tests against a count that was structurally always 0), and what stays in your hands.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/pr-reviews-itself/hero.webp"
+    },
+    {
+      "image": "/img/og/blog-your-ai-subscription-powers-the-fleet.jpg",
+      "route": "/blog/your-ai-subscription-powers-the-fleet",
+      "title": "Your AI Subscription Already Powers A Fleet - Port Daddy",
+      "description": "I'm in Claude Code or Codex about ten hours a day. The subscription isn't idle — but a person can only hold one cursor at a time, and the other streams (worktrees, midnight agents, post-commit hooks) are free to share the same hourly budget. The killer experience isn't 'saves money.' It's waking up to a feature that wasn't there last night. Here's the math, the rate-limit contention honesty, and where `pd nightshift` is going.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-ai-subscription-fleet-hero.jpg"
+    },
+    {
+      "image": "/img/og/blog.jpg",
+      "route": "/blog",
+      "title": "Harbor Blog - Port Daddy",
+      "description": "Short, honest write-ups from running a fleet of agents: what broke, what we fixed, and what the daemon has to keep true. Shared state, file ownership, launch checks, PD Tube, recovery trails, and daemon provenance.",
+      "section": "blog",
+      "sectionLabel": "Field Note",
+      "sourceImage": "/img/generated/blog-og.jpg"
     },
     {
       "image": "/img/og/docs-api.jpg",
@@ -157,7 +211,7 @@
       "image": "/img/og/docs-best-practices.jpg",
       "route": "/docs/best-practices",
       "title": "Best Practices - Port Daddy",
-      "description": "Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes safely.",
+      "description": "Keep agent work visible, avoid collisions, recover interrupted runs, and promote changes with evidence.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -350,6 +404,15 @@
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/coordination-guard.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-cockpit-missions.jpg",
+      "route": "/docs/cli/cockpit-missions",
+      "title": "pd cockpit missions - Port Daddy",
+      "description": "Reference for pd cockpit missions, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
       "image": "/img/og/docs-cli-compass.jpg",
@@ -1000,10 +1063,37 @@
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/docs-cli-shipwright-survey.jpg",
+      "route": "/docs/cli/shipwright-survey",
+      "title": "pd shipwright survey - Port Daddy",
+      "description": "Reference for pd shipwright survey, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/docs-cli-sitrep.jpg",
       "route": "/docs/cli/sitrep",
       "title": "pd sitrep - Port Daddy",
       "description": "Reference for pd sitrep, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-snapshot.jpg",
+      "route": "/docs/cli/snapshot",
+      "title": "pd snapshot - Port Daddy",
+      "description": "Reference for pd snapshot, including Port Daddy syntax, what the command does, and when to use it.",
+      "section": "docs",
+      "sectionLabel": "Docs",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/docs-cli-snapshots.jpg",
+      "route": "/docs/cli/snapshots",
+      "title": "pd snapshots <command> - Port Daddy",
+      "description": "Reference for pd snapshots <command>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1103,15 +1193,6 @@
       "route": "/docs/cli/swarm",
       "title": "pd swarm - Port Daddy",
       "description": "Reference for pd swarm, including Port Daddy syntax, what the command does, and when to use it.",
-      "section": "docs",
-      "sectionLabel": "Docs",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
-      "image": "/img/og/docs-cli-tube-chat.jpg",
-      "route": "/docs/cli/tube-chat",
-      "title": "pd tube chat <channel> - Port Daddy",
-      "description": "Reference for pd tube chat <channel>, including Port Daddy syntax, what the command does, and when to use it.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1300,7 +1381,7 @@
       "image": "/img/og/docs-concepts.jpg",
       "route": "/docs/concepts",
       "title": "Concepts - Port Daddy",
-      "description": "Learn the ideas behind sessions, notes, file claims, locks, ports, fleets, and recovery.",
+      "description": "Learn the ideas behind shared state: sessions, notes, file claims, locks, channels, fleets, readiness, and recovery.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1765,15 +1846,6 @@
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
     },
     {
-      "image": "/img/og/docs-old.jpg",
-      "route": "/docs-old",
-      "title": "Legacy Docs - Port Daddy",
-      "description": "Legacy Port Daddy documentation kept available for compatibility while the current docs system is normalized.",
-      "section": "legacy",
-      "sectionLabel": "Archive",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
-    },
-    {
       "image": "/img/og/docs-quickstart.jpg",
       "route": "/docs/quickstart",
       "title": "Quickstart - Port Daddy",
@@ -1786,7 +1858,7 @@
       "image": "/img/og/docs-reference-architectures.jpg",
       "route": "/docs/reference-architectures",
       "title": "Reference Architectures - Port Daddy",
-      "description": "Example layouts for the daemon, dashboard, fleets, harbors, and team workflows.",
+      "description": "Example layouts for the local daemon, Fleet Control Center, fleets, harbors, and agent-team workflows.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -1795,7 +1867,7 @@
       "image": "/img/og/docs-reference.jpg",
       "route": "/docs/reference",
       "title": "Reference - Port Daddy",
-      "description": "CLI, API, SDK, MCP, configuration, and dashboard reference for the live daemon.",
+      "description": "CLI, API, SDK, MCP, configuration, and dashboard reference for the live shared-state daemon.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2056,7 +2128,7 @@
       "image": "/img/og/docs-tutorials.jpg",
       "route": "/docs/tutorials",
       "title": "Tutorials - Port Daddy",
-      "description": "Step-by-step walkthroughs that take you from install to useful agent workflows.",
+      "description": "Step-by-step walkthroughs that take you from install to real shared-state agent workflows.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2065,16 +2137,16 @@
       "image": "/img/og/docs.jpg",
       "route": "/docs",
       "title": "Docs Overview - Port Daddy",
-      "description": "Start here, learn what Port Daddy does, install it, then jump to runnable examples or reference.",
+      "description": "Start here to evaluate Port Daddy as a local control plane for coding agents, then jump to runnable examples or reference.",
       "section": "docs",
       "sectionLabel": "Docs",
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
-      "image": "/img/og/examples-agent-archetypes.jpg",
-      "route": "/examples/agent-archetypes",
-      "title": "Sketch agent archetypes before you launch them - Port Daddy",
-      "description": "Compare star, ring, arbiter, watchdog, and repair topologies before committing a fleet shape to YAML.",
+      "image": "/img/og/examples-agent-topologies.jpg",
+      "route": "/examples/agent-topologies",
+      "title": "Trace how your agents actually talk - Port Daddy",
+      "description": "Run star, ring, and arbiter message patterns over Port Daddy and capture an inspectable trace of who said what to whom.",
       "section": "product",
       "sectionLabel": "Executable Example",
       "sourceImage": "/img/generated/example-agent-archetypes.jpg"
@@ -2082,7 +2154,7 @@
     {
       "image": "/img/og/examples-editor-lightbulb-to-agent.jpg",
       "route": "/examples/editor-lightbulb-to-agent",
-      "title": "Build an editor lightbulb that asks the local agent - Port Daddy",
+      "title": "Send an editor selection to your local agent - Port Daddy",
       "description": "Select code in a local page, publish the file and range to the agent, and render the explanation inline.",
       "section": "product",
       "sectionLabel": "Executable Example",
@@ -2091,7 +2163,7 @@
     {
       "image": "/img/og/examples-ephemeral-ci-db.jpg",
       "route": "/examples/ephemeral-ci-db",
-      "title": "Claim a collision-free port for an ephemeral CI database - Port Daddy",
+      "title": "Claim a throwaway database port for CI - Port Daddy",
       "description": "Give short-lived test databases clean local ports so CI helpers and agents do not collide on the same machine.",
       "section": "product",
       "sectionLabel": "Executable Example",
@@ -2109,7 +2181,7 @@
     {
       "image": "/img/og/examples-p2p-webrtc.jpg",
       "route": "/examples/p2p-webrtc",
-      "title": "Build WebRTC signaling over agent inboxes - Port Daddy",
+      "title": "Carry WebRTC signaling over agent inboxes - Port Daddy",
       "description": "Use durable Port Daddy inbox messages for offer-answer rendezvous before peers switch to a direct local link.",
       "section": "product",
       "sectionLabel": "Executable Example",
@@ -2127,7 +2199,7 @@
     {
       "image": "/img/og/examples-test-failure-to-agent.jpg",
       "route": "/examples/test-failure-to-agent",
-      "title": "Build a test reporter that asks the agent for help - Port Daddy",
+      "title": "Turn a failing test into an agent request - Port Daddy",
       "description": "Wrap a failing test command, publish the failure to the local agent, and print the diagnosis back in the terminal.",
       "section": "product",
       "sectionLabel": "Executable Example",
@@ -2136,7 +2208,7 @@
     {
       "image": "/img/og/examples-webhook-to-local-agent.jpg",
       "route": "/examples/webhook-to-local-agent",
-      "title": "Build a webhook adapter backed by your workstation - Port Daddy",
+      "title": "Route webhooks to an agent on your machine - Port Daddy",
       "description": "Accept Slack, Discord, Linear, or generic webhook JSON and route it to the local agent through PD Tube.",
       "section": "product",
       "sectionLabel": "Executable Example",
@@ -2146,19 +2218,28 @@
       "image": "/img/og/examples.jpg",
       "route": "/examples",
       "title": "Executable Examples - Port Daddy",
-      "description": "Run complete Port Daddy example programs for browser buttons, test reporters, editor commands, and webhook adapters that talk to local agents.",
+      "description": "Run complete Port Daddy example programs showing how browser buttons, test reporters, editor commands, and webhook adapters can hand work to local agents.",
       "section": "product",
       "sectionLabel": "Examples",
       "sourceImage": "/img/generated/example-agent-archetypes.jpg"
     },
     {
+      "image": "/img/og/harness.jpg",
+      "route": "/harness",
+      "title": "The Harness - Port Daddy",
+      "description": "What an AI coding agent gains when it runs inside the Port Daddy Harness: it hears the fleet, is subscribed by default, sees the swarm before it edits, gets CI verdicts back, is invited to parley, pays rent, is steered to fresh worktrees, and has destructive commands vetoed with the safe alternative named. Claude is fully wired; Gemini and Codex hook surfaces are mapped.",
+      "section": "product",
+      "sectionLabel": "Product",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
       "image": "/img/og/home.jpg",
       "route": "/",
-      "title": "Port Daddy - Local Coordination for AI Coding Agents",
-      "description": "Port Daddy is a local app and background service that helps AI coding agents share notes, claim work, avoid collisions, recover interrupted runs, and show what is happening on your machine.",
+      "title": "Port Daddy - Local Control Plane for AI Coding Agents",
+      "description": "Port Daddy is a local control plane and shared-state substrate for AI coding agents: sessions, claims, notes, channels, readiness, budgets, and recoverable handoffs on your machine.",
       "section": "home",
       "sectionLabel": "Local Control Plane",
-      "sourceImage": "/img/generated/control-plane-og.jpg"
+      "sourceImage": "/img/generated/home-og.jpg"
     },
     {
       "image": "/img/og/integrations-aider.jpg",
@@ -2227,19 +2308,37 @@
       "image": "/img/og/integrations.jpg",
       "route": "/integrations",
       "title": "Integrations - Port Daddy",
-      "description": "Wire Port Daddy into Claude, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other developer tooling.",
+      "description": "Wire Port Daddy into Claude, Codex, Cursor, Windsurf, LangChain, CrewAI, Aider, Continue.dev, and other agent-facing developer tooling.",
       "section": "integrations",
       "sectionLabel": "Integration",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
     },
     {
+      "image": "/img/og/library.jpg",
+      "route": "/library",
+      "title": "The Harbor Library - Port Daddy",
+      "description": "The seven-paper Harbor Library, read as one volume: four chapters explain local-first agent coordination, identity, and the harbor economy; three prove it with machine-checked formal verification.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/library-og.jpg"
+    },
+    {
       "image": "/img/og/mac-preview.jpg",
       "route": "/mac-preview",
       "title": "Mac Preview - Port Daddy",
-      "description": "Download the signed FleetBar Mac build and see how the app exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.",
+      "description": "See what the FleetBar Mac preview downloads, how to verify it, how to open it, and how it exposes Fleet Control Center, Shipwright, resources, sorties, backend readiness, and agent communication.",
       "section": "product",
       "sectionLabel": "FleetBar",
       "sourceImage": "/img/generated/fleetbar-install.jpg"
+    },
+    {
+      "image": "/img/og/manifesto.jpg",
+      "route": "/manifesto",
+      "title": "Manifesto - Port Daddy",
+      "description": "Software learned to hire its own help. Why a fleet of agents needs a harbor-master before anything else, how legibility becomes the product, and the seven papers that work it out.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/manifesto-og.jpg"
     },
     {
       "image": "/img/og/mcp.jpg",
@@ -2248,6 +2347,33 @@
       "description": "Use the Port Daddy agent skill and MCP server together: an instruction manual plus callable tools for sessions, claims, scoped channels, inboxes, readiness, salvage, fleets, and handoffs.",
       "section": "product",
       "sectionLabel": "Skill + MCP",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/pd-tube.jpg",
+      "route": "/pd-tube",
+      "title": "PD Tube - Port Daddy",
+      "description": "pd tube turns any local UI, hook, test runner, or webhook into an event your running agent answers in one shell call — and as of v3.16.2 a single channel fans out to many listeners, so distinct --as identities each receive every message.",
+      "section": "product",
+      "sectionLabel": "pd tube",
+      "sourceImage": "/img/generated/agent-runtime-map.jpg"
+    },
+    {
+      "image": "/img/og/security.jpg",
+      "route": "/security",
+      "title": "Cryptography - Port Daddy",
+      "description": "What stops an agent you never authorized from touching your code — and the proofs behind it. Capability attenuation, signed envelopes, collateralized work, and Ostrom-style commons governance, with the Anchor Protocol verified in ProVerif.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/squid-codex.jpg",
+      "route": "/squid-codex",
+      "title": "Squid Codex Bridge - Port Daddy",
+      "description": "Run Claude Code with Codex and your ChatGPT Pro subscription through the Giant Squid local bridge, with Port Daddy hooks, agent skill, MCP tools, budgets, claims, and recovery wrapped around the run.",
+      "section": "product",
+      "sectionLabel": "Giant Squid",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
     },
     {
@@ -2344,7 +2470,7 @@
       "image": "/img/og/tutorials-pd-tube.jpg",
       "route": "/tutorials/pd-tube",
       "title": "Pipe Agent Conversations - Port Daddy",
-      "description": "Use PD Tube to send, read, reply, and resume channel conversations as clean JSON lines for scripts and agents.",
+      "description": "Use PD Tube to send, read, reply, and resume channel conversations as block-once handoffs or JSON lines.",
       "section": "tutorials",
       "sectionLabel": "Tutorial 21",
       "sourceImage": "/img/generated/agent-runtime-map.jpg"
@@ -2443,7 +2569,7 @@
       "image": "/img/og/tutorials.jpg",
       "route": "/tutorials",
       "title": "Tutorials - Port Daddy",
-      "description": "Follow hands-on Port Daddy tutorials from first install through sessions, DNS, tunnels, fleet YAML, messaging, and background agents.",
+      "description": "Follow hands-on Port Daddy tutorials from first install through shared state, sessions, claims, messaging, fleet YAML, launch gates, and recovery.",
       "section": "tutorials",
       "sectionLabel": "Tutorial",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2452,7 +2578,7 @@
       "image": "/img/og/whitepaper-anchor-protocol.jpg",
       "route": "/whitepaper/anchor-protocol",
       "title": "The Anchor Protocol - Port Daddy",
-      "description": "Read the Anchor Protocol paper inline with a guided explanation of scoped identity, delegation, verification, and why it matters for Port Daddy harbors.",
+      "description": "A guided read of the Anchor Protocol paper — what an \"identity for a process\" should even mean, how to mint one out of off-the-shelf cryptography, and why a problem that felt unsolvable in 2010 is now a long weekend's work.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"
@@ -2461,16 +2587,61 @@
       "image": "/img/og/whitepaper-bonded-commons.jpg",
       "route": "/whitepaper/bonded-commons",
       "title": "The Bonded Commons - Port Daddy",
-      "description": "Read the Bonded Commons paper inline with a guided explanation of evidence trails, advisory claims, collateralized work, and the future agent economy Port Daddy can support.",
+      "description": "A guided read of the Bonded Commons paper: why mutual visibility beats locks once you have more than a handful of agents, what kind of refundable \"deposit\" makes that visibility honest instead of theatrical, and how a tiny insurance market beats any single human picking the deposit size by hand.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"
     },
     {
+      "image": "/img/og/whitepaper-federated-harbor.jpg",
+      "route": "/whitepaper/federated-harbor",
+      "title": "The Federated Harbor - Port Daddy",
+      "description": "A guided read of the Federated Harbor paper — why two trustworthy local daemons can still fail jointly, what four small primitives close the gap, and the honest list of open questions the paper does not answer.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-harbor-economy.jpg",
+      "route": "/whitepaper/harbor-economy",
+      "title": "The Harbor Economy - Port Daddy",
+      "description": "A guided read of the market chapter: the three-sided market and its one conserving ledger, the cross-harbor transfer ceremony and federation, and the honest reconciliations — the cohomology of double-spend, the lax functor of conservation, and the Myerson–Satterthwaite tax on any honest market.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-legible-swarm.jpg",
+      "route": "/whitepaper/legible-swarm",
+      "title": "The Legible Swarm - Port Daddy",
+      "description": "A guided read of the volume’s flagship: legibility-with-zoom as the product a solo developer pays for today, the read-poverty bottleneck that decides the next order of magnitude, and an attention queue spined on Signal Detection Theory rather than raw throughput.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-single-writer-kernel.jpg",
+      "route": "/whitepaper/single-writer-kernel",
+      "title": "The Single-Writer Kernel - Port Daddy",
+      "description": "A guided read of the substrate chapter: why a single writer beats consensus on one machine, the kernel’s invariants stated as theorems, and a careful split of durability by fault class — survives a process crash, does not promise to survive a power cut.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/control-plane-og.jpg"
+    },
+    {
+      "image": "/img/og/whitepaper-spawn-to-person.jpg",
+      "route": "/whitepaper/spawn-to-person",
+      "title": "From Spawn to Person - Port Daddy",
+      "description": "A guided read of the bridge chapter: the role-vs-person distinction made load-bearing, why reputation is not a bandit problem, a multi-dimensional reputation scored by neutral conflict-free judges, and the honest naming of cross-operator attestation as the unbuilt keystone.",
+      "section": "whitepaper",
+      "sectionLabel": "Whitepaper",
+      "sourceImage": "/img/generated/virtual-actor-fleet.jpg"
+    },
+    {
       "image": "/img/og/whitepaper.jpg",
       "route": "/whitepaper",
       "title": "Whitepaper - Port Daddy",
-      "description": "Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, locks, sessions, and recoverable work.",
+      "description": "Read the technical whitepaper behind Port Daddy: local-first agent coordination, signed identity, capability boundaries, sessions, and recoverable work.",
       "section": "whitepaper",
       "sectionLabel": "Whitepaper",
       "sourceImage": "/img/generated/control-plane-og.jpg"

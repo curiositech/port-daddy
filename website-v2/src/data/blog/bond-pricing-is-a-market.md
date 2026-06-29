@@ -238,13 +238,13 @@ In order from "doable now" to "still being designed":
 4. **Insurer-agent prototype.** Build the smallest insurer that quotes `(q, c)` against the existing bond ledger. Run it dual-pipe with static-cap budgets for one project before flipping the default.
 5. **Eventually deprecate the daily budget as the primary risk control.** Not until insurance pricing has run long enough to be trusted. Daily budgets stick around as a circuit breaker forever — they are a fine *floor*, just not a fine *price*.
 
-The thing operators have to do today, and that they should not have to do once the market is real, is **set a daily cap by intuition**. Most teams pick a round number and adjust when they hit pain. With `c` and `α` exposed, that intuition becomes calibration against a measured cleanup cost — not a vibe.
+The thing operators have to do today, and that they should not have to do once the market is real, is **set a daily cap by intuition**. Most teams pick a round number and adjust when they hit pain. With `c` and `α` exposed, that intuition becomes calibration against a measured cleanup cost — not a hunch.
 
 ## Try it
 
 Static caps are what we ship today. The market needs reputation history to function, and reputation history needs the [Merkle forest](/blog/evidence-that-survives-machines) — which is what the next post is about.
 
-If you want to be the first project running on bonded coordination instead of vibes-based budgets:
+If you want to be the first project running on bonded coordination instead of intuition-based budgets:
 
 ```bash
 brew install curiositech/tap/port-daddy

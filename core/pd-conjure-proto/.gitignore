@@ -1,0 +1,3 @@
+/target
+.capture-run.log
+# NB: conjure-dag-vello.png IS tracked (it's the deliverable artifact).

@@ -19,6 +19,11 @@
   --brand-secondary: #1f1f1f;
   --brand-accent: #006b5f;
   --brand-accent-on-tint: #004a42;
+  /* pd-console uses these as first-class palette roles for flags and cards. */
+  --brand-heat: #aa432e;
+  --brand-heat-on-tint: #6f2417;
+  --brand-warm: #8c540e;
+  --brand-warm-on-tint: #5b3900;
   --brand-primary-foreground: #fbf7ef;
   --brand-primary-foreground-muted: #edf4ff;
   --brand-primary-foreground-subtle: #dfe9ff;
@@ -42,6 +47,30 @@
   --status-warning-on-tint: #5b3900;
   --status-error-on-tint: #5a0000;
   --status-info-on-tint: var(--brand-primary-on-tint);
+  /* Story palette from PR #455: color maps the ADR-0048 stack into the brand. */
+  --story-health: #1f7a4d;
+  --story-health-on-tint: #155534;
+  --story-health-foreground: #fbf7ef;
+  --story-indigo: #4b3f9e;
+  --story-indigo-on-tint: #352c73;
+  --story-indigo-foreground: #fbf7ef;
+  --story-violet: #6f48b5;
+  --story-violet-on-tint: #4f3186;
+  --story-violet-foreground: #fbf7ef;
+  --story-rust: #9a4a1e;
+  --story-rust-on-tint: #6e3414;
+  --story-rust-foreground: #fbf7ef;
+  --layer-l0-kernel: var(--brand-primary);
+  --layer-l1-protocol: var(--story-health);
+  --layer-l2-legibility: var(--brand-accent);
+  --layer-l3-economy: var(--story-violet);
+  --layer-federation: var(--story-indigo);
+  --layer-reputation: var(--story-rust);
+  --layer-value: var(--status-warning);
+  /* Native console material effects mirrored here for website previews/docs. */
+  --console-glow-primary: rgba(0, 63, 184, 0.28);
+  --console-glow-heat: rgba(170, 67, 46, 0.24);
+  --console-depth-shadow: rgba(31, 28, 23, 0.16);
 
   --signal-charlie: var(--status-success);
   --signal-november: var(--status-error);
@@ -121,6 +150,11 @@
   --brand-secondary: #f5f3ed;
   --brand-accent: #8fd0a7;
   --brand-accent-on-tint: #bce8ca;
+  /* pd-console uses these as first-class palette roles for flags and cards. */
+  --brand-heat: #ff9c85;
+  --brand-heat-on-tint: #ffd4c8;
+  --brand-warm: #f2be51;
+  --brand-warm-on-tint: #ffe0a0;
   --brand-primary-foreground: #121212;
   --brand-primary-foreground-muted: #28364a;
   --brand-primary-foreground-subtle: #303d52;
@@ -144,6 +178,30 @@
   --status-warning-on-tint: #ffe0a0;
   --status-error-on-tint: #ffc4c4;
   --status-info-on-tint: var(--brand-primary-on-tint);
+  /* Story palette from PR #455: luminous L0-L3 accents for dark surfaces. */
+  --story-health: #5fce97;
+  --story-health-on-tint: #adf3c2;
+  --story-health-foreground: #121212;
+  --story-indigo: #9d92e8;
+  --story-indigo-on-tint: #cfc9f6;
+  --story-indigo-foreground: #121212;
+  --story-violet: #b69bec;
+  --story-violet-on-tint: #ddccf8;
+  --story-violet-foreground: #121212;
+  --story-rust: #e09464;
+  --story-rust-on-tint: #f4c8ac;
+  --story-rust-foreground: #121212;
+  --layer-l0-kernel: var(--brand-primary);
+  --layer-l1-protocol: var(--story-health);
+  --layer-l2-legibility: var(--brand-accent);
+  --layer-l3-economy: var(--story-violet);
+  --layer-federation: var(--story-indigo);
+  --layer-reputation: var(--story-rust);
+  --layer-value: var(--status-warning);
+  /* Native console material effects mirrored here for website previews/docs. */
+  --console-glow-primary: rgba(125, 180, 255, 0.34);
+  --console-glow-heat: rgba(255, 156, 133, 0.28);
+  --console-depth-shadow: rgba(0, 0, 0, 0.42);
 
   --shadow-raised: none;
   --shadow-inset: none;

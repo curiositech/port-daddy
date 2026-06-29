@@ -95,13 +95,13 @@ set -l __pd_commands \
     'claim' 'c' 'release' 'r' 'find' 'f' 'list' 'l' 'ps' 'services' 'url' 'env' 'tunnel' \
     'pub' 'publish' 'broadcast' 'sub' 'subscribe' 'listen' 'tube' 'wait' 'lock' 'unlock' 'locks' \
     'agent' 'agents' 'actor' 'actors' 'swarm' 'log' 'activity' \
-    'session' 'sessions' 'note' 'notes' \
+    'session' 'sessions' 'takeover' 'note' 'notes' \
     'salvage' 'resurrection' 'changelog' 'dns' 'files' 'add' 'who-owns' 'integration' 'briefing' 'history' 'inbox' 'send' 'sent' \
     'begin' 'b' 'done' 'whoami' 'w' 'attention' 'nudge' 'with-lock' 'n' 'u' 'd' 'learn' 'tutorial' 'spawn' 'spawned' 'sortie' 'transcripts' 'transcript' 'relay' 'dispatch' 'nightshift' 'review' 'morning' 'periscope' 'sight' 'scope' 'coast-guard' 'cg' 'cockpit' 'popper' 'secret' 'secrets' 'watch' 'harbormaster' 'hm' 'harbor' 'harbors' 'tuple' 'graph' 'memory' 'ideas' 'roadmap' 'quorum' 'parley' 'feedback' 'commit' 'obligations' \
     'say' 'look' 'sitrep' 'whois' 'advise' 'preflight' 'compass' 'guard' 'snapshots' 'snapshot' 'backup' 'restore' 'attest' 'shipwright' 'pheromone' 'ph' \
     'wallet' 'bond' \
     'up' 'down' \
-    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'relay' \
+    'bench' 'benchmark' 'demo' 'fleet' 'backend' 'squid' 'relay' \
     'dashboard' 'channels' 'webhook' 'webhooks' 'metrics' 'config' 'health' 'ports' \
     'scan' 's' 'projects' 'p' 'doctor' 'diagnose' 'hints' \
     'start' 'stop' 'restart' 'status' 'install' 'uninstall' 'dev' 'use' 'daemon' 'ci-gate' 'self-update' 'upgrade' 'mcp' \
@@ -151,6 +151,7 @@ for prog in port-daddy pd
     # Sessions & Notes
     complete -c $prog -n __pd_needs_command -a session -d 'Manage a session'
     complete -c $prog -n __pd_needs_command -a sessions -d 'List sessions'
+    complete -c $prog -n __pd_needs_command -a takeover -d 'Create successor session; preserve notes'
     complete -c $prog -n __pd_needs_command -a note -d 'Add a quick note'
     complete -c $prog -n __pd_needs_command -a notes -d 'List recent notes'
 
@@ -212,6 +213,20 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command dispatch" -l state -x -a 'proposed claimed in_progress produced review_pending accepted rejected settled failed salvage open terminal awaiting_review all' -d 'State filter'
     complete -c $prog -n __pd_needs_command -a nightshift -d '(deprecated alias) Use pd dispatch'
     complete -c $prog -n "__pd_using_command nightshift" -x -a 'propose queue list show run review cancel help' -d 'Nightshift subcommand (alias for dispatch)'
+    complete -c $prog -n __pd_needs_command -a squid -d 'Run an unofficial Anthropic-compatible bridge backed by Codex CLI'
+    complete -c $prog -n "__pd_using_command squid" -x -a 'bridge serve' -d 'Squid subcommand'
+    complete -c $prog -n "__pd_using_command squid" -l port -x -d 'Local bridge port'
+    complete -c $prog -n "__pd_using_command squid" -l host -x -d 'Local bind host'
+    complete -c $prog -n "__pd_using_command squid" -l cwd -x -d 'Working directory for Codex and launched client'
+    complete -c $prog -n "__pd_using_command squid" -l max-request-bytes -x -d 'Maximum JSON request body size'
+    complete -c $prog -n "__pd_using_command squid" -l token -x -d 'Local bridge token'
+    complete -c $prog -n "__pd_using_command squid" -l codex-model -x -d 'Actual Codex CLI model'
+    complete -c $prog -n "__pd_using_command squid" -l codex-model-alias -x -d 'Client-to-backend model alias'
+    complete -c $prog -n "__pd_using_command squid" -l codex-effort -x -a 'minimal low medium high' -d 'Codex reasoning effort'
+    complete -c $prog -n "__pd_using_command squid" -l codex-config -x -d 'Extra Codex -c override'
+    complete -c $prog -n "__pd_using_command squid" -l client -x -d 'Client binary to launch'
+    complete -c $prog -n "__pd_using_command squid" -l client-arg -x -d 'Client argument'
+    complete -c $prog -n "__pd_using_command squid" -l serve-only -d 'Start bridge without launching a client'
     complete -c $prog -n __pd_needs_command -a review -d 'pd review <id> --accept|--reject: operator review contract'
     complete -c $prog -n "__pd_using_command review" -l accept -d 'Accept the produced work'
     complete -c $prog -n "__pd_using_command review" -l reject -x -d 'Reject with reason'
@@ -636,12 +651,24 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command session" -x -a 'end' -d 'End a session (completed)'
     complete -c $prog -n "__pd_using_command session" -x -a 'done' -d 'End a session (alias for end)'
     complete -c $prog -n "__pd_using_command session" -x -a 'abandon' -d 'Abandon a session'
-    complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Delete a session and cascade notes/files'
+    complete -c $prog -n "__pd_using_command session" -x -a 'takeover' -d 'Create successor session; preserve notes'
+    complete -c $prog -n "__pd_using_command session" -x -a 'rm' -d 'Archive a session; preserve notes'
     complete -c $prog -n "__pd_using_command session" -x -a 'files' -d 'Manage file claims for a session'
     complete -c $prog -n "__pd_using_command session" -x -a 'phase' -d 'Set session phase'
     complete -c $prog -n "__pd_using_command session" -s P -l purpose -d 'Session purpose' -x
     complete -c $prog -n "__pd_using_command session" -s n -l note -d 'Handoff note' -x
     complete -c $prog -n "__pd_using_command session" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command session" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
+    complete -c $prog -n "__pd_using_command session" -l no-files -d 'Do not transfer takeover file claims'
+    complete -c $prog -n "__pd_using_command session" -l no-claims -d 'Alias for --no-files'
+
+    # takeover alias
+    complete -c $prog -n "__pd_using_command takeover" -s P -l purpose -d 'Successor session purpose' -x
+    complete -c $prog -n "__pd_using_command takeover" -s n -l note -d 'Takeover reason' -x
+    complete -c $prog -n "__pd_using_command takeover" -s a -l agent -d 'Agent ID' -x -a '(__pd_agent_ids)'
+    complete -c $prog -n "__pd_using_command takeover" -l lifecycle -d 'Session lifecycle' -x -a 'durable ephemeral'
+    complete -c $prog -n "__pd_using_command takeover" -l no-files -d 'Do not transfer predecessor file claims'
+    complete -c $prog -n "__pd_using_command takeover" -l no-claims -d 'Alias for --no-files'
 
     # sessions
     complete -c $prog -n "__pd_using_command sessions" -l all -d 'Show all sessions, not just active'
@@ -875,7 +902,7 @@ for prog in port-daddy pd
     complete -c $prog -n "__pd_using_command secret secrets" -l json -d 'Output JSON'
 
     # roadmap
-    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims" -a "ack harvest promote upsert add touch render pop release claims" -d 'roadmap subcommand'
+    complete -c $prog -n "__pd_using_command roadmap; and not __fish_seen_subcommand_from ack harvest promote upsert add touch render pop release claims delete rm" -a "ack harvest promote upsert add touch render pop release claims delete rm" -d 'roadmap subcommand'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l write -d 'Write docs/ROADMAP.md to disk'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l rootDir -x -d 'Project directory whose docs/ROADMAP.md to update'
     complete -c $prog -n "__pd_using_command roadmap; and __fish_seen_subcommand_from render" -l status -x -a 'now backlog parked merge done all' -d 'Status filter'

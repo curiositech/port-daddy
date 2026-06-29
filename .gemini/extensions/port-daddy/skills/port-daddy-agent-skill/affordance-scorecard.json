@@ -1,0 +1,40 @@
+{
+  "skill": "port-daddy",
+  "updatedAt": "2026-04-26T00:00:00",
+  "provenance": {
+    "kind": "first-party",
+    "owners": [
+      "workgroup-ai",
+      "port-daddy"
+    ]
+  },
+  "authorship": {
+    "maintainers": [
+      "workgroup-ai",
+      "port-daddy"
+    ]
+  },
+  "lineCount": 729,
+  "structuralComplete": true,
+  "structure": {
+    "decisionPoints": true,
+    "failureModes": true,
+    "workedExamples": true,
+    "qualityGates": true,
+    "notFor": true,
+    "inlineMermaid": 0
+  },
+  "affordances": {
+    "scripts": false,
+    "templates": false,
+    "examples": false,
+    "references": true,
+    "assets": false,
+    "diagrams": true,
+    "referenceFiles": 4,
+    "referenceIndex": true,
+    "diagramCompanions": 1,
+    "visualPreviewCapability": false
+  },
+  "validatorPassed": true
+}

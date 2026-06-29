@@ -40,6 +40,14 @@
   --muted-foreground: var(--text-secondary);
   --accent: var(--brand-accent);
   --accent-foreground: var(--brand-accent-foreground);
+  /* Console palette expansion: warm/coral roles plus material glow/depth. */
+  --heat: var(--brand-heat);
+  --heat-foreground: var(--brand-heat-on-tint);
+  --warm: var(--brand-warm);
+  --warm-foreground: var(--brand-warm-on-tint);
+  --console-focus-glow: var(--console-glow-primary);
+  --console-alert-glow: var(--console-glow-heat);
+  --console-shadow-depth: var(--console-depth-shadow);
   --destructive: var(--status-error);
   --destructive-foreground: var(--text-inverse);
   --border: var(--border-default);

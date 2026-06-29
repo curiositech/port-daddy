@@ -393,6 +393,10 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 out.push('\n');
                 i += 1;
             }
+            Block::WrappedText { text, tone } => {
+                out.push_str(&format!("  {}\n", style.paint(text, tone.sem())));
+                i += 1;
+            }
         }
     }
     // Reflow: truncate each emitted line to the terminal width (TTY only; pipes

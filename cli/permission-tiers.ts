@@ -116,6 +116,7 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   wallet: 'silent',
   bond: 'silent',
   fleet: 'silent',          // refined: `fleet down`, `fleet panic` are destructive
+  squid: 'approval',        // starts a local Anthropic-compatible bridge and optional client process
   tube: 'silent',
   tunnel: 'silent',
   relay: 'silent',           // refined: `relay url <url>` is notify
@@ -132,7 +133,8 @@ export const TIER_REGISTRY: Record<string, Tier> = {
   r: 'notify',
   lock: 'notify',
   unlock: 'notify',         // refined: `unlock --force` is destructive
-  session: 'notify',        // refined: `session rm`, `session abandon` are destructive
+  session: 'notify',        // refined: `session abandon` is destructive
+  takeover: 'notify',       // alias for session takeover; preserves predecessor notes
   note: 'notify',
   n: 'notify',
   begin: 'notify',
@@ -214,12 +216,13 @@ export const SUBCOMMAND_TIERS: Record<string, Tier> = {
   'salvage abandon': 'destructive', // forces session back to queue
   'salvage dismiss': 'destructive', // permanently removes from queue
 
-  // session: most are notify, removals are destructive
+  // session: most are notify; abandon can release another agent's active claims
   'session start': 'notify',
   'session end': 'notify',
   'session done': 'notify',
   'session abandon': 'destructive', // marks session abandoned — affects others reading the trail
-  'session rm': 'destructive',      // deletes session + notes
+  'session takeover': 'notify',     // creates successor, preserves predecessor notes
+  'session rm': 'notify',           // archives session; notes and claim history stay append-only
   'session files': 'notify',        // add/rm of caller's own claims
 
   // release: bare release of caller's own port is notify; --expired is global
@@ -536,7 +539,6 @@ export const DESTRUCTIVE_COMMANDS: readonly string[] = Object.freeze([
   'salvage abandon',
   'salvage dismiss',
   'session abandon',
-  'session rm',
   'release --expired',
   'unlock --force',
   'ports cleanup',

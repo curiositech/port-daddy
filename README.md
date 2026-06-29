@@ -155,7 +155,7 @@ Every `pd` command is classified by how much shared state it touches. The tier i
 | Tier | What it means | Examples |
 |---|---|---|
 | `silent` | Read-only. Safe to run anywhere. | `pd status`, `pd whoami`, `pd notes`, `pd briefing`, `pd salvage` (list form), `pd sessions`, `pd actors`, `pd find` |
-| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd session start`, `pd session files add`, `pd agent register` |
+| `notify` | Mutates your own state. Reversible. | `pd note`, `pd begin`, `pd done`, `pd claim`, `pd lock`, `pd session start`, `pd session takeover`, `pd takeover`, `pd session files add`, `pd agent register` |
 | `approval` | Affects other agents. No data loss. | `pd pub`, `pd spawn`, `pd up`, `pd agent inbox send`, `pd harbor create/enter` |
 | `destructive` | Releases someone else's resources or removes records. Prompts. | (see list below) |
 
@@ -168,7 +168,6 @@ Every entry below prints an impact-specific summary to stderr and prompts for co
 - `pd salvage abandon <id>` — returns inherited work to the queue
 - `pd salvage dismiss <id>` — permanently removes an entry; context is unrecoverable
 - `pd session abandon` — marks active session abandoned; other agents may salvage
-- `pd session rm <id>` — deletes a session, its claims, and all attached notes
 - `pd release --expired` — releases stale port claims across all projects
 - `pd unlock --force` — breaks a lock held by another owner
 - `pd ports cleanup` — releases every stale port assignment
@@ -469,6 +468,8 @@ pd salvage claim dead-agent-99
 
 When an agent dies (crashes, loses connection, context exceeded), its sessions and notes are preserved. New agents in the same project are automatically notified at registration.
 
+Use `pd session takeover <old-session-id> [reason]` (or the shorter `pd takeover <old-session-id> [reason]`) when continuing a stale or predecessor session. It creates a successor session, records the lineage in append-only notes, releases stale predecessor claims, and reclaims those files for the successor when there is no live conflict. `pd session rm <id>` is now archival: it releases active claims and writes a tombstone note, but it does not delete the session, notes, or claim history.
+
 ### Distributed Locks
 Prevent agents from "stepping on" each other's files or DB migrations:
 ```bash
@@ -605,6 +606,7 @@ fleet:
 
     gardener:
       schedule: "*/10 * * * *"        # Or run on a cron schedule
+      run_on_start: false             # Set true only when boot-time work is intentional
       backend: claude
       model: claude-haiku-4-5-20251001
       prompt: "Summarize the current repo status and suggest the next maintenance action."
@@ -627,6 +629,11 @@ or `backend: claude-cli` etc.), and a prompt. Run `pd fleet validate` to check
 the topology, then hot-reload or `pd fleet up`. See ADR-0019
 (`docs/adr/0019-declarative-fleet-yaml.md`) for the canonical schema and
 ADR-0026 (`docs/adr/0026-fleet-ast-and-diagnostics.md`) for the typed AST.
+Scheduled ships arm their timer on fleet start; by default `run_on_start` is
+`false`, so they do not fire during daemon boot. Set `run_on_start: true` only
+for ships whose first pass is intentionally part of startup. Keep boot-time work
+opt-in so a daemon restart cannot fan out an entire fleet before `/health` is
+stable.
 
 **Port Daddy's own fleet.** This repo ships a `pd-fleet.yml` that dogfoods
 the engine — `gardener`, `qa`, `test-hunter`, `documentarian`, and
@@ -687,6 +694,30 @@ Port Daddy escrows virtual USD before each agent spawn and can SIGTERM live spaw
 Operate the live fleet with `pd fleet halt|pause|resume|inspect|tree` (see Destructive Operations above). `halt` is total (SIGKILL + refund); `pause` is soft (stop admitting, leave agents running).
 
 **What the wallet actually is.** The wallet is a *governance accounting unit*, not money. No payments move; no refunds reach a bank. The "USD" numbers are accounting units denominated against `cost-tracker`'s estimated LLM spend. When the backend is `claude` (SDK → real API), `codex`, `gemini`, or `cloudflare`, those dollars map to real per-token billing. When the backend is `claude-cli` (your Claude Code subscription) or `ollama` (local), per-token marginal cost is ~$0 and bonds become a coordination signal — a quota, a kill-switch, a priority ordering, and an audit trail. Useful, but don't pretend it's money.
+
+**Giant Squid Claude-to-Codex bridge.** If you want Claude-shaped local orchestration while spending against the OpenAI Codex CLI auth already on the machine, run `pd squid codex` or `pd squid bridge`. It serves a small Anthropic Messages-compatible endpoint on localhost, generates a fresh local token unless you set one explicitly, injects `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN`, and `ANTHROPIC_API_KEY` into a launched Claude-compatible client, and forwards each request to `codex exec`. This is an unofficial compatibility layer, not an official Claude Code auth mode.
+
+```bash
+pd squid codex -- claude --model claude-sonnet-4-5
+pd squid pro --codex-effort high -- claude --model claude-sonnet-4-5
+pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex --codex-effort high -- claude --model claude-sonnet-4-5
+pd squid serve --port 8765  # bridge only; prints the generated token for curl/debugging
+```
+
+There are two model layers. `--codex-model`, `--codex-effort`, and repeated `--codex-config key=value` control the actual Codex CLI backend. `--codex-model-alias <client=codex>` (or comma-separated `PD_SQUID_MODEL_ALIASES`) lets a Claude client keep asking for `claude-sonnet-4-5` while the bridge runs `codex exec --model gpt-5.1-codex`. If no explicit backend model is set, a request model prefixed with `codex:` is also passed through after stripping the prefix.
+
+The harness lanes are broader than Codex. `pd spawn --backend ollama` keeps work local when an Ollama model is already running; `pd spawn --backend cloudflare --model @cf/qwen/qwen3-30b-a3b-fp8` uses Workers AI when you want cheap remote inference; `pd squid codex` is the Claude-shaped compatibility lane for ChatGPT Pro/Codex CLI. The same notes, claims, budgets, hooks, MCP tools, shared skill, and Port Daddy Pilot definitions wrap each lane.
+
+Thinking and tools are translated honestly. Anthropic `thinking.budget_tokens` maps to Codex `model_reasoning_effort` (`low`, `medium`, or `high`) unless `--codex-effort` or `--codex-config model_reasoning_effort=...` overrides it. Claude `thinking` and `redacted_thinking` transcript blocks are omitted before prompting Codex so a resumed Claude session does not replay private reasoning into a different backend. Codex JSONL `function_call`/tool-call items become Anthropic `tool_use` blocks so Claude-style tool loops can continue; completed Codex `command_execution` records stay internal provenance and are not replayed as user tools.
+
+The bridge exposes `GET /health`, `POST /v1/messages`, and `POST /v1/messages/count_tokens`. Responses include a `port_daddy` provenance object with the bridge name, backend, request id, optional session id, optional session turn, backend model, and alias used. Session tracking is metadata-only: it counts turns for `session_id`, `conversation_id`, matching metadata fields, or session headers, but it does not store message text. Request bodies are capped by `--max-request-bytes` / `PD_SQUID_MAX_REQUEST_BYTES` (default 8 MiB) before JSON parsing.
+
+Security posture: the bridge binds to loopback by default, generates a fresh
+per-run local token by default, rejects non-loopback binds unless a strong token
+was set explicitly, compares tokens with a timing-safe check, validates model
+aliases from flags/env, and forwards only validated Codex `-c key=value`
+overrides. It is meant for local compatibility and dogfooding; do not expose it
+as a shared remote service without a stronger auth and sandbox story.
 
 **Spawning requires a daily budget.** Every project must set `usd_per_day` before its first spawn; the daemon refuses unbonded agents. Run `pd wallet budget <project> --usd-per-day 5` during project setup. The no-budget-no-spawn rule is an Ostrom-style monitoring invariant: no agent can run without a number to enforce against.
 

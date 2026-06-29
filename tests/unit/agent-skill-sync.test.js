@@ -217,6 +217,23 @@ describe('cross-tool agent skill sync', () => {
     ]));
   });
 
+  test('runtimeSkillTargets fans skills out to repo-local agy/Codex/Claude dirs in project scope', () => {
+    const targets = runtimeSkillTargets('/repo', 'project');
+    const byLabel = new Map(targets.map((target) => [target.label, target.path]));
+
+    // The commit-time sync (scripts/sync-skills.ts --scope project) writes these
+    // dotfile dirs into the repo root so every agent runtime shares one catalog.
+    expect(byLabel.get('agy')).toBe('/repo/.agy/skills');
+    expect(byLabel.get('Codex')).toBe('/repo/.codex/skills');
+    expect(byLabel.get('Claude')).toBe('/repo/.claude/skills');
+    expect(byLabel.get('AGENTS universal')).toBe('/repo/.agents/skills');
+
+    // user-only legacy runtimes must not leak into project scope
+    const labels = targets.map((target) => target.label);
+    expect(labels).not.toContain('Cline');
+    expect(labels).not.toContain('Codeium Windsurf legacy');
+  });
+
   test('ensureGeminiPortDaddyExtension writes extension metadata from the repo copy', () => {
     const projectRoot = join(tmpRoot, 'project');
     const home = join(tmpRoot, 'home');

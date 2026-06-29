@@ -1,6 +1,6 @@
 //! Suggest pane — operator-facing next-move suggestions from the daemon.
 //!
-//! Calls `GET /suggest?limit=10` on the daemon.
+//! Calls `GET /suggestions?limit=10` on the daemon.
 //! Surface: unblocked sorties, sessions nearing TTL, unhealthy routes.
 
 use crate::agent::DaemonClient;
@@ -44,30 +44,50 @@ pub struct SuggestPane {
 }
 
 impl Default for SuggestPane {
-    fn default() -> Self { Self { suggestions: Vec::new(), last_error: None } }
+    fn default() -> Self {
+        Self {
+            suggestions: Vec::new(),
+            last_error: None,
+        }
+    }
 }
 
 impl SuggestPane {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 impl Pane for SuggestPane {
-    fn id(&self) -> &str { "suggest" }
-    fn title(&self) -> String { "Suggest".into() }
+    fn id(&self) -> &str {
+        "suggest"
+    }
+    fn title(&self) -> String {
+        "Suggest".into()
+    }
 
     fn view(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Next-Move Suggestions".into())];
 
         if let Some(err) = &self.last_error {
-            blocks.push(Block::KeyVal("note".into(), "GET /suggest not yet available".into()));
+            blocks.push(Block::KeyVal(
+                "note".into(),
+                "GET /suggestions failed".into(),
+            ));
             blocks.push(Block::KeyVal("error".into(), err.clone()));
             return blocks;
         }
 
         if self.suggestions.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "no suggestions — system looks healthy".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "no suggestions — system looks healthy".into(),
+            ));
         } else {
-            blocks.push(Block::KeyVal("count".into(), self.suggestions.len().to_string()));
+            blocks.push(Block::KeyVal(
+                "count".into(),
+                self.suggestions.len().to_string(),
+            ));
             blocks.push(Block::Gap);
 
             for sug in &self.suggestions {
@@ -77,9 +97,16 @@ impl Pane for SuggestPane {
                 } else {
                     sug.title.clone()
                 };
-                blocks.push(Block::Chip { label: format!("[{}]  {}", sug.kind, title_trunc), tone });
+                blocks.push(Block::Chip {
+                    label: format!("[{}]  {}", sug.kind, title_trunc),
+                    tone,
+                });
                 if let Some(detail) = &sug.detail {
-                    let d = if detail.len() > 72 { format!("{}…", &detail[..72]) } else { detail.clone() };
+                    let d = if detail.len() > 72 {
+                        format!("{}…", &detail[..72])
+                    } else {
+                        detail.clone()
+                    };
                     blocks.push(Block::KeyVal("detail".into(), d));
                 }
                 if let Some(action) = &sug.action {
@@ -97,7 +124,7 @@ impl Pane for SuggestPane {
         daemon: &'a DaemonClient,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move {
-            let url = format!("{}/suggest?limit=10", daemon.base());
+            let url = format!("{}/suggestions?limit=10", daemon.base());
             match daemon.http_client().get(&url).send().await {
                 Err(e) => {
                     self.last_error = Some(format!("daemon unreachable: {e}"));
@@ -107,15 +134,13 @@ impl Pane for SuggestPane {
                     self.last_error = Some(format!("HTTP {}", resp.status()));
                     self.suggestions.clear();
                 }
-                Ok(resp) => {
-                    match resp.json::<SuggestResponse>().await {
-                        Err(e) => self.last_error = Some(format!("bad response: {e}")),
-                        Ok(data) => {
-                            self.last_error = None;
-                            self.suggestions = data.suggestions;
-                        }
+                Ok(resp) => match resp.json::<SuggestResponse>().await {
+                    Err(e) => self.last_error = Some(format!("bad response: {e}")),
+                    Ok(data) => {
+                        self.last_error = None;
+                        self.suggestions = data.suggestions;
                     }
-                }
+                },
             }
             Ok(())
         })

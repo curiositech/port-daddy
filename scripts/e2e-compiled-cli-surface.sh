@@ -263,6 +263,7 @@ run_read "say (no session)"  say          -- say "e2e cli-surface say probe"
 # treats non-zero-with-output as a PASS because it proves the module loaded.
 run_read "attest"            attest       -- attest
 run_read "backend list"      backend      -- backend list
+run_read "squid (usage)"     squid        -- squid
 run_read "backup list"       backup       -- backup list
 run_read "restore (usage)"   restore      -- restore
 run_read "popper status"     popper       -- popper status
@@ -302,6 +303,7 @@ run_ok  "unlock $LOCK"       unlock   -- unlock "$LOCK"
 run_ok  "begin"              begin    -- begin e2e:surface:ci --lifecycle durable --allow-main-worktree
 run_ok  "note"               note     -- note "e2e cli-surface round-trip note"
 run_read "session (usage)"   session  -- session
+run_read "takeover (usage)"  takeover -- takeover
 # `pd done` now runs two ADR-0045 preconditions (lib/git-origin-check.ts):
 #   1. an honest result-note sentinel (PR URL / no-pr-yet: / not-applicable:)
 #   2. a git origin-push check on the cwd's repo.

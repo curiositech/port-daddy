@@ -1,11 +1,21 @@
 {
   "auditor_version": "0.2.0",
   "summary": {
-    "total": 116,
-    "passing": 111,
-    "failing": 5
+    "total": 136,
+    "passing": 136,
+    "failing": 0
   },
   "skills": [
+    {
+      "name": "advanced-rust-patterns",
+      "root": "skills/advanced-rust-patterns",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
     {
       "name": "agent-conversation-protocols",
       "root": "skills/agent-conversation-protocols",
@@ -106,6 +116,40 @@
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
         "scripts"
+      ]
+    },
+    {
+      "name": "beautiful-cli-design",
+      "root": "skills/beautiful-cli-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "beautiful-gui-design",
+      "root": "skills/beautiful-gui-design",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "build-coop-ide-gpui",
+      "root": "skills/build-coop-ide-gpui",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
       ]
     },
     {
@@ -513,82 +557,31 @@
     {
       "name": "federated-harbor-author",
       "root": "skills/federated-harbor-author",
-      "ok": false,
-      "orphans": [
-        "agents/cross-paper-citation.md",
-        "agents/drafter.md",
-        "agents/voice-editor.md",
-        "examples/section-claim-example.json",
-        "references/topic-map.md",
-        "scripts/new-round.sh",
-        "scripts/probe-template.json",
-        "scripts/voice-check.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
       "name": "federated-harbor-redteam",
       "root": "skills/federated-harbor-redteam",
-      "ok": false,
-      "orphans": [
-        "agents/fh-proof-gap-auditor.md",
-        "agents/fh-redteam-econ.md",
-        "agents/fh-redteam-revocation.md",
-        "agents/fh-redteam-tokens.md",
-        "agents/fh-redteam-trust.md",
-        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
-        "examples/probe-trust-example.json",
-        "references/topic-map.md",
-        "scripts/env.sh",
-        "scripts/new-round.sh",
-        "scripts/probe-template.json",
-        "scripts/verify-probe.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "examples",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
       "name": "federated-harbor-whitehat",
       "root": "skills/federated-harbor-whitehat",
-      "ok": false,
-      "orphans": [
-        "agents/fh-proof-completer.md",
-        "agents/fh-secops-lead.md",
-        "agents/fh-whitehat-econ.md",
-        "agents/fh-whitehat-revocation.md",
-        "agents/fh-whitehat-tokens.md",
-        "agents/fh-whitehat-trust.md",
-        "examples/defense-tokens-example.json",
-        "examples/dialogue-fh-v0.1-to-v0.2.example.json",
-        "references/mechanization-targets.md",
-        "references/topic-map.md",
-        "scripts/defense-template.json",
-        "scripts/env.sh",
-        "scripts/new-round.sh",
-        "scripts/run-fh-secops-lead.sh"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
-      "missing_indexes_failure": [
-        "agents",
-        "examples",
-        "references",
-        "scripts"
-      ],
+      "missing_indexes_failure": [],
       "missing_indexes_warning": []
     },
     {
@@ -632,6 +625,16 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "frame0-wireframing",
+      "root": "skills/frame0-wireframing",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "game-theoretic-agent-incentives",
       "root": "skills/game-theoretic-agent-incentives",
       "ok": true,
@@ -650,6 +653,32 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "gpui-rust-console",
+      "root": "skills/gpui-rust-console",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
+      "name": "gpui-shaders",
+      "root": "skills/gpui-shaders",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "hoare-1978-csp",
@@ -752,6 +781,30 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "macos-host-security",
+      "root": "skills/macos-host-security",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "make_copy_and_media_human",
+      "root": "skills/make_copy_and_media_human",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "examples",
+        "references",
+        "scripts"
+      ]
+    },
+    {
       "name": "mechanism-design-for-agent-labor",
       "root": "skills/mechanism-design-for-agent-labor",
       "ok": true,
@@ -760,6 +813,18 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "metal-text-pipeline",
+      "root": "skills/metal-text-pipeline",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "monitoring-stack-deployer",
@@ -867,22 +932,9 @@
     {
       "name": "port-daddy-agent-skill",
       "root": "skills/port-daddy-agent-skill",
-      "ok": false,
+      "ok": true,
       "orphans": [],
-      "drift": [
-        {
-          "index": "diagrams/INDEX.md",
-          "ghost_entries": [
-            "05_promote-stable-timing.md"
-          ]
-        },
-        {
-          "index": "references/INDEX.md",
-          "missing_from_index": [
-            "git-discipline.md"
-          ]
-        }
-      ],
+      "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
@@ -905,10 +957,8 @@
     {
       "name": "port-daddy-internal-dev",
       "root": "skills/port-daddy-internal-dev",
-      "ok": false,
-      "orphans": [
-        "examples/01-add-mcp-tool.md"
-      ],
+      "ok": true,
+      "orphans": [],
       "drift": [],
       "broken_links": [],
       "missing_indexes_failure": [],
@@ -919,6 +969,16 @@
     {
       "name": "port-daddy-marketing-copy",
       "root": "skills/port-daddy-marketing-copy",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "port-daddy-user-surrogate-pm-review",
+      "root": "skills/port-daddy-user-surrogate-pm-review",
       "ok": true,
       "orphans": [],
       "drift": [],
@@ -990,6 +1050,78 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "rust-app-distribution",
+      "root": "skills/rust-app-distribution",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-data-structures-advanced",
+      "root": "skills/rust-data-structures-advanced",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-debugging-mastery",
+      "root": "skills/rust-debugging-mastery",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-gpui-motion",
+      "root": "skills/rust-gpui-motion",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
+      "name": "rust-performance-and-idioms",
+      "root": "skills/rust-performance-and-idioms",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-tauri-development",
+      "root": "skills/rust-tauri-development",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
+      "name": "rust-with-claude-code",
+      "root": "skills/rust-with-claude-code",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": []
+    },
+    {
       "name": "sagas-garcia-molina-salem-1987",
       "root": "skills/sagas-garcia-molina-salem-1987",
       "ok": true,
@@ -1020,7 +1152,6 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": [
-        "agents",
         "examples",
         "scripts",
         "templates"
@@ -1067,6 +1198,18 @@
       "missing_indexes_warning": []
     },
     {
+      "name": "sound-design-and-audio",
+      "root": "skills/sound-design-and-audio",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
+    },
+    {
       "name": "task-decomposer",
       "root": "skills/task-decomposer",
       "ok": true,
@@ -1105,6 +1248,18 @@
       "broken_links": [],
       "missing_indexes_failure": [],
       "missing_indexes_warning": []
+    },
+    {
+      "name": "vello-parley-rendering",
+      "root": "skills/vello-parley-rendering",
+      "ok": true,
+      "orphans": [],
+      "drift": [],
+      "broken_links": [],
+      "missing_indexes_failure": [],
+      "missing_indexes_warning": [
+        "references"
+      ]
     },
     {
       "name": "vibe-coding-background-agent",

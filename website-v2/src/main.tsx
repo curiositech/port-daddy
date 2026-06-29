@@ -24,7 +24,9 @@ const ExamplesPage = lazyNamed(() => import('@/pages/ExamplesPage'), 'ExamplesPa
 const ExampleDetailPage = lazyNamed(() => import('@/pages/ExampleDetailPage'), 'ExampleDetailPage')
 const LibraryPage = lazy(() => import('@/pages/library'))
 const SecurityPage = lazy(() => import('@/pages/SecurityPage'))
+const HarnessPage = lazy(() => import('@/pages/HarnessPage'))
 const CliBackendPage = lazy(() => import('@/pages/cli-backend'))
+const SquidCodexPage = lazy(() => import('@/pages/SquidCodexPage'))
 const WhitepaperDetailPage = lazy(() => import('@/pages/whitepaper/PaperDetailPage'))
 const WhitepaperRoundsPage = lazy(() => import('@/pages/whitepaper/RoundsPage'))
 const WhitepaperHowWeProvePage = lazy(() => import('@/pages/whitepaper/HowWeProveGameTheory'))
@@ -243,6 +245,8 @@ createRoot(document.getElementById('root')!).render(
 
               <Route path="/manifesto" element={<ManifestoPage />} />
               <Route path="/security" element={<SecurityPage />} />
+              <Route path="/harness" element={<HarnessPage />} />
+              <Route path="/squid-codex" element={<SquidCodexPage />} />
               <Route path="/cryptography" element={<Navigate to="/security" replace />} />
               <Route path="/library" element={<LibraryPage />} />
               {/* /whitepaper now forwards to the Library (the canonical home for

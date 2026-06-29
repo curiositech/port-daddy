@@ -36,6 +36,10 @@ import { EditorLightbulb } from './demos/EditorLightbulb'
 import { WarRoom } from './demos/WarRoom'
 import { HowItsWired } from './demos/HowItsWired'
 import { PlaygroundExplainer } from './demos/PlaygroundExplainer'
+import { ThemedImage } from '@/components/site/ThemedImage'
+
+const PAGE_SECTION_CLASS =
+  'border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]'
 
 /**
  * The pd tube playground — every trigger, one agent.
@@ -117,6 +121,12 @@ interface Trigger {
   body: string
   /** A short note on what real surface this tile stands in for. */
   note: string
+  scene: string
+  visual: {
+    src: string
+    alt: string
+    position?: string
+  }
   /** The real shell command that fires the same POST from a terminal. */
   command: string
   /** True for tiles that mock a non-browser surface (label them as mocks). */
@@ -130,7 +140,12 @@ const TRIGGERS: Trigger[] = [
     label: 'A button',
     icon: MousePointerClick,
     body: 'A button on the page asked the agent to weigh in.',
-    note: 'A plain button in this page — the one real UI trigger here.',
+    note: 'A product surface hands a small decision to the agent without opening a terminal.',
+    scene: 'Operator UI',
+    visual: {
+      src: '/img/generated/example-pd-tube-button-to-agent.webp',
+      alt: 'A realistic app button sending a request to an agent sitting in a local workspace.',
+    },
     command: `pd tube ${DEMO_CHANNEL} --send "button: weigh in" --as web-button`,
     mocked: false,
   },
@@ -140,7 +155,13 @@ const TRIGGERS: Trigger[] = [
     label: 'A Git hook',
     icon: GitBranch,
     body: 'post-commit: a commit just landed on this branch.',
-    note: 'Stands in for a real .git/hooks/post-commit script.',
+    note: 'A post-commit hook pings the desk while the branch context is still fresh.',
+    scene: 'Repository hook',
+    visual: {
+      src: '/img/generated/pr-reviews-itself/code-reviewer.webp',
+      alt: 'A code reviewer station watching a pull request as a fresh commit arrives.',
+      position: 'center top',
+    },
     command: `pd tube ${DEMO_CHANNEL} --send "post-commit: $(git rev-parse --short HEAD)" --as git-post-commit`,
     mocked: true,
   },
@@ -150,7 +171,12 @@ const TRIGGERS: Trigger[] = [
     label: 'A test run',
     icon: FlaskConical,
     body: 'The test suite finished. Asking the agent to read the result.',
-    note: 'Stands in for a CI step or a watch-mode test runner.',
+    note: 'A watch-mode test runner asks for diagnosis while the failing trace is still on screen.',
+    scene: 'Red-to-green loop',
+    visual: {
+      src: '/img/generated/example-test-failure-to-agent.webp',
+      alt: 'A failing test surface with an agent reading the trace and preparing a fix.',
+    },
     command: `pd tube ${DEMO_CHANNEL} --send "tests: 142 passed" --as test-runner`,
     mocked: true,
   },
@@ -160,7 +186,13 @@ const TRIGGERS: Trigger[] = [
     label: 'A Slack message',
     icon: MessageSquare,
     body: 'Someone in #deploys asked the agent for a status.',
-    note: 'Stands in for a Slack bot relaying a message to the channel.',
+    note: 'A team chat asks the local fleet for status without granting the chat app control.',
+    scene: 'Team room',
+    visual: {
+      src: '/img/generated/example-war-room.webp',
+      alt: 'A team room with several incident agents comparing notes across screens.',
+      position: 'center top',
+    },
     command: `pd tube ${DEMO_CHANNEL} --send "slack #deploys: status?" --as slack-bot`,
     mocked: true,
   },
@@ -170,7 +202,12 @@ const TRIGGERS: Trigger[] = [
     label: 'A webhook',
     icon: Webhook,
     body: 'An inbound webhook fired and reached the agent.',
-    note: 'Stands in for any service POSTing straight to the daemon.',
+    note: 'An external service POST reaches the local daemon and becomes a threaded request.',
+    scene: 'Service callback',
+    visual: {
+      src: '/img/generated/example-webhook-to-local-agent.webp',
+      alt: 'A webhook arriving from a service and terminating at a local agent workstation.',
+    },
     command: `curl -s http://127.0.0.1:9876/msg/${DEMO_CHANNEL} \\
   -H 'content-type: application/json' \\
   -d '{"sender":"webhook","payload":{"v":1,"kind":"tube.msg","body":"webhook fired"}}'`,
@@ -182,7 +219,12 @@ const TRIGGERS: Trigger[] = [
     label: 'A Jupyter cell',
     icon: Terminal,
     body: 'A notebook cell finished and pinged the agent.',
-    note: 'Stands in for a notebook cell shelling out to pd tube.',
+    note: 'A notebook cell finishes an experiment and asks the repo agent what changed.',
+    scene: 'Notebook run',
+    visual: {
+      src: '/img/generated/example-editor-lightbulb-to-agent.webp',
+      alt: 'An editor or notebook surface sending selected work to a local explaining agent.',
+    },
     command: `pd tube ${DEMO_CHANNEL} --send "notebook: run complete" --as jupyter-cell`,
     mocked: true,
   },
@@ -192,7 +234,12 @@ const TRIGGERS: Trigger[] = [
     label: 'A QR / barcode scan',
     icon: QrCode,
     body: 'A scanned code triggered the agent.',
-    note: 'Stands in for a scanner app that POSTs the scanned value.',
+    note: 'A scan from a lab bench, stock room, or field device becomes a local agent task.',
+    scene: 'Physical signal',
+    visual: {
+      src: '/img/generated/example-services-dns.webp',
+      alt: 'A physical services board with labels and signals being routed to a local agent.',
+    },
     command: `pd tube ${DEMO_CHANNEL} --send "scanned: SKU-00428" --as qr-scan`,
     mocked: true,
   },
@@ -203,37 +250,43 @@ export function Playground() {
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
       <main id="main-content">
         {/* Hero */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
-            <div className="max-w-[52rem] space-y-[var(--space-5)]">
-              <PanelEyebrow>pd tube · playground</PanelEyebrow>
-              <PanelTitle as="h1" size="hero" className="max-w-[20ch]">
-                The pd tube playground — every trigger, one agent.
-              </PanelTitle>
-              <PanelBody className="max-w-[46rem] text-[length:var(--text-lg)]">
-                Each demo here fires a real message at a Port Daddy channel and waits for a real
-                reply. Run an agent on the same channel and the wire lights up; without one, the
-                demo says so and shows you the one command to start it. Nothing is staged — every
-                pulse is a round-trip you triggered.
-              </PanelBody>
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.92fr)_minmax(20rem,0.58fr)] lg:items-start">
+              <div className="max-w-[52rem] space-y-[var(--space-4)]">
+                <PanelEyebrow>pd tube · playground</PanelEyebrow>
+                <PanelTitle
+                  as="h1"
+                  size="hero"
+                  className="max-w-[16ch] !text-[length:var(--type-panel-title-display-size)] md:!text-[length:var(--type-hero-size)]"
+                >
+                  Every trigger, one agent.
+                </PanelTitle>
+                <PanelBody className="max-w-[42rem] text-[length:var(--text-lg)]">
+                  Fire a browser button, Git hook, test run, webhook, notebook, or scan into one
+                  Port Daddy channel. The same named agent replies on the same thread, with the real
+                  command visible when you need it.
+                </PanelBody>
+              </div>
+              <HeroSignalPanel />
             </div>
           </PageContainer>
         </section>
 
         {/* How pd tube actually works — the legibility explainer. */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <PlaygroundExplainer />
           </PageContainer>
         </section>
 
         {/* Demo #1 — The Switchboard */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 01 · The Switchboard"
-              title="Seven different triggers. One channel. The Concierge answers."
-              description="A button, a Git hook, a test run, a Slack message, a webhook, a Jupyter cell, and a QR scan all post to desk:requests with a different sender. One named agent — the Concierge, a front-desk dispatcher — listens. Each trigger's cobalt pulse travels to it; the teal reply routes back to the tile that fired it."
+              title="Seven triggers, one desk. The Concierge routes the work."
+              description="Product UI, Git hooks, test runners, team chat, webhooks, notebooks, and physical scans all post to desk:requests with their own sender. One named agent listens, answers on the same thread, and leaves the exact command visible when you need to wire the real surface."
               titleAs="h2"
               titleSize="display"
             />
@@ -259,7 +312,7 @@ export function Playground() {
         </section>
 
         {/* Demo #2 — Red-to-Green */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 02 · Red-to-Green"
@@ -275,7 +328,7 @@ export function Playground() {
         </section>
 
         {/* Demo #3 — Editor Lightbulb */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 03 · Editor Lightbulb"
@@ -291,7 +344,7 @@ export function Playground() {
         </section>
 
         {/* Demo #4 — War Room */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Demo 04 · War Room"
@@ -307,7 +360,7 @@ export function Playground() {
         </section>
 
         {/* Run the agent */}
-        <section className="border-b-2 border-[var(--border-strong)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+        <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
               eyebrow="Make it answer"
@@ -335,6 +388,59 @@ export function Playground() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+function HeroSignalPanel() {
+  const steps = [
+    ['01', 'Trigger posts'],
+    ['02', 'Channel stores'],
+    ['03', 'Agent replies'],
+  ] as const
+
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)] lg:mt-[var(--space-2)]">
+      <div className="relative aspect-[16/9] overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+        <ThemedImage
+          src="/img/generated/pd-tube-playground/switchboard-hero.webp"
+          alt="A switchboard collage showing product UI, git review, test runner, team room, webhook, and notebook triggers all routing through PD Tube."
+          className="h-full w-full object-cover"
+          loading="eager"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_36%,rgba(0,0,0,0.58)_100%)]" />
+        <div className="absolute bottom-[var(--space-3)] left-[var(--space-3)] right-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
+          {['button', 'hook', 'test', 'webhook'].map((label) => (
+            <span
+              key={label}
+              className="border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)]">
+        <PanelEyebrow>Live loop</PanelEyebrow>
+        <span className="border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+          {DEMO_CHANNEL}
+        </span>
+      </div>
+      <div className="grid gap-[var(--space-2)] sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+        {steps.map(([number, label]) => (
+          <div key={number} className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
+            <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">{number}</div>
+            <div className="mt-[var(--space-1)] font-sans text-[length:var(--type-panel-body-compact-size)] font-semibold text-[var(--text-primary)]">
+              {label}
+            </div>
+          </div>
+        ))}
+      </div>
+      <CopyableCommandBlock
+        label="Start the listener"
+        command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME}`}
+      />
+    </SurfacePanel>
   )
 }
 
@@ -400,11 +506,11 @@ function Switchboard() {
 
   return (
     <TubeMotionProvider>
-      <div className="grid gap-[var(--space-5)] lg:grid-cols-[1fr_minmax(20rem,28rem)]">
+      <div className="grid gap-[var(--space-5)] xl:grid-cols-[1fr_minmax(20rem,28rem)]">
         {/* Trigger gallery */}
         <div className="space-y-[var(--space-4)]">
           <PanelEyebrow>Triggers · all POST to {DEMO_CHANNEL}</PanelEyebrow>
-          <div className="grid gap-[var(--space-3)] sm:grid-cols-2">
+          <div className="grid gap-[var(--space-3)] md:grid-cols-2">
             {TRIGGERS.map((trigger) => (
               <TriggerTile
                 key={trigger.id}
@@ -471,50 +577,83 @@ function TriggerTile({
   return (
     <div
       className={cn(
-        'flex flex-col gap-[var(--space-3)] border-2 p-[var(--space-4)]',
+        'group flex min-h-full flex-col overflow-hidden border-2',
         active
           ? 'border-[var(--brand-primary)] bg-[var(--surface-raised)]'
           : 'border-[var(--border-strong)] bg-[var(--surface-base)]',
       )}
     >
-      <div className="flex items-start justify-between gap-[var(--space-2)]">
-        <div className="flex items-center gap-[var(--space-2)]">
-          <Icon size={20} className="text-[var(--brand-primary)]" />
-          <PanelTitle as="h3" size="nav" className="normal-case">
-            {trigger.label}
-          </PanelTitle>
-        </div>
-        {trigger.mocked ? (
-          <span className="shrink-0 border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
-            UI mock
+      <div className="relative aspect-[16/9] min-h-[11rem] overflow-hidden border-b-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+        <ThemedImage
+          src={trigger.visual.src}
+          alt={trigger.visual.alt}
+          className="h-full w-full object-cover transition-transform duration-[var(--duration-normal)] group-hover:scale-[1.03]"
+          style={{ objectPosition: trigger.visual.position ?? 'center' }}
+          loading="lazy"
+          decoding="async"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.54)_100%)]" />
+        <div className="absolute left-[var(--space-3)] right-[var(--space-3)] top-[var(--space-3)] flex items-start justify-between gap-[var(--space-2)]">
+          <span className="inline-flex items-center gap-[var(--space-2)] border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white">
+            <Icon size={15} aria-hidden="true" />
+            {trigger.scene}
           </span>
-        ) : null}
+          {trigger.mocked ? (
+            <span className="shrink-0 border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-white">
+              UI mock
+            </span>
+          ) : null}
+        </div>
       </div>
 
-      <PanelBody size="compact" className="max-w-none">
-        {trigger.note}
-        {trigger.mocked ? ' Clicking fires a real POST.' : ''}
-      </PanelBody>
+      <div className="flex flex-1 flex-col gap-[var(--space-3)] p-[var(--space-4)]">
+        <div className="flex items-start justify-between gap-[var(--space-2)]">
+          <div className="flex items-center gap-[var(--space-2)]">
+            <Icon size={20} className="text-[var(--brand-primary)]" />
+            <PanelTitle as="h3" size="nav" className="normal-case">
+              {trigger.label}
+            </PanelTitle>
+          </div>
+          <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+            {trigger.sender}
+          </span>
+        </div>
 
-      <button
-        type="button"
-        onClick={onFire}
-        disabled={disabled}
-        className={cn(
-          'inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
-          'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-          'hover:bg-[var(--brand-primary-on-tint)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--interactive-focus)]',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-        )}
-      >
-        Fire this trigger
-      </button>
+        <PanelBody size="compact" className="max-w-none">
+          {trigger.note}
+          {trigger.mocked ? ' The tile still fires a real POST.' : ''}
+        </PanelBody>
 
-      <CopyableCommandBlock
-        label="Real shell command"
-        command={trigger.command}
-        className="mt-[var(--space-1)]"
-      />
+        <button
+          type="button"
+          onClick={onFire}
+          disabled={disabled}
+          className={cn(
+            'inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
+            'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
+            'hover:bg-[var(--brand-primary-on-tint)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--interactive-focus)]',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+          )}
+        >
+          Fire this trigger
+        </button>
+
+        <CopyableCommandBlock
+          label="Real shell command"
+          command={trigger.command}
+          className="mt-auto hidden lg:grid"
+        />
+        <details className="lg:hidden">
+          <summary className="cursor-pointer border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
+            Shell command
+          </summary>
+          <CopyableCommandBlock
+            label="Real shell command"
+            command={trigger.command}
+            className="mt-[var(--space-2)]"
+          />
+        </details>
+      </div>
     </div>
   )
 }
