@@ -103,43 +103,20 @@ jobs:
             `VERDICT: SHIP` or `VERDICT: SHIP-AFTER-FIX` or `VERDICT: DO-NOT-SHIP`,
             followed by one sentence of justification.
 
-      - name: Enforce adversarial verdict (block on DO-NOT-SHIP)
+            Do NOT try to post a comment yourself — your final message IS the
+            review. A follow-up step posts it to the PR verbatim and enforces the
+            verdict (DO-NOT-SHIP fails the check).
+
+      # The action runs Claude but its own tool sandbox denies Claude's attempts
+      # to post (permission_denials_count > 0). Instead of fighting that, read the
+      # action's saved execution log, post the review as a sticky comment via the
+      # job's GITHUB_TOKEN, and FAIL on DO-NOT-SHIP so the verdict has teeth.
+      - name: Unit-test the verdict parser
         if: github.event_name == 'pull_request'
-        run: |
-          set -euo pipefail
-          # The reviewer above ends its PR comment with a single line:
-          #   VERDICT: SHIP | SHIP-AFTER-FIX | DO-NOT-SHIP
-          # We read that line back and gate the merge on it. Only Bot-authored
-          # comments/reviews count, so a human cannot spoof a verdict in prose.
-          # Fail CLOSED: if no verdict is found (reviewer crashed / API lag), the
-          # check stays red rather than waving the PR through.
-          extract_verdict() {
-            {
-              gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate \
-                --jq '.[] | select(.user.type=="Bot") | .body' 2>/dev/null || true
-              gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" --paginate \
-                --jq '.[] | select(.user.type=="Bot") | .body' 2>/dev/null || true
-            } \
-              | grep -oE 'VERDICT:[[:space:]]*(SHIP-AFTER-FIX|DO-NOT-SHIP|SHIP)' \
-              | tail -n1 \
-              | sed -E 's/^VERDICT:[[:space:]]*//'
-          }
-
-          verdict=""
-          for attempt in 1 2 3 4 5 6; do
-            verdict="$(extract_verdict || true)"
-            if [ -n "$verdict" ]; then break; fi
-            echo "No verdict yet (attempt $attempt) — the reviewer comment may still be propagating; waiting 10s…"
-            sleep 10
-          done
-
-          echo "Latest adversarial verdict: ${verdict:-<none found>}"
-          if [ -z "$verdict" ]; then
-            echo "::error::No adversarial VERDICT line found after retries. Failing closed — the adversarial reviewer must post a verdict before this PR can merge."
-            exit 1
-          fi
-          if [ "$verdict" = "DO-NOT-SHIP" ]; then
-            echo "::error::Adversarial reviewer returned VERDICT: DO-NOT-SHIP. Merge blocked. Address the [HIGH]/[MEDIUM] findings in the reviewer comment and push again."
-            exit 1
-          fi
-          echo "Verdict '$verdict' permits merge."
+        run: node --test scripts/enforce-adversarial-verdict.test.mjs
+      - name: Post review + enforce verdict
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLAUDE_EXEC: ${{ runner.temp }}/claude-execution-output.json
+        run: node scripts/enforce-adversarial-verdict.mjs
