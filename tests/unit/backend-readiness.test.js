@@ -190,6 +190,25 @@ describe('backend readiness', () => {
     expect(readiness.setupCommand).toBe('claude');
   });
 
+  test('marks claude-cli launchableUnverified when the binary is found', async () => {
+    mockSpawnSync.mockImplementation((command, args) => ({
+      status: command === 'which' && args[0] === 'claude' ? 0 : 1,
+    }));
+
+    const readiness = await assessBackendReadiness('claude-cli');
+
+    expect(mockSpawnSync).toHaveBeenCalledWith('which', ['claude'], expect.objectContaining({
+      encoding: 'utf-8',
+    }));
+    expect(readiness).toMatchObject({
+      backend: 'claude-cli',
+      status: 'manual_check',
+      launchableUnverified: true,
+    });
+    expect(readiness.summary).toContain('Claude CLI binary found');
+    expect(readiness.setupCommand).toBe('claude');
+  });
+
   test('keeps codex probe details and allows launch when exact telemetry is available', async () => {
     mockSpawnSync.mockImplementation((command, args) => ({
       status: command === 'which' && args[0] === 'codex' ? 0 : 1,

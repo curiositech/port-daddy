@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1782714651462,
+  "generatedAt": 1782721673981,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 99,
+  "count": 100,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -428,6 +428,11 @@
       "slug": "codex-session-takeover-legibility",
       "status": "backlog",
       "summaryMd": "fix(sessions): make takeover successor the active context"
+    },
+    {
+      "slug": "feat-pd-console-operator-chat",
+      "status": "backlog",
+      "summaryMd": "feat(pd-console): operator chat surface (real tube transport + GPUI text input)"
     },
     {
       "slug": "gpui-agent-observatory",

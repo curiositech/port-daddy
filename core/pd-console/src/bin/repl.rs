@@ -24,6 +24,10 @@
 #[path = "../berths.rs"]         mod berths; // named daemon picker data (ADR-0084)
 #[allow(dead_code)]
 #[path = "../buffer.rs"]         mod buffer;
+// The operator-chat MODEL is gpui-free (ChatMsg/ChatLog/ChatState) so the three
+// render states are unit-tested here, in the headless test gate.
+#[allow(dead_code)]
+#[path = "../chat.rs"]           mod chat;
 #[path = "../daemon_pane.rs"]    mod daemon_pane; // daemon picker surface (tests)
 #[path = "../claims_pane.rs"]    mod claims_pane;
 // cloud_fleet_pane is GPUI-free (no maritime/gpui), so it compiles in this bin.

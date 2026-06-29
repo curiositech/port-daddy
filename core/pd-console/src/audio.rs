@@ -73,6 +73,9 @@ pub enum Cue {
     Dispatch,
     /// A generic success / accepted action — a bright two-note rise.
     Confirm,
+    /// A chat reply landed down the tube — one soft warm mid note, distinct from
+    /// Confirm's rise (a gentle "you've got mail", not a success climb).
+    Receive,
     /// A destructive command was intercepted, or an HITL gate stands — a low,
     /// firm descending "stop" (distinct from Error: a wall, not a failure).
     Gate,
@@ -270,6 +273,13 @@ fn voices_for(cue: Cue, j: f32) -> Vec<Voice> {
             Voice { start_s: 0.0, dur_s: 0.12, gain: 0.22, partials: rich(587.33) },
             Voice { start_s: 0.09, dur_s: 0.18, gain: 0.24, partials: rich(880.0) },
         ],
+        // A single soft warm mid note — a reply arriving (distinct from Confirm's rise).
+        Cue::Receive => vec![Voice {
+            start_s: 0.0,
+            dur_s: 0.16,
+            gain: 0.10,
+            partials: rich(659.25),
+        }],
         // Low, firm descending "stop" with a little triangle edge — a wall.
         Cue::Gate => vec![
             Voice {
@@ -373,6 +383,7 @@ mod tests {
             Cue::Bloom,
             Cue::Dispatch,
             Cue::Confirm,
+            Cue::Receive,
             Cue::Gate,
             Cue::Error,
             Cue::Toggle,
