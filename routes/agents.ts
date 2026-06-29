@@ -15,7 +15,8 @@ interface InboxMessage {
   id: number;
   agentId: string;
   from: string | null;
-  content: string;
+  content: unknown;
+  contentType?: string;
   type: string;
   read: boolean;
   createdAt: number;
@@ -35,7 +36,7 @@ interface AgentsRouteDeps {
     list(opts: { activeOnly: boolean; identityPrefix?: string; purpose?: string }): unknown;
   };
   agentInbox: {
-    send(agentId: string, content: string, opts?: { from?: string; type?: string }): { success: boolean; messageId?: number; error?: string };
+    send(agentId: string, content: unknown, opts?: { from?: string; type?: string; contentType?: 'text' | 'json' | 'binary' }): { success: boolean; messageId?: number; error?: string };
     list(agentId: string, opts?: { unreadOnly?: boolean; limit?: number; since?: number }): { success: boolean; messages: InboxMessage[]; count: number };
     listSent(fromAgent: string, opts?: { unreadOnly?: boolean; limit?: number }): { success: boolean; messages: InboxMessage[]; count: number };
     markRead(agentId: string, messageId: number): { success: boolean };
@@ -320,9 +321,12 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.post('/agents/:id/inbox', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const agentId = (request.params as any).id as string;
-      const { content, from, type, wake, project } = request.body as any;
+      const { content, from, type, wake, project, contentType, messageContent } = request.body as any;
 
-      if (!content) {
+      const hasContent = content !== undefined
+        && content !== null
+        && !(typeof content === 'string' && content.trim() === '');
+      if (!hasContent) {
         reply.code(400);
         return { error: 'content required' };
       }
@@ -332,7 +336,10 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
         logger.info('inbox_hail_sent', { agentId, from, note: 'Agent not in registry' });
       }
 
-      const result = agentInbox.send(agentId, content, { from, type });
+      const safeContentType = contentType === 'text' || contentType === 'json' || contentType === 'binary'
+        ? contentType
+        : undefined;
+      const result = agentInbox.send(agentId, content, { from, type, contentType: safeContentType });
 
       if (!result.success) {
         const statusCode = (result as Record<string, unknown>).code === 'RESOURCE_LIMIT' ? 429 : 400;
@@ -348,7 +355,11 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
           source: 'inbox',
           from: typeof from === 'string' ? from : null,
           message: content,
-          messageContent: String(content),
+          messageContent: typeof messageContent === 'string' && messageContent.trim()
+            ? messageContent.trim()
+            : typeof content === 'string'
+              ? content
+              : JSON.stringify(content),
         });
         if (!wakeResult.success) {
           reply.code(409);

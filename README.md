@@ -676,7 +676,7 @@ Agent creation stores a readable display name beside the technical id. `pd begin
 
 Fleet status now reflects mailbox semantics: repeated trigger bursts collapse into queued work instead of spawning a fresh agent for every wake. When that happens, agent rows can show `status: queued` and a non-zero `queueDepth` so operators can see pending work instead of mistaking it for a miss.
 
-The daemon-served control plane now has an explicit `Agents` surface alongside the fleet graph. It is the operator view for all agents in a project slice: configured fleet agents, live registry entries, spawned runs, salvage ghosts, inbox traffic, recent sessions/notes, known pub/sub bindings, and active file claims.
+The daemon-served control plane now has an explicit `Agents` surface alongside the fleet graph. It is the operator view for all agents in a project slice: configured fleet agents, live registry entries, spawned runs, salvage ghosts, inbox traffic, recent sessions/notes, known pub/sub bindings, and active file claims. The adjacent `Visual Task` surface lets FleetBar send an annotated screenshot or current-page DOM region to a target agent, publish the JSON payload to `visual-feedback`, and optionally propose a reviewed dispatch from that same evidence.
 
 ### Bonds & Budget Guard
 

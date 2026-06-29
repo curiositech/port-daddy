@@ -119,7 +119,8 @@ struct FleetPopover: View {
             ConsoleLauncherSection(
                 berths: berthStore.berths,
                 activeDaemonURL: store.daemonURL,
-                openControlCenter: { openControlPlane(.flow) }
+                openControlCenter: { openControlPlane(.flow) },
+                openVisualTask: { openControlPlane(.visual) }
             )
             Divider().opacity(0.5)
             if store.isDaemonRunning {
@@ -923,6 +924,9 @@ struct FleetPopover: View {
                     onOpenProject: {
                         openControlPlane(.flow, project: project.id)
                     },
+                    onOpenVisualTask: {
+                        openControlPlane(.visual, project: project.id)
+                    },
                     onRemediateProject: {
                         handleProjectRemediation(project)
                     },
@@ -1083,6 +1087,7 @@ struct ProjectSection: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onOpenProject: () -> Void
+    let onOpenVisualTask: () -> Void
     let onRemediateProject: () -> Void
     let onInspectAgent: (String) -> Void
     let onRunAgent: (String) -> Void
@@ -1165,6 +1170,7 @@ struct ProjectSection: View {
                 ProjectReadinessRow(
                     project: project,
                     onOpenProject: onOpenProject,
+                    onOpenVisualTask: onOpenVisualTask,
                     onRemediateProject: onRemediateProject
                 )
 
@@ -1209,6 +1215,7 @@ struct ProjectSection: View {
 struct ProjectReadinessRow: View {
     let project: FleetProject
     let onOpenProject: () -> Void
+    let onOpenVisualTask: () -> Void
     let onRemediateProject: () -> Void
 
     /// SF Symbol for each remediation action. Picked so the icon reinforces
@@ -1245,6 +1252,16 @@ struct ProjectReadinessRow: View {
             }
 
             Spacer(minLength: Fleet.Space.s)
+
+            Button {
+                onOpenVisualTask()
+            } label: {
+                Image(systemName: "viewfinder")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Fleet.Color.healthy)
+            .help("Open visual task intake")
 
             Button {
                 onOpenProject()

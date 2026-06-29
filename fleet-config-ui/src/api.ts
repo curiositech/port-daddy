@@ -45,6 +45,7 @@ import type {
   SetupOverview,
   SetupRunResult,
   ActiveAgentRoster,
+  DispatchProposal,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -275,6 +276,7 @@ function pathCategory(path: string): string {
   const p = path.toLowerCase();
   if (p.startsWith('/usage')) return 'usage';
   if (p.startsWith('/fleet')) return 'fleet';
+  if (p.startsWith('/dispatches')) return 'dispatch';
   if (p.startsWith('/agents')) return 'agents';
   if (p.startsWith('/sessions')) return 'sessions';
   if (p.startsWith('/msg') || p.startsWith('/channels')) return 'channels';
@@ -641,9 +643,12 @@ export async function resolveChannel(name: string, projectDir?: string): Promise
  * already stored the inbox message even if it could not wake a live runtime.
  */
 export async function sendAgentMessage(agentId: string, opts: {
-  content: string;
+  content: unknown;
   project?: string;
   from?: string;
+  type?: string;
+  contentType?: 'text' | 'json' | 'binary';
+  messageContent?: string;
   wake?: boolean;
 }): Promise<{
   success: boolean;
@@ -661,6 +666,9 @@ export async function sendAgentMessage(agentId: string, opts: {
       content: opts.content,
       project: opts.project,
       from: opts.from ?? 'fleet-ui',
+      type: opts.type,
+      contentType: opts.contentType,
+      messageContent: opts.messageContent,
       wake: opts.wake ?? true,
     }),
   });
@@ -689,6 +697,35 @@ export async function sendAgentMessage(agentId: string, opts: {
     wake?: { success: boolean; project?: string; agent?: string; error?: string };
     error?: string;
   };
+}
+
+export async function proposeDispatchGoal(input: {
+  goal: string;
+  requestedBy?: string;
+  mergePolicy?: 'review' | 'auto' | string;
+  baseBranch?: string;
+  targetActorId?: string | null;
+  reviewerActorId?: string | null;
+}): Promise<DispatchProposal> {
+  const data = await post<{ ok?: boolean; dispatch: DispatchProposal }>('/dispatches', {
+    goal: input.goal,
+    requestedBy: input.requestedBy ?? 'fleet-ui',
+    mergePolicy: input.mergePolicy ?? 'review',
+    ...(input.baseBranch ? { baseBranch: input.baseBranch } : {}),
+    ...(input.targetActorId ? { targetActorId: input.targetActorId } : {}),
+    ...(input.reviewerActorId ? { reviewerActorId: input.reviewerActorId } : {}),
+  });
+  return data.dispatch;
+}
+
+export async function runDispatchNow(id: string): Promise<{
+  ok?: boolean;
+  queued?: boolean;
+  launchedThisTick?: number;
+  dispatch?: DispatchProposal;
+  message?: string;
+}> {
+  return post(`/dispatches/${encodeURIComponent(id)}/run`);
 }
 
 /**

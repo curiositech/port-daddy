@@ -348,6 +348,15 @@ struct FleetControlCenter: View {
             }
 
             ActionPill(
+                title: "Visual Task",
+                systemImage: "viewfinder",
+                color: Fleet.Color.healthy
+            ) {
+                selectedSurface = .visual
+                reloadToken = UUID()
+            }
+
+            ActionPill(
                 title: "Browser",
                 systemImage: "safari",
                 color: Fleet.Color.warning,
