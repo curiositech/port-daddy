@@ -8,17 +8,18 @@
 \providecolor{hhamber}{HTML}{6B4500}
 \providecolor{hhteal}{HTML}{00564C}
 \providecolor{hhpaper}{HTML}{FBF7EF}
+\providecolor{maydayred}{HTML}{8B0000}
 
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
   font=\sffamily\small,
-  adv/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=3pt,
+  adv/.style={draw=maydayred,thick,fill=maydayred!8,rounded corners=3pt,
               inner sep=4pt,minimum width=22mm,align=center,
-              font=\sffamily\bfseries,text=hhcobalt},
-  sybil/.style={draw=hhcobalt,thick,fill=hhpaper,rounded corners=2pt,
+              font=\sffamily\bfseries,text=maydayred},
+  sybil/.style={draw=maydayred,thick,fill=hhpaper,rounded corners=2pt,
                 inner sep=3pt,minimum width=16mm,align=center,
-                font=\sffamily\footnotesize},
+                font=\sffamily\footnotesize,text=maydayred},
   honest/.style={draw=hhebony,thick,fill=hhsand,rounded corners=2pt,
                  inner sep=3pt,minimum width=16mm,align=center},
   auction/.style={draw=hhebony,thick,fill=hhsanddeep,rounded corners=3pt,
@@ -26,7 +27,7 @@
   payout/.style={draw=hhteal,thick,fill=hhpaper,rounded corners=2pt,
                  inner sep=3pt,align=center,font=\sffamily\footnotesize\bfseries},
   arr/.style={->,>=Latex,thick,draw=hhink},
-  badarr/.style={->,>=Latex,thick,draw=hhcobalt,dashed},
+  badarr/.style={->,>=Latex,thick,draw=maydayred,dashed},
 ]
 % Layout: ATTACKER(0,0) → Sybils(3,y) → Auction(7,0) ← Honest(10.5,y)
 %         Winner(7,-2.4) ← Lossbox(3.5,-2.4)
