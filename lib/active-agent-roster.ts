@@ -134,8 +134,8 @@ function worktreeFrom(agent: ActiveAgentRosterAgent, sessions: ActiveAgentRoster
 function inferHarness(agent: ActiveAgentRosterAgent): ActiveAgentHarness {
   const metadata = asRecord(agent.metadata);
   const explicitHarness = stringFrom(metadata?.harness, metadata?.runtimeHarness, metadata?.surface);
-  const explicitBackend = stringFrom(metadata?.backend, metadata?.llmBackend, metadata?.provider);
-  const explicitModel = stringFrom(metadata?.model, metadata?.modelId);
+  const explicitBackend = stringFrom(metadata?.backend, metadata?.llmBackend, metadata?.latestBackend, metadata?.provider);
+  const explicitModel = stringFrom(metadata?.model, metadata?.modelId, metadata?.latestModel);
   const haystack = [
     explicitHarness,
     explicitBackend,

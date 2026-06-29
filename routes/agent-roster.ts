@@ -10,6 +10,15 @@ interface AgentRosterRouteDeps {
   agents: {
     list(opts: { activeOnly?: boolean; identityPrefix?: string }): { agents?: ActiveAgentRosterAgent[] };
   };
+  cloudAppTelemetry?: {
+    agents(opts?: {
+      activeOnly?: boolean;
+      identityPrefix?: string | null;
+      purpose?: string | null;
+      since?: number;
+      limit?: number;
+    }): ActiveAgentRosterAgent[];
+  };
   sessions: {
     list(opts?: { status?: string; project?: string | null; allWorktrees?: boolean; includeNotes?: boolean; limit?: number }): { sessions?: ActiveAgentRosterSession[] };
     listAllActiveClaims(opts?: Record<string, unknown>): { claims?: ActiveAgentRosterClaim[] };
@@ -21,7 +30,7 @@ interface AgentRosterRouteDeps {
 }
 
 export const agentRosterPlugin: FastifyPluginAsync<{ deps: AgentRosterRouteDeps }> = async (fastify, opts) => {
-  const { agents, sessions, metrics, logger } = opts.deps;
+  const { agents, cloudAppTelemetry, sessions, metrics, logger } = opts.deps;
 
   fastify.get('/agent-roster', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -35,9 +44,14 @@ export const agentRosterPlugin: FastifyPluginAsync<{ deps: AgentRosterRouteDeps 
         sessions.list({ status: 'active', project, allWorktrees: true, includeNotes: true, limit }),
         Promise.resolve(sessions.listAllActiveClaims()),
       ]);
+      const remoteAgents = cloudAppTelemetry?.agents({
+        activeOnly: false,
+        ...(project ? { identityPrefix: project } : {}),
+        limit,
+      }) ?? [];
 
       return buildActiveAgentRoster({
-        agents: agentRes.agents ?? [],
+        agents: [...(agentRes.agents ?? []), ...remoteAgents],
         sessions: sessionRes.sessions ?? [],
         claims: claimRes.claims ?? [],
         project,
