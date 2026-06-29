@@ -59,7 +59,7 @@ const surfaceScreenshots: Record<string, ThemedScreenshot> = {
 
 const surfacePreviewRows: Record<string, string[]> = {
   agents: ['Coxswain: active', 'Lookout: docs drift clear', 'Quartermaster: budget guarded'],
-  roadmap: ['built: FleetBar preview', 'next: Developer ID notarization', 'next: Shipwright onboarding'],
+  roadmap: ['ready: FleetBar', 'next: Shipwright onboarding', 'watch: docs drift'],
   activity: ['session.note', 'file.claim', 'sortie.completed'],
   channels: ['website:coordination', 'coordination:inconsistency', 'project:git:committed'],
   inbox: ['Claude handoff unread', 'Codex proof request', 'Navigator status ping'],
@@ -440,9 +440,8 @@ export function MacAppShowcase() {
               <SurfacePanel elevation="quiet" padding="compact" className="grid gap-[var(--space-2)] self-start">
                 <PanelEyebrow>Current distribution stance</PanelEyebrow>
                 <PanelBody size="compact" className="max-w-none">
-                  Homebrew and npm remain the install path for Port Daddy. The website now also
-                  hosts an ad-hoc signed FleetBar preview while Developer ID signing and
-                  notarization move into the release channel.
+                  Homebrew installs Port Daddy. pd setup adds FleetBar and connects this project.
+                  pd doctor checks the app, daemon, hooks, MCP, and skills when they stop lining up.
                 </PanelBody>
               </SurfacePanel>
               <figure className="grid gap-[var(--space-2)]">

@@ -15,9 +15,9 @@ import { useState, type ReactNode } from 'react'
 
 /**
  * MacInstallSection is the single public install story: run setup, let doctor
- * repair drift, and use Squid only when you intentionally want a compatibility
- * bridge. FleetBar is signed and installed by setup, so this page does not ask
- * humans to perform manual app-install work.
+ * repair problems, and use Squid only when you intentionally want a compatibility
+ * bridge. FleetBar is installed by setup, so this page does not ask humans to
+ * perform manual app-install work.
  */
 
 type InstallLane = {
@@ -37,11 +37,11 @@ const INSTALL_LANES: InstallLane[] = [
   {
     icon: Cpu,
     badge: 'Default',
-    title: 'Install and arm everything',
+    title: 'Install and connect everything',
     body: (
       <>
-        Starts the local daemon, installs the <Mono>pd</Mono> CLI, wires MCP, refreshes the Port Daddy Pilot skill,
-        installs FleetBar, and arms the current project with Squid hooks plus Coordination Guard.
+        Starts the local daemon, installs the <Mono>pd</Mono> CLI, connects MCP, refreshes the Port Daddy Pilot skill,
+        installs FleetBar, and adds Squid hooks plus Coordination Guard to the current project.
       </>
     ),
     command: SETUP_COMMAND,
@@ -49,11 +49,11 @@ const INSTALL_LANES: InstallLane[] = [
   {
     icon: Wrench,
     badge: 'Repair',
-    title: 'Let doctor fix drift',
+    title: 'Let doctor fix it',
     body: (
       <>
-        Checks whether hooks, skills, MCP wiring, FleetBar, and the daemon still match the contract. When something is
-        missing or user-edited, doctor explains the concern and offers the remediation path.
+        Checks whether hooks, skills, MCP wiring, FleetBar, and the daemon still match the project. When something is
+        missing or user-edited, doctor explains the concern and shows the fix.
       </>
     ),
     command: DOCTOR_COMMAND,
@@ -77,7 +77,7 @@ const INCLUDED = [
   { name: 'CLI', detail: 'The operator and agent command surface, including the MCP stdio server.' },
   { name: 'MCP', detail: `${MCP_TOOL_TOTAL}+ tools for Claude Code, Codex CLI, Gemini CLI, Cursor, Windsurf, VS Code, Continue, and Cline.` },
   { name: 'Pilot', detail: 'Shared Port Daddy agent skill and Pilot definitions that teach agents the contract.' },
-  { name: 'FleetBar', detail: 'The signed Mac menu-bar app, installed by setup as part of the default path.' },
+  { name: 'FleetBar', detail: 'The Mac menu-bar app, installed by setup as part of the default path.' },
   { name: 'Hooks', detail: 'Local pre-turn briefing, pre-tool safety gate, and post-tool coordination trace.' },
 ] as const
 
@@ -95,9 +95,9 @@ export function MacInstallSection() {
             One setup command. One health command.
           </PanelTitle>
           <PanelBody className="max-w-[48rem] text-[length:var(--text-lg)]">
-            Port Daddy should not hand you a ceremony. <Mono>pd setup</Mono> installs the local runtime and arms the
-            current project. <Mono>pd doctor</Mono> is the repair surface when a hook, skill, MCP config, or app install
-            drifts. Squid is optional, for people who intentionally want Claude-shaped traffic backed by another runner.
+            Run <Mono>pd setup</Mono> once. It installs the local runtime, FleetBar, MCP, skills, hooks, and project checks
+            for the current project. Run <Mono>pd doctor</Mono> when any of those pieces stop lining up. Squid is
+            optional, for people who intentionally want Claude-shaped traffic backed by another runner.
           </PanelBody>
         </div>
 
@@ -106,14 +106,14 @@ export function MacInstallSection() {
             <div className="space-y-[var(--space-3)]">
               <PanelEyebrow>Default path</PanelEyebrow>
               <PanelTitle as="h3" size="card" className="max-w-[19ch]">
-                Bring the whole harness aboard.
+                Bring the project online.
               </PanelTitle>
               <PanelBody size="compact" className="max-w-none">
-                Setup is the product surface: daemon, CLI, MCP, Pilot, FleetBar, project hooks, and guardrails. It names
+                Setup starts the daemon, CLI, MCP, Pilot, FleetBar, and project hooks. It names
                 what it installs and keeps the privacy boundary local: hooks do not log or retain user transcripts.
               </PanelBody>
             </div>
-            <CopyableCommandBlock label="Install and arm this project" command={SETUP_COMMAND} />
+            <CopyableCommandBlock label="Install this project" command={SETUP_COMMAND} />
           </SurfacePanel>
 
           <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)]">
@@ -124,7 +124,7 @@ export function MacInstallSection() {
               loading="eager"
             />
             <figcaption className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-base)] px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--type-meta-size)] font-semibold leading-snug text-[var(--text-secondary)]">
-              Setup brings the runtime aboard and arms the project. Doctor keeps it honest when tools, hooks, or skills drift.
+              Setup brings the runtime aboard and connects the project. Doctor checks it when tools, hooks, or skills stop lining up.
             </figcaption>
           </figure>
         </div>
@@ -186,8 +186,8 @@ export function MacInstallSection() {
             </PanelTitle>
             <PanelBody size="compact" className="max-w-none">
               If an agent disables hooks, edits the shared skill, loses MCP tools, or cannot reach FleetBar or the daemon,
-              doctor tells the operator which part of the harness stopped matching the signed contract and how Port Daddy
-              can remediate it.
+              doctor tells the operator which part of the setup stopped matching the project and how Port Daddy
+              can repair it.
             </PanelBody>
             <CopyableCommandBlock label="Check and repair drift" command={DOCTOR_COMMAND} />
             <PanelBody size="compact" className="max-w-none">

@@ -19,6 +19,14 @@ import { describe, expect, test } from 'vitest'
 const read = (rel: string) => readFileSync(resolve(__dirname, rel), 'utf8')
 
 const installSection = read('./components/landing/MacInstallSection.tsx')
+const distributionSection = read('./components/landing/DistributionSection.tsx')
+const productData = read('./data/product.ts')
+const ctaBanner = read('./components/landing/CTABanner.tsx')
+const installCtaSection = read('./components/landing/InstallCTASection.tsx')
+const macAppShowcase = read('./components/landing/MacAppShowcase.tsx')
+const gettingStartedTutorial = read('./pages/tutorials/GettingStarted.tsx')
+const quickstartDocs = read('./pages/docs/QuickStart.tsx')
+const mcpData = read('./data/mcp.ts')
 const macPage = read('./pages/MacPreviewPage.tsx')
 const mainSource = read('./main.tsx')
 const siteHeader = read('./components/site/SiteHeader.tsx')
@@ -48,8 +56,8 @@ describe('mac install contract', () => {
     }
   })
 
-  test('pd setup is the one command that installs and arms the harness', () => {
-    expect(installSection).toContain('arms the current project')
+  test('pd setup is the one command that installs and connects the project', () => {
+    expect(installSection).toContain('adds Squid hooks plus Coordination Guard')
     expect(installSection).toContain('project hooks')
     expect(installSection).toContain('Coordination Guard')
     expect(installSection).toContain('FleetBar')
@@ -57,9 +65,9 @@ describe('mac install contract', () => {
     expect(installSection).toContain('Port Daddy Pilot')
   })
 
-  test('doctor is the remediation surface instead of exposing repair chores', () => {
-    expect(installSection).toContain('Let doctor fix drift')
-    expect(installSection).toContain('doctor explains the concern and offers the remediation path')
+  test('doctor is the repair surface instead of exposing repair chores', () => {
+    expect(installSection).toContain('Let doctor fix it')
+    expect(installSection).toContain('doctor explains the concern and shows the fix')
     expect(installSection).toContain('What doctor watches')
     expect(installSection).toContain('hooks')
     expect(installSection).toContain('skills')
@@ -67,6 +75,7 @@ describe('mac install contract', () => {
     expect(installSection).not.toContain('pd squid hooks')
     expect(installSection).not.toContain('pd guard install --mode enforce')
     expect(installSection).not.toContain('Refresh the harness')
+    expect(installSection).not.toContain('remediation path')
   })
 
   test('the page names hooks as the enforceable harness layer, not just agent instructions', () => {
@@ -109,10 +118,40 @@ describe('mac install contract', () => {
     expect(installSection).toContain('Port Daddy Pilot')
   })
 
-  test('it treats FleetBar as a signed setup-managed app, not manual zip work', () => {
-    expect(installSection).toContain('The signed Mac menu-bar app')
+  test('it treats FleetBar as setup-managed app, not manual zip work', () => {
+    const publicInstallSources = [
+      installSection,
+      distributionSection,
+      productData,
+      ctaBanner,
+      installCtaSection,
+      macAppShowcase,
+      gettingStartedTutorial,
+      quickstartDocs,
+      mcpData,
+    ].join('\n')
+
+    expect(installSection).toContain('The Mac menu-bar app')
     expect(installSection).toContain('installed by setup')
+    expect(distributionSection).toContain('FleetBar comes with setup')
+    expect(distributionSection).toContain('Run setup once')
+    expect(distributionSection).toContain('The happy path is setup, then FleetBar')
+    expect(ctaBanner).toContain('brew install curiositech/tap/port-daddy')
+    expect(ctaBanner).toContain('pd setup')
+    expect(installCtaSection).toContain('Setup connects the app, daemon, MCP server')
+    expect(installCtaSection).toContain('Run doctor when something stops lining up')
+    expect(macAppShowcase).toContain('pd setup adds FleetBar')
+    expect(gettingStartedTutorial).toContain('pd doctor')
+    expect(quickstartDocs).toContain('pd setup')
+    expect(mcpData).toContain('"command": "pd"')
     expect(installSection).not.toMatch(/checksum|sha256|zip handling/i)
+    expect(distributionSection).not.toMatch(/checksum|sha-?256|shasum|unzip|not stapled|Open Anyway|preview|manifest|provenance|Developer ID|signed/i)
+    expect(publicInstallSources).not.toContain('npm install -g port-daddy')
+    expect(publicInstallSources).not.toContain('shasum -a 256')
+    expect(publicInstallSources).not.toContain('unzip PortDaddy-FleetBar')
+    expect(publicInstallSources).not.toMatch(/ad-hoc signed FleetBar preview|Developer ID signing and\s+notarization move into the release channel|signed FleetBar|signed app|release artifacts|provenance/i)
+    expect(publicInstallSources).not.toMatch(/harness remediation|wire the harness|launchd ownership|diagnose drift|remediation path|wires the harness|guardrails/i)
+    expect(productData).not.toContain("id: 'npm'")
   })
 
   test('the retired /mcp route redirects into the Mac app page', () => {

@@ -350,7 +350,7 @@ export const CONFIG_EXAMPLES = [
   {
     label: 'Gemini CLI',
     file: '.gemini/extensions/port-daddy/GEMINI.md',
-    code: `npm install -g port-daddy\n\nOr create a native extension with:\n- MCP Server: "npx port-daddy mcp"\n- Skill: "port-daddy"`,
+    code: `brew install curiositech/tap/port-daddy\npd setup\n\nIf you are wiring Gemini by hand:\n- MCP Server: "pd mcp"\n- Skill: "port-daddy"`,
   },
   {
     label: 'Claude Code',
@@ -358,8 +358,8 @@ export const CONFIG_EXAMPLES = [
     code: `{
   "mcpServers": {
     "port-daddy": {
-      "command": "npx",
-      "args": ["port-daddy", "mcp"]
+      "command": "pd",
+      "args": ["mcp"]
     }
   }
 }`,
