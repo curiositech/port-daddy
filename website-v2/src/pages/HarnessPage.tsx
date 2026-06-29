@@ -403,48 +403,21 @@ type ProofMedia = {
 const PROOF_MEDIA: readonly ProofMedia[] = [
   {
     eyebrow: 'Rust GPUI app',
-    title: 'The operator sees the whole fleet, not one lonely chat.',
+    title: 'The operator sees the harness roster in the native app.',
     body:
-      'The GPUI cockpit puts the planner, live lane, and fleet roster in the same operator surface, so task agents and infrastructure agents are visible together.',
-    src: '/img/app-screens/pd-console-gpui/planner-cockpit-fleet.png',
-    alt: 'Rust GPUI Port Daddy cockpit showing planner state, live lane activity, and a fleet roster in one window.',
+      'The current GPUI control center opens the active-agent roster beside the live lane and planner, with stream, steer, takeover, worktree, and harness labels visible in one window.',
+    src: '/img/app-screens/pd-console-gpui/active-agents-harness-roster.png',
+    alt: 'Rust GPUI Port Daddy control center showing the active agent harness roster beside a live lane and planner pane.',
     kind: 'image',
     featured: true,
   },
   {
-    eyebrow: 'Live transcript',
-    title: 'A running agent has a readable lane and controls.',
+    eyebrow: 'CLI multiplexer',
+    title: 'The same roster exists without the native window.',
     body:
-      'The live lane shows the current session stream, tool activity, and operator controls like interrupt and attach instead of hiding the work in a background process.',
-    src: '/img/app-screens/pd-console-gpui/window-lane-live.png',
-    alt: 'Rust GPUI live lane showing a running agent stream with controls and activity panels.',
-    kind: 'image',
-  },
-  {
-    eyebrow: 'Session roster',
-    title: 'Sessions remain findable after the first turn.',
-    body:
-      'Harnessed agents need durable identity, branch, status, and transcript anchors so the operator can leave, return, and re-enter the right session.',
-    src: '/img/app-screens/pd-console-gpui/window-sessions.png',
-    alt: 'Rust GPUI sessions window listing Port Daddy sessions and their status.',
-    kind: 'image',
-  },
-  {
-    eyebrow: 'GPUI motion',
-    title: 'The app moves between planning and control.',
-    body:
-      'The planner console recording proves the app is not just a static mock: the operator can navigate the planning surface while the fleet stays in view.',
-    src: '/img/app-screens/pd-console-gpui/planner-console.gif',
-    alt: 'Animated Rust GPUI planner console showing the operator moving through Port Daddy planning and control panes.',
-    kind: 'gif',
-  },
-  {
-    eyebrow: 'Daemon lanes',
-    title: 'Switching runtimes is visible, not magical.',
-    body:
-      'Stable, latest, and dev lanes must be legible when a harnessed agent is running; the operator should know which daemon and backend are carrying the work.',
-    src: '/img/app-screens/pd-console-gpui/daemons-lane-switch.gif',
-    alt: 'Animated Rust GPUI daemon lane switcher showing different daemon lanes and their state.',
+      'The headless console face shows the same active-agent contract: backend, worktree, current task, touched files, stream command, steer command, and takeover handle.',
+    src: '/img/app-screens/pd-console-gpui/active-agent-roster-repl.gif',
+    alt: 'Animated terminal console showing the Port Daddy active-agent harness roster with stream, steer, and takeover commands.',
     kind: 'gif',
   },
   {
@@ -867,8 +840,8 @@ $ rm -rf build/ .git/
                 </PanelBody>
                 <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
                   <img
-                    src="/img/app-screens/pd-console-gpui/window-lane-live.png"
-                    alt="Rust GPUI live lane showing a running Port Daddy agent with controls and activity."
+                    src="/img/app-screens/pd-console-gpui/active-agents-harness-roster.png"
+                    alt="Rust GPUI active-agent harness roster showing live agents, stream commands, steer commands, and takeover handles."
                     className="aspect-video w-full object-cover"
                     loading="eager"
                   />
