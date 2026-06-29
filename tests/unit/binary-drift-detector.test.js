@@ -76,7 +76,7 @@ describe('binary-drift-detector', () => {
       });
 
       expect(drift.drifted).toBe(false);
-      expect(drift.reason).toMatch(/matches on-disk/);
+      expect(drift.reason).toMatch(/matches comparable on-disk/);
       expect(drift.onDiskHash).toBe(snap.runningHash);
     });
 
@@ -110,7 +110,7 @@ describe('binary-drift-detector', () => {
       });
 
       expect(drift.drifted).toBe(false);
-      expect(drift.reason).toMatch(/No `pd` binary found on PATH/);
+      expect(drift.reason).toMatch(/No comparable Port Daddy binary found on disk/);
     });
 
     test('does not falsely report drift when canonical pd path no longer exists', () => {
@@ -125,6 +125,39 @@ describe('binary-drift-detector', () => {
 
       expect(drift.drifted).toBe(false);
       expect(drift.reason).toMatch(/does not exist/);
+    });
+
+    test('compares split daemon installs against sibling port-daddy-daemon, not pd launcher', () => {
+      const daemonPath = join(tmpRoot, 'port-daddy-daemon');
+      const pdPath = join(tmpRoot, 'pd');
+      writeFileSync(daemonPath, 'daemon contents\n');
+      writeFileSync(pdPath, 'short launcher contents\n');
+      const snap = snapshotRunningBinary(daemonPath);
+
+      const drift = detectDrift({
+        runningSnapshot: snap,
+        env: { PATH: '' },
+      });
+
+      expect(drift.drifted).toBe(false);
+      expect(drift.onDiskPath).toBe(realpathSync(daemonPath));
+      expect(drift.onDiskHash).toBe(snap.runningHash);
+    });
+
+    test('reports drift for split daemon installs when sibling daemon is replaced', () => {
+      const daemonPath = join(tmpRoot, 'port-daddy-daemon');
+      writeFileSync(daemonPath, 'old daemon contents\n');
+      const snap = snapshotRunningBinary(daemonPath);
+      writeFileSync(daemonPath, 'new daemon contents\n');
+
+      const drift = detectDrift({
+        runningSnapshot: snap,
+        env: { PATH: '' },
+      });
+
+      expect(drift.drifted).toBe(true);
+      expect(drift.onDiskPath).toBe(realpathSync(daemonPath));
+      expect(drift.onDiskHash).not.toBe(snap.runningHash);
     });
 
     test('reports unavailable when the running binary could not be hashed at startup', () => {

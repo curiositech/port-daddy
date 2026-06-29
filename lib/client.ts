@@ -1351,6 +1351,10 @@ class PortDaddy {
 
   /** @private - Resolve connection target: prefer socket, fallback to TCP */
   _resolveTarget(): ConnectionTarget {
+    if (process.env.PORT_DADDY_FORCE_TCP === '1') {
+      const url = new URL(this.url);
+      return { host: url.hostname, port: parseInt(url.port, 10) || CANONICAL_TCP_PORT };
+    }
     // Explicit TCP URL overrides socket
     if (process.env.PORT_DADDY_URL) {
       const url = new URL(this.url);

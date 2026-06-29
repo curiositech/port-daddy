@@ -1,32 +1,27 @@
 # github-app-receiver
 
 Cloudflare Worker that receives webhook POSTs from a GitHub App, verifies the
-`X-Hub-Signature-256` HMAC against `GITHUB_WEBHOOK_SECRET`, normalizes the
-payload into a stable envelope, and forwards it to the operator's Port Daddy
-daemon.
+`X-Hub-Signature-256` HMAC against `GITHUB_WEBHOOK_SECRET`, and runs the PR
+review fleet in Cloudflare Workers AI under the `port-daddy-fleet[bot]` GitHub
+App identity.
 
-Point `DAEMON_FORWARD_URL` at the daemon's inbound route,
-`POST /webhooks/github` (routes/github-webhook.ts). That route authenticates
-the forward (the `FORWARD_AUTH_TOKEN` bearer below, checked against the
-daemon's `PD_GITHUB_FORWARD_TOKEN`), then publishes the event onto the
-messaging bus as `github:webhook:<event>`, `github:webhook:<event>:<action>`,
-and `github:<owner>/<repo>:<event>`. The fleet engine subscribes to those
-channels and dispatches whichever ships are declared in the target
-repository's `pd-fleet.yml` (see the fleet app README for the
-`trigger: global:github:webhook:<event>` convention).
+The Worker can also mirror remote activity back into Port Daddy. Set
+`PORT_DADDY_TELEMETRY_URL` to a daemon/tunnel URL ending in
+`/telemetry/cloud-app`, set the matching daemon token as
+`PD_CLOUD_APP_TELEMETRY_TOKEN` or `PD_REMOTE_TELEMETRY_TOKEN`, and store the same
+value in the Worker secret `PORT_DADDY_TELEMETRY_TOKEN`.
 
 ## Response codes
 
 | Code | Meaning |
 | ---- | ------- |
-| 204  | Signature verified, envelope forwarded |
+| 202  | Signature verified, fleet dispatch accepted |
 | 400  | Missing GitHub headers or malformed JSON |
 | 401  | Missing or invalid signature |
 | 405  | Non-POST request |
-| 500  | Worker misconfigured (secret or forward URL unset) |
-| 502  | Forward to daemon failed (after timeout / non-2xx) |
+| 500  | Worker misconfigured (required secret unset) |
 
-A 502 is recoverable: GitHub's redelivery queue will retry. A 401 is not.
+A 401 is not recoverable until the GitHub App webhook secret matches the Worker.
 
 ## Envelope shape
 
@@ -44,13 +39,8 @@ A 502 is recoverable: GitHub's redelivery queue will retry. A 401 is not.
 }
 ```
 
-Forward requests also carry these headers for routing without re-parsing the
-body:
-
-- `x-pd-webhook-event`
-- `x-pd-webhook-delivery`
-- `x-pd-webhook-channel`
-- `authorization: Bearer <FORWARD_AUTH_TOKEN>` (only if set)
+Remote telemetry requests are separate from the webhook envelope and POST JSON
+to `/telemetry/cloud-app` with `authorization: Bearer <PORT_DADDY_TELEMETRY_TOKEN>`.
 
 ## Environment
 
@@ -59,9 +49,11 @@ Set via `wrangler.toml` (`[vars]`) or `wrangler secret put`.
 | Name | Kind | Required | Notes |
 | ---- | ---- | -------- | ----- |
 | `GITHUB_WEBHOOK_SECRET` | secret | yes | Must match the secret on the GitHub App |
-| `DAEMON_FORWARD_URL`    | var    | yes | HTTPS URL the daemon (or its public tunnel) accepts POSTs on |
-| `FORWARD_AUTH_TOKEN`    | secret | no  | Bearer token the daemon checks; recommended for prod |
-| `FORWARD_TIMEOUT_MS`    | var    | no  | Forward timeout in ms, default 8000 |
+| `GITHUB_APP_ID` | var | yes | Numeric GitHub App ID |
+| `GITHUB_APP_PRIVATE_KEY` | secret | yes | RSA private key PEM, raw or base64 |
+| `PORT_DADDY_TELEMETRY_URL` | var | no | HTTPS URL ending in `/telemetry/cloud-app` |
+| `PORT_DADDY_TELEMETRY_TOKEN` | secret | no | Bearer token checked by the daemon telemetry route |
+| `PORT_DADDY_TELEMETRY_TIMEOUT_MS` | var | no | Telemetry POST timeout, default 3000 |
 
 ## Operator setup
 
@@ -77,14 +69,15 @@ npx wrangler login
 #    webhook on the GitHub App.
 echo "$(openssl rand -hex 32)" | npx wrangler secret put GITHUB_WEBHOOK_SECRET
 
-# 4. (Optional) Set a bearer token the daemon will check on forward.
-echo "$(openssl rand -hex 32)" | npx wrangler secret put FORWARD_AUTH_TOKEN
+# 4. Set the GitHub App private key.
+cat ~/.cloudflared/github-app.pem | base64 | npx wrangler secret put GITHUB_APP_PRIVATE_KEY
 
-# 5. Edit wrangler.toml and set DAEMON_FORWARD_URL to the HTTPS URL the
-#    daemon (or its tunnel) accepts. Examples:
-#      - dev:  https://smee.io/<your-channel>
-#      - prod: https://<tunnel>.trycloudflare.com/github/webhook
-#              https://<host>/github/webhook   (any reverse proxy)
+# 5. Optional telemetry mirror back into Port Daddy.
+TELEMETRY_TOKEN="$(openssl rand -hex 32)"
+printf '%s' "$TELEMETRY_TOKEN" | npx wrangler secret put PORT_DADDY_TELEMETRY_TOKEN
+# Set the daemon side to the same value as PD_CLOUD_APP_TELEMETRY_TOKEN or
+# PD_REMOTE_TELEMETRY_TOKEN, then point PORT_DADDY_TELEMETRY_URL at:
+#   https://<tunnel-or-host>/telemetry/cloud-app
 
 # 6. Deploy
 npx wrangler deploy
@@ -109,25 +102,14 @@ The webhook secret field on the GitHub App must match the value passed to
 your `pd-fleet.yml` cares about (typically `pull_request`, `push`,
 `check_run`, `check_suite`, `issue_comment`).
 
-## Daemon-side intake
+## Daemon-side telemetry intake
 
-The forward target is whatever HTTPS URL the operator exposes. Two common
-patterns:
-
-- **Dev**: point `DAEMON_FORWARD_URL` at a smee.io channel and run
-  `smee --url <channel> --target http://127.0.0.1:9876/github/webhook`
-  alongside the daemon. The daemon then has a small HTTP handler that
-  reads the envelope and publishes it to the
-  `github:webhook:<event>` channel via the existing
-  `POST /msg/:channel` route.
-
-- **Prod**: front the daemon with a tunnel (`cloudflared`, `ngrok`,
-  Tailscale Funnel) and set `DAEMON_FORWARD_URL` to the public URL.
-  Set `FORWARD_AUTH_TOKEN` so the daemon can reject unauthenticated
-  requests.
-
-The envelope shape is stable across both — the daemon does not need to
-know which transport delivered it.
+Remote fleet activity lands in Port Daddy at `POST /telemetry/cloud-app`.
+The route fails closed unless the daemon has `PD_CLOUD_APP_TELEMETRY_TOKEN` or
+`PD_REMOTE_TELEMETRY_TOKEN` set and the Worker sends the same value as a bearer
+token. Operators can read the mirrored activity at `GET /telemetry/cloud-app`;
+`GET /metrics/cost` also includes a `remote.cloudApp` block beside local spawner
+spend.
 
 ## Smoke test
 
@@ -145,7 +127,7 @@ GITHUB_WEBHOOK_SECRET=<prod-secret> \
 ```
 
 The script POSTs a synthetic `pull_request.opened` payload with a valid
-signature, expects 204, then re-POSTs with a zeroed signature and
+signature, expects 202, then re-POSTs with a zeroed signature and
 expects 401.
 
 ## Tests

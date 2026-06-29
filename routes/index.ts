@@ -71,6 +71,7 @@ import { roadmapPlugin } from './roadmap.js';
 import { commitmentsPlugin } from './commitments.js';
 import { shipwrightPlugin } from './shipwright.js';
 import { usagePlugin } from './usage.js';
+import { cloudAppTelemetryPlugin } from './cloud-app-telemetry.js';
 import { testHooksPlugin } from './test-hooks.js';
 import { cockpitPlugin } from './cockpit.js';
 import { popperPlugin } from './popper.js';
@@ -201,6 +202,10 @@ export async function registerAllRoutes(
   if ((deps as any).counters && (deps as any).costTracker) {
     await fastify.register(observabilityPlugin, { deps } as any);
   }
+
+  // Cloud App telemetry — remote GitHub App / Cloudflare Worker events that
+  // never passed through the local spawner.
+  await fastify.register(cloudAppTelemetryPlugin, { deps } as any);
 
   // Prometheus metrics + JSON snapshots (powers /metrics dashboard page)
   if ((deps as any).metricsRegistry && (deps as any).db) {

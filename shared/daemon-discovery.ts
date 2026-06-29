@@ -97,6 +97,7 @@ export type DaemonTarget = SocketTarget | TcpTarget;
  *
  * Precedence (do not reorder — pinned by tests/unit/daemon-target.test.js and
  * the long-standing lib/request.test.js):
+ *   0. `PORT_DADDY_FORCE_TCP=1` → loopback TCP, bypassing Unix socket
  *   1. `PORT_DADDY_SOCK` env  → explicit Unix socket (wins even over a URL)
  *   2. `PORT_DADDY_URL`  env  → explicit TCP URL
  *   3. the daemon's socket file ({@link DEFAULT_SOCK}) exists → Unix socket
@@ -109,6 +110,7 @@ export function resolveDaemonTarget(
   env: NodeJS.ProcessEnv = process.env,
   fileExists: (path: string) => boolean = existsSync,
 ): DaemonTarget {
+  if (env.PORT_DADDY_FORCE_TCP === '1') return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
   if (env.PORT_DADDY_SOCK) return { socketPath: env.PORT_DADDY_SOCK };
   if (env.PORT_DADDY_URL) return resolveDaemonTcpTarget(env.PORT_DADDY_URL);
   if (fileExists(DEFAULT_SOCK)) return { socketPath: DEFAULT_SOCK };

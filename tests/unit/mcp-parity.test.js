@@ -307,6 +307,7 @@ const MCP_EXEMPT_FEATURES = new Set([
   'merge_queue',    // API-only merge queue; no CLI or MCP tools yet
   'observability',  // Internal metrics/golden signals; admin API, not user-facing MCP
   'metricsprom',    // Prometheus scrape + browser dashboard endpoints; consumed by Grafana/scrapers and the /metrics.html page, not by MCP-driving agents
+  'cloud_app_telemetry', // Worker-facing GitHub App / Cloudflare telemetry ingest + read API. Agents consume the merged fleet/agents/observability surfaces instead of posting remote telemetry through MCP.
   'resource_governance', // Operator UI read model; MCP wrapper deferred until enforcement controls exist
   // CONVERTED to real MCP tools (#199): harbors, pheromone, symbols, semantic, cartographer, roadmap, commitments.
   'secrets',        // PR #197 managed provider credential store. CLI-only (`pd secret set/list/reveal/rm`); write + reveal routes are loopback-only (makeLoopbackGuard). Intentionally NO SDK/MCP surface — an agent must not be able to set or read managed provider API keys (e.g. poison ANTHROPIC_API_KEY to exfiltrate prompts). Follows the `setup` CLI-only precedent.

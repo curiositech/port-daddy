@@ -6,6 +6,7 @@
 # Secrets:
 #   GITHUB_WEBHOOK_SECRET   — HMAC secret matching the GitHub App webhook setting
 #   GITHUB_APP_PRIVATE_KEY  — RSA private key PEM (base64-encoded or raw with \n)
+#   PORT_DADDY_TELEMETRY_TOKEN — optional bearer for POST /telemetry/cloud-app
 
 name = "github-app-receiver"
 main = "src/worker.ts"
@@ -14,6 +15,10 @@ compatibility_date = "2026-05-01"
 [vars]
 # Numeric GitHub App ID (visible on the App settings page at github.com/settings/apps)
 GITHUB_APP_ID = "REPLACE_WITH_YOUR_GITHUB_APP_ID"
+# Optional: point at a daemon/tunnel URL ending in /telemetry/cloud-app to mirror
+# cloud fleet activity into the local Port Daddy telemetry ledger.
+# PORT_DADDY_TELEMETRY_URL = "https://<your-tunnel-or-host>/telemetry/cloud-app"
+# PORT_DADDY_TELEMETRY_TIMEOUT_MS = "3000"
 
 [ai]
 binding = "AI"

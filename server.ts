@@ -91,6 +91,7 @@ import { createSymbolIndex } from './lib/symbol-index.js';
 import { createSymbolClaims } from './lib/symbol-claims.js';
 import { createMergeQueue } from './lib/merge-queue.js';
 import { createCostTracker } from './lib/cost-tracker.js';
+import { createCloudAppTelemetry } from './lib/cloud-app-telemetry.js';
 import { createContextWindowTracker } from './lib/context-window-tracker.js';
 import { createKnowledgeCustodian } from './lib/knowledge-custodian.js';
 import { createOperatorPermissions } from './lib/operator-permissions.js';
@@ -541,6 +542,7 @@ const costTracker = createCostTracker(db, {
     budgetPause.arm({ agentId, project, reason, spentTodayUsd, budgetUsdPerDay });
   },
 });
+const cloudAppTelemetry = createCloudAppTelemetry(db, { costTracker, counters });
 const contextTracker = createContextWindowTracker(db);
 // Transcript recorder — backs `pd transcripts ...`, the dashboard panel, and
 // (critically) makes every spawn record its full conversation. The spawner is
@@ -1263,7 +1265,7 @@ await registerAllRoutes(
     services, messaging, locks, health, agents, activityLog, webhooks, projects, sessions,
     agentInbox, resurrection, changelog, tunnel, dns, resolver, briefing, sugar, attention, symbolClaims,
     harbors, sorties, conductor, dispatchQueue, dispatchWorker, orchestrator, correlationEngine, spawner, transcripts, tuples, blobs, fleetDaemon, repoRegistry,
-    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, counters, metricsRegistry,
+    orchestratorRegistry, symbolIndex, mergeQueue, graphEdges, episodicMemory, semanticResolver, costTracker, cloudAppTelemetry, counters, metricsRegistry,
     contextTracker,
     custodian, operatorPermissions,
     quorum, parley, resourceGovernance, feedback, roadmapPop, roadmapItems, roadmapPromote,

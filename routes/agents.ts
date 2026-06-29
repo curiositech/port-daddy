@@ -9,6 +9,7 @@ import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
 import { validateAgentId } from '../shared/validators.js';
 import { WebhookEvent } from '../lib/webhooks.js';
 import { getEffectiveContextWindow } from '../lib/context-window-tracker.js';
+import type { CloudAppTelemetry } from '../lib/cloud-app-telemetry.js';
 
 interface InboxMessage {
   id: number;
@@ -66,6 +67,7 @@ interface AgentsRouteDeps {
   contextTracker?: {
     upsertContextHealth(agentId: string, model: string, tokensUsed: number): unknown;
   };
+  cloudAppTelemetry?: CloudAppTelemetry;
 }
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
@@ -99,7 +101,7 @@ function requestPid(request: FastifyRequest, body: Record<string, unknown>): num
 // Fastify plugin (dual-export)
 // =============================================================================
 export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async (fastify, opts) => {
-  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon, contextTracker } = opts.deps;
+  const { logger, metrics, agents, agentInbox, activityLog, webhooks, messaging, fleetDaemon, contextTracker, cloudAppTelemetry } = opts.deps;
 
   // POST /agents - Register an agent
   fastify.post('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -248,9 +250,20 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   // GET /agents/:id - Get agent info
   fastify.get('/agents/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const result = agents.get((request.params as any).id as string);
+      const agentId = (request.params as any).id as string;
+      const result = agents.get(agentId);
 
       if (!result.success) {
+        const remoteAgent = cloudAppTelemetry?.getAgent(agentId);
+        if (remoteAgent) {
+          return {
+            success: true,
+            agent: {
+              ...remoteAgent,
+              timeSinceHeartbeat: Date.now() - remoteAgent.lastHeartbeat,
+            },
+          };
+        }
         reply.code(404);
         return { error: result.error };
       }
@@ -267,11 +280,35 @@ export const agentsPlugin: FastifyPluginAsync<{ deps: AgentsRouteDeps }> = async
   fastify.get('/agents', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { active, identity, purpose } = request.query as any;
-      return agents.list({
-        activeOnly: active === 'true',
-        identityPrefix: typeof identity === 'string' ? identity : undefined,
-        purpose: typeof purpose === 'string' ? purpose : undefined
+      const activeOnly = active === 'true';
+      const identityPrefix = typeof identity === 'string' ? identity : undefined;
+      const purposeFilter = typeof purpose === 'string' ? purpose : undefined;
+      const localResult = agents.list({
+        activeOnly,
+        identityPrefix,
+        purpose: purposeFilter
       });
+      const localRecord = localResult as Record<string, unknown>;
+      const localAgents = Array.isArray(localRecord.agents) ? localRecord.agents : [];
+      const remoteAgents = cloudAppTelemetry?.agents({
+        activeOnly,
+        identityPrefix,
+        purpose: purposeFilter,
+      }) ?? [];
+      const allAgents = [...localAgents, ...remoteAgents].sort((a, b) => {
+        const aHeartbeat = typeof (a as any).lastHeartbeat === 'number' ? (a as any).lastHeartbeat : 0;
+        const bHeartbeat = typeof (b as any).lastHeartbeat === 'number' ? (b as any).lastHeartbeat : 0;
+        return bHeartbeat - aHeartbeat;
+      });
+
+      return {
+        ...localRecord,
+        success: localRecord.success !== false,
+        agents: allAgents,
+        count: allAgents.length,
+        localCount: localAgents.length,
+        remoteCount: remoteAgents.length,
+      };
     } catch (error) {
       metrics.errors++;
       reply.code(500);
