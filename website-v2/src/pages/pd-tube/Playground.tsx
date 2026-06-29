@@ -408,17 +408,6 @@ function HeroSignalPanel() {
           loading="eager"
           decoding="async"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_36%,rgba(0,0,0,0.58)_100%)]" />
-        <div className="absolute bottom-[var(--space-3)] left-[var(--space-3)] right-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
-          {['button', 'hook', 'test', 'webhook'].map((label) => (
-            <span
-              key={label}
-              className="border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white"
-            >
-              {label}
-            </span>
-          ))}
-        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)]">
         <PanelEyebrow>Live loop</PanelEyebrow>
@@ -592,18 +581,6 @@ function TriggerTile({
           loading="lazy"
           decoding="async"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.54)_100%)]" />
-        <div className="absolute left-[var(--space-3)] right-[var(--space-3)] top-[var(--space-3)] flex items-start justify-between gap-[var(--space-2)]">
-          <span className="inline-flex items-center gap-[var(--space-2)] border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white">
-            <Icon size={15} aria-hidden="true" />
-            {trigger.scene}
-          </span>
-          {trigger.mocked ? (
-            <span className="shrink-0 border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-white">
-              UI mock
-            </span>
-          ) : null}
-        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-[var(--space-3)] p-[var(--space-4)]">
@@ -617,6 +594,15 @@ function TriggerTile({
           <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
             {trigger.sender}
           </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+          <span>{trigger.scene}</span>
+          {trigger.mocked ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>UI mock, real POST</span>
+            </>
+          ) : null}
         </div>
 
         <PanelBody size="compact" className="max-w-none">
