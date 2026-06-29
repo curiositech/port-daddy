@@ -1,5 +1,4 @@
 import { useId } from 'react'
-import { useTheme } from '@/lib/theme-context'
 import { cn } from '@/lib/utils'
 
 /**
@@ -15,8 +14,15 @@ import { cn } from '@/lib/utils'
  */
 
 const PALETTE = {
-  light: { c1: '#2076FE', c2: '#121212', c3: '#12B88F', grid: '#DCE3EB', sea: '#12B88F', amber: '#F5A623', cobalt: '#2076FE', ink: '#121212', muted: '#47423A' },
-  dark: { c1: '#7DB4FF', c2: '#F5F3ED', c3: '#20DEB0', grid: '#1A2434', sea: '#20DEB0', amber: '#FFB505', cobalt: '#2076FE', ink: '#F5F3ED', muted: '#A59F93' },
+  c1: 'var(--brand-primary)',
+  c2: 'var(--text-primary)',
+  c3: 'var(--brand-accent)',
+  grid: 'var(--border-subtle)',
+  sea: 'var(--brand-accent)',
+  amber: 'var(--status-warning)',
+  cobalt: 'var(--brand-primary)',
+  ink: 'var(--text-primary)',
+  muted: 'var(--text-muted)',
 } as const
 
 // Turn centres as % of the 18s colour cycle — the six 180° flips (two per 6s
@@ -79,12 +85,11 @@ const RAD_STOPS = [0, 0.4, 0.72, 1].map((offset, i) => ({
 }))
 
 export function SpinningWordmark({ className }: { className?: string }) {
-  const { theme } = useTheme()
   const id = useId().replaceAll(':', '')
   const maskId = `pdw-mask-${id}`
   const radialWashId = `pdw-rad-wash-${id}`
   const wordWashId = `pdw-word-wash-${id}`
-  const p = PALETTE[theme === 'dark' ? 'dark' : 'light']
+  const p = PALETTE
   const rootStyle = { '--c1': p.c1, '--c2': p.c2, '--c3': p.c3 } as React.CSSProperties
 
   return (

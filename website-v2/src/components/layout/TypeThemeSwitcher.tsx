@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react'
 /**
  * Type-theme switcher — a feel-out tool for the site's type system.
  *
- * The default (no attribute on <html>) is Recursive, self-hosted in
- * tokens.source.css — one variable file covering display, body, and mono.
+ * The default (no attribute on <html>) is IBM Plex, loaded in index.html and
+ * wired through tokens.source.css.
  * Each alternate swaps the three font-role variables via the matching
  * html[data-type-theme="..."] block in tokens.source.css; this component
  * sets the attribute, lazily injects the alternate's webfont stylesheet the
@@ -13,8 +13,7 @@ import { useEffect, useState } from 'react'
  * The roster is curated, not a grab-bag, and it skips the AI-design defaults
  * (Inter, Geist, Fraunces, the Fontshare/ITF starter pack). Every alternate
  * is SIL OFL: Recursive and Radnika are self-hosted; the rest load from
- * Google Fonts on demand. Once a winner is chosen, drop this component, its
- * theme blocks, and subset/self-host the winner.
+ * Google Fonts on demand except IBM Plex, which is now loaded globally.
  */
 
 interface TypeTheme {
@@ -29,17 +28,15 @@ const GF = 'https://fonts.googleapis.com/css2'
 const THEMES: TypeTheme[] = [
   {
     id: null,
-    label: 'Recursive',
-    detail: 'self-hosted default — one variable file, sans through mono',
+    label: 'IBM Plex',
+    detail: 'default: Plex Sans for UI and display, Plex Mono for code',
     links: [],
   },
   {
-    id: 'plex',
-    label: 'IBM Plex',
-    detail: 'libre superfamily: serif body, sans display, Plex mono',
-    links: [
-      `${GF}?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap`,
-    ],
+    id: 'recursive',
+    label: 'Recursive',
+    detail: 'self-hosted variable file, sans through mono',
+    links: [],
   },
   {
     id: 'hanken',
@@ -85,9 +82,7 @@ const THEMES: TypeTheme[] = [
     id: 'radnika',
     label: 'Radnika',
     detail: 'the previous house sans, kept for comparison',
-    links: [
-      `${GF}?family=IBM+Plex+Mono:wght@400;500&display=swap`,
-    ],
+    links: [],
   },
 ]
 

@@ -143,8 +143,8 @@ const TRIGGERS: Trigger[] = [
     note: 'A product surface hands a small decision to the agent without opening a terminal.',
     scene: 'Operator UI',
     visual: {
-      src: '/img/generated/example-pd-tube-button-to-agent.webp',
-      alt: 'A realistic app button sending a request to an agent sitting in a local workspace.',
+      src: '/img/generated/pd-tube-playground/trigger-button.png',
+      alt: 'A cropped internal tool screen with a button that posts a request to PD Tube.',
     },
     command: `pd tube ${DEMO_CHANNEL} --send "button: weigh in" --as web-button`,
     mocked: false,
@@ -158,9 +158,8 @@ const TRIGGERS: Trigger[] = [
     note: 'A post-commit hook pings the desk while the branch context is still fresh.',
     scene: 'Repository hook',
     visual: {
-      src: '/img/generated/pr-reviews-itself/code-reviewer.webp',
-      alt: 'A code reviewer station watching a pull request as a fresh commit arrives.',
-      position: 'center top',
+      src: '/img/generated/pd-tube-playground/trigger-git-hook.png',
+      alt: 'A cropped VS Code and terminal screen showing a git commit hook publishing to PD Tube.',
     },
     command: `pd tube ${DEMO_CHANNEL} --send "post-commit: $(git rev-parse --short HEAD)" --as git-post-commit`,
     mocked: true,
@@ -174,8 +173,8 @@ const TRIGGERS: Trigger[] = [
     note: 'A watch-mode test runner asks for diagnosis while the failing trace is still on screen.',
     scene: 'Red-to-green loop',
     visual: {
-      src: '/img/generated/example-test-failure-to-agent.webp',
-      alt: 'A failing test surface with an agent reading the trace and preparing a fix.',
+      src: '/img/generated/pd-tube-playground/trigger-tests.png',
+      alt: 'A cropped test runner screen showing a failing test being sent to PD Tube.',
     },
     command: `pd tube ${DEMO_CHANNEL} --send "tests: 142 passed" --as test-runner`,
     mocked: true,
@@ -189,9 +188,8 @@ const TRIGGERS: Trigger[] = [
     note: 'A team chat asks the local fleet for status without granting the chat app control.',
     scene: 'Team room',
     visual: {
-      src: '/img/generated/example-war-room.webp',
-      alt: 'A team room with several incident agents comparing notes across screens.',
-      position: 'center top',
+      src: '/img/generated/pd-tube-playground/trigger-slack.png',
+      alt: 'A cropped team chat screen where a deployment channel asks the local fleet for status.',
     },
     command: `pd tube ${DEMO_CHANNEL} --send "slack #deploys: status?" --as slack-bot`,
     mocked: true,
@@ -205,8 +203,8 @@ const TRIGGERS: Trigger[] = [
     note: 'An external service POST reaches the local daemon and becomes a threaded request.',
     scene: 'Service callback',
     visual: {
-      src: '/img/generated/example-webhook-to-local-agent.webp',
-      alt: 'A webhook arriving from a service and terminating at a local agent workstation.',
+      src: '/img/generated/pd-tube-playground/trigger-webhook.png',
+      alt: 'A cropped webhook delivery dashboard showing incoming POST events routed to PD Tube.',
     },
     command: `curl -s http://127.0.0.1:9876/msg/${DEMO_CHANNEL} \\
   -H 'content-type: application/json' \\
@@ -222,8 +220,8 @@ const TRIGGERS: Trigger[] = [
     note: 'A notebook cell finishes an experiment and asks the repo agent what changed.',
     scene: 'Notebook run',
     visual: {
-      src: '/img/generated/example-editor-lightbulb-to-agent.webp',
-      alt: 'An editor or notebook surface sending selected work to a local explaining agent.',
+      src: '/img/generated/pd-tube-playground/trigger-jupyter.png',
+      alt: 'A cropped notebook screen where a completed cell sends a request to PD Tube.',
     },
     command: `pd tube ${DEMO_CHANNEL} --send "notebook: run complete" --as jupyter-cell`,
     mocked: true,
@@ -237,8 +235,8 @@ const TRIGGERS: Trigger[] = [
     note: 'A scan from a lab bench, stock room, or field device becomes a local agent task.',
     scene: 'Physical signal',
     visual: {
-      src: '/img/generated/example-services-dns.webp',
-      alt: 'A physical services board with labels and signals being routed to a local agent.',
+      src: '/img/generated/pd-tube-playground/trigger-scan.png',
+      alt: 'A cropped scanner intake UI where a QR or barcode scan becomes a local agent task.',
     },
     command: `pd tube ${DEMO_CHANNEL} --send "scanned: SKU-00428" --as qr-scan`,
     mocked: true,
@@ -260,12 +258,11 @@ export function Playground() {
                   size="hero"
                   className="max-w-[16ch] !text-[length:var(--type-panel-title-display-size)] md:!text-[length:var(--type-hero-size)]"
                 >
-                  Every trigger, one agent.
+                  A named pipe for your agents.
                 </PanelTitle>
                 <PanelBody className="max-w-[42rem] text-[length:var(--text-lg)]">
-                  Fire a browser button, Git hook, test run, webhook, notebook, or scan into one
-                  Port Daddy channel. The same named agent replies on the same thread, with the real
-                  command visible when you need it.
+                  Post a message from code you already have. An agent listens on the channel, replies
+                  on the same thread, and keeps the exchange local to your machine.
                 </PanelBody>
               </div>
               <HeroSignalPanel />
@@ -277,6 +274,7 @@ export function Playground() {
         <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <PlaygroundExplainer />
+            <TubeDefinitionBar />
           </PageContainer>
         </section>
 
@@ -286,7 +284,7 @@ export function Playground() {
             <SectionIntro
               eyebrow="Demo 01 · The Switchboard"
               title="Seven triggers, one desk. The Concierge routes the work."
-              description="Product UI, Git hooks, test runners, team chat, webhooks, notebooks, and physical scans all post to desk:requests with their own sender. One named agent listens, answers on the same thread, and leaves the exact command visible when you need to wire the real surface."
+              description="This switchboard is one thing you can build with PD Tube. Product UI, Git hooks, test runners, team chat, webhooks, notebooks, and scan intake screens all post to desk:requests with their own sender. One named agent listens, answers on the same thread, and leaves the exact command visible when you need to wire the real surface."
               titleAs="h2"
               titleSize="display"
             />
@@ -402,8 +400,8 @@ function HeroSignalPanel() {
     <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)] lg:mt-[var(--space-2)]">
       <div className="relative aspect-[16/9] overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
         <ThemedImage
-          src="/img/generated/pd-tube-playground/switchboard-hero.webp"
-          alt="A switchboard collage showing product UI, git review, test runner, team room, webhook, and notebook triggers all routing through PD Tube."
+          src="/img/generated/pd-tube-playground/switchboard-hero.png"
+          alt="A cropped switchboard-style UI showing product buttons, commits, tests, chat, webhooks, and notebooks posting to one PD Tube channel."
           className="h-full w-full object-cover"
           loading="eager"
           decoding="async"
@@ -429,6 +427,29 @@ function HeroSignalPanel() {
         label="Start the listener"
         command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME}`}
       />
+    </SurfacePanel>
+  )
+}
+
+function TubeDefinitionBar() {
+  return (
+    <SurfacePanel
+      elevation="quiet"
+      padding="compact"
+      className="mt-[var(--space-5)] grid gap-[var(--space-4)] border-[var(--brand-primary)] bg-[var(--surface-raised)] lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:items-center"
+    >
+      <div>
+        <PanelEyebrow>Plain English</PanelEyebrow>
+        <PanelTitle as="h2" size="card" className="mt-[var(--space-2)] max-w-[18ch]">
+          PD Tube is a named pipe for your agents.
+        </PanelTitle>
+      </div>
+      <PanelBody className="max-w-none text-[length:var(--text-lg)]">
+        Code you already have can post a short message to a channel. An agent can listen
+        on that channel, answer on the same thread, and keep the exchange local to your
+        machine. The examples below are things you can build with that pipe: buttons,
+        hooks, tests, chats, webhooks, notebooks, and scanners.
+      </PanelBody>
     </SurfacePanel>
   )
 }

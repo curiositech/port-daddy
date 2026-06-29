@@ -13,7 +13,6 @@ import { Calendar, User, ArrowLeft } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import { extractDirectives, SIDENOTE_PATTERN } from '@/lib/blogDirectives'
 import { ThemedImage } from '@/components/site/ThemedImage'
-import { useTheme } from '@/lib/theme-context'
 
 // ─── Directive system ─────────────────────────────────────────────────────
 // HTML comments in markdown declare how the NEXT block should render:
@@ -96,8 +95,6 @@ export function BlogPostPage() {
   const post = blogPosts.find(p => p.slug === slug)
   const deprecatedPost = deprecatedBlogPosts.find(p => p.slug === slug)
   const { scrollYProgress } = useScroll()
-  const { theme } = useTheme()
-  const dark = theme === 'dark'
 
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -212,9 +209,6 @@ export function BlogPostPage() {
           <ThemedImage
             src={String(src ?? '')}
             alt={alt ?? ''}
-            style={{
-              filter: dark ? 'brightness(0.94) contrast(1.08) saturate(1.06)' : 'saturate(1.02)',
-            }}
           />
           {alt && <figcaption>{alt}</figcaption>}
         </figure>
@@ -288,18 +282,7 @@ export function BlogPostPage() {
               src={heroImg}
               alt={post.heroAlt}
               className="w-full h-auto object-cover max-h-[36rem]"
-              style={{
-                filter: dark ? 'brightness(0.94) contrast(1.08) saturate(1.06)' : 'saturate(1.02)',
-              }}
               loading="eager"
-            />
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background: dark
-                  ? 'linear-gradient(180deg, rgba(11,13,16,0.01) 0%, rgba(11,13,16,0.14) 100%)'
-                  : 'linear-gradient(180deg, rgba(245,241,233,0) 0%, rgba(245,241,233,0.1) 100%)',
-              }}
             />
           </div>
         </div>
