@@ -72,8 +72,30 @@ fi
 echo "Daemon healthy."
 
 # 1. /health must carry the shared severity field (route enrichment shipped).
-HEALTH_JSON="$(curl -s "$BASE/health")"
-if ! printf '%s' "$HEALTH_JSON" | grep -q '"severity":"ok"'; then
+if ! HEALTH_JSON="$(curl -fsS "$BASE/health")"; then
+  echo "FAIL: /health route did not respond on a freshly-booted daemon" >&2
+  cat "$LOG" >&2 || true
+  exit 1
+fi
+if ! printf '%s' "$HEALTH_JSON" | node -e '
+  let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+    let r;
+    try {
+      r = JSON.parse(s);
+    } catch (err) {
+      console.error("FAIL: /health did not return valid JSON: " + err.message);
+      process.exit(1);
+    }
+    if (!r || typeof r !== "object" || Array.isArray(r)) {
+      console.error("FAIL: /health returned a non-object JSON payload");
+      process.exit(1);
+    }
+    if (r.severity !== "ok") {
+      console.error("FAIL: /health severity expected ok, got " + String(r.severity));
+      process.exit(1);
+    }
+  });
+'; then
   echo "FAIL: /health did not report severity=ok on a freshly-booted daemon" >&2
   printf '%s\n' "$HEALTH_JSON" >&2
   exit 1

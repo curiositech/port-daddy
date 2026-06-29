@@ -699,7 +699,6 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   const results: CheckResult[] = [];
   let passed: number = 0;
   let total: number = 0;
-  let hasCriticalFailure: boolean = false;
   const daemonPort = resolveDiagnosticPort();
   const portLabel = `Daemon TCP port (${daemonPort}${daemonPort === CANONICAL_TCP_PORT ? ' preferred' : ''})`;
 
@@ -726,7 +725,6 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
 
   function criticalFail(name: string, detail: string, hint: string): void {
     total++;
-    hasCriticalFailure = true;
     results.push({ ok: false, name, detail, hint, severity: 'critical', critical: true });
   }
 
@@ -739,7 +737,6 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
     } else if (a.severity === 'warn') {
       results.push({ ok: false, name, detail: a.detail, hint: a.hint, severity: 'warn' });
     } else {
-      hasCriticalFailure = true;
       results.push({ ok: false, name, detail: a.detail, hint: a.hint, severity: 'critical', critical: true });
     }
   }
@@ -827,9 +824,14 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   try {
     const res: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/health`);
     if (res.ok) {
-      daemonData = await res.json();
-      daemonRunning = true;
-      check('Network', true, `${getDaemonUrl()} is reachable`);
+      const parsedHealth = await res.json();
+      if (parsedHealth && typeof parsedHealth === 'object' && !Array.isArray(parsedHealth)) {
+        daemonData = parsedHealth as Record<string, unknown>;
+        daemonRunning = true;
+        check('Network', true, `${getDaemonUrl()} is reachable`);
+      } else {
+        check('Network', false, `${getDaemonUrl()} returned an invalid /health payload`, 'Run: port-daddy restart');
+      }
     } else {
       check('Network', false, `${getDaemonUrl()} returned status ${res.status}`, 'Run: port-daddy start');
     }
@@ -1513,8 +1515,8 @@ export async function handleDoctor(rawOptions: DoctorOptions = {}): Promise<void
   console.log('');
 
   // Exit code gates on CRITICAL only — warnings are loud but do not break the
-  // build (the three-tier contract). `hasCriticalFailure` mirrors criticalCount.
-  if (hasCriticalFailure || criticalCount > 0) {
+  // build (the three-tier contract).
+  if (criticalCount > 0) {
     process.exit(1);
   }
 }
