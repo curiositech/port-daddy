@@ -20,8 +20,8 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { dirname, resolve } from 'node:path';
+import { dirname } from 'node:path';
+import { containPath } from '../path-guard.js';
 import { getSharedConsentGate } from '../consent-gate.js';
 import type {
   OutputAvailability,
@@ -48,7 +48,11 @@ export class FileOutputSink implements OutputSink {
       getSharedConsentGate().assertAllowed('file', payload);
     }
 
-    const expanded = expandPath(payload.recipient);
+    // Path-containment guard (ADR-0093): expand tokens/`~`, resolve, and refuse
+    // any path that escapes the operator's home dir via `..` traversal, an
+    // absolute path outside it, or a pre-planted symlink. Replaces the old
+    // unguarded expandPath() that allowed writes anywhere on disk.
+    const expanded = containPath(payload.recipient);
     const dir = dirname(expanded);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
@@ -65,18 +69,4 @@ export class FileOutputSink implements OutputSink {
       receipt: { path: expanded, mode: payload.type ?? 'write', bytes: Buffer.byteLength(payload.body, 'utf8') },
     };
   }
-}
-
-function expandPath(input: string): string {
-  const now = new Date();
-  const iso = now.toISOString();
-  const date = iso.slice(0, 10);            // 2026-05-20
-  const time = iso.slice(11, 19).replace(/:/g, '-'); // 17-38-16
-  const withTokens = input
-    .replace(/\{date\}/g, date)
-    .replace(/\{time\}/g, time)
-    .replace(/\{iso\}/g, iso.replace(/[:.]/g, '-'));
-  if (withTokens.startsWith('~/')) return resolve(homedir(), withTokens.slice(2));
-  if (withTokens === '~') return homedir();
-  return resolve(withTokens);
 }

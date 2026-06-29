@@ -17,6 +17,7 @@
  */
 
 import { getSharedConsentGate } from '../consent-gate.js';
+import { assertSafeOutboundUrl } from '../url-guard.js';
 import type {
   OutputAvailability,
   OutputPayload,
@@ -46,6 +47,15 @@ export class WebhookOutputSink implements OutputSink {
     // Always consent-gate; even pii=low can include enough context to
     // identify the operator when correlated with the receiving service.
     getSharedConsentGate().assertAllowed('webhook', payload);
+
+    // SSRF guard (ADR-0093): the recipient URL is attacker-influenceable when
+    // an untrusted trigger drives the agent. Block private/loopback/link-local/
+    // cloud-metadata targets and obfuscated-IP forms BEFORE fetch(). An
+    // operator may tighten further via extras.allowlist (exact host allowlist).
+    const allowlist = Array.isArray(payload.extras?.allowlist)
+      ? (payload.extras!.allowlist as unknown[]).filter((h): h is string => typeof h === 'string')
+      : undefined;
+    assertSafeOutboundUrl(payload.recipient, allowlist ? { allowlist } : {});
 
     const body = this.shapeBody(payload);
     const headers: Record<string, string> = {
