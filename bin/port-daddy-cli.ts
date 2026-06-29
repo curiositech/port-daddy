@@ -722,6 +722,7 @@ Commands:
     --no-mcp                Skip MCP + shell hook installation
     --no-fleetbar           Skip FleetBar install (macOS)
     --no-skill              Skip Port Daddy agent skill symlink
+    --no-agents             Skip Port Daddy Pilot agent definitions
     --status                Show cross-tool skill sync status only
     --skill-status          Alias for --status
     --dry-run               Preview cross-tool skill sync without writing links
