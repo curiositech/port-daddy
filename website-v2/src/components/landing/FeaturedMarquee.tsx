@@ -43,6 +43,75 @@ export function FeaturedCardMedia({
   )
 }
 
+function MarqueeCardLink({ card, ariaHiddenClone }: { card: FeaturedCard; ariaHiddenClone: boolean }) {
+  const label = `${card.title} - ${card.hook}`
+  const inner = (
+    <>
+      <div className="aspect-[16/10] w-full overflow-hidden border-b-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+        <FeaturedCardMedia media={card.media} className="transition-transform duration-[var(--duration-normal)] group-hover:scale-[1.03]" />
+      </div>
+      <div className="flex flex-1 flex-col gap-[var(--space-1)] p-[var(--space-3)]">
+        <p className="font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-[var(--brand-primary)]">
+          {card.audience}
+        </p>
+        <h3 className="font-display text-[1.05rem] font-black leading-[var(--leading-card)] text-[var(--text-primary)]">
+          {card.title}
+        </h3>
+        <p className="text-[0.95rem] leading-[var(--leading-body-compact)] text-[var(--text-secondary)]">
+          {card.hook}
+        </p>
+      </div>
+    </>
+  )
+
+  const sharedClass =
+    'group flex w-[clamp(15rem,24vw,19rem)] shrink-0 flex-col overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-sm)] transition-colors duration-[var(--duration-normal)] hover:bg-[var(--surface-base)] focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[var(--interactive-focus)]'
+
+  if (ariaHiddenClone) {
+    return (
+      <Link to={card.href} className={sharedClass} aria-hidden="true" tabIndex={-1}>
+        {inner}
+      </Link>
+    )
+  }
+
+  return (
+    <Link to={card.href} className={sharedClass} aria-label={label}>
+      {inner}
+    </Link>
+  )
+}
+
+/**
+ * Auto-scrolling card band reused by the standalone featured section and by the
+ * desktop hero. It uses the current featured-story registry so the hero and
+ * section cannot drift into separate card inventories.
+ */
+export function MarqueeTrack({ className, flush = false }: { className?: string; flush?: boolean }) {
+  return (
+    <div
+      className={cn('wd-marquee', className)}
+      style={flush ? { paddingInline: 0 } : undefined}
+      role="group"
+      aria-label="Featured posts and demos"
+    >
+      <style>{marqueeCss}</style>
+      <ul className="wd-marquee__track" role="list">
+        {featuredStoryCards.map((card) => (
+          <li key={`a-${card.href}-${card.title}`} className="wd-marquee__item">
+            <MarqueeCardLink card={card} ariaHiddenClone={false} />
+          </li>
+        ))}
+        {featuredStoryCards.map((card) => (
+          <li key={`b-${card.href}-${card.title}`} className="wd-marquee__item" aria-hidden="true">
+            <MarqueeCardLink card={card} ariaHiddenClone />
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export function FeaturedMarquee() {
   const reduceMotion = useReducedMotion()
   const [activeIndex, setActiveIndex] = useState(0)
@@ -169,6 +238,48 @@ export function FeaturedMarquee() {
           </div>
         </div>
       </PageContainer>
+
+      <MarqueeTrack />
     </section>
   )
 }
+
+const marqueeCss = `
+.wd-marquee {
+  position: relative;
+  width: 100%;
+  padding-inline: var(--layout-gutter-lg, 32px);
+}
+.wd-marquee__track {
+  display: flex;
+  gap: var(--space-3, 12px);
+  width: max-content;
+  margin: 0;
+  padding: var(--space-1, 4px) 0;
+  list-style: none;
+  animation: wd-marquee-scroll 48s linear infinite;
+  will-change: transform;
+}
+.wd-marquee__item { display: flex; }
+.wd-marquee:hover .wd-marquee__track,
+.wd-marquee:focus-within .wd-marquee__track {
+  animation-play-state: paused;
+}
+@keyframes wd-marquee-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wd-marquee {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .wd-marquee__track {
+    animation: none;
+    width: auto;
+  }
+  .wd-marquee__item { scroll-snap-align: start; }
+  .wd-marquee__item[aria-hidden='true'] { display: none; }
+}
+`
