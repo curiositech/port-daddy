@@ -48,6 +48,25 @@ beforeEach(() => {
 });
 
 describe('cli:claude-code sortie launch gate (real readiness + real preflight)', () => {
+  test('direct claude-cli launches when the claude binary is present', async () => {
+    binaryPresent('claude');
+
+    const result = await assessSpawnPreflight({
+      backend: 'claude-cli',
+      identity: 'console:agent:console-chat',
+      budgetUsd: 0.25,
+    }, { costTracker });
+
+    expect(result.launchReady).toBe(true);
+    expect(result.blockedReasons).toEqual([]);
+    expect(result.attempts[0]).toMatchObject({
+      backend: 'claude-cli',
+      readinessStatus: 'manual_check',
+      readinessLaunchableUnverified: true,
+    });
+    expect(result.warnings.join('\n')).toMatch(/auth could not be verified offline/i);
+  });
+
   test('launches when the claude binary is present (auth unverifiable but launchable)', async () => {
     binaryPresent('claude');
 

@@ -39,6 +39,26 @@ impl ChatMsg {
     }
 }
 
+/// Text that is safe to hand to the native GPUI text element and the shared
+/// terminal/repl renderer. GPUI's `String` child renders as text, not HTML, so
+/// keep markup-looking chat literal; only neutralize control characters that can
+/// perturb terminal output or invisible layout state.
+pub fn chat_display_text(raw: &str) -> String {
+    raw.chars()
+        .map(|ch| match ch {
+            '\n' | '\t' => ch,
+            ch if ch.is_control() => '\u{FFFD}',
+            ch => ch,
+        })
+        .collect()
+}
+
+/// The GPUI error banner text. Kept in the GPUI-free model so tests can pin the
+/// same display contract the native pane uses.
+pub fn chat_error_display_text(reason: &str) -> String {
+    format!("⚠ {}", chat_display_text(reason))
+}
+
 /// The three render states a chat pane must handle. Drives the test gate and the
 /// honest empty/error affordances (never a blank pane).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,7 +123,10 @@ impl ChatLog {
     pub fn blocks(&self) -> Vec<Block> {
         let mut out = vec![Block::Header("cartographer chat".into())];
         if let Some(err) = &self.error {
-            out.push(Block::WrappedText { text: format!("error: {err}"), tone: Tone::Conflicted });
+            out.push(Block::WrappedText {
+                text: format!("error: {}", chat_display_text(err)),
+                tone: Tone::Conflicted,
+            });
         }
         if self.messages.is_empty() {
             if self.error.is_none() {
@@ -115,9 +138,16 @@ impl ChatLog {
             return out;
         }
         for m in &self.messages {
-            let label = if m.mine { "you".to_string() } else { m.sender.clone() };
+            let label = if m.mine {
+                "you".to_string()
+            } else {
+                chat_display_text(&m.sender)
+            };
             let tone = if m.mine { Tone::Accent } else { Tone::Default };
-            out.push(Block::WrappedText { text: format!("{label}: {}", m.text), tone });
+            out.push(Block::WrappedText {
+                text: format!("{label}: {}", chat_display_text(&m.text)),
+                tone,
+            });
         }
         out
     }
@@ -229,5 +259,49 @@ mod tests {
         let mine = ChatMsg::mine("hello");
         assert!(mine.mine);
         assert_eq!(mine.sender, "operator");
+    }
+
+    #[test]
+    fn markup_like_chat_text_stays_literal_plain_text() {
+        let payload = r#"<script>alert("pd")</script> & <b>bold?</b>"#;
+        let mut log = ChatLog::default();
+        log.push_mine(payload);
+
+        let text = joined(&log.blocks());
+        assert!(
+            text.contains(payload),
+            "native chat text should preserve literal markup-looking input: {text}"
+        );
+        assert!(
+            !text.contains("&lt;script&gt;"),
+            "GPUI is not HTML; escaping would corrupt the transcript: {text}"
+        );
+    }
+
+    #[test]
+    fn untrusted_display_text_neutralizes_control_characters() {
+        let raw = "agent\u{1b}[31m says <img src=x onerror=alert(1)>";
+        let display = chat_display_text(raw);
+
+        assert!(
+            !display.contains('\u{1b}'),
+            "escape/control characters must not reach renderers: {display:?}"
+        );
+        assert!(
+            display.contains("<img src=x onerror=alert(1)>"),
+            "HTML-looking text remains literal native text, not escaped markup: {display}"
+        );
+    }
+
+    #[test]
+    fn error_banner_text_uses_the_same_plain_text_contract() {
+        let banner = chat_error_display_text("spawn refused <svg onload=alert(1)>\u{1b}[0m");
+
+        assert!(banner.starts_with("⚠ spawn refused "));
+        assert!(banner.contains("<svg onload=alert(1)>"));
+        assert!(
+            !banner.contains('\u{1b}'),
+            "error banner must neutralize controls: {banner:?}"
+        );
     }
 }

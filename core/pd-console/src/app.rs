@@ -19,7 +19,7 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::agent::{Backend, ModelCatalog, Tier};
-use crate::chat::{ChatLog, ChatMsg, ChatState};
+use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 pub use crate::chat::ChatUpdate;
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
@@ -3543,7 +3543,7 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
 fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     let t = current_theme();
     let mine = msg.mine;
-    let sender_label = if mine { "you".to_string() } else { msg.sender.clone() };
+    let sender_label = if mine { "you".to_string() } else { chat_display_text(&msg.sender) };
 
     // Eyebrow: who spoke (caption weight) — color = meaning, plus the label so a
     // role is never conveyed by color alone.
@@ -3555,7 +3555,7 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     let body = div()
         .text_color(rgb(if mine { t.accent_ink } else { t.ink }))
         .text_size(px(tokens::TEXT_BODY))
-        .child(msg.text.clone());
+        .child(chat_display_text(&msg.text));
 
     let bubble: Div = if mine {
         div()
@@ -3668,7 +3668,7 @@ fn chat_error_banner(reason: &str) -> AnyElement {
                 .text_color(rgb(t.gated))
                 .text_size(px(tokens::TEXT_BODY))
                 .font_weight(FontWeight::SEMIBOLD)
-                .child(format!("\u{26A0} {reason}")),
+                .child(chat_error_display_text(reason)),
         )
         .into_any_element()
 }
@@ -3712,6 +3712,7 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         .child(
             div()
                 .flex_1()
+                .min_w(px(0.0))
                 .flex()
                 .items_center()
                 .gap(px(4.0))
@@ -3729,13 +3730,17 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
                         .child("\u{203A}"),
                 )
                 .child({
-                    let field = div().flex_1().text_size(px(tokens::TEXT_BODY)).font_family("IBM Plex Mono");
+                    let field = div()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_family("IBM Plex Mono");
                     if input.is_empty() {
                         field
                             .text_color(rgb(t.muted))
                             .child("Message the cartographer…  (Enter to send · Shift+Enter newline)")
                     } else {
-                        field.text_color(rgb(t.ink)).child(input.to_string())
+                        field.text_color(rgb(t.ink)).child(chat_display_text(input))
                     }
                 })
                 .child(chat_caret(reduced)),
@@ -3743,6 +3748,8 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
         .child(
             div()
                 .id("chat-send")
+                .flex_shrink_0()
+                .min_w(px(54.0))
                 .px(px(12.0))
                 .py(px(5.0))
                 .rounded(px(tokens::RADIUS_MD))
