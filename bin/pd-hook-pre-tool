@@ -3,8 +3,9 @@
 # =============================================================================
 # Multi-vendor PreToolUse gate. Invoked BEFORE a tool runs, with the event JSON
 # on stdin. This is the QUARTERMASTER (file locks) tentacle and the load-bearing
-# ENFORCED gate of the harness (ADR Success Criterion G2). If the requested file
-# target is locked in the Ink Cloud by a DIFFERENT actor, we BLOCK.
+# L2 edit-moment gate of the harness. If the requested file target is locked in
+# the Ink Cloud by a DIFFERENT actor, the repo's ADR-0092 `suggestibility` dial
+# decides whether we stay advisory, warn, or structurally BLOCK.
 #
 # VENDOR EVENT FORMATS + BLOCK CONTRACTS — verified 2026-06-25 against the actual
 # vendor binaries (gemini.js bundle EVENT_MAPPING; codex rust binary HookEvent
@@ -52,6 +53,66 @@ SELF="${PD_ACTOR:-}"
 EVENT="$(cat 2>/dev/null || true)"
 [ -n "$EVENT" ] || exit 0          # no event → nothing to gate, allow
 [ -f "$MATRIX" ] || exit 0         # no matrix → no locks, allow
+
+normalize_suggestibility() {
+  LEVEL="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  case "$LEVEL" in
+    advisory|warn|enforce) printf '%s' "$LEVEL" ;;
+    *) printf '' ;;
+  esac
+}
+
+json_suggestibility_level() {
+  CFG="$1"
+  [ -f "$CFG" ] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -r '.suggestibility.level // .suggestibility // empty' "$CFG" 2>/dev/null || true
+    return 0
+  fi
+  ONE_LINE="$(tr '\n' ' ' < "$CFG" 2>/dev/null || true)"
+  printf '%s' "$ONE_LINE" \
+    | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*\{[^}]*"level"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)".*/\1/p' \
+    | head -n1
+  printf '%s' "$ONE_LINE" \
+    | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)".*/\1/p' \
+    | head -n1
+}
+
+event_cwd() {
+  if command -v jq >/dev/null 2>&1; then
+    CAND="$(printf '%s' "$EVENT" | jq -r '.cwd // .workspaceRoot // .workspace_root // empty' 2>/dev/null || true)"
+    [ -n "$CAND" ] && { printf '%s' "$CAND"; return 0; }
+  fi
+  printf '%s' "$EVENT" \
+    | sed -n -E 's/.*"(cwd|workspaceRoot|workspace_root)"[[:space:]]*:[[:space:]]*"([^"]*)".*/\2/p' \
+    | head -n1
+}
+
+config_suggestibility_level() {
+  START="$(event_cwd)"
+  case "$START" in
+    /*) DIR="$START" ;;
+    *) DIR="$(pwd 2>/dev/null || printf '.')" ;;
+  esac
+
+  while [ -n "$DIR" ] && [ "$DIR" != "/" ]; do
+    for CFG in "$DIR/agent.config.json" "$DIR/.portdaddy/suggestibility.json" "$DIR/.portdaddy/project.json"; do
+      RAW="$(json_suggestibility_level "$CFG" | head -n1)"
+      LEVEL="$(normalize_suggestibility "$RAW")"
+      [ -n "$LEVEL" ] && { printf '%s' "$LEVEL"; return 0; }
+    done
+    NEXT="$(dirname "$DIR" 2>/dev/null || printf '/')"
+    [ "$NEXT" = "$DIR" ] && break
+    DIR="$NEXT"
+  done
+  printf ''
+}
+
+SUGGESTIBILITY="$(normalize_suggestibility "${PD_SUGGESTIBILITY:-}")"
+[ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="$(config_suggestibility_level)"
+# Preserve ADR-0091 behavior for repos that installed the hook before declaring
+# ADR-0092's dial: a real foreign lock remains a structural edit gate by default.
+[ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="enforce"
 
 # ── Detect the camelCase Codex app-server shape (deny-JSON contract). ────────
 # Standard hook input (Claude/Gemini/Codex-hooks) is snake_case tool_name. Only
@@ -172,7 +233,24 @@ EOF
 # Nothing foreign-locked → allow.
 [ -n "$BLOCK_TARGET" ] || exit 0
 
-# ── BLOCK. Respond in the contract the calling surface understands. ─────────
+# ── Respond in the contract the calling surface understands. ─────────────────
+REASON="[PORT DADDY L2] coordinate-before-you-cut: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'. Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing."
+
+if [ "$SUGGESTIBILITY" = "advisory" ]; then
+  exit 0
+fi
+
+if [ "$SUGGESTIBILITY" = "warn" ]; then
+  if [ "$CAMEL" -eq 1 ]; then
+    ESCAPED="$(printf '%s' "$REASON" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"%s","decision":"ask","message":"%s"}}\n' "$ESCAPED" "$ESCAPED"
+    exit 0
+  fi
+  echo "[PORT DADDY L2] WARNING: $REASON" >&2
+  echo "Suggestibility is warn; this would be blocked when suggestibility=enforce." >&2
+  exit 0
+fi
+
 if [ "$CAMEL" -eq 1 ]; then
   # camelCase stdin (toolName) is sent by TWO surfaces with DIFFERENT deny keys:
   #   - Codex app-server: { hookSpecificOutput: { permissionDecision:"deny",
@@ -183,7 +261,6 @@ if [ "$CAMEL" -eq 1 ]; then
   # We emit a SUPERSET object carrying BOTH key pairs (+ hookEventName) so the same
   # stdout JSON satisfies whichever surface is reading. Extra keys are ignored by
   # each side; the one it needs is present and non-empty.
-  REASON="[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'. Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing."
   ESCAPED="$(printf '%s' "$REASON" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"%s","decision":"block","message":"%s"}}\n' "$ESCAPED" "$ESCAPED"
   exit 0
@@ -192,6 +269,6 @@ fi
 # Universal contract (Claude / Gemini / Codex-hooks): exit 2 + stderr.
 # The blocking reason MUST be on stderr (Codex binary rejects exit-2 with no
 # stderr: "exited with code 2 but did not write a blocking reason to stderr").
-echo "[PORT DADDY QUARTERMASTER] BLOCKED: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'." >&2
+echo "[PORT DADDY L2] BLOCKED: ${TOOL:-tool} on '${BLOCK_TARGET}' is locked by actor '${BLOCK_OWNER}'." >&2
 echo "Another voyage holds this file. Coordinate via 'pd note' / wait for the lock to release before editing." >&2
 exit 2

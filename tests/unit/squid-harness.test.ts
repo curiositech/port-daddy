@@ -7,7 +7,8 @@
  * actual shell binaries with sample Claude Code event JSON on stdin.
  *
  * Asserts (the three success criteria of this slice):
- *   1. pd-hook-pre-tool EXIT 2 on a path locked by another actor (G2, enforced).
+ *   1. pd-hook-pre-tool honors the ADR-0092 suggestibility dial and EXIT 2s on
+ *      a path locked by another actor in enforce mode (G2, enforced).
  *   2. pd-hook-pre-tool EXIT 0 on an unlocked path and on the owner's own lock.
  *   3. pd-hook-post-tool flock-appends a PD_PHEROMONE_* into the matrix.
  *   4. pd-hook-prompt emits the seeded PD_ALERT_* + a relevant PD_PHEROMONE_*.
@@ -54,7 +55,11 @@ const MATRIX = join(SCRATCH, 'matrix.env');
 // Both layers honor PD_MATRIX_FILE: lib/squid/matrix.ts reads it via matrixPath()
 // and the pd-hook-* tentacles read it directly. Pointing both at ONE scratch file
 // (MATRIX) makes the test hermetic with no homedir spying.
-const savedEnv = { PD_MATRIX_FILE: process.env.PD_MATRIX_FILE, PD_HOME: process.env.PD_HOME };
+const savedEnv = {
+  PD_MATRIX_FILE: process.env.PD_MATRIX_FILE,
+  PD_HOME: process.env.PD_HOME,
+  PD_SUGGESTIBILITY: process.env.PD_SUGGESTIBILITY,
+};
 
 beforeEach(() => {
   rmSync(SCRATCH, { recursive: true, force: true });
@@ -62,6 +67,7 @@ beforeEach(() => {
   mkdirSync(SCRATCH, { recursive: true });
   process.env.PD_MATRIX_FILE = MATRIX;
   process.env.PD_HOME = SCRATCH;
+  delete process.env.PD_SUGGESTIBILITY;
 });
 
 afterEach(() => {
@@ -69,6 +75,8 @@ afterEach(() => {
   else process.env.PD_MATRIX_FILE = savedEnv.PD_MATRIX_FILE;
   if (savedEnv.PD_HOME === undefined) delete process.env.PD_HOME;
   else process.env.PD_HOME = savedEnv.PD_HOME;
+  if (savedEnv.PD_SUGGESTIBILITY === undefined) delete process.env.PD_SUGGESTIBILITY;
+  else process.env.PD_SUGGESTIBILITY = savedEnv.PD_SUGGESTIBILITY;
   rmSync(SCRATCH, { recursive: true, force: true });
 });
 
@@ -118,6 +126,95 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.status).toBe(2); // ENFORCED block
     expect(r.stderr).toMatch(/BLOCKED/);
     expect(r.stderr).toMatch(/agent_alpha/); // names the holder
+  });
+
+  test('ADR-0092 dial: warn mode surfaces the edit conflict without blocking', () => {
+    const matrix = seed();
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: '/repo',
+    };
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'agent_beta',
+        PD_SUGGESTIBILITY: 'warn',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/WARNING/);
+    expect(r.stderr).toMatch(/suggestibility=enforce/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: advisory mode stays silent at edit moment', () => {
+    const matrix = seed();
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: '/repo',
+    };
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'agent_beta',
+        PD_SUGGESTIBILITY: 'advisory',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toBe('');
+    expect(r.stderr).toBe('');
+  });
+
+  test('ADR-0092 dial: repo agent.config.json can lower the edit gate to warn', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-with-dial');
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, 'agent.config.json'), JSON.stringify({ suggestibility: { level: 'warn' } }, null, 2));
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const { PD_SUGGESTIBILITY: _drop, ...env } = process.env;
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/WARNING/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: .portdaddy/suggestibility.json can enforce the edit gate', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-with-portdaddy-dial');
+    mkdirSync(join(repo, '.portdaddy'), { recursive: true });
+    writeFileSync(join(repo, '.portdaddy', 'suggestibility.json'), JSON.stringify({ suggestibility: 'enforce' }));
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const { PD_SUGGESTIBILITY: _drop, ...env } = process.env;
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/BLOCKED/);
+    expect(r.stderr).toMatch(/agent_alpha/);
   });
 
   test('pre-tool EXIT 0 when the SAME actor holds the lock (no self-block)', () => {
@@ -610,6 +707,29 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     expect(r.status).toBe(0);
     const out = JSON.parse(r.stdout);
     expect(out.hookSpecificOutput.permissionDecision).toBe('deny');
+    expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/auth\.ts/);
+    expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/agent_alpha/);
+  });
+
+  test('Codex app-server camelCase warn mode → ask JSON names the patched path', () => {
+    const matrix = seedForeignLock();
+    const patch = '*** Begin Patch\n*** Update File: /repo/src/auth.ts\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({ toolName: 'apply_patch', toolInput: { command: ['apply_patch', patch] }, cwd: '/repo', sessionId: 's1' }),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'codex_agent',
+        PD_SUGGESTIBILITY: 'warn',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    const out = JSON.parse(r.stdout);
+    expect(out.hookSpecificOutput.hookEventName).toBe('PreToolUse');
+    expect(out.hookSpecificOutput.permissionDecision).toBe('ask');
+    expect(out.hookSpecificOutput.decision).toBe('ask');
     expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/auth\.ts/);
     expect(out.hookSpecificOutput.permissionDecisionReason).toMatch(/agent_alpha/);
   });
