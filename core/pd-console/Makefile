@@ -2,7 +2,8 @@
 #
 #   make            → build + run the window (the one you want)
 #   make run        → same as `make`
-#   make install    → build a release .app into ~/Applications and open it
+#   make install    → build + open the latest lane app
+#   make devapp     → build + open an isolated dev app (DEVBUILD=<name>)
 #   make dev        → fast (debug) build + run the window
 #   make repl       → the headless TUI console (no GPU; builds anywhere)
 #   make shots      → capture window screenshots (needs Screen Recording perm)
@@ -16,7 +17,9 @@
 # The window bin is gated behind the `gpui` feature; the repl + lib are not.
 
 .DEFAULT_GOAL := run
-.PHONY: run dev install repl shots proof proof-setup displays test check help
+DEVBUILD ?= harness-roster
+
+.PHONY: run dev install devapp repl shots proof proof-setup displays test check help
 
 run: ## Build (release) and launch the native window
 	cargo run --release --features gpui --bin pd-console
@@ -24,8 +27,11 @@ run: ## Build (release) and launch the native window
 dev: ## Fast debug build + launch (quicker iteration)
 	cargo run --features gpui --bin pd-console
 
-install: ## Build a release .app into ~/Applications and open it
-	./scripts/install-app.sh --open
+install: ## Build + open the latest lane app
+	bash scripts/package-console.sh --latest
+
+devapp: ## Build + open an isolated dev app (set DEVBUILD=<name>)
+	bash scripts/package-console.sh --devbuild $(DEVBUILD)
 
 repl: ## Headless TUI console (no GPU; builds everywhere)
 	cargo run --bin pd-console-repl
