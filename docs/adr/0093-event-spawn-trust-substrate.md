@@ -7,7 +7,7 @@
   ADR-0050 (Coast Guard sandbox), ADR-0053 (macaroon capability gate).
 - **Related code:** `lib/fleet/io-dispatch.ts`, `lib/fleet/trust.ts` (new),
   `lib/fleet/url-guard.ts` (new), `lib/fleet/path-guard.ts` (new),
-  `lib/fleet/outputs/{webhook,file}.ts` (hardened), `lib/macaroon/*`,
+  `lib/fleet/outputs/webhook.ts` + `lib/fleet/outputs/file.ts` (hardened), `lib/macaroon/*`,
   `lib/coast-guard.ts`, `lib/secret-env.ts`.
 
 ---

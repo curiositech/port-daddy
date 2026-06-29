@@ -168,5 +168,5 @@ State these; never let green over-claim.
 
 - ADR-0093 `docs/adr/0093-event-spawn-trust-substrate.md` (full threat model + log)
 - `lib/fleet/trust.ts`, `lib/fleet/url-guard.ts`, `lib/fleet/path-guard.ts`
-- Tests: `tests/unit/fleet-{trust,url-guard,path-guard}.test.js`
+- Tests: `tests/unit/fleet-trust.test.js`, `tests/unit/fleet-url-guard.test.js`, `tests/unit/fleet-path-guard.test.js`
 - Builds on: ADR-0050 (Coast Guard), ADR-0053 (macaroon gate), `lib/macaroon/*`
