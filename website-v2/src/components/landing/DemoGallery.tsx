@@ -2,7 +2,7 @@ import * as React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Badge } from '@/components/ui/Badge'
 import { useTheme } from '@/lib/theme-context'
-import { Play, ExternalLink, Activity, Share2 } from 'lucide-react'
+import { Play, Activity, Share2 } from 'lucide-react'
 
 interface Demo {
   id: string
@@ -19,12 +19,12 @@ const DEMOS: Demo[] = [
   {
     id: 'mayday',
     gif: '/gifs/mayday.gif',
-    title: 'Mayday Rollback',
-    subtitle: 'Automated error signaling & recovery',
-    badge: 'Maritime Signals',
+    title: 'Failure rollback',
+    subtitle: 'Error signaling and recovery',
+    badge: 'Runtime signal',
     badgeVariant: 'teal',
     description:
-      'When an agent detects a critical failure, it broadcasts a MAYDAY signal. Port Daddy watchers catch the pheromone and trigger a safe rollback automatically.',
+      'When an agent detects a critical failure, Port Daddy records the signal, keeps the trail visible, and gives the next worker enough context to recover safely.',
     stats: [
       { value: '< 10ms', label: 'signal time' },
       { value: '100%', label: 'recovery rate' },
@@ -34,12 +34,12 @@ const DEMOS: Demo[] = [
   {
     id: 'salvage',
     gif: '/gifs/salvage.gif',
-    title: 'Ghost Salvage',
-    subtitle: 'Never lose a dead agent\'s context',
-    badge: 'Zombie Protocol',
+    title: 'Session salvage',
+    subtitle: 'Preserve interrupted work context',
+    badge: 'Recovery path',
     badgeVariant: 'gold',
     description:
-      'If an agent crashes, Port Daddy preserves its work context. A fresh agent can instantly salvage the session, inheriting all notes and file claims.',
+      'If an agent crashes, Port Daddy preserves its work context. A fresh agent can salvage the session with the notes, file claims, and last known state intact.',
     stats: [
       { value: '100%', label: 'persistence' },
       { value: 'Zero', label: 'data loss' },
@@ -156,19 +156,24 @@ export function DemoGallery() {
                     boxShadow: 'var(--shadow-inset)',
                   }}
                 >
-                   <div className="absolute inset-0 bg-gradient-to-t from-media-scrim via-transparent to-transparent z-10" />
                    <motion.img
                      src={getGifSrc(activeDemo)}
                      alt={activeDemo.title}
                      className="w-full h-auto relative z-0 scale-100 group-hover:scale-[1.02] transition-transform duration-700"
                    />
-                   <div className="absolute bottom-12 left-12 right-12 z-20 flex justify-between items-center">
-                      <div className="flex items-center gap-5">
-                         <div className="w-4 h-4 rounded-full border border-[var(--text-inverse)]" style={{ background: 'var(--brand-primary)' }} />
-                         <span className="text-[12px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-inverse)' }}>Live Swarm Execution</span>
-                      </div>
-                      <ExternalLink size={20} style={{ color: 'var(--text-inverse)', opacity: 0.6 }} />
-                   </div>
+                </div>
+                <div className="flex w-full flex-wrap items-center justify-between gap-4 border-b-2 border-[var(--border-strong)] pb-4">
+                  <div>
+                    <div className="text-[12px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--brand-primary)' }}>
+                      Live execution
+                    </div>
+                    <h3 className="m-0 mt-2 text-2xl font-display font-black" style={{ color: 'var(--text-primary)' }}>
+                      {activeDemo.title}
+                    </h3>
+                  </div>
+                  <p className="m-0 max-w-sm text-right text-base font-bold leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    {activeDemo.subtitle}
+                  </p>
                 </div>
 
                 {/* Stat cards */}

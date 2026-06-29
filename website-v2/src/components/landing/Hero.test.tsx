@@ -142,8 +142,12 @@ describe('Hero wordmark observer', () => {
   it('renders the compact product definition and mobile story panel', () => {
     renderHeroShell()
 
-    expect(screen.getByRole('heading', { name: /runs a tight ship/i })).toBeInTheDocument()
-    expect(screen.getByText('Agents are better when they coordinate.')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        name: /run a tight ship\. agents sail safer when they coordinate\./i,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Agents are better when they coordinate.')).not.toBeInTheDocument()
     expect(screen.getByText('Port Daddy is')).toBeInTheDocument()
     expect(screen.getByText(/an agent event-triggering lab/i)).toBeInTheDocument()
     expect(screen.getByText(/Codex/i)).toBeInTheDocument()

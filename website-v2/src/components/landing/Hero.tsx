@@ -85,21 +85,15 @@ export function Hero() {
                   >
                     <Wordmark variant="spin" className="h-full max-w-none" />
                   </motion.span>
-                  Runs a tight ship.{' '}
+                  Run a tight ship.{' '}
                   <span className="text-[var(--brand-primary)]">
-                    Port Daddy gets your fleet home quickly.
+                    Agents sail safer when they coordinate.
                   </span>
-                </>
-              }
-              description={
-                <>
-                  Agents are better when they coordinate.
                 </>
               }
               titleAs="h1"
               titleSize="hero"
               titleClassName="max-w-[14ch] text-[3rem] leading-[0.96] sm:text-[length:var(--type-hero-size)]"
-              bodyClassName="max-w-[32rem]"
             />
 
             <div className="grid max-w-[46rem] gap-[var(--space-2)] sm:gap-[var(--space-3)]">
@@ -152,7 +146,7 @@ export function Hero() {
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, ease: 'easeOut' as const }}
-              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(42rem,46vw)] select-none min-[1100px]:block"
+              className="pointer-events-none mx-auto mb-[var(--space-4)] hidden w-[min(55rem,58vw)] select-none min-[1100px]:block"
             >
               <Wordmark variant="spin" className="w-full" />
             </motion.div>

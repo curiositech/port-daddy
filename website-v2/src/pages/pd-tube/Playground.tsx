@@ -1,12 +1,14 @@
-import { useCallback, useMemo, useState, type ComponentType } from 'react'
+import type { ComponentType } from 'react'
 import {
+  FlaskConical,
   GitBranch,
   MessageSquare,
   MousePointerClick,
-  QrCode,
+  Radio,
+  Reply,
+  Send,
   Terminal,
   Webhook,
-  FlaskConical,
 } from 'lucide-react'
 import { Footer } from '@/components/layout/Footer'
 import {
@@ -18,230 +20,106 @@ import {
   SectionIntro,
   SurfacePanel,
 } from '@/components/site/primitives'
-import { cn } from '@/lib/utils'
-import {
-  AgentNode,
-  ReplyThread,
-  TubeMotionProvider,
-  TubeStatus,
-  Wire,
-  fireTube,
-  usePublish,
-  useReplyWatch,
-  type ThreadEntry,
-  type TubePhase,
-} from '@/components/tube/TubeWire'
 import { RedToGreen } from './demos/RedToGreen'
 import { EditorLightbulb } from './demos/EditorLightbulb'
 import { WarRoom } from './demos/WarRoom'
-import { HowItsWired } from './demos/HowItsWired'
-import { PlaygroundExplainer } from './demos/PlaygroundExplainer'
-import { ThemedImage } from '@/components/site/ThemedImage'
 
 const PAGE_SECTION_CLASS =
   'border-b-2 border-[var(--border-strong)] py-[var(--space-6)] lg:py-[var(--space-7)]'
 
-/**
- * The pd tube playground — every trigger, one agent.
- *
- * Route: /pd-tube/playground. Hosts the demo suite for `pd tube`, starting with
- * "The Switchboard": seven distinct trigger tiles, each firing a REAL POST to
- * the SAME channel (desk:requests) with a different sender. A single shared
- * AgentNode — the Concierge — sits center; the cobalt send-pulse travels to it
- * and the teal reply routes back to whichever tile fired.
- *
- * Honesty: the tiles that mock a non-UI surface (Git hook, test runner, Slack,
- * webhook, Jupyter, QR scan) are labelled as UI mocks — clicking them fires a
- * real POST and each shows the copyable real shell command. No fake activity:
- * every pulse is a real round-trip or a real timeout.
- *
- * Legibility: a top-of-page explainer answers "how does pd tube actually work?"
- * and every demo carries a "How this is wired" disclosure showing the channel,
- * the listening agent's name + role, its real prompt, the pd-fleet.yml that
- * declares it, the trigger the daemon dispatches on, and where FleetBar shows it.
- */
+const TUBE_CHANNEL = 'ui:clicks'
+const LISTEN_COMMAND = `pd tube ${TUBE_CHANNEL} --as reviewer`
+const SEND_COMMAND = `pd tube ${TUBE_CHANNEL} --send "deploy button clicked; review the release note" --as internal-tool`
+const REPLY_COMMAND = `pd tube ${TUBE_CHANNEL} --reply "release note is clear; ship it" --as reviewer`
 
-const DEMO_CHANNEL = 'desk:requests'
+const FETCH_SNIPPET = `await fetch('http://127.0.0.1:9876/msg/ui:clicks', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({
+    sender: 'internal-tool',
+    payload: {
+      v: 1,
+      kind: 'tube.msg',
+      body: 'deploy button clicked; review the release note'
+    }
+  })
+})`
 
-/** The Concierge — the named agent that answers on desk:requests. */
-const CONCIERGE_NAME = 'concierge'
-const CONCIERGE_ROLE = 'Front-desk dispatcher'
-
-/** The real prompt the Concierge runs with — the instructions handed to the model. */
-const CONCIERGE_PROMPT = `You are Concierge, the front desk for this project's
-desk:requests channel. Requests arrive here from many places — a button on a
-page, a Git hook, a CI run, a Slack relay, a webhook, a notebook cell, a
-scanner. Each message names its sender and carries one short request.
-
-For every message:
-1. Read the sender and the request. Decide who or what should handle it.
-2. Reply in one or two plain sentences: either the answer, or where you routed
-   it and what happens next. No preamble, no restating the question.
-3. If a request is unsafe or out of scope, say so plainly and route it nowhere.
-
-Reply on the same channel with inReplyTo set to the message id, sender
-"concierge". You are advisory — you dispatch and answer, you do not take
-destructive action on the operator's behalf.`
-
-/** The pd-fleet.yml that declares the Concierge as a channel-triggered agent. */
-const CONCIERGE_FLEET_YAML = `# pd-fleet.yml — declare the Concierge on the desk:requests channel.
+const FLEET_YAML = `# pd-fleet.yml
 fleet:
-  name: front-desk
   agents:
-    concierge:
-      trigger: desk:requests        # daemon dispatches on every message here
-      backend: cli:claude-code      # free on a Claude Max plan
-      fallbacks:
-        - backend: cli:codex
-        - backend: cloudflare
-          model: '@cf/qwen/qwen3-30b-a3b-fp8'
+    reviewer:
+      trigger: ui:clicks
+      backend: cli:codex
       singleton: true
-      identity: "{project}:fleet:concierge"
-      telos: "Route every inbound request to the right place; answer in one line."
       prompt: |
-        You are Concierge, the front desk for desk:requests. Requests arrive
-        from a button, a Git hook, a CI run, Slack, a webhook, a notebook, a
-        scanner. Read the sender and request, decide who handles it, and reply
-        in one or two plain sentences — the answer, or where you routed it.
-        Reply on the same channel with inReplyTo set, sender "concierge".
-        You are advisory; you do not take destructive action.`
+        Read each event on ui:clicks.
+        Inspect the repo if needed.
+        Reply on the same tube thread with the next action.`
 
-/** The ad-hoc one-liner: a listener that hands the prompt to a model. */
-const CONCIERGE_ADHOC = `# Ad-hoc: tail the channel and hand each request to a model with the prompt above.
-pd tube ${DEMO_CHANNEL} --tail --as ${CONCIERGE_NAME} \\
-  --prompt "You are Concierge. Read the sender + request, route it, and reply in one line."`
+const EVENT_CONTRACT = `{
+  "channel": "ui:clicks",
+  "sender": "internal-tool",
+  "payload": {
+    "v": 1,
+    "kind": "tube.msg",
+    "body": "deploy button clicked"
+  },
+  "replyTo": "optional-parent-event-id"
+}`
 
-interface Trigger {
-  id: string
-  /** The `sender` posted with this trigger — distinct per tile. */
-  sender: string
+interface TriggerExample {
   label: string
   icon: ComponentType<{ size?: number | string; className?: string }>
-  /** The message body posted to the channel. */
-  body: string
-  /** A short note on what real surface this tile stands in for. */
-  note: string
-  scene: string
-  visual: {
-    src: string
-    alt: string
-    position?: string
-  }
-  /** The real shell command that fires the same POST from a terminal. */
+  sender: string
   command: string
-  /** True for tiles that mock a non-browser surface (label them as mocks). */
-  mocked: boolean
+  note: string
 }
 
-const TRIGGERS: Trigger[] = [
+const TRIGGER_EXAMPLES: TriggerExample[] = [
   {
-    id: 'button',
-    sender: 'web-button',
-    label: 'A button',
+    label: 'Product button',
     icon: MousePointerClick,
-    body: 'A button on the page asked the agent to weigh in.',
-    note: 'A product surface hands a small decision to the agent without opening a terminal.',
-    scene: 'Operator UI',
-    visual: {
-      src: '/img/generated/example-pd-tube-button-to-agent.webp',
-      alt: 'A realistic app button sending a request to an agent sitting in a local workspace.',
-    },
-    command: `pd tube ${DEMO_CHANNEL} --send "button: weigh in" --as web-button`,
-    mocked: false,
+    sender: 'internal-tool',
+    command: SEND_COMMAND,
+    note: 'A UI action asks a local agent for help without opening a terminal.',
   },
   {
-    id: 'git-hook',
-    sender: 'git-post-commit',
-    label: 'A Git hook',
+    label: 'Git hook',
     icon: GitBranch,
-    body: 'post-commit: a commit just landed on this branch.',
-    note: 'A post-commit hook pings the desk while the branch context is still fresh.',
-    scene: 'Repository hook',
-    visual: {
-      src: '/img/generated/pr-reviews-itself/code-reviewer.webp',
-      alt: 'A code reviewer station watching a pull request as a fresh commit arrives.',
-      position: 'center top',
-    },
-    command: `pd tube ${DEMO_CHANNEL} --send "post-commit: $(git rev-parse --short HEAD)" --as git-post-commit`,
-    mocked: true,
+    sender: 'post-commit',
+    command: `pd tube ${TUBE_CHANNEL} --send "post-commit: $(git rev-parse --short HEAD)" --as post-commit`,
+    note: 'A repository hook posts while the branch context is still fresh.',
   },
   {
-    id: 'tests',
-    sender: 'test-runner',
-    label: 'A test run',
+    label: 'Test runner',
     icon: FlaskConical,
-    body: 'The test suite finished. Asking the agent to read the result.',
-    note: 'A watch-mode test runner asks for diagnosis while the failing trace is still on screen.',
-    scene: 'Red-to-green loop',
-    visual: {
-      src: '/img/generated/example-test-failure-to-agent.webp',
-      alt: 'A failing test surface with an agent reading the trace and preparing a fix.',
-    },
-    command: `pd tube ${DEMO_CHANNEL} --send "tests: 142 passed" --as test-runner`,
-    mocked: true,
+    sender: 'test-runner',
+    command: `pd tube tests:failed --send "checkout.spec.ts failed on retry" --as test-runner`,
+    note: 'A red test can summon the agent that knows how to inspect the failure.',
   },
   {
-    id: 'slack',
-    sender: 'slack-bot',
-    label: 'A Slack message',
+    label: 'Team chat',
     icon: MessageSquare,
-    body: 'Someone in #deploys asked the agent for a status.',
-    note: 'A team chat asks the local fleet for status without granting the chat app control.',
-    scene: 'Team room',
-    visual: {
-      src: '/img/generated/example-war-room.webp',
-      alt: 'A team room with several incident agents comparing notes across screens.',
-      position: 'center top',
-    },
-    command: `pd tube ${DEMO_CHANNEL} --send "slack #deploys: status?" --as slack-bot`,
-    mocked: true,
+    sender: 'slack-bot',
+    command: `pd tube deploys --send "staging deploy status?" --as slack-bot`,
+    note: 'A chat bridge can ask the fleet for status without granting chat control.',
   },
   {
-    id: 'webhook',
-    sender: 'webhook',
-    label: 'A webhook',
+    label: 'Webhook',
     icon: Webhook,
-    body: 'An inbound webhook fired and reached the agent.',
-    note: 'An external service POST reaches the local daemon and becomes a threaded request.',
-    scene: 'Service callback',
-    visual: {
-      src: '/img/generated/example-webhook-to-local-agent.webp',
-      alt: 'A webhook arriving from a service and terminating at a local agent workstation.',
-    },
-    command: `curl -s http://127.0.0.1:9876/msg/${DEMO_CHANNEL} \\
+    sender: 'webhook',
+    command: `curl -s http://127.0.0.1:9876/msg/${TUBE_CHANNEL} \\
   -H 'content-type: application/json' \\
-  -d '{"sender":"webhook","payload":{"v":1,"kind":"tube.msg","body":"webhook fired"}}'`,
-    mocked: true,
+  -d '{"sender":"webhook","payload":{"v":1,"kind":"tube.msg","body":"payment webhook fired"}}'`,
+    note: 'Any service that can POST can become an event source.',
   },
   {
-    id: 'jupyter',
-    sender: 'jupyter-cell',
-    label: 'A Jupyter cell',
+    label: 'Notebook or script',
     icon: Terminal,
-    body: 'A notebook cell finished and pinged the agent.',
-    note: 'A notebook cell finishes an experiment and asks the repo agent what changed.',
-    scene: 'Notebook run',
-    visual: {
-      src: '/img/generated/example-editor-lightbulb-to-agent.webp',
-      alt: 'An editor or notebook surface sending selected work to a local explaining agent.',
-    },
-    command: `pd tube ${DEMO_CHANNEL} --send "notebook: run complete" --as jupyter-cell`,
-    mocked: true,
-  },
-  {
-    id: 'qr',
-    sender: 'qr-scan',
-    label: 'A QR / barcode scan',
-    icon: QrCode,
-    body: 'A scanned code triggered the agent.',
-    note: 'A scan from a lab bench, stock room, or field device becomes a local agent task.',
-    scene: 'Physical signal',
-    visual: {
-      src: '/img/generated/example-services-dns.webp',
-      alt: 'A physical services board with labels and signals being routed to a local agent.',
-    },
-    command: `pd tube ${DEMO_CHANNEL} --send "scanned: SKU-00428" --as qr-scan`,
-    mocked: true,
+    sender: 'notebook',
+    command: `pd tube analysis:done --send "experiment finished; summarize deltas" --as notebook`,
+    note: 'A script can hand off findings to an agent and keep the reply threaded.',
   },
 ]
 
@@ -249,75 +127,144 @@ export function Playground() {
   return (
     <div className="min-h-screen bg-[var(--surface-base)] selection:bg-[var(--brand-primary)] selection:text-[var(--brand-primary-foreground)]">
       <main id="main-content">
-        {/* Hero */}
         <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
-            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.92fr)_minmax(20rem,0.58fr)] lg:items-start">
-              <div className="max-w-[52rem] space-y-[var(--space-4)]">
+            <div className="grid gap-[var(--space-5)] lg:grid-cols-[minmax(0,0.88fr)_minmax(21rem,0.62fr)] lg:items-start">
+              <div className="max-w-[54rem] space-y-[var(--space-4)]">
                 <PanelEyebrow>pd tube · playground</PanelEyebrow>
                 <PanelTitle
                   as="h1"
                   size="hero"
-                  className="max-w-[16ch] !text-[length:var(--type-panel-title-display-size)] md:!text-[length:var(--type-hero-size)]"
+                  className="max-w-[14ch] !text-[length:var(--type-panel-title-display-size)] md:!text-[length:var(--type-hero-size)]"
                 >
-                  Every trigger, one agent.
+                  PD Tube is a tube.
                 </PanelTitle>
-                <PanelBody className="max-w-[42rem] text-[length:var(--text-lg)]">
-                  Fire a browser button, Git hook, test run, webhook, notebook, or scan into one
-                  Port Daddy channel. The same named agent replies on the same thread, with the real
-                  command visible when you need it.
+                <PanelBody className="max-w-[44rem] text-[length:var(--text-lg)]">
+                  Code can drop an event into it. Agents can listen, reply on the same
+                  thread, and talk to each other. Developers can use it directly from Port
+                  Daddy. Anything programmable can become a trigger.
                 </PanelBody>
               </div>
-              <HeroSignalPanel />
+              <TubePrimitivePanel />
             </div>
           </PageContainer>
         </section>
 
-        {/* How pd tube actually works — the legibility explainer. */}
-        <section className={PAGE_SECTION_CLASS}>
-          <PageContainer width="wide">
-            <PlaygroundExplainer />
-          </PageContainer>
-        </section>
-
-        {/* Demo #1 — The Switchboard */}
         <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Demo 01 · The Switchboard"
-              title="Seven triggers, one desk. The Concierge routes the work."
-              description="Product UI, Git hooks, test runners, team chat, webhooks, notebooks, and physical scans all post to desk:requests with their own sender. One named agent listens, answers on the same thread, and leaves the exact command visible when you need to wire the real surface."
+              eyebrow="The primitive"
+              title="Send an event. Keep the reply on the same thread."
+              description="A tube is a named local channel. Your app, hook, script, webhook, test runner, notebook, or another agent sends one event. A listener receives it and replies with a parent event id, so the whole exchange stays legible."
               titleAs="h2"
               titleSize="display"
             />
-            <div className="mt-[var(--space-6)] space-y-[var(--space-5)]">
-              <Switchboard />
-              <HowItsWired
-                channel={DEMO_CHANNEL}
-                agents={[{ name: CONCIERGE_NAME, role: CONCIERGE_ROLE, prompt: CONCIERGE_PROMPT }]}
-                trigger={
-                  <>
-                    Every tile POSTs a message to <code className="font-mono">{DEMO_CHANNEL}</code>.
-                    In a fleet the trigger is the channel itself: the daemon watches{' '}
-                    <code className="font-mono">desk:requests</code> and dispatches the Concierge on
-                    each new message — no polling, no cloud, only the local daemon reacting to its
-                    own mailbox.
-                  </>
-                }
-                fleetYaml={CONCIERGE_FLEET_YAML}
-                adHocCommand={CONCIERGE_ADHOC}
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-3">
+              <StepPanel
+                number="01"
+                icon={Send}
+                title="Send"
+                body="Publish one short event from code or the CLI."
+                command={SEND_COMMAND}
               />
+              <StepPanel
+                number="02"
+                icon={Radio}
+                title="Listen"
+                body="Keep an agent, script, or human terminal subscribed to the channel."
+                command={LISTEN_COMMAND}
+              />
+              <StepPanel
+                number="03"
+                icon={Reply}
+                title="Reply"
+                body="Answer on the same tube thread so provenance stays attached."
+                command={REPLY_COMMAND}
+              />
+            </div>
+            <TubeDefinitionBar />
+          </PageContainer>
+        </section>
+
+        <section className={PAGE_SECTION_CLASS}>
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Wire it once"
+              title="Make an agent wait for the trigger."
+              description="A developer can run a listener ad hoc, or declare one in pd-fleet.yml so the daemon starts it when a message lands. That is the whole move: channel name in, threaded reply out."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+              <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)]">
+                <PanelEyebrow>Ad hoc listener</PanelEyebrow>
+                <PanelTitle as="h3" size="card">
+                  Good for a terminal, test run, or quick handoff.
+                </PanelTitle>
+                <CopyableCommandBlock label="Start listening" command={LISTEN_COMMAND} />
+                <CopyableCommandBlock label="Send a trigger" command={SEND_COMMAND} />
+              </SurfacePanel>
+              <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)]">
+                <PanelEyebrow>Fleet listener</PanelEyebrow>
+                <PanelTitle as="h3" size="card">
+                  Good when the trigger should wake an agent every time.
+                </PanelTitle>
+                <CopyableCommandBlock label="pd-fleet.yml" command={FLEET_YAML} />
+              </SurfacePanel>
             </div>
           </PageContainer>
         </section>
 
-        {/* Demo #2 — Red-to-Green */}
         <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Demo 02 · Red-to-Green"
+              eyebrow="Anything programmable can post"
+              title="Buttons, hooks, tests, chats, webhooks, notebooks."
+              description="These are event sources, not product definitions. Each one sends the same kind of tube message, with a different sender and payload."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-3)] md:grid-cols-2 xl:grid-cols-3">
+              {TRIGGER_EXAMPLES.map((example) => (
+                <TriggerExampleCard key={example.label} example={example} />
+              ))}
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className={PAGE_SECTION_CLASS}>
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="From app code"
+              title="If it can call fetch, it can use the tube."
+              description="The browser example in the Tube event-reply post is this small. A product surface posts to the local daemon; the listener owns the work; the reply stays attached to the event."
+              titleAs="h2"
+              titleSize="display"
+            />
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-2">
+              <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)]">
+                <PanelEyebrow>Plain HTTP</PanelEyebrow>
+                <CopyableCommandBlock label="Browser or local app" command={FETCH_SNIPPET} />
+              </SurfacePanel>
+              <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)]">
+                <PanelEyebrow>Event shape</PanelEyebrow>
+                <CopyableCommandBlock label="Message contract" command={EVENT_CONTRACT} />
+                <PanelBody size="compact" className="max-w-none">
+                  The useful fields are deliberately boring: channel, sender, payload, and
+                  an optional parent id for replies. The boring shape is what makes it easy
+                  for agents and ordinary code to share the same loop.
+                </PanelBody>
+              </SurfacePanel>
+            </div>
+          </PageContainer>
+        </section>
+
+        <section className={PAGE_SECTION_CLASS}>
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="Example · failing test"
               title="A test fails. An agent reads it and replies with a fix."
-              description="Run tests posts a captured failure — suite, failing assertion, stack snippet — to tests:failed. The Mechanic, a test-fixer listening there, replies with a diagnosis and a suggested diff. When the reply lands, the status bar wipes from red to green."
+              description="Run tests posts a captured failure to tests:failed. The listener replies with a diagnosis and a suggested diff. This is one app you can build on the tube primitive."
               titleAs="h2"
               titleSize="display"
             />
@@ -327,13 +274,12 @@ export function Playground() {
           </PageContainer>
         </section>
 
-        {/* Demo #3 — Editor Lightbulb */}
         <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Demo 03 · Editor Lightbulb"
-              title="Select code. The lightbulb lights up. An agent explains it."
-              description="A selection in a faux editor carries a cobalt lightbulb in the gutter. Ask the agent posts the file, range, and selected text to editor:explain. The Explainer, a code-explainer listening there, replies with a plain-language explanation — and a suggested change as a unified diff when it has one. The bulb lighting up is the signature beat."
+              eyebrow="Example · editor selection"
+              title="Select code. Ask an agent. Keep the answer threaded."
+              description="A faux editor posts the file, range, and selected text to editor:explain. The reply can be an explanation, a risk note, or a suggested patch."
               titleAs="h2"
               titleSize="display"
             />
@@ -343,45 +289,17 @@ export function Playground() {
           </PageContainer>
         </section>
 
-        {/* Demo #4 — War Room */}
         <section className={PAGE_SECTION_CLASS}>
           <PageContainer width="wide">
             <SectionIntro
-              eyebrow="Demo 04 · War Room"
-              title="Three agents investigate one incident — and reply to each other."
-              description="This one isn't human→agent; it's agent↔agent. Open the incident seeds a real symptom to incident:checkout. Three named agents — alpha (incident lead), bravo (database), charlie (logs) — post findings on the same channel and reply to one another. Each reply draws a teal provenance arrow between the cards, so you see the argument's lineage. When an agent posts a ROOT CAUSE, it lands in a cobalt banner."
+              eyebrow="Example · agent to agent"
+              title="Agents can use the same channel to investigate together."
+              description="One agent posts a symptom. Other agents reply with findings on the same tube thread. The operator sees the argument's lineage instead of a pile of disconnected chat."
               titleAs="h2"
               titleSize="display"
             />
             <div className="mt-[var(--space-6)]">
               <WarRoom />
-            </div>
-          </PageContainer>
-        </section>
-
-        {/* Run the agent */}
-        <section className={PAGE_SECTION_CLASS}>
-          <PageContainer width="wide">
-            <SectionIntro
-              eyebrow="Make it answer"
-              title="Start the Concierge on desk:requests, then fire any tile."
-              description="The page never fakes a reply. To see the wire complete, run pd tube in your project on the same channel. Each tile also shows the exact shell command that fires the same message from a terminal."
-              titleAs="h2"
-              titleSize="display"
-            />
-            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-2">
-              <SurfacePanel elevation="quiet" padding="compact">
-                <CopyableCommandBlock
-                  label="Listen on the requests channel"
-                  command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME}`}
-                />
-              </SurfacePanel>
-              <SurfacePanel elevation="quiet" padding="compact">
-                <CopyableCommandBlock
-                  label="Reply from the same command"
-                  command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME} --reply "routed to deploy — on it."`}
-                />
-              </SurfacePanel>
             </div>
           </PageContainer>
         </section>
@@ -391,43 +309,24 @@ export function Playground() {
   )
 }
 
-function HeroSignalPanel() {
-  const steps = [
-    ['01', 'Trigger posts'],
-    ['02', 'Channel stores'],
-    ['03', 'Agent replies'],
-  ] as const
-
+function TubePrimitivePanel() {
   return (
     <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)] lg:mt-[var(--space-2)]">
-      <div className="relative aspect-[16/9] overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-        <ThemedImage
-          src="/img/generated/pd-tube-playground/switchboard-hero.webp"
-          alt="A switchboard collage showing product UI, git review, test runner, team room, webhook, and notebook triggers all routing through PD Tube."
-          className="h-full w-full object-cover"
-          loading="eager"
-          decoding="async"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0)_36%,rgba(0,0,0,0.58)_100%)]" />
-        <div className="absolute bottom-[var(--space-3)] left-[var(--space-3)] right-[var(--space-3)] flex flex-wrap gap-[var(--space-2)]">
-          {['button', 'hook', 'test', 'webhook'].map((label) => (
-            <span
-              key={label}
-              className="border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white"
-            >
-              {label}
-            </span>
-          ))}
+      <div className="border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)] p-[var(--space-4)]">
+        <div className="grid gap-[var(--space-3)]">
+          <SignalRow label="Code, hook, app, agent" value="send event" tone="primary" />
+          <div className="mx-auto h-8 border-l-2 border-[var(--brand-primary)]" aria-hidden="true" />
+          <SignalRow label={TUBE_CHANNEL} value="named local channel" tone="accent" />
+          <div className="mx-auto h-8 border-l-2 border-[var(--brand-secondary)]" aria-hidden="true" />
+          <SignalRow label="Listener" value="reply on thread" tone="secondary" />
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)]">
-        <PanelEyebrow>Live loop</PanelEyebrow>
-        <span className="border border-[var(--border-default)] px-[var(--space-2)] py-[2px] font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-          {DEMO_CHANNEL}
-        </span>
-      </div>
       <div className="grid gap-[var(--space-2)] sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-        {steps.map(([number, label]) => (
+        {[
+          ['01', 'code triggers'],
+          ['02', 'agent listens'],
+          ['03', 'reply returns'],
+        ].map(([number, label]) => (
           <div key={number} className="border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">
             <div className="font-mono text-[length:var(--type-meta-size)] text-[var(--brand-primary)]">{number}</div>
             <div className="mt-[var(--space-1)] font-sans text-[length:var(--type-panel-body-compact-size)] font-semibold text-[var(--text-primary)]">
@@ -436,224 +335,116 @@ function HeroSignalPanel() {
           </div>
         ))}
       </div>
-      <CopyableCommandBlock
-        label="Start the listener"
-        command={`pd tube ${DEMO_CHANNEL} --as ${CONCIERGE_NAME}`}
-      />
+      <CopyableCommandBlock label="Start the listener" command={LISTEN_COMMAND} />
     </SurfacePanel>
   )
 }
 
-/**
- * Switchboard — the shared-agent, many-triggers composition. It owns one
- * publish/watch pair against DEMO_CHANNEL and routes every tile's reply back to
- * the tile that fired. Built on the exported TubeWire parts (no re-implemented
- * fetch/poll/animation).
- */
-function Switchboard() {
-  const publish = usePublish(DEMO_CHANNEL)
-  const watch = useReplyWatch(DEMO_CHANNEL)
-  const [phase, setPhase] = useState<TubePhase>('idle')
-  const [pulse, setPulse] = useState<'none' | 'send' | 'reply'>('none')
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [elapsedMs, setElapsedMs] = useState<number>()
-  const [errorMessage, setErrorMessage] = useState<string>()
-  const [entries, setEntries] = useState<ThreadEntry[]>([])
-  const busy = phase === 'sending' || phase === 'awaiting'
-
-  const fire = useCallback(
-    (trigger: Trigger) => {
-      if (busy) return
-      setActiveId(trigger.id)
-      setErrorMessage(undefined)
-      setPulse('send')
-      void fireTube({
-        channel: DEMO_CHANNEL,
-        sender: trigger.sender,
-        body: trigger.body,
-        publish,
-        watch,
-        onPhase: setPhase,
-        onSent: (id) =>
-          setEntries((prev) => [
-            { key: `c${id}`, kind: 'click', who: `${trigger.label} (${trigger.sender})`, id, body: trigger.body },
-            ...prev,
-          ]),
-        onReply: (reply, ms) => {
-          setElapsedMs(ms)
-          setPulse('reply')
-          setEntries((prev) => [
-            {
-              key: `r${reply.id}`,
-              kind: 'reply',
-              who: `${reply.sender ?? 'agent'} → ${trigger.label}`,
-              id: reply.id,
-              body: reply.payload.body ?? '',
-            },
-            ...prev,
-          ])
-        },
-        onError: (e) => setErrorMessage(e.message),
-      })
-    },
-    [busy, publish, watch],
-  )
-
-  const activeTrigger = useMemo(
-    () => TRIGGERS.find((t) => t.id === activeId) ?? null,
-    [activeId],
-  )
+function SignalRow({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone: 'primary' | 'secondary' | 'accent'
+}) {
+  const color =
+    tone === 'primary'
+      ? 'var(--brand-primary)'
+      : tone === 'secondary'
+        ? 'var(--brand-secondary)'
+        : 'var(--accent-teal)'
 
   return (
-    <TubeMotionProvider>
-      <div className="grid gap-[var(--space-5)] xl:grid-cols-[1fr_minmax(20rem,28rem)]">
-        {/* Trigger gallery */}
-        <div className="space-y-[var(--space-4)]">
-          <PanelEyebrow>Triggers · all POST to {DEMO_CHANNEL}</PanelEyebrow>
-          <div className="grid gap-[var(--space-3)] md:grid-cols-2">
-            {TRIGGERS.map((trigger) => (
-              <TriggerTile
-                key={trigger.id}
-                trigger={trigger}
-                active={activeId === trigger.id}
-                disabled={busy}
-                onFire={() => fire(trigger)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Shared wire + agent + thread */}
-        <SurfacePanel className="space-y-[var(--space-5)]">
-          <PanelEyebrow>Concierge · one channel</PanelEyebrow>
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-[var(--space-2)]">
-            <div
-              className={cn(
-                'border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-4)] text-center',
-                activeTrigger && 'border-[var(--brand-primary)] bg-[var(--surface-raised)]',
-              )}
-            >
-              <div className="font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-secondary)]">
-                Sender
-              </div>
-              <div className="mt-[var(--space-1)] font-display text-[length:var(--text-lg)] font-black text-[var(--text-primary)]">
-                {activeTrigger ? activeTrigger.sender : 'any trigger'}
-              </div>
-            </div>
-            <Wire pulse={pulse} />
-            <AgentNode name={CONCIERGE_NAME} channel={DEMO_CHANNEL} phase={phase} />
-          </div>
-          <TubeStatus
-            phase={phase}
-            channel={DEMO_CHANNEL}
-            elapsedMs={elapsedMs}
-            errorMessage={errorMessage}
-          />
-          {entries.length === 0 ? (
-            <PanelBody size="compact" className="max-w-none">
-              Fire a tile to post a real message. The reply lands here, newest first.
-            </PanelBody>
-          ) : (
-            <ReplyThread entries={entries} />
-          )}
-        </SurfacePanel>
+    <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)] sm:grid-cols-[1fr_auto] sm:items-center">
+      <div className="font-mono text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-muted)]">
+        {label}
       </div>
-    </TubeMotionProvider>
+      <div className="border-2 px-[var(--space-3)] py-[var(--space-2)] font-display text-[length:var(--text-lg)] font-black text-[var(--text-primary)]" style={{ borderColor: color }}>
+        {value}
+      </div>
+    </div>
   )
 }
 
-function TriggerTile({
-  trigger,
-  active,
-  disabled,
-  onFire,
+function StepPanel({
+  number,
+  icon: Icon,
+  title,
+  body,
+  command,
 }: {
-  trigger: Trigger
-  active: boolean
-  disabled: boolean
-  onFire: () => void
+  number: string
+  icon: ComponentType<{ size?: number | string; className?: string }>
+  title: string
+  body: string
+  command: string
 }) {
-  const Icon = trigger.icon
   return (
-    <div
-      className={cn(
-        'group flex min-h-full flex-col overflow-hidden border-2',
-        active
-          ? 'border-[var(--brand-primary)] bg-[var(--surface-raised)]'
-          : 'border-[var(--border-strong)] bg-[var(--surface-base)]',
-      )}
+    <SurfacePanel elevation="quiet" padding="compact" className="space-y-[var(--space-4)]">
+      <div className="flex items-center justify-between gap-[var(--space-3)]">
+        <div className="flex items-center gap-[var(--space-2)]">
+          <Icon size={22} className="text-[var(--brand-primary)]" />
+          <PanelTitle as="h3" size="card">
+            {title}
+          </PanelTitle>
+        </div>
+        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+          {number}
+        </span>
+      </div>
+      <PanelBody size="compact" className="max-w-none">
+        {body}
+      </PanelBody>
+      <CopyableCommandBlock label={`${title} command`} command={command} />
+    </SurfacePanel>
+  )
+}
+
+function TubeDefinitionBar() {
+  return (
+    <SurfacePanel
+      elevation="quiet"
+      padding="compact"
+      className="mt-[var(--space-5)] grid gap-[var(--space-4)] border-[var(--brand-primary)] bg-[var(--surface-raised)] lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:items-center"
     >
-      <div className="relative aspect-[16/9] min-h-[11rem] overflow-hidden border-b-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-        <ThemedImage
-          src={trigger.visual.src}
-          alt={trigger.visual.alt}
-          className="h-full w-full object-cover transition-transform duration-[var(--duration-normal)] group-hover:scale-[1.03]"
-          style={{ objectPosition: trigger.visual.position ?? 'center' }}
-          loading="lazy"
-          decoding="async"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.05)_0%,rgba(0,0,0,0.54)_100%)]" />
-        <div className="absolute left-[var(--space-3)] right-[var(--space-3)] top-[var(--space-3)] flex items-start justify-between gap-[var(--space-2)]">
-          <span className="inline-flex items-center gap-[var(--space-2)] border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-black uppercase tracking-[var(--tracking-meta)] text-white">
-            <Icon size={15} aria-hidden="true" />
-            {trigger.scene}
-          </span>
-          {trigger.mocked ? (
-            <span className="shrink-0 border-2 border-[rgba(255,255,255,0.72)] bg-[rgba(0,0,0,0.58)] px-[var(--space-2)] py-[var(--space-1)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-white">
-              UI mock
-            </span>
-          ) : null}
-        </div>
+      <div>
+        <PanelEyebrow>Plain English</PanelEyebrow>
+        <PanelTitle as="h2" size="card" className="mt-[var(--space-2)] max-w-[18ch]">
+          A named local pipe for agent work.
+        </PanelTitle>
       </div>
+      <PanelBody className="max-w-none text-[length:var(--text-lg)]">
+        PD Tube does not care whether the sender is a web button, a Git hook, a
+        test runner, a chat bridge, a script, or another agent. It gives all of
+        them the same small contract: post to a channel, listen on that channel,
+        and attach replies to the event that caused them.
+      </PanelBody>
+    </SurfacePanel>
+  )
+}
 
-      <div className="flex flex-1 flex-col gap-[var(--space-3)] p-[var(--space-4)]">
-        <div className="flex items-start justify-between gap-[var(--space-2)]">
-          <div className="flex items-center gap-[var(--space-2)]">
-            <Icon size={20} className="text-[var(--brand-primary)]" />
-            <PanelTitle as="h3" size="nav" className="normal-case">
-              {trigger.label}
-            </PanelTitle>
-          </div>
-          <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
-            {trigger.sender}
-          </span>
+function TriggerExampleCard({ example }: { example: TriggerExample }) {
+  const Icon = example.icon
+
+  return (
+    <SurfacePanel elevation="quiet" padding="compact" className="flex min-h-full flex-col gap-[var(--space-4)]">
+      <div className="flex items-start justify-between gap-[var(--space-2)]">
+        <div className="flex items-center gap-[var(--space-2)]">
+          <Icon size={20} className="text-[var(--brand-primary)]" />
+          <PanelTitle as="h3" size="nav" className="normal-case">
+            {example.label}
+          </PanelTitle>
         </div>
-
-        <PanelBody size="compact" className="max-w-none">
-          {trigger.note}
-          {trigger.mocked ? ' The tile still fires a real POST.' : ''}
-        </PanelBody>
-
-        <button
-          type="button"
-          onClick={onFire}
-          disabled={disabled}
-          className={cn(
-            'inline-flex items-center justify-center gap-[var(--space-2)] border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] transition-colors',
-            'bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]',
-            'hover:bg-[var(--brand-primary-on-tint)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--interactive-focus)]',
-            'disabled:cursor-not-allowed disabled:opacity-50',
-          )}
-        >
-          Fire this trigger
-        </button>
-
-        <CopyableCommandBlock
-          label="Real shell command"
-          command={trigger.command}
-          className="mt-auto hidden lg:grid"
-        />
-        <details className="lg:hidden">
-          <summary className="cursor-pointer border-2 border-[var(--border-strong)] px-[var(--space-3)] py-[var(--space-2)] font-sans text-[length:var(--type-meta-size)] font-semibold uppercase tracking-[var(--tracking-meta)] text-[var(--text-primary)]">
-            Shell command
-          </summary>
-          <CopyableCommandBlock
-            label="Real shell command"
-            command={trigger.command}
-            className="mt-[var(--space-2)]"
-          />
-        </details>
+        <span className="font-mono text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+          {example.sender}
+        </span>
       </div>
-    </div>
+      <PanelBody size="compact" className="max-w-none">
+        {example.note}
+      </PanelBody>
+      <CopyableCommandBlock label="Trigger" command={example.command} className="mt-auto" />
+    </SurfacePanel>
   )
 }

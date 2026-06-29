@@ -365,7 +365,7 @@ export function SectionIntro({
 }: {
   eyebrow: string
   title: ReactNode
-  description: ReactNode
+  description?: ReactNode
   className?: string
   titleAs?: ElementType
   titleClassName?: string
@@ -378,7 +378,9 @@ export function SectionIntro({
       <PanelTitle as={titleAs} size={titleSize} className={titleClassName}>
         {title}
       </PanelTitle>
-      <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
+      {description ? (
+        <PanelBody className={cn('max-w-[var(--measure-copy)]', bodyClassName)}>{description}</PanelBody>
+      ) : null}
     </div>
   )
 }

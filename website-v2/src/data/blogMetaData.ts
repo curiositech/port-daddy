@@ -60,7 +60,7 @@ export const blogPostMetas: BlogPostMeta[] = [
     excerpt: 'You push at eleven at night. The CI gear-wheel is the only critic in the room. What if every PR you opened arrived with the adversarial review you would have asked for — six paid critics on the same git push you were already doing? The GitHub fleet, the bug it caught (14 green tests against a count that was structurally always 0), and what stays in your hands.',
     tags: ['GitHub Fleet', 'Code Review', 'Adversarial Review', 'Dogfooding'],
     heroImage: '/img/generated/pr-reviews-itself/hero.webp',
-    heroAlt: 'A hooded contributor opens a laptop and finds a kitchen brigade of six chefs already at work on their pull request, each labeled with the name of a Port Daddy review ship',
+    heroAlt: 'A pull request opened on a developer workstation fans out to six focused Port Daddy review agents, each returning one evidence-backed finding stream.',
   },
   {
     id: 'ai-subscription-fleet',
@@ -104,7 +104,7 @@ export const blogPostMetas: BlogPostMeta[] = [
     excerpt: "Daily budgets are training wheels. They keep an agent from setting itself on fire, but they do not price what the fire would cost. The v2 paper points at the destination: cleanup as a lower bound, scope as a multiplier, reputation as a discount, and Thomas Youle's insurer-bidding market on top.",
     tags: ['Whitepaper', 'Pricing', 'Bonded Advisor', 'Mechanism Design'],
     heroImage: '/img/generated/bond-pricing/bond-pricing-hero.webp',
-    heroAlt: 'A market-like harbor scene where cleanup cost, scope, reputation, and insurer bids set the bond an agent must post.',
+    heroAlt: 'A Port Daddy bond market board where cleanup cost, scope, reputation, and insurer bids set the stake for a risky agent job.',
   },
   {
     id: 'evidence-cross-machine',
