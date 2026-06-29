@@ -65,7 +65,7 @@ fn push_ctx() -> RequestCtx {
 /// Build a paid-rent, request-bound discharge for a grant at mint time `t`.
 fn paid_discharge(g: &PushGrant) -> Macaroon {
     let discharge = discharge_rent_paid(
-        &g.caveat_key,
+        CKEY, // == g.caveat_key; pub(crate) by #496 (key custody is the keystore's job)
         &g.rent_caveat_id,
         RentVerdict::Paid,
         1_000_000,
@@ -142,7 +142,7 @@ fn rent_due_means_no_discharge_means_refusal() {
     let g = grant();
     // The daemon would refuse to mint a discharge for an unpaid lease.
     let d = discharge_rent_paid(
-        &g.caveat_key,
+        CKEY, // == g.caveat_key; pub(crate) by #496 (key custody is the keystore's job)
         &g.rent_caveat_id,
         RentVerdict::RentDue,
         1_000_000,
@@ -310,7 +310,7 @@ fn expired_discharge_replay_yields_refusal() {
     // before the grant's hard expiry (2_000_000).
     let short_ttl_ms: i64 = 5_000;
     let discharge = discharge_rent_paid(
-        &g.caveat_key,
+        CKEY, // == g.caveat_key; pub(crate) by #496 (key custody is the keystore's job)
         &g.rent_caveat_id,
         RentVerdict::Paid,
         1_000_000,
@@ -340,7 +340,7 @@ fn expired_discharge_replay_yields_refusal() {
     // proving the refusal above is the TTL biting and not a structural reject.
     let mut broker2 = broker_for(&g, DISCHARGE_TTL_MS);
     let fresh = discharge_rent_paid(
-        &g.caveat_key,
+        CKEY, // == g.caveat_key; pub(crate) by #496 (key custody is the keystore's job)
         &g.rent_caveat_id,
         RentVerdict::Paid,
         1_000_000,
