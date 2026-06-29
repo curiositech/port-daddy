@@ -24,6 +24,7 @@ const FRESHNESS_SKIP_COMMANDS = new Set([
   'mcp',
   'agent',
   'agents',
+  'attention',
   'ideas',
 ]);
 

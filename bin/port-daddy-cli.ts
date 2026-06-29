@@ -349,6 +349,9 @@ function printLaunchHints(hints: {
  * Resolve connection target: Unix socket or TCP.
  */
 function resolveTarget(): ConnectionTarget {
+  if (process.env.PORT_DADDY_FORCE_TCP === '1') {
+    return { host: 'localhost', port: readDaemonPort(_DEFAULT_PORT_FILE) };
+  }
   // Explicit TCP URL overrides socket
   if (process.env.PORT_DADDY_URL) {
     return resolveDaemonTcpTarget(process.env.PORT_DADDY_URL);

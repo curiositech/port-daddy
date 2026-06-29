@@ -1952,6 +1952,22 @@
       },
       "_note": "Composite feature — routes module wiring cost-tracker + counters together. API-only (no SDK methods or CLI commands)."
     },
+    "cloud_app_telemetry": {
+      "description": "Remote GitHub App / Cloudflare Worker telemetry ingestion and reporting for cloud fleet agents",
+      "cli": [],
+      "sdk": [],
+      "routes": [
+        "POST /telemetry/cloud-app",
+        "GET /telemetry/cloud-app",
+        "GET /telemetry/cloud-app/events"
+      ],
+      "completions": [],
+      "docs": {
+        "readme": false,
+        "sdk": false
+      },
+      "_note": "API-only telemetry surface consumed by the GitHub App receiver Worker and merged into fleet/agent/cost reporting."
+    },
     "metricsprom": {
       "description": "Prometheus text exposition + per-route HTTP histograms with outlier ring buffer, skill freshness/distribution gauges, and time-aligned annotation feed (git commits, pd notes, session purposes). Powers the /metrics.html in-house dashboard and any external Prometheus scraper. Replaces the unbounded winston request-log firehose.",
       "cli": [],

@@ -371,8 +371,10 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // context: agent context-window health + task ledger (ADR-0048 P1/P3) — MCP+HTTP only, no pd CLI command.
   // harvest: session note→episode promotion (ADR-0048 P2/P3) — MCP+HTTP only.
   // custodian: knowledge custodian status + approval resolution (ADR-0048 P3) — MCP+HTTP only.
+  // cloudapptelemetry: inbound GitHub App / Cloudflare Worker telemetry ingestion + read API;
+  // surfaced through fleet/agents/observability reporting, not a dedicated `pd` command.
   // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
