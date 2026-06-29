@@ -791,6 +791,31 @@ describe('Claude-to-Codex Giant Squid bridge', () => {
     ]);
   });
 
+  test('resolveSquidBridgeConfig maps public Squid tiers to Codex reasoning effort', () => {
+    const fast = resolveSquidBridgeConfig({ tier: 'fast' }, '/repo');
+    const mid = resolveSquidBridgeConfig({ 'model-tier': 'mid' }, '/repo');
+    const strong = resolveSquidBridgeConfig({ thinking: 'strong' }, '/repo');
+
+    expect(fast.capabilityTier).toBe('fast');
+    expect(fast.codexConfig).toContain('model_reasoning_effort="low"');
+    expect(mid.capabilityTier).toBe('mid');
+    expect(mid.codexConfig).toContain('model_reasoning_effort="medium"');
+    expect(strong.capabilityTier).toBe('strong');
+    expect(strong.codexConfig).toContain('model_reasoning_effort="high"');
+  });
+
+  test('explicit Codex effort wins over Squid tier sugar', () => {
+    const config = resolveSquidBridgeConfig({ tier: 'strong', 'codex-effort': 'medium' }, '/repo');
+
+    expect(config.capabilityTier).toBe('strong');
+    expect(config.codexConfig).toContain('model_reasoning_effort="medium"');
+    expect(config.codexConfig).not.toContain('model_reasoning_effort="high"');
+  });
+
+  test('Squid tier sugar rejects unknown labels', () => {
+    expect(() => resolveSquidBridgeConfig({ tier: 'claude-sonnet-4-5' }, '/repo')).toThrow('Use fast, mid, or strong');
+  });
+
   test('non-loopback Squid bridge binds require explicit strong auth', () => {
     const defaultRemote = resolveSquidBridgeConfig({ host: '0.0.0.0' }, '/repo');
     expect(validateSquidBridgeConfig(defaultRemote)).toContain('generated local auth');

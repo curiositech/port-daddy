@@ -14,8 +14,10 @@ import * as ui from '../utils/ui.js';
 import { isDaemonRunning } from '../utils/fetch.js';
 import { detectStack } from '../../lib/detect.js';
 import { handleDaemon } from './daemon.js';
+import { handleGuard } from './guard.js';
 import { handleInit } from './init.js';
 import { handleMcpInstall } from './mcp-install.js';
+import { installSquidHooks } from './squid.js';
 import {
   ensureGeminiPortDaddyExtension,
   formatSkillSyncSummary,
@@ -106,6 +108,19 @@ function inferProjectDir(explicitProject: string | undefined): string | null {
   return looksLikeProjectDir(process.cwd()) ? process.cwd() : null;
 }
 
+function isGitRepository(dir: string): boolean {
+  const git = spawnSync('git', ['rev-parse', '--git-dir'], {
+    cwd: dir,
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  return (git.status ?? 1) === 0 && git.stdout.trim().length > 0;
+}
+
+function installRemediation(label: string, command: string): void {
+  ui.info(`${label} remediation: ${command}`);
+}
+
 async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   if (await isDaemonRunning()) {
     ui.success('Daemon already running');
@@ -120,6 +135,7 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
 
   if ((install.status ?? 1) !== 0) {
     ui.error('Daemon install failed');
+    installRemediation('Daemon', 'pd daemon install && pd daemon start');
     return false;
   }
 
@@ -134,6 +150,7 @@ async function ensureDaemonInstalledAndRunning(): Promise<boolean> {
   }
 
   ui.error('Daemon did not come up');
+  installRemediation('Daemon', 'pd doctor && pd daemon start');
   return false;
 }
 
@@ -324,6 +341,7 @@ function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
 
   if (!existsSync(FLEETBAR_INSTALL_SCRIPT)) {
     ui.warn('FleetBar install script not found');
+    installRemediation('FleetBar', 'pd setup --no-fleetbar, or download the signed app from the Install page');
     return false;
   }
 
@@ -335,6 +353,7 @@ function installFleetBarIfEnabled(skipFleetBar: boolean): boolean {
 
   if ((install.status ?? 1) !== 0) {
     ui.warn('FleetBar install failed');
+    installRemediation('FleetBar', 'pd setup --no-fleetbar, then install FleetBar from the signed zip');
     return false;
   }
 
@@ -371,6 +390,63 @@ async function maybeInitProject(projectDir: string | null, options: Record<strin
   } finally {
     process.chdir(previousCwd);
   }
+}
+
+async function installProjectHarness(projectDir: string | null, options: Record<string, unknown>): Promise<boolean> {
+  if (!projectDir) {
+    ui.info('Project harness skipped (no project directory detected)');
+    installRemediation('Project harness', 'cd your-project && pd setup');
+    return true;
+  }
+
+  if (options['no-harness']) {
+    ui.info('Skipping Squid hooks and Guard (--no-harness)');
+    installRemediation('Project harness', 'pd setup, or pd squid hooks && pd guard install --mode enforce');
+    return true;
+  }
+
+  let ok = true;
+
+  if (!options['no-squid-hooks']) {
+    ui.step('Installing Squid hooks for local agent runtimes');
+    try {
+      const results = await installSquidHooks(projectDir);
+      for (const result of results) {
+        const proof = result.verified ? 'verified live' : 'contract installed';
+        ui.success(`${result.binaryName}: ${proof}`);
+      }
+    } catch (err) {
+      ok = false;
+      ui.warn(`Squid hooks could not be installed: ${(err as Error).message}`);
+      installRemediation('Squid hooks', 'pd squid hooks');
+    }
+  } else {
+    ui.info('Skipping Squid hooks (--no-squid-hooks)');
+    installRemediation('Squid hooks', 'pd squid hooks');
+  }
+
+  if (!options['no-guard']) {
+    if (!isGitRepository(projectDir)) {
+      ok = false;
+      ui.warn('Coordination Guard skipped (project is not a git repository)');
+      installRemediation('Coordination Guard', 'git init, then pd guard install --mode enforce');
+    } else {
+      ui.step('Installing Coordination Guard in enforce mode');
+      try {
+        await handleGuard(['install'], { dir: projectDir, mode: 'enforce', yes: true });
+        ui.success('Coordination Guard enforces session, claim, and note discipline');
+      } catch (err) {
+        ok = false;
+        ui.warn(`Coordination Guard could not be installed: ${(err as Error).message}`);
+        installRemediation('Coordination Guard', 'pd guard install --mode enforce');
+      }
+    }
+  } else {
+    ui.info('Skipping Coordination Guard (--no-guard)');
+    installRemediation('Coordination Guard', 'pd guard install --mode enforce');
+  }
+
+  return ok;
 }
 
 export async function handleSetup(options: Record<string, unknown>): Promise<void> {
@@ -426,9 +502,14 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
 
   const projectDir = inferProjectDir(explicitProject);
   await maybeInitProject(projectDir, options);
+  const harnessOk = await installProjectHarness(projectDir, options);
 
   console.log('');
-  ui.info('Setup complete');
+  if (harnessOk) {
+    ui.success('Setup complete');
+  } else {
+    ui.warn('Setup completed with remediation steps above');
+  }
   console.log('  Next steps:');
   if (projectDir) {
     console.log(`    cd ${projectDir}`);

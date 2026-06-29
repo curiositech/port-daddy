@@ -1,11 +1,12 @@
 import { describe, expect, test } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import {
   plistTargetsLegacyDaemon,
   describeResourceDir,
+  diagnoseAgentRuntimeInstall,
   readPlistAsXml,
 } from '../../cli/commands/diagnostics.js';
 
@@ -206,5 +207,42 @@ describe('describeResourceDir', () => {
       '/usr/local/bin/node',
     );
     expect(breakdown.binaryExists).toBe(false);
+  });
+});
+
+describe('diagnoseAgentRuntimeInstall', () => {
+  test('reports missing MCP and skill wiring with setup remediation', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-agent-runtime-missing-'));
+    try {
+      const diagnosis = diagnoseAgentRuntimeInstall(dir);
+      expect(diagnosis.mcpConfigured).toBe(false);
+      expect(diagnosis.mcpHint).toContain('pd mcp install');
+      expect(diagnosis.skillInstalled).toBe(false);
+      expect(diagnosis.skillHint).toContain('pd setup');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('reports MCP and skill wiring when a local agent runtime is configured', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pd-agent-runtime-ready-'));
+    try {
+      const claudeDir = join(dir, '.claude');
+      mkdirSync(join(claudeDir, 'skills', 'port-daddy-agent-skill'), { recursive: true });
+      writeFileSync(join(claudeDir, 'settings.json'), JSON.stringify({
+        mcpServers: {
+          'port-daddy': { command: 'pd', args: ['mcp'] },
+        },
+      }));
+      writeFileSync(join(claudeDir, 'skills', 'port-daddy-agent-skill', 'SKILL.md'), '---\nname: port-daddy-agent-skill\n---\n');
+
+      const diagnosis = diagnoseAgentRuntimeInstall(dir);
+      expect(diagnosis.mcpConfigured).toBe(true);
+      expect(diagnosis.mcpDetail).toContain('Claude Code');
+      expect(diagnosis.skillInstalled).toBe(true);
+      expect(diagnosis.skillDetail).toContain('Port Daddy skill present');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

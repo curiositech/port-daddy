@@ -119,10 +119,8 @@ export function CTABanner() {
             </PanelBody>
             <div className="grid gap-[var(--space-2)]">
               <CodeBlock language="bash" showHeaderLabel={false}>
-                {`brew install curiositech/tap/port-daddy`}
-              </CodeBlock>
-              <CodeBlock language="bash" showHeaderLabel={false}>
-                {`npm install -g port-daddy`}
+                {`brew install curiositech/tap/port-daddy
+pd setup`}
               </CodeBlock>
             </div>
             <div className="grid gap-[var(--space-2)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] p-[var(--space-3)]">

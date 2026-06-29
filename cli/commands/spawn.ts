@@ -107,6 +107,7 @@ export async function handleSpawn(
     console.error('  --budget <usd>        Required spend ceiling for this launch');
     console.error('  --allowedTools <str>  Tool permissions for claude-cli backend');
     console.error('  --maxTokens <n>       Max tokens for claude/claude-cli backends');
+    console.error('  --inject-squid-hooks  Install Giant Squid tentacles before launching supported CLI backends');
     console.error('  -j, --json            JSON output');
     console.error('  -q, --quiet           Suppress output');
     console.error('');
@@ -152,6 +153,9 @@ export async function handleSpawn(
   if (options.timeout) body.timeout = parseInt(options.timeout as string, 10);
   if (options.allowedTools) body.allowedTools = options.allowedTools;
   if (options.maxTokens) body.maxTokens = parseInt(options.maxTokens as string, 10);
+  if (options['inject-squid-hooks'] === true || options.injectSquidHooks === true) {
+    body.injectSquidHooks = true;
+  }
 
   if (IS_TTY && !isQuiet(options) && !isJson(options)) {
     ui.info(`Spawning ${backend} agent...`);

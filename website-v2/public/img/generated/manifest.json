@@ -353,6 +353,30 @@
       "webpQuality": 82
     },
     {
+      "id": "install-one-command",
+      "file": "/img/generated/install-one-command.png",
+      "mimeType": "image/png",
+      "aspectRatio": "16:9",
+      "imageSize": "1376x768",
+      "model": "gemini-3-pro-image-preview",
+      "styleReference": "/tmp/codex-remote-attachments/019f0a71-b9bf-7dc3-bd40-6ac49917edf5/B569E80E-5989-4A1F-B5F0-BAF7FAA2DFFE/1-Photo-1.jpg",
+      "prompt": "Port Daddy install-page figure preserving the educational row from the reference: one sailor presses the install key; five labeled local modules sit on a shipboard chart table (daemon engine, command-line terminal, plug-in MCP hub, pilot handbook, Mac menu-bar window card); cables route them into agent workstations. Render as a safe ship/submarine control room with portholes, pipes, railings, friendly sailors in cobalt jackets, cream paper, cobalt linework, deep teal, warm amber, heat coral, near-black outlines, and crisp blueprint hatching.",
+      "webpFile": "/img/generated/install-one-command.webp",
+      "webpQuality": 84
+    },
+    {
+      "id": "install-one-command-dark",
+      "file": "/img/generated/install-one-command-dark.png",
+      "mimeType": "image/png",
+      "aspectRatio": "16:9",
+      "imageSize": "1376x768",
+      "model": "gemini-3-pro-image-preview",
+      "styleReference": "/img/generated/install-one-command.png",
+      "prompt": "Dark-mode sibling of the ship/submarine install figure. Preserve the sailor pressing the install key, the central table with five labeled local modules, and the cable runs to agent stations. Use deep ink navy, cream and cobalt linework, teal accents, warm amber wood and cable details, heat coral highlights, high contrast, and the same flat Swiss-modern blueprint style.",
+      "webpFile": "/img/generated/install-one-command-dark.webp",
+      "webpQuality": 84
+    },
+    {
       "id": "salvage-ledger",
       "file": "/img/generated/salvage-ledger.jpg",
       "mimeType": "image/jpeg",

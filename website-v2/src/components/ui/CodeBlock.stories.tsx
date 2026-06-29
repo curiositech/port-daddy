@@ -93,7 +93,7 @@ export const WithCopyButton: Story = {
   args: {
     language: 'bash',
     copyable: true,
-    children: 'npm install -g port-daddy',
+    children: 'brew install curiositech/tap/port-daddy\npd setup',
   },
 }
 

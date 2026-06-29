@@ -9,6 +9,11 @@ import {
   DEFAULT_SQUID_MAX_REQUEST_BYTES,
   listenClaudeCodexBridge,
 } from '../../lib/squid/claude-codex-bridge.js';
+import {
+  SQUID_HOOK_METADATA,
+  SQUID_HOOK_PRIVACY_NOTICE,
+  squidAdapters,
+} from '../../lib/squid/adapter.js';
 import { normalizeCodexConfigOverrides } from '../../lib/spawner/backends/cli-tube.js';
 import type { CLIOptions } from '../types.js';
 import * as ui from '../utils/ui.js';
@@ -18,6 +23,19 @@ const GENERATED_TOKEN_BYTES = 24;
 const MAX_MODEL_ALIASES = 64;
 const MAX_MODEL_ALIAS_LENGTH = 160;
 const MODEL_ALIAS_ID = /^[A-Za-z0-9_:@./+-][A-Za-z0-9_:@./+-]*$/;
+const DEFAULT_HOOK_PROVIDERS = ['claude-code', 'codex', 'gemini', 'antigravity'] as const;
+const SQUID_TIER_PRESETS = {
+  fast: { effort: 'low', label: 'fast' },
+  mid: { effort: 'medium', label: 'mid' },
+  strong: { effort: 'high', label: 'strong' },
+} as const;
+type SquidTier = keyof typeof SQUID_TIER_PRESETS;
+
+export interface SquidHookInstallResult {
+  providerName: string;
+  binaryName: string;
+  verified: boolean;
+}
 
 export interface SquidBridgeConfig {
   host: string;
@@ -28,6 +46,7 @@ export interface SquidBridgeConfig {
   authToken: string | null;
   authTokenSource: 'generated' | 'explicit' | 'disabled';
   codexModel?: string;
+  capabilityTier?: SquidTier;
   modelAliases: Record<string, string>;
   codexConfig: string[];
 }
@@ -52,6 +71,10 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
     case 'serve':
       await handleCodexBridge(rest, options, { serveOnly: true });
       return;
+    case 'hooks':
+    case 'install-hooks':
+      await handleInstallHooks(rest, options);
+      return;
     case 'help':
     case '--help':
     case '-h':
@@ -68,7 +91,12 @@ export async function handleSquid(args: string[], options: CLIOptions): Promise<
  */
 export function resolveSquidBridgeConfig(options: CLIOptions, cwdDefault = process.cwd()): SquidBridgeConfig {
   const codexConfig = normalizeStringArray(options['codex-config']);
-  const codexEffort = typeof options['codex-effort'] === 'string' ? options['codex-effort'] : undefined;
+  const capabilityTier = resolveSquidTier(options);
+  const codexEffort = typeof options['codex-effort'] === 'string'
+    ? options['codex-effort']
+    : capabilityTier
+      ? SQUID_TIER_PRESETS[capabilityTier].effort
+      : undefined;
   if (codexEffort) {
     codexConfig.push(`model_reasoning_effort="${codexEffort}"`);
   }
@@ -95,6 +123,7 @@ export function resolveSquidBridgeConfig(options: CLIOptions, cwdDefault = proce
       : typeof options.model === 'string'
         ? options.model
         : undefined,
+    capabilityTier,
     modelAliases,
     codexConfig: uniqueCodexConfig,
   };
@@ -159,6 +188,81 @@ export function resolveClientLaunch(
   return { command, args, env: bridgeClientEnv(baseUrl, authToken, baseEnv) };
 }
 
+/**
+ * Install the existing Giant Squid hook tentacles into each supported agent's
+ * native hook config. This is the project-level harness arm switch: Claude Code
+ * gets .claude/settings.json, Codex gets .codex/config.toml, Gemini gets
+ * .gemini/settings.json, and Antigravity gets GeminiDir/hooks.json.
+ */
+export async function installSquidHooks(
+  workspaceRoot: string,
+  providerNames: string[] = [...DEFAULT_HOOK_PROVIDERS],
+): Promise<SquidHookInstallResult[]> {
+  const adapters = squidAdapters();
+  const wanted = resolveHookProviders(providerNames);
+  const selected = adapters.filter((adapter) => wanted.has(adapter.providerName));
+  const missing = [...wanted].filter((name) => !adapters.some((adapter) => adapter.providerName === name));
+  if (missing.length > 0) {
+    throw new Error(`Unsupported Squid hook provider(s): ${missing.join(', ')}`);
+  }
+
+  const results: SquidHookInstallResult[] = [];
+  for (const adapter of selected) {
+    await adapter.injectHooks(workspaceRoot);
+    results.push({
+      providerName: adapter.providerName,
+      binaryName: adapter.binaryName,
+      verified: adapter.verified,
+    });
+  }
+  return results;
+}
+
+function resolveHookProviders(values: string[]): Set<string> {
+  const names = values.length > 0 ? values : [...DEFAULT_HOOK_PROVIDERS];
+  const resolved = new Set<string>();
+  for (const raw of names.flatMap((value) => value.split(','))) {
+    const name = raw.trim().toLowerCase();
+    if (!name) continue;
+    if (name === 'all') {
+      for (const provider of DEFAULT_HOOK_PROVIDERS) resolved.add(provider);
+      continue;
+    }
+    if (name === 'claude') resolved.add('claude-code');
+    else if (name === 'claude-code') resolved.add('claude-code');
+    else if (name === 'codex') resolved.add('codex');
+    else if (name === 'gemini') resolved.add('gemini');
+    else if (name === 'agy' || name === 'antigravity') resolved.add('antigravity');
+    else resolved.add(name);
+  }
+  return resolved;
+}
+
+async function handleInstallHooks(args: string[], options: CLIOptions): Promise<void> {
+  const workspaceRoot = String(options.cwd ?? options.workdir ?? process.cwd());
+  const providers = [
+    ...normalizeStringArray(options.provider),
+    ...normalizeStringArray(options.providers),
+    ...args.filter((arg) => !arg.startsWith('-')),
+  ];
+  const results = await installSquidHooks(workspaceRoot, providers);
+
+  ui.success('Giant Squid hooks installed');
+  console.log(`  workspace: ${workspaceRoot}`);
+  for (const result of results) {
+    const proof = result.verified ? 'verified live' : 'contract installed';
+    console.log(`  ${result.providerName.padEnd(13)} ${result.binaryName.padEnd(8)} ${proof}`);
+  }
+  console.log('');
+  console.log('Installed local tentacles:');
+  for (const meta of Object.values(SQUID_HOOK_METADATA)) {
+    console.log(`  - ${meta.displayName}: ${meta.description} ${meta.privacy}`);
+  }
+  console.log(`Privacy: ${SQUID_HOOK_PRIVACY_NOTICE}`);
+  console.log('Repair check: pd doctor');
+  console.log('Use pd squid codex --tier strong when you also want Anthropic-compatible traffic bridged to Codex CLI.');
+}
+
 async function handleCodexBridge(clientPassthrough: string[], options: CLIOptions, mode: { serveOnly: boolean }): Promise<void> {
   const config = resolveSquidBridgeConfig(options);
   const securityIssue = validateSquidBridgeConfig(config);
@@ -185,6 +289,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
   console.log(`  base URL:  ${baseUrl}`);
   console.log(`  backend:   codex exec`);
   if (config.codexModel) console.log(`  codex:    --model ${config.codexModel}`);
+  if (config.capabilityTier) console.log(`  tier:     ${config.capabilityTier}`);
   if (Object.keys(config.modelAliases).length > 0) console.log(`  aliases:  ${formatModelAliases(config.modelAliases)}`);
   if (config.codexConfig.length > 0) console.log(`  config:   ${config.codexConfig.join(', ')}`);
   console.log(`  official:  no - compatibility bridge only`);
@@ -195,6 +300,7 @@ async function handleCodexBridge(clientPassthrough: string[], options: CLIOption
     tokenSource: config.authTokenSource,
     serveOnly: mode.serveOnly,
     codexModel: config.codexModel,
+    capabilityTier: config.capabilityTier,
     aliases: config.modelAliases,
   });
 
@@ -249,6 +355,23 @@ function isUsableLocalToken(token: string): boolean {
   return token.trim().length > 0 && !/[\0\r\n]/.test(token);
 }
 
+function resolveSquidTier(options: CLIOptions): SquidTier | undefined {
+  const raw = typeof options.tier === 'string'
+    ? options.tier
+    : typeof options['model-tier'] === 'string'
+      ? options['model-tier']
+      : typeof options.thinking === 'string'
+        ? options.thinking
+        : undefined;
+  if (!raw) return undefined;
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === 'low') return 'fast';
+  if (normalized === 'medium' || normalized === 'balanced') return 'mid';
+  if (normalized === 'high' || normalized === 'pro') return 'strong';
+  if (normalized in SQUID_TIER_PRESETS) return normalized as SquidTier;
+  throw new Error(`Unknown Squid tier "${raw}". Use fast, mid, or strong.`);
+}
+
 /** Normalize parser output for repeatable flags. */
 export function normalizeStringArray(value: CLIOptions[string]): string[] {
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string' && v.length > 0);
@@ -291,6 +414,7 @@ function printBridgeCard(args: {
   tokenSource: SquidBridgeConfig['authTokenSource'];
   serveOnly: boolean;
   codexModel?: string;
+  capabilityTier?: SquidTier;
   aliases: Record<string, string>;
 }): void {
   const decorated = terminalDecorationsEnabled();
@@ -316,6 +440,7 @@ function printBridgeCard(args: {
   const rows = [
     ['Base URL', args.baseUrl],
     ['Auth', label],
+    ['Tier', args.capabilityTier ?? 'backend default'],
     ['Backend', args.codexModel ? `codex exec --model ${args.codexModel}` : 'codex exec'],
     ['Aliases', Object.keys(args.aliases).length > 0 ? formatModelAliases(args.aliases) : 'request model passes through'],
     ['Use now', command],
@@ -336,10 +461,15 @@ function printBridgeCard(args: {
 
 function printHelp(): void {
   console.log(`Usage:
+  pd squid hooks  [--provider <name>] [--cwd <repo>]
   pd squid bridge [bridge options] [-- <client> <args...>]
   pd squid codex  [bridge options] [-- <client> <args...>]
   pd squid pro    [bridge options] [-- <client> <args...>]
   pd squid serve  [bridge options]
+
+Hook options:
+  --provider <name>           Hook provider: all, claude, codex, gemini, antigravity; repeatable
+  --cwd <repo>                Repository/workspace whose agent hook configs should be armed
 
 Bridge options:
   --port <n>                  Local bridge port (default: 8765)
@@ -348,6 +478,9 @@ Bridge options:
   --max-request-bytes <n>     Max JSON request body size (default: ${DEFAULT_SQUID_MAX_REQUEST_BYTES})
   --token <token>             Local bridge token (default: generated per run)
   --no-token                  Disable auth; loopback-only
+  --tier <fast|mid|strong>    Public capability tier; maps to Codex reasoning effort
+  --model-tier <tier>         Alias for --tier
+  --thinking <tier>           Alias for --tier
   --codex-model <model>       Actual Codex CLI model
   --codex-model-alias <a=b>   Route client model a to Codex backend model b; repeatable
   --codex-effort <level>      Shortcut for -c model_reasoning_effort="<level>"
@@ -357,9 +490,11 @@ Bridge options:
   --serve-only                With bridge, do not launch a client
 
 Examples:
-  pd squid codex -- claude --model client-model
-  pd squid pro --codex-effort high -- claude --model client-model
-  pd squid bridge --codex-model-alias client-model=backend-model --codex-effort high -- your-client --model client-model
+  pd squid hooks
+  pd squid hooks --provider claude --provider codex
+  pd squid codex --tier strong
+  pd squid pro --thinking strong
+  pd squid bridge --tier mid -- your-client
   pd squid bridge --client claude --client-arg=-p --client-arg="Say hi"
   pd squid serve --port 8765
 

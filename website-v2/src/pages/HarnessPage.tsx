@@ -28,7 +28,6 @@ import {
   SwissGrid,
   SwissGridItem,
 } from '@/components/site/primitives'
-import { ThemedImage } from '@/components/site/ThemedImage'
 import { useTheme } from '@/lib/theme-context'
 
 /**
@@ -206,7 +205,7 @@ function HarnessArtFigure({
   src,
   alt,
   caption,
-  loading = 'lazy',
+  loading = 'eager',
   className,
 }: {
   src: string
@@ -217,22 +216,26 @@ function HarnessArtFigure({
 }) {
   const { theme } = useTheme()
   const dark = theme === 'dark'
+  const darkSrc = src.replace(/(\.[^.]+)$/, '-dark$1')
 
   return (
     <figure className={`space-y-[var(--space-2)] ${className ?? ''}`}>
       <div className="relative overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
-        <ThemedImage
-          src={src}
-          alt={alt}
-          className="h-full w-full object-cover"
-          style={{
-            filter: dark ? 'brightness(0.72) contrast(1.18) saturate(1.12)' : 'saturate(1.03)',
-          }}
-          width={1456}
-          height={816}
-          loading={loading}
-          decoding="async"
-        />
+        <picture>
+          <source srcSet={darkSrc} media="(prefers-color-scheme: dark)" />
+          <img
+            src={src}
+            alt={alt}
+            className="aspect-video w-full object-cover"
+            style={{
+              filter: dark ? 'brightness(0.72) contrast(1.18) saturate(1.12)' : 'saturate(1.03)',
+            }}
+            width={1456}
+            height={816}
+            loading={loading}
+            decoding="async"
+          />
+        </picture>
         <div
           className="pointer-events-none absolute inset-0"
           style={{
@@ -335,7 +338,7 @@ const VENDOR_ROWS: readonly { vendor: string; status: 'live' | 'mapped'; note: s
   },
 ] as const
 
-type BackendExample = {
+type BackendLane = {
   runtime: string
   backend: string
   contract: string
@@ -343,7 +346,7 @@ type BackendExample = {
   command: string
 }
 
-const BACKEND_EXAMPLES: readonly BackendExample[] = [
+const BACKEND_LANES: readonly BackendLane[] = [
   {
     runtime: 'Claude Code native',
     backend: 'Claude via Claude Code login or an official Anthropic gateway',
@@ -354,12 +357,11 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
   },
   {
     runtime: 'Claude Code shape, Codex behind',
-    backend: 'OpenAI Codex CLI through `pd squid bridge`',
+    backend: 'OpenAI Codex CLI through the Squid compatibility bridge',
     contract:
-      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the Codex model actually used.',
+      'Claude-shaped requests hit a local Anthropic-compatible bridge; provenance records the backend tier actually used.',
     status: 'live',
-    command:
-      'pd squid bridge --codex-model-alias claude-sonnet-4-5=gpt-5.1-codex -- claude --model claude-sonnet-4-5',
+    command: 'pd squid codex --tier strong',
   },
   {
     runtime: 'Claude Code shape, open weights behind',
@@ -367,7 +369,7 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
     contract:
       'Claude Code keeps the hook layer; the gateway provides Anthropic Messages compatibility and tool-call shape.',
     status: 'mapped',
-    command: 'ANTHROPIC_BASE_URL=http://localhost:8000 claude --model gemma-tool-coder',
+    command: 'surface required: streamed turns, tool calls, and hook verdicts in CLI + FleetBar before promotion',
   },
   {
     runtime: 'Ollama / Gemma adapter lane',
@@ -375,7 +377,7 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
     contract:
       'The Articles still bind to the harness; this lane stays experimental until streaming and tool-loop fixtures pass.',
     status: 'mapped',
-    command: 'pd squid serve --port 8765 --token squid-local\n# adapter under test: ollama -> anthropic messages',
+    command: 'surface required: ollama turn stream + Port Daddy hook verdicts visible in the roster',
   },
   {
     runtime: 'Cloudflare Agent',
@@ -383,9 +385,117 @@ const BACKEND_EXAMPLES: readonly BackendExample[] = [
     contract:
       'The remote agent gets a Harbor identity, relay channel, PR duties, budget, and the same review/merge obligations.',
     status: 'mapped',
-    command: 'pd relay status\npd contract award cloudflare:review-shepherd',
+    command: 'surface required: Cloudflare actor appears beside local agents with relay status and transcript tail',
   },
 ] as const
+
+type ProofMedia = {
+  title: string
+  eyebrow: string
+  body: string
+  src: string
+  darkSrc?: string
+  alt: string
+  kind: 'gif' | 'image'
+  featured?: boolean
+}
+
+const PROOF_MEDIA: readonly ProofMedia[] = [
+  {
+    eyebrow: 'Rust GPUI app',
+    title: 'The operator sees the harness roster in the native app.',
+    body:
+      'The current GPUI control center opens the active-agent roster beside the live lane and planner, with stream, steer, takeover, worktree, and harness labels visible in one window.',
+    src: '/img/app-screens/pd-console-gpui/active-agents-harness-roster.png',
+    alt: 'Rust GPUI Port Daddy control center showing the active agent harness roster beside a live lane and planner pane.',
+    kind: 'image',
+    featured: true,
+  },
+  {
+    eyebrow: 'CLI multiplexer',
+    title: 'The same roster exists without the native window.',
+    body:
+      'The headless console face shows the same active-agent contract: backend, worktree, current task, touched files, stream command, steer command, and takeover handle.',
+    src: '/img/app-screens/pd-console-gpui/active-agent-roster-repl.gif',
+    alt: 'Animated terminal console showing the Port Daddy active-agent harness roster with stream, steer, and takeover commands.',
+    kind: 'gif',
+  },
+  {
+    eyebrow: 'CLI multiplexor',
+    title: 'Terminal streams show agent traffic in motion.',
+    body:
+      'The CLI needs to show the working agent and Port Daddy side by side: stream, inbox injections, hook verdicts, and jump-in controls for daemon-launched work.',
+    src: '/demos/pd-tube/pd-tube-multiplex.gif',
+    alt: 'Terminal recording of Port Daddy tube multiplexing multiple agent messages and replies.',
+    kind: 'gif',
+  },
+  {
+    eyebrow: 'FleetBar',
+    title: 'The menu-bar app is part of the harness.',
+    body:
+      'FleetBar is the quick operator surface for daemon health, session state, credentials, remediation, and opening the fuller control center.',
+    src: '/img/app-screens/fleetbar-native-shell-light.webp',
+    darkSrc: '/img/app-screens/fleetbar-native-shell-dark.webp',
+    alt: 'FleetBar native shell showing Port Daddy app controls and status.',
+    kind: 'image',
+  },
+  {
+    eyebrow: 'Live dashboard',
+    title: 'The web app shows claims, notes, and active agents.',
+    body:
+      'The same harness evidence should read in the dashboard: who is active, what they claimed, what they heard, and where their transcript lives.',
+    src: '/media/landing-live-glory/live-agents-panel-light.webp',
+    darkSrc: '/media/landing-live-glory/live-agents-panel-dark.webp',
+    alt: 'Port Daddy dashboard live agents panel showing active sessions, notes, and file claims.',
+    kind: 'image',
+  },
+] as const
+
+function ProofMediaCard({ media }: { media: ProofMedia }) {
+  const mediaClass = media.featured
+    ? 'aspect-[16/10] md:aspect-[21/9]'
+    : 'aspect-video'
+
+  return (
+    <SurfacePanel
+      elevation={media.featured ? 'raised' : 'quiet'}
+      padding="compact"
+      className={`grid content-start gap-[var(--space-3)] ${media.featured ? 'lg:col-span-2' : ''}`}
+    >
+      <figure className="space-y-[var(--space-2)]">
+        <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+          {media.darkSrc ? (
+            <picture>
+              <source srcSet={media.darkSrc} media="(prefers-color-scheme: dark)" />
+              <img
+                src={media.src}
+                alt={media.alt}
+                className={`${mediaClass} w-full object-cover`}
+                loading="eager"
+              />
+            </picture>
+          ) : (
+            <img
+              src={media.src}
+              alt={media.alt}
+              className={`${mediaClass} w-full object-cover`}
+              loading="eager"
+            />
+          )}
+        </div>
+      </figure>
+      <div className="grid gap-[var(--space-2)]">
+        <PanelEyebrow className="text-[var(--brand-primary)]">{media.eyebrow}</PanelEyebrow>
+        <PanelTitle as="h3" size="card" className="max-w-[24ch]">
+          {media.title}
+        </PanelTitle>
+        <PanelBody size="compact" className="max-w-none">
+          {media.body}
+        </PanelBody>
+      </div>
+    </SurfacePanel>
+  )
+}
 
 export default function HarnessPage() {
   const [activeCapability, setActiveCapability] = useState(0)
@@ -485,11 +595,22 @@ export default function HarnessPage() {
               </SwissGridItem>
 
               <SwissGridItem span="wide">
-                <HarnessArtFigure
-                  src="/img/generated/harness-hooks.webp"
-                  alt="A vendor command-line tool exposing four hook ports along its edge, with keyed couplings from the daemon seating into them — one connection fully seated and solid, the others dashed and partially seated to show validation in progress"
-                  caption="The daemon seats into the CLI’s hook ports. One solid coupling is verified; the dashed ones are validating."
-                />
+                <figure className="space-y-[var(--space-2)]">
+                  <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                    <picture>
+                      <source srcSet="/img/generated/harness-hooks-dark.png" media="(prefers-color-scheme: dark)" />
+                      <img
+                        src="/img/generated/harness-hooks.png"
+                        alt="A vendor command-line tool exposing four hook ports, with keyed couplings from the daemon seating into them."
+                        className="aspect-video w-full object-cover"
+                        loading="eager"
+                      />
+                    </picture>
+                  </div>
+                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                    The daemon seats into the CLI’s hook ports. One coupling is verified; the others are validating.
+                  </figcaption>
+                </figure>
               </SwissGridItem>
             </SwissGrid>
           </PageContainer>
@@ -561,11 +682,22 @@ export default function HarnessPage() {
           <PageContainer width="wide">
             <SwissGrid className="items-center">
               <SwissGridItem span="wide">
-                <HarnessArtFigure
-                  src="/img/generated/harness-veto.webp"
-                  alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate; a clean rerouted lane departs toward a safe terminal node, showing the command was redirected to a safe alternative rather than only blocked"
-                  caption="The hazard lane is stopped at the gate; a safe lane is offered in its place."
-                />
+                <figure className="space-y-[var(--space-2)]">
+                  <div className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                    <picture>
+                      <source srcSet="/img/generated/harness-veto-dark.png" media="(prefers-color-scheme: dark)" />
+                      <img
+                        src="/img/generated/harness-veto.png"
+                        alt="A destructive command lane carrying a hazard mark arrives and is stopped by an amber guard gate while a clean safe lane departs."
+                        className="aspect-video w-full object-cover"
+                        loading="eager"
+                      />
+                    </picture>
+                  </div>
+                  <figcaption className="font-sans text-[length:var(--type-meta-size)] text-[var(--text-muted)]">
+                    The hazard lane is stopped at the gate; a safe lane is offered in its place.
+                  </figcaption>
+                </figure>
               </SwissGridItem>
 
               <SwissGridItem span="narrow">
@@ -634,7 +766,112 @@ $ rm -rf build/ .git/
           </PageContainer>
         </section>
 
-        {/* ── Backend examples ──────────────────────────────────────── */}
+        {/* ── Operator proof surfaces ───────────────────────────────── */}
+        <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
+          <PageContainer width="wide">
+            <SectionIntro
+              eyebrow="What finished means"
+              title="A harnessed agent must be visible, controllable, and pleasant to run."
+              description="A backend lane is not real because a command fits in a code block. It is real when the operator can watch the stream, see Port Daddy's hook decisions, jump into the session, stop or steer the work, and see the same agent beside the standing fleet in CLI, FleetBar, and the Rust GPUI app."
+              titleAs="h2"
+              titleSize="display"
+              titleClassName="max-w-[26ch]"
+              bodyClassName="max-w-[58rem]"
+            />
+            <div className="mt-[var(--space-6)] grid gap-[var(--space-4)] lg:grid-cols-3">
+              <SurfacePanel className="space-y-[var(--space-4)]">
+                <div className="flex items-center gap-[var(--space-2)]">
+                  <Terminal size={18} className="text-[var(--brand-primary)]" />
+                  <PanelEyebrow className="text-[var(--brand-primary)]">CLI multiplexor</PanelEyebrow>
+                </div>
+                <PanelTitle as="h3" size="card">
+                  Watch the working agent and Port Daddy at once.
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  The terminal surface needs a live transcript tail, hook verdicts, inbox and parley injections, budget state,
+                  and a jump-in path for every daemon-launched agent.
+                </PanelBody>
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                  <img
+                    src="/demos/pd-tube/pd-tube-multiplex.gif"
+                    alt="Terminal recording of Port Daddy tube multiplexing agent streams and replies."
+                    className="aspect-video w-full object-cover"
+                    loading="eager"
+                  />
+                </figure>
+              </SurfacePanel>
+
+              <SurfacePanel className="space-y-[var(--space-4)]">
+                <div className="flex items-center gap-[var(--space-2)]">
+                  <Users size={18} className="text-[var(--brand-primary)]" />
+                  <PanelEyebrow className="text-[var(--brand-primary)]">FleetBar roster</PanelEyebrow>
+                </div>
+                <PanelTitle as="h3" size="card">
+                  See fleet agents and task agents in one place.
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  FleetBar should show full-time infrastructure agents beside task agents, with model tier, worktree,
+                  hook health, transcript tail, and remediation when part of the harness is missing.
+                </PanelBody>
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                  <picture>
+                    <source srcSet="/img/app-screens/fleetbar-native-shell-dark.webp" media="(prefers-color-scheme: dark)" />
+                    <img
+                      src="/img/app-screens/fleetbar-native-shell-light.webp"
+                      alt="FleetBar native shell showing the Port Daddy operator app surface."
+                      className="aspect-video w-full object-cover"
+                      loading="eager"
+                    />
+                  </picture>
+                </figure>
+              </SurfacePanel>
+
+              <SurfacePanel className="space-y-[var(--space-4)]">
+                <div className="flex items-center gap-[var(--space-2)]">
+                  <Radio size={18} className="text-[var(--brand-primary)]" />
+                  <PanelEyebrow className="text-[var(--brand-primary)]">Rust GPUI control center</PanelEyebrow>
+                </div>
+                <PanelTitle as="h3" size="card">
+                  Control a live session without losing the fleet.
+                </PanelTitle>
+                <PanelBody size="compact" className="max-w-none">
+                  The GPUI app needs a unified roster, readable live lane, transcript anchor, daemon lane, and operator
+                  controls for attach, interrupt, remediation, and handoff.
+                </PanelBody>
+                <figure className="overflow-hidden border-2 border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+                  <img
+                    src="/img/app-screens/pd-console-gpui/active-agents-harness-roster.png"
+                    alt="Rust GPUI active-agent harness roster showing live agents, stream commands, steer commands, and takeover handles."
+                    className="aspect-video w-full object-cover"
+                    loading="eager"
+                  />
+                </figure>
+              </SurfacePanel>
+            </div>
+
+            <div className="mt-[var(--space-8)]">
+              <div className="mb-[var(--space-5)] flex flex-col gap-[var(--space-2)] md:flex-row md:items-end md:justify-between">
+                <div className="space-y-[var(--space-2)]">
+                  <PanelEyebrow>Proof gallery</PanelEyebrow>
+                  <PanelTitle as="h3" size="display" className="max-w-[18ch]">
+                    Screens and recordings from the harness surfaces.
+                  </PanelTitle>
+                </div>
+                <PanelBody size="compact" className="max-w-[34rem]">
+                  These are the acceptance surfaces: CLI streams, FleetBar, dashboard state, and the Rust GPUI control center.
+                  Any new backend lane has to show up here before the marketing copy can call it real.
+                </PanelBody>
+              </div>
+              <div className="grid gap-[var(--space-4)] lg:grid-cols-2">
+                {PROOF_MEDIA.map((media) => (
+                  <ProofMediaCard key={`${media.eyebrow}-${media.title}`} media={media} />
+                ))}
+              </div>
+            </div>
+          </PageContainer>
+        </section>
+
+        {/* ── Backend lanes ─────────────────────────────────────────── */}
         <section className="border-b-2 border-[var(--border-strong)] bg-[var(--surface-raised)] py-[var(--section-space-y)] lg:py-[var(--section-space-y-lg)]">
           <PageContainer width="wide">
             <SectionIntro
@@ -695,7 +932,7 @@ $ rm -rf build/ .git/
             </figure>
 
             <div className="mt-[var(--space-6)] grid gap-[var(--space-4)]">
-              {BACKEND_EXAMPLES.map((row) => (
+              {BACKEND_LANES.map((row) => (
                 <SurfacePanel key={row.runtime} elevation="quiet" padding="compact" className="grid gap-[var(--space-4)] lg:grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
                   <div className="space-y-[var(--space-3)]">
                     <div className="flex flex-wrap items-center gap-[var(--space-3)]">
@@ -713,7 +950,7 @@ $ rm -rf build/ .git/
                       {row.contract}
                     </PanelBody>
                   </div>
-                  <CodeBlock language="bash" filename="example">
+                  <CodeBlock language="bash" filename={row.status === 'live' ? 'operator command' : 'promotion gate'}>
                     {row.command}
                   </CodeBlock>
                 </SurfacePanel>
@@ -732,14 +969,15 @@ $ rm -rf build/ .git/
                   Install Port Daddy, begin a session, harness your agent.
                 </PanelTitle>
                 <PanelBody tone="primary" className="max-w-[44rem]">
-                  Two commands put the daemon in front of your agent. From the next
-                  turn on, it hears the fleet, sees the swarm, and is stopped before
-                  it can do anything it can’t take back.
+                  One setup command installs the app, hooks, guard, skills, and MCP
+                  wiring. Doctor is the repair path when a runtime disables part of
+                  the harness or a local agent cannot see its tools.
                 </PanelBody>
               </div>
               <CodeBlock language="bash">
                 {`brew install curiositech/tap/port-daddy
-pd begin --identity myapp:api`}
+pd setup
+pd doctor`}
               </CodeBlock>
               <div className="flex flex-wrap gap-[var(--space-3)]">
                 <Button asChild variant="secondary" size="lg">

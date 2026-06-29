@@ -49,7 +49,7 @@ export interface DistributionOption {
   title: string;
   description: string;
   command: string;
-  status: 'available' | 'signed-build' | 'release-channel';
+  status: 'available' | 'mac-app';
 }
 
 export const PRODUCT_FEATURES = [
@@ -680,30 +680,16 @@ export const COLD_START_STEPS = [
 export const DISTRIBUTION_OPTIONS = [
   {
     id: 'mac-binary',
-    title: 'Signed Mac build',
-    description: 'A source-backed FleetBar.app ZIP for Apple Silicon developers. The artifact is generated from apps/FleetBar by npm run package:fleetbar-preview and signed with the Curiositech Developer ID certificate when that certificate is present on the release machine.',
-    command: 'curl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip\ncurl -LO https://portdaddy.dev/downloads/PortDaddy-FleetBar-macOS-arm64.zip.sha256\nshasum -a 256 -c PortDaddy-FleetBar-macOS-arm64.zip.sha256',
-    status: 'signed-build',
+    title: 'FleetBar for Mac',
+    description: 'The Mac app that pd setup installs for daemon health and project readiness.',
+    command: 'pd setup',
+    status: 'mac-app',
   },
   {
     id: 'brew',
     title: 'Homebrew + setup',
-    description: 'The preferred developer path: install the CLI/daemon, then let setup install FleetBar, MCP, launchd ownership, and project initialization.',
-    command: 'brew install curiositech/tap/port-daddy\npd setup --project ~/coding/my-app',
+    description: 'Install Port Daddy, then run setup to add FleetBar, MCP, hooks, skills, and project markers.',
+    command: 'brew install curiositech/tap/port-daddy\npd setup',
     status: 'available',
-  },
-  {
-    id: 'npm',
-    title: 'npm package',
-    description: 'A Node-native install path for users who want the CLI, daemon, MCP server, and skills through the package registry.',
-    command: 'npm install -g port-daddy\npd setup',
-    status: 'available',
-  },
-  {
-    id: 'release-artifacts',
-    title: 'GitHub release artifacts',
-    description: 'Release builds attach standalone CLI tarballs today; the release workflow now has a Mac app packaging path for FleetBar artifacts.',
-    command: 'gh release download --repo curiositech/port-daddy --pattern "PortDaddy-FleetBar-*.zip"',
-    status: 'release-channel',
   },
 ] satisfies DistributionOption[];

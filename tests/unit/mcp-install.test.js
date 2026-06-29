@@ -264,14 +264,22 @@ describe('installPilotDefinitions(home)', () => {
 });
 
 describe('pd setup integration', () => {
-  it('delegates MCP install without double-installing Pilot definitions', () => {
+  it('delegates MCP install without double-installing Pilot definitions and arms the project harness', () => {
     const setup = readFileSync(join(process.cwd(), 'cli', 'commands', 'setup.ts'), 'utf-8');
 
     expect(setup).toContain("await handleMcpInstall({ 'no-agents': true })");
     expect(setup).toContain('installPilotAgentDefinitions(options)');
+    expect(setup).toContain("import { installSquidHooks } from './squid.js'");
+    expect(setup).toContain('installProjectHarness(projectDir, options)');
+    expect(setup).toContain('await installSquidHooks(projectDir)');
+    expect(setup).toContain("await handleGuard(['install'], { dir: projectDir, mode: 'enforce', yes: true })");
+    expect(setup).toContain('installRemediation');
 
     const cli = readFileSync(join(process.cwd(), 'bin', 'port-daddy-cli.ts'), 'utf-8');
     expect(cli).toContain('--no-agents             Skip Port Daddy Pilot agent definitions');
+    expect(cli).toContain('--no-harness            Skip Squid hooks and Coordination Guard');
+    expect(cli).toContain('--no-squid-hooks        Skip agent hook installation only');
+    expect(cli).toContain('--no-guard              Skip Coordination Guard hook installation only');
   });
 });
 
