@@ -48,16 +48,18 @@ describe('mac install contract', () => {
     }
   })
 
-  test('the brew one-liner sets up the daemon, MCP, skill, and FleetBar together', () => {
+  test('the brew one-liner sets up the daemon, MCP, skill, Pilot, and FleetBar together', () => {
     // The headline command must chain brew install with pd setup so a single
     // copy/paste produces a working install, not just a downloaded binary.
     expect(installSection).toContain('brew install curiositech/tap/port-daddy && pd setup')
   })
 
   test('it names the agent tools pd mcp install configures', () => {
-    for (const tool of ['Claude Code', 'Cursor', 'Windsurf', 'VS Code', 'Continue', 'Cline']) {
+    for (const tool of ['Claude Code', 'Cursor', 'Windsurf', 'Gemini CLI', 'VS Code', 'Continue', 'Cline']) {
       expect(installSection, `pd mcp install should mention ${tool}`).toContain(tool)
     }
+    expect(installSection).toContain('Codex CLI')
+    expect(installSection).toContain('Port Daddy Pilot')
   })
 
   test('it does NOT claim unreleased components are Homebrew-installable', () => {

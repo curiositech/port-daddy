@@ -16,8 +16,8 @@ import type { ReactNode } from 'react'
  * MacInstallSection — the single install story for Port Daddy on a Mac, folded
  * onto the Mac-app page (this replaces the retired standalone "Skills + MCP"
  * page). One `brew install … && pd setup` brings the daemon, the CLI, the MCP
- * server, the Port Daddy skill, and FleetBar; `pd mcp install` wires the MCP
- * into whichever agent you run.
+ * server, the Port Daddy skill, the Pilot agent definitions, and FleetBar;
+ * `pd mcp install` wires the harness into whichever agent you run.
  *
  * Every command here is quoted verbatim from the product's own README
  * (/Users/erichowens/coding/port-daddy/README.md) and is covered by the Mac
@@ -53,17 +53,17 @@ const PIECES: Piece[] = [
     name: 'The MCP server',
     what: (
       <>
-        {MCP_TOOL_TOTAL}+ tools your agent calls directly. <Mono>pd mcp install</Mono> auto-configures Claude Code,
-        Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.
+        {MCP_TOOL_TOTAL}+ tools your agent calls directly. <Mono>pd mcp install</Mono> configures Claude Code,
+        Claude Desktop, Cursor, Windsurf, Gemini CLI, VS Code, Continue, and Cline.
       </>
     ),
     how: 'pd mcp install',
   },
   {
     icon: Sparkles,
-    name: 'The Port Daddy skill',
-    what: 'The SKILL.md + references that teach an agent the coordination protocol. pd setup refreshes the symlinks for you.',
-    how: 'pd setup links it',
+    name: 'The Pilot persona',
+    what: 'The SKILL.md, references, and Port Daddy Pilot definitions that teach local agents how to coordinate before they edit.',
+    how: 'pd setup or pd mcp install',
   },
   {
     icon: Boxes,
@@ -87,9 +87,9 @@ export function MacInstallSection() {
             Everything from one <span className="text-[var(--brand-primary)]">brew install</span>.
           </PanelTitle>
           <PanelBody className="max-w-[46rem] text-[length:var(--text-lg)]">
-            One command sets up the daemon, the <Mono>pd</Mono> CLI, the MCP server, the Port Daddy skill, and the
-            FleetBar menu-bar app. Then one more wires the MCP into whatever agent you run. No accounts, no cloud —
-            it all runs on your machine.
+            One command sets up the daemon, the <Mono>pd</Mono> CLI, the MCP server, the Port Daddy skill, the Pilot
+            agent definitions, and the FleetBar menu-bar app. Then one more wires the harness into whatever agent you
+            run. No accounts, no cloud — it all runs on your machine.
           </PanelBody>
         </div>
 
@@ -129,8 +129,9 @@ export function MacInstallSection() {
             </div>
             <CopyableCommandBlock label="Configure every agent tool" command="pd mcp install" />
             <PanelBody size="compact" className="max-w-[60ch]">
-              Detects and configures Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, and Cline.
-              The full <Mono>{MCP_TOOL_TOTAL}</Mono>-tool reference lives in{' '}
+              Detects your local agent tools, configures the MCP server, installs the shared skill, and writes the
+              Port Daddy Pilot persona for Claude Code, Codex CLI, Gemini CLI, and generic AGENTS.md-aware tools. The
+              full <Mono>{MCP_TOOL_TOTAL}</Mono>-tool reference lives in{' '}
               <Link to="/docs/mcp" className="font-semibold text-[var(--brand-primary)] underline">
                 the MCP docs
               </Link>

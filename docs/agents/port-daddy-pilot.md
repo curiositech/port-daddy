@@ -33,11 +33,14 @@ rendered copy — `pd setup` overwrites it on the next install.
 ## Installing
 
 `pd setup` (run automatically on every `brew install/upgrade port-daddy`)
-renders and installs all local definitions:
+renders and installs all local definitions. `pd mcp install` does the same Pilot
+definition refresh when you only want to reconnect agent tools:
 
 ```bash
 pd setup                 # render + install the Pilot into every local runtime
+pd mcp install           # configure MCP + refresh the shared skill and Pilot
 pd setup --no-agents     # skip the Pilot (skills/MCP only)
+pd mcp install --no-agents  # configure MCP + skill only
 npx tsx scripts/install-pilot-agents.ts --dry-run   # preview, write nothing
 ```
 

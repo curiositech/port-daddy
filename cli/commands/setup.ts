@@ -399,7 +399,7 @@ export async function handleSetup(options: Record<string, unknown>): Promise<voi
   }
 
   if (!options['no-mcp']) {
-    await handleMcpInstall({});
+    await handleMcpInstall({ 'no-agents': true });
   } else {
     ui.info('Skipping MCP install (--no-mcp)');
   }
