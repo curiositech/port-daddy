@@ -104,6 +104,7 @@ const TOOL_FEATURE_MAP = {
   'register_agent': 'agents',
   'agent_heartbeat': 'agents',
   'list_agents': 'agents',
+  'active_agent_roster': 'agents',
 
   // Salvage
   'check_salvage': 'salvage',

@@ -44,6 +44,7 @@ import type {
   SetupActionId,
   SetupOverview,
   SetupRunResult,
+  ActiveAgentRoster,
 } from './types';
 
 const CANONICAL_PREFERRED_DAEMON_URL = 'http://127.0.0.1:9876';
@@ -328,6 +329,16 @@ interface FilePreviewEnvelope {
 
 export async function fetchFleetStatus(): Promise<FleetDaemonStatus> {
   return get('/fleet');
+}
+
+export async function fetchActiveAgentRoster(opts: {
+  project?: string | null;
+  limit?: number;
+} = {}): Promise<ActiveAgentRoster> {
+  const params = new URLSearchParams();
+  if (opts.project) params.set('project', opts.project);
+  if (typeof opts.limit === 'number' && opts.limit > 0) params.set('limit', String(opts.limit));
+  return get(`/agent-roster${params.toString() ? `?${params}` : ''}`);
 }
 
 export async function fetchProjects(): Promise<ProjectSummary[]> {

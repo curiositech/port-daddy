@@ -14,6 +14,7 @@
 //! iterm2" — at the engine layer, runnable today.
 
 #[path = "../activity_pane.rs"]  mod activity_pane;
+#[path = "../active_agents_pane.rs"] mod active_agents_pane;
 #[path = "../adrs_pane.rs"]      mod adrs_pane;
 #[path = "../agent.rs"]          mod agent;
 // Audio is GUI-only at runtime, but its synth/mute logic is pure and unit-tested
@@ -59,6 +60,7 @@
 #[path = "../util.rs"]           mod util;
 
 use agent::{AgentManager, Backend};
+use active_agents_pane::ActiveAgentsPane;
 use anyhow::Result;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
@@ -118,6 +120,7 @@ async fn main() -> Result<()> {
     reg.register(Box::new(LineagePane::new()));
     reg.register(Box::new(SubstratePane::new()));
     reg.register(Box::new(ParleyPane::new()));
+    reg.register(Box::new(ActiveAgentsPane::new()));
 
     let ok = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✓", Sem::Landed));
     let err = |s: &TermStyle, msg: &str| println!("  {} {msg}", s.paint("✗", Sem::Gated));
@@ -190,6 +193,14 @@ async fn main() -> Result<()> {
         } else if line == ":parley" {
             // RCP-2a convene decision over the channel's unresolved contradictions.
             reg.active = reg.panes.iter().position(|p| p.id() == "parley").unwrap_or(0);
+            if let Err(e) = reg.refresh_active(mgr.daemon()).await {
+                err(&style, &format!("refresh failed: {e}"));
+            }
+            if let Some(p) = reg.active() {
+                print!("{}", term::render_blocks(&p.view(), &style));
+            }
+        } else if line == ":roster" || line == ":live-agents" {
+            reg.active = reg.panes.iter().position(|p| p.id() == "active-agents").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }

@@ -564,6 +564,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'register_agent': 'agents',
       'agent_heartbeat': 'agents',
       'list_agents': 'agents',
+      'active_agent_roster': 'agents',
       'check_salvage': 'salvage',
       'claim_salvage': 'salvage',
       'start_tunnel': 'tunnel',

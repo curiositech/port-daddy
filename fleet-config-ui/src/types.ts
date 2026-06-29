@@ -914,6 +914,54 @@ export interface FileClaim {
   startLine: number | null;
   endLine: number | null;
   symbol: string | null;
+  symbolPath?: string | null;
+}
+
+export interface ActiveAgentHarness {
+  id: string;
+  label: string;
+  backend: string | null;
+  model: string | null;
+  confidence: 'explicit' | 'inferred';
+}
+
+export interface ActiveAgentWorktree {
+  id: string | null;
+  root: string | null;
+  branch: string | null;
+  name: string | null;
+  isMain: boolean | null;
+}
+
+export interface ActiveAgentRosterItem {
+  id: string;
+  label: string;
+  purpose: string | null;
+  identity: string | null;
+  project: string | null;
+  status: string | null;
+  liveness: string;
+  lastHeartbeat: number | null;
+  harness: ActiveAgentHarness;
+  worktree: ActiveAgentWorktree;
+  activeSession: SessionSummary | null;
+  sessions: SessionSummary[];
+  touchedFiles: FileClaim[];
+  control: {
+    steeringChannel: string;
+    streamUrl: string;
+    interruptUrl: string;
+    takeoverUrl: string | null;
+    controlCenterUrl: string;
+  };
+}
+
+export interface ActiveAgentRoster {
+  success: true;
+  generatedAt: number;
+  project: string | null;
+  count: number;
+  agents: ActiveAgentRosterItem[];
 }
 
 export interface SpawnedAgent {

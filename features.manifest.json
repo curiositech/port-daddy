@@ -200,7 +200,8 @@
         "POST /agents/:param/heartbeat",
         "DELETE /agents/:param",
         "GET /agents/:param",
-        "GET /agents"
+        "GET /agents",
+        "GET /agent-roster"
       ],
       "completions": [
         "agent",

@@ -130,6 +130,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
   'list_services',
   // Magic tools — high-level composed operations for vibe coders
   'fleet_init',
+  'active_agent_roster',
   'swarm_awareness',
   'coordination_preflight',
   'sitrep',
@@ -144,7 +145,7 @@ const ESSENTIAL_TOOL_NAMES = new Set([
 const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> = {
   'magic': {
     description: 'High-level composed tools: fleet setup, swarm awareness, situation reports, agent spawning, sortie missions, file heat maps, agent messaging',
-    tools: ['fleet_init', 'fleet_status', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
+    tools: ['fleet_init', 'fleet_status', 'active_agent_roster', 'swarm_awareness', 'sitrep', 'catch_me_up', 'file_heat', 'talk_to_agent', 'spawn_agent', 'run_sortie'],
   },
   'session-lifecycle': {
     description: 'Start/end sessions, manage agent registration (sugar commands)',
@@ -2667,10 +2668,22 @@ const TOOLS = [
     },
   },
   {
+    name: 'active_agent_roster',
+    description:
+      '[Magic] Live harness roster for this repo. Lists active agents by harness lane, worktree, task, touched files, ' +
+      'and control affordances for stream, interrupt, takeover, and steering.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        project: { type: 'string', description: 'Filter to a specific project (e.g. "port-daddy"). Omit for all.' },
+      },
+    },
+  },
+  {
     name: 'swarm_awareness',
     description:
       '[Magic] Who else is working here? Returns all active agents with their identities, purposes, ' +
-      'file claims, session notes, and heartbeat freshness. One call to understand the whole swarm.',
+      'file claims, session notes, heartbeat freshness, harness lane, and session-control affordances. One call to understand the whole swarm.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -4377,8 +4390,16 @@ async function handleTool(
       return JSON.stringify({ agents, channels: msgs, recent_notes: recentNotes }, null, 2);
     }
 
+    case 'active_agent_roster':
     case 'swarm_awareness': {
       const project = args.project as string | undefined;
+      const rosterQs = new URLSearchParams({ limit: '50' });
+      if (project) rosterQs.set('project', project);
+      const rosterRes = await GET(`/agent-roster?${rosterQs}`);
+      if (rosterRes.status >= 200 && rosterRes.status < 300 && rosterRes.data && rosterRes.data.success !== false) {
+        return JSON.stringify(rosterRes.data, null, 2);
+      }
+
       const qs = project ? `?identityPrefix=${encodeURIComponent(project)}` : '';
       const sessionQs = new URLSearchParams({ limit: '20' });
       if (project) sessionQs.set('project', project);
