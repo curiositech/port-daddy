@@ -9,7 +9,7 @@ import http from 'node:http';
 import type { IncomingMessage, ClientRequest } from 'node:http';
 
 import { DEFAULT_SOCK, DEFAULT_PORT_FILE } from '../../shared/paths.js';
-import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget } from '../../shared/daemon-discovery.js';
+import { CANONICAL_TCP_PORT, LOOPBACK_TCP_HOST, getDaemonTcpUrl, readDaemonPort, resolveDaemonTarget, resolveDaemonTcpTarget } from '../../shared/daemon-discovery.js';
 import type { DaemonTarget } from '../../shared/daemon-discovery.js';
 const SOCK_PATH: string = process.env.PORT_DADDY_SOCK || DEFAULT_SOCK;
 const PORT_FILE: string = process.env.PORT_DADDY_PORT_FILE || DEFAULT_PORT_FILE;
@@ -139,7 +139,7 @@ const DAEMON_RECONNECT_DELAYS_MS: readonly number[] = [200, 400, 800, 1500];
 
 function singleRequest(path: string, options: FetchOptions): Promise<PdFetchResponse> {
   const target: ConnectionTarget = options.transport === 'tcp'
-    ? { host: LOOPBACK_TCP_HOST, port: readDaemonPort(PORT_FILE) }
+    ? resolveDaemonTcpTarget(process.env.PORT_DADDY_URL)
     : resolveTarget();
   return requestTarget(target, path, options).catch((error: unknown) => {
     if (!target.socketPath || process.env.PORT_DADDY_URL || !shouldFallbackFromSocket(error)) {
