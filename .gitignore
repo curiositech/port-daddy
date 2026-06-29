@@ -78,9 +78,10 @@ agentsd_mocks/
 .smoke-tmp/
 
 # Local scratch/probe scripts and generated artifact lists.
-# The ROOT .scratch/ holds tracked research notes the operator wants kept in
-# git ("save research markdowns always"), so re-include it after the broad
-# ignore — without the negation, new root research notes are silently dropped.
+# Ignore nested .scratch/ trees, but keep the repository-root .scratch/ in git
+# because it holds operator research notes ("save research markdowns always").
+# Both negations are needed: !/.scratch/ re-opens the root directory, and
+# !/.scratch/** re-opens new files below it after **/.scratch/ matched them.
 **/.scratch/
 !/.scratch/
 !/.scratch/**
