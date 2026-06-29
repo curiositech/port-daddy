@@ -10,11 +10,12 @@ import { IS_TTY } from '../utils/output.js';
 import type { PdFetchResponse } from '../utils/fetch.js';
 import * as ui from '../utils/ui.js';
 import { resolveFleetAgentRuntime } from '../../lib/fleet-engine.js';
+import type { FleetModelTier } from '../../lib/fleet-engine.js';
 import { autoIdentityFromPackageJson } from './services.js';
 import { readCurrentContext } from '../utils/current-context.js';
 import { requireConfirmation, DESTRUCTIVE_EXIT_CODE } from '../utils/destructive-confirm.js';
 
-const AGENT_ADMIN_SUBCOMMANDS = new Set(['register', 'heartbeat', 'unregister', 'inbox', 'interrupt', 'stream', 'help', 'run']);
+const AGENT_ADMIN_SUBCOMMANDS = new Set(['register', 'heartbeat', 'unregister', 'inbox', 'interrupt', 'stream', 'harness', 'help', 'run']);
 
 interface SpawnPreflightResponse {
   success?: boolean;
@@ -75,6 +76,15 @@ function parseBudgetValue(value: unknown): number | undefined {
   return undefined;
 }
 
+function parsePublicModelTier(value: unknown): FleetModelTier | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'fast' || normalized === 'low') return 'low';
+  if (normalized === 'mid' || normalized === 'medium') return 'mid';
+  if (normalized === 'strong' || normalized === 'high') return 'high';
+  return undefined;
+}
+
 async function fetchAgentPreflight(runtime: ReturnType<typeof resolveFleetAgentRuntime>, identity: string | undefined, budgetUsd: number | undefined): Promise<SpawnPreflightResponse | null> {
   try {
     const preflightRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/spawn/preflight`, {
@@ -120,7 +130,7 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
   const runtime = resolveFleetAgentRuntime({
     backend: options.backend as string | undefined,
     model: options.model as string | undefined,
-    modelTier: options.tier as 'low' | 'mid' | 'high' | undefined,
+    modelTier: parsePublicModelTier(options.tier),
   });
 
   if (!runtime.backend) {
@@ -257,6 +267,120 @@ async function runAgentAutopilot(task: string, options: CLIOptions): Promise<voi
   }
 }
 
+async function runHarnessAgent(args: string[], options: CLIOptions): Promise<void> {
+  const backendArg = typeof options.backend === 'string' ? options.backend : args[0];
+  const taskParts = typeof options.backend === 'string' ? args : args.slice(1);
+  const task = taskParts.join(' ').trim();
+
+  if (!backendArg || !task) {
+    ui.error('pd agent harness needs a backend and a task');
+    ui.info('Usage: pd agent harness <claude-cli|codex|cloudflare|ollama|lmstudio> "task text" --budget <usd> [--tier fast|mid|strong]');
+    process.exit(1);
+  }
+
+  const runtime = resolveFleetAgentRuntime({
+    backend: backendArg,
+    model: options.model as string | undefined,
+    modelTier: parsePublicModelTier(options.tier),
+  });
+
+  if (!runtime.backend) {
+    ui.error('pd agent harness could not resolve a backend');
+    ui.info('Set a concrete backend such as claude-cli, codex, cloudflare, ollama, or lmstudio.');
+    process.exit(1);
+  }
+
+  const budgetUsd = parseBudgetValue(options.budget);
+  if (budgetUsd == null || budgetUsd <= 0) {
+    ui.error('pd agent harness requires --budget <usd> with a positive ceiling');
+    process.exit(1);
+  }
+
+  const identity = (options.identity as string) || autoIdentityFromPackageJson() || undefined;
+  const purpose = (options.purpose as string) || `Harnessed ${runtime.backend} agent`;
+  const name = (options.name as string) || purpose;
+  const channel = (options.channel as string) || `harness-${runtime.backend}-${process.pid}-${Date.now()}`;
+  const timeout = options.timeout ? parseInt(options.timeout as string, 10) : undefined;
+  const allowedTools = options.allowedTools as string | undefined;
+  const workdir = options.workdir as string | undefined;
+
+  const preflight = await fetchAgentPreflight(runtime, identity, budgetUsd);
+
+  if (!isQuiet(options) && !isJson(options)) {
+    ui.info('pd agent harness');
+    console.error(`  Runtime: ${runtime.backend}${runtime.model ? ` / ${runtime.model}` : runtime.modelTier ? ` / ${runtime.modelTier}` : ''}`);
+    console.error(`  Channel: ${channel}`);
+    console.error(`  Budget ceiling: $${budgetUsd.toFixed(2)}`);
+    if (identity) console.error(`  Identity: ${identity}`);
+    if (preflight) printPreflight(preflight);
+    else for (const warning of runtime.warnings) console.error(`  Warning: ${warning}`);
+  }
+
+  if (preflight && !preflight.launchReady) {
+    ui.error(preflight.blockedReasons?.[0] || 'pd agent harness preflight failed');
+    process.exit(1);
+  }
+
+  const spawnRes: PdFetchResponse = await pdFetch(`${PORT_DADDY_URL}/spawn`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      backend: runtime.backend,
+      model: runtime.model,
+      modelTier: runtime.modelTier,
+      name,
+      identity,
+      purpose,
+      task,
+      allowedTools,
+      timeout,
+      budgetUsd,
+      workdir,
+      tubeChannel: channel,
+      injectSquidHooks: true,
+    }),
+  });
+  const spawnData = await spawnRes.json();
+
+  if (!spawnRes.ok) {
+    ui.error((spawnData.error as string) || 'Failed to launch harnessed agent');
+    process.exit(1);
+  }
+
+  const failed = spawnData.status === 'failed' || spawnData.status === 'blocked';
+
+  if (isJson(options)) {
+    console.log(JSON.stringify({
+      channel,
+      runtime,
+      result: spawnData,
+      commands: {
+        stream: spawnData.agentId ? `pd agent stream ${spawnData.agentId as string}` : undefined,
+        tube: `pd tube ${channel}`,
+        send: `pd tube ${channel} --send "..."`,
+      },
+    }, null, 2));
+    if (failed) process.exit(1);
+    return;
+  }
+
+  if (isQuiet(options)) {
+    console.log((spawnData.agentId as string) || channel);
+    if (failed) process.exit(1);
+    return;
+  }
+
+  if (failed) ui.error(`harnessed agent failed: ${String(spawnData.error || 'unknown failure')}`);
+  else ui.success('harnessed agent launched');
+  const spawnedAgentId = typeof spawnData.agentId === 'string' ? spawnData.agentId : undefined;
+  if (spawnedAgentId) console.error(`  Agent: ${spawnedAgentId}`);
+  console.error(`  Channel: ${channel}`);
+  if (spawnedAgentId) console.error(`  Stream: pd agent stream ${spawnedAgentId}`);
+  console.error(`  Talk:   pd tube ${channel} --send "..."`);
+  console.error('  Hooks:  Giant Squid injection requested');
+  if (failed) process.exit(1);
+}
+
 /**
  * Handle `pd agent <subcommand>` command
  */
@@ -267,6 +391,7 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
     console.error('Subcommands:');
     console.error('  "task text"                               Run a one-shot pd agent autopilot task');
     console.error('  run <task text>                           Explicit autopilot form');
+    console.error('  harness <backend> <task text>             Launch a tube-bound agent with Squid hooks requested');
     console.error('  register [--agent <id>] [--type <type>] [--identity <project:stack:context>] [--purpose <text>] [--skills <list>]');
     console.error('                                            Register as an agent (auto-checks for dead agents in same project)');
     console.error('  heartbeat [--agent <id>]                  Send heartbeat');
@@ -463,6 +588,11 @@ export async function handleAgent(subcommand: string | undefined, args: string[]
         process.exit(1);
       }
       await tailAgentStream(targetId, options);
+      break;
+    }
+
+    case 'harness': {
+      await runHarnessAgent(args, options);
       break;
     }
 
