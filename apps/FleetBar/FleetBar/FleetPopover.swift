@@ -554,8 +554,20 @@ struct FleetPopover: View {
 
             Spacer()
 
-            if store.isDaemonRunning {
-                HStack(spacing: Fleet.Space.s) {
+            HStack(spacing: Fleet.Space.s) {
+                Button {
+                    openControlPlane(.visual)
+                } label: {
+                    Label("Visual Task", systemImage: "viewfinder")
+                        .labelStyle(.iconOnly)
+                        .fontWeight(.medium)
+                        .foregroundStyle(Fleet.Color.healthy)
+                }
+                .buttonStyle(.borderless)
+                .help("Send a screenshot or selected region to an agent")
+                .accessibilityLabel("Visual Task")
+
+                if store.isDaemonRunning {
                     Button {
                         Task { await store.reloadFleet() }
                     } label: {
