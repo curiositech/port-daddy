@@ -115,6 +115,22 @@ final class FleetPopoverTests: XCTestCase {
         XCTAssertFalse(quitPath.contains("ScrollView"), quitPath)
     }
 
+    func testHeaderExposesVisualTaskOutsideScrollView() throws {
+        let store = FleetStore(autoStart: false)
+        store.isDaemonRunning = true
+        store.projects = []
+
+        let inspected = try FleetPopover(
+            store: store,
+            costStore: CostStore(autoStart: false),
+            backendStore: BackendStore(autoStart: false)
+        ).inspect()
+
+        let visualTaskButton = try inspected.find(button: "Visual Task")
+        let visualTaskPath = String(describing: visualTaskButton.pathToRoot)
+        XCTAssertFalse(visualTaskPath.contains("ScrollView"), visualTaskPath)
+    }
+
     func testScrollContentContainsCostDashboard() throws {
         let store = FleetStore(autoStart: false)
         store.isDaemonRunning = true
