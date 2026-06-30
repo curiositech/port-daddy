@@ -59,6 +59,13 @@ CODE=$?
 if [ "$CODE" -eq 2 ]; then ok "pre-tool EXIT 2 (locked by agent_alpha, edited by agent_beta)"; else bad "expected exit 2, got $CODE"; fi
 case "$ERR" in *BLOCKED*agent_alpha*) ok "stderr names the lock holder (agent_alpha)";; *) bad "stderr missing BLOCKED/holder: $ERR";; esac
 
+# 1b. Relative path with cwd still matches the absolute lock key.
+RERR="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"src/auth.ts"},"cwd":"/repo"}' \
+  | PD_ACTOR="agent_beta" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+RCODE=$?
+if [ "$RCODE" -eq 2 ]; then ok "pre-tool resolves relative file_path against cwd before lock lookup"; else bad "expected relative file_path exit 2, got $RCODE"; fi
+case "$RERR" in */repo/src/auth.ts*agent_alpha*) ok "relative file_path block names resolved path + holder";; *) bad "relative file_path block wrong: $RERR";; esac
+
 # 2. Owner edits its own locked file → EXIT 0
 printf '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"/repo"}' \
   | PD_ACTOR="agent_alpha" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
@@ -76,6 +83,37 @@ printf '{"tool_name":"Bash","tool_input":{"command":"ls"},"cwd":"/repo"}' \
   | PD_ACTOR="agent_beta" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
 CODE=$?
 if [ "$CODE" -eq 0 ]; then ok "pre-tool EXIT 0 (Bash, nothing to gate)"; else bad "expected exit 0 for Bash, got $CODE"; fi
+
+echo ""
+echo "== ADR-0092 suggestibility dial =="
+WERR="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"/repo"}' \
+  | PD_ACTOR="agent_beta" PD_SUGGESTIBILITY=" WaRn " "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+WCODE=$?
+if [ "$WCODE" -eq 0 ]; then ok "suggestibility=warn exits 0"; else bad "suggestibility=warn expected exit 0, got $WCODE"; fi
+case "$WERR" in *WARNING*agent_alpha*) ok "warn mode surfaces the foreign-lock holder";; *) bad "warn mode stderr wrong: $WERR";; esac
+
+AERR="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"/repo"}' \
+  | PD_ACTOR="agent_beta" PD_SUGGESTIBILITY="advisory" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+ACODE=$?
+if [ "$ACODE" -eq 0 ] && [ -z "$AERR" ]; then ok "suggestibility=advisory exits 0 silently"; else bad "advisory expected silent exit 0 (code=$ACODE err=$AERR)"; fi
+
+DIAL_REPO="$SCRATCH/dial-repo"
+mkdir -p "$DIAL_REPO/packages/api" "$DIAL_REPO/.portdaddy"
+printf '{"suggestibility":{"level":"warn"}}\n' > "$DIAL_REPO/.portdaddy/project.json"
+PERR="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"%s"}' "$DIAL_REPO/packages/api" \
+  | PD_ACTOR="agent_beta" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+PCODE=$?
+if [ "$PCODE" -eq 0 ]; then ok "nested cwd inherits parent .portdaddy/project.json suggestibility"; else bad "parent project.json expected exit 0 warn, got $PCODE"; fi
+case "$PERR" in *WARNING*agent_alpha*) ok "parent project.json warn names holder";; *) bad "parent project.json warning wrong: $PERR";; esac
+
+BAD_REPO="$SCRATCH/bad-dial-repo"
+mkdir -p "$BAD_REPO"
+printf '{ "suggestibility": { "level": "warn" ' > "$BAD_REPO/agent.config.json"
+BERR="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"%s"}' "$BAD_REPO" \
+  | PD_ACTOR="agent_beta" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+BCODE=$?
+if [ "$BCODE" -eq 2 ]; then ok "malformed suggestibility config cannot lower default enforce"; else bad "malformed config expected exit 2, got $BCODE"; fi
+case "$BERR" in *BLOCKED*agent_alpha*) ok "malformed config fallback block names holder";; *) bad "malformed config block wrong: $BERR";; esac
 
 echo ""
 echo "== pheromone append (PostToolUse) =="
@@ -190,29 +228,36 @@ AERR="$(printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch
 ACODE=$?
 if [ "$ACODE" -eq 2 ]; then ok "[codex apply_patch] EXIT 2 (path inside command[1] patch body)"; else bad "[codex apply_patch] expected exit 2, got $ACODE"; fi
 case "$AERR" in *BLOCKED*/repo/src/auth.ts*agent_alpha*) ok "[codex apply_patch] stderr names the patched path + holder";; *) bad "[codex apply_patch] stderr wrong: $AERR";; esac
-# (2) unlocked path inside patch → allow (escaped \n = real codex wire JSON)
+# (2) relative path inside patch resolves against cwd → EXIT 2
+REL_APBODY='*** Begin Patch\n*** Update File: src/auth.ts\n@@\n-old\n+new\n*** End Patch'
+RAPERR="$(printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","%s"]},"cwd":"/repo","hook_event_name":"PreToolUse"}' "$REL_APBODY" \
+  | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+RAPCODE=$?
+if [ "$RAPCODE" -eq 2 ]; then ok "[codex apply_patch] relative patch path resolves against cwd"; else bad "[codex apply_patch] relative path expected exit 2, got $RAPCODE"; fi
+case "$RAPERR" in *BLOCKED*/repo/src/auth.ts*agent_alpha*) ok "[codex apply_patch] relative path block names resolved path + holder";; *) bad "[codex apply_patch] relative path block wrong: $RAPERR";; esac
+# (3) unlocked path inside patch → allow (escaped \n = real codex wire JSON)
 printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","*** Begin Patch\\n*** Add File: /repo/src/fresh.ts\\n*** End Patch"]},"cwd":"/repo"}' \
   | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
 ACODE=$?
 if [ "$ACODE" -eq 0 ]; then ok "[codex apply_patch] EXIT 0 (unlocked Add File path)"; else bad "[codex apply_patch] expected 0 unlocked, got $ACODE"; fi
-# (3) MULTI-file patch, ONE foreign-locked → block the whole call
+# (4) MULTI-file patch, ONE foreign-locked → block the whole call
 MERR="$(printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","*** Begin Patch\\n*** Add File: /repo/src/new.ts\\n*** Update File: /repo/src/auth.ts\\n*** End Patch"]},"cwd":"/repo"}' \
   | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
 ACODE=$?
 if [ "$ACODE" -eq 2 ]; then ok "[codex apply_patch] multi-file patch blocked when ONE path is locked"; else bad "[codex apply_patch] multi-file expected exit 2, got $ACODE"; fi
 case "$MERR" in *auth.ts*) ok "[codex apply_patch] block names the locked file in a multi-file patch";; *) bad "[codex apply_patch] multi-file block wrong target: $MERR";; esac
-# (4) camelCase app-server apply_patch with command, locked path → deny JSON
+# (5) camelCase app-server apply_patch with command, locked path → deny JSON
 AOUT="$(printf '{"toolName":"apply_patch","toolInput":{"command":["apply_patch","%s"]},"cwd":"/repo","sessionId":"s1"}' "$APBODY" \
   | PD_ACTOR="codex_agent" "$BIN/pd-hook-pre-tool" 2>/dev/null)"
 ACODE=$?
 if [ "$ACODE" -eq 0 ]; then ok "[codex apply_patch appserver] EXIT 0 (deny via JSON)"; else bad "[codex apply_patch appserver] expected 0, got $ACODE"; fi
 case "$AOUT" in *'"permissionDecision":"deny"'*auth.ts*) ok "[codex apply_patch appserver] deny JSON names the patched path";; *) bad "[codex apply_patch appserver] deny JSON wrong: $AOUT";; esac
-# (5) owner's own apply_patch on the patched path → allow
+# (6) owner's own apply_patch on the patched path → allow
 printf '{"tool_name":"apply_patch","tool_input":{"command":["apply_patch","%s"]},"cwd":"/repo"}' "$APBODY" \
   | PD_ACTOR="agent_alpha" "$BIN/pd-hook-pre-tool" >/dev/null 2>&1
 ACODE=$?
 if [ "$ACODE" -eq 0 ]; then ok "[codex apply_patch] owner not self-blocked on patched path"; else bad "[codex apply_patch] owner self-blocked? code=$ACODE"; fi
-# (6) post-tool pheromone harvests the patch path (no file_path present).
+# (7) post-tool pheromone harvests the patch path (no file_path present).
 # NB: codex sends the patch text as a JSON string with the newlines ESCAPED (\n),
 # so we emit "\\n" through printf to produce a literal backslash-n in the JSON —
 # the real wire shape. (Raw newlines would be invalid JSON and is NOT what codex

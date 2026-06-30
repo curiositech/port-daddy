@@ -55,7 +55,7 @@ EVENT="$(cat 2>/dev/null || true)"
 [ -f "$MATRIX" ] || exit 0         # no matrix → no locks, allow
 
 normalize_suggestibility() {
-  LEVEL="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+  LEVEL="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
   case "$LEVEL" in
     advisory|warn|enforce) printf '%s' "$LEVEL" ;;
     *) printf '' ;;
@@ -69,9 +69,9 @@ json_suggestibility_level() {
     jq -r '.suggestibility.level // .suggestibility // empty' "$CFG" 2>/dev/null || true
     return 0
   fi
-  ONE_LINE="$(tr '\n' ' ' < "$CFG" 2>/dev/null || true)"
+  ONE_LINE="$(tr '\n' ' ' < "$CFG" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
   printf '%s' "$ONE_LINE" \
-    | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*\{[^}]*"level"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)".*/\1/p' \
+    | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*\{[^}]*"level"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)"[^}]*\}.*/\1/p' \
     | head -n1
   printf '%s' "$ONE_LINE" \
     | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)".*/\1/p' \
@@ -89,7 +89,7 @@ event_cwd() {
 }
 
 config_suggestibility_level() {
-  START="$(event_cwd)"
+  START="$EVENT_CWD"
   case "$START" in
     /*) DIR="$START" ;;
     *) DIR="$(pwd 2>/dev/null || printf '.')" ;;
@@ -108,11 +108,16 @@ config_suggestibility_level() {
   printf ''
 }
 
+EVENT_CWD="$(event_cwd)"
 SUGGESTIBILITY="$(normalize_suggestibility "${PD_SUGGESTIBILITY:-}")"
 [ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="$(config_suggestibility_level)"
 # Preserve ADR-0091 behavior for repos that installed the hook before declaring
 # ADR-0092's dial: a real foreign lock remains a structural edit gate by default.
 [ -n "$SUGGESTIBILITY" ] || SUGGESTIBILITY="enforce"
+TARGET_BASE_CWD=""
+case "$EVENT_CWD" in
+  /*) TARGET_BASE_CWD="$EVENT_CWD" ;;
+esac
 
 # ── Detect the camelCase Codex app-server shape (deny-JSON contract). ────────
 # Standard hook input (Claude/Gemini/Codex-hooks) is snake_case tool_name. Only
@@ -214,18 +219,29 @@ BLOCK_TARGET=""
 BLOCK_OWNER=""
 while IFS= read -r CAND; do
   [ -n "$CAND" ] || continue
-  LOCK_KEY="PD_LOCK_$(suffix "$CAND")"
-  LINE="$(grep -E "^${LOCK_KEY}=" "$MATRIX" 2>/dev/null | head -n1 || true)"
-  [ -n "$LINE" ] || continue       # this path not locked → keep checking
-  OWNER="$(printf '%s' "$LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
-  [ -n "$OWNER" ] || continue      # owner unknowable → not a foreign block
-  # Locked by US → allow our own edit; keep checking the remaining paths.
-  if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
-    continue
-  fi
-  BLOCK_TARGET="$CAND"
-  BLOCK_OWNER="$OWNER"
-  break
+  CHECKS="$CAND"
+  case "$CAND" in
+    /*) ;;
+    *) [ -n "$TARGET_BASE_CWD" ] && CHECKS="$(printf '%s\n%s/%s' "$CHECKS" "$TARGET_BASE_CWD" "$CAND")" ;;
+  esac
+  while IFS= read -r LOCK_CAND; do
+    [ -n "$LOCK_CAND" ] || continue
+    LOCK_KEY="PD_LOCK_$(suffix "$LOCK_CAND")"
+    LINE="$(grep -E "^${LOCK_KEY}=" "$MATRIX" 2>/dev/null | head -n1 || true)"
+    [ -n "$LINE" ] || continue       # this path not locked → keep checking
+    OWNER="$(printf '%s' "$LINE" | sed -E 's/^[A-Za-z0-9_]+="?//; s/"$//')"
+    [ -n "$OWNER" ] || continue      # owner unknowable → not a foreign block
+    # Locked by US → allow our own edit; keep checking the remaining paths.
+    if [ -n "$SELF" ] && [ "$OWNER" = "$SELF" ]; then
+      continue
+    fi
+    BLOCK_TARGET="$LOCK_CAND"
+    BLOCK_OWNER="$OWNER"
+    break
+  done <<EOF_CANDIDATES
+$CHECKS
+EOF_CANDIDATES
+  [ -n "$BLOCK_TARGET" ] && break
 done <<EOF
 $TARGETS
 EOF

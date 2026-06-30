@@ -217,6 +217,102 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     expect(r.stderr).toMatch(/agent_alpha/);
   });
 
+  test('ADR-0092 dial: env override is trim/case normalized and wins over repo config', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-env-override');
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, 'agent.config.json'), JSON.stringify({ suggestibility: { level: 'enforce' } }));
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'agent_beta',
+        PD_SUGGESTIBILITY: ' WaRn ',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/WARNING/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: invalid env value falls back to repo config', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-invalid-env');
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, 'agent.config.json'), JSON.stringify({ suggestibility: { level: 'warn' } }));
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: {
+        ...process.env,
+        PD_MATRIX_FILE: matrix,
+        PD_HOME: dirname(matrix),
+        PD_ACTOR: 'agent_beta',
+        PD_SUGGESTIBILITY: 'maybe',
+      },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/WARNING/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: malformed config cannot lower the default enforce gate', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-malformed-dial');
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, 'agent.config.json'), '{ "suggestibility": { "level": "warn" ');
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const { PD_SUGGESTIBILITY: _drop, ...env } = process.env;
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/BLOCKED/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: nested cwd inherits parent .portdaddy/project.json', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-parent-project');
+    const nested = join(repo, 'packages', 'api');
+    mkdirSync(join(repo, '.portdaddy'), { recursive: true });
+    mkdirSync(nested, { recursive: true });
+    writeFileSync(join(repo, '.portdaddy', 'project.json'), JSON.stringify({ suggestibility: { level: 'warn' } }));
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: nested,
+    };
+    const { PD_SUGGESTIBILITY: _drop, ...env } = process.env;
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/WARNING/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
   test('pre-tool EXIT 0 when the SAME actor holds the lock (no self-block)', () => {
     const matrix = seed();
     const event = { tool_name: 'Edit', tool_input: { file_path: '/repo/src/auth.ts' }, cwd: '/repo' };
@@ -226,6 +322,19 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
       encoding: 'utf8',
     });
     expect(r.status).toBe(0);
+  });
+
+  test('pre-tool resolves relative file_path against cwd before lock lookup', () => {
+    const matrix = seed();
+    const event = { tool_name: 'Edit', tool_input: { file_path: 'src/auth.ts' }, cwd: '/repo' };
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/\/repo\/src\/auth\.ts/);
+    expect(r.stderr).toMatch(/agent_alpha/);
   });
 
   test('pre-tool EXIT 0 on an UNLOCKED path', () => {
@@ -669,6 +778,24 @@ describe('Giant Squid Harness — multi-vendor tentacle contracts', () => {
     });
     expect(r.status).toBe(2);
     expect(r.stderr).toMatch(/auth\.ts/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('Codex apply_patch with relative patch path resolves against cwd before lock lookup', () => {
+    const matrix = seedForeignLock();
+    const patch = '*** Begin Patch\n*** Update File: src/auth.ts\n@@\n-old\n+new\n*** End Patch';
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify({
+        tool_name: 'apply_patch',
+        tool_input: { command: ['apply_patch', patch] },
+        hook_event_name: 'PreToolUse',
+        cwd: '/repo',
+      }),
+      env: { ...process.env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'codex_agent' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/\/repo\/src\/auth\.ts/);
     expect(r.stderr).toMatch(/agent_alpha/);
   });
 

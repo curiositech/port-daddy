@@ -204,10 +204,13 @@ this ADR waits on, not new design.
 
 1. **L2 PreToolUse edit-gate + the `suggestibility` dial.** All-local, reuses
    the existing Giant Squid hook pack (`bin/pd-hook-pre-tool`) as the first
-   interception path, with the repo dial read from `agent.config.json` or
-   `.portdaddy/suggestibility.json`. The first slice gates local foreign-lock
-   conflicts as `advisory | warn | enforce`; symbol-conflict and blast-radius
-   enrichment stay as follow-on work. Ships the day it lands.
+   interception path. The dial resolves as `PD_SUGGESTIBILITY` override, then
+   the nearest `agent.config.json`, `.portdaddy/suggestibility.json`, or
+   `.portdaddy/project.json`, then default `enforce` for pre-ADR repos. The
+   first slice gates local foreign-lock conflicts as `advisory | warn | enforce`
+   and resolves relative edit/patch paths against the hook event `cwd`;
+   symbol-conflict and blast-radius enrichment stay as follow-on work. Ships the
+   day it lands.
 2. **L1 ambient nudge + `lib/pilot-hooks-render.ts` hook pack** (proposed) across
    Claude/Codex/Gemini, installed by `pd setup` (mirrors the agent renderer).
 3. **L4 SubagentStop adversarial-pipeline + L5 PreCompact checkpoint.**
