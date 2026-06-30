@@ -204,6 +204,8 @@ ${programArguments}
         <string>${servicePath(...daemon.pathDirs, dirname(NODE_PATH))}</string>
         <key>PORT_DADDY_RESOURCE_DIR</key>
         <string>${__dirname}</string>
+        <key>PORT_DADDY_DB</key>
+        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
@@ -245,6 +247,8 @@ function generateBosunPlist(): string {
     <dict>
         <key>PATH</key>
         <string>${servicePath(dirname(BOSUN_BINARY_PATH), dirname(NODE_PATH))}</string>
+        <key>PORT_DADDY_DB</key>
+        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
@@ -297,6 +301,8 @@ export function generateFreshnessPlist(pdPath: string): string {
     <dict>
         <key>PATH</key>
         <string>${servicePath(dirname(pdPath))}</string>
+        <key>PORT_DADDY_DB</key>
+        <string>${join(homedir(), '.port-daddy', 'port-registry.db')}</string>
     </dict>
 </dict>
 </plist>`;
