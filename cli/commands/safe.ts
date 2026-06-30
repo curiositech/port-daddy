@@ -373,16 +373,26 @@ async function handleCorral(key: string | undefined, options: CLIOptions): Promi
  */
 function handleGuard(options: CLIOptions): void {
   const result = scanStagedDiff();
+  const jsonResult = {
+    clean: result.diffAvailable && result.findings.length === 0,
+    diffAvailable: result.diffAvailable,
+    files: result.files,
+    findings: result.findings,
+  };
 
   if (!result.diffAvailable) {
-    process.stderr.write('pd safe guard: could not read the staged diff (is this a git repo with staged changes?).\n');
-    process.exit(0);
+    if (options.json) {
+      process.stdout.write(JSON.stringify(jsonResult, null, 2) + '\n');
+    } else {
+      process.stderr.write('pd safe guard: could not read the staged diff (is this a git repo with staged changes?).\n');
+    }
+    process.exit(1);
     return;
   }
 
   if (result.findings.length === 0) {
     if (options.json) {
-      process.stdout.write(JSON.stringify({ clean: true, files: result.files }, null, 2) + '\n');
+      process.stdout.write(JSON.stringify(jsonResult, null, 2) + '\n');
     } else if (!options.quiet && !options.q) {
       process.stdout.write(`pd safe guard: no secrets in ${result.files.length} staged file(s). Clean.\n`);
     }
@@ -391,7 +401,7 @@ function handleGuard(options: CLIOptions): void {
   }
 
   if (options.json) {
-    process.stdout.write(JSON.stringify({ clean: false, findings: result.findings }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(jsonResult, null, 2) + '\n');
   } else {
     process.stderr.write('pd safe guard BLOCKED: staged changes add secret(s):\n\n');
     for (const f of result.findings) {
