@@ -19,6 +19,13 @@ describe('daemon installer service PATH', () => {
     expect(source).toContain('PORT_DADDY_RESOURCE_DIR');
   });
 
+  test('pins generated launchd surfaces to the canonical user DB', () => {
+    const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
+
+    expect(source.match(/<key>PORT_DADDY_DB<\/key>/g)).toHaveLength(3);
+    expect(source).toContain("join(homedir(), '.port-daddy', 'port-registry.db')");
+  });
+
   test('detects the Homebrew daemon service and skips creating a duplicate launchd job', () => {
     const source = readFileSync(join(process.cwd(), 'install-daemon.ts'), 'utf8');
 

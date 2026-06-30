@@ -1,93 +1,804 @@
 #!/usr/bin/env npx tsx
 /**
- * DB Consolidation Tool — ADR-0090 Phase 1
+ * DB consolidation tool - ADR-0044 / ADR-0090 WS-0.
  *
- * Consolidates fragmented Port Daddy databases into a single canonical location.
- *
- * Problem: Port Daddy maintains 7+ database files in scattered locations:
- *   - ~/.port-daddy/port-registry.db (canonical, but often empty)
- *   - ~/.port-daddy/instances/<profile>/port-daddy.db (per-profile DBs, may be fresher)
- *   - ~/coding/port-daddy/port-registry.db (dev checkout)
- *   - /opt/homebrew/Cellar/... (installed binary, dies on brew upgrade)
- *   - Others
- *
- * This script:
- *   1. Scans all known locations and indexes metadata (size, mtime, table_count)
- *   2. Detects live truth via daemon.port → lsof -p <pid> (which DB is open?)
- *   3. Falls back to max(last_seen, updated_at) if daemon is down
- *   4. Shows per-table row-count diffs to help operator pick source
- *   5. Waits for operator approval
- *   6. VACUUM the chosen source into ~/.port-daddy/port-registry.db
- *   7. Archives all other fragments to ~/.port-daddy/backups/_pre-consolidation-<ts>/
- *
- * Safety:
- *   - Opens all DBs read-only (never mutates until VACUUM step)
- *   - Prints full inventory before any destructive op
- *   - Asks operator to approve pick before proceeding
- *   - Uses durable archive path (never /tmp)
- *   - Validates each DB with PRAGMA integrity_check before archiving
- *
- * Usage:
- *   npx tsx scripts/db-consolidate.ts [--force] [--source <path>]
- *   --force     Skip operator confirmation
- *   --source    Explicitly pick this DB as source (must exist, must be valid)
+ * Dry-run is the default. A real consolidation requires `--apply`, a valid
+ * source database, no live daemon holding any candidate DB open, and either an
+ * interactive confirmation or `--yes` / `--force`.
  */
 
 import Database from '../lib/sqlite-runtime.js';
-import { existsSync, mkdirSync, renameSync, rmSync, statSync, readFileSync, readdirSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import { resolveDbPath } from '../lib/db.js';
+import type { Dirent } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { homedir, hostname } from 'node:os';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Configuration
-// ─────────────────────────────────────────────────────────────────────────────
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(MODULE_DIR, '..');
+const DEFAULT_DB_FILE = 'port-registry.db';
+const PROFILE_DB_FILE = 'port-daddy.db';
 
-const HOME = homedir();
-const PD_PREFIX = join(HOME, '.port-daddy');
-const CANONICAL_DB_PATH = join(PD_PREFIX, 'port-registry.db');
-const DAEMON_PORT_FILE = join(PD_PREFIX, 'daemon.port');
-const BACKUPS_DIR = join(PD_PREFIX, 'backups');
+export interface ConsolidationConfig {
+  homeDir: string;
+  pdHome: string;
+  repoRoot: string;
+  canonicalDbPath: string;
+  daemonPortFile: string;
+  backupsDir: string;
+  host: string;
+}
 
-interface DbFragment {
+export interface DbFragment {
   path: string;
   exists: boolean;
   size?: number;
   mtime?: number;
   tableCount?: number;
-  lastSeen?: number;
+  lastTouched?: number;
   integrity?: boolean;
   error?: string;
 }
 
-interface DbMetrics {
-  table: string;
-  rowCount: number;
+export interface ConsolidationPlan {
+  config: ConsolidationConfig;
+  fragments: DbFragment[];
+  valid: DbFragment[];
+  empty: DbFragment[];
+  corrupted: DbFragment[];
+  missing: DbFragment[];
+  source: DbFragment | null;
+  liveOpenDbs: string[];
+  archiveDir: string;
+  stagedPath: string;
+  toArchive: DbFragment[];
+  currentCanonical: DbFragment | null;
+  alreadyConsolidated: boolean;
+  blockers: string[];
+  warnings: string[];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Utilities
-// ─────────────────────────────────────────────────────────────────────────────
+export interface BuildPlanOptions {
+  config?: ConsolidationConfig;
+  candidatePaths?: string[];
+  explicitSource?: string;
+  liveOpenDbs?: string[];
+  now?: () => number;
+}
+
+export interface ApplyConsolidationResult {
+  canonicalDbPath: string;
+  archiveDir: string;
+  stagedPath: string;
+  archivedPaths: string[];
+  archivedCanonicalPaths: string[];
+  warnings: string[];
+}
+
+interface ParsedArgs {
+  apply: boolean;
+  yes: boolean;
+  json: boolean;
+  explicitSource?: string;
+  canonical?: string;
+  backupsDir?: string;
+  home?: string;
+}
+
+interface MovedPath {
+  from: string;
+  to: string;
+}
+
+type CommandRunner = (command: string, args: string[]) => string;
 
 function log(...args: unknown[]): void {
   console.log(...args);
 }
 
 function info(msg: string): void {
-  console.log(`\x1b[36mℹ\x1b[0m ${msg}`);
+  console.log(`[info] ${msg}`);
 }
 
 function warn(msg: string): void {
-  console.log(`\x1b[33m⚠\x1b[0m ${msg}`);
+  console.log(`[warn] ${msg}`);
 }
 
-function success(msg: string): void {
-  console.log(`\x1b[32m✓\x1b[0m ${msg}`);
+function ok(msg: string): void {
+  console.log(`[ok] ${msg}`);
 }
 
-function error(msg: string): void {
-  console.log(`\x1b[31m✗\x1b[0m ${msg}`);
+function fail(msg: string): void {
+  console.error(`[error] ${msg}`);
+}
+
+function pathKey(path: string): string {
+  return resolve(path);
+}
+
+function samePath(a: string, b: string): boolean {
+  return pathKey(a) === pathKey(b);
+}
+
+function pushPath(paths: string[], path: string | undefined | null): void {
+  if (!path || !path.trim()) return;
+  paths.push(resolve(path));
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths.map(pathKey))).sort();
+}
+
+function fileSize(path: string): number {
+  try {
+    return statSync(path).size;
+  } catch {
+    return 0;
+  }
+}
+
+function sqlQuote(path: string): string {
+  return `'${path.replace(/'/g, "''")}'`;
+}
+
+function quoteIdent(name: string): string {
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+function safeStat(path: string): ReturnType<typeof statSync> | null {
+  try {
+    return statSync(path);
+  } catch {
+    return null;
+  }
+}
+
+function isDbPath(path: string): boolean {
+  return path.endsWith('.db') && !path.endsWith('-wal') && !path.endsWith('-shm');
+}
+
+function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = bytes;
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index++;
+  }
+  return `${size.toFixed(1)}${units[index]}`;
+}
+
+function formatDate(ms: number): string {
+  return new Date(ms).toISOString().replace('T', ' ').replace(/\.\d+Z$/, 'Z');
+}
+
+function archiveStamp(now: number): string {
+  return new Date(now).toISOString().replace(/\.\d+Z$/, '').replace(/[:]/g, '-');
+}
+
+function hashPath(path: string): string {
+  return createHash('sha256').update(path).digest('hex').slice(0, 10);
+}
+
+function sanitizeArchiveLabel(path: string, config: ConsolidationConfig): string {
+  const resolved = resolve(path);
+  const home = resolve(config.homeDir);
+  const label = resolved === home || resolved.startsWith(`${home}${sep}`)
+    ? relative(home, resolved)
+    : resolved;
+  const safe = label.replace(/[^A-Za-z0-9._-]+/g, '__').replace(/^_+|_+$/g, '');
+  return safe.slice(-140) || basename(path);
+}
+
+function archiveTargetFor(path: string, archiveDir: string, config: ConsolidationConfig): string {
+  const label = sanitizeArchiveLabel(path, config);
+  const target = join(archiveDir, `${label}--${hashPath(path)}`);
+  if (!existsSync(target)) return target;
+  let i = 2;
+  while (existsSync(`${target}.${i}`)) i++;
+  return `${target}.${i}`;
+}
+
+function dbFamilyPaths(path: string): string[] {
+  return [path, `${path}-wal`, `${path}-shm`];
+}
+
+function movePath(from: string, to: string): MovedPath | null {
+  if (!existsSync(from)) return null;
+  mkdirSync(dirname(to), { recursive: true, mode: 0o700 });
+  renameSync(from, to);
+  return { from, to };
+}
+
+function archiveDbFamily(path: string, archiveDir: string, config: ConsolidationConfig): MovedPath[] {
+  const moved: MovedPath[] = [];
+  for (const familyPath of dbFamilyPaths(path)) {
+    const target = archiveTargetFor(familyPath, archiveDir, config);
+    const result = movePath(familyPath, target);
+    if (result) moved.push(result);
+  }
+  return moved;
+}
+
+function restoreMovedPaths(moved: MovedPath[]): void {
+  for (const item of [...moved].reverse()) {
+    if (!existsSync(item.to)) continue;
+    mkdirSync(dirname(item.from), { recursive: true, mode: 0o700 });
+    if (existsSync(item.from)) rmSync(item.from, { force: true });
+    renameSync(item.to, item.from);
+  }
+}
+
+function coerceTimestamp(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+export function resolvePdHome(
+  env: NodeJS.ProcessEnv = process.env,
+  homeDir: string = homedir(),
+): string {
+  const explicit = env.PORT_DADDY_HOME?.trim();
+  return explicit ? resolve(explicit) : join(homeDir, '.port-daddy');
+}
+
+export function buildConsolidationConfig(options: {
+  env?: NodeJS.ProcessEnv;
+  homeDir?: string;
+  pdHome?: string;
+  repoRoot?: string;
+  canonicalDbPath?: string;
+  backupsDir?: string;
+} = {}): ConsolidationConfig {
+  const env = options.env ?? process.env;
+  const homeDir = options.homeDir ?? homedir();
+  const pdHome = resolve(options.pdHome ?? resolvePdHome(env, homeDir));
+  const canonicalDbPath = resolve(options.canonicalDbPath ?? join(pdHome, DEFAULT_DB_FILE));
+  return {
+    homeDir,
+    pdHome,
+    repoRoot: resolve(options.repoRoot ?? REPO_ROOT),
+    canonicalDbPath,
+    daemonPortFile: join(pdHome, 'daemon.port'),
+    backupsDir: resolve(options.backupsDir ?? join(pdHome, 'backups')),
+    host: hostname(),
+  };
+}
+
+function scanForDbFiles(root: string, names: Set<string>, maxDepth: number): string[] {
+  const found: string[] = [];
+  function walk(dir: string, depth: number): void {
+    if (depth > maxDepth) return;
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full, depth + 1);
+      } else if (entry.isFile() && names.has(entry.name)) {
+        found.push(full);
+      }
+    }
+  }
+  walk(root, 0);
+  return found;
+}
+
+export function discoverCandidateDbPaths(
+  config: ConsolidationConfig = buildConsolidationConfig(),
+  options: { env?: NodeJS.ProcessEnv; explicitSource?: string; liveOpenDbs?: string[] } = {},
+): string[] {
+  const env = options.env ?? process.env;
+  const paths: string[] = [];
+
+  pushPath(paths, env.PORT_DADDY_DB);
+  pushPath(paths, options.explicitSource);
+  pushPath(paths, config.canonicalDbPath);
+
+  try {
+    pushPath(paths, resolveDbPath());
+  } catch {
+    // Best-effort only; explicit candidates below carry the safety-critical set.
+  }
+
+  pushPath(paths, join(config.repoRoot, DEFAULT_DB_FILE));
+  pushPath(paths, join(config.repoRoot, 'dist', DEFAULT_DB_FILE));
+  pushPath(paths, join(config.repoRoot, 'port-daddy-stable', DEFAULT_DB_FILE));
+
+  const instancesDir = join(config.pdHome, 'instances');
+  try {
+    for (const entry of readdirSync(instancesDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) pushPath(paths, join(instancesDir, entry.name, PROFILE_DB_FILE));
+    }
+  } catch {
+    // No profile dir yet.
+  }
+
+  for (const prefix of ['/opt/homebrew', '/usr/local']) {
+    pushPath(paths, join(prefix, 'var', 'port-daddy', DEFAULT_DB_FILE));
+    pushPath(paths, join(prefix, 'opt', 'port-daddy', DEFAULT_DB_FILE));
+    pushPath(paths, join(prefix, 'opt', 'port-daddy', 'libexec', DEFAULT_DB_FILE));
+    paths.push(...scanForDbFiles(join(prefix, 'Cellar', 'port-daddy'), new Set([DEFAULT_DB_FILE]), 6));
+  }
+
+  for (const openDb of options.liveOpenDbs ?? []) {
+    pushPath(paths, openDb);
+  }
+
+  return uniquePaths(paths);
+}
+
+function defaultCommandRunner(command: string, args: string[]): string {
+  return execFileSync(command, args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+}
+
+export function parseLsofPids(output: string): number[] {
+  const pids = new Set<number>();
+  for (const line of output.split('\n')) {
+    if (!line.startsWith('p')) continue;
+    const pid = Number.parseInt(line.slice(1), 10);
+    if (Number.isInteger(pid) && pid > 0) pids.add(pid);
+  }
+  return [...pids];
+}
+
+export function parseLsofNames(output: string): string[] {
+  const names: string[] = [];
+  for (const line of output.split('\n')) {
+    if (!line.startsWith('n')) continue;
+    const name = line.slice(1).trim();
+    if (isDbPath(name)) names.push(resolve(name));
+  }
+  return uniquePaths(names);
+}
+
+export function getOpenDbsFromDaemon(
+  config: ConsolidationConfig = buildConsolidationConfig(),
+  runCommand: CommandRunner = defaultCommandRunner,
+): string[] {
+  if (!existsSync(config.daemonPortFile)) return [];
+  let port = '';
+  try {
+    port = readFileSync(config.daemonPortFile, 'utf8').trim();
+  } catch {
+    return [];
+  }
+  if (!/^\d{2,5}$/.test(port)) return [];
+
+  let pids: number[] = [];
+  try {
+    pids = parseLsofPids(runCommand('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fp']));
+  } catch {
+    return [];
+  }
+
+  const openDbs: string[] = [];
+  for (const pid of pids) {
+    try {
+      openDbs.push(...parseLsofNames(runCommand('lsof', ['-nP', '-p', String(pid), '-Fn'])));
+    } catch {
+      // Process exited between probes.
+    }
+  }
+  return uniquePaths(openDbs);
+}
+
+export function checkIntegrity(dbPath: string): boolean {
+  try {
+    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    try {
+      const result = db.pragma('integrity_check', { simple: true });
+      return result === 'ok';
+    } finally {
+      db.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+function tableCount(dbPath: string): number {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const row = db
+      .prepare("SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table'")
+      .get() as { count?: number } | undefined;
+    return row?.count ?? 0;
+  } finally {
+    db.close();
+  }
+}
+
+function lastTouched(dbPath: string): number {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const queries = [
+      "SELECT MAX(last_seen) AS ts FROM services",
+      "SELECT MAX(updated_at) AS ts FROM sessions",
+      "SELECT MAX(updated_at) AS ts FROM roadmap_items",
+      "SELECT MAX(created_at) AS ts FROM messages",
+      "SELECT MAX(created_at) AS ts FROM session_notes",
+    ];
+    let newest = 0;
+    for (const query of queries) {
+      try {
+        const row = db.prepare(query).get() as { ts?: unknown } | undefined;
+        newest = Math.max(newest, coerceTimestamp(row?.ts));
+      } catch {
+        // Table or column may not exist in older fragments.
+      }
+    }
+    return newest;
+  } finally {
+    db.close();
+  }
+}
+
+export function scanDatabase(path: string): DbFragment {
+  const fragment: DbFragment = { path: resolve(path), exists: existsSync(path) };
+  if (!fragment.exists) return fragment;
+
+  try {
+    const stats = statSync(path);
+    if (!stats.isFile()) {
+      fragment.error = 'not a file';
+      return fragment;
+    }
+    fragment.size = stats.size;
+    fragment.mtime = stats.mtimeMs;
+    if (stats.size === 0) return fragment;
+
+    fragment.tableCount = tableCount(path);
+    fragment.lastTouched = lastTouched(path);
+    fragment.integrity = checkIntegrity(path);
+    if (!fragment.integrity) fragment.error = 'integrity_check failed';
+  } catch (err) {
+    fragment.error = (err as Error).message;
+  }
+  return fragment;
+}
+
+export function scanDatabases(paths: string[]): DbFragment[] {
+  return uniquePaths(paths).map((path) => scanDatabase(path));
+}
+
+export function getTableMetrics(dbPath: string): Map<string, number> {
+  const metrics = new Map<string, number>();
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+      .all() as Array<{ name: string }>;
+    for (const { name } of tables) {
+      try {
+        const row = db.prepare(`SELECT COUNT(*) AS count FROM ${quoteIdent(name)}`).get() as { count?: number };
+        metrics.set(name, row.count ?? 0);
+      } catch {
+        // Skip odd virtual tables or broken legacy fragments.
+      }
+    }
+  } finally {
+    db.close();
+  }
+  return metrics;
+}
+
+function classifyFragments(fragments: DbFragment[]): {
+  valid: DbFragment[];
+  empty: DbFragment[];
+  corrupted: DbFragment[];
+  missing: DbFragment[];
+} {
+  return {
+    valid: fragments.filter((f) => f.exists && (f.size ?? 0) > 0 && f.integrity === true),
+    empty: fragments.filter((f) => f.exists && (f.size ?? 0) === 0),
+    corrupted: fragments.filter((f) => f.exists && (f.size ?? 0) > 0 && f.integrity !== true),
+    missing: fragments.filter((f) => !f.exists),
+  };
+}
+
+function chooseSource(
+  valid: DbFragment[],
+  explicitSource: string | undefined,
+  liveOpenDbs: string[],
+): DbFragment | null {
+  if (valid.length === 0) return null;
+
+  if (explicitSource) {
+    const source = valid.find((f) => samePath(f.path, explicitSource));
+    if (!source) {
+      throw new Error(`explicit source is not a valid SQLite fragment: ${explicitSource}`);
+    }
+    return source;
+  }
+
+  for (const openDb of liveOpenDbs) {
+    const live = valid.find((f) => samePath(f.path, openDb));
+    if (live) return live;
+  }
+
+  return [...valid].sort((a, b) => {
+    const aTs = a.lastTouched || a.mtime || 0;
+    const bTs = b.lastTouched || b.mtime || 0;
+    return bTs - aTs || (b.size ?? 0) - (a.size ?? 0) || a.path.localeCompare(b.path);
+  })[0];
+}
+
+function buildBlockers(plan: Pick<ConsolidationPlan, 'fragments' | 'config' | 'liveOpenDbs'>): string[] {
+  const existing = new Set(
+    plan.fragments
+      .filter((f) => f.exists)
+      .flatMap((f) => dbFamilyPaths(f.path))
+      .map(pathKey),
+  );
+  existing.add(pathKey(plan.config.canonicalDbPath));
+
+  const blockers: string[] = [];
+  for (const openDb of plan.liveOpenDbs) {
+    if (existing.has(pathKey(openDb))) {
+      blockers.push(`daemon has candidate DB open: ${openDb}`);
+    }
+  }
+  return blockers;
+}
+
+export function buildConsolidationPlan(options: BuildPlanOptions = {}): ConsolidationPlan {
+  const config = options.config ?? buildConsolidationConfig();
+  const liveOpenDbs = options.liveOpenDbs ?? getOpenDbsFromDaemon(config);
+  const candidatePaths = options.candidatePaths ?? discoverCandidateDbPaths(config, {
+    explicitSource: options.explicitSource,
+    liveOpenDbs,
+  });
+  const fragments = scanDatabases(candidatePaths);
+  const { valid, empty, corrupted, missing } = classifyFragments(fragments);
+  const source = chooseSource(valid, options.explicitSource, liveOpenDbs);
+  const currentCanonical = fragments.find((f) => samePath(f.path, config.canonicalDbPath)) ?? null;
+  const toArchive = fragments.filter((f) => f.exists && !samePath(f.path, config.canonicalDbPath));
+  const now = (options.now ?? Date.now)();
+  const archiveDir = join(config.backupsDir, `_pre-consolidation-${archiveStamp(now)}`);
+  const stagedPath = `${config.canonicalDbPath}.consolidating-${archiveStamp(now)}-${process.pid}.tmp`;
+  const alreadyConsolidated =
+    !!source &&
+    samePath(source.path, config.canonicalDbPath) &&
+    toArchive.length === 0 &&
+    corrupted.length === 0 &&
+    empty.length === 0;
+
+  const warnings: string[] = [];
+  if (currentCanonical?.exists && source && !samePath(source.path, config.canonicalDbPath)) {
+    warnings.push(`canonical DB will be replaced by selected source: ${source.path}`);
+  }
+  if (corrupted.length > 0) {
+    warnings.push(`${corrupted.length} corrupted DB fragment(s) will be archived, not merged`);
+  }
+  if (empty.length > 0) {
+    warnings.push(`${empty.length} empty DB fragment(s) will be archived`);
+  }
+
+  const plan: ConsolidationPlan = {
+    config,
+    fragments,
+    valid,
+    empty,
+    corrupted,
+    missing,
+    source,
+    liveOpenDbs,
+    archiveDir,
+    stagedPath,
+    toArchive,
+    currentCanonical,
+    alreadyConsolidated,
+    blockers: [],
+    warnings,
+  };
+  plan.blockers = buildBlockers(plan);
+  return plan;
+}
+
+function vacuumInto(sourcePath: string, destPath: string): void {
+  if (existsSync(destPath)) rmSync(destPath, { force: true });
+  const db = new Database(sourcePath, { readonly: true, fileMustExist: true });
+  try {
+    db['exec'](`VACUUM INTO ${sqlQuote(destPath)};`);
+  } finally {
+    db.close();
+  }
+}
+
+export function applyConsolidationPlan(plan: ConsolidationPlan): ApplyConsolidationResult {
+  if (!plan.source) {
+    throw new Error('no valid source database found');
+  }
+  if (plan.alreadyConsolidated) {
+    return {
+      canonicalDbPath: plan.config.canonicalDbPath,
+      archiveDir: plan.archiveDir,
+      stagedPath: plan.stagedPath,
+      archivedPaths: [],
+      archivedCanonicalPaths: [],
+      warnings: ['already consolidated; no mutation performed'],
+    };
+  }
+  if (plan.blockers.length > 0) {
+    throw new Error(
+      `refusing to apply while a daemon has candidate DB files open:\n` +
+      plan.blockers.map((b) => `  - ${b}`).join('\n') +
+      `\nStop the stable/dev daemon first, then rerun with --apply.`,
+    );
+  }
+
+  mkdirSync(plan.archiveDir, { recursive: true, mode: 0o700 });
+  mkdirSync(dirname(plan.config.canonicalDbPath), { recursive: true, mode: 0o700 });
+
+  const archivedCanonical: MovedPath[] = [];
+  const archivedFragments: MovedPath[] = [];
+  const warnings: string[] = [];
+  let installedCanonical = false;
+
+  try {
+    vacuumInto(plan.source.path, plan.stagedPath);
+    if (!existsSync(plan.stagedPath)) {
+      throw new Error(`VACUUM INTO did not produce staged DB: ${plan.stagedPath}`);
+    }
+    if (!checkIntegrity(plan.stagedPath)) {
+      throw new Error(`staged DB failed integrity_check: ${plan.stagedPath}`);
+    }
+    try {
+      chmodSync(plan.stagedPath, 0o600);
+    } catch {
+      // Best-effort; inherited umask is still user-owned.
+    }
+
+    archivedCanonical.push(...archiveDbFamily(plan.config.canonicalDbPath, plan.archiveDir, plan.config));
+    renameSync(plan.stagedPath, plan.config.canonicalDbPath);
+    installedCanonical = true;
+    try {
+      chmodSync(plan.config.canonicalDbPath, 0o600);
+    } catch {
+      // Best-effort.
+    }
+
+    for (const fragment of plan.toArchive) {
+      try {
+        archivedFragments.push(...archiveDbFamily(fragment.path, plan.archiveDir, plan.config));
+      } catch (err) {
+        warnings.push(`failed to archive ${fragment.path}: ${(err as Error).message}`);
+      }
+    }
+  } catch (err) {
+    if (existsSync(plan.stagedPath)) rmSync(plan.stagedPath, { force: true });
+    if (installedCanonical && existsSync(plan.config.canonicalDbPath)) {
+      rmSync(plan.config.canonicalDbPath, { force: true });
+    }
+    restoreMovedPaths(archivedCanonical);
+    throw new Error(`consolidation failed; original canonical DB was rolled back: ${(err as Error).message}`);
+  }
+
+  if (!checkIntegrity(plan.config.canonicalDbPath)) {
+    restoreMovedPaths(archivedCanonical);
+    throw new Error('canonical DB failed integrity_check after install; original canonical DB was rolled back');
+  }
+
+  return {
+    canonicalDbPath: plan.config.canonicalDbPath,
+    archiveDir: plan.archiveDir,
+    stagedPath: plan.stagedPath,
+    archivedPaths: archivedFragments.map((m) => m.to),
+    archivedCanonicalPaths: archivedCanonical.map((m) => m.to),
+    warnings,
+  };
+}
+
+function printInventory(plan: ConsolidationPlan): void {
+  log(`Found: ${plan.valid.length} valid | ${plan.empty.length} empty | ${plan.corrupted.length} corrupted | ${plan.missing.length} missing`);
+  log('');
+  for (const frag of plan.valid) {
+    const ageMin = Math.round((Date.now() - (frag.mtime ?? 0)) / 60000);
+    log(
+      `  OK ${frag.path}\n` +
+      `     size=${formatBytes(frag.size ?? 0)} tables=${frag.tableCount ?? 0} ` +
+      `lastTouched=${frag.lastTouched ? formatDate(frag.lastTouched) : 'unknown'} mtimeAge=${ageMin}m`,
+    );
+  }
+  for (const frag of plan.empty) log(`  EMPTY ${frag.path}`);
+  for (const frag of plan.corrupted) log(`  BAD ${frag.path} (${frag.error ?? 'integrity failed'})`);
+}
+
+function printTableComparison(plan: ConsolidationPlan): void {
+  if (plan.valid.length <= 1) return;
+  const metricsByPath = new Map<string, Map<string, number>>();
+  const tables = new Set<string>();
+  for (const frag of plan.valid) {
+    const metrics = getTableMetrics(frag.path);
+    metricsByPath.set(frag.path, metrics);
+    for (const table of metrics.keys()) tables.add(table);
+  }
+  if (tables.size === 0) return;
+
+  info('Table row-count comparison:');
+  const candidates = plan.valid;
+  const header = ['table', ...candidates.map((c) => `${basename(c.path)}:${hashPath(c.path).slice(0, 4)}`)];
+  log(`  ${header.map((h) => h.padEnd(24)).join('')}`);
+  log(`  ${'-'.repeat(header.length * 24)}`);
+  for (const table of [...tables].sort()) {
+    const row = [table];
+    for (const frag of candidates) {
+      row.push(String(metricsByPath.get(frag.path)?.get(table) ?? 0));
+    }
+    log(`  ${row.map((c) => c.padEnd(24)).join('')}`);
+  }
+  log('');
+}
+
+function printPlan(plan: ConsolidationPlan, apply: boolean): void {
+  log('Port Daddy DB Consolidation');
+  log('');
+  log(`Canonical destination: ${plan.config.canonicalDbPath}`);
+  log(`Archive directory:      ${plan.archiveDir}`);
+  log(`Mode:                   ${apply ? 'APPLY' : 'DRY-RUN (default)'}`);
+  log('');
+  printInventory(plan);
+
+  if (!plan.source) {
+    fail('No valid source database found.');
+    return;
+  }
+  log('');
+  ok(`Source of truth: ${plan.source.path}`);
+  log(`  size=${formatBytes(plan.source.size ?? 0)} tables=${plan.source.tableCount ?? 0}`);
+  log('');
+  printTableComparison(plan);
+
+  if (plan.warnings.length > 0) {
+    for (const item of plan.warnings) warn(item);
+    log('');
+  }
+  if (plan.blockers.length > 0) {
+    for (const item of plan.blockers) warn(item);
+    log('');
+  }
+  if (plan.alreadyConsolidated) {
+    ok('Already consolidated; no fragments need archiving.');
+    return;
+  }
+
+  log('Planned mutation:');
+  log(`  1. VACUUM source into staged DB: ${plan.stagedPath}`);
+  log(`  2. Verify staged DB with PRAGMA integrity_check`);
+  log(`  3. Archive current canonical DB family, if present`);
+  log(`  4. Rename staged DB into canonical destination`);
+  log(`  5. Archive ${plan.toArchive.length} non-canonical DB fragment(s) plus sidecars`);
+  log('');
+  if (!apply) {
+    info('Dry-run only. Re-run with --apply after stopping daemon berths that hold these DBs open.');
+  }
 }
 
 async function confirm(prompt: string): Promise<boolean> {
@@ -100,498 +811,121 @@ async function confirm(prompt: string): Promise<boolean> {
   }
 }
 
-function formatBytes(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let size = bytes;
-  let unitIndex = 0;
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
+function parseArgs(argv: string[]): ParsedArgs {
+  const args: ParsedArgs = { apply: false, yes: false, json: false };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    switch (arg) {
+      case '--apply':
+        args.apply = true;
+        break;
+      case '--dry-run':
+        args.apply = false;
+        break;
+      case '--yes':
+      case '-y':
+      case '--force':
+        args.yes = true;
+        break;
+      case '--json':
+        args.json = true;
+        break;
+      case '--source':
+        args.explicitSource = resolve(argv[++i] ?? '');
+        break;
+      case '--canonical':
+        args.canonical = resolve(argv[++i] ?? '');
+        break;
+      case '--backups-dir':
+        args.backupsDir = resolve(argv[++i] ?? '');
+        break;
+      case '--home':
+        args.home = resolve(argv[++i] ?? '');
+        break;
+      case '--help':
+      case '-h':
+        printUsage();
+        process.exit(0);
+        break;
+      default:
+        throw new Error(`unknown argument: ${arg}`);
+    }
   }
-  return `${size.toFixed(1)}${units[unitIndex]}`;
+  return args;
 }
 
-function formatDate(ms: number): string {
-  return new Date(ms).toISOString().replace('T', ' ').slice(0, 19);
+function printUsage(): void {
+  log(`Usage: npx tsx scripts/db-consolidate.ts [options]
+
+Options:
+  --dry-run              Print inventory and mutation plan (default)
+  --apply                Perform the staged replace and archive fragments
+  --yes, --force         Skip interactive confirmation for --apply
+  --source <path>        Select a specific source DB
+  --canonical <path>     Override canonical destination (tests/dev only)
+  --backups-dir <path>   Override archive root (tests/dev only)
+  --home <path>          Resolve ~/.port-daddy under this home (tests/dev only)
+  --json                 Emit plan/result JSON
+`);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Database scanning
-// ─────────────────────────────────────────────────────────────────────────────
+export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
+  const args = parseArgs(argv);
+  const config = buildConsolidationConfig({
+    homeDir: args.home,
+    canonicalDbPath: args.canonical,
+    backupsDir: args.backupsDir,
+  });
+  const plan = buildConsolidationPlan({
+    config,
+    explicitSource: args.explicitSource,
+  });
 
-function getAllDbPaths(): string[] {
-  const paths: string[] = [
-    CANONICAL_DB_PATH,
-    join(HOME, 'coding', 'port-daddy', 'port-registry.db'),
-    join(HOME, 'coding', 'port-daddy', 'dist', 'port-registry.db'),
-  ];
-
-  // Scan instances/ directory
-  const instancesDir = join(PD_PREFIX, 'instances');
-  if (existsSync(instancesDir)) {
-    try {
-      const entries = readdirSync(instancesDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          paths.push(join(instancesDir, entry.name, 'port-daddy.db'));
-        }
-      }
-    } catch (err) {
-      warn(`Could not scan ${instancesDir}: ${(err as Error).message}`);
-    }
-  }
-
-  // Check for homebrew-installed binary
-  const brewInstallPaths = [
-    `/opt/homebrew/Cellar/port-daddy/*/bin/port-registry.db`,
-    `/usr/local/Cellar/port-daddy/*/bin/port-registry.db`,
-  ];
-  for (const pattern of brewInstallPaths) {
-    try {
-      const matches = execSync(`find $(dirname ${pattern}) -name "port-registry.db" 2>/dev/null || true`, {
-        encoding: 'utf8',
-      }).trim().split('\n').filter(Boolean);
-      paths.push(...matches);
-    } catch {
-      // ignore
-    }
-  }
-
-  // Remove duplicates and sort
-  return Array.from(new Set(paths)).sort();
-}
-
-function checkIntegrity(dbPath: string): boolean {
-  try {
-    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    try {
-      const result = db.pragma('integrity_check', { simple: true });
-      return typeof result === 'string' && result === 'ok';
-    } finally {
-      db.close();
-    }
-  } catch {
-    return false;
-  }
-}
-
-function getTableCount(dbPath: string): number {
-  try {
-    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    try {
-      const rows = db.prepare("SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'").all();
-      return (rows[0] as { count: number }).count;
-    } finally {
-      db.close();
-    }
-  } catch {
-    return 0;
-  }
-}
-
-function getLastTouched(dbPath: string): number {
-  try {
-    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    try {
-      // Try to find the most recent timestamp in the DB (last_seen, updated_at, created_at, etc.)
-      const queries = [
-        "SELECT MAX(last_seen) as ts FROM services",
-        "SELECT MAX(updated_at) as ts FROM sessions",
-        "SELECT MAX(updated_at) as ts FROM roadmap_items",
-        "SELECT MAX(created_at) as ts FROM messages",
-      ];
-
-      let maxTs = 0;
-      for (const query of queries) {
-        try {
-          const result = db.prepare(query).all();
-          const ts = (result[0] as { ts: number | null })?.ts;
-          if (ts) maxTs = Math.max(maxTs, ts);
-        } catch {
-          // Table may not exist
-        }
-      }
-      return maxTs;
-    } finally {
-      db.close();
-    }
-  } catch {
-    return 0;
-  }
-}
-
-function scanDatabases(): DbFragment[] {
-  const paths = getAllDbPaths();
-  const fragments: DbFragment[] = [];
-
-  for (const path of paths) {
-    const fragment: DbFragment = { path, exists: existsSync(path) };
-
-    if (!fragment.exists) {
-      fragments.push(fragment);
-      continue;
-    }
-
-    try {
-      const stats = statSync(path);
-      fragment.size = stats.size;
-      fragment.mtime = stats.mtimeMs;
-
-      // Skip empty files
-      if (fragment.size === 0) {
-        fragments.push(fragment);
-        continue;
-      }
-
-      fragment.tableCount = getTableCount(path);
-      fragment.lastSeen = getLastTouched(path);
-      fragment.integrity = checkIntegrity(path);
-
-      if (!fragment.integrity) {
-        fragment.error = 'integrity_check failed';
-      }
-    } catch (err) {
-      fragment.error = (err as Error).message;
-    }
-
-    fragments.push(fragment);
-  }
-
-  return fragments;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Live daemon detection
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getOpenDbFromDaemon(): string | null {
-  try {
-    if (!existsSync(DAEMON_PORT_FILE)) {
-      return null;
-    }
-
-    const port = readFileSync(DAEMON_PORT_FILE, 'utf-8').trim();
-    const pid = execSync(`lsof -i :${port} 2>/dev/null | grep -oE 'node|bun' | head -1 | xargs -I {} lsof -c {} | grep '\.db$' | awk '{print $NF}' || true`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-    }).trim();
-
-    return pid ? pid : null;
-  } catch {
-    return null;
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Table comparison
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getTableMetrics(dbPath: string): Map<string, number> {
-  const metrics = new Map<string, number>();
-  try {
-    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
-    try {
-      const tables = db.prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-      ).all() as Array<{ name: string }>;
-
-      for (const { name } of tables) {
-        try {
-          const result = db.prepare(`SELECT COUNT(*) as count FROM "${name}"`).all();
-          metrics.set(name, (result[0] as { count: number }).count);
-        } catch {
-          // Table may have odd structure, skip
-        }
-      }
-    } finally {
-      db.close();
-    }
-  } catch {
-    // ignore
-  }
-  return metrics;
-}
-
-function printTableComparison(candidates: DbFragment[]): void {
-  if (candidates.length <= 1) return;
-
-  info('Table row-count comparison:');
-  const allTables = new Set<string>();
-  const metricsMap = new Map<string, Map<string, number>>();
-
-  for (const frag of candidates) {
-    if (!frag.exists || frag.size === 0 || !frag.integrity) continue;
-    const metrics = getTableMetrics(frag.path);
-    metricsMap.set(frag.path, metrics);
-    metrics.forEach((_, table) => allTables.add(table));
-  }
-
-  if (allTables.size === 0) {
-    info('  (no tables to compare)');
-    return;
-  }
-
-  // Print header
-  const header = ['Table', ...candidates.filter(c => c.exists && c.size && c.integrity).map(c => {
-    const filename = c.path.split('/').pop() || c.path;
-    return filename.slice(0, 20);
-  })];
-  console.log('\n  ' + header.map(h => h.padEnd(20)).join(' '));
-  console.log('  ' + '─'.repeat(header.length * 21));
-
-  // Print rows
-  for (const table of Array.from(allTables).sort()) {
-    const row = [table];
-    for (const frag of candidates) {
-      if (!frag.exists || frag.size === 0 || !frag.integrity) {
-        row.push('-');
-        continue;
-      }
-      const metrics = metricsMap.get(frag.path);
-      const count = metrics?.get(table) ?? 0;
-      row.push(String(count));
-    }
-    console.log('  ' + row.map((cell, i) => String(cell).padEnd(20)).join(''));
-  }
-  console.log('');
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Main flow
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const force = args.includes('--force');
-  const sourceIdx = args.indexOf('--source');
-  let explicitSource: string | undefined;
-  if (sourceIdx >= 0 && sourceIdx + 1 < args.length) {
-    explicitSource = resolve(args[sourceIdx + 1]);
-  }
-
-  log('\x1b[1mPort Daddy Database Consolidation\x1b[0m\n');
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Step 1: Scan all fragments
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  info('Scanning database fragments...');
-  const fragments = scanDatabases();
-
-  const valid = fragments.filter(f => f.exists && f.size && f.size > 0 && f.integrity);
-  const empty = fragments.filter(f => f.exists && (!f.size || f.size === 0));
-  const corrupted = fragments.filter(f => f.exists && f.size && f.size > 0 && !f.integrity);
-  const missing = fragments.filter(f => !f.exists);
-
-  log(`\n  Found: ${valid.length} valid | ${empty.length} empty | ${corrupted.length} corrupted | ${missing.length} missing\n`);
-
-  // Print inventory
-  log('Inventory:');
-  for (const frag of valid) {
-    const ago = Date.now() - (frag.mtime || 0);
-    const agoMin = Math.round(ago / 60000);
-    log(
-      `  ✓ ${frag.path}\n` +
-      `    Size: ${formatBytes(frag.size || 0)} | Tables: ${frag.tableCount} | ` +
-      `Last touched: ${frag.lastSeen ? formatDate(frag.lastSeen) : 'unknown'} ` +
-      `(${agoMin}m ago)`
-    );
-  }
-
-  for (const frag of empty) {
-    log(`  ◦ ${frag.path} (empty)`);
-  }
-
-  for (const frag of corrupted) {
-    log(`  ✗ ${frag.path} (integrity check failed)`);
-  }
-
-  if (missing.length > 0 && missing.length <= 3) {
-    for (const frag of missing) {
-      log(`  - ${frag.path} (not found)`);
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Step 2: Pick source
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  let source: DbFragment | null = null;
-
-  if (explicitSource) {
-    info(`Using explicit source: ${explicitSource}`);
-    source = fragments.find(f => f.path === explicitSource) || null;
-    if (!source) {
-      error(`Explicit source not found: ${explicitSource}`);
-      process.exitCode = 1;
-      return;
-    }
-    if (!source.integrity) {
-      error(`Explicit source failed integrity check: ${explicitSource}`);
-      process.exitCode = 1;
-      return;
-    }
+  if (args.json) {
+    log(JSON.stringify({ plan }, null, 2));
   } else {
-    // Detect live daemon DB
-    const daemonDb = getOpenDbFromDaemon();
-    if (daemonDb) {
-      source = valid.find(f => f.path === daemonDb);
-      if (source) {
-        info(`Detected live daemon using: ${source.path}`);
-      }
-    }
-
-    // Fallback: pick by max(last_seen, updated_at)
-    if (!source) {
-      source = valid.reduce((best, curr) => {
-        const currTs = curr.lastSeen || curr.mtime || 0;
-        const bestTs = best.lastSeen || best.mtime || 0;
-        return currTs > bestTs ? curr : best;
-      });
-      if (source) {
-        info(`Daemon not detected; using freshest by timestamp: ${source.path}`);
-      }
-    }
+    printPlan(plan, args.apply);
   }
 
-  if (!source) {
-    error('No valid source database found. Cannot proceed.');
+  if (!args.apply || plan.alreadyConsolidated) return;
+  if (plan.blockers.length > 0) {
     process.exitCode = 1;
     return;
   }
-
-  log(`\n✓ Source of truth: ${source.path}`);
-  log(`  Size: ${formatBytes(source.size || 0)} | Tables: ${source.tableCount}\n`);
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Step 3: Show diffs and wait for approval
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  printTableComparison(valid);
-
-  const others = valid.filter(f => f.path !== source!.path);
-  if (others.length > 0) {
-    warn(`This will consolidate ${others.length} other database(s) into the canonical location and archive them.`);
-    log(`\nCanonical destination: ${CANONICAL_DB_PATH}`);
-    log(`Archive location: ${BACKUPS_DIR}/_pre-consolidation-<timestamp>/`);
-    log(`\nTo consolidate:\n  1. VACUUM source DB into ${CANONICAL_DB_PATH}`);
-    log(`  2. Archive all other fragments to backups/`);
-    log(`  3. Operator must stop the daemon before consolidation completes`);
-  } else {
-    success('Already consolidated! No other fragments found.');
-    return;
-  }
-
-  if (!force) {
-    const ok = await confirm('\nProceed with consolidation?');
-    if (!ok) {
-      log('Aborted.');
+  if (!args.yes) {
+    const proceed = await confirm('Apply consolidation now?');
+    if (!proceed) {
+      info('Aborted before mutation.');
       return;
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Step 4: Perform consolidation
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  log('\nConsolidating...\n');
-
-  // 4a. Create archive directory
-  const archiveTs = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-  const archiveDir = join(BACKUPS_DIR, `_pre-consolidation-${archiveTs}`);
-  mkdirSync(archiveDir, { recursive: true, mode: 0o700 });
-  success(`Created archive directory: ${archiveDir}`);
-
-  // 4b. VACUUM source into canonical
-  info(`VACUUM-ing source into ${CANONICAL_DB_PATH}...`);
-  try {
-    const sourceDb = new Database(source.path, { readonly: false, fileMustExist: true });
-    try {
-      // Close any WAL files first
-      sourceDb.pragma('wal_checkpoint(TRUNCATE)');
-
-      // Ensure destination dir exists
-      mkdirSync(dirname(CANONICAL_DB_PATH), { recursive: true, mode: 0o700 });
-
-      // VACUUM INTO the canonical path
-      const srcQuoted = source.path.replace(/'/g, "''");
-      const destQuoted = CANONICAL_DB_PATH.replace(/'/g, "''");
-      sourceDb['exec'](`VACUUM INTO '${destQuoted}';`);
-    } finally {
-      sourceDb.close();
+  const result = applyConsolidationPlan(plan);
+  if (args.json) {
+    log(JSON.stringify({ success: true, result }, null, 2));
+  } else {
+    ok(`Consolidated into ${result.canonicalDbPath}`);
+    ok(`Archive directory: ${result.archiveDir}`);
+    if (result.archivedCanonicalPaths.length > 0) {
+      info(`Archived previous canonical family: ${result.archivedCanonicalPaths.length} file(s)`);
     }
-  } catch (err) {
-    error(`VACUUM failed: ${(err as Error).message}`);
-    process.exitCode = 1;
-    return;
-  }
-
-  if (!existsSync(CANONICAL_DB_PATH)) {
-    error(`VACUUM INTO did not produce ${CANONICAL_DB_PATH}`);
-    process.exitCode = 1;
-    return;
-  }
-
-  success(`✓ Consolidated into ${CANONICAL_DB_PATH} (${formatBytes(statSync(CANONICAL_DB_PATH).size)})`);
-
-  // Verify integrity of consolidated DB
-  if (!checkIntegrity(CANONICAL_DB_PATH)) {
-    error(`Consolidated DB failed integrity_check!`);
-    process.exitCode = 1;
-    return;
-  }
-  success(`Integrity check passed`);
-
-  // 4c. Archive all other fragments
-  info(`\nArchiving ${others.length} fragment(s)...`);
-  for (const frag of others) {
-    if (!frag.exists || !frag.path) continue;
-
-    const basename = frag.path.split('/').pop() || 'unknown.db';
-    const archivePath = join(archiveDir, basename);
-
-    try {
-      renameSync(frag.path, archivePath);
-      success(`  Archived: ${frag.path}`);
-    } catch (err) {
-      warn(`  Failed to archive ${frag.path}: ${(err as Error).message}`);
+    if (result.archivedPaths.length > 0) {
+      info(`Archived fragments: ${result.archivedPaths.length} file(s)`);
     }
+    for (const item of result.warnings) warn(item);
+    log('');
+    info('Restart the daemon/berth after consolidation so it opens the canonical DB.');
   }
-
-  // 4d. Archive empty/corrupted files
-  for (const frag of [...empty, ...corrupted]) {
-    if (!frag.exists || !frag.path) continue;
-
-    const basename = frag.path.split('/').pop() || 'unknown.db';
-    const archivePath = join(archiveDir, basename);
-
-    try {
-      renameSync(frag.path, archivePath);
-      const tag = corrupted.includes(frag) ? '(corrupted)' : '(empty)';
-      success(`  Archived: ${frag.path} ${tag}`);
-    } catch (err) {
-      warn(`  Failed to archive ${frag.path}: ${(err as Error).message}`);
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Success
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  log('\n' + '═'.repeat(60));
-  success(`Consolidation complete!`);
-  log(`\n  Canonical DB: ${CANONICAL_DB_PATH}`);
-  log(`  Archived fragments: ${archiveDir}`);
-  log(`\nNext steps:`);
-  log(`  1. Verify the daemon starts cleanly: pd daemon start`);
-  log(`  2. Check coordination: pd sitrep`);
-  log(`  3. Once verified, you can safely delete the archive directory`);
-  log(`\nREMINDER: If the daemon was running during consolidation,`);
-  log(`it may still have the old DB file open. Stop and restart it.`);
-  log('');
 }
 
-main().catch(err => {
-  error((err as Error).message);
-  process.exitCode = 1;
-});
+function isDirectRun(): boolean {
+  const entry = process.argv[1] ? resolve(process.argv[1]) : '';
+  return entry === fileURLToPath(import.meta.url);
+}
+
+if (isDirectRun()) {
+  main().catch((err) => {
+    fail((err as Error).message);
+    process.exitCode = 1;
+  });
+}
