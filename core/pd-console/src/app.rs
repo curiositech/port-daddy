@@ -19,17 +19,17 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::agent::{Backend, ModelCatalog, Tier};
-use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 pub use crate::chat::ChatUpdate;
+use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 use crate::dispatch_pane::DispatchHead;
 use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
+use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, Pane, Tone};
 use crate::tokens;
-use crate::palette::{Theme, ThemeMode};
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -42,32 +42,55 @@ pub enum ControlMsg {
     InterruptLane,
     /// Kick off a new top-level agent: `POST /spawn` with a backend + prompt +
     /// an optional resolved model id (from the capability tier the operator picked).
-    Spawn { backend: String, prompt: String, model: Option<String> },
+    Spawn {
+        backend: String,
+        prompt: String,
+        model: Option<String>,
+    },
     /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
-    Cartographer { text: String },
+    Cartographer {
+        text: String,
+    },
     /// Operator chat: a turn UP the tube on the stable per-conversation channel
     /// (`console-chat`). The background thread binds a real conversational
     /// responder on the first turn (spawns a Claude Code agent on the channel,
     /// `POST /spawn`), then `tube_send`s subsequent turns and `tube_poll`s replies
     /// DOWN the same channel — both off the gpui executor. Replies flow back over
     /// the [`ChatUpdate`] bus.
-    ChatSend { text: String },
+    ChatSend {
+        text: String,
+    },
     /// Operator review-gate verdicts on the head dispatch.
-    DispatchAccept { id: String },
-    DispatchReject { id: String, reason: String },
-    DispatchCancel { id: String },
+    DispatchAccept {
+        id: String,
+    },
+    DispatchReject {
+        id: String,
+        reason: String,
+    },
+    DispatchCancel {
+        id: String,
+    },
     /// Conductor operator control (ADR-0060): halt/pause/resume a fleet lineage.
     /// `root_id: None` = the whole fleet (global emergency stop).
-    FleetHalt { root_id: Option<String> },
-    FleetPause { root_id: Option<String> },
-    FleetResume { root_id: Option<String> },
+    FleetHalt {
+        root_id: Option<String>,
+    },
+    FleetPause {
+        root_id: Option<String>,
+    },
+    FleetResume {
+        root_id: Option<String>,
+    },
     /// Generate a predicted DAG LIVE from the operator's prompt via the Max-seat
     /// `claude` CLI (print mode, NO API key). Runs on a blocking worker
     /// (`conjure::generate_dag_via_cli`): `claude -p "<DAG_GEN_PROMPT>"`, parse the
     /// JSON it returns, fall back to the prompt-seeded fixture on any error. The
     /// resulting DAG is pushed back to the view over the Conjure-update channel,
     /// which swaps to the Conjure surface AND kicks the inline Vello render.
-    ConjureGenerate { prompt: String },
+    ConjureGenerate {
+        prompt: String,
+    },
     /// Render the live Conjure DAG to a PNG via the Vello proto. Carries the DAG
     /// already serialized to the proto's JSON shape (the foreground owns the DAG;
     /// serializing on the gpui thread is cheap and keeps the worker self-contained)
@@ -77,7 +100,10 @@ pub enum ControlMsg {
     /// Metal readback is SIGKILLed under a sandbox), then `open`s the PNG. The
     /// shell-out runs on a blocking worker so it never stalls the refresh loop and
     /// never touches the gpui render thread.
-    RenderConjureGraph { dag_json: String, title: String },
+    RenderConjureGraph {
+        dag_json: String,
+        title: String,
+    },
     /// Dispatch the committed (non-HITL-gated) Conjure nodes to live agents. Each
     /// request carries the vendor backend chosen by the node's `model_tier`
     /// (the multi-vendor map), the goal prompt (role + why), and the skill id. The
@@ -86,10 +112,52 @@ pub enum ControlMsg {
     /// outcome as an Alert — Info with the agent id on launch, Error on a refusal.
     /// `gated` is how many nodes were held back behind the HITL gate, reported so
     /// the operator knows the dispatch was partial by design.
-    ConjureDispatch { requests: Vec<ConjureDispatchRequest>, gated: usize },
+    ConjureDispatch {
+        requests: Vec<ConjureDispatchRequest>,
+        gated: usize,
+    },
     /// Switch the whole console to another daemon berth (ADR-0084). The producer
     /// swaps its `DaemonClient` so every pane's next refresh hits the new daemon.
-    RebindDaemon { url: String },
+    RebindDaemon {
+        url: String,
+    },
+    /// Add an operator note: `POST /notes` with `{ content }`.
+    AddNote {
+        content: String,
+    },
+    /// Begin a coordination session: `POST /sugar/begin` (durable lifecycle).
+    BeginSession {
+        identity: String,
+    },
+    /// End the active coordination session: `POST /sugar/done` (optional summary).
+    EndSession {
+        summary: Option<String>,
+    },
+    /// Propose a dispatch into the review queue: `POST /dispatches`.
+    ProposeDispatch {
+        goal: String,
+    },
+    /// Launch a sortie mission: `POST /sorties` (projectDir from PD_CONSOLE_WORKDIR).
+    LaunchSortie {
+        goal: String,
+    },
+    /// Claim a port for an identity: `POST /claim` — Port Daddy's core verb.
+    ClaimPort {
+        identity: String,
+    },
+    /// Release a claimed port by identity: `DELETE /release`.
+    ReleasePort {
+        identity: String,
+    },
+    /// Kill (unregister) an agent: `DELETE /agents/:id`.
+    KillAgent {
+        agent_id: String,
+    },
+    /// Interrupt a specific agent by id: `POST /agents/:id/interrupt`. Broadens
+    /// the Lane's interrupt to any agent named from the Fleet/Cockpit roster.
+    InterruptAgent {
+        agent_id: String,
+    },
 }
 
 /// A flattened, transport-ready spawn request for one Conjure node — the wire
@@ -159,6 +227,30 @@ pub enum CmdKind {
     /// name, `:port`, or a tier alias ("stable"/"dev-latest"); resolved against
     /// `~/.port-daddy/dev-daemons.json`. See the Daemons pane for the names.
     UseDaemon,
+    /// Add an operator note. Buffer is the note text. → `POST /notes`.
+    Note,
+    /// Begin a coordination session. Buffer is the identity. → `POST /sugar/begin`.
+    Begin,
+    /// End the active session. Buffer is an optional summary. → `POST /sugar/done`.
+    Done,
+    /// Propose a dispatch. Buffer is the goal text. → `POST /dispatches`.
+    Propose,
+    /// Launch a sortie. Buffer is the goal/prompt. → `POST /sorties`.
+    Sortie,
+    /// Claim a port for an identity. Buffer is the identity. → `POST /claim`.
+    Claim,
+    /// Release a claimed port. Buffer is the identity. → `DELETE /release`.
+    Release,
+    /// Kill (unregister) an agent. Buffer is the agent id. → `DELETE /agents/:id`.
+    Kill,
+    /// Interrupt a specific agent. Buffer is the agent id. → `POST /agents/:id/interrupt`.
+    InterruptAgent,
+    /// The operator verb palette (vim-`:` style). Buffer is `<verb> <args>`; the
+    /// first token selects an operator write, the rest are its arguments. One
+    /// keybinding (`Ctrl-A :`) reaches every write without exhausting the
+    /// single-letter leader namespace. `submit_command` re-dispatches into the
+    /// concrete verb's path.
+    Verb,
 }
 
 impl CmdKind {
@@ -170,6 +262,16 @@ impl CmdKind {
             CmdKind::AddPane => "add pane",
             CmdKind::Conjure => "conjure",
             CmdKind::UseDaemon => "use daemon",
+            CmdKind::Note => "note",
+            CmdKind::Begin => "begin (identity)",
+            CmdKind::Done => "done (summary)",
+            CmdKind::Propose => "propose (goal)",
+            CmdKind::Sortie => "sortie (goal)",
+            CmdKind::Claim => "claim (identity)",
+            CmdKind::Release => "release (identity)",
+            CmdKind::Kill => "kill (agent id)",
+            CmdKind::InterruptAgent => "interrupt (agent id)",
+            CmdKind::Verb => ":",
         }
     }
 
@@ -185,16 +287,42 @@ impl CmdKind {
     fn placeholder(&self) -> String {
         match self {
             CmdKind::Spawn => {
-                format!("claude: summarize the open PRs   (backend: task — try {})", spawn_backend_hint())
+                format!(
+                    "claude: summarize the open PRs   (backend: task — try {})",
+                    spawn_backend_hint()
+                )
             }
-            CmdKind::Cartographer => "Ask the cartographer about the roadmap, then watch the lane stream the reply…".to_string(),
-            CmdKind::DispatchReject => "Why reject this? The reason is sent back to the agent.".to_string(),
-            CmdKind::AddPane => "fleet · cost · roadmap · lane · dispatch · chat · files · alerts · conjure…".to_string(),
-            CmdKind::Conjure => "describe the work — windags blooms a predicted DAG of skill-equipped agents".to_string(),
+            CmdKind::Cartographer => {
+                "Ask the cartographer about the roadmap, then watch the lane stream the reply…"
+                    .to_string()
+            }
+            CmdKind::DispatchReject => {
+                "Why reject this? The reason is sent back to the agent.".to_string()
+            }
+            CmdKind::AddPane => {
+                "fleet · cost · roadmap · lane · dispatch · chat · files · alerts · conjure…"
+                    .to_string()
+            }
+            CmdKind::Conjure => {
+                "describe the work — windags blooms a predicted DAG of skill-equipped agents"
+                    .to_string()
+            }
             CmdKind::UseDaemon => format!(
                 "prod · latest · dev-latest · :{} · berth name…",
                 crate::berths::STABLE_PORT
             ),
+            CmdKind::Note => "record an operator note in Port Daddy memory…".to_string(),
+            CmdKind::Begin => "port-daddy:console:task".to_string(),
+            CmdKind::Done => "what changed, what was validated, what remains…".to_string(),
+            CmdKind::Propose => "describe the dispatch goal for the review queue…".to_string(),
+            CmdKind::Sortie => "describe the sortie mission to launch…".to_string(),
+            CmdKind::Claim => "project:stack:context".to_string(),
+            CmdKind::Release => "project:stack:context".to_string(),
+            CmdKind::Kill => "agent-id".to_string(),
+            CmdKind::InterruptAgent => "agent-id".to_string(),
+            CmdKind::Verb => {
+                "note/begin/done/propose/sortie/claim/release/kill/interrupt …".to_string()
+            }
         }
     }
 }
@@ -241,15 +369,40 @@ struct LauncherItem {
 }
 
 const EXTRA_LAUNCHER_ITEMS: &[LauncherItem] = &[
-    LauncherItem { id: "chat", label: "Chat", icon: "icons/nav/cockpit.svg", key: "c" },
-    LauncherItem { id: "files", label: "Files", icon: "icons/nav/claims.svg", key: "y" },
-    LauncherItem { id: "alerts", label: "Alerts", icon: "icons/nav/health.svg", key: "a" },
-    LauncherItem { id: "conjure", label: "Conjure", icon: "icons/nav/roadmap.svg", key: "v" },
+    LauncherItem {
+        id: "chat",
+        label: "Chat",
+        icon: "icons/nav/cockpit.svg",
+        key: "c",
+    },
+    LauncherItem {
+        id: "files",
+        label: "Files",
+        icon: "icons/nav/claims.svg",
+        key: "y",
+    },
+    LauncherItem {
+        id: "alerts",
+        label: "Alerts",
+        icon: "icons/nav/health.svg",
+        key: "a",
+    },
+    LauncherItem {
+        id: "conjure",
+        label: "Conjure",
+        icon: "icons/nav/roadmap.svg",
+        key: "v",
+    },
 ];
 
 fn launcher_items() -> Vec<LauncherItem> {
     NAV.iter()
-        .map(|nav| LauncherItem { id: nav.id, label: nav.label, icon: nav.icon, key: nav.key })
+        .map(|nav| LauncherItem {
+            id: nav.id,
+            label: nav.label,
+            icon: nav.icon,
+            key: nav.key,
+        })
         .chain(EXTRA_LAUNCHER_ITEMS.iter().copied())
         .collect()
 }
@@ -287,7 +440,10 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     {
         let path = path.trim();
         if !path.is_empty() {
-            return Some(SurfaceKind::Editor { path: path.to_string(), region: None });
+            return Some(SurfaceKind::Editor {
+                path: path.to_string(),
+                region: None,
+            });
         }
     }
     let q = trimmed.to_lowercase();
@@ -303,9 +459,7 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
     }
     launcher_items()
         .into_iter()
-        .find(|n| {
-            n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q)
-        })
+        .find(|n| n.key == q || n.id.starts_with(&q) || n.label.to_lowercase().starts_with(&q))
         .map(|n| surface_for_launcher_id(n.id))
 }
 
@@ -328,9 +482,25 @@ struct LauncherLayout {
 fn launcher_layout(viewport_w: f32, viewport_h: f32, item_count: usize) -> LauncherLayout {
     let card_w = (viewport_w - 32.0).clamp(320.0, 1120.0);
     let card_h = (viewport_h - 32.0).clamp(300.0, 820.0);
-    let card_pad = if viewport_w < 640.0 || viewport_h < 520.0 { 12.0 } else if viewport_w < 900.0 || viewport_h < 700.0 { 18.0 } else { 26.0 };
-    let gap = if viewport_w < 700.0 || viewport_h < 560.0 { 6.0 } else { 10.0 };
-    let header_h = if viewport_h < 560.0 { 54.0 } else if viewport_h < 720.0 { 76.0 } else { 102.0 };
+    let card_pad = if viewport_w < 640.0 || viewport_h < 520.0 {
+        12.0
+    } else if viewport_w < 900.0 || viewport_h < 700.0 {
+        18.0
+    } else {
+        26.0
+    };
+    let gap = if viewport_w < 700.0 || viewport_h < 560.0 {
+        6.0
+    } else {
+        10.0
+    };
+    let header_h = if viewport_h < 560.0 {
+        54.0
+    } else if viewport_h < 720.0 {
+        76.0
+    } else {
+        102.0
+    };
     let footer_h = 18.0;
     let inner_w = (card_w - card_pad * 2.0).max(240.0);
     let inner_h = (card_h - card_pad * 2.0 - header_h - footer_h).max(140.0);
@@ -343,7 +513,9 @@ fn launcher_layout(viewport_w: f32, viewport_h: f32, item_count: usize) -> Launc
         let fit_score = (tile_w / 170.0).min(tile_h / 150.0);
         let usable = (tile_w / 80.0).min(tile_h / 58.0);
         let score = fit_score + usable.min(1.0) * 0.18 + cols as f32 * 0.004;
-        if score > best.3 { best = (cols, tile_w, tile_h, score); }
+        if score > best.3 {
+            best = (cols, tile_w, tile_h, score);
+        }
     }
     let tile_w = best.1.clamp(82.0, 170.0);
     let tile_h = best.2.clamp(62.0, 150.0);
@@ -390,7 +562,19 @@ enum SpawnStep {
 
 impl CommandLine {
     fn new(kind: CmdKind) -> Self {
-        Self { kind, buffer: String::new(), backend: None, tier: None, tier_applies: false }
+        Self {
+            kind,
+            buffer: String::new(),
+            backend: None,
+            tier: None,
+            tier_applies: false,
+        }
+    }
+
+    fn with_buffer(kind: CmdKind, buffer: String) -> Self {
+        let mut cmd = Self::new(kind);
+        cmd.buffer = buffer;
+        cmd
     }
 
     /// The active step for a Spawn command: pick a backend, then a tier, then
@@ -431,7 +615,9 @@ fn filtered_tiers(catalog: &ModelCatalog, backend: Backend, filter: &str) -> Vec
     Tier::ALL
         .into_iter()
         .filter(|t| catalog.resolve(backend, *t).is_some())
-        .filter(|t| f.is_empty() || t.as_str().starts_with(&f) || t.label().to_lowercase().contains(&f))
+        .filter(|t| {
+            f.is_empty() || t.as_str().starts_with(&f) || t.label().to_lowercase().contains(&f)
+        })
         .collect()
 }
 
@@ -471,7 +657,9 @@ use crate::grid::NAV;
 fn launcher_tone(id: &str, t: &Theme) -> u32 {
     match id {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
-        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" | "conjure" => t.accent,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" | "conjure" => {
+            t.accent
+        }
         "roadmap" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
@@ -490,7 +678,11 @@ fn knockout_ink(color: u32) -> u32 {
     let g = ((color >> 8) & 0xff) as f32;
     let b = (color & 0xff) as f32;
     let luma = 0.299 * r + 0.587 * g + 0.114 * b;
-    if luma > 140.0 { 0x10_10_14 } else { 0xf5_f5_f7 }
+    if luma > 140.0 {
+        0x10_10_14
+    } else {
+        0xf5_f5_f7
+    }
 }
 
 /// One entry in the launcher's colour legend: a filled dot + a category label,
@@ -501,7 +693,13 @@ fn launcher_legend_chip(label: &'static str, color: u32) -> impl IntoElement {
         .flex()
         .items_center()
         .gap(px(6.0))
-        .child(div().w(px(11.0)).h(px(11.0)).rounded(px(6.0)).bg(rgb(color)))
+        .child(
+            div()
+                .w(px(11.0))
+                .h(px(11.0))
+                .rounded(px(6.0))
+                .bg(rgb(color)),
+        )
         .child(
             div()
                 .text_color(rgb(t.muted))
@@ -529,7 +727,11 @@ fn current_theme() -> Theme {
 
 /// Flip light ⇄ dark (the `Ctrl-A g` leader command). Re-skins on next `cx.notify()`.
 fn toggle_theme() {
-    let next = if THEME_MODE.load(Ordering::Relaxed) == 0 { 1 } else { 0 };
+    let next = if THEME_MODE.load(Ordering::Relaxed) == 0 {
+        1
+    } else {
+        0
+    };
     THEME_MODE.store(next, Ordering::Relaxed);
     crate::audio::play(crate::audio::Cue::Toggle);
 }
@@ -601,7 +803,13 @@ fn splash_static_layer(path: &'static str, color: u32) -> Svg {
         .text_color(rgb(color))
 }
 
-fn splash_spin_layer(path: &'static str, color: u32, id: &'static str, duration_ms: u64, reverse: bool) -> AnyElement {
+fn splash_spin_layer(
+    path: &'static str,
+    color: u32,
+    id: &'static str,
+    duration_ms: u64,
+    reverse: bool,
+) -> AnyElement {
     let layer = splash_static_layer(path, color);
     if reduced_motion() {
         return layer.into_any_element();
@@ -643,13 +851,46 @@ fn render_splash_mark(brand: SplashBrandPalette) -> AnyElement {
         .relative()
         .w(px(140.0))
         .h(px(140.0))
-        .child(splash_static_layer("icons/pd-splash-radar-grid.svg", brand.grid))
-        .child(splash_spin_layer("icons/pd-splash-radar-slow.svg", brand.seafoam, "pd-splash-radar-slow", 10000, false))
-        .child(splash_spin_layer("icons/pd-splash-radar-mid.svg", brand.amber, "pd-splash-radar-mid", 7000, true))
-        .child(splash_spin_layer("icons/pd-splash-radar-fast.svg", brand.cobalt, "pd-splash-radar-fast", 5000, false))
-        .child(splash_flip_layer("icons/pd-splash-glyph-p.svg", brand.cobalt, "pd-splash-glyph-p"))
-        .child(splash_flip_layer("icons/pd-splash-glyph-d.svg", brand.seafoam, "pd-splash-glyph-d"))
-        .child(splash_flip_layer("icons/pd-splash-glyph-overlap.svg", brand.amber, "pd-splash-glyph-overlap"))
+        .child(splash_static_layer(
+            "icons/pd-splash-radar-grid.svg",
+            brand.grid,
+        ))
+        .child(splash_spin_layer(
+            "icons/pd-splash-radar-slow.svg",
+            brand.seafoam,
+            "pd-splash-radar-slow",
+            10000,
+            false,
+        ))
+        .child(splash_spin_layer(
+            "icons/pd-splash-radar-mid.svg",
+            brand.amber,
+            "pd-splash-radar-mid",
+            7000,
+            true,
+        ))
+        .child(splash_spin_layer(
+            "icons/pd-splash-radar-fast.svg",
+            brand.cobalt,
+            "pd-splash-radar-fast",
+            5000,
+            false,
+        ))
+        .child(splash_flip_layer(
+            "icons/pd-splash-glyph-p.svg",
+            brand.cobalt,
+            "pd-splash-glyph-p",
+        ))
+        .child(splash_flip_layer(
+            "icons/pd-splash-glyph-d.svg",
+            brand.seafoam,
+            "pd-splash-glyph-d",
+        ))
+        .child(splash_flip_layer(
+            "icons/pd-splash-glyph-overlap.svg",
+            brand.amber,
+            "pd-splash-glyph-overlap",
+        ))
         .child(splash_static_layer("icons/pd-splash-hub.svg", brand.cobalt))
         .into_any_element()
 }
@@ -853,7 +1094,11 @@ impl RenderOnce for WavingFlag {
                         let dy = |u: f32| {
                             smoothstep(u) * (-vy) * LEAN * fh
                                 + IDLE_DROOP * fh * u * u
-                                + RIPPLE_GAIN * fh * speed * u * (two_pi * RIPPLE_WAVES * u - phase).sin()
+                                + RIPPLE_GAIN
+                                    * fh
+                                    * speed
+                                    * u
+                                    * (two_pi * RIPPLE_WAVES * u - phase).sin()
                         };
                         for j in 0..STRIPS {
                             let u0 = j as f32 / STRIPS as f32;
@@ -898,106 +1143,102 @@ impl RenderOnce for WavingFlag {
 fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
     let t = current_theme();
     match block {
-        Block::Header(text) => {
-            div()
-                .mx(px(tokens::SPACE_3))
-                .mt(px(tokens::SPACE_3))
-                .mb(px(tokens::SPACE_1))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(rgb(t.line))
-                .bg(rgb(t.raised))
-                .shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
-                .flex()
-                .items_center()
-                .gap(px(tokens::SPACE_2))
-                .child(
-                    div()
-                        .w(px(5.0))
-                        .h(px(18.0))
-                        .rounded(px(tokens::RADIUS_SM))
-                        .bg(rgb(t.accent)),
-                )
-                .child(
-                    div()
-                        .text_color(rgb(t.ink))
-                        .text_size(px(tokens::TEXT_HEADER))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(text),
-                )
-                .into_any_element()
-        }
-        Block::KeyVal(key, val) => {
-            div()
-                .flex()
-                .items_start()
-                .gap(px(tokens::SPACE_3))
-                .mx(px(tokens::SPACE_3))
-                .my(px(2.0))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(rgb(t.line))
-                .bg(tone_wash(t.raised, 0xd8))
-                .hover(|s| {
-                    let t = current_theme();
-                    s.border_color(rgb(t.accent))
-                        .bg(rgb(t.raised))
-                        .shadow(motion::glow(t.accent, 0.16, 10.0, 0.0))
-                })
-                .child(
-                    div()
-                        .text_color(rgb(t.muted))
-                        .text_size(px(tokens::TEXT_CAPTION))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .w(px(132.0))
-                        .flex_shrink_0()
-                        .child(key)
-                )
-                .child(
-                    div()
-                        .text_color(rgb(t.ink))
-                        .text_size(px(tokens::TEXT_BODY))
-                        .font_family("IBM Plex Mono")
-                        .child(val)
-                )
-                .into_any_element()
-        }
-        Block::Row(cells) => {
-            div()
-                .flex()
-                .items_center()
-                .gap(px(tokens::SPACE_3))
-                .mx(px(tokens::SPACE_3))
-                .my(px(2.0))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(rgb(t.line))
-                .bg(rgb(t.panel))
-                .hover(|s| {
-                    let t = current_theme();
-                    s.bg(rgb(t.raised))
-                        .border_color(rgb(t.accent))
-                        .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
-                })
-                .children(
-                    cells.into_iter().enumerate().map(|(i, cell)| {
-                        div()
-                            .text_color(rgb(if i == 0 { current_theme().accent_ink } else { current_theme().ink2 }))
-                            .text_size(px(tokens::TEXT_BODY))
-                            .font_family("IBM Plex Mono")
-                            .flex_shrink_0()
-                            .when(i == 0, |s| s.min_w(px(22.0)).font_weight(FontWeight::BOLD))
-                            .child(cell)
-                    })
-                )
-                .into_any_element()
-        }
+        Block::Header(text) => div()
+            .mx(px(tokens::SPACE_3))
+            .mt(px(tokens::SPACE_3))
+            .mb(px(tokens::SPACE_1))
+            .px(px(tokens::SPACE_3))
+            .py(px(tokens::SPACE_2))
+            .rounded(px(tokens::RADIUS_MD))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(rgb(t.raised))
+            .shadow(motion::hard_offset(t.sunken, 0.0, 2.0))
+            .flex()
+            .items_center()
+            .gap(px(tokens::SPACE_2))
+            .child(
+                div()
+                    .w(px(5.0))
+                    .h(px(18.0))
+                    .rounded(px(tokens::RADIUS_SM))
+                    .bg(rgb(t.accent)),
+            )
+            .child(
+                div()
+                    .text_color(rgb(t.ink))
+                    .text_size(px(tokens::TEXT_HEADER))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(text),
+            )
+            .into_any_element(),
+        Block::KeyVal(key, val) => div()
+            .flex()
+            .items_start()
+            .gap(px(tokens::SPACE_3))
+            .mx(px(tokens::SPACE_3))
+            .my(px(2.0))
+            .px(px(tokens::SPACE_3))
+            .py(px(tokens::SPACE_2))
+            .rounded(px(tokens::RADIUS_MD))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(tone_wash(t.raised, 0xd8))
+            .hover(|s| {
+                let t = current_theme();
+                s.border_color(rgb(t.accent))
+                    .bg(rgb(t.raised))
+                    .shadow(motion::glow(t.accent, 0.16, 10.0, 0.0))
+            })
+            .child(
+                div()
+                    .text_color(rgb(t.muted))
+                    .text_size(px(tokens::TEXT_CAPTION))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .w(px(132.0))
+                    .flex_shrink_0()
+                    .child(key),
+            )
+            .child(
+                div()
+                    .text_color(rgb(t.ink))
+                    .text_size(px(tokens::TEXT_BODY))
+                    .font_family("IBM Plex Mono")
+                    .child(val),
+            )
+            .into_any_element(),
+        Block::Row(cells) => div()
+            .flex()
+            .items_center()
+            .gap(px(tokens::SPACE_3))
+            .mx(px(tokens::SPACE_3))
+            .my(px(2.0))
+            .px(px(tokens::SPACE_3))
+            .py(px(tokens::SPACE_2))
+            .rounded(px(tokens::RADIUS_MD))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(rgb(t.panel))
+            .hover(|s| {
+                let t = current_theme();
+                s.bg(rgb(t.raised))
+                    .border_color(rgb(t.accent))
+                    .shadow(motion::hard_offset(t.sunken, 0.0, 1.0))
+            })
+            .children(cells.into_iter().enumerate().map(|(i, cell)| {
+                div()
+                    .text_color(rgb(if i == 0 {
+                        current_theme().accent_ink
+                    } else {
+                        current_theme().ink2
+                    }))
+                    .text_size(px(tokens::TEXT_BODY))
+                    .font_family("IBM Plex Mono")
+                    .flex_shrink_0()
+                    .when(i == 0, |s| s.min_w(px(22.0)).font_weight(FontWeight::BOLD))
+                    .child(cell)
+            }))
+            .into_any_element(),
         Block::Chip { label, tone } => {
             let color_u32 = tone_rgb(&tone);
             let color = rgb(color_u32);
@@ -1017,7 +1258,11 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                 .child(label)
                 .into_any_element()
         }
-        Block::Flag { letter, label, tone } => {
+        Block::Flag {
+            letter,
+            label,
+            tone,
+        } => {
             // The signal flag is now a waving cloth (WavingFlag, T2 paint) that
             // reacts to pane scroll/resize via `motion`; the letter rides it.
             let color = tone_rgb(&tone);
@@ -1040,7 +1285,11 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                         .bg(rgb(t.raised))
                         .shadow(motion::glow(color, 0.18, 10.0, 0.0))
                 })
-                .child(WavingFlag { letter, color, motion })
+                .child(WavingFlag {
+                    letter,
+                    color,
+                    motion,
+                })
                 .child(
                     div()
                         .text_color(rgb(t.ink))
@@ -1050,25 +1299,21 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                 )
                 .into_any_element()
         }
-        Block::Spark(_) => {
-            div()
-                .mx(px(tokens::SPACE_3))
-                .my(px(tokens::SPACE_1))
-                .px(px(tokens::SPACE_3))
-                .py(px(tokens::SPACE_2))
-                .rounded(px(tokens::RADIUS_MD))
-                .border_1()
-                .border_color(rgb(t.line))
-                .bg(rgb(t.sunken))
-                .text_color(rgb(t.landed))
-                .text_size(px(tokens::TEXT_HEADER))
-                .font_family("IBM Plex Mono")
-                .child("▁▂▃▄▅▆▇")
-                .into_any_element()
-        }
-        Block::Gap => {
-            div().h(px(tokens::SPACE_2)).into_any_element()
-        }
+        Block::Spark(_) => div()
+            .mx(px(tokens::SPACE_3))
+            .my(px(tokens::SPACE_1))
+            .px(px(tokens::SPACE_3))
+            .py(px(tokens::SPACE_2))
+            .rounded(px(tokens::RADIUS_MD))
+            .border_1()
+            .border_color(rgb(t.line))
+            .bg(rgb(t.sunken))
+            .text_color(rgb(t.landed))
+            .text_size(px(tokens::TEXT_HEADER))
+            .font_family("IBM Plex Mono")
+            .child("▁▂▃▄▅▆▇")
+            .into_any_element(),
+        Block::Gap => div().h(px(tokens::SPACE_2)).into_any_element(),
         Block::WrappedText { text, tone } => {
             // Full, wrapping, never-truncated — the operator reads it all.
             let color = tone_rgb(&tone);
@@ -1104,7 +1349,11 @@ struct SidebarItem {
 
 impl RenderOnce for SidebarItem {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let ink = if self.active { current_theme().ink } else { current_theme().muted };
+        let ink = if self.active {
+            current_theme().ink
+        } else {
+            current_theme().muted
+        };
         div()
             .px(px(10.0))
             .py(px(6.0))
@@ -1114,8 +1363,8 @@ impl RenderOnce for SidebarItem {
             .cursor_pointer()
             .when(self.active, |s| {
                 s.bg(rgb(current_theme().raised))
-                 .border_l_2()
-                 .border_color(rgb(current_theme().accent_ink))
+                    .border_l_2()
+                    .border_color(rgb(current_theme().accent_ink))
             })
             .hover(|s| s.bg(rgb(current_theme().raised)))
             .flex()
@@ -1127,14 +1376,18 @@ impl RenderOnce for SidebarItem {
                     .path(self.icon)
                     .w(px(18.0))
                     .h(px(18.0))
-                    .text_color(rgb(if self.active { current_theme().accent_ink } else { current_theme().muted }))
+                    .text_color(rgb(if self.active {
+                        current_theme().accent_ink
+                    } else {
+                        current_theme().muted
+                    })),
             )
             .child(
                 div()
                     .text_color(rgb(ink))
                     .text_size(px(13.0))
                     .font_weight(FontWeight::MEDIUM)
-                    .child(self.label)
+                    .child(self.label),
             )
     }
 }
@@ -1229,7 +1482,8 @@ impl ConsoleView {
         self.flag_motion.phase += speed * 0.9;
         self.flag_motion.vx *= 0.86;
         self.flag_motion.vy *= 0.86;
-        let still_moving = (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt() > 0.012;
+        let still_moving =
+            (self.flag_motion.vx.powi(2) + self.flag_motion.vy.powi(2)).sqrt() > 0.012;
         if still_moving {
             cx.on_next_frame(window, |this, window, cx| this.tick_flag_motion(window, cx));
         } else {
@@ -1257,12 +1511,15 @@ impl ConsoleView {
         cx: &mut Context<Self>,
     ) -> Self {
         // Initialize one slot per NAV entry with a "connecting…" placeholder
-        let pane_blocks = NAV.iter().map(|nav| {
-            vec![
-                Block::Header(nav.label.into()),
-                Block::KeyVal("status".into(), "connecting…".into()),
-            ]
-        }).collect();
+        let pane_blocks = NAV
+            .iter()
+            .map(|nav| {
+                vec![
+                    Block::Header(nav.label.into()),
+                    Block::KeyVal("status".into(), "connecting…".into()),
+                ]
+            })
+            .collect();
 
         Self {
             tabs: vec![Tab {
@@ -1313,9 +1570,9 @@ impl ConsoleView {
         ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
         ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
         ws.focus(1); // start on the fleet pane (first leaf id)
-        // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
-        // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
-        // tooling and deep-links can open any surface, not just NAV-rail panes.
+                     // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
+                     // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
+                     // tooling and deep-links can open any surface, not just NAV-rail panes.
         if let Some(surface) = initial.and_then(surface_for_query) {
             ws.swap_surface(surface);
         }
@@ -1421,7 +1678,10 @@ impl ConsoleView {
     fn blocks_for_hitl(&self) -> Vec<Block> {
         let mut blocks = vec![Block::Header("Alerts — HITL".into())];
         if self.alerts.is_empty() {
-            blocks.push(Block::KeyVal("status".into(), "all clear — no alerts".into()));
+            blocks.push(Block::KeyVal(
+                "status".into(),
+                "all clear — no alerts".into(),
+            ));
             return blocks;
         }
         blocks.push(Block::KeyVal(
@@ -1430,9 +1690,15 @@ impl ConsoleView {
         ));
         blocks.push(Block::Gap);
         for a in &self.alerts {
-            blocks.push(Block::Chip { label: a.level.label().into(), tone: a.level.tone() });
+            blocks.push(Block::Chip {
+                label: a.level.label().into(),
+                tone: a.level.tone(),
+            });
             blocks.push(Block::KeyVal("  what".into(), a.title.clone()));
-            blocks.push(Block::WrappedText { text: a.detail.clone(), tone: a.level.tone() });
+            blocks.push(Block::WrappedText {
+                text: a.detail.clone(),
+                tone: a.level.tone(),
+            });
             blocks.push(Block::Gap);
         }
         blocks
@@ -1455,7 +1721,12 @@ impl ConsoleView {
         rows.push(harbor_banner());
         for berth in crate::berths::discover() {
             let color = daemon_tone_color(&berth.tier, &t);
-            let glyph = berth.tier.chars().next().unwrap_or('?').to_ascii_uppercase();
+            let glyph = berth
+                .tier
+                .chars()
+                .next()
+                .unwrap_or('?')
+                .to_ascii_uppercase();
             let url = berth.url();
             let selected = url == active;
             let summary = berth.display();
@@ -1512,12 +1783,19 @@ impl ConsoleView {
             // Double-prefix (Ctrl-A Ctrl-A) cycles focus — fast tmux idiom.
             "a" if ctrl => self.ws_mut().focus_next(),
             // Resize the focused pane.
-            "=" | "+" => { self.ws_mut().resize(0.15); }
-            "_" => { self.ws_mut().resize(-0.15); }
+            "=" | "+" => {
+                self.ws_mut().resize(0.15);
+            }
+            "_" => {
+                self.ws_mut().resize(-0.15);
+            }
             // Flip the palette (light ⇄ dark) — re-skins the whole console.
             "g" => toggle_theme(),
             // Maximize / restore the focused pane.
-            "z" => { let id = self.ws().focused(); self.toggle_zoom(id); }
+            "z" => {
+                let id = self.ws().focused();
+                self.toggle_zoom(id);
+            }
             // Tabs (tmux windows): w = new, [ / ] = prev / next.
             "w" => self.new_tab(),
             "]" => self.switch_tab(1),
@@ -1529,6 +1807,20 @@ impl ConsoleView {
             "i" => self.command = Some(CommandLine::new(CmdKind::AddPane)),
             // Switch which daemon berth the console talks to (the Daemons pane lists names).
             "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
+            // Operator verb palette (vim-`:`): one entry point for every write
+            // (note/begin/done/propose/sortie/claim/release/kill/interrupt).
+            ":" => self.command = Some(CommandLine::new(CmdKind::Verb)),
+            // Direct single-key shortcuts for the most-used operator writes
+            // (free letters, no NAV/leader collision):
+            //   f note · e propose · U sortie · r begin · q done · j claim · Q release · X kill
+            "f" => self.command = Some(CommandLine::new(CmdKind::Note)),
+            "e" => self.command = Some(CommandLine::new(CmdKind::Propose)),
+            "U" => self.command = Some(CommandLine::new(CmdKind::Sortie)),
+            "r" => self.command = Some(CommandLine::new(CmdKind::Begin)),
+            "q" => self.command = Some(CommandLine::new(CmdKind::Done)),
+            "j" => self.command = Some(CommandLine::new(CmdKind::Claim)),
+            "Q" => self.command = Some(CommandLine::new(CmdKind::Release)),
+            "X" => self.command = Some(CommandLine::new(CmdKind::Kill)),
             // The visual pane launcher — an animated grid of surface tiles.
             "space" => self.launcher_open = true,
             // Any launcher key swaps the focused pane's surface — "hop context".
@@ -1600,7 +1892,13 @@ impl ConsoleView {
     /// rolled-own buffer (no native widget): Enter submits the turn; Shift+Enter
     /// inserts a newline; Backspace pops; Space/printable chars push (case-preserving
     /// via `keystroke.key_char`); bare modifiers/arrows/function keys are ignored.
-    fn handle_chat_key(&mut self, key: &str, typed: Option<&str>, shift: bool, cx: &mut Context<Self>) {
+    fn handle_chat_key(
+        &mut self,
+        key: &str,
+        typed: Option<&str>,
+        shift: bool,
+        cx: &mut Context<Self>,
+    ) {
         match key {
             "enter" if shift => self.chat_input.push('\n'),
             "enter" => self.submit_chat(),
@@ -1695,7 +1993,9 @@ impl ConsoleView {
     /// Select the Nth currently-visible chip for the active picker step.
     fn spawn_pick_index(&mut self, idx: usize) {
         let catalog = &self.catalog;
-        let Some(cmd) = self.command.as_mut() else { return };
+        let Some(cmd) = self.command.as_mut() else {
+            return;
+        };
         match cmd.spawn_step() {
             SpawnStep::Backend => {
                 if let Some(b) = filtered_backends(&cmd.buffer).get(idx).copied() {
@@ -1738,8 +2038,23 @@ impl ConsoleView {
     /// daemon client and performs the POST).
     fn submit_command(&mut self, cmd: CommandLine) {
         let text = cmd.buffer.trim().to_string();
-        // Reject may submit empty (falls back to a default reason); the others need text.
-        if text.is_empty() && cmd.kind != CmdKind::DispatchReject {
+        // The verb palette (`:`) re-dispatches: its first token names a concrete
+        // write, the rest is that write's argument. Resolve it into the real
+        // CommandLine and submit THAT, so the per-verb paths below run unchanged.
+        if cmd.kind == CmdKind::Verb {
+            if let Some((kind, arg)) = parse_verb(&text) {
+                self.submit_command(CommandLine::with_buffer(kind, arg));
+            } else if !text.is_empty() {
+                let verb = text.split_whitespace().next().unwrap_or("");
+                self.control_flash = Some(format!(
+                    "unknown verb '{verb}' — try note/begin/done/propose/sortie/claim/release/kill/interrupt"
+                ));
+            }
+            return;
+        }
+        // Reject and Done may submit empty (Reject falls back to a default reason;
+        // Done's summary is optional); every other verb needs text.
+        if text.is_empty() && cmd.kind != CmdKind::DispatchReject && cmd.kind != CmdKind::Done {
             return;
         }
         // AddPane is a purely local UI mutation (split a new pane of the chosen
@@ -1772,7 +2087,9 @@ impl ConsoleView {
             self.conjure_png_path = default_conjure_png().filter(|p| p.exists());
             self.ws_mut().swap_surface(SurfaceKind::Conjure);
             if let Some(tx) = &self.control_tx {
-                let _ = tx.send(ControlMsg::ConjureGenerate { prompt: text.clone() });
+                let _ = tx.send(ControlMsg::ConjureGenerate {
+                    prompt: text.clone(),
+                });
                 self.control_flash =
                     Some("generating with claude:cli… the DAG + Vello graphic land below".into());
             } else {
@@ -1804,7 +2121,9 @@ impl ConsoleView {
         }
         // Clone the sender (owned) so we can also mutate the workspace below
         // without holding an immutable borrow of `self` across `ws_mut()`.
-        let Some(tx) = self.control_tx.clone() else { return };
+        let Some(tx) = self.control_tx.clone() else {
+            return;
+        };
         match cmd.kind {
             CmdKind::Spawn => {
                 // Structured picker result: backend chosen from chips, tier
@@ -1839,7 +2158,8 @@ impl ConsoleView {
             }
             CmdKind::Cartographer => {
                 let _ = tx.send(ControlMsg::Cartographer { text });
-                self.control_flash = Some("sent to cartographer — streaming the reply below".into());
+                self.control_flash =
+                    Some("sent to cartographer — streaming the reply below".into());
                 // Same loop for the cartographer: jump to the lane to watch the
                 // reply stream rather than leaving the operator guessing where it went.
                 self.ws_mut()
@@ -1847,14 +2167,65 @@ impl ConsoleView {
             }
             CmdKind::DispatchReject => {
                 if let Some(id) = self.reject_target.take() {
-                    let reason = if text.len() >= 3 { text } else { "rejected via console".into() };
+                    let reason = if text.len() >= 3 {
+                        text
+                    } else {
+                        "rejected via console".into()
+                    };
                     let _ = tx.send(ControlMsg::DispatchReject { id, reason });
                     self.control_flash = Some("dispatch rejected".into());
                 }
             }
-            // AddPane, Conjure, and UseDaemon are handled locally above (early return) —
-            // never reach here.
-            CmdKind::AddPane | CmdKind::Conjure | CmdKind::UseDaemon => {}
+            CmdKind::Note => {
+                let _ = tx.send(ControlMsg::AddNote { content: text });
+                self.control_flash = Some("note added → check Memory".into());
+            }
+            CmdKind::Begin => {
+                let _ = tx.send(ControlMsg::BeginSession {
+                    identity: text.clone(),
+                });
+                self.control_flash = Some(format!("begin session: {text}"));
+            }
+            CmdKind::Done => {
+                let summary = if text.is_empty() { None } else { Some(text) };
+                let _ = tx.send(ControlMsg::EndSession { summary });
+                self.control_flash = Some("session ended".into());
+            }
+            CmdKind::Propose => {
+                let _ = tx.send(ControlMsg::ProposeDispatch { goal: text });
+                self.control_flash = Some("dispatch proposed → review queue".into());
+            }
+            CmdKind::Sortie => {
+                let _ = tx.send(ControlMsg::LaunchSortie { goal: text });
+                self.control_flash = Some("sortie launching → watch Sorties".into());
+            }
+            CmdKind::Claim => {
+                let _ = tx.send(ControlMsg::ClaimPort {
+                    identity: text.clone(),
+                });
+                self.control_flash = Some(format!("claiming port for {text}…"));
+            }
+            CmdKind::Release => {
+                let _ = tx.send(ControlMsg::ReleasePort {
+                    identity: text.clone(),
+                });
+                self.control_flash = Some(format!("releasing {text}…"));
+            }
+            CmdKind::Kill => {
+                let _ = tx.send(ControlMsg::KillAgent {
+                    agent_id: text.clone(),
+                });
+                self.control_flash = Some(format!("killing agent {text}…"));
+            }
+            CmdKind::InterruptAgent => {
+                let _ = tx.send(ControlMsg::InterruptAgent {
+                    agent_id: text.clone(),
+                });
+                self.control_flash = Some(format!("interrupting agent {text}…"));
+            }
+            // AddPane, Conjure, UseDaemon, and Verb are handled locally above
+            // (early return) — never reach here.
+            CmdKind::AddPane | CmdKind::Conjure | CmdKind::UseDaemon | CmdKind::Verb => {}
         }
     }
 
@@ -1869,8 +2240,9 @@ impl ConsoleView {
             Ok(dag_json) => {
                 if let Some(tx) = &self.control_tx {
                     let _ = tx.send(ControlMsg::RenderConjureGraph { dag_json, title });
-                    self.control_flash =
-                        Some("rendering the DAG with Vello… the PNG opens when the build lands".into());
+                    self.control_flash = Some(
+                        "rendering the DAG with Vello… the PNG opens when the build lands".into(),
+                    );
                 } else {
                     // No control plane (an isolated test view): nothing to shell out to.
                     self.control_flash = Some("render unavailable — no control plane".into());
@@ -1904,7 +2276,9 @@ impl ConsoleView {
             // A firm "wall" tone — the dispatch is held (all gated) or empty.
             crate::audio::play(crate::audio::Cue::Gate);
             self.control_flash = Some(if gated > 0 {
-                format!("nothing to dispatch — all {gated} node(s) are HITL-gated; confirm each one")
+                format!(
+                    "nothing to dispatch — all {gated} node(s) are HITL-gated; confirm each one"
+                )
             } else {
                 "nothing to dispatch — the DAG has no nodes".into()
             });
@@ -1925,9 +2299,14 @@ impl ConsoleView {
             let _ = tx.send(ControlMsg::ConjureDispatch { requests, gated });
             // A confident rising sweep — committed nodes are launching to their vendors.
             crate::audio::play(crate::audio::Cue::Dispatch);
-            let held = if gated > 0 { format!(" · {gated} held for your gate") } else { String::new() };
-            self.control_flash =
-                Some(format!("dispatching {count} node(s) to their vendors…{held} watch Alerts"));
+            let held = if gated > 0 {
+                format!(" · {gated} held for your gate")
+            } else {
+                String::new()
+            };
+            self.control_flash = Some(format!(
+                "dispatching {count} node(s) to their vendors…{held} watch Alerts"
+            ));
         } else {
             // No control plane (an isolated test view): nothing to spawn against.
             self.control_flash = Some("dispatch unavailable — no control plane".into());
@@ -1949,115 +2328,125 @@ impl ConsoleView {
         let viewport = window.viewport_size();
         let layout = launcher_layout(f32::from(viewport.width), f32::from(viewport.height), n);
 
-        let mut tiles: Vec<AnyElement> = items.iter().enumerate().map(|(i, item)| {
-            let item = *item;
-            let id = item.id;
-            let is_current = current.as_deref() == Some(item.id);
-            let tone = launcher_tone(id, &t); // ADHD colour-coding: navigate by hue.
+        let mut tiles: Vec<AnyElement> = items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                let item = *item;
+                let id = item.id;
+                let is_current = current.as_deref() == Some(item.id);
+                let tone = launcher_tone(id, &t); // ADHD colour-coding: navigate by hue.
 
-            // Big chunky tile — sized for low-friction targeting and legibility.
-            let tile = div()
-                .id(SharedString::from(format!("launch-{id}")))
-                .w(px(layout.tile_w))
-                .h(px(layout.tile_h))
-                .flex()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .gap(px((layout.gap + 2.0).min(12.0)))
-                .rounded(px(14.0))
-                .border_1()
-                .border_color(rgb(if is_current { tone } else { t.line }))
-                .bg(rgb(t.raised))
-                .cursor_pointer()
-                // Hover "lift" (no transforms): brighter card, tone border, and a
-                // wide tone-coloured bloom — the big apparent-motion cue.
-                .hover(move |s| {
-                    let t = current_theme();
-                    s.bg(rgb(t.panel))
-                        .border_color(rgb(tone))
-                        .shadow(motion::glow(tone, 0.55, 32.0, 3.0))
-                })
-                // Icon sits in a big tone-washed chip so colour reads even at a glance.
-                .child(
-                    div()
-                        .w(px(layout.icon_box))
-                        .h(px(layout.icon_box))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px((layout.icon_box * 0.22).clamp(8.0, 16.0)))
-                        .bg(tone_wash(tone, 0x26))
-                        .child(
-                            svg()
-                                .path(item.icon)
-                                .w(px(layout.icon))
-                                .h(px(layout.icon))
-                                .text_color(rgb(tone)),
-                        ),
-                )
-                .child(
-                    div()
-                        .text_color(rgb(t.ink))
-                        .text_size(px(layout.label_size))
-                        .font_weight(FontWeight::BOLD)
-                        .child(item.label),
-                )
-                .child(
-                    div()
-                        .px(px(7.0))
-                        .py(px(2.0))
-                        .rounded(px(7.0))
-                        .bg(tone_wash(tone, 0x1c))
-                        .text_color(rgb(t.muted))
-                        .text_size(px(layout.key_size))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(format!("⌃A {}", item.key)),
-                )
-                // Owns its glow only in the static cases; the breathing branch below
-                // owns it via the animation (one motion owner per surface).
-                .when(is_current && reduced, |s| s.shadow(motion::glow(tone, 0.5, 22.0, 2.0)))
-                .on_click(cx.listener(move |this, _ev, _window, cx| {
-                    this.ws_mut().swap_surface(surface_for_launcher_id(id));
-                    this.launcher_open = false;
-                    this.control_flash = Some(format!("→ {id}"));
-                    cx.notify();
-                }));
+                // Big chunky tile — sized for low-friction targeting and legibility.
+                let tile = div()
+                    .id(SharedString::from(format!("launch-{id}")))
+                    .w(px(layout.tile_w))
+                    .h(px(layout.tile_h))
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .justify_center()
+                    .gap(px((layout.gap + 2.0).min(12.0)))
+                    .rounded(px(14.0))
+                    .border_1()
+                    .border_color(rgb(if is_current { tone } else { t.line }))
+                    .bg(rgb(t.raised))
+                    .cursor_pointer()
+                    // Hover "lift" (no transforms): brighter card, tone border, and a
+                    // wide tone-coloured bloom — the big apparent-motion cue.
+                    .hover(move |s| {
+                        let t = current_theme();
+                        s.bg(rgb(t.panel))
+                            .border_color(rgb(tone))
+                            .shadow(motion::glow(tone, 0.55, 32.0, 3.0))
+                    })
+                    // Icon sits in a big tone-washed chip so colour reads even at a glance.
+                    .child(
+                        div()
+                            .w(px(layout.icon_box))
+                            .h(px(layout.icon_box))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(px((layout.icon_box * 0.22).clamp(8.0, 16.0)))
+                            .bg(tone_wash(tone, 0x26))
+                            .child(
+                                svg()
+                                    .path(item.icon)
+                                    .w(px(layout.icon))
+                                    .h(px(layout.icon))
+                                    .text_color(rgb(tone)),
+                            ),
+                    )
+                    .child(
+                        div()
+                            .text_color(rgb(t.ink))
+                            .text_size(px(layout.label_size))
+                            .font_weight(FontWeight::BOLD)
+                            .child(item.label),
+                    )
+                    .child(
+                        div()
+                            .px(px(7.0))
+                            .py(px(2.0))
+                            .rounded(px(7.0))
+                            .bg(tone_wash(tone, 0x1c))
+                            .text_color(rgb(t.muted))
+                            .text_size(px(layout.key_size))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(format!("⌃A {}", item.key)),
+                    )
+                    // Owns its glow only in the static cases; the breathing branch below
+                    // owns it via the animation (one motion owner per surface).
+                    .when(is_current && reduced, |s| {
+                        s.shadow(motion::glow(tone, 0.5, 22.0, 2.0))
+                    })
+                    .on_click(cx.listener(move |this, _ev, _window, cx| {
+                        this.ws_mut().swap_surface(surface_for_launcher_id(id));
+                        this.launcher_open = false;
+                        this.control_flash = Some(format!("→ {id}"));
+                        cx.notify();
+                    }));
 
-            if reduced {
-                // Reduced motion: no travel, but keep the current-tile glow (above)
-                // for orientation. All tiles render at rest.
-                tile.into_any_element()
-            } else if is_current {
-                // The pane you're on *breathes* a tone-coloured glow — a single
-                // looping owner, scoped to this modal overlay (so it only runs
-                // while the launcher is open). This is the "where am I" beacon.
-                tile.with_animation(
-                    SharedString::from(format!("launch-breathe-{id}")),
-                    Animation::new(Duration::from_millis(2200))
-                        .repeat()
-                        .with_easing(pulsating_between(0.0, 1.0)),
-                    move |el, delta| {
-                        el.shadow(motion::glow(tone, 0.30 + 0.40 * delta, 16.0 + 16.0 * delta, 1.0))
-                    },
-                )
-                .into_any_element()
-            } else {
-                // One-shot staggered entrance fade — the stagger lives in the
-                // opacity curve, so each tile stays its own single animation owner.
-                let start = (i as f32 / n as f32) * 0.6;
-                tile.with_animation(
-                    SharedString::from(format!("launch-in-{id}")),
-                    Animation::new(Duration::from_millis(360)).with_easing(ease_in_out),
-                    move |el, delta| {
-                        let o = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
-                        el.opacity(o)
-                    },
-                )
-                .into_any_element()
-            }
-        })
-        .collect();
+                if reduced {
+                    // Reduced motion: no travel, but keep the current-tile glow (above)
+                    // for orientation. All tiles render at rest.
+                    tile.into_any_element()
+                } else if is_current {
+                    // The pane you're on *breathes* a tone-coloured glow — a single
+                    // looping owner, scoped to this modal overlay (so it only runs
+                    // while the launcher is open). This is the "where am I" beacon.
+                    tile.with_animation(
+                        SharedString::from(format!("launch-breathe-{id}")),
+                        Animation::new(Duration::from_millis(2200))
+                            .repeat()
+                            .with_easing(pulsating_between(0.0, 1.0)),
+                        move |el, delta| {
+                            el.shadow(motion::glow(
+                                tone,
+                                0.30 + 0.40 * delta,
+                                16.0 + 16.0 * delta,
+                                1.0,
+                            ))
+                        },
+                    )
+                    .into_any_element()
+                } else {
+                    // One-shot staggered entrance fade — the stagger lives in the
+                    // opacity curve, so each tile stays its own single animation owner.
+                    let start = (i as f32 / n as f32) * 0.6;
+                    tile.with_animation(
+                        SharedString::from(format!("launch-in-{id}")),
+                        Animation::new(Duration::from_millis(360)).with_easing(ease_in_out),
+                        move |el, delta| {
+                            let o = ((delta - start) / (1.0 - start)).clamp(0.0, 1.0);
+                            el.opacity(o)
+                        },
+                    )
+                    .into_any_element()
+                }
+            })
+            .collect();
 
         // Group tiles into explicit rows. flex_wrap's wrapped height isn't summed
         // back into the parent in Taffy here, so the card bg stopped short of the
@@ -2066,7 +2455,13 @@ impl ConsoleView {
         while !tiles.is_empty() {
             let take = tiles.len().min(layout.cols);
             let row: Vec<AnyElement> = tiles.drain(0..take).collect();
-            rows.push(div().flex().gap(px(layout.gap)).children(row).into_any_element());
+            rows.push(
+                div()
+                    .flex()
+                    .gap(px(layout.gap))
+                    .children(row)
+                    .into_any_element(),
+            );
         }
 
         div()
@@ -2139,13 +2534,7 @@ impl ConsoleView {
                                     .child(launcher_legend_chip("Records", t.gated)),
                             ),
                     )
-                    .child(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap(px(layout.gap))
-                            .children(rows),
-                    )
+                    .child(div().flex().flex_col().gap(px(layout.gap)).children(rows))
                     .child(
                         div()
                             .text_color(rgb(t.muted))
@@ -2165,7 +2554,14 @@ impl ConsoleView {
     pub fn push_alert(&mut self, alert: Alert) {
         // Immediate feedback: a short head; the full detail lives in the log /
         // HITL surface (never truncated at the source).
-        let head: String = alert.detail.lines().next().unwrap_or(&alert.detail).chars().take(120).collect();
+        let head: String = alert
+            .detail
+            .lines()
+            .next()
+            .unwrap_or(&alert.detail)
+            .chars()
+            .take(120)
+            .collect();
         self.control_flash = Some(match alert.level {
             AlertLevel::Error => format!("✕ {} — {head}", alert.title),
             AlertLevel::Warn => format!("⚑ {} — {head}", alert.title),
@@ -2271,7 +2667,13 @@ impl ConsoleView {
 
     /// Recursively render the pane tree. Splits become weighted flex
     /// containers (so `resize` is visible); leaves render their surface.
-    fn render_node(&self, node: &Node, focused: PaneId, path: &[usize], cx: &mut Context<Self>) -> AnyElement {
+    fn render_node(
+        &self,
+        node: &Node,
+        focused: PaneId,
+        path: &[usize],
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         match node {
             Node::Split { dir, children } => {
                 let total: f32 = children.iter().map(|c| c.weight).sum::<f32>().max(0.0001);
@@ -2348,15 +2750,35 @@ impl ConsoleView {
         // The chat surface renders bespoke bubbles (from view state) + a focused
         // composer, NOT the generic Block list. Snapshot the transcript for this frame.
         let is_chat = matches!(surface, SurfaceKind::CartographerChat);
-        let chat_msgs: Vec<ChatMsg> = if is_chat { self.chat.messages.clone() } else { Vec::new() };
-        let chat_error: Option<String> = if is_chat { self.chat.error.clone() } else { None };
-        let chat_state: Option<ChatState> = if is_chat { Some(self.chat.state()) } else { None };
-        let chat_input = if is_chat { self.chat_input.clone() } else { String::new() };
+        let chat_msgs: Vec<ChatMsg> = if is_chat {
+            self.chat.messages.clone()
+        } else {
+            Vec::new()
+        };
+        let chat_error: Option<String> = if is_chat {
+            self.chat.error.clone()
+        } else {
+            None
+        };
+        let chat_state: Option<ChatState> = if is_chat {
+            Some(self.chat.state())
+        } else {
+            None
+        };
+        let chat_input = if is_chat {
+            self.chat_input.clone()
+        } else {
+            String::new()
+        };
         let chat_reduced = reduced_motion();
         let conjure_flash = self.control_flash.clone();
         // The rendered Vello PNG (if any) for the inline node-graph at the top of
         // the Conjure surface. `None` ⇒ a tasteful "rendering graph…" placeholder.
-        let conjure_png = if is_conjure { self.conjure_png_path.clone() } else { None };
+        let conjure_png = if is_conjure {
+            self.conjure_png_path.clone()
+        } else {
+            None
+        };
         let conjure_title = self.conjure_dag.title.clone();
         let conjure_wave_count = self.conjure_dag.waves.len();
         // How many nodes "Dispatch DAG" would spawn (non-HITL-gated) vs hold back.
@@ -2365,16 +2787,29 @@ impl ConsoleView {
         // The FileTree surface (P0 Harbor wiring): clickable rows — a file row
         // opens the Editor surface; a directory row descends (rebinds the root).
         let filetree: Option<(Option<String>, Vec<FileEntry>)> = match surface {
-            SurfaceKind::FileTree { root } => {
-                Some((root.clone(), filetree_entries(root.as_deref()).unwrap_or_default()))
-            }
+            SurfaceKind::FileTree { root } => Some((
+                root.clone(),
+                filetree_entries(root.as_deref()).unwrap_or_default(),
+            )),
             _ => None,
         };
+        // The fleet/cockpit surfaces (focused) get the agent ops gate (kill /
+        // interrupt). Both read `/agents`, so they share the roster.
+        let is_fleet_ops = matches!(nav_id_for_surface(surface), Some("fleet") | Some("cockpit"));
         let dispatch_head = self.dispatch_head.clone();
         let gate_flash = self.control_flash.clone();
         let cond_flash = self.control_flash.clone();
-        let border = if is_focused { current_theme().accent_ink } else { current_theme().line };
-        let title_color = if is_focused { current_theme().accent_ink } else { current_theme().muted };
+        let fleet_flash = self.control_flash.clone();
+        let border = if is_focused {
+            current_theme().accent_ink
+        } else {
+            current_theme().line
+        };
+        let title_color = if is_focused {
+            current_theme().accent_ink
+        } else {
+            current_theme().muted
+        };
         let control_flash = self.control_flash.clone();
 
         div()
@@ -2786,6 +3221,51 @@ impl ConsoleView {
                         }),
                 )
             })
+            // ── Fleet/Cockpit agent ops GATE (focused roster surface) — the
+            //    operator's per-agent wheel: Kill (DELETE /agents/:id, unregister)
+            //    and Interrupt (POST /agents/:id/interrupt). Both open a targeted
+            //    command line that takes the agent id, rather than faking a row
+            //    selection the data model doesn't carry — honest, no dead button. ──
+            .when(is_fleet_ops && is_focused, |content| {
+                content.child(
+                    div()
+                        .px(px(10.0))
+                        .py(px(8.0))
+                        .border_t_1()
+                        .border_color(rgb(current_theme().line))
+                        .flex()
+                        .flex_col()
+                        .gap(px(6.0))
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("\u{2693} Agent ops \u{2014} target by id"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(current_theme().muted))
+                                .text_size(px(14.0))
+                                .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .gap(px(8.0))
+                                .child(fleet_ops_btn("kill", "\u{2715} Kill agent\u{2026}", current_theme().conflict, cx))
+                                .child(fleet_ops_btn("interrupt", "\u{25fc} Interrupt\u{2026}", current_theme().gated, cx)),
+                        )
+                        .when_some(fleet_flash, |c, flash| {
+                            c.child(
+                                div()
+                                    .text_color(rgb(current_theme().muted))
+                                    .text_size(px(14.0))
+                                    .child(flash),
+                            )
+                        }),
+                )
+            })
             .into_any_element()
     }
 }
@@ -2908,12 +3388,18 @@ fn console_button(
                 .repeat()
                 .with_easing(pulsating_between(0.5, 1.0)),
             move |el, delta| {
-                el.shadow(motion::glow(color, 0.10 + delta * 0.28, 6.0 + delta * 8.0, 0.0))
+                el.shadow(motion::glow(
+                    color,
+                    0.10 + delta * 0.28,
+                    6.0 + delta * 8.0,
+                    0.0,
+                ))
             },
         )
         .into_any_element()
     } else if opts.selected {
-        row.shadow(motion::glow(color, 0.30, 10.0, 0.0)).into_any_element()
+        row.shadow(motion::glow(color, 0.30, 10.0, 0.0))
+            .into_any_element()
     } else {
         row.into_any_element()
     }
@@ -2972,13 +3458,45 @@ fn gate_btn(
         .font_weight(FontWeight::SEMIBOLD)
         .cursor_pointer()
         .child(label)
-        .hover(move |s| s.bg(rgb(current_theme().raised)).shadow(motion::glow(color, 0.22, 8.0, 0.0)))
+        .hover(move |s| {
+            s.bg(rgb(current_theme().raised))
+                .shadow(motion::glow(color, 0.22, 8.0, 0.0))
+        })
         .active(|s| s.bg(rgb(current_theme().sunken)))
         .child(label)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
             on_click(this, cx);
             cx.notify();
         }))
+}
+
+/// One fleet/cockpit agent-ops button. Both open a targeted command line that
+/// takes the agent id: `kill` → `CmdKind::Kill` (DELETE /agents/:id); `interrupt`
+/// → reuses the Lane's interrupt path scoped to the typed agent. Opening a
+/// command line keeps the trigger honest: the operator names the agent, then the
+/// ControlMsg fires on submit.
+fn fleet_ops_btn(
+    action: &'static str,
+    label: &'static str,
+    color: u32,
+    cx: &mut Context<ConsoleView>,
+) -> AnyElement {
+    console_button(
+        SharedString::from(format!("fleetops-{action}")),
+        label,
+        color,
+        ButtonOpts::default(),
+        cx,
+        move |this, _cx| match action {
+            "kill" => {
+                this.command = Some(CommandLine::new(CmdKind::Kill));
+            }
+            "interrupt" => {
+                this.command = Some(CommandLine::new(CmdKind::InterruptAgent));
+            }
+            _ => {}
+        },
+    )
 }
 
 /// Commitment → render accent (mirrors the Vello scene's `commitment_color`):
@@ -3060,7 +3578,11 @@ fn conjure_card(
     );
     let gate = node.ask_user_before_proceeding;
     let border = if is_selected { theme.accent } else { accent };
-    let bg = if is_selected { theme.raised } else { theme.panel };
+    let bg = if is_selected {
+        theme.raised
+    } else {
+        theme.panel
+    };
 
     let card = div()
         .id(SharedString::from(format!("conjure-card-{id}-{nid}")))
@@ -3153,7 +3675,8 @@ fn conjure_card(
         .into_any_element()
     } else {
         let a = if tentative { 0.16 } else { 0.07 };
-        card.shadow(motion::glow(accent, a, 10.0, 0.0)).into_any_element()
+        card.shadow(motion::glow(accent, a, 10.0, 0.0))
+            .into_any_element()
     }
 }
 
@@ -3198,7 +3721,11 @@ fn conjure_canvas(
             let cap = format!(
                 "WAVE {}  {}",
                 wave.wave_number,
-                if wave.parallelizable { "//  PARALLEL" } else { "\u{00b7}  SERIAL" }
+                if wave.parallelizable {
+                    "//  PARALLEL"
+                } else {
+                    "\u{00b7}  SERIAL"
+                }
             );
             let cards: Vec<AnyElement> = wave
                 .nodes
@@ -3223,7 +3750,12 @@ fn conjure_canvas(
 
     // The selected node's full inspector (role, why, contracts, model, cost…).
     let inspector: Option<AnyElement> = selected
-        .and_then(|sel| dag.waves.iter().flat_map(|w| &w.nodes).find(|n| n.id == sel))
+        .and_then(|sel| {
+            dag.waves
+                .iter()
+                .flat_map(|w| &w.nodes)
+                .find(|n| n.id == sel)
+        })
         .map(|node| conjure_inspector(node, cx));
 
     div()
@@ -3383,11 +3915,7 @@ fn conjure_inspector(
 /// never blank. The image is loaded from an ABSOLUTE path via `gpui::img(PathBuf)`
 /// (a `Resource::Path` read directly off disk — NOT through the embedded asset
 /// source), so it works for the live-rendered PNG outside the `assets/` dir.
-fn conjure_graphic(
-    id: PaneId,
-    png: Option<std::path::PathBuf>,
-    title: &str,
-) -> impl IntoElement {
+fn conjure_graphic(id: PaneId, png: Option<std::path::PathBuf>, title: &str) -> impl IntoElement {
     let frame = div()
         .id(SharedString::from(format!("conjure-graphic-{id}")))
         .flex()
@@ -3543,7 +4071,11 @@ fn theme_toggle_btn(cx: &mut Context<ConsoleView>) -> impl IntoElement {
 fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
     let t = current_theme();
     let mine = msg.mine;
-    let sender_label = if mine { "you".to_string() } else { chat_display_text(&msg.sender) };
+    let sender_label = if mine {
+        "you".to_string()
+    } else {
+        chat_display_text(&msg.sender)
+    };
 
     // Eyebrow: who spoke (caption weight) — color = meaning, plus the label so a
     // role is never conveyed by color alone.
@@ -3617,9 +4149,13 @@ fn chat_bubble(idx: usize, msg: &ChatMsg, reduced: bool) -> AnyElement {
         .px(px(tokens::SPACE_3))
         .py(px(tokens::SPACE_1));
     if mine {
-        row.child(div().flex_1()).child(bubble_el).into_any_element()
+        row.child(div().flex_1())
+            .child(bubble_el)
+            .into_any_element()
     } else {
-        row.child(bubble_el).child(div().flex_1()).into_any_element()
+        row.child(bubble_el)
+            .child(div().flex_1())
+            .into_any_element()
     }
 }
 
@@ -3736,9 +4272,9 @@ fn chat_composer(input: &str, reduced: bool, cx: &mut Context<ConsoleView>) -> A
                         .text_size(px(tokens::TEXT_BODY))
                         .font_family("IBM Plex Mono");
                     if input.is_empty() {
-                        field
-                            .text_color(rgb(t.muted))
-                            .child("Message the cartographer…  (Enter to send · Shift+Enter newline)")
+                        field.text_color(rgb(t.muted)).child(
+                            "Message the cartographer…  (Enter to send · Shift+Enter newline)",
+                        )
                     } else {
                         field.text_color(rgb(t.ink)).child(chat_display_text(input))
                     }
@@ -3808,11 +4344,18 @@ fn render_open_command(
                 .child(prompt_label),
         )
         .child({
-            let field = div().flex_1().text_size(px(14.0)).font_family("IBM Plex Mono");
+            let field = div()
+                .flex_1()
+                .text_size(px(14.0))
+                .font_family("IBM Plex Mono");
             if cmd.buffer.is_empty() {
-                field.text_color(rgb(current_theme().muted)).child(placeholder.to_string())
+                field
+                    .text_color(rgb(current_theme().muted))
+                    .child(placeholder.to_string())
             } else {
-                field.text_color(rgb(current_theme().ink)).child(format!("› {}▏", cmd.buffer))
+                field
+                    .text_color(rgb(current_theme().ink))
+                    .child(format!("› {}▏", cmd.buffer))
             }
         })
         .child(
@@ -3919,7 +4462,10 @@ fn render_spawn_picker(
         }
         SpawnStep::Tier => {
             let backend = cmd.backend.unwrap_or(Backend::Claude);
-            for (i, t) in filtered_tiers(catalog, backend, &cmd.buffer).into_iter().enumerate() {
+            for (i, t) in filtered_tiers(catalog, backend, &cmd.buffer)
+                .into_iter()
+                .enumerate()
+            {
                 let hot = i + 1;
                 row = row.child(
                     div()
@@ -3968,25 +4514,31 @@ fn dispatch_gate_btn(
     id: String,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    gate_btn(format!("gate-{action}"), label, color, cx, move |this, _cx| match action {
-        "approve" => {
-            if let Some(tx) = &this.control_tx {
-                let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
+    gate_btn(
+        format!("gate-{action}"),
+        label,
+        color,
+        cx,
+        move |this, _cx| match action {
+            "approve" => {
+                if let Some(tx) = &this.control_tx {
+                    let _ = tx.send(ControlMsg::DispatchAccept { id: id.clone() });
+                }
+                this.control_flash = Some("dispatch approved \u{2192} landing".into());
             }
-            this.control_flash = Some("dispatch approved \u{2192} landing".into());
-        }
-        "cancel" => {
-            if let Some(tx) = &this.control_tx {
-                let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
+            "cancel" => {
+                if let Some(tx) = &this.control_tx {
+                    let _ = tx.send(ControlMsg::DispatchCancel { id: id.clone() });
+                }
+                this.control_flash = Some("dispatch cancelled".into());
             }
-            this.control_flash = Some("dispatch cancelled".into());
-        }
-        "reject" => {
-            this.reject_target = Some(id.clone());
-            this.command = Some(CommandLine::new(CmdKind::DispatchReject));
-        }
-        _ => {}
-    })
+            "reject" => {
+                this.reject_target = Some(id.clone());
+                this.command = Some(CommandLine::new(CmdKind::DispatchReject));
+            }
+            _ => {}
+        },
+    )
 }
 
 /// One Conductor fleet-control button (ADR-0060): halt/pause/resume the whole
@@ -3997,25 +4549,62 @@ fn conductor_gate_btn(
     color: u32,
     cx: &mut Context<ConsoleView>,
 ) -> impl IntoElement {
-    gate_btn(format!("fleet-{action}"), label, color, cx, move |this, _cx| {
-        if let Some(tx) = &this.control_tx {
-            let msg = match action {
-                "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
-                "pause" => Some(ControlMsg::FleetPause { root_id: None }),
-                "resume" => Some(ControlMsg::FleetResume { root_id: None }),
-                _ => None,
-            };
-            if let Some(m) = msg {
-                let _ = tx.send(m);
+    gate_btn(
+        format!("fleet-{action}"),
+        label,
+        color,
+        cx,
+        move |this, _cx| {
+            if let Some(tx) = &this.control_tx {
+                let msg = match action {
+                    "halt" => Some(ControlMsg::FleetHalt { root_id: None }),
+                    "pause" => Some(ControlMsg::FleetPause { root_id: None }),
+                    "resume" => Some(ControlMsg::FleetResume { root_id: None }),
+                    _ => None,
+                };
+                if let Some(m) = msg {
+                    let _ = tx.send(m);
+                }
             }
-        }
-        this.control_flash = Some(match action {
-            "halt" => "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string(),
-            "pause" => "fleet paused \u{2192} no new admissions".to_string(),
-            "resume" => "fleet resumed".to_string(),
-            _ => String::new(),
-        });
-    })
+            this.control_flash = Some(match action {
+                "halt" => {
+                    "fleet halt sent \u{2192} SIGTERM\u{2192}SIGKILL, bonds refunded".to_string()
+                }
+                "pause" => "fleet paused \u{2192} no new admissions".to_string(),
+                "resume" => "fleet resumed".to_string(),
+                _ => String::new(),
+            });
+        },
+    )
+}
+
+/// Parse a verb-palette line (`<verb> <args>`) into its concrete `CmdKind` plus
+/// the trimmed argument string. The verb is the first whitespace-delimited token;
+/// everything after is the argument (which may be empty for `done`). Returns
+/// `None` for an unknown verb so the caller can flash a hint. Aliases keep the
+/// muscle memory short (`spawn`/`new`, `cartographer`/`chat`).
+fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
+    let trimmed = text.trim();
+    let (verb, arg) = match trimmed.split_once(char::is_whitespace) {
+        Some((v, rest)) => (v, rest.trim().to_string()),
+        None => (trimmed, String::new()),
+    };
+    let kind = match verb.to_lowercase().as_str() {
+        "note" => CmdKind::Note,
+        "begin" => CmdKind::Begin,
+        "done" | "end" => CmdKind::Done,
+        "propose" | "dispatch" => CmdKind::Propose,
+        "sortie" => CmdKind::Sortie,
+        "claim" => CmdKind::Claim,
+        "release" => CmdKind::Release,
+        "kill" => CmdKind::Kill,
+        "interrupt" | "stop" => CmdKind::InterruptAgent,
+        "spawn" | "new" => CmdKind::Spawn,
+        "cartographer" | "chat" => CmdKind::Cartographer,
+        "pane" | "addpane" => CmdKind::AddPane,
+        _ => return None,
+    };
+    Some((kind, arg))
 }
 
 /// Split a spawn command into `(backend, prompt)`. If the first whitespace
@@ -4023,7 +4612,14 @@ fn conductor_gate_btn(
 /// string is the prompt and the backend defaults to `claude-cli`.
 fn split_backend(text: &str) -> (String, String) {
     const BACKENDS: &[&str] = &[
-        "ollama", "claude", "claude-cli", "gemini", "cloudflare", "codex", "aider", "custom",
+        "ollama",
+        "claude",
+        "claude-cli",
+        "gemini",
+        "cloudflare",
+        "codex",
+        "aider",
+        "custom",
     ];
     if let Some((first, rest)) = text.split_once(char::is_whitespace) {
         if BACKENDS.contains(&first) && !rest.trim().is_empty() {
@@ -4055,8 +4651,14 @@ fn pane_ctrl(
         // raised chip, and snap a glow — the per-control "press" cue.
         .hover(move |s| {
             let t = current_theme();
-            let (tint, glow) = if kind == "close" { (t.gated, t.gated) } else { (t.ink, t.accent) };
-            s.bg(rgb(t.raised)).text_color(rgb(tint)).shadow(motion::glow(glow, 0.22, 8.0, 0.0))
+            let (tint, glow) = if kind == "close" {
+                (t.gated, t.gated)
+            } else {
+                (t.ink, t.accent)
+            };
+            s.bg(rgb(t.raised))
+                .text_color(rgb(tint))
+                .shadow(motion::glow(glow, 0.22, 8.0, 0.0))
         })
         .child(glyph)
         .on_click(cx.listener(move |this, _ev, _window, cx| {
@@ -4118,7 +4720,11 @@ fn render_filetree_row(
         )
         .child(
             div()
-                .text_color(rgb(if is_dir { current_theme().accent_ink } else { current_theme().ink }))
+                .text_color(rgb(if is_dir {
+                    current_theme().accent_ink
+                } else {
+                    current_theme().ink
+                }))
                 .text_size(px(14.0))
                 .font_family("IBM Plex Mono")
                 .child(entry.name.clone()),
@@ -4130,8 +4736,10 @@ fn render_filetree_row(
                 this.ws_mut().bind_entity(Some(path.clone()));
             } else {
                 // Open the file in the Harbor Editor surface.
-                this.ws_mut()
-                    .swap_surface(SurfaceKind::Editor { path: path.clone(), region: None });
+                this.ws_mut().swap_surface(SurfaceKind::Editor {
+                    path: path.clone(),
+                    region: None,
+                });
             }
             cx.notify();
         }))
@@ -4147,7 +4755,9 @@ fn surface_for_nav_id(nav: &str) -> SurfaceKind {
         "fleet" => SurfaceKind::Fleet,
         "sessions" => SurfaceKind::Sessions,
         "dispatch" => SurfaceKind::Dispatch,
-        other => SurfaceKind::Panel { nav: other.to_string() },
+        other => SurfaceKind::Panel {
+            nav: other.to_string(),
+        },
     }
 }
 
@@ -4179,9 +4789,18 @@ impl Focusable for ConsoleView {
 
 /// One draggable pane divider — a 6px hit-zone with a centered hairline that
 /// thickens/glows on hover; mouse-down arms a `DragState` the window handler reads.
-fn split_divider(path: Vec<usize>, left: usize, dir: Dir, cx: &mut Context<ConsoleView>) -> impl IntoElement {
+fn split_divider(
+    path: Vec<usize>,
+    left: usize,
+    dir: Dir,
+    cx: &mut Context<ConsoleView>,
+) -> impl IntoElement {
     let row = matches!(dir, Dir::Row);
-    let key = path.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("_");
+    let key = path
+        .iter()
+        .map(|x| x.to_string())
+        .collect::<Vec<_>>()
+        .join("_");
     let mut zone = div()
         .id(SharedString::from(format!("divider-{key}-{left}")))
         .flex_none()
@@ -4189,26 +4808,43 @@ fn split_divider(path: Vec<usize>, left: usize, dir: Dir, cx: &mut Context<Conso
         .flex()
         .items_center()
         .justify_center()
-        .cursor(if row { CursorStyle::ResizeLeftRight } else { CursorStyle::ResizeUpDown })
+        .cursor(if row {
+            CursorStyle::ResizeLeftRight
+        } else {
+            CursorStyle::ResizeUpDown
+        })
         .hover(|s| s.bg(rgb(current_theme().accent)));
-    zone = if row { zone.w(px(6.0)).h_full() } else { zone.h(px(6.0)).w_full() };
+    zone = if row {
+        zone.w(px(6.0)).h_full()
+    } else {
+        zone.h(px(6.0)).w_full()
+    };
     let mut line = div().bg(rgb(current_theme().line));
-    line = if row { line.w(px(1.0)).h_full() } else { line.h(px(1.0)).w_full() };
-    zone.child(line).on_mouse_down(
-        MouseButton::Left,
-        cx.listener(move |this, _ev, _window, cx| {
-            this.dragging = Some(DragState { path: path.clone(), left, dir });
-            cx.notify();
-        }),
-    )
-    .on_mouse_up(
-        MouseButton::Left,
-        cx.listener(|this, _ev, _window, cx| {
-            if this.dragging.take().is_some() {
+    line = if row {
+        line.w(px(1.0)).h_full()
+    } else {
+        line.h(px(1.0)).w_full()
+    };
+    zone.child(line)
+        .on_mouse_down(
+            MouseButton::Left,
+            cx.listener(move |this, _ev, _window, cx| {
+                this.dragging = Some(DragState {
+                    path: path.clone(),
+                    left,
+                    dir,
+                });
                 cx.notify();
-            }
-        }),
-    )
+            }),
+        )
+        .on_mouse_up(
+            MouseButton::Left,
+            cx.listener(|this, _ev, _window, cx| {
+                if this.dragging.take().is_some() {
+                    cx.notify();
+                }
+            }),
+        )
 }
 
 /// The always-visible NAV rail — the GUI replacement for `Ctrl-A <key>` surface
@@ -4252,7 +4888,11 @@ fn render_nav_rail(active: Option<&str>, cx: &mut Context<ConsoleView>) -> impl 
                 .py(px(5.0))
                 .rounded(px(6.0))
                 .text_size(px(14.0))
-                .font_weight(if is_active { FontWeight::SEMIBOLD } else { FontWeight::MEDIUM })
+                .font_weight(if is_active {
+                    FontWeight::SEMIBOLD
+                } else {
+                    FontWeight::MEDIUM
+                })
                 .text_color(rgb(if is_active {
                     current_theme().accent_ink
                 } else {
@@ -4313,13 +4953,14 @@ impl Render for ConsoleView {
             .map(|(i, t)| (i, t.name.clone(), i == self.active_tab))
             .collect();
         // Body: a single maximized pane, or the full tree.
-        let body: AnyElement = match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
-            Some((zid, surf)) => self.render_leaf(zid, &surf, true, cx),
-            None => {
-                let root = self.ws().root.clone();
-                self.render_node(&root, focused, &[], cx)
-            }
-        };
+        let body: AnyElement =
+            match zoomed.and_then(|zid| self.ws().surface_at(zid).cloned().map(|s| (zid, s))) {
+                Some((zid, surf)) => self.render_leaf(zid, &surf, true, cx),
+                None => {
+                    let root = self.ws().root.clone();
+                    self.render_node(&root, focused, &[], cx)
+                }
+            };
         // The pane launcher overlay (when open) is the last child so it paints on top.
         let launcher = if self.launcher_open {
             Some(self.render_launcher(window, cx))
@@ -4636,7 +5277,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · [1-9…] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · : verb-palette (note/begin/done/propose/sortie/claim/release/kill/interrupt) · [1-9…] surface",
                             )
                             .into_any_element()
                     } else {
@@ -4665,8 +5306,14 @@ mod add_pane_tests {
     #[test]
     fn picker_matches_nav_by_id_label_and_key() {
         // Dedicated-variant surfaces resolve to their own kind.
-        assert!(matches!(surface_for_query("fleet"), Some(SurfaceKind::Fleet)));
-        assert!(matches!(surface_for_query("roadmap"), Some(SurfaceKind::Roadmap)));
+        assert!(matches!(
+            surface_for_query("fleet"),
+            Some(SurfaceKind::Fleet)
+        ));
+        assert!(matches!(
+            surface_for_query("roadmap"),
+            Some(SurfaceKind::Roadmap)
+        ));
         // The new Cost ledger resolves via the generic Panel path (nav id "ledger").
         match surface_for_query("cost") {
             Some(SurfaceKind::Panel { nav }) => assert_eq!(nav, "ledger"),
@@ -4681,32 +5328,68 @@ mod add_pane_tests {
 
     #[test]
     fn picker_matches_non_nav_surfaces() {
-        assert!(matches!(surface_for_query("chat"), Some(SurfaceKind::CartographerChat)));
-        assert!(matches!(surface_for_query("files"), Some(SurfaceKind::FileTree { .. })));
-        assert!(matches!(surface_for_query("tree"), Some(SurfaceKind::FileTree { .. })));
-        assert!(matches!(surface_for_query("alerts"), Some(SurfaceKind::Hitl)));
+        assert!(matches!(
+            surface_for_query("chat"),
+            Some(SurfaceKind::CartographerChat)
+        ));
+        assert!(matches!(
+            surface_for_query("files"),
+            Some(SurfaceKind::FileTree { .. })
+        ));
+        assert!(matches!(
+            surface_for_query("tree"),
+            Some(SurfaceKind::FileTree { .. })
+        ));
+        assert!(matches!(
+            surface_for_query("alerts"),
+            Some(SurfaceKind::Hitl)
+        ));
     }
 
     #[test]
     fn picker_matches_conjure_surface() {
         // Both the surface name and its alias "plan" resolve to Conjure.
-        assert!(matches!(surface_for_query("conjure"), Some(SurfaceKind::Conjure)));
-        assert!(matches!(surface_for_query("plan"), Some(SurfaceKind::Conjure)));
+        assert!(matches!(
+            surface_for_query("conjure"),
+            Some(SurfaceKind::Conjure)
+        ));
+        assert!(matches!(
+            surface_for_query("plan"),
+            Some(SurfaceKind::Conjure)
+        ));
         // Conjure is not backed by a NAV pane — it renders the fixture DAG.
         assert!(nav_id_for_surface(&SurfaceKind::Conjure).is_none());
-        assert_eq!(launcher_id_for_surface(&SurfaceKind::Conjure).as_deref(), Some("conjure"));
+        assert_eq!(
+            launcher_id_for_surface(&SurfaceKind::Conjure).as_deref(),
+            Some("conjure")
+        );
     }
 
     #[test]
     fn launcher_exposes_every_foreground_surface() {
-        let ids = launcher_items().into_iter().map(|item| item.id).collect::<Vec<_>>();
+        let ids = launcher_items()
+            .into_iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>();
         for id in ["chat", "files", "alerts", "conjure"] {
             assert!(ids.contains(&id), "launcher must expose {id}");
         }
-        assert!(matches!(surface_for_launcher_id("chat"), SurfaceKind::CartographerChat));
-        assert!(matches!(surface_for_launcher_id("files"), SurfaceKind::FileTree { .. }));
-        assert!(matches!(surface_for_launcher_id("alerts"), SurfaceKind::Hitl));
-        assert!(matches!(surface_for_launcher_id("conjure"), SurfaceKind::Conjure));
+        assert!(matches!(
+            surface_for_launcher_id("chat"),
+            SurfaceKind::CartographerChat
+        ));
+        assert!(matches!(
+            surface_for_launcher_id("files"),
+            SurfaceKind::FileTree { .. }
+        ));
+        assert!(matches!(
+            surface_for_launcher_id("alerts"),
+            SurfaceKind::Hitl
+        ));
+        assert!(matches!(
+            surface_for_launcher_id("conjure"),
+            SurfaceKind::Conjure
+        ));
     }
 
     #[test]
@@ -4743,7 +5426,10 @@ mod add_pane_tests {
             Some(SurfaceKind::Editor { .. })
         ));
         // `:edit` with no path is not an Editor open (falls through to nav match).
-        assert!(!matches!(surface_for_query(":edit "), Some(SurfaceKind::Editor { .. })));
+        assert!(!matches!(
+            surface_for_query(":edit "),
+            Some(SurfaceKind::Editor { .. })
+        ));
     }
 
     #[test]
@@ -4752,7 +5438,9 @@ mod add_pane_tests {
         // contract against a synthesized listing instead of the real FS shape.
         let dir = std::env::var("HOME")
             .map(|h| std::path::PathBuf::from(h).join("coding/tmp/pd-harbor-ft-test"))
-            .unwrap_or_else(|_| std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/ft-test"));
+            .unwrap_or_else(|_| {
+                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/ft-test")
+            });
         std::fs::create_dir_all(dir.join("zsub")).unwrap();
         std::fs::write(dir.join("afile.txt"), "x").unwrap();
         std::fs::write(dir.join("bfile.txt"), "y").unwrap();
@@ -4760,24 +5448,117 @@ mod add_pane_tests {
         // Directory ("zsub/") sorts before files despite z > a/b alphabetically.
         assert!(entries[0].is_dir);
         assert_eq!(entries[0].name, "zsub/");
-        let files: Vec<&str> = entries.iter().filter(|e| !e.is_dir).map(|e| e.name.as_str()).collect();
+        let files: Vec<&str> = entries
+            .iter()
+            .filter(|e| !e.is_dir)
+            .map(|e| e.name.as_str())
+            .collect();
         assert_eq!(files, vec!["afile.txt", "bfile.txt"]);
     }
 
     #[test]
     fn picker_is_case_insensitive_and_rejects_unknown() {
-        assert!(matches!(surface_for_query("FLEET"), Some(SurfaceKind::Fleet)));
-        assert!(surface_for_query("").is_none(), "empty query matches nothing");
-        assert!(surface_for_query("zzzznope").is_none(), "unknown surface matches nothing");
+        assert!(matches!(
+            surface_for_query("FLEET"),
+            Some(SurfaceKind::Fleet)
+        ));
+        assert!(
+            surface_for_query("").is_none(),
+            "empty query matches nothing"
+        );
+        assert!(
+            surface_for_query("zzzznope").is_none(),
+            "unknown surface matches nothing"
+        );
     }
 
     #[test]
     fn build_stamp_carries_version() {
         let stamp = build_stamp();
-        assert!(stamp.starts_with("pd-console v"), "stamp must name the app: {stamp}");
-        assert!(stamp.contains(env!("CARGO_PKG_VERSION")), "stamp must carry the crate version: {stamp}");
+        assert!(
+            stamp.starts_with("pd-console v"),
+            "stamp must name the app: {stamp}"
+        );
+        assert!(
+            stamp.contains(env!("CARGO_PKG_VERSION")),
+            "stamp must carry the crate version: {stamp}"
+        );
     }
 
     // The launcher-grid 1:1 invariant tests live in `crate::grid` (gpui-free) so
     // they run in the headless REPL bin under the rust-console gate.
+
+    #[test]
+    fn parse_verb_routes_every_write() {
+        // Each operator write resolves to its concrete CmdKind, arg preserved.
+        let cases = [
+            ("note shipped the gate", CmdKind::Note, "shipped the gate"),
+            (
+                "begin port-daddy:console:main",
+                CmdKind::Begin,
+                "port-daddy:console:main",
+            ),
+            (
+                "propose land the console PR",
+                CmdKind::Propose,
+                "land the console PR",
+            ),
+            (
+                "sortie refactor the executor",
+                CmdKind::Sortie,
+                "refactor the executor",
+            ),
+            (
+                "claim port-daddy:api:main",
+                CmdKind::Claim,
+                "port-daddy:api:main",
+            ),
+            (
+                "release port-daddy:api:main",
+                CmdKind::Release,
+                "port-daddy:api:main",
+            ),
+            ("kill agent-xyz", CmdKind::Kill, "agent-xyz"),
+            ("interrupt agent-xyz", CmdKind::InterruptAgent, "agent-xyz"),
+        ];
+        for (line, kind, arg) in cases {
+            let (k, a) = parse_verb(line).unwrap_or_else(|| panic!("'{line}' must parse"));
+            assert_eq!(k, kind, "verb in '{line}' must route to {kind:?}");
+            assert_eq!(a, arg, "arg in '{line}' must be preserved");
+        }
+    }
+
+    #[test]
+    fn parse_verb_done_allows_empty_arg_and_aliases() {
+        // `done` with no summary is valid (the summary is optional).
+        assert_eq!(parse_verb("done"), Some((CmdKind::Done, String::new())));
+        assert_eq!(
+            parse_verb("end wrapped up"),
+            Some((CmdKind::Done, "wrapped up".to_string()))
+        );
+        // Aliases keep muscle memory short.
+        assert!(matches!(
+            parse_verb("dispatch land it"),
+            Some((CmdKind::Propose, _))
+        ));
+        assert!(matches!(
+            parse_verb("chat hey carto"),
+            Some((CmdKind::Cartographer, _))
+        ));
+        assert!(matches!(
+            parse_verb("stop agent-1"),
+            Some((CmdKind::InterruptAgent, _))
+        ));
+    }
+
+    #[test]
+    fn parse_verb_rejects_unknown_and_is_case_insensitive() {
+        assert!(parse_verb("frobnicate the widget").is_none());
+        assert!(parse_verb("").is_none());
+        // Case folds on the verb token.
+        assert!(matches!(
+            parse_verb("KILL agent-7"),
+            Some((CmdKind::Kill, _))
+        ));
+    }
 }

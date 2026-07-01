@@ -8,8 +8,8 @@
 //! Run:  cargo run --bin pd-console
 //! REPL: cargo run --bin pd-console-repl
 
-mod activity_pane;
 mod active_agents_pane;
+mod activity_pane;
 mod adrs_pane;
 mod agent;
 mod app;
@@ -17,12 +17,13 @@ mod audio;
 mod berths;
 mod buffer;
 mod chat;
-mod cli_args;
-mod daemon_pane;
 mod claims_pane;
+mod cli_args;
 mod cloud_fleet_pane;
 mod cockpit_pane;
+mod conductor_pane;
 mod conjure;
+mod daemon_pane;
 mod dispatch_pane;
 mod editor_pane;
 mod fleet_pane;
@@ -32,34 +33,35 @@ mod inbox_pane;
 mod lane_pane;
 mod ledger_pane;
 mod lineage_pane;
-mod substrate_pane;
-mod parley_pane;
-mod conductor_pane;
 mod maritime;
 mod mux;
-mod palette;
 mod notes_pane;
+mod palette;
 mod pane;
+mod parley_pane;
 mod peek_pane;
 mod planner_pane;
 mod prs_pane;
 mod roadmap_pane;
 mod sessions_pane;
 mod sortie_pane;
+mod substrate_pane;
 mod suggest_pane;
 mod term;
 mod theme;
 mod tokens;
 mod util;
 
-use activity_pane::ActivityPane;
 use active_agents_pane::ActiveAgentsPane;
+use activity_pane::ActivityPane;
 use adrs_pane::AdrsPane;
 use agent::DaemonClient;
 use app::ConsoleView;
 use claims_pane::ClaimsPane;
 use cloud_fleet_pane::CloudFleetPane;
 use cockpit_pane::CockpitPane;
+use conductor_pane::ConductorPane;
+use daemon_pane::DaemonPane;
 use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use health_pane::HealthPane;
@@ -67,12 +69,9 @@ use inbox_pane::InboxPane;
 use lane_pane::LanePane;
 use ledger_pane::LedgerPane;
 use lineage_pane::LineagePane;
-use substrate_pane::SubstratePane;
-use parley_pane::ParleyPane;
-use conductor_pane::ConductorPane;
-use daemon_pane::DaemonPane;
 use notes_pane::NotesPane;
 use pane::{CoastGuardPane, Pane, SurfaceAction};
+use parley_pane::ParleyPane;
 use peek_pane::PeekPane;
 use planner_pane::PlannerPane;
 use prs_pane::PrsPane;
@@ -80,6 +79,7 @@ use prs_pane::PrsPane;
 use roadmap_pane::RoadmapPane;
 use sessions_pane::SessionsPane;
 use sortie_pane::SortiePane;
+use substrate_pane::SubstratePane;
 use suggest_pane::SuggestPane;
 
 use cli_args::{parse_console_args, resolve_display_selector};
@@ -147,11 +147,18 @@ fn render_conjure_png(dag_json: &str) -> anyhow::Result<std::path::PathBuf> {
             "capture.sh exited {}: {}{}",
             status.status,
             stderr.trim(),
-            if stderr.trim().is_empty() { stdout.trim() } else { "" }
+            if stderr.trim().is_empty() {
+                stdout.trim()
+            } else {
+                ""
+            }
         );
     }
     if !output.exists() {
-        bail!("capture.sh reported success but no PNG at {}", output.display());
+        bail!(
+            "capture.sh reported success but no PNG at {}",
+            output.display()
+        );
     }
     Ok(output)
 }
@@ -185,7 +192,9 @@ impl AssetSource for FsAssets {
         let entries = std::fs::read_dir(&dir)
             .map(|rd| {
                 rd.filter_map(|e| {
-                    e.ok().and_then(|e| e.file_name().into_string().ok()).map(SharedString::from)
+                    e.ok()
+                        .and_then(|e| e.file_name().into_string().ok())
+                        .map(SharedString::from)
                 })
                 .collect()
             })
@@ -744,6 +753,145 @@ fn main() {
                                 client = DaemonClient::new(url);
                                 lane_stream = None; // drop the old daemon's SSE stream
                                 chat = None; // re-bind chat on the new daemon's channel
+                            }
+                            // Add an operator note (POST /notes).
+                            app::ControlMsg::AddNote { content } => {
+                                match client.add_note(&content).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "note added",
+                                            "the Notes/Memory pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            alert_tx.send(pane::Alert::error("note failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // Begin a coordination session (POST /sugar/begin).
+                            app::ControlMsg::BeginSession { identity } => {
+                                match client.begin_session(&identity, None).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("session begun: {identity}"),
+                                            "Sessions pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("begin failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // End the active session (POST /sugar/done).
+                            app::ControlMsg::EndSession { summary } => {
+                                match client.end_session(summary.as_deref()).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "session ended",
+                                            "Sessions pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            alert_tx.send(pane::Alert::error("done failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // Propose a dispatch into the review queue (POST /dispatches).
+                            app::ControlMsg::ProposeDispatch { goal } => {
+                                match client.propose_dispatch(&goal).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "dispatch proposed",
+                                            "Dispatch pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "dispatch proposal failed",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
+                            }
+                            // Launch a sortie mission (POST /sorties).
+                            app::ControlMsg::LaunchSortie { goal } => {
+                                match client.launch_sortie(&goal).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "sortie launching",
+                                            "Sorties pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("sortie failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // Claim a port for an identity (POST /claim).
+                            app::ControlMsg::ClaimPort { identity } => {
+                                match client.claim_port(&identity).await {
+                                    Ok(port) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("claimed {identity}"),
+                                            format!("port {port} assigned"),
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("claim failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // Release a claimed port by identity (DELETE /release).
+                            app::ControlMsg::ReleasePort { identity } => {
+                                match client.release_port(&identity).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("released {identity}"),
+                                            "Claims pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("release failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // Kill (unregister) an agent (DELETE /agents/:id).
+                            app::ControlMsg::KillAgent { agent_id } => {
+                                match client.kill_agent(&agent_id).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("killed {agent_id}"),
+                                            "Fleet/Cockpit panes will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            alert_tx.send(pane::Alert::error("kill failed", e.to_string()));
+                                    }
+                                }
+                            }
+                            // Interrupt a specific agent (POST /agents/:id/interrupt).
+                            app::ControlMsg::InterruptAgent { agent_id } => {
+                                match client.interrupt(&agent_id, Some("operator stop")).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("interrupted {agent_id}"),
+                                            "operator stop sent",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "interrupt failed",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
