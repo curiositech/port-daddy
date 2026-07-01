@@ -69,13 +69,30 @@ json_suggestibility_level() {
     jq -r '.suggestibility.level // .suggestibility // empty' "$CFG" 2>/dev/null || true
     return 0
   fi
-  ONE_LINE="$(tr '\n' ' ' < "$CFG" 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
-  printf '%s' "$ONE_LINE" \
-    | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*\{[^}]*"level"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)"[^}]*\}.*/\1/p' \
-    | head -n1
-  printf '%s' "$ONE_LINE" \
-    | sed -n -E 's/.*"suggestibility"[[:space:]]*:[[:space:]]*"(advisory|warn|enforce)".*/\1/p' \
-    | head -n1
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$CFG" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        raise SystemExit
+    value = data.get("suggestibility")
+    if isinstance(value, dict):
+        value = value.get("level")
+    if isinstance(value, str):
+        print(value)
+except Exception:
+    pass
+PY
+    return 0
+  fi
+  # No JSON parser is available. Fail closed by returning no repo-level dial; the
+  # caller will keep the default structural `enforce` gate instead of letting a
+  # raw text scan lower policy from malformed config.
+  return 0
 }
 
 event_cwd() {

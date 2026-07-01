@@ -18,7 +18,7 @@
 
 import { describe, expect, test, beforeEach, afterEach } from '@jest/globals';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -111,6 +111,22 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     return libMatrixPath();
   }
 
+  function commandPath(name: string): string {
+    const r = spawnSync('sh', ['-c', `command -v ${name}`], { encoding: 'utf8' });
+    expect(r.status).toBe(0);
+    return r.stdout.trim();
+  }
+
+  function pathWithoutJq(): string {
+    const dir = join(SCRATCH, 'no-jq-bin');
+    mkdirSync(dir, { recursive: true });
+    for (const name of ['cat', 'tr', 'sed', 'head', 'dirname', 'grep', 'cut', 'python3']) {
+      const target = join(dir, name);
+      if (!existsSync(target)) symlinkSync(commandPath(name), target);
+    }
+    return dir;
+  }
+
   test('G2: pre-tool EXIT 2 when path is locked by another actor', () => {
     const matrix = seed();
     const event = {
@@ -189,6 +205,27 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const r = spawnSync(bin('pd-hook-pre-tool'), [], {
       input: JSON.stringify(event),
       env: { ...env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(0);
+    expect(r.stderr).toMatch(/WARNING/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: jq-less config parsing still honors valid repo JSON', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-with-dial-no-jq');
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, 'agent.config.json'), JSON.stringify({ suggestibility: { level: 'warn' } }, null, 2));
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const { PD_SUGGESTIBILITY: _drop, ...env } = process.env;
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...env, PATH: pathWithoutJq(), PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
       encoding: 'utf8',
     });
     expect(r.status).toBe(0);
@@ -283,6 +320,27 @@ describe('Giant Squid Harness — tentacles fire (the proof)', () => {
     const r = spawnSync(bin('pd-hook-pre-tool'), [], {
       input: JSON.stringify(event),
       env: { ...env, PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
+      encoding: 'utf8',
+    });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toMatch(/BLOCKED/);
+    expect(r.stderr).toMatch(/agent_alpha/);
+  });
+
+  test('ADR-0092 dial: jq-less malformed string config cannot lower the default enforce gate', () => {
+    const matrix = seed();
+    const repo = join(SCRATCH, 'repo-malformed-dial-no-jq');
+    mkdirSync(repo, { recursive: true });
+    writeFileSync(join(repo, 'agent.config.json'), '{ "suggestibility": "warn" ');
+    const event = {
+      tool_name: 'Edit',
+      tool_input: { file_path: '/repo/src/auth.ts' },
+      cwd: repo,
+    };
+    const { PD_SUGGESTIBILITY: _drop, ...env } = process.env;
+    const r = spawnSync(bin('pd-hook-pre-tool'), [], {
+      input: JSON.stringify(event),
+      env: { ...env, PATH: pathWithoutJq(), PD_MATRIX_FILE: matrix, PD_HOME: dirname(matrix), PD_ACTOR: 'agent_beta' },
       encoding: 'utf8',
     });
     expect(r.status).toBe(2);

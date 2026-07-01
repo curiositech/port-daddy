@@ -115,6 +115,21 @@ BCODE=$?
 if [ "$BCODE" -eq 2 ]; then ok "malformed suggestibility config cannot lower default enforce"; else bad "malformed config expected exit 2, got $BCODE"; fi
 case "$BERR" in *BLOCKED*agent_alpha*) ok "malformed config fallback block names holder";; *) bad "malformed config block wrong: $BERR";; esac
 
+NO_JSON_BIN="$SCRATCH/no-json-parser-bin"
+mkdir -p "$NO_JSON_BIN"
+for CMD in cat tr sed head dirname grep cut; do
+  CMD_PATH="$(command -v "$CMD" 2>/dev/null || true)"
+  [ -n "$CMD_PATH" ] && [ ! -e "$NO_JSON_BIN/$CMD" ] && ln -s "$CMD_PATH" "$NO_JSON_BIN/$CMD"
+done
+BAD_STRING_REPO="$SCRATCH/bad-string-dial-repo"
+mkdir -p "$BAD_STRING_REPO"
+printf '{ "suggestibility": "warn" ' > "$BAD_STRING_REPO/agent.config.json"
+NJERR="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/auth.ts"},"cwd":"%s"}' "$BAD_STRING_REPO" \
+  | PATH="$NO_JSON_BIN" PD_ACTOR="agent_beta" "$BIN/pd-hook-pre-tool" 2>&1 >/dev/null)"
+NJCODE=$?
+if [ "$NJCODE" -eq 2 ]; then ok "no-json-parser malformed string config cannot lower default enforce"; else bad "no-json-parser malformed string expected exit 2, got $NJCODE"; fi
+case "$NJERR" in *BLOCKED*agent_alpha*) ok "no-json-parser malformed string block names holder";; *) bad "no-json-parser malformed string block wrong: $NJERR";; esac
+
 echo ""
 echo "== pheromone append (PostToolUse) =="
 BEFORE=$(grep -c '^PD_PHEROMONE_' "$MATRIX" 2>/dev/null || echo 0)
