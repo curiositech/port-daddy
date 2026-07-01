@@ -403,40 +403,40 @@ function migrateNightshiftIntents(db: Database.Database, defaultBaseBranch: stri
        merge_policy, created_at, claimed_at, started_at, produced_at,
        reviewed_at, settled_at
      ) VALUES (
-       @id, @slug, @goal, @tagsJson, @state, 'operator', @baseBranch, @backend,
-       @budgetUsd, @timeoutMs, @worktreePath, @branch, @sessionId,
-       @resultArtifact, @costUsd, @durationMs, @errorMessage,
-       'review', @createdAt, @claimedAt, @startedAt, @producedAt,
-       @reviewedAt, @settledAt
+       ?, ?, ?, ?, ?, 'operator', ?, ?,
+       ?, ?, ?, ?, ?,
+       ?, ?, ?, ?,
+       'review', ?, ?, ?, ?,
+       ?, ?
      )`,
   );
   const txn = db.transaction(() => {
     for (const r of rows) {
       const state = legacyStatusToState(r.status);
-      insert.run({
-        id: r.id,
-        slug: r.slug,
-        goal: r.intent,
-        tagsJson: r.tags_json,
+      insert.run(
+        r.id,
+        r.slug,
+        r.intent,
+        r.tags_json,
         state,
-        baseBranch: defaultBaseBranch,
-        backend: r.backend,
-        budgetUsd: r.budget_usd,
-        timeoutMs: r.timeout_ms,
-        worktreePath: r.worktree_path,
-        branch: r.branch_name, // keep legacy night-shift/... branch refs
-        sessionId: r.session_id,
-        resultArtifact: r.pr_url,
-        costUsd: r.cost_usd,
-        durationMs: r.duration_ms,
-        errorMessage: r.error_message,
-        createdAt: r.created_at,
-        claimedAt: r.queued_at,
-        startedAt: r.started_at,
-        producedAt: r.pr_url ? r.completed_at : null,
-        reviewedAt: r.reviewed_at,
-        settledAt: r.completed_at,
-      });
+        defaultBaseBranch,
+        r.backend,
+        r.budget_usd,
+        r.timeout_ms,
+        r.worktree_path,
+        r.branch_name, // keep legacy night-shift/... branch refs
+        r.session_id,
+        r.pr_url,
+        r.cost_usd,
+        r.duration_ms,
+        r.error_message,
+        r.created_at,
+        r.queued_at,
+        r.started_at,
+        r.pr_url ? r.completed_at : null,
+        r.reviewed_at,
+        r.completed_at,
+      );
     }
   });
   txn();
@@ -482,9 +482,9 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       reviewer_actor_id, base_branch, backend, budget_usd, timeout_ms,
       merge_policy, created_at, claimed_at
     ) VALUES (
-      @id, @slug, @goal, @tagsJson, @state, @requestedBy, @targetActorId,
-      @reviewerActorId, @baseBranch, @backend, @budgetUsd, @timeoutMs,
-      @mergePolicy, @createdAt, @claimedAt
+      ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?
     )
   `);
 
@@ -526,64 +526,64 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
   const claimStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'claimed',
-           worker_actor_id = COALESCE(@workerActorId, worker_actor_id),
-           worktree_path = @worktreePath,
-           branch = @branch,
-           session_id = @sessionId,
-           claimed_at = COALESCE(claimed_at, @at)
-     WHERE id = @id AND state = 'proposed'
+           worker_actor_id = COALESCE(?, worker_actor_id),
+           worktree_path = ?,
+           branch = ?,
+           session_id = ?,
+           claimed_at = COALESCE(claimed_at, ?)
+     WHERE id = ? AND state = 'proposed'
   `);
 
   const startStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'in_progress',
-           started_at = COALESCE(started_at, @at)
-     WHERE id = @id AND state = 'claimed'
+           started_at = COALESCE(started_at, ?)
+     WHERE id = ? AND state = 'claimed'
   `);
 
   const produceStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'produced',
-           result_artifact = COALESCE(@resultArtifact, result_artifact),
-           cost_usd = COALESCE(@costUsd, cost_usd),
-           produced_at = @at,
+           result_artifact = COALESCE(?, result_artifact),
+           cost_usd = COALESCE(?, cost_usd),
+           produced_at = ?,
            duration_ms = CASE
-             WHEN started_at IS NOT NULL THEN @at - started_at
+             WHEN started_at IS NOT NULL THEN ? - started_at
              ELSE NULL
            END
-     WHERE id = @id AND state = 'in_progress'
+     WHERE id = ? AND state = 'in_progress'
   `);
 
   const requestReviewStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'review_pending'
-     WHERE id = @id AND state = 'produced'
+     WHERE id = ? AND state = 'produced'
   `);
 
   const acceptStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'accepted',
-           reviewed_at = @at,
-           error_message = @note
-     WHERE id = @id AND state = 'review_pending'
+           reviewed_at = ?,
+           error_message = ?
+     WHERE id = ? AND state = 'review_pending'
   `);
 
   const rejectStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'rejected',
-           reviewed_at = @at,
-           reject_reason = @reason
-     WHERE id = @id AND state = 'review_pending'
+           reviewed_at = ?,
+           reject_reason = ?
+     WHERE id = ? AND state = 'review_pending'
   `);
 
   const settleStmt = db.prepare(`
     UPDATE dispatches
-       SET state = @state,
-           result_artifact = COALESCE(@resultArtifact, result_artifact),
-           cost_usd = COALESCE(@costUsd, cost_usd),
-           error_message = COALESCE(@errorMessage, error_message),
-           settled_at = @at
-     WHERE id = @id AND state NOT IN ('settled','salvage')
+       SET state = ?,
+           result_artifact = COALESCE(?, result_artifact),
+           cost_usd = COALESCE(?, cost_usd),
+           error_message = COALESCE(?, error_message),
+           settled_at = ?
+     WHERE id = ? AND state NOT IN ('settled','salvage')
   `);
 
   const nextSelectStmt = db.prepare<[], DispatchRow>(
@@ -623,16 +623,16 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
            worker_actor_id = NULL,
            session_id = NULL,
            started_at = NULL,
-           error_message = @note
-     WHERE id = @id AND state IN ('claimed','in_progress')
+           error_message = ?
+     WHERE id = ? AND state IN ('claimed','in_progress')
   `);
 
   const salvageStrandedStmt = db.prepare(`
     UPDATE dispatches
        SET state = 'salvage',
-           error_message = @note,
-           settled_at = @at
-     WHERE id = @id AND state IN ('claimed','in_progress')
+           error_message = ?,
+           settled_at = ?
+     WHERE id = ? AND state IN ('claimed','in_progress')
   `);
 
   function propose(input: ProposeDispatchInput): Dispatch {
@@ -667,23 +667,23 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
       : [];
     const state: DispatchState = input.autoClaim ? 'claimed' : 'proposed';
     const baseBranch = (input.baseBranch && input.baseBranch.trim()) || 'main';
-    insertStmt.run({
+    insertStmt.run(
       id,
       slug,
-      goal: goalText,
-      tagsJson: JSON.stringify(tags),
+      goalText,
+      JSON.stringify(tags),
       state,
-      requestedBy: input.requestedBy ?? 'operator',
-      targetActorId: input.targetActorId ?? null,
-      reviewerActorId: input.reviewerActorId ?? 'operator',
+      input.requestedBy ?? 'operator',
+      input.targetActorId ?? null,
+      input.reviewerActorId ?? 'operator',
       baseBranch,
-      backend: input.backend ?? null,
-      budgetUsd: input.budgetUsd ?? null,
-      timeoutMs: input.timeoutMs ?? null,
+      input.backend ?? null,
+      input.budgetUsd ?? null,
+      input.timeoutMs ?? null,
       mergePolicy,
-      createdAt: at,
-      claimedAt: input.autoClaim ? at : null,
-    });
+      at,
+      input.autoClaim ? at : null,
+    );
     const row = selectByIdStmt.get(id);
     if (!row) throw new Error(`propose: failed to insert dispatch ${id}`);
     return rowToDispatch(row);
@@ -720,14 +720,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (existing.state !== 'proposed') {
       throw new Error(`claim: cannot claim dispatch in state ${existing.state}`);
     }
-    const result = claimStmt.run({
-      id: input.id,
-      workerActorId: input.workerActorId ?? null,
-      worktreePath: input.worktreePath,
-      branch: input.branch,
-      sessionId: input.sessionId,
-      at: now(),
-    });
+    const result = claimStmt.run(
+      input.workerActorId ?? null,
+      input.worktreePath,
+      input.branch,
+      input.sessionId,
+      now(),
+      input.id,
+    );
     if (result.changes === 0) {
       throw new Error(`claim: failed to claim dispatch ${input.id}`);
     }
@@ -744,14 +744,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
         ? nextSelectByBaseStmt.get(input.baseBranch)
         : nextSelectStmt.get();
       if (!row) return null;
-      const result = claimStmt.run({
-        id: row.id,
-        workerActorId: input.workerActorId ?? null,
-        worktreePath: input.worktreePath,
-        branch: input.branch,
-        sessionId: input.sessionId,
-        at: now(),
-      });
+      const result = claimStmt.run(
+        input.workerActorId ?? null,
+        input.worktreePath,
+        input.branch,
+        input.sessionId,
+        now(),
+        row.id,
+      );
       if (result.changes === 0) return null;
       const updated = selectByIdStmt.get(row.id);
       return updated ? rowToDispatch(updated) : null;
@@ -766,7 +766,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (existing.state !== 'claimed') {
       throw new Error(`start: cannot start dispatch in state ${existing.state}`);
     }
-    startStmt.run({ id, at: now() });
+    startStmt.run(now(), id);
     const updated = selectByIdStmt.get(id);
     if (!updated) throw new Error(`start: dispatch ${id} vanished`);
     return rowToDispatch(updated);
@@ -779,12 +779,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (existing.state !== 'in_progress') {
       throw new Error(`produce: cannot produce dispatch in state ${existing.state}`);
     }
-    produceStmt.run({
-      id: input.id,
-      resultArtifact: input.resultArtifact ?? null,
-      costUsd: input.costUsd ?? null,
-      at: now(),
-    });
+    const at = now();
+    produceStmt.run(
+      input.resultArtifact ?? null,
+      input.costUsd ?? null,
+      at,
+      at,
+      input.id,
+    );
     const updated = selectByIdStmt.get(input.id);
     if (!updated) throw new Error(`produce: dispatch ${input.id} vanished`);
     return rowToDispatch(updated);
@@ -797,7 +799,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (existing.state !== 'produced') {
       throw new Error(`requestReview: cannot request review in state ${existing.state}`);
     }
-    requestReviewStmt.run({ id });
+    requestReviewStmt.run(id);
     const updated = selectByIdStmt.get(id);
     if (!updated) throw new Error(`requestReview: dispatch ${id} vanished`);
     return rowToDispatch(updated);
@@ -810,11 +812,11 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (existing.state !== 'review_pending') {
       throw new Error(`accept: cannot accept dispatch in state ${existing.state}`);
     }
-    acceptStmt.run({
-      id: input.id,
-      note: input.note ? `accepted: ${input.note}` : null,
-      at: now(),
-    });
+    acceptStmt.run(
+      now(),
+      input.note ? `accepted: ${input.note}` : null,
+      input.id,
+    );
     const updated = selectByIdStmt.get(input.id);
     if (!updated) throw new Error(`accept: dispatch ${input.id} vanished`);
     return rowToDispatch(updated);
@@ -830,11 +832,7 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (existing.state !== 'review_pending') {
       throw new Error(`reject: cannot reject dispatch in state ${existing.state}`);
     }
-    rejectStmt.run({
-      id: input.id,
-      reason: input.reason.trim(),
-      at: now(),
-    });
+    rejectStmt.run(now(), input.reason.trim(), input.id);
     const updated = selectByIdStmt.get(input.id);
     if (!updated) throw new Error(`reject: dispatch ${input.id} vanished`);
     return rowToDispatch(updated);
@@ -850,14 +848,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (!allowed.includes(input.state)) {
       throw new Error(`settle: target state must be one of ${allowed.join('|')}`);
     }
-    settleStmt.run({
-      id: input.id,
-      state: input.state,
-      resultArtifact: input.resultArtifact ?? null,
-      costUsd: input.costUsd ?? null,
-      errorMessage: input.errorMessage ?? null,
-      at: now(),
-    });
+    settleStmt.run(
+      input.state,
+      input.resultArtifact ?? null,
+      input.costUsd ?? null,
+      input.errorMessage ?? null,
+      now(),
+      input.id,
+    );
     const updated = selectByIdStmt.get(input.id);
     if (!updated) throw new Error(`settle: dispatch ${input.id} vanished`);
     return rowToDispatch(updated);
@@ -869,14 +867,14 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
     if (DISPATCH_TERMINAL_STATES.includes(existing.state)) {
       return rowToDispatch(existing);
     }
-    settleStmt.run({
+    settleStmt.run(
+      'salvage',
+      null,
+      null,
+      reason ?? 'cancelled by operator',
+      now(),
       id,
-      state: 'salvage',
-      resultArtifact: null,
-      costUsd: null,
-      errorMessage: reason ?? 'cancelled by operator',
-      at: now(),
-    });
+    );
     const updated = selectByIdStmt.get(id);
     if (!updated) throw new Error(`cancel: dispatch ${id} vanished`);
     return rowToDispatch(updated);
@@ -919,24 +917,24 @@ export function createDispatchQueue(deps: DispatchQueueDeps) {
         // Count prior recovery markers embedded in the error_message trail.
         const priorRequeues = countRecoveryMarkers(row.error_message);
         if (priorRequeues >= maxRequeues) {
-          salvageStrandedStmt.run({
-            id: row.id,
-            note: appendRecoveryMarker(
+          salvageStrandedStmt.run(
+            appendRecoveryMarker(
               row.error_message,
               `salvage: stranded in '${row.state}' and exceeded ${maxRequeues} recovery attempts`,
             ),
             at,
-          });
+            row.id,
+          );
           const updated = selectByIdStmt.get(row.id);
           if (updated) salvaged.push(rowToDispatch(updated));
         } else {
-          requeueStrandedStmt.run({
-            id: row.id,
-            note: appendRecoveryMarker(
+          requeueStrandedStmt.run(
+            appendRecoveryMarker(
               row.error_message,
               `recovered: re-queued after being stranded in '${row.state}' (attempt ${priorRequeues + 1})`,
             ),
-          });
+            row.id,
+          );
           const updated = selectByIdStmt.get(row.id);
           if (updated) requeued.push(rowToDispatch(updated));
         }

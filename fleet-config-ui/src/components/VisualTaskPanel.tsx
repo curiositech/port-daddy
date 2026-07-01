@@ -265,6 +265,11 @@ function inboxPreview(content: unknown): string {
   }
 }
 
+function shortError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.replace(/^Error:\s*/i, '').trim() || 'unknown error';
+}
+
 export default function VisualTaskPanel({
   channels,
   project,
@@ -517,16 +522,24 @@ export default function VisualTaskPanel({
       }
 
       if (startDispatch) {
-        const dispatch = await proposeDispatchGoal({
-          goal: dispatchGoal(task, channel, published.id),
-          requestedBy: 'fleet-ui-visual',
-          mergePolicy: 'review',
-          targetActorId: targetAgent || null,
-        });
-        results.push(`dispatch ${dispatch.slug ?? dispatch.id} proposed`);
-        if (runDispatch) {
-          const run = await runDispatchNow(dispatch.id);
-          results.push(run.message ?? 'dispatch queued for worker');
+        try {
+          const dispatch = await proposeDispatchGoal({
+            goal: dispatchGoal(task, channel, published.id),
+            requestedBy: 'fleet-ui-visual',
+            mergePolicy: 'review',
+            targetActorId: targetAgent || null,
+          });
+          results.push(`work item ${dispatch.slug ?? dispatch.id} opened`);
+          if (runDispatch) {
+            try {
+              const run = await runDispatchNow(dispatch.id);
+              results.push(run.message ?? 'agent start requested');
+            } catch (err) {
+              results.push(`agent start unavailable: ${shortError(err)}`);
+            }
+          }
+        } catch (err) {
+          results.push(`work item not opened: ${shortError(err)}`);
         }
       }
 
@@ -556,11 +569,12 @@ export default function VisualTaskPanel({
                 setCaptureMode('current-page');
                 setPageSelecting(true);
               }}
+              title="Captures DOM only from this Fleet Control Center page. Use Image for another app or browser page."
               className="pd-button"
               style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}
             >
               <Crosshair size={16} />
-              Current page region
+              This page DOM
             </button>
             <label className="pd-button cursor-pointer" style={{ backgroundColor: 'var(--pd-success-surface)', color: 'var(--pd-success)', border: '1px solid var(--pd-success-border)' }}>
               <Upload size={16} />
@@ -599,7 +613,7 @@ export default function VisualTaskPanel({
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--pd-dim)' }}>Capture</div>
                 <div className="mt-1 text-sm font-semibold" style={{ color: 'var(--pd-text)' }}>
-                  {captureMode === 'image' ? 'Image annotation' : 'Current page DOM region'}
+                  {captureMode === 'image' ? 'Image annotation' : 'This page DOM region'}
                 </div>
               </div>
               <button
@@ -736,11 +750,12 @@ export default function VisualTaskPanel({
                     setCaptureMode('current-page');
                     setPageSelecting(true);
                   }}
+                  title="Captures DOM only from this Fleet Control Center page. Use Image for another app or browser page."
                   className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold"
                   style={{ backgroundColor: 'var(--pd-surface)', color: 'var(--pd-text)', border: '1px solid var(--pd-border)' }}
                 >
                   <MousePointer2 size={13} />
-                  Select DOM
+                  This page
                 </button>
               </div>
               {domContext?.selectors.length ? (
@@ -758,12 +773,15 @@ export default function VisualTaskPanel({
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-bg)', color: 'var(--pd-text)' }}>
                   <input type="checkbox" className="pd-checkbox" checked={startDispatch} onChange={(event) => setStartDispatch(event.target.checked)} />
-                  <span>Propose dispatch</span>
+                  <span>Open work item</span>
                 </label>
                 <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--pd-border)', backgroundColor: 'var(--pd-bg)', color: 'var(--pd-text)', opacity: startDispatch ? 1 : 0.55 }}>
                   <input type="checkbox" className="pd-checkbox" checked={runDispatch} disabled={!startDispatch} onChange={(event) => setRunDispatch(event.target.checked)} />
-                  <span>Run worker now</span>
+                  <span>Start agent now</span>
                 </label>
+              </div>
+              <div className="mt-2 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
+                Work items wait in reviewable queue; starting an agent asks the daemon to pick one up now.
               </div>
               <button
                 type="button"
