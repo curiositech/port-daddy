@@ -780,7 +780,7 @@ export default function VisualTaskPanel({
                   <span>Start agent now</span>
                 </label>
               </div>
-              <div className="mt-2 text-[12px]" style={{ color: 'var(--pd-muted)' }}>
+              <div className="mt-2 text-sm" style={{ color: 'var(--pd-muted)' }}>
                 Work items wait in reviewable queue; starting an agent asks the daemon to pick one up now.
               </div>
               <button
