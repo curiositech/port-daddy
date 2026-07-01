@@ -756,39 +756,142 @@ fn main() {
                             }
                             // Add an operator note (POST /notes).
                             app::ControlMsg::AddNote { content } => {
-                                let _ = client.add_note(&content).await;
+                                match client.add_note(&content).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "note added",
+                                            "the Notes/Memory pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            alert_tx.send(pane::Alert::error("note failed", e.to_string()));
+                                    }
+                                }
                             }
                             // Begin a coordination session (POST /sugar/begin).
                             app::ControlMsg::BeginSession { identity } => {
-                                let _ = client.begin_session(&identity, None).await;
+                                match client.begin_session(&identity, None).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("session begun: {identity}"),
+                                            "Sessions pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("begin failed", e.to_string()));
+                                    }
+                                }
                             }
                             // End the active session (POST /sugar/done).
                             app::ControlMsg::EndSession { summary } => {
-                                let _ = client.end_session(summary.as_deref()).await;
+                                match client.end_session(summary.as_deref()).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "session ended",
+                                            "Sessions pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            alert_tx.send(pane::Alert::error("done failed", e.to_string()));
+                                    }
+                                }
                             }
                             // Propose a dispatch into the review queue (POST /dispatches).
                             app::ControlMsg::ProposeDispatch { goal } => {
-                                let _ = client.propose_dispatch(&goal).await;
+                                match client.propose_dispatch(&goal).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "dispatch proposed",
+                                            "Dispatch pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "dispatch proposal failed",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
                             }
                             // Launch a sortie mission (POST /sorties).
                             app::ControlMsg::LaunchSortie { goal } => {
-                                let _ = client.launch_sortie(&goal).await;
+                                match client.launch_sortie(&goal).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            "sortie launching",
+                                            "Sorties pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("sortie failed", e.to_string()));
+                                    }
+                                }
                             }
                             // Claim a port for an identity (POST /claim).
                             app::ControlMsg::ClaimPort { identity } => {
-                                let _ = client.claim_port(&identity).await;
+                                match client.claim_port(&identity).await {
+                                    Ok(port) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("claimed {identity}"),
+                                            format!("port {port} assigned"),
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("claim failed", e.to_string()));
+                                    }
+                                }
                             }
                             // Release a claimed port by identity (DELETE /release).
                             app::ControlMsg::ReleasePort { identity } => {
-                                let _ = client.release_port(&identity).await;
+                                match client.release_port(&identity).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("released {identity}"),
+                                            "Claims pane will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx
+                                            .send(pane::Alert::error("release failed", e.to_string()));
+                                    }
+                                }
                             }
                             // Kill (unregister) an agent (DELETE /agents/:id).
                             app::ControlMsg::KillAgent { agent_id } => {
-                                let _ = client.kill_agent(&agent_id).await;
+                                match client.kill_agent(&agent_id).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("killed {agent_id}"),
+                                            "Fleet/Cockpit panes will refresh shortly",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ =
+                                            alert_tx.send(pane::Alert::error("kill failed", e.to_string()));
+                                    }
+                                }
                             }
                             // Interrupt a specific agent (POST /agents/:id/interrupt).
                             app::ControlMsg::InterruptAgent { agent_id } => {
-                                let _ = client.interrupt(&agent_id, Some("operator stop")).await;
+                                match client.interrupt(&agent_id, Some("operator stop")).await {
+                                    Ok(()) => {
+                                        let _ = alert_tx.send(pane::Alert::info(
+                                            format!("interrupted {agent_id}"),
+                                            "operator stop sent",
+                                        ));
+                                    }
+                                    Err(e) => {
+                                        let _ = alert_tx.send(pane::Alert::error(
+                                            "interrupt failed",
+                                            e.to_string(),
+                                        ));
+                                    }
+                                }
                             }
                         }
                     }
