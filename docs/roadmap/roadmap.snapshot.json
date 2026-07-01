@@ -1,8 +1,8 @@
 {
-  "generatedAt": 1782732844907,
+  "generatedAt": 1782872484309,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 107,
+  "count": 108,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -343,6 +343,11 @@
       "slug": "adr-0090-phase-9-multi-machine-replica-and-bootstrap",
       "status": "backlog",
       "summaryMd": "Second device: pair, R2 snapshot pull, replay since HLC, revocation <=5s"
+    },
+    {
+      "slug": "adr-0092-l2-local-edit-gate",
+      "status": "now",
+      "summaryMd": "ADR-0092 first local L2 slice: PreToolUse edit-moment suggestibility dial enforces coordinate-before-you-cut before cloud federation."
     },
     {
       "slug": "agent-harness-installer-roster",
