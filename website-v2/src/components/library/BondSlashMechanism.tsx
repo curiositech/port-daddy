@@ -34,9 +34,9 @@ const RUNGS: Rung[] = [
   { n: '4', label: 'Bond slash', detail: 'partial · capped', severe: true },
 ]
 
-const STEP_W = 132
-const STEP_GAP = 8
-const BOX_H = 64 // fixed rung height so label + detail always fit
+const STEP_W = 150 // wide enough that the longest label ("Reputation mark") fits
+const STEP_GAP = 10
+const BOX_H = 66 // fixed rung height so label + detail always fit
 const BASE_Y = 256 // baseline the lowest rung sits on
 const RISE = 30 // how much each successive rung's top climbs
 
@@ -52,7 +52,7 @@ export function BondSlashMechanism() {
     <figure className="grid gap-[var(--space-4)] border-2 border-[var(--border-strong)] bg-[var(--surface-base)] shadow-[var(--shadow-brutal)]">
       <div className="overflow-x-auto p-[var(--space-5)]">
         <svg
-          viewBox="0 0 600 300"
+          viewBox="0 0 664 300"
           role="img"
           aria-labelledby={`${titleId} ${descId}`}
           className="mx-auto block min-w-[34rem] max-w-[46rem]"
@@ -77,8 +77,8 @@ export function BondSlashMechanism() {
           </text>
 
           {/* The cap line — sanctions never cross it (never the whole bond). */}
-          <line x1="24" y1="48" x2="576" y2="48" stroke="var(--brand-accent)" strokeWidth="2" strokeDasharray="4 4" />
-          <text x="576" y="42" textAnchor="end" fill="var(--brand-accent)" style={{ font: '800 13px var(--font-sans)', letterSpacing: '0.04em' }}>
+          <line x1="24" y1="48" x2="654" y2="48" stroke="var(--brand-accent)" strokeWidth="2" strokeDasharray="4 4" />
+          <text x="654" y="42" textAnchor="end" fill="var(--brand-accent)" style={{ font: '800 13px var(--font-sans)', letterSpacing: '0.04em' }}>
             CAP — never the whole bond
           </text>
 
@@ -124,14 +124,12 @@ export function BondSlashMechanism() {
             )
           })}
 
-          {/* Recovery arrow: good behavior walks it back down. The label rides
-              just under the cap line; the dashed arrow descends cleanly beneath
-              it from the top rung to rung 1, never crossing the text. */}
-          <text x={(xOf(0) + xOf(3) + STEP_W) / 2} y="68" textAnchor="middle" fill="var(--text-muted)" style={{ font: '600 14px var(--font-sans)' }}>
-            good behavior recovers it downward
-          </text>
+          {/* Recovery arrow: good behavior walks the penalty back down. A high,
+              shallow arc that hugs the open band under the cap line and drops to
+              rung 1 only at the far left, clearing every rung. Its meaning is
+              stated in the caption, so no in-figure label crowds the band. */}
           <path
-            d={`M ${xOf(3) + STEP_W / 2} ${topOf(3) - 8} C ${xOf(2) + STEP_W / 2} ${topOf(3) - 6}, ${xOf(1)} ${topOf(0) - 40}, ${xOf(0) + STEP_W / 2} ${topOf(0) - 8}`}
+            d={`M ${xOf(3) + STEP_W / 2} ${topOf(3) - 10} C ${xOf(2)} 66, ${xOf(1)} 66, ${xOf(0) + STEP_W / 2} ${topOf(0) - 8}`}
             fill="none"
             stroke="var(--text-muted)"
             strokeWidth="2"
