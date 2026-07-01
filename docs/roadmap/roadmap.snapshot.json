@@ -2,7 +2,7 @@
   "generatedAt": 1782732844907,
   "harbor": "port-daddy",
   "source": "http://127.0.0.1:9876",
-  "count": 107,
+  "count": 108,
   "items": [
     {
       "slug": "active-agent-roster",
@@ -538,6 +538,11 @@
       "slug": "io-wiring-phase-5-imessage-calendar",
       "status": "backlog",
       "summaryMd": "PHASE 5: iMessage (macOS FDA) + Calendar (CalDAV / OAuth / EventKit). Platform-gated."
+    },
+    {
+      "slug": "visual-task-agent-intake",
+      "status": "now",
+      "summaryMd": "FleetBar/Fleet Control Center visual task intake should let operators send annotated screenshots or page context to agents without exposing dispatch/worker internals."
     }
   ]
 }
