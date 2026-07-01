@@ -109,9 +109,9 @@ export const SQUID_HOOK_METADATA: Record<SquidHookPurpose, SquidHookMetadata> = 
   },
   preTool: {
     purpose: 'preTool',
-    displayName: 'Port Daddy pre-tool safety gate (local)',
+    displayName: 'Port Daddy L2 edit gate (local)',
     description:
-      'Checks local Port Daddy locks and file-claim state before file-mutating tools, and can block conflicting or unsafe edits.',
+      'Checks local Port Daddy locks and file-claim state before file-mutating tools, honoring the repo suggestibility dial: advisory, warn, or enforce.',
     privacy: 'Does not send tool input off-machine.',
   },
   postTool: {
@@ -716,7 +716,7 @@ function codexHooksTomlBlock(t: { prompt: string; pre: string; post: string }): 
   L.push(`# ${SQUID_HOOK_METADATA.prompt.displayName}: ${SQUID_HOOK_METADATA.prompt.description}`);
   L.push(`# ${SQUID_HOOK_METADATA.preTool.displayName}: ${SQUID_HOOK_METADATA.preTool.description}`);
   L.push(`# ${SQUID_HOOK_METADATA.postTool.displayName}: ${SQUID_HOOK_METADATA.postTool.description}`);
-  L.push('# PreToolUse is synchronous so pd-hook-pre-tool can BLOCK a foreign-locked file.');
+  L.push('# PreToolUse is synchronous so pd-hook-pre-tool can enforce ADR-0092 coordinate-before-you-cut.');
   L.push('# PostToolUse is async (compact local coordination trace). UserPromptSubmit is sync (briefing envelope).');
   L.push('');
   // UserPromptSubmit (sync)
