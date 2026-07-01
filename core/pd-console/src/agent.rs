@@ -757,6 +757,10 @@ impl DaemonClient {
     /// `backend` defaults to `claude-cli` and the budget to $0.25. Sortie pane
     /// reads `/sorties`, so the mission appears on the next refresh.
     pub async fn launch_sortie(&self, goal: &str) -> Result<()> {
+        let goal = goal.trim();
+        if goal.is_empty() {
+            return Err(anyhow!("launch_sortie needs a non-empty goal"));
+        }
         let project_dir = std::env::var("PD_CONSOLE_WORKDIR").map_err(|_| {
             anyhow!(
                 "launch_sortie needs a project directory: set PD_CONSOLE_WORKDIR \
@@ -794,6 +798,10 @@ impl DaemonClient {
     /// field is `id` (NOT `identity`). Returns the assigned port so the operator
     /// sees what they got. Services/Claims surfaces reflect it on next refresh.
     pub async fn claim_port(&self, identity: &str) -> Result<u16> {
+        let identity = identity.trim();
+        if identity.is_empty() {
+            return Err(anyhow!("claim_port needs a non-empty identity"));
+        }
         let body = serde_json::json!({ "id": identity });
         let resp = self
             .http
@@ -804,10 +812,13 @@ impl DaemonClient {
             .context("POST /claim")?;
         let resp = ensure_success(resp, "claim_port").await?;
         let v: serde_json::Value = resp.json().await.context("claim response")?;
-        v.get("port")
+        let port = v
+            .get("port")
             .and_then(|p| p.as_u64())
-            .map(|p| p as u16)
-            .ok_or_else(|| anyhow!("claim succeeded but response carried no port: {v}"))
+            .ok_or_else(|| anyhow!("claim succeeded but response carried no port: {v}"))?;
+        u16::try_from(port).with_context(|| {
+            format!("claim succeeded but daemon returned out-of-range port: {port}")
+        })
     }
 
     /// Release a claimed port: `DELETE /release` with `{ id }` (the identity).

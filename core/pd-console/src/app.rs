@@ -1808,7 +1808,7 @@ impl ConsoleView {
             // Switch which daemon berth the console talks to (the Daemons pane lists names).
             "u" => self.command = Some(CommandLine::new(CmdKind::UseDaemon)),
             // Operator verb palette (vim-`:`): one entry point for every write
-            // (note/begin/done/propose/sortie/claim/release/kill).
+            // (note/begin/done/propose/sortie/claim/release/kill/interrupt).
             ":" => self.command = Some(CommandLine::new(CmdKind::Verb)),
             // Direct single-key shortcuts for the most-used operator writes
             // (free letters, no NAV/leader collision):
@@ -2047,7 +2047,7 @@ impl ConsoleView {
             } else if !text.is_empty() {
                 let verb = text.split_whitespace().next().unwrap_or("");
                 self.control_flash = Some(format!(
-                    "unknown verb '{verb}' — try note/begin/done/propose/sortie/claim/release/kill"
+                    "unknown verb '{verb}' — try note/begin/done/propose/sortie/claim/release/kill/interrupt"
                 ));
             }
             return;
@@ -3246,7 +3246,7 @@ impl ConsoleView {
                         .child(
                             div()
                                 .text_color(rgb(current_theme().muted))
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .child("kill = DELETE /agents/:id (unregister) \u{00b7} interrupt = stop a run"),
                         )
                         .child(
@@ -3260,7 +3260,7 @@ impl ConsoleView {
                             c.child(
                                 div()
                                     .text_color(rgb(current_theme().muted))
-                                    .text_size(px(13.0))
+                                    .text_size(px(14.0))
                                     .child(flash),
                             )
                         }),
@@ -5277,7 +5277,7 @@ impl Render for ConsoleView {
                             .text_size(px(13.0))
                             .font_weight(FontWeight::SEMIBOLD)
                             .child(
-                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · : verb-palette (note/begin/done/propose/sortie/claim/release/kill) · [1-9…] surface",
+                                "PREFIX  |  | split · - vsplit · x close · z zoom · o next · =/_ resize · w new-tab · [ ] tabs · n new-job · t cartographer · i insert-pane · : verb-palette (note/begin/done/propose/sortie/claim/release/kill/interrupt) · [1-9…] surface",
                             )
                             .into_any_element()
                     } else {
