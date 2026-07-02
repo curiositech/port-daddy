@@ -232,9 +232,13 @@ describe('GET /agents/:id/stream — merged live feed', () => {
 
     expect(connectedSeen).toBe(true);
 
-    const status = envelopes.find((e) => e.kind === 'agent.status');
+    const status = envelopes.find(
+      (e) => e.kind === 'agent.status' && (e.body as Record<string, unknown>).event === 'registered',
+    );
     const tube = envelopes.find((e) => e.kind === 'agent.tube');
-    const transcript = envelopes.find((e) => e.kind === 'agent.transcript');
+    const transcript = envelopes.find(
+      (e) => e.kind === 'agent.transcript' && (e.body as Record<string, unknown>).type === 'update',
+    );
 
     expect(status).toBeDefined();
     expect(tube).toBeDefined();
@@ -251,6 +255,49 @@ describe('GET /agents/:id/stream — merged live feed', () => {
     expect((status!.body as Record<string, unknown>).event).toBe('registered');
     expect((tube!.body as Record<string, unknown>).body).toBe('hello cockpit');
     expect((transcript!.body as Record<string, unknown>).type).toBe('update');
+  });
+
+  test('sends current agent + latest transcript snapshots immediately on connect', async () => {
+    const h = harness;
+    const agentId = 'agent-snapshot';
+    h.agents.register(agentId, { type: 'cli', status: 'busy' });
+    const txId = seedTranscript(h, agentId);
+    h.transcripts.appendMessage(txId, {
+      role: 'assistant',
+      content: 'snapshot already has transcript data',
+      timestamp: Date.now(),
+      tool_calls: [{ name: 'Read', args: { file: 'routes/agent-cockpit.ts' }, result: 'ok' }],
+    });
+    h.transcripts.appendOutput(txId, {
+      type: 'draft-pr',
+      summary: 'draft PR proof artifact',
+      url: 'https://github.com/example/port-daddy/pull/999',
+    });
+
+    const { envelopes, connectedSeen } = await collectStream(
+      `${h.baseUrl}/agents/${agentId}/stream`,
+      (envs) =>
+        envs.some((e) => e.kind === 'agent.status') &&
+        envs.some((e) => e.kind === 'agent.transcript'),
+    );
+
+    expect(connectedSeen).toBe(true);
+    const status = envelopes.find((e) => e.kind === 'agent.status');
+    const transcript = envelopes.find((e) => e.kind === 'agent.transcript');
+    expect((status!.body as Record<string, unknown>).event).toBe('snapshot');
+    expect((status!.body as Record<string, unknown>).status).toBe('busy');
+
+    const transcriptBody = transcript!.body as {
+      type?: string;
+      entry?: {
+        messages?: Array<{ content?: string; tool_calls?: Array<{ name?: string }> }>;
+        outputs?: Array<{ summary?: string; type?: string }>;
+      };
+    };
+    expect(transcriptBody.type).toBe('snapshot');
+    expect(transcriptBody.entry?.messages?.some((m) => m.content === 'snapshot already has transcript data')).toBe(true);
+    expect(transcriptBody.entry?.messages?.some((m) => m.tool_calls?.some((tc) => tc.name === 'Read'))).toBe(true);
+    expect(transcriptBody.entry?.outputs?.some((o) => o.type === 'draft-pr' && o.summary === 'draft PR proof artifact')).toBe(true);
   });
 
   test('filters out events for OTHER agents (no cross-talk)', async () => {

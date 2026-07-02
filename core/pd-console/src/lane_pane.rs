@@ -24,6 +24,7 @@ use crate::agent::{DaemonClient, StreamEnvelope, StreamKind};
 use crate::pane::{Block, Pane, Subscription, SurfaceAction, Tone};
 use crate::util;
 use anyhow::Result;
+use std::collections::BTreeSet;
 
 /// How many transcript/tube lines to retain in the scrollback. Older lines drop
 /// off the top — the Lane is a live tail, not an archive.
@@ -70,6 +71,9 @@ pub struct LanePane {
     streamed: bool,
     /// Scrollback of transcript + tube lines (most recent at the end).
     lines: Vec<LaneLine>,
+    /// Transcript route updates carry the full refreshed row. Remember rendered
+    /// message/output keys so one append does not repaint the whole history.
+    seen_transcript_items: BTreeSet<String>,
     /// Tool calls seen on the stream, in arrival order (deduped by name+running).
     tools: Vec<ToolCall>,
     /// Last error from the 2s poll (daemon unreachable / no agents), if any.
@@ -83,6 +87,7 @@ impl LanePane {
             status: "—".into(),
             streamed: false,
             lines: Vec::new(),
+            seen_transcript_items: BTreeSet::new(),
             tools: Vec::new(),
             error: None,
         }
@@ -118,43 +123,168 @@ impl LanePane {
         }
     }
 
-    /// Fold a transcript envelope. The body may carry streaming text and/or a
-    /// tool-call delta. Shapes vary, so we extract tolerantly:
-    ///   { text } | { delta } | { content }      → transcript text
-    ///   { tool: { name, status } }               → tool-call chip
-    ///   { tool, status }                         → tool-call chip (flat)
+    /// Fold a transcript envelope. The daemon's real shape is
+    /// `{type, entry:{messages, outputs, ...}}`; older streamers may still send
+    /// flat deltas. Extract both so the Lane is an honest live digest, not a
+    /// happy-path toy parser.
     fn fold_transcript(&mut self, body: &serde_json::Value) {
-        // Tool-call delta (nested or flat).
-        let tool_obj = body.get("tool");
-        let tool_name = tool_obj
-            .and_then(|t| t.as_str().map(str::to_string))
-            .or_else(|| tool_obj.and_then(|t| t.get("name")).and_then(|n| n.as_str()).map(str::to_string))
-            .or_else(|| body.get("toolName").and_then(|n| n.as_str()).map(str::to_string));
-        if let Some(name) = tool_name {
-            let status = tool_obj
-                .and_then(|t| t.get("status"))
-                .or_else(|| body.get("status"))
-                .or_else(|| body.get("toolStatus"))
-                .and_then(|s| s.as_str())
-                .unwrap_or("running");
-            let state = match status {
-                "ok" | "success" | "done" | "complete" | "completed" => ToolState::Ok,
-                "error" | "failed" | "failure" => ToolState::Failed,
-                _ => ToolState::Running,
-            };
-            self.note_tool(&name, state);
+        let mut rendered = false;
+        let has_entry = body.get("entry").is_some();
+
+        if let Some(entry) = body.get("entry") {
+            rendered |=
+                self.fold_transcript_entry(body.get("type").and_then(|t| t.as_str()), entry);
         }
 
-        // Transcript text.
-        let text = body
-            .get("text")
-            .or_else(|| body.get("delta"))
-            .or_else(|| body.get("content"))
-            .and_then(|t| t.as_str())
-            .unwrap_or_default();
-        if !text.is_empty() {
-            self.push_line(LaneLine::Transcript(text.to_string()));
+        // Tool-call delta (nested or flat) for streamers that emit incremental
+        // tool frames instead of row snapshots.
+        if let Some((name, state)) = extract_flat_tool_delta(body) {
+            self.note_tool(&name, state);
+            rendered = true;
         }
+
+        // Flat text delta fallback: {text} | {delta} | {content} | "text".
+        if let Some(text) = flat_text(body) {
+            self.push_line(LaneLine::Transcript(text));
+            rendered = true;
+        }
+
+        if !rendered && !has_entry {
+            if let Some(kind) = body.get("type").and_then(|t| t.as_str()) {
+                self.push_unique_transcript_line(
+                    format!("event:{kind}:{}", body.to_string().len()),
+                    format!("transcript {kind}"),
+                );
+            }
+        }
+    }
+
+    fn fold_transcript_entry(
+        &mut self,
+        event_type: Option<&str>,
+        entry: &serde_json::Value,
+    ) -> bool {
+        let mut rendered = false;
+        let tx_id = field_str(entry, &["id"]).unwrap_or("transcript");
+
+        if matches!(event_type, Some("start") | Some("snapshot")) {
+            let ship = field_str(entry, &["ship"]).unwrap_or("agent");
+            let backend = field_str(entry, &["backend"]).unwrap_or("backend");
+            let model = field_str(entry, &["model"]).unwrap_or("model");
+            let status = field_str(entry, &["status"]).unwrap_or("running");
+            rendered |= self.push_unique_transcript_line(
+                format!("{tx_id}:meta:{status}:{}", event_type.unwrap_or("event")),
+                format!("run {status}: {ship} via {backend}/{model}"),
+            );
+        }
+
+        if let Some(messages) = entry.get("messages").and_then(|m| m.as_array()) {
+            for msg in messages {
+                rendered |= self.fold_transcript_message(tx_id, msg);
+            }
+        }
+
+        if let Some(outputs) = entry.get("outputs").and_then(|o| o.as_array()) {
+            for output in outputs {
+                rendered |= self.fold_transcript_output(tx_id, output);
+            }
+        }
+
+        if matches!(event_type, Some("end")) {
+            let ship = field_str(entry, &["ship"]).unwrap_or("agent");
+            let status = field_str(entry, &["status"]).unwrap_or("completed");
+            let cost = entry.get("cost_usd").and_then(|c| c.as_f64());
+            let tokens_in = entry.get("tokens_in").and_then(|t| t.as_i64());
+            let tokens_out = entry.get("tokens_out").and_then(|t| t.as_i64());
+            let mut line = format!("run {status}: {ship}");
+            if let Some(cost) = cost {
+                line.push_str(&format!(" ${cost:.4}"));
+            }
+            if tokens_in.is_some() || tokens_out.is_some() {
+                line.push_str(&format!(
+                    " tokens {} in / {} out",
+                    tokens_in.unwrap_or(0),
+                    tokens_out.unwrap_or(0)
+                ));
+            }
+            if let Some(err) = field_str(entry, &["error"]) {
+                if !err.is_empty() {
+                    line.push_str(&format!(" error: {err}"));
+                }
+            }
+            rendered |= self.push_unique_transcript_line(format!("{tx_id}:end:{status}"), line);
+        }
+
+        rendered
+    }
+
+    fn fold_transcript_message(&mut self, tx_id: &str, msg: &serde_json::Value) -> bool {
+        let mut rendered = false;
+
+        if let Some(tool_calls) = msg.get("tool_calls").and_then(|calls| calls.as_array()) {
+            for call in tool_calls {
+                if let Some(name) = field_str(call, &["name", "tool", "toolName"]) {
+                    let state = if call.get("result").is_some() {
+                        ToolState::Ok
+                    } else {
+                        ToolState::Running
+                    };
+                    self.note_tool(name, state);
+                    rendered = true;
+                }
+            }
+        }
+
+        let Some(content) = field_str(msg, &["content", "text", "delta"]) else {
+            return rendered;
+        };
+        let content = content.trim();
+        if content.is_empty() {
+            return rendered;
+        }
+
+        let role = field_str(msg, &["role"]).unwrap_or("assistant");
+        let timestamp = msg.get("timestamp").and_then(|t| t.as_i64()).unwrap_or(0);
+        let line = match role {
+            "assistant" => content.to_string(),
+            "thinking" => format!("thinking: {content}"),
+            "tool" => format!("tool: {content}"),
+            "user" => format!("user: {content}"),
+            other => format!("{other}: {content}"),
+        };
+        self.push_unique_transcript_line(
+            format!("{tx_id}:msg:{timestamp}:{role}:{}", digest_text(content)),
+            line,
+        ) || rendered
+    }
+
+    fn fold_transcript_output(&mut self, tx_id: &str, output: &serde_json::Value) -> bool {
+        let output_type = field_str(output, &["type"]).unwrap_or("output");
+        let Some(summary) = field_str(output, &["summary", "content", "text"]) else {
+            return false;
+        };
+        let summary = summary.trim();
+        if summary.is_empty() {
+            return false;
+        }
+        let mut line = format!("artifact {output_type}: {summary}");
+        if let Some(url) = field_str(output, &["url"]) {
+            if !url.is_empty() {
+                line.push_str(&format!(" {url}"));
+            }
+        }
+        self.push_unique_transcript_line(
+            format!("{tx_id}:output:{output_type}:{}", digest_text(summary)),
+            line,
+        )
+    }
+
+    fn push_unique_transcript_line(&mut self, key: String, text: String) -> bool {
+        if !self.seen_transcript_items.insert(key) {
+            return false;
+        }
+        self.push_line(LaneLine::Transcript(text));
+        true
     }
 
     /// Record a tool-call status. A `Running` for a tool we already track and is
@@ -175,8 +305,72 @@ impl LanePane {
         if self.tools.len() >= 40 {
             self.tools.remove(0);
         }
-        self.tools.push(ToolCall { name: name.to_string(), state });
+        self.tools.push(ToolCall {
+            name: name.to_string(),
+            state,
+        });
     }
+}
+
+fn extract_flat_tool_delta(body: &serde_json::Value) -> Option<(String, ToolState)> {
+    let tool_obj = body.get("tool");
+    let name = tool_obj
+        .and_then(|t| t.as_str())
+        .or_else(|| {
+            tool_obj
+                .and_then(|t| t.get("name"))
+                .and_then(|n| n.as_str())
+        })
+        .or_else(|| body.get("toolName").and_then(|n| n.as_str()))?;
+    let status = tool_obj
+        .and_then(|t| t.get("status"))
+        .or_else(|| body.get("status"))
+        .or_else(|| body.get("toolStatus"))
+        .and_then(|s| s.as_str())
+        .unwrap_or("running");
+    Some((name.to_string(), tool_state(status)))
+}
+
+fn tool_state(status: &str) -> ToolState {
+    match status {
+        "ok" | "success" | "done" | "complete" | "completed" => ToolState::Ok,
+        "error" | "failed" | "failure" => ToolState::Failed,
+        _ => ToolState::Running,
+    }
+}
+
+fn flat_text(body: &serde_json::Value) -> Option<String> {
+    if let Some(text) = body.as_str() {
+        return non_empty(text);
+    }
+    for key in ["text", "delta", "content", "message", "body"] {
+        if let Some(text) = body.get(key).and_then(|v| v.as_str()).and_then(non_empty) {
+            return Some(text);
+        }
+    }
+    None
+}
+
+fn field_str<'a>(value: &'a serde_json::Value, names: &[&str]) -> Option<&'a str> {
+    names
+        .iter()
+        .find_map(|name| value.get(*name).and_then(|v| v.as_str()))
+}
+
+fn non_empty(text: &str) -> Option<String> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn digest_text(text: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 impl Default for LanePane {
@@ -213,18 +407,41 @@ impl Pane for LanePane {
 
         // Status chip + live/poll indicator.
         out.push(Block::Chip {
-            label: format!("status: {}", if self.status.is_empty() { "—" } else { &self.status }),
+            label: format!(
+                "status: {}",
+                if self.status.is_empty() {
+                    "—"
+                } else {
+                    &self.status
+                }
+            ),
             tone: Tone::Accent,
         });
         out.push(Block::Chip {
-            label: if self.streamed { "● live".into() } else { "○ connecting".into() },
-            tone: if self.streamed { Tone::Landed } else { Tone::Resting },
+            label: if self.streamed {
+                "● live".into()
+            } else {
+                "○ connecting".into()
+            },
+            tone: if self.streamed {
+                Tone::Landed
+            } else {
+                Tone::Resting
+            },
         });
 
         // Tool-call chips (running → done/failed).
         if !self.tools.is_empty() {
             out.push(Block::Header("tools".into()));
-            for t in self.tools.iter().rev().take(12).collect::<Vec<_>>().into_iter().rev() {
+            for t in self
+                .tools
+                .iter()
+                .rev()
+                .take(12)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+            {
                 let (label, tone) = t.state.chip(&t.name);
                 out.push(Block::Chip { label, tone });
             }
@@ -233,14 +450,19 @@ impl Pane for LanePane {
         // Live transcript / tube tail.
         out.push(Block::Header("stream".into()));
         if self.lines.is_empty() {
-            out.push(Block::KeyVal("—".into(), "(no frames yet)".into()));
+            out.push(Block::KeyVal(
+                "—".into(),
+                "connected; waiting for transcript/tool/tube frames".into(),
+            ));
         } else {
             // Show the last ~24 lines (most recent at the bottom).
             let start = self.lines.len().saturating_sub(24);
             for line in &self.lines[start..] {
                 match line {
                     LaneLine::Transcript(t) => out.push(Block::Row(vec![util::trunc(t, 96)])),
-                    LaneLine::Tube(t) => out.push(Block::Row(vec![format!("⤳ {}", util::trunc(t, 92))])),
+                    LaneLine::Tube(t) => {
+                        out.push(Block::Row(vec![format!("⤳ {}", util::trunc(t, 92))]))
+                    }
                 }
             }
         }
@@ -266,6 +488,7 @@ impl Pane for LanePane {
                                 self.agent_id = Some(id);
                                 self.streamed = false;
                                 self.lines.clear();
+                                self.seen_transcript_items.clear();
                                 self.tools.clear();
                                 self.status = "—".into();
                             }
@@ -298,7 +521,9 @@ impl Pane for LanePane {
     }
 
     fn subscription(&self) -> Option<Subscription> {
-        self.agent_id.clone().map(|agent_id| Subscription::Agent { agent_id })
+        self.agent_id
+            .clone()
+            .map(|agent_id| Subscription::Agent { agent_id })
     }
 
     fn on_stream(&mut self, env: &StreamEnvelope) {
@@ -342,6 +567,16 @@ mod tests {
         .expect("envelope")
     }
 
+    fn transcript_lines(lane: &LanePane) -> Vec<String> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::Transcript(text) => Some(text.clone()),
+                LaneLine::Tube(_) => None,
+            })
+            .collect()
+    }
+
     #[test]
     fn picks_active_agent_then_recent() {
         let v = json!({"agents": [
@@ -381,29 +616,167 @@ mod tests {
     fn tool_calls_transition_running_to_done() {
         let mut lane = LanePane::new();
         // Running, then completed → one chip that flips to Ok.
-        lane.on_stream(&env("agent.transcript", json!({"tool": {"name": "Bash", "status": "running"}})));
-        lane.on_stream(&env("agent.transcript", json!({"tool": {"name": "Bash", "status": "ok"}})));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"tool": {"name": "Bash", "status": "running"}}),
+        ));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"tool": {"name": "Bash", "status": "ok"}}),
+        ));
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].state, ToolState::Ok);
 
         // A failing tool surfaces as Failed.
-        lane.on_stream(&env("agent.transcript", json!({"tool": {"name": "Edit", "status": "error"}})));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"tool": {"name": "Edit", "status": "error"}}),
+        ));
         assert_eq!(lane.tools.last().unwrap().state, ToolState::Failed);
     }
 
     #[test]
     fn flat_tool_shape_also_parsed() {
         let mut lane = LanePane::new();
-        lane.on_stream(&env("agent.transcript", json!({"toolName": "Read", "status": "running"})));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({"toolName": "Read", "status": "running"}),
+        ));
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].name, "Read");
+    }
+
+    #[test]
+    fn folds_real_daemon_transcript_entry_messages_tools_and_outputs() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env("agent.transcript", json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-real",
+                "ship": "codex",
+                "spawned_agent_id": "a",
+                "status": "running",
+                "backend": "codex",
+                "model": "gpt-5",
+                "messages": [
+                    {"role": "thinking", "content": "checking the stream contract", "timestamp": 10},
+                    {
+                        "role": "assistant",
+                        "content": "I found the cockpit route.",
+                        "timestamp": 11,
+                        "tool_calls": [
+                            {"name": "rg", "args": {"query": "agent.transcript"}, "result": "matched"}
+                        ]
+                    }
+                ],
+                "outputs": [
+                    {
+                        "type": "draft-pr",
+                        "summary": "opened draft PR #123",
+                        "url": "https://github.com/org/repo/pull/123"
+                    }
+                ]
+            }
+        })));
+
+        let lines = transcript_lines(&lane);
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("thinking: checking the stream contract")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("I found the cockpit route.")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("artifact draft-pr: opened draft PR #123")));
+        assert_eq!(lane.tools.len(), 1);
+        assert_eq!(lane.tools[0].name, "rg");
+        assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn folds_real_daemon_transcript_start_and_end_metadata() {
+        let mut lane = LanePane::new();
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "start",
+                "entry": {
+                    "id": "tx-meta",
+                    "ship": "codex",
+                    "spawned_agent_id": "a",
+                    "status": "running",
+                    "backend": "codex",
+                    "model": "gpt-5",
+                    "messages": [],
+                    "outputs": []
+                }
+            }),
+        ));
+        lane.on_stream(&env(
+            "agent.transcript",
+            json!({
+                "type": "end",
+                "entry": {
+                    "id": "tx-meta",
+                    "ship": "codex",
+                    "spawned_agent_id": "a",
+                    "status": "completed",
+                    "backend": "codex",
+                    "model": "gpt-5",
+                    "cost_usd": 0.0123,
+                    "tokens_in": 1200,
+                    "tokens_out": 340,
+                    "messages": [],
+                    "outputs": []
+                }
+            }),
+        ));
+
+        let lines = transcript_lines(&lane);
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("run running: codex via codex/gpt-5")));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("run completed: codex $0.0123 tokens 1200 in / 340 out")));
+    }
+
+    #[test]
+    fn repeated_full_transcript_updates_do_not_duplicate_scrollback() {
+        let mut lane = LanePane::new();
+        let body = json!({
+            "type": "update",
+            "entry": {
+                "id": "tx-dedupe",
+                "ship": "codex",
+                "spawned_agent_id": "a",
+                "status": "running",
+                "backend": "codex",
+                "model": "gpt-5",
+                "messages": [
+                    {"role": "assistant", "content": "same row replayed", "timestamp": 99}
+                ],
+                "outputs": []
+            }
+        });
+
+        lane.on_stream(&env("agent.transcript", body.clone()));
+        lane.on_stream(&env("agent.transcript", body));
+        assert_eq!(
+            transcript_lines(&lane),
+            vec!["same row replayed".to_string()]
+        );
     }
 
     #[test]
     fn scrollback_is_bounded() {
         let mut lane = LanePane::new();
         for i in 0..(SCROLLBACK + 50) {
-            lane.on_stream(&env("agent.transcript", json!({"text": format!("line {i}")})));
+            lane.on_stream(&env(
+                "agent.transcript",
+                json!({"text": format!("line {i}")}),
+            ));
         }
         assert!(lane.lines.len() <= SCROLLBACK);
     }
