@@ -2278,6 +2278,9 @@
       "routes": [
         "POST /visual-tasks"
       ],
+      "mcp": [
+        "submit_visual_task"
+      ],
       "completions": [],
       "docs": {
         "readme": true,

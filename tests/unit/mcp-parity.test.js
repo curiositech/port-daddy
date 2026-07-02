@@ -276,6 +276,7 @@ const TOOL_FEATURE_MAP = {
 
   // Feedback (central agentic-feedback primitive)
   'drop_feedback': 'feedback',
+  'submit_visual_task': 'visual_tasks',
   'list_feedback': 'feedback',
   'feedback_summary': 'feedback',
 

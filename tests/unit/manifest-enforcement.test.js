@@ -728,6 +728,7 @@ describe('MCP --> Manifest (every MCP tool maps to a feature)', () => {
       'memory_episodes': 'memory',
       'memory_stats': 'memory',
       'drop_feedback': 'feedback',
+      'submit_visual_task': 'visual_tasks',
       'list_feedback': 'feedback',
       'feedback_summary': 'feedback',
 

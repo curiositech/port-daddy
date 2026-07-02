@@ -70,6 +70,20 @@ function captureLabel(capture) {
   els.captureMeta.textContent = `${region} · ${count} DOM hint${count === 1 ? '' : 's'}`;
 }
 
+function updateDaemonStatus() {
+  const value = els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const local = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+    els.daemonStatus.textContent = local ? 'Local' : 'Remote';
+    els.daemonStatus.dataset.tone = local ? 'local' : 'remote';
+  } catch {
+    els.daemonStatus.textContent = 'Unknown';
+    els.daemonStatus.dataset.tone = 'unknown';
+  }
+}
+
 async function persistForm() {
   await storageSet({
     pdScoutDaemonUrl: els.daemonUrl.value.trim() || DEFAULT_DAEMON_URL,
@@ -90,6 +104,7 @@ async function load() {
     'pdScoutStartAgent',
   ]);
   els.daemonUrl.value = stored.pdScoutDaemonUrl || DEFAULT_DAEMON_URL;
+  updateDaemonStatus();
   els.projectDir.value = stored.pdScoutProjectDir || '';
   els.assignee.value = stored.pdScoutAssignee || 'local-agent';
   els.targetAgent.value = stored.pdScoutTargetAgent || '';
@@ -189,5 +204,6 @@ els.assignee.addEventListener('change', () => {
 for (const el of [els.daemonUrl, els.projectDir, els.targetAgent, els.startAgent]) {
   el.addEventListener('change', () => void persistForm());
 }
+els.daemonUrl.addEventListener('input', updateDaemonStatus);
 
 void load();

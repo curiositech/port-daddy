@@ -155,6 +155,10 @@ export interface VisualTaskIntakeDeps {
 
 const VISUAL_CHANNEL = 'visual-feedback';
 
+export class VisualTaskInputError extends Error {
+  readonly statusCode = 400;
+}
+
 function makeTaskId(now: number): string {
   return `visual-task-${now.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -173,7 +177,7 @@ function shortTitle(value: string): string {
 
 function parseDataUrl(dataUrl: string): { mimeType: string; buffer: Buffer } {
   const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
-  if (!match) throw new Error('image.dataUrl must be a data URL');
+  if (!match) throw new VisualTaskInputError('image.dataUrl must be a data URL');
   const mimeType = match[1] || 'application/octet-stream';
   const raw = match[3] ?? '';
   const buffer = match[2]
@@ -227,7 +231,7 @@ function validateTask(task: VisualTaskSubmission): void {
   const hasImage = !!task.image?.dataUrl || !!task.image?.blobId;
   const hasDom = Array.isArray(task.domContext?.elementsInRegion) && task.domContext.elementsInRegion.length > 0;
   if (!hasDescription && !hasImage && !hasDom) {
-    throw new Error('visual task requires a brief, screenshot, or DOM context');
+    throw new VisualTaskInputError('visual task requires a brief, screenshot, or DOM context');
   }
 }
 
@@ -275,6 +279,10 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
     validateTask(task);
 
     let screenshot: VisualTaskIntakeResult['screenshot'];
+    if (task.image?.dataUrl && !deps.blobs) {
+      throw new Error('visual task screenshot storage unavailable');
+    }
+
     if (task.image?.dataUrl && deps.blobs) {
       const parsed = parseDataUrl(task.image.dataUrl);
       const blob = deps.blobs.put(parsed.buffer, { contentType: task.image.mimeType || parsed.mimeType });
