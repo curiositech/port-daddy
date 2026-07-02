@@ -89,6 +89,26 @@ function classifyArtifact(filename) {
   return null;
 }
 
+function fleetbarSignedFromManifest(manifestPath) {
+  if (!existsSync(manifestPath)) return null;
+
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  } catch {
+    console.warn(`build-latest-json: ignoring unusable FleetBar manifest at ${manifestPath}: malformed JSON`);
+    return null;
+  }
+
+  if (typeof manifest.unsigned !== 'boolean') {
+    const actual = Object.prototype.hasOwnProperty.call(manifest, 'unsigned') ? typeof manifest.unsigned : 'missing';
+    console.warn(`build-latest-json: ignoring unusable FleetBar manifest at ${manifestPath}: unsigned must be boolean (got ${actual})`);
+    return null;
+  }
+
+  return !manifest.unsigned;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const tag = args.tag;
@@ -130,14 +150,7 @@ function main() {
   // historically shipped ad-hoc while --signed marked it signed:true, so the feed
   // advertised a Gatekeeper-quarantined app as signed. `null` means no usable
   // manifest truth was found, so fall back to the blanket flag.
-  let fleetbarSigned = null;
-  const fleetbarManifestPath = join(distDir, 'fleetbar', 'fleetbar-preview-manifest.json');
-  if (existsSync(fleetbarManifestPath)) {
-    try {
-      const m = JSON.parse(readFileSync(fleetbarManifestPath, 'utf8'));
-      if (typeof m.unsigned === 'boolean') fleetbarSigned = !m.unsigned;
-    } catch { /* malformed manifest → fall back to the blanket flag */ }
-  }
+  const fleetbarSigned = fleetbarSignedFromManifest(join(distDir, 'fleetbar', 'fleetbar-preview-manifest.json'));
 
   const artifacts = [];
   for (const filePath of found) {

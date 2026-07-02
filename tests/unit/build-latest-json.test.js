@@ -6,15 +6,25 @@ import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 
 const SCRIPT = resolve('scripts/build-latest-json.mjs');
 
-function runFeed(distDir, outPath) {
-  execFileSync('node', [SCRIPT, '--tag', 'v9.9.9', '--dist', distDir, '--out', outPath, '--signed'], {
-    stdio: 'pipe',
+function runFeedResult(distDir, outPath) {
+  const result = spawnSync('node', [SCRIPT, '--tag', 'v9.9.9', '--dist', distDir, '--out', outPath, '--signed'], {
+    encoding: 'utf8',
   });
-  return JSON.parse(readFileSync(outPath, 'utf8'));
+  if (result.status !== 0) {
+    throw new Error(`build-latest-json failed: ${result.stderr || result.stdout}`);
+  }
+  return {
+    feed: JSON.parse(readFileSync(outPath, 'utf8')),
+    stderr: result.stderr,
+  };
+}
+
+function runFeed(distDir, outPath) {
+  return runFeedResult(distDir, outPath).feed;
 }
 
 function fleetbarSigned(feed) {
@@ -57,26 +67,30 @@ describe('build-latest-json FleetBar signed flag', () => {
   });
 
   test('no fleetbar manifest → falls back to the blanket --signed flag', () => {
-    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    const { feed, stderr } = runFeedResult(join(dir, 'dist'), join(dir, 'latest.json'));
     expect(fleetbarSigned(feed)).toBe(true);
+    expect(stderr).toBe('');
   });
 
-  test('malformed fleetbar manifest → falls back to the blanket --signed flag', () => {
+  test('malformed fleetbar manifest → warns and falls back to the blanket --signed flag', () => {
     writeFleetbarManifestBody('{"unsigned": true');
-    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    const { feed, stderr } = runFeedResult(join(dir, 'dist'), join(dir, 'latest.json'));
     expect(fleetbarSigned(feed)).toBe(true);
+    expect(stderr).toContain('malformed JSON');
   });
 
-  test('fleetbar manifest without unsigned → falls back to the blanket --signed flag', () => {
+  test('fleetbar manifest without unsigned → warns and falls back to the blanket --signed flag', () => {
     writeFleetbarManifestBody(JSON.stringify({ artifact: 'PortDaddy-FleetBar-macOS-arm64.zip' }));
-    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    const { feed, stderr } = runFeedResult(join(dir, 'dist'), join(dir, 'latest.json'));
     expect(fleetbarSigned(feed)).toBe(true);
+    expect(stderr).toContain('unsigned must be boolean (got missing)');
   });
 
-  test.each([null, 'true', 0])('non-boolean unsigned value %p → falls back to the blanket flag', (unsigned) => {
+  test.each([null, 'true', 0])('non-boolean unsigned value %p → warns and falls back to the blanket flag', (unsigned) => {
     writeFleetbarManifest(unsigned);
-    const feed = runFeed(join(dir, 'dist'), join(dir, 'latest.json'));
+    const { feed, stderr } = runFeedResult(join(dir, 'dist'), join(dir, 'latest.json'));
     expect(fleetbarSigned(feed)).toBe(true);
+    expect(stderr).toContain('unsigned must be boolean');
   });
 
   test('ignores same-named manifests outside dist/fleetbar', () => {
