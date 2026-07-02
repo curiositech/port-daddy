@@ -26,6 +26,36 @@ All HTTP endpoints accept and return JSON. Rate limited to 100 req/min per IP.
 
 ---
 
+## Visual Tasks
+
+### POST /visual-tasks
+Submit visual evidence from FleetBar, Port Daddy Scout, or an MCP client and turn
+it into a reviewable work item.
+
+**Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `description` | string | no | Agent brief or bug note. Required when no screenshot or DOM context is supplied. |
+| `title` | string | no | Short issue title. |
+| `kind` | string | no | `fix`, `bug`, `nit`, `feedback`, or `question`. |
+| `projectDir` | string | no | Repo/worktree path used for routing and DOM source hints. |
+| `targetAgent` | string | no | Local agent id to notify directly. |
+| `image` | object | no | Screenshot evidence, usually `mimeType` plus `dataUrl` or an existing `blobId`. |
+| `region` | object | no | Selected rectangle in image or viewport coordinates. |
+| `domContext` | object | no | Selectors, XPath, text snippets, bounds, and source hints captured from the page. |
+| `routing` | object | no | `assignee`, `openIssue`, `startAgent`, and optional `targetAgent`. |
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "issue": { "kind": "port-daddy-work-item", "status": "opened" },
+  "screenshot": { "url": "/blob/abc123" }
+}
+```
+
+---
+
 ## Services (Port Management)
 
 ### POST /claim
