@@ -433,6 +433,31 @@ impl Pane for LanePane {
             },
         });
 
+        // Live transcript / tube tail. This is the Lane's primary evidence; keep
+        // it above secondary tool chips so small panes still show the agent.
+        out.push(Block::Header("stream".into()));
+        if self.lines.is_empty() {
+            out.push(Block::KeyVal(
+                "—".into(),
+                "connected; waiting for transcript/tool/tube frames".into(),
+            ));
+        } else {
+            // Show the last ~24 lines (most recent at the bottom).
+            let start = self.lines.len().saturating_sub(24);
+            for line in &self.lines[start..] {
+                match line {
+                    LaneLine::Transcript(t) => out.push(Block::TranscriptLine {
+                        text: util::trunc(t, 120),
+                        tone: Tone::Default,
+                    }),
+                    LaneLine::Tube(t) => out.push(Block::TranscriptLine {
+                        text: format!("steer {}", util::trunc(t, 112)),
+                        tone: Tone::Engaged,
+                    }),
+                }
+            }
+        }
+
         // Tool-call chips (running → done/failed).
         if !self.tools.is_empty() {
             out.push(Block::Header("tools".into()));
@@ -447,26 +472,6 @@ impl Pane for LanePane {
             {
                 let (label, tone) = t.state.chip(&t.name);
                 out.push(Block::Chip { label, tone });
-            }
-        }
-
-        // Live transcript / tube tail.
-        out.push(Block::Header("stream".into()));
-        if self.lines.is_empty() {
-            out.push(Block::KeyVal(
-                "—".into(),
-                "connected; waiting for transcript/tool/tube frames".into(),
-            ));
-        } else {
-            // Show the last ~24 lines (most recent at the bottom).
-            let start = self.lines.len().saturating_sub(24);
-            for line in &self.lines[start..] {
-                match line {
-                    LaneLine::Transcript(t) => out.push(Block::Row(vec![util::trunc(t, 96)])),
-                    LaneLine::Tube(t) => {
-                        out.push(Block::Row(vec![format!("⤳ {}", util::trunc(t, 92))]))
-                    }
-                }
             }
         }
 
@@ -613,6 +618,17 @@ mod tests {
         // The view renders without panicking and includes the live indicator.
         let blocks = lane.view();
         assert!(!blocks.is_empty());
+        assert!(blocks
+            .iter()
+            .any(|b| matches!(b, Block::TranscriptLine { text, .. } if text == "hello world")));
+        assert!(blocks.iter().any(|b| matches!(
+            b,
+            Block::TranscriptLine { text, tone: Tone::Engaged } if text.contains("control.interrupt")
+        )));
+        assert!(
+            !blocks.iter().any(|b| matches!(b, Block::Row(_))),
+            "Lane transcript lines should not render as table/control rows"
+        );
     }
 
     #[test]

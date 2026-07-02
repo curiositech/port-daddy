@@ -48,6 +48,10 @@ pub enum Block {
     Header(String),
     KeyVal(String, String),
     Row(Vec<String>),
+    /// A conversational/event-stream line. Unlike [`Block::Row`], this is not
+    /// tabular or clickable chrome; renderers should paint it as readable log
+    /// typography with a small semantic marker.
+    TranscriptLine { text: String, tone: Tone },
     Chip { label: String, tone: Tone },
     /// A maritime ICS signal flag: a colored square bearing the single letter,
     /// followed by a label (e.g. the agent identity + state). The console paints

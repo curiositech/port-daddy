@@ -368,6 +368,15 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                     out.push_str(&format!("  {}\n", line.join(&format!(" {sep} "))));
                 }
             }
+            Block::TranscriptLine { text, tone } => {
+                let sem = tone.sem();
+                out.push_str(&format!(
+                    "  {} {}\n",
+                    style.paint(tone.symbol(), sem),
+                    style.paint(text, Sem::Ink),
+                ));
+                i += 1;
+            }
             Block::Chip { label, tone } => {
                 let sem = tone.sem();
                 out.push_str(&format!(
