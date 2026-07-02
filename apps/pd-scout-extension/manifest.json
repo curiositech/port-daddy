@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Port Daddy Scout",
+  "version": "0.1.0",
+  "description": "Capture any web app as a visual issue and route it to a Port Daddy fleet.",
+  "action": {
+    "default_title": "Send visual issue to Port Daddy",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:*/*",
+    "http://localhost:*/*"
+  ],
+  "commands": {
+    "capture-region": {
+      "suggested_key": {
+        "default": "Alt+Shift+P",
+        "mac": "Alt+Shift+P"
+      },
+      "description": "Select a region for a Port Daddy visual issue"
+    }
+  }
+}

@@ -377,7 +377,7 @@ describe('Test Group 3: API -> CLI Parity', () => {
   // cloudapptelemetry: inbound GitHub App / Cloudflare Worker telemetry ingestion + read API;
   // surfaced through fleet/agents/observability reporting, not a dedicated `pd` command.
   // (relay is NOT API-only: it has the `pd relay` CLI, mapped in ROUTE_TO_CLI_MAP above.)
-  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry']);
+  const API_ONLY_ROUTES = new Set(['arbiter', 'pheromone', 'mergequeue', 'symbols', 'observability', 'metricsprom', 'operator', 'semantic', 'resources', 'usage', 'testhooks', 'blob', 'githubwebhook', 'context', 'harvest', 'custodian', 'cloudapptelemetry', 'visualtasks']);
 
   test('all route modules have at least one corresponding CLI command', () => {
     const missingCoverage = [];
