@@ -1024,7 +1024,16 @@ if (process.env.DEBUG_TESTS) {
 
 // --- CORS (replaces cors middleware) ---
 await app.register(fastifyCors, {
-  origin: /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/,
+  origin: (origin: string | undefined, callback: (err: Error | null, allow: boolean) => void) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    const allowed =
+      /^https?:\/\/(localhost|127\.0\.0\.1|dashboard\.pd\.local)(:\d+)?$/.test(origin) ||
+      /^chrome-extension:\/\/[a-p]{32}$/.test(origin);
+    callback(null, allowed);
+  },
   credentials: true
 });
 
