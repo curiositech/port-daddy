@@ -76,8 +76,15 @@ interface AgentCockpitAgents {
   get(id: string): { success: boolean; agent?: Record<string, unknown>; error?: string };
 }
 
+interface AgentCockpitTranscriptEntry extends Record<string, unknown> {
+  id?: string;
+  spawned_agent_id?: string;
+}
+
 interface AgentCockpitTranscripts {
-  subscribe(listener: (event: { type: 'start' | 'update' | 'end'; entry: { spawned_agent_id?: string } & Record<string, unknown> }) => void): () => void;
+  subscribe(listener: (event: { type: 'start' | 'update' | 'end'; entry: AgentCockpitTranscriptEntry }) => void): () => void;
+  listTranscripts?(filter?: { agentId?: string; limit?: number }): AgentCockpitTranscriptEntry[];
+  getTranscript?(id: string): AgentCockpitTranscriptEntry | null;
 }
 
 interface AgentCockpitRouteDeps {
@@ -157,8 +164,6 @@ export const agentCockpitPlugin: FastifyPluginAsync<{ deps: AgentCockpitRouteDep
         return;
       }
 
-      raw.write(`event: connected\ndata: ${JSON.stringify({ agentId, channel: steeringChannel })}\n\n`);
-
       // Source 3 — ship-run transcript events for this agent.
       const unsubTranscripts = transcripts
         ? transcripts.subscribe((event) => {
@@ -171,6 +176,9 @@ export const agentCockpitPlugin: FastifyPluginAsync<{ deps: AgentCockpitRouteDep
             }
           })
         : (() => {});
+
+      raw.write(`event: connected\ndata: ${JSON.stringify({ agentId, channel: steeringChannel })}\n\n`);
+      writeInitialSnapshots(raw, agentId, agents, transcripts);
 
       const heartbeat = setInterval(() => {
         try { raw.write(':heartbeat\n\n'); } catch { /* dead conn */ }
@@ -268,6 +276,8 @@ export const agentCockpitPlugin: FastifyPluginAsync<{ deps: AgentCockpitRouteDep
 // Helpers (pure)
 // ─────────────────────────────────────────────────────────────────────────────
 
+let streamEventSeq = 0;
+
 /**
  * The in-memory subscribe callback receives the broker's MessagePayload
  * ({ id, channel, payload, sender, createdAt }). The cockpit envelope only
@@ -305,6 +315,8 @@ function writeEnvelope(
   raw: { write(chunk: string): boolean },
   partial: { kind: AgentStreamKind; agentId: string; body: unknown },
 ): void {
+  streamEventSeq = (streamEventSeq + 1) % Number.MAX_SAFE_INTEGER;
+  const id = `${partial.agentId}:${Date.now()}:${streamEventSeq}`;
   const envelope: AgentStreamEnvelope = {
     v: AGENT_STREAM_ENVELOPE_VERSION,
     kind: partial.kind,
@@ -313,8 +325,46 @@ function writeEnvelope(
     ts: Date.now(),
   };
   try {
-    raw.write(`event: ${partial.kind}\ndata: ${JSON.stringify(envelope)}\n\n`);
+    raw.write(`id: ${id}\nevent: ${partial.kind}\ndata: ${JSON.stringify(envelope)}\n\n`);
   } catch {
     /* client disconnected — cleanup handler will tear down */
   }
+}
+
+function writeInitialSnapshots(
+  raw: { write(chunk: string): boolean },
+  agentId: string,
+  agents: AgentCockpitAgents,
+  transcripts?: AgentCockpitTranscripts,
+): void {
+  const currentAgent = agents.get(agentId);
+  if (currentAgent.success && currentAgent.agent) {
+    writeEnvelope(raw, {
+      kind: 'agent.status',
+      agentId,
+      body: { event: 'snapshot', agentId, ...currentAgent.agent },
+    });
+  }
+
+  const tx = latestTranscriptForAgent(transcripts, agentId);
+  if (tx) {
+    writeEnvelope(raw, {
+      kind: 'agent.transcript',
+      agentId,
+      body: { type: 'snapshot', entry: tx },
+    });
+  }
+}
+
+function latestTranscriptForAgent(
+  transcripts: AgentCockpitTranscripts | undefined,
+  agentId: string,
+): AgentCockpitTranscriptEntry | null {
+  if (!transcripts?.listTranscripts) return null;
+  const [header] = transcripts.listTranscripts({ agentId, limit: 1 }) || [];
+  if (!header) return null;
+  if (transcripts.getTranscript && typeof header.id === 'string') {
+    return transcripts.getTranscript(header.id) || header;
+  }
+  return header;
 }
