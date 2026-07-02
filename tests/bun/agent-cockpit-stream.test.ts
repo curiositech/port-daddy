@@ -127,12 +127,15 @@ async function collectStream(
       buffer = frames.pop() ?? '';
       for (const frame of frames) {
         if (frame.includes('event: connected')) connectedSeen = true;
-        const dataLine = frame.split('\n').find((l) => l.startsWith('data: '));
+        const lines = frame.split('\n');
+        const idLine = lines.find((l) => l.startsWith('id: '));
+        const dataLine = lines.find((l) => l.startsWith('data: '));
         if (!dataLine) continue;
         const json = dataLine.slice('data: '.length);
         try {
           const parsed = JSON.parse(json);
           if (parsed && typeof parsed === 'object' && 'kind' in parsed) {
+            if (idLine) parsed.__sseId = idLine.slice('id: '.length);
             envelopes.push(parsed);
           }
         } catch {
@@ -249,6 +252,8 @@ describe('GET /agents/:id/stream — merged live feed', () => {
       expect(e!.v).toBe(AGENT_STREAM_ENVELOPE_VERSION);
       expect(e!.agentId).toBe(agentId);
       expect(typeof e!.ts).toBe('number');
+      expect(typeof e!.__sseId).toBe('string');
+      expect((e!.__sseId as string).startsWith(`${agentId}:`)).toBe(true);
       expect('body' in e!).toBe(true);
     }
 

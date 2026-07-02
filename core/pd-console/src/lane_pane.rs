@@ -220,17 +220,21 @@ impl LanePane {
 
     fn fold_transcript_message(&mut self, tx_id: &str, msg: &serde_json::Value) -> bool {
         let mut rendered = false;
+        let timestamp = msg.get("timestamp").and_then(|t| t.as_i64()).unwrap_or(0);
 
         if let Some(tool_calls) = msg.get("tool_calls").and_then(|calls| calls.as_array()) {
-            for call in tool_calls {
+            for (idx, call) in tool_calls.iter().enumerate() {
                 if let Some(name) = field_str(call, &["name", "tool", "toolName"]) {
                     let state = if call.get("result").is_some() {
                         ToolState::Ok
                     } else {
                         ToolState::Running
                     };
-                    self.note_tool(name, state);
-                    rendered = true;
+                    let key = format!("{tx_id}:tool:{timestamp}:{idx}:{name}:{state:?}");
+                    if self.seen_transcript_items.insert(key) {
+                        self.note_tool(name, state);
+                        rendered = true;
+                    }
                 }
             }
         }
@@ -244,7 +248,6 @@ impl LanePane {
         }
 
         let role = field_str(msg, &["role"]).unwrap_or("assistant");
-        let timestamp = msg.get("timestamp").and_then(|t| t.as_i64()).unwrap_or(0);
         let line = match role {
             "assistant" => content.to_string(),
             "thinking" => format!("thinking: {content}"),
@@ -755,7 +758,14 @@ mod tests {
                 "backend": "codex",
                 "model": "gpt-5",
                 "messages": [
-                    {"role": "assistant", "content": "same row replayed", "timestamp": 99}
+                    {
+                        "role": "assistant",
+                        "content": "same row replayed",
+                        "timestamp": 99,
+                        "tool_calls": [
+                            {"name": "rg", "args": {"query": "agent.transcript"}, "result": "matched"}
+                        ]
+                    }
                 ],
                 "outputs": []
             }
@@ -767,6 +777,9 @@ mod tests {
             transcript_lines(&lane),
             vec!["same row replayed".to_string()]
         );
+        assert_eq!(lane.tools.len(), 1);
+        assert_eq!(lane.tools[0].name, "rg");
+        assert_eq!(lane.tools[0].state, ToolState::Ok);
     }
 
     #[test]
