@@ -22,7 +22,7 @@ use crate::agent::{Backend, ModelCatalog, Tier};
 pub use crate::chat::ChatUpdate;
 use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 use crate::dispatch_pane::DispatchHead;
-use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
+use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
 use crate::pane::{Alert, AlertLevel, Block, Pane, Tone};
 use crate::tokens;
@@ -1239,6 +1239,34 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                     .child(cell)
             }))
             .into_any_element(),
+        Block::TranscriptLine { text, tone } => {
+            let color_u32 = tone_rgb(&tone);
+            div()
+                .flex()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .mx(px(tokens::SPACE_3))
+                .my(px(1.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(3.0))
+                .child(
+                    div()
+                        .mt(px(6.0))
+                        .w(px(6.0))
+                        .h(px(6.0))
+                        .rounded(px(3.0))
+                        .bg(rgb(color_u32))
+                        .flex_shrink_0(),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .child(text),
+                )
+                .into_any_element()
+        }
         Block::Chip { label, tone } => {
             let color_u32 = tone_rgb(&tone);
             let color = rgb(color_u32);
@@ -1566,17 +1594,10 @@ impl ConsoleView {
     /// roadmap column — proof of multiplex on first launch. `initial` (if a
     /// known nav id) becomes the focused pane's surface.
     fn default_workspace(initial: Option<&str>) -> Workspace {
-        let mut ws = Workspace::new(SurfaceKind::Fleet);
-        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
-        ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
-        ws.focus(1); // start on the fleet pane (first leaf id)
-                     // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
-                     // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
-                     // tooling and deep-links can open any surface, not just NAV-rail panes.
-        if let Some(surface) = initial.and_then(surface_for_query) {
-            ws.swap_surface(surface);
-        }
-        ws
+        // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
+        // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
+        // tooling and deep-links can open any surface, not just NAV-rail panes.
+        default_operator_workspace(initial.and_then(surface_for_query))
     }
 
     // ── Active-tab accessors ─────────────────────────────────────────────────

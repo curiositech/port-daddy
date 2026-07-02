@@ -12,6 +12,6 @@ Seeded transcript evidence:
 
 Artifacts:
 
-- `manual-pane-lane.png` - PID-targeted screenshot of the Lane pane showing the seeded daemon transcript, tool calls, and artifact rows.
-- `live-motion/live-lane-proof.gif` - three captured Lane frames with a transcript message and output appended while pd-console was open.
-- `live-motion/live-lane-proof.mp4` - MP4 derivative of the same motion proof.
+- `manual-pane-lane.png` - PID-targeted screenshot of `pd-console --pane lane` opened as a single Lane experience, showing the seeded daemon transcript, tool call, steering event, and live update rows as transcript typography.
+- `live-motion/live-lane-proof.gif` - PID-targeted frame sequence showing the Lane moving from connecting state to live transcript/tool evidence while pd-console was open.
+- `live-motion/live-lane-proof.mp4` - MP4 derivative of the same frame-sequence motion proof.
