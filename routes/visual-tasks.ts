@@ -11,6 +11,7 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import {
   createVisualTaskIntake,
+  VisualTaskInputError,
   type VisualTaskSubmission,
   type VisualTaskIntakeDeps,
 } from '../lib/visual-task-intake.js';
@@ -31,7 +32,8 @@ export const visualTasksPlugin: FastifyPluginAsync<VisualTasksRouteDeps> = async
         return reply.code(201).send(result);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return reply.code(400).send({
+        const statusCode = err instanceof VisualTaskInputError ? err.statusCode : 500;
+        return reply.code(statusCode).send({
           success: false,
           error: message,
         });

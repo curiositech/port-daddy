@@ -176,4 +176,42 @@ describe('visual task routes', () => {
 
     await app.close();
   });
+
+  test('POST /visual-tasks fails closed when screenshot storage is unavailable', async () => {
+    const { app } = await buildApp({ blobs: undefined });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        description: 'Screenshot evidence must not disappear.',
+        image: { mimeType: 'image/png', dataUrl: pngDataUrl('lost') },
+      },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(res.json().error).toMatch(/screenshot storage unavailable/i);
+
+    await app.close();
+  });
+
+  test('POST /visual-tasks treats malformed screenshot data URLs as input errors', async () => {
+    const { app } = await buildApp();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      payload: {
+        source: 'chrome-extension',
+        description: 'Bad screenshot payload.',
+        image: { mimeType: 'image/png', dataUrl: 'not-a-data-url' },
+      },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toMatch(/data URL/i);
+
+    await app.close();
+  });
 });

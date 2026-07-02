@@ -254,7 +254,7 @@ const TOOL_CATEGORIES: Record<string, { description: string; tools: string[] }> 
   },
   'feedback': {
     description: 'Agentic feedback primitive — drop structured findings about the project (or about Port Daddy itself); cartographer harvests them into the roadmap',
-    tools: ['drop_feedback', 'list_feedback', 'feedback_summary'],
+    tools: ['drop_feedback', 'submit_visual_task', 'list_feedback', 'feedback_summary'],
   },
   'harbors': {
     description: 'Named permission namespaces — list harbors, inspect membership/envelope, and dry-run a capability decision before you act',
@@ -3015,6 +3015,35 @@ const TOOLS = [
     },
   },
   {
+    name: 'submit_visual_task',
+    description:
+      '[Standard] Submit visual evidence as a Port Daddy work item from any MCP client. ' +
+      'Use this when an agent has a screenshot, selected rectangle, DOM hint, or browser ' +
+      'context that should become a reviewable issue for a local agent, cloud fleet, or ' +
+      'review queue. Mirrors the Chrome extension and FleetBar visual intake route without ' +
+      'exposing dispatch/worker internals to the caller.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        title: { type: 'string', description: 'Short issue title. Defaults to description.' },
+        description: { type: 'string', description: 'What is wrong or what the agent should do.' },
+        kind: { type: 'string', enum: ['fix', 'bug', 'nit', 'feedback', 'question'], description: 'Task flavor. Default: fix.' },
+        project: { type: 'string', description: 'Logical project slug.' },
+        project_dir: { type: 'string', description: 'Absolute project directory for repo-aware routing.' },
+        page_url: { type: 'string', description: 'URL of the page or app where the issue was captured.' },
+        target_agent: { type: 'string', description: 'Specific local agent id to receive the task.' },
+        assignee: { type: 'string', enum: ['local-agent', 'cloud-fleet', 'review-queue'], description: 'Where to route the work. Default: review-queue unless a target_agent is supplied.' },
+        open_issue: { type: 'boolean', description: 'Open a reviewable Port Daddy work item. Default: true.' },
+        start_agent: { type: 'boolean', description: 'Ask the daemon to wake/run the assigned agent after routing. Default: false.' },
+        image: { type: 'object', description: 'Screenshot evidence, usually {mimeType, dataUrl} or an existing blobId.' },
+        region: { type: 'object', description: 'Selected rectangle in image or viewport coordinates.' },
+        dom_context: { type: 'object', description: 'DOM decomposition: selectors, XPath, bounds, source hints, and page title.' },
+        viewport: { type: 'object', description: 'Viewport metadata such as width, height, and devicePixelRatio.' },
+      },
+      required: ['description'],
+    },
+  },
+  {
     name: 'list_feedback',
     description:
       '[Standard] List feedback entries. Filter by severity, surface, ' +
@@ -4685,6 +4714,36 @@ async function handleTool(
       if (args.project) body.project = args.project;
       if (args.harbor) body.harbor = args.harbor;
       res = await POST('/feedback', body);
+      break;
+    }
+
+    case 'submit_visual_task': {
+      const targetAgent = (args.target_agent as string | undefined) || (args.targetAgent as string | undefined);
+      const assignee = (args.assignee as string | undefined) || (targetAgent ? 'local-agent' : 'review-queue');
+      const body: Record<string, unknown> = {
+        schemaVersion: 1,
+        type: 'visual-task',
+        source: 'api',
+        title: (args.title as string | undefined) || (args.description as string | undefined) || 'Visual task',
+        description: (args.description as string | undefined) || (args.title as string | undefined) || '',
+        kind: (args.kind as string | undefined) || 'fix',
+        createdAt: new Date().toISOString(),
+        routing: {
+          assignee,
+          targetAgent,
+          openIssue: args.open_issue !== false && args.openIssue !== false,
+          startAgent: args.start_agent === true || args.startAgent === true,
+        },
+      };
+      if (args.project) body.project = args.project;
+      if (args.project_dir || args.projectDir) body.projectDir = args.project_dir || args.projectDir;
+      if (targetAgent) body.targetAgent = targetAgent;
+      if (args.page_url || args.pageUrl) body.pageUrl = args.page_url || args.pageUrl;
+      if (args.image) body.image = args.image;
+      if (args.region) body.region = args.region;
+      if (args.dom_context || args.domContext) body.domContext = args.dom_context || args.domContext;
+      if (args.viewport) body.viewport = args.viewport;
+      res = await POST('/visual-tasks', body);
       break;
     }
 

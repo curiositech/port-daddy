@@ -77,6 +77,18 @@ h1 {
   font-weight: 700;
 }
 
+.status[data-tone="remote"] {
+  border-color: #9fe0cb;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.status[data-tone="unknown"] {
+  border-color: #e7c36c;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
 .capture,
 label,
 .check {
