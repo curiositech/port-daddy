@@ -330,6 +330,37 @@ describe('GET /agents/:id/stream — merged live feed', () => {
     expect(envelopes.some((e) => (e.body as Record<string, unknown>)?.body === 'for me')).toBe(true);
   });
 
+  test('carries visual-task screenshot evidence on the watched agent lane', async () => {
+    const h = harness;
+    const agentId = 'agent-visual-task';
+    h.agents.register(agentId, { type: 'cli' });
+
+    const collected = collectStream(
+      `${h.baseUrl}/agents/${agentId}/stream`,
+      (envs) => envs.some((e) => (e.body as Record<string, unknown>)?.kind === 'visual-task'),
+    );
+    await new Promise((r) => setTimeout(r, 150));
+
+    const blobUrl = `/blob/${'b'.repeat(64)}`;
+    h.messaging.publish(agentSteeringChannel(agentId), {
+      kind: 'visual-task',
+      taskId: 'visual-task-proof',
+      title: 'Checkout button is clipped',
+      image: {
+        mimeType: 'image/png',
+        blobUrl,
+      },
+      region: { x: 20, y: 30, width: 220, height: 80, coordinateSpace: 'viewport' },
+      channel: { name: 'visual-feedback', messageId: 7 },
+    }, { contentType: 'json' });
+
+    const { envelopes } = await collected;
+    const visual = envelopes.find((e) => (e.body as Record<string, unknown>)?.kind === 'visual-task');
+    expect(visual).toBeDefined();
+    expect(visual!.kind).toBe('agent.tube');
+    expect((visual!.body as { image?: { blobUrl?: string } }).image?.blobUrl).toBe(blobUrl);
+  });
+
   test('multi-subscriber: two streams on the same agent each receive the event', async () => {
     const h = harness;
     const agentId = 'agent-multi';

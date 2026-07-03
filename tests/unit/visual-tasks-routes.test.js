@@ -117,6 +117,23 @@ describe('visual task routes', () => {
     expect(channel.count).toBe(1);
     expect(channel.messages[0].payload.image.blobId).toBe(body.screenshot.blob.id);
 
+    const laneChannel = messaging.getMessages('agent:qa', { limit: 5 });
+    expect(laneChannel.count).toBe(1);
+    expect(laneChannel.messages[0].payload).toMatchObject({
+      kind: 'visual-task',
+      taskId: body.task.id,
+      title: 'Checkout button is clipped',
+      image: {
+        blobId: body.screenshot.blob.id,
+        blobUrl: `/blob/${body.screenshot.blob.id}`,
+        mimeType: 'image/png',
+      },
+      channel: {
+        name: 'visual-feedback',
+      },
+    });
+    expect(laneChannel.messages[0].payload.image.dataUrl).toBeUndefined();
+
     const inbox = agentInbox.list('qa');
     expect(inbox.count).toBe(1);
     expect(inbox.messages[0].content.type).toBe('visual-task');

@@ -159,6 +159,10 @@ export class VisualTaskInputError extends Error {
   readonly statusCode = 400;
 }
 
+function agentSteeringChannel(agentId: string): string {
+  return `agent:${agentId}`;
+}
+
 function makeTaskId(now: number): string {
   return `visual-task-${now.toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -244,6 +248,33 @@ function summarizeTask(task: VisualTaskSubmission, channel: string, messageId?: 
     task.region ? `Region: ${task.region.coordinateSpace} ${task.region.x},${task.region.y} ${task.region.width}x${task.region.height}` : null,
     task.domContext?.selectors?.length ? `DOM selectors: ${task.domContext.selectors.slice(0, 4).join(' | ')}` : null,
   ].filter(Boolean).join('\n');
+}
+
+function laneVisualTaskPayload(
+  task: VisualTaskSubmission,
+  issue: VisualTaskIssue,
+  channel: string,
+  messageId?: number,
+) {
+  return {
+    kind: 'visual-task',
+    taskId: task.id,
+    title: task.title,
+    description: task.description,
+    source: task.source,
+    taskKind: task.kind,
+    pageUrl: task.pageUrl,
+    createdAt: task.createdAt,
+    region: task.region ?? null,
+    viewport: task.viewport ?? null,
+    domContext: task.domContext ?? null,
+    image: task.image ?? null,
+    issue,
+    channel: {
+      name: channel,
+      ...(messageId ? { messageId } : {}),
+    },
+  };
 }
 
 function workItemGoal(task: VisualTaskSubmission, channel: string, messageId?: number, screenshotUrl?: string): string {
@@ -402,6 +433,18 @@ export function createVisualTaskIntake(deps: VisualTaskIntakeDeps) {
           title: task.title ?? 'Visual task',
           status: 'recorded',
         };
+
+    if (targetAgent && deps.messaging) {
+      const lane = deps.messaging.publish(
+        agentSteeringChannel(targetAgent),
+        laneVisualTaskPayload(task, issue, channelName, channelMessageId),
+        {
+          sender: `${task.source ?? 'visual-task'}-visual`,
+          expires: null,
+        },
+      );
+      if (lane.success === false) throw new Error(lane.error || 'could not publish visual task to agent lane');
+    }
 
     return {
       success: true,

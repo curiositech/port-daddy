@@ -466,6 +466,12 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
         "hitl" => return Some(SurfaceKind::Hitl),
         "plan" => return Some(SurfaceKind::Conjure),
+        "roadmap" => return Some(SurfaceKind::Roadmap),
+        "coast" => {
+            return Some(SurfaceKind::Panel {
+                nav: "coast-guard".to_string(),
+            });
+        }
         _ => {}
     }
     launcher_items()
@@ -668,10 +674,9 @@ use crate::grid::NAV;
 fn launcher_tone(id: &str, t: &Theme) -> u32 {
     match id {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
-        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" | "conjure" => {
-            t.accent
-        }
-        "roadmap" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard"
+        | "claims" | "conjure" => t.accent,
+        "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
 }
@@ -1404,6 +1409,105 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                                 .child(preview),
                         ),
                 )
+                .into_any_element()
+        }
+        Block::ImageArtifact {
+            label,
+            path,
+            preview,
+            image_path,
+            tone,
+        } => {
+            let color_u32 = tone_rgb(&tone);
+            let preview = preview.unwrap_or_else(|| "screenshot evidence".into());
+            let mut content = div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .min_w(px(0.0))
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(tokens::SPACE_2))
+                        .child(
+                            div()
+                                .rounded(px(tokens::RADIUS_SM))
+                                .border_1()
+                                .border_color(rgb(color_u32))
+                                .px(px(tokens::SPACE_1))
+                                .py(px(1.0))
+                                .text_color(rgb(color_u32))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("SCREENSHOT"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .font_family("IBM Plex Mono")
+                                .child(path.clone()),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink2))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.muted))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(preview),
+                        ),
+                );
+            if let Some(image_path) = image_path
+                .as_deref()
+                .filter(|p| !p.trim().is_empty())
+                .map(std::path::PathBuf::from)
+                .filter(|p| p.exists())
+            {
+                content = content.child(
+                    div()
+                        .w(px(280.0))
+                        .max_w_full()
+                        .h(px(156.0))
+                        .rounded(px(tokens::RADIUS_SM))
+                        .border_1()
+                        .border_color(rgb(t.line))
+                        .bg(rgb(t.bg))
+                        .overflow_hidden()
+                        .child(
+                            img(image_path)
+                                .w_full()
+                                .h_full()
+                                .object_fit(ObjectFit::Contain),
+                        ),
+                );
+            }
+            div()
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_2))
+                .border_l_2()
+                .border_color(rgb(color_u32))
+                .bg(tone_wash(color_u32, 0x12))
+                .flex()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .mt(px(1.0))
+                        .text_color(rgb(color_u32))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::BOLD)
+                        .child("▣"),
+                )
+                .child(content)
                 .into_any_element()
         }
         Block::Chip { label, tone } => {
@@ -5060,7 +5164,7 @@ fn render_filetree_row(
 fn surface_for_nav_id(nav: &str) -> SurfaceKind {
     match nav {
         "lane" => SurfaceKind::AgentTranscript { agent_id: None },
-        "roadmap" => SurfaceKind::Roadmap,
+        "planner" | "roadmap" => SurfaceKind::Roadmap,
         "health" => SurfaceKind::DaemonHealth,
         "fleet" => SurfaceKind::Fleet,
         "sessions" => SurfaceKind::Sessions,
@@ -5075,7 +5179,7 @@ fn surface_for_nav_id(nav: &str) -> SurfaceKind {
 fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
     match surface {
         SurfaceKind::AgentTranscript { .. } => Some("lane"),
-        SurfaceKind::Roadmap => Some("roadmap"),
+        SurfaceKind::Roadmap => Some("planner"),
         SurfaceKind::DaemonHealth => Some("health"),
         SurfaceKind::Fleet => Some("fleet"),
         SurfaceKind::Sessions => Some("sessions"),

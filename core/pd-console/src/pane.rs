@@ -65,6 +65,17 @@ pub enum Block {
         preview: Option<String>,
         tone: Tone,
     },
+    /// Image-backed evidence, usually a screenshot captured by Scout/FleetBar
+    /// and stored in the daemon blob store. `path` is the operator-visible source
+    /// (`/blob/<sha>` or a local file); `image_path` is an optional local cache
+    /// path renderers may draw as a thumbnail.
+    ImageArtifact {
+        label: String,
+        path: String,
+        preview: Option<String>,
+        image_path: Option<String>,
+        tone: Tone,
+    },
     Chip { label: String, tone: Tone },
     /// A maritime ICS signal flag: a colored square bearing the single letter,
     /// followed by a label (e.g. the agent identity + state). The console paints

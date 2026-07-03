@@ -30,6 +30,7 @@ use crate::pane::{
 use crate::util;
 use anyhow::Result;
 use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 
 /// How many transcript/tube lines to retain in the scrollback. Older lines drop
 /// off the top — the Lane is a live tail, not an archive.
@@ -72,6 +73,12 @@ enum LaneLine {
         path: String,
         preview: Option<String>,
     },
+    ImageArtifact {
+        label: String,
+        path: String,
+        preview: Option<String>,
+        image_path: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +100,10 @@ pub struct LanePane {
     /// Transcript route updates carry the full refreshed row. Remember rendered
     /// message/output keys so one append does not repaint the whole history.
     seen_transcript_items: BTreeSet<String>,
+    /// Last steering-channel message read from `/msg/agent:<id>`. The live SSE
+    /// stream tails future traffic; this backfill catches messages that arrived
+    /// before the native pane subscribed.
+    channel_cursor: u64,
     /// Tool calls seen on the stream, in arrival order (deduped by name+running).
     tools: Vec<ToolCall>,
     /// Last error from the 2s poll (daemon unreachable / no agents), if any.
@@ -107,6 +118,7 @@ impl LanePane {
             streamed: false,
             lines: Vec::new(),
             seen_transcript_items: BTreeSet::new(),
+            channel_cursor: 0,
             tools: Vec::new(),
             error: None,
         }
@@ -365,6 +377,24 @@ impl LanePane {
         }
 
         if let Some(reference) = artifact_ref_from_output(output, summary) {
+            let mime = field_str(
+                output,
+                &["mimeType", "mime_type", "contentType", "content_type"],
+            );
+            if is_transcript_image_output(output_type, &reference.path, mime) {
+                let label = artifact_label(output_type, summary, &reference.raw);
+                return self.push_unique_image_artifact(
+                    format!(
+                        "{tx_id}:output:{output_type}:image:{}:{}",
+                        reference.path,
+                        digest_text(summary)
+                    ),
+                    label,
+                    reference.path.clone(),
+                    Some("image proof from transcript output".into()),
+                    local_image_path(&reference.path),
+                );
+            }
             let label = artifact_label(output_type, summary, &reference.raw);
             return self.push_unique_artifact_ref(
                 format!(
@@ -437,6 +467,149 @@ impl LanePane {
             preview,
         });
         true
+    }
+
+    fn push_unique_image_artifact(
+        &mut self,
+        key: String,
+        label: String,
+        path: String,
+        preview: Option<String>,
+        image_path: Option<String>,
+    ) -> bool {
+        if !self.seen_transcript_items.insert(key) {
+            return false;
+        }
+        self.push_line(LaneLine::ImageArtifact {
+            label,
+            path,
+            preview,
+            image_path,
+        });
+        true
+    }
+
+    fn fold_visual_task(&mut self, body: &serde_json::Value) -> bool {
+        if !is_visual_task_payload(body) {
+            return false;
+        }
+
+        let task_id = field_str(body, &["taskId", "id"]).unwrap_or("visual-task");
+        let title = field_str(body, &["title"]).unwrap_or("Visual task");
+        let description = field_str(body, &["description"]).unwrap_or("");
+        let mut text = format!("Scout captured visual task: {title}");
+        if !description.is_empty() && description != title {
+            text.push_str(&format!(" - {description}"));
+        }
+        if let Some(url) = field_str(body, &["pageUrl"]) {
+            if !url.is_empty() {
+                text.push_str(&format!(" ({url})"));
+            }
+        }
+
+        let mut rendered = self.push_unique_chat_turn(
+            format!("visual-task:{task_id}:notice"),
+            "scout".into(),
+            text,
+            Tone::Engaged,
+        );
+
+        if let Some((path, preview, image_path)) = visual_task_image_artifact(body) {
+            rendered |= self.push_unique_image_artifact(
+                format!("visual-task:{task_id}:screenshot:{path}"),
+                format!("visual task screenshot: {title}"),
+                path,
+                Some(preview),
+                image_path,
+            );
+        }
+
+        rendered
+    }
+
+    fn fold_tube_body(
+        &mut self,
+        key: String,
+        sender: String,
+        body: &serde_json::Value,
+        tone: Tone,
+    ) -> bool {
+        if self.fold_visual_task(body) {
+            return true;
+        }
+        let text = crate::agent::body_text(body);
+        if text.is_empty() {
+            return false;
+        }
+        self.push_unique_chat_turn(key, sender, text, tone)
+    }
+
+    async fn backfill_agent_channel(&mut self, daemon: &DaemonClient) {
+        let Some(agent_id) = self.agent_id.clone() else {
+            return;
+        };
+        let channel = format!("agent:{agent_id}");
+        let resp = daemon
+            .http_client()
+            .get(format!("{}/msg/{channel}", daemon.base()))
+            .query(&[
+                ("after", self.channel_cursor.to_string()),
+                ("limit", "50".to_string()),
+            ])
+            .send()
+            .await;
+        let Ok(resp) = resp else {
+            return;
+        };
+        if !resp.status().is_success() {
+            return;
+        }
+        let Ok(v) = resp.json::<serde_json::Value>().await else {
+            return;
+        };
+        let Some(messages) = v.get("messages").and_then(|m| m.as_array()) else {
+            return;
+        };
+
+        for message in messages {
+            let id = message.get("id").and_then(|i| i.as_u64()).unwrap_or(0);
+            self.channel_cursor = self.channel_cursor.max(id);
+            let body = message
+                .get("payload")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let sender = message
+                .get("sender")
+                .and_then(|s| s.as_str())
+                .unwrap_or("agent")
+                .to_string();
+            self.fold_tube_body(format!("channel:{channel}:{id}"), sender, &body, Tone::Default);
+        }
+    }
+
+    async fn hydrate_image_artifacts(&mut self, daemon: &DaemonClient) {
+        let pending: Vec<(usize, String)> = self
+            .lines
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, line)| match line {
+                LaneLine::ImageArtifact {
+                    path, image_path, ..
+                } if image_path.is_none() => Some((idx, path.clone())),
+                _ => None,
+            })
+            .collect();
+
+        for (idx, path) in pending {
+            let Some(cached) = fetch_image_artifact(daemon, &path).await else {
+                continue;
+            };
+            if let Some(LaneLine::ImageArtifact { image_path, .. }) = self.lines.get_mut(idx) {
+                if image_path.is_none() {
+                    *image_path = Some(cached);
+                }
+            }
+        }
     }
 
     /// Record a tool-call status. A `Running` for a tool we already track and is
@@ -546,6 +719,210 @@ fn artifact_ref_from_output(
     )
     .and_then(parsed_artifact_ref)
     .or_else(|| extract_artifact_refs(summary).into_iter().next())
+}
+
+fn is_visual_task_payload(body: &serde_json::Value) -> bool {
+    field_str(body, &["kind"]) == Some("visual-task")
+        || field_str(body, &["type"]) == Some("visual-task")
+}
+
+fn visual_task_image_artifact(
+    body: &serde_json::Value,
+) -> Option<(String, String, Option<String>)> {
+    let image = body.get("image")?;
+    let path = field_str(image, &["blobUrl", "blob_url", "url", "path", "src"])
+        .map(str::to_string)
+        .or_else(|| field_str(image, &["blobId", "blob_id"]).map(|id| format!("/blob/{id}")))?;
+    let mime = field_str(
+        image,
+        &["mimeType", "mime_type", "contentType", "content_type"],
+    );
+    if !is_image_reference(&path, mime) {
+        return None;
+    }
+
+    let mut parts = Vec::new();
+    if let Some(mime) = mime {
+        parts.push(mime.to_string());
+    }
+    if let (Some(width), Some(height)) =
+        (number_field(image, "width"), number_field(image, "height"))
+    {
+        parts.push(format!("{width}x{height}"));
+    }
+    if let Some(region) = body.get("region").and_then(format_region) {
+        parts.push(region);
+    }
+    if let Some(url) = field_str(body, &["pageUrl"]) {
+        if !url.is_empty() {
+            parts.push(format!("page {url}"));
+        }
+    }
+    if let Some(channel) = body
+        .get("channel")
+        .and_then(|channel| field_str(channel, &["name"]))
+        .filter(|name| !name.is_empty())
+    {
+        parts.push(format!("payload {channel}"));
+    }
+    let preview = if parts.is_empty() {
+        "screenshot evidence from visual-task intake".to_string()
+    } else {
+        parts.join(" / ")
+    };
+    let image_path = local_image_path(&path);
+    Some((path, preview, image_path))
+}
+
+fn format_region(region: &serde_json::Value) -> Option<String> {
+    let x = number_field(region, "x")?;
+    let y = number_field(region, "y")?;
+    let width = number_field(region, "width")?;
+    let height = number_field(region, "height")?;
+    let space = field_str(region, &["coordinateSpace", "coordinate_space"]).unwrap_or("viewport");
+    Some(format!("region {space} {x},{y} {width}x{height}"))
+}
+
+fn number_field(value: &serde_json::Value, key: &str) -> Option<i64> {
+    value
+        .get(key)
+        .and_then(|v| v.as_i64().or_else(|| v.as_f64().map(|n| n.round() as i64)))
+}
+
+fn is_image_reference(path: &str, mime: Option<&str>) -> bool {
+    if mime
+        .map(|m| m.to_ascii_lowercase().starts_with("image/"))
+        .unwrap_or(false)
+    {
+        return true;
+    }
+    if path.starts_with("/blob/") || path.contains("/blob/") {
+        return true;
+    }
+    image_extension(path).is_some()
+}
+
+fn content_type_is_image(mime: Option<&str>) -> bool {
+    mime.map(|m| m.to_ascii_lowercase().starts_with("image/"))
+        .unwrap_or(false)
+}
+
+fn is_transcript_image_output(output_type: &str, path: &str, mime: Option<&str>) -> bool {
+    if content_type_is_image(mime) {
+        return true;
+    }
+    if path.starts_with("/blob/") || path.contains("/blob/") {
+        return true;
+    }
+    matches!(
+        output_type.to_ascii_lowercase().as_str(),
+        "screenshot" | "image" | "visual-task-screenshot" | "proof-image"
+    )
+}
+
+fn image_extension(path: &str) -> Option<&'static str> {
+    let ext = path
+        .split('?')
+        .next()
+        .unwrap_or(path)
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "gif" => Some("gif"),
+        "jpeg" | "jpg" => Some("jpg"),
+        "png" => Some("png"),
+        "webp" => Some("webp"),
+        _ => None,
+    }
+}
+
+fn local_image_path(path: &str) -> Option<String> {
+    if path.starts_with("/blob/") || path.starts_with("http://") || path.starts_with("https://") {
+        return None;
+    }
+    if image_extension(path).is_none() {
+        return None;
+    }
+    let candidate = Path::new(path);
+    let absolute = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        std::env::current_dir().ok()?.join(candidate)
+    };
+    if absolute.exists() {
+        Some(absolute.to_string_lossy().into_owned())
+    } else {
+        None
+    }
+}
+
+fn blob_url(daemon: &DaemonClient, path: &str) -> Option<String> {
+    if path.starts_with("http://") || path.starts_with("https://") {
+        Some(path.to_string())
+    } else if path.starts_with("/blob/") {
+        Some(format!("{}{}", daemon.base(), path))
+    } else {
+        None
+    }
+}
+
+fn cache_extension(path: &str, content_type: Option<&str>) -> &'static str {
+    if let Some(ext) = image_extension(path) {
+        return ext;
+    }
+    match content_type
+        .unwrap_or("")
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+    {
+        "image/gif" => "gif",
+        "image/jpeg" => "jpg",
+        "image/webp" => "webp",
+        _ => "png",
+    }
+}
+
+fn image_cache_path(path: &str, content_type: Option<&str>) -> PathBuf {
+    let ext = cache_extension(path, content_type);
+    std::env::temp_dir()
+        .join("pd-console-lane-images")
+        .join(format!("{:016x}.{ext}", digest_text(path)))
+}
+
+async fn fetch_image_artifact(daemon: &DaemonClient, path: &str) -> Option<String> {
+    let url = blob_url(daemon, path)?;
+    let resp = daemon.http_client().get(url).send().await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    if content_type.as_deref().is_some_and(|ct| !content_type_is_image(Some(ct))) {
+        return None;
+    }
+    if content_type.is_none() && !is_image_reference(path, None) {
+        return None;
+    }
+    let cache = image_cache_path(path, content_type.as_deref());
+    if cache.exists() {
+        return Some(cache.to_string_lossy().into_owned());
+    }
+    let bytes = resp.bytes().await.ok()?;
+    if bytes.is_empty() {
+        return None;
+    }
+    if let Some(parent) = cache.parent() {
+        std::fs::create_dir_all(parent).ok()?;
+    }
+    std::fs::write(&cache, bytes.as_ref()).ok()?;
+    Some(cache.to_string_lossy().into_owned())
 }
 
 fn artifact_label(output_type: &str, summary: &str, raw_path: &str) -> String {
@@ -774,6 +1151,18 @@ impl Pane for LanePane {
                         preview: preview.clone(),
                         tone: Tone::Accent,
                     }),
+                    LaneLine::ImageArtifact {
+                        label,
+                        path,
+                        preview,
+                        image_path,
+                    } => out.push(Block::ImageArtifact {
+                        label: util::trunc(label, 64),
+                        path: util::trunc(path, 96),
+                        preview: preview.clone(),
+                        image_path: image_path.clone(),
+                        tone: Tone::Accent,
+                    }),
                 }
             }
         }
@@ -817,6 +1206,7 @@ impl Pane for LanePane {
                                 self.streamed = false;
                                 self.lines.clear();
                                 self.seen_transcript_items.clear();
+                                self.channel_cursor = 0;
                                 self.tools.clear();
                                 self.status = "—".into();
                             }
@@ -826,6 +1216,8 @@ impl Pane for LanePane {
                 },
                 Err(e) => self.error = Some(format!("GET /agents: {e}")),
             }
+            self.backfill_agent_channel(daemon).await;
+            self.hydrate_image_artifacts(daemon).await;
             Ok(())
         })
     }
@@ -874,15 +1266,12 @@ impl Pane for LanePane {
             }
             StreamKind::Transcript => self.fold_transcript(&env.body),
             StreamKind::Tube => {
-                let text = crate::agent::body_text(&env.body);
-                if !text.is_empty() {
-                    self.push_unique_chat_turn(
-                        format!("tube:{}", digest_text(&text)),
-                        "steer".into(),
-                        text,
-                        Tone::Engaged,
-                    );
-                }
+                self.fold_tube_body(
+                    format!("tube:{}", digest_text(&env.body.to_string())),
+                    "steer".into(),
+                    &env.body,
+                    Tone::Engaged,
+                );
             }
             StreamKind::Other(_) => { /* preserve forward-compat: ignore unknown kinds */ }
         }
@@ -907,6 +1296,7 @@ mod tests {
             .filter_map(|line| match line {
                 LaneLine::Chat { text, .. } => Some(text.clone()),
                 LaneLine::Artifact { .. } => None,
+                LaneLine::ImageArtifact { .. } => None,
             })
             .collect()
     }
@@ -921,6 +1311,7 @@ mod tests {
                     tone,
                 } => Some((speaker.clone(), text.clone(), *tone)),
                 LaneLine::Artifact { .. } => None,
+                LaneLine::ImageArtifact { .. } => None,
             })
             .collect()
     }
@@ -930,7 +1321,18 @@ mod tests {
             .iter()
             .filter_map(|line| match line {
                 LaneLine::Artifact { path, .. } => Some(path.clone()),
+                LaneLine::ImageArtifact { path, .. } => Some(path.clone()),
                 LaneLine::Chat { .. } => None,
+            })
+            .collect()
+    }
+
+    fn image_artifact_paths(lane: &LanePane) -> Vec<String> {
+        lane.lines
+            .iter()
+            .filter_map(|line| match line {
+                LaneLine::ImageArtifact { path, .. } => Some(path.clone()),
+                LaneLine::Chat { .. } | LaneLine::Artifact { .. } => None,
             })
             .collect()
     }
@@ -1128,6 +1530,88 @@ mod tests {
             artifact_paths(&lane),
             vec!["core/pd-console/src/lane_pane.rs"]
         );
+    }
+
+    #[test]
+    fn visual_task_tube_event_renders_screenshot_image_artifact() {
+        let mut lane = LanePane::new();
+        let blob = format!("/blob/{}", "a".repeat(64));
+        lane.on_stream(&env(
+            "agent.tube",
+            json!({
+                "kind": "visual-task",
+                "taskId": "visual-task-proof",
+                "title": "Checkout button is clipped",
+                "description": "The lower half is hidden behind the cart footer.",
+                "pageUrl": "http://localhost:5173/cart",
+                "image": {
+                    "mimeType": "image/png",
+                    "blobUrl": blob,
+                    "width": 1440,
+                    "height": 900
+                },
+                "region": {
+                    "x": 20,
+                    "y": 30,
+                    "width": 220,
+                    "height": 80,
+                    "coordinateSpace": "viewport"
+                },
+                "channel": { "name": "visual-feedback", "messageId": 7 }
+            }),
+        ));
+
+        assert!(chat_turns(&lane).iter().any(|(speaker, text, tone)| {
+            speaker == "scout"
+                && text.contains("Scout captured visual task")
+                && text.contains("Checkout button is clipped")
+                && *tone == Tone::Engaged
+        }));
+        assert_eq!(
+            image_artifact_paths(&lane),
+            vec![format!("/blob/{}", "a".repeat(64))]
+        );
+        let blocks = lane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ImageArtifact { label, path, preview, image_path, tone: Tone::Accent }
+                if label.contains("visual task screenshot")
+                    && path == &format!("/blob/{}", "a".repeat(64))
+                    && preview.as_deref().unwrap_or("").contains("region viewport 20,30 220x80")
+                    && preview.as_deref().unwrap_or("").contains("payload visual-feedback")
+                    && image_path.is_none()
+            )));
+    }
+
+    #[test]
+    fn steering_channel_backfill_uses_visual_task_folding() {
+        let mut lane = LanePane::new();
+        let blob = format!("/blob/{}", "b".repeat(64));
+        lane.fold_tube_body(
+            "channel:agent:proof:1".into(),
+            "chrome-extension-visual".into(),
+            &json!({
+                "kind": "visual-task",
+                "taskId": "visual-task-backfill",
+                "title": "Checkout button is clipped",
+                "image": {
+                    "mimeType": "image/png",
+                    "blobUrl": blob
+                },
+                "channel": { "name": "visual-feedback", "messageId": 1 }
+            }),
+            Tone::Default,
+        );
+
+        assert_eq!(
+            image_artifact_paths(&lane),
+            vec![format!("/blob/{}", "b".repeat(64))]
+        );
+        assert!(chat_turns(&lane).iter().any(|(speaker, text, tone)| {
+            speaker == "scout"
+                && text.contains("Scout captured visual task")
+                && *tone == Tone::Engaged
+        }));
     }
 
     #[test]

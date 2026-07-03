@@ -418,6 +418,36 @@ pub fn render_blocks_width(blocks: &[Block], style: &TermStyle, cols: Option<usi
                 ));
                 i += 1;
             }
+            Block::ImageArtifact {
+                label,
+                path,
+                preview,
+                image_path,
+                tone,
+            } => {
+                let sem = tone.sem();
+                let label = if label.trim().is_empty() {
+                    "image".to_string()
+                } else {
+                    format!("image {label}")
+                };
+                let mut hint = preview
+                    .as_deref()
+                    .filter(|p| !p.trim().is_empty())
+                    .map(|p| format!(" - {p}"))
+                    .unwrap_or_default();
+                if let Some(cache) = image_path.as_deref().filter(|p| !p.trim().is_empty()) {
+                    hint.push_str(&format!(" - cached {cache}"));
+                }
+                out.push_str(&format!(
+                    "  {} {} {}{}\n",
+                    style.paint("▣", sem),
+                    style.paint(&label, sem),
+                    style.paint(path, Sem::Ink),
+                    style.paint(&hint, Sem::Muted),
+                ));
+                i += 1;
+            }
             Block::Chip { label, tone } => {
                 let sem = tone.sem();
                 out.push_str(&format!(
