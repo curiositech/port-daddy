@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent RL Sandbox Reward Spec",
+  "type": "object",
+  "properties": {
+    "actionOrderRequired": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, expectedActions must appear in the declared order."
+    },
+    "defaultPassReward": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 1
+    },
+    "requireValidatedUnhooksForDeployment": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, reports without validated unhooks are not deployable."
+    }
+  },
+  "additionalProperties": false
+}

@@ -22,9 +22,9 @@ use crate::agent::{Backend, ModelCatalog, Tier};
 pub use crate::chat::ChatUpdate;
 use crate::chat::{chat_display_text, chat_error_display_text, ChatLog, ChatMsg, ChatState};
 use crate::dispatch_pane::DispatchHead;
-use crate::mux::{Dir, Node, PaneId, SurfaceKind, Workspace};
+use crate::mux::{default_operator_workspace, Dir, Node, PaneId, SurfaceKind, Workspace};
 use crate::palette::{Theme, ThemeMode};
-use crate::pane::{Alert, AlertLevel, Block, Pane, Tone};
+use crate::pane::{Alert, AlertLevel, Block, OperatorTurn, Pane, Tone};
 use crate::tokens;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -49,6 +49,11 @@ pub enum ControlMsg {
     },
     /// Send a turn to the cartographer over its tube channel: `POST /msg/cartographer`.
     Cartographer {
+        text: String,
+    },
+    /// Send an operator turn to the agent currently watched by the Lane. This is
+    /// a real `agent:<id>` tube message; the Lane stream echoes it as `agent.tube`.
+    MessageLane {
         text: String,
     },
     /// Operator chat: a turn UP the tube on the stable per-conversation channel
@@ -211,6 +216,8 @@ pub enum CmdKind {
     Spawn,
     /// Talk to the cartographer. Buffer is the message.
     Cartographer,
+    /// Talk to the agent currently watched by the Lane. Buffer is the message.
+    LaneMessage,
     /// Reject the head dispatch with a reason (the human-gate "modify/why" path).
     /// The target dispatch id is held in `ConsoleView::reject_target`.
     DispatchReject,
@@ -258,6 +265,7 @@ impl CmdKind {
         match self {
             CmdKind::Spawn => "spawn",
             CmdKind::Cartographer => "cartographer",
+            CmdKind::LaneMessage => "message agent",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
             CmdKind::Conjure => "conjure",
@@ -295,6 +303,9 @@ impl CmdKind {
             CmdKind::Cartographer => {
                 "Ask the cartographer about the roadmap, then watch the lane stream the reply…"
                     .to_string()
+            }
+            CmdKind::LaneMessage => {
+                "Message, @file path, @photo path, @skill id, or @tool name…".to_string()
             }
             CmdKind::DispatchReject => {
                 "Why reject this? The reason is sent back to the agent.".to_string()
@@ -455,6 +466,12 @@ fn surface_for_query(query: &str) -> Option<SurfaceKind> {
         "tree" | "filetree" => return Some(SurfaceKind::FileTree { root: None }),
         "hitl" => return Some(SurfaceKind::Hitl),
         "plan" => return Some(SurfaceKind::Conjure),
+        "roadmap" => return Some(SurfaceKind::Roadmap),
+        "coast" => {
+            return Some(SurfaceKind::Panel {
+                nav: "coast-guard".to_string(),
+            });
+        }
         _ => {}
     }
     launcher_items()
@@ -657,10 +674,9 @@ use crate::grid::NAV;
 fn launcher_tone(id: &str, t: &Theme) -> u32 {
     match id {
         "fleet" | "cockpit" | "sorties" | "lane" | "peek" | "chat" | "files" => t.cobalt,
-        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "claims" | "conjure" => {
-            t.accent
-        }
-        "roadmap" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
+        "dispatch" | "conductor" | "parley" | "suggest" | "coast" | "coast-guard"
+        | "claims" | "conjure" => t.accent,
+        "roadmap" | "planner" | "adrs" | "memory" | "lineage" | "substrate" => t.landed,
         _ => t.gated, // activity, sessions, inbox, prs, health, ledger
     }
 }
@@ -1239,6 +1255,261 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                     .child(cell)
             }))
             .into_any_element(),
+        Block::ChatTurn {
+            speaker,
+            text,
+            tone,
+        } => {
+            let color_u32 = tone_rgb(&tone);
+            let mine = matches!(
+                speaker.trim().to_ascii_lowercase().as_str(),
+                "you" | "operator"
+            );
+            let label = if speaker.trim().is_empty() {
+                "agent".to_string()
+            } else {
+                chat_display_text(&speaker)
+            };
+            let body = chat_display_text(&text);
+            let bubble = div()
+                .max_w(px(680.0))
+                .flex()
+                .overflow_hidden()
+                .rounded(px(tokens::RADIUS_LG))
+                .border_1()
+                .border_color(rgb(if mine { t.accent } else { t.line }))
+                .bg(rgb(if mine { t.raised } else { t.panel }))
+                .when(!mine, |b| {
+                    b.child(div().w(px(4.0)).flex_shrink_0().bg(rgb(color_u32)))
+                })
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(tokens::SPACE_1))
+                        .px(px(tokens::SPACE_3))
+                        .py(px(tokens::SPACE_2))
+                        .child(
+                            div()
+                                .text_color(rgb(if mine { t.accent_ink } else { color_u32 }))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .child(body),
+                        ),
+                );
+            let row = div()
+                .w_full()
+                .flex()
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_1));
+            if mine {
+                row.child(div().flex_1()).child(bubble).into_any_element()
+            } else {
+                row.child(bubble).child(div().flex_1()).into_any_element()
+            }
+        }
+        Block::TranscriptLine { text, tone } => {
+            let color_u32 = tone_rgb(&tone);
+            div()
+                .flex()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .mx(px(tokens::SPACE_3))
+                .my(px(1.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(3.0))
+                .child(
+                    div()
+                        .mt(px(6.0))
+                        .w(px(6.0))
+                        .h(px(6.0))
+                        .rounded(px(3.0))
+                        .bg(rgb(color_u32))
+                        .flex_shrink_0(),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .text_color(rgb(t.ink))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .child(text),
+                )
+                .into_any_element()
+        }
+        Block::ArtifactRef {
+            label,
+            path,
+            preview,
+            tone,
+        } => {
+            let color_u32 = tone_rgb(&tone);
+            let preview = preview.unwrap_or_else(|| "open / preview in current worktree".into());
+            div()
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_2))
+                .border_l_2()
+                .border_color(rgb(color_u32))
+                .bg(tone_wash(color_u32, 0x12))
+                .flex()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .mt(px(1.0))
+                        .text_color(rgb(color_u32))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::BOLD)
+                        .child("▣"),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(tokens::SPACE_2))
+                        .child(
+                            div()
+                                .rounded(px(tokens::RADIUS_SM))
+                                .border_1()
+                                .border_color(rgb(color_u32))
+                                .px(px(tokens::SPACE_1))
+                                .py(px(1.0))
+                                .text_color(rgb(color_u32))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("ARTIFACT"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .font_family("IBM Plex Mono")
+                                .child(path),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink2))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.muted))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(preview),
+                        ),
+                )
+                .into_any_element()
+        }
+        Block::ImageArtifact {
+            label,
+            path,
+            preview,
+            image_path,
+            tone,
+        } => {
+            let color_u32 = tone_rgb(&tone);
+            let preview = preview.unwrap_or_else(|| "screenshot evidence".into());
+            let mut content = div()
+                .flex()
+                .flex_col()
+                .flex_1()
+                .min_w(px(0.0))
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .flex()
+                        .flex_wrap()
+                        .items_center()
+                        .gap(px(tokens::SPACE_2))
+                        .child(
+                            div()
+                                .rounded(px(tokens::RADIUS_SM))
+                                .border_1()
+                                .border_color(rgb(color_u32))
+                                .px(px(tokens::SPACE_1))
+                                .py(px(1.0))
+                                .text_color(rgb(color_u32))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child("SCREENSHOT"),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .font_family("IBM Plex Mono")
+                                .child(path.clone()),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink2))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.muted))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .child(preview),
+                        ),
+                );
+            if let Some(image_path) = image_path
+                .as_deref()
+                .filter(|p| !p.trim().is_empty())
+                .map(std::path::PathBuf::from)
+                .filter(|p| p.exists())
+            {
+                content = content.child(
+                    div()
+                        .w(px(280.0))
+                        .max_w_full()
+                        .h(px(156.0))
+                        .rounded(px(tokens::RADIUS_SM))
+                        .border_1()
+                        .border_color(rgb(t.line))
+                        .bg(rgb(t.bg))
+                        .overflow_hidden()
+                        .child(
+                            img(image_path)
+                                .w_full()
+                                .h_full()
+                                .object_fit(ObjectFit::Contain),
+                        ),
+                );
+            }
+            div()
+                .mx(px(tokens::SPACE_3))
+                .my(px(2.0))
+                .px(px(tokens::SPACE_2))
+                .py(px(tokens::SPACE_2))
+                .border_l_2()
+                .border_color(rgb(color_u32))
+                .bg(tone_wash(color_u32, 0x12))
+                .flex()
+                .items_start()
+                .gap(px(tokens::SPACE_2))
+                .child(
+                    div()
+                        .mt(px(1.0))
+                        .text_color(rgb(color_u32))
+                        .text_size(px(tokens::TEXT_BODY))
+                        .font_weight(FontWeight::BOLD)
+                        .child("▣"),
+                )
+                .child(content)
+                .into_any_element()
+        }
         Block::Chip { label, tone } => {
             let color_u32 = tone_rgb(&tone);
             let color = rgb(color_u32);
@@ -1566,17 +1837,10 @@ impl ConsoleView {
     /// roadmap column — proof of multiplex on first launch. `initial` (if a
     /// known nav id) becomes the focused pane's surface.
     fn default_workspace(initial: Option<&str>) -> Workspace {
-        let mut ws = Workspace::new(SurfaceKind::Fleet);
-        ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
-        ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
-        ws.focus(1); // start on the fleet pane (first leaf id)
-                     // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
-                     // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
-                     // tooling and deep-links can open any surface, not just NAV-rail panes.
-        if let Some(surface) = initial.and_then(surface_for_query) {
-            ws.swap_surface(surface);
-        }
-        ws
+        // Resolve `--pane <id>` through the full surface resolver (NAV ids AND
+        // non-NAV surfaces like `conjure`/`plan`/`chat`/`files`), so screenshot
+        // tooling and deep-links can open any surface, not just NAV-rail panes.
+        default_operator_workspace(initial.and_then(surface_for_query))
     }
 
     // ── Active-tab accessors ─────────────────────────────────────────────────
@@ -2162,6 +2426,23 @@ impl ConsoleView {
                     Some("sent to cartographer — streaming the reply below".into());
                 // Same loop for the cartographer: jump to the lane to watch the
                 // reply stream rather than leaving the operator guessing where it went.
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
+            }
+            CmdKind::LaneMessage => {
+                let turn = OperatorTurn::parse(&text);
+                if turn.is_empty() {
+                    self.control_flash =
+                        Some("add a message, attachment, skill, or tool request first".into());
+                    return;
+                }
+                let context = turn.context_summary();
+                let _ = tx.send(ControlMsg::MessageLane { text });
+                self.control_flash = Some(if context.is_empty() {
+                    "sent to watched agent — watch the chat stream".into()
+                } else {
+                    format!("sent to watched agent with {context}")
+                });
                 self.ws_mut()
                     .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
             }
@@ -2979,8 +3260,132 @@ impl ConsoleView {
                         .border_t_1()
                         .border_color(rgb(current_theme().line))
                         .flex()
+                        .flex_wrap()
                         .items_center()
                         .gap(px(8.0))
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("message-{id}")))
+                                .px(px(12.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .bg(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().bg))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| {
+                                    s.shadow(motion::glow(
+                                        current_theme().accent,
+                                        0.30,
+                                        10.0,
+                                        0.0,
+                                    ))
+                                })
+                                .child("Message")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.command = Some(CommandLine::new(CmdKind::LaneMessage));
+                                    this.control_flash =
+                                        Some("type a turn for the watched agent".into());
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("attach-file-{id}")))
+                                .px(px(10.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("+ File")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.command = Some(CommandLine::with_buffer(
+                                        CmdKind::LaneMessage,
+                                        "@file ".into(),
+                                    ));
+                                    this.control_flash =
+                                        Some("attach a file path for the watched agent".into());
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("attach-photo-{id}")))
+                                .px(px(10.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().accent_ink))
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("+ Photo")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.command = Some(CommandLine::with_buffer(
+                                        CmdKind::LaneMessage,
+                                        "@photo ".into(),
+                                    ));
+                                    this.control_flash =
+                                        Some("attach an image path for the watched agent".into());
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("invoke-skill-{id}")))
+                                .px(px(10.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().engaged))
+                                .text_color(rgb(current_theme().engaged))
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("# Skill")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.command = Some(CommandLine::with_buffer(
+                                        CmdKind::LaneMessage,
+                                        "@skill ".into(),
+                                    ));
+                                    this.control_flash =
+                                        Some("name a skill for the watched agent".into());
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("request-tool-{id}")))
+                                .px(px(10.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .border_1()
+                                .border_color(rgb(current_theme().engaged))
+                                .text_color(rgb(current_theme().engaged))
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| s.bg(rgb(current_theme().raised)))
+                                .child("/ Tool")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.command = Some(CommandLine::with_buffer(
+                                        CmdKind::LaneMessage,
+                                        "@tool ".into(),
+                                    ));
+                                    this.control_flash =
+                                        Some("name a tool request for the watched agent".into());
+                                    cx.notify();
+                                })),
+                        )
                         .child(
                             div()
                                 .id(SharedString::from(format!("interrupt-{id}")))
@@ -4589,7 +4994,15 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         Some((v, rest)) => (v, rest.trim().to_string()),
         None => (trimmed, String::new()),
     };
-    let kind = match verb.to_lowercase().as_str() {
+    let verb = verb.to_lowercase();
+    match verb.as_str() {
+        "attach" | "file" => return Some((CmdKind::LaneMessage, format!("@file {arg}"))),
+        "photo" | "image" => return Some((CmdKind::LaneMessage, format!("@photo {arg}"))),
+        "skill" => return Some((CmdKind::LaneMessage, format!("@skill {arg}"))),
+        "tool" => return Some((CmdKind::LaneMessage, format!("@tool {arg}"))),
+        _ => {}
+    }
+    let kind = match verb.as_str() {
         "note" => CmdKind::Note,
         "begin" => CmdKind::Begin,
         "done" | "end" => CmdKind::Done,
@@ -4601,6 +5014,7 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         "interrupt" | "stop" => CmdKind::InterruptAgent,
         "spawn" | "new" => CmdKind::Spawn,
         "cartographer" | "chat" => CmdKind::Cartographer,
+        "lane" | "agent" | "message" | "steer" => CmdKind::LaneMessage,
         "pane" | "addpane" => CmdKind::AddPane,
         _ => return None,
     };
@@ -4750,7 +5164,7 @@ fn render_filetree_row(
 fn surface_for_nav_id(nav: &str) -> SurfaceKind {
     match nav {
         "lane" => SurfaceKind::AgentTranscript { agent_id: None },
-        "roadmap" => SurfaceKind::Roadmap,
+        "planner" | "roadmap" => SurfaceKind::Roadmap,
         "health" => SurfaceKind::DaemonHealth,
         "fleet" => SurfaceKind::Fleet,
         "sessions" => SurfaceKind::Sessions,
@@ -4765,7 +5179,7 @@ fn surface_for_nav_id(nav: &str) -> SurfaceKind {
 fn nav_id_for_surface(surface: &SurfaceKind) -> Option<&str> {
     match surface {
         SurfaceKind::AgentTranscript { .. } => Some("lane"),
-        SurfaceKind::Roadmap => Some("roadmap"),
+        SurfaceKind::Roadmap => Some("planner"),
         SurfaceKind::DaemonHealth => Some("health"),
         SurfaceKind::Fleet => Some("fleet"),
         SurfaceKind::Sessions => Some("sessions"),
@@ -5520,6 +5934,31 @@ mod add_pane_tests {
             ),
             ("kill agent-xyz", CmdKind::Kill, "agent-xyz"),
             ("interrupt agent-xyz", CmdKind::InterruptAgent, "agent-xyz"),
+            (
+                "lane keep going but open the diff first",
+                CmdKind::LaneMessage,
+                "keep going but open the diff first",
+            ),
+            (
+                "attach core/pd-console/src/main.rs",
+                CmdKind::LaneMessage,
+                "@file core/pd-console/src/main.rs",
+            ),
+            (
+                "photo /tmp/lane proof.png",
+                CmdKind::LaneMessage,
+                "@photo /tmp/lane proof.png",
+            ),
+            (
+                "skill native-app-designer",
+                CmdKind::LaneMessage,
+                "@skill native-app-designer",
+            ),
+            (
+                "tool cargo test",
+                CmdKind::LaneMessage,
+                "@tool cargo test",
+            ),
         ];
         for (line, kind, arg) in cases {
             let (k, a) = parse_verb(line).unwrap_or_else(|| panic!("'{line}' must parse"));
@@ -5544,6 +5983,10 @@ mod add_pane_tests {
         assert!(matches!(
             parse_verb("chat hey carto"),
             Some((CmdKind::Cartographer, _))
+        ));
+        assert!(matches!(
+            parse_verb("steer write the test first"),
+            Some((CmdKind::LaneMessage, _))
         ));
         assert!(matches!(
             parse_verb("stop agent-1"),

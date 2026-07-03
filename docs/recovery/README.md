@@ -14,8 +14,8 @@ If a roadmap, ideas list, or cleanup proposal elsewhere disagrees with this dire
   - one execution-order roadmap for the actual project, not a speculative archive
 - `IDEAS-TROVE.md`
   - the canonical ideation index, dedupe surface, and curated backlog for Spark/Spider output
-- `PD-AGENT-SORTIE-PLAN.md`
-  - the working design for one-shot delegation, multi-agent sorties, and background creative missions
+- `PD-SPAWN-PLAN.md`
+  - the working design for one-shot delegation, bounded spawned runs, and background creative missions
 - `REPO-CLEANUP-AND-DISTRIBUTION.md`
   - what to keep, merge, retire, and prepare for outside developers and signed distribution
 

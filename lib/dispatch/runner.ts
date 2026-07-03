@@ -119,7 +119,7 @@ export interface RunnerOptions {
   model?: string;
   /** Override the remote whose base-branch the worktree branches from. Default: 'origin'. */
   remote?: string;
-  /** Spawn adapter -- a thin wrapper around pd sortie / pd spawn. */
+  /** Spawn adapter used by dispatch to launch delegated work through pd spawn. */
   spawnAdapter?: SpawnAdapter;
   /**
    * Optional tube client. When provided, the dispatch's claude/codex exchange

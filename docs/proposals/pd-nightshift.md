@@ -17,7 +17,7 @@ The simplest possible answer — "leave Claude Code running with `--dangerously-
 | Primitive | File | Role for nightshift |
 |---|---|---|
 | `pd spawn` with `claude-cli` and `codex` backends | `lib/spawner.ts` | The CLI invocations we wrap. Already does timeout, telemetry, cost capture, PD auto-coordination. |
-| `pd sortie` (DB-of-record for goal-bounded missions) | `lib/sortie.ts`, `routes/sortie.ts` | Each nightshift run *is* a sortie under the hood. We reuse sortie's budget enforcement and result capture. |
+| `pd spawn` (DB-of-record for bounded one-shot runs) | `lib/spawner.ts`, `routes/spawn.ts`, legacy `lib/sorties.ts` records | Each nightshift run is a spawned run with budget enforcement, result capture, and transcript evidence. |
 | Sessions + file claims + Coordination Guard | `lib/sessions.ts`, `lib/coordination-route-guard.ts` | The nightshift worktree session must pre-commit through guard. |
 | Bonds + harbors | `lib/bonds.ts`, `lib/harbors.ts` | Slash-on-misbehavior posture is already wired into spawner. |
 | Cost tracker | `lib/cost-tracker.ts` | Per-spawn ceilings are non-negotiable; nightshift sets a hard `--budget` per intent. |
@@ -138,7 +138,7 @@ Approve: gh pr ready <num>     Discard: gh pr close <num> && git push origin --d
 
 - The pre-tool-use hook that denies `git push origin main` etc. for the claude backend — this needs Claude Code 1.x hook support and a settings.json override in the nightshift worktree. Codex's `--sandbox workspace-write` covers codex but not claude. **Operator decision needed before turning the cron on.**
 - The `pd morning` TUI uses a plain table fallback, not blessed/ink. The Bostock-density variant is a follow-up.
-- Cost ceiling enforcement: today's first cut sets `timeout` and reads `bondUsd` from the intent, but does not yet hard-cap mid-run. The spawner's existing bond-slash path handles this once we wire the intent into a real `pd sortie`. Wiring intent→sortie is the post-merge follow-up.
+- Cost ceiling enforcement: today's first cut sets `timeout` and reads `bondUsd` from the intent, but does not yet hard-cap mid-run. The spawner's existing bond-slash path handles this once we wire the intent into the canonical `pd spawn` admission path. Wiring intent→spawn is the post-merge follow-up.
 
 ## Two design decisions that need operator input before turning the cron on
 
@@ -152,7 +152,7 @@ Approve: gh pr ready <num>     Discard: gh pr close <num> && git push origin --d
 
 ## Out of scope for first cut (named so future-me knows)
 
-- Multi-agent nightshift orchestration (one operator-style planner agent decomposing intents into sub-tasks across a sortie graph).
+- Multi-agent nightshift orchestration (one operator-style planner agent decomposing intents into sub-tasks across a spawned-run graph).
 - Self-driven backlog scanning — for now, the operator types the intent. Auto-promotion from `feedback:dropped(severity=high)` is a future loop.
 - The "Bostock-quality visualizations" reviewer — that's a downstream `pd nightshift review --critic` mode that runs a follow-up agent to score the work.
 - Real-time monitoring of the running spawn from `pd morning` (needs SSE wiring to the spawn pipe).
@@ -173,4 +173,3 @@ Approve: gh pr ready <num>     Discard: gh pr close <num> && git push origin --d
 - `tests/unit/nightshift-queue.test.js` — queue CRUD
 - `tests/unit/nightshift-slug.test.js` — slug + next-picker
 - `pd-fleet.yml` — commented `nightshift-runner` ship entry
-

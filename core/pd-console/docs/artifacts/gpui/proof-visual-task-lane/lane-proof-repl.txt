@@ -1,0 +1,23 @@
+┌  pd-console  conversation multiplexer · on the PD bus
+│  daemon http://127.0.0.1:9988
+└  :harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :quit
+
+»
+  Agent Work Chat ───────────────────────────────
+  watching           visual-proof-agent
+  ◆ status: busy
+  ✓ ● live
+
+  conversation ──────────────────────────────────
+  ● scout: Scout captured visual task: Checkout button is clipped - The checkout button falls below the visible cart card. (http://localhost:5173/cart)
+  ▣ image visual task screenshot: Checkout button is clipped /blob/742a48d176775143f6b10c544cc70787f85d48727e5ebd63cdfcca6be9072387 - image/png / region viewport 38,324 336x92 / page http://localhost:5173/cart / payload visual-feedback - cached /var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/pd-console-lane-images/8bbf141970a5ec86.png
+»
+  Agent Work Chat ───────────────────────────────
+  watching           visual-proof-agent
+  ◆ status: busy
+  ✓ ● live
+
+  conversation ──────────────────────────────────
+  ● scout: Scout captured visual task: Checkout button is clipped - The checkout button falls below the visible cart card. (http://localhost:5173/cart)
+  ▣ image visual task screenshot: Checkout button is clipped /blob/742a48d176775143f6b10c544cc70787f85d48727e5ebd63cdfcca6be9072387 - image/png / region viewport 38,324 336x92 / page http://localhost:5173/cart / payload visual-feedback - cached /var/folders/17/r37ps6c54v3dpb9_v9tbw0q40000gn/T/pd-console-lane-images/8bbf141970a5ec86.png
+» out.

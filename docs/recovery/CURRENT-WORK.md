@@ -1327,7 +1327,7 @@ This is the normalized remaining-slice inventory as of 2026-04-24. It supersedes
    - drill-in outcomes
 8. Add explicit human-in-the-loop controls for approval, pause, resume, intervention, and result acceptance.
 9. Build DAG-native task decomposition in operator UX with inspectable slices and human approval before dispatch.
-10. Keep `pd agent`, `pd spawn`, `pd sortie`, fleet agents, and harbor missions distinct in product language and history surfaces.
+10. Keep the `pd agent` registry, `pd spawn` launches, fleet agents, and harbor missions distinct in product language and history surfaces.
 
 ### L. Cloudflare, Remote Harbor, Lighthouse, And Distributed Trust
 

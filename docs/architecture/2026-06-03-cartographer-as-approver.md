@@ -121,15 +121,15 @@ The job spec hands three choices:
 
 **Primary path — events.** Cartographer subscribes (via the same `lib/attention.ts` primitive every other agent uses) to four channels:
 - `git:committed` — recompute drift detectors on what changed.
-- `sortie:completed` — re-scan for conflicting symbol touches.
+- `spawn:completed` — re-scan for conflicting symbol touches.
 - `feedback:dropped` — see if the new feedback resolves an existing question (and close it) or implies a new one.
 - `roadmap:promoted` — see if the promotion resolves a `stale-slug` question.
 
-On each event, cartographer runs only the detectors relevant to that event (cheap; mostly SQL queries plus one tree-sitter lookup), emits questions, and exits. Each event fires a *short-lived sortie* via `pd sortie run cartographer --event <channel>` so the work is supervised, budgeted, and transcript-logged (per memory `feedback_dogfood_via_pd_sortie`).
+On each event, cartographer runs only the detectors relevant to that event (cheap; mostly SQL queries plus one tree-sitter lookup), emits questions, and exits. Each event fires a short-lived spawned run via `pd spawn --backend cli:codex --identity port-daddy:cartographer:event --budget 1 -- "Cartographer event <channel>"` so the work is supervised, budgeted, and transcript-logged.
 
 **Sweeper path — 30-min cron.** The existing cartographer cron keeps running but its prompt is rewritten: instead of "render the roadmap, then update status.md," it becomes "(a) run *all* detectors, picking up anything the event path missed because the daemon was asleep; (b) re-render the digest if it's a new day or new week; (c) update `.cartographer/status.md` only if no event has done it in the past hour." The cron's job is *liveness*, not the main path.
 
-**Why not a long-running daemon process?** PD's whole supervision story (fleet engine, sortie rows, budget caps, bond escrow) is for bodies that *terminate*. A long-running daemon process bypasses all of that and reintroduces the kind of "what is it doing right now?" opacity the fleet was built to solve. Memory `feedback_never_tsx_daemon` is the project-level rule against side-stepping the binary into a tsx daemon; the same instinct applies here: don't side-step the supervised-body model into an unsupervised cartographer daemon.
+**Why not a long-running daemon process?** PD's whole supervision story (fleet engine, spawned-run records, budget caps, bond escrow) is for bodies that *terminate*. A long-running daemon process bypasses all of that and reintroduces the kind of "what is it doing right now?" opacity the fleet was built to solve. Memory `feedback_never_tsx_daemon` is the project-level rule against side-stepping the binary into a tsx daemon; the same instinct applies here: don't side-step the supervised-body model into an unsupervised cartographer daemon.
 
 **Why the cron stays at all?** Three reasons. (1) Event sources are unreliable — `git:committed` can miss commits made off-fleet (operator typing `git commit` in a non-hooked repo); the cron catches what events missed. (2) Some detectors (Δ3 stale-slug, Δ4 draft-rot) are *aging detectors* — they only fire when wall-clock time crosses a threshold, with no per-event trigger. Cron is the natural lane. (3) Defense in depth.
 

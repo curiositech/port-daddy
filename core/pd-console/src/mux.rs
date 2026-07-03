@@ -315,6 +315,21 @@ impl Workspace {
     }
 }
 
+/// The console's first-screen workspace. Deep-linked panes are user experiences,
+/// so an explicit initial surface opens as a single full workspace; the no-arg
+/// launch keeps the overview layout.
+pub fn default_operator_workspace(initial: Option<SurfaceKind>) -> Workspace {
+    if let Some(surface) = initial {
+        return Workspace::new(surface);
+    }
+
+    let mut ws = Workspace::new(SurfaceKind::Fleet);
+    ws.split(Dir::Row, SurfaceKind::AgentTranscript { agent_id: None }); // fleet | lane
+    ws.split(Dir::Col, SurfaceKind::Roadmap); // lane / roadmap
+    ws.focus(1); // start on the fleet pane (first leaf id)
+    ws
+}
+
 // ── Recursive tree surgery (free fns keep the borrow checker happy) ──────────
 
 /// Replace the focused leaf with a split, or append to a same-orientation parent.
@@ -540,6 +555,20 @@ mod tests {
         assert_eq!(ws.focused(), order[0]);
         ws.focus_prev(); // back to last
         assert_eq!(ws.focused(), order[2]);
+    }
+
+    #[test]
+    fn default_operator_workspace_without_initial_opens_overview() {
+        let ws = default_operator_workspace(None);
+        assert_eq!(ws.pane_count(), 3);
+        assert!(matches!(ws.focused_surface(), SurfaceKind::Fleet));
+    }
+
+    #[test]
+    fn default_operator_workspace_with_initial_opens_single_experience() {
+        let ws = default_operator_workspace(Some(SurfaceKind::AgentTranscript { agent_id: None }));
+        assert_eq!(ws.pane_count(), 1);
+        assert!(matches!(ws.focused_surface(), SurfaceKind::AgentTranscript { agent_id: None }));
     }
 
     #[test]

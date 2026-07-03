@@ -112,13 +112,13 @@ pd mcp install
 
 **Recommendation:** Option A (Swift) for macOS. Port Daddy is macOS-first (launchd). A native menubar app reinforces the "always-on daemon" mental model. Ship as `pd menubar install` which copies the .app to `/Applications` and adds a login item.
 
-### 5. `pd agent` — The Coding Agent (NEW)
+### 5. `pd spawn` — The Coding Agent Launcher
 
 **Surface:** "An AI coding agent that coordinates with others."
 **Depth:** Uses pd begin/done/notes/claims/salvage automatically. The agent IS the coordination.
 
 ```bash
-pd agent "Fix the auth bug in session.ts"
+pd spawn --backend claude-cli --identity myapp:agent --budget 1 -- "Fix the auth bug in session.ts"
 # Equivalent to:
 #   pd begin --identity myapp:agent --purpose "Fix auth bug"
 #   pd spawn --backend claude-cli -- "Fix the auth bug in session.ts"

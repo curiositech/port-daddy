@@ -1,0 +1,20 @@
+{
+  "label": "homebrew.mxcl.port-daddy",
+  "programArgs": [
+    "/opt/homebrew/opt/port-daddy/bin/pd",
+    "start",
+    "--foreground"
+  ],
+  "runAtLoad": true,
+  "keepAlive": true,
+  "throttleInterval": 10,
+  "stdoutPath": "/opt/homebrew/var/log/port-daddy.log",
+  "stderrPath": "/opt/homebrew/var/log/port-daddy.log",
+  "env": {
+    "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  },
+  "agentVsDaemon": "agent",
+  "requiresGuiSession": false,
+  "runsAtSystemBoot": false,
+  "hasExternalIntegrityCheck": true
+}
