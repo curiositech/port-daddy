@@ -1,0 +1,45 @@
+{
+  "policy": {
+    "requireAcceptanceCriteria": true,
+    "requireDedupeSearch": true,
+    "requireLinkedArtifactForActiveWork": true,
+    "requireEvidenceForDone": true,
+    "minLegibilityScore": 0.75
+  },
+  "items": [
+    {
+      "id": "daemon-introspection-api",
+      "title": "Add /introspect endpoint so pd doctor can read live daemon state",
+      "status": "done",
+      "hasAcceptanceCriteria": true,
+      "dedupeSearched": true,
+      "linkedArtifacts": ["PR #641", "commit:f3a9c21"],
+      "evidenceOnDone": {
+        "type": "pr",
+        "ref": "PR #641",
+        "validated": true
+      },
+      "spawnedItemsCaptured": null
+    },
+    {
+      "id": "incremental-symbol-index-refresh",
+      "title": "Refresh only changed files in the symbol index instead of a full rebuild",
+      "status": "in-progress",
+      "hasAcceptanceCriteria": true,
+      "dedupeSearched": true,
+      "linkedArtifacts": ["branch:feature/incremental-symbol-refresh"],
+      "evidenceOnDone": null,
+      "spawnedItemsCaptured": true
+    },
+    {
+      "id": "symbol-graph-visualization",
+      "title": "Render the symbol graph as an interactive Mermaid/D3 view in pd-console",
+      "status": "todo",
+      "hasAcceptanceCriteria": true,
+      "dedupeSearched": true,
+      "linkedArtifacts": [],
+      "evidenceOnDone": null,
+      "spawnedItemsCaptured": null
+    }
+  ]
+}

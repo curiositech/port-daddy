@@ -1,0 +1,16 @@
+name: multi-agent-authoring-product-bar
+description: Audits a multi-agent authoring product's self-assessment against the dogfood product-quality bar.
+model: gpt-5-codex
+instructions: |
+  Use the multi-agent-authoring-product-bar skill. Gate on table-stakes
+  parity first (any below-par axis fails regardless of differentiators),
+  then require a threshold of real (present + real behavior + receipt)
+  coordination differentiators, then require an honest stickiness signal
+  (usesOverIncumbentForRealWork plus recognized comeback triggers, not
+  vanity agents-launched/demos-run counts). Run dogfood_bar.mjs to score it.
+inputs:
+  - product_self_assessment_json
+  - incumbent_comparison_notes
+outputs:
+  - dogfood_bar_audit_json
+  - roadmap_sequencing_recommendation

@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/product-bar-spec.schema.json",
+  "title": "Multi-Agent Authoring Product Bar Self-Assessment",
+  "description": "Honest self-assessment of a multi-agent authoring product against the dogfood product-quality bar: table-stakes parity with incumbent single-agent tools (Claude Code, Codex), real (non-Potemkin) coordination differentiators, and an honest stickiness signal.",
+  "type": "object",
+  "required": ["tableStakes", "differentiators", "stickiness", "metricsHonest"],
+  "additionalProperties": true,
+  "properties": {
+    "product": {
+      "type": "string",
+      "description": "Name/version of the product being assessed, e.g. 'Port Daddy Agent Harbor v0.4'."
+    },
+    "tableStakes": {
+      "type": "object",
+      "description": "The single-agent inner loop this product must MATCH the incumbent on before multi-agent claims matter.",
+      "required": ["singleAgentLoop", "latency", "contextAttach", "recoverableEdits"],
+      "additionalProperties": false,
+      "properties": {
+        "singleAgentLoop": {
+          "type": "string",
+          "enum": ["below-par", "par", "above-par"],
+          "description": "Prompt-to-plan-to-diff-to-review quality versus the incumbent the makers use daily."
+        },
+        "latency": {
+          "type": "string",
+          "enum": ["below-par", "par", "above-par"],
+          "description": "Perceived responsiveness of a single agent turn: time-to-first-token, time-to-plan, time-to-diff."
+        },
+        "contextAttach": {
+          "type": "string",
+          "enum": ["below-par", "par", "above-par"],
+          "description": "How cheaply the right context (selection, terminal output, failed test, PR, screenshot) reaches the agent."
+        },
+        "recoverableEdits": {
+          "type": "string",
+          "enum": ["below-par", "par", "above-par"],
+          "description": "Whether a single agent's edits can be reviewed, checkpointed, and reverted as cheaply as in the incumbent."
+        }
+      }
+    },
+    "differentiatorThreshold": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5,
+      "default": 3,
+      "description": "Minimum count of real (non-Potemkin) differentiators required to pass. Defaults to 3 of 5."
+    },
+    "differentiators": {
+      "type": "object",
+      "description": "The coordination/visibility/recovery control plane axes incumbents don't expose. Each must be present, have real behavior, and leave a receipt to count as real.",
+      "required": ["isolationClaims", "swarmVisibility", "transcriptsSalvage", "receipts", "spendVisibility"],
+      "additionalProperties": false,
+      "properties": {
+        "isolationClaims": { "$ref": "#/definitions/differentiatorAxis" },
+        "swarmVisibility": { "$ref": "#/definitions/differentiatorAxis" },
+        "transcriptsSalvage": { "$ref": "#/definitions/differentiatorAxis" },
+        "receipts": { "$ref": "#/definitions/differentiatorAxis" },
+        "spendVisibility": { "$ref": "#/definitions/differentiatorAxis" }
+      }
+    },
+    "stickiness": {
+      "type": "object",
+      "description": "The honest dogfood signal: does someone reach for this over the incumbent for real work, and why.",
+      "required": ["comebackTriggers", "usesOverIncumbentForRealWork"],
+      "additionalProperties": false,
+      "properties": {
+        "comebackTriggers": {
+          "type": "array",
+          "description": "Concrete, sourced comeback moments, drawn from the documented vocabulary, not vague self-praise.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fixed-while-watching",
+              "queued-next-task",
+              "reverted-cleanly",
+              "swarm-no-collision",
+              "faster-than-incumbent-loop",
+              "trusted-receipt-no-rereview"
+            ]
+          }
+        },
+        "usesOverIncumbentForRealWork": {
+          "type": "boolean",
+          "description": "True only if a maker has actually chosen this tool over Claude Code/Codex for real, non-demo work."
+        }
+      }
+    },
+    "metricsHonest": {
+      "type": "boolean",
+      "description": "True only if the team's reported success metrics avoid vanity counts (agents-launched, demos-run) as the primary signal."
+    }
+  },
+  "definitions": {
+    "differentiatorAxis": {
+      "type": "object",
+      "required": ["present", "hasRealBehavior", "leavesReceipt"],
+      "additionalProperties": false,
+      "properties": {
+        "present": { "type": "boolean", "description": "The capability exists in the shipped product, not just the roadmap." },
+        "hasRealBehavior": { "type": "boolean", "description": "It does something real end-to-end, not a button with no backing state machine." },
+        "leavesReceipt": { "type": "boolean", "description": "It produces a durable, inspectable artifact (claim log, transcript, receipt, spend record) after the fact." }
+      }
+    }
+  }
+}

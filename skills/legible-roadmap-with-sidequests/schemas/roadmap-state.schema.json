@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/roadmap-state.schema.json",
+  "title": "Roadmap Legibility State",
+  "description": "Snapshot of the canonical roadmap count and recent work units (planned or sidequest) for scripts/roadmap_legibility.mjs to audit.",
+  "type": "object",
+  "required": ["canonicalRoadmaps", "workUnits"],
+  "additionalProperties": false,
+  "properties": {
+    "canonicalRoadmaps": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many documents/tables currently claim to be THE source-of-truth roadmap. Must be exactly 1 for a legible product; 0 or 2+ is fragmentation."
+    },
+    "workUnits": {
+      "type": "array",
+      "description": "Every planned roadmap-phase task and every energy-driven sidequest done in the audited window.",
+      "items": { "$ref": "#/definitions/workUnit" }
+    },
+    "reconciliationCadenceDays": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "description": "How often (in days) sidequest/burst work is folded back into the roadmap and re-prioritized. Null/absent means reconciliation is not scheduled at all."
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "linkOrOptOutRequired": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether every work unit must carry a roadmapLink or an explicit optOutReason. Should stay true; false is an escape hatch to document, not a default."
+        },
+        "maxReconciliationCadenceDays": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 14,
+          "description": "The longest acceptable gap between reconciliation passes before the audit flags drift risk."
+        }
+      }
+    }
+  },
+  "definitions": {
+    "workUnit": {
+      "type": "object",
+      "required": ["id", "kind", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier for this unit of work (roadmap slug for planned items, a short descriptive id for sidequests)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["planned", "sidequest"],
+          "description": "planned = came from a roadmap phase directly. sidequest = energy-driven work outside the current phase plan."
+        },
+        "roadmapLink": {
+          "type": ["string", "null"],
+          "description": "Slug of the canonical roadmap item this unit advances, mirroring the Roadmap-Item: <slug> PR trailer. Mutually exclusive with optOutReason."
+        },
+        "optOutReason": {
+          "type": ["string", "null"],
+          "description": "Explicit reason this unit does not need a roadmap link (chore/docs/hotfix/spike), mirroring Roadmap-Item: none — <reason>. Mutually exclusive with roadmapLink."
+        },
+        "spawnedItems": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Count of new, durable work items this unit generated (e.g. a sidequest that surfaced three follow-on tasks)."
+        },
+        "spawnedItemsCaptured": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Count of the spawned items above that were actually created as roadmap items (or explicitly opted out), mirroring the Roadmap-Spawns: trailer rule for planning docs."
+        },
+        "progressEvidence": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A real artifact reference, e.g. commit:<sha>, pr:<number>, receipt:<id>."
+          }
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text status. Recognized pending words: todo, planned, backlog, parked, blocked. Recognized active words: in-progress, active, done, shipped, merged, landed. Active statuses require non-empty progressEvidence."
+        }
+      }
+    }
+  }
+}
