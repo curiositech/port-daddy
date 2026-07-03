@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/agentic-app-spec.schema.json",
+  "title": "Agentic App Architecture Spec",
+  "description": "Describes an agentic LLM application's shape across five architecture axes: interaction transparency, state/history/memory, context & caching economics, capability integration, and execution substrate & side effects.",
+  "type": "object",
+  "required": ["transparency", "stateModel", "contextStrategy", "capabilities", "execution"],
+  "additionalProperties": true,
+  "properties": {
+    "appName": { "type": "string", "description": "Human-readable name of the app being architected." },
+    "transparency": {
+      "type": "object",
+      "description": "Axis 1: interaction surface & transparency of thinking/tool use.",
+      "required": ["thinkingVisible", "toolUseVisible", "planBeforeAct", "interruptible"],
+      "properties": {
+        "thinkingVisible": { "type": "boolean", "description": "Agent reasoning/thinking is streamed or shown to the human, inline or collapsible." },
+        "toolUseVisible": { "type": "boolean", "description": "Tool calls and their results are visible, not hidden behind a bare chat bubble." },
+        "planBeforeAct": { "type": "boolean", "description": "A plan is shown before consequential actions execute." },
+        "interruptible": { "type": "boolean", "description": "The human can interrupt/steer the agent mid-run, not just before it starts." }
+      }
+    },
+    "stateModel": {
+      "type": "object",
+      "description": "Axis 2: state, history & memory beyond the raw conversation transcript.",
+      "required": ["durableHistory", "forking", "rename", "episodicMemory"],
+      "properties": {
+        "durableHistory": { "type": "boolean", "description": "Conversation history persists across process restarts and is resumable." },
+        "forking": { "type": "boolean", "description": "A thread can be forked to explore alternates without destroying the main line." },
+        "rename": { "type": "boolean", "description": "Sessions/threads can be renamed and organized." },
+        "episodicMemory": { "type": "boolean", "description": "Salient facts are promoted to durable memory with TTLs/blob-promotion, recallable by relevance." }
+      }
+    },
+    "contextStrategy": {
+      "type": "object",
+      "description": "Axis 3: context-window budgeting and caching economics.",
+      "required": ["caching", "eviction", "memoryPromotion"],
+      "properties": {
+        "caching": { "type": "boolean", "description": "Prompt caching is used for stable prefixes (system prompt, tool schemas, pinned context)." },
+        "eviction": { "type": "boolean", "description": "Stale turns are evicted or summarized instead of growing the window unbounded." },
+        "memoryPromotion": { "type": "boolean", "description": "Durable facts are promoted out of the context window into memory rather than re-paid-for every turn." }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Axis 4: how the agent gains powers (tools, skills, MCP) and how secrets reach them.",
+      "required": ["tools", "skills", "mcp", "secretCustody"],
+      "properties": {
+        "tools": { "type": "boolean", "description": "The agent has tool-use capability (function calling / tool schemas)." },
+        "skills": { "type": "boolean", "description": "The agent has progressive-disclosure skill packs available." },
+        "mcp": {
+          "type": "object",
+          "required": ["coreSize", "perProjectSpecialists"],
+          "properties": {
+            "coreSize": { "type": "integer", "minimum": 0, "description": "Number of MCP servers always loaded globally (the always-on core)." },
+            "perProjectSpecialists": { "type": "boolean", "description": "Project-specific MCP servers are configured per-project rather than folded into the global core." }
+          }
+        },
+        "secretCustody": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["hidden-stdin", "secret-store", "env-scoped", "argv", "inline", "none"],
+              "description": "How secrets reach tool invocations. hidden-stdin/secret-store/env-scoped are safe; argv/inline/none are not."
+            }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "description": "Axis 5: where the agent's actions land and how side effects are gated.",
+      "required": ["agentType", "isolation", "sideEffectHumanGate", "artifactReceipts"],
+      "properties": {
+        "agentType": { "type": "string", "enum": ["coding", "non-coding"], "description": "Whether the agent's substrate is a code repo or a non-coding artifact/side-effect surface." },
+        "isolation": { "type": "boolean", "description": "Coding: per-writer worktree/branch isolation. Non-coding: sandboxed execution for side effects." },
+        "sideEffectHumanGate": { "type": "boolean", "description": "Irreversible or outward-facing actions require an explicit human checkpoint before executing." },
+        "artifactReceipts": { "type": "boolean", "description": "Side-effecting work produces a durable, artifact-backed receipt." }
+      }
+    }
+  }
+}
