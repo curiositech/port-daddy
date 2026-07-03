@@ -1,0 +1,28 @@
+{
+  "shaders": [
+    {
+      "name": "pbr_fragment",
+      "stage": "fragment",
+      "precision": "half",
+      "usesFloatForDisplayBound": false,
+      "runtimeBranchOnUniform": false,
+      "usesFunctionConstant": true,
+      "multiPassStoreLoad": false,
+      "memorylessIntermediates": true
+    },
+    {
+      "name": "blur_tile",
+      "stage": "tile",
+      "precision": "half",
+      "usesFloatForDisplayBound": false,
+      "runtimeBranchOnUniform": false,
+      "usesFunctionConstant": true,
+      "multiPassStoreLoad": true,
+      "memorylessIntermediates": true
+    }
+  ],
+  "occupancyPct": 85,
+  "registerUsagePct": 58,
+  "tileMemoryKb": 16,
+  "threadgroupSize": 64
+}

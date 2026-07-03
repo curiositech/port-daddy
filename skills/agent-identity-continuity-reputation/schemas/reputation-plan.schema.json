@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://port-daddy.dev/schemas/reputation-plan.schema.json",
+  "title": "Agent Identity / Continuity / Reputation Design Plan",
+  "description": "A structured claim-set describing a proposed or existing identity->continuity->reputation design, in the shape reputation_soundness_audit.mjs audits for the chain-breaks named in the skill's Failure Modes table.",
+  "type": "object",
+  "required": [
+    "identityNonForgeable",
+    "continuityPersists",
+    "outcomesCloseAgainstOracle",
+    "sampledAdversarialAuditor",
+    "estimator",
+    "representsUncertainty",
+    "scoreIsTelemetryGatesArePredicates",
+    "newcomerPolicy",
+    "judge",
+    "sanctionsStakedGraduated"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "identityNonForgeable": {
+      "type": "boolean",
+      "description": "True only if the agent id is minted by a trusted substrate (daemon/server) and bound to a credential the agent cannot cheaply re-pick. False if the agent can self-assert or choose its own id string."
+    },
+    "continuityPersists": {
+      "type": "object",
+      "description": "What the continuity mechanism actually persists across process/context death.",
+      "required": ["memory", "checkpoint", "outcomeLedger"],
+      "properties": {
+        "memory": {
+          "type": "boolean",
+          "description": "An episodic record of what happened survives (e.g. episodic-memory-algorithms output)."
+        },
+        "checkpoint": {
+          "type": "boolean",
+          "description": "A restorable execution/belief state survives, not just a text note."
+        },
+        "outcomeLedger": {
+          "type": "boolean",
+          "description": "An append-only, externally-witnessed record of what was delivered survives. Reputation keys on this field specifically."
+        }
+      }
+    },
+    "outcomesCloseAgainstOracle": {
+      "type": "boolean",
+      "description": "True only if outcomes close against ground truth the agent cannot author (merged SHA, passing test id, released claim, satisfied monitor) rather than free-text self-report."
+    },
+    "sampledAdversarialAuditor": {
+      "type": "boolean",
+      "description": "True if a random + risk-weighted fraction of cleared outcomes is re-opened and re-validated by an independent process."
+    },
+    "estimator": {
+      "type": "string",
+      "enum": ["elo", "trueskill", "bandit", "none"],
+      "description": "The reputation estimator consolidating outcome/pairwise signal into a score. 'none' means no estimator exists yet."
+    },
+    "representsUncertainty": {
+      "type": "boolean",
+      "description": "True if the estimator represents calibrated uncertainty (e.g. TrueSkill variance) or budgets exploration (e.g. bandit exploration bonus), so a new backend/agent is neither trusted blindly nor starved."
+    },
+    "scoreIsTelemetryGatesArePredicates": {
+      "type": "boolean",
+      "description": "True if the learned scalar reputation score is exposed as telemetry only, and any kill/spend/routing gate is wired to concrete predicates instead (e.g. clean exits >= N, no open overdue obligations)."
+    },
+    "newcomerPolicy": {
+      "type": "boolean",
+      "description": "True if a newcomer floor exists: full ability to work, reduced economic ceiling, until clean-exit history accrues. Absence risks whitewashing/Sybil-reset."
+    },
+    "judge": {
+      "type": "object",
+      "description": "Whether an LLM-as-judge is in the reputation loop, and whether it is de-biased.",
+      "required": ["present", "deBiased"],
+      "properties": {
+        "present": {
+          "type": "boolean",
+          "description": "True if any LLM-as-judge review participates in closing outcomes or scoring reputation."
+        },
+        "deBiased": {
+          "type": "boolean",
+          "description": "True if the judge is blinded, order-swapped/averaged, pairwise (not absolute), and excluded from judging its own family. Irrelevant (should be true or omitted-as-true) when present is false."
+        }
+      }
+    },
+    "sanctionsStakedGraduated": {
+      "type": "boolean",
+      "description": "True if sanctions for audit-failed/fake compliance are staked and graduated such that getting caught costs strictly more than honest non-completion."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text context for a human reviewer; not consumed by the auditor."
+    }
+  }
+}
