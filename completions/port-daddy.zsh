@@ -311,7 +311,17 @@ _pd_cmd_env() {
     '(-j --json)'{-j,--json}'[JSON output]' \
     '(-q --quiet)'{-q,--quiet}'[suppress output]' \
     '(-h --help)'{-h,--help}'[show help]' \
-    '1:env subcommand or service identity:((exec\:"run a command with pd-secret\:// refs resolved into its env"))'
+    '1:env subcommand or service identity:_pd_complete_env_first'
+}
+
+# First positional of `pd env`: the `exec` subcommand PLUS the existing
+# service identities — `pd env <service>` predates `exec` and must keep
+# completing.
+_pd_complete_env_first() {
+  local -a subs
+  subs=('exec:run a command with pd-secret:// refs resolved into its env')
+  _describe 'env subcommand' subs
+  _pd_complete_services
 }
 
 # pd safe scan|baseline|fix|corral|guard  (ADR-0088 host-safety)
