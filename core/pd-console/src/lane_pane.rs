@@ -12,9 +12,11 @@
 //!                          `control.interrupt` reappearing — the closed loop
 //!
 //! And it can steer: `SurfaceAction::Interrupt` POSTs `/agents/:id/interrupt`;
-//! `SurfaceAction::Message` publishes a normal operator turn to `agent:<id>`.
-//! Both come BACK on the stream as `agent.tube` frames, so the operator sees
-//! their signal land in the same work chat they are reading.
+//! `SurfaceAction::OperatorTurn` publishes operator turns to `agent:<id>`. Those
+//! turns can include text, attached files/photos, and requested skill/tool
+//! context. The daemon echoes delivery back as `agent.tube`, while the Lane
+//! renders the structured attachment context as chat/artifact rows after
+//! successful delivery.
 //!
 //! Which agent? `refresh()` (the 2s poll) picks the watch target: `PD_LANE_AGENT`
 //! if set (deterministic for screenshot capture), else the most-recently-active
@@ -22,7 +24,9 @@
 //! stream; envelopes flow back through `on_stream`.
 
 use crate::agent::{DaemonClient, StreamEnvelope, StreamKind};
-use crate::pane::{Block, Pane, Subscription, SurfaceAction, Tone};
+use crate::pane::{
+    Block, OperatorAttachmentKind, OperatorTurn, Pane, Subscription, SurfaceAction, Tone,
+};
 use crate::util;
 use anyhow::Result;
 use std::collections::BTreeSet;
@@ -136,6 +140,66 @@ impl LanePane {
             let overflow = self.lines.len() - SCROLLBACK;
             self.lines.drain(..overflow);
         }
+    }
+
+    fn push_operator_turn(&mut self, turn: &OperatorTurn) {
+        if !turn.text.trim().is_empty() {
+            self.push_line(LaneLine::Chat {
+                speaker: "you".into(),
+                text: turn.text.trim().to_string(),
+                tone: Tone::Accent,
+            });
+        }
+        for attachment in &turn.attachments {
+            let path = display_artifact_path(&attachment.path)
+                .unwrap_or_else(|| attachment.path.trim().to_string());
+            let (label, preview) = match attachment.kind {
+                OperatorAttachmentKind::File => {
+                    ("file attachment".to_string(), "attached file / open in current worktree")
+                }
+                OperatorAttachmentKind::Photo => (
+                    "photo attachment".to_string(),
+                    "attached photo / open in current worktree",
+                ),
+            };
+            self.push_line(LaneLine::Artifact {
+                label,
+                path,
+                preview: Some(preview.to_string()),
+            });
+        }
+        if !turn.skills.is_empty() {
+            self.push_line(LaneLine::Chat {
+                speaker: "skill".into(),
+                text: format!("invoke {}", turn.skills.join(", ")),
+                tone: Tone::Engaged,
+            });
+        }
+        if !turn.tools.is_empty() {
+            self.push_line(LaneLine::Chat {
+                speaker: "tool".into(),
+                text: format!("operator requested {}", turn.tools.join(", ")),
+                tone: Tone::Engaged,
+            });
+        }
+    }
+
+    async fn send_operator_turn(
+        &mut self,
+        daemon: &DaemonClient,
+        turn: OperatorTurn,
+    ) -> Result<()> {
+        if turn.is_empty() {
+            return Ok(());
+        }
+        let Some(id) = self.agent_id.clone() else {
+            return Err(anyhow::anyhow!("no agent to message"));
+        };
+        let text = turn.tube_text();
+        let channel = format!("agent:{id}");
+        daemon.tube_send(&channel, &text, "operator").await?;
+        self.push_operator_turn(&turn);
+        Ok(())
     }
 
     /// Fold a transcript envelope. The daemon's real shape is
@@ -780,18 +844,7 @@ impl Pane for LanePane {
                     daemon.interrupt(&id, reason.as_deref()).await?;
                     Ok(())
                 }
-                SurfaceAction::Message { text } => {
-                    let text = text.trim();
-                    if text.is_empty() {
-                        return Ok(());
-                    }
-                    let Some(id) = self.agent_id.clone() else {
-                        return Err(anyhow::anyhow!("no agent to message"));
-                    };
-                    let channel = format!("agent:{id}");
-                    daemon.tube_send(&channel, text, "operator").await?;
-                    Ok(())
-                }
+                SurfaceAction::OperatorTurn { turn } => self.send_operator_turn(daemon, turn).await,
             }
         })
     }
@@ -1160,6 +1213,55 @@ mod tests {
         assert_eq!(lane.tools.len(), 1);
         assert_eq!(lane.tools[0].name, "rg");
         assert_eq!(lane.tools[0].state, ToolState::Ok);
+    }
+
+    #[test]
+    fn operator_turn_context_renders_as_chat_and_artifacts() {
+        let mut lane = LanePane::new();
+        let turn = OperatorTurn::parse(
+            "Please inspect this @core/pd-console/src/main.rs\n@photo /tmp/lane proof.png\n@skill native-app-designer\n@tool cargo check",
+        );
+
+        lane.push_operator_turn(&turn);
+
+        let turns = chat_turns(&lane);
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "you"
+                && text == "Please inspect this"
+                && *tone == Tone::Accent));
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "skill"
+                && text.contains("native-app-designer")
+                && *tone == Tone::Engaged));
+        assert!(turns
+            .iter()
+            .any(|(speaker, text, tone)| speaker == "tool"
+                && text.contains("cargo check")
+                && *tone == Tone::Engaged));
+        assert_eq!(
+            artifact_paths(&lane),
+            vec![
+                "core/pd-console/src/main.rs".to_string(),
+                "/tmp/lane proof.png".to_string()
+            ]
+        );
+        let blocks = lane.view();
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ArtifactRef { label, path, preview, .. }
+                if label == "file attachment"
+                    && path == "core/pd-console/src/main.rs"
+                    && preview.as_deref() == Some("attached file / open in current worktree")
+        )));
+        assert!(blocks.iter().any(|block| matches!(
+            block,
+            Block::ArtifactRef { label, path, preview, .. }
+                if label == "photo attachment"
+                    && path == "/tmp/lane proof.png"
+                    && preview.as_deref() == Some("attached photo / open in current worktree")
+        )));
     }
 
     #[test]
