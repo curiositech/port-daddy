@@ -18,6 +18,7 @@ import {
   runSafeScan,
   planJewelFixes,
   applyJewelFix,
+  realRunner,
   type ShellRunner,
   type JewelFixPlan,
 } from '../../lib/safe/scan.js';
@@ -187,5 +188,15 @@ describe('applyJewelFix', () => {
     );
     expect(result.applied).toBe(false);
     expect(calls).toEqual([]);
+  });
+});
+
+describe('realRunner — the one un-injected shell boundary', () => {
+  it('returns null (never throws) for a binary that does not exist on this OS', () => {
+    // Regression: on Linux CI `nettop` is absent; Bun's ENOENT error carries
+    // stdout: NULL (not undefined), and `.toString()` on it crashed the whole
+    // `pd safe scan` with "null is not an object". The runner must degrade to
+    // null so the egress sensor reports unavailable instead of killing the scan.
+    expect(realRunner('pd-definitely-not-a-real-binary-xyz', ['--version'])).toBeNull();
   });
 });

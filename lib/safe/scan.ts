@@ -68,7 +68,8 @@ export interface RunningProcess {
  */
 export type ShellRunner = TrustRunner;
 
-const realRunner: ShellRunner = (cmd, args) => {
+/** Exported for the ENOENT regression test — production callers use the default. */
+export const realRunner: ShellRunner = (cmd, args) => {
   try {
     const out = execFileSync(cmd, args, {
       encoding: 'utf8',
@@ -80,8 +81,11 @@ const realRunner: ShellRunner = (cmd, args) => {
   } catch (e) {
     // A non-zero exit still carries stdout (codesign prints to stdout/stderr on
     // failure) — surface it with ok:false so the trust classifier can read both.
-    const err = e as { status?: number; stdout?: Buffer | string };
-    if (err && err.stdout !== undefined) {
+    // != null (not !== undefined): a spawn-level failure — ENOENT for a binary
+    // that doesn't exist on this OS, e.g. `nettop` on Linux — sets stdout to
+    // NULL in Bun, and .toString() on null crashed the whole scan on CI.
+    const err = e as { status?: number; stdout?: Buffer | string | null };
+    if (err && err.stdout != null) {
       return { ok: false, out: typeof err.stdout === 'string' ? err.stdout : err.stdout.toString('utf8') };
     }
     return null;
