@@ -1,8 +1,18 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function list(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function nonNegativeNumber(value, name) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) {
+    throw new Error(`${name} must be a non-negative number`);
+  }
+  return number;
 }
 
 export function evaluateLatencyBudget(plan) {
@@ -15,20 +25,25 @@ export function evaluateLatencyBudget(plan) {
   if (plan.targetP95Ms === undefined) {
     throw new Error('plan.targetP95Ms is required');
   }
-  const targetP95Ms = Number(plan.targetP95Ms);
-  if (!Number.isFinite(targetP95Ms) || targetP95Ms < 0) {
-    throw new Error('plan.targetP95Ms must be a non-negative number');
-  }
+  const targetP95Ms = nonNegativeNumber(plan.targetP95Ms, 'plan.targetP95Ms');
   const channels = list(plan.channels);
   if (channels.length === 0) {
     throw new Error('plan.channels must include at least one channel');
   }
-  const messages = list(plan.messages);
-  const hotChannels = channels.filter((channel) => channel.role === 'hot');
-  const durableChannels = channels.filter((channel) => channel.role === 'durable');
-  const hotP95Ms = hotChannels.reduce((sum, channel) => sum + Number(channel.p95Ms ?? 0), 0);
-  const durableP95Ms = durableChannels.reduce((sum, channel) => sum + Number(channel.p95Ms ?? 0), 0);
-  const oversizedMessages = messages.filter((message) => Number(message.actualBytes ?? 0) > Number(message.maxBytes ?? 4096));
+  const normalizedChannels = channels.map((channel, index) => ({
+    ...channel,
+    p95Ms: nonNegativeNumber(channel.p95Ms, `channels[${index}].p95Ms`),
+  }));
+  const messages = list(plan.messages).map((message, index) => ({
+    ...message,
+    actualBytes: nonNegativeNumber(message.actualBytes ?? 0, `messages[${index}].actualBytes`),
+    maxBytes: nonNegativeNumber(message.maxBytes ?? 4096, `messages[${index}].maxBytes`),
+  }));
+  const hotChannels = normalizedChannels.filter((channel) => channel.role === 'hot');
+  const durableChannels = normalizedChannels.filter((channel) => channel.role === 'durable');
+  const hotP95Ms = hotChannels.reduce((sum, channel) => sum + channel.p95Ms, 0);
+  const durableP95Ms = durableChannels.reduce((sum, channel) => sum + channel.p95Ms, 0);
+  const oversizedMessages = messages.filter((message) => message.actualBytes > message.maxBytes);
 
   const recommendations = [];
   if (hotP95Ms > targetP95Ms) {
@@ -77,7 +92,7 @@ function parseArgs(argv) {
   return { input: argv[inputIndex + 1] };
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const { input } = parseArgs(process.argv.slice(2));
   const plan = JSON.parse(readFileSync(input, 'utf8'));
   process.stdout.write(`${JSON.stringify(evaluateLatencyBudget(plan), null, 2)}\n`);

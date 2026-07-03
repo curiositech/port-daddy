@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -85,7 +87,7 @@ function parseArgs(argv) {
   return { input: argv[inputIndex + 1] };
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const { input } = parseArgs(process.argv.slice(2));
   const flow = JSON.parse(readFileSync(input, 'utf8'));
   process.stdout.write(`${JSON.stringify(scoreMagicProgression(flow), null, 2)}\n`);

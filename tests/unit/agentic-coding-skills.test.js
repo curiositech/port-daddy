@@ -1,5 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,6 +45,15 @@ describe('agentic coding skill helpers', () => {
         audiences: [{ id: 'uncited', name: 'an uncited user', jobs: ['ship work'] }],
       }),
     ).toThrow(/must include at least one evidence source/);
+    expect(() =>
+      buildStoryMatrix({
+        sources: [
+          { id: 'same', url: 'https://example.com/one' },
+          { id: 'same', url: 'https://example.com/two' },
+        ],
+        audiences: [{ id: 'cited', name: 'a cited user', jobs: ['ship work'], evidence: ['same'] }],
+      }),
+    ).toThrow(/duplicates source id/);
   });
 
   test('scoreMagicProgression catches missing rollback and high friction', () => {
@@ -108,6 +119,13 @@ describe('agentic coding skill helpers', () => {
     expect(internetComputer.pass).toBe(false);
     expect(internetComputer.icpGuidance).toContain('poor hot path');
     expect(() => evaluateLatencyBudget({})).toThrow(/plan.name is required/);
+    expect(() =>
+      evaluateLatencyBudget({
+        name: 'bad-latency',
+        targetP95Ms: 10,
+        channels: [{ name: 'hot', role: 'hot', transport: 'loopback', p95Ms: 'fast' }],
+      }),
+    ).toThrow(/channels\[0\]\.p95Ms/);
   });
 
   test('evaluateTrajectorySuite scores artifact-backed traces and validated unhooks', () => {
@@ -257,6 +275,59 @@ describe('agentic coding skill helpers', () => {
     expect(report.summary.unhooksReady).toBe(true);
     expect(report.summary.deployable).toBe(true);
     expect(report.warnings).toEqual([]);
+  });
+
+  test('helper CLI entrypoints print JSON reports', () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'agentic-coding-cli-'));
+    try {
+      const fixtures = [
+        {
+          script: join(repo, 'skills/agentic-coding-product-research/scripts/story_matrix.mjs'),
+          input: {
+            sources: [{ id: 'docs', url: 'https://example.com/docs' }],
+            audiences: [{ id: 'builder', name: 'a builder', jobs: ['ship a slice'], evidence: ['docs'] }],
+          },
+          expectKey: 'user_stories',
+        },
+        {
+          script: join(repo, 'skills/agentic-coding-ux-designer/scripts/magic_progression_score.mjs'),
+          input: {
+            flowName: 'safe-flow',
+            steps: [{ label: 'Review diff', friction: 1, context: true, visibleProgress: true, rollback: true, humanGate: true, receipt: true }],
+          },
+          expectKey: 'score',
+        },
+        {
+          script: join(repo, 'skills/swarm-invocation-designer/scripts/latency_budget.mjs'),
+          input: {
+            name: 'bus',
+            targetP95Ms: 25,
+            channels: [{ name: 'hot', role: 'hot', transport: 'unix-socket', p95Ms: 2 }],
+          },
+          expectKey: 'hotP95Ms',
+        },
+        {
+          script: join(repo, 'skills/agent-rl-sandbox-trainer/scripts/trajectory_eval_harness.mjs'),
+          input: {
+            agent: { name: 'safe' },
+            unhooks: [{ name: 'reset', command: 'npm run reset', validated: true }],
+            tasks: [{ id: 'task', instruction: 'Run test', expectedActions: [{ tool: 'run_tests' }], expectedEvidence: [{ kind: 'test-output', contains: ['PASS'], exitCode: 0 }] }],
+            trajectories: [{ taskId: 'task', actions: [{ tool: 'run_tests', args: {} }], artifacts: [{ kind: 'test-output', content: 'PASS', exitCode: 0 }] }],
+          },
+          expectKey: 'summary',
+        },
+      ];
+
+      for (const [index, fixture] of fixtures.entries()) {
+        const inputPath = join(tmpRoot, `fixture-${index}.json`);
+        writeFileSync(inputPath, JSON.stringify(fixture.input), 'utf8');
+        const stdout = execFileSync(process.execPath, [fixture.script, '--input', inputPath], { cwd: repo, encoding: 'utf8' });
+        const parsed = JSON.parse(stdout);
+        expect(parsed).toHaveProperty(fixture.expectKey);
+      }
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });
 
