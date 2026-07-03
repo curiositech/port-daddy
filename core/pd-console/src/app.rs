@@ -51,6 +51,11 @@ pub enum ControlMsg {
     Cartographer {
         text: String,
     },
+    /// Send an operator turn to the agent currently watched by the Lane. This is
+    /// a real `agent:<id>` tube message; the Lane stream echoes it as `agent.tube`.
+    MessageLane {
+        text: String,
+    },
     /// Operator chat: a turn UP the tube on the stable per-conversation channel
     /// (`console-chat`). The background thread binds a real conversational
     /// responder on the first turn (spawns a Claude Code agent on the channel,
@@ -211,6 +216,8 @@ pub enum CmdKind {
     Spawn,
     /// Talk to the cartographer. Buffer is the message.
     Cartographer,
+    /// Talk to the agent currently watched by the Lane. Buffer is the message.
+    LaneMessage,
     /// Reject the head dispatch with a reason (the human-gate "modify/why" path).
     /// The target dispatch id is held in `ConsoleView::reject_target`.
     DispatchReject,
@@ -258,6 +265,7 @@ impl CmdKind {
         match self {
             CmdKind::Spawn => "spawn",
             CmdKind::Cartographer => "cartographer",
+            CmdKind::LaneMessage => "message agent",
             CmdKind::DispatchReject => "reject reason",
             CmdKind::AddPane => "add pane",
             CmdKind::Conjure => "conjure",
@@ -295,6 +303,9 @@ impl CmdKind {
             CmdKind::Cartographer => {
                 "Ask the cartographer about the roadmap, then watch the lane stream the reply…"
                     .to_string()
+            }
+            CmdKind::LaneMessage => {
+                "Tell the watched agent what to do next; it lands on agent:<id>…".to_string()
             }
             CmdKind::DispatchReject => {
                 "Why reject this? The reason is sent back to the agent.".to_string()
@@ -1239,6 +1250,65 @@ fn render_block(block: Block, motion: FlagMotion) -> impl IntoElement {
                     .child(cell)
             }))
             .into_any_element(),
+        Block::ChatTurn {
+            speaker,
+            text,
+            tone,
+        } => {
+            let color_u32 = tone_rgb(&tone);
+            let mine = matches!(
+                speaker.trim().to_ascii_lowercase().as_str(),
+                "you" | "operator"
+            );
+            let label = if speaker.trim().is_empty() {
+                "agent".to_string()
+            } else {
+                chat_display_text(&speaker)
+            };
+            let body = chat_display_text(&text);
+            let bubble = div()
+                .max_w(px(680.0))
+                .flex()
+                .overflow_hidden()
+                .rounded(px(tokens::RADIUS_LG))
+                .border_1()
+                .border_color(rgb(if mine { t.accent } else { t.line }))
+                .bg(rgb(if mine { t.raised } else { t.panel }))
+                .when(!mine, |b| {
+                    b.child(div().w(px(4.0)).flex_shrink_0().bg(rgb(color_u32)))
+                })
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(tokens::SPACE_1))
+                        .px(px(tokens::SPACE_3))
+                        .py(px(tokens::SPACE_2))
+                        .child(
+                            div()
+                                .text_color(rgb(if mine { t.accent_ink } else { color_u32 }))
+                                .text_size(px(tokens::TEXT_CAPTION))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(label),
+                        )
+                        .child(
+                            div()
+                                .text_color(rgb(t.ink))
+                                .text_size(px(tokens::TEXT_BODY))
+                                .child(body),
+                        ),
+                );
+            let row = div()
+                .w_full()
+                .flex()
+                .px(px(tokens::SPACE_3))
+                .py(px(tokens::SPACE_1));
+            if mine {
+                row.child(div().flex_1()).child(bubble).into_any_element()
+            } else {
+                row.child(bubble).child(div().flex_1()).into_any_element()
+            }
+        }
         Block::TranscriptLine { text, tone } => {
             let color_u32 = tone_rgb(&tone);
             div()
@@ -2255,6 +2325,12 @@ impl ConsoleView {
                 self.ws_mut()
                     .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
             }
+            CmdKind::LaneMessage => {
+                let _ = tx.send(ControlMsg::MessageLane { text });
+                self.control_flash = Some("sent to watched agent — watch the chat stream".into());
+                self.ws_mut()
+                    .swap_surface(SurfaceKind::AgentTranscript { agent_id: None });
+            }
             CmdKind::DispatchReject => {
                 if let Some(id) = self.reject_target.take() {
                     let reason = if text.len() >= 3 {
@@ -3071,6 +3147,33 @@ impl ConsoleView {
                         .flex()
                         .items_center()
                         .gap(px(8.0))
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("message-{id}")))
+                                .px(px(12.0))
+                                .py(px(5.0))
+                                .rounded(px(6.0))
+                                .bg(rgb(current_theme().accent))
+                                .text_color(rgb(current_theme().bg))
+                                .text_size(px(14.0))
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .cursor_pointer()
+                                .hover(|s| {
+                                    s.shadow(motion::glow(
+                                        current_theme().accent,
+                                        0.30,
+                                        10.0,
+                                        0.0,
+                                    ))
+                                })
+                                .child("Message agent")
+                                .on_click(cx.listener(|this, _ev, _window, cx| {
+                                    this.command = Some(CommandLine::new(CmdKind::LaneMessage));
+                                    this.control_flash =
+                                        Some("type a turn for the watched agent".into());
+                                    cx.notify();
+                                })),
+                        )
                         .child(
                             div()
                                 .id(SharedString::from(format!("interrupt-{id}")))
@@ -4691,6 +4794,7 @@ fn parse_verb(text: &str) -> Option<(CmdKind, String)> {
         "interrupt" | "stop" => CmdKind::InterruptAgent,
         "spawn" | "new" => CmdKind::Spawn,
         "cartographer" | "chat" => CmdKind::Cartographer,
+        "lane" | "agent" | "message" | "steer" => CmdKind::LaneMessage,
         "pane" | "addpane" => CmdKind::AddPane,
         _ => return None,
     };
@@ -5610,6 +5714,11 @@ mod add_pane_tests {
             ),
             ("kill agent-xyz", CmdKind::Kill, "agent-xyz"),
             ("interrupt agent-xyz", CmdKind::InterruptAgent, "agent-xyz"),
+            (
+                "lane keep going but open the diff first",
+                CmdKind::LaneMessage,
+                "keep going but open the diff first",
+            ),
         ];
         for (line, kind, arg) in cases {
             let (k, a) = parse_verb(line).unwrap_or_else(|| panic!("'{line}' must parse"));
@@ -5634,6 +5743,10 @@ mod add_pane_tests {
         assert!(matches!(
             parse_verb("chat hey carto"),
             Some((CmdKind::Cartographer, _))
+        ));
+        assert!(matches!(
+            parse_verb("steer write the test first"),
+            Some((CmdKind::LaneMessage, _))
         ));
         assert!(matches!(
             parse_verb("stop agent-1"),

@@ -461,6 +461,17 @@ fn main() {
                                     let _ = alert_tx.send(pane::Alert::error("cartographer send failed", e.to_string()));
                                 }
                             }
+                            app::ControlMsg::MessageLane { text } => {
+                                if let Err(e) = lane
+                                    .mutate(&client, SurfaceAction::Message { text })
+                                    .await
+                                {
+                                    let _ = alert_tx.send(pane::Alert::error(
+                                        "agent message failed",
+                                        e.to_string(),
+                                    ));
+                                }
+                            }
                             // Operator chat — the REAL tube round-trip. The first turn
                             // binds a conversational responder by spawning a Claude Code
                             // agent ON the `console-chat` channel (guaranteed multi-turn

@@ -8,6 +8,8 @@
 //!   :agents                   list hosted agents
 //!   :switch <n>               make agent n active
 //!   :dispatch                 show the dispatch queue (sorties awaiting review)
+//!   :lane                     show the watched agent's live work chat
+//!   :lane-message <text>      send an operator turn to the watched agent
 //!   <text>                    send a turn to the active agent (over tube)
 //!   :quit
 //!
@@ -71,7 +73,7 @@ use dispatch_pane::DispatchQueuePane;
 use fleet_pane::FleetPane;
 use lane_pane::LanePane;
 use lineage_pane::LineagePane;
-use pane::PaneRegistry;
+use pane::{PaneRegistry, Subscription, SurfaceAction};
 use substrate_pane::SubstratePane;
 use parley_pane::ParleyPane;
 use std::io::{self, Write};
@@ -98,11 +100,35 @@ fn banner(style: &TermStyle, daemon_url: &str) {
         "{}  {}",
         rail("└"),
         style.paint(
-            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :roster · <text> · :quit",
+            ":harness <backend> <prompt> · :new <backend> <prompt> · :agents · :switch <n> · :lane · :lane-message <text> · :quit",
             Sem::Muted
         )
     );
     println!();
+}
+
+async fn drain_active_subscription(reg: &mut PaneRegistry, mgr: &AgentManager, window: Duration) {
+    let Some(Subscription::Agent { agent_id }) = reg.active().and_then(|p| p.subscription()) else {
+        return;
+    };
+
+    let active = reg.active;
+    let mut rx = mgr.daemon().subscribe_agent(&agent_id);
+    let deadline = tokio::time::Instant::now() + window;
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            break;
+        }
+        match tokio::time::timeout(remaining, rx.recv()).await {
+            Ok(Some(env)) => {
+                if let Some(p) = reg.panes.get_mut(active) {
+                    p.on_stream(&env);
+                }
+            }
+            Ok(None) | Err(_) => break,
+        }
+    }
 }
 
 #[tokio::main]
@@ -154,16 +180,16 @@ async fn main() -> Result<()> {
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
-        } else if line == ":lane" || line == ":interrupt" {
+        } else if line == ":lane" || line == ":interrupt" || line.starts_with(":lane-message ") || line.starts_with(":steer ") {
             // The live Lane surface (headless rendering of one tick). `:lane`
             // refreshes + renders; `:interrupt` additionally grabs the wheel —
             // POST /agents/:id/interrupt on the watched agent (the closed loop).
+            // `:lane-message` sends a normal operator turn up agent:<id>.
             reg.active = reg.panes.iter().position(|p| p.id() == "lane").unwrap_or(0);
             if let Err(e) = reg.refresh_active(mgr.daemon()).await {
                 err(&style, &format!("refresh failed: {e}"));
             }
             if line == ":interrupt" {
-                use pane::SurfaceAction;
                 match reg
                     .mutate_active(mgr.daemon(), SurfaceAction::Interrupt { reason: Some("operator stop".into()) })
                     .await
@@ -171,7 +197,21 @@ async fn main() -> Result<()> {
                     Ok(()) => ok(&style, "interrupt sent — watch the stream for control.interrupt"),
                     Err(e) => err(&style, &format!("interrupt failed: {e}")),
                 }
+            } else if let Some(text) = line
+                .strip_prefix(":lane-message ")
+                .or_else(|| line.strip_prefix(":steer "))
+                .map(str::trim)
+                .filter(|text| !text.is_empty())
+            {
+                match reg
+                    .mutate_active(mgr.daemon(), SurfaceAction::Message { text: text.into() })
+                    .await
+                {
+                    Ok(()) => ok(&style, "message sent — watch the lane for the echoed operator turn"),
+                    Err(e) => err(&style, &format!("message failed: {e}")),
+                }
             }
+            drain_active_subscription(&mut reg, &mgr, Duration::from_millis(1_200)).await;
             if let Some(p) = reg.active() {
                 print!("{}", term::render_blocks(&p.view(), &style));
             }
