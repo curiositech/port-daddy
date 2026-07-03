@@ -30,6 +30,14 @@ const CHECKS = [
   ['pricing-cost', 'can-build-with-risk', 'How are pricing and model costs explained?', 'business.pricing', 'State pricing, budget, or spend-control assumptions.'],
 ];
 
+function checkIsMissing(manifest, id, path) {
+  const value = getPath(manifest, path);
+  if (id === 'target-users') {
+    return !Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== 'string' || item.trim() === '');
+  }
+  return !hasValue(value);
+}
+
 export function reviewProductReality(manifest) {
   if (!manifest || typeof manifest !== 'object') {
     throw new Error('product reality manifest must be an object');
@@ -38,7 +46,7 @@ export function reviewProductReality(manifest) {
     throw new Error('manifest.name is required');
   }
 
-  const findings = CHECKS.filter(([, , , path]) => !hasValue(getPath(manifest, path))).map(([id, severity, question, path, recommendation]) =>
+  const findings = CHECKS.filter(([id, , , path]) => checkIsMissing(manifest, id, path)).map(([id, severity, question, path, recommendation]) =>
     finding(id, severity, question, path, recommendation),
   );
 

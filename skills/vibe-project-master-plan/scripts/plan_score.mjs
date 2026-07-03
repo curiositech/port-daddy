@@ -51,7 +51,7 @@ function missingFrom(plan, pairs) {
 }
 
 function sliceWarnings(slices) {
-  if (!Array.isArray(slices)) return ['buildSlices must be an array'];
+  if (!Array.isArray(slices)) return ['buildSlices.type'];
   const warnings = [];
   slices.forEach((slice, index) => {
     if (!hasValue(slice.acceptanceGates)) warnings.push(`buildSlices[${index}].acceptanceGates`);
@@ -72,6 +72,10 @@ function agentWarnings(agents) {
   return warnings;
 }
 
+function isCriticalSliceGap(gap) {
+  return gap === 'buildSlices.type' || gap.includes('proofArtifacts') || gap.includes('rollback');
+}
+
 export function scoreProjectPlan(plan) {
   if (!plan || typeof plan !== 'object') {
     throw new Error('plan manifest must be an object');
@@ -85,7 +89,7 @@ export function scoreProjectPlan(plan) {
   const agentGaps = agentWarnings(plan.agents);
   const criticalGaps = [
     ...coldStartGaps,
-    ...sliceGaps.filter((gap) => gap.includes('proofArtifacts') || gap.includes('rollback')),
+    ...sliceGaps.filter(isCriticalSliceGap),
     ...agentGaps.filter((gap) => gap.endsWith('.permission') || gap.endsWith('.rollback')),
   ];
 

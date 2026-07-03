@@ -34,6 +34,40 @@ describe('vibe project planning helper scripts', () => {
     expect(report.agentGaps).toContain('agents[0].permission');
   });
 
+  test('scoreProjectPlan blocks invalid buildSlices shape', () => {
+    const report = scoreProjectPlan({
+      name: 'invalid slices',
+      productPromise: 'Help builders plan a complete app.',
+      users: [{ name: 'builder' }],
+      coldStart: {
+        accountCreation: 'email magic link',
+        emptyState: 'guided sample',
+        missingProviderFallback: 'demo provider',
+        demoMode: 'sample project',
+      },
+      surfaces: ['gui'],
+      architecture: {
+        dataObjects: ['project'],
+        auth: 'workspace session',
+        permissions: 'scoped edits',
+        trustBoundaries: 'approval before writes',
+        observability: 'receipt log',
+      },
+      buildSlices: { name: 'not an array' },
+      launch: {
+        docs: 'quickstart',
+        support: 'feedback path',
+        telemetry: 'activation events',
+        securityPrivacy: 'credential redaction',
+        postLaunchReview: 'weekly review',
+      },
+    });
+
+    expect(report.pass).toBe(false);
+    expect(report.sliceGaps).toContain('buildSlices.type');
+    expect(report.criticalGaps).toContain('buildSlices.type');
+  });
+
   test('scoreProjectPlan passes a complete first-run and launch manifest', () => {
     const report = scoreProjectPlan({
       name: 'tube workflow builder',
@@ -85,6 +119,23 @@ describe('vibe project planning helper scripts', () => {
     expect(review.mustFix.map((finding) => finding.id)).toContain('provider-fallback');
     expect(review.mustFix.map((finding) => finding.id)).toContain('receipts');
     expect(review.mustFix.map((finding) => finding.id)).toContain('agent-0-rollback');
+  });
+
+  test('reviewProductReality blocks invalid targetUsers shape', () => {
+    const review = reviewProductReality({
+      name: 'workflow planner',
+      targetUsers: 'developer',
+      firstRun: { firstValue: 'sample project plan', emptyState: 'guided prompt' },
+      account: { creation: 'email magic link' },
+      providerAccess: { fallback: 'demo mode', credentialUx: 'guided provider panel' },
+      trust: { permissions: 'scoped read/write', receipts: 'transcript and diff' },
+      support: { path: 'feedback with transcript export' },
+      business: { pricing: 'free demo and metered provider use' },
+      agentActions: [{ name: 'generate sender', approval: 'human reviews files', rollback: 'discard draft branch' }],
+    });
+
+    expect(review.verdict).toBe('not-ready');
+    expect(review.mustFix.map((finding) => finding.id)).toContain('target-users');
   });
 
   test('reviewProductReality passes a build-ready product manifest', () => {
