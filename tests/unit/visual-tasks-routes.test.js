@@ -3,11 +3,13 @@ import Fastify from 'fastify';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import fastifyCors from '@fastify/cors';
 import { createTestDb } from '../setup-unit.js';
 import { createMessaging } from '../../lib/messaging.js';
 import { createAgentInbox } from '../../lib/agent-inbox.js';
 import { createBlobStore } from '../../lib/blob.js';
 import { createDispatchQueue } from '../../lib/dispatch/queue.js';
+import { createDaemonCorsOptions } from '../../lib/daemon-cors.js';
 
 const { visualTasksPlugin } = await import('../../routes/visual-tasks.js');
 
@@ -19,6 +21,8 @@ function pngDataUrl(label = 'png') {
 
 async function buildApp(overrides = {}) {
   const app = Fastify();
+  await app.register(fastifyCors, createDaemonCorsOptions());
+  app.get('/fleet', async () => ({ ok: true }));
   const db = createTestDb();
   const messaging = createMessaging(db);
   const agentInbox = createAgentInbox(db);
@@ -149,6 +153,64 @@ describe('visual task routes', () => {
     expect(dispatches[0].goal).toContain('/repo/src/CheckoutButton.tsx:42:7');
     expect(dispatches[0].targetActorId).toBe('qa');
     expect(dispatchWorker.poll).toHaveBeenCalledTimes(1);
+
+    await app.close();
+  });
+
+  test('daemon CORS limits Chrome extension origins to visual-task intake', async () => {
+    const { app } = await buildApp();
+    const extensionOrigin = 'chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+
+    const preflight = await app.inject({
+      method: 'OPTIONS',
+      url: '/visual-tasks',
+      headers: {
+        origin: extensionOrigin,
+        'access-control-request-method': 'POST',
+      },
+    });
+
+    expect(preflight.statusCode).toBe(204);
+    expect(preflight.headers['access-control-allow-origin']).toBe(extensionOrigin);
+    expect(preflight.headers['access-control-allow-credentials']).toBe('true');
+
+    const visualTask = await app.inject({
+      method: 'POST',
+      url: '/visual-tasks',
+      headers: {
+        origin: extensionOrigin,
+      },
+      payload: {
+        source: 'chrome-extension',
+        description: 'This screenshot should enter the visual-task intake.',
+        image: { mimeType: 'image/png', dataUrl: pngDataUrl('scoped-cors') },
+      },
+    });
+
+    expect(visualTask.statusCode).toBe(201);
+    expect(visualTask.headers['access-control-allow-origin']).toBe(extensionOrigin);
+
+    const fleet = await app.inject({
+      method: 'GET',
+      url: '/fleet',
+      headers: {
+        origin: extensionOrigin,
+      },
+    });
+
+    expect(fleet.statusCode).toBe(200);
+    expect(fleet.headers['access-control-allow-origin']).toBeUndefined();
+
+    const localhostFleet = await app.inject({
+      method: 'GET',
+      url: '/fleet',
+      headers: {
+        origin: 'http://localhost:5173',
+      },
+    });
+
+    expect(localhostFleet.statusCode).toBe(200);
+    expect(localhostFleet.headers['access-control-allow-origin']).toBe('http://localhost:5173');
 
     await app.close();
   });
